@@ -211,6 +211,7 @@ AstGlobals *astGlobalsInit_( void ) {
       INIT( TimeMap );
       INIT( TranMap );
       INIT( UnitMap );
+      INIT( UnitNormMap );
       INIT( WinMap );
       INIT( StcResourceProfile );
       INIT( StcSearchLocation );
