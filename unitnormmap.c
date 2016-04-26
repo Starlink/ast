@@ -4,20 +4,20 @@
 *     UnitNormMap
 
 *  Purpose:
-*     Convert a vector to a unit vector and its norm, relative to a specified center.
+*     Convert a vector to a unit vector and its norm, relative to a specified centre.
 
 *  Constructor Function:
 c     astUnitNormMap
 f     AST_UNITNORMMAP
 
 *  Description:
-*     The forward transformation of a UnitNormMap subtracts the specified center
+*     The forward transformation of a UnitNormMap subtracts the specified centre
 *     and then transforms the resulting vector to a unit vector and the vector norm.
 *     The output contains one more coordinate than the input: the initial Nin outputs
 *     are in the same order as the input; the final output is the norm.
 *
 *     The inverse transformation of a UnitNormMap multiplies each component
-*     of the provided vector by the provided norm and adds the specified center.
+*     of the provided vector by the provided norm and adds the specified centre.
 *     The output contains one fewer coordinate than the input: the initial Nin inputs
 *     are in the same order as the output; the final input is the norm.
 *
@@ -297,14 +297,14 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
       AstUnitNormMap *unm = (AstUnitNormMap *) map2;
       int nin = astGetNin( shiftmap );
       double shiftmult = astGetInvert( shiftmap ) ? -1 : 1;
-      double *newcenter = astMalloc( sizeof(double)*(size_t)nin );
+      double *newcentre = astMalloc( sizeof(double)*(size_t)nin );
       int coord = 0;
       for( coord = 0; coord < nin; coord++ ){
-         newcenter[coord] = unm->center[coord] - shiftmult*shiftmap->shift[coord];
+         newcentre[coord] = unm->centre[coord] - shiftmult*shiftmap->shift[coord];
       }
-      retmap = (AstMapping *) astUnitNormMap( nin, newcenter, "", status );
+      retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "", status );
       if( retmap == NULL ){
-         astFree( (void *) newcenter );
+         astFree( (void *) newcentre );
       }
    } else if( type1 == 3 ) {
       if( astGetInvert( map2 )) return NULL;  /* WinMap + UnitNormMap(inverted) not supported */
@@ -315,15 +315,15 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
       AstUnitNormMap *unm = (AstUnitNormMap *) map2;
       int nin = astGetNin( winmap );
       double shiftmult = astGetInvert( winmap ) ? -1 : 1;
-      double *newcenter = astMalloc( sizeof(double)*(size_t)nin );
+      double *newcentre = astMalloc( sizeof(double)*(size_t)nin );
       int coord = 0;
       for( coord = 0; coord < nin; coord++ ){
          if( !EQUAL( winmap->b[coord], 1.0 )) return NULL;
-         newcenter[coord] = unm->center[coord] - shiftmult*winmap->a[coord];
+         newcentre[coord] = unm->centre[coord] - shiftmult*winmap->a[coord];
       }
-      retmap = (AstMapping *) astUnitNormMap( nin, newcenter, "", status );
+      retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "", status );
       if( retmap == NULL ){
-         astFree( (void *) newcenter );
+         astFree( (void *) newcentre );
       }
    } else if( type2 == 2 ) {
       if( !astGetInvert( map1 )) return NULL;  /* UnitNormMap(forward) + ShiftMap not supported */
@@ -333,14 +333,14 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
       AstUnitNormMap *unm = (AstUnitNormMap *) map1;
       int nin = astGetNin( shiftmap );
       double shiftmult = astGetInvert( shiftmap ) ? -1 : 1;
-      double *newcenter = astMalloc( sizeof(double)*(size_t)nin );
+      double *newcentre = astMalloc( sizeof(double)*(size_t)nin );
       int coord = 0;
       for( coord = 0; coord < nin; coord++ ){
-         newcenter[coord] = unm->center[coord] + shiftmult*shiftmap->shift[coord];
+         newcentre[coord] = unm->centre[coord] + shiftmult*shiftmap->shift[coord];
       }
-      retmap = (AstMapping *) astUnitNormMap( nin, newcenter, "Invert=1", status );
+      retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "Invert=1", status );
       if( retmap == NULL ){
-         astFree( (void *) newcenter );
+         astFree( (void *) newcentre );
       }
    } else if( type2 == 3 ) {
       if( !astGetInvert( map1 )) return NULL;  /* UnitNormMap(forward) + WinMap not supported */
@@ -351,15 +351,15 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
       AstUnitNormMap *unm = (AstUnitNormMap *) map1;
       int nin = astGetNin( winmap );
       double shiftmult = astGetInvert( winmap ) ? -1 : 1;
-      double *newcenter = astMalloc( sizeof(double)*(size_t)nin );
+      double *newcentre = astMalloc( sizeof(double)*(size_t)nin );
       int coord = 0;
       for( coord = 0; coord < nin; coord++ ){
          if( !EQUAL( winmap->b[coord], 1.0 )) return NULL;
-         newcenter[coord] = unm->center[coord] + shiftmult*winmap->a[coord];
+         newcentre[coord] = unm->centre[coord] + shiftmult*winmap->a[coord];
       }
-      retmap = (AstMapping *) astUnitNormMap( nin, newcenter, "Invert=1", status );
+      retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "Invert=1", status );
       if( retmap == NULL ){
-         astFree( (void *) newcenter );
+         astFree( (void *) newcentre );
       }
    } else {
       if( !astGetInvert( map1 ) == !astGetInvert( map2 )) return NULL;  /* UNMs must have opposite dir. */
@@ -369,17 +369,17 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
       AstUnitNormMap *unm2 = (AstUnitNormMap *) map2;
 
       int ctrlen = MIN( astGetNin( map1 ), astGetNin( map2 ) );
-      int centers_equal = 1;
+      int centres_equal = 1;
       int i = 0;
       for( i = 0; i < ctrlen; i++ ){
-         if( !EQUAL( unm1->center[i], unm2->center[i] )){
-            centers_equal = 0;
+         if( !EQUAL( unm1->centre[i], unm2->centre[i] )){
+            centres_equal = 0;
             break;
          }
       }
-      if( centers_equal ) {
+      if( centres_equal ) {
 
-/* Two UnitNormMap in opposite directions with identical centers = UnitMap */
+/* Two UnitNormMap in opposite directions with identical centres = UnitMap */
          retmap = (AstMapping *) astUnitMap( astGetNin( map1 ), "", status );
       } else {
          if( astGetInvert( map2 )) {
@@ -389,7 +389,7 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
             double *shift = astMalloc( sizeof(double)*(size_t)nin );
             int coord = 0;
             for( coord = 0; coord < nin; coord++ ){
-               shift[coord] = unm2->center[coord] - unm1->center[coord];
+               shift[coord] = unm2->centre[coord] - unm1->centre[coord];
             }
             retmap = (AstMapping *) astShiftMap( nin, shift, "", status );
             if( retmap == NULL ){
@@ -484,7 +484,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
    add on any components of the class structure defined by thsi class
    which are stored in dynamically allocated memory. */
    result = (*parent_getobjsize)( this_object, status );
-   result += astTSizeOf( this->center );
+   result += astTSizeOf( this->centre );
 
 /* If an error occurred, clear the result value. */
    if( !astOK ) result = 0;
@@ -568,7 +568,7 @@ void astInitUnitNormMapVtab_(  AstUnitNormMapVtab *vtab, const char *name, int *
    mapping->GetIsLinear = GetIsLinear;
 
 /* Declare the class dump, copy and delete functions.*/
-   astSetDump( vtab, Dump, "UnitNormMap", "Compute unit vector and norm relative to a center" );
+   astSetDump( vtab, Dump, "UnitNormMap", "Compute unit vector and norm relative to a centre" );
    astSetCopy( (AstObjectVtab *) vtab, Copy );
    astSetDelete( (AstObjectVtab *) vtab, Delete );
 
@@ -865,22 +865,22 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
       forward = !forward;
    }
 
-/* Report an error if the UnitNormMap does not contain a center. */
-   if( !map->center && astOK ){
+/* Report an error if the UnitNormMap does not contain a centre. */
+   if( !map->centre && astOK ){
       const char *class = astGetClass( this );
       astError( AST__BADSM, "astTransform(%s): The supplied %s does not "
-                "contain any center information.", status, class, class );
+                "contain any centre information.", status, class, class );
    }
 
 /* Perform coordinate arithmetic. */
 /* ------------------------------ */
    if( astOK ){
 
-/* If any center coordinate is bad then set all outputs bad */
-      int const ncoord_center = forward ? ncoord_in : ncoord_out;
+/* If any centre coordinate is bad then set all outputs bad */
+      int const ncoord_centre = forward ? ncoord_in : ncoord_out;
       int coord_ctr = 0;
-      for( coord_ctr = 0; coord_ctr < ncoord_center; coord_ctr++ ){
-         if( (map->center)[coord_ctr] == AST__BAD ){
+      for( coord_ctr = 0; coord_ctr < ncoord_centre; coord_ctr++ ){
+         if( (map->centre)[coord_ctr] == AST__BAD ){
             int coord_out = 0;
             for( coord_out = 0; coord_out < ncoord_out; coord_out++ ){
                int point = 0;
@@ -898,7 +898,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
          int point = 0;
          for( point = 0; point < npoint; point++ ){
 
-/* Compute max_relin: the maximum absolute input value relative to center */
+/* Compute max_relin: the maximum absolute input value relative to centre */
             double max_relin = 0;
             int coord_in = 0;
             for( coord_in = 0; coord_in < ncoord_in; coord_in++ ){
@@ -912,7 +912,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                   }
                   goto forward_next_point;
                }
-               double abs_relin = fabs(in - map->center[coord_in]);
+               double abs_relin = fabs(in - map->centre[coord_in]);
                if( abs_relin > max_relin ){
                   max_relin = abs_relin;
                }
@@ -929,17 +929,17 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
             }
 
 /* All is well; compute scaled_sum as the sum of (relin/max_relin)^2 for each input
-   where relin = in - center (the scaling avoids overflow),
+   where relin = in - centre (the scaling avoids overflow),
    then compute norm = max_relin * sqrt(scaled_sum) and set all outputs */
             double scaled_sum = 0;
             int coord = 0;
             for( coord = 0; coord < ncoord_in; coord++ ){
-               double scaled_in = (ptr_in[coord][point] - map->center[coord])/max_relin;
+               double scaled_in = (ptr_in[coord][point] - map->centre[coord])/max_relin;
                scaled_sum += scaled_in*scaled_in;
             }
             double norm = max_relin*sqrt(scaled_sum);
             for( coord = 0; coord < ncoord_in; coord++ ){
-               ptr_out[coord][point] = (ptr_in[coord][point] - map->center[coord])/norm;
+               ptr_out[coord][point] = (ptr_in[coord][point] - map->centre[coord])/norm;
             }
             ptr_out[ncoord_out - 1][point] = norm;
 
@@ -965,7 +965,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                   if( in == AST__BAD ){
                      ptr_out[coord][point] = AST__BAD;
                   } else {
-                     ptr_out[coord][point] = in*norm + map->center[coord];
+                     ptr_out[coord][point] = in*norm + map->centre[coord];
                   }
                }
             }
@@ -1028,13 +1028,13 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
 /* Get the number of coordinates mapped by the UnitNormMap. */
    ncoord = astGetNin( in );
 
-/* Allocate memory holding copies of the center defining the mapping. */
-   out->center = (double *) astStore( NULL, (void *) in->center,
+/* Allocate memory holding copies of the centre defining the mapping. */
+   out->centre = (double *) astStore( NULL, (void *) in->centre,
                                      sizeof(double)*(size_t)ncoord );
 
 /* If an error occurred, free any allocated memory. */
    if( !astOK ) {
-      out->center = (double *) astFree( (void *) out->center );
+      out->centre = (double *) astFree( (void *) out->centre );
    }
 
 }
@@ -1076,8 +1076,8 @@ static void Delete( AstObject *obj, int *status ) {
 /* Obtain a pointer to the UnitNormMap structure. */
    this = (AstUnitNormMap *) obj;
 
-/* Free the memory holding the center. */
-   this->center = (double *) astFree( (void *) this->center );
+/* Free the memory holding the centre. */
+   this->centre = (double *) astFree( (void *) this->centre );
 
 }
 
@@ -1131,13 +1131,13 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    UnitNormMap class.  Accompany these with appropriate comment strings,
    possibly depending on the values being written.*/
 
-/* The center. */
+/* The centre. */
    int axis = 0;
    for( axis = 0; axis < ncoord; axis++ ){
       (void) sprintf( buff, "Ctr%d", axis + 1 );
-      (void) sprintf( comment, "Center for axis %d", axis + 1 );
-      astWriteDouble( channel, buff, (this->center)[ axis ] != 0.0, 0,
-                      (this->center)[ axis ], comment );
+      (void) sprintf( comment, "Centre for axis %d", axis + 1 );
+      astWriteDouble( channel, buff, (this->centre)[ axis ] != 0.0, 0,
+                      (this->centre)[ axis ], comment );
    }
 
 /* Undefine macros local to this function. */
@@ -1152,7 +1152,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 astMAKE_ISA(UnitNormMap,Mapping)
 astMAKE_CHECK(UnitNormMap)
 
-AstUnitNormMap *astUnitNormMap_( int ncoord, const double center[], const char *options, int *status, ...) {
+AstUnitNormMap *astUnitNormMap_( int ncoord, const double centre[], const char *options, int *status, ...) {
 /*
 *++
 *  Name:
@@ -1167,9 +1167,9 @@ f     AST_UNITNORMMAP
 
 *  Synopsis:
 c     #include "unitnormmap.h"
-c     AstUnitNormMap *astUnitNormMap( int ncoord, const double center[],
+c     AstUnitNormMap *astUnitNormMap( int ncoord, const double centre[],
 c                               const char *options, ... )
-f     RESULT = AST_UNITNORMMAP( NCOORD, CENTER, OPTIONS, STATUS )
+f     RESULT = AST_UNITNORMMAP( NCOORD, CENTRE, OPTIONS, STATUS )
 
 *  Class Membership:
 *     UnitNormMap constructor.
@@ -1179,12 +1179,12 @@ f     RESULT = AST_UNITNORMMAP( NCOORD, CENTER, OPTIONS, STATUS )
 *     attributes.
 *
 *     A UnitNormMap is a Mapping which, in the forward direction,
-*     subtracts the specified center and then transforms the resulting vector
+*     subtracts the specified centre and then transforms the resulting vector
 *     to a unit vector and the vector norm.
 *     The forward direction outputs one more coordinate than is input.
 *
 *     The inverse transformation of a UnitNormMap multiplies each component
-*     of the provided vector by the provided norm and adds the specified center.
+*     of the provided vector by the provided norm and adds the specified centre.
 *     The forward direction outputs one fewer coordinate than is input.
 *
 *     UnitNormMap is intended for applying radially symmetric distortions, as follows:
@@ -1198,8 +1198,8 @@ f     NCOORD = INTEGER (Given)
 *        The number of coordinate values for each point to be
 *        transformed (i.e. the number of dimensions of the space in
 *        which the points will reside). Output will include one additional coordinate.
-c     center
-f     CENTER( NCOORD ) = DOUBLE PRECISION (Given)
+c     centre
+f     CENTRE( NCOORD ) = DOUBLE PRECISION (Given)
 *        An array containing the values to be subtracted from the input
 *        coordinates before computing unit vector and norm. A separate
 *        value must be supplied for each coordinate.
@@ -1254,7 +1254,7 @@ f     function is invoked with STATUS set to an error value, or if it
 /* Initialise the UnitNormMap, allocating memory and initialising the
    virtual function table as well if necessary. */
    AstUnitNormMap *new = astInitUnitNormMap( NULL, sizeof( AstUnitNormMap ), !class_init, &class_vtab,
-                        "UnitNormMap", ncoord, center );
+                        "UnitNormMap", ncoord, centre );
 
 /* If successful, note that the virtual function table has been
    initialised. */
@@ -1276,7 +1276,7 @@ f     function is invoked with STATUS set to an error value, or if it
    return new;
 }
 
-AstUnitNormMap *astUnitNormMapId_( int ncoord, const double center[],
+AstUnitNormMap *astUnitNormMapId_( int ncoord, const double centre[],
                              const char *options, ... ) {
 /*
 *  Name:
@@ -1290,7 +1290,7 @@ AstUnitNormMap *astUnitNormMapId_( int ncoord, const double center[],
 
 *  Synopsis:
 *     #include "unitnormmap.h"
-*     AstUnitNormMap *astUnitNormMapId_( int ncoord, const double center[],
+*     AstUnitNormMap *astUnitNormMapId_( int ncoord, const double centre[],
 *                                  const char *options, ... )
 
 *  Class Membership:
@@ -1331,7 +1331,7 @@ AstUnitNormMap *astUnitNormMapId_( int ncoord, const double center[],
 /* Initialise the UnitNormMap, allocating memory and initialising the
    virtual function table as well if necessary. */
    AstUnitNormMap *new = astInitUnitNormMap( NULL, sizeof( AstUnitNormMap ), !class_init, &class_vtab,
-                          "UnitNormMap", ncoord, center );
+                          "UnitNormMap", ncoord, centre );
 
 /* If successful, note that the virtual function table has been
    initialised. */
@@ -1355,7 +1355,7 @@ AstUnitNormMap *astUnitNormMapId_( int ncoord, const double center[],
 
 AstUnitNormMap *astInitUnitNormMap_( void *mem, size_t size, int init,
                               AstUnitNormMapVtab *vtab, const char *name,
-                              int ncoord, const double *center, int *status ) {
+                              int ncoord, const double *centre, int *status ) {
 /*
 *+
 *  Name:
@@ -1371,7 +1371,7 @@ AstUnitNormMap *astInitUnitNormMap_( void *mem, size_t size, int init,
 *     #include "unitnormmap.h"
 *     AstUnitNormMap *astInitUnitNormMap( void *mem, size_t size, int init,
 *                                   AstUnitNormMapVtab *vtab, const char *name,
-*                                   int ncoord, const double *center )
+*                                   int ncoord, const double *centre )
 
 *  Class Membership:
 *     UnitNormMap initialiser.
@@ -1412,8 +1412,8 @@ AstUnitNormMap *astInitUnitNormMap_( void *mem, size_t size, int init,
 *        method).
 *     ncoord
 *        The number of coordinate values per point.
-*     center
-*        Pointer to an array of centers, one for each coordinate.
+*     centre
+*        Pointer to an array of centres, one for each coordinate.
 
 *  Returned Value:
 *     A pointer to the new UnitNormMap.
@@ -1430,9 +1430,9 @@ AstUnitNormMap *astInitUnitNormMap_( void *mem, size_t size, int init,
 /* Check the global status. */
    if( !astOK ) return NULL;
 
-/* Check center */
+/* Check centre */
    if( ncoord <= 0 ){
-      astError( AST__BADSM, "The center must have at least one axis", status );
+      astError( AST__BADSM, "The centre must have at least one axis", status );
       return NULL;
    }
 
@@ -1453,16 +1453,16 @@ AstUnitNormMap *astInitUnitNormMap_( void *mem, size_t size, int init,
 
 /* Initialise the UnitNormMap data. */
 /* ---------------------------- */
-/* Allocate memory to hold the center for each axis. */
-      new->center = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
+/* Allocate memory to hold the centre for each axis. */
+      new->centre = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
 
 /* Check the pointers can be used */
       if( astOK ){
 
-/* Store the center for each axis. */
+/* Store the centre for each axis. */
          int axis = 0;
          for( axis = 0; axis < ncoord; axis++ ){
-            (new->center)[ axis ] = center ? center[ axis ] : AST__BAD;
+            (new->centre)[ axis ] = centre ? centre[ axis ] : AST__BAD;
          }
 
       }
@@ -1594,8 +1594,8 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
 /* Get the number of axis for the mapping. */
       int ncoord = astGetNin( (AstMapping *) new );
 
-/* Allocate memory to hold the center. */
-      new->center = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
+/* Allocate memory to hold the centre. */
+      new->centre = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
 
 /* Read input data. */
 /* ================ */
@@ -1606,11 +1606,11 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */
 
-/* The center. */
+/* The centre. */
       int axis = 0;
       for( axis = 0; axis < ncoord; axis++ ){
          (void) sprintf( buff, "ctr%d", axis + 1 );
-         (new->center)[ axis ] = astReadDouble( channel, buff, 0.0 );
+         (new->centre)[ axis ] = astReadDouble( channel, buff, 0.0 );
       }
    }
 
@@ -1635,8 +1635,3 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
    Note that the member function may not be the one defined here, as it may
    have been over-ridden by a derived class. However, it should still have the
    same interface. */
-
-
-
-
-

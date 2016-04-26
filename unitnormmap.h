@@ -20,15 +20,15 @@
 *     etc.  needed to use this class.
 *
 *     A UnitNormMap is a Mapping which, in the forward direction,
-*     subtracts the specified center and then transforms the resulting vector
+*     subtracts the specified centre and then transforms the resulting vector
 *     to a unit vector and the vector norm.
 *     The forward direction outputs one more coordinate than is input.
 *
 *     The inverse transformation of a UnitNormMap multiplies each component
-*     of the provided vector by the provided norm and adds the specified center.
+*     of the provided vector by the provided norm and adds the specified centre.
 *     The forward direction outputs one fewer coordinate than is input.
 *
-*     Example: if center = [1, -1] then [5, 2] transforms to [4, 3] after subtracting the center;
+*     Example: if centre = [1, -1] then [5, 2] transforms to [4, 3] after subtracting the centre;
 *     the norm is 5, so the output is [0.8, 0.6, 5]
 *
 *     UnitNormMap is intended for applying radially symmetric distortions, as follows:
@@ -174,7 +174,7 @@ typedef struct AstUnitNormMap {
    AstMapping mapping;           /* Parent class structure */
 
 /* Attributes specific to objects in this class. */
-   double *center;                /* Pointer to array of shifts */
+   double *centre;                /* Pointer to array of shifts */
 
 } AstUnitNormMap;
 
@@ -278,8 +278,8 @@ AstUnitNormMap *astLoadUnitNormMap_( void *, size_t, AstUnitNormMapVtab *,
 
 /* Initialiser. */
 #define \
-astInitUnitNormMap(mem,size,init,vtab,name,ncoord,center) \
-astINVOKE(O,astInitUnitNormMap_(mem,size,init,vtab,name,ncoord,center,STATUS_PTR))
+astInitUnitNormMap(mem,size,init,vtab,name,ncoord,centre) \
+astINVOKE(O,astInitUnitNormMap_(mem,size,init,vtab,name,ncoord,centre,STATUS_PTR))
 
 /* Vtab Initialiser. */
 #define astInitUnitNormMapVtab(vtab,name) astINVOKE(V,astInitUnitNormMapVtab_(vtab,name,STATUS_PTR))
@@ -298,8 +298,3 @@ astINVOKE(O,astLoadUnitNormMap_(mem,size,vtab,name,astCheckChannel(channel),STAT
 #endif
 
 #endif
-
-
-
-
-
