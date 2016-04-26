@@ -85,6 +85,7 @@ goodsource="${srcdir}/axis.c \
             ${srcdir}/selectormap.c \
             ${srcdir}/switchmap.c \
             ${srcdir}/unitmap.c \
+            ${srcdir}/unitnormmap.c \
             ${srcdir}/wcsmap.c \
             ${srcdir}/winmap.c \
             ${srcdir}/xmlchan.c \
