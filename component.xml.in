@@ -3,7 +3,7 @@
 
 <component id="@PACKAGE@" support="S">
   <version>@PACKAGE_VERSION@</version>
-  <path>libraries/ast</path>
+  <path>libext/ast</path>
   <description>WCS library</description>
   <abstract>
     <p>The AST library provides a comprehensive range of facilities for
