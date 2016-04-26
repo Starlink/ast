@@ -134,6 +134,7 @@ F_C_ROUTINES = \
     ftimemap.c \
     ftranmap.c \
     funitmap.c \
+    funitnormmap.c \
     fwcsmap.c \
     fwinmap.c \
     fxmlchan.c \
