@@ -53,3 +53,5 @@ sun211.log
 sun211.out
 sun211.toc
 test-suite.log
+make.log
+make.log.err
