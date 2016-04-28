@@ -68,6 +68,7 @@
 #include "timemap.h"
 #include "tranmap.h"
 #include "unitmap.h"
+#include "unitnormmap.h"
 #include "wcsmap.h"
 #include "winmap.h"
 #include "xml.h"
@@ -202,6 +203,7 @@ typedef struct AstGlobals {
    AstTimeMapGlobals TimeMap;
    AstTranMapGlobals TranMap;
    AstUnitMapGlobals UnitMap;
+   AstUnitNormMapGlobals UnitNormMap;
    AstWinMapGlobals WinMap;
    AstStcResourceProfileGlobals	StcResourceProfile;
    AstStcSearchLocationGlobals StcSearchLocation;

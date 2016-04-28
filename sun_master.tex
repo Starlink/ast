@@ -17559,6 +17559,7 @@ Object             - Base class for all AST Objects
       TimeMap      - Sequence of time coordinate conversions
       TranMap      - Combine fwd. and inv. transformations from two Mappings
       UnitMap      - Unit (null) Mapping
+      UnitNormMap  - Converts a vector to a unit vector plus length
       WcsMap       - Implement a FITS-WCS sky projection
       WinMap       - Match windows by scaling and shifting each axis
       ZoomMap      - Zoom coordinates about the origin
@@ -21658,6 +21659,12 @@ occurred in the AST library between versions V8.1.0 and V8.2.0 (the
 current version):
 
 \begin{enumerate}
+
+\item A new class of Mapping called UnitNormMap has been added that converts
+a vector to a unit vector relative to a specified centre, plus length. A
+UnitNormMap has N inputs and N+1 outputs.The lower N output coordinates
+represent a unit vector parallel to the supplied input vector, and the
+(N+1)'th output coordinate is the length of the input vector.
 
 \item The restriction that Mappings are immutable has been extended to all
 Mapping classes. This means that attributes representing parameters of

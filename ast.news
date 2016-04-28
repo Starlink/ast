@@ -16,6 +16,12 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- A new class of Mapping called UnitNormMap has been added that converts a
+vector to a unit vector relative to a specified centre, plus length. A
+UnitNormMap has N inputs and N+1 outputs.The lower N output coordinates
+represent a unit vector parallel to the supplied input vector, and the
+(N+1)'th output coordinate is the length of the input vector.
+
 - The restriction that Mappings are immutable has been extended to all
 Mapping classes. This means that attributes representing parameters of
 a Mapping's forward or inverse transformation cannot be changed after

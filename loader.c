@@ -50,6 +50,7 @@
 #include "selectormap.h"
 #include "switchmap.h"
 #include "unitmap.h"
+#include "unitnormmap.h"
 #include "wcsmap.h"
 #include "winmap.h"
 #include "xmlchan.h"
@@ -71,7 +72,7 @@
 /*
 *+
 *  Copyright:
-*     Copyright (C) 1997-2006 Council for the Central Laboratory of the
+*     Copyright (C) 1997-2016 Council for the Central Laboratory of the
 *     Research Councils
 
 *  Licence:
@@ -93,6 +94,7 @@
 *  Authors:
 *     RFWS: R.F. Warren-Smith (Starlink)
 *     DSB: David S. Berry (Starlink)
+*     RO: Russell Owen (LSST)
 
 *  History:
 *     18-NOV-1997 (RFWS):
@@ -109,6 +111,8 @@
 *        Added the GrsimMap class.
 *     6-FEB-2009 (DSB):
 *        Added the StcsChan class.
+*     20-APR-2016 (RO):
+*        Added the UnitNormMap class.
 *-
 */
 
@@ -170,6 +174,7 @@ if ( !strcmp( class, #name ) ) return (AstLoaderType *) astLoad##name##_
    LOAD(TimeMap);
    LOAD(TranMap);
    LOAD(UnitMap);
+   LOAD(UnitNormMap);
    LOAD(WcsMap);
    LOAD(WinMap);
    LOAD(XmlChan);

@@ -66,6 +66,7 @@ GRP_C_ROUTINES = \
     tranmap.c \
     unit.c \
     unitmap.c \
+    unitnormmap.c \
     wcsmap.c \
     winmap.c \
     xml.c \
@@ -133,6 +134,7 @@ F_C_ROUTINES = \
     ftimemap.c \
     ftranmap.c \
     funitmap.c \
+    funitnormmap.c \
     fwcsmap.c \
     fwinmap.c \
     fxmlchan.c \
