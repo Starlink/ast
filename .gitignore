@@ -55,3 +55,5 @@ sun211.toc
 test-suite.log
 make.log
 make.log.err
+*~
+ast_tester/*.ps
