@@ -81,6 +81,10 @@ f     The SphMap class does not define any new routines beyond those
 *        MatrixMap just magnifies or reflects the radius vector.
 *     25-MAR-2014 (DSB):
 *        Correct 5-NOV-2013 MapMerge change.
+*     28-APR-2016 (DSB):
+*        Avoid modifying the attributes of the existing SphMap in
+*        MapMerge, since it may be in use in other contexts. Modify a
+*        copy instead.
 *class--
 */
 
@@ -705,6 +709,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Local Variables: */
    AstMapping *new;              /* Pointer to replacement Mapping */
    AstMatrixMap *mm;             /* Pointer to MatrixMap */
+   AstSphMap *sm;                /* The new SphMap */
    AstWinMap *wm;                /* The new WinMap */
    const char *class;            /* Pointer to Mapping class string */
    double absval;                /* Absolute value fo each diagonal element */
@@ -916,15 +921,19 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          if( astEQUAL( polarlong, astGetPolarLong( ( *map_list )[ where + 2 ] ) ) ) {
 
 /* All is good, so we can now change the supplied Mappings list. First
-   change the PolarLong value in the first SphMap. */
-            astSetPolarLong( ( *map_list )[ where ], polarlong );
+   get a copy of the first SphMap and change its PolarLong value. We use
+   a copy since the original may be in use in other contexts that could be
+   badly affected by the change. */
+            sm = astCopy( ( *map_list )[ where ] );
+            astSetPolarLong( sm, polarlong );
 
-/* Annul The MatrixMap or ZoomMap. */
+/* Annul the SphMap and the MatrixMap or ZoomMap. */
+            (void) astAnnul( ( *map_list )[ where ] );
             (void) astAnnul( ( *map_list )[ where + 1 ] );
 
-/* Move the first SphMap to the slot left vacant by the annulled
+/* Store the modified SphMap in the slot left vacant by the annulled
    MatrixMap or ZoomMap. */
-            ( *map_list )[ where + 1 ] = ( *map_list )[ where ];
+            ( *map_list )[ where + 1 ] = (AstMapping *) sm;
             ( *invert_list )[ where + 1 ] = ( *invert_list )[ where ];
 
 /* Store the new WinMap in the place of the SphMap. */

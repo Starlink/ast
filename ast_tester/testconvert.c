@@ -10,7 +10,7 @@
 #include "unitmap.h"
 #include "permmap.h"
 
-main(){
+int main(){
    int status_value = 0;
    int *status = &status_value;
 

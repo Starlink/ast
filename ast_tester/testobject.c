@@ -1,7 +1,8 @@
 #include "ast.h"
 #include <stdio.h>
+#include <string.h>
 
-main(){
+int main(){
    char *pickle1;
    char *pickle2;
    AstSkyFrame *sf = astSkyFrame( " " );
