@@ -39,8 +39,7 @@ f     The UnitNormMap class does not define any new routines beyond those
 *     which are applicable to all Mappings.
 
 *  Copyright:
-*     Copyright (C) 1997-2016 Council for the Central Laboratory of the
-*     Research Councils
+*     Copyright (C) 2016 University of Washington
 
 *  Licence:
 *     This program is free software: you can redistribute it and/or
@@ -62,7 +61,7 @@ f     The UnitNormMap class does not define any new routines beyond those
 *     RO: Russell Owen (LSST)
 
 *  History:
-*     20-APR-2016 (RO:
+*     20-APR-2016 (RO):
 *        Original version.
 *class--
 */
@@ -1178,18 +1177,19 @@ f     RESULT = AST_UNITNORMMAP( NCOORD, CENTRE, OPTIONS, STATUS )
 *     This function creates a new UnitNormMap and optionally initialises its
 *     attributes.
 *
-*     A UnitNormMap is a Mapping which, in the forward direction,
-*     subtracts the specified centre and then transforms the resulting vector
-*     to a unit vector and the vector norm.
-*     The forward direction outputs one more coordinate than is input.
+*     The forward transformation of a UnitNormMap subtracts the specified centre
+*     and then transforms the resulting vector to a unit vector and the vector norm.
+*     The output contains one more coordinate than the input: the initial Nin outputs
+*     are in the same order as the input; the final output is the norm.
 *
 *     The inverse transformation of a UnitNormMap multiplies each component
 *     of the provided vector by the provided norm and adds the specified centre.
-*     The forward direction outputs one fewer coordinate than is input.
+*     The output contains one fewer coordinate than the input: the initial Nin inputs
+*     are in the same order as the output; the final input is the norm.
 *
-*     UnitNormMap is intended for applying radially symmetric distortions, as follows:
+*     UnitNormMap enables radially symmetric transformations, as follows:
 *     - apply a UnitNormMap to produce a unit vector and norm (radius)
-*     - apply some one-dimensional mapping to the norm (radius), while passing the unit vector unchanged
+*     - apply a one-dimensional mapping to the norm (radius), while passing the unit vector unchanged
 *     - apply the same UnitNormMap in the inverse direction to produce the result
 
 *  Parameters:

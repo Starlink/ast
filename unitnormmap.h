@@ -109,8 +109,7 @@
 *        provided for external calls to the AST library.
 
 *  Copyright:
-*     Copyright (C) 1997-2016 Council for the Central Laboratory of the
-*     Research Councils
+*     Copyright (C) 2016 University of Washington
 
 *  Licence:
 *     This program is free software: you can redistribute it and/or
