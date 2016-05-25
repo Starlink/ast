@@ -145,12 +145,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -534,6 +534,7 @@ typedef struct AstPointSetVtab {
    void (* SetNpoint)( AstPointSet *, int, int * );
    void (* SetPoints)( AstPointSet *, double **, int * );
    void (* SetSubPoints)( AstPointSet *, int, int, AstPointSet *, int * );
+   void (* ShowPoints)( AstPointSet *, int * );
    int (* ReplaceNaN)( AstPointSet *, int * );
 
    double (* GetPointAccuracy)( AstPointSet *, int, int * );
@@ -601,6 +602,7 @@ void astSetSubPoints_( AstPointSet *, int, int, AstPointSet *, int * );
 AstPointSet *astAppendPoints_( AstPointSet *, AstPointSet *, int * );
 void astBndPoints_( AstPointSet *, double *, double *, int * );
 int astReplaceNaN_( AstPointSet *, int * );
+void astShowPoints_( AstPointSet *, int * );
 
 # if defined(astCLASS)           /* Protected */
 int astGetNcoord_( const AstPointSet *, int * );
@@ -678,6 +680,8 @@ astINVOKE(O,astAppendPoints_(astCheckPointSet(this),astCheckPointSet(that),STATU
 astINVOKE(V,astBndPoints_(astCheckPointSet(this),lbnd,ubnd,STATUS_PTR))
 #define astReplaceNaN(this) \
 astINVOKE(V,astReplaceNaN_(astCheckPointSet(this),STATUS_PTR))
+#define astShowPoints(this) \
+astINVOKE(V,astShowPoints_(astCheckPointSet(this),STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astGetNpoint(this) \

@@ -22,12 +22,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -66,6 +66,8 @@
 *        Added astReplaceNan.
 *     2-OCT-2012 (DSB):
 *        Check for Infs as well as NaNs.
+*     24-MAY-2016 (DSB):
+*        Added astShowPoints.
 */
 
 /* Module Macros. */
@@ -558,9 +560,10 @@ static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void PermPoints( AstPointSet *, int, const int[], int * );
 static void SetAttrib( AstObject *, const char *, int * );
-static void SetPoints( AstPointSet *, double **, int * );
 static void SetNpoint( AstPointSet *, int, int * );
+static void SetPoints( AstPointSet *, double **, int * );
 static void SetSubPoints( AstPointSet *, int, int, AstPointSet *, int * );
+static void ShowPoints( AstPointSet *, int * );
 
 static double GetPointAccuracy( AstPointSet *, int, int * );
 static int TestPointAccuracy( AstPointSet *, int, int * );
@@ -1574,6 +1577,7 @@ void astInitPointSetVtab_(  AstPointSetVtab *vtab, const char *name, int *status
    vtab->SetPoints = SetPoints;
    vtab->SetNpoint = SetNpoint;
    vtab->SetSubPoints = SetSubPoints;
+   vtab->ShowPoints = ShowPoints;
 
    vtab->GetPointAccuracy = GetPointAccuracy;
    vtab->SetPointAccuracy = SetPointAccuracy;
@@ -2259,6 +2263,80 @@ static void SetSubPoints( AstPointSet *point1, int point, int coord,
    }
 }
 
+static void ShowPoints( AstPointSet *this, int *status ) {
+/*
+*+
+*  Name:
+*     astShowPoints
+
+*  Purpose:
+*     Display the contents of a PointSet on standard output as a table
+*     in TOPCAT ASCII format.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "pointset.h"
+*     void astShowPoints( AstPointSet *this )
+
+*  Class Membership:
+*     PointSet method.
+
+*  Description:
+*     This function displays the contents of the supplied PointSet on
+*     standard output as a table in TOPCAT "ascii" format. The first row
+*     is a comment that defines the column (axis) names as AXIS1, AXIS2,
+*     etc. Each subsequent row contains the axis values for one point.
+*     Bad axis values are represented by the string "null".
+
+*  Parameters:
+*     this
+*        Pointer to the first PointSet.
+*-
+*/
+
+/* Local Variables: */
+   double **ptr;
+   double *p;
+   int ic;
+   int ip;
+   int nc;
+   int np;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Get pointers to the PointSet data, the number of axes and the number
+   of points. */
+   ptr = astGetPoints( this );
+   nc = astGetNcoord( this );
+   np = astGetNpoint( this );
+
+/* Check the pointers can be used safely. */
+   if( astOK ) {
+
+/* Display the header. */
+      printf("# ");
+      for( ic = 0; ic < nc; ic++ ) {
+         printf("Axis%d ", ic + 1 );
+      }
+      printf("\n");
+
+/* Display each row. */
+      for( ip = 0; ip < np; ip++,p++ ) {
+         for( ic = 0; ic < nc; ic++ ) {
+            if( ptr[ic][ip] != AST__BAD ) {
+               printf("%.*g ", DBL_DIG, ptr[ic][ip] );
+            } else {
+               printf("%*s ", -DBL_DIG, "null");
+            }
+         }
+         printf("\n");
+      }
+   }
+}
+
 static int TestAttrib( AstObject *this_object, const char *attrib, int *status ) {
 /*
 *  Name:
@@ -2301,7 +2379,6 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 */
 
 /* Local Variables: */
-   AstPointSet *this;            /* Pointer to the PointSet structure */
    int result;                   /* Result value to return */
 
 /* Initialise. */
@@ -2309,9 +2386,6 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 
 /* Check the global error status. */
    if ( !astOK ) return result;
-
-/* Obtain a pointer to the PointSet structure. */
-   this = (AstPointSet *) this_object;
 
 /* Check the attribute name and test the appropriate attribute. */
 
@@ -3199,6 +3273,10 @@ void astBndPoints_( AstPointSet *this, double *lbnd, double *ubnd, int *status )
 int astReplaceNaN_( AstPointSet *this, int *status ) {
    if ( !astOK ) return 0;
    return (**astMEMBER(this,PointSet,ReplaceNaN))( this, status );
+}
+void astShowPoints_( AstPointSet *this, int *status ) {
+   if ( !astOK ) return;
+   (**astMEMBER(this,PointSet,ShowPoints))( this, status );
 }
 
 
