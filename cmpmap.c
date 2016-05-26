@@ -3466,7 +3466,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
          nominated++;
 
 /* Note if any simplification occurred above. */
-         if( modified >= 0 ) {
+         if( modified >= 0 && astOK ) {
 
 /* Append the index of the first modified Mapping in the list and and check
    that there is no repreating pattern in the list. If there is, we are
