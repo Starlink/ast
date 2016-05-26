@@ -15,11 +15,13 @@
 /sun211.pdf
 /version.h
 /*.trs
+*.safe
 *.lo
 *.o
 *.la
 .deps/
 .libs/
+.bug
 AST_ERR
 Makefile
 Makefile.in
@@ -36,6 +38,7 @@ config.h.in
 config.log
 config.status
 configure
+experiments
 fac_1521_err
 libtool
 stamp-h1
