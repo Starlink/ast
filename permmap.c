@@ -87,6 +87,12 @@ f     The PermMap class does not define any new routines beyond those
 *        for inperm), ensure the array is padded with "-1" values if the
 *        number of inputs exceeds the number of outputs. Also do the
 *        equivalent for default outperm arrays.
+*     26-MAY-2016 (DSB):
+*        Allow the PermSplit attribute to be changed at any time. This is 
+*        because it does not directly affect either the forward or inverse
+*        transformation of the PermMap. The FitsCHan class needs to be able
+*        to change it to determine when checking if the -TAB algorithm can
+*        be used.
 *class--
 */
 
@@ -2026,20 +2032,19 @@ static AstPointSet *Transform( AstMapping *map, AstPointSet *in,
 *     inputs are fed (by the inverse transformation) by the same output,
 *     then the PermMap cannot be split.
 *
-*     Note, the value of this attribute may changed only if the PermMap
-*     has no more than one reference. That is, an error is reported if the
-*     PermMap has been cloned, either by including it within another object
-*     such as a CmpMap or FrameSet or by calling the astClone function.
+*     Note, unlike most Mapping attributes, the value of this attribute
+*     may be changed at any time. This is because it does not change the
+*     nature of either the forward or inverse transformation of the Mapping.
 
 *  Applicability:
 *     PermMap
 *        All PermMaps have this attribute.
 *att-
 */
-astMAKE_CLEAR1(PermMap,PermSplit,permsplit,-INT_MAX)
+astMAKE_CLEAR(PermMap,PermSplit,permsplit,-INT_MAX)
 astMAKE_GET(PermMap,PermSplit,int,0,( this->permsplit != -INT_MAX ?
                                       this->permsplit : 0 ))
-astMAKE_SET1(PermMap,PermSplit,int,permsplit,( value != 0 ))
+astMAKE_SET(PermMap,PermSplit,int,permsplit,( value != 0 ))
 astMAKE_TEST(PermMap,PermSplit,( this->permsplit != -INT_MAX ))
 
 
