@@ -1164,6 +1164,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        astAddFrame took a clone of the supplied Frame pointer, but it
 *        now takes a deep copy, so the original Frame and the FrameSet's
 *        current Frame are now independent of each other.
+*     28-JUN-2016 ((DSB):
+*        IsAipsSpectral: Trailing spaces in CTYPE values are insignificant.
 *class--
 */
 
@@ -19171,8 +19173,8 @@ static int IsAIPSSpectral( const char *ctype, char **wctype, char **wspecsys, in
 /* Check the inherited status. */
    if( !astOK ) return ret;
 
-/* If the length of the string is not 8, then it is not an AIPS spectral axis. */
-   if( strlen( ctype ) == 8 ) {
+/* If the used length of the string is not 8, then it is not an AIPS spectral axis. */
+   if( astChrLen( ctype ) == 8 ) {
 
 /* Translate AIPS spectral CTYPE values to FITS-WCS paper III equivalents.
    These are of the form AAAA-BBB, where "AAAA" can be "FREQ", "VELO" (=VRAD!)
@@ -19187,19 +19189,17 @@ static int IsAIPSSpectral( const char *ctype, char **wctype, char **wspecsys, in
       } else if( !strncmp( ctype, "WAVELENG", 8 ) ){
          *wctype = "WAVE    ";
       }
-      if( !strcmp( ctype + 4, "-LSR" ) ){
+      if( !strncmp( ctype + 4, "-LSR", 4 ) ){
          *wspecsys = "LSRK";
-      } else if( !strcmp( ctype + 4, "LSRK" ) ){
+      } else if( !strncmp( ctype + 4, "LSRK", 4 ) ){
          *wspecsys = "LSRK";
-      } else if( !strcmp( ctype + 4, "-LSRK" ) ){
-         *wspecsys = "LSRK";
-      } else if( !strcmp( ctype + 4, "-LSD" ) ){
+      } else if( !strncmp( ctype + 4, "-LSD", 4 ) ){
          *wspecsys = "LSRD";
-      } else if( !strcmp( ctype + 4, "-HEL" ) ){
+      } else if( !strncmp( ctype + 4, "-HEL", 4 ) ){
          *wspecsys = "BARYCENT";
-      } else if( !strcmp( ctype + 4, "-EAR" ) || !strcmp( ctype + 4, "-GEO" ) ){
+      } else if( !strncmp( ctype + 4, "-EAR", 4 ) || !strncmp( ctype + 4, "-GEO", 4 ) ){
          *wspecsys = "GEOCENTR";
-      } else if( !strcmp( ctype + 4, "-OBS" ) || !strcmp( ctype + 4, "-TOP" ) ){
+      } else if( !strncmp( ctype + 4, "-OBS", 4 ) || !strncmp( ctype + 4, "-TOP", 4 ) ){
          *wspecsys = "TOPOCENT";
       }
       if( *wctype && *wspecsys ) {
