@@ -1403,7 +1403,6 @@ static int AstroCoordsReader( AstXmlChan *this, AstXmlElement *elem,
             if( panc && astMapGet0C( panc, AST__STCNAME, &nam ) ) {
                anames[ axis ] = astStore( NULL, nam, strlen( nam ) + 1 );
                anames[ axis + 1 ] = astStore( NULL, nam, strlen( nam ) + 1 );
-               nam = astFree( (void *) nam );
             }
          }
 
@@ -1450,7 +1449,6 @@ static int AstroCoordsReader( AstXmlChan *this, AstXmlElement *elem,
    store it in the "names" array. */
             if( tanc && astMapGet0C( tanc, AST__STCNAME, &nam ) ) {
                anames[ axis ] = astStore( NULL, nam, strlen( nam ) + 1 );
-               nam = astFree( (void *) nam );
             }
          }
 
@@ -1491,7 +1489,6 @@ static int AstroCoordsReader( AstXmlChan *this, AstXmlElement *elem,
    store it in the "names" array. */
             if( sanc && astMapGet0C( sanc, AST__STCNAME, &nam ) ) {
                anames[ axis ] = astStore( NULL, nam, strlen( nam ) + 1 );
-               nam = astFree( (void *) nam );
             }
          }
 
@@ -1524,7 +1521,6 @@ static int AstroCoordsReader( AstXmlChan *this, AstXmlElement *elem,
    store it in the "names" array. */
             if( ranc && astMapGet0C( ranc, AST__STCNAME, &nam ) ) {
                anames[ axis ] = astStore( NULL, nam, strlen( nam ) + 1 );
-               nam = astFree( (void *) nam );
             }
          }
 
@@ -13253,7 +13249,6 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
 /* Local Variables: */
    AstXmlChan *this;            /* Pointer to the XmlChan structure */
-   const char *class;           /* Class name */
    const char *sval;            /* String attribute value */
    int ival;                    /* Integer attribute value */
    int set;                     /* Has the attribute got a set value? */
@@ -13263,9 +13258,6 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
 /* Obtain a pointer to the XmlChan structure. */
    this = (AstXmlChan *) this_object;
-
-/* Store the object class. */
-   class = astGetClass( this );
 
 /* Write out values representing the instance variables for the
    XmlChan class.  Accompany these with appropriate comment strings,

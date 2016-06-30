@@ -93,12 +93,12 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -4977,7 +4977,9 @@ c     - A string pointer returned by astMapGet0C is guaranteed to remain valid
 c     and the string to which it points will not be over-written for a
 c     total of 50 successive invocations of this function. After this,
 c     the memory containing the string may be re-used, so a copy of
-c     the string should be made if it is needed for longer than this.
+c     the string should be made if it is needed for longer than this. The
+c     calling code should never attempt to free the returned pointer
+c     (for instance, using astFree).
 *     - If the returned value is an AST Object pointer, the Object's reference
 *     count is incremented by this call. Any subsequent changes made to
 *     the Object using the returned pointer will be reflected in any
