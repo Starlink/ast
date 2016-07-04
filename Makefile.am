@@ -184,6 +184,7 @@ AST_H_FILES = \
           switchmap.h \
           tranmap.h \
           unitmap.h \
+          unitnormmap.h \
           wcsmap.h \
           winmap.h \
           zoommap.h \
