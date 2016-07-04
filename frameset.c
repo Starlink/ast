@@ -11593,7 +11593,7 @@ f     AST_REMAPFRAME
 *     each of the two co-added images. There is nothing to prevent a
 *     FrameSet containing two explicit SkyFrames, but the problem then arises
 *     of how to distinguish between them. The two primary characteristics of
-*     a Frame that distinguishes it from other Frames ar eits class and its
+*     a Frame that distinguishes it from other Frames are its class and its
 *     Domain attribute value. The class of a Frame cannot be changed, but we
 *     could in principle use two different Domain values to distinguish the
 *     two SkyFrames. However, in practice it is not uncommon for application
@@ -11618,8 +11618,8 @@ c     astAddVariant
 f     AST_ADDVARIANT
 *     method should then be called specifying the required name and a NULL
 *     Mapping. The
-c     astAddFrame
-f     AST_ADDFRAME
+c     astAddVariant
+f     AST_ADDVARIANT
 *     method should then be called repeatedly to add each required extra
 *     Mapping to the current Frame, supplying a unique name for each one.
 *
