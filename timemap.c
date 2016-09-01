@@ -94,6 +94,8 @@ f     - AST_TIMEADD: Add a time coordinate conversion to an TimeMap
 *     18-JUN-2009 (DSB):
 *        Add OBSALT to argument list for TTTOTDB and TDBTOTT. Change
 *        CLOCKLAT/LON to OBSLAT/LON for consistency with other classes.
+*     1-SEP-2016 (DSB):
+*        Add 2017 January 1 leap second.
 *class--
 */
 
@@ -1270,7 +1272,7 @@ double astDat_( double in, int forward, int *status ){
 *     - This function is based on SLA_DAT by P.T.Wallace.
 *     - This routine must be updated on each occasion that a leap second is
 *     announced
-*     - Latest leap second:  2015 July 1
+*     - Latest leap second:  2017 January 1
 
 *-
 */
@@ -1285,8 +1287,12 @@ double astDat_( double in, int forward, int *status ){
    ------------------------------- */
    if( forward ) {
 
+/* 2017 January 1 */
+      if ( in >= 57754.0 ) {
+         result = 37.0;
+
 /* 2015 July 1 */
-      if ( in >= 57204.0 ) {
+      } else if ( in >= 57204.0 ) {
          result = 36.0;
 
 /* 2012 July 1 */
@@ -1455,8 +1461,12 @@ double astDat_( double in, int forward, int *status ){
    } else {
 
 
+/* 2017 January 1 */
+      if ( in >= 57754.0 + 37.0/SPD ) {
+         result = -37.0;
+
 /* 2015 July 1 */
-      if ( in >= 57204.0 + 36.0/SPD ) {
+      } else if ( in >= 57204.0 + 36.0/SPD ) {
          result = -36.0;
 
 /* 2012 July 1 */
