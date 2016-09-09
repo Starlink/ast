@@ -186,6 +186,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *         Added astMapDefined.
 *     18-JUL-2013 (DSB):
 *         Added SortBy options "KeyAgeUp" and "KeyAgeDown".
+*     9-SEP-2016 (DSB):
+*         Guard against memory corruption that could occur after making 
+*         50 (AST__KEYMAP_CONVERTVALUE_MAX_STRINGS) calls to put a string 
+*         into a KeyMap using astMapPutElemC.
 *class--
 */
 
@@ -1631,7 +1635,9 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 *     out
 *        Pointer to the location at which to store the output value. This
 *        may be NULL, in which case the conversion is still performed if
-*        possible, but the result of the conversion is thrown away.
+*        possible, but the result of the conversion is thrown away. If the
+*        output value is a pointer to a string, it should not be modified
+*        by the caller in any way. Neither should it be freed by the caller.
 *     out_type
 *        The data type of the output value.
 *     status
@@ -7778,6 +7784,16 @@ static void MapPutElem##X( AstKeyMap *this, const char *skey, int elem, \
                       "value cannot be converted to the data type of " \
                       "KeyMap key \"%s\".", status, astGetClass( this ), \
                       key ); \
+\
+/* For strings, the "raw" value is a copy of a pointer stored in the global \
+   "convertvalue_strings" array. These pointers should never be freed other \
+   than within the ConvertValue function (otherwise you can end up with \
+   spurious "invalid pointer" errors). But the "raw" value will be freed \
+   when as part of the KeyMap when the KeyMap is destroyed. So we replace \
+   the "raw" value with a new copy. */ \
+         } else if( raw_type == AST__STRINGTYPE ){ \
+            char **cp = (char **) raw; \
+            *cp = astStore( NULL, *cp, strlen( *cp ) + 1 ); \
          } \
       } \
    } \
