@@ -258,6 +258,24 @@ F_C_INCLUDE_FILES =
 GRP_F_INCLUDE_FILES =
 endif
 
+# If we have no Fortran we are not building f77.h and we probably
+# do not want a Fortran runtime. This requires that PGPLOT is disabled.
+# We replace it with the stub GRF interface. An alternative would
+# be to have the PGPLOT wrappers use a preprocessor symbol to build
+# the pgplot to always error if used.
+if !NOFORTRAN
+GRF_PGPLOT_SOURCES = \
+    grf_pgplot.c
+GRF3D_PGPLOT_SOURCES = \
+    grf3d_pgplot.c
+else
+GRF_PGPLOT_SOURCES = \
+    grf_5.6.c
+GRF3D_PGPLOT_SOURCES = \
+    grf3d.c
+endif
+
+
 ## Following declaration isn't used
 ## LATEX_DOCUMENTATION_FILES = \
 ##     sun210.tex \
@@ -676,10 +694,10 @@ libast_grf_3_2_la_SOURCES = grf_3.2.c
 libast_grf_5_6_la_SOURCES = grf_5.6.c
 
 #  The graphics module that uses PGPLOT for 2D graphical output.
-libast_pgplot_la_SOURCES = grf_pgplot.c
+libast_pgplot_la_SOURCES = $(GRF_PGPLOT_SOURCES)
 
 #  The graphics module that uses PGPLOT for 3D graphical output.
-libast_pgplot3d_la_SOURCES = grf3d_pgplot.c
+libast_pgplot3d_la_SOURCES = $(GRF3D_PGPLOT_SOURCES)
 
 #  Positional astronomy libraries.
 libast_pal_la_SOURCES = $(PAL_FILES)
