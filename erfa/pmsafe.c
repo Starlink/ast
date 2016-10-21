@@ -105,7 +105,7 @@ int eraPmsafe(double ra1, double dec1, double pmr1, double pmd1,
 **     eraSeps      angle between two points
 **     eraStarpm    update star catalog data for space motion
 **
-**  Copyright (C) 2013-2014, NumFOCUS Foundation.
+**  Copyright (C) 2013-2016, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -136,7 +136,7 @@ int eraPmsafe(double ra1, double dec1, double pmr1, double pmd1,
                  ra2, dec2, pmr2, pmd2, px2, rv2);
 
 /* Revise and return the status. */
-   if (! j%2) j += jpx;
+   if ( !(j%2) ) j += jpx;
    return j;
 
 /* Finished. */
@@ -145,7 +145,7 @@ int eraPmsafe(double ra1, double dec1, double pmr1, double pmd1,
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2014, NumFOCUS Foundation.
+**  Copyright (C) 2013-2016, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

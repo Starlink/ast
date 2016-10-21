@@ -8,7 +8,7 @@
 **
 **  Prototype function declarations for ERFA library.
 **
-**  Copyright (C) 2013-2014, NumFOCUS Foundation.
+**  Copyright (C) 2013-2016, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 
@@ -51,7 +51,7 @@ void eraApco(double date1, double date2,
              eraASTROM *astrom);
 int eraApco13(double utc1, double utc2, double dut1,
               double elong, double phi, double hm, double xp, double yp,
-              double phpa, double tk, double rh, double wl,
+              double phpa, double tc, double rh, double wl,
               eraASTROM *astrom, double *eo);
 void eraApcs(double date1, double date2, double pv[2][3],
              double ebpv[2][3], double ehp[3],
@@ -66,7 +66,7 @@ void eraApio(double sp, double theta,
              eraASTROM *astrom);
 int eraApio13(double utc1, double utc2, double dut1,
               double elong, double phi, double hm, double xp, double yp,
-              double phpa, double tk, double rh, double wl,
+              double phpa, double tc, double rh, double wl,
               eraASTROM *astrom);
 void eraAtci13(double rc, double dc,
                double pr, double pd, double px, double rv,
@@ -84,7 +84,7 @@ int eraAtco13(double rc, double dc,
               double pr, double pd, double px, double rv,
               double utc1, double utc2, double dut1,
               double elong, double phi, double hm, double xp, double yp,
-              double phpa, double tk, double rh, double wl,
+              double phpa, double tc, double rh, double wl,
               double *aob, double *zob, double *hob,
               double *dob, double *rob, double *eo);
 void eraAtic13(double ri, double di,
@@ -97,7 +97,7 @@ void eraAticqn(double ri, double di, eraASTROM *astrom,
 int eraAtio13(double ri, double di,
               double utc1, double utc2, double dut1,
               double elong, double phi, double hm, double xp, double yp,
-              double phpa, double tk, double rh, double wl,
+              double phpa, double tc, double rh, double wl,
               double *aob, double *zob, double *hob,
               double *dob, double *rob);
 void eraAtioq(double ri, double di, eraASTROM *astrom,
@@ -106,12 +106,12 @@ void eraAtioq(double ri, double di, eraASTROM *astrom,
 int eraAtoc13(const char *type, double ob1, double ob2,
               double utc1, double utc2, double dut1,
               double elong, double phi, double hm, double xp, double yp,
-              double phpa, double tk, double rh, double wl,
+              double phpa, double tc, double rh, double wl,
               double *rc, double *dc);
 int eraAtoi13(const char *type, double ob1, double ob2,
               double utc1, double utc2, double dut1,
               double elong, double phi, double hm, double xp, double yp,
-              double phpa, double tk, double rh, double wl,
+              double phpa, double tc, double rh, double wl,
               double *ri, double *di);
 void eraAtoiq(const char *type,
               double ob1, double ob2, eraASTROM *astrom,
@@ -122,17 +122,16 @@ void eraLdn(int n, eraLDBODY b[], double ob[3], double sc[3],
             double sn[3]);
 void eraLdsun(double p[3], double e[3], double em, double p1[3]);
 void eraPmpx(double rc, double dc, double pr, double pd,
-             double px, double rv, double pmt, double vob[3],
+             double px, double rv, double pmt, double pob[3],
              double pco[3]);
 int eraPmsafe(double ra1, double dec1, double pmr1, double pmd1,
               double px1, double rv1,
               double ep1a, double ep1b, double ep2a, double ep2b,
               double *ra2, double *dec2, double *pmr2, double *pmd2,
               double *px2, double *rv2);
-void eraPvtob(double elong, double phi, double hm,
-              double xp, double yp, double sp, double theta,
-              double pv[2][3]);
-void eraRefco(double phpa, double tk, double rh, double wl,
+void eraPvtob(double elong, double phi, double height, double xp,
+              double yp, double sp, double theta, double pv[2][3]);
+void eraRefco(double phpa, double tc, double rh, double wl,
               double *refa, double *refb);
 
 /* Astronomy/Ephemerides */
@@ -193,6 +192,10 @@ void eraFw2m(double gamb, double phib, double psi, double eps,
              double r[3][3]);
 void eraFw2xy(double gamb, double phib, double psi, double eps,
               double *x, double *y);
+void eraLtp(double epj, double rp[3][3]);
+void eraLtpb(double epj, double rpb[3][3]);
+void eraLtpecl(double epj, double vec[3]);
+void eraLtpequ(double epj, double veq[3]);
 void eraNum00a(double date1, double date2, double rmatn[3][3]);
 void eraNum00b(double date1, double date2, double rmatn[3][3]);
 void eraNum06a(double date1, double date2, double rmatn[3][3]);
@@ -242,8 +245,10 @@ void eraPnm00b(double date1, double date2, double rbpn[3][3]);
 void eraPnm06a(double date1, double date2, double rnpb[3][3]);
 void eraPnm80(double date1, double date2, double rmatpn[3][3]);
 void eraPom00(double xp, double yp, double sp, double rpom[3][3]);
-void eraPr00(double date1, double date2, double *dpsipr, double *depspr);
-void eraPrec76(double ep01, double ep02, double ep11, double ep12,
+void eraPr00(double date1, double date2,
+             double *dpsipr, double *depspr);
+void eraPrec76(double date01, double date02,
+               double date11, double date12,
                double *zeta, double *z, double *theta);
 double eraS00(double date1, double date2, double x, double y);
 double eraS00a(double date1, double date2);
@@ -278,10 +283,6 @@ double eraGst06a(double uta, double utb, double tta, double ttb);
 double eraGst94(double uta, double utb);
 
 /* Astronomy/SpaceMotion */
-int eraPmsafe(double ra1, double dec1, double pmr1, double pmd1,
-              double px1, double rv1, double ep1a, double ep1b,
-              double ep2a, double ep2b, double *ra2, double *dec2,
-              double *pmr2, double *pmd2, double *px2, double *rv2);
 int eraPvstar(double pv[2][3], double *ra, double *dec,
               double *pmr, double *pmd, double *px, double *rv);
 int eraStarpv(double ra, double dec,
@@ -308,6 +309,20 @@ int eraStarpm(double ra1, double dec1,
               double *ra2, double *dec2,
               double *pmr2, double *pmd2, double *px2, double *rv2);
 
+/* Astronomy/EclipticCoordinates */
+void eraEceq06(double date1, double date2, double dl, double db,
+               double *dr, double *dd);
+void eraEcm06(double date1, double date2, double rm[3][3]);
+void eraEqec06(double date1, double date2, double dr, double dd,
+               double *dl, double *db);
+void eraLteceq(double epj, double dl, double db, double *dr, double *dd);
+void eraLtecm(double epj, double rm[3][3]);
+void eraLteqec(double epj, double dr, double dd, double *dl, double *db);
+
+/* Astronomy/GalacticCoordinates */
+void eraG2icrs(double dl, double db, double *dr, double *dd);
+void eraIcrs2g(double dr, double dd, double *dl, double *db);
+
 /* Astronomy/GeodeticGeocentric */
 int eraEform(int n, double *a, double *f);
 int eraGc2gd(int n, double xyz[3],
@@ -318,8 +333,6 @@ int eraGd2gc(int n, double elong, double phi, double height,
              double xyz[3]);
 int eraGd2gce(double a, double f,
               double elong, double phi, double height, double xyz[3]);
-void eraPvtob(double elong, double phi, double height, double xp,
-              double yp, double sp, double theta, double pv[2][3]);
 
 /* Astronomy/Timescales */
 int eraD2dtf(const char *scale, int ndp, double d1, double d2,
@@ -443,7 +456,7 @@ void eraSxpv(double s, double pv[2][3], double spv[2][3]);
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2014, NumFOCUS Foundation.
+**  Copyright (C) 2013-2016, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International
