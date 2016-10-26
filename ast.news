@@ -23,6 +23,10 @@ longitude values to be normalised into the shortest range.
 - A bug has been fixed in the Fortran include file AST_PAR that caused constants
 related to PI to be defined as single rather than double precision.
 
+- A bug has been fixed in the astGetRegionBounds method that could
+cause the wrong bounds to be returned for regions spanning a longitude =
+zero singularity.
+
 Main Changes in V8.2.0
 ----------------------
 
