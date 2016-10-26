@@ -16,6 +16,8 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- A bug has been fixed in the Fortran include file AST_PAR that caused constants
+related to PI to be defined as single rather than double precision.
 
 Main Changes in V8.2.0
 ----------------------
