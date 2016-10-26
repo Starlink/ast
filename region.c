@@ -222,7 +222,9 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *     17-APR-2015 (DSB):
 *        Added Centre.
 *     26-OCT-2016 (DSB):
-*        Override the AxNorm method.
+*        - Override the astAxNorm method.
+*        - Use astAxNorm to fix a bug in astGetRegionBounds for cases where
+*        the Region cross a longitude=0 singularity.
 *class--
 
 *  Implementation Notes:
@@ -8599,6 +8601,7 @@ f        The global status.
    AstPointSet *bmesh;        /* PointSet holding base Frame mesh */
    AstPointSet *cmesh;        /* PointSet holding current Frame mesh */
    double **bptr;             /* Pointer to PointSet coord arrays */
+   double **cptr;             /* Pointer to PointSet coord arrays */
    double *blbnd;             /* Lower bounds in base Frame */
    double *bubnd;             /* Upper bounds in base Frame */
    double *p;                 /* Array of values for current axis */
@@ -8681,15 +8684,24 @@ f        The global status.
    current Frame. */
       cmesh = astTransform( smap, bmesh, 1, NULL );
 
-/* Get the axis bounds of this PointSet. */
-      astBndPoints( cmesh, lbnd, ubnd );
-
-/* There is a possibility that these bounds may span a singularity in the
-   coordinate system such as the RA=0 line in a SkyFrame. So for each
-   axis we ensure the width (i.e. "ubnd-lbnd" ) is correct. */
+/* There is a possibility that these points may span a singularity in the
+   coordinate system such as the RA=0 line in a SkyFrame. So ensure the
+   axis values are normalised into the shortest possible range. */
       frm = astGetFrame( this->frameset, AST__CURRENT );
       ncur = astGetNaxes( frm );
 
+      cptr = astGetPoints( cmesh );
+      npos = astGetNpoint( cmesh );
+      for( i = 0; i < ncur; i++ ) {
+         astAxNorm( frm, i+1, 1, npos, cptr[i] );
+      }
+
+/* Get the axis bounds of this PointSet. */
+      astBndPoints( cmesh, lbnd, ubnd );
+
+/* There is again a possibility that these bounds may span a singularity in
+   the coordinate system such as the RA=0 line in a SkyFrame. So for each
+   axis we ensure the width (i.e. "ubnd-lbnd" ) is correct. */
       for( i = 0; i < ncur; i++ ) {
          width = astAxDistance( frm, i + 1, lbnd[ i ], ubnd[ i ] );
          if( width != AST__BAD ) {
