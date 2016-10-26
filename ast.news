@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V8.2.0) of the Starlink AST (astrometry) library is
+   A new release (V8.3.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -15,6 +15,10 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+
+Main Changes in V8.2.0
+----------------------
 
 - A new class of Mapping called UnitNormMap has been added that converts a
 vector to a unit vector relative to a specified centre, plus length. A
