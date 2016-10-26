@@ -71,6 +71,7 @@ f     following routines may also be applied to all Frames:
 c     - astAngle: Calculate the angle subtended by two points at a third point
 c     - astAxAngle: Find the angle from an axis, to a line through two points
 c     - astAxDistance: Calculate the distance between two axis values
+c     - astAxNorm: Normalises an array of axis values
 c     - astAxOffset: Calculate an offset along an axis
 c     - astConvert: Determine how to convert between two coordinate systems
 c     - astDistance: Calculate the distance between two points in a Frame
@@ -90,6 +91,7 @@ c     - astUnformat: Read a formatted coordinate value for a Frame axis
 f     - AST_ANGLE: Find the angle subtended by two points at a third point
 f     - AST_AXANGLE: Find the angle from an axis, to a line through two points
 f     - AST_AXDISTANCE: Calculate the distance between two axis values
+f     - AST_AXNORM: Normalises an array of axis values
 f     - AST_AXOFFSET: Calculate an offset along an axis
 f     - AST_CONVERT: Determine how to convert between two coordinate systems
 f     - AST_DISTANCE: Calculate the distance between two points in a Frame
@@ -285,6 +287,8 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        Added astCentre.
 *     27-APR-2015 (DSB):
 *        Added read-only attribute InternalUnit.
+*     26-OCT-2016 (DSB):
+*        Added method astAxNorm.
 *class--
 */
 
@@ -856,6 +860,7 @@ static int GetIsSimple( AstMapping *, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
 static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double **, int * );
 static int GetObjSize( AstObject *, int * );
+static void AxNorm( AstFrame *, int, int, int, double *, int * );
 static void CleanAttribs( AstObject *, int * );
 static void LineOffset( AstFrame *, AstLineDef *, double, double, double[2], int * );
 
@@ -1533,6 +1538,117 @@ f     invoked with STATUS set to an error value, or if it should fail for
 /* Return the result. */
    return result;
 
+}
+
+static void AxNorm( AstFrame *this, int axis, int oper, int nval,
+                      double *values, int *status ){
+/*
+*++
+*  Name:
+c     astAxNorm
+f     AST_AXNORM
+
+*  Purpose:
+*     Normalise an array of axis values.
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+c     #include "frame.h"
+c     void astAxNorm( AstFrame *this, int axis, int oper, int nval,
+c                     double *values, int *status )
+f     CALL AST_AXNORM( THIS, AXIS, OPER, NVAL, VALUES, STATUS )
+
+*  Class Membership:
+*     Frame method.
+
+*  Description:
+c     This function
+f     This routine
+*     modifies a supplied array of axis values so that they are normalised
+*     in the manner indicated by
+c     parameter "oper".
+f     argument OPER.
+*
+*     No normalisation is possible for a simple Frame and so the supplied
+*     values are returned unchanged. However, this may not be the case for
+*     specialised sub-classes of Frame. For instance, a SkyFrame has a
+*     discontinuity at zero longitude and so a longitude value can be
+*     expressed in the range [-Pi,+PI] or the range [0,2*PI]. See the
+*     "Applicability:" section below for details.
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the Frame.
+c     axis
+f     AXIS = INTEGER (Given)
+*        The index of the axis to which the supplied values refer. The
+*        first axis has index 1.
+c     oper
+f     OPER = INTEGER (Given)
+*        Indicates the type of normalisation to be applied. If zero is
+*        supplied, the normalisation will be the same as that performed by
+c        function astNorm.
+f        routine AST_NORM.
+*        If 1 is supplied, the normalisation will be chosen automatically
+*        so that the resulting list has the smallest range.
+c     nval
+f     NVAL = INTEGER (Given)
+*        The number of points in the values array.
+c     values
+f     VALUES( NVAL ) = DOUBLE PRECISION (Given and Returned)
+*        On entry, the axis values to be normalised. Modified on exit to
+*        hold the normalised values.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Applicability:
+*     SkyFrame
+c        If "oper"
+f        If OPER
+*        is 0, longitude values are returned in the range [0,2*PI].
+c        If "oper"
+f        If OPER
+*        is 1, longitude values are returned in either the range
+*        [0,2*PI] or [-PI,PI]. The choice is made so that that the
+*        resulting list has the smallest range. Latitude values are
+*        always returned in the range [-PI,PI].
+*     All other classes of Frame
+*        The supplied axis values are returned unchanged.
+
+*--
+
+*  Implementation Deficiencies;
+*     - The protected interface for this function uses 1-based axis
+*     numbering (like the public interface), rather than the more usual
+*     zero-based system used by all other protected interfaces. There is
+*     no real reason for this, and it should be changed at some time.
+
+*/
+
+/* Local Variables: */
+   AstAxis *ax;                  /* Pointer to Axis object */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Validate the axis index and obtain a pointer to the required Axis. */
+   (void) astValidateAxis( this, axis - 1, 1, "astAxNorm" );
+   ax = astGetAxis( this, axis - 1 );
+
+/* Validate ther "oper" value. */
+   if( ( oper < 0 || oper > 1 ) && astOK ) {
+      astError( AST__OPRIN, "astAxNorm(%s): Invalid operation %d.", status,
+                astGetClass( this ), oper );
+   }
+
+/* Use the AxisNormValues method associated with the Axis. */
+   if( astOK ) astAxisNormValues( ax, oper, nval, values );
+
+/* Annul the Axis pointer. */
+   ax = astAnnul( ax );
 }
 
 static int AxIn( AstFrame *this, int axis, double lo, double hi, double val,
@@ -5927,6 +6043,7 @@ void astInitFrameVtab_(  AstFrameVtab *vtab, const char *name, int *status ) {
    vtab->Norm = Norm;
    vtab->NormBox = NormBox;
    vtab->AxDistance = AxDistance;
+   vtab->AxNorm = AxNorm;
    vtab->AxOffset = AxOffset;
    vtab->AxIn = AxIn;
    vtab->AxAngle = AxAngle;
@@ -14906,6 +15023,11 @@ void astNormBox_( AstFrame *this, double lbnd[], double ubnd[], AstMapping *reg,
 double astAxDistance_( AstFrame *this, int axis, double v1, double v2, int *status ) {
    if ( !astOK ) return AST__BAD;
    return (**astMEMBER(this,Frame,AxDistance))( this, axis, v1, v2, status );
+}
+void astAxNorm_( AstFrame *this, int axis, int oper, int nval, double *values,
+                 int *status ){
+   if ( !astOK ) return;
+   return (**astMEMBER(this,Frame,AxNorm))( this, axis, oper, nval, values, status );
 }
 double astAxOffset_( AstFrame *this, int axis, double v1, double dist, int *status ) {
    if ( !astOK ) return AST__BAD;

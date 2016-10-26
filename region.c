@@ -221,6 +221,8 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        Fix bug masking regions that have no overlap with the supplied array.
 *     17-APR-2015 (DSB):
 *        Added Centre.
+*     26-OCT-2016 (DSB):
+*        Override the AxNorm method.
 *class--
 
 *  Implementation Notes:
@@ -935,6 +937,7 @@ static int SubFrame( AstFrame *, AstFrame *, int, const int *, const int *, AstM
 static int RegTrace( AstRegion *, int, double *, double **, int * );
 static int Unformat( AstFrame *, int, const char *, double *, int * );
 static int ValidateAxis( AstFrame *, int, int, const char *, int * );
+static void AxNorm( AstFrame *, int, int, int, double *, int * );
 static void CheckPerm( AstFrame *, const int *, const char *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *, int * );
@@ -1467,6 +1470,80 @@ static double AxDistance( AstFrame *this_frame, int axis, double v1, double v2, 
 
 /* Return the result. */
    return result;
+}
+
+static void AxNorm( AstFrame *this_frame, int axis, int oper, int nval,
+                    double *values, int *status ){
+/*
+*  Name:
+*     AxNorm
+
+*  Purpose:
+*     Normalise an array of axis values.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "region.h"
+*     void AxNorm( AstFrame *this, int axis, int oper, int nval,
+*                  double *values, int *status )
+
+*  Class Membership:
+*     FrameSet member function (over-rides the protected astAxNorm
+*     method inherited from the Frame class).
+
+*  Description:
+*     This function modifies a supplied array of axis values so that
+*     they are normalised in the manner indicated by parameter "oper".
+*
+*     No normalisation is possible for a simple Frame and so the supplied
+*     values are returned unchanged. However, this may not be the case for
+*     specialised sub-classes of Frame. For instance, a SkyFrame has a
+*     discontinuity at zero longitude and so a longitude value can be
+*     expressed in the range [-Pi,+PI] or the range [0,2*PI].
+
+*  Parameters:
+*     this
+*        Pointer to the Frame.
+*     axis
+*        The index of the axis to which the supplied values refer. The
+*        first axis has index 1.
+*     oper
+*        Indicates the type of normalisation to be applied. If zero is
+*        supplied, the normalisation will be the same as that performed by
+*        function astNorm. If 1 is supplied, the normalisation will be
+*        chosen automatically so that the resulting list has the smallest
+*        range.
+*     nval
+*        The number of points in the values array.
+*     values
+*        On entry, the axis values to be normalised. Modified on exit to
+*        hold the normalised values.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+
+/* Local Variables: */
+   AstFrame *fr;                 /* Pointer to current Frame */
+   AstRegion *this;              /* Pointer to the Region structure */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the Region structure. */
+   this = (AstRegion *) this_frame;
+
+/* Validate the axis index. */
+   (void) astValidateAxis( this, axis - 1, 1, "astAxNorm" );
+
+/* Obtain a pointer to the Region's encapsulated Frame and invoke
+   the astAxNorm method for this Frame. Annul the Frame pointer
+   afterwards. */
+   fr = astGetFrame( this->frameset, AST__CURRENT );
+   astAxNorm( fr, axis, oper, nval, values );
+   fr = astAnnul( fr );
 }
 
 static double AxOffset( AstFrame *this_frame, int axis, double v1, double dist, int *status ) {
@@ -4545,6 +4622,7 @@ void astInitRegionVtab_(  AstRegionVtab *vtab, const char *name, int *status ) {
    frame->Angle = Angle;
    frame->AxAngle = AxAngle;
    frame->AxDistance = AxDistance;
+   frame->AxNorm = AxNorm;
    frame->AxOffset = AxOffset;
    frame->CheckPerm = CheckPerm;
    frame->ClearDigits = ClearDigits;

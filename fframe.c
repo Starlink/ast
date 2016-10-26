@@ -77,6 +77,8 @@
 *        Added AST_GETACTIVEUNIT and AST_SETACTIVEUNIT.
 *     14-JAN-2009 (DSB):
 *        Added AST_INTERSECT.
+*     26-OCT-2016 (DSB):
+*        Added method AST_AXNORM.
 */
 
 /* Define the astFORTRAN77 macro which prevents error messages from
@@ -491,4 +493,22 @@ F77_INTEGER_FUNCTION(ast_unformat)( INTEGER(THIS),
       (void) astFree( string );
    )
    return RESULT;
+}
+
+F77_SUBROUTINE(ast_axnorm)( INTEGER(THIS),
+                            INTEGER(AXIS),
+                            INTEGER(OPER),
+                            INTEGER(NVAL),
+                            DOUBLE(VALUES),
+                            INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_INTEGER(AXIS)
+   GENPTR_INTEGER(OPER)
+   GENPTR_INTEGER(NVAL)
+   GENPTR_DOUBLE(VALUES)
+
+   astAt( "AST_AXNORM", NULL, 0 );
+   astWatchSTATUS(
+      astAxNorm( astI2P( *THIS ), *AXIS, *OPER, *NVAL, VALUES );
+   )
 }

@@ -113,6 +113,8 @@ f     only within textual output (e.g. from AST_WRITE).
 *        Use tuning parameters to store graphical delimiters.
 *     27-APR-2015 (DSB):
 *        Added InternalUNit attribute..
+*     26-OCT-2016 (DSB):
+*        Override astAxisNormValues.
 *class--
 */
 
@@ -268,6 +270,7 @@ static int TestAxisInternalUnit( AstAxis *, int * );
 static int TestAxisIsLatitude( AstSkyAxis *, int * );
 static int TestAxisCentreZero( AstSkyAxis *, int * );
 static void AxisNorm( AstAxis *, double *, int * );
+static void AxisNormValues( AstAxis *, int, int, double *, int * );
 static void AxisOverlay( AstAxis *, AstAxis *, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
 static void ClearAxisAsTime( AstSkyAxis *, int * );
@@ -1101,6 +1104,179 @@ static void AxisNorm( AstAxis *this_axis, double *value, int *status ) {
       if ( astOK ) *value = centrezero ? palDrange( *value ) :
                                          palDranrm( *value );
    }
+}
+
+static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
+                            double *values, int *status ){
+/*
+*  Name:
+*     astAxisNormValues
+
+*  Purpose:
+*     Normalise an array of axis coordinate values.
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+*     #include "skyaxis.h"
+*     void astAxisNormValues( AstAxis *this, int oper, int nval,
+*                             double *values )
+
+*  Class Membership:
+*     SkyAxis member function (over-rides the astAxisNormValues method
+*     inherited from the Axis class).
+
+*  Description:
+*     This function modifies a supplied array of axis values so that
+*     they are normalised in the manner indicated by parameter "oper".
+*
+*     For a SkyAxis, if "oper" is 0, longitude values are returned in
+*     the range [0,2*PI]. If "oper" is 1, longitude values are returned
+*     in either the range [0,2*PI] or [-PI,PI]. The choice is made so
+*     that the resulting list has the smallest range. Latitude values
+*     are always returned in the range [-PI,PI].
+
+*  Parameters:
+*     this
+*        Pointer to the Axis.
+*     oper
+*        Indicates the type of normalisation to be applied. If zero is
+*        supplied, the normalisation will be the same as that performed by
+*        function astAxisNorm. If 1 is supplied, the normalisation will be
+*        chosen automatically so that the resulting list has the smallest
+*        range.
+*     nval
+*        The number of points in the values array.
+*     values
+*        On entry, the axis values to be normalised. Modified on exit to
+*        hold the normalised values.
+*/
+
+/* Local Variables: */
+   AstSkyAxis *this;             /* Pointer to the SkyAxis structure */
+   double *pv;                   /* Pointer to next axis value */
+   double hi;                    /* Max axis value after normalisation */
+   double lo;                    /* Min axis value after normalisation */
+   double mn1;                   /* Min value in range [-pi,0] */
+   double mn2;                   /* Min value in range [0,pi] */
+   double mn3;                   /* Min value in range [pi,2pi] */
+   double mx1;                   /* Max value in range [-pi,0] */
+   double mx2;                   /* Max value in range [0,pi] */
+   double mx3;                   /* Max value in range [pi,2pi] */
+   double range1;                /* Range after normalising to [0,2*pi] */
+   double range2;                /* Range after normalising to [-pi,pi] */
+   double twopi;                 /* Two PI */
+   int centrezero;               /* SkyAxis range centred on zero? */
+   int i;                        /* Index of next axis value */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the SkyAxis structure. */
+   this = (AstSkyAxis *) this_axis;
+
+/* Oper 0 - always normalise according to the value of the CentreZero
+   attribute (i.e. mimic AxisNorm). */
+   if( oper == 0 ) {
+
+/* Determine if the SkyAxis range is centred on zero or PI. */
+      centrezero = astGetAxisCentreZero( this );
+
+/* Loop over axis values. */
+      pv = values;
+      for( i = 0; i < nval; i++,pv++ ) {
+
+/* If the coordinate value is bad, then return it unchanged. Otherwise,
+   wrap the value into the appropriate range. */
+         if( *pv != AST__BAD ) *pv = centrezero ? palDrange( *pv ) :
+                                                  palDranrm( *pv );
+      }
+
+/* Oper 1 - choose a range that leaves most values unchanged. */
+   } else if( oper == 1 ) {
+
+/* Normalise latitude axes into [-PI,+PI]. */
+      if( astGetAxisIsLatitude( this ) ) {
+         pv = values;
+         for( i = 0; i < nval; i++,pv++ ) {
+            *pv = palDrange( *pv );
+         }
+
+/* Now deal with longitude axes. */
+      } else {
+
+/* First ensure all values are in the range [-PI,2*PI] and find the max
+   and min value in each of the three ranges [-PI,0], [0,PI], [PI, 2PI]. */
+         twopi = 2*AST__DPI;
+         mx1 = -DBL_MAX;
+         mn1 = DBL_MAX;
+         mx2 = -DBL_MAX;
+         mn2 = DBL_MAX;
+         mx3 = -DBL_MAX;
+         mn3 = DBL_MAX;
+
+         pv = values;
+         for( i = 0; i < nval; i++,pv++ ) {
+
+            while( *pv > twopi ) *pv -= twopi;
+            while( *pv < -AST__DPIBY2 ) *pv += twopi;
+
+            if( *pv > AST__DPI ) {
+               mx3 = astMAX( mx3, *pv );
+               mn3 = astMIN( mn3, *pv );
+            } else if( *pv > 0 ) {
+               mx2 = astMAX( mx2, *pv );
+               mn2 = astMIN( mn2, *pv );
+            } else {
+               mx1 = astMAX( mx1, *pv );
+               mn1 = astMIN( mn1, *pv );
+            }
+
+         }
+
+/* What would the range be if we normalised into [0,2.PI] ? */
+         if( mx1 != -DBL_MAX ) {
+            hi = astMAX( mx2, astMAX( mx1 + twopi, mx3) );
+            lo = astMIN( mn2, astMIN( mn1 + twopi, mn3) );
+         } else {
+            hi = astMAX( mx2, mx3 );
+            lo = astMIN( mn2, mn3 );
+         }
+         range1 = hi - lo;
+
+/* What would the range be if we normalised into [-PI,PI] ? */
+         if( mn3 != -DBL_MAX ) {
+            hi = astMAX( mx2, astMAX( mx3 - twopi, mx1) );
+            lo = astMIN( mn2, astMIN( mn3 - twopi, mn1) );
+         } else {
+            hi = astMAX( mx2, mx1 );
+            lo = astMIN( mn2, mn1 );
+         }
+         range2 = hi - lo;
+
+/* If [-PI,PI] produces the smaller range, normalise into [-PI,PI]. */
+         if( range2 < range1 ) {
+            pv = values;
+            for( i = 0; i < nval; i++,pv++ ) {
+               *pv = palDrange( *pv );
+            }
+
+/* Otherwise, normalise all into the range [0,2PI]. */
+         } else {
+            pv = values;
+            for( i = 0; i < nval; i++,pv++ ) {
+               *pv = palDranrm( *pv );
+            }
+         }
+      }
+
+/* Report an error if the supplied operation is invalid. */
+   } else if( astOK ) {
+      astError( AST__INTER, "astAxisNormValues: Invalid oper value %d "
+                "supplied (internal AST programming error).", status, oper );
+   }
+
 }
 
 static double AxisOffset( AstAxis *this_axis, double v1, double dist, int *status ) {
@@ -3184,6 +3360,7 @@ void astInitSkyAxisVtab_(  AstSkyAxisVtab *vtab, const char *name, int *status )
    axis->AxisDistance = AxisDistance;
    axis->AxisOffset = AxisOffset;
    axis->AxisNorm = AxisNorm;
+   axis->AxisNormValues = AxisNormValues;
    axis->ClearAxisFormat = ClearAxisFormat;
    axis->GetAxisFormat = GetAxisFormat;
    axis->SetAxisFormat = SetAxisFormat;

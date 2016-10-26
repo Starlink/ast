@@ -334,6 +334,7 @@ typedef struct AstAxisVtab {
    int (* TestAxisInternalUnit)( AstAxis *, int * );
    int (* TestAxisNormUnit)( AstAxis *, int * );
    void (* AxisNorm)( AstAxis *, double *, int * );
+   void (* AxisNormValues)( AstAxis *, int, int, double *, int * );
    void (* AxisOverlay)( AstAxis *, AstAxis *, int * );
    void (* ClearAxisDigits)( AstAxis *, int * );
    void (* ClearAxisDirection)( AstAxis *, int * );
@@ -417,6 +418,7 @@ void astInitAxisGlobals_( AstAxisGlobals * );
 const char *astAxisFormat_( AstAxis *, double, int * );
 int astAxisUnformat_( AstAxis *, const char *, double *, int * );
 void astAxisNorm_( AstAxis *, double *, int * );
+void astAxisNormValues_( AstAxis *, int, int, double *, int * );
 
 #if defined(astCLASS)            /* Protected */
 const char *astAxisAbbrev_( AstAxis *, const char *, const char *, const char *, int * );
@@ -517,6 +519,8 @@ astINVOKE(O,astLoadAxis_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PTR)
 astINVOKE(V,astAxisFormat_(astCheckAxis(this),value,STATUS_PTR))
 #define astAxisNorm(this,value) \
 astINVOKE(V,astAxisNorm_(astCheckAxis(this),value,STATUS_PTR))
+#define astAxisNormValues(this,oper,nval,values) \
+astINVOKE(V,astAxisNormValues_(astCheckAxis(this),oper,nval,values,STATUS_PTR))
 #define astAxisUnformat(this,string,value) \
 astINVOKE(V,astAxisUnformat_(astCheckAxis(this),string,value,STATUS_PTR))
 

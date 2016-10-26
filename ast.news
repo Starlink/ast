@@ -16,6 +16,10 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- A new method called astAxNorm has been added to the Frame class that
+normalises an array of axis values. When used with SkyFrames, it allows
+longitude values to be normalised into the shortest range.
+
 - A bug has been fixed in the Fortran include file AST_PAR that caused constants
 related to PI to be defined as single rather than double precision.
 

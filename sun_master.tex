@@ -21687,6 +21687,16 @@ current version):
 
 \begin{enumerate}
 
+c+
+\item A new method called astAxNorm
+c-
+f+
+\item A new method called AST\_AXNORM
+f-
+has been added to the Frame class that normalises an array of axis
+values. When used with SkyFrames, it allows longitude values to be
+normalised into the shortest range.
+
 f+
 \item A bug has been fixed in the Fortran include file AST\_PAR that caused constants
 related to $\pi$ to be defined as single rather than double precision.

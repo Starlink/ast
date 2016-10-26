@@ -4,6 +4,8 @@
       include 'AST_PAR'
 
       integer status, sf1, sf2, fs
+      double precision vals(5)
+
       status = sai__ok
 
       sf1 = ast_skyframe( 'system=fk5,epoch=2015.0', status )
@@ -41,11 +43,28 @@
       end if
 
 
+      vals(1) = 6.1D0
+      vals(2) = 6.15D0
+      vals(3) = 6.2D0
+      vals(4) = 6.25D0
+      vals(5) = 6.3D0
+      call ast_axnorm( sf1, 1, 0, 5, vals, status )
+      if( vals(1) .ne. 6.1D0 .or.
+     :    vals(2) .ne. 6.15D0 .or.
+     :    vals(3) .ne. 6.2D0 .or.
+     :    vals(4) .ne. 6.25D0 .or.
+     :    vals(5) .ne. 6.3D0 - 2*AST__DPI ) then
+         call stopit( status, 'Error 5' )
+      end if
 
-
-
-
-
+      call ast_axnorm( sf1, 1, 1, 5, vals, status )
+      if( vals(1) .ne. 6.1D0 - 2*AST__DPI .or.
+     :    vals(2) .ne. 6.15D0 - 2*AST__DPI .or.
+     :    vals(3) .ne. 6.2D0 - 2*AST__DPI .or.
+     :    vals(4) .ne. 6.25D0 - 2*AST__DPI .or.
+     :    vals(5) .ne. 6.3D0 - 2*AST__DPI ) then
+         call stopit( status, 'Error 6' )
+      end if
 
       if( status .eq. sai__ok ) then
          write(*,*) 'All SkyFrame tests passed'

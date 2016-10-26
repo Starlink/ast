@@ -540,6 +540,8 @@
 *        Added astCentre.
 *     27-APR-2015 (DSB):
 *        Added InternalUnit attribute.
+*     26-OCT-2016 (DSB):
+*        Added method astAxNorm.
 *-
 */
 
@@ -689,6 +691,7 @@ typedef struct AstFrameVtab {
    double (* Gap)( AstFrame *, int, double, int *, int * );
    int (* Fields)( AstFrame *, int, const char *, const char *, int, char **, int *, double *, int * );
    double (* AxDistance)( AstFrame *, int, double, double, int * );
+   void (* AxNorm)( AstFrame *, int, int, int, double *, int * );
    double (* AxOffset)( AstFrame *, int, double, double, int * );
    int (* AxIn)( AstFrame *, int, double, double, double, int, int * );
    int (* GetDigits)( AstFrame *, int * );
@@ -901,6 +904,7 @@ double astAxOffset_( AstFrame *, int, double, double, int * );
 double astDistance_( AstFrame *, const double[], const double[], int * );
 double astOffset2_( AstFrame *, const double[2], double, double, double[2], int * );
 int astGetActiveUnit_( AstFrame *, int * );
+void astAxNorm_( AstFrame *, int, int, int, double *, int * );
 void astIntersect_( AstFrame *, const double[2], const double[2], const double[2], const double[2], double[2], int * );
 void astMatchAxes_( AstFrame *, AstFrame *, int[], int * );
 void astNorm_( AstFrame *, double[], int * );
@@ -1119,6 +1123,8 @@ astINVOKE(V,astMatchAxes_(astCheckFrame(frm1),astCheckFrame(frm2),axes,STATUS_PT
 astINVOKE(V,astNorm_(astCheckFrame(this),value,STATUS_PTR))
 #define astAxDistance(this,axis,v1,v2) \
 astINVOKE(V,astAxDistance_(astCheckFrame(this),axis,v1,v2,STATUS_PTR))
+#define astAxNorm(this,axis,oper,nval,values) \
+astINVOKE(V,astAxNorm_(astCheckFrame(this),axis,oper,nval,values,STATUS_PTR))
 #define astAxOffset(this,axis,v1,dist) \
 astINVOKE(V,astAxOffset_(astCheckFrame(this),axis,v1,dist,STATUS_PTR))
 #define astOffset(this,point1,point2,offset,point3) \
