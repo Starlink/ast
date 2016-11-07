@@ -115,6 +115,8 @@ f     only within textual output (e.g. from AST_WRITE).
 *        Added InternalUNit attribute..
 *     26-OCT-2016 (DSB):
 *        Override astAxisNormValues.
+*     7-NOV-2016 (DSB):
+*        Ensure astAxisNormValues ignores bad axis values.
 *class--
 */
 
@@ -1200,7 +1202,7 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
       if( astGetAxisIsLatitude( this ) ) {
          pv = values;
          for( i = 0; i < nval; i++,pv++ ) {
-            *pv = palDrange( *pv );
+            if( *pv != AST__BAD ) *pv = palDrange( *pv );
          }
 
 /* Now deal with longitude axes. */
@@ -1218,21 +1220,21 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
 
          pv = values;
          for( i = 0; i < nval; i++,pv++ ) {
+            if( *pv != AST__BAD ) {
+               while( *pv > twopi ) *pv -= twopi;
+               while( *pv < -AST__DPIBY2 ) *pv += twopi;
 
-            while( *pv > twopi ) *pv -= twopi;
-            while( *pv < -AST__DPIBY2 ) *pv += twopi;
-
-            if( *pv > AST__DPI ) {
-               mx3 = astMAX( mx3, *pv );
-               mn3 = astMIN( mn3, *pv );
-            } else if( *pv > 0 ) {
-               mx2 = astMAX( mx2, *pv );
-               mn2 = astMIN( mn2, *pv );
-            } else {
-               mx1 = astMAX( mx1, *pv );
-               mn1 = astMIN( mn1, *pv );
+               if( *pv > AST__DPI ) {
+                  mx3 = astMAX( mx3, *pv );
+                  mn3 = astMIN( mn3, *pv );
+               } else if( *pv > 0 ) {
+                  mx2 = astMAX( mx2, *pv );
+                  mn2 = astMIN( mn2, *pv );
+               } else {
+                  mx1 = astMAX( mx1, *pv );
+                  mn1 = astMIN( mn1, *pv );
+               }
             }
-
          }
 
 /* What would the range be if we normalised into [0,2.PI] ? */
@@ -1259,14 +1261,14 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
          if( range2 < range1 ) {
             pv = values;
             for( i = 0; i < nval; i++,pv++ ) {
-               *pv = palDrange( *pv );
+               if( *pv != AST__BAD ) *pv = palDrange( *pv );
             }
 
 /* Otherwise, normalise all into the range [0,2PI]. */
          } else {
             pv = values;
             for( i = 0; i < nval; i++,pv++ ) {
-               *pv = palDranrm( *pv );
+               if( *pv != AST__BAD ) *pv = palDranrm( *pv );
             }
          }
       }
