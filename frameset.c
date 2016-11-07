@@ -64,7 +64,7 @@ f     Mapping, a FrameSet may also be inverted (see AST_INVERT), which
 *     In addition to those attributes common to all Frames, every
 *     FrameSet also has the following attributes:
 *
-*     - AllVariants: List of all variant mappings store with current Frame
+*     - AllVariants: List of all variant mappings stored with current Frame
 *     - Base: FrameSet base Frame index
 *     - Current: FrameSet current Frame index
 *     - Nframe: Number of Frames in a FrameSet
@@ -1628,7 +1628,7 @@ f     AST_ADDVARIANT
 *  Synopsis:
 c     #include "frameset.h"
 c     void astAddVariant( AstFrameSet *this, AstMapping *map,
-c                         const char *name, int *status )
+c                         const char *name )
 f     CALL AST_ADDVARIANT( THIS, MAP, NAME, STATUS )
 
 *  Class Membership:
@@ -7147,7 +7147,7 @@ f     AST_MIRRORVARIANTS
 
 *  Synopsis:
 c     #include "frameset.h"
-c     void astMirrorVariants( AstFrameSet *this, int iframe, int *status )
+c     void astMirrorVariants( AstFrameSet *this, int iframe )
 f     CALL AST_MIRRORVARIANTS( THIS, IFRAME, STATUS )
 
 *  Class Membership:
@@ -11522,7 +11522,7 @@ static void VSet( AstObject *this_object, const char *settings,
 *     String, read-only.
 
 *  Description:
-*     This attrbute gives a space separated list of the names of all the
+*     This attribute gives a space separated list of the names of all the
 *     variant Mappings associated with the current Frame (see attribute
 *     "Variant"). If the current Frame has no variant Mappings, then the
 *     list will hold a single entry equal to the Domain name of the
@@ -11627,7 +11627,7 @@ f     Invert attribute, with the AST_INVERT routine for example) will
 *     Integer, read-only.
 
 *  Description:
-*     This attrbute gives the number of Frames in a FrameSet. This
+*     This attribute gives the number of Frames in a FrameSet. This
 *     value will change as Frames are added or removed, but will
 *     always be at least one.
 

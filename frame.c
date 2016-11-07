@@ -12018,7 +12018,7 @@ astMAKE_TEST(Frame,Dut1,( this->dut1 != AST__BAD ))
 *        The Epoch attribute of a FrameSet is the same as that of its current
 *        Frame (as specified by the Current attribute).
 *     SkyFrame
-*        The coordinates of sources within a SkyFrame can changed with time
+*        The coordinates of sources within a SkyFrame can change with time
 *        for various reasons, including: (i) changing aberration of light
 *        caused by the observer's velocity (e.g. due to the Earth's motion
 *        around the Sun), (ii) changing gravitational deflection by the Sun
@@ -12051,9 +12051,6 @@ astMAKE_TEST(Frame,Dut1,( this->dut1 != AST__BAD ))
 *        will be the TDB equivalent of the current value of the TimeFrame's
 *        TimeOrigin attribute. If no value has been set for TimeOrigin,
 *        then the default Epoch value is J2000.0.
-
-
-The coordinates of sources within a SkyFrame can changed with time
 *att--
 */
 /* Clear the Epoch value by setting it to AST__BAD. */
@@ -13449,7 +13446,7 @@ astMAKE_TEST(Frame,ObsLat,(this->obslat!=AST__BAD))
 *     Public attribute.
 
 *  Synopsis:
-*     String.
+*     Floating point.
 
 *  Description:
 *     This attribute specifies the geodetic altitude of the observer, in
