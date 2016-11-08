@@ -37,7 +37,6 @@
       if( .not. ast_isaunitmap( m3, status ) ) call stopit( 5, status )
 
 
-
       at( 1 ) = 2.0D0
       at( 2 ) = 3.0D4
       at( 3 ) = 1.0D0
@@ -50,6 +49,25 @@
       end if
       if( bt(2) .ne. 3.0D4 ) call stopit(7,status)
       if( abs( bt(3)-4.14159265D0) .gt. 1.0D-6 ) call stopit(8,status)
+
+
+
+
+* Test adjacent identical NormMaps are simplified to a single NormMap.
+      m2 = ast_cmpmap( ast_cmpmap( m, ast_copy( m, status ), .true.,
+     :                             ' ', status ),
+     :                 ast_cmpmap( m, ast_copy( m, status ), .true.,
+     :                             ' ', status ), .true., ' ', status )
+      m3 = ast_simplify( m2, status )
+      if( .not. ast_isanormmap( m3, status ) ) call stopit( 9, status )
+
+* Test NormMap that encapsulate a basic Frame are simplified to a UnitMap.
+      m = ast_normmap( ast_frame(2, ' ', status ), ' ', status )
+      m2 = ast_simplify( m, status )
+      if( .not. ast_isaunitmap( m2, status ) ) call stopit( 10, status )
+
+
+
 
 
       call ast_end( status )

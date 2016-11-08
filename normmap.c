@@ -30,7 +30,6 @@ f     AST_SIMPLIFY
 *     attribute values). This means, for instance, that if a CmpMap contains
 *     a NormMap, the CmpMap will still cancel with its own inverse.
 
-
 *  Inheritance:
 *     The NormMap class inherits from the Mapping class.
 
@@ -71,6 +70,11 @@ f     The NormMap class does not define any new routines beyond those
 *        Original version.
 *     23-AUG-2006 (DSB):
 *        Override astEqual.
+*     8-NOV-2016 (DSB):
+*        - Allow multiple identical NormMaps in series to be simplified to
+*        a single NormMap.
+*        - Allow a NormMap that contains a basic Frame to be simplified
+*        to a UnitMap.
 *class--
 */
 
@@ -590,6 +594,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    AstNormMap *map;
    AstNormMap *nmap1;
    AstNormMap *nmap2;
+   const char *class;
    int cancel;
    int map_inv;
    int nax;
@@ -612,18 +617,30 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    astSetInvert( map, ( *invert_list )[ where ] );
 
 /* First try to simplify the NormMap by simplifying its encapsulated
-   Frame. */
+   Frame. Get its class. */
    smap = astSimplify( map->frame );
+   class = astGetClass( smap );
 
 /* If any simplification took place, create a new NormMap with the
    simplified Frame. */
    if( smap != (AstMapping *) map->frame ) {
       (void) astAnnul( ( *map_list )[ where ] );
-      ( *map_list )[ where ] = (AstMapping *) astNormMap( (AstFrame *) smap, "", status );
+      ( *map_list )[ where ] = (AstMapping *) astNormMap( (AstFrame *) smap,
+                                                          "", status );
       result = where;
 
-/* The only other simplication which can be performed is to cancel a NormMap
-   with its own inverse in series. */
+/* If the encapsulated Frame is a basic Frame, we can safely assume that
+   the astNorm method does nothing, and so we can replace the NormMap with
+   a UnitMap. */
+   } else if( class && !strcmp( class, "Frame" ) ) {
+      nax = astGetNin( smap );
+      (void) astAnnul( ( *map_list )[ where ] );
+      ( *map_list )[ where ] = (AstMapping *) astUnitMap( nax, "", status );
+      result = where;
+
+/* The only other simplications which can be performed are a) to cancel a NormMap
+   with its own inverse in series, or b) to remove duplicated adjacent
+   NormMaps in series. */
    } else if( series ) {
 
 /* Indicate we have nothing to cancel with as yet. */
@@ -668,6 +685,38 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          ( *map_list )[ cancel ] = (AstMapping *) astUnitMap( nax, "", status );
          ( *invert_list )[ cancel ] = 0;
           result = ( cancel < where ) ? cancel : where;
+
+/* Otherwise, see if the nominated NormMap is followed by one or more
+   identical NormMaps, in which case we can remove all but one of the
+   NormMaps. */
+      } else {
+
+/* Loop round all subsequent Mappings until the end of the list is
+   reached, or a Mapping that is not a NormMap is reached. On each pass
+   we replace the NormMap with a UnitMap. */
+         nax = astGetNin( map );
+         cancel = where;
+         while( ++cancel < *nmap &&
+                astIsANormMap( ( *map_list )[ cancel ] ) ) {
+
+/* Check the Invert flags are equal. */
+            if( ( *invert_list )[ where ] == ( *invert_list )[ cancel ] ) {
+
+/* Check the Frames are equal .*/
+               nmap2 = (AstNormMap *) ( *map_list )[ cancel ];
+               if( astEqual( map->frame, nmap2->frame ) ) {
+
+/* Replace the later NormMap with a UnitMap. */
+                  (void) astAnnul( ( *map_list )[ cancel ] );
+                  ( *map_list )[ cancel ] = (AstMapping *) astUnitMap( nax,
+                                                               "", status );
+
+/* We return the index of the first modified Mapping in the list, so do
+   not update "result" if this is not the first change. */
+                  if( result == -1 ) result = cancel;
+               }
+            }
+         }
       }
    }
 

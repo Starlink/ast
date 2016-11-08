@@ -21679,11 +21679,9 @@ affected include: GrismMap, LutMap, PcdMap, SphMap, WcsMap and ZoomMap.
 \end{enumerate}
 
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.3}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.2.0 and V8.3.0 (the
-current version):
+\subsection{Changes Introduced in V8.3}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.2.0 and V8.3.0:
 
 \begin{enumerate}
 
@@ -21708,8 +21706,24 @@ zero singularity.
 
 \end{enumerate}
 
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V8.4}
+The following describes the most significant changes which have
+occurred in the AST library between versions V8.3.0 and V8.4.0 (the
+current version):
 
-% Programs which are statically linked will need to be re-linked in
-% order to take advantage of these new facilities.
+\begin{enumerate}
+
+- Multiple identical NormMaps in series will now be simplified to a
+single NormMap.
+
+- A NormMap that encapsulates a basic Frame will now be simplified to a
+UnitMap.
+
+\end{enumerate}
+
+
+Programs which are statically linked will need to be re-linked in
+order to take advantage of these new facilities.
 
 \end{document}

@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V8.3.0) of the Starlink AST (astrometry) library is
+   A new release (V8.4.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -13,8 +13,21 @@ software which needs to manipulate coordinate system data, especially
 celestial coordinate systems. AST is portable and
 environment-independent.
 
+
+
+
 Main Changes in this Version
 ----------------------------
+
+- Multiple identical NormMaps in series will now be simplified to a
+single NormMap.
+
+- A NormMap that encapsulates a basic Frame will now be simplified to a
+UnitMap.
+
+
+Main Changes in V8.3.0
+----------------------
 
 - A new method called astAxNorm has been added to the Frame class that
 normalises an array of axis values. When used with SkyFrames, it allows
