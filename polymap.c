@@ -4250,7 +4250,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     when the PolyMap was constructed.
 *
 *     The NiterInverse and TolInverse attributes provide parameters that
-*     control the behaviour of the inverse approcimation method.
+*     control the behaviour of the inverse approximation method.
 
 *  Applicability:
 *     PolyMap
