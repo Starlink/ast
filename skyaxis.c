@@ -1153,7 +1153,15 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
 *     values
 *        On entry, the axis values to be normalised. Modified on exit to
 *        hold the normalised values.
+
+*  Notes:
+*     - Bad axis values, and axis values outside the range -1E6 to +1E6
+*     radians (such as DBL_MAX and DBL_MIN) are returned unchanged.
+
 */
+
+/* Local macros */
+#define VAL_OK(v) ((v)!=AST__BAD&&fabs(v)<1.0E6)
 
 /* Local Variables: */
    AstSkyAxis *this;             /* Pointer to the SkyAxis structure */
@@ -1189,10 +1197,10 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
       pv = values;
       for( i = 0; i < nval; i++,pv++ ) {
 
-/* If the coordinate value is bad, then return it unchanged. Otherwise,
-   wrap the value into the appropriate range. */
-         if( *pv != AST__BAD ) *pv = centrezero ? palDrange( *pv ) :
-                                                  palDranrm( *pv );
+/* If the coordinate value is bad, or unusually large, then return it
+   unchanged. Otherwise, wrap the value into the appropriate range. */
+         if( VAL_OK(*pv) ) *pv = centrezero ? palDrange( *pv ) :
+                                              palDranrm( *pv );
       }
 
 /* Oper 1 - choose a range that leaves most values unchanged. */
@@ -1202,7 +1210,7 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
       if( astGetAxisIsLatitude( this ) ) {
          pv = values;
          for( i = 0; i < nval; i++,pv++ ) {
-            if( *pv != AST__BAD ) *pv = palDrange( *pv );
+            if( VAL_OK(*pv) ) *pv = palDrange( *pv );
          }
 
 /* Now deal with longitude axes. */
@@ -1220,7 +1228,7 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
 
          pv = values;
          for( i = 0; i < nval; i++,pv++ ) {
-            if( *pv != AST__BAD ) {
+            if( VAL_OK(*pv) ) {
                while( *pv > twopi ) *pv -= twopi;
                while( *pv < -AST__DPIBY2 ) *pv += twopi;
 
@@ -1261,14 +1269,14 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
          if( range2 < range1 ) {
             pv = values;
             for( i = 0; i < nval; i++,pv++ ) {
-               if( *pv != AST__BAD ) *pv = palDrange( *pv );
+               if( VAL_OK(*pv) ) *pv = palDrange( *pv );
             }
 
 /* Otherwise, normalise all into the range [0,2PI]. */
          } else {
             pv = values;
             for( i = 0; i < nval; i++,pv++ ) {
-               if( *pv != AST__BAD ) *pv = palDranrm( *pv );
+               if( VAL_OK(*pv) ) *pv = palDranrm( *pv );
             }
          }
       }
@@ -1279,6 +1287,7 @@ static void AxisNormValues( AstAxis *this_axis, int oper, int nval,
                 "supplied (internal AST programming error).", status, oper );
    }
 
+#undef VAL_OK
 }
 
 static double AxisOffset( AstAxis *this_axis, double v1, double dist, int *status ) {
