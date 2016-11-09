@@ -5465,7 +5465,7 @@ static int CGCapWrapper( AstPlot *this, int cap, int value, int *status ) {
 *     cap
 *        The capability to be inquired aboue.
 *     value
-*        The value ot assign to the capability.
+*        The value to assign to the capability.
 *     status
 *        Pointer to the inherited status value.
 
@@ -7324,7 +7324,7 @@ static void CopyPlotDefaults( AstPlot *this, int axis, AstPlot *dplot,
 
 *  Parameters:
 *     this
-*        Pointer to a Plot containing the values ot be copied.
+*        Pointer to a Plot containing the values to be copied.
 *     axis
 *        The zero-based index of the axis within "this" for which the
 *        used defaults are to be copied.
@@ -14295,7 +14295,7 @@ static int GCap( AstPlot *this, int cap, int value, int *status ){
 *     cap
 *        The capability to be inquired aboue.
 *     value
-*        The value ot assign to the capability.
+*        The value to assign to the capability.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -19133,7 +19133,7 @@ static int GVec( AstPlot *this, AstMapping *mapping, double *phy,
 *     this
 *        Pointer to the Plot.
 *     mapping
-*        Pointer to the Mapping from the base Frame of the Plot ot the
+*        Pointer to the Mapping from the base Frame of the Plot to the
 *        current Frame.
 *     phy
 *        Pointer to an array holding the coordinates in the current Frame

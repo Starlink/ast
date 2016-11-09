@@ -18883,7 +18883,7 @@ static void SpreadLinear##X( int ndim_out, \
 \
 /* If we are using the input data variances as weights, calculate the \
    weight, and scale the fractions of each input pixel by the weight. \
-   Since the product of two fractions is always used ot scale the input \
+   Since the product of two fractions is always used to scale the input \
    data values, we use the square root of the reciprocal of the variance \
    as the weight (so that when the product of two fractions is taken, \
    the square roots multiply together to give the required 1/variance \

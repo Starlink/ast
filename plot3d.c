@@ -1677,7 +1677,7 @@ static int Border( AstPlot *this_plot, int *status ){
    result = ( flag1 || flag2 || flag3 );
    if( !result ) {
 
-/* The three remaining edges ot be drawn all meet at the corner
+/* The three remaining edges to be drawn all meet at the corner
    diagonally opposite the root corner. Get the root corner. */
       root_corner = astGetRootCorner( this );
 

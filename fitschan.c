@@ -614,7 +614,7 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        with constant values (such as produced by a PermMap) are treated
 *        as a valid sky coordinate Mapping.
 *        - AddFrame modified so that WCS Frames with a different number
-*        of axes ot the pixel Frame can be added into the FrameSet.
+*        of axes to the pixel Frame can be added into the FrameSet.
 *        - IRAFFromStore and AIPSFromStore modified so that they do not
 *        create any output keywords if the number of WCS axes is different
 *        to the number of pixel axes.

@@ -11312,7 +11312,7 @@ c     using the astConvert or astFindFrame routine),
 *     the effect of any offset coordinate system defined in either SkyFrame
 *     will be removed, resulting in alignment being performed in the
 *     celestial coordinate system given by the AlignSystem attribute.
-*     However, by setting the AlignOffset attribute ot a non-zero value, it
+*     However, by setting the AlignOffset attribute to a non-zero value, it
 *     is possible to change this behaviour so that the effect of the offset
 *     coordinate system is not removed when aligning two SkyFrames.
 

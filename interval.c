@@ -1883,7 +1883,7 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
    the two Regions can be represented using a finite mesh of points on the
    boundary which is not the case with Intervals. The implementation in this
    class sees if the Mapping between the base Frames of the Intervals allows
-   the axis limits to be transferred from one Frame ot the other. */
+   the axis limits to be transferred from one Frame to the other. */
    if( astIsAInterval( this ) && astIsAInterval( that ) ) {
 
 /* Get a FrameSet which connects the Frame represented by the second Interval
