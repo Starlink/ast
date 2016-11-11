@@ -25,6 +25,11 @@ single NormMap.
 - A NormMap that encapsulates a basic Frame will now be simplified to a
 UnitMap.
 
+- The astTimeAdd (AST_TIMEADD) method of the TimeMap class now include an
+extra argument that gives the number of values supplied in the arguments
+array. Note, any existing code that uses this method will need to be
+changed.
+
 
 Main Changes in V8.3.0
 ----------------------

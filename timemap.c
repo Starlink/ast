@@ -96,6 +96,8 @@ f     - AST_TIMEADD: Add a time coordinate conversion to an TimeMap
 *        CLOCKLAT/LON to OBSLAT/LON for consistency with other classes.
 *     1-SEP-2016 (DSB):
 *        Add 2017 January 1 leap second.
+*     11-NOV-2016 (DSB):
+*        Add argument "narg" to astTimeAdd method.
 *class--
 */
 
@@ -242,11 +244,11 @@ static int Equal( AstObject *, AstObject *, int * );
 static int CvtCode( const char *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static void AddArgs( int, double *, int * );
-static void AddTimeCvt( AstTimeMap *, int, const double *, int * );
+static void AddTimeCvt( AstTimeMap *, int, int, const double *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
-static void TimeAdd( AstTimeMap *, const char *, const double[], int * );
+static void TimeAdd( AstTimeMap *, const char *, int, const double[], int * );
 
 static int GetObjSize( AstObject *, int * );
 /* Member functions. */
@@ -543,7 +545,8 @@ static void AddArgs( int cvttype, double *cvtargs, int *status ) {
    }
 }
 
-static void AddTimeCvt( AstTimeMap *this, int cvttype, const double *args, int *status ) {
+static void AddTimeCvt( AstTimeMap *this, int cvttype, int narg,
+                        const double *args, int *status ) {
 /*
 *  Name:
 *     AddTimeCvt
@@ -556,7 +559,8 @@ static void AddTimeCvt( AstTimeMap *this, int cvttype, const double *args, int *
 
 *  Synopsis:
 *     #include "timemap.h"
-*     void AddTimeCvt( AstTimeMap *this, int cvttype, const double *args )
+*     void AddTimeCvt( AstTimeMap *this, int cvttype, int narg, const
+*                      double *args )
 
 *  Class Membership:
 *     TimeMap member function.
@@ -579,6 +583,8 @@ static void AddTimeCvt( AstTimeMap *this, int cvttype, const double *args, int *
 *        A code to identify which time coordinate conversion is to be
 *        appended.  See the "Coordinate Conversions" section for details
 *        of those available.
+*     narg
+*        The number of argument values supplied in "args".
 *     args
 *        Pointer to an array of double containing the argument values
 *        required to fully specify the required coordinate
@@ -703,6 +709,13 @@ static void AddTimeCvt( AstTimeMap *this, int cvttype, const double *args, int *
       astError( AST__TIMIN, "AddTimeCvt(%s): Invalid time coordinate "
                 "conversion type (%d).", status, astGetClass( this ),
                 (int) cvttype );
+   }
+
+/* If the number of supplied arguments is incorrect, then report an error. */
+   if ( astOK && nargs != narg ) {
+      astError( AST__TIMIN, "AddTimeCvt(%s): Invalid no. of arguments for time "
+                "coordinate conversion type %d - %d supplied, %d required.",
+                status, astGetClass( this ), (int) cvttype, narg, nargs );
    }
 
 /* Note the number of coordinate conversions already stored in the TimeMap. */
@@ -1992,7 +2005,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    double (*cvtargs)[ MAX_ARGS ]; /* Pointer to argument arrays */
    double tmp;                   /* Temporary storage */
    int *cvttype;                 /* Pointer to transformation type codes */
-   int *szarg;                   /* Pointer to argument count array */
+   int *narg;                    /* Pointer to argument count */
+   int *szarg;                   /* Pointer to argument array size */
    int done;                     /* Finished (no further simplification)? */
    int iarg;                     /* Loop counter for arguments */
    int icvt1;                    /* Loop initial value */
@@ -2006,7 +2020,6 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    int invert;                   /* TimeMap applied in inverse direction? */
    int istep;                    /* Loop counter for transformation steps */
    int keep;                     /* Keep transformation step? */
-   int narg;                     /* Number of user-supplied arguments */
    int ngone;                    /* Number of Mappings eliminated */
    int nstep0;                   /* Original number of transformation steps */
    int nstep;                    /* Total number of transformation steps */
@@ -2057,6 +2070,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
       cvttype = astMalloc( sizeof( int ) * (size_t) nstep );
       cvtargs = astMalloc( sizeof( double[ MAX_ARGS ] ) * (size_t) nstep );
       szarg = astMalloc( sizeof( int ) * (size_t) nstep );
+      narg = astMalloc( sizeof( int ) * (size_t) nstep );
 
 /* Loop to obtain the transformation data for each TimeMap being merged. */
       nstep = 0;
@@ -2081,7 +2095,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    the associated number of arguments. Then store these arguments. */
             cvttype[ nstep ] = timemap->cvttype[ icvt ];
             (void) CvtString( cvttype[ nstep ], &comment,
-                              &narg, szarg + nstep, argdesc, status );
+                              narg + nstep, szarg + nstep, argdesc, status );
             if ( !astOK ) break;
             for ( iarg = 0; iarg < szarg[ nstep ]; iarg++ ) {
                cvtargs[ nstep ][ iarg ] = timemap->cvtargs[ icvt ][ iarg ];
@@ -2266,6 +2280,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                      cvtargs[ ikeep ][ iarg ] = cvtargs[ istep ][ iarg ];
                   }
                   szarg[ ikeep ] = szarg[ istep ];
+                  narg[ ikeep ] = narg[ istep ];
                }
             }
          }
@@ -2312,7 +2327,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                new = (AstMapping *) astTimeMap( 0, "", status );
                for ( istep = 0; istep < nstep; istep++ ) {
                   AddTimeCvt( (AstTimeMap *) new, cvttype[ istep ],
-                             cvtargs[ istep ], status );
+                             narg[ istep ], cvtargs[ istep ], status );
                }
             }
 
@@ -2354,6 +2369,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
       cvttype = astFree( cvttype );
       cvtargs = astFree( cvtargs );
       szarg = astFree( szarg );
+      narg = astFree( narg );
    }
 
 /* If an error occurred, clear the returned value. */
@@ -3504,7 +3520,8 @@ static double Rcc( double tdb, double ut1, double wl, double u, double v, int *s
 
 }
 
-static void TimeAdd( AstTimeMap *this, const char *cvt, const double args[], int *status ) {
+static void TimeAdd( AstTimeMap *this, const char *cvt, int narg,
+                     const double args[], int *status ) {
 /*
 *++
 *  Name:
@@ -3519,8 +3536,9 @@ f     AST_TIMEADD
 
 *  Synopsis:
 c     #include "timemap.h"
-c     void astTimeAdd( AstTimeMap *this, const char *cvt, const double args[] )
-f     CALL AST_TIMEADD( THIS, CVT, ARGS, STATUS )
+c     void astTimeAdd( AstTimeMap *this, const char *cvt, int narg,
+c                      const double args[] )
+f     CALL AST_TIMEADD( THIS, CVT, NARG, ARGS, STATUS )
 
 *  Class Membership:
 *     TimeMap method.
@@ -3565,6 +3583,11 @@ f        A character string which identifies the
 *        time coordinate conversion to be added to the
 *        TimeMap. See the "Available Conversions" section for details of
 *        those available.
+c     narg
+f     NARG = INTEGER (Given)
+*        The number of argument values supplied in the
+c        "args" array.
+f        ARGS array.
 c     args
 f     ARGS( * ) = DOUBLE PRECISION (Given)
 *        An array containing argument values for the time
@@ -3678,7 +3701,7 @@ f     AST_TRANSFORM
    }
 
 /* Add the new conversion to the TimeMap. */
-   AddTimeCvt( this, cvttype, args, status );
+   AddTimeCvt( this, cvttype, narg, args, status );
 }
 
 static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
@@ -3753,7 +3776,6 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    int cvt;                      /* Loop counter for conversions */
    int end;                      /* Termination index for conversion loop */
    int inc;                      /* Increment for conversion loop */
-   int ncoord_in;                /* Number of coordinates per input point */
    int npoint;                   /* Number of points */
    int point;                    /* Loop counter for points */
    int start;                    /* Starting index for conversion loop */
@@ -3776,7 +3798,6 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Determine the numbers of points and coordinates per point from the input
    PointSet and obtain pointers for accessing the input and output coordinate
    values. */
-   ncoord_in = astGetNcoord( in );
    npoint = astGetNpoint( in );
    ptr_in = astGetPoints( in );
    ptr_out = astGetPoints( result );
@@ -5187,9 +5208,10 @@ AstTimeMap *astLoadTimeMap_( void *mem, size_t size,
    Note that the member function may not be the one defined here, as it may
    have been over-ridden by a derived class. However, it should still have the
    same interface. */
-void astTimeAdd_( AstTimeMap *this, const char *cvt, const double args[], int *status ) {
+void astTimeAdd_( AstTimeMap *this, const char *cvt, int narg, const double args[],
+                  int *status ) {
    if ( !astOK ) return;
-   (**astMEMBER(this,TimeMap,TimeAdd))( this, cvt, args, status );
+   (**astMEMBER(this,TimeMap,TimeAdd))( this, cvt, narg, args, status );
 }
 
 

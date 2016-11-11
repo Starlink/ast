@@ -95,12 +95,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -168,7 +168,7 @@ typedef struct AstTimeMapVtab {
    AstClassIdentifier id;
 
 /* Properties (e.g. methods) specific to this class. */
-   void (* TimeAdd)( AstTimeMap *, const char *, const double[], int * );
+   void (* TimeAdd)( AstTimeMap *, const char *, int, const double[], int * );
 } AstTimeMapVtab;
 
 #if defined(THREAD_SAFE)
@@ -220,7 +220,7 @@ AstTimeMap *astLoadTimeMap_( void *, size_t, AstTimeMapVtab *,
 
 /* Prototypes for member functions. */
 /* -------------------------------- */
-void astTimeAdd_( AstTimeMap *, const char *, const double[], int * );
+void astTimeAdd_( AstTimeMap *, const char *, int, const double[], int * );
 
 #if defined(astCLASS)            /* Protected. */
 double astDat_( double, int, int * );
@@ -271,8 +271,8 @@ astINVOKE(O,astLoadTimeMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_P
 /* Here we make use of astCheckTimeMap to validate TimeMap pointers
    before use.  This provides a contextual error report if a pointer
    to the wrong sort of Object is supplied. */
-#define astTimeAdd(this,cvt,args) \
-astINVOKE(V,astTimeAdd_(astCheckTimeMap(this),cvt,args,STATUS_PTR))
+#define astTimeAdd(this,cvt,narg,args) \
+astINVOKE(V,astTimeAdd_(astCheckTimeMap(this),cvt,narg,args,STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astDat(in,forward) astDat_(in,forward,STATUS_PTR)

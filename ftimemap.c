@@ -73,19 +73,21 @@ F77_LOGICAL_FUNCTION(ast_isatimemap)( INTEGER(THIS),
 }
 
 F77_SUBROUTINE(ast_timeadd)( INTEGER(THIS),
-                            CHARACTER(CVT),
-                            DOUBLE_ARRAY(ARGS),
-                            INTEGER(STATUS)
-                            TRAIL(CVT) ) {
+                             CHARACTER(CVT),
+                             INTEGER(NARG),
+                             DOUBLE_ARRAY(ARGS),
+                             INTEGER(STATUS)
+                             TRAIL(CVT) ) {
    GENPTR_INTEGER(THIS)
    GENPTR_CHARACTER(CVT)
+   GENPTR_INTEGER(NARG)
    GENPTR_DOUBLE_ARRAY(ARGS)
    char *cvt;
 
    astAt( "AST_TIMEADD", NULL, 0 );
    astWatchSTATUS(
       cvt = astString( CVT, CVT_length );
-      astTimeAdd( astI2P( *THIS ), cvt, ARGS );
+      astTimeAdd( astI2P( *THIS ), cvt, *NARG, ARGS );
       astFree( cvt );
    )
 }

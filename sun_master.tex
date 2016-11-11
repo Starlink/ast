@@ -21714,10 +21714,20 @@ current version):
 
 \begin{enumerate}
 
-- Multiple identical NormMaps in series will now be simplified to a
+f+
+\item The AST\_TIMEADD
+f-
+c+
+\item The astTimeAdd
+c-
+method of the TimeMap class now include an extra argument that gives the
+number of values supplied in the arguments array. Note, any existing code
+that uses this method will need to be changed.
+
+\item Multiple identical NormMaps in series will now be simplified to a
 single NormMap.
 
-- A NormMap that encapsulates a basic Frame will now be simplified to a
+\item A NormMap that encapsulates a basic Frame will now be simplified to a
 UnitMap.
 
 \end{enumerate}
