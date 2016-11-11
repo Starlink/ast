@@ -88,6 +88,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        Improve argument checking and error reporting in PolyTran
 *     8-MAY-2014 (DSB):
 *        Move to using CMinPack for minimisations.
+*     11-NOV-2016 (DSB):
+*        - Fix bug in MapMerge that could cause a seg fault. It did not
+*        check that the PolyMap had a defined transformation before accessing
+*        the transformation's coefficient array.
+*        - Fix similar bugs in Equal that could cause seg faults. 
 *class--
 */
 
@@ -400,23 +405,38 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 
             result = 1;
 
-            for( i = 0; i < nout && result; i++ ) {
-               if( this->ncoeff_f[ i ] != that->ncoeff_f[ i ] ||
-                   this->mxpow_i[ i ] != that->mxpow_i[ i ] ) {
-                  result = 0;
+/* Check properties of the forward transformation. */
+            if( this->ncoeff_f && that->ncoeff_f ) {
+               for( i = 0; i < nout && result; i++ ) {
+                  if( this->ncoeff_f[ i ] != that->ncoeff_f[ i ] ){
+                     result = 0;
+                  }
                }
+            } else if( this->ncoeff_f || that->ncoeff_f ) {
+               result = 0;
             }
 
+            if( this->mxpow_f && that->mxpow_f ) {
+               for( i = 0; i < nout && result; i++ ) {
+                  if( this->mxpow_f[ i ] != that->mxpow_f[ i ] ){
+                     result = 0;
+                  }
+               }
+            } else if( this->mxpow_f || that->mxpow_f ) {
+               result = 0;
+            }
 
             if( this->coeff_f && that->coeff_f ) {
                for( i = 0; i < nout && result; i++ ) {
                   for( j = 0; j < this->ncoeff_f[ i ] && result; j++ ) {
                      if( !astEQUAL( this->coeff_f[ i ][ j ],
-                                 that->coeff_f[ i ][ j ] ) ) {
+                                    that->coeff_f[ i ][ j ] ) ) {
                         result = 0;
                      }
                   }
                }
+            } else if( this->coeff_f || that->coeff_f ) {
+               result = 0;
             }
 
             if( this->power_f && that->power_f ) {
@@ -430,38 +450,57 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
                      }
                   }
                }
+            } else if( this->power_f || that->power_f ) {
+               result = 0;
             }
 
-            for( i = 0; i < nin && result; i++ ) {
-               if( this->ncoeff_i[ i ] != that->ncoeff_i[ i ] ||
-                   this->mxpow_f[ i ] != that->mxpow_f[ i ] ) {
-                  result = 0;
+/* Check properties of the inverse transformation. */
+            if( this->ncoeff_i && that->ncoeff_i ) {
+               for( i = 0; i < nout && result; i++ ) {
+                  if( this->ncoeff_i[ i ] != that->ncoeff_i[ i ] ){
+                     result = 0;
+                  }
                }
+            } else if( this->ncoeff_i || that->ncoeff_i ) {
+               result = 0;
             }
 
+            if( this->mxpow_i && that->mxpow_i ) {
+               for( i = 0; i < nout && result; i++ ) {
+                  if( this->mxpow_i[ i ] != that->mxpow_i[ i ] ){
+                     result = 0;
+                  }
+               }
+            } else if( this->mxpow_i || that->mxpow_i ) {
+               result = 0;
+            }
 
-            if( this->coeff_i && that->coeff_i ) {
-               for( i = 0; i < nin && result; i++ ) {
-                  for( j = 0; j < this->ncoeff_i[ i ] && result; j++ ) {
-                     if( !astEQUAL( this->coeff_i[ i ][ j ],
-                                 that->coeff_i[ i ][ j ] ) ) {
+            if( this->coeff_f && that->coeff_f ) {
+               for( i = 0; i < nout && result; i++ ) {
+                  for( j = 0; j < this->ncoeff_f[ i ] && result; j++ ) {
+                     if( !astEQUAL( this->coeff_f[ i ][ j ],
+                                    that->coeff_f[ i ][ j ] ) ) {
                         result = 0;
                      }
                   }
                }
+            } else if( this->coeff_f || that->coeff_f ) {
+               result = 0;
             }
 
-            if( this->power_i && that->power_i ) {
-               for( i = 0; i < nin && result; i++ ) {
-                  for( j = 0; j < this->ncoeff_i[ i ] && result; j++ ) {
-                     for( k = 0; k < nout && result; k++ ) {
-                        if( this->power_i[ i ][ j ][ k ] !=
-                            that->power_i[ i ][ j ][ k ] ) {
+            if( this->power_f && that->power_f ) {
+               for( i = 0; i < nout && result; i++ ) {
+                  for( j = 0; j < this->ncoeff_f[ i ] && result; j++ ) {
+                     for( k = 0; k < nin && result; k++ ) {
+                        if( this->power_f[ i ][ j ][ k ] !=
+                            that->power_f[ i ][ j ][ k ] ) {
                            result = 0;
                         }
                      }
                   }
                }
+            } else if( this->power_f || that->power_f ) {
+               result = 0;
             }
 
 /* If the Invert flags for the two PolyMaps differ, the attributes of the two
@@ -2574,18 +2613,12 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    AstPolyMap *pmap0;    /* Nominated PolyMap */
    AstPolyMap *pmap1;    /* Neighbouring PolyMap */
    int i;                /* Index of neighbour */
-   int iax_in;           /* Index of input coordinate */
-   int iax_out;          /* Index of output coordinate */
-   int ico;              /* Index of coefficient */
-   int inv0;             /* Supplied Invert flag for nominated PolyMap */
-   int inv1;             /* Supplied Invert flag for neighbouring PolyMap */
-   int nc;               /* Number of coefficients */
    int nin;              /* Number of input coordinates for nominated PolyMap */
    int nout;             /* Number of output coordinates for nominated PolyMap */
    int ok;               /* Are PolyMaps equivalent? */
+   int oldinv0;          /* Original Invert value in pmap0 */
+   int oldinv1;          /* Original Invert value in pmap1 */
    int result;           /* Result value to return */
-   int swap0;            /* Swap inputs and outputs for nominated PolyMap? */
-   int swap1;            /* Swap inputs and outputs for neighbouring PolyMap? */
 
 /* Initialise. */
    result = -1;
@@ -2602,14 +2635,15 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    time does not currently allow these to be coded. */
    if( series ) {
 
-/* Set a flag indicating if "input" and "output" needs to be swapped for
-   the nominated PolyMap. */
-      inv0 = ( *invert_list )[ where ];
-      swap0 = ( inv0 != astGetInvert( pmap0 ) );
+/* Temporarily set the Invert flag of the nominated PolyMap to the
+   required value, first saving the original value so that it can be
+   re-instated later. */
+      oldinv0 = astGetInvert( pmap0 );
+      astSetInvert( pmap0, ( *invert_list )[ where ] );
 
 /* Get the number of inputs and outputs to the nominated PolyMap. */
-      nin = !swap0 ? astGetNin( pmap0 ) : astGetNout( pmap0 );
-      nout = !swap0 ? astGetNout( pmap0 ) : astGetNin( pmap0 );
+      nin = astGetNin( pmap0 );
+      nout = astGetNout( pmap0 );
 
 /* Check each neighbour. */
       for( i = where - 1; i <= where + 1; i += 2 ) {
@@ -2626,64 +2660,31 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Check it is used in the opposite direction to the nominated PolyMap. */
          if( ( *invert_list )[ i ] == ( *invert_list )[ where ] ) continue;
 
-/* Set a flag indicating if "input" and "output" needs to be swapped for
-   the neighbouring PolyMap. */
-         inv1 = ( *invert_list )[ i ];
-         swap1 = ( inv1 != astGetInvert( pmap1 ) );
+/* We use the astEqual method to check that the two PolyMaps are equal.
+   But at the moment they may not be equal because they may have
+   different Invert flags. Therefore, temporarily set the invert flag
+   of the neighbour so that it is the same as the nominated PolyMap,
+   first saving the original value so that it can be re-instated later.
+   Note, we have already checked that the two PolyMaps are used in opposite
+   directions within the CmpMap. */
+         oldinv1 = astGetInvert( pmap1 );
+         astSetInvert( pmap1, ( *invert_list )[ where ] );
 
-/* Check the number of inputs and outputs are equal to the nominated
-   PolyMap. */
-         if( astGetNin( pmap1 ) != (!swap1 ? nin : nout ) &&
-             astGetNout( pmap1 ) != (!swap1 ? nout : nin ) ) continue;
+/* Use astEqual to check that the coefficients etc are equal in the two
+   PolyMaps. */
+         ok = astEqual( pmap0, pmap1 );
 
-/* Check the forward coefficients are equal. */
-         ok = 1;
-         for( iax_out = 0; iax_out < nout && ok; iax_out++ ) {
-            nc = pmap1->ncoeff_f[ iax_out ];
-            if( nc != pmap0->ncoeff_f[ iax_out ] ) continue;
+/* Re-instate the original value of the Invert flag in the neighbour. */
+         astSetInvert( pmap1, oldinv1 );
 
-            for( ico = 0; ico < nc && ok; ico++ ) {
-
-               if( !astEQUAL( pmap1->coeff_f[ iax_out ][ ico ],
-                              pmap0->coeff_f[ iax_out ][ ico ] ) ){
-                  ok = 0;
-
-               } else {
-                  for( iax_in = 0; iax_in < nin && ok; iax_in++ ) {
-                     ok = ( pmap1->power_f[ iax_out ][ ico ][ iax_in ] ==
-                            pmap0->power_f[ iax_out ][ ico ][ iax_in ] );
-                  }
-               }
-            }
-         }
-         if( !ok ) continue;
-
-/* Check the inverse coefficients are equal. */
-         ok = 1;
-         for( iax_in = 0; iax_in < nin && ok; iax_in++ ) {
-            nc = pmap1->ncoeff_i[ iax_in ];
-            if( nc != pmap0->ncoeff_i[ iax_in ] ) continue;
-
-            for( ico = 0; ico < nc && ok; ico++ ) {
-
-               if( !astEQUAL( pmap1->coeff_i[ iax_in ][ ico ],
-                              pmap0->coeff_i[ iax_in ][ ico ] ) ){
-                  ok = 0;
-
-               } else {
-                  for( iax_out = 0; iax_out < nout && ok; iax_out++ ) {
-                     ok = ( pmap1->power_i[ iax_in ][ ico ][ iax_out ] ==
-                            pmap0->power_i[ iax_in ][ ico ][ iax_out ] );
-                  }
-               }
-            }
-         }
+/* Pass on to the next neighbour if the current neighbour differs from
+   the nominated PolyMap. */
          if( !ok ) continue;
 
 /* If we get this far, then the nominated PolyMap and the current
    neighbour cancel each other out, so replace each by a UnitMap. */
-         (void) astAnnul( pmap0 );
-         (void) astAnnul( pmap1 );
+         pmap0 = astAnnul( pmap0 );
+         pmap1 = astAnnul( pmap1 );
          if( i < where ) {
             ( *map_list )[ where ] = (AstMapping *) astUnitMap( nout, "", status );
             ( *map_list )[ i ] = (AstMapping *) astUnitMap( nout, "", status );
@@ -2701,6 +2702,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Leave the loop. */
          break;
       }
+
+/* If the nominated PolyMap was not replaced by a UnitMap, then
+   re-instate its original value for the Invert flag. */
+      if( pmap0 ) astSetInvert( pmap0, oldinv0 );
    }
 
 /* Return the result. */
