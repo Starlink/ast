@@ -225,6 +225,10 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        - Override the astAxNorm method.
 *        - Use astAxNorm to fix a bug in astGetRegionBounds for cases where
 *        the Region cross a longitude=0 singularity.
+*     11-NOV-2016 (DSB):
+*        When loading a Region, use the dimensionality of the base Frame 
+*        of the FrameSet (rather than the current Frame as it used to be) 
+*        to define the number of axes required in the PointSet.
 *class--
 
 *  Implementation Notes:
@@ -12457,7 +12461,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
       astWriteObject( channel, "Points", 1, 1, this->points,
                       "Points defining the shape" );
 
-/* If the FrameSet was not included in the dump, then the loaded will use
+/* If the FrameSet was not included in the dump, then the loader will use
    the PointSet to determine the number of axes in the frame spanned by
    the Region. If there is no PointSet, then we must explicitly include
    an item giving the number of axes.*/
@@ -12789,7 +12793,7 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
 /* Local Variables: */
    AstFrame *f1;                  /* Base Frame for encapsulated FrameSet */
    AstRegion *new;                /* Pointer to the new Region */
-   int nax;                       /* No. of axes in Frame */
+   int nax;                       /* No. of axes in Frame, or FrameSet base Frame */
    int naxpt;                     /* No. of axes in per point */
 
 /* Get a pointer to the thread specific global data structure. */
@@ -12905,11 +12909,12 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
          astSetRegFS( new, f1 );
          f1 = astAnnul( f1 );
 
-/* If no Frame was found in the dump, look for a FrameSet. */
+/* If no Frame was found in the dump, look for a FrameSet. Get the number
+   of axes spanning its base Frame ("Nin"). */
       } else {
          new->frameset = astReadObject( channel, "frmset", NULL );
          if( new->frameset ) {
-            nax = astGetNaxes( new->frameset );
+            nax = astGetNin( new->frameset );
 
 /* If a FrameSet was found, the value of the RegionFS attribute is still
    unknown and so we must read it from an attribute as normal. */
