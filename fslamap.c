@@ -74,18 +74,20 @@ F77_LOGICAL_FUNCTION(ast_isaslamap)( INTEGER(THIS),
 
 F77_SUBROUTINE(ast_slaadd)( INTEGER(THIS),
                             CHARACTER(CVT),
+                            INTEGER(NARG),
                             DOUBLE_ARRAY(ARGS),
                             INTEGER(STATUS)
                             TRAIL(CVT) ) {
    GENPTR_INTEGER(THIS)
    GENPTR_CHARACTER(CVT)
+   GENPTR_INTEGER(NARG)
    GENPTR_DOUBLE_ARRAY(ARGS)
    char *cvt;
 
    astAt( "AST_SLAADD", NULL, 0 );
    astWatchSTATUS(
       cvt = astString( CVT, CVT_length );
-      astSlaAdd( astI2P( *THIS ), cvt, ARGS );
+      astSlaAdd( astI2P( *THIS ), cvt, *NARG, ARGS );
       astFree( cvt );
    )
 }

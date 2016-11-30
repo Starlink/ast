@@ -5905,29 +5905,29 @@ static int MakeSkyMapping( AstSkyFrame *target, AstSkyFrame *result,
    astSlaAdd. The macros differ in the number of additional argument
    values. */
    #define TRANSFORM_0(cvt) \
-           astSlaAdd( slamap, cvt, NULL );
+           astSlaAdd( slamap, cvt, 0, NULL );
 
    #define TRANSFORM_1(cvt,arg0) \
            args[ 0 ] = arg0; \
-           astSlaAdd( slamap, cvt, args );
+           astSlaAdd( slamap, cvt, 1, args );
 
    #define TRANSFORM_2(cvt,arg0,arg1) \
            args[ 0 ] = arg0; \
            args[ 1 ] = arg1; \
-           astSlaAdd( slamap, cvt, args );
+           astSlaAdd( slamap, cvt, 2, args );
 
    #define TRANSFORM_3(cvt,arg0,arg1,arg2) \
            args[ 0 ] = arg0; \
            args[ 1 ] = arg1; \
            args[ 2 ] = arg2; \
-           astSlaAdd( slamap, cvt, args );
+           astSlaAdd( slamap, cvt, 3, args );
 
    #define TRANSFORM_4(cvt,arg0,arg1,arg2,arg3) \
            args[ 0 ] = arg0; \
            args[ 1 ] = arg1; \
            args[ 2 ] = arg2; \
            args[ 3 ] = arg3; \
-           astSlaAdd( slamap, cvt, args );
+           astSlaAdd( slamap, cvt, 4, args );
 
 /* Convert _to_ FK5 J2000.0 coordinates. */
 /* ===================================== */

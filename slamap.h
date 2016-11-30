@@ -205,7 +205,7 @@ typedef struct AstSlaMapVtab {
    AstClassIdentifier id;
 
 /* Properties (e.g. methods) specific to this class. */
-   void (* SlaAdd)( AstSlaMap *, const char *, const double[], int * );
+   void (* SlaAdd)( AstSlaMap *, const char *, int, const double[], int * );
    int (* SlaIsEmpty)( AstSlaMap *, int * );
 } AstSlaMapVtab;
 
@@ -265,7 +265,7 @@ void astSTPConv_( double, int, int, double[3], double *[3], int, double[3], doub
 
 /* Prototypes for member functions. */
 /* -------------------------------- */
-void astSlaAdd_( AstSlaMap *, const char *, const double[], int * );
+void astSlaAdd_( AstSlaMap *, const char *, int, const double[], int * );
 int astSlaIsEmpty_( AstSlaMap *, int * );
 
 /* Function interfaces. */
@@ -313,8 +313,8 @@ astINVOKE(O,astLoadSlaMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 /* Here we make use of astCheckSlaMap to validate SlaMap pointers
    before use.  This provides a contextual error report if a pointer
    to the wrong sort of Object is supplied. */
-#define astSlaAdd(this,cvt,args) \
-astINVOKE(V,astSlaAdd_(astCheckSlaMap(this),cvt,args,STATUS_PTR))
+#define astSlaAdd(this,cvt,narg,args) \
+astINVOKE(V,astSlaAdd_(astCheckSlaMap(this),cvt,narg,args,STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astSTPConv astSTPConv_
