@@ -30,6 +30,11 @@ extra argument that gives the number of values supplied in the arguments
 array. Note, any existing code that uses this method will need to be
 changed.
 
+- The astSlaAdd (AST_SLAADD) method of the SlaMap class now include an
+extra argument that gives the number of values supplied in the arguments
+array. Note, any existing code that uses this method will need to be
+changed.
+
 
 Main Changes in V8.3.0
 ----------------------
