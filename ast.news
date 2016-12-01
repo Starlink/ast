@@ -35,6 +35,14 @@ extra argument that gives the number of values supplied in the arguments
 array. Note, any existing code that uses this method will need to be
 changed.
 
+- If the astMapRegion (AST_MAPREGION) method is used to map a Region into
+a new Frame that has fewer axes than the original Region, and if the
+inverse transformation of the supplied Mapping does not specify a value
+for the missing axes, then those axes are removed entirely from the
+Region. Previously they were retained, but supplied with bad values. This
+affects the number of mesh points per axes for such Regions, and so
+affects the accuracy of overlap determination.
+
 
 Main Changes in V8.3.0
 ----------------------

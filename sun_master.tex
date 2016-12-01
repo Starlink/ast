@@ -21740,8 +21740,22 @@ single NormMap.
 \item A NormMap that encapsulates a basic Frame will now be simplified to a
 UnitMap.
 
-\end{enumerate}
+\item If the
+c+
+astMapRegion
+c-
+f+
+AST\_MAPREGION
+f-
+method is used to map a Region into a new Frame that has fewer axes than
+the original Region, and if the inverse transformation of the supplied
+Mapping does not specify a value for the missing axes, then those axes
+are removed entirely from the Region. Previously they were retained, but
+automatically supplied with bad values. This affects the number of mesh
+points per axes for such Regions, and so affects the accuracy of overlap
+determination.
 
+\end{enumerate}
 
 Programs which are statically linked will need to be re-linked in
 order to take advantage of these new facilities.
