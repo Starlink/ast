@@ -95,12 +95,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -172,7 +172,7 @@ typedef struct AstSpecMapVtab {
    AstClassIdentifier id;
 
 /* Properties (e.g. methods) specific to this class. */
-   void (* SpecAdd)( AstSpecMap *, const char *, const double[], int * );
+   void (* SpecAdd)( AstSpecMap *, const char *, int, const double[], int * );
 } AstSpecMapVtab;
 
 #if defined(THREAD_SAFE)
@@ -224,7 +224,7 @@ AstSpecMap *astLoadSpecMap_( void *, size_t, AstSpecMapVtab *,
 
 /* Prototypes for member functions. */
 /* -------------------------------- */
-void astSpecAdd_( AstSpecMap *, const char *, const double[], int * );
+void astSpecAdd_( AstSpecMap *, const char *, int, const double[], int * );
 
 /* Function interfaces. */
 /* ==================== */
@@ -271,8 +271,8 @@ astINVOKE(O,astLoadSpecMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_P
 /* Here we make use of astCheckSpecMap to validate SpecMap pointers
    before use.  This provides a contextual error report if a pointer
    to the wrong sort of Object is supplied. */
-#define astSpecAdd(this,cvt,args) \
-astINVOKE(V,astSpecAdd_(astCheckSpecMap(this),cvt,args,STATUS_PTR))
+#define astSpecAdd(this,cvt,narg,args) \
+astINVOKE(V,astSpecAdd_(astCheckSpecMap(this),cvt,narg,args,STATUS_PTR))
 
 #endif
 

@@ -832,22 +832,22 @@ static double ConvertSourceVel( AstSpecFrame *this, AstStdOfRestType newsor,
 /* Add a conversion from the spectral system in which the SourceVEl value
    is stored, to relativistic velocity. */
       if( sys == AST__VRADIO ) {
-         astSpecAdd( specmap, "VRTOVL", NULL );
+         astSpecAdd( specmap, "VRTOVL", 0, NULL );
 
       } else if( sys == AST__VOPTICAL ) {
-         astSpecAdd( specmap, "VOTOVL", NULL );
+         astSpecAdd( specmap, "VOTOVL", 0, NULL );
 
       } else if( sys == AST__REDSHIFT ) {
-         astSpecAdd( specmap, "ZOTOVL", NULL );
+         astSpecAdd( specmap, "ZOTOVL", 0, NULL );
 
       } else if( sys == AST__BETA ) {
-         astSpecAdd( specmap, "BTTOVL", NULL );
+         astSpecAdd( specmap, "BTTOVL", 0, NULL );
       }
 
 /* Add a conversion from velocity to frequency since SorConvert converts
    frequencies. */
       rf = astGetRestFreq( this );
-      astSpecAdd( specmap, "VLTOFR", &rf );
+      astSpecAdd( specmap, "VLTOFR", 1, &rf );
 
 /* Now add a conversion from frequency in the SourveVRF standard of rest to
    frequency in the required rest frame. */
@@ -855,21 +855,21 @@ static double ConvertSourceVel( AstSpecFrame *this, AstStdOfRestType newsor,
 
 /* Add a conversion from frequency back to velocity. Note, the value of the
    rest frequency does not affect the overall conversion. */
-      astSpecAdd( specmap, "FRTOVL", &rf );
+      astSpecAdd( specmap, "FRTOVL", 1, &rf );
 
 /* Add a conversion from relativistic velocity to the required spectral
    system, if needed. */
       if( newsys == AST__VRADIO ) {
-         astSpecAdd( specmap, "VLTOVR", NULL );
+         astSpecAdd( specmap, "VLTOVR", 0, NULL );
 
       } else if( newsys == AST__VOPTICAL ) {
-         astSpecAdd( specmap, "VLTOVO", NULL );
+         astSpecAdd( specmap, "VLTOVO",0, NULL );
 
       } else if( newsys == AST__REDSHIFT ) {
-         astSpecAdd( specmap, "VLTOZO", NULL );
+         astSpecAdd( specmap, "VLTOZO",0, NULL );
 
       } else if( newsys == AST__BETA ) {
-         astSpecAdd( specmap, "VLTOBT", NULL );
+         astSpecAdd( specmap, "VLTOBT",0, NULL );
       }
 
 /* Use the SpecMap to convert the source velocity in the SourceVRF
@@ -2612,11 +2612,11 @@ static int MakeSpecMapping( AstSpecFrame *target, AstSpecFrame *result,
    astSpecAdd. The macros differ in the number of additional argument
    values. */
 #define TRANSFORM_0(cvt) \
-        astSpecAdd( specmap, cvt, NULL );
+        astSpecAdd( specmap, cvt, 0, NULL );
 
 #define TRANSFORM_1(cvt,arg0) \
         args[ 0 ] = arg0; \
-        astSpecAdd( specmap, cvt, args );
+        astSpecAdd( specmap, cvt, 1, args );
 
 /* Get all the necessary attributes from the result, target and alignment
    Frames. */
@@ -4305,13 +4305,13 @@ static int SorConvert( AstSpecFrame *this, AstSpecFrame *that,
 #define TRANSFORM_2(cvt,arg0,arg1) \
         args[ 0 ] = arg0; \
         args[ 1 ] = arg1; \
-        astSpecAdd( specmap, cvt, args );
+        astSpecAdd( specmap, cvt, 2, args );
 
 #define TRANSFORM_3(cvt,arg0,arg1,arg2) \
         args[ 0 ] = arg0; \
         args[ 1 ] = arg1; \
         args[ 2 ] = arg2; \
-        astSpecAdd( specmap, cvt, args );
+        astSpecAdd( specmap, cvt, 3, args );
 
 #define TRANSFORM_6(cvt,arg0,arg1,arg2,arg3,arg4,arg5) \
         args[ 0 ] = arg0; \
@@ -4320,7 +4320,7 @@ static int SorConvert( AstSpecFrame *this, AstSpecFrame *that,
         args[ 3 ] = arg3; \
         args[ 4 ] = arg4; \
         args[ 5 ] = arg5; \
-        astSpecAdd( specmap, cvt, args );
+        astSpecAdd( specmap, cvt, 6, args );
 
 /* A string for use in error messages. */
       vmess = "convert between different standards of rest";

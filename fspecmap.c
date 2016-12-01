@@ -74,18 +74,20 @@ F77_LOGICAL_FUNCTION(ast_isaspecmap)( INTEGER(THIS),
 
 F77_SUBROUTINE(ast_specadd)( INTEGER(THIS),
                             CHARACTER(CVT),
+                            INTEGER(NARG),
                             DOUBLE_ARRAY(ARGS),
                             INTEGER(STATUS)
                             TRAIL(CVT) ) {
    GENPTR_INTEGER(THIS)
    GENPTR_CHARACTER(CVT)
+   GENPTR_INTEGER(NARG)
    GENPTR_DOUBLE_ARRAY(ARGS)
    char *cvt;
 
    astAt( "AST_SPECADD", NULL, 0 );
    astWatchSTATUS(
       cvt = astString( CVT, CVT_length );
-      astSpecAdd( astI2P( *THIS ), cvt, ARGS );
+      astSpecAdd( astI2P( *THIS ), cvt, *NARG, ARGS );
       astFree( cvt );
    )
 }
