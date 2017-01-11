@@ -19,6 +19,9 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- The PAL library files included in the AST distribution have been updated
+to PAL version 0.9.7.
+
 - Multiple identical NormMaps in series will now be simplified to a
 single NormMap.
 

@@ -31,6 +31,8 @@
 *        If the PAL and ERFA libraries distributed within AST are being
 *        used, rename the public symbols defined by both to avoid clashes
 *        with any external PAL or ERFA library.
+*     11-JAN-2017 (DSB):
+*        Update to PAL V0.9.7.
 *     {enter_further_changes_here}
 
 *  Copyright:
@@ -118,7 +120,7 @@ void palAoppa ( double date, double dut, double elongm, double phim,
 
 void palAoppat ( double date, double aoprms[14] );
 
-void palAopqk ( double rap, double dap, double aoprms[14],
+void palAopqk ( double rap, double dap, const double aoprms[14],
                 double *aob, double *zob, double *hob,
                 double *dob, double *rob );
 
@@ -396,7 +398,7 @@ void palOap ( const char *type, double ob1, double ob2, double date,
               double rh, double wl, double tlr,
               double *rap, double *dap );
 
-void palOapqk ( const char *type, double ob1, double ob2, double aoprms[14],
+void palOapqk ( const char *type, double ob1, double ob2, const double aoprms[14],
                 double *rap, double *dap );
 
 int palObs( size_t n, const char * c,
@@ -556,6 +558,8 @@ void palUnpcd ( double disco, double *x, double *y );
 void palV2tp ( float v[3], float v0[3], float *xi, float *eta, int *j );
 
 float palVdv ( float va[3], float vb[3] );
+
+int palVers ( char * verstring, size_t verlen );
 
 void palVn ( float v[3], float uv[3], float *vm );
 
