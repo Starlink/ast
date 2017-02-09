@@ -187,8 +187,8 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *     18-JUL-2013 (DSB):
 *         Added SortBy options "KeyAgeUp" and "KeyAgeDown".
 *     9-SEP-2016 (DSB):
-*         Guard against memory corruption that could occur after making 
-*         50 (AST__KEYMAP_CONVERTVALUE_MAX_STRINGS) calls to put a string 
+*         Guard against memory corruption that could occur after making
+*         50 (AST__KEYMAP_CONVERTVALUE_MAX_STRINGS) calls to put a string
 *         into a KeyMap using astMapPutElemC.
 *class--
 */
@@ -7488,7 +7488,7 @@ f     AST_MAPPUTELEM<X>
 *  Synopsis:
 c     #include "ast.h"
 c     void astMapPutElem<X>( AstKeyMap *this, const char *key, int elem,
-c                            <X>type *value )
+c                            <X>type value )
 f     CALL AST_MAPPUTELEM<X>( THIS, KEY, ELEM, VALUE, STATUS )
 
 *  Class Membership:
