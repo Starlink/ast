@@ -216,6 +216,56 @@ c      call ast_watchmemory( 131 )
 
 
 
+      if( .not. ast_getl( pm, 'TranForward', status ) ) then
+         call stopit( 8001, status )
+      else if( .not. ast_getl( pm, 'IterInverse', status ) ) then
+         call stopit( 8002, status )
+      else if( .not. ast_getl( pm, 'TranInverse', status ) ) then
+         call stopit( 8003, status )
+      endif
+
+      call ast_setl( pm, 'IterInverse', .FALSE., status )
+
+      if( .not. ast_getl( pm, 'TranForward', status ) ) then
+         call stopit( 8004, status )
+      else if( ast_getl( pm, 'IterInverse', status ) ) then
+         call stopit( 8005, status )
+      else if( ast_getl( pm, 'TranInverse', status ) ) then
+         call stopit( 8006, status )
+      endif
+
+      call ast_invert( pm, status )
+
+      if( ast_getl( pm, 'TranForward', status ) ) then
+         call stopit( 8007, status )
+      else if( ast_getl( pm, 'IterInverse', status ) ) then
+         call stopit( 8008, status )
+      else if( .not. ast_getl( pm, 'TranInverse', status ) ) then
+         call stopit( 8009, status )
+      endif
+
+      call ast_setl( pm, 'IterInverse', .TRUE., status )
+
+      if( .not. ast_getl( pm, 'TranForward', status ) ) then
+         call stopit( 8010, status )
+      else if( .not. ast_getl( pm, 'IterInverse', status ) ) then
+         call stopit( 8011, status )
+      else if( .not. ast_getl( pm, 'TranInverse', status ) ) then
+         call stopit( 8012, status )
+      endif
+
+      call ast_invert( pm, status )
+
+      if( .not. ast_getl( pm, 'TranForward', status ) ) then
+         call stopit( 8013, status )
+      else if( .not. ast_getl( pm, 'IterInverse', status ) ) then
+         call stopit( 8014, status )
+      else if( .not. ast_getl( pm, 'TranInverse', status ) ) then
+         call stopit( 8015, status )
+      endif
+
+
+
 
 
 

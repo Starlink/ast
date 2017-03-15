@@ -92,7 +92,14 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        - Fix bug in MapMerge that could cause a seg fault. It did not
 *        check that the PolyMap had a defined transformation before accessing
 *        the transformation's coefficient array.
-*        - Fix similar bugs in Equal that could cause seg faults. 
+*        - Fix similar bugs in Equal that could cause seg faults.
+*     15-MAR-2017 (DSB):
+*        - Change the GetTranForward and GetTranInverse functions so that they 
+*        take into account the state of the Invert attribute. 
+*        - Improve docs for the IterInverse attribute to explain that the 
+*        inverse transformation replaced is always the original inverse 
+*        transformation, as defined by the arguments supplied to the PolyMap
+*        constructor, regardless of the state of the Invert attribute.
 *class--
 */
 
@@ -1512,6 +1519,7 @@ static int GetTranForward( AstMapping *this, int *status ) {
 
 /* Local Variables: */
    AstPolyMap *map;            /* Pointer to PolyMap to be queried */
+   int result;                 /* The returned value */
 
 /* Check the global error status. */
    if ( !astOK ) return 0;
@@ -1519,8 +1527,27 @@ static int GetTranForward( AstMapping *this, int *status ) {
 /* Obtain a pointer to the PolyMap. */
    map = (AstPolyMap *) this;
 
+/* First deal with cases where the PolyMap has not been inverted. */
+   if( ! astGetInvert( this ) ) {
+
+/* The PolyMap has a defined forward transformation if one or more
+   coefficients values were supplied for the original forward
+   transformation. It is not possible to replace the original forward
+   transformation with an iterative algorithm. */
+      result = map->ncoeff_f ? 1 : 0;
+
+/* Now deal with cases where the PolyMap has been inverted. */
+   } else {
+
+/* The PolyMap has a defined forward transformation if one or more
+   coefficients values were supplied for the original inverse
+   transformation, or if the original inverse transformation is being
+   approximated using an iterative algorithm. */
+      result = ( map->ncoeff_i || astGetIterInverse( map ) ) ? 1 : 0;
+   }
+
 /* Return the result. */
-   return map->ncoeff_f ? 1 : 0;
+   return result;
 }
 
 static int GetTranInverse( AstMapping *this, int *status ) {
@@ -1564,6 +1591,7 @@ static int GetTranInverse( AstMapping *this, int *status ) {
 
 /* Local Variables: */
    AstPolyMap *map;            /* Pointer to PolyMap to be queried */
+   int result;                 /* The returned value */
 
 /* Check the global error status. */
    if ( !astOK ) return 0;
@@ -1571,8 +1599,27 @@ static int GetTranInverse( AstMapping *this, int *status ) {
 /* Obtain a pointer to the PolyMap. */
    map = (AstPolyMap *) this;
 
+/* First deal with cases where the PolyMap has not been inverted. */
+   if( ! astGetInvert( this ) ) {
+
+/* The PolyMap has a defined inverse transformation if one or more
+   coefficients values were supplied for the original inverse
+   transformation, or if the original inverse transformation is being
+   approximated using an iterative algorithm. */
+      result = ( map->ncoeff_i || astGetIterInverse( map ) ) ? 1 : 0;
+
+/* Now deal with cases where the PolyMap has been inverted. */
+   } else {
+
+/* The PolyMap has a defined inverse transformation if one or more
+   coefficients values were supplied for the original forward
+   transformation. It is not possible to replace the original forward
+   transformation with an iterative algorithm. */
+      result = map->ncoeff_f ? 1 : 0;
+   }
+
 /* Return the result. */
-   return ( map->ncoeff_i || astGetIterInverse( map ) ) ? 1 : 0;
+   return result;
 }
 
 void astInitPolyMapVtab_(  AstPolyMapVtab *vtab, const char *name, int *status ) {
@@ -4090,14 +4137,15 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    actually transform any coordinate values. */
    result = (*parent_transform)( this, in, forward, out, status );
 
-/* Determine whether to apply the forward or inverse mapping, according to the
-   direction specified and whether the mapping has been inverted. */
+/* Determine whether to apply the original forward or inverse mapping,
+   according to the direction specified and whether the mapping has been
+   inverted. */
    if ( astGetInvert( map ) ) forward = !forward;
 
 /* We will now extend the parent astTransform method by performing the
    calculations needed to generate the output coordinate values. */
 
-/* If we are using the inverse transformatiom, and the IterInverse
+/* If we are using the original inverse transformatiom, and the IterInverse
    attribute is non-zero, use an iterative inverse algorithm rather than any
    inverse transformation defined within the PolyMap. */
    if( !forward && astGetIterInverse(map) ) {
@@ -4262,6 +4310,21 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *        All PolyMaps have this attribute.
 
 *  Notes:
+*     - The transformation replaced by the iterative algorithm is the
+*     transformation from the original PolyMap output space to the
+*     original PolyMap input space (i.e. the input and output spaces as
+*     defined by the arguments of the PolyMap constructor). This is still
+*     the case even if the PolyMap has subsequently been inverted. In
+*     other words if a PolyMap is created and then inverted, setting
+*     the IterInverse to a non-zero value will replace the forward
+*     transformation of the inverted PolyMap (i.e. the inverse
+*     transformation of the original PolyMap). It is not possible to
+*     replace the other transformation (i.e. from the original PolyMap
+*     input space to the original PolyMap output space) with an iterative
+*     algorithm.
+*     - If a PolyMap that has an iterative inverse transformation is
+*     subsequently inverted, the inverted PolyMap will have an iterative
+*     forward transformation.
 *     - An iterative inverse can only be used if the PolyMap has equal
 *     numbers of inputs and outputs, as given by the Nin and Nout
 *     attributes. An error will be reported if IterInverse is set non-zero
@@ -4333,7 +4396,7 @@ astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 *     This attribute controls the iterative inverse transformation
 *     used if the IterInverse attribute is non-zero.
 *
-*     Its value gives the target relative error in teh axis values of
+*     Its value gives the target relative error in the axis values of
 *     each transformed position. Further iterations will be performed
 *     until the target relative error is reached, or the maximum number
 *     of iterations given by attribute NiterInverse is reached.

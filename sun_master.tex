@@ -18,7 +18,7 @@ f+
 \stardocnumber      {210.27}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {26th October 2016}
+\stardocdate        {15th March 2017}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -21706,11 +21706,9 @@ zero singularity.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.4}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.3.0 and V8.4.0 (the
-current version):
+\subsection{Changes Introduced in V8.4}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.3.0 and V8.4.0:
 
 \begin{enumerate}
 
@@ -21773,6 +21771,20 @@ are removed entirely from the Region. Previously they were retained, but
 automatically supplied with bad values. This affects the number of mesh
 points per axes for such Regions, and so affects the accuracy of overlap
 determination.
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V8.5}
+The following describes the most significant changes which have
+occurred in the AST library between versions V8.4.0 and V8.5.0 (the
+current version):
+
+\begin{enumerate}
+
+\item A bug has been fixed in the PolyMap class that caused incorrect values
+to be returned for the TranForward and TranInverse attributes if the PolyMap
+has been inverted.
 
 \end{enumerate}
 
