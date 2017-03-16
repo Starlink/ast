@@ -7,9 +7,19 @@
 
 *  Description:
 *     This file implements the Error module which provides functions
-*     for handling error conditions in the AST library.  For a
-*     description of the module and its interface, see the .h file of
-*     the same name.
+*     for handling error conditions in the AST library.  Internally, AST
+*     indicates an error has occurred by calling function astError. This
+*     in turn delivers an apprioriate error message to the user by
+*     calling a function, astPutErr. The default version of astPutErr
+*     that comes with AST simply writes the message to standard output,
+*     but astPutErr can be re-implemented if required to deliver the
+*     message to some external underlying error system. The
+*     re-implemented function can either be linked into your application
+*     in place of the default version at build-time (see the options in
+*     the ast_link script), or registered at run-time using function
+*     astSetPutErr (defined within this module). See the file err_null.c
+*     included in the AST source distribution for details of how to
+*     re-implement astPutErr.
 *
 *     Since its initial release, AST has used a global status variable
 *     rather than adding an explicit status parameter to the argument
@@ -61,6 +71,7 @@
 *     function.
 
 *  Copyright:
+*     Copyright (C) 2017 East Asian Observatory.
 *     Copyright (C) 1997-2006 Council for the Central Laboratory of the
 *     Research Councils
 *     Copyright (C) 2008-2009 Science & Technology Facilities Council.
@@ -72,12 +83,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -121,6 +132,10 @@
 *        Big changes for the thread-safe version of AST.
 *     3-FEB-2009 (DSB):
 *        Added astBacktrace.
+*     28-FEB-2017 (DSB):
+*        Added facility for specifying the error handling function,
+*        astPutErr, at run-time via new function astSetPutErr, rather
+*        than at link-time.
 */
 
 /* Define the astCLASS macro (even although this is not a class
@@ -179,6 +194,8 @@
 
 #define reporting astGLOBAL(Error,Reporting)
 #define current_file astGLOBAL(Error,Current_File)
+#define puterr astGLOBAL(Error,PutErr)
+#define puterr_wrapper astGLOBAL(Error,PutErr_Wrapper)
 #define current_routine astGLOBAL(Error,Current_Routine)
 #define current_line astGLOBAL(Error,Current_Line)
 #define foreign_set astGLOBAL(Error,Foreign_Set)
@@ -189,15 +206,14 @@
    to ensure that it cannot be invoked simultaneously from two different
    threads. So we lock a mutex before each call to astPutErr. */
 static pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
-
-#define INVOKE_ASTPUTERR( status, buff ) \
-   ( pthread_mutex_lock( &mutex1 ), \
-     astPutErr( (status), (buff) ), \
-     (void) pthread_mutex_unlock( &mutex1 ) )
+#define LOCK_MUTEX1 pthread_mutex_lock( &mutex1 )
+#define UNLOCK_MUTEX1 pthread_mutex_unlock( &mutex1 )
 
 /* Define the initial values for the global data for this module. */
 #define GLOBAL_inits \
    globals->Reporting = 1; \
+   globals->PutErr = NULL;  \
+   globals->PutErr_Wrapper = NULL;  \
    globals->Current_File = NULL;  \
    globals->Current_Routine = NULL;  \
    globals->Current_Line = 0; \
@@ -225,20 +241,25 @@ static const char *current_routine = NULL; /* Current routine name pointer */
 static int current_line = 0;     /* Current line number */
 static int foreign_set = 0;      /* Have foreign values been set? */
 
+/* Function pointers */
+static AstPutErrFun puterr = NULL;      /* Pointer to registered error handler */
+static AstPutErrFunWrapper puterr_wrapper = NULL;  /* Pointer to
+                                                      PutError wrapper */
+
 /* Un-reported message stack */
 static char *message_stack[ AST__ERROR_MSTACK_SIZE ];
 static int mstack_size = 0;
 
-/* If thread-safety is not needed, we can invoke the external astPutErr
-   function directly. */
-#define INVOKE_ASTPUTERR( status, buff ) \
-   astPutErr( (status), (buff) );
+#define LOCK_MUTEX1
+#define UNLOCK_MUTEX1
 
 #endif
 
 
 /* Function prototypes. */
 /* ==================== */
+static void PutErr( int, const char * );
+static void CPutErrWrapper( AstPutErrFun, int, const char * );
 static void EmptyStack( int, int * );
 
 /* Function implementations. */
@@ -365,21 +386,21 @@ c-
 /* If succesful, display them and then free the array. Note we skip the
    first one since that will refer to this function. */
    if( strings ) {
-      INVOKE_ASTPUTERR( astStatus, " " );
+      PutErr( astStatus, " " );
       for( j = 1; j < np; j++ ) {
          sprintf( buf, "%d: %s", j, strings[j] );
-         INVOKE_ASTPUTERR( astStatus, buf );
+         PutErr( astStatus, buf );
       }
       free( strings );
-      INVOKE_ASTPUTERR( astStatus, " " );
+      PutErr( astStatus, " " );
 
 /* If not succesful, issue a warning. */
    } else {
-      INVOKE_ASTPUTERR( astStatus, "Cannot convert backtrace addresses into formatted strings" );
+      PutErr( astStatus, "Cannot convert backtrace addresses into formatted strings" );
    }
 
 #else
-   INVOKE_ASTPUTERR( astStatus, "Backtrace functionality is not available "
+   PutErr( astStatus, "Backtrace functionality is not available "
                      "on the current operating system." );
 #endif
 }
@@ -460,7 +481,7 @@ static void EmptyStack( int display, int *status ) {
    for( i = 0; i < mstack_size; i++ ) {
 
 /* Display the message if required. */
-      if( display ) INVOKE_ASTPUTERR( astStatus, message_stack[ i ] );
+      if( display ) PutErr( astStatus, message_stack[ i ] );
 
 /* Free the memory used to hold the message. */
       FREE( message_stack[ i ] );
@@ -570,7 +591,7 @@ void astErrorPublic_( int status_value, const char *fmt, ... ) {
 /* Deliver the error message unless reporting has been switched off using
    astReporting. In which case store them in a static array. */
       if( reporting ) {
-         INVOKE_ASTPUTERR( status_value, buff );
+         PutErr( status_value, buff );
       } else if( mstack_size < AST__ERROR_MSTACK_SIZE ){
          imess = mstack_size++;
          message_stack[ imess ] = MALLOC( strlen( buff ) + 1 );
@@ -592,7 +613,7 @@ void astErrorPublic_( int status_value, const char *fmt, ... ) {
 /* Deliver the error message unless reporting has been switched off using
    astReporting. */
    if( reporting ) {
-      INVOKE_ASTPUTERR( status_value, buff );
+      PutErr( status_value, buff );
    } else if( mstack_size < AST__ERROR_MSTACK_SIZE ){
       imess = mstack_size++;
       message_stack[ imess ] = MALLOC( strlen( buff ) + 1 );
@@ -697,7 +718,7 @@ void astError_( int status_value, const char *fmt, int *status, ... ) {
 /* Deliver the error message unless reporting has been switched off using
    astReporting. In which case store them in a static array. */
       if( reporting ) {
-         INVOKE_ASTPUTERR( status_value, buff );
+         PutErr( status_value, buff );
       } else if( mstack_size < AST__ERROR_MSTACK_SIZE ){
          imess = mstack_size++;
          message_stack[ imess ] = MALLOC( strlen( buff ) + 1 );
@@ -719,7 +740,7 @@ void astError_( int status_value, const char *fmt, int *status, ... ) {
 /* Deliver the error message unless reporting has been switched off using
    astReporting. */
    if( reporting ) {
-      INVOKE_ASTPUTERR( status_value, buff );
+      PutErr( status_value, buff );
    } else if( mstack_size < AST__ERROR_MSTACK_SIZE ){
       imess = mstack_size++;
       message_stack[ imess ] = MALLOC( strlen( buff ) + 1 );
@@ -780,6 +801,125 @@ int *astGetStatusPtr_(){
    return starlink_ast_status_ptr;
 #endif
 }
+
+static void CPutErrWrapper( AstPutErrFun fun, int status_value,
+                            const char *message ) {
+/*
+*
+*  Name:
+*     CPutErrWrapper
+
+*  Purpose:
+*     A wrapper to call a astPutErr error handling function written in C.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "error.h"
+*     void CPutErrWrapper( AstPutErrFun fun, int status_value,
+*                          const char *message )
+
+*  Description:
+*     This function calls the supplied astPutErr function to deliver
+*     an error message, assuming the supplied function is written in C.
+
+*  Parameters:
+*     fun
+*        Pointer to the user-supplied astPutErr function. It is called
+*        using C calling conventions
+*     status_value
+*        The error status value.
+*     message
+*        A pointer to a null-terminated character string containing
+*        the error message to be delivered. This should not contain
+*        newline characters.
+
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS   /* Pointer to thread-specific global data */
+
+/* Get a pointer to the thread specific global data structure. */
+   astGET_GLOBALS(NULL);
+
+/* Since we are about to call an external function which may not be
+   thread safe, prevent any other thread from executing the following code
+   until the current thread has finished executing it. */
+   LOCK_MUTEX1;
+
+/* Invoke the astPutErr function registered using astSetPutErr. */
+   if( fun ) ( *fun )( status_value, message );
+
+/* Allow the next thread to proceed. */
+   UNLOCK_MUTEX1;
+}
+
+static void PutErr( int status_value, const char *message ) {
+/*
+*
+*  Name:
+*     PutErr
+
+*  Purpose:
+*     Call the astPutErr error handling function.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "error.h"
+*     void PutErr( int status_value, const char *message )
+
+*  Description:
+*     This function calls the astPutErr function to deliver an error
+*     message, either calling the version registered using astSetPutErr,
+*     or the version in the linked error module. The linked version
+*     is used if no function has been registered for PutErr using
+*     astSetPutErr.
+
+*  Parameters:
+*     status_value
+*        The error status value.
+*     message
+*        A pointer to a null-terminated character string containing
+*        the error message to be delivered. This should not contain
+*        newline characters.
+
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS   /* Pointer to thread-specific global data */
+   int old_status;      /* Old status value */
+   int *status;         /* Pointer to status value */
+
+/* Get a pointer to the thread specific global data structure. */
+   astGET_GLOBALS(NULL);
+
+/* Use the astPutErr function registered using astSetPutErr (so long as a
+   function has been supplied). This is called via a wrapper which adapts
+   the interface to suit the language in which the function is written. */
+   if( puterr && puterr_wrapper ) {
+
+/* We need to ensure the AST status is cleared before invoking the
+   external error handler, as it may use AST memory management functions,
+   will return without action if the AST status is non-zero. Remember the
+   current status value so that it can be re-instated afterwards. */
+      status = astGetStatusPtr;
+      old_status = *status;
+      *status = 0;
+
+      ( *puterr_wrapper )( puterr, status_value, message );
+
+      *status = old_status;
+
+/* Otherwise, use the function in the external error module, selected at
+   link-time using ast_link options.*/
+   } else {
+      astPutErr(  status_value, message );
+   }
+}
+
 
 /*
 c++
@@ -873,6 +1013,141 @@ c-
 
 /* Return the original reporting value. */
    return oldval;
+}
+
+void astSetPutErr_( AstPutErrFun fun, int *status ){
+/*
+*++
+*  Name:
+c     astSetPutErr
+f     AST_SETPUTERR
+
+*  Purpose:
+c     Register an error handling function for use by the AST error model
+f     Register an error handling routine for use by the AST error model
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+c     #include "error.h"
+c     void astSetPutErr( void (*fun)(int,const char*) )
+f     CALL AST_GRFSET( FUN, STATUS )
+
+*  Description:
+*     This function can be used to register an external function to be
+*     used to deliver an error message and (optionally) an accompanying
+*     status value to the user.
+*
+*     If this function is not called prior to the first error occuring
+*     within AST, then the external error handling function selected at
+*     link-time (using the ast_link command) will be used. To use an
+*     alternative error handler, call this function before using any other
+*     AST functions, specifying the external error handling function to be
+*     used. This will register the function for future use.
+
+*  Parameters:
+c     fun
+f     FUN = INTEGER FUNCTION (Given)
+c        A Pointer to the function to be used to handle errors. The interface
+c        for this function is described below.
+f        The name of the routine to be used to handle errors (the name
+f        should also appear in a Fortran EXTERNAL statement in the
+f        routine which invokes AST_SETPUTERR).
+c        Once a function has been provided, a NULL pointer can be supplied
+c        in a subsequent call to astSetPutErr to reset the function to the
+c        corresponding function selected at link-time.
+f        Once a routine has been provided, the "null" routine AST_NULL can
+f        be supplied in a subsequent call to astSetPutErr to reset the routine
+f        to the corresponding routine selected at link-time. AST_NULL is
+f        defined in the AST_PAR include file.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Function Interface:
+*     The supplied external function should deliver the supplied error message
+*     and (optionally) the supplied status value to the user or to some
+*     underlying error system. It requires the following interface:
+*
+c     void PutErr( int status_value, const char *message )
+f     SUBROUTINE PUTERR( STATUS_VALUE, MESSAGE )
+*
+c     - status_value -
+f     - STATUS_VALUE = INTEGER (Given) -
+*       The error status value.
+c     - message - Pointer to a null-terminated character string  containing
+c       the error message to be delivered.
+f     - MESSAGE = CHARACTER * ( * ) (Given) - The error message to be delivered.
+
+*--
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS         /* Pointer to thread-specific global data */
+
+/* Ensure that the thread-specific status block has been created and
+   initialised. */
+   astGET_GLOBALS(NULL);
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Store the pointer. */
+   puterr = fun;
+
+/* In general, the interface to the PutErr function will differ for
+   different languages. So we need a wrapper function with a known fixed
+   interface which can be used to invoke the actual function with
+   an interface suited to the language in use. Call astPutErrWrapper to
+   store a wrapper to a suitable function which can invoke the supplied
+   function. Here, we assume that the supplied function has a C interface,
+   so we set up a C wrapper. If this function is being called from another
+   language, then the interface for this function within that language
+   should set up an appropriate wrapper after calling this function, thus
+   over-riding the C wrapper set up here. */
+   astSetPutErrWrapper( CPutErrWrapper );
+}
+
+void astSetPutErrWrapper_( AstPutErrFunWrapper wrapper, int *status ){
+/*
+*+
+*  Name:
+*     astSetPutErrWrapper
+
+*  Purpose:
+*     Register a wrapper for the error handling function.
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+*     #include "error.h"
+*     void astSetPutErrWrapper( AstPutErrFunWrapper wrapper )
+
+*  Description:
+*     This function must be used to register a wrapper for the external
+*     function to be used to deliver an error message and (optionally)
+*     an accompanying status value to the user.
+
+*  Parameters:
+*     wrapper
+*        A pointer to the wrapper function to be used to handle errors.
+
+*-
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS         /* Pointer to thread-specific global data */
+
+/* Ensure that the thread-specific status block has been created and
+   initialised. */
+   astGET_GLOBALS(NULL);
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Store the pointer. */
+   puterr_wrapper = wrapper;
 }
 
 /*
@@ -1020,5 +1295,6 @@ c--
 /* Return the old address. */
    return result;
 }
+
 
 

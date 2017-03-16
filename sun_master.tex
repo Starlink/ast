@@ -12,10 +12,10 @@
 
 % Variable part - replace [xxx] as appropriate.
 c+
-\stardocnumber      {211.27}
+\stardocnumber      {211.28}
 c-
 f+
-\stardocnumber      {210.27}
+\stardocnumber      {210.28}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
 \stardocdate        {15th March 2017}
@@ -23,7 +23,7 @@ f-
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
                                 in Astronomy}
-\stardoccopyright   {Copyright (C) 2014 Science \& Technology Facilities Council}
+\stardoccopyright   {Copyright (C) 2017 East Asian Observatory}
 \stardocversion     {V<VERSION_NUMBER>}
 c+
 \stardocmanual      {Programmer's Guide\\(C Version)}
@@ -21796,6 +21796,24 @@ f-
 which returns a named entry as a single string. If the entry is a vector
 the returned string is a comma-separated list of its elements, enclosed
 in parentheses.
+
+\item If the
+c+
+function that delivers error messages to the user (astPutErr)
+c-
+f+
+routine that delivers error messages to the user (AST\_PUTERR)
+f-
+is re-implemented, the new version can now be registered at run-time using
+the new
+c+
+astSetPutErr function.
+c-
+f+
+AST\_SETPUTERR routine.
+f-
+Previously, the new version needed to be linked into the application at
+build time.
 
 \end{enumerate}
 

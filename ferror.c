@@ -26,12 +26,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -50,9 +50,71 @@
    not be useful). */
 #define astFORTRAN77
 
+#define MXSTRLEN 80              /* String length at which truncation starts
+                                    within astPutErr */
 /* Header files. */
 /* ============= */
 #include "f77.h"                 /* FORTRAN <-> C interface macros (SUN/209) */
 #include "error.h"               /* C interface to the Error module */
+#include "c2f77.h"               /* F77 <-> C support functions/macros */
 
-/* At present there are no Fortran callable routines in this module. */
+
+/* Prototypes for external functions. */
+/* ================================== */
+/* This is the null function defined by the FORTRAN interface in
+fobject.c. */
+F77_SUBROUTINE(ast_null)( void );
+
+static void FPutErrWrapper( AstPutErrFun, int, const char * );
+
+
+/* Wrapper functions */
+/* ================= */
+F77_SUBROUTINE(ast_setputerr)( AstPutErrFun FUN, INTEGER(STATUS) ) {
+   AstPutErrFun fun;
+   const char *class;      /* Object class */
+   const char *method;     /* Current method */
+
+   method = "AST_GRFSET";
+   class = "Plot";
+
+   astAt( method, NULL, 0 );
+   astWatchSTATUS(
+
+/* Set the function pointer to NULL if a pointer to
+   the null routine AST_NULL has been supplied. */
+      fun = FUN;
+      if ( fun == (AstPutErrFun) F77_EXTERNAL_NAME(ast_null) ) {
+         fun = NULL;
+      }
+
+/* Store the function pointer in the error module. */
+      astSetPutErr( fun );
+
+/* The above call assumes that "fun" uses C calling conventions. Since in
+   fact "fun" uses Fortran calling conventions, we need to tell the error
+   module to call "fun" via a wrapper that converts strings etc from C to
+   Fortran. */
+      astSetPutErrWrapper( FPutErrWrapper );
+   )
+}
+
+
+static void FPutErrWrapper( AstPutErrFun fun, int status_value, const char *message ){
+
+   DECLARE_CHARACTER(LMESSAGE,MXSTRLEN);
+   int fmessage_length;
+
+   fmessage_length = strlen( message );
+   if( fmessage_length > LMESSAGE_length ) fmessage_length = LMESSAGE_length;
+   astStringExport( message, LMESSAGE, fmessage_length );
+
+   ( *(void (*)( INTEGER(status_value), CHARACTER(LMESSAGE)
+                TRAIL(fmessage) ) ) fun)(INTEGER_ARG(&status_value),
+                                         CHARACTER_ARG(LMESSAGE)
+                                         TRAIL_ARG(fmessage));
+
+
+}
+
+

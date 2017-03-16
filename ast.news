@@ -18,6 +18,11 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- If the function that delivers error messages to the user (astPutErr) is
+re-implemented, the new version can now be registered at run-time using
+the new astSetPutErr function. Previously, the new version needed to be
+linked into the application at build time.
+
 - A bug has been fixed in the PolyMap class that caused incorrect values
 to be returned for the TranForward and TranInverse attributes if the PolyMap
 has been inverted.
@@ -27,7 +32,8 @@ returns a named entry as a single string. If the entry is a vector the
 returned string is a comma-separated list of its elements, enclosed in
 parentheses.
 
-Main Changes in V8.4.0
+
+Main Changes in V8.3.0
 ----------------------
 
 - The PAL library files included in the AST distribution have been updated

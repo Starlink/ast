@@ -76,7 +76,7 @@ end
 
 
 
-foreach prog (testobject testconvert)
+foreach prog (testobject testconvert testerror)
 
 gcc -o $prog $prog.c -I.. -DHAVE_CONFIG_H $LDFLAGS -L/star/lib `ast_link`
 

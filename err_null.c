@@ -10,8 +10,11 @@
 *     library. It is used to deliver error messages if no alternative
 *     error delivery mechanism is provided.
 *
-*     To provide an alternative mechanism, re-implement this module
-*     and link your program against the resulting library.
+*     To provide an alternative mechanism, re-implement the astPutErr
+*     function defined within this module. You can then either link
+*     your program against the resulting library, or you can register
+*     the re-implemented astPutErr function at run-time using the
+*     astSetPutErr function defined in file error.c.
 
 *  Copyright:
 *     Copyright (C) 1997-2006 Council for the Central Laboratory of the
@@ -23,12 +26,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.

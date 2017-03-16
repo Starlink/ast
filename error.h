@@ -29,12 +29,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -110,6 +110,7 @@
 
 #endif
 
+
 /* This macro expands to an invocation of a specified function, together
    with a call to astAt to record the file and line number at which the
    invocation occurs. These are included in public error reports. This is
@@ -127,6 +128,14 @@
 
 /* Type definitions */
 /* ================ */
+
+/* The interface for the PutErr functions to be passed as an argument
+   to astSetPutErr. */
+typedef  void (* AstPutErrFun)( int, const char * );
+
+/* The interface for the PutErr wrapper functions to be passed as an argument
+   to astSetPutErrWrapper. */
+typedef  void (* AstPutErrFunWrapper)( AstPutErrFun, int, const char * );
 
 /* Define a structure to hold information about an error context. */
 typedef struct AstErrorContext {
@@ -149,6 +158,10 @@ typedef struct AstErrorGlobals {
    const char *Current_Routine;  /* Current routine name pointer */
    int Current_Line;             /* Current line number */
    int Foreign_Set;              /* Have foreign values been set? */
+
+/* Foreign functions */
+   AstPutErrFun PutErr;                /* Pointer to registered error handler */
+   AstPutErrFunWrapper PutErr_Wrapper; /* Pointer to wrapper for error handler */
 
 /* Un-reported message stack */
    char *Message_Stack[ AST__ERROR_MSTACK_SIZE ];
@@ -274,8 +287,10 @@ int *astWatch_( int * );
 void astClearStatus_( int * );
 int *astGetStatusPtr_( void )__attribute__((pure));
 void astAt_( const char *, const char *, int, int, int * );
+void astSetPutErr_( AstPutErrFun, int * );
 
 #if defined(astCLASS) || defined(astFORTRAN77)      /* Protected only */
+void astSetPutErrWrapper_( AstPutErrFunWrapper, int * );
 int astReporting_( int, int * );
 void astError_( int, const char *, int *, ... )__attribute__((format(printf,2,4)));
 void astBacktrace_( int * );
@@ -298,6 +313,14 @@ void astErrorPublic_( int, const char *, ... )__attribute__((format(printf,2,3))
 #define astOK (astStatus==0)
 #define astSetStatus(status_value) (astStatus=(status_value))
 
+#if defined(astCLASS) || defined(astFORTRAN77)
+#define STATUS_PTR status
+#else
+#define STATUS_PTR astGetStatusPtr
+#endif
+
+#define astSetPutErr(fun) astSetPutErr_(fun,STATUS_PTR)
+
 #if defined(astCLASS)     /* Protected */
 
 #define astAt(routine,file,line) astAt_(routine,file,line,0,status)
@@ -306,6 +329,7 @@ void astErrorPublic_( int, const char *, ... )__attribute__((format(printf,2,3))
 #define astError astError_
 #define astReporting(report) astReporting_(report,status)
 #define astBacktrace astBacktrace_(status)
+#define astSetPutErrWrapper(fun) astSetPutErrWrapper_(fun,status)
 
 #elif defined(astFORTRAN77)
 
@@ -314,6 +338,7 @@ void astErrorPublic_( int, const char *, ... )__attribute__((format(printf,2,3))
 #define astStatus (*status)
 #define astError astError_
 #define astReporting(report) astReporting_(report,status)
+#define astSetPutErrWrapper(fun) astSetPutErrWrapper_(fun,status)
 
 #else
 
