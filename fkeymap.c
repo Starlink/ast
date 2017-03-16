@@ -1398,3 +1398,44 @@ F77_SUBROUTINE(ast_mapputelemc)( INTEGER(THIS),
    )
 }
 
+F77_LOGICAL_FUNCTION(ast_mapgetc)( INTEGER(THIS),
+                                   CHARACTER(KEY),
+                                   CHARACTER(VALUE),
+                                   INTEGER(L),
+                                   INTEGER(STATUS)
+                                   TRAIL(KEY)
+                                   TRAIL(VALUE) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_CHARACTER(KEY)
+   GENPTR_CHARACTER(VALUE)
+   GENPTR_INTEGER(L)
+   F77_LOGICAL_TYPE(RESULT);
+   char *key;
+   const char *value;
+   int i;
+
+   astAt( "AST_MAPGETC", NULL, 0 );
+   astWatchSTATUS(
+      key = astString( KEY, KEY_length );
+      value = NULL;
+      RESULT = astMapGetC( astI2P( *THIS ), key, &value ) ? F77_TRUE : F77_FALSE;
+      astFree( key );
+      i = 0;
+      if( value ) {
+         for( ; value[ i ] && ( i < VALUE_length ); i++ ) {
+            VALUE[ i ] = value[ i ];
+         }
+         *L = i;
+      } else {
+         *L = 0;
+      }
+
+      if( VALUE ) {
+         for( ; i < VALUE_length; i++ ) {
+            VALUE[ i ] = ' ';
+         }
+      }
+   )
+   return RESULT;
+}
+

@@ -36,12 +36,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -192,6 +192,7 @@ typedef struct AstKeyMapVtab {
    int (* MapGet1S)( AstKeyMap *, const char *, int, int *, short int *, int * );
    int (* MapGet1F)( AstKeyMap *, const char *, int, int *, float *, int * );
    int (* MapGet1I)( AstKeyMap *, const char *, int, int *, int *, int * );
+   int (* MapGetC)( AstKeyMap *, const char *, const char **, int * );
    int (* MapGetElemA)( AstKeyMap *, const char *, int, AstObject **, int * );
    int (* MapGetElemP)( AstKeyMap *, const char *, int, void **, int * );
    int (* MapGetElemC)( AstKeyMap *, const char *, int, int, char *, int * );
@@ -332,6 +333,7 @@ int astMapGet1F_( AstKeyMap *, const char *, int, int *, float *, int * );
 int astMapGet1I_( AstKeyMap *, const char *, int, int *, int *, int * );
 int astMapGet1P_( AstKeyMap *, const char *, int, int *, void **, int * );
 int astMapGet1S_( AstKeyMap *, const char *, int, int *, short int *, int * );
+int astMapGetC_( AstKeyMap *, const char *, const char **, int * );
 int astMapGetElemB_( AstKeyMap *, const char *, int, unsigned char *, int * );
 int astMapGetElemC_( AstKeyMap *, const char *, int, int, char *, int * );
 int astMapGetElemD_( AstKeyMap *, const char *, int, double *, int * );
@@ -467,6 +469,7 @@ astINVOKE(O,astLoadKeyMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 #define astMapGet0D(this,key,value) astINVOKE(V,astMapGet0D_(astCheckKeyMap(this),key,value,STATUS_PTR))
 #define astMapGet0F(this,key,value) astINVOKE(V,astMapGet0F_(astCheckKeyMap(this),key,value,STATUS_PTR))
 #define astMapGet0C(this,key,value) astINVOKE(V,astMapGet0C_(astCheckKeyMap(this),key,value,STATUS_PTR))
+#define astMapGetC(this,key,value) astINVOKE(V,astMapGetC_(astCheckKeyMap(this),key,value,STATUS_PTR))
 #define astMapGet1I(this,key,mxval,nval,value) astINVOKE(V,astMapGet1I_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))
 #define astMapGet1B(this,key,mxval,nval,value) astINVOKE(V,astMapGet1B_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))
 #define astMapGet1S(this,key,mxval,nval,value) astINVOKE(V,astMapGet1S_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))

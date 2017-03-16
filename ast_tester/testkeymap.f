@@ -163,6 +163,16 @@ c      call ast_watchmemory( 29286 )
          call stopit( status, 'Error 7' )
       end if
 
+      if( .not. ast_mapgetc( map2, 'Fredc', cval, l, status ) ) then
+         call stopit( status, 'Error 5b' )
+      else if( l .ne. 5  ) then
+         write(*,*) l
+         call stopit( status, 'Error 6b' )
+      else if( cval( :l ) .ne. 'Hello'  ) then
+         write(*,*) cval( :l )
+         call stopit( status, 'Error 7b' )
+      end if
+
       if( .not. ast_mapget0a( map2, 'Freda', aval, status ) ) then
          call stopit( status, 'Error 8' )
       else if( .not. ast_IsASkyFrame( aval, STATUS ) ) then
@@ -439,6 +449,15 @@ c  Read vector entries as vectors.
       else if( cvec( 3 ) .ne. '  Hello   ' ) then
          write(*,*) cvec( 2 )
          call stopit( status, 'Error B8d' )
+      end if
+
+c  Read entire vector as a single string.
+      if( .not. ast_mapgetc( map2, 'Fredc', cval0, l, status ) ) then
+         call stopit( status, 'Error BB1' )
+      else if( l .ne. 34 ) then
+         call stopit( status, 'Error BB2' )
+      else if( cval0 .ne. '(Hello     ,          ,  Hello   )' ) then
+         call stopit( status, 'Error BB3' )
       end if
 
 c  Read single elements of vector entries as scalars.

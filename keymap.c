@@ -47,6 +47,7 @@ f     In addition to those routines applicable to all Objects, the
 f     following routines may also be applied to all KeyMaps:
 *
 c     - astMapDefined: Does a KeyMap contain a defined value for a key?
+c     - astMapGetC: Get a scalar or vector entry as a single string.
 c     - astMapGet0<X>: Get a named scalar entry from a KeyMap
 c     - astMapGet1<X>: Get a named vector entry from a KeyMap
 c     - astMapGetElem<X>: Get an element of a named vector entry from a KeyMap
@@ -64,6 +65,7 @@ c     - astMapRename: Rename an existing entry in a KeyMap
 c     - astMapSize: Get the number of entries in a KeyMap
 c     - astMapType: Return the data type of a named entry in a map
 f     - AST_MAPDEFINED: Does a KeyMap contain a defined value for a key?
+f     - AST_MAPGETC: Get a scalar or vector entry as a single string.
 f     - AST_MAPGET0<X>: Get a named scalar entry from a KeyMap
 f     - AST_MAPGET1<X>: Get a named vector entry from a KeyMap
 f     - AST_MAPGETELEM<X>: Get an element of a named vector entry from a KeyMap
@@ -190,6 +192,8 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *         Guard against memory corruption that could occur after making
 *         50 (AST__KEYMAP_CONVERTVALUE_MAX_STRINGS) calls to put a string
 *         into a KeyMap using astMapPutElemC.
+*     16-MAR-2017 (DSB):
+*         Added astMapGetC.
 *class--
 */
 
@@ -477,6 +481,7 @@ static int MapGet1S( AstKeyMap *, const char *, int, int *, short int *, int * )
 static int MapGet1F( AstKeyMap *, const char *, int, int *, float *, int * );
 static int MapGet1I( AstKeyMap *, const char *, int, int *, int *, int * );
 static int MapGet1P( AstKeyMap *, const char *, int, int *, void **, int * );
+static int MapGetC( AstKeyMap *, const char *, const char **, int * );
 static int MapGetElemA( AstKeyMap *, const char *, int, AstObject **, int * );
 static int MapGetElemC( AstKeyMap *, const char *, int, int, char *, int * );
 static int MapGetElemD( AstKeyMap *, const char *, int, double *, int * );
@@ -3540,6 +3545,7 @@ void astInitKeyMapVtab_(  AstKeyMapVtab *vtab, const char *name, int *status ) {
    vtab->MapGet1I = MapGet1I;
    vtab->MapGet1B = MapGet1B;
    vtab->MapGet1S = MapGet1S;
+   vtab->MapGetC = MapGetC;
    vtab->MapGetElemP = MapGetElemP;
    vtab->MapGetElemA = MapGetElemA;
    vtab->MapGetElemC = MapGetElemC;
@@ -4910,7 +4916,6 @@ f     AST_MAPGET0<X>
 c     #include "ast.h"
 c     int astMapGet0<X>( AstKeyMap *this, const char *key, <X>type *value );
 f     RESULT = AST_MAPGET0<X>( THIS, KEY, VALUE, STATUS )
-
 f     RESULT = AST_MAPGET0C( THIS, KEY, VALUE, L, STATUS )
 
 *  Class Membership:
@@ -6031,6 +6036,181 @@ int astMapGet1AId_( AstKeyMap *this, const char *skey, int mxval, int *nval,
 /* Return the result.*/
    return result;
 }
+
+static int MapGetC( AstKeyMap *this, const char *key, const char **value, int *status ) {
+/*
+*++
+*  Name:
+c     astMapGetC
+f     AST_MAPGETC
+
+*  Purpose:
+*     Get a scalar or vector value from a KeyMap as a single string.
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+c     #include "ast.h"
+c     int astMapGetC( AstKeyMap *this, const char *key, const char **value );
+f     RESULT = AST_MAPGETC( THIS, KEY, VALUE, L, STATUS )
+
+*  Class Membership:
+*     KeyMap method.
+
+*  Description:
+*     This function gets a named value from a KeyMap as a single string.
+*     For scalar values it is equivalent to
+c     astMapGet0C.
+f     AST_MAPGET0C.
+*     If the value is a vector, the returned string is a comma-separated
+*     list of the vector elements, enclosed in parentheses.
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the KeyMap.
+c     key
+f     KEY = CHARACTER * ( * ) (Given)
+*        The character string identifying the value to be retrieved. Trailing
+*        spaces are ignored. The supplied string is converted to upper
+*        case before use if the KeyCase attribute is currently set to zero.
+c     value
+f     VALUE = CHARACTER * ( * ) (Returned)
+c        Address at which to return a pointer to the required string value.
+f        The requested value.
+*        If the requested key is not found, or if it is found but has an
+*        undefined value (see
+c        astMapPutU), then the contents of the supplied pointer
+f        AST_MAPPUTU), then the contents of the supplied string
+*        are unchanged on exit.
+f     L = INTEGER (Returned)
+f        This parameter is only present in the interface for the AST_MAPGET0C
+f        function. It is returned holding the number of characters
+f        written into the CHARACTER variable supplied for parameter VALUE.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Returned Value:
+c     astMapGetC()
+f     AST_MAPGETC = LOGICAL
+c        A non-zero value
+f        .TRUE.
+*        is returned if the requested key name was found, and does not have
+*        an undefined value (see
+c        astMapPutU). Zero
+f        AST_MAPPUTU). .FALSE.
+*        is returned otherwise.
+
+*  Notes:
+*     - No error is reported if the requested key cannot be found in the
+*     given KeyMap, but a
+c     zero
+f     .FALSE.
+*     value will be returned as the function value. The supplied buffer
+*     will be returned unchanged.
+c     - The string pointer returned by astMapGetC is guaranteed to remain valid
+c     and the string to which it points will not be over-written for a
+c     total of 50 successive invocations of this function. After this,
+c     the memory containing the string may be re-used, so a copy of
+c     the string should be made if it is needed for longer than this. The
+c     calling code should never attempt to free the returned pointer
+c     (for instance, using astFree).
+*--
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS      /* Declare the thread specific global data */
+   char *buf;              /* Buffer for all string values */
+   char *cvalue;           /* Pointer to returned string */
+   char *pb;               /* Pointer to start of next section of buffer */
+   int i;                  /* Loop count */
+   int mxlen;              /* Max length of any string in the vector */
+   int nval;               /* No. of elements in vector */
+   int result;             /* Returned flag */
+   int nc;                 /* Current length of total string */
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* Get a pointer to the structure holding thread-specific global data. */
+   astGET_GLOBALS(this);
+
+/* If the "convertvalue_strings" array has not been initialised, fill it with
+   NULL pointers. */
+   if( !convertvalue_init ) {
+      convertvalue_init = 1;
+      for( i = 0; i < AST__KEYMAP_CONVERTVALUE_MAX_STRINGS; i++ ) convertvalue_strings[ i ] = NULL;
+   }
+
+/* See how many elements are stored in the requested entry. */
+   nval = astMapLength( this, key );
+
+/* If the requested entry does not exist, return without further action. */
+   if( nval == 0 ) {
+      result = 0;
+
+/* If the requested entry is a scalar, just call astMapGet0C to get the
+   required string. */
+   } else if( nval == 1 ) {
+      result = astMapGet0C( this, key, value );
+
+/* If the requested entry is a vector, use astMapGet1C to get all the
+   strings stored in dynamic memory. */
+   } else {
+
+/* First get the maximum length of any one string stored in the vector. */
+      mxlen = astMapLenC( this, key );
+
+/* Allocate a buffer big enough to hold all elements assuming they are
+   all the maximum length. Include room for a terminating null on each
+   string. */
+      buf = astMalloc( (mxlen + 1)*nval*sizeof( *buf ) );
+      if( astOK ) {
+
+/* Store the strings in the buffer. */
+         result = astMapGet1C( this, key, mxlen+1, nval, &nval, buf );
+         if( result ) {
+
+/* Combine the individual strings into a single comma-delimited list,
+   enclosed in parentheses, and stored in dynamic memory. */
+            nc = 0;
+            cvalue = astAppendString( NULL, &nc, "(" );
+            pb = buf;
+            for( i = 0; i < nval; i++ ) {
+               if( i ) cvalue = astAppendString( cvalue, &nc, "," );
+               cvalue = astAppendString( cvalue, &nc, pb );
+               pb += mxlen + 1;
+            }
+            cvalue = astAppendString( cvalue, &nc, ")" );
+
+/* Put a pointer to the total string into the next element of the "convertvalue_strings"
+   array, freeing any value already stored in the next element first. */
+            if( cvalue && astOK ) {
+               (void) astFree( convertvalue_strings[ convertvalue_istr ] );
+               convertvalue_strings[ convertvalue_istr ] = cvalue;
+
+/* Increment "convertvalue_istr" to use the next element of "convertvalue_strings" on
+   the next invocation. Recycle "convertvalue_istr" to zero when all elements have been
+   used. */
+              if( ++convertvalue_istr == ( AST__KEYMAP_CONVERTVALUE_MAX_STRINGS - 1 ) )
+                  convertvalue_istr = 0;
+
+/* Return a pointer to the striong now stored in the "convertvalue_strings"
+   array. */
+              *value = cvalue;
+            }
+         }
+      }
+
+/* Free the space used to hold the values buffer. */
+      buf = astFree( buf );
+   }
+
+/* Return the result. */
+   return result;
+}
+
 
 /*
 *++
@@ -7194,8 +7374,8 @@ f     RESULT = AST_MAPLENC( THIS, KEY, STATUS )
 *     KeyMap method.
 
 *  Description:
-*     This function returns the minimum length which a character variable
-*     which must have in order to be able to store a specified entry in
+*     This function returns the minimum length that a character variable
+*     must have in order to be able to store a specified entry in
 *     the supplied KeyMap. If the named entry is a vector entry, then the
 *     returned value is the length of the longest element of the vector
 *     value.
@@ -10621,6 +10801,12 @@ MAKE_MAPGET0_(C,const char *)
 MAKE_MAPGET0_(A,AstObject *)
 MAKE_MAPGET0_(P,void *)
 #undef MAKE_MAPGET0_
+
+
+int astMapGetC_( AstKeyMap *this, const char *key, const char **value, int *status ){ \
+   if ( !astOK ) return 0; \
+   return (**astMEMBER(this,KeyMap,MapGetC))(this,key,value, status ); \
+}
 
 
 #define MAKE_MAPGET1_(X,Xtype) \

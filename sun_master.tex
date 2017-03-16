@@ -21786,6 +21786,17 @@ current version):
 to be returned for the TranForward and TranInverse attributes if the PolyMap
 has been inverted.
 
+\item The KeyMap class has a new method called
+c+
+astMapGetC
+c-
+f+
+AST\_MAPGETC
+f-
+which returns a named entry as a single string. If the entry is a vector
+the returned string is a comma-separated list of its elements, enclosed
+in parentheses.
+
 \end{enumerate}
 
 Programs which are statically linked will need to be re-linked in
