@@ -59,10 +59,13 @@ f     The UnitNormMap class does not define any new routines beyond those
 
 *  Authors:
 *     RO: Russell Owen (LSST)
+*     DSB: David S Berry (EAO)
 
 *  History:
 *     20-APR-2016 (RO):
 *        Original version.
+*     17-MAR-2017 (DSB):
+*        Fix some memory leaks in MakeMergedMap.
 *class--
 */
 
@@ -297,32 +300,34 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
       int nin = astGetNin( shiftmap );
       double shiftmult = astGetInvert( shiftmap ) ? -1 : 1;
       double *newcentre = astMalloc( sizeof(double)*(size_t)nin );
-      int coord = 0;
-      for( coord = 0; coord < nin; coord++ ){
-         newcentre[coord] = unm->centre[coord] - shiftmult*shiftmap->shift[coord];
-      }
-      retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "", status );
-      if( retmap == NULL ){
-         astFree( (void *) newcentre );
+      if( astOK ) {
+         int coord = 0;
+         for( coord = 0; coord < nin; coord++ ){
+            newcentre[coord] = unm->centre[coord] - shiftmult*shiftmap->shift[coord];
+         }
+         retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "", status );
+         newcentre = astFree( (void *) newcentre );
       }
    } else if( type1 == 3 ) {
       if( astGetInvert( map2 )) return NULL;  /* WinMap + UnitNormMap(inverted) not supported */
 
 /* WinMap with unit scale + UnitNormMap(forward) = UnitNormMap(forward);
-   abort if WinMap does not have unit scale */
+   Do not create a returned Mapping (but do free the newcentre memory) if WinMap
+   does not have unit scale */
       AstWinMap *winmap = (AstWinMap *) map1;
       AstUnitNormMap *unm = (AstUnitNormMap *) map2;
       int nin = astGetNin( winmap );
       double shiftmult = astGetInvert( winmap ) ? -1 : 1;
       double *newcentre = astMalloc( sizeof(double)*(size_t)nin );
-      int coord = 0;
-      for( coord = 0; coord < nin; coord++ ){
-         if( !EQUAL( winmap->b[coord], 1.0 )) return NULL;
-         newcentre[coord] = unm->centre[coord] - shiftmult*winmap->a[coord];
-      }
-      retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "", status );
-      if( retmap == NULL ){
-         astFree( (void *) newcentre );
+      if( astOK ) {
+         int coord = 0;
+         int ok = 1;
+         for( coord = 0; coord < nin; coord++ ){
+            if( !EQUAL( winmap->b[coord], 1.0 )) ok = 0;
+            newcentre[coord] = unm->centre[coord] - shiftmult*winmap->a[coord];
+         }
+         if( ok ) retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "", status );
+         newcentre = astFree( (void *) newcentre );
       }
    } else if( type2 == 2 ) {
       if( !astGetInvert( map1 )) return NULL;  /* UnitNormMap(forward) + ShiftMap not supported */
@@ -333,32 +338,34 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
       int nin = astGetNin( shiftmap );
       double shiftmult = astGetInvert( shiftmap ) ? -1 : 1;
       double *newcentre = astMalloc( sizeof(double)*(size_t)nin );
-      int coord = 0;
-      for( coord = 0; coord < nin; coord++ ){
-         newcentre[coord] = unm->centre[coord] + shiftmult*shiftmap->shift[coord];
-      }
-      retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "Invert=1", status );
-      if( retmap == NULL ){
-         astFree( (void *) newcentre );
+      if( astOK ) {
+         int coord = 0;
+         for( coord = 0; coord < nin; coord++ ){
+            newcentre[coord] = unm->centre[coord] + shiftmult*shiftmap->shift[coord];
+         }
+         retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "Invert=1", status );
+         newcentre = astFree( (void *) newcentre );
       }
    } else if( type2 == 3 ) {
       if( !astGetInvert( map1 )) return NULL;  /* UnitNormMap(forward) + WinMap not supported */
 
 /* UnitNormMap(inverted) + WinMap = UnitNormMap(inverted);
-   abort if WinMap does not have unit scale */
+   Do not create a returned Mapping - but do free the newcentre memory - if WinMap
+   does not have unit scale */
       AstWinMap *winmap = (AstWinMap *) map2;
       AstUnitNormMap *unm = (AstUnitNormMap *) map1;
       int nin = astGetNin( winmap );
       double shiftmult = astGetInvert( winmap ) ? -1 : 1;
       double *newcentre = astMalloc( sizeof(double)*(size_t)nin );
-      int coord = 0;
-      for( coord = 0; coord < nin; coord++ ){
-         if( !EQUAL( winmap->b[coord], 1.0 )) return NULL;
-         newcentre[coord] = unm->centre[coord] + shiftmult*winmap->a[coord];
-      }
-      retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "Invert=1", status );
-      if( retmap == NULL ){
-         astFree( (void *) newcentre );
+      if( astOK ) {
+         int coord = 0;
+         int ok = 1;
+         for( coord = 0; coord < nin; coord++ ){
+            if( !EQUAL( winmap->b[coord], 1.0 )) ok = 0;
+            newcentre[coord] = unm->centre[coord] + shiftmult*winmap->a[coord];
+         }
+         if( ok ) retmap = (AstMapping *) astUnitNormMap( nin, newcentre, "Invert=1", status );
+         newcentre = astFree( (void *) newcentre );
       }
    } else {
       if( !astGetInvert( map1 ) == !astGetInvert( map2 )) return NULL;  /* UNMs must have opposite dir. */
@@ -386,13 +393,13 @@ static AstMapping * MakeMergedMap( AstMapping *map1, AstMapping *map2, int *stat
 /* UnitNormMap(forward) + UnitNormMap(inverted) = ShiftMap */
             int nin = astGetNin( map1 );
             double *shift = astMalloc( sizeof(double)*(size_t)nin );
-            int coord = 0;
-            for( coord = 0; coord < nin; coord++ ){
-               shift[coord] = unm2->centre[coord] - unm1->centre[coord];
-            }
-            retmap = (AstMapping *) astShiftMap( nin, shift, "", status );
-            if( retmap == NULL ){
-               astFree( (void *) shift );
+            if( astOK ) {
+               int coord = 0;
+               for( coord = 0; coord < nin; coord++ ){
+                  shift[coord] = unm2->centre[coord] - unm1->centre[coord];
+               }
+               retmap = (AstMapping *) astShiftMap( nin, shift, "", status );
+               shift = astFree( (void *) shift );
             }
          }
       }
