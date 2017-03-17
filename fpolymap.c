@@ -137,4 +137,23 @@ F77_INTEGER_FUNCTION(ast_polytran)( INTEGER(THIS),
    return RESULT;
 }
 
+F77_SUBROUTINE(ast_polycoeffs)( INTEGER(THIS),
+                                LOGICAL(FORWARD),
+                                INTEGER(NEL),
+                                DOUBLE_ARRAY(COEFFS),
+                                INTEGER(NCOEFF),
+                                INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_LOGICAL(FORWARD)
+   GENPTR_INTEGER(NEL)
+   GENPTR_DOUBLE_ARRAY(COEFFS)
+   GENPTR_INTEGER(NCOEFF)
+
+   astAt( "AST_POLYCOEFFS", NULL, 0 );
+   astWatchSTATUS(
+      astPolyCoeffs( astI2P( *THIS ), F77_ISTRUE( *FORWARD ), *NEL, COEFFS, NCOEFF );
+   )
+}
+
+
 

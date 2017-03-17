@@ -5,14 +5,15 @@
       include 'AST_PAR'
       include 'PRM_PAR'
 
-      integer status, lstat, cm, cm2, cm3, i, j
+      integer status, lstat, cm, cm2, cm3, i, j, nco
       double precision lbnd( 2 ), ubnd( 2 ), dval
       double precision tlbnd( 2 ), tubnd( 2 )
 
       double precision coeffs_1( 4*3 ), xin( 5 ), xout( 5 ), xrec( 5 ),
      :                 yrec( 5 ),
      :                 work( 5 ), coeffs_2( 2*3 ), coeffs_3( 4*5 ),
-     :                 yin(5), yout(5), xi, yi, xv, yv, y, a, x
+     :                 yin(5), yout(5), xi, yi, xv, yv, y, a, x,
+     :                 cofs( 100 )
 
 
 C  f(x) = 1.5*T0(x') - 1.0*T2(x') + 2.0*T3(x') - 1.3*T4(x')
@@ -218,6 +219,47 @@ c astDump and astLoadChebyMap
             end if
          end do
       end if
+
+
+
+      call ast_polycoeffs( cm2, .true., 0, 0.0D0, nco, status )
+      if( nco .ne. 5 ) then
+         call stopit( 13, status )
+      endif
+
+      call ast_polycoeffs( cm2, .true., 100, cofs, nco, status )
+      if( nco .ne. 5 ) then
+         call stopit( 14, status )
+      else
+         do i = 1, 20
+            if( cofs( i ) .ne. coeffs_3( i ) ) then
+               call stopit( 15, status )
+            end if
+         end do
+      endif
+
+
+      call ast_polycoeffs( cm2, .false., 0, 0.0D0, nco, status )
+      if( nco .ne. 12 ) then
+         call stopit( 16, status )
+      endif
+
+      call ast_polycoeffs( cm2, .false., 100, cofs, nco, status )
+      if( nco .ne. 12 ) then
+         call stopit( 17, status )
+      else if( cofs( 2 ) .ne. 1.0D0 ) then
+         call stopit( 18, status )
+      else if( abs( cofs( 13 ) - (-6.5376876905037529) ) .gt.
+     :        1.0E-6 ) then
+         call stopit( 19, status )
+      else if( cofs( 15 ) .ne. 2.0D0 ) then
+         call stopit( 20, status )
+      end if
+
+
+
+
+
 
 
       call ast_end( status )

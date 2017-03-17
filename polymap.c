@@ -36,10 +36,13 @@ c     following functions may also be applied to all Mappings:
 f     In addition to those routines applicable to all Objects, the
 f     following routines may also be applied to all Mappings:
 *
+c     - astPolyCoeffs: Retrieve the coefficients of a PolyMap transformation
 c     - astPolyTran: Fit a PolyMap inverse or forward transformation
+f     - AST_POLYCOEFFS: Retrieve the coefficients of a PolyMap transformation
 f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 
 *  Copyright:
+*     Copyright (C) 2017 East Asian Observatory.
 *     Copyright (C) 1997-2006 Council for the Central Laboratory of the
 *     Research Councils
 *     Copyright (C) 2011 Science & Technology Facilities Council.
@@ -94,12 +97,14 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        the transformation's coefficient array.
 *        - Fix similar bugs in Equal that could cause seg faults.
 *     15-MAR-2017 (DSB):
-*        - Change the GetTranForward and GetTranInverse functions so that they 
-*        take into account the state of the Invert attribute. 
-*        - Improve docs for the IterInverse attribute to explain that the 
-*        inverse transformation replaced is always the original inverse 
+*        - Change the GetTranForward and GetTranInverse functions so that they
+*        take into account the state of the Invert attribute.
+*        - Improve docs for the IterInverse attribute to explain that the
+*        inverse transformation replaced is always the original inverse
 *        transformation, as defined by the arguments supplied to the PolyMap
 *        constructor, regardless of the state of the Invert attribute.
+*     17-MAR-2017 (DSB):
+*        - Add the astPolyCoeffs method.
 *class--
 */
 
@@ -242,6 +247,7 @@ static void LMJacob1D( const double *, double *, int, int, void * );
 static void LMJacob2D( const double *, double *, int, int, void * );
 static void PolyPowers( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static void StoreArrays( AstPolyMap *, int, int, const double *, int * );
+static void PolyCoeffs( AstPolyMap *, int, int, double *, int *, int * );
 
 #if defined(THREAD_SAFE)
 static int ManageLock( AstObject *, int, int, AstObject **, int * );
@@ -1688,6 +1694,7 @@ void astInitPolyMapVtab_(  AstPolyMapVtab *vtab, const char *name, int *status )
    virtual methods for this class. */
    vtab->PolyPowers = PolyPowers;
    vtab->PolyTran = PolyTran;
+   vtab->PolyCoeffs = PolyCoeffs;
 
    vtab->ClearIterInverse = ClearIterInverse;
    vtab->GetIterInverse = GetIterInverse;
@@ -2878,6 +2885,171 @@ static int MPFunc2D( void *p, int m, int n, const double *x, double *fvec,
    }
 
    return 0;
+}
+
+static void PolyCoeffs( AstPolyMap *this, int forward, int nel, double *coeffs,
+                        int *ncoeff, int *status ){
+/*
+*++
+*  Name:
+c     astPolyCoeffs
+f     AST_POLYCOEFFS
+
+*  Purpose:
+*     Retrieve the coefficient values used by a PolyMap.
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+c     #include "polymap.h"
+c     void astPolyCoeffs( AstPolyMap *this, int forward, int nel, double *coeffs,
+c                         int *ncoeff )
+f     CALL AST_POLYCOEFFS( THIS, FORWARD, NEL, COEFFS, NCOEFF, STATUS )
+
+*  Class Membership:
+*     PolyMap method.
+
+*  Description:
+*     This function returns the coefficient values used by either the
+*     forward or inverse transformation of a PolyMap, in the same form
+*     that they are supplied to the PolyMap constructor.
+*
+*     Usually, you should call this method first with
+c     "nel"
+f     NEL
+*     set to zero to determine the number of coefficients used by the
+*     PolyMap. This allows you to allocate an array of the correct size to
+*     hold all coefficient data. You should then call this method a
+*     second time to get the coefficient data.
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the original Mapping.
+c     forward
+f     FORWARD = LOGICAL (Given)
+c        If non-zero,
+f        If .TRUE.,
+*        the coefficients of the forward PolyMap transformation are
+*        returned. Otherwise the inverse transformation coefficients are
+*        returned.
+c     nel
+f     NEL = INTEGER (Given)
+*        The length of the supplied
+c        "coeffs"
+f        COEFFS
+*        array. It should be at least "ncoeff*( nin + 2 )" if
+c        "foward" is non-zero,
+f        FORWARD is .TRUE.,
+*        and "ncoeff*( nout + 2 )" otherwise, where "ncoeff" is the
+*        number of coefficients to be returned. If a value of zero
+*        is supplied, no coefficient values are returned, but the
+*        number of coefficients used by the transformation is still
+*        returned in
+c        "ncoeff".
+f        NCOEFF.
+c     coeffs
+f     COEFFS( NEL ) = DOUBLE PRECISION (Returned)
+*        An array in which to return the coefficients used by the
+*        requested transformation of the PolyMap. Ignored if
+c        "nel" is zero.
+f        NEL is zero.
+*        The coefficient data is returned in the form in which it is
+*        supplied to the PolyMap constructor. That is, each group of
+*        "2 + nin" or "2 + nout" adjacent elements describe a single
+*        coefficient of the forward or inverse transformation. See the
+*        PolyMap constructor documentation for further details.
+*
+*        If the supplied array is too short to hold all the coefficients,
+*        trailing coefficients are excluded. If the supplied array is
+*        longer than needed to hold all the coefficients, trailing
+*        elements are filled with zeros.
+c     ncoeff
+f     NCOEFF = INTEGER (Returned)
+*        The number of coefficients used by the requested transformation.
+*        A value of zero is returned if the transformation does not
+*        have any defining polynomials. A value is returned for this argument
+*        even if
+c        "nel" is zero.
+f        NEL is zero.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*--
+*/
+
+/* Local Variables: */
+   double **coeff;
+   int ***power;
+   int *nco;
+   int *pp;
+   int iax;
+   int icoeff;
+   int iel;
+   int ipoly;
+   int nax;
+   int npoly;
+
+/* Initialise */
+   *ncoeff = 0;
+
+/* Check the inherited status. */
+   if ( !astOK ) return;
+
+/* Fill any supplied array with zeros. */
+   if( nel ) memset( coeffs, 0, nel*sizeof( *coeffs ) );
+
+/* Get the values to use, taking account of whether the PolyMap has been
+   inverted or not. */
+   if( forward != astGetInvert( this ) ){
+      nco = this->ncoeff_f;
+      power = this->power_f;
+      coeff = this->coeff_f;
+      npoly = astGetNout( this );
+      nax = astGetNin( this );
+   } else {
+      nco = this->ncoeff_i;
+      power = this->power_i;
+      coeff = this->coeff_i;
+      npoly = astGetNin( this );
+      nax = astGetNout( this );
+   }
+
+/* Notheg to do if there are no coeffs. */
+   if( nco && power && coeff ) {
+
+/* Initialise index of next value to store in returned array. */
+      iel = 0;
+
+/* Loop round each 1D polynomial. */
+      for( ipoly = 0; ipoly < npoly; ipoly++ ){
+
+/* Loop round coefficients. */
+         for( icoeff = 0; icoeff < nco[ ipoly ]; icoeff++ ) {
+
+/* Store the coefficient value in the next element of the returned array,
+   if the array is not already full. Increment the pointer to the next
+   element. */
+            if( iel < nel ) coeffs[ iel++ ] = coeff[ipoly][icoeff];
+
+/* Next store the integer index of the PolyMap input or output which uses
+   the coefficient within its defining polynomial (the first axis has
+   index 1). */
+            if( iel < nel ) coeffs[ iel++ ] = ipoly + 1;
+
+/* The remaining elements of the group give the integer powers to use
+   with each input or output coordinate value. */
+            pp = power[ipoly][icoeff];
+            for( iax = 0; iax < nax; iax++,pp++ ) {
+               if( iel < nel ) coeffs[ iel++ ] = *pp;
+            }
+         }
+
+/* Increment the total number of coefficients used by the transformation. */
+         *ncoeff += nco[ ipoly ];
+      }
+   }
 }
 
 static void PolyPowers( AstPolyMap *this, double **work, int ncoord,
@@ -5698,5 +5870,11 @@ AstPolyMap *astPolyTran_( AstPolyMap *this, int forward, double acc,
 }
 
 
+void astPolyCoeffs_( AstPolyMap *this, int forward, int nel, double *array,
+                     int *ncoeff, int *status ){
+   if ( !astOK ) return;
+   (**astMEMBER(this,PolyMap,PolyCoeffs))( this, forward, nel,
+                                           array, ncoeff, status );
+}
 
 

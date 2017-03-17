@@ -182,6 +182,7 @@ typedef struct AstPolyMapVtab {
 /* Properties (e.g. methods) specific to this class. */
    AstPolyMap *(* PolyTran)( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
    void (* PolyPowers)( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
+   void (* PolyCoeffs)( AstPolyMap *, int, int, double *, int *, int *);
 
    int (*GetIterInverse)( AstPolyMap *, int * );
    int (* TestIterInverse)( AstPolyMap *, int * );
@@ -250,6 +251,7 @@ AstPolyMap *astLoadPolyMap_( void *, size_t, AstPolyMapVtab *,
 /* Prototypes for member functions. */
 /* -------------------------------- */
 AstPolyMap *astPolyTran_( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
+void astPolyCoeffs_( AstPolyMap *, int, int, double *, int *, int *);
 
 # if defined(astCLASS)           /* Protected */
    void astPolyPowers_( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
@@ -319,6 +321,9 @@ astINVOKE(O,astLoadPolyMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_P
 
 #define astPolyTran(this,forward,acc,maxacc,maxorder,lbnd,ubnd) \
 astINVOKE(O,astPolyTran_(astCheckPolyMap(this),forward,acc,maxacc,maxorder,lbnd,ubnd,STATUS_PTR))
+
+#define astPolyCoeffs(this,forward,nel,coeffs,ncoeff) \
+astINVOKE(V,astPolyCoeffs_(astCheckPolyMap(this),forward,nel,coeffs,ncoeff,STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 

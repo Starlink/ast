@@ -4,11 +4,12 @@
       include 'AST_PAR'
       include 'PRM_PAR'
 
-      integer status, pm, pm2, i, maxord
+      integer status, pm, pm2, i, maxord, nco
       double precision coeff( 16 ), lbnd( 2 ), ubnd( 2 ),
      :                 xin(3), yin(3), xout(3), yout(3), errlim,
      :                 xin2(3), yin2(3), coeff_1d(6), acc,
-     :                 coeff2( 24 ), coeff3( 6*4 ), err, maxacc
+     :                 coeff2( 24 ), coeff3( 6*4 ), err, maxacc,
+     :                 cofs( 20 )
 
       data coeff / 1.0, 1.0, 0.0, 0.0,
      :             2.0, 1.0, 1.0, 0.0,
@@ -58,6 +59,28 @@ c      call ast_watchmemory( 131 )
       maxord = 10
 
       pm = ast_polymap( 2, 2, 4, coeff, 0, coeff, ' ', status )
+
+      call ast_polycoeffs( pm, .true., 0, 0.0D0, nco, status )
+      if( nco .ne. 4 ) then
+         call stopit( -1, status )
+      endif
+
+      call ast_polycoeffs( pm, .false., 0, 0.0D0, nco, status )
+      if( nco .ne. 0 ) then
+         call stopit( -2, status )
+      endif
+
+      call ast_polycoeffs( pm, .true., 20, cofs, nco, status )
+      if( nco .ne. 4 ) then
+         call stopit( -3, status )
+      else
+         do i = 1, 16
+            if( cofs( i ) .ne. coeff( i ) ) then
+               call stopit( -4, status )
+            end if
+         end do
+      endif
+
       pm2 = ast_polytran( pm, .FALSE., acc, maxacc, maxord, lbnd,
      :                    ubnd, status )
 
