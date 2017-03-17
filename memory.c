@@ -160,6 +160,9 @@
 *        insecure. Instead add new function astAppendStringf.
 *     26-MAR-2015 (DSB):
 *        Added astChrTrunc.
+*     17-MAR-2017 (DSB):
+*        Remove unnecessary checks that supplied size_t  argument values
+*        are not less than zero - size_t is unsigned and so is never negative.
 */
 
 /* Configuration results. */
@@ -2481,17 +2484,10 @@ void *astMalloc_( size_t size, int init, int *status ) {
 /* If needed, get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(NULL);
 
-/* Check that the size requested is not negative and report an error
-   if it is. */
-   if ( size < (size_t) 0 ) {
-      astError( AST__MEMIN,
-                "Invalid attempt to allocate %lu bytes of memory.", status,
-                (unsigned long) size );
-
-/* Otherwise, if the size is greater than zero, either get a previously
+/* If the size is greater than zero, either get a previously
    allocated memory block from the cache, or attempt to use malloc
    to allocate the memory, including space for the header structure. */
-   } else if ( size != (size_t ) 0 ) {
+   if ( size > (size_t ) 0 ) {
 
 /* If the cache is being used and a cached memory block of the required size
    is available, remove it from the cache array and use it. */
@@ -3288,82 +3284,73 @@ void *astRealloc_( void *ptr, size_t size, int *status ) {
       IS_DYNAMIC( ptr, isdynamic );
       if ( isdynamic ) {
 
-/* Check that a negative size has not been given and report an error
-   if necessary. */
-         if ( size < (size_t) 0 ) {
-            astError( AST__MEMIN,
-               "Invalid attempt to reallocate a block of memory to %ld bytes.", status,
-                      (long) size );
-
-/* If OK, obtain a pointer to the memory header. */
-         } else {
-            mem = (Memory *) ( (char *) ptr - SIZEOF_MEMORY );
+/* Obtain a pointer to the memory header. */
+         mem = (Memory *) ( (char *) ptr - SIZEOF_MEMORY );
 
 /* If the new size is zero, free the old memory and set a NULL return
    pointer value. */
-            if ( size == (size_t) 0 ) {
-               astFree( ptr );
-               result = NULL;
+         if ( size == (size_t) 0 ) {
+            astFree( ptr );
+            result = NULL;
 
 /* Otherwise, reallocate the memory. */
-            } else {
+         } else {
 
 /* If the cache is being used, for small memory blocks, do the equivalent of
                mem = REALLOC( mem, SIZEOF_MEMORY + size );
 
    using astMalloc, astFree and memcpy explicitly in order to ensure
    that the memory blocks are cached. */
-               if( use_cache && ( mem->size <= MXCSIZE || size <= MXCSIZE ) ) {
-                  result = astMalloc( size );
-                  if( result ) {
-                     if( mem->size < size ) {
-                        memcpy( result, ptr, mem->size );
-                     } else {
-                        memcpy( result, ptr, size );
-                     }
-                     astFree( ptr );
-
+            if( use_cache && ( mem->size <= MXCSIZE || size <= MXCSIZE ) ) {
+               result = astMalloc( size );
+               if( result ) {
+                  if( mem->size < size ) {
+                     memcpy( result, ptr, mem->size );
                   } else {
-                     result = ptr;
+                     memcpy( result, ptr, size );
                   }
+                  astFree( ptr );
+
+               } else {
+                  result = ptr;
+               }
 
 /* For other memory blocks simply use realloc. */
-               } else {
+            } else {
 
 #ifdef MEM_DEBUG
-                  DeIssue( mem, status );
+               DeIssue( mem, status );
 #endif
 
-                  mem = REALLOC( mem, SIZEOF_MEMORY + size );
+               mem = REALLOC( mem, SIZEOF_MEMORY + size );
 
 /* If this failed, report an error and return the original pointer
    value. */
-                  if ( !mem ) {
+               if ( !mem ) {
 #if HAVE_STRERROR_R
-                     strerror_r( errno, errbuf, ERRBUF_LEN );
-                     errstat = errbuf;
+                  strerror_r( errno, errbuf, ERRBUF_LEN );
+                  errstat = errbuf;
 #else
-                     errstat = strerror( errno );
+                  errstat = strerror( errno );
 #endif
-                     astError( AST__NOMEM, "realloc: %s", status, errstat );
-                     astError( AST__NOMEM, "Failed to reallocate a block of "
-                               "memory to %ld bytes.", status, (long) size );
+                  astError( AST__NOMEM, "realloc: %s", status, errstat );
+                  astError( AST__NOMEM, "Failed to reallocate a block of "
+                            "memory to %ld bytes.", status, (long) size );
 
 /* If successful, set the new "magic" value and size in the memory
    header and obtain a pointer to the start of the region of memory to
    be used by the caller. */
-                  } else {
-                     mem->magic = MAGIC( mem, size );
-                     mem->size = size;
-                     mem->next = NULL;
+               } else {
+                  mem->magic = MAGIC( mem, size );
+                  mem->size = size;
+                  mem->next = NULL;
 #ifdef MEM_DEBUG
-                     mem->id = -1;
-                     mem->prev = NULL;
-                     Issue( mem, status );
+                  mem->id = -1;
+                  mem->prev = NULL;
+                  Issue( mem, status );
 #endif
-                     result = mem;
-                     result = (char *) result + SIZEOF_MEMORY;
-                  }
+                  result = mem;
+                  result = (char *) result + SIZEOF_MEMORY;
                }
             }
          }
