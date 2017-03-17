@@ -28,6 +28,7 @@ export PATH
 goodsource="${srcdir}/axis.c \
             ${srcdir}/box.c \
             ${srcdir}/channel.c \
+            ${srcdir}/chebymap.c \
             ${srcdir}/circle.c \
             ${srcdir}/cmpframe.c \
             ${srcdir}/cmpmap.c \

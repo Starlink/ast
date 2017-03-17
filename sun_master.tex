@@ -353,7 +353,8 @@ PermMap).
 \item Various linear coordinate transformations (the MatrixMap, WinMap,
 ShiftMap and ZoomMap).
 
-\item General N-dimensional polynomial transformations (the PolyMap).
+\item General N-dimensional polynomial transformations (the PolyMap and
+ChebyMap).
 
 \item Lookup tables (the LutMap).
 
@@ -4401,6 +4402,7 @@ as a whole and some of the sub-classes it contains:
       MatrixMap
       PermMap
       PolyMap
+         ChebyMap
       SlaMap
       SpecMap
       TimeMap
@@ -17549,6 +17551,7 @@ Object             - Base class for all AST Objects
       PcdMap       - Apply 2-dimensional pincushion/barrel distortion
       PermMap      - Coordinate permutation Mapping
       PolyMap      - General N-dimensional polynomial Mapping
+        ChebyMap   - N-dimensional Chebyshev polynomial Mapping
       RateMap      - Calculates an element of a Mapping's Jacobian matrix
       SelectorMap  - Locates positions within a set of Regions
       ShiftMap     - Shifts each axis by a constant amount
@@ -21781,6 +21784,9 @@ occurred in the AST library between versions V8.4.0 and V8.5.0 (the
 current version):
 
 \begin{enumerate}
+
+\item - A new class of Mapping called ChebyMap has been added. This is a
+Mapping that implements Chebyshev polynomial transformations.
 
 \item A bug has been fixed in the PolyMap class that caused incorrect values
 to be returned for the TranForward and TranInverse attributes if the PolyMap

@@ -11,6 +11,7 @@
 #include "axis.h"
 #include "box.h"
 #include "channel.h"
+#include "chebymap.h"
 #include "circle.h"
 #include "cmpframe.h"
 #include "cmpmap.h"
@@ -189,6 +190,7 @@ typedef struct AstGlobals {
    AstPermMapGlobals PermMap;
    AstPointListGlobals PointList;
    AstPolyMapGlobals PolyMap;
+   AstChebyMapGlobals ChebyMap;
    AstPolygonGlobals Polygon;
    AstPrismGlobals Prism;
    AstRateMapGlobals RateMap;

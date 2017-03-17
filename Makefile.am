@@ -6,6 +6,7 @@ GRP_C_ROUTINES = \
     axis.c \
     box.c \
     channel.c \
+    chebymap.c \
     circle.c \
     cmpframe.c \
     cmpmap.c \
@@ -80,6 +81,7 @@ F_C_ROUTINES = \
     c2f77.c \
     fbox.c \
     fchannel.c \
+    fchebymap.c \
     fcircle.c \
     fcmpframe.c \
     fcmpmap.c \
@@ -173,6 +175,7 @@ AST_H_FILES = \
           pcdmap.h \
           permmap.h \
           polymap.h \
+             chebymap.h \
           ratemap.h \
           normmap.h \
           shiftmap.h \

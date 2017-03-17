@@ -18,6 +18,9 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- A new class of Mapping called ChebyMap has been added. This is a
+Mapping that implements Chebyshev polynomial transformations.
+
 - If the function that delivers error messages to the user (astPutErr) is
 re-implemented, the new version can now be registered at run-time using
 the new astSetPutErr function. Previously, the new version needed to be

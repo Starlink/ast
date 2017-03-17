@@ -96,12 +96,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -181,6 +181,8 @@ typedef struct AstPolyMapVtab {
 
 /* Properties (e.g. methods) specific to this class. */
    AstPolyMap *(* PolyTran)( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
+   void (* PolyPowers)( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
+
    int (*GetIterInverse)( AstPolyMap *, int * );
    int (* TestIterInverse)( AstPolyMap *, int * );
    void (* ClearIterInverse)( AstPolyMap *, int * );
@@ -250,6 +252,8 @@ AstPolyMap *astLoadPolyMap_( void *, size_t, AstPolyMapVtab *,
 AstPolyMap *astPolyTran_( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 
 # if defined(astCLASS)           /* Protected */
+   void astPolyPowers_( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
+
    int astGetIterInverse_( AstPolyMap *, int * );
    int astTestIterInverse_( AstPolyMap *, int * );
    void astClearIterInverse_( AstPolyMap *, int * );
@@ -318,6 +322,8 @@ astINVOKE(O,astPolyTran_(astCheckPolyMap(this),forward,acc,maxacc,maxorder,lbnd,
 
 #if defined(astCLASS)            /* Protected */
 
+#define astPolyPowers(this,work,ncoord,mxpow,ptr,offset,fwd) \
+        astINVOKE(V,astPolyPowers_(astCheckPolyMap(this),work,ncoord,mxpow,ptr,point,fwd,STATUS_PTR))
 #define astClearIterInverse(this) \
         astINVOKE(V,astClearIterInverse_(astCheckPolyMap(this),STATUS_PTR))
 #define astGetIterInverse(this) \

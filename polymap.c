@@ -240,6 +240,7 @@ static void LMFunc1D(  const double *, double *, int, int, void * );
 static void LMFunc2D(  const double *, double *, int, int, void * );
 static void LMJacob1D( const double *, double *, int, int, void * );
 static void LMJacob2D( const double *, double *, int, int, void * );
+static void PolyPowers( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static void StoreArrays( AstPolyMap *, int, int, const double *, int * );
 
 #if defined(THREAD_SAFE)
@@ -1685,6 +1686,7 @@ void astInitPolyMapVtab_(  AstPolyMapVtab *vtab, const char *name, int *status )
 /* ------------------------------------ */
 /* Store pointers to the member functions (implemented here) that provide
    virtual methods for this class. */
+   vtab->PolyPowers = PolyPowers;
    vtab->PolyTran = PolyTran;
 
    vtab->ClearIterInverse = ClearIterInverse;
@@ -2878,6 +2880,96 @@ static int MPFunc2D( void *p, int m, int n, const double *x, double *fvec,
    return 0;
 }
 
+static void PolyPowers( AstPolyMap *this, double **work, int ncoord,
+                        const int *mxpow, double **ptr, int point,
+                        int fwd, int *status ){
+/*
+*+
+*  Name:
+*     astPolyPowers
+
+*  Purpose:
+*     Find the required powers of the input axis values.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void astPolyPowers( AstPolyMap *this, double **work, int ncoord,
+*                         const int *mxpow, double **ptr, int point,
+*                         int fwd )
+
+*  Class Membership:
+*     PolyMap virtual function.
+
+*  Description:
+*     This function is used by astTransform to calculate the powers of
+*     the axis values for a single input position. In the case of
+*     sub-classes, the powers may not be simply powers of the supplied
+*     axis values but may be more complex quantities such as a Chebyshev
+*     polynomial of the required degree evaluated at the input axis values.
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     work
+*        An array of "ncoord" pointers, each pointing to an array of
+*        length "max(2,mxpow)". The required values are placed in this
+*        array on exit.
+*     ncoord
+*        The number of axes.
+*     mxpow
+*        Pointer to an array holding the maximum power required of each
+*        axis value. Should have "ncoord" elements.
+*     ptr
+*        An array of "ncoord" pointers, each pointing to an array holding
+*        the axis values. Each of these arrays of axis values must have
+*        at least "point+1" elements.
+*     point
+*        The zero based index of the point within "ptr" that holds the
+*        axis values to be exponentiated.
+*     fwd
+*        Do the supplied coefficients define the foward transformation of
+*        the PolyMap?
+*-
+*/
+
+/* Local Variables; */
+   double *pwork;
+   double x;
+   int coord;
+   int ip;
+
+/* Check the local error status. */
+   if ( !astOK ) return;
+
+/* For the base PolyMap class, this method simply raises each input axis
+   value to the required power. Loop over all input axes. */
+   for( coord = 0; coord < ncoord; coord++ ) {
+
+/* Get a pointer to the array in which the powers of the current axis
+   value are to be returned. */
+      pwork = work[ coord ];
+
+/* Anything to the power zero is 1.0. */
+      pwork[ 0 ] = 1.0;
+
+/* Get the input axis value. If it is bad, store bad values for all
+   remaining powers. */
+      x = ptr[ coord ][ point ];
+      if( x == AST__BAD ) {
+         for( ip = 1; ip <= mxpow[ coord ]; ip++ ) pwork[ ip ] = AST__BAD;
+
+/* Otherwise, form and store the required powers of the input axis value. */
+      } else {
+         for( ip = 1; ip <= mxpow[ coord ]; ip++ ) {
+            pwork[ ip ] = pwork[ ip - 1 ]*x;
+         }
+      }
+   }
+}
+
 static AstPolyMap *PolyTran( AstPolyMap *this, int forward, double acc,
                              double maxacc, int maxorder, const double *lbnd,
                              const double *ubnd, int *status ){
@@ -3034,6 +3126,16 @@ f        AST__NULL
 c        "maxacc",
 f        MAXACC,
 *        but no error will be reported.
+
+*  Applicability:
+*     PolyMap
+*        All PolyMaps have this method.
+*     ChebyMap
+c        The ChebyMap implementation of this method allows
+c        NULL pointers to be supplied for "lbnd" and/or "ubnd",
+c        in which case the corresponding bounds supplied when the ChebyMap
+c        was created are used.
+*        The returned PolyMap will be a ChebyMap.
 
 *  Notes:
 *     - This function can only be used on 1D or 2D PolyMaps which have
@@ -3220,7 +3322,10 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
    }
 
 /* Check the bounds can be used. */
-   if( lbnd[ 0 ] >= ubnd[ 0 ] && astOK ) {
+   if( !lbnd || !ubnd ) {
+      astError( AST__NODEF, "astPolyTran(%s): No upper and/or lower bounds "
+                "supplied.", status, astGetClass( this ) );
+   } else if( lbnd[ 0 ] >= ubnd[ 0 ] && astOK ) {
       astError( AST__NODEF, "astPolyTran(%s): Supplied upper "
                 "bound for the first axis (%g) is less than or equal to the "
                 "supplied lower bound (%g).", status, astGetClass( this ),
@@ -3246,8 +3351,7 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 
 /* Sample the requested polynomial transformation at a grid of points. This
    grid covers the user-supplied region, using 2*order points on each
-   axis. If the PolyMap is 1D, then it will be treated as a 2D polynomial
-   in which the second output is a unit transformation. */
+   axis. */
          table = SamplePoly2D( this, !forward, table, lbnd, ubnd, 2*order,
                                &nsamp, scales, status );
 
@@ -3582,7 +3686,7 @@ static double **SamplePoly2D( AstPolyMap *this, int forward, double **table,
 /* Transform the input grid to get the output grid. */
       (void) astTransform( this, ps1, forward, ps2 );
 
-/* Scale each pair of columns in turn. Use the ssame scale factor for
+/* Scale each pair of columns in turn. Use the same scale factor for
    each axis in order to ensure an isotropic metric. */
       for( icol = 0; icol < 4; icol += 2 ) {
 
@@ -4105,10 +4209,8 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    double **ptr_out;             /* Pointer to output coordinate data */
    double **work;                /* Pointer to exponentiated axis values */
    double *outcof;               /* Pointer to next coefficient value */
-   double *pwork;                /* Pointer to exponentiated axis values */
    double outval;                /* Output axis value */
    double term;                  /* Term to be added to output value */
-   double x;                     /* Input axis value */
    double xp;                    /* Exponentiated input axis value */
    int ***power;                 /* Pointer to coefficient power arrays */
    int **outpow;                 /* Pointer to next set of axis powers */
@@ -4116,7 +4218,6 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    int *ncoeff;                  /* Pointer to no. of coefficients */
    int in_coord;                 /* Index of output coordinate */
    int ico;                      /* Coefficient index */
-   int ip;                       /* Axis power */
    int nc;                       /* No. of coefficients in polynomial */
    int ncoord_in;                /* Number of coordinates per input point */
    int ncoord_out;               /* Number of coordinates per output point */
@@ -4178,7 +4279,8 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Allocate memory to hold the required powers of the input axis values. */
       work = astMalloc( sizeof( double * )*(size_t) ncoord_in );
       for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
-         work[ in_coord ] = astMalloc( sizeof( double )*(size_t) ( mxpow[ in_coord ] + 1 ) );
+         work[ in_coord ] = astMalloc( sizeof( double )*
+                           (size_t) ( astMAX( 2, mxpow[in_coord]+1 ) ) );
       }
 
 /* Perform coordinate arithmetic. */
@@ -4188,20 +4290,33 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Loop to apply the polynomial to each point in turn.*/
          for ( point = 0; point < npoint; point++ ) {
 
-/* Find the required powers of the input axis values and store them in
-   the work array. */
-            for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
-               pwork = work[ in_coord ];
-               pwork[ 0 ] = 1.0;
-               x = ptr_in[ in_coord ][ point ];
-               if( x == AST__BAD ) {
-                  for( ip = 1; ip <= mxpow[ in_coord ]; ip++ ) pwork[ ip ] = AST__BAD;
-               } else {
-                  for( ip = 1; ip <= mxpow[ in_coord ]; ip++ ) {
-                     pwork[ ip ] = pwork[ ip - 1 ]*x;
-                  }
-               }
-            }
+/* Find the required powers of the input axis values and store them
+   in the work array. Note, using a virtual method here slows the PolyMap
+   Transform function down by about 5%, compared to doing the equivalent
+   calculations in-line. But we need some way to allow the ChebyMap class
+   to over-ride the calculation of the powers, so we must do something
+   like this. If the 5% slow-down is too much, it can be reduced down to
+   about 2% by replacing the invocation of the astPolyPowers_ interface
+   function with a direct call to the implementation function itself.
+   This involves replacing the astPolyPowers call below with this:
+
+   (**astMEMBER(this,PolyMap,PolyPowers))( (AstPolyMap *) this, work, ncoord_in,
+                                           mxpow, ptr_in, point, forward, status );
+
+   The above could be wrapped up in an alternative implementation of the
+   astPolyPowers macro, so that it looks the same as the existing code.
+   In fact, this scheme could be more widely used to speed up invocation
+   of virtual functions within AST. The disadvantage is that the interface
+   functions for some virtual methods includes some extra processing,
+   over and above simply invoking the implementation function.
+
+   Of course the other way to get rid of the 5% slow down, is to
+   revert to using in-line code below, and then replicate this entire
+   function in the ChebyMap class, making suitable changes to use
+   Chebyshev functions in place of simple powers. But that is bad
+   structuring... */
+            astPolyPowers( this, work, ncoord_in, mxpow, ptr_in, point,
+                           forward );
 
 /* Loop round each output. */
             for( out_coord = 0; out_coord < ncoord_out; out_coord++ ) {
@@ -4308,6 +4423,11 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *  Applicability:
 *     PolyMap
 *        All PolyMaps have this attribute.
+*     ChebyMap
+*        The ChebyMap class does not currently provide an option for an
+*        iterative inverse, and so the IterInverse value is always zero.
+*        Setting or clearing the IterInverse attribute of a ChebyMap has
+*        no effect.
 
 *  Notes:
 *     - The transformation replaced by the iterative algorithm is the
@@ -5559,6 +5679,14 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
    Note that the member function may not be the one defined here, as it may
    have been over-ridden by a derived class. However, it should still have the
    same interface. */
+
+void astPolyPowers_( AstPolyMap *this, double **work, int ncoord,
+                     const int *mxpow, double **ptr, int point, int fwd,
+                     int *status ){
+   if ( !astOK ) return;
+   (**astMEMBER(this,PolyMap,PolyPowers))( this, work, ncoord, mxpow, ptr,
+                                           point, fwd, status );
+}
 
 AstPolyMap *astPolyTran_( AstPolyMap *this, int forward, double acc,
                           double maxacc, int maxorder, const double *lbnd,
