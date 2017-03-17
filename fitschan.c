@@ -1166,6 +1166,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        current Frame are now independent of each other.
 *     28-JUN-2016 ((DSB):
 *        IsAipsSpectral: Trailing spaces in CTYPE values are insignificant.
+*     17-MAR-2017 (DSB):
+*        Fix memory leak in MakeFitsFrameSet.
 *class--
 */
 
@@ -20318,10 +20320,11 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
    smap = astSimplify( remap );
    if( ! astIsAUnitMap( smap ) ) {
       tmap = (AstMapping *) astCmpMap( map, remap, 1, " ", status );
-      map = astAnnul( map );
-      remap = astAnnul( remap );
+      (void) astAnnul( map );
       map = tmap;
    }
+   remap = astAnnul( remap );
+   smap = astAnnul( smap );
 
 /* If the supplied FrameSet is usable... */
    if( ok ) {
