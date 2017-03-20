@@ -119,4 +119,19 @@ F77_INTEGER_FUNCTION(ast_chebymap)( INTEGER(NIN),
 }
 
 
+F77_SUBROUTINE(ast_chebydomain)( INTEGER(THIS),
+                                 INTEGER(FWD),
+                                 DOUBLE(LBND),
+                                 DOUBLE(UBND),
+                                 INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_INTEGER(FWD)
+   GENPTR_DOUBLE(XOUT)
+   GENPTR_DOUBLE(YOUT)
+
+   astAt( "AST_CHEBYDOMAIN", NULL, 0 );
+   astWatchSTATUS(
+      astChebyDomain( astI2P( *THIS ), *FWD, LBND, UBND );
+   )
+}
 

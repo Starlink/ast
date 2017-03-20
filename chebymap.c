@@ -22,7 +22,7 @@
      without checking, and then call a virtual function to verify the powers
      are OK.
 
-     Simpler for the moment just ot disable iterative inverses in
+     Simpler for the moment just to disable iterative inverses in
      ChebyMap.
 
 */
@@ -93,9 +93,13 @@ f     AST_POLYTRAN
 *     which are applicable to all PolyMaps.
 
 *  Functions:
-c     The ChebyMap class does not define any new functions beyond those
-f     The ChebyMap class does not define any new routines beyond those
-*     which are applicable to all PolyMaps.
+c     In addition to those functions applicable to all PolyMap, the
+c     following functions may also be applied to all ChebyMaps:
+f     In addition to those routines applicable to all PolyMap, the
+f     following routines may also be applied to all ChebyMaps:
+*
+c     - astChebyDomain: Get the bounds of the domain of the ChebyMap
+f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 
 *  Copyright:
 *     Copyright (C) 2017 East Asian Observatory.
@@ -213,18 +217,183 @@ AstChebyMap *astChebyMapId_( int, int, int, const double[], int, const double[],
 
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
+static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static int Equal( AstObject *, AstObject *, int * );
+static int GetIterInverse( AstPolyMap *, int * );
 static int GetObjSize( AstObject *, int * );
+static void ChebyDomain( AstChebyMap *, int, double *, double *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *obj, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void PolyPowers( AstPolyMap *, double **, int, const int *, double **, int, int, int *);
-static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
-static int GetIterInverse( AstPolyMap *, int * );
 
 /* Member functions. */
 /* ================= */
 
+static void ChebyDomain( AstChebyMap *this, int forward, double *lbnd,
+                         double *ubnd, int *status ){
+/*
+*++
+*  Name:
+c     astChebyDomain
+f     AST_CHEBYDOMAIN
+
+*  Purpose:
+*     Returns the bounding box of the domain of a ChebyMap.
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+c     #include "chebymap.h"
+c     void astChebyDomain( AstChebyMap *this, int forward, double *lbnd,
+c                          double *ubnd )
+f     CALL AST_CHEBYDOMAIN( THIS, FORWARD, LBND, UBND, STATUS )
+
+*  Class Membership:
+*     ChebyMap method.
+
+*  Description:
+c     This function
+f     This routine
+*     returns the upper and lower limits of the box defining the domain
+*     of either the forward or inverse transformation of a ChebyMap. These
+*     are the values that were supplied when the ChebyMap was created.
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the ChebyMap.
+c     forward
+f     FORWARD = LOGICAL (Given)
+c        A non-zero
+f        A .TRUE.
+*        value indicates that the domain of the ChebyMap's
+*        forward transformation is to be returned, while a zero
+*        value indicates that the domain of the inverse transformation
+*        should be returned.
+c     lbnd
+f     LBND() = DOUBLE PRECISION (Returned)
+c        Pointer to an
+f        An
+*        array in which to return the lower axis bounds of the ChebyMap
+*        domain. The number of elements should be at least equal to the
+*        number of ChebyMap inputs (if
+c        "forward" is non-zero), or outputs (if "forward" is zero).
+f        FORWARD is .TRUE.), or outputs (if FORWARD is .FALSE.).
+c     ubnd
+f     UBND() = DOUBLE PRECISION (Returned)
+c        Pointer to an
+f        An
+*        array in which to return the upper axis bounds of the ChebyMap
+*        domain. The number of elements should be at least equal to the
+*        number of ChebyMap inputs (if
+c        "forward" is non-zero), or outputs (if "forward" is zero).
+f        FORWARD is .TRUE.), or outputs (if FORWARD is .FALSE.).
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Notes:
+*    - If the requested transformation does not have a domain bounding
+*    box, this method returns a box determined using the
+c    astMapBox
+f    AST_MAPBOX
+*    method on the opposite transformation, if the opposite
+*    transformation is defined.
+*    - If the above procedure fails to determine a bounding box, the supplied
+*    arrays are filled with AST__BAD values but no error is reported.
+
+*--
+*/
+
+/* Local Variables: */
+   double *lbnd_o;
+   double *offset_o;
+   double *offset;
+   double *scale_o;
+   double *scale;
+   double *ubnd_o;
+   int fwd_o;
+   int iax;
+   int nax;
+   int nax_o;
+
+/* Check the inherited status. */
+   if( !astOK ) return;
+
+/* Get the scales and offsets to use, depending on the value of "forward"
+   and whether the ChebyMap has been inverted. */
+   if( forward != astGetInvert( this ) ) {
+      scale = this->scale_f;
+      offset = this->offset_f;
+      nax = astGetNin( this );
+      scale_o = this->scale_i;
+      offset_o = this->offset_i;
+      nax_o = astGetNout( this );
+      fwd_o = 0;
+   } else {
+      scale = this->scale_i;
+      offset = this->offset_i;
+      nax = astGetNout( this );
+      scale_o = this->scale_f;
+      offset_o = this->offset_f;
+      nax_o = astGetNin( this );
+      fwd_o = 1;
+   }
+
+/* Check the domain is defined. */
+   if( scale && offset ) {
+      for( iax = 0; iax < nax; iax++ ) {
+         if( scale[ iax ] != 0.0 ) {
+            lbnd[ iax ] = ( -1.0 - offset[ iax ] ) / scale[ iax ];
+            ubnd[ iax ] = ( 1.0 - offset[ iax ] ) / scale[ iax ];
+         } else {
+            lbnd[ iax ] = AST__BAD;
+            ubnd[ iax ] = AST__BAD;
+         }
+      }
+
+/* If the requested domain is not defined, see if it can be determined
+   by transforming the domain of the other transformation into the
+   requested input ot putput space. */
+   } else if( scale_o && offset_o ){
+
+/* Allocate memory to hold the bounding box in the other space (input or
+   output), and then store the bounding box values. */
+      lbnd_o = astMalloc( nax_o*sizeof( *lbnd_o ) );
+      ubnd_o = astMalloc( nax_o*sizeof( *ubnd_o ) );
+      if( astOK ) {
+         for( iax = 0; iax < nax_o; iax++ ) {
+            if( scale_o[ iax ] != 0.0 ) {
+               lbnd_o[ iax ] = ( -1.0 - offset_o[ iax ] ) / scale_o[ iax ];
+               ubnd_o[ iax ] = ( 1.0 - offset_o[ iax ] ) / scale_o[ iax ];
+            } else {
+               lbnd_o[ iax ] = AST__BAD;
+               ubnd_o[ iax ] = AST__BAD;
+            }
+         }
+
+/* Loop round finding the bounds on each input axis of the requested
+   transformation. */
+         for( iax = 0; iax < nax; iax++ ) {
+            astMapBox( this, lbnd_o, ubnd_o, fwd_o, iax, lbnd + iax,
+                       ubnd + iax, NULL, NULL );
+         }
+
+/* Free resources */
+         lbnd_o = astFree( lbnd_o );
+         ubnd_o = astFree( ubnd_o );
+      }
+
+
+/* If the domain of the other transformation is not defined, return bad values. */
+   } else {
+      for( iax = 0; iax < nax; iax++ ) {
+         lbnd[ iax ] = AST__BAD;
+         ubnd[ iax ] = AST__BAD;
+      }
+   }
+}
 
 static int Equal( AstObject *this_object, AstObject *that_object, int *status ) {
 /*
@@ -531,6 +700,10 @@ void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status
 
    parent_equal = object->Equal;
    object->Equal = Equal;
+
+/* Store pointers to the member functions (implemented here) that
+   provide virtual methods for this class. */
+   vtab->ChebyDomain = ChebyDomain;
 
 /* Declare the destructor and copy constructor. */
    astSetDelete( (AstObjectVtab *) vtab, Delete );
@@ -1892,5 +2065,9 @@ AstChebyMap *astLoadChebyMap_( void *mem, size_t size,
    same interface. */
 
 
+void astChebyDomain_( AstChebyMap *this, int forward, double *lbnd, double *ubnd, int *status ){
+   if ( !astOK ) return;
+   (**astMEMBER(this,ChebyMap,ChebyDomain))( this, forward, lbnd, ubnd, status );
+}
 
 

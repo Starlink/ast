@@ -7,7 +7,7 @@
 
       integer status, lstat, cm, cm2, cm3, i, j, nco
       double precision lbnd( 2 ), ubnd( 2 ), dval
-      double precision tlbnd( 2 ), tubnd( 2 )
+      double precision tlbnd( 2 ), tubnd( 2 ), dlbnd( 2 ), dubnd( 2 )
 
       double precision coeffs_1( 4*3 ), xin( 5 ), xout( 5 ), xrec( 5 ),
      :                 yrec( 5 ),
@@ -221,7 +221,7 @@ c astDump and astLoadChebyMap
       end if
 
 
-
+* Test recovery of coeffs
       call ast_polycoeffs( cm2, .true., 0, 0.0D0, nco, status )
       if( nco .ne. 5 ) then
          call stopit( 13, status )
@@ -258,8 +258,55 @@ c astDump and astLoadChebyMap
 
 
 
+* Test recovery of domain bounding box
+      call ast_chebydomain( cm, .true., dlbnd, dubnd, status )
+
+      if( dlbnd(1) .ne. lbnd(1) ) then
+         call stopit( 21, status )
+      else if( dlbnd(2) .ne. lbnd(2) ) then
+         call stopit( 22, status )
+      else if( dubnd(1) .ne. ubnd(1) ) then
+         call stopit( 23, status )
+      else if( dubnd(2) .ne. ubnd(2) ) then
+         call stopit( 24, status )
+      end if
+
+      call ast_chebydomain( cm, .false., dlbnd, dubnd, status )
+
+      if( dlbnd(1) .ne. -2.0D0 ) then
+         call stopit( 25, status )
+      else if( dlbnd(2) .ne. -1.0D0 ) then
+         call stopit( 26, status )
+      else if( dubnd(1) .ne. 4.0D0 ) then
+         call stopit( 27, status )
+      else if( dubnd(2) .ne. 4.0D0 ) then
+         call stopit( 28, status )
+      end if
 
 
+      call ast_chebydomain( cm2, .true., dlbnd, dubnd, status )
+
+      if( dlbnd(1) .ne. lbnd(1) ) then
+         call stopit( 29, status )
+      else if( dlbnd(2) .ne. lbnd(2) ) then
+         call stopit( 30, status )
+      else if( dubnd(1) .ne. ubnd(1) ) then
+         call stopit( 31, status )
+      else if( dubnd(2) .ne. ubnd(2) ) then
+         call stopit( 32, status )
+      end if
+
+      call ast_chebydomain( cm2, .false., dlbnd, dubnd, status )
+
+      if( dlbnd(1) .ne. -2.0D0 ) then
+         call stopit( 33, status )
+      else if( dlbnd(2) .ne. -1.0D0 ) then
+         call stopit( 34, status )
+      else if( dubnd(1) .ne. 4.0D0 ) then
+         call stopit( 35, status )
+      else if( dubnd(2) .ne. 4.0D0 ) then
+         call stopit( 36, status )
+      end if
 
 
       call ast_end( status )

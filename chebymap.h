@@ -110,7 +110,7 @@ typedef struct AstChebyMapVtab {
    AstClassIdentifier id;
 
 /* Properties (e.g. methods) specific to this class. */
-/* None */
+   void (* ChebyDomain)( AstChebyMap *, int, double *, double *, int * );
 
 } AstChebyMapVtab;
 
@@ -167,6 +167,7 @@ AstChebyMap *astLoadChebyMap_( void *, size_t, AstChebyMapVtab *,
 
 /* Prototypes for member functions. */
 /* -------------------------------- */
+void astChebyDomain_( AstChebyMap *, int, double *, double *, int * );
 
 # if defined(astCLASS)           /* Protected */
 #endif
@@ -217,6 +218,10 @@ astINVOKE(O,astLoadChebyMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_
 /* Here we make use of astCheckChebyMap to validate ChebyMap pointers
    before use.  This provides a contextual error report if a pointer
    to the wrong sort of Object is supplied. */
+
+#define astChebyDomain(this,forward,lbnd,ubnd) \
+astINVOKE(V,astChebyDomain_(astCheckChebyMap(this),forward,lbnd,ubnd,STATUS_PTR))
+
 
 #if defined(astCLASS)            /* Protected */
 
