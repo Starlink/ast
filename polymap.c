@@ -16,8 +16,9 @@ f     AST_POLYMAP
 *     all the input coordinates. The coefficients are specified separately
 *     for each output coordinate. The forward and inverse transformations
 *     are defined independantly by separate sets of coefficients. If no
-*     inverse transformation is supplied, an iterative method can be used
-*     to evaluate the inverse based only on the forward transformation.
+*     inverse transformation is supplied, the default behaviour is to use
+*     an iterative method to evaluate the inverse based only on the forward
+*     transformation (see attribute IterInverse).
 
 *  Inheritance:
 *     The PolyMap class inherits from the Mapping class.
@@ -3221,7 +3222,7 @@ f     If FORWARD is .FALSE. (probably the most likely case),
 *     long as its accuracy is better than
 c     "maxacc".
 f     MAXACC.
-*     If it is not, an error is reported.
+*     If it is not, a NULL pointer is returned but no error is reported.
 
 *  Parameters:
 c     this
@@ -4591,6 +4592,16 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *
 *     The NiterInverse and TolInverse attributes provide parameters that
 *     control the behaviour of the inverse approximation method.
+*
+*     The iterative inverse returns AST__BAD axis values at positions
+*     for which the inverse transformation is undefined. For instance,
+*     if the forward transformation is y = x*x, the iterative inverse
+*     will return x = AST__BAD at y = -1. If the inverse transformation
+*     is multiply defined, the position returned by the iterative inverse
+*     will be the position of the solution that is closest to the
+*     supplied position. For instance, using the above example, y = x*x,
+*     the iterative inverse will return x = +2 at y = 4, because x = +2
+*     is the closest solution to 4 (the other solution is x = -2).
 
 *  Applicability:
 *     PolyMap
@@ -5143,8 +5154,9 @@ f                           OPTIONS, STATUS )
 *     all the input coordinates. The coefficients are specified separately
 *     for each output coordinate. The forward and inverse transformations
 *     are defined independantly by separate sets of coefficients. If no
-*     inverse transformation is supplied, an iterative method can be used
-*     to evaluate the inverse based only on the forward transformation.
+*     inverse transformation is supplied, the default behaviour is to use
+*     an iterative method to evaluate the inverse based only on the forward
+*     transformation (see attribute IterInverse).
 
 *  Parameters:
 c     nin
@@ -5193,7 +5205,9 @@ c     ncoeff_i
 f     NCOEFF_I = INTEGER (Given)
 *        The number of non-zero coefficients necessary to define the
 *        inverse transformation of the PolyMap. If zero is supplied, the
-*        inverse transformation will be undefined.
+*        default behaviour is to use an iterative method to evaluate the
+*        inverse based only on the forward transformation (see attribute
+*        IterInverse).
 c     coeff_i
 f     COEFF_I( * ) = DOUBLE PRECISION (Given)
 *        An array containing
