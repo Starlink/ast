@@ -6,11 +6,11 @@
       include 'PRM_PAR'
 
       integer status, lstat, cm, cm2, cm3, i, j, nco
-      double precision lbnd( 2 ), ubnd( 2 ), dval
+      double precision lbnd( 2 ), ubnd( 2 ), dval, lb, ub, xl(2), xu(2)
       double precision tlbnd( 2 ), tubnd( 2 ), dlbnd( 2 ), dubnd( 2 )
 
       double precision coeffs_1( 4*3 ), xin( 5 ), xout( 5 ), xrec( 5 ),
-     :                 yrec( 5 ),
+     :                 yrec( 5 ), coeffs_4(4*4 ),
      :                 work( 5 ), coeffs_2( 2*3 ), coeffs_3( 4*5 ),
      :                 yin(5), yout(5), xi, yi, xv, yv, y, a, x,
      :                 cofs( 100 )
@@ -35,7 +35,15 @@ C  fy(x,y) = 1.5*T0(x')*T0(y') - 2.5*T1(x')*T2(y')
      :               1.5D0, 2.0D0, 0.0D0, 0.0D0,
      :              -2.5D0, 2.0D0, 1.0D0, 2.0D0/
 
-
+C  fx(x,y) = T1(x') + T1(y')
+C  fy(x,y) = T1(x') - T1(y')
+C
+C  This has the property that the coeffs of the inverse transformation are
+C  equal to the coeffs of the forward transformation.
+      data coeffs_4 /1.0D0, 1.0D0, 1.0D0, 0.0D0,
+     :               1.0D0, 1.0D0, 0.0D0, 1.0D0,
+     :               1.0D0, 2.0D0, 1.0D0, 0.0D0,
+     :              -1.0D0, 2.0D0, 0.0D0, 1.0D0 /
 
 
       status = sai__ok
@@ -111,12 +119,34 @@ c  The astPolyTran method on a 1-dimensional ChebyMaps, order 2: 1 - 2*x
       if( cm2 .eq. AST__NULL ) then
          call stopit( 5, status )
       else
+         xin( 1 ) = -1.0D0
+         xin( 2 ) = -0.5D0
+         xin( 3 ) =  0.0D0
+         xin( 4 ) =  0.5D0
+         xin( 5 ) =  1.0D0
+         call ast_tran1( cm2, 5, xin, .true., xout, status )
          call ast_tran1( cm2, 5, xout, .false., xrec, status )
          do i = 1, 5
-            dval = ( 1.0D0 - xout(i) )/2.0D0
-            if( abs( xrec( i ) - dval ) .gt. 1.0D-3*abs( dval ) )
+            if( abs( xrec(i) - xin(i) ) .gt. 1.0D-3*abs( xin(i) ) )
      :             call stopit( 6, status )
          end do
+
+         call ast_chebydomain( cm2, .false., dlbnd, dubnd, status )
+         if( dlbnd(1) .ne. -1.0D0 )
+     :       call stopit( 501, status )
+         if( dubnd(1) .ne. 3.0D0 )
+     :       call stopit( 502, status )
+
+         call ast_polycoeffs( cm2, .false., 100, cofs, nco, status )
+         if( nco .ne. 1 )
+     :       call stopit( 503, status )
+         if( cofs(1) .ne. -1.0D0 )
+     :       call stopit( 504, status )
+         if( cofs(2) .ne. 1.0D0 )
+     :       call stopit( 505, status )
+         if( cofs(3) .ne. 1.0D0 )
+     :       call stopit( 506, status )
+
       end if
 
 c  The astPolyTran method on a 1-dimensional ChebyMaps, order 5.
@@ -144,14 +174,87 @@ c  The astPolyTran method on a 1-dimensional ChebyMaps, order 5.
          end do
       end if
 
-c ast_equal and ast_copy
+c  ast_equal and ast_copy
       cm3 = ast_copy( cm2, status )
       if( .not. ast_equal( cm2, cm3, status ) ) then
          call stopit( 9, status )
       end if
 
-c astDump and astLoadChebyMap
+c  astDump and astLoadChebyMap
       call checkdump( cm2, status )
+
+
+c  Simple 2d ChebyMap.
+C     fx(x,y) = T1(x') + T1(y')
+C     fy(x,y) = T1(x') - T1(y')
+
+      lbnd(1) = -1.0D0
+      lbnd(2) = -1.0D0
+      ubnd(1) = 1.0D0
+      ubnd(2) = 1.0D0
+
+      cm = ast_chebymap( 2, 2, 4, coeffs_4, 0, 0.0D0, lbnd, ubnd,
+     :                   1.0D0, 1.0D0, ' ', status )
+
+      xin(1) = 0.5D0
+      xin(2) = 0.0D0
+      xin(3) = -0.5D0
+      xin(4) = 0.0D0
+
+      yin(1) = 0.0D0
+      yin(2) = 0.5D0
+      yin(3) = 0.0D0
+      yin(4) = -0.5D0
+
+      call ast_tran2( cm, 4, xin, yin, .true., xout, yout, status )
+      do i = 1, 4
+         xv = xin(i) + yin(i)
+         yv = xin(i) - yin(i)
+
+         if( abs( xout(i) - xv ) .gt. 1.0D-6*abs(xv) .or.
+     :       abs( yout(i) - yv ) .gt. 1.0D-6*abs(yv) ) then
+            call stopit( 101, status )
+         end if
+      end do
+
+      cm2 = ast_polytran( cm, .false., 0.01D0, 0.01D0, 10, lbnd,
+     :                    ubnd, status )
+
+      if( cm2 .eq. AST__NULL ) then
+         call stopit( 102, status )
+      else
+         call ast_tran2( cm2, 4, xout, yout, .false., xrec, yrec,
+     :                   status )
+         do i = 1, 4
+            if( abs( xrec(i) - xin(i) ) .gt. 0.01D0 .or.
+     :          abs( yrec(i) - yin(i) ) .gt. 0.01D0 ) then
+               call stopit( 103, status )
+            end if
+         end do
+      end if
+
+      call ast_polycoeffs( cm2, .false., 100, cofs, nco, status )
+      if( nco .ne. 4 ) then
+         call stopit( 104, status )
+      else
+         do i = 1, 16
+            if( abs( cofs(i) - coeffs_4(i) ) .gt. 0.01D0 ) then
+               call stopit( 105, status )
+            end if
+         end do
+      end if
+
+      call ast_chebydomain( cm2, .false., dlbnd, dubnd, status )
+
+      if( dlbnd(1) .ne. -2.0D0 ) then
+         call stopit( 106, status )
+      else if( dlbnd(2) .ne. -2.0D0 ) then
+         call stopit( 107, status )
+      else if( dubnd(1) .ne. 2.0D0 ) then
+         call stopit( 108, status )
+      else if( dubnd(2) .ne. 2.0D0 ) then
+         call stopit( 109, status )
+      end if
 
 *  2-dimensional ChebyMaps: forward transformation
       lbnd(1) = 0.0D0
@@ -192,7 +295,6 @@ c astDump and astLoadChebyMap
       tlbnd(2) = 4.0D0
       tubnd(1) = 6.0D0
       tubnd(2) = 6.0D0
-
       cm2 = ast_polytran( cm, .false., 0.01D0, 0.01D0, 10, tlbnd,
      :                    tubnd, status )
 
@@ -238,25 +340,24 @@ c astDump and astLoadChebyMap
          end do
       endif
 
-
       call ast_polycoeffs( cm2, .false., 0, 0.0D0, nco, status )
-      if( nco .ne. 12 ) then
+      if( nco .ne. 9 ) then
          call stopit( 16, status )
       endif
 
       call ast_polycoeffs( cm2, .false., 100, cofs, nco, status )
-      if( nco .ne. 12 ) then
+
+      if( nco .ne. 9 ) then
          call stopit( 17, status )
-      else if( cofs( 2 ) .ne. 1.0D0 ) then
+      else if( abs( cofs( 1 ) - 5.0000000000000018D0 ) .gt.
+     :        1.0E-6 ) then
          call stopit( 18, status )
-      else if( abs( cofs( 13 ) - (-6.5376876905037529) ) .gt.
+      else if( abs( cofs( 13 ) - 0.35096188953505458D0 ) .gt.
      :        1.0E-6 ) then
          call stopit( 19, status )
       else if( cofs( 15 ) .ne. 2.0D0 ) then
          call stopit( 20, status )
       end if
-
-
 
 * Test recovery of domain bounding box
       call ast_chebydomain( cm, .true., dlbnd, dubnd, status )
@@ -298,13 +399,13 @@ c astDump and astLoadChebyMap
 
       call ast_chebydomain( cm2, .false., dlbnd, dubnd, status )
 
-      if( dlbnd(1) .ne. -2.0D0 ) then
+      if( abs( dlbnd(1) - 0.432 ) .gt. 1.0D-6 ) then
          call stopit( 33, status )
-      else if( dlbnd(2) .ne. -1.0D0 ) then
+      else if( abs( dlbnd(2) - 1.000816 ) .gt. 1.0D-6 ) then
          call stopit( 34, status )
-      else if( dubnd(1) .ne. 4.0D0 ) then
+      else if( abs( dubnd(1) - 1.568D0 ) .gt. 1.0D-6 ) then
          call stopit( 35, status )
-      else if( dubnd(2) .ne. 4.0D0 ) then
+      else if( abs( dubnd(2) - 1.9991836D0 ) .gt. 1.0D-6 ) then
          call stopit( 36, status )
       end if
 

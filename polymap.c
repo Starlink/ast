@@ -106,6 +106,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        constructor, regardless of the state of the Invert attribute.
 *     17-MAR-2017 (DSB):
 *        - Add the astPolyCoeffs method.
+*     30-MAR-2017 (DSB):
+*        Modify the astPolyTran method so that it can be used by the
+*        ChebyMap class to determine new transformations implemented as
+*        Chebyshev polynomials.
 *class--
 */
 
@@ -196,21 +200,6 @@ static int class_init = 0;       /* Virtual function table initialised? */
 #endif
 
 
-/* Type Definitions */
-/* ================ */
-
-/* Structure used to pass data to the Levenberg - Marquardt non-linear
-   minimization algorithm. */
-typedef struct MinPackData {
-   int order;      /* Max power of X1 or X2, plus one. */
-   int nsamp;      /* No. of polynomial samples to fit */
-   int init_jac;   /* Has the constant Jacobian been found yet? */
-   double *xp1;    /* Pointer to powers of X1 (1st poly i/p) at all samples */
-   double *xp2;    /* Pointer to powers of X2 (2nd poly i/p) at all samples */
-   double *y[ 2 ]; /* Pointers to Y1 and Y2 values at all samples */
-} MinPackData;
-
-
 
 /* External Interface Function Prototypes. */
 /* ======================================= */
@@ -227,8 +216,8 @@ static AstPolyMap **GetJacobian( AstPolyMap *, int * );
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static double **SamplePoly1D( AstPolyMap *, int, double **, double, double, int, int *, double[2], int * );
 static double **SamplePoly2D( AstPolyMap *, int, double **, const double *, const double *, int, int *, double[4], int * );
-static double *FitPoly1D( int, double, int, double **, double[2], int *, double *, int * );
-static double *FitPoly2D( int, double, int, double **, double[4], int *, double *, int * );
+static double *FitPoly1D( AstPolyMap *, int, int, double, int, double **, double[2], int *, double *, int * );
+static double *FitPoly2D( AstPolyMap *, int, int, double, int, double **, double[4], int *, double *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetObjSize( AstObject *, int * );
 static int GetTranForward( AstMapping *, int * );
@@ -249,6 +238,8 @@ static void LMJacob2D( const double *, double *, int, int, void * );
 static void PolyPowers( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static void StoreArrays( AstPolyMap *, int, int, const double *, int * );
 static void PolyCoeffs( AstPolyMap *, int, int, double *, int *, int * );
+static void FitPoly1DInit( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
+static void FitPoly2DInit( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
 
 #if defined(THREAD_SAFE)
 static int ManageLock( AstObject *, int, int, AstObject **, int * );
@@ -536,9 +527,9 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    return result;
 }
 
-static double *FitPoly1D( int nsamp, double acc, int order, double **table,
-                          double scales[2], int *ncoeff, double *racc,
-                          int *status ){
+static double *FitPoly1D( AstPolyMap *this, int forward, int nsamp, double acc,
+                          int order, double **table, double scales[2], int *ncoeff,
+                          double *racc, int *status ){
 /*
 *  Name:
 *     FitPoly1D
@@ -550,9 +541,9 @@ static double *FitPoly1D( int nsamp, double acc, int order, double **table,
 *     Private function.
 
 *  Synopsis:
-*     double *FitPoly1D( int nsamp, double acc, int order, double **table,
-*                        double scales[2], int *ncoeff, double *racc,
-*                        int *status )
+*     double *FitPoly1D( AstPolyMap *this, int forward, int nsamp, double acc,
+*                        int order, double **table, double scales[2], int *ncoeff,
+*                        double *racc, int *status )
 
 *  Description:
 *     This function fits a least squares 1D polynomial curve to the
@@ -563,6 +554,12 @@ static double *FitPoly1D( int nsamp, double acc, int order, double **table,
 *     y1 = P1( x1 )
 
 *  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     forward
+*        Non-zero if the forward transformation of "this" is being
+*        replaced. Zero if the inverse transformation of "this" is being
+*        replaced.
 *     nsamp
 *        The number of (x1,y1) positions in the supplied table.
 *     acc
@@ -580,7 +577,7 @@ static double *FitPoly1D( int nsamp, double acc, int order, double **table,
 *        Multiplying the table values by the scale factor produces PolyMap
 *        input or output axis values.
 *     ncoeff
-*        Pointer to an ant in which to return the number of coefficients
+*        Pointer to an int in which to return the number of coefficients
 *        described by the returned array.
 *     racc
 *        Pointer to a double in which to return the achieved accuracy
@@ -598,11 +595,10 @@ static double *FitPoly1D( int nsamp, double acc, int order, double **table,
 */
 
 /* Local Variables: */
-   MinPackData data;
+   AstMinPackData data;
    double *coeffs;
    double *pc;
    double *pr;
-   double *px1;
    double *pxp1;
    double *result;
    double *work1;
@@ -613,7 +609,6 @@ static double *FitPoly1D( int nsamp, double acc, int order, double **table,
    double maxterm;
    double term;
    double tv;
-   double x1;
    int *work3;
    int info;
    int k;
@@ -650,26 +645,11 @@ static double *FitPoly1D( int nsamp, double acc, int order, double **table,
    work4 = astMalloc( (5*ncof+nsamp)*sizeof( double ) );
    if( astOK ) {
 
-/* Get pointers to the supplied x1 values. */
-      px1 = table[ 0 ];
-
-/* Get pointers to the location for the next power of x1. */
-      pxp1 = data.xp1;
-
-/* Loop round all samples. */
-      for( k = 0; k < nsamp; k++ ) {
-
-/* Get the current x1 value. */
-         x1 = *(px1++);
-
 /* Find all the required powers of x1 and store them in the "xp1"
-   component of the data structure. */
-         tv = 1.0;
-         for( w1 = 0; w1 < order; w1++ ) {
-            *(pxp1++) = tv;
-            tv *= x1;
-         }
-      }
+   component of the data structure. The required initialisation is done
+   differently for different subclasses of PolyMap, so we need to wrap
+   it up in a virtual function. */
+      astFitPoly1DInit( this, forward, table, &data, scales );
 
 /* The initial guess at the coefficient values represents a unit
    transformation in PolyMap axis values. */
@@ -769,9 +749,88 @@ static double *FitPoly1D( int nsamp, double acc, int order, double **table,
 
 }
 
-static double *FitPoly2D( int nsamp, double acc, int order, double **table,
-                          double scales[4], int *ncoeff, double *racc,
-                          int *status ){
+static void FitPoly1DInit( AstPolyMap *this, int forward, double **table,
+                           AstMinPackData *data, double *scales, int *status ){
+/*
+*+
+*  Name:
+*     astFitPoly1DInit
+
+*  Purpose:
+*     Perform initialisation needed for FitPoly1D
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void astFitPoly1DInit( AstPolyMap *this, int forward, double **table,
+*                            AstMinPackData *data, double *scales,
+*                            int *status )
+
+*  Class Membership:
+*     PolyMap virtual function.
+
+*  Description:
+*     This function performs initialisation needed for FitPoly1D.
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     forward
+*        Non-zero if the forward transformation of "this" is being
+*        replaced. Zero if the inverse transformation of "this" is being
+*        replaced.
+*     table
+*        Pointer to an array of 2 pointers. Each of these pointers points
+*        to an array of "nsamp" doubles, being the scaled and sampled values
+*        for x1 and y1 in that order.
+*     data
+*        Pointer to a structure holding information to pass the the
+*        service function invoked by the minimisation function.
+*     scales
+*        Array holding the scaling factors for the two columns of the table.
+*        Multiplying the table values by the scale factor produces PolyMap
+*        input or output axis values.
+*-
+*/
+
+/* Local Variables; */
+   double *px1;
+   double *pxp1;
+   double tv;
+   double x1;
+   int k;
+   int w1;
+
+/* Check the local error status. */
+   if ( !astOK ) return;
+
+/* Get pointers to the supplied x1 values. */
+   px1 = table[ 0 ];
+
+/* Get pointers to the location for the next power of x1. */
+   pxp1 = data->xp1;
+
+/* Loop round all samples. */
+   for( k = 0; k < data->nsamp; k++ ) {
+
+/* Get the current x1 value. */
+      x1 = *(px1++);
+
+/* Find all the required powers of x1 and store them in the "xp1"
+   component of the data structure. */
+      tv = 1.0;
+      for( w1 = 0; w1 < data->order; w1++ ) {
+         *(pxp1++) = tv;
+         tv *= x1;
+      }
+   }
+}
+
+static double *FitPoly2D( AstPolyMap *this, int forward, int nsamp, double acc,
+                          int order, double **table, double scales[4],
+                          int *ncoeff, double *racc, int *status ){
 /*
 *  Name:
 *     FitPoly2D
@@ -783,9 +842,9 @@ static double *FitPoly2D( int nsamp, double acc, int order, double **table,
 *     Private function.
 
 *  Synopsis:
-*     double *FitPoly2D( int nsamp, double acc, int order, double **table,
-*                        double scales[4], int *ncoeff, double *racc,
-*                        int *status )
+*     double *FitPoly2D( AstPolyMap *this, int forward, int nsamp, double acc,
+*                        int order, double **table, double scales[4],
+*                        int *ncoeff, double *racc, int *status )
 
 *  Description:
 *     This function fits a pair of least squares 2D polynomial surfaces
@@ -800,6 +859,12 @@ static double *FitPoly2D( int nsamp, double acc, int order, double **table,
 *     the "order" parameter).
 
 *  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     forward
+*        Non-zero if the forward transformation of "this" is being
+*        replaced. Zero if the inverse transformation of "this" is being
+*        replaced.
 *     nsamp
 *        The number of (x1,x2,y1,y2) positions in the supplied table.
 *     acc
@@ -838,12 +903,10 @@ static double *FitPoly2D( int nsamp, double acc, int order, double **table,
 */
 
 /* Local Variables: */
-   MinPackData data;
+   AstMinPackData data;
    double *coeffs;
    double *pc;
    double *pr;
-   double *px1;
-   double *px2;
    double *pxp1;
    double *pxp2;
    double *result;
@@ -858,8 +921,6 @@ static double *FitPoly2D( int nsamp, double acc, int order, double **table,
    double maxterm;
    double term;
    double tv;
-   double x1;
-   double x2;
    int *work3;
    int info;
    int iout;
@@ -899,37 +960,11 @@ static double *FitPoly2D( int nsamp, double acc, int order, double **table,
    work4 = astMalloc( 2*(5*ncof+nsamp)*sizeof( double ) );
    if( astOK ) {
 
-/* Get pointers to the supplied x1 and x2 values. */
-      px1 = table[ 0 ];
-      px2 = table[ 1 ];
-
-/* Get pointers to the location for the next power of x1 and x2. */
-      pxp1 = data.xp1;
-      pxp2 = data.xp2;
-
-/* Loop round all samples. */
-      for( k = 0; k < nsamp; k++ ) {
-
-/* Get the current x1 and x2 values. */
-         x1 = *(px1++);
-         x2 = *(px2++);
-
-/* Find all the required powers of x1 and store them in the "xp1"
-   component of the data structure. */
-         tv = 1.0;
-         for( w1 = 0; w1 < order; w1++ ) {
-            *(pxp1++) = tv;
-            tv *= x1;
-         }
-
-/* Find all the required powers of x2 and store them in the "xp2"
-   comonent of the data structure. */
-         tv = 1.0;
-         for( w2 = 0; w2 < order; w2++ ) {
-            *(pxp2++) = tv;
-            tv *= x2;
-         }
-      }
+/* Find all the required powers of x1 and x2 and store them in the "xp1"
+   and "xp2" components of the data structure. The required initialisation
+   is done differently for different subclasses of PolyMap, so we need to
+   wrap it up in a virtual function. */
+      astFitPoly2DInit( this, forward, table, &data, scales );
 
 /* The initial guess at the coefficient values represents a unit
    transformation in PolyMap axis values. */
@@ -1052,6 +1087,100 @@ static double *FitPoly2D( int nsamp, double acc, int order, double **table,
 /* Return the coefficient array. */
    return result;
 
+}
+
+static void FitPoly2DInit( AstPolyMap *this, int forward, double **table,
+                           AstMinPackData *data, double *scales, int *status ){
+/*
+*+
+*  Name:
+*     astFitPoly2DInit
+
+*  Purpose:
+*     Perform initialisation needed for FitPoly2D
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void astFitPoly2DInit( AstPolyMap *this, int forward, double **table,
+*                            AstMinPackData *data, double *scales,
+*                            int *status )
+
+*  Class Membership:
+*     PolyMap virtual function.
+
+*  Description:
+*     This function performs initialisation needed for FitPoly2D.
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     forward
+*        Non-zero if the forward transformation of "this" is being
+*        replaced. Zero if the inverse transformation of "this" is being
+*        replaced.
+*     table
+*        Pointer to an array of 4 pointers. Each of these pointers points
+*        to an array of "nsamp" doubles, being the scaled and sampled values
+*        for x1, x2, y1 or y2 in that order.
+*     data
+*        Pointer to a structure holding information to pass the the
+*        service function invoked by the minimisation function.
+*     scales
+*        Array holding the scaling factors for the four columns of the table.
+*        Multiplying the table values by the scale factor produces PolyMap
+*        input or output axis values.
+*-
+*/
+
+/* Local Variables; */
+   double *px1;
+   double *px2;
+   double *pxp1;
+   double *pxp2;
+   double tv;
+   double x1;
+   double x2;
+   int k;
+   int w1;
+   int w2;
+
+/* Check the local error status. */
+   if ( !astOK ) return;
+
+/* Get pointers to the supplied x1 and x2 values. */
+   px1 = table[ 0 ];
+   px2 = table[ 1 ];
+
+/* Get pointers to the location for the next power of x1 and x2. */
+   pxp1 = data->xp1;
+   pxp2 = data->xp2;
+
+/* Loop round all samples. */
+   for( k = 0; k < data->nsamp; k++ ) {
+
+/* Get the current x1 and x2 values. */
+      x1 = *(px1++);
+      x2 = *(px2++);
+
+/* Find all the required powers of x1 and store them in the "xp1"
+   component of the data structure. */
+      tv = 1.0;
+      for( w1 = 0; w1 < data->order; w1++ ) {
+         *(pxp1++) = tv;
+         tv *= x1;
+      }
+
+/* Find all the required powers of x2 and store them in the "xp2"
+   comonent of the data structure. */
+      tv = 1.0;
+      for( w2 = 0; w2 < data->order; w2++ ) {
+         *(pxp2++) = tv;
+         tv *= x2;
+      }
+   }
 }
 
 static void FreeArrays( AstPolyMap *this, int forward, int *status ) {
@@ -1694,6 +1823,8 @@ void astInitPolyMapVtab_(  AstPolyMapVtab *vtab, const char *name, int *status )
 /* Store pointers to the member functions (implemented here) that provide
    virtual methods for this class. */
    vtab->PolyPowers = PolyPowers;
+   vtab->FitPoly1DInit = FitPoly1DInit;
+   vtab->FitPoly2DInit = FitPoly2DInit;
    vtab->PolyTran = PolyTran;
    vtab->PolyCoeffs = PolyCoeffs;
 
@@ -2066,7 +2197,7 @@ static void LMFunc1D( const double *p, double *hx, int m, int n, void *adata ){
 */
 
 /* Local Variables: */
-   MinPackData *data;
+   AstMinPackData *data;
    double *px1;
    double *py;
    const double *vp;
@@ -2076,7 +2207,7 @@ static void LMFunc1D( const double *p, double *hx, int m, int n, void *adata ){
    int w1;
 
 /* Get a pointer to the data structure. */
-   data = (MinPackData *) adata;
+   data = (AstMinPackData *) adata;
 
 /* Initialise a pointer to the current returned residual value. */
    vr = hx;
@@ -2159,7 +2290,7 @@ static void LMFunc2D( const double *p, double *hx, int m, int n, void *adata ){
 */
 
 /* Local Variables: */
-   MinPackData *data;
+   AstMinPackData *data;
    const double *vp0;
    const double *vp;
    double *py;
@@ -2175,12 +2306,12 @@ static void LMFunc2D( const double *p, double *hx, int m, int n, void *adata ){
    int w2;
 
 /* Get a pointer to the data structure. */
-   data = (MinPackData *) adata;
+   data = (AstMinPackData *) adata;
 
 /* Initialise a pointer to the current returned residual value. */
    vr = hx;
 
-/* Initilise a pointer to the first coefficient (the  constant term) for the
+/* Initialise a pointer to the first coefficient (the  constant term) for the
    current (i.e. first) polynomial output  coordinate. */
    vp0 = p;
 
@@ -2218,7 +2349,7 @@ static void LMFunc2D( const double *p, double *hx, int m, int n, void *adata ){
             px1 = px10++;
             px2 = px20;
 
-/* Loop over powers of x2. The corresponding power of x1 is "w12-x2", but
+/* Loop over powers of x2. The corresponding power of x1 is "w12-w2", but
    is not explicitly needed here. So x1 moves down from w12 to zero, as
    w2 moves up from zero to w12. */
             for( w2 = 0; w2 <= w12; w2++ ) {
@@ -2292,12 +2423,12 @@ static void LMJacob1D( const double *p, double *jac, int m, int n, void *adata )
 */
 
 /* Local Variables: */
-   MinPackData *data;
+   AstMinPackData *data;
    int k;
    int w1;
 
 /* Get a pointer to the data structure. */
-   data = (MinPackData *) adata;
+   data = (AstMinPackData *) adata;
 
 /* The Jacobian of the residuals with respect to the polynomial
    coefficients is constant (i.e. does not depend on the values of the
@@ -2373,7 +2504,7 @@ static void LMJacob2D( const double *p, double *jac, int m, int n, void *adata )
 */
 
 /* Local Variables: */
-   MinPackData *data;
+   AstMinPackData *data;
    int iout;
    int k;
    int ncof;
@@ -2384,7 +2515,7 @@ static void LMJacob2D( const double *p, double *jac, int m, int n, void *adata )
    int w2;
 
 /* Get a pointer to the data structure. */
-   data = (MinPackData *) adata;
+   data = (AstMinPackData *) adata;
 
 /* The Jacobian of the residuals with respect to the polynomial
    coefficients is constant (i.e. does not depend on the values of the
@@ -3308,7 +3439,9 @@ c        The ChebyMap implementation of this method allows
 c        NULL pointers to be supplied for "lbnd" and/or "ubnd",
 c        in which case the corresponding bounds supplied when the ChebyMap
 c        was created are used.
-*        The returned PolyMap will be a ChebyMap.
+*        The returned PolyMap will be a ChebyMap, and the new transformation
+*        will be defined as a weighted sum of Chebyshev functions of the
+*        first kind.
 
 *  Notes:
 *     - This function can only be used on 1D or 2D PolyMaps which have
@@ -3531,15 +3664,15 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 /* Fit the polynomial. Always fit a linear polynomial ("order" 2) to any
    dummy second axis. If successfull, replace the PolyMap transformation
    and break out of the order loop. */
-         cofs = FitPoly2D( nsamp, acc, order, table, scales, &ncof, &racc,
-                           status );
+         cofs = FitPoly2D( this, forward,  nsamp, acc, order, table, scales,
+                           &ncof, &racc, status );
 
 /* Now do 1D PolyMaps. */
       } else {
          table = SamplePoly1D( this, !forward, table, lbnd[ 0 ], ubnd[ 0 ],
                                2*order, &nsamp, scales, status );
-         cofs = FitPoly1D( nsamp, acc, order, table, scales, &ncof, &racc,
-                           status );
+         cofs = FitPoly1D( this, forward, nsamp, acc, order, table, scales,
+                           &ncof, &racc, status );
       }
 
 /* If the fit was succesful, replace the PolyMap transformation and break
@@ -5883,12 +6016,30 @@ AstPolyMap *astPolyTran_( AstPolyMap *this, int forward, double acc,
                                                 ubnd, status );
 }
 
-
 void astPolyCoeffs_( AstPolyMap *this, int forward, int nel, double *array,
                      int *ncoeff, int *status ){
    if ( !astOK ) return;
    (**astMEMBER(this,PolyMap,PolyCoeffs))( this, forward, nel,
                                            array, ncoeff, status );
 }
+
+void astFitPoly1DInit_( AstPolyMap *this, int forward, double **table,
+                        AstMinPackData *data, double *scales,
+                        int *status ){
+   if ( !astOK ) return;
+   (**astMEMBER(this,PolyMap,FitPoly1DInit))( this, forward, table, data, scales,
+                                              status );
+}
+
+
+void astFitPoly2DInit_( AstPolyMap *this, int forward, double **table,
+                        AstMinPackData *data, double *scales,
+                        int *status ){
+   if ( !astOK ) return;
+   (**astMEMBER(this,PolyMap,FitPoly2DInit))( this, forward, table, data, scales,
+                                              status );
+}
+
+
 
 

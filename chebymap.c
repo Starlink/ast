@@ -81,7 +81,7 @@ c     astPolyTran
 f     AST_POLYTRAN
 *     method of the parent PolyMap class can instead be used to create an
 *     inverse transformation. The inverse transformation so generated
-*     will be a standard polynomial with coefficients chosen to minimise
+*     will be a Chebyshev polynomial with coefficients chosen to minimise
 *     the residuals left by a round trip (forward transformation followed
 *     by inverse transformation).
 
@@ -127,6 +127,9 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *  History:
 *     1-MAR-2017 (DSB):
 *        Original version.
+*     30-MAR-2017 (DSB):
+*        Over-ride the astFitPoly1DInit and astFitPoly2DInit virtual
+*        functions inherited form the PolyMap class.
 *class--
 */
 
@@ -226,6 +229,8 @@ static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *obj, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void PolyPowers( AstPolyMap *, double **, int, const int *, double **, int, int, int *);
+static void FitPoly1DInit( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
+static void FitPoly2DInit( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
 
 /* Member functions. */
 /* ================= */
@@ -505,6 +510,332 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    return result;
 }
 
+static void FitPoly1DInit( AstPolyMap *this_polymap, int forward, double **table,
+                           AstMinPackData *data, double *scales, int *status ){
+/*
+*  Name:
+*     FitPoly1DInit
+
+*  Purpose:
+*     Perform initialisation needed for FitPoly1D
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     void FitPoly1DInit( AstPolyMap *this, int forward, double **table,
+*                         AstMinPackData *data, double *scales, int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astFitPoly1DInit protected
+*     method inherited from the PolyMap class).
+
+*  Description:
+*     This function performs initialisation needed for FitPoly1D in the
+*     PolyMap class.
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     forward
+*        Non-zero if the forward transformation of "this" is being
+*        replaced. Zero if the inverse transformation of "this" is being
+*        replaced.
+*     table
+*        Pointer to an array of 2 pointers. Each of these pointers points
+*        to an array of "nsamp" doubles, being the scaled and sampled values
+*        for x1 and y1 in that order.
+*     data
+*        Pointer to a structure holding information to pass the the
+*        service function invoked by the minimisation function.
+*     scales
+*        Array holding the scaling factors for the two columns of the table.
+*        Multiplying the table values by the scale factor produces PolyMap
+*        input or output axis values. The scales are modified on exit to
+*        take account of the scaling performed by the ChebyMap Transform
+*        method.
+*/
+
+/* Local Variables; */
+   AstChebyMap *this;
+   double *px1;
+   double *pxp1;
+   double maxx;
+   double minx;
+   double off;
+   double pmax;
+   double pmin;
+   double scl;
+   double x1;
+   int k;
+   int w1;
+
+/* Check the local error status. */
+   if ( !astOK ) return;
+
+/* Get a pointer to the ChebyMap structure. */
+   this = (AstChebyMap *) this_polymap;
+
+/* Find the bounds of the supplied x1 values. */
+   px1 = table[ 0 ];
+   minx = *px1;
+   maxx = *px1;
+   px1++;
+   for( k = 1; k < data->nsamp; k++,px1++ ) {
+      if( *px1 > maxx ) {
+         maxx = *px1;
+      } else if( *px1 < minx ) {
+         minx = *px1;
+      }
+   }
+
+/* Transform the above limits from table values into PolyMap axis values. */
+   pmax = maxx*scales[ 0 ];
+   pmin = minx*scales[ 0 ];
+
+/* Calculate the scale and offset that map the above bounds onto the range
+   [-1,+1], and store them in the ChebyMap. */
+   if( pmax != pmin ) {
+      scl = 2.0/( pmax - pmin );
+      off = -( pmax + pmin )/( pmax - pmin );
+   } else if( astOK ){
+      astError( AST__BADBX, "astPolyTran(%s): New bounding box has zero width "
+                "on axis 1.", status, astGetClass(this));
+   }
+
+   if( forward ) {
+      this->scale_f = (double *) astFree( this->scale_f );
+      this->offset_f = (double *) astFree( this->offset_f );
+
+      this->scale_f = (double *) astMalloc( sizeof( double ) );
+      this->offset_f = (double *) astMalloc( sizeof( double ) );
+      if( astOK ) {
+         this->scale_f[ 0 ] = scl;
+         this->offset_f[ 0 ] = off;
+      }
+   } else {
+      this->scale_i = (double *) astFree( this->scale_i );
+      this->offset_i = (double *) astFree( this->offset_i );
+
+      this->scale_i = (double *) astMalloc( sizeof( double ) );
+      this->offset_i = (double *) astMalloc( sizeof( double ) );
+      if( astOK ) {
+         this->scale_i[ 0 ] = scl;
+         this->offset_i[ 0 ] = off;
+      }
+   }
+
+/* Get pointers to the supplied x1 values. */
+   px1 = table[ 0 ];
+
+/* Get pointers to the location for the next "power" of x1. Here "X to
+   the power N" is a metaphor for Tn(x). */
+   pxp1 = data->xp1;
+
+/* Loop round all samples. */
+   for( k = 0; k < data->nsamp; k++ ) {
+
+/* Get the current x1 value, and scale it into the range [-1,+1]. */
+      x1 = *(px1++)*scl*scales[0] + off;
+
+/* Find all the required "powers" of x1 and store them in the "xp1"
+   component of the data structure. */
+      *(pxp1++) = 1.0;
+      *(pxp1++) = x1;
+      for( w1 = 2; w1 < data->order; w1++,pxp1++ ) {
+         pxp1[ 0 ] = 2.0*x1*pxp1[ -1 ] - pxp1[ -2 ];
+      }
+   }
+
+/* The scaling representing by the scales[0] value will be performed by
+   the astTransform method of the ChebyMap class, so reset teh scales[0]
+   value to unity, to avoid the scaling being applied twice. */
+   scales[ 0 ] = 1.0;
+
+}
+
+static void FitPoly2DInit( AstPolyMap *this_polymap, int forward, double **table,
+                           AstMinPackData *data, double *scales, int *status ){
+/*
+*  Name:
+*     FitPoly2DInit
+
+*  Purpose:
+*     Perform initialisation needed for FitPoly2D
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     void FitPoly2DInit( AstPolyMap *this, int forward, double **table,
+*                         AstMinPackData *data, double *scales, int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astFitPoly2DInit protected
+*     method inherited from the PolyMap class).
+
+*  Description:
+*     This function performs initialisation needed for FitPoly2D in the
+*     PolyMap class..
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     forward
+*        Non-zero if the forward transformation of "this" is being
+*        replaced. Zero if the inverse transformation of "this" is being
+*        replaced.
+*     table
+*        Pointer to an array of 4 pointers. Each of these pointers points
+*        to an array of "nsamp" doubles, being the scaled and sampled values
+*        for x1, x2, y1 or y2 in that order.
+*     data
+*        Pointer to a structure holding information to pass the the
+*        service function invoked by the minimisation function.
+*     scales
+*        Array holding the scaling factors for the four columns of the table.
+*        Multiplying the table values by the scale factor produces PolyMap
+*        input or output axis values.
+*/
+
+/* Local Variables; */
+   AstChebyMap *this;
+   double *px1;
+   double *px2;
+   double *pxp1;
+   double *pxp2;
+   double maxx;
+   double maxy;
+   double minx;
+   double miny;
+   double off[ 2 ];
+   double pxmax;
+   double pxmin;
+   double pymax;
+   double pymin;
+   double scl[ 2 ];
+   double x1;
+   double x2;
+   int k;
+   int w1;
+   int w2;
+
+/* Check the local error status. */
+   if ( !astOK ) return;
+
+/* Get a pointer to the ChebyMap structure. */
+   this = (AstChebyMap *) this_polymap;
+
+/* Find the bounds of the supplied x1 and x2 values. */
+   px1 = table[ 0 ];
+   px2 = table[ 1 ];
+   minx = *px1;
+   maxx = *px1;
+   miny = *px2;
+   maxy = *px2;
+   px1++;
+   px2++;
+   for( k = 1; k < data->nsamp; k++,px1++,px2++ ) {
+      if( *px1 > maxx ) {
+         maxx = *px1;
+      } else if( *px1 < minx ) {
+         minx = *px1;
+      }
+      if( *px2 > maxy ) {
+         maxy = *px2;
+      } else if( *px2 < miny ) {
+         miny = *px2;
+      }
+   }
+
+/* Transform the above limits from table values into PolyMap axis values. */
+   pxmax = maxx*scales[ 0 ];
+   pxmin = minx*scales[ 0 ];
+   pymax = maxy*scales[ 1 ];
+   pymin = miny*scales[ 1 ];
+
+/* Calculate the scale and offset that map the above bounds onto the range
+   [-1,+1], and store them in the ChebyMap. */
+   if( pxmax != pxmin && pymax != pymin ) {
+      scl[ 0 ] = 2.0/( pxmax - pxmin );
+      off[ 0 ] = -( pxmax + pxmin )/( pxmax - pxmin );
+      scl[ 1 ] = 2.0/( pymax - pymin );
+      off[ 1 ] = -( pymax + pymin )/( pymax - pymin );
+   } else if( astOK ){
+      astError( AST__BADBX, "astPolyTran(%s): New bounding box has zero width "
+                "on or both axes.", status, astGetClass(this));
+   }
+
+   if( forward ) {
+      this->scale_f = (double *) astFree( this->scale_f );
+      this->offset_f = (double *) astFree( this->offset_f );
+
+      this->scale_f = (double *) astMalloc( 2*sizeof( double ) );
+      this->offset_f = (double *) astMalloc( 2*sizeof( double ) );
+      if( astOK ) {
+         this->scale_f[ 0 ] = scl[ 0 ];
+         this->offset_f[ 0 ] = off[ 0 ];
+         this->scale_f[ 1 ] = scl[ 1 ];
+         this->offset_f[ 1 ] = off[ 1 ];
+      }
+   } else {
+      this->scale_i = (double *) astFree( this->scale_i );
+      this->offset_i = (double *) astFree( this->offset_i );
+
+      this->scale_i = (double *) astMalloc( 2*sizeof( double ) );
+      this->offset_i = (double *) astMalloc( 2*sizeof( double ) );
+      if( astOK ) {
+         this->scale_i[ 0 ] = scl[ 0 ];
+         this->offset_i[ 0 ] = off[ 0 ];
+         this->scale_i[ 1 ] = scl[ 1 ];
+         this->offset_i[ 1 ] = off[ 1 ];
+      }
+   }
+
+/* Get pointers to the supplied x1 and x2 values. */
+   px1 = table[ 0 ];
+   px2 = table[ 1 ];
+
+/* Get pointers to the location for the next "power" of x1 anmd x2. Here "X to
+   the power N" is a metaphor for Tn(x). */
+   pxp1 = data->xp1;
+   pxp2 = data->xp2;
+
+/* Loop round all samples. */
+   for( k = 0; k < data->nsamp; k++ ) {
+
+/* Get the current x1 and x2 values, and scale them into the range [-1,+1]. */
+      x1 = *(px1++)*scl[0]*scales[0] + off[0];
+      x2 = *(px2++)*scl[1]*scales[1] + off[1];
+
+/* Find all the required "powers" of x1 and store them in the "xp1"
+   component of the data structure. */
+      *(pxp1++) = 1.0;
+      *(pxp1++) = x1;
+      for( w1 = 2; w1 < data->order; w1++,pxp1++ ) {
+         pxp1[ 0 ] = 2.0*x1*pxp1[ -1 ] - pxp1[ -2 ];
+      }
+
+/* Find all the required "powers" of x2 and store them in the "xp2"
+   component of the data structure. */
+      *(pxp2++) = 1.0;
+      *(pxp2++) = x2;
+      for( w2 = 2; w2 < data->order; w2++,pxp2++ ) {
+         pxp2[ 0 ] = 2.0*x2*pxp2[ -1 ] - pxp2[ -2 ];
+      }
+   }
+
+/* The scaling representing by the scales[0] and scales[1] values will be
+   performed by the astTransform method of the ChebyMap class, so reset the
+   scales[0] and scales[1] values to unity, to avoid the scaling being
+   applied twice. */
+   scales[ 0 ] = 1.0;
+   scales[ 1 ] = 1.0;
+
+}
+
 static int GetIterInverse( AstPolyMap *this, int *status ) {
 /*
 *  Name:
@@ -701,6 +1032,9 @@ void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status
    parent_equal = object->Equal;
    object->Equal = Equal;
 
+   polymap->FitPoly1DInit = FitPoly1DInit;
+   polymap->FitPoly2DInit = FitPoly2DInit;
+
 /* Store pointers to the member functions (implemented here) that
    provide virtual methods for this class. */
    vtab->ChebyDomain = ChebyDomain;
@@ -793,14 +1127,9 @@ static void PolyPowers( AstPolyMap *this_polymap, double **work, int ncoord,
 
 /* Either transformation of a ChebyMap (forward or inverse) can be
    defined either as Chebyshev polynomial or as a standard polynomial.
-   When initially created a ChebyMap contains only Chebyshev polynomials.
-   But if the astPolyTran method is used on the ChebyMap, the
-   transformation replaced by astPolyTran will be stored in standard
-   polynomial form. So here we need to know whether the supplied
-   coefficients relate to a Chebyshev polynomial or a standard
-   polynomial. Chebyshev polynomials always have non-NULL scale array
-   pointers. If the scale array pointer is NULL, then the transformation
-   is a standard polynomial. If the coefficients relate to a standard
+   Chebyshev polynomials always have non-NULL scale array pointers.
+   If the scale array pointer is NULL, then the transformation is a
+   standard polynomial. If the coefficients relate to a standard
    polynomial, then invoke the astPolyPowers implementation of the parent
    class (PolyMap). */
    if( (fwd && !this->scale_f) || (!fwd && !this->scale_i) ) {
@@ -982,7 +1311,6 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
 */
 
 /* Local Variables: */
-   AstChebyMap *result_cheb;
    AstChebyMap *this;
    AstPolyMap *result;
    const char *word;
@@ -1052,20 +1380,6 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
    above. */
    result = (*parent_polytran)( this_polymap, forward, acc, maxacc, maxorder,
                                 this_lbnd, this_ubnd, status );
-
-/* The PolyTran method always creates a transformation in basic PolyMap
-   format (i.e. not a ChebyMap). So ensure the scale and offset arrays
-   in the ChebyMap structure are NULL to indicate this. */
-   if( astOK && result && astIsAChebyMap( result ) ) {
-      result_cheb = (AstChebyMap *) result;
-      if( ( inverted && !forward ) || ( !inverted && forward ) ) {
-         result_cheb->scale_f = astFree( result_cheb->scale_f );
-         result_cheb->offset_f = astFree( result_cheb->offset_f );
-      } else {
-         result_cheb->scale_i = astFree( result_cheb->scale_i );
-         result_cheb->offset_i = astFree( result_cheb->offset_i );
-      }
-   }
 
 /* Return the new ChebyMap. */
    return result;
@@ -1376,7 +1690,7 @@ c     astPolyTran
 f     AST_POLYTRAN
 *     method of the parent PolyMap class can instead be used to create an
 *     inverse transformation. The inverse transformation so generated
-*     will be a standard polynomial with coefficients chosen to minimise
+*     will be a Chebyshev polynomial with coefficients chosen to minimise
 *     the residuals left by a round trip (forward transformation followed
 *     by inverse transformation).
 
