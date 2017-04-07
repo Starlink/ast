@@ -70,7 +70,7 @@ gfortran -fno-second-underscore -w -g -o $prog -g $prog.f -fno-range-check $LDFL
      `psx_link` `prm_link` `chr_link` `err_link`
 
 ./$prog
-rm $prog
+\rm $prog
 
 end
 
@@ -81,7 +81,7 @@ foreach prog (testobject testconvert testerror)
 gcc -o $prog $prog.c -I.. -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK/lib `ast_link`
 
 ./$prog
-rm $prog
+\rm $prog
 
 end
 
@@ -97,7 +97,7 @@ echo "   (but not displaying them because the -nd option was supplied)"
 echo ""
 endif
 
-rm *-new.ps  >& /dev/null
+\rm *-new.ps  >& /dev/null
 
 foreach n (*.head)
    set bn = `basename $n .head`
@@ -139,7 +139,7 @@ foreach n (*.head)
 
 end
 
-rm -f a.ps
+\rm -f a.ps
 
 
 # Make new fits headers
@@ -181,7 +181,7 @@ foreach n ( "timj ast fits-wcs cdmatrix=1" \
    diff -c $old_file $new_file > $old_file.diff
 
    if( $status == 0 ) then
-      rm -f $old_file.diff  $new_file
+      \rm -f $old_file.diff  $new_file
    else
       echo "   $old_file and $new_file differ\!\! (see $old_file.diff)"
       echo "   Command was:"
@@ -208,7 +208,7 @@ foreach n ( *.map )
    diff -c $a.simp $a.out > $a.diff
 
    if( $status == 0 ) then
-      rm -f $a.out $a.diff
+      \rm -f $a.out $a.diff
    else
       echo "   $a.simp and $a.out differ\!\! (see $a.diff)"
       set ok = 0
@@ -227,4 +227,4 @@ endif
 
 
 
-rm -f plotter wcsconverter simplify testxmlchan
+\rm -f plotter wcsconverter simplify testxmlchan
