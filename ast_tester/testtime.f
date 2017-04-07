@@ -724,7 +724,37 @@ c
       end if
 
 
+* Test use of DTAI
+      tf1 = ast_timeframe( 'system=mjd,timescale=tai', status )
+      tf2 = ast_timeframe( 'system=mjd,timescale=utc', status )
 
+      fs = ast_convert( tf1, tf2, ' ', status )
+
+      if (fs .eq. AST__NULL ) then
+         call stopit( status, 'error 52' )
+      else
+         xin = 57844.0D0
+         call ast_tran1( fs, 1, xin, .true., xout, status)
+         if (abs(((xin - xout) * 86400.0D0) - 37.0D0) .gt. 1.0D-3) then
+            write(*,*) xout
+            call stopit( status, 'error 53' )
+         endif
+      end if
+
+      call ast_setd( tf2, 'dtai', 40.0D0, status )
+
+      fs = ast_convert( tf1, tf2, ' ', status )
+
+      if (fs .eq. AST__NULL ) then
+         call stopit( status, 'error 54' )
+      else
+         xin = 57844.0D0
+         call ast_tran1( fs, 1, xin, .true., xout, status)
+         if (abs(((xin - xout) * 86400.0D0) - 40.0D0) .gt. 1.0D-3) then
+            write(*,*) xout
+            call stopit( status, 'error 55' )
+         endif
+      end if
 
 
       call ast_end( status )
