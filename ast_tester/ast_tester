@@ -69,7 +69,7 @@ gfortran -fno-second-underscore -w -g -o $prog -g $prog.f -fno-range-check $LDFL
      -I$STARLINK/include -L$AST/lib -L$STARLINK/lib `ast_link -ems` \
      `psx_link` `prm_link` `chr_link` `err_link`
 
-$prog
+./$prog
 rm $prog
 
 end
@@ -80,7 +80,7 @@ foreach prog (testobject testconvert testerror)
 
 gcc -o $prog $prog.c -I.. -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK/lib `ast_link`
 
-$prog
+./$prog
 rm $prog
 
 end
@@ -125,7 +125,7 @@ foreach n (*.head)
 
 
    set psfile = "${bn}-new.ps"
-   plotter $n "$attr1" "$attr2" a.ps $box
+   ./plotter $n "$attr1" "$attr2" a.ps $box
 
    if( -e $STARLINK/bin/psmerge ) then
       $STARLINK/bin/psmerge -t300x300 -r90 a.ps > $psfile
@@ -177,7 +177,7 @@ foreach n ( "timj ast fits-wcs cdmatrix=1" \
   set new_file = "$base-new.$encoding"
 
 
-   wcsconverter $in_file $encoding $new_file "$attrs,FitsDigits=8"
+   ./wcsconverter $in_file $encoding $new_file "$attrs,FitsDigits=8"
    diff -c $old_file $new_file > $old_file.diff
 
    if( $status == 0 ) then
@@ -204,7 +204,7 @@ echo ""
 set ok = 1
 foreach n ( *.map )
    set a = `basename $n .map`
-   simplify $n $a.out
+   ./simplify $n $a.out
    diff -c $a.simp $a.out > $a.diff
 
    if( $status == 0 ) then
