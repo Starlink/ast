@@ -11942,10 +11942,10 @@ MAKE_TEST(Direction)
 *     value to use changes whenever a leap second is introduced.
 *
 *     If no value is assigned to this attribute then the TAI-UTC offset
-*     will be obtained from the astDat function.  Therefore it is only
-*     necessary to assign a value when astDat may not return the desired
+*     will be obtained from an internal table.  Therefore it is only
+*     necessary to assign a value when this may not have the desired
 *     value, for example when processing an observation taken since the
-*     leap second information in astDat was last updated, or when
+*     leap second information was last updated, or when
 *     processing an observation where the telescope control software used
 *     a TAI-UTC offset which was not appropriate for the epoch.
 
