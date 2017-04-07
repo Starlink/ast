@@ -41,6 +41,7 @@ f     AST_FRAME
 *     - Digits/Digits(axis): Number of digits of precision
 *     - Direction(axis): Display axis in conventional direction?
 *     - Domain: Coordinate system domain
+*     - Dtai: Difference between the TAI and UTC timescale
 *     - Dut1: Difference between the UT1 and UTC timescale
 *     - Epoch: Epoch of observation
 *     - Format(axis): Format specification for axis values
@@ -289,6 +290,8 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        Added read-only attribute InternalUnit.
 *     26-OCT-2016 (DSB):
 *        Added method astAxNorm.
+*     11-JAN-2017 (GSB):
+*        Add Dtai attribute.
 *class--
 */
 
@@ -903,6 +906,11 @@ static double GetObsAlt( AstFrame *, int * );
 static int TestObsAlt( AstFrame *, int * );
 static void ClearObsAlt( AstFrame *, int * );
 static void SetObsAlt( AstFrame *, double, int * );
+
+static double GetDtai( AstFrame *, int * );
+static int TestDtai( AstFrame *, int * );
+static void ClearDtai( AstFrame *, int * );
+static void SetDtai( AstFrame *, double, int * );
 
 static double GetDut1( AstFrame *, int * );
 static int TestDut1( AstFrame *, int * );
@@ -2326,6 +2334,11 @@ L1:
 /* ------- */
    } else if ( !strcmp( attrib, "obsalt" ) ) {
       astClearObsAlt( this );
+
+/* Dtai */
+/* --- */
+   } else if ( !strcmp( attrib, "dtai" ) ) {
+      astClearDtai( this );
 
 /* Dut1 */
 /* --- */
@@ -5104,6 +5117,15 @@ L1:
          result = getattrib_buff;
       }
 
+/* Dtai. */
+/* ---- */
+   } else if ( !strcmp( attrib, "dtai" ) ) {
+      dval = astGetDtai( this );
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         result = getattrib_buff;
+      }
+
 /* Dut1. */
 /* ---- */
    } else if ( !strcmp( attrib, "dut1" ) ) {
@@ -6144,6 +6166,11 @@ void astInitFrameVtab_(  AstFrameVtab *vtab, const char *name, int *status ) {
    vtab->TestObsAlt = TestObsAlt;
    vtab->GetObsAlt = GetObsAlt;
    vtab->SetObsAlt = SetObsAlt;
+
+   vtab->ClearDtai = ClearDtai;
+   vtab->GetDtai = GetDtai;
+   vtab->SetDtai = SetDtai;
+   vtab->TestDtai = TestDtai;
 
    vtab->ClearDut1 = ClearDut1;
    vtab->GetDut1 = GetDut1;
@@ -8114,6 +8141,7 @@ static void Overlay( AstFrame *template, const int *template_axes,
    }
 
 /* Use the macro to transfer each Frame attribute in turn. */
+   OVERLAY(Dtai);
    OVERLAY(Dut1);
    OVERLAY(Digits);
    OVERLAY(Domain);
@@ -9963,6 +9991,13 @@ L1:
         && ( nc >= len ) ) {
       astSetObsAlt( this, dval );
 
+/* Dtai. */
+/* ---- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "dtai= %lg %n", &dval, &nc ) )
+        && ( nc >= len ) ) {
+      astSetDtai( this, dval );
+
 /* Dut1. */
 /* ---- */
    } else if ( nc = 0,
@@ -11108,6 +11143,11 @@ L1:
    } else if ( !strcmp( attrib, "obsalt" ) ) {
       result = astTestObsAlt( this );
 
+/* Dtai. */
+/* ---- */
+   } else if ( !strcmp( attrib, "dtai" ) ) {
+      result = astTestDtai( this );
+
 /* Dut1. */
 /* ---- */
    } else if ( !strcmp( attrib, "dut1" ) ) {
@@ -11878,6 +11918,48 @@ MAKE_CLEAR(Direction)
 MAKE_GET(Direction,int,0,0,0)
 MAKE_SET(Direction,int)
 MAKE_TEST(Direction)
+
+/*
+*att++
+*  Name:
+*     Dtai
+
+*  Purpose:
+*     The TAI-UTC correction.
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Floating point.
+
+*  Description:
+*     This attribute is used when calculating the Local Apparent Sidereal
+*     Time corresponding to SkyFrame's Epoch value (used when converting
+*     positions to or from the "AzEl" system). It can be set to the
+*     difference, in seconds, between the TAI and UTC timescales at the
+*     moment in time represented by the SkyFrame's Epoch attribute. The
+*     value to use changes whenever a leap second is introduced.
+*
+*     If no value is assigned to this attribute then the TAI-UTC offset
+*     will be obtained from the astDat function.  Therefore it is only
+*     necessary to assign a value when astDat may not return the desired
+*     value, for example when processing an observation taken since the
+*     leap second information in astDat was last updated, or when
+*     processing an observation where the telescope control software used
+*     a TAI-UTC offset which was not appropriate for the epoch.
+
+*  Applicability:
+*     Frame
+*        All Frames have this attribute.
+
+*att--
+*/
+/* The TAI-UTC correction, in seconds. Has a value of AST__BAD when not set. */
+astMAKE_CLEAR(Frame,Dtai,dtai,AST__BAD)
+astMAKE_GET(Frame,Dtai,double,AST__BAD,(this->dtai))
+astMAKE_SET(Frame,Dtai,double,dtai,value)
+astMAKE_TEST(Frame,Dtai,( this->dtai != AST__BAD ))
 
 /*
 *att++
@@ -14098,6 +14180,12 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    dval = set ? GetObsAlt( this, status ) : astGetObsAlt( this );
    astWriteDouble( channel, "ObsAlt", set, 0, dval, "Observers geodetic altitude (metres)" );
 
+/* Dtai*/
+/* ---- */
+   set = TestDtai( this, status );
+   dval = set ? GetDtai( this, status ) : astGetDtai( this );
+   astWriteDouble( channel, "Dtai", set, 0, dval, "TAI-UTC in seconds" );
+
 /* Dut1*/
 /* ---- */
    set = TestDut1( this, status );
@@ -14397,6 +14485,7 @@ AstFrame *astInitFrame_( void *mem, size_t size, int init,
          new->obsalt = AST__BAD;
          new->obslat = AST__BAD;
          new->obslon = AST__BAD;
+         new->dtai = AST__BAD;
          new->dut1 = AST__BAD;
          new->flags = 0;
          new->variants = NULL;
@@ -14754,6 +14843,11 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* ------- */
          new->obsalt = astReadDouble( channel, "obsalt", AST__BAD );
          if ( TestObsAlt( new, status ) ) SetObsAlt( new, new->obsalt, status );
+
+/* Dtai. */
+/* ---- */
+         new->dtai = astReadDouble( channel, "dtai", AST__BAD );
+         if ( TestDtai( new, status ) ) SetDtai( new, new->dtai, status );
 
 /* Dut1. */
 /* ---- */

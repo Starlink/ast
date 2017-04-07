@@ -98,6 +98,8 @@ f     - AST_TIMEADD: Add a time coordinate conversion to an TimeMap
 *        Add 2017 January 1 leap second.
 *     11-NOV-2016 (DSB):
 *        Add argument "narg" to astTimeAdd method.
+*     5-APR-2017 (GSB):
+*        Add DTAI argument for TAITOUTC and UTCTOTAI.
 *class--
 */
 
@@ -617,9 +619,9 @@ static void AddTimeCvt( AstTimeMap *this, int cvttype, int narg,
 *           Convert Modified Julian Date to Julian epoch.
 *        AST__JEPTOMJD( JEPOFF, MJDOFF )
 *           Convert Julian epoch to Modified Julian Date.
-*        AST__TAITOUTC( MJDOFF )
+*        AST__TAITOUTC( MJDOFF, DTAI )
 *           Convert a TAI MJD to a UTC MJD.
-*        AST__UTCTOTAI( MJDOFF )
+*        AST__UTCTOTAI( MJDOFF, DTAI )
 *           Convert a UTC MJD to a TAI MJD.
 *        AST__TAITOTT( MJDOFF )
 *           Convert a TAI MJD to a TT MJD.
@@ -674,6 +676,7 @@ static void AddTimeCvt( AstTimeMap *this, int cvttype, int narg,
 *     - OBSLON: Observer's longitude in radians (+ve westwards)
 *     - OBSLAT: Observer's geodetic latitude in radians (+ve northwards)
 *     - OBSALT: Observer's geodetic altitude in metres.
+*     - DTAI: The value of TAI-UTC
 *     - DUT1: The value of UT1-UTC
 *     - LTOFF: The offset between Local Time and UTC (in hours, positive
 *     for time zones east of Greenwich).
@@ -1047,17 +1050,19 @@ static const char *CvtString( int cvt_code, const char **comment,
    case AST__TAITOUTC:
       *comment = "Convert TAI to UTC";
       result = "TAITOUTC";
-      *nargs = 1;
-      *szargs = 1;
+      *nargs = 2;
+      *szargs = 2;
       arg[ 0 ] = "MJD offset";
+      arg[ 1 ] = "DTAI";
       break;
 
    case AST__UTCTOTAI:
       *comment = "Convert UTC to TAI";
       result = "UTCTOTAI";
-      *nargs = 1;
-      *szargs = 1;
+      *nargs = 2;
+      *szargs = 2;
       arg[ 0 ] = "MJD offset";
+      arg[ 1 ] = "DTAI";
       break;
 
    case AST__TAITOTT:
@@ -2209,8 +2214,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    values are unchanged (we do not need to test values stored in the
    argument array which were not supplied by the user), we can eliminate them.
    First check for conversions which have a single user-supplied argument. */
-               if( ( PAIR_CVT2( AST__TAITOUTC, AST__UTCTOTAI ) ||
-                     PAIR_CVT2( AST__TAITOTT, AST__TTTOTAI ) ||
+               if( ( PAIR_CVT2( AST__TAITOTT, AST__TTTOTAI ) ||
                      PAIR_CVT2( AST__UTTOGMST, AST__GMSTTOUT ) ||
                      PAIR_CVT2( AST__TTTOTCG, AST__TCGTOTT ) ||
                      PAIR_CVT2( AST__TTTOTCG, AST__TCGTOTT ) ||
@@ -2223,7 +2227,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
 /* Now check for conversions which have two user-supplied arguments
    (test they are swapped). */
-               } else if( ( PAIR_CVT2( AST__MJDTOJD, AST__JDTOMJD ) ||
+               } else if( ( PAIR_CVT2( AST__TAITOUTC, AST__UTCTOTAI ) ||
+                            PAIR_CVT2( AST__MJDTOJD, AST__JDTOMJD ) ||
                             PAIR_CVT2( AST__MJDTOMJD, AST__MJDTOMJD ) ||
                             PAIR_CVT2( AST__MJDTOBEP, AST__BEPTOMJD ) ||
                             PAIR_CVT2( AST__MJDTOJEP, AST__JEPTOMJD ) ) &&
@@ -3632,8 +3637,8 @@ f     these arguments should be given, via the ARGS array, in the
 *     - "BEPTOMJD" (BEPOFF,MJDOFF): Convert Besselian epoch to MJD.
 *     - "MJDTOJEP" (MJDOFF,JEPOFF): Convert MJD to Julian epoch.
 *     - "JEPTOMJD" (JEPOFF,MJDOFF): Convert Julian epoch to MJD.
-*     - "TAITOUTC" (MJDOFF): Convert a TAI MJD to a UTC MJD.
-*     - "UTCTOTAI" (MJDOFF): Convert a UTC MJD to a TAI MJD.
+*     - "TAITOUTC" (MJDOFF,DTAI): Convert a TAI MJD to a UTC MJD.
+*     - "UTCTOTAI" (MJDOFF,DTAI): Convert a UTC MJD to a TAI MJD.
 *     - "TAITOTT"  (MJDOFF): Convert a TAI MJD to a TT MJD.
 *     - "TTTOTAI"  (MJDOFF): Convert a TT MJD to a TAI MJD.
 *     - "TTTOTDB"  (MJDOFF, OBSLON, OBSLAT, OBSALT): Convert a TT MJD to a TDB MJD.
@@ -3677,6 +3682,7 @@ f     AST_TRANSFORM
 *     - OBSLON: Observer longitude in radians (+ve westwards).
 *     - OBSLAT: Observer geodetic latitude (IAU 1975) in radians (+ve northwards).
 *     - OBSALT: Observer geodetic altitude (IAU 1975) in metres.
+*     - DTAI: The TAI-UTC value to use.
 *     - DUT1: The UT1-UTC value to use.
 *     - LTOFF: The offset between Local Time and UTC (in hours, positive
 *     for time zones east of Greenwich).
@@ -3967,15 +3973,17 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                if ( forward ) {
                   for ( point = 0; point < npoint; point++ ) {
                      if ( time[ point ] != AST__BAD ) {
-                        time[ point ] += astDat( time[ point ] +
-                                              args[ 0 ], 0 )/SPD;
+                        time[ point ] += ( (args[ 1 ] == AST__BAD)
+                            ? astDat( time[ point ] + args[ 0 ], 0 )
+                            : - args[ 1 ] )/SPD;
                      }
                   }
                } else {
                   for ( point = 0; point < npoint; point++ ) {
                      if ( time[ point ] != AST__BAD ) {
-                        time[ point ] += astDat( time[ point ] +
-                                              args[ 0 ], 1 )/SPD;
+                        time[ point ] += ( (args[ 1 ] == AST__BAD)
+                            ? astDat( time[ point ] + args[ 0 ], 1 )
+                            : args[ 1 ] )/SPD;
                      }
                   }
                }
@@ -3987,15 +3995,17 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                if ( forward ) {
                   for ( point = 0; point < npoint; point++ ) {
                      if ( time[ point ] != AST__BAD ) {
-                        time[ point ] += astDat( time[ point ] +
-                                              args[ 0 ], 1 )/SPD;
+                        time[ point ] += ( (args[ 1 ] == AST__BAD)
+                            ? astDat( time[ point ] + args[ 0 ], 1 )
+                            : args[ 1 ] )/SPD;
                      }
                   }
                } else {
                   for ( point = 0; point < npoint; point++ ) {
                      if ( time[ point ] != AST__BAD ) {
-                        time[ point ] += astDat( time[ point ] +
-                                              args[ 0 ], 0 )/SPD;
+                        time[ point ] += ( (args[ 1 ] == AST__BAD)
+                            ? astDat( time[ point ] + args[ 0 ], 0 )
+                            : - args[ 1 ] )/SPD;
                      }
                   }
                }
@@ -4040,7 +4050,9 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* TT to TDB. */
 /* ---------- */
 /* For the purpose of estimating TDB-TT, we assume UTC is a good approximation
-   to UT1, and that TT is a good approximation to TDB. */
+   to UT1, and that TT is a good approximation to TDB.
+   Also assume that astDat values are sufficient -- this conversion doesn't
+   have a DTAI attribute. */
             case AST__TTTOTDB:
                if ( forward ) {
                   for ( point = 0; point < npoint; point++ ) {
@@ -4068,7 +4080,9 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* TDB to TT. */
 /* ---------- */
 /* For the purpose of estimating TDB-TT, we assume UTC is a good approximation
-   to UT1, and that TT is a good approximation to TDB. */
+   to UT1, and that TT is a good approximation to TDB.
+   Also assume that astDat values are sufficient -- this conversion doesn't
+   have a DTAI attribute. */
             case AST__TDBTOTT:
                if ( forward ) {
                   for ( point = 0; point < npoint; point++ ) {

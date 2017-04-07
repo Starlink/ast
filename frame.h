@@ -542,6 +542,8 @@
 *        Added InternalUnit attribute.
 *     26-OCT-2016 (DSB):
 *        Added method astAxNorm.
+*     11-JAN-2017 (GSB):
+*        Add Dtai attribute.
 *-
 */
 
@@ -617,6 +619,7 @@ typedef struct AstFrame {
    double obslat;                /* Geodetic latitude of observer */
    double obslon;                /* Geodetic longitude of observer */
    double obsalt;                /* Height above reference spheroid (geodetic, metres) */
+   double dtai;                  /* TAI-UTC in seconds */
    double dut1;                  /* UT1-UTC in seconds */
    int *perm;                    /* Pointer to axis permutation array */
    int digits;                   /* Default digits of precision */
@@ -817,6 +820,11 @@ typedef struct AstFrameVtab {
    int (* TestObsAlt)( AstFrame *, int * );
    void (* ClearObsAlt)( AstFrame *, int * );
    void (* SetObsAlt)( AstFrame *, double, int * );
+
+   double (* GetDtai)( AstFrame *, int * );
+   int (* TestDtai)( AstFrame *, int * );
+   void (* ClearDtai)( AstFrame *, int * );
+   void (* SetDtai)( AstFrame *, double, int * );
 
    double (* GetDut1)( AstFrame *, int * );
    int (* TestDut1)( AstFrame *, int * );
@@ -1052,6 +1060,11 @@ double astGetObsAlt_( AstFrame *, int * );
 int astTestObsAlt_( AstFrame *, int * );
 void astClearObsAlt_( AstFrame *, int * );
 void astSetObsAlt_( AstFrame *, double, int * );
+
+double astGetDtai_( AstFrame *, int * );
+int astTestDtai_( AstFrame *, int * );
+void astClearDtai_( AstFrame *, int * );
+void astSetDtai_( AstFrame *, double, int * );
 
 double astGetDut1_( AstFrame *, int * );
 int astTestDut1_( AstFrame *, int * );
@@ -1410,6 +1423,15 @@ astINVOKE(V,astTestObsAlt_(astCheckFrame(this),STATUS_PTR))
 astINVOKE(V,astClearObsAlt_(astCheckFrame(this),STATUS_PTR))
 #define astSetObsAlt(this,value) \
 astINVOKE(V,astSetObsAlt_(astCheckFrame(this),value,STATUS_PTR))
+
+#define astClearDtai(this) \
+astINVOKE(V,astClearDtai_(astCheckFrame(this),STATUS_PTR))
+#define astGetDtai(this) \
+astINVOKE(V,astGetDtai_(astCheckFrame(this),STATUS_PTR))
+#define astSetDtai(this,value) \
+astINVOKE(V,astSetDtai_(astCheckFrame(this),value,STATUS_PTR))
+#define astTestDtai(this) \
+astINVOKE(V,astTestDtai_(astCheckFrame(this),STATUS_PTR))
 
 #define astClearDut1(this) \
 astINVOKE(V,astClearDut1_(astCheckFrame(this),STATUS_PTR))

@@ -343,6 +343,10 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *        between coincident points being given a non-zero length.
 *     6-JUL-2015 (DSB):
 *        Added SkyTol attribute.
+*     3-FEB-2017 (GSB):
+*        Override astSetDtai and astClearDtai.
+*     6-APR-2017 (GSB):
+*        Added dtai to AstSkyLastTable.
 *class--
 */
 
@@ -831,6 +835,7 @@ static int (* parent_testattrib)( AstObject *, const char *, int * );
 static int (* parent_testformat)( AstFrame *, int, int * );
 static int (* parent_unformat)( AstFrame *, int, const char *, double *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
+static void (* parent_cleardtai)( AstFrame *, int * );
 static void (* parent_cleardut1)( AstFrame *, int * );
 static void (* parent_clearformat)( AstFrame *, int, int * );
 static void (* parent_clearobsalt)( AstFrame *, int * );
@@ -839,6 +844,7 @@ static void (* parent_clearobslon)( AstFrame *, int * );
 static void (* parent_clearsystem)( AstFrame *, int * );
 static void (* parent_overlay)( AstFrame *, const int *, AstFrame *, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
+static void (* parent_setdtai)( AstFrame *, double, int * );
 static void (* parent_setdut1)( AstFrame *, double, int * );
 static void (* parent_setformat)( AstFrame *, int, const char *, int * );
 static void (* parent_setobsalt)( AstFrame *, double, int * );
@@ -963,14 +969,14 @@ static const char *GetTitle( AstFrame *, int * );
 static const char *GetUnit( AstFrame *, int, int * );
 static const char *SystemString( AstFrame *, AstSystemType, int * );
 static double Angle( AstFrame *, const double[], const double[], const double[], int * );
-static double CalcLAST( AstSkyFrame *, double, double, double, double, double, int * );
+static double CalcLAST( AstSkyFrame *, double, double, double, double, double, double, int * );
 static double Distance( AstFrame *, const double[], const double[], int * );
 static double Gap( AstFrame *, int, double, int *, int * );
 static double GetBottom( AstFrame *, int, int * );
-static double GetCachedLAST( AstSkyFrame *, double, double, double, double, double, int * );
+static double GetCachedLAST( AstSkyFrame *, double, double, double, double, double, double, int * );
 static double GetEpoch( AstFrame *, int * );
 static double GetEquinox( AstSkyFrame *, int * );
-static void SetCachedLAST( AstSkyFrame *, double, double, double, double, double, double, int * );
+static void SetCachedLAST( AstSkyFrame *, double, double, double, double, double, double, double, int * );
 static void SetLast( AstSkyFrame *, int * );
 static double GetTop( AstFrame *, int, int * );
 static double Offset2( AstFrame *, const double[2], double, double, double[2], int * );
@@ -1002,6 +1008,7 @@ static int TestSlaUnit( AstSkyFrame *, AstSkyFrame *, AstSlaMap *, int * );
 static int Unformat( AstFrame *, int, const char *, double *, int * );
 static void ClearAsTime( AstSkyFrame *, int, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
+static void ClearDtai( AstFrame *, int * );
 static void ClearDut1( AstFrame *, int * );
 static void ClearEquinox( AstSkyFrame *, int * );
 static void ClearNegLon( AstSkyFrame *, int * );
@@ -1023,6 +1030,7 @@ static void Overlay( AstFrame *, const int *, AstFrame *, int * );
 static void Resolve( AstFrame *, const double [], const double [], const double [], double [], double *, double *, int * );
 static void SetAsTime( AstSkyFrame *, int, int, int * );
 static void SetAttrib( AstObject *, const char *, int * );
+static void SetDtai( AstFrame *, double, int * );
 static void SetDut1( AstFrame *, double, int * );
 static void SetEquinox( AstSkyFrame *, double, int * );
 static void SetNegLon( AstSkyFrame *, int, int * );
@@ -1186,7 +1194,7 @@ static double Angle( AstFrame *this_frame, const double a[],
 }
 
 static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
-                        double obslat, double obsalt, double dut1,
+                        double obslat, double obsalt, double dut1, double dtai,
                         int *status ) {
 /*
 *  Name:
@@ -1201,7 +1209,7 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
 *  Synopsis:
 *     #include "skyframe.h"
 *     double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
-*                      double obslat, double obsalt, double dut1,
+*                      double obslat, double obsalt, double dut1, double dtai,
 *                      int *status )
 
 *  Class Membership:
@@ -1224,6 +1232,8 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
 *        Observatory geodetic altitude (metres)
 *     dut1
 *        The UT1-UTC correction, in seconds.
+*     dtai
+*        The TAI-UTC correction, in seconds.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -1249,7 +1259,7 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
 
 /* See if the required LAST value can be determined from the cached LAST
    values in the SkyFrame virtual function table. */
-   result = GetCachedLAST( this, epoch, obslon, obslat, obsalt, dut1,
+   result = GetCachedLAST( this, epoch, obslon, obslat, obsalt, dut1, dtai,
                            status );
 
 /* If not, we do an exact calculation from scratch. */
@@ -1289,6 +1299,10 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
       astSetDut1( tdbframe, dut1 );
       astSetDut1( lastframe, dut1 );
 
+/* Store the DTAI value. */
+      astSetDtai( tdbframe, dtai );
+      astSetDtai( lastframe, dtai );
+
 /* Get the conversion from tdb mjd offset to last mjd offset. */
       fs = astConvert( tdbframe, lastframe, "" );
 
@@ -1300,7 +1314,7 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
       result = ( epoch - (int) epoch )*2*AST__DPI;
 
 /* Cache the new LAST value in the SkyFrame virtual function table. */
-      SetCachedLAST( this, result, epoch0, obslon, obslat, obsalt, dut1,
+      SetCachedLAST( this, result, epoch0, obslon, obslat, obsalt, dut1, dtai,
                      status );
    }
 
@@ -1497,6 +1511,58 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
    for further interpretation. */
    } else {
       (*parent_clearattrib)( this_object, attrib, status );
+   }
+}
+
+static void ClearDtai( AstFrame *this, int *status ) {
+/*
+*  Name:
+*     ClearDtai
+
+*  Purpose:
+*     Clear the value of the Dtai attribute for a SkyFrame.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "skyframe.h"
+*     void ClearDtai( AstFrame *this, int *status )
+
+*  Class Membership:
+*     SkyFrame member function (over-rides the astClearDtai method
+*     inherited from the Frame class).
+
+*  Description:
+*     This function clears the Dtai value and updates the LAST value
+*     stored in the SkyFrame.
+
+*  Parameters:
+*     this
+*        Pointer to the SkyFrame.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+
+/* Local Variables: */
+   double orig;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Note the original value */
+   orig = astGetDtai( this );
+
+/* Invoke the parent method to clear the Frame Dtai */
+   (*parent_cleardtai)( this, status );
+
+/* If the DTAI value has changed significantly, indicate that the LAST value
+   will need to be re-calculated when it is next needed. */
+   if( fabs( orig - astGetDtai( this ) ) > 1.0E-6 ) {
+      ( (AstSkyFrame *) this )->last = AST__BAD;
+      ( (AstSkyFrame *) this )->eplast = AST__BAD;
+      ( (AstSkyFrame *) this )->klast = AST__BAD;
    }
 }
 
@@ -2896,7 +2962,7 @@ static double GetBottom( AstFrame *this_frame, int axis, int *status ) {
 
 static double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
                              double obslat, double obsalt, double dut1,
-                             int *status ) {
+                             double dtai, int *status ) {
 /*
 *  Name:
 *     GetCachedLAST
@@ -2911,7 +2977,7 @@ static double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
 *     #include "skyframe.h"
 *     double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
 *                           double obslat, double obsalt, double dut1,
-*                           int *status )
+*                           double dtai, int *status )
 
 *  Class Membership:
 *     SkyFrame member function.
@@ -2935,6 +3001,8 @@ static double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
 *        Observatory geodetic altitude (metres)
 *     dut1
 *        The UT1-UTC correction, in seconds.
+*     dtai
+*        The TAI-UTC correction, in seconds.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -2972,16 +3040,17 @@ static double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
    LOCK_RLOCK1
 
 /* Loop round every LAST table held in the vtab. Each table refers to a
-   different observatory position and/or DUT1 value. */
+   different observatory position and/or DUT1 and/or DTAI value. */
    for( itable = 0; itable < nlast_tables; itable++ ) {
       table = last_tables[ itable ];
 
-/* See if the table refers to the given position and dut1 value, allowing
+/* See if the table refers to the given position, dut1 and dtai value, allowing
    some small tolerance. */
       if( fabs( table->obslat - obslat ) < 2.0E-7 &&
           fabs( table->obslon - obslon ) < 2.0E-7 &&
           fabs( table->obsalt - obsalt ) < 1.0 &&
-          fabs( table->dut1 - dut1 ) < 1.0E-5 ) {
+          fabs( table->dut1 - dut1 ) < 1.0E-5 &&
+          fabs( table->dtai - dtai ) < 1.0E-5 ) {
 
 /* Get pointers to the array of epoch and corresponding LAST values in
    the table. */
@@ -3718,7 +3787,7 @@ static double GetLAST( AstSkyFrame *this, int *status ) {
          if( this->klast == AST__BAD ) {
             last1 = CalcLAST( this, this->eplast + 0.4, astGetObsLon( this ),
                               astGetObsLat( this ), astGetObsAlt( this ),
-                              astGetDut1( this ), status );
+                              astGetDut1( this ), astGetDtai( this ), status );
 
 /* Ensure the change in LAST is positive so that we get a positive ratio. */
             dlast = last1 - this->last;
@@ -4846,9 +4915,13 @@ void astInitSkyFrameVtab_(  AstSkyFrameVtab *vtab, const char *name, int *status
    parent_unformat = frame->Unformat;
    frame->Unformat = Unformat;
 
+   parent_setdtai = frame->SetDtai;
+   frame->SetDtai = SetDtai;
    parent_setdut1 = frame->SetDut1;
    frame->SetDut1 = SetDut1;
 
+   parent_cleardtai = frame->ClearDtai;
+   frame->ClearDtai = ClearDtai;
    parent_cleardut1 = frame->ClearDut1;
    frame->ClearDut1 = ClearDut1;
 
@@ -8688,7 +8761,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 
 static void SetCachedLAST( AstSkyFrame *this, double last, double epoch,
                            double obslon, double obslat, double obsalt,
-                           double dut1, int *status ) {
+                           double dut1, double dtai, int *status ) {
 /*
 *  Name:
 *     SetCachedLAST
@@ -8703,7 +8776,7 @@ static void SetCachedLAST( AstSkyFrame *this, double last, double epoch,
 *     #include "skyframe.h"
 *     void SetCachedLAST( AstSkyFrame *this, double last, double epoch,
 *                         double obslon, double obslat, double obsalt,
-*                         double dut1, int *status )
+*                         double dut1, double dtai, int *status )
 
 *  Class Membership:
 *     SkyFrame member function.
@@ -8727,6 +8800,8 @@ static void SetCachedLAST( AstSkyFrame *this, double last, double epoch,
 *        Observatory geodetic altitude (metres)
 *     dut1
 *        The UT1-UTC correction, in seconds.
+*     dtai
+*        The TAI-UTC correction, in seconds.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -8755,16 +8830,17 @@ static void SetCachedLAST( AstSkyFrame *this, double last, double epoch,
    LOCK_WLOCK1
 
 /* Loop round every LAST table held in the vtab. Each table refers to a
-   different observatory position and/or DUT1 value. */
+   different observatory position and/or DUT1 and/or DTAI value. */
    for( itable = 0; itable < nlast_tables; itable++ ) {
       table = last_tables[ itable ];
 
-/* See if the table refers to the given position and dut1 value, allowing
+/* See if the table refers to the given position, dut1 and dtai value, allowing
    some small tolerance. If it does, leave the loop. */
       if( fabs( table->obslat - obslat ) < 2.0E-7 &&
           fabs( table->obslon - obslon ) < 2.0E-7 &&
           fabs( table->obsalt - obsalt ) < 1.0 &&
-          fabs( table->dut1 - dut1 ) < 1.0E-5 ) break;
+          fabs( table->dut1 - dut1 ) < 1.0E-5 &&
+          fabs( table->dtai - dtai ) < 1.0E-5 ) break;
 
 /* Ensure "table" ends up NULL if no suitable table is found. */
       table = NULL;
@@ -8786,6 +8862,7 @@ static void SetCachedLAST( AstSkyFrame *this, double last, double epoch,
          table->obslon = obslon;
          table->obsalt = obsalt;
          table->dut1 = dut1;
+         table->dtai = dtai;
          table->nentry = 1;
 
          astBeginPM;
@@ -8856,6 +8933,64 @@ static void SetCachedLAST( AstSkyFrame *this, double last, double epoch,
 /* Indicate other threads are now allowed to read the table. */
    UNLOCK_RWLOCK1
 
+}
+
+static void SetDtai( AstFrame *this_frame, double val, int *status ) {
+/*
+*  Name:
+*     SetDtai
+
+*  Purpose:
+*     Set the value of the Dtai attribute for a SkyFrame.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "skyframe.h"
+*     void SetDtai( AstFrame *this, double val, int *status )
+
+*  Class Membership:
+*     SkyFrame member function (over-rides the astSetDtai method
+*     inherited from the Frame class).
+
+*  Description:
+*     This function clears the Dtai value and updates the LAST value
+*     stored in the SkyFrame.
+
+*  Parameters:
+*     this
+*        Pointer to the SkyFrame.
+*     val
+*        New Dtai value.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+
+/* Local Variables: */
+   AstSkyFrame *this;
+   double orig;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the SkyFrame structure. */
+   this = (AstSkyFrame *) this_frame;
+
+/* Note the original Dtai value. */
+   orig = astGetDtai( this );
+
+/* Invoke the parent method to set the Frame Dtai value. */
+   (*parent_setdtai)( this_frame, val, status );
+
+/* If the DTAI value has changed significantly, indicate that the LAST value
+   will need to be re-calculated when it is next needed. */
+   if( fabs( orig - val ) > 1.0E-6 ) {
+      this->last = AST__BAD;
+      this->eplast = AST__BAD;
+      this->klast = AST__BAD;
+   }
 }
 
 static void SetDut1( AstFrame *this_frame, double val, int *status ) {
@@ -8962,7 +9097,7 @@ static void SetLast( AstSkyFrame *this, int *status ) {
 /* Calculate the LAST value (in rads) and store in the SkyFrame structure. */
    this->last = CalcLAST( this, epoch, astGetObsLon( this ),
                           astGetObsLat( this ), astGetObsAlt( this ),
-                          astGetDut1( this ), status );
+                          astGetDut1( this ), astGetDtai( this ), status );
 
 /* Save the TDB MJD to which this LAST corresponds. */
    this->eplast = epoch;
@@ -10686,6 +10821,11 @@ static void VerifyMSMAttrs( AstSkyFrame *target, AstSkyFrame *result,
                      set1 = astTestEquinox( target );
                      set2 = astTestEquinox( result );
                      desc = "reference equinox";
+
+                  } else if( !strncmp( "Dtai", a, len ) ) {
+                     set1 = astTestDtai( target );
+                     set2 = astTestDtai( result );
+                     desc = "TAI-UTC correction";
 
                   } else if( !strncmp( "Dut1", a, len ) ) {
                      set1 = astTestDut1( target );

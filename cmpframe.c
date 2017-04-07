@@ -187,6 +187,8 @@ f     The CmpFrame class does not define any new routines beyond those
 *        sign is encountered.
 *     26-MAR-2015 (DSB):
 *        Increase size of "buf2" buffer in SetAttrib, and trap buffer overflow.
+*     11-JAN-2017 (GSB):
+*        Override astSetDtai, astGetDtai and astClearDtai.
 *class--
 */
 
@@ -589,6 +591,7 @@ static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static const char *(* parent_getdomain)( AstFrame *, int * );
 static const char *(* parent_gettitle)( AstFrame *, int * );
 static double (* parent_angle)( AstFrame *, const double[], const double[], const double[], int * );
+static double (* parent_getdtai)( AstFrame *, int * );
 static double (* parent_getdut1)( AstFrame *, int * );
 static double (* parent_getepoch)( AstFrame *, int * );
 static double (* parent_getobsalt)( AstFrame *, int * );
@@ -602,6 +605,7 @@ static int (* parent_getusedefs)( AstObject *, int * );
 static int (* parent_testattrib)( AstObject *, const char *, int * );
 static void (* parent_clearalignsystem)( AstFrame *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
+static void (* parent_cleardtai)( AstFrame *, int * );
 static void (* parent_cleardut1)( AstFrame *, int * );
 static void (* parent_clearepoch)( AstFrame *, int * );
 static void (* parent_clearobsalt)( AstFrame *, int * );
@@ -610,6 +614,7 @@ static void (* parent_clearobslon)( AstFrame *, int * );
 static void (* parent_overlay)( AstFrame *, const int *, AstFrame *, int * );
 static void (* parent_setactiveunit)( AstFrame *, int, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
+static void (* parent_setdtai)( AstFrame *, double, int * );
 static void (* parent_setdut1)( AstFrame *, double, int * );
 static void (* parent_setepoch)( AstFrame *, double, int * );
 static void (* parent_setframeflags)( AstFrame *, int, int * );
@@ -768,6 +773,10 @@ static void SetAttrib( AstObject *, const char *, int * );
 static double GetEpoch( AstFrame *, int * );
 static void ClearEpoch( AstFrame *, int * );
 static void SetEpoch( AstFrame *, double, int * );
+
+static double GetDtai( AstFrame *, int * );
+static void ClearDtai( AstFrame *, int * );
+static void SetDtai( AstFrame *, double, int * );
 
 static double GetDut1( AstFrame *, int * );
 static void ClearDut1( AstFrame *, int * );
@@ -1663,6 +1672,54 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
                 "called \"%s\".", status, astGetClass( this ), attrib );
    }
 
+}
+
+static void ClearDtai( AstFrame *this_frame, int *status ) {
+/*
+*  Name:
+*     ClearDtai
+
+*  Purpose:
+*     Clear the value of the Dtai attribute for a CmpFrame.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "cmpframe.h"
+*     void ClearDtai( AstFrame *this, int *status )
+
+*  Class Membership:
+*     CmpFrame member function (over-rides the astClearDtai method
+*     inherited from the Frame class).
+
+*  Description:
+*     This function clears the Dtai value in the component Frames as
+*     well as this CmpFrame.
+
+*  Parameters:
+*     this
+*        Pointer to the CmpFrame.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+
+/* Local Variables: */
+   AstCmpFrame *this;            /* Pointer to the CmpFrame structure */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the CmpFrame structure. */
+   this = (AstCmpFrame *) this_frame;
+
+/* Invoke the parent method to clear the CmpFrame Dtai value. */
+   (*parent_cleardtai)( this_frame, status );
+
+/* Now clear the Dtai attribute in the two component Frames. */
+   astClearDtai( this->frame1 );
+   astClearDtai( this->frame2 );
 }
 
 static void ClearDut1( AstFrame *this_frame, int *status ) {
@@ -3698,6 +3755,82 @@ static int GetMinAxes( AstFrame *this_frame, int *status ) {
    return result;
 }
 
+static double GetDtai( AstFrame *this_frame, int *status ) {
+/*
+*  Name:
+*     GetDtai
+
+*  Purpose:
+*     Get a value for the Dtai attribute of a CmpFrame.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "cmpframe.h"
+*     double GetDtai( AstFrame *this, int *status )
+
+*  Class Membership:
+*     CmpFrame member function (over-rides the astGetDtai method
+*     inherited from the Frame class).
+
+*  Description:
+*     This function returns a value for the Dtai attribute of a
+*     CmpFrame.
+
+*  Parameters:
+*     this
+*        Pointer to the CmpFrame.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The Dtai attribute value.
+
+*  Notes:
+*     - A value of AST__BAD will be returned if this function is invoked
+*     with the global error status set or if it should fail for any
+*     reason.
+*/
+
+/* Local Variables: */
+   AstCmpFrame *this;            /* Pointer to the CmpFrame structure */
+   double result;                /* Result value to return */
+
+/* Initialise. */
+   result = AST__BAD;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Obtain a pointer to the CmpFrame structure. */
+   this = (AstCmpFrame *) this_frame;
+
+/* If an Dtai attribute value has been set, invoke the parent method
+   to obtain it. */
+   if ( astTestDtai( this ) ) {
+      result = (*parent_getdtai)( this_frame, status );
+
+/* Otherwise, if the Dtai value is set in the first component Frame,
+   return it. */
+   } else if( astTestDtai( this->frame1 ) ){
+      result = astGetDtai( this->frame1 );
+
+/* Otherwise, if the Dtai value is set in the second component Frame,
+   return it. */
+   } else if( astTestDtai( this->frame2 ) ){
+      result = astGetDtai( this->frame2 );
+
+/* Otherwise, return the default Dtai value from the first component
+   Frame. */
+   } else {
+      result = astGetDtai( this->frame1 );
+   }
+
+/* Return the result. */
+   return result;
+}
+
 static double GetDut1( AstFrame *this_frame, int *status ) {
 /*
 *  Name:
@@ -4619,6 +4752,15 @@ void astInitCmpFrameVtab_(  AstCmpFrameVtab *vtab, const char *name, int *status
 
    parent_clearepoch = frame->ClearEpoch;
    frame->ClearEpoch = ClearEpoch;
+
+   parent_getdtai = frame->GetDtai;
+   frame->GetDtai = GetDtai;
+
+   parent_setdtai = frame->SetDtai;
+   frame->SetDtai = SetDtai;
+
+   parent_cleardtai = frame->ClearDtai;
+   frame->ClearDtai = ClearDtai;
 
    parent_getdut1 = frame->GetDut1;
    frame->GetDut1 = GetDut1;
@@ -8302,6 +8444,56 @@ static void SetAxis( AstFrame *this_frame, int axis, AstAxis *newaxis, int *stat
          astSetAxis( this->frame2, axis - naxes1, newaxis );
       }
    }
+}
+
+static void SetDtai( AstFrame *this_frame, double val, int *status ) {
+/*
+*  Name:
+*     SetDtai
+
+*  Purpose:
+*     Set the value of the Dtai attribute for a CmpFrame.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "cmpframe.h"
+*     void SetDtai( AstFrame *this, double val, int *status )
+
+*  Class Membership:
+*     CmpFrame member function (over-rides the astSetDtai method
+*     inherited from the Frame class).
+
+*  Description:
+*     This function sets the Dtai value in the component Frames as
+*     well as this CmpFrame.
+
+*  Parameters:
+*     this
+*        Pointer to the CmpFrame.
+*     val
+*        New Dtai value.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+
+/* Local Variables: */
+   AstCmpFrame *this;            /* Pointer to the CmpFrame structure */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the CmpFrame structure. */
+   this = (AstCmpFrame *) this_frame;
+
+/* Invoke the parent method to set the CmpFrame Dtai value. */
+   (*parent_setdtai)( this_frame, val, status );
+
+/* Now set the Dtai attribute in the two component Frames. */
+   astSetDtai( this->frame1, val );
+   astSetDtai( this->frame2, val );
 }
 
 static void SetDut1( AstFrame *this_frame, double val, int *status ) {
