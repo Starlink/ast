@@ -266,6 +266,8 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        objects.
 *     26-OCT-2016 (DSB):
 *        Override the AxNorm method.
+*     07-APR-2017 (GSB):
+*        Override Dtai and Dut1 accessor methods.
 *class--
 */
 
@@ -1021,6 +1023,16 @@ static double GetEpoch( AstFrame *, int * );
 static int TestEpoch( AstFrame *, int * );
 static void ClearEpoch( AstFrame *, int * );
 static void SetEpoch( AstFrame *, double, int * );
+
+static double GetDtai( AstFrame *, int * );
+static int TestDtai( AstFrame *, int * );
+static void ClearDtai( AstFrame *, int * );
+static void SetDtai( AstFrame *, double, int * );
+
+static double GetDut1( AstFrame *, int * );
+static int TestDut1( AstFrame *, int * );
+static void ClearDut1( AstFrame *, int * );
+static void SetDut1( AstFrame *, double, int * );
 
 static double GetObsAlt( AstFrame *, int * );
 static int TestObsAlt( AstFrame *, int * );
@@ -6053,6 +6065,16 @@ void astInitFrameSetVtab_(  AstFrameSetVtab *vtab, const char *name, int *status
    frame->SetEpoch = SetEpoch;
    frame->TestEpoch = TestEpoch;
    frame->ClearEpoch = ClearEpoch;
+
+   frame->GetDtai = GetDtai;
+   frame->SetDtai = SetDtai;
+   frame->TestDtai = TestDtai;
+   frame->ClearDtai = ClearDtai;
+
+   frame->GetDut1 = GetDut1;
+   frame->SetDut1 = SetDut1;
+   frame->TestDut1 = TestDut1;
+   frame->ClearDut1 = ClearDut1;
 
    frame->GetSystem = GetSystem;
    frame->SetSystem = SetSystem;
@@ -11812,6 +11834,16 @@ MAKE_GET(Epoch,double)
 MAKE_SET(Epoch,double)
 MAKE_TEST(Epoch)
 MAKE_CLEAR(Epoch)
+
+MAKE_GET(Dtai,double)
+MAKE_SET(Dtai,double)
+MAKE_TEST(Dtai)
+MAKE_CLEAR(Dtai)
+
+MAKE_GET(Dut1,double)
+MAKE_SET(Dut1,double)
+MAKE_TEST(Dut1)
+MAKE_CLEAR(Dut1)
 
 MAKE_GET(ObsLon,double)
 MAKE_SET(ObsLon,double)
