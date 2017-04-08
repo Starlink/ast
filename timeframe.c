@@ -166,6 +166,8 @@ f     - AST_CURRENTTIME: Return the current system time
 *        - Pass DTAI to astAddTime for UTCTOTAI and TAITOUTC conversions and
 *          check whether there is a relevant DTAI difference in
 *          MakeTimeMapping.
+*     7-APR-2017 (GSB):
+*        - Add LT to macro defining scales depending on DTAI.
 *class--
 */
 
@@ -206,13 +208,14 @@ f     - AST_CURRENTTIME: Return the current system time
           ts == AST__UT1 ) ? 1 : 0 )
 
 /* Define a macro which tests if a given timescale requires a Dtai value
-   in order to convert from the timescale to UTC. */
+   in order to convert from the timescale to TAI. */
 #define DTAI_SCALE(ts) \
       ( ( ts == AST__LMST || \
           ts == AST__LAST || \
           ts == AST__GMST || \
           ts == AST__UT1 || \
-          ts == AST__UTC ) ? 1 : 0 )
+          ts == AST__UTC || \
+          ts == AST__LT ) ? 1 : 0 )
 
 /* Define a macro which tests if a given timescale requires a LTOffset value
    in order to convert from the timescale to UTC. */
