@@ -3681,7 +3681,7 @@ static AstMapping *MakeMap( AstTimeFrame *this, AstSystemType sys1,
 
 /* The UTCTOTAI and TAITOUTC conversions require the input offset and DTAI. */
       args_tai[ 0 ] = args[ 0 ];
-      args_tai[ 1 ] = this ? astGetDtai( this ) : 0.0;
+      args_tai[ 1 ] = this ? astGetDtai( this ) : AST__BAD;
 
 /* If the input and output timescales differ, now add a conversion from the
    input timescale to TAI. */
