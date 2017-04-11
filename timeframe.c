@@ -168,6 +168,8 @@ f     - AST_CURRENTTIME: Return the current system time
 *          MakeTimeMapping.
 *     7-APR-2017 (GSB):
 *        - Add LT to macro defining scales depending on DTAI.
+*     10-APR-2017 (GSB):
+*        - Added macro to test floating point equality and used it for Dtai.
 *class--
 */
 
@@ -225,6 +227,10 @@ f     - AST_CURRENTTIME: Return the current system time
 /* The Unix epoch (00:00:00 UTC 1 January 1970 AD) as an absolute MJD in
    the UTC timescale. */
 #define UNIX_EPOCH 40587.0
+
+/* Check for floating point equality (within the given tolerance), taking
+   bad values into account. */
+#define EQUAL(aa,bb,tol) (((aa)==AST__BAD)?(((bb)==AST__BAD)?1:0):(((bb)==AST__BAD)?0:(fabs((aa)-(bb))<=(tol))))
 
 /* Header files. */
 /* ============= */
@@ -3975,7 +3981,7 @@ static int MakeTimeMapping( AstTimeFrame *target, AstTimeFrame *result,
    tadut = DUT1_SCALE( ts1 ) != DUT1_SCALE( align_ts );
    ardut = DUT1_SCALE( align_ts ) != DUT1_SCALE( ts2 );
 
-   dtaidiff = ( astGetDtai( target ) != astGetDtai( result ) );
+   dtaidiff = ! EQUAL( astGetDtai( target ), astGetDtai( result ), 1.0E-6 );
    tadtai = DTAI_SCALE( ts1 ) != DTAI_SCALE( align_ts );
    ardtai = DTAI_SCALE( align_ts ) != DTAI_SCALE( ts2 );
 

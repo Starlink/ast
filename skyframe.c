@@ -347,6 +347,8 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *        Override astSetDtai and astClearDtai.
 *     6-APR-2017 (GSB):
 *        Added dtai to AstSkyLastTable.
+*     10-APR-2017 (GSB):
+*        Added macro to test floating point equality and used it for Dtai.
 *class--
 */
 
@@ -383,6 +385,10 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
    references to the equinox specified by the Equinox attribute. */
 #define EQREF(system) \
 ((system==AST__FK4||system==AST__FK4_NO_E||system==AST__FK5||system==AST__ECLIPTIC)?1:0)
+
+/* Check for floating point equality (within the given tolerance), taking
+   bad values into account. */
+#define EQUAL(aa,bb,tol) (((aa)==AST__BAD)?(((bb)==AST__BAD)?1:0):(((bb)==AST__BAD)?0:(fabs((aa)-(bb))<=(tol))))
 
 /*
 *
@@ -1559,7 +1565,7 @@ static void ClearDtai( AstFrame *this, int *status ) {
 
 /* If the DTAI value has changed significantly, indicate that the LAST value
    will need to be re-calculated when it is next needed. */
-   if( fabs( orig - astGetDtai( this ) ) > 1.0E-6 ) {
+   if( ! EQUAL( orig, astGetDtai( this ), 1.0E-6 ) ) {
       ( (AstSkyFrame *) this )->last = AST__BAD;
       ( (AstSkyFrame *) this )->eplast = AST__BAD;
       ( (AstSkyFrame *) this )->klast = AST__BAD;
@@ -3050,7 +3056,7 @@ static double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
           fabs( table->obslon - obslon ) < 2.0E-7 &&
           fabs( table->obsalt - obsalt ) < 1.0 &&
           fabs( table->dut1 - dut1 ) < 1.0E-5 &&
-          fabs( table->dtai - dtai ) < 1.0E-5 ) {
+          EQUAL( table->dtai, dtai, 1.0E-5 ) ) {
 
 /* Get pointers to the array of epoch and corresponding LAST values in
    the table. */
@@ -8840,7 +8846,7 @@ static void SetCachedLAST( AstSkyFrame *this, double last, double epoch,
           fabs( table->obslon - obslon ) < 2.0E-7 &&
           fabs( table->obsalt - obsalt ) < 1.0 &&
           fabs( table->dut1 - dut1 ) < 1.0E-5 &&
-          fabs( table->dtai - dtai ) < 1.0E-5 ) break;
+          EQUAL( table->dtai, dtai, 1.0E-5 ) ) break;
 
 /* Ensure "table" ends up NULL if no suitable table is found. */
       table = NULL;
@@ -8986,7 +8992,7 @@ static void SetDtai( AstFrame *this_frame, double val, int *status ) {
 
 /* If the DTAI value has changed significantly, indicate that the LAST value
    will need to be re-calculated when it is next needed. */
-   if( fabs( orig - val ) > 1.0E-6 ) {
+   if( ! EQUAL( orig, val, 1.0E-6 ) ) {
       this->last = AST__BAD;
       this->eplast = AST__BAD;
       this->klast = AST__BAD;
