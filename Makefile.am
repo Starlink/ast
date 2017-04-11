@@ -812,7 +812,7 @@ check_PROGRAMS = ast_test
 ast_test_SOURCES = ast_test.c
 
 test: install
-	cd ast_tester && STARLINK=@STARLINK@ ./ast_tester -nd
+	cd ast_tester && STARLINK=@STARLINK@ PGPLOT_DIR=@STARLINK@/bin ./ast_tester -nd
 
 #ast_test_LDADD = `ast_link`
 # Expand ast_link to avoid libast_pass2, which causes problems for Solaris
