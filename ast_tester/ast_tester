@@ -178,7 +178,7 @@ foreach n ( "timj ast fits-wcs cdmatrix=1" \
 
 
    ./wcsconverter $in_file $encoding $new_file "$attrs,FitsDigits=8"
-   diff -c $old_file $new_file > $old_file.diff
+   diff -c $old_file $new_file > ! $old_file.diff
 
    if( $status == 0 ) then
       \rm -f $old_file.diff  $new_file
@@ -205,7 +205,7 @@ set ok = 1
 foreach n ( *.map )
    set a = `basename $n .map`
    ./simplify $n $a.out
-   diff -c $a.simp $a.out > $a.diff
+   diff -c $a.simp $a.out > ! $a.diff
 
    if( $status == 0 ) then
       \rm -f $a.out $a.diff
