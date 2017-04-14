@@ -1306,8 +1306,14 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
       astSetDut1( lastframe, dut1 );
 
 /* Store the DTAI value. */
-      astSetDtai( tdbframe, dtai );
-      astSetDtai( lastframe, dtai );
+      if ( dtai == AST__BAD ) {
+         astClearDtai( tdbframe );
+         astClearDtai( lastframe );
+      }
+      else {
+         astSetDtai( tdbframe, dtai );
+         astSetDtai( lastframe, dtai );
+      }
 
 /* Get the conversion from tdb mjd offset to last mjd offset. */
       fs = astConvert( tdbframe, lastframe, "" );
