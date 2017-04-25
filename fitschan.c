@@ -1168,6 +1168,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        IsAipsSpectral: Trailing spaces in CTYPE values are insignificant.
 *     17-MAR-2017 (DSB):
 *        Fix memory leak in MakeFitsFrameSet.
+*     25-APR-2017 (DSB):
+*        When reading foreign WCS, retain the TIMESYS keyword by default.
 *class--
 */
 
@@ -34628,6 +34630,7 @@ static void WcsFcRead( AstFitsChan *fc, AstFitsChan *fc2, FitsStore *store,
 
 /* Is this a TIMESYS keyword? */
       } else if( Match( keynam, "TIMESYS", 0, fld, &nfld, method, class, status ) ){
+         mark = 0;
          item = &(store->timesys);
          type = AST__STRING;
          i = 0;
