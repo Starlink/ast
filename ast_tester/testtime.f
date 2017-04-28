@@ -5,7 +5,7 @@
       include 'AST_ERR'
 
       character txt*40
-      double precision xin, xout, ct, ctl, origin
+      double precision xin, xout, xout2, ct, ctl, origin
       integer status, tf, tf1, tf2, fs, n, chr_len, nc
       status = sai__ok
 
@@ -730,15 +730,17 @@ c
 
       fs = ast_convert( tf1, tf2, ' ', status )
 
+      xin = 57844.0D0
+
       if (fs .eq. AST__NULL ) then
          call stopit( status, 'error 52' )
       else
-         xin = 57844.0D0
          call ast_tran1( fs, 1, xin, .true., xout, status)
          if (abs(((xin - xout) * 86400.0D0) - 37.0D0) .gt. 1.0D-3) then
             write(*,*) xout
             call stopit( status, 'error 53' )
          endif
+         call checkdump( fs, 'CheckDump 2', status )
       end if
 
       call ast_setd( tf2, 'dtai', 40.0D0, status )
@@ -748,13 +750,45 @@ c
       if (fs .eq. AST__NULL ) then
          call stopit( status, 'error 54' )
       else
-         xin = 57844.0D0
          call ast_tran1( fs, 1, xin, .true., xout, status)
          if (abs(((xin - xout) * 86400.0D0) - 40.0D0) .gt. 1.0D-3) then
             write(*,*) xout
             call stopit( status, 'error 55' )
          endif
+         call checkdump( fs, 'CheckDump 3', status )
       end if
+
+
+
+      tf1 = ast_timeframe( 'system=mjd,timescale=tt', status )
+      tf2 = ast_timeframe( 'system=mjd,timescale=tdb,dtai=37.0',
+     :                     status )
+
+      fs = ast_convert( tf1, tf2, ' ', status )
+
+      if (fs .eq. AST__NULL ) then
+         call stopit( status, 'error 56' )
+      else
+         call ast_tran1( fs, 1, xin, .true., xout, status)
+         call checkdump( fs, 'CheckDump 4', status )
+      end if
+
+      call ast_clear( tf2, 'dtai', status )
+
+      fs = ast_convert( tf1, tf2, ' ', status )
+
+      if (fs .eq. AST__NULL ) then
+         call stopit( status, 'error 57' )
+      else
+         call ast_tran1( fs, 1, xin, .true., xout2, status)
+         if( xout .ne. xout2 ) then
+            call stopit( status, 'error 58' )
+         end if
+      end if
+
+
+
+
 
 
       call ast_end( status )
@@ -788,7 +822,8 @@ c      call ast_listissued( 'testtime' )
       include 'SAE_PAR'
       include 'AST_PAR'
       character text*(*)
-      integer obj, status, next, end, ch, result, ll, overlap
+      integer obj, status, next, end, ch, result, ll, overlap, map,
+     :        map1, map2
       external mysource, mysink
       character buf*25000
 
@@ -816,19 +851,45 @@ c      call ast_listissued( 'testtime' )
       end if
 
 
+      if( ast_isatimeframe( obj, status ) ) then
+         if( ast_getd( obj, 'timeorigin', status ) .ne.
+     :       ast_getd( result, 'timeorigin', status ) .or.
+     :       ast_getc( obj, 'timescale', status ) .ne.
+     :       ast_getc( result, 'timescale', status ) .or.
+     :       ast_getc( obj, 'ObsLon', status ) .ne.
+     :       ast_getc( result, 'ObsLon', status ) .or.
+     :       ast_getc( obj, 'ObsLat', status ) .ne.
+     :       ast_getc( result, 'ObsLat', status ) .or.
+     :       ast_getc( obj, 'Dtai', status ) .ne.
+     :       ast_getc( result, 'Dtai', status ) ) then
+            call ast_Show( obj, status )
+            call ast_Show( result, status )
+            write(*,*) text
+            call stopit( status, 'Object has changed' )
+         end if
+      else if( ast_isamapping( obj, status ) ) then
+         if( ast_isaframeset( obj, status ) ) then
+            map1 = ast_getmapping( obj, ast__base, ast__current,
+     :                             status )
+            map2 = ast_getmapping( result, ast__base, ast__current,
+     :                             status )
+         else
+            map1 = ast_clone( obj, status )
+            map2 = ast_clone( result, status )
+         end if
 
-      if( ast_getd( obj, 'timeorigin', status ) .ne.
-     :    ast_getd( result, 'timeorigin', status ) .or.
-     :    ast_getc( obj, 'timescale', status ) .ne.
-     :    ast_getc( result, 'timescale', status ) .or.
-     :    ast_getc( obj, 'ObsLon', status ) .ne.
-     :    ast_getc( result, 'ObsLon', status ) .or.
-     :    ast_getc( obj, 'ObsLat', status ) .ne.
-     :    ast_getc( result, 'ObsLat', status ) ) then
-         call ast_Show( obj, status )
-         call ast_Show( result, status )
-         write(*,*) text
-         call stopit( status, 'Object has changed' )
+         call ast_invert( map2, status )
+         map = ast_simplify( ast_cmpmap( map1, map2, .true., ' ',
+     :                                   status ),
+     :                       status )
+         if( .not. ast_isaunitmap( map, status ) ) then
+            write(*,*) text
+            call ast_show( map1, status )
+            call ast_invert( map2, status )
+            call ast_show( map2, status )
+
+            call stopit( status, 'Mapping has changed' )
+         endif
       end if
 
       end

@@ -170,6 +170,8 @@ f     - AST_CURRENTTIME: Return the current system time
 *        - Add LT to macro defining scales depending on DTAI.
 *     10-APR-2017 (GSB):
 *        - Added macro to test floating point equality and used it for Dtai.
+*     27-APR-2017 (DSB):
+*        Conversions between TT and TDB now require DTAI as an argument.
 *class--
 */
 
@@ -209,15 +211,19 @@ f     - AST_CURRENTTIME: Return the current system time
           ts == AST__GMST || \
           ts == AST__UT1 ) ? 1 : 0 )
 
-/* Define a macro which tests if a given timescale requires a Dtai value
-   in order to convert from the timescale to TAI. */
+/* Timescales can be divided up into 3 groups such that conversion from a
+   timescale in one group to a timescale in any other group requires the
+   DTAI value, but conversion between timescales in the same group does not
+   require the DTAI value. Define a macro that returns the group number
+   (1, 2 or 3) for a specific timescale. */
 #define DTAI_SCALE(ts) \
       ( ( ts == AST__LMST || \
           ts == AST__LAST || \
           ts == AST__GMST || \
           ts == AST__UT1 || \
           ts == AST__UTC || \
-          ts == AST__LT ) ? 1 : 0 )
+          ts == AST__LT ) ? 1 : \
+          ( ( ts == AST__TAI || ts == AST__TT ) ? 2 : 3 ) )
 
 /* Define a macro which tests if a given timescale requires a LTOffset value
    in order to convert from the timescale to UTC. */
@@ -3581,7 +3587,7 @@ static AstMapping *MakeMap( AstTimeFrame *this, AstSystemType sys1,
    AstMapping *umap2;
    AstTimeMap *timemap;
    const char *du;
-   double args[ 4 ];
+   double args[ 5 ];
    double args_lt[ 1 ];
    double args_ut[ 1 ];
    double args_tai[ 2 ];
@@ -3678,6 +3684,10 @@ static AstMapping *MakeMap( AstTimeFrame *this, AstSystemType sys1,
       args[ 2 ] = this ? astGetObsLat( this ) : 0.0;
       args[ 3 ] = this ? astGetObsAlt( this ) : 0.0;
 
+/* Currently the only conversion that take 5 arguments require the DTAI
+   value as the 5th argument. */
+      args[ 4 ] = this ? astGetDtai( this ) : AST__BAD;
+
 /* The UTTOUTC and UTCTOUT conversions required just the DUT1 value. */
       args_ut[ 0 ] = this ? astGetDut1( this ) : 0.0;
 
@@ -3701,7 +3711,7 @@ static AstMapping *MakeMap( AstTimeFrame *this, AstSystemType sys1,
             astTimeAdd( timemap, "TTTOTAI", 1, args );
 
          } else if( ts1 == AST__TDB ) {
-            astTimeAdd( timemap, "TDBTOTT", 4, args );
+            astTimeAdd( timemap, "TDBTOTT", 5, args );
             astTimeAdd( timemap, "TTTOTAI", 1, args );
 
          } else if( ts1 == AST__TCG ) {
@@ -3714,7 +3724,7 @@ static AstMapping *MakeMap( AstTimeFrame *this, AstSystemType sys1,
 
          } else if( ts1 == AST__TCB ) {
             astTimeAdd( timemap, "TCBTOTDB", 1, args );
-            astTimeAdd( timemap, "TDBTOTT", 4, args );
+            astTimeAdd( timemap, "TDBTOTT", 5, args );
             astTimeAdd( timemap, "TTTOTAI", 1, args );
 
          } else if( ts1 == AST__UT1 ) {
@@ -3751,7 +3761,7 @@ static AstMapping *MakeMap( AstTimeFrame *this, AstSystemType sys1,
 
          } else if( ts2 == AST__TDB ) {
             astTimeAdd( timemap, "TAITOTT", 1, args );
-            astTimeAdd( timemap, "TTTOTDB", 4, args );
+            astTimeAdd( timemap, "TTTOTDB", 5, args );
 
          } else if( ts2 == AST__TCG ) {
             astTimeAdd( timemap, "TAITOTT", 1, args );
@@ -3759,7 +3769,7 @@ static AstMapping *MakeMap( AstTimeFrame *this, AstSystemType sys1,
 
          } else if( ts2 == AST__TCB ) {
             astTimeAdd( timemap, "TAITOTT", 1, args );
-            astTimeAdd( timemap, "TTTOTDB", 4, args );
+            astTimeAdd( timemap, "TTTOTDB", 5, args );
             astTimeAdd( timemap, "TDBTOTCB", 1, args );
 
          } else if( ts2 == AST__UT1 ) {
