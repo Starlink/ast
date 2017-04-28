@@ -1170,6 +1170,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Fix memory leak in MakeFitsFrameSet.
 *     25-APR-2017 (DSB):
 *        When reading foreign WCS, retain the TIMESYS keyword by default.
+*     28-APR-20177 (DSB):
+*        When reading a JCMT or UKIRT foreign header that contains a
+*        DTAI keyword, use it to set the Dtai attribute in the WCS Frame.
 *class--
 */
 
@@ -1422,6 +1425,7 @@ typedef struct FitsStore {
    double ***latpole;
    double ***lonpole;
    double ***mjdobs;
+   double ***dtai;
    double ***dut1;
    double ***mjdavg;
    double ***pv;
@@ -2410,7 +2414,6 @@ static int AddVersion( AstFitsChan *this, AstFrameSet *fs, int ipix, int iwcs,
                        FitsStore *store, double *dim, char s, int encoding,
                        int isoff, const char *method, const char *class,
                        int *status ){
-
 /*
 *  Name:
 *     AddVersion
@@ -2656,6 +2659,11 @@ static int AddVersion( AstFitsChan *this, AstFrameSet *fs, int ipix, int iwcs,
    (as used by JACH). */
       if( astTestDut1( wcsfrm ) && s == ' ' ) {
          SetItem( &(store->dut1), 0, 0, ' ', astGetDut1( wcsfrm )/SPD, status );
+      }
+
+/* Store the TAI-UTC correction, if set. */
+      if( astTestDtai( wcsfrm ) && s == ' ' ) {
+         SetItem( &(store->dtai), 0, 0, ' ', astGetDtai( wcsfrm ), status );
       }
 
 /* Set CRVAL values which are very small compared to the pixel size to
@@ -10565,6 +10573,7 @@ static FitsStore *FitsToStore( AstFitsChan *this, int encoding,
       ret->mjdobs = NULL;
       ret->mjdavg = NULL;
       ret->dut1 = NULL;
+      ret->dtai = NULL;
       ret->pv = NULL;
       ret->specsys = NULL;
       ret->ssyssrc = NULL;
@@ -10876,6 +10885,7 @@ static FitsStore *FreeStore( FitsStore *store, int *status ){
    FreeItem( &(store->lonpole), status );
    FreeItem( &(store->mjdobs), status );
    FreeItem( &(store->dut1), status );
+   FreeItem( &(store->dtai), status );
    FreeItem( &(store->mjdavg), status );
    FreeItem( &(store->pv), status );
    FreeItem( &(store->wcsaxes), status );
@@ -11272,6 +11282,7 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
       ret->latpole = NULL;
       ret->lonpole = NULL;
       ret->dut1 = NULL;
+      ret->dtai = NULL;
       ret->mjdobs = NULL;
       ret->mjdavg = NULL;
       ret->pv = NULL;
@@ -34119,6 +34130,7 @@ static void WcsFcRead( AstFitsChan *fc, AstFitsChan *fc2, FitsStore *store,
    char *cval;        /* String keyword value */
    char *keynam;      /* Pointer to current keyword name */
    char s;            /* Co-ordinate version character */
+   char *telescop;    /* Pointer to TELESCOP keyword value */
    double dval;       /* Floating point keyword value */
    int fld[2];        /* Integer field values from keyword name */
    int jm;            /* Pixel axis or projection parameter index */
@@ -34396,6 +34408,20 @@ static void WcsFcRead( AstFitsChan *fc, AstFitsChan *fc2, FitsStore *store,
          i = 0;
          jm = 0;
          s = ' ';
+
+/* Is this a primary DTAI keyword? Only handle if the telescope is JCMT
+   or UKIRT, since other telescopes may use DTAI for different purposes. */
+      } else if( Match( keynam, "DTAI", 0, fld, &nfld, method, class, status ) ){
+         if( GetValue( fc, "TELESCOP", AST__STRING, &telescop, 0, 0, method,
+                       class, status ) && ( !strncmp( telescop, "JCMT", 4)
+                                         || !strncmp( telescop, "UKIRT", 5 ) ) ){
+            mark = 0;
+            item = &(store->dtai);
+            type = AST__FLOAT;
+            i = 0;
+            jm = 0;
+            s = ' ';
+         }
 
 /* Is this a primary MJD-OBS keyword? */
       } else if( Match( keynam, "MJD-OBS", 0, fld, &nfld, method, class, status ) ){
@@ -35506,6 +35532,7 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
    char id[2];               /* ID string for returned Frame */
    char iwc[5];              /* Domain name for IWC Frame */
    const char *cc;           /* Pointer to Domain */
+   double dtai;              /* TAI-UTC correction in seconds */
    double dut1;              /* UT1-UTC correction in days */
    double dval;              /* Temporary double value */
    double reflat;            /* Reference celestial latitude */
@@ -35616,6 +35643,10 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
    to be in seconds. */
    dut1 = GetItem( &(store->dut1), 0, 0, s, NULL, method, class, status );
    if( dut1 != AST__BAD ) astSetDut1( *frm, dut1*SPD );
+
+/* Set the DTAI value. */
+   dtai = GetItem( &(store->dtai), 0, 0, s, NULL, method, class, status );
+   if( dtai != AST__BAD ) astSetDtai( *frm, dtai );
 
 /* The returned Frame is actually a FrameSet in which the current Frame
    is the required WCS Frame. The FrameSet contains one other Frame,
