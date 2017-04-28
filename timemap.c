@@ -100,6 +100,9 @@ f     - AST_TIMEADD: Add a time coordinate conversion to an TimeMap
 *        Add argument "narg" to astTimeAdd method.
 *     5-APR-2017 (GSB):
 *        Add DTAI argument for TAITOUTC and UTCTOTAI.
+*     28-APR-2017 (DSB):
+*        Fix bug in MapMerge that prevented adjacent TAITOUTC and UTCTOTAI
+*        conversions cancelling out.
 *class--
 */
 
@@ -2226,9 +2229,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   keep = 0;
 
 /* Now check for conversions which have two user-supplied arguments
-   (test they are swapped). */
-               } else if( ( PAIR_CVT2( AST__TAITOUTC, AST__UTCTOTAI ) ||
-                            PAIR_CVT2( AST__MJDTOJD, AST__JDTOMJD ) ||
+   that are swapped by inversion. */
+               } else if( ( PAIR_CVT2( AST__MJDTOJD, AST__JDTOMJD ) ||
                             PAIR_CVT2( AST__MJDTOMJD, AST__MJDTOMJD ) ||
                             PAIR_CVT2( AST__MJDTOBEP, AST__BEPTOMJD ) ||
                             PAIR_CVT2( AST__MJDTOJEP, AST__JEPTOMJD ) ) &&
@@ -2236,6 +2238,16 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                                  cvtargs[ istep + 1 ][ 1 ] ) &&
                           astEQUAL( cvtargs[ istep ][ 1 ],
                                  cvtargs[ istep + 1 ][ 0 ] ) ) {
+                  istep++;
+                  keep = 0;
+
+/* Now check for conversions which have two user-supplied arguments
+   that are NOT swapped by inversion. */
+               } else if( ( PAIR_CVT2( AST__TAITOUTC, AST__UTCTOTAI ) ) &&
+                          astEQUAL( cvtargs[ istep ][ 0 ],
+                                 cvtargs[ istep + 1 ][ 0 ] ) &&
+                          astEQUAL( cvtargs[ istep ][ 1 ],
+                                 cvtargs[ istep + 1 ][ 1 ] ) ) {
                   istep++;
                   keep = 0;
 
