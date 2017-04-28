@@ -21821,6 +21821,20 @@ f-
 Previously, the new version needed to be linked into the application at
 build time.
 
+
+\item The Frame class now has a new attribute caled DTAI, which can be used
+to specify the number of leap seconds at the moment represented by the
+Frame's Epoch attribute. By default, the internal look-up table of leap
+seconds contained within AST is used. The DTAI attribute allows old
+versions of AST, which may not include the most recent leap seconds, to
+be used with new data.
+
+\item The TimeMap class has been changed so that some conversions now require
+a ``Dtai'' value (\emph{i.e.} the number of leap seconds) to be supplied by the
+caller. If AST\_\_BAD is supplied for ``Dtai'', the internal look-up table of
+leap seconds contained withn AST will be used. The conversions affected
+are those between TAI and UTC, and those between TT and TDB.
+
 \end{enumerate}
 
 Programs which are statically linked will need to be re-linked in

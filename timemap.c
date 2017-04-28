@@ -710,7 +710,7 @@ static void AddTimeCvt( AstTimeMap *this, int cvttype, int narg,
    required user-supplied arguments, and the size of the array in which
    to put the user-supplied arguments (the array may leave room after
    the user-supplied arguments for various useful pre-calculated values). */
-   cvt_string = CvtString( cvttype, &comment, &nargs, &szargs, argdesc, 
+   cvt_string = CvtString( cvttype, &comment, &nargs, &szargs, argdesc,
                            NULL, status );
 
 /* If the coordinate conversion type was not valid, then report an
@@ -3752,7 +3752,8 @@ f     AST_TRANSFORM
 *     - OBSLON: Observer longitude in radians (+ve westwards).
 *     - OBSLAT: Observer geodetic latitude (IAU 1975) in radians (+ve northwards).
 *     - OBSALT: Observer geodetic altitude (IAU 1975) in metres.
-*     - DTAI: The TAI-UTC value to use.
+*     - DTAI: The value of TAI-UTC (the value returned by astDat is used if
+*     DTAI is AST__BAD).
 *     - DUT1: The UT1-UTC value to use.
 *     - LTOFF: The offset between Local Time and UTC (in hours, positive
 *     for time zones east of Greenwich).

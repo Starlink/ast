@@ -11934,20 +11934,15 @@ MAKE_TEST(Direction)
 *     Floating point.
 
 *  Description:
-*     This attribute is used when calculating the Local Apparent Sidereal
-*     Time corresponding to SkyFrame's Epoch value (used when converting
-*     positions to or from the "AzEl" system). It can be set to the
-*     difference, in seconds, between the TAI and UTC timescales at the
-*     moment in time represented by the SkyFrame's Epoch attribute. The
-*     value to use changes whenever a leap second is introduced.
-*
-*     If no value is assigned to this attribute then the TAI-UTC offset
-*     will be obtained from an internal table.  Therefore it is only
-*     necessary to assign a value when this may not have the desired
-*     value, for example when processing an observation taken since the
-*     leap second information was last updated, or when
-*     processing an observation where the telescope control software used
-*     a TAI-UTC offset which was not appropriate for the epoch.
+*     This attribute specifies the difference between TAI and UTC (i.e.
+*     the number of leap seconds) at the moment corresponding to the
+*     Frame's Epoch value. The default value of AST__BAD causes the
+*     number of leap seconds to be determined from an internal look-up
+*     table, which is kept up-to-date manually by the AST development team.
+*     Therefore it is only necessary to assign a value to this attribute
+*     if the version of AST in use is so old that it does not include all
+*     leap seconds that occurred prior to the time represented by the
+*     Frame's Epoch value.
 
 *  Applicability:
 *     Frame

@@ -35,6 +35,18 @@ returns a named entry as a single string. If the entry is a vector the
 returned string is a comma-separated list of its elements, enclosed in
 parentheses.
 
+- The Frame class now has a new attribute caled DTAI, which can be used
+to specify the number of leap seconds at the moment represented by the
+Frame's Epoch attribute. By default, the internal look-up table of leap
+seconds contained within AST is used. The DTAI attribute allows old
+versions of AST, which may not include the most recent leap seconds, to
+be used with new data.
+
+- The TimeMap class has been changed so that some conversions now require
+a "Dtai" value (i.e. the number of leap seconds) to be supplied by the
+caller. If AST__BAD is supplied for "Dtai", the internal look-up table of
+leap seconds contained withn AST will be used. The conversions affected
+are those between TAI and UTC, and those between TT and TDB.
 
 Main Changes in V8.3.0
 ----------------------
