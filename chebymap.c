@@ -299,8 +299,9 @@ f     STATUS = INTEGER (Given and Returned)
 f        The global status.
 
 *  Notes:
-*    - If the requested transformation does not have a domain bounding
-*    box, this method returns a box determined using the
+*    - If the requested transformation is undefined (i.e. no
+*    transformation coefficients were specified when the ChebyMap was
+*    created), this method returns a box determined using the
 c    astMapBox
 f    AST_MAPBOX
 *    method on the opposite transformation, if the opposite
@@ -1756,25 +1757,41 @@ c        If "ncoeff_i" is zero, a NULL pointer may be supplied for "coeff_i".
 c     lbnd_f
 f     LBND_F( * ) = DOUBLE PRECISION (Given)
 *        An array containing the lower bounds of the input bounding box within
-*        which the ChebyMap is defined. The array should contain
+*        which the ChebyMap is defined. This argument is not used or
+*        accessed if
+c        ncoeff_f is zero, and so a NULL pointer may be supplied.
+f        NCOEFF_F is zero.
+*        If supplied, the array should contain
 c        "nin" elements.
 f        "NIN" elements.
 c     ubnd_f
 f     UBND_F( * ) = DOUBLE PRECISION (Given)
 *        An array containing the upper bounds of the input bounding box within
-*        which the ChebyMap is defined. The array should contain
+*        which the ChebyMap is defined. This argument is not used or
+*        accessed if
+c        ncoeff_f is zero, and so a NULL pointer may be supplied.
+f        NCOEFF_F is zero.
+*        If supplied, the array should contain
 c        "nin" elements.
 f        "NIN" elements.
 c     lbnd_i
 f     LBND_I( * ) = DOUBLE PRECISION (Given)
 *        An array containing the lower bounds of the output bounding box within
-*        which the ChebyMap is defined. The array should contain
+*        which the ChebyMap is defined. This argument is not used or
+*        accessed if
+c        ncoeff_i is zero, and so a NULL pointer may be supplied.
+f        NCOEFF_I is zero.
+*        If supplied, the array should contain
 c        "nout" elements.
 f        "NOUT" elements.
 c     ubnd_i
 f     UBND_I( * ) = DOUBLE PRECISION (Given)
 *        An array containing the upper bounds of the output bounding box within
-*        which the ChebyMap is defined. The array should contain
+*        which the ChebyMap is defined. This argument is not used or
+*        accessed if
+c        ncoeff_i is zero, and so a NULL pointer may be supplied.
+f        NCOEFF_I is zero.
+*        If supplied, the array should contain
 c        "nout" elements.
 f        "NOUT" elements.
 c     options
