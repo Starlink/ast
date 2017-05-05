@@ -196,6 +196,14 @@ C     fy(x,y) = T1(x') - T1(y')
       cm = ast_chebymap( 2, 2, 4, coeffs_4, 0, 0.0D0, lbnd, ubnd,
      :                   1.0D0, 1.0D0, ' ', status )
 
+      cm2 = ast_copy( cm, status )
+      call ast_invert( cm2, status )
+      cm3 = ast_simplify( ast_cmpmap( cm, cm2, .TRUE., ' ', status ),
+     :                    status )
+      if( .not. ast_isaunitmap( cm3, status ) ) then
+         call stopit( 1000, status )
+      end if
+
       xin(1) = 0.5D0
       xin(2) = 0.0D0
       xin(3) = -0.5D0

@@ -2840,7 +2840,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          if( i < 0 || i >= *nmap ) continue;
 
 /* Continue with the next pass if this neighbour is not a PermMap. */
-         if( strcmp( "PolyMap", astGetClass( ( *map_list )[ i ] ) ) ) continue;
+         if( ! astIsAPolyMap( ( *map_list )[ i ] ) ) continue;
 
 /* Get a pointer to it. */
          pmap1 = (AstPolyMap *) ( *map_list )[ i ];
