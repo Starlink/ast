@@ -1368,8 +1368,8 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
       this_ubnd[ 0 ] = ubnd[ 0 ];
       if( nax > 1 ) this_ubnd[ 1 ] = ubnd[ 1 ];
    } else if( scale && offset ) {
-      this_ubnd[ 0 ] = ( -1.0 - offset[ 0 ] )/scale[ 0 ];
-      if( nax > 1 ) this_ubnd[ 1 ] = ( -1.0 - offset[ 1 ] )/scale[ 1 ];
+      this_ubnd[ 0 ] = ( 1.0 - offset[ 0 ] )/scale[ 0 ];
+      if( nax > 1 ) this_ubnd[ 1 ] = ( 1.0 - offset[ 1 ] )/scale[ 1 ];
    } else if( astOK ) {
       astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
                 "not a Chebyshev polynomial and therefore requires a "
