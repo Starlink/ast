@@ -382,6 +382,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    int nin;
    int nout;
    int result;
+   int tmp;
 
 /* Initialise. */
    result = 0;
@@ -409,7 +410,19 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    must be identical. */
          if( astGetInvert( this ) == astGetInvert( that ) ) {
 
+/* Assume they are the same until we find a difference. */
             result = 1;
+
+/* The "_f" and "_i" suffixes in the PolyMap structure array names refer
+   to the forward and inverse transformations of the original uninverted
+   PolyMap. So we need to ensure the "nout" and "nin" values also refer
+   to the uninverted values. So if the PolyMaps are inverted, swap nout
+   and nin. */
+            if(  astGetInvert( this ) ) {
+               tmp = nin;
+               nin = nout;
+               nout = tmp;
+            }
 
 /* Check properties of the forward transformation. */
             if( this->ncoeff_f && that->ncoeff_f ) {
