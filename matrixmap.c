@@ -159,6 +159,10 @@ f     The MatrixMap class does not define any new routines beyond those
 *        if the intervening neighbour could not itself merge. This could
 *        result in an infinite simplification loop, which was detected by
 *        CmpMap and and aborted, resulting in no useful simplification.
+*     15-JUN-2017 (DSB):
+*        A diagonal MatrixMap in which the diagonal elements are all zero
+*        cannot be simplified to a ZoomMap, since ZoomMaps cannot have
+*        zero zoom factor.
 *class--
 */
 
@@ -1622,6 +1626,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    const char *nclass;   /* Pointer to neighbouring Mapping class */
    double *b;            /* Pointer to scale terms */
    double *new_mat;      /* Pointer to elements of new MatrixMap */
+   double factor;        /* Zoom factor for new ZoomMap */
    int *invlt;           /* New invert flags list pointer */
    int do1;              /* Would a backward swap make a simplification? */
    int do2;              /* Would a forward swap make a simplification? */
@@ -1680,7 +1685,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
       map2 = (AstMapping *) astUnitMap( nin, "", status );
 
 /* If the MatrixMap is a square diagonal matrix with equal diagonal
-   terms, then it can be replaced by a ZoomMap. */
+   terms, then it can be replaced by a ZoomMap, so long as the
+   diagonal elements are not all zero. */
    } else if( mm->form == DIAGONAL && nin == nout &&
               mm->f_matrix && mm->i_matrix &&
              (mm->f_matrix)[ 0 ] != AST__BAD ){
@@ -1696,13 +1702,17 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
       if( zoom ){
          if( ( *invert_list )[ where ] ){
-            map2 = (AstMapping *) astZoomMap( nin, (mm->i_matrix)[ 0 ], "", status );
+            factor = (mm->i_matrix)[ 0 ];
          } else {
-            map2 = (AstMapping *) astZoomMap( nin, (mm->f_matrix)[ 0 ], "", status );
+            factor = (mm->f_matrix)[ 0 ];
+         }
+
+         if( factor != 0.0 ){
+            map2 = (AstMapping *) astZoomMap( nin, factor, "", status );
          }
       }
 
-/* If the MatrixMap is a full matrix but all off-diagnal elements are
+/* If the MatrixMap is a full matrix but all off-diagonal elements are
    zero, it can be replaced by a diagonal MatrixMap. */
    } else if( mm->form == FULL && nin == nout && mm->f_matrix ){
       new_mat = astMalloc( sizeof( double )*nin );
