@@ -346,7 +346,7 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        "size_t *" to allow greater amounts of data to be pasted into
 *        the output array.
 *     29-APR-2013 (DSB):
-*        No sot simplify Mappings that have a set value for their Ident
+*        Do not simplify Mappings that have a set value for their Ident
 *        attribute. If an Ident value has been set then it means that we
 *        should be trying to preserve the identify of the Mapping. This
 *        is implemented via a new protected method (astDoNotSimplify) which
@@ -362,7 +362,7 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        Correct logic for determining whether to divide or not in
 *        RebinAdaptively. The old logic could lead to infinite recursion.
 *     1-SEP-2014 (DSB):
-*        Modify astLinearAPprox to avoid using regularly placed
+*        Modify astLinearApprox to avoid using regularly placed
 *        test points, as such regular placement may result in
 *        non-representative behaviour.
 *     25-SEP-2014 (DSB):
@@ -373,6 +373,16 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *     23-APR-2015 (DSB):
 *        Use one bit of this->flags to store the "IsSimple" attribute
 *        rather using a whole char (this->issimple).
+*     16-JUN-2017 (DSB):
+*        If a simplification fails because the simplification process makes 
+*        an inappropriate assumption about the supplied Mapping (e.g. that 
+*        it has a defined inverse transformation) - thus causing an error to 
+*        be reported, then clear the error status and return a clone of the 
+*        unmodified supplied Mapping. Putting this check in the astSimplify_ 
+*        wrapper function in the base Mapping class is much simpler and less
+*        error prone than performing tests on the appropriateness of the 
+*        mapping in teh astMapMerge method of each and every mapping class. 
+*        
 *class--
 */
 
@@ -23926,17 +23936,51 @@ AstMapping *astRemoveRegions_( AstMapping *this, int *status ) {
    if ( !astOK ) return NULL;
    return (**astMEMBER(this,Mapping,RemoveRegions))( this, status );
 }
+
 AstMapping *astSimplify_( AstMapping *this, int *status ) {
    AstMapping *result;
+   AstErrorContext error_context;
+
    if ( !astOK ) return NULL;
+
+/* If this Mapping has already been simplified, or if it cannot be
+   simplified (e.g. because it is a Frame) we just returned a clone
+   of the upplied pointer. */
    if( !astGetIsSimple( this ) && !astDoNotSimplify( this ) ) {
+
+/* Start a new error reporting context. This is done so that errors
+   caused by the siplification process attempting to do inappropriate things
+   with the supplied mapping can be caught. */
+      astErrorBegin( &error_context );
+
+/* Do the simplification. */
       result = (**astMEMBER(this,Mapping,Simplify))( this, status );
-      if( result ) result->flags |= AST__ISSIMPLE_FLAG; /* Indicate simplification has been done */
+
+/* If a result was returned, indicate it has been simplified and so does
+   not need to be simplified again. */
+      if( result ) {
+         result->flags |= AST__ISSIMPLE_FLAG;
+
+/* If the simplification process failed due to the supplied Mappings
+   being inappropriate (e.g. because it attempted to ue an undefined
+   transformation), clear the error status and return a clone of the
+   supplied Mapping. */
+      } else if( astStatus == AST__NODEF || astStatus == AST__TRNND ){
+         astClearStatus;
+         result = astClone( this );
+      }
+
+/* End the error reporting context. */
+      astErrorEnd( &error_context );
+
+/* If the Mapping has already been simplified just return a clone. */
    } else {
       result = astClone( this );
    }
+
    return result;
 }
+
 AstPointSet *astTransform_( AstMapping *this, AstPointSet *in,
                             int forward, AstPointSet *out, int *status ) {
    AstPointSet *result;
