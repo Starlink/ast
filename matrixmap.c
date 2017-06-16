@@ -163,6 +163,10 @@ f     The MatrixMap class does not define any new routines beyond those
 *        A diagonal MatrixMap in which the diagonal elements are all zero
 *        cannot be simplified to a ZoomMap, since ZoomMaps cannot have
 *        zero zoom factor.
+*     16-JUN-2017 (DSB):
+*        Fix error checking bug in MtrMult - it was checking for the 
+*        inverse transformation of "this" instead of the forward 
+*        transformation of "a".
 *class--
 */
 
@@ -3234,7 +3238,7 @@ static AstMatrixMap *MtrMult( AstMatrixMap *this, AstMatrixMap *a, int *status )
       return NULL;
    }
 
-   if( !astGetTranInverse( this ) ){
+   if( !astGetTranForward( a ) ){
       astError( AST__MTRML, "astMtrMult(%s): Cannot find the product of 2 "
                 "MatrixMaps- the second MatrixMap has no forward transformation.", status,
                 astClass(this) );
