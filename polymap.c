@@ -110,6 +110,12 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        Modify the astPolyTran method so that it can be used by the
 *        ChebyMap class to determine new transformations implemented as
 *        Chebyshev polynomials.
+*     27-JUN-2017 (DSB):
+*        In SamplePoly1D/2D ensure the final sample on each axis does not 
+*        go above the supplied upper bound. This can happen due to rounding 
+*        error. This is important for ChebyMaps since points outside the 
+*        bounds are set bad when transformed using a ChebyMap, causing NaNs
+*        to be generated in lmder1 (cminpack minimisation function).
 *class--
 */
 
@@ -3823,13 +3829,17 @@ static double **SamplePoly1D( AstPolyMap *this, int forward, double **table,
    if( astOK ) {
 
 /* Calculate the grid of input positions and store in the PointSet and
-   therefore also in the returned table. */
+   therefore also in the returned table. Rounding error may cause the
+   final point to be just over the upper bound, so we leave the final
+   point out of the loop and set it explicitly to the upper bound
+   afterwards. */
       val0 = lbnd;
       p0 = ptr1[ 0 ];
-      for( i = 0; i < npoint; i++ ) {
+      for( i = 0; i < npoint-1; i++ ) {
          *(p0++) = val0;
          val0 += delta0;
       }
+      *p0 = ubnd;
 
 /* Transform the input grid to get the output grid. */
       (void) astTransform( this, ps1, forward, ps2 );
@@ -3988,19 +3998,35 @@ static double **SamplePoly2D( AstPolyMap *this, int forward, double **table,
    if( astOK ) {
 
 /* Calculate the grid of input positions and store in the PointSet and
-   therefore also in the returned table. */
+   therefore also in the returned table. Rounding error may cause the
+   final point on each axis to be just over the upper bound, so we leave
+   the final point out of the loop and set it explicitly to the upper bound
+   afterwards. */
       val0 = lbnd[ 0 ];
       p0 = ptr1[ 0 ];
       p1 = ptr1[ 1 ];
-      for( i = 0; i < npoint; i++ ) {
+      for( i = 0; i < npoint - 1; i++ ) {
          val1 = lbnd[ 1 ];
-         for( j = 0; j < npoint; j++ ) {
+         for( j = 0; j < npoint-1; j++ ) {
              *(p0++) = val0;
              *(p1++) = val1;
              val1 += delta1;
          }
+         *(p0++) = val0;
+         *(p1++) = ubnd[ 1 ];
          val0 += delta0;
       }
+
+
+      val1 = lbnd[ 1 ];
+      for( j = 0; j < npoint-1; j++ ) {
+          *(p0++) = ubnd[ 0 ];
+          *(p1++) = val1;
+          val1 += delta1;
+      }
+      *(p0++) = ubnd[ 0 ];
+      *(p1++) = ubnd[ 1 ];
+
 
 /* Transform the input grid to get the output grid. */
       (void) astTransform( this, ps1, forward, ps2 );

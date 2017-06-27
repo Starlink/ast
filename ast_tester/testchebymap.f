@@ -140,11 +140,12 @@ c  The astPolyTran method on a 1-dimensional ChebyMaps, order 2: 1 - 2*x
          call ast_polycoeffs( cm2, .false., 100, cofs, nco, status )
          if( nco .ne. 1 )
      :       call stopit( 503, status )
-         if( cofs(1) .ne. -1.0D0 )
+
+         if( abs( cofs(1) + 1.0D0 ) .gt. 1.0D-10 )
      :       call stopit( 504, status )
-         if( cofs(2) .ne. 1.0D0 )
+         if( abs( cofs(2) - 1.0D0 ) .gt. 1.0D-10 )
      :       call stopit( 505, status )
-         if( cofs(3) .ne. 1.0D0 )
+         if( abs( cofs(3) - 1.0D0 ) .gt. 1.0D-10 )
      :       call stopit( 506, status )
 
       end if
