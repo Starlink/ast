@@ -111,11 +111,18 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        ChebyMap class to determine new transformations implemented as
 *        Chebyshev polynomials.
 *     27-JUN-2017 (DSB):
-*        In SamplePoly1D/2D ensure the final sample on each axis does not 
-*        go above the supplied upper bound. This can happen due to rounding 
-*        error. This is important for ChebyMaps since points outside the 
+*        In SamplePoly1D/2D ensure the final sample on each axis does not
+*        go above the supplied upper bound. This can happen due to rounding
+*        error. This is important for ChebyMaps since points outside the
 *        bounds are set bad when transformed using a ChebyMap, causing NaNs
 *        to be generated in lmder1 (cminpack minimisation function).
+*     3-JUL-2017 (DSB):
+*        Within FitPoly1D and FitPoly2D, use an initial guess that represents
+*        a unit mapping between normalised input and output values, rather
+*        than unnormalised PolyMap values. This is in case the PolyMap being
+*        fitted includes a change of scale (e.g. the PolyMap input is in "mm"
+*        but the output is in "rads" and includes some large scaling factor
+*        to do the conversion).
 *class--
 */
 
@@ -566,9 +573,11 @@ static double *FitPoly1D( AstPolyMap *this, int forward, int nsamp, double acc,
 
 *  Description:
 *     This function fits a least squares 1D polynomial curve to the
-*     positions in a supplied table. For the purposes of this function,
-*     the polynomial input is refered to as x1 and the output as y1. So
-*     the polynomial is:
+*     positions in a supplied table, and returns the coefficients of a
+*     PolyMap to describe the fit. For the purposes of this function,
+*     the input to the fit is refered to as x1 and the output as y1. So
+*     the returned coefficients describe a PolyMap with forward
+*     transformation:
 *
 *     y1 = P1( x1 )
 
@@ -582,19 +591,20 @@ static double *FitPoly1D( AstPolyMap *this, int forward, int nsamp, double acc,
 *     nsamp
 *        The number of (x1,y1) positions in the supplied table.
 *     acc
-*        The required accuracy, expressed as an offset within the polynomials
-*        output space.
+*        The required accuracy, expressed as a geodesic distance within
+*        the polynomials output space (not the normalised tabular space).
 *     order
 *        The maximum power (plus one) of x1 within P1. So for instance, a
 *        value of 3 refers to a quadratic polynomial.
 *     table
 *        Pointer to an array of 2 pointers. Each of these pointers points
-*        to an array of "nsamp" doubles, being the scaled and sampled values
-*        for x1 and y1 in that order.
+*        to an array of "nsamp" doubles, being the normalised and sampled
+*        values for x1 and y1 in that order.
 *     scales
-*        Array holding the scaling factors for the two columns of the table.
-*        Multiplying the table values by the scale factor produces PolyMap
-*        input or output axis values.
+*        Array holding the scaling factors used to produced the normalised
+*        values in the two columns of the table. Multiplying the normalised
+*        table values by the scale factor produces input or output axis
+*        values for the returned PolyMap
 *     ncoeff
 *        Pointer to an int in which to return the number of coefficients
 *        described by the returned array.
@@ -671,9 +681,12 @@ static double *FitPoly1D( AstPolyMap *this, int forward, int nsamp, double acc,
       astFitPoly1DInit( this, forward, table, &data, scales );
 
 /* The initial guess at the coefficient values represents a unit
-   transformation in PolyMap axis values. */
+   transformation in (normalised) tabulated (x,y) values. Using normalised
+   values means that we are, effectively, including a guess at the linear
+   scaling factor between input and output of the PolyMap (e.g. the PolyMap
+   may have inputs in mm and outputs in radians). */
       for( k = 0; k < ncof; k++ ) coeffs[ k ] = 0.0;
-      coeffs[ 1 ] = scales[ 0 ]/scales[ 1 ];
+      coeffs[ 1 ] = 1.0;
 
 /* Find the best coefficients */
       info = lmder1( MPFunc1D, &data, nsamp, ncof, coeffs, work1, work2, nsamp,
@@ -681,7 +694,8 @@ static double *FitPoly1D( AstPolyMap *this, int forward, int nsamp, double acc,
       if( info == 0 ) astError( AST__MNPCK, "astPolyMap(PolyTran): Minpack error "
                                 "detected (possible programming error).", status );
 
-/* Return the achieved accuracy. */
+/* Return the achieved accuracy. The "work1" array holds the normalised Y
+   residuals at each tabulated point. */
       pr = work1;
       tv = 0.0;
       for( k = 0; k < nsamp; k++,pr++ ) tv += (*pr)*(*pr);
@@ -867,9 +881,11 @@ static double *FitPoly2D( AstPolyMap *this, int forward, int nsamp, double acc,
 
 *  Description:
 *     This function fits a pair of least squares 2D polynomial surfaces
-*     to the positions in a supplied table. For the purposes of this
-*     function, the polynomial inputs are refered to as (x1,x2) and the
-*     outputs as (y1,y2). So the two polynomials are:
+*     to the positions in a supplied table, and returns the coefficients
+*     of a PolyMap to describe the fit. For the purposes of this function,
+*     the inputs to the fit is refered to as (x1,x2) and the output as
+*     (y1,y2). So the returned coefficients describe a PolyMap with forward
+*     transformations:
 *
 *     y1 = P1( x1, x2 )
 *     y2 = P2( x1, x2 )
@@ -888,7 +904,7 @@ static double *FitPoly2D( AstPolyMap *this, int forward, int nsamp, double acc,
 *        The number of (x1,x2,y1,y2) positions in the supplied table.
 *     acc
 *        The required accuracy, expressed as a geodesic distance within
-*        the polynomials output space.
+*        the polynomials output space (not the normalised tabular space).
 *     order
 *        The maximum power (plus one) of x1 or x2 within P1 and P2. So for
 *        instance, a value of 3 refers to a quadratic polynomial. Note, cross
@@ -897,12 +913,13 @@ static double *FitPoly2D( AstPolyMap *this, int forward, int nsamp, double acc,
 *        polynomial is order*(order+1)/2.
 *     table
 *        Pointer to an array of 4 pointers. Each of these pointers points
-*        to an array of "nsamp" doubles, being the scaled and sampled values
-*        for x1, x2, y1 or y2 in that order.
+*        to an array of "nsamp" doubles, being the normalised and sampled
+*        values for x1, x2, y1 or y2 in that order.
 *     scales
-*        Array holding the scaling factors for the four columns of the table.
-*        Multiplying the table values by the scale factor produces PolyMap
-*        input or output axis values.
+*        Array holding the scaling factors used to produced the normalised
+*        values in the four columns of the table. Multiplying the normalised
+*        table values by the scale factor produces input or output axis
+*        values for the returned PolyMap
 *     ncoeff
 *        Pointer to an ant in which to return the number of coefficients
 *        described by the returned array.
@@ -986,10 +1003,13 @@ static double *FitPoly2D( AstPolyMap *this, int forward, int nsamp, double acc,
       astFitPoly2DInit( this, forward, table, &data, scales );
 
 /* The initial guess at the coefficient values represents a unit
-   transformation in PolyMap axis values. */
+   transformation in (normalised) tabulated (x,y) values. Using normalised
+   values means that we are, effectively, including a guess at the linear
+   scaling factor between input and output of the PolyMap (e.g. the PolyMap
+   may have inputs in mm and outputs in radians). */
       for( k = 0; k < 2*ncof; k++ ) coeffs[ k ] = 0.0;
-      coeffs[ 1 ] = scales[ 0 ]/scales[ 2 ];
-      coeffs[ 5 ] = scales[ 1 ]/scales[ 3 ];
+      coeffs[ 1 ] = 1.0;
+      coeffs[ 5 ] = 1.0;
 
 /* Find the best coefficients */
       info = lmder1( MPFunc2D, &data, 2*nsamp, 2*ncof, coeffs, work1, work2,
