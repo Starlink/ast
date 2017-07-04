@@ -228,6 +228,9 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        list of settings is provided as a single variable argument).
 *        This is needed because supplying the while settings string in
 *        place of "%s" is considered a security issue by many compilers.
+*     4-JUL-2017 (DSB):
+*        Within astLockId, perform the correct check that the supplied 
+*        object handle is not locked by another thread.
 *class--
 */
 
@@ -7204,7 +7207,7 @@ c--
    reported if the handle is not curently associated with a thread.
    However, an error is reported if the Handle is associated with any
    thread other than the running thread. */
-   ihandle = CheckId( this_id, 0, status );
+   ihandle = CheckId( this_id, 1, status );
 
 /* We've finished with the handles arrays, for the moment. */
    UNLOCK_MUTEX2;
@@ -7349,8 +7352,10 @@ c--
 /* Ensure the Handles arrays have been initialised. */
    if ( !active_handles ) InitContext( status );
 
-/* Get the Handle index for the supplied object identifier. Report an error
-   if the handle is not curently associated with the running thread. */
+/* Get the Handle index for the supplied object identifier. Report an 
+   error if the handle is associated with a different thread (no error
+   if the handle has no associated thread or is associated with the
+   current thread). */
    ihandle = CheckId( this_id, 1, status );
 
 /* Break the associated of the handle with the current thread so that the
