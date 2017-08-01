@@ -35,6 +35,9 @@
          call checkroundtrip( map, frompos, good, status )
          if( .not. good )  call stopit( status, 'Error 6' )
 
+         call checkroundtrip( map, centre, good, status )
+         if( .not. good )  call stopit( status, 'Error 6' )
+
          invmap = ast_copy( map, status )
          call ast_invert( invmap, status )
          cmpmap = ast_cmpmap( map, invmap, .true., ' ', status )
