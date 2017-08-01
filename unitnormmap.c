@@ -13,13 +13,20 @@ f     AST_UNITNORMMAP
 *  Description:
 *     The forward transformation of a UnitNormMap subtracts the specified centre
 *     and then transforms the resulting vector to a unit vector and the vector norm.
-*     The output contains one more coordinate than the input: the initial Nin outputs
-*     are in the same order as the input; the final output is the norm.
+*     The output contains one more coordinate than the input: the initial
+*     Nin outputs are in the same order as the input; the final output is the norm.
+*     If the norm is 0, then the output of the forward transformation is AST__BAD
+*     for each component of the unit vector and 0 for the norm (the final value).
 *
 *     The inverse transformation of a UnitNormMap multiplies each component
 *     of the provided vector by the provided norm and adds the specified centre.
 *     The output contains one fewer coordinate than the input: the initial Nin inputs
 *     are in the same order as the output; the final input is the norm.
+*     If the provided norm is 0 then the other input values are ignored,
+*     and the output vector is the centre.
+*
+*     Example: if centre = [1, -1] then [5, 2] transforms to [4, 3] after subtracting the centre;
+*     the norm is 5, so the output is [0.8, 0.6, 5].
 *
 *     UnitNormMap enables radially symmetric transformations, as follows:
 *     - apply a UnitNormMap to produce a unit vector and norm (radius)
@@ -911,7 +918,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                double in = ptr_in[coord_in][point];
                if( in == AST__BAD ){
 
-/* An input coord is bad, so all output coords are bad */
+/* An input coord is bad, so all outputs are bad */
                   int coord_out = 0;
                   for( coord_out = 0; coord_out < ncoord_out; coord_out++ ){
                      ptr_out[coord_out][point] = AST__BAD;
@@ -926,11 +933,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
             if( max_relin == 0 ){
 
-/* All inputs are 0, so all outputs are bad */
+/* The norm is 0, so the unit vector (first nin components of output) is unknown */
                int coord = 0;
-               for( coord = 0; coord < ncoord_out; coord++ ){
+               for( coord = 0; coord < ncoord_out - 1; coord++ ){
                   ptr_out[coord][point] = AST__BAD;
                }
+               ptr_out[ncoord_out - 1][point] = 0;
                continue;
             }
 
@@ -963,6 +971,13 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                int coord = 0;
                for( coord = 0; coord < ncoord_out; coord++ ){
                   ptr_out[coord][point] = AST__BAD;
+               }
+            } else if( norm == 0 ){
+
+/* Norm is 0 for this point; set the output to the centre */
+               int coord = 0;
+               for( coord = 0; coord < ncoord_out; coord++ ){
+                  ptr_out[coord][point] = map->centre[coord];
                }
             } else {
                int coord = 0;
@@ -1186,13 +1201,20 @@ f     RESULT = AST_UNITNORMMAP( NCOORD, CENTRE, OPTIONS, STATUS )
 *
 *     The forward transformation of a UnitNormMap subtracts the specified centre
 *     and then transforms the resulting vector to a unit vector and the vector norm.
-*     The output contains one more coordinate than the input: the initial Nin outputs
-*     are in the same order as the input; the final output is the norm.
+*     The output contains one more coordinate than the input: the initial
+*     Nin outputs are in the same order as the input; the final output is the norm.
+*     If the norm is 0, then the output of the forward transformation is AST__BAD
+*     for each component of the unit vector and 0 for the norm (the final value).
 *
 *     The inverse transformation of a UnitNormMap multiplies each component
 *     of the provided vector by the provided norm and adds the specified centre.
 *     The output contains one fewer coordinate than the input: the initial Nin inputs
 *     are in the same order as the output; the final input is the norm.
+*     If the provided norm is 0 then the other input values are ignored,
+*     and the output vector is the centre.
+*
+*     Example: if centre = [1, -1] then [5, 2] transforms to [4, 3] after subtracting the centre;
+*     the norm is 5, so the output is [0.8, 0.6, 5].
 *
 *     UnitNormMap enables radially symmetric transformations, as follows:
 *     - apply a UnitNormMap to produce a unit vector and norm (radius)
