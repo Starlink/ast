@@ -1170,9 +1170,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Fix memory leak in MakeFitsFrameSet.
 *     25-APR-2017 (DSB):
 *        When reading foreign WCS, retain the TIMESYS keyword by default.
-*     28-APR-20177 (DSB):
+*     28-APR-2017 (DSB):
 *        When reading a JCMT or UKIRT foreign header that contains a
 *        DTAI keyword, use it to set the Dtai attribute in the WCS Frame.
+*     11-SEP-2017 (DSB):
+*        Allow a NULL keyword name to be supplied to astTestFits to
+*        indicate that the current card should be used (as is also done in
+*        astGetFits).
 *class--
 */
 
@@ -32186,7 +32190,10 @@ c        Pointer to a null-terminated character string
 f        A character string
 *        containing the FITS keyword name. This may be a complete FITS
 *        header card, in which case the keyword to use is extracted from
-*        it. No more than 80 characters are read from this string.
+*        it. No more than 80 characters are read from this string. If
+c        NULL
+f        a single dot '.'
+*        is supplied, the current card is tested.
 c     there
 f     THERE = LOGICAL (Returned)
 c        Pointer to an integer which will be returned holding a non-zero
@@ -32236,6 +32243,7 @@ f     -  .FALSE.
    char *lvalue;          /* Supplied keyword value */
    int icard;             /* Current card index on entry */
    int ret;               /* The returned value */
+   int type;              /* The card's type */
 
 /* Initialise */
    if( there ) *there = 0;
@@ -32254,20 +32262,31 @@ f     -  .FALSE.
    ret = 0;
 
 /* Extract the keyword name from the supplied string. */
-   (void) Split( this, name, &lname, &lvalue, &lcom, method, class, status );
+   if( name ) {
+      (void) Split( this, name, &lname, &lvalue, &lcom, method, class, status );
+   } else {
+      lname = NULL;
+      lvalue = NULL;
+      lcom = NULL;
+   }
 
 /* Store the current card index. */
    icard = astGetCard( this );
 
 /* Attempt to find a card in the FitsChan refering to this keyword,
-   and make it the current card. Only proceed if a card was found. */
-   if( SearchCard( this, lname, method, class, status ) ){
+   and make it the current card. Only proceed if a card was found. No
+   need to do the search if the value of the current card is required. */
+   if( !lname || SearchCard( this, lname, method, class, status ) ){
 
-/* Indicate the card has been found. */
-      if( there ) *there = 1;
+/* Get the card type. */
+      type = CardType( this, status );
 
 /* If the cards data type is no undefined, return 1. */
       if( CardType( this, status ) != AST__UNDEF ) ret = 1;
+
+/* Indicate the card has been found. No card was found if the type is
+   AST__NOTYPE (as can happen if the FitsChan is empty and lname is NULL). */
+      if( there && type != AST__NOTYPE ) *there = 1;
    }
 
 /* Re-instate the original current card index. */

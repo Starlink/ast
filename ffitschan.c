@@ -820,6 +820,7 @@ F77_LOGICAL_FUNCTION(ast_testfits)( INTEGER(THIS),
    astAt( "AST_TESTFITS", NULL, 0 );
    astWatchSTATUS(
       name = astString( NAME, NAME_length );
+      if( name && !strcmp( name, "." ) ) name = astFree( name ); \
       RESULT = astTestFits( astI2P( *THIS ), name, &there ) ?
                F77_TRUE : F77_FALSE;
       (void) astFree( (void *) name );

@@ -5,6 +5,7 @@
 
       integer status, fs, fc, i, val
       character cards(10)*80, card*80
+      logical there
 
       status = sai__ok
 
@@ -22,11 +23,12 @@ c      call ast_watchmemory( 225192 )
       cards(2) = 'CRPIX2  =                   45'
       cards(3) = 'CRVAL1  =                   45'
       cards(4) = 'CRVAL2  =                 89.9'
-      cards(5) = 'CDELT1  =                -0.01'
-      cards(6) = 'CDELT2  =                 0.01'
-      cards(7) = 'CTYPE1  = ''RA---TAN'''
-      cards(8) = 'CTYPE2  = ''DEC--TAN'''
-      do i = 1, 8
+      cards(5) = 'MYNAME  =                     '
+      cards(6) = 'CDELT1  =                -0.01'
+      cards(7) = 'CDELT2  =                 0.01'
+      cards(8) = 'CTYPE1  = ''RA---TAN'''
+      cards(9) = 'CTYPE2  = ''DEC--TAN'''
+      do i = 1, 9
          call ast_putfits( fc, cards(i), .false., status )
       end do
 
@@ -37,6 +39,26 @@ c      call ast_watchmemory( 225192 )
          call stopit( 778, ' ', status )
       endif
 
+      call ast_seti( fc, 'Card', 5, status )
+      if( ast_testfits( fc, '.', there, status ) ) then
+         call stopit( 779, ' ', status )
+      else if( .not. there ) then
+         call stopit( 780, ' ', status )
+      endif
+
+      if( .not. ast_testfits( fc, 'CDELT1', there, status ) ) then
+         call stopit( 781, ' ', status )
+      else if( .not. there ) then
+         call stopit( 782, ' ', status )
+      endif
+
+      if( ast_testfits( fc, 'ABCDEF', there, status ) ) then
+         call stopit( 783, ' ', status )
+      else if( there ) then
+         call stopit( 784, ' ', status )
+      endif
+
+
 *  Annul the fitschan. Only 1 ref so this should delete it.
       call ast_annul( fc, status )
 
@@ -45,12 +67,12 @@ c      call ast_watchmemory( 225192 )
      :                   status )
 
 *  Check it looks like the original header.
-      if( ast_geti( fc, 'NCard', status ) .ne. 8 ) then
+      if( ast_geti( fc, 'NCard', status ) .ne. 9 ) then
          write(*,*) ast_geti( fc, 'NCard', status )
          call stopit( 1000, ' ', status )
       endif
 
-      if( ast_geti( fc, 'Nkey', status ) .ne. 8 ) then
+      if( ast_geti( fc, 'Nkey', status ) .ne. 9 ) then
          write(*,*) ast_geti( fc, 'Nkey', status )
          call stopit( 999, ' ', status )
       endif
