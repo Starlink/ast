@@ -58,6 +58,15 @@ c      call ast_watchmemory( 225192 )
          call stopit( 784, ' ', status )
       endif
 
+      call ast_seti( fc, 'Card', 10, status )
+      if( ast_testfits( fc, '.', there, status ) ) then
+         call stopit( 785, ' ', status )
+      else if( there ) then
+         call stopit( 786, ' ', status )
+      endif
+
+      card = ast_getc( fc, 'CardName', status )
+      if( card .ne. ' ' ) call stopit( 787, ' ', status )
 
 *  Annul the fitschan. Only 1 ref so this should delete it.
       call ast_annul( fc, status )

@@ -32281,12 +32281,15 @@ f     -  .FALSE.
 /* Get the card type. */
       type = CardType( this, status );
 
-/* If the cards data type is no undefined, return 1. */
-      if( CardType( this, status ) != AST__UNDEF ) ret = 1;
+/* Check the card exists. */
+      if( type != AST__NOTYPE ) {
 
-/* Indicate the card has been found. No card was found if the type is
-   AST__NOTYPE (as can happen if the FitsChan is empty and lname is NULL). */
-      if( there && type != AST__NOTYPE ) *there = 1;
+/* If the cards data type is not undefined, return 1. */
+         if( CardType( this, status ) != AST__UNDEF ) ret = 1;
+
+/* Indicate the card has been found. */
+         if( there ) *there = 1;
+      }
    }
 
 /* Re-instate the original current card index. */
