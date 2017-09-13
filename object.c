@@ -229,8 +229,12 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        This is needed because supplying the while settings string in
 *        place of "%s" is considered a security issue by many compilers.
 *     4-JUL-2017 (DSB):
-*        Within astLockId, perform the correct check that the supplied 
+*        Within astLockId, perform the correct check that the supplied
 *        object handle is not locked by another thread.
+*     13-SEP-2017 (DSB):
+*        Ensure the Get function only returns a NULL pointer under error 
+*        conditions. A NULL in cases where no error has occurred can cause
+*        later code to segfault.
 *class--
 */
 
@@ -2032,6 +2036,10 @@ static const char *Get( AstObject *this, const char *attrib, int *status ) {
 
 /* If required, strip out graphical escape sequences. */
          if( !astEscapes( -1 ) ) result = astStripEscapes( result );
+
+/* This function only returns a NULL pointer if an error occurs. Use a
+   null string instead otherwise. */
+         if( astOK && !result ) result = "";
       }
    }
 
@@ -7352,7 +7360,7 @@ c--
 /* Ensure the Handles arrays have been initialised. */
    if ( !active_handles ) InitContext( status );
 
-/* Get the Handle index for the supplied object identifier. Report an 
+/* Get the Handle index for the supplied object identifier. Report an
    error if the handle is associated with a different thread (no error
    if the handle has no associated thread or is associated with the
    current thread). */
