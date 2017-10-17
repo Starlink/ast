@@ -233,9 +233,10 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        Within astLockId, perform the correct check that the supplied
 *        object handle is not locked by another thread.
 *     17-SEP-2017 (DSB):
-*        Add function astCreatedAt. This increases the size of a Handle
+*        - Add function astCreatedAt. This increases the size of a Handle
 *        structure by 20 bytes. If this turns out to be problematic
 *        this facility could be controlled using a configure option.
+*        - Add routine astActiveObjects.
 *class--
 */
 
@@ -267,6 +268,7 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 #include "error.h"               /* Error reporting facilities */
 #include "memory.h"              /* Memory allocation facilities */
 #include "channel.h"             /* I/O channels */
+#include "keymap.h"              /* Hash tables */
 #include "object.h"              /* Interface definition for this class */
 #include "plot.h"                /* Plot class (for astStripEscapes) */
 #include "globals.h"             /* Thread-safe global data access */
@@ -6045,6 +6047,161 @@ void astUnlockId_( AstObject *, int, int * );
 
 /* External Interface Functions. */
 /* ----------------------------- */
+AstKeyMap *astActiveObjects_( const char *class, int subclass, int current,
+                              int *status ) {
+/*
+c++
+*  Name:
+*     astActiveObjects
+
+*  Purpose:
+*     Return pointers for all active Objects.
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+*     #include "object.h"
+*     AstKeyMap *astActiveObjects( const char *class, int subclass,
+*                                  int current )
+
+*  Class Membership:
+*     Object method.
+
+*  Description:
+*     This function returns a KeyMap holding currently active AST Object
+*     pointers. Each entry in the KeyMap will have a key that is an AST
+*     class name such as "FrameSet", "SkyFrame", "ZoomMap", etc. The
+*     value of the entry will be a 1-dimensional list of pointers for
+*     objects of the same class. Note, the returned pointers should NOT
+*     be annulled when they are no longer needed.
+*
+*     The pointers to return in the KeyMap may be restricted either by
+*     class or by context level using the function arguments.
+
+*  Parameters:
+*     class
+*        If NULL, then the returned KeyMap will contain pointers ofr
+*        Objects of all classes. If not NULL, then "class" should be a
+*        pointer to a null-terminated string holding the name of an AST
+*        class. The returned KeyMap will contain pointers only for the
+*        specified class. See also "subclass".
+*     subclass
+*        A Boolean flag indicating if all subclasses of the class
+*        specified by "class" should be included in the returned KeyMap.
+*        If zero, then subclass objects are not returned. Otherwise they
+*        are returned. The supplied "subclass" value is ignored if
+*        "class" is NULL.
+*     current
+*        A Boolean flag indicating if the returned list of pointers
+*        should be restricted to pointers issued within the current AST
+*        object context (see astBegin and astEnd).
+
+*  Returned Value:
+*     astActiveObjects()
+*        A pointer to a new KeyMap holding the required object pointers.
+*        They KeyMap pointer should be annulled when it is no longer
+*        needed, but the object pointers within the KeyMap should not be
+*        annulled. A NULL pointer is returned if an error has occurred
+*        prior to calling this function.
+
+*  Notes:
+*     - This function will only return objects locked by the currently
+*     executing thread.
+*     - The KeyMap pointer returned by this function is not included in the
+*     list of active objects stored in the KeyMap.
+
+c--
+*/
+
+/* Local Variables: */
+   AstKeyMap *result;         /* Returned KeyMap */
+   astDECLARE_GLOBALS         /* Thread-specific global data */
+   int i;                     /* Loop count */
+   int ihandle;               /* Offset of Handle to be annulled */
+   AstObjectVtab *req_vtab;   /* Vtab for requested class */
+   Handle *handle;            /* Pointer to current Handle */
+   int generation_gap;        /* Hereditary relationshp between two classes */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Get a pointer to Thread-specific global data. */
+   astGET_GLOBALS(NULL);
+
+/* Create an empty KeyMap to hold the results. */
+   result = astKeyMap( " ", status );
+
+/* If we will need to check if each object is a subclass of a specified
+   class, we need a pointer to the VTAB descriibing the specified class. */
+   req_vtab = NULL;
+   if( class && subclass ) {
+
+/* Loop round the vtab structures created by the currently executing thread. */
+      for( i = 0; i < nvtab; i++ ) {
+
+/* If the current vtab is for a class that matches the requested class,
+   store a pointer to the vtab. */
+         if( !strcmp( class, known_vtabs[ i ]->class ) ) {
+            req_vtab = known_vtabs[ i ];
+            break;
+         }
+      }
+   }
+
+/* Get exclusive access to the handles array. */
+   LOCK_MUTEX2;
+
+/* Get the index of the first Handle to check. If we are checking only the
+   current context level, then get this index from the appropriate element
+   of the active_handles array. Otherwise, we check the whole of the
+   handles array, starting at element zero. */
+   if( current && active_handles ) {
+      ihandle = active_handles[ context_level ];
+   } else {
+      ihandle = 0;
+   }
+
+/* Loop over the Handles array, starting from the above element. */
+   handle = handles + ihandle;
+   for( ; ihandle < nhandles; ihandle++,handle++ ) {
+
+/* Skip Handles that have no associated object. */
+      if( !handle->ptr ) continue;
+
+/* Skip handles that are in an unrequired context. */
+      if( current && handle->context != context_level ) continue;
+
+/* If required, check that the current handle is for an object of the
+   specified class. */
+      if( class ) {
+
+/* Skip the handle if no VTAB was found for the requested class. */
+         if( !req_vtab ) continue;
+
+/* Get the generation gap between the current handle's object and the
+   specified class. */
+         generation_gap = astClassCompare( astVTAB( handle->ptr ), req_vtab );
+
+/* Skip the handle if it is not for the specified class or a subclass. */
+         if( generation_gap < 0 || generation_gap == AST__COUSIN ||
+                           ( generation_gap > 0 && !subclass ) ) continue;
+      }
+
+/* Get the integer identifier associated with the handle, convert it to a
+   pointer and append to the end of the KeyMap entry describing the handle's
+   class. */
+      astMapPutElemP( result, astGetClass( handle->ptr ), -1,
+                      astI2P( handle->check ) );
+   }
+
+/* Relinquish access to the handles array. */
+   UNLOCK_MUTEX2;
+
+/* Return the KeyMap. */
+   return result;
+}
+
 MYSTATIC void AnnulHandle( int ihandle, int *status ) {
 /*
 *  Name:
