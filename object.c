@@ -233,10 +233,9 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        Within astLockId, perform the correct check that the supplied
 *        object handle is not locked by another thread.
 *     17-SEP-2017 (DSB):
-*        - Add function astCreatedAt. This increases the size of a Handle
+*        Add function astCreatedAt. This increases the size of a Handle
 *        structure by 20 bytes. If this turns out to be problematic
 *        this facility could be controlled using a configure option.
-*        - Add routine astActiveObjects.
 *class--
 */
 
@@ -6104,6 +6103,10 @@ c++
 *        needed, but the object pointers within the KeyMap should not be
 *        annulled. A NULL pointer is returned if an error has occurred
 *        prior to calling this function.
+*
+*        The values stored in the KeyMap should be accessed as generic C
+*        pointers using the KeyMap "P" data type (e.g. using function
+*        astMapGetlemP etc).
 
 *  Notes:
 *     - This function will only return objects locked by the currently
