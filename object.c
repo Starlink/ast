@@ -40,6 +40,7 @@ c     - astBegin: Begin a new AST context
 c     - astClear: Clear attribute values for an Object
 c     - astClone: Clone a pointer to an Object
 c     - astCopy: Copy an Object
+c     - astCreatedAt: Returns information about where an object was created
 c     - astDelete: Delete an Object
 c     - astEnd: End an AST context
 c     - astEscapes: Control whether graphical escape sequences are removed
@@ -231,10 +232,10 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *     4-JUL-2017 (DSB):
 *        Within astLockId, perform the correct check that the supplied
 *        object handle is not locked by another thread.
-*     13-SEP-2017 (DSB):
-*        Ensure the Get function only returns a NULL pointer under error 
-*        conditions. A NULL in cases where no error has occurred can cause
-*        later code to segfault.
+*     17-SEP-2017 (DSB):
+*        Add function astCreatedAt. This increases the size of a Handle
+*        structure by 20 bytes. If this turns out to be problematic
+*        this facility could be controlled using a configure option.
 *class--
 */
 
@@ -2036,10 +2037,6 @@ static const char *Get( AstObject *this, const char *attrib, int *status ) {
 
 /* If required, strip out graphical escape sequences. */
          if( !astEscapes( -1 ) ) result = astStripEscapes( result );
-
-/* This function only returns a NULL pointer if an error occurs. Use a
-   null string instead otherwise. */
-         if( astOK && !result ) result = "";
       }
    }
 
@@ -5960,6 +5957,12 @@ typedef struct Handle {
    than through pointers. */
    int flink;                    /* Backward link to previous Handle */
    int blink;                    /* Forward link to next Handle */
+
+/* Information that records where the Handle was created. */
+   const char *routine;          /* Routine name */
+   const char *file;             /* File name */
+   int line;                     /* Line number */
+
 } Handle;
 
 /* Define a union with an overlapping int and AstObject*. This is used
@@ -6573,6 +6576,102 @@ MYSTATIC int CheckId( AstObject *this_id, int lock_check, int *status ) {
 
 /* Return the result. */
    return ihandle;
+}
+
+void astCreatedAtId_( AstObject *this_id, const char **routine,
+                      const char **file, int *line, int *status ){
+/*
+c++
+*  Name:
+*     astCreatedAt
+
+*  Purpose:
+*     Return the routine, file and line number at which an Object was
+*     created.
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+*     #include "object.h"
+*     void astCreatedAt( AstObject *this, const char **routine,
+*                        const char **file, int *line )
+
+*  Class Membership:
+*     Object method.
+
+*  Description:
+*     This function returns pointers to two strings containing the
+*     name of the routine or function within which the object was created
+*     and the name of the source file containing that routine. It also
+*     returns the number of the line within the file at which the object
+*     was created. It is intended for use in debugging memory leaks etc.
+*
+*     Precisely, the information returned identifies the point at which
+*     the Object's public identifier (i.e. the supplied pointer) was
+*     first issued. This may not correspond to the actual creation of the
+*     Object if the object is contained within some higher level Object.
+*     For instance, if the astGetFrame method is used to get a pointer to
+*     a Frame within a FrameSet, the information returned by this
+*     function if supplied with the Frame pointer would identify the call
+*     to astGetFrame, rather than the line at which the FrameSet created
+*     its internal copy of the Frame. Likewise, if this function is used
+*     to get information from an Object pointer returned by astClone, the
+*     information will describe the call to astClone, not the call that
+*     created the original Object.
+
+*  Parameters:
+*     this
+*        Pointer to the Object.
+*     routine
+*        Address of a pointer to a null terminated C string in which to
+*        return the routine name (the string will reside in static memory).
+*        The pointer will be set to NULL on exit if no routine name is
+*        available.
+*     file
+*        Address of a pointer to a null terminated C string in which to
+*        return the file name (the string will reside in static memory).
+*        The pointer will be set to NULL on exit if no file name is
+*        available.
+*     line
+*        Address of an int in which to store the line number in the file.
+*        A line number of zero is returned if no line number is available.
+
+*  Notes:
+*     - NULL pointers and a line number of zero are returned if an error
+*     has already occurred prior to calling this function.
+
+c--
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS            /* Thread-specific global data */
+   int ihandle;                  /* Result to return */
+
+/* Initialise */
+   *routine = NULL;
+   *file = NULL;
+   *line = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Gain exclusive access to the handles array. */
+   LOCK_MUTEX2;
+
+/* Obtain the Handle offset for this Object. */
+   ihandle = CheckId( this_id, 1, status );
+   if ( ihandle != -1 ) {
+
+/* Copy the required pointers etc to the supplied addresses. */
+      *routine = handles[ ihandle ].routine;
+      *file = handles[ ihandle ].file;
+      *line = handles[ ihandle ].line;
+   }
+
+/* Unlock the mutex that guards access to the handles array */
+   UNLOCK_MUTEX2;
+
 }
 
 AstObject *astDeleteId_( AstObject *this_id, int *status ) {
@@ -7722,6 +7821,9 @@ AstObject *astMakeId_( AstObject *this, int *status ) {
                handles[ ihandle ].check = 0;
                handles[ ihandle ].flink = -1;
                handles[ ihandle ].blink = -1;
+               handles[ ihandle ].line = 0;
+               handles[ ihandle ].file = NULL;
+               handles[ ihandle ].routine = NULL;
 #if defined(THREAD_SAFE)
                handles[ ihandle ].thread = 0;
 #endif
@@ -7746,6 +7848,12 @@ AstObject *astMakeId_( AstObject *this, int *status ) {
 #if defined(THREAD_SAFE)
                handles[ ihandle ].thread = AST__THREAD_ID;
 #endif
+
+/* Store information that records where the Handle is created - routine
+   name, file name and line number. */
+               astGetAt( &handles[ ihandle ].routine,
+                         &handles[ ihandle ].file,
+                         &handles[ ihandle ].line );
 
 /* Store extra debugging information in the handle if enabled */
 #if defined(MEM_DEBUG)

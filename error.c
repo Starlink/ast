@@ -136,6 +136,8 @@
 *        Added facility for specifying the error handling function,
 *        astPutErr, at run-time via new function astSetPutErr, rather
 *        than at link-time.
+*     17-OCT-2017 (DSB):
+*        Added astGetAt.
 */
 
 /* Define the astCLASS macro (even although this is not a class
@@ -754,6 +756,63 @@ void astError_( int status_value, const char *fmt, int *status, ... ) {
 
 /* Undefine macros local to this function. */
 #undef BUFF_LEN
+}
+
+void astGetAt_( const char **routine, const char **file, int *line ){
+/*
+*+
+*  Name:
+*     astGetAt
+
+*  Purpose:
+*     Return the current routine, file and line number context.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "error.h"
+*     void astGetAt( const char **routine, const char **file, int *line )
+
+*  Description:
+*     This function returns pointers to two strings containing the
+*     names of a routine and a file, together with an integer line
+*     number. These values will have been stored previously by calling
+*     function astAt. Null values are returned if astAt has not been
+*     called.
+
+*  Parameters:
+*     routine
+*        Address of a pointer to a null terminated C string containing
+*        a routine name (the string will reside in static memory). The
+*        pointer will be set to NULL on exit if no routine name has been
+*        specified usiung astAt.
+*     file
+*        Address of a pointer to a null terminated C string containing
+*        a file name (the string will reside in static memory). The
+*        pointer will be set to NULL on exit if no file name has been
+*        specified usiung astAt.
+*     line
+*        Address of an int in which to stopre the line number in the file.
+*        A line number of zero is returned if no line number has been
+*        stored using astAt.
+
+*  Notes:
+*     - This function attempts to execute even if the global error status
+*     is set.
+*-
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS             /* Pointer to thread-specific global data */
+
+/* If needed, get a pointer to the thread specific global data structure. */
+   astGET_GLOBALS(NULL);
+
+/* Return the stored values */
+   *routine = current_routine;
+   *file = current_file;
+   *line = current_line;
 }
 
 int *astGetStatusPtr_(){

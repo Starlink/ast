@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V8.5.1) of the Starlink AST (astrometry) library is
+   A new release (V8.6.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,6 +17,14 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- A new function call astCreatedAt is now available that returns the function
+name, file path and line number at which an AST object was first created.
+
+
+
+Main Changes in V8.5.1
+----------------------
 
 - A new class of Mapping called ChebyMap has been added. This is a
 Mapping that implements Chebyshev polynomial transformations.

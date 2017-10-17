@@ -18,7 +18,7 @@ f+
 \stardocnumber      {210.28}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {4th April 2017}
+\stardocdate        {17th October 2017}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -21777,11 +21777,9 @@ determination.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.5}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.4.0 and V8.5.0 (the
-current version):
+\subsection{Changes Introduced in V8.5}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.4.0 and V8.5.1:
 
 \begin{enumerate}
 
@@ -21834,6 +21832,20 @@ a ``Dtai'' value (\emph{i.e.} the number of leap seconds) to be supplied by the
 caller. If AST\_\_BAD is supplied for ``Dtai'', the internal look-up table of
 leap seconds contained withn AST will be used. The conversions affected
 are those between TAI and UTC, and those between TT and TDB.
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V8.6}
+The following describes the most significant changes which have
+occurred in the AST library between versions V8.5.1 and V8.6.0 (the
+current version):
+
+\begin{enumerate}
+
+\item A new function call astCreatedAt is now available that returns the
+function name, file path and line number at which an AST object was first
+created. Note, there is no Fortran equivalent to this new C function.
 
 \end{enumerate}
 
