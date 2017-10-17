@@ -6113,6 +6113,10 @@ c++
 *     executing thread.
 *     - The KeyMap pointer returned by this function is not included in the
 *     list of active objects stored in the KeyMap.
+*     - Objects that were created using the Fortran interface will have a
+*     null "file" value and will have a routine name equal to the upper case
+*     Fortran routine that issued the pointer (e.g. "AST_CLONE", "AST_FRAME",
+*     etc).
 
 c--
 */
@@ -6174,6 +6178,11 @@ c--
 
 /* Skip handles that are in an unrequired context. */
       if( current && handle->context != context_level ) continue;
+
+#if defined(THREAD_SAFE)
+/* Skip handles that are not locked for use by the current thread. */
+      if( handle->thread != AST__THREAD_ID ) continue;
+#endif
 
 /* If required, check that the current handle is for an object of the
    specified class. */
