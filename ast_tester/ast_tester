@@ -28,36 +28,36 @@
 #     - Unless the "-nd" option is specified, it requires the gv command (a
 #       frontend for ghostscript) to be on your PATH.
 #     - The following environment variables are used:
-#        STARLINK - should be set to the root of the tree in which the SSC is
+#        STARLINK_DIR - should be set to the root of the tree in which the SSC is
 #              installed. A default of /star is used if not set.
 #        AST - should be set to the root of the tree in which the version of
-#              AST to be tested is installed. A default of $STARLINK is used
+#              AST to be tested is installed. A default of $STARLINK_DIR is used
 #              if not set.
 
 #  Author:
 #     DSB: David Berry (JAC, Hawaii)
 #-
 
-if( ! $?STARLINK ) then
-   setenv STARLINK /star
+if( ! $?STARLINK_DIR ) then
+   setenv STARLINK_DIR /star
 endif
 
 if( ! $?AST ) then
-   setenv AST $STARLINK
+   setenv AST $STARLINK_DIR
 endif
 
 if( ! $?LDFLAGS ) then
    setenv LDFLAGS ""
 endif
 
-setenv PATH $AST/bin\:$STARLINK/bin\:$PATH
+setenv PATH $AST/bin\:$STARLINK_DIR/bin\:$PATH
 
 
 # Build the progs
-#gfortran -fno-second-underscore -o regression regression.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK/include -L$AST/lib -L$STARLINK/lib `ast_link -ems` `chr_link`
-gfortran -fno-second-underscore -o plotter plotter.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK/include -L$AST/lib -L$STARLINK/lib `ast_link -pgp -ems` `pgplot_link`
-gfortran -fno-second-underscore -o wcsconverter wcsconverter.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK/include -L$AST/lib -L$STARLINK/lib `ast_link -ems` `chr_link` `err_link`
-gfortran -fno-second-underscore -o simplify simplify.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK/include -L$AST/lib -L$STARLINK/lib `ast_link -ems` `chr_link` `err_link`
+#gfortran -fno-second-underscore -o regression regression.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK_DIR/include -L$AST/lib -L$STARLINK_DIR/lib `ast_link -ems` `chr_link`
+gfortran -fno-second-underscore -o plotter plotter.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK_DIR/include -L$AST/lib -L$STARLINK_DIR/lib `ast_link -pgp -ems` `pgplot_link`
+gfortran -fno-second-underscore -o wcsconverter wcsconverter.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK_DIR/include -L$AST/lib -L$STARLINK_DIR/lib `ast_link -ems` `chr_link` `err_link`
+gfortran -fno-second-underscore -o simplify simplify.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK_DIR/include -L$AST/lib -L$STARLINK_DIR/lib `ast_link -ems` `chr_link` `err_link`
 
 # Run the other test progs
 echo ""
@@ -66,7 +66,7 @@ echo ""
 foreach prog (testchebymap testunitnormmap testskyframe testframeset testchannel testpolymap testcmpmap testlutmap testfitstable testtable teststcschan teststc testspecframe testfitschan testswitchmap testrebin testrebinseq testtrangrid testnormmap testtime testrate testflux testratemap testspecflux testxmlchan testregions testkeymap )
 
 gfortran -fno-second-underscore -w -g -o $prog -g $prog.f -fno-range-check $LDFLAGS -I$AST/include \
-     -I$STARLINK/include -L$AST/lib -L$STARLINK/lib `ast_link -ems` \
+     -I$STARLINK_DIR/include -L$AST/lib -L$STARLINK_DIR/lib `ast_link -ems` \
      `psx_link` `prm_link` `chr_link` `err_link`
 
 ./$prog
@@ -78,7 +78,7 @@ end
 
 foreach prog (testobject testconvert testerror)
 
-gcc -o $prog $prog.c -I.. -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK/lib `ast_link`
+gcc -o $prog $prog.c -I.. -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK_DIR/lib `ast_link`
 
 ./$prog
 \rm $prog
@@ -127,8 +127,8 @@ foreach n (*.head)
    set psfile = "${bn}-new.ps"
    ./plotter $n "$attr1" "$attr2" a.ps $box
 
-   if( -e $STARLINK/bin/psmerge ) then
-      $STARLINK/bin/psmerge -t300x300 -r90 a.ps > $psfile
+   if( -e $STARLINK_DIR/bin/psmerge ) then
+      $STARLINK_DIR/bin/psmerge -t300x300 -r90 a.ps > $psfile
    else
       cp a.ps $psfile
    endif
