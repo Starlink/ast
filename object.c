@@ -2619,6 +2619,9 @@ const char *astGetC_( AstObject *this, const char *attrib, int *status ) {
    character string. */
    value = Get( this, attrib, status );
 
+/* Use a null string if a NULL pointer was returned by Get. */
+   if( !value ) value = "";
+
 /* If OK, store a copy of the resulting string in dynamically
    allocated memory, putting a pointer to the copy into the next
    element of the "astgetc_strings" array.  (This process also de-allocates
