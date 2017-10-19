@@ -92,6 +92,9 @@
 #include <pthread.h>
 #endif
 
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 /* Macros. */
 /* ======= */
@@ -112,17 +115,15 @@
 
 
 /* This macro expands to an invocation of a specified function, together
-   with a call to astAt to record the routine, file and line number at which 
-   the invocation occurs. These are included in public error reports and are 
-   stored with public Object identifiers (from which they can be recoivered 
-   using function astCreatedAt). This is only done for invocations from 
+   with a call to astAt to record the routine, file and line number at which
+   the invocation occurs. These are included in public error reports and are
+   stored with public Object identifiers (from which they can be recoivered
+   using function astCreatedAt). This is only done for invocations from
    outside of AST (i.e. public invocations). */
 #if defined(astCLASS) || defined(astFORTRAN77)
 #define astERROR_INVOKE(function) (function)
-#elif (__STDC_VERSION__ >= 199901L)  /* C99 */
-#define astERROR_INVOKE(function) (astAt_(__func__,__FILE__,__LINE__,0,astGetStatusPtr),(function))
-#elif defined(__FUNCTION__)             /* gcc */
-#define astERROR_INVOKE(function) (astAt_(__FUNCTION__,__FILE__,__LINE__,0,astGetStatusPtr),(function))
+#elif defined FUNCTION_NAME
+#define astERROR_INVOKE(function) (astAt_(FUNCTION_NAME,__FILE__,__LINE__,0,astGetStatusPtr),(function))
 #else
 #define astERROR_INVOKE(function) (astAt_(NULL,__FILE__,__LINE__,0,astGetStatusPtr),(function))
 #endif

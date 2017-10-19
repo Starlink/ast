@@ -107,6 +107,33 @@ AC_CHECK_TYPES([int64_t, uint64_t])
 AC_CHECK_SIZEOF(long)
 AC_CHECK_SIZEOF(long long)
 
+
+# Decide how to get the name of the curently executing function.
+# -------------------------------------------------------------
+AC_DEFUN([CIT_FUNCTIONSTRING], [
+  set_function_name=no
+
+  AC_MSG_CHECKING([whether C compiler defines __FUNCTION__])
+  AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM([[]], [[const char* name = __FUNCTION__;]])],
+    [AC_MSG_RESULT(yes)
+     set_function_name=yes
+     AC_DEFINE([FUNCTION_NAME], [__FUNCTION__], [Variable holding current function name.])],
+    [AC_MSG_RESULT(no)])
+
+  if test "$set_function_name" == no; then
+    AC_MSG_CHECKING([whether C compiler defines __func__])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([[]], [[const char* name = __func__;]])],
+      [AC_MSG_RESULT(yes)
+       set_function_name=yes
+       AC_DEFINE([FUNCTION_NAME], [__func__], [Variable holding current function name.])],
+      [AC_MSG_RESULT(no)])
+  fi
+])
+
+CIT_FUNCTIONSTRING
+
 #  Conditional defining whether we want to support Fortran libraries
 #  (e.g. pgplot) and applications.
 AC_ARG_WITH([fortran],
