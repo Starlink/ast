@@ -610,7 +610,7 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
    IVOAScan *scan;
    char *decset;
    char *raset;
-   char buff[ DBL_DIG + 30 ];
+   char buff[ AST__DBL_DIG + 30 ];
    char setting[ 100 ];
    const char *dom;
    const char *id;
@@ -903,7 +903,7 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
    formatting and unformatting steps. */
                fr = astCopy( space_frame );
                astClear( fr, "Format(1),Format(2),Digits(1),Digits(2)" );
-               astSet( fr, "digits=%d,system=FK5,equinox=J2000", status, DBL_DIG);
+               astSet( fr, "digits=%d,system=FK5,equinox=J2000", status, AST__DBL_DIG);
                fs = astConvert( space_frame, fr, "" );
                fr = astAnnul( fr );
                if( fs ) {
@@ -984,7 +984,7 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
                }
                fr = astAnnul( fr );
 
-               sprintf( buff, "epoch= MJD %.*g", DBL_DIG, time_val );
+               sprintf( buff, "epoch= MJD %.*g", AST__DBL_DIG, time_val );
 
                if( !space_frame || !astTestEpoch( space_frame ) ) {
                   for( ispace = 0; ispace < nspace; ispace++ ) {
@@ -1025,7 +1025,7 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
             if( spec_val != AST__BAD && nred > 0 ) {
 
                text = astGetUnit( spec_frame, 0 );
-               if( text ) sprintf( buff, "restfreq= %.*g %s", DBL_DIG,
+               if( text ) sprintf( buff, "restfreq= %.*g %s", AST__DBL_DIG,
                                    spec_val, text );
 
                if( !red_frame || !astTestRestFreq( red_frame ) ) {
@@ -1171,7 +1171,7 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
 
 /* Ensure the Epoch is set correctly in the Region */
             if( time_val != AST__BAD ) {
-               sprintf( buff, "epoch= MJD %.*g", DBL_DIG, time_val );
+               sprintf( buff, "epoch= MJD %.*g", AST__DBL_DIG, time_val );
                astRegSetAttrib( new, buff, NULL );
             }
 
@@ -5574,7 +5574,7 @@ static AstXmlElement *MakePos2D( AstXmlChan *this, AstXmlElement *elem, int *sta
          if( scan->count[ 2 ] > 0 ) {
             ElemListD( this, scan->el[ 2 ][ 0 ], 3, pos, status );
             el = astXmlAddElement( new, "Value2", NULL );
-            sprintf( buff, "%.*g %.*g", DBL_DIG, pos[0], DBL_DIG, pos[1] );
+            sprintf( buff, "%.*g %.*g", AST__DBL_DIG, pos[0], AST__DBL_DIG, pos[1] );
             astXmlAddCharData( el, 0, buff );
          }
 
@@ -5583,7 +5583,7 @@ static AstXmlElement *MakePos2D( AstXmlChan *this, AstXmlElement *elem, int *sta
          if( scan->count[ 1 ] > 0 ) {
             ElemListD( this, scan->el[ 1 ][ 0 ], 3, pos, status );
             el = astXmlAddElement( new, "Error2", NULL );
-            sprintf( buff, "%.*g %.*g", DBL_DIG, pos[0], DBL_DIG, pos[1] );
+            sprintf( buff, "%.*g %.*g", AST__DBL_DIG, pos[0], AST__DBL_DIG, pos[1] );
             astXmlAddCharData( el, 0, buff );
          }
 
@@ -5935,14 +5935,14 @@ static AstPointList *ObservatoryLocationReader( AstXmlChan *this,
          for( i = 0; i < nax; i++ ) {
             astPrimaryFrame( obs_frm, i, &pfrm, &paxis );
             if( astIsASpecFrame( pfrm ) ) {
-               sprintf( setting, "ObsLon(%d)=%.*g", i + 1, DBL_DIG, lambda*AST__DR2D );
+               sprintf( setting, "ObsLon(%d)=%.*g", i + 1, AST__DBL_DIG, lambda*AST__DR2D );
                astRegSetAttrib( obs, setting, NULL );
-               sprintf( setting, "ObsLat(%d)=%.*g", i + 1, DBL_DIG, phi*AST__DR2D );
+               sprintf( setting, "ObsLat(%d)=%.*g", i + 1, AST__DBL_DIG, phi*AST__DR2D );
                astRegSetAttrib( obs, setting, NULL );
             } else if( astIsATimeFrame( pfrm ) ) {
-               sprintf( setting, "ObsLon(%d)=%.*g", i + 1, DBL_DIG, lambda*AST__DR2D );
+               sprintf( setting, "ObsLon(%d)=%.*g", i + 1, AST__DBL_DIG, lambda*AST__DR2D );
                astRegSetAttrib( obs, setting, NULL );
-               sprintf( setting, "ObsLat(%d)=%.*g", i + 1, DBL_DIG, phi*AST__DR2D );
+               sprintf( setting, "ObsLat(%d)=%.*g", i + 1, AST__DBL_DIG, phi*AST__DR2D );
                astRegSetAttrib( obs, setting, NULL );
             }
             pfrm = astAnnul( pfrm );
@@ -7807,7 +7807,7 @@ static void ReCentreAnc( AstRegion *region, int nanc, AstKeyMap **ancs, int *sta
 /* Get the Region Epoch. */
       if( astTestEpoch( frm ) ){
          epoch = astGetEpoch( frm );
-         sprintf( setting, "Epoch=MJD %.*g", DBL_DIG, epoch );
+         sprintf( setting, "Epoch=MJD %.*g", AST__DBL_DIG, epoch );
       } else {
          setting[ 0 ] = 0;
          epoch = AST__BAD;
@@ -12175,7 +12175,7 @@ static void WriteDouble( AstChannel *this_channel, const char *name,
    Make sure "-0" isn't produced. Use a magic string to represent bad
    values. */
          if( value != AST__BAD ) {
-            (void) sprintf( buff, "%.*g", DBL_DIG, value );
+            (void) sprintf( buff, "%.*g", AST__DBL_DIG, value );
             if ( !strcmp( buff, "-0" ) ) {
                buff[ 0 ] = '0';
                buff[ 1 ] = '\0';

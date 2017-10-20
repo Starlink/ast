@@ -1787,7 +1787,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                   && ( nc >= len ) ) {
       dval = astGetPV( this, astGetWcsAxis( this, 1 ), m );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -1797,7 +1797,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                   && ( nc >= len ) ) {
       dval = astGetPV( this, i - 1, m );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -1825,7 +1825,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "natlat" ) ) {
       dval = astGetNatLat( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -1834,7 +1834,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "natlon" ) ) {
       dval = astGetNatLon( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 

@@ -75,7 +75,8 @@
          mp = ast_getmapping( fs, AST__BASE, AST__CURRENT, status )
          if( .not. ast_isazoommap( mp, status ) ) then
             call stopit( status, 'error 13' )
-         else if( ast_getd( mp, 'Zoom', status ) .ne. 1.0D-9 ) then
+         else if( abs( ast_getd( mp, 'Zoom', status ) - 1.0D-9 )
+     :            .gt. 1.0E-24 ) then
             write(*,*) ast_getd( mp, 'Zoom', status )
             call stopit( status, 'error 14' )
          end if

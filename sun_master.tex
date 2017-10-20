@@ -21847,6 +21847,11 @@ current version):
 function name, file path and line number at which an AST object was first
 created. Note, there is no Fortran equivalent to this new C function.
 
+\item The number of digits used to format floating point values has been
+increased in order to avoid loss of precision when converting from binary
+to string and back to binary. This could cause very small changes in numerical
+values returned by AST functions.
+
 \end{enumerate}
 
 Programs which are statically linked will need to be re-linked in

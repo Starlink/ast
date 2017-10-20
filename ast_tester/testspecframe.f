@@ -14,7 +14,8 @@
 
       rf = ast_GetD( sf, 'RestFreq', status )
       call ast_SetD( sf, 'SpecOrigin', rf*1.0D9, status )
-      if( ast_GetD( sf, 'SpecOrigin', status ) .ne. rf*1.0D9 ) then
+      if( abs( ast_GetD( sf, 'SpecOrigin', status ) - rf*1.0D9 )
+     :    .gt. 0.1 ) then
          call stopit( status, 'Error 1' )
       end if
 
@@ -33,8 +34,9 @@
 
       call ast_setc( sf, 'System', 'freq', status )
       call ast_setc( sf, 'Unit(1)', 'Hz', status )
-      if( abs( ast_GetD( sf, 'SpecOrigin', status ) ) .ne.
-     :            rf*1.0D9 ) then
+
+      if( abs( ast_GetD( sf, 'SpecOrigin', status ) - rf*1.0D9 )
+     :    .gt. 0.1 ) then
          write(*,*) ast_GetD( sf, 'SpecOrigin', status )
          call stopit( status, 'Error 5' )
       end if

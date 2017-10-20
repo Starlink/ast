@@ -3243,7 +3243,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
           && ( nc >= len ) ) {
       dval = astGetNorm( this, axis - 1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 

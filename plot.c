@@ -4574,7 +4574,7 @@ static void AxPlot( AstPlot *this, int axis, const double *start, double length,
 
 #ifdef CRV_TRACE
    printf("AXPLOT: axis %d, start (%.*g,%.*g), length %.*g\n",
-          axis, DBL_DIG, start[0], DBL_DIG, start[1], DBL_DIG, length );
+          axis, AST__DBL_DIG, start[0], AST__DBL_DIG, start[1], AST__DBL_DIG, length );
    getchar();
 #endif
 
@@ -15515,7 +15515,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    if ( !strcmp( attrib, "tol" ) ) {
       dval = astGetTol( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15616,7 +15616,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = GetUsedLabelAt( this, axis - 1, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15627,7 +15627,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = GetUsedCentre( this, axis - 1, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15636,7 +15636,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "gap" ) ) {
       dval = GetUsedGap( this, 0, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15647,7 +15647,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = GetUsedGap( this, axis - 1, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15656,7 +15656,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "loggap" ) ) {
       dval = GetUsedLogGap( this, 0, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15667,7 +15667,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = GetUsedLogGap( this, axis - 1, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15676,7 +15676,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "numlabgap" ) ) {
       dval = astGetNumLabGap( this, 0 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15687,7 +15687,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = astGetNumLabGap( this, axis - 1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15696,7 +15696,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "textlabgap" ) ) {
       dval = astGetTextLabGap( this, 0 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15707,7 +15707,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = astGetTextLabGap( this, axis - 1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -15996,7 +15996,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "width" ) ) {
       dval = GetUseWidth( this, AST__BORDER_ID, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -16008,7 +16008,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = GetUseWidth( this, FullForm( GrfLabels, label, attrib, "astGet", astGetClass( this ), status ), status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -16017,7 +16017,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "size" ) ) {
       dval = GetUseSize( this, AST__TEXTLABS_ID, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -16028,7 +16028,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = GetUseSize( this, FullForm( GrfLabels, label, attrib, "astGet", astGetClass( this ), status ), status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -16037,7 +16037,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "titlegap" ) ) {
       dval = astGetTitleGap( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -16046,7 +16046,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "majticklen" ) ) {
       dval = GetUsedMajTickLen( this, 0, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -16057,7 +16057,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = GetUsedMajTickLen( this, axis - 1, status );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -16066,7 +16066,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "minticklen" ) ) {
       dval = astGetMinTickLen( this, 0 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -16077,7 +16077,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = astGetMinTickLen( this, axis - 1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -29417,8 +29417,8 @@ static int ToggleLogLin( AstPlot *this, int axis, int islog,
    AstMathMap *logmap;  /* 1D Logarithmic axis Mapping */
    AstUnitMap *unitmap;  /* 1D Unit mapping */
    AstWinMap *linmap;   /* 1D Linear axis Mapping */
-   char fwdexp[ 25 + 2*DBL_DIG ];  /* Forward log mapping expression */
-   char invexp[ 28 + 2*DBL_DIG ];  /* Inverse log mapping expression */
+   char fwdexp[ 25 + 2*AST__DBL_DIG ];  /* Forward log mapping expression */
+   char invexp[ 28 + 2*AST__DBL_DIG ];  /* Inverse log mapping expression */
    const char *fwd[1];  /* Pointer to pass to MathMap constructor */
    const char *inv[1];  /* Pointer to pass to MathMap constructor */
    double a;            /* Constant for log expression */
@@ -29479,13 +29479,13 @@ static int ToggleLogLin( AstPlot *this, int axis, int islog,
 
       if( b1 > 0.0 ) {
          b = ( g2*log10( b1 ) - g1*log10( b2 ) )/c;
-         (void) sprintf( invexp, "g=%.*g*log10(b)+%.*g", DBL_DIG, a, DBL_DIG, b );
-         (void) sprintf( fwdexp, "b=pow(10,(g-%.*g)/%.*g)", DBL_DIG, b, DBL_DIG, a );
+         (void) sprintf( invexp, "g=%.*g*log10(b)+%.*g", AST__DBL_DIG, a, AST__DBL_DIG, b );
+         (void) sprintf( fwdexp, "b=pow(10,(g-%.*g)/%.*g)", AST__DBL_DIG, b, AST__DBL_DIG, a );
 
       } else {
          b = ( g2*log10( -b1 ) - g1*log10( -b2 ) )/c;
-         (void) sprintf( invexp, "g=%.*g*log10(-b)+%.*g", DBL_DIG, a, DBL_DIG, b );
-         (void) sprintf( fwdexp, "b=-pow(10,(g-%.*g)/%.*g)", DBL_DIG, b, DBL_DIG, a );
+         (void) sprintf( invexp, "g=%.*g*log10(-b)+%.*g", AST__DBL_DIG, a, AST__DBL_DIG, b );
+         (void) sprintf( fwdexp, "b=-pow(10,(g-%.*g)/%.*g)", AST__DBL_DIG, b, AST__DBL_DIG, a );
       }
 
       fwd[ 0 ] = (const char *) fwdexp;

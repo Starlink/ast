@@ -4233,7 +4233,7 @@ static void WriteDouble( AstChannel *this, const char *name,
 /* Format the value as a string and append this. Make sure "-0" isn't
    produced. Use a magic string to represent bad values. */
       if( value != AST__BAD ) {
-         (void) sprintf( buff, "%.*g", DBL_DIG, value );
+         (void) sprintf( buff, "%.*g", AST__DBL_DIG, value );
          if ( !strcmp( buff, "-0" ) ) {
             buff[ 0 ] = '0';
             buff[ 1 ] = '\0';

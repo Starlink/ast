@@ -226,7 +226,7 @@ typedef enum {
 
 /* System constants. */
    OP_LDBAD,                     /* Load bad value (AST__BAD) */
-   OP_LDDIG,                     /* Load # decimal digits (DBL_DIG) */
+   OP_LDDIG,                     /* Load # decimal digits (AST__DBL_DIG) */
    OP_LDEPS,                     /* Load relative precision (DBL_EPSILON) */
    OP_LDMAX,                     /* Load largest value (DBL_MAX) */
    OP_LDMAX10E,                  /* Max. decimal exponent (DBL_MAX_10_EXP) */
@@ -2553,7 +2553,7 @@ static void EvaluateFunction( Rcontext *rcontext, int npoint,
 
 /* The following load constants associated with the (double) floating
    point representation into the top of stack element. */
-            ARG_0( OP_LDDIG,    ;, *y = (double) DBL_DIG )
+            ARG_0( OP_LDDIG,    ;, *y = (double) AST__DBL_DIG )
             ARG_0( OP_LDEPS,    ;, *y = DBL_EPSILON )
             ARG_0( OP_LDMAX,    ;, *y = DBL_MAX )
             ARG_0( OP_LDMAX10E, ;, *y = (double) DBL_MAX_10_EXP )

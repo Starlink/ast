@@ -1353,7 +1353,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "restfreq" ) ) {
       dval = astGetRestFreq( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval*1.0E-9 );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval*1.0E-9 );
          result = getattrib_buff;
       }
 
@@ -1369,7 +1369,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
              astGetSourceSys( this ) == AST__VOPTICAL ) dval *= 1.0E-3;
 
 /* Format */
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
 
       }
@@ -1379,7 +1379,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "specorigin" ) ) {
       dval = GetSpecOriginCur( this, status );
       if( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 

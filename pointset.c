@@ -2327,9 +2327,9 @@ static void ShowPoints( AstPointSet *this, int *status ) {
       for( ip = 0; ip < np; ip++,p++ ) {
          for( ic = 0; ic < nc; ic++ ) {
             if( ptr[ic][ip] != AST__BAD ) {
-               printf("%.*g ", DBL_DIG, ptr[ic][ip] );
+               printf("%.*g ", AST__DBL_DIG, ptr[ic][ip] );
             } else {
-               printf("%*s ", -DBL_DIG, "null");
+               printf("%*s ", -AST__DBL_DIG, "null");
             }
          }
          printf("\n");

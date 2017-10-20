@@ -494,7 +494,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "lutepsilon" ) ) {
       luteps = astGetLutEpsilon( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, luteps );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, luteps );
          result = getattrib_buff;
       }
 

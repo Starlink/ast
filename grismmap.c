@@ -848,56 +848,56 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    if ( !strcmp( attrib, "grismnr" ) ) {
       dval = astGetGrismNR( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
    } else if ( !strcmp( attrib, "grismnrp" ) ) {
       dval = astGetGrismNRP( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
    } else if ( !strcmp( attrib, "grismwaver" ) ) {
       dval = astGetGrismWaveR( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
    } else if ( !strcmp( attrib, "grismalpha" ) ) {
       dval = astGetGrismAlpha( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
    } else if ( !strcmp( attrib, "grismg" ) ) {
       dval = astGetGrismG( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
    } else if ( !strcmp( attrib, "grismm" ) ) {
       dval = astGetGrismM( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
    } else if ( !strcmp( attrib, "grismeps" ) ) {
       dval = astGetGrismEps( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
    } else if ( !strcmp( attrib, "grismtheta" ) ) {
       dval = astGetGrismTheta( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 

@@ -3173,7 +3173,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "fillfactor" ) ) {
       dval = astGetFillFactor( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -11431,7 +11431,7 @@ double *astRegTranPoint_( AstRegion *this, double *in, int np, int forward, int 
       if( pset_out && astStatus == AST__INTER ) {
          p = in;
          for( ip = 0; ip < np; ip++ ) {
-            for( ic = 0; ic < naxin; ic++ ) printf("%.*g\n", DBL_DIG, *(p++) );
+            for( ic = 0; ic < naxin; ic++ ) printf("%.*g\n", AST__DBL_DIG, *(p++) );
          }
       }
 

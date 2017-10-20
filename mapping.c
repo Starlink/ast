@@ -9834,7 +9834,7 @@ static void Rebin##X( AstMapping *this, double wlim, int ndim_in, \
    if ( astOK && ( tol < 0.0 ) ) { \
       astError( AST__PATIN, "astRebin"#X"(%s): Invalid positional " \
                 "accuracy tolerance (%.*g pixel).", status, \
-                astGetClass( this ), DBL_DIG, tol ); \
+                astGetClass( this ), AST__DBL_DIG, tol ); \
       astError( AST__PATIN, "This value should not be less than zero." , status); \
    } \
 \
@@ -12138,7 +12138,7 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
       if ( astOK && ( tol < 0.0 ) ) { \
          astError( AST__PATIN, "astRebinSeq"#X"(%s): Invalid positional " \
                    "accuracy tolerance (%.*g pixel).", status, \
-                   astGetClass( this ), DBL_DIG, tol ); \
+                   astGetClass( this ), AST__DBL_DIG, tol ); \
          astError( AST__PATIN, "This value should not be less than zero." , status); \
       } \
 \
@@ -13010,7 +13010,7 @@ static void ReportPoints( AstMapping *this, int forward,
             printf( "%s<bad>", coord ? ", " : "" );
          } else {
             printf( "%s%.*g", coord ? ", " : "",
-                              DBL_DIG, ptr_in[ coord ][ point ] );
+                              AST__DBL_DIG, ptr_in[ coord ][ point ] );
          }
       }
 
@@ -13021,7 +13021,7 @@ static void ReportPoints( AstMapping *this, int forward,
             printf( "%s<bad>", coord ? ", " : "" );
          } else {
             printf( "%s%.*g", coord ? ", " : "",
-                              DBL_DIG, ptr_out[ coord ][ point ] );
+                              AST__DBL_DIG, ptr_out[ coord ][ point ] );
          }
       }
       printf( ")\n" );
@@ -13993,7 +13993,7 @@ static int Resample##X( AstMapping *this, int ndim_in, \
    if ( astOK && ( tol < 0.0 ) ) { \
       astError( AST__PATIN, "astResample"#X"(%s): Invalid positional " \
                 "accuracy tolerance (%.*g pixel).", status, \
-                astGetClass( this ), DBL_DIG, tol ); \
+                astGetClass( this ), AST__DBL_DIG, tol ); \
       astError( AST__PATIN, "This value should not be less than zero." , status); \
    } \
 \
@@ -20378,7 +20378,7 @@ f     be reversed.
    if ( astOK && ( tol < 0.0 ) ) {
       astError( AST__PATIN, "astTranGrid(%s): Invalid positional "
                 "accuracy tolerance (%.*g pixel).", status,
-                astGetClass( this ), DBL_DIG, tol );
+                astGetClass( this ), AST__DBL_DIG, tol );
       astError( AST__PATIN, "This value should not be less than zero." , status);
    }
 

@@ -1096,7 +1096,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    if ( !strcmp( attrib, "disco" ) ) {
       dval = astGetDisco( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -1107,7 +1107,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
                && ( nc >= len ) ) {
       dval = astGetPcdCen( this, axis - 1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -1116,7 +1116,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "pcdcen" ) ) {
       dval = astGetPcdCen( this, 0 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 

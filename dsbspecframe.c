@@ -476,7 +476,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
          } else {
 
 /* Format it. */
-            (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dtemp );
+            (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dtemp );
             result = getattrib_buff;
          }
          tmap = astAnnul( tmap );
@@ -487,7 +487,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "if" ) ) {
       dval = astGetIF( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval*1.0E-9 );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval*1.0E-9 );
          result = getattrib_buff;
       }
 
@@ -496,7 +496,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "imagfreq" ) ) {
       dval = astGetImagFreq( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval*1.0E-9 );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval*1.0E-9 );
          result = getattrib_buff;
       }
 

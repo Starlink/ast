@@ -931,7 +931,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
       dval = astGetSpecVal( this );
       if ( astOK ) {
          if( dval != AST__BAD ) {
-            (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+            (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
             result = getattrib_buff;
          } else {
             result = "<bad>";

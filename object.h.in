@@ -391,6 +391,26 @@
 #define AST__COUSIN -1000000
 #endif
 
+/* Number of digits to use when formatting double precision floating point
+   values. DBL_DIG ensures no loss when round-tripping from text to
+   binary to text, but we want no loss when round-tripping from binary to
+   text to binary, so we use DBL_DECIMAL_DIG instead. If this is not
+   avaialable we use DBL_DIG but add on an extra 3 digits. */
+#ifdef DBL_DECIMAL_DIG
+  #define AST__DBL_DIG (DBL_DECIMAL_DIG)
+#else
+  #define AST__DBL_DIG (DBL_DIG + 3)
+#endif
+
+#ifdef FLT_DECIMAL_DIG
+  #define AST__FLT_DIG (FLT_DECIMAL_DIG)
+#else
+  #define AST__FLT_DIG (FLT_DIG + 3)
+#endif
+
+
+
+
 /*
 *+
 *  Name:

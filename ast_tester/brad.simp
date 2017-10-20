@@ -8,8 +8,8 @@
           IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Sft1 = -0.215698 	# Shift for axis 1
-          Scl2 = 5.23598775598299e-06 	# Scale factor for axis 2
-          Scl3 = 5.23598775598299e-06 	# Scale factor for axis 3
+          Scl2 = 5.2359877559829903e-06 	# Scale factor for axis 2
+          Scl3 = 5.2359877559829903e-06 	# Scale factor for axis 3
        End WinMap
     MapB = 	# Second component Mapping
        Begin CmpMap 	# Compound Mapping
@@ -27,16 +27,16 @@
                 Incr = 100 	# Input value increment between elements
                 LutInt = 0 	# Interpolation method
                 L1 = 1.39532005786896 	# Lookup table elements...
-                L2 = 1.50432002544403
+                L2 = 1.5043200254440301
                 L3 = 1.61332011222839
-                L4 = 1.72232007980347
+                L4 = 1.7223200798034699
                 L5 = 1.83132004737854
                 L6 = 1.94032001495361
-                L7 = 2.04932022094727
-                L8 = 2.15831995010376
-                L9 = 2.26732015609741
-                L10 = 2.37632012367249
-                L11 = 2.48532009124756
+                L7 = 2.0493202209472701
+                L8 = 2.1583199501037602
+                L9 = 2.2673201560974099
+                L10 = 2.3763201236724898
+                L11 = 2.4853200912475599
              End LutMap
           MapB = 	# Second component Mapping
              Begin WcsMap 	# FITS-WCS sky projection

@@ -3853,7 +3853,7 @@ void astSet##code##_( AstObject *this, const char *attrib, type value, int *stat
 }
 
 /* Use this macro to create all the SetX_ private member functions. */
-MAKE_SETX(D,double,"%.*g",4,DBL_DIG)
+MAKE_SETX(D,double,"%.*g",4,AST__DBL_DIG)
 MAKE_SETX(F,float,"%.*g",4,FLT_DIG)
 MAKE_SETX(I,int,"%.*d",4,1)
 MAKE_SETX(L,long,"%.*ld",5,1)

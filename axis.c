@@ -809,7 +809,7 @@ static const char *AxisFormat( AstAxis *this, double value, int *status ) {
             }
             astError( AST__FMTER, "astAxisFormat(%s): Error formatting a "
                       "coordinate value of %1.*G%s%s.", status, astGetClass( this ),
-                      DBL_DIG, value, stat? " - " : "", errstat );
+                      AST__DBL_DIG, value, stat? " - " : "", errstat );
             astError( AST__FMTER, "The format string was \"%s\".", status, fmt );
 
 /* Also check that the result buffer did not overflow. If it did, memory will
@@ -819,7 +819,7 @@ static const char *AxisFormat( AstAxis *this, double value, int *status ) {
             astError( AST__FMTER, "astAxisFormat(%s): Internal buffer "
                       "overflow while formatting a coordinate value of %1.*G "
                       "- result exceeds %d characters.", status, astGetClass( this ),
-                      DBL_DIG, value, AST__AXIS_AXISFORMAT_BUFF_LEN );
+                      AST__DBL_DIG, value, AST__AXIS_AXISFORMAT_BUFF_LEN );
             astError( AST__FMTER, "The format string was \"%s\".", status, fmt );
 
 /* If succesfull, return a pointer to the buffer. */
@@ -1762,7 +1762,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "top" ) ) {
       dval = astGetAxisTop( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -1771,7 +1771,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "bottom" ) ) {
       dval = astGetAxisBottom( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 

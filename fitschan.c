@@ -6838,7 +6838,7 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             (void) memcpy( buff, odata, osize );
          } else if( type == AST__STRING || type == AST__CONTINUE  ){
             if( odouble != AST__BAD ) {
-               (void) sprintf( cnvtype_text, "%.*g", DBL_DIG, odouble );
+               (void) sprintf( cnvtype_text, "%.*g", AST__DBL_DIG, odouble );
                CheckZero( cnvtype_text, odouble, 0, status );
             } else {
                strcpy( cnvtype_text, BAD_STRING );
@@ -6992,9 +6992,9 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
          if( type == AST__FLOAT ){
             *( (double *) buff ) = odouble;
          } else if( type == AST__STRING || type == AST__CONTINUE  ){
-            (void) sprintf( cnvtype_text0, "%.*g", DBL_DIG, ( (double *) odata )[ 0 ] );
+            (void) sprintf( cnvtype_text0, "%.*g", AST__DBL_DIG, ( (double *) odata )[ 0 ] );
             CheckZero( cnvtype_text0, ( (double *) odata )[ 0 ], 0, status );
-            (void) sprintf( cnvtype_text1, "%.*g", DBL_DIG, ( (double *) odata )[ 1 ] );
+            (void) sprintf( cnvtype_text1, "%.*g", AST__DBL_DIG, ( (double *) odata )[ 1 ] );
             CheckZero( cnvtype_text1, ( (double *) odata )[ 1 ], 0, status );
             (void) sprintf( cnvtype_text, "%s %s", cnvtype_text0, cnvtype_text1 );
             *( (char **) buff ) = cnvtype_text;
@@ -17096,7 +17096,7 @@ static void GetNextData( AstChannel *this_channel, int skip, char **name,
 /* If the value is a double, format it and store the result in a
    dynamically allocated string. */
             case AST__FLOAT:
-               (void) sprintf( buff, "%.*g", DBL_DIG, *( (double *) data ) );
+               (void) sprintf( buff, "%.*g", AST__DBL_DIG, *( (double *) data ) );
                CheckZero( buff,  *( (double *) data ), 0, status );
                *val = astString( buff, (int) strlen( buff ) );
                break;
@@ -19694,8 +19694,8 @@ static AstMapping *LogWcs( FitsStore *store, int i, char s,
 
 /* Local Variables: */
    AstMapping *ret;
-   char forexp[ 12 + DBL_DIG*2 ];
-   char invexp[ 12 + DBL_DIG*2 ];
+   char forexp[ 12 + AST__DBL_DIG*2 ];
+   char invexp[ 12 + AST__DBL_DIG*2 ];
    const char *fexps[ 1 ];
    const char *iexps[ 1 ];
    double crv;
@@ -19710,8 +19710,8 @@ static AstMapping *LogWcs( FitsStore *store, int i, char s,
 
 /* Create the MathMap, if possible. */
    if( crv != 0.0 ) {
-      sprintf( forexp, "s=%.*g*exp(w/%.*g)", DBL_DIG, crv, DBL_DIG, crv );
-      sprintf( invexp, "w=%.*g*log(s/%.*g)", DBL_DIG, crv, DBL_DIG, crv );
+      sprintf( forexp, "s=%.*g*exp(w/%.*g)", AST__DBL_DIG, crv, AST__DBL_DIG, crv );
+      sprintf( invexp, "w=%.*g*log(s/%.*g)", AST__DBL_DIG, crv, AST__DBL_DIG, crv );
       fexps[ 0 ] = forexp;
       iexps[ 0 ] = invexp;
       ret = (AstMapping *) astMathMap( 1, 1, 1, fexps, 1, iexps, "simpfi=1,simpif=1", status );
@@ -20385,13 +20385,13 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
                astPutFits( fc, "CTYPE2  = 'DEC--TAN'", 0 );
                astPutFits( fc, "RADESYS = 'FK5'", 0 );
                astPutFits( fc, "EQUINOX = 2000.0", 0 );
-               sprintf( card, "CRVAL1  = %.*g", DBL_DIG,
+               sprintf( card, "CRVAL1  = %.*g", AST__DBL_DIG,
                         AST__DR2D*astGetRefRA( specfrm ) );
                astPutFits( fc, card, 0 );
-               sprintf( card, "CRVAL2  = %.*g", DBL_DIG,
+               sprintf( card, "CRVAL2  = %.*g", AST__DBL_DIG,
                         AST__DR2D*astGetRefDec( specfrm ) );
                astPutFits( fc, card, 0 );
-               sprintf( card, "MJD-OBS = %.*g", DBL_DIG,
+               sprintf( card, "MJD-OBS = %.*g", AST__DBL_DIG,
                         TDBConv( astGetEpoch( specfrm ), AST__UTC, 1,
                                  "astWrite", "FitsChan", status ) );
                astPutFits( fc, card, 0 );
@@ -30767,9 +30767,9 @@ static int SplitMap( AstMapping *map, int invert, int ilon, int ilat,
                }
                astPutFits( fc, card, 0 );
                if( i == ilon ) {
-                  sprintf( card, "CRVAL%d  = %.*g", i + 1, DBL_DIG, AST__DR2D*ptr2[ ilon ][ 0 ] );
+                  sprintf( card, "CRVAL%d  = %.*g", i + 1, AST__DBL_DIG, AST__DR2D*ptr2[ ilon ][ 0 ] );
                } else if( i == ilat ) {
-                  sprintf( card, "CRVAL%d  = %.*g", i + 1, DBL_DIG, AST__DR2D*ptr2[ ilat ][ 0 ] );
+                  sprintf( card, "CRVAL%d  = %.*g", i + 1, AST__DBL_DIG, AST__DR2D*ptr2[ ilat ][ 0 ] );
                } else {
                   sprintf( card, "CRVAL%d  = 0.0", i + 1 );
                }
@@ -36030,7 +36030,7 @@ static AstMapping *WcsNative( AstFitsChan *this, FitsStore *store, char s,
       if( alphap != delta0 ) {
          sprintf( buf, "The original FITS header specified a fiducial "
                   "point with latitude %.*g. A value of %.*g is being used "
-                  "instead. ", DBL_DIG, alphap*AST__DR2D, DBL_DIG,
+                  "instead. ", AST__DBL_DIG, alphap*AST__DR2D, AST__DBL_DIG,
                   delta0*AST__DR2D );
          Warn( this, "badlat", buf, method, class, status );
       }
@@ -40540,10 +40540,10 @@ f     AST_FINDFITS or by the action of the FitsChan's sink routine
 *        All FitsChans have this attribute.
 *att--
 */
-astMAKE_CLEAR(FitsChan,FitsDigits,fitsdigits,DBL_DIG)
-astMAKE_GET(FitsChan,FitsDigits,int,DBL_DIG,this->fitsdigits)
+astMAKE_CLEAR(FitsChan,FitsDigits,fitsdigits,AST__DBL_DIG)
+astMAKE_GET(FitsChan,FitsDigits,int,AST__DBL_DIG,this->fitsdigits)
 astMAKE_SET(FitsChan,FitsDigits,int,fitsdigits,value)
-astMAKE_TEST(FitsChan,FitsDigits,( this->fitsdigits != DBL_DIG ))
+astMAKE_TEST(FitsChan,FitsDigits,( this->fitsdigits != AST__DBL_DIG ))
 
 /* CardComm */
 /* ======== */
@@ -42013,7 +42013,7 @@ AstFitsChan *astInitFitsChan_( void *mem, size_t size, int init,
       new->polytan = -INT_MAX;
       new->iwc = -1;
       new->clean = -1;
-      new->fitsdigits = DBL_DIG;
+      new->fitsdigits = AST__DBL_DIG;
       new->fitsaxisorder = NULL;
       new->encoding = UNKNOWN_ENCODING;
       new->warnings = NULL;
@@ -42210,7 +42210,7 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 
 /* FitsDigits. */
 /* ----------- */
-      new->fitsdigits = astReadInt( channel, "fitsdg", DBL_DIG );
+      new->fitsdigits = astReadInt( channel, "fitsdg", AST__DBL_DIG );
       if ( TestFitsDigits( new, status ) ) SetFitsDigits( new, new->fitsdigits, status );
 
 /* DefB1950 */

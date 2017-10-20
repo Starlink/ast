@@ -2864,7 +2864,7 @@ static const char *MakeExp( UnitNode *tree, int mathmap, int top, int *status ) 
 /* Constant valued nodes... just format the constant in a local buffer and
    then copy the buffer. */
    if( newtree->con != AST__BAD ) {
-      lbuff = sprintf( buff, "%.*g", DBL_DIG, newtree->con );
+      lbuff = sprintf( buff, "%.*g", AST__DBL_DIG, newtree->con );
       result = astStore( NULL, buff, lbuff + 1 );
 
 /* "Load Variable Value" nodes - return the variable name. If this is a

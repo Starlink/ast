@@ -4229,7 +4229,7 @@ const char *astFmtDecimalYr_( double year, int digits, int *status ) {
    astGET_GLOBALS(NULL);
 
 /* Limit the precision to what is meaningful. */
-   digits = ( digits > DBL_DIG ) ? DBL_DIG : digits;
+   digits = ( digits > AST__DBL_DIG ) ? AST__DBL_DIG : digits;
 
 /* Format the year value. Use "g" format to avoid buffer overflow and
    to get useful diagnostic output if a silly value is given. */
@@ -4896,7 +4896,7 @@ L1:
 /* Format the Epoch as decimal years. Use a Besselian epoch if it will
    be less than 1984.0, otherwise use a Julian epoch. */
          result = astFmtDecimalYr( ( epoch < palEpj2d( 1984.0 ) ) ?
-                                   palEpb( epoch ) : palEpj( epoch ), DBL_DIG );
+                                   palEpb( epoch ) : palEpj( epoch ), AST__DBL_DIG );
       }
 
 /* Top(axis). */
@@ -4906,7 +4906,7 @@ L1:
                && ( nc >= len ) ) {
       dval = astGetTop( this, axis -1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -4917,7 +4917,7 @@ L1:
                && ( nc >= len ) ) {
       dval = astGetBottom( this, axis -1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -5113,7 +5113,7 @@ L1:
    } else if ( !strcmp( attrib, "obsalt" ) ) {
       dval = astGetObsAlt( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -5122,7 +5122,7 @@ L1:
    } else if ( !strcmp( attrib, "dtai" ) ) {
       dval = astGetDtai( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -5131,7 +5131,7 @@ L1:
    } else if ( !strcmp( attrib, "dut1" ) ) {
       dval = astGetDut1( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -8850,7 +8850,7 @@ double astReadDateTime_( const char *value, int *status ) {
                astError( AST__DTERR, "Month value (%d) is invalid.", status, month );
                break;
             case 3:
-               astError( AST__DTERR, "Day value (%.*g) is invalid.", status, DBL_DIG,
+               astError( AST__DTERR, "Day value (%.*g) is invalid.", status, AST__DBL_DIG,
                          day );
                break;
 
@@ -8875,7 +8875,7 @@ double astReadDateTime_( const char *value, int *status ) {
                   break;
                case 3:
                   astError( AST__DTERR, "Seconds value (%.*g) is invalid.", status,
-                            DBL_DIG, sec );
+                            AST__DBL_DIG, sec );
                   break;
 
 /* Add the fraction of a day derived from hours, minutes and seconds fields to

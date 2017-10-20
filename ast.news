@@ -21,6 +21,10 @@ Main Changes in this Version
 - A new function call astCreatedAt is now available that returns the function
 name, file path and line number at which an AST object was first created.
 
+- The number of digits used to format floating point values has been
+increased in order to avoid loss of precision when converting from binary
+to string and back to binary. This could cause very small changes in numerical
+values returned by AST functions.
 
 
 Main Changes in V8.5.1

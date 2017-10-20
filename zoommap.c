@@ -405,7 +405,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    if ( !strcmp( attrib, "zoom" ) ) {
       zoom = astGetZoom( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, zoom );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, zoom );
          result = getattrib_buff;
       }
 

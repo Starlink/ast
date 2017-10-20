@@ -11,7 +11,7 @@
 #include <string.h>
 
 /* Local Constants: */
-#define BUFF_LEN ( 2 * DBL_DIG + 20 ) /* Buffer length */
+#define BUFF_LEN ( 2 * AST__DBL_DIG + 20 ) /* Buffer length */
 #define IEEE_DIG 17                   /* Minimum number of digits required by
                                          IEEE for conversion from binary to
                                          string and back again to be an
@@ -136,9 +136,9 @@ static void printdval( double val ){
 
 /* Vary the precision over a reasonable range to see how many decimal
    digits are required. The initial number of digits is the larger of
-   DBL_DIG and IEEE_DIG. */
-   for ( digits = ( DBL_DIG > IEEE_DIG )?DBL_DIG:IEEE_DIG;
-         digits <= ( 2 * DBL_DIG ); digits++ ) {
+   AST__DBL_DIG and IEEE_DIG. */
+   for ( digits = ( AST__DBL_DIG > IEEE_DIG )?AST__DBL_DIG:IEEE_DIG;
+         digits <= ( 2 * AST__DBL_DIG ); digits++ ) {
 
 /* Format the value using this precision and then read it back. */
       (void) sprintf( buff, "%.*G", digits, val );

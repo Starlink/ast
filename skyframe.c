@@ -2662,7 +2662,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    will be less than 1984.0, otherwise use a Julian epoch. */
          result = astFmtDecimalYr( ( equinox < palEpj2d( 1984.0 ) ) ?
                                    palEpb( equinox ) : palEpj( equinox ),
-                                   DBL_DIG );
+                                   AST__DBL_DIG );
       }
 
 /* IsLatAxis(axis) */
@@ -2719,7 +2719,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "skytol" ) ) {
       dval = astGetSkyTol( this );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -2748,7 +2748,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
         && ( nc >= len ) ) {
       dval = astGetSkyRef( this, axis - 1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -2772,7 +2772,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
         && ( nc >= len ) ) {
       dval = astGetSkyRefP( this, axis - 1 );
       if ( astOK ) {
-         (void) sprintf( getattrib_buff, "%.*g", DBL_DIG, dval );
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -12275,9 +12275,9 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
    new value in the correct place. */
          if( dval != AST__BAD ) {
             if( dval < 1984.0 ) {
-               astSet( new, "Epoch=B%.*g", status, DBL_DIG, dval);
+               astSet( new, "Epoch=B%.*g", status, AST__DBL_DIG, dval);
             } else {
-               astSet( new, "Epoch=J%.*g", status, DBL_DIG, dval);
+               astSet( new, "Epoch=J%.*g", status, AST__DBL_DIG, dval);
             }
          }
       }
