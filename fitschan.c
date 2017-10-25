@@ -1177,6 +1177,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Allow a NULL keyword name to be supplied to astTestFits to
 *        indicate that the current card should be used (as is also done in
 *        astGetFits).
+*     25-OCT-2017 (DSB):
+*        Added attribute FitsTol.
 *class--
 */
 
@@ -1717,6 +1719,11 @@ static void ClearWarnings( AstFitsChan *, int * );
 static const char *GetWarnings( AstFitsChan *, int * );
 static int TestWarnings( AstFitsChan *, int * );
 static void SetWarnings( AstFitsChan *, const char *, int * );
+static double GetFitsTol( AstFitsChan *, int * );
+static int TestFitsTol( AstFitsChan *, int * );
+static void ClearFitsTol( AstFitsChan *, int * );
+static void SetFitsTol( AstFitsChan *, double, int * );
+
 
 static AstFitsChan *SpecTrans( AstFitsChan *, int, const char *, const char *, int * );
 static AstFitsTable *GetNamedTable( AstFitsChan *, const char *, int, int, int, const char *, int * );
@@ -1836,7 +1843,7 @@ static int IsSkyOff( AstFrameSet *, int, int * );
 static int KeyFields( AstFitsChan *, const char *, int, int *, int *, int * );
 static int LooksLikeClass( AstFitsChan *, const char *, const char *, int * );
 static int MakeBasisVectors( AstMapping *, int, int, double *, AstPointSet *, AstPointSet *, int * );
-static int MakeIntWorld( AstMapping *, AstFrame *, int *, char, FitsStore *, double *, const char *, const char *, int * );
+static int MakeIntWorld( AstMapping *, AstFrame *, int *, char, FitsStore *, double *, double, const char *, const char *, int * );
 static int Match( const char *, const char *, int, int *, int *, const char *, const char *, int * );
 static int MatchChar( char, char, const char *, const char *, const char *, int * );
 static int MatchFront( const char *, const char *, char *, int *, int *, int *, const char *, const char *, const char *, int * );
@@ -2502,6 +2509,7 @@ static int AddVersion( AstFitsChan *this, AstFrameSet *fs, int ipix, int iwcs,
    double cdelt;            /* CDELT value for axis */
    double crpix;            /* CRPIX value for axis */
    double crval;            /* CRVAL value for axis */
+   double fitstol;          /* Max departure from linearity, in pixels */
    double pc;               /* Element of the PC array */
    int *axis_done;          /* Flags indicating which axes have been done */
    int *wperm;              /* FITS axis for each Mapping output (Frame axis) */
@@ -2580,7 +2588,7 @@ static int AddVersion( AstFitsChan *this, AstFrameSet *fs, int ipix, int iwcs,
 /* We now need to choose the "FITS WCS axis" (i.e. the number that is included
    in FITS keywords such as CRVAL2) for each axis of the output Frame.
    Allocate memory to store these indices. */
-   nwcs= astGetNout( mapping );
+   nwcs = astGetNout( mapping );
    wperm = astMalloc( sizeof(int)*(size_t) nwcs );
 
 /* Attempt to use the FitsAxisOrder attribute to determine the order. If
@@ -2644,11 +2652,15 @@ static int AddVersion( AstFitsChan *this, AstFrameSet *fs, int ipix, int iwcs,
    mapping = astAnnul( mapping );
    iwcmap = astAnnul( iwcmap );
 
+/* Get the maximum departure from linearity, in pixels, for the pixiwcmap
+   mapping to be considered linear. */
+   fitstol = astGetFitsTol( this );
+
 /* Now attempt to store values for the keywords describing the pixel->IWC
    Mapping (CRPIX, CD, PC, CDELT). This tests that the iwcmap is linear.
    Zero is returned if the test fails. */
-   ret = MakeIntWorld( pixiwcmap, wcsfrm, wperm, s, store, dim, method, class,
-                       status );
+   ret = MakeIntWorld( pixiwcmap, wcsfrm, wperm, s, store, dim, fitstol,
+                       method, class, status );
 
 /* If succesfull... */
    if( ret ) {
@@ -6498,6 +6510,11 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* ------ */
    } else if ( !strcmp( attrib, "carlin" ) ) {
       astClearCarLin( this );
+
+/* FitsTol */
+/* ------- */
+   } else if ( !strcmp( attrib, "fitstol" ) ) {
+      astClearFitsTol( this );
 
 /* PolyTan */
 /* ------- */
@@ -16022,6 +16039,7 @@ const char *GetAttrib( AstObject *this_object, const char *attrib, int *status )
    astDECLARE_GLOBALS            /* Declare the thread specific global data */
    AstFitsChan *this;            /* Pointer to the FitsChan structure */
    const char *result;           /* Pointer value to return */
+   double dval;                  /* Double attribute value */
    int ival;                     /* Integer attribute value */
 
 /* Initialise. */
@@ -16123,6 +16141,15 @@ const char *GetAttrib( AstObject *this_object, const char *attrib, int *status )
       ival = astGetCarLin( this );
       if ( astOK ) {
          (void) sprintf( getattrib_buff, "%d", ival );
+         result = getattrib_buff;
+      }
+
+/* FitsTol. */
+/* -------- */
+   } else if ( !strcmp( attrib, "fitstol" ) ) {
+      dval = astGetFitsTol( this );
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
          result = getattrib_buff;
       }
 
@@ -17659,6 +17686,10 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    vtab->TestCarLin = TestCarLin;
    vtab->SetCarLin = SetCarLin;
    vtab->GetCarLin = GetCarLin;
+   vtab->ClearFitsTol = ClearFitsTol;
+   vtab->TestFitsTol = TestFitsTol;
+   vtab->SetFitsTol = SetFitsTol;
+   vtab->GetFitsTol = GetFitsTol;
    vtab->ClearPolyTan = ClearPolyTan;
    vtab->TestPolyTan = TestPolyTan;
    vtab->SetPolyTan = SetPolyTan;
@@ -20701,7 +20732,7 @@ static void MakeIntoComment( AstFitsChan *this, const char *method,
 }
 
 static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
-                         FitsStore *store, double *dim,
+                         FitsStore *store, double *dim, double fitstol,
                          const char *method, const char *class, int *status ){
 /*
 *  Name:
@@ -20717,7 +20748,7 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
 *  Synopsis:
 *     #include "fitschan.h"
 *     int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
-*                       FitsStore *store, double *dim,
+*                       FitsStore *store, double *dim, double fitstol,
 *                       const char *method, const char *class, int *status )
 
 *  Class Membership:
@@ -20764,6 +20795,10 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
 *     dim
 *        An array holding the image dimensions in pixels. AST__BAD can be
 *        supplied for any unknwon dimensions.
+*     fitstol
+*        The maximum departure from linearity that can be introduced by
+*        "cmap" on any axis for it to be considered linear. Expressed as
+*        a fraction of a grid pixel.
 *     method
 *        Pointer to a string holding the name of the calling method.
 *        This is only for use in constructing error messages.
@@ -20901,15 +20936,15 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
       for( j = 0; j < nout; j++ ) {
          w0[ j ] = ptrw[ j ][ 0 ];
 
-/* Find the tolerance for positions on the j'th IWC axis. This is one
-   tenth of the largest change in the j'th IWC axis value caused by
-   moving out 1 pixel along any grid axis. */
+/* Find the tolerance for positions on the j'th IWC axis. This is a
+   fraction "fitstol" of the largest change in the j'th IWC axis value
+   caused by moving out 1 pixel along any grid axis. */
          tol[ j ] = 0.0;
          for( i = 0; i < nin; i++ ) {
             err = fabs( ptrw[ j ][ i + 1 ] - w0[ j ] );
             if( err > tol[ j ] ) tol[ j ] = err;
          }
-         tol[ j ] *= 0.1;
+         tol[ j ] *= fitstol;
 
 /* If the tolerance is zero (e.g. as is produced for degenerate axes),
    then use a tolerance equal to a very small fraction of hte degenerate
@@ -25939,6 +25974,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* Local Variables: */
    AstFitsChan *this;            /* Pointer to the FitsChan structure */
    const char *class;            /* Object class */
+   double dval;                  /* Double attribute value */
    int ival;                     /* Integer attribute value */
    int len;                      /* Length of setting string */
    int nc;                       /* Number of characters read by astSscanf */
@@ -26045,6 +26081,13 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
         ( 1 == astSscanf( setting, "carlin= %d %n", &ival, &nc ) )
         && ( nc >= len ) ) {
       astSetCarLin( this, ival );
+
+/* FitsTol. */
+/* -------- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "fitstol= %lg %n", &dval, &nc ) )
+        && ( nc >= len ) ) {
+      astSetFitsTol( this, dval );
 
 /* PolyTan */
 /* ------- */
@@ -32042,6 +32085,11 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* --------- */
    } else if ( !strcmp( attrib, "carlin" ) ) {
       result = astTestCarLin( this );
+
+/* FitsTol. */
+/* -------- */
+   } else if ( !strcmp( attrib, "fitstol" ) ) {
+      result = astTestFitsTol( this );
 
 /* PolyTan */
 /* ------- */
@@ -39442,6 +39490,46 @@ static AstMapping *ZPXMapping( AstFitsChan *this, FitsStore *store, char s,
 /* Card. */
 /* ===== */
 
+/* CarLin */
+/* ====== */
+
+/*
+*att++
+*  Name:
+*     FitsTol
+
+*  Purpose:
+*     Maximum non-linearity allowed when exporting to FITS-WCS.
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Floating point.
+
+*  Description:
+*     This attribute is used when attempting to write a FrameSet to a
+*     FitsChan using a foreign encoding. It specifies the maximum
+*     departure from linearity allowed on any axis within the mapping
+*     from pixel coordinates to Intermediate World Coordinates. It is
+*     expressed in units of pixels. If an axis of the Mapping is found
+*     to deviate from linearity by more than this amount, the write
+*     operation fails. If the linearity test succeeds, a linear
+*     approximation to the mapping is used to determine the FITS keyword
+*     values to be placed in the FitsChan.
+*
+*     The default value is one tenth of a pixel.
+
+*  Applicability:
+*     FitsChan
+*        All FitsChans have this attribute.
+*att--
+*/
+astMAKE_CLEAR(FitsChan,FitsTol,fitstol,-1.0)
+astMAKE_GET(FitsChan,FitsTol,double,1,(this->fitstol==-1.0?0.1:this->fitstol))
+astMAKE_SET(FitsChan,FitsTol,double,fitstol,(astMAX(value,0.0)))
+astMAKE_TEST(FitsChan,FitsTol,(this->fitstol!=-1.0))
+
 /*
 *att++
 *  Name:
@@ -41088,6 +41176,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    char buff[ KEY_LEN + 1 ];     /* Buffer for keyword string */
    const char *class;            /* Object class */
    const char *sval;             /* Pointer to string value */
+   double dval;                  /* Double value */
    int cardtype;                 /* Keyword data type */
    int flags;                    /* Keyword flags */
    int icard;                    /* Index of current card */
@@ -41166,6 +41255,13 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    set = TestCarLin( this, status );
    ival = set ? GetCarLin( this, status ) : astGetCarLin( this );
    astWriteInt( channel, "CarLin", set, 1, ival, (ival ? "Use simple linear CAR projections": "Use full FITS-WCS CAR projections") );
+
+/* FitsTol */
+/* ------- */
+   set = TestFitsTol( this, status );
+   dval = set ? GetFitsTol( this, status ) : astGetFitsTol( this );
+   astWriteDouble( channel, "FitsTol", set, 1, dval, "[pixel] Max allowed "
+                   "departure from linearity");
 
 /* PolyTan */
 /* ------- */
@@ -42010,6 +42106,7 @@ AstFitsChan *astInitFitsChan_( void *mem, size_t size, int init,
       new->tabok = -INT_MAX;
       new->cdmatrix = -1;
       new->carlin = -1;
+      new->fitstol = -1.0;
       new->polytan = -INT_MAX;
       new->iwc = -1;
       new->clean = -1;
@@ -42232,6 +42329,11 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 /* ------ */
       new->carlin = astReadInt( channel, "carlin", -1 );
       if ( TestCarLin( new, status ) ) SetCarLin( new, new->carlin, status );
+
+/* FitsTol */
+/* ------- */
+      new->fitstol = astReadDouble( channel, "fitstol", -1.0 );
+      if ( TestFitsTol( new, status ) ) SetFitsTol( new, new->fitstol, status );
 
 /* PolyTan */
 /* ------- */
