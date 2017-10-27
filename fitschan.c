@@ -1179,6 +1179,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        astGetFits).
 *     25-OCT-2017 (DSB):
 *        Added attribute FitsTol.
+*     27-OCT-2017 (DSB):
+*        In RoundFString, only right justift the final string if a
+*        minimum field width is given. Otherwise, leave the unchanged
+*        characters in their original positions. Right justifying ccould
+*        cause very long strings to be returned.
 *class--
 */
 
@@ -25492,12 +25497,15 @@ static void RoundFString( char *text, int width, int *status ){
       }
    }
 
-/* Right justify the returned string in the original field width. */
-   end = text + len;
-   c = text + strlen( text );
-   if( c != end ) {
-      while( c >= text ) *(end--) = *(c--);
-      while( end >= text ) *(end--) = ' ';
+/* If a minimum field width has been given, right justify the returned
+   string in the original field width. */
+   if( width ) {
+      end = text + len;
+      c = text + strlen( text );
+      if( c != end ) {
+         while( c >= text ) *(end--) = *(c--);
+         while( end >= text ) *(end--) = ' ';
+      }
    }
 
 /* If a minimum field width was given, shunt the text to the left in
