@@ -1184,6 +1184,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        minimum field width is given. Otherwise, leave the unchanged
 *        characters in their original positions. Right justifying ccould
 *        cause very long strings to be returned.
+*     6-NOV-2017 (DSB):
+*        In CelestialAxes, simplify the base->current mapping before
+*        attempting to split it. This can cause multiple WcsMaps to cancel out,
+*        which could otherwise prevent SplitMap from splitting the Mapping
+*        successfully.
 *class--
 */
 
@@ -4304,9 +4309,10 @@ static AstMapping *CelestialAxes( AstFitsChan *this, AstFrameSet *fs, double *di
    AstFitsTable *table;    /* Pointer to structure holding -TAB table info */
    AstFrame *pframe;       /* Primary Frame containing current WCS axis*/
    AstFrame *wcsfrm;       /* WCS Frame within FrameSet */
+   AstMapping *map0;       /* Unsimplified Pixel -> WCS mapping */
    AstMapping *map1;       /* Pointer to pre-WcsMap Mapping */
    AstMapping *map3;       /* Pointer to post-WcsMap Mapping */
-   AstMapping *map;        /* Pixel -> WCS mapping */
+   AstMapping *map;        /* Simplified Pixel -> WCS mapping */
    AstMapping *ret;        /* Returned Mapping */
    AstMapping *tmap0;      /* A temporary Mapping */
    AstMapping *tmap1;      /* A temporary Mapping */
@@ -4413,7 +4419,9 @@ static AstMapping *CelestialAxes( AstFitsChan *this, AstFrameSet *fs, double *di
       ppcfid = (double *) astMalloc( sizeof( double )*nwcs );
 
 /* Get the pixel->wcs Mapping. */
-      map = astGetMapping( fs, AST__BASE, AST__CURRENT );
+      map0 = astGetMapping( fs, AST__BASE, AST__CURRENT );
+      map = astSimplify( map0 );
+      map0 = astAnnul( map0 );
 
 /* Get the table version number to use if we end up using the -TAB
    algorithm. This is the set value of the TabOK attribute (if positive). */
