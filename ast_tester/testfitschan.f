@@ -3,9 +3,10 @@
       include 'SAE_PAR'
       include 'AST_PAR'
 
-      integer status, fs, fc, i, val
+      integer status, fs, fc, i, val, iwcfrm, map
       character cards(10)*80, card*80
       logical there
+      double precision xin, yin, xout, yout
 
       status = sai__ok
 
@@ -108,7 +109,7 @@ c      call ast_watchmemory( 225192 )
       cards(7) = 'CTYPE1  = ''RA---TAN'''
       cards(8) = 'CTYPE2  = ''DEC--TAN'''
 
-      fc = ast_fitschan( AST_NULL, AST_NULL, ' ', status )
+      fc = ast_fitschan( AST_NULL, AST_NULL, 'Iwc=1', status )
       do i = 1, 8
          call ast_putfits( fc, cards(i), .false., status )
       end do
@@ -147,8 +148,41 @@ c      call ast_watchmemory( 225192 )
          call stopit( 3, 'CTYPE2 has been retained', status )
       end if
 
+*  Check the IWC Frame is present and check the reference point
+*  transforms to the origin of IWC.
+      if( ast_geti( fs, 'Nframe', status ) .ne. 3 ) then
+         call stopit( 301, 'Wrong number of Frames', status )
+      endif
+      if( ast_geti( fs, 'Current', status ) .ne. 2 ) then
+         call stopit( 302, 'Wrong current Frame', status )
+      endif
+      iwcfrm = ast_getframe( fs, 3, status )
+      if( ast_getc( iwcfrm, 'Domain', status ) .ne. 'IWC' ) then
+         call stopit( 303, 'Wrong Domain in IWC Frame', status )
+      endif
 
+      map = ast_getmapping( fs, 1, 3, status )
+      xin = 45.0D0
+      yin = 45.0D0
+      call ast_tran2( map, 1, xin, yin, .true., xout, yout, status )
+      if( xout .ne. 0.0D0 .or. yout .ne. 0.0D0 ) then
+         call stopit( 304, 'Wrong IWC for CRPIX position', status )
+      endif
 
+      xin = xin + 1.0D0
+      call ast_tran2( map, 1, xin, yin, .true., xout, yout, status )
+      if( xout .ne. -0.01D0 .or. yout .ne. 0.0D0 ) then
+         call stopit( 305, 'Wrong IWC for offset CRPIX position',
+     :                status )
+      endif
+
+      map = ast_getmapping( fs, 2, 3, status )
+      xin = 45.0D0*AST__DD2R
+      yin = 89.9D0*AST__DD2R
+      call ast_tran2( map, 1, xin, yin, .true., xout, yout, status )
+      if( abs( xout ) .gt. 1.0D-10 .or. abs( yout ) .gt. 1.0D-10 ) then
+         call stopit( 306, 'Wrong IWC for CRVAL position', status )
+      endif
 
 
 *  Do it again, this time with an illegal value for CRPIX2. This will

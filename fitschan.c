@@ -1189,6 +1189,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        attempting to split it. This can cause multiple WcsMaps to cancel out,
 *        which could otherwise prevent SplitMap from splitting the Mapping
 *        successfully.
+*     7-NOV-2017 (DSB):
+*        If an IWC Frame is included in the FrameSet returned by astRead, 
+*        ensure it comes between the pixel and sky frames in the mapping chain. 
+*        Previously the order was PIXEL->SKY->IWC, Now it is PIXEL->IWC->SKY.
+*        The inter-Frame Mappings required by the new arrangment are simpler 
+*        than for the old arrangement.
 *class--
 */
 
@@ -2386,6 +2392,7 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
    int *inperm;                /* Pointer to input axis permutation array */
    int *outperm;               /* Pointer to output axis permutation array */
    int i;                      /* Axis index */
+   int nf;                     /* Number of Frames originally in fset */
    int nwcs;                   /* Number of wcs axes */
 
 /* Check the inherited status. */
@@ -2423,7 +2430,18 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
          inperm = astFree( inperm );
          outperm = astFree( outperm );
       }
+
+/* Record the original number of Frames in the FrameSet. */
+      nf = astGetNframe( fset );
+
+/* Add in the Frame (which may be a FrameSet). */
       astAddFrame( fset, pixel, mapping, frame );
+
+/* Ensure the WCS Frame is the current Frame within fset (it may not be if
+   the frame returned by WcsMapFrm is actually a FrameSet containing a IWC
+   Frame as well as a WCS Frame). The WCS Frame is always the first frame
+   in the frame/frameset returned by WcsMapFrm. */
+      astSetCurrent( fset, nf + 1 );
 
 /* Annul temporary resources. */
       mapping = astAnnul( mapping );
@@ -35542,7 +35560,6 @@ static AstMapping *WcsIntWorld( AstFitsChan *this, FitsStore *store, char s,
 static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
                               AstFrame **frm, const char *method,
                               const char *class, int *status ){
-
 /*
 *  Name:
 *     WcsMapFrm
@@ -35555,7 +35572,6 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
 *     Private function.
 
 *  Synopsis:
-
 *     AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
 *                            AstFrame **frm, const char *method,
 *                            const char *class, int *status )
@@ -35583,9 +35599,9 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
 *     frm
 *        The address of a location at which to store a pointer to the
 *        Frame describing the world coordinate axes. If the Iwc attribute
-*        is non-zero, then this is actually a FrameSet in which the current
-*        Frame is the required WCS system. The FrameSet also contains one
-*        other Frame which defines the FITS IWC system.
+*        is non-zero, then this is actually a FrameSet in which Frame 1
+*        is the base Frame and describes the required WCS system. Frame
+*        2 is the current Frame and describes the FITS IWC system.
 *     method
 *        A pointer to a string holding the name of the calling method.
 *        This is used only in the construction of error messages.
@@ -35596,7 +35612,9 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
 *        Pointer to the inherited status variable.
 
 *  Returned Value:
-*     A pointer to the Mapping.
+*     A pointer to the Mapping. If the Iwc attribute is non-zero, this
+*     will be the Mapping from pixel to IWC coordinates. Otherwise it
+*     will be the mapping from pixel to WCS coordinates.
 */
 
 /* Local Variables: */
@@ -35734,17 +35752,17 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
    dtai = GetItem( &(store->dtai), 0, 0, s, NULL, method, class, status );
    if( dtai != AST__BAD ) astSetDtai( *frm, dtai );
 
-/* The returned Frame is actually a FrameSet in which the current Frame
+/* The returned Frame is actually a FrameSet in which the base (first) Frame
    is the required WCS Frame. The FrameSet contains one other Frame,
-   which is the Frame representing IWC. Create a FrameSet containing these
-   two Frames. */
+   which is the Frame representing IWC and is always frame 2, the current
+   Frame. Create a FrameSet containing these two Frames. */
    if( astGetIwc( this ) ) {
-      fs = astFrameSet( iwcfrm, "", status );
-      astInvert( map1 );
-      map9 = (AstMapping *) astCmpMap( map1, ret, 1, "", status );
-      astInvert( map1 );
+      fs = astFrameSet( *frm, "", status );
+      astInvert( ret );
+      map9 = (AstMapping *) astCmpMap( ret, map1, 1, "", status );
+      astInvert( ret );
       map10 = astSimplify( map9 );
-      astAddFrame( fs, AST__BASE, map10, *frm );
+      astAddFrame( fs, AST__BASE, map10, iwcfrm );
 
 /* Return this FrameSet instead of the Frame. */
       *frm = astAnnul( *frm );
@@ -35753,6 +35771,11 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
 /* Free resources */
       map9 = astAnnul( map9 );
       map10 = astAnnul( map10 );
+
+/* Also modify the returned mapping so that it goes from pixel to iwc
+   instead of to wcs. */
+      ret = astAnnul( ret );
+      ret = astClone( map1 );
    }
 
 /* Annull temporary resources. */
