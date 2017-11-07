@@ -49,7 +49,7 @@
                    IsA Mapping 	# Mapping between coordinate systems
                       Sft1 = -3780.1919848386815 	# Shift for axis 1
                       Scl1 = 0.99999999997788802 	# Scale factor for axis 1
-                      Sft2 = 2408.2662394170711 	# Shift for axis 2
+                      Sft2 = 2408.2662394170707 	# Shift for axis 2
                       Scl2 = 0.99999999998530598 	# Scale factor for axis 2
                       Sft3 = 330416457339.85065 	# Shift for axis 3
                       Scl3 = 551361.36816875194 	# Scale factor for axis 3

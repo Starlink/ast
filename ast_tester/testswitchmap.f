@@ -453,10 +453,12 @@ c      call ast_watchmemory(22617)
       else if( out(3,2) .ne. AST__BAD ) then
          call stopit( 137, out(1,1), status )
 
-      else if( out(4,1) .ne. rmout(2,1) ) then
+      else if( abs( out(4,1) - rmout(2,1) ) .gt.
+     :        1.0D-6*abs( rmout(2,1) ) ) then
          call stopit( 138, out(2,1), status )
 
-      else if( out(4,2) .ne. rmout(2,2) ) then
+      else if( abs( out(4,2) - rmout(2,2) ) .gt.
+     :        1.0D-6*abs( rmout(2,2) ) ) then
          call stopit( 139, out(2,2), status )
 
       end if
