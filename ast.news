@@ -26,6 +26,10 @@ increased in order to avoid loss of precision when converting from binary
 to string and back to binary. This could cause very small changes in numerical
 values returned by AST functions.
 
+- If a FrameSet is supplied as the "Map" argument to astAddFrame, it now
+extracts and stores the base->current Mapping from the supplied FrameSet.
+Previously, the entire FrameSet was stored as the Mapping.
+
 
 Main Changes in V8.5.1
 ----------------------

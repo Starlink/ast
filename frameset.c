@@ -268,6 +268,10 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        Override the AxNorm method.
 *     07-APR-2017 (GSB):
 *        Override Dtai and Dut1 accessor methods.
+*     07-NOV-2017 (GSB):
+*        In AddFrame, check to see if a FrameSet is supplied in place of
+*        a Mapping and if so, use the FrameSet's base -> current Mapping
+*        instead.
 *class--
 */
 
@@ -1167,7 +1171,7 @@ static const char *Abbrev( AstFrame *this_frame, int axis, const char *fmt,
    return result;
 }
 
-static void AddFrame( AstFrameSet *this, int iframe, AstMapping *map,
+static void AddFrame( AstFrameSet *this, int iframe, AstMapping *map0,
                       AstFrame *frame, int *status ) {
 /*
 *++
@@ -1295,8 +1299,6 @@ c     astSimplify
 f     AST_SIMPLIFY
 *     before being stored in the FrameSet.
 
-
-
 *--
 */
 
@@ -1304,6 +1306,7 @@ f     AST_SIMPLIFY
    AstFrame *fr;                 /* Pointer to Frame identified by "iframe" */
    AstFrameSet *frameset;        /* Pointer to new FrameSet (if given) */
    AstMapping *inode_map;        /* Temporarily saved Mapping pointer */
+   AstMapping *map;              /* The supplied Mapping */
    AstMapping *next_map;         /* Temporarily saved Mapping pointer */
    int current;                  /* Current Frame index in merged FrameSet */
    int current_node;             /* Node number for current Frame */
@@ -1339,6 +1342,14 @@ f     AST_SIMPLIFY
    next = 0;
    next_invert = 0;
    next_link = 0;
+
+/* If a FrameSet was supplied instead of a Mapping, use the Mapping from
+   its base Frame to its current Frame. */
+   if( astIsAFrameSet( map0 ) ) {
+      map = astGetMapping( map0, AST__BASE, AST__CURRENT );
+   } else {
+      map = astClone( map0 );
+   }
 
 /* Validate and translate the Frame index supplied. */
    iframe = astValidateFrameIndex( this, iframe, "astAddFrame" );
@@ -1621,6 +1632,9 @@ f     AST_SIMPLIFY
          }
       }
    }
+
+/* Annul the local pointer to the supplied Mapping. */
+   map = astAnnul( map );
 }
 
 static void AddVariant( AstFrameSet *this, AstMapping *map,
