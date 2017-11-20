@@ -103,6 +103,8 @@
 *        Added Clean attribute.
 *     19-MAR-2004 (DSB):
 *        Added astPutCards function.
+*     20-NOV-2017 (DSB):
+*        Added SipReplace attribute.
 *-
 */
 
@@ -177,6 +179,7 @@ typedef struct AstFitsChan {
    int cdmatrix;    /* Use a CD matrix in FITS-WCS Encoding? */
    int polytan;     /* Use distorted TAN convention? */
    int carlin;      /* Use linear CAR mappings? */
+   int sipreplace;  /* Replace SIP inverse coefficients? */
    double fitstol;  /* Max departure from linearity, in pixels */
    int iwc;         /* Include an IWC Frame? */
    int clean;       /* Remove used cards even if an error occurs? */
@@ -290,6 +293,11 @@ typedef struct AstFitsChanVtab {
    int (* TestCarLin)( AstFitsChan *, int * );
    void (* SetCarLin)( AstFitsChan *, int, int * );
    void (* ClearCarLin)( AstFitsChan *, int * );
+
+   int (* GetSipReplace)( AstFitsChan *, int * );
+   int (* TestSipReplace)( AstFitsChan *, int * );
+   void (* SetSipReplace)( AstFitsChan *, int, int * );
+   void (* ClearSipReplace)( AstFitsChan *, int * );
 
    double (* GetFitsTol)( AstFitsChan *, int * );
    int (* TestFitsTol)( AstFitsChan *, int * );
@@ -514,6 +522,11 @@ void astInitFitsChanGlobals_( AstFitsChanGlobals * );
    int astTestPolyTan_( AstFitsChan *, int * );
    void astSetPolyTan_( AstFitsChan *, int, int * );
    void astClearPolyTan_( AstFitsChan *, int * );
+
+   int astGetSipReplace_( AstFitsChan *, int * );
+   int astTestSipReplace_( AstFitsChan *, int * );
+   void astSetSipReplace_( AstFitsChan *, int, int * );
+   void astClearSipReplace_( AstFitsChan *, int * );
 
    int astGetCarLin_( AstFitsChan *, int * );
    int astTestCarLin_( AstFitsChan *, int * );
@@ -799,6 +812,15 @@ astINVOKE(V,astGetCarLin_(astCheckFitsChan(this),STATUS_PTR))
 astINVOKE(V,astSetCarLin_(astCheckFitsChan(this),carln,STATUS_PTR))
 #define astTestCarLin(this) \
 astINVOKE(V,astTestCarLin_(astCheckFitsChan(this),STATUS_PTR))
+
+#define astClearSipReplace(this) \
+astINVOKE(V,astClearSipReplace_(astCheckFitsChan(this),STATUS_PTR))
+#define astGetSipReplace(this) \
+astINVOKE(V,astGetSipReplace_(astCheckFitsChan(this),STATUS_PTR))
+#define astSetSipReplace(this,siprep) \
+astINVOKE(V,astSetSipReplace_(astCheckFitsChan(this),siprep,STATUS_PTR))
+#define astTestSipReplace(this) \
+astINVOKE(V,astTestSipReplace_(astCheckFitsChan(this),STATUS_PTR))
 
 #define astClearFitsTol(this) \
 astINVOKE(V,astClearFitsTol_(astCheckFitsChan(this),STATUS_PTR))

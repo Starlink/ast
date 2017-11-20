@@ -130,6 +130,7 @@ f     encodings), then write operations using AST_WRITE will
 *     - Nkey: Number of unique keywords in a FitsChan
 *     - TabOK: Should the FITS "-TAB" algorithm be recognised?
 *     - PolyTan: Use PVi_m keywords to define distorted TAN projection?
+*     - SipReplace: Replace SIP inverse transformation?
 *     - Warnings: Produces warnings about selected conditions
 
 *  Functions:
@@ -1190,11 +1191,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        which could otherwise prevent SplitMap from splitting the Mapping
 *        successfully.
 *     7-NOV-2017 (DSB):
-*        If an IWC Frame is included in the FrameSet returned by astRead, 
-*        ensure it comes between the pixel and sky frames in the mapping chain. 
+*        If an IWC Frame is included in the FrameSet returned by astRead,
+*        ensure it comes between the pixel and sky frames in the mapping chain.
 *        Previously the order was PIXEL->SKY->IWC, Now it is PIXEL->IWC->SKY.
-*        The inter-Frame Mappings required by the new arrangment are simpler 
+*        The inter-Frame Mappings required by the new arrangment are simpler
 *        than for the old arrangement.
+*     20-NOV-2017 (DSB)
+*        Added SipReplace attribute.
 *class--
 */
 
@@ -1719,6 +1722,10 @@ static void ClearCarLin( AstFitsChan *, int * );
 static int GetCarLin( AstFitsChan *, int * );
 static int TestCarLin( AstFitsChan *, int * );
 static void SetCarLin( AstFitsChan *, int, int * );
+static void ClearSipReplace( AstFitsChan *, int * );
+static int GetSipReplace( AstFitsChan *, int * );
+static int TestSipReplace( AstFitsChan *, int * );
+static void SetSipReplace( AstFitsChan *, int, int * );
 static void ClearPolyTan( AstFitsChan *, int * );
 static int GetPolyTan( AstFitsChan *, int * );
 static int TestPolyTan( AstFitsChan *, int * );
@@ -1757,7 +1764,7 @@ static AstMapping *LogWcs( FitsStore *, int, char, const char *, const char *, i
 static AstMapping *MakeColumnMap( AstFitsTable *, const char *, int, int, const char *, const char *, int * );
 static AstMapping *NonLinSpecWcs( AstFitsChan *, char *, FitsStore *, int, char, AstSpecFrame *, const char *, const char *, int * );
 static AstMapping *OtherAxes( AstFitsChan *, AstFrameSet *, double *, int *, char, FitsStore *, double *, int *, const char *, const char *, int * );
-static AstMapping *SIPMapping( double *, FitsStore *, char, int, const char *, const char *, int * );
+static AstMapping *SIPMapping( AstFitsChan *, double *, FitsStore *, char, int, const char *, const char *, int * );
 static AstMapping *SpectralAxes( AstFitsChan *, AstFrameSet *, double *, int *, char, FitsStore *, double *, int *, const char *, const char *, int * );
 static AstMapping *TabMapping( AstFitsChan *, FitsStore *, char, int **, const char *, const char *, int *);
 static AstMapping *WcsCelestial( AstFitsChan *, FitsStore *, char, AstFrame **, AstFrame *, double *, double *, AstSkyFrame **, AstMapping **, int *, const char *, const char *, int * );
@@ -6542,6 +6549,11 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
    } else if ( !strcmp( attrib, "carlin" ) ) {
       astClearCarLin( this );
 
+/* SipReplace */
+/* ---------- */
+   } else if ( !strcmp( attrib, "sipreplace" ) ) {
+      astClearSipReplace( this );
+
 /* FitsTol */
 /* ------- */
    } else if ( !strcmp( attrib, "fitstol" ) ) {
@@ -8050,7 +8062,7 @@ static void DistortMaps( AstFitsChan *this, FitsStore *store, char s,
 /* Create a Mapping describing the distortion (other axes are passed
    unchanged by this Mapping), and add it in series with the returned map2
    (Spitzer distortion is applied to the translated pixel coordinates). */
-                  tmap1 = SIPMapping( dim, store, s, naxes, method, class, status );
+                  tmap1 = SIPMapping( this, dim, store, s, naxes, method, class, status );
                   if( ! *map2 ) {
                      *map2 = tmap1;
                   } else {
@@ -16175,6 +16187,15 @@ const char *GetAttrib( AstObject *this_object, const char *attrib, int *status )
          result = getattrib_buff;
       }
 
+/* SipReplace */
+/* ---------- */
+   } else if ( !strcmp( attrib, "sipreplace" ) ) {
+      ival = astGetSipReplace( this );
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%d", ival );
+         result = getattrib_buff;
+      }
+
 /* FitsTol. */
 /* -------- */
    } else if ( !strcmp( attrib, "fitstol" ) ) {
@@ -17717,6 +17738,10 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    vtab->TestCarLin = TestCarLin;
    vtab->SetCarLin = SetCarLin;
    vtab->GetCarLin = GetCarLin;
+   vtab->ClearSipReplace = ClearSipReplace;
+   vtab->TestSipReplace = TestSipReplace;
+   vtab->SetSipReplace = SetSipReplace;
+   vtab->GetSipReplace = GetSipReplace;
    vtab->ClearFitsTol = ClearFitsTol;
    vtab->TestFitsTol = TestFitsTol;
    vtab->SetFitsTol = SetFitsTol;
@@ -26116,6 +26141,13 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
         && ( nc >= len ) ) {
       astSetCarLin( this, ival );
 
+/* SipReplace */
+/* ---------- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "sipreplace= %d %n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+      astSetSipReplace( this, ival );
+
 /* FitsTol. */
 /* -------- */
    } else if ( nc = 0,
@@ -27200,8 +27232,8 @@ static void SinkWrap( void (* sink)( const char * ), const char *line, int *stat
    ( *sink )( line );
 }
 
-static AstMapping *SIPMapping( double *dim, FitsStore *store, char s,
-                               int naxes, const char *method,
+static AstMapping *SIPMapping( AstFitsChan *this, double *dim,  FitsStore *store,
+                               char s, int naxes, const char *method,
                                const char *class, int *status ){
 /*
 *  Name:
@@ -27214,8 +27246,9 @@ static AstMapping *SIPMapping( double *dim, FitsStore *store, char s,
 *     Private function.
 
 *  Synopsis:
-*     AstMapping *SIPMapping( double *dim, FitsStore *store, char s, int naxes,
-*                             const char *method, const char *class, int *status )
+*     AstMapping *SIPMapping( AstFitsChan *this, double *dim, FitsStore *store,
+*                             char s, int naxes, const char *method,
+*                             const char *class, int *status )
 
 *  Class Membership:
 *     FitsChan
@@ -27232,6 +27265,8 @@ static AstMapping *SIPMapping( double *dim, FitsStore *store, char s,
 *     passed unchanged by the returned Mapping.
 
 *  Parameters:
+*     this
+*        The FitsChan.
 *     dim
 *        The dimensions of the array in pixels. AST__BAD is stored for
 *        each value if dimensions are not known.
@@ -27455,19 +27490,22 @@ static AstMapping *SIPMapping( double *dim, FitsStore *store, char s,
    the fit fails to reach 0.01 pixel accuracy, forget it and rely on the
    (slower) iterative inverse provided by the PolyMap class. Do the fit
    over an area three times the size of the image to provide accurate
-   values outside the image.*/
-      lbnd[ 0 ] = ( dim[ 0 ] != AST__BAD ) ? -dim[ 0 ] : -1000.0;
-      lbnd[ 1 ] = ( dim[ 1 ] != AST__BAD ) ? -dim[ 1 ] : -1000.0;
-      ubnd[ 0 ] = ( dim[ 0 ] != AST__BAD ) ? 2*dim[ 0 ] : 2000.0;
-      ubnd[ 1 ] = ( dim[ 1 ] != AST__BAD ) ? 2*dim[ 1 ] : 2000.0;
-      pmap2 = astPolyTran( pmap, (ncoeff_f == 0), 0.0001, 0.01, 7, lbnd,
-                           ubnd );
-      if( pmap2 ) {
-         (void) astAnnul( pmap );
-         pmap = pmap2;
-      } else {
-         astSet( pmap, "IterInverse=1,NiterInverse=6,TolInverse=1.0E-8",
-                 status );
+   values outside the image. Only do this if it has not been disabled
+   using attribute SipReplace. */
+      if( astGetSipReplace( this ) ) {
+         lbnd[ 0 ] = ( dim[ 0 ] != AST__BAD ) ? -dim[ 0 ] : -1000.0;
+         lbnd[ 1 ] = ( dim[ 1 ] != AST__BAD ) ? -dim[ 1 ] : -1000.0;
+         ubnd[ 0 ] = ( dim[ 0 ] != AST__BAD ) ? 2*dim[ 0 ] : 2000.0;
+         ubnd[ 1 ] = ( dim[ 1 ] != AST__BAD ) ? 2*dim[ 1 ] : 2000.0;
+         pmap2 = astPolyTran( pmap, (ncoeff_f == 0), 0.0001, 0.01, 7, lbnd,
+                              ubnd );
+         if( pmap2 ) {
+            (void) astAnnul( pmap );
+            pmap = pmap2;
+         } else {
+            astSet( pmap, "IterInverse=1,NiterInverse=6,TolInverse=1.0E-8",
+                    status );
+         }
       }
 
 /* Add the above Mapping in parallel with a UnitMap which passes any
@@ -32119,6 +32157,11 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* --------- */
    } else if ( !strcmp( attrib, "carlin" ) ) {
       result = astTestCarLin( this );
+
+/* SipReplace. */
+/* ----------- */
+   } else if ( !strcmp( attrib, "sipreplace" ) ) {
+      result = astTestSipReplace( this );
 
 /* FitsTol. */
 /* -------- */
@@ -39526,12 +39569,6 @@ static AstMapping *ZPXMapping( AstFitsChan *this, FitsStore *store, char s,
    "object.h" file. For a description of each attribute, see the class
    interface (in the associated .h file). */
 
-/* Card. */
-/* ===== */
-
-/* CarLin */
-/* ====== */
-
 /*
 *att++
 *  Name:
@@ -40366,6 +40403,49 @@ astMAKE_CLEAR(FitsChan,CarLin,carlin,-1)
 astMAKE_GET(FitsChan,CarLin,int,1,(this->carlin == -1 ? 0 : this->carlin))
 astMAKE_SET(FitsChan,CarLin,int,carlin,( value ? 1 : 0 ))
 astMAKE_TEST(FitsChan,CarLin,( this->carlin != -1 ))
+
+/* SipReplace */
+/* ========== */
+
+/*
+*att++
+*  Name:
+*     SipReplace
+
+*  Purpose:
+*     Replace SIP inverse transformation?
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Integer (boolean).
+
+*  Description:
+*     This attribute is a boolean value which specifies how SIP keywords
+*     should be handled when reading a FITS-WCS encoded header using the
+c     astRead
+f     AST_READ
+*     function. See
+*     http://irsa.ipac.caltech.edu/data/SPITZER/docs/files/spitzer/shupeADASS.pdf
+*     for more information about SIP headers. If SipReplace is non-zero,
+*     then any SIP keywords describing the inverse transformation (i.e. from
+*     WCS to pixel coordinates) are ignored. Instead a new inverse
+*     transformation is found by performing a fit to the forward
+*     transformation. The SipReplace attribute can be set to zero to prevent
+*     this happening. If SipReplace is zero, any SIP keywords describing the
+*     inverse transformation are used as supplied, rather than being
+*     replaced using a new fit. The default value is 1.
+
+*  Applicability:
+*     FitsChan
+*        All FitsChans have this attribute.
+*att--
+*/
+astMAKE_CLEAR(FitsChan,SipReplace,sipreplace,-1)
+astMAKE_GET(FitsChan,SipReplace,int,1,(this->sipreplace == -1 ? 1 : this->sipreplace))
+astMAKE_SET(FitsChan,SipReplace,int,sipreplace,( value ? 1 : 0 ))
+astMAKE_TEST(FitsChan,SipReplace,( this->sipreplace != -1 ))
 
 /* PolyTan */
 /* ======= */
@@ -41295,6 +41375,12 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    ival = set ? GetCarLin( this, status ) : astGetCarLin( this );
    astWriteInt( channel, "CarLin", set, 1, ival, (ival ? "Use simple linear CAR projections": "Use full FITS-WCS CAR projections") );
 
+/* SipReplace */
+/* ------ */
+   set = TestSipReplace( this, status );
+   ival = set ? GetSipReplace( this, status ) : astGetSipReplace( this );
+   astWriteInt( channel, "SipReplace", set, 1, ival, "Replace SIP inverse coefficients?" );
+
 /* FitsTol */
 /* ------- */
    set = TestFitsTol( this, status );
@@ -42145,6 +42231,7 @@ AstFitsChan *astInitFitsChan_( void *mem, size_t size, int init,
       new->tabok = -INT_MAX;
       new->cdmatrix = -1;
       new->carlin = -1;
+      new->sipreplace = -1;
       new->fitstol = -1.0;
       new->polytan = -INT_MAX;
       new->iwc = -1;
@@ -42368,6 +42455,11 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 /* ------ */
       new->carlin = astReadInt( channel, "carlin", -1 );
       if ( TestCarLin( new, status ) ) SetCarLin( new, new->carlin, status );
+
+/* SipReplace */
+/* ---------- */
+      new->sipreplace = astReadInt( channel, "sipreplace", -1 );
+      if ( TestSipReplace( new, status ) ) SetSipReplace( new, new->sipreplace, status );
 
 /* FitsTol */
 /* ------- */
