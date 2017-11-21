@@ -19,6 +19,10 @@ c      call ast_watchmemory( 225192 )
       fc = ast_fitschan( AST_NULL, AST_NULL, 'SinkFile=./fred.txt',
      :                   status )
 
+      if( .not. ast_getl( fc, 'SipOK', status ) ) then
+         call stopit( 776, ' ', status )
+      end if
+
 *  Put a FITS-WCS header into it.
       cards(1) = 'CRPIX1  =                   45'
       cards(2) = 'CRPIX2  =                   45'
@@ -323,6 +327,7 @@ c      call ast_setl( fc, 'Clean', .true., status )
 *  Read a SIP header and then attempt to write it out. It should fail
 *  because the SIP header is non-linear.
       call ast_emptyfits( fc, status )
+      call ast_seti( fc, 'SipOK', 0, status )
       call ast_set( fc, 'SourceFile=sip.head', status )
       call ast_clear( fc, 'Card', status )
       fs = ast_read( fc, status )

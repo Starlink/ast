@@ -178,6 +178,7 @@ typedef struct AstFitsChan {
    int tabok;       /* Support -TAB algorithm? */
    int cdmatrix;    /* Use a CD matrix in FITS-WCS Encoding? */
    int polytan;     /* Use distorted TAN convention? */
+   int sipok;       /* Use SIP distortion convention? */
    int carlin;      /* Use linear CAR mappings? */
    int sipreplace;  /* Replace SIP inverse coefficients? */
    double fitstol;  /* Max departure from linearity, in pixels */
@@ -338,6 +339,11 @@ typedef struct AstFitsChanVtab {
    int (* TestPolyTan)( AstFitsChan *, int * );
    void (* SetPolyTan)( AstFitsChan *, int, int * );
    void (* ClearPolyTan)( AstFitsChan *, int * );
+
+   int (* GetSipOK)( AstFitsChan *, int * );
+   int (* TestSipOK)( AstFitsChan *, int * );
+   void (* SetSipOK)( AstFitsChan *, int, int * );
+   void (* ClearSipOK)( AstFitsChan *, int * );
 
    int (* GetIwc)( AstFitsChan *, int * );
    int (* TestIwc)( AstFitsChan *, int * );
@@ -527,6 +533,11 @@ void astInitFitsChanGlobals_( AstFitsChanGlobals * );
    int astTestSipReplace_( AstFitsChan *, int * );
    void astSetSipReplace_( AstFitsChan *, int, int * );
    void astClearSipReplace_( AstFitsChan *, int * );
+
+   int astGetSipOK_( AstFitsChan *, int * );
+   int astTestSipOK_( AstFitsChan *, int * );
+   void astSetSipOK_( AstFitsChan *, int, int * );
+   void astClearSipOK_( AstFitsChan *, int * );
 
    int astGetCarLin_( AstFitsChan *, int * );
    int astTestCarLin_( AstFitsChan *, int * );
@@ -803,6 +814,15 @@ astINVOKE(V,astGetPolyTan_(astCheckFitsChan(this),STATUS_PTR))
 astINVOKE(V,astSetPolyTan_(astCheckFitsChan(this),value,STATUS_PTR))
 #define astTestPolyTan(this) \
 astINVOKE(V,astTestPolyTan_(astCheckFitsChan(this),STATUS_PTR))
+
+#define astClearSipOK(this) \
+astINVOKE(V,astClearSipOK_(astCheckFitsChan(this),STATUS_PTR))
+#define astGetSipOK(this) \
+astINVOKE(V,astGetSipOK_(astCheckFitsChan(this),STATUS_PTR))
+#define astSetSipOK(this,value) \
+astINVOKE(V,astSetSipOK_(astCheckFitsChan(this),value,STATUS_PTR))
+#define astTestSipOK(this) \
+astINVOKE(V,astTestSipOK_(astCheckFitsChan(this),STATUS_PTR))
 
 #define astClearCarLin(this) \
 astINVOKE(V,astClearCarLin_(astCheckFitsChan(this),STATUS_PTR))

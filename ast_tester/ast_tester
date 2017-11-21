@@ -159,6 +159,8 @@ foreach n ( "timj ast fits-wcs cdmatrix=1" \
             "dss ast dss" \
             "dss ast fits-wcs cdmatrix=1" \
             "degen1 ast fits-wcs cdmatrix=1" \
+            "degen1 ast fits-wcs cdmatrix=1" \
+            "sip head fits-wcs cdmatrix=1,sipreplace=0" \
             "longslit fits-pc fits-wcs cdmatrix=1" )
 
   set a = `echo $n`
