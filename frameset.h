@@ -526,6 +526,7 @@ typedef struct AstFrameSetVtab {
    void (* SetVariant)( AstFrameSet *, const char *, int * );
    int (* TestVariant)( AstFrameSet *, int * );
    const char *(* GetAllVariants)( AstFrameSet *, int * );
+   int (* GetNode)( AstFrameSet *, int, int *, int *, AstMapping **, int *, int * );
 } AstFrameSetVtab;
 
 #if defined(THREAD_SAFE)
@@ -589,6 +590,7 @@ void astAddVariant_( AstFrameSet *, AstMapping *, const char *, int * );
 void astMirrorVariants_( AstFrameSet *, int, int * );
 void astRemapFrame_( AstFrameSet *, int, AstMapping *, int * );
 void astRemoveFrame_( AstFrameSet *, int, int * );
+int astGetNodeId_( AstFrameSet *, int, int *, int *, AstMapping **, int *, int * );
 
 #if defined(astCLASS)            /* Protected */
 const char *astGetAllVariants_( AstFrameSet *, int * );
@@ -606,6 +608,7 @@ void astClearVariant_( AstFrameSet *, int * );
 const char *astGetVariant_( AstFrameSet *, int * );
 void astSetVariant_( AstFrameSet *, const char *, int * );
 int astTestVariant_( AstFrameSet *, int * );
+int astGetNode_( AstFrameSet *, int, int *, int *, AstMapping **, int *, int * );
 #endif
 
 /* Function interfaces. */
@@ -666,6 +669,8 @@ astINVOKE(O,astGetMapping_(astCheckFrameSet(this),iframe1,iframe2,STATUS_PTR))
 astINVOKE(V,astRemapFrame_(astCheckFrameSet(this),iframe,astCheckMapping(map),STATUS_PTR))
 #define astRemoveFrame(this,iframe) \
 astINVOKE(V,astRemoveFrame_(astCheckFrameSet(this),iframe,STATUS_PTR))
+#define astGetNode(this,inode,nnodes,iframe,map,parent) \
+astINVOKE(V,astGetNodeId_(astCheckFrameSet(this),inode,nnodes,iframe,map,parent,STATUS_PTR))
 
 /* Interfaces to protected member functions. */
 /* ----------------------------------------- */

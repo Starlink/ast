@@ -272,6 +272,8 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        In AddFrame, check to see if a FrameSet is supplied in place of
 *        a Mapping and if so, use the FrameSet's base -> current Mapping
 *        instead.
+*     11-DEC-2017 (DSB):
+*        Added method astGetNode.
 *class--
 */
 
@@ -915,6 +917,7 @@ static int GetMinAxes( AstFrame *, int * );
 static int GetNaxes( AstFrame *, int * );
 static int GetNframe( AstFrameSet *, int * );
 static int GetNin( AstMapping *, int * );
+static int GetNode( AstFrameSet *, int, int *, int *, AstMapping **, int *, int * );
 static int GetNout( AstMapping *, int * );
 static int GetObjSize( AstObject *, int * );
 static int GetPermute( AstFrame *, int * );
@@ -4347,6 +4350,112 @@ static double Gap( AstFrame *this_frame, int axis, double gap, int *ntick, int *
    return result;
 }
 
+static int GetNode( AstFrameSet *this, int inode, int *nnodes,
+                    int *iframe, AstMapping **map, int *parent,
+                    int *status ) {
+/*
+*+
+*  Name:
+*     astGetNode
+
+*  Purpose:
+*     Get information about a single node in a FrameSet tree.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "frameset.h"
+*     int astGetNode( AstFrameSet *this, int inode, int *nnodes,
+*                     int *iframe, AstMapping **map, int *parent )
+
+*  Class Membership:
+*     FrameSet method.
+
+*  Description:
+*     This function returns information about a specified node in a
+*     FrameSet. It is documented as protected, because it should not
+*     be used in general purpose software since it depends on the internal
+*     details of the FrameSet class.  However, it is in fact public so that
+*     it can be used in external software that needs to know about the
+*     internal structure of a FrameSet (for instance, a graphical FrameSet
+*     visualisation system).
+
+*  Parameters:
+*     this
+*        Pointer to the FrameSet.
+*     inode
+*        The zero-based index of the required node.
+*     nnodes
+*        Address of an int returned holding the number of nodes defined
+*        in the FrameSet.
+*     iframe
+*        Address of an int returned holding the one-based index of the
+*        Frame associated with the node. AST__NOFRAME is returned if the
+*        node has no Frame.
+*     map
+*        Address of a Mapping pointer returned holding a pointer to a
+*        deep copy of the Mapping, if any, from the parent node to the
+*        requested node. NULL is returned if the node has no parent.
+*     parent
+*        Address of an int returned holding the zero-based index of the
+*        node from which the requested node is derived. -1 is returned if
+*        the requested node has no parent (i.e. is the root of the tree).
+
+*  Returned Value:
+*     A non-zero value is returned if the "inode" value is within bounds.
+*     Otherwise, zero is returned.
+
+*-
+*/
+
+/* Local Variables: */
+   int jframe;
+   int result;
+
+/* Initialise returned values. */
+   *nnodes = 0;
+   *iframe = AST__NOFRAME;
+   *map = NULL;
+   *parent = -1;
+   result = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Return the number of nodes. */
+   *nnodes = this->nnode;
+
+/* Check the index of the requested node. */
+   if( inode >= 0 && inode < this->nnode ) {
+
+/* Get the index of the Frame - if any - associated with the node. */
+      for( jframe = 0; jframe < this->nframe; jframe++ ) {
+         if( this->node[ jframe ] == inode ) {
+            *iframe = jframe + 1;
+            break;
+         }
+      }
+
+/* Get the Mapping - if any - associated with the node. The root node -
+   node zero - has no mapping or parent node. */
+      if( inode > 0 ) {
+         *map = astCopy( this->map[ inode - 1 ] );
+         if( astGetInvert( *map ) !=  this->invert[ inode - 1 ] ) {
+            astSetInvert( *map,  this->invert[ inode - 1 ] );
+         }
+
+/* The index of the parent node. */
+         *parent = this->link[ inode - 1 ];
+      }
+
+/* Indicate success. */
+      result = 1;
+   }
+
+   return result;
+}
+
 static int GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
@@ -5901,6 +6010,7 @@ void astInitFrameSetVtab_(  AstFrameSetVtab *vtab, const char *name, int *status
    vtab->GetFrame = GetFrame;
    vtab->GetMapping = GetMapping;
    vtab->GetNframe = GetNframe;
+   vtab->GetNode = GetNode;
    vtab->GetAllVariants = GetAllVariants;
    vtab->MirrorVariants = MirrorVariants;
    vtab->RemapFrame = RemapFrame;
@@ -12925,6 +13035,13 @@ const char *astGetAllVariants_( AstFrameSet *this, int *status ) {
    if ( !astOK ) return NULL;
    return (**astMEMBER(this,FrameSet,GetAllVariants))( this, status );
 }
+int astGetNode_( AstFrameSet *this, int inode, int *nnodes,
+                 int *iframe, AstMapping **map, int *parent,
+                 int *status ) {
+   if ( !astOK ) return 0;
+   return (**astMEMBER(this,FrameSet,GetNode))( this, inode, nnodes,
+                                                iframe, map, parent, status );
+}
 
 /* Special public interface functions. */
 /* =================================== */
@@ -12940,6 +13057,7 @@ const char *astGetAllVariants_( AstFrameSet *this, int *status ) {
    protected prototypes), so we must provide local prototypes for use
    within this module. */
 AstFrameSet *astFrameSetId_( void *, const char *, ... );
+int astGetNodeId_( AstFrameSet *, int, int *, int *, AstMapping **, int *, int *);
 
 /* Special interface function implementations. */
 /* ------------------------------------------- */
@@ -13138,5 +13256,82 @@ f     function is invoked with STATUS set to an error value, or if it
    return astMakeId( new );
 }
 
+int astGetNodeId_( AstFrameSet *this, int inode, int *nnodes,
+                   int *iframe, AstMapping **map, int *parent,
+                   int *status ) {
+/*
+*+
+*  Name:
+*     astGetNode
+
+*  Purpose:
+*     Get information about a single node in a FrameSet tree.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "frameset.h"
+*     int astGetNode( AstFrameSet *this, int inode, int *nnodes,
+*                     int *iframe, AstMapping **map, int *parent )
+
+*  Class Membership:
+*     FrameSet method.
+
+*  Description:
+*     This function returns information about a specified node in a
+*     FrameSet. It is documented as protected, because it should not
+*     be used in general purpose software since it depends on the internal
+*     details of the FrameSet class.  However, it is in fact public so that
+*     it can be used in external software that needs to know about the
+*     internal structure of a FrameSet (for instance, a graphical FrameSet
+*     visualisation system).
+
+*  Parameters:
+*     this
+*        Pointer to the FrameSet.
+*     inode
+*        The zero-based index of the required node.
+*     nnodes
+*        Address of an int returned holding the number of nodes defined
+*        in the FrameSet.
+*     frame
+*        Address of a Frame pointer returned holding a pointer to a deep
+*        copy of the Frame, if any, associated with the node. NULL
+*        is returned if the node has no Frame.
+*     map
+*        Address of a Mapping pointer returned holding a pointer to a
+*        deep copy of the Mapping, if any, from the parent node to the
+*        requested node. NULL is returned if the node has no parent.
+*     parent
+*        Address of an int returned holding the zero-based index of the
+*        node from which the requested node is derived. -1 is returned if
+*        the requested node has no parent (i.e. is the root of the tree).
+
+*  Returned Value:
+*     A non-zero value is returned if the "inode" value is within bounds.
+*     Otherwise, zero is returned.
+
+*-
+*/
+
+/* Local Variables: */
+   int result;
+
+/* Initialise. */
+   result = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Invoke the normal astGetNode_ function. */
+   result = astGetNode_( this, inode, nnodes, iframe, map, parent, status );
+
+/* Return an ID value for the Mapping. */
+   *map = astMakeId( *map );
+
+/* Return the result. */
+   return result;
+}
 
 
