@@ -217,6 +217,8 @@ f     The WcsMap class does not define any new routines beyond those
 *        no less useful (and no more useful) than a fixed value of zero.
 *     12-JUN-2014 (DSB):
 *        Added XPH projection.
+*     30-DEC-2017 (DSB):
+*        Improve merging of WcsMaps and PermMaps.
 *class--
 */
 
@@ -775,7 +777,7 @@ static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, 
 static const PrjData *FindPrjData( int, int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
 static int CanMerge( AstMapping *, int, AstMapping *, int, int * );
-static int CanSwap( AstMapping *, AstMapping *, int, int, int *, int * );
+static int CanSwap( AstMapping *, AstMapping *, int, int, int *, AstWcsMap **, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetNP( AstWcsMap *, int, int * );
 static int IsZenithal( AstWcsMap *, int * );
@@ -908,7 +910,7 @@ static int CanMerge( AstMapping *map1, int inv1, AstMapping *map2, int inv2, int
 }
 
 static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
-                    int *simpler, int *status ){
+                    int *simpler, AstWcsMap **newwcsmap, int *status ){
 /*
 *  Name:
 
@@ -923,7 +925,7 @@ static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
 *  Synopsis:
 *     #include "wcsmap.h"
 *     int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
-*                  int *simpler )
+*                  int *simpler, AstWcsMap **newwcssmap )
 
 *  Class Membership:
 *     WcsMap member function
@@ -950,6 +952,10 @@ static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
 *        Addresss of a location at which to return a flag indicating if
 *        the swapped Mappings would be intrinsically simpler than the
 *        original Mappings.
+*     newwcsmap
+*        Addresss of a location at which to return a pointer to the
+*        WcsMap that would be produced if the two Mappings were swapped.
+*        Returned holding NULL if the supplied Mappings cannot be swapped.
 
 *  Returned Value:
 *     1 if the Mappings could be swapped, 0 otherwise.
@@ -963,6 +969,7 @@ static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
 */
 
 /* Local Variables: */
+   AstMapping *maps[2];      /* Pointer to Mappign list */
    AstMapping *nowcs;        /* Pointer to non-WcsMap Mapping */
    AstWcsMap  *wcs;          /* Pointer to WcsMap Mapping */
    const char *class1;       /* Pointer to map1 class string */
@@ -973,18 +980,20 @@ static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
    int *outperm;             /* Pointer to output axis permutation array */
    int i;                    /* Loop count */
    int invert[ 2 ];          /* Original invert flags */
+   int iwm;                  /* Index of WcsMap within "maps" */
    int latax;                /* Index of latitude axis in WcsMap */
    int lonax;                /* Index of longitude axis in WcsMap */
    int nin;                  /* No. of input coordinates for the PermMap */
    int nout;                 /* No. of output coordinates for the PermMap */
    int ret;                  /* Returned flag */
 
-/* Check the global error status. */
-   if ( !astOK ) return 0;
-
 /* Initialise */
    ret = 0;
    *simpler = 0;
+   *newwcsmap = NULL;
+
+/* Check the global error status. */
+   if ( !astOK ) return ret;
 
 /* Temporarily set the Invert attributes of both Mappings to the supplied
    values. */
@@ -1001,10 +1010,12 @@ static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
 
 /* Get a pointer to the non-WcsMap Mapping. */
       if( !strcmp( class1, "WcsMap" ) ){
+         iwm = 0;
          wcs = (AstWcsMap *) map1;
          nowcs = map2;
          nowcs_class = class2;
       } else {
+         iwm = 1;
          nowcs = map1;
          wcs = (AstWcsMap *) map2;
          nowcs_class = class1;
@@ -1102,6 +1113,22 @@ static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
    supplied MatrixMaps. */
    astSetInvert( map1, invert[ 0 ] );
    astSetInvert( map2, invert[ 1 ] );
+
+/* If the Mappings can swap, get the equivalent swapped mappings. */
+   if( ret ) {
+      maps[ 0 ] = astClone( map1 );
+      maps[ 1 ] = astClone( map2 );
+      invert[ 0 ] = inv1;
+      invert[ 1 ] = inv2;
+      WcsPerm( maps, invert, iwm, status );
+
+/* Return a pointer to the swapped WcsMap. */
+      *newwcsmap = astClone( maps[ 1 - iwm ] );
+
+/* Free resources */
+      maps[ 0 ] = astAnnul( maps[ 0 ] );
+      maps[ 1 ] = astAnnul( maps[ 1 ] );
+   }
 
 /* Return the answer. */
    return astOK ? ret : 0;
@@ -3000,6 +3027,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    AstMapping *mc[2];    /* Copies of supplied Mappings to swap */
    AstMapping *smc0;     /* Simplied Mapping */
    AstMapping *smc1;     /* Simplied Mapping */
+   AstWcsMap *newwcsmap; /* The WcsMap after swapping */
    const char *nclass;   /* Pointer to neighbouring Mapping class */
    const char *class1;   /* Pointer to first Mapping class string */
    const char *class2;   /* Pointer to second Mapping class string */
@@ -3128,10 +3156,12 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
             swaphi = CanSwap(  ( *map_list )[ where ],
                                ( *map_list )[ where + 1 ],
                                ( *invert_list )[ where ],
-                               ( *invert_list )[ where + 1 ], &do2, status );
+                               ( *invert_list )[ where + 1 ], &do2,
+                               &newwcsmap, status );
          } else {
             do2 = 0;
             swaphi = 0;
+            newwcsmap = NULL;
          }
 
 /* If so, step through each of the Mappings which follow the WcsMap,
@@ -3147,7 +3177,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* See if we can merge with this Mapping. If so, note the number of steps
    between the two Mappings and leave the loop. */
                if( CanMerge( ( *map_list )[ i2 ], ( *invert_list )[ i2 ],
-                             ( *map_list )[ where ], ( *invert_list )[ where ], status ) ) {
+                             (AstMapping *) newwcsmap, astGetInvert(newwcsmap), status ) ) {
                   nstep2 = i2 - where - 1;
                   break;
                }
@@ -3159,10 +3189,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                if( strcmp( nclass, "PermMap" ) ) {
                   break;
                }
-
             }
-
          }
+
+         if( newwcsmap ) newwcsmap = astAnnul( newwcsmap );
 
 /* Do the same working forward from the WcsMap towards the start of the map
    list. */
@@ -3170,10 +3200,12 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
             swaplo = CanSwap(  ( *map_list )[ where - 1 ],
                                ( *map_list )[ where ],
                                ( *invert_list )[ where - 1 ],
-                               ( *invert_list )[ where ], &do1, status );
+                               ( *invert_list )[ where ], &do1,
+                               &newwcsmap, status );
          } else {
             do1 = 0;
             swaplo = 0;
+            newwcsmap = NULL;
          }
 
          nstep1 = -1;
@@ -3181,7 +3213,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
             for( i1 = where - 1; i1 >= 0; i1-- ){
 
                if( CanMerge( ( *map_list )[ i1 ], ( *invert_list )[ i1 ],
-                             ( *map_list )[ where ], ( *invert_list )[ where ], status ) ) {
+                               (AstMapping *) newwcsmap, astGetInvert(newwcsmap), status ) ) {
                   nstep1 = where - 1 - i1;
                   break;
                }
@@ -3190,10 +3222,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                if( strcmp( nclass, "PermMap" ) ) {
                   break;
                }
-
             }
-
          }
+
+         if( newwcsmap ) newwcsmap = astAnnul( newwcsmap );
 
 /* Choose which neighbour to swap with so that the WcsMap moves towards the
    nearest Mapping with which it can merge. */
@@ -3214,7 +3246,6 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    merge, replace the supplied Mappings with swapped Mappings to bring a
    WcsMap closer to the target Mapping. */
          if( nclass ){
-
             WcsPerm( (*map_list) + i1, (*invert_list) + i1, where - i1, status );
 
 /* Store the index of the first modified Mapping. */
