@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V8.6.0) of the Starlink AST (astrometry) library is
+   A new release (V8.6.2) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,6 +17,18 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- The astWrite method of the FitsChan class can now create FITS-WCS headers
+that include keyords describing focal plane distortion using the
+conventions of the Spitzer SIP scheme. This is however only possible if
+the SipOK attribute of the FitsChan is set to a non-zero value (which is
+the default), and the FrameSet being written out contains an appropriate
+PolyMap that conforms to the requirements of the SIP convention.
+
+
+
+Main Changes in V8.6.1
+----------------------
 
 - A new function call astCreatedAt is now available that returns the function
 name, file path and line number at which an AST object was first created.

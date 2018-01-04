@@ -21838,10 +21838,17 @@ are those between TAI and UTC, and those between TT and TDB.
 \subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
 Introduced in V8.6}
 The following describes the most significant changes which have
-occurred in the AST library between versions V8.5.1 and V8.6.0 (the
+occurred in the AST library between versions V8.5.1 and V8.6.2 (the
 current version):
 
 \begin{enumerate}
+
+\item The astWrite method of the FitsChan class can now create FITS-WCS headers
+that include keyords describing focal plane distortion using the
+conventions of the Spitzer SIP scheme. This is however only possible if
+the SipOK attribute of the FitsChan is set to a non-zero value (which is
+the default), and the FrameSet being written out contains an appropriate
+PolyMap that conforms to the requirements of the SIP convention.
 
 \item A new function call astCreatedAt is now available that returns the
 function name, file path and line number at which an AST object was first
