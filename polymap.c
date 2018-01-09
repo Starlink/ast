@@ -123,6 +123,9 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        fitted includes a change of scale (e.g. the PolyMap input is in "mm"
 *        but the output is in "rads" and includes some large scaling factor
 *        to do the conversion).
+*     9-JAN-2018 (DSB):
+*        Correct Transform to take account of AST__BAD coeffs correctly.
+*        Previously bad coeffs could generate NaN output values.
 *class--
 */
 
@@ -4730,7 +4733,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                   }
 
 /* Increment the output value by the current term of the polynomial. */
-                  outval += term;
+                  if( outval != AST__BAD ) outval += term;
 
                }
 

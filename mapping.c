@@ -374,15 +374,19 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        Use one bit of this->flags to store the "IsSimple" attribute
 *        rather using a whole char (this->issimple).
 *     16-JUN-2017 (DSB):
-*        If a simplification fails because the simplification process makes 
-*        an inappropriate assumption about the supplied Mapping (e.g. that 
-*        it has a defined inverse transformation) - thus causing an error to 
-*        be reported, then clear the error status and return a clone of the 
-*        unmodified supplied Mapping. Putting this check in the astSimplify_ 
+*        If a simplification fails because the simplification process makes
+*        an inappropriate assumption about the supplied Mapping (e.g. that
+*        it has a defined inverse transformation) - thus causing an error to
+*        be reported, then clear the error status and return a clone of the
+*        unmodified supplied Mapping. Putting this check in the astSimplify_
 *        wrapper function in the base Mapping class is much simpler and less
-*        error prone than performing tests on the appropriateness of the 
-*        mapping in teh astMapMerge method of each and every mapping class. 
-*        
+*        error prone than performing tests on the appropriateness of the
+*        mapping in teh astMapMerge method of each and every mapping class.
+*     9-JAN-2018 (DSB):
+*        Modify astLinearApprox so that a linear mapping in parallel with a 
+*        mapping that generates bad values is considered linear. The returned
+*        coeffs for the bad outputs are set bad.
+*
 *class--
 */
 
@@ -6498,6 +6502,20 @@ f        .TRUE is returned. Otherwise .FALSE. is returned
 c     astInvert
 f     AST_INVERT
 *     before invoking this function.
+*     - If a Mapping output is found to have a bad value (AST__BAD) at
+*     one or more of the test points used in the linearity test, then all
+*     the values in the returned fit that correspond to that output are
+*     set to AST__BAD. However, this does not affect the linearity tests
+*     on the other Mapping outputs - if they are all found to be linear
+*     then usable coefficients will be returned for them in the fit, and
+*     the function will return a
+c     non-zero value.
+f     .TRUE. value.
+*     Consequently, it may be necessary to check that the values in the
+*     returned fit are not AST__BAD before using them. If all Mapping
+*     outputs generate bad values, then
+c     zero is returned as the function value.
+f     .FALSE. is returned as the function value.
 c     - A value of zero
 f     - A value of .FALSE.
 *     will be returned if this function is invoked
@@ -6536,6 +6554,7 @@ f     - A value of .FALSE.
    double yfit;                  /* Coordinate resulting from fit */
    double z;                     /* Sum for calculating zero points */
    int *vertex;                  /* Pointer to flag array for vertices */
+   int bad_output;               /* Does the Mapping output generate bad values? */
    int coord_in;                 /* Loop counter for input coordinates */
    int coord_out;                /* Loop counter for output coordinates. */
    int done;                     /* All vertices visited? */
@@ -6568,6 +6587,9 @@ f     - A value of .FALSE.
 
 /* Store the number of coefficients in the fit.*/
    nc = ( ndim_in + 1 ) * ndim_out;
+
+/* Initialise the supplied array to hold bad values. */
+   for( ii = 0; ii < nc; ii++ ) fit[ ii ] = AST__BAD;
 
 /* Create a PointSet to hold input coordinates and obtain a pointer
    to its coordinate arrays. */
@@ -6610,6 +6632,7 @@ f     - A value of .FALSE.
    the zero points which describe it. */
       ii = 0;
       for ( coord_out = 0; coord_out < ndim_out; coord_out++ ) {
+         bad_output = 0;
          z = 0.0;
          for ( coord_in = 0; coord_in < ndim_in; coord_in++ ) {
 
@@ -6623,10 +6646,12 @@ f     - A value of .FALSE.
             out1 = ptr_out_f[ coord_out ][ face1 ];
             out2 = ptr_out_f[ coord_out ][ face2 ];
 
-/* Check whether any transformed coordinates are bad. If so, the
-   transformation cannot be linear, so give up trying to fit it. */
+/* Check whether any transformed coordinates are bad. Mapping outputs
+   that are bad at one or more test points have bad values stored for the
+   corresponding coefficients in the returned fit, but do not invalidate
+   the linearity of the fit to other outputs. */
             if ( ( out1 == AST__BAD ) || ( out2 == AST__BAD ) ) {
-               linear = 0;
+               bad_output = 1;
                break;
             }
 
@@ -6643,27 +6668,31 @@ f     - A value of .FALSE.
             z += ( out1 + out2 );
          }
 
-/* Also quit the outer loop if a linear fit cannot be obtained. */
-         if ( !linear ) break;
-
 /* Determine the average zero point from all dimensions. */
-         zero[ coord_out ] = z / (double) ( 2 * ndim_in );
+         if( !bad_output ) zero[ coord_out ] = z / (double) ( 2 * ndim_in );
       }
 
-/* If a linear fit was obtained, its zero points will be appropriate
-   to an input coordinate system with an origin at the centre of the
-   input grid (we assume this to simplify the calculations above). To
-   correct for this, we transform the actual input coordinates of the
+/* The zero points of the above fit will be appropriate to an input
+   coordinate system with an origin at the centre of the input grid
+   (we assume this to simplify the calculations above). To correct
+   for this, we transform the actual input coordinates of the
    grid's centre through the matrix of gradients and subtract the
    resulting coordinates from the zero point values. The zero points
    are then correct for the actual output and input coordinate systems
-   we are using. */
-      if ( linear ) {
-         ii = 0;
-         for ( coord_out = 0; coord_out < ndim_out; coord_out++ ) {
+   we are using. Also, if all Mapping outputs generate bad values, flag
+   that we do not have a linear fit. */
+      linear = 0;
+      ii = 0;
+      for ( coord_out = 0; coord_out < ndim_out; coord_out++ ) {
+         if( zero[ coord_out ] != AST__BAD ) {
+            linear = 1;
             for ( coord_in = 0; coord_in < ndim_in; coord_in++ ) {
                x0 = 0.5 * ( lbnd[ coord_in ] + ubnd[ coord_in ] );
                zero[ coord_out ] -= grad[ ii++ ] * x0;
+            }
+         } else {
+            for ( coord_in = 0; coord_in < ndim_in; coord_in++ ) {
+               grad[ ii++ ] = AST__BAD;
             }
          }
       }
@@ -6675,11 +6704,11 @@ f     - A value of .FALSE.
 
 /* Calculate the number of test points required. */
 /* --------------------------------------------- */
-/* If we have obtained a linear fit above, it will (by construction)
-   be exact at the centre of each face of the input grid. However, it
-   may not fit anywhere else. We therefore set up some test points to
+/* The linear fit obtained above, will (by construction) be exact
+   at the centre of each face of the input grid. However, it may
+   not fit anywhere else. We therefore set up some test points to
    determine if it is an adequate approximation elsewhere. */
-   if ( astOK && linear ) {
+   if( astOK && linear ) {
 
 /* Calculate the number of test points required to place one at each
    vertex of the grid. */
@@ -6813,13 +6842,18 @@ f     - A value of .FALSE.
                err = 0.0;
 
 /* Obtain each output coordinate (produced by using the Mapping) in
-   turn and check that it is not bad. If it is, then the
-   transformation is not linear, so give up testing the fit. */
+   turn and check that it is not bad. If it is, then store bad values for
+   the output's coefficients and pass on to the next output. */
+               bad_output = 0;
                ii = 0;
                for ( coord_out = 0; coord_out < ndim_out; coord_out++ ) {
                   y = ptr_out_t[ coord_out ][ point ];
-                  if ( y == AST__BAD ) {
-                     linear = 0;
+                  if ( y == AST__BAD || zero[ coord_out ] == AST__BAD ) {
+                     zero[ coord_out ] = AST__BAD;
+                     for ( coord_in = 0; coord_in < ndim_in; coord_in++ ) {
+                        grad[ ii++ ] = AST__BAD;
+                     }
+                     bad_output++;
                      break;
                   }
 
@@ -6836,14 +6870,12 @@ f     - A value of .FALSE.
                   err += diff * diff;
                }
 
-/* Quit the outer loop if the Mapping is found to be non-linear. */
-               if ( !linear ) break;
-
 /* Test if the Cartesian distance between the true output coordinate
    and the approximate one exceeds the accuracy tolerance. If this
    happens for any test point, we declare the Mapping non-linear and
-   give up. */
-               if ( sqrt( err ) > tol ) {
+   give up. Reduce the allowed tolerance in proproprtion to the number of
+   bad Mapping outputs that were found. */
+               if ( sqrt( err ) > (tol*(ndim_out - bad_output))/ndim_out ) {
                   linear = 0;
                   break;
                }
