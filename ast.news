@@ -25,6 +25,13 @@ the SipOK attribute of the FitsChan is set to a non-zero value (which is
 the default), and the FrameSet being written out contains an appropriate
 PolyMap that conforms to the requirements of the SIP convention.
 
+- The behaviour of the astLinearApprox method of the Mapping class has
+been changed in cases where the Mapping being approximated generates bad
+(AST__BAD) values for one or more of its outputs. Previously, any such
+Mapping would be deemed non-linear and no fit would be returned. Now, a
+fit is returned, provided the other outputs of the Mapping are linear,
+but the fit contains AST__BAD values for the coefficients describing the
+bad Mapping output.
 
 
 Main Changes in V8.6.1

@@ -21843,6 +21843,14 @@ current version):
 
 \begin{enumerate}
 
+\item The behaviour of the astLinearApprox method of the Mapping class has
+been changed in cases where the Mapping being approximated generates bad
+(AST\_\_BAD) values for one or more of its outputs. Previously, any such
+Mapping would be deemed non-linear and no fit would be returned. Now, a
+fit is returned, provided the other outputs of the Mapping are linear,
+but the fit contains AST\_\_BAD values for the coefficients describing the
+bad Mapping output.
+
 \item The astWrite method of the FitsChan class can now create FITS-WCS headers
 that include keyords describing focal plane distortion using the
 conventions of the Spitzer SIP scheme. This is however only possible if
