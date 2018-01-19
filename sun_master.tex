@@ -3866,7 +3866,9 @@ created in the same thread.
 
 If the Object pointer is then passed to another thread, the first thread
 must unlock the Object using astUnlock and the second thread must then lock
-it using astLock.
+it using astLock. Once an object has been locked or unlocked by a thread
+using a particular pointer, the locked or unlocked state of the Object
+will also be visible through any other cloned pointers to the same Object.
 
 If a thread attempts to lock an Object that is already locked by another
 thread, it can choose to report an error immediately or to wait until the
