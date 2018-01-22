@@ -12966,7 +12966,7 @@ static AstFitsTable *GetNamedTable( AstFitsChan *this, const char *extname,
 /* Check the inherited status. */
    if( !astOK ) return ret;
 
-/* Fitrst attempt to read the required table from the external FITS file.
+/* First attempt to read the required table from the external FITS file.
    Only proceed if table source function and wrapper have been supplied
    using astTableSource. */
    if( this->tabsource && this->tabsource_wrap ){
@@ -32070,8 +32070,8 @@ f        The table source routine to use.
 *        the third is the integer FITS "EXTVER" header value for the
 *        required extension, the fourth is the integer FITS "EXTLEVEL"
 *        header value for the required extension, and the fifth is
-c        a pointer to
-*        the inherited integer status value.
+c        a pointer to an integer status value.
+f        the usual inherited status value.
 *
 *        The call-back should read the entire contents (header and data)
 *        of the binary table in the named extension of the external FITS
@@ -32081,8 +32081,10 @@ c        astPutTables or astPutTable
 f        AST_PUTTABLES or AST_PUTTABLE
 *        method, and finally annull its local copy of the FitsTable pointer.
 *        If the table cannot be read for any reason, or if any other
-*        error occurs, it should return a non-zero integer for the final
-*        (third) argument.
+*        error occurs, it should return
+c        zero for the final (third) argument (otherwise any non-zero integer
+f        a non-zero integer for the final (third) argument (otherwise zero
+*        should be returned).
 *
 c        If "tabsource" is NULL,
 f        If TABSOURCE is AST_NULL,
