@@ -73,6 +73,11 @@ f     The UnitNormMap class does not define any new routines beyond those
 *        Original version.
 *     17-MAR-2017 (DSB):
 *        Fix some memory leaks in MakeMergedMap.
+*     23-JAN-2017 (DSB):
+*        The length of the centre array is "Nin" for an uninverted
+*        UnitNormMap but "Nout" for an inverted UnitNormMap. Previously,
+*        it was always assumed to be Nin, which lead to a memory leak in
+*        the Copy function, etc.
 *class--
 */
 
@@ -1046,12 +1051,12 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    in= (AstUnitNormMap *) objin;
    out = (AstUnitNormMap *) objout;
 
-/* Get the number of coordinates mapped by the UnitNormMap. */
-   ncoord = astGetNin( in );
+/* Get the length of the centre array. */
+   ncoord = astGetInvert( in ) ? astGetNout( in ) : astGetNin( in );
 
 /* Allocate memory holding copies of the centre defining the mapping. */
    out->centre = (double *) astStore( NULL, (void *) in->centre,
-                                     sizeof(double)*(size_t)ncoord );
+                                      sizeof(double)*(size_t)ncoord );
 
 /* If an error occurred, free any allocated memory. */
    if( !astOK ) {
@@ -1145,8 +1150,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* Obtain a pointer to the UnitNormMap structure. */
    AstUnitNormMap *this = (AstUnitNormMap *) this_object;
 
-/* Get the number of coordinates to be mapped. */
-   int ncoord = astGetNin( this );
+/* Get the length of the centre array. */
+   int ncoord = astGetInvert( this ) ? astGetNout( this ) : astGetNin( this );
 
 /* Write out values representing the instance variables for the
    UnitNormMap class.  Accompany these with appropriate comment strings,
@@ -1584,7 +1589,9 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
 #define KEY_LEN 50               /* Maximum length of a keyword */
 
 /* Local Variables: */
-   char buff[ KEY_LEN + 1 ];    /* Buffer for keyword string */
+   char buff[ KEY_LEN + 1 ];     /* Buffer for keyword string */
+   int axis;                     /* Axis index */
+   int ncoord;                   /* Length of the centre array */
 
 /* Get a pointer to the thread specific global data structure. */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
@@ -1618,25 +1625,34 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
    new = astLoadMapping( mem, size, (AstMappingVtab *) vtab, name,
                          channel );
 
-   if( astOK ) {
-
-/* Get the number of axis for the mapping. */
-      int ncoord = astGetNin( (AstMapping *) new );
+/* Get the length of the centre array = the number of inputs in the 
+   forward direction. */
+   ncoord = 0;
+   if ( astGetInvert( (AstMapping *) new ) ){
+      ncoord = astGetNout( (AstMapping *) new );
+   } else {
+      ncoord = astGetNin( (AstMapping *) new );
+   }
+   if( ncoord <= 0 && astOK ){
+      astError( AST__LDERR, "The UnitNormMap has %d axes - it must have at least one.", 
+                status, ncoord );
+      return NULL;
+   }
 
 /* Allocate memory to hold the centre. */
-      new->centre = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
+   new->centre = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
 
 /* Read input data. */
 /* ================ */
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
+   if( astOK ) {
       astReadClassData( channel, "UnitNormMap" );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */
 
 /* The centre. */
-      int axis = 0;
       for( axis = 0; axis < ncoord; axis++ ){
          (void) sprintf( buff, "ctr%d", axis + 1 );
          (new->centre)[ axis ] = astReadDouble( channel, buff, 0.0 );

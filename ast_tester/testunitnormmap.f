@@ -32,6 +32,10 @@
 
          call checkdump( map, status )
 
+         call ast_invert( map, status )
+         call checkdump( map, status )
+         call ast_invert( map, status )
+
          call checkroundtrip( map, frompos, good, status )
          if( .not. good )  call stopit( status, 'Error 6' )
 
@@ -110,11 +114,11 @@ c      call ast_activememory( 'testunitnormmap' )
       implicit none
       include 'SAE_PAR'
       include 'AST_PAR'
-      integer obj, status, stat, ch, result, nin, i
+      integer obj, status, stat, ch, result, nin, nout, i
       logical differ
-      double precision in(3), out1(3), out2(3)
+      double precision in(4), out1(4), out2(4)
 
-      data in /10.0D0, 5.0D0, -12.0D0 /
+      data in /10.0D0, 5.0D0, -12.0D0, 6.0D0 /
 
       if( status .ne. sai__ok ) return
 
@@ -142,12 +146,13 @@ c      call ast_activememory( 'testunitnormmap' )
 
       else
          nin = ast_geti( result, 'Nin', status )
-         call ast_trann( result, 1, nin, 1, in, .TRUE., nin+1, 1, out1,
+         nout = ast_geti( result, 'Nout', status )
+         call ast_trann( result, 1, nin, 1, in, .TRUE., nout, 1, out1,
      :                   status );
-         call ast_trann( obj, 1, nin, 1, in, .TRUE., nin+1, 1, out2,
+         call ast_trann( obj, 1, nin, 1, in, .TRUE., nout, 1, out2,
      :                   status );
 
-         do i = 1, nin
+         do i = 1, nout
             if( differ( out2(i), out1(i) ) )
      :         call stopit( status, 'Error - Recovered UnitNormMap '//
      :                      'differs from suppled UnitNormMap' )
