@@ -21001,6 +21001,7 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
             latax = i;
          }
       }
+      pfrm = astAnnul( pfrm );
    }
 
 /* If there is a pair of celestial axes in the WCS Frame, and if the
@@ -27882,9 +27883,9 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
 
          invert_list = astFree( invert_list );
          map_list = astFree( map_list );
-         inax1 = astFree( inax1 );
          smap = astAnnul( smap );
       }
+      inax1 = astFree( inax1 );
       if( tmap1 ) tmap1 = astAnnul( tmap1 );
    }
 
