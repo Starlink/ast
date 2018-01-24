@@ -23,7 +23,8 @@ c      call ast_watchmemory( 282905 )
 
       call ast_end( status )
 
-c      call ast_activememory( 'testregions' )
+      call ast_activememory( 'testregions' )
+      call ast_flushmemory( 1 );
 
       if( status .eq. sai__ok ) then
          write(*,*) 'All Region tests passed'

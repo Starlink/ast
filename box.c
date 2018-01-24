@@ -3965,7 +3965,10 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
                   newpoly = astPolygon( frm, 4, 4, corners, unc, "", status );
 
 /* If the Polygon is bounded, break out of the loop. */
-                  if( astGetBounded( newpoly ) ) break;
+                  if( astGetBounded( newpoly ) ) {
+                     ps2 = astAnnul( ps2 );
+                     break;
+                  }
                }
 
 /* Free resources. */

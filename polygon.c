@@ -608,15 +608,14 @@ static void Cache( AstPolygon *this, int *status ){
          for( i = 0; i < nv; i++ ) {
             this->edges[ i ] = astFree( this->edges[ i ] );
          }
-
-/* Allocate memory to store new edge information if necessary. */
-      } else {
-         this->edges = astMalloc( sizeof( AstLineDef *)*(size_t) nv );
-         this->startsat = astMalloc( sizeof( double )*(size_t) nv );
       }
 
+/* Ensure we have enough memory to store new edge information if necessary. */
+      this->edges = astGrow( this->edges, nv, sizeof( AstLineDef *) );
+      this->startsat = astGrow( this->startsat, nv, sizeof( double ) );
+
 /* Check pointers can be used safely. */
-      if( this->edges ) {
+      if( this->edges && this->startsat ) {
 
 /* Create and store a description of each edge. Also form the total
    distance round the polygon, and the distance from the first vertex
@@ -6355,10 +6354,10 @@ static void Delete( AstObject *obj, int *status ) {
       for( i = 0; i < nv; i++ ) {
          this->edges[ i ] = astFree( this->edges[ i ] );
       }
-      this->edges = astFree( this->edges );
-      this->startsat = astFree( this->startsat );
-
    }
+
+   this->edges = astFree( this->edges );
+   this->startsat = astFree( this->startsat );
 }
 
 /* Dump function. */

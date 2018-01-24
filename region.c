@@ -5607,21 +5607,18 @@ static AstRegion *MapRegion( AstRegion *this, AstMapping *map0,
 
             outax = astMapSplit( map, ntotal, keep, &tmap );
             if( outax ) {
-
                usethis = astAnnul( usethis );
                usethis = astPickAxes( this, ntotal, keep, NULL );
 
                usemap = astAnnul( usemap );
                usemap = astClone( tmap );
-
-               tmap = astAnnul( tmap );
-               outax = astFree( outax );
-
             }
 
             astInvert( map );
          }
          keep = astFree( keep );
+         outax = astFree( outax );
+         tmap = astAnnul( tmap );
       }
       inax = astFree( inax );
 
@@ -8470,8 +8467,10 @@ static AstPointSet *RegGrid( AstRegion *this, int *status ){
    positions evenly spread over the volume of the Region in the base
    Frame, create one now. Note, we cannot cache the grid in the current
    Frame in this way since the current Frame grid depends on the proprties
-   of the current Frame (e.g. System) which can be changed at any time. */
-   if( !this->basegrid ) this->basegrid = astRegBaseGrid( this );
+   of the current Frame (e.g. System) which can be changed at any time.
+   astRegBaseGrid stores a pointer for the PointSet in this->basegrid,
+   and returns a clone of the pointer, which we do not need so annul it. */
+   if( !this->basegrid ) astAnnul( astRegBaseGrid( this ) );
 
 /* Get the simplified base->current Mapping */
    map = astRegMapping( this );
