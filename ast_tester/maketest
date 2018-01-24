@@ -23,7 +23,7 @@ else if( -e "$a.f" ) then
        `ast_link -ems` `chr_link` `err_link` `prm_link` `psx_link`
 
 else if( -e "$a.c" ) then
-   gcc -o $a -g $a.c -I.. -DHAVE_CONFIG_H -L$GITSTAR/lib $LDFLAGS `ast_link`
+   gcc -o $a -g $a.c -I.. -I$GITSTAR/include -DHAVE_CONFIG_H -L$GITSTAR/lib $LDFLAGS `ast_link -ems` -pthread `err_link`
 
 else
    echo "Cannot find $a.f or $a.c"
