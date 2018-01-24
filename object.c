@@ -6006,6 +6006,7 @@ static int unowned_handles = -1; /* Offset to head of unowned Handle
 static int Watched_Handle = -1; /* A handle index to be watched. Activity
                                    on this handle is reported using
                                    astHandleUse and astHandleAlarm. */
+static int Watched_Pointer = -1; /* A pointer ID value to be watched. */
 #endif
 
 
@@ -8031,8 +8032,10 @@ AstObject *astMakeId_( AstObject *this, int *status ) {
 #if defined(MEM_DEBUG)
                handles[ ihandle ].id = astMemoryId( this );
                handles[ ihandle ].vtab = this->vtab;
-               astHandleUse( ihandle, "associated with a %s (id %d)",
-                              astGetClass( this ), astMemoryId( this ));
+               if( Watched_Pointer == -1 ) {
+                  astHandleUse( ihandle, "associated with a %s (id %d)",
+                                 astGetClass( this ), astMemoryId( this ));
+               }
 #endif
 
 /* Insert the Handle into the active Handles list for the current
@@ -8041,6 +8044,17 @@ AstObject *astMakeId_( AstObject *this, int *status ) {
 
 /* Associate an identifier value with the Handle. */
                id = AssocId( ihandle, status );
+
+#if defined(MEM_DEBUG)
+               int iid = astP2I( id );
+               if( iid == Watched_Pointer ) {
+                  Watched_Handle = ihandle;
+                  printf( "astHandleAlarm: Watched AST pointer (value %d) has been "
+                          "issued for Object handle index %d\n", iid, ihandle );
+                  astHandleUse( ihandle, "associated with a %s (id %d)",
+                                astGetClass( this ), astMemoryId( this ));
+               }
+#endif
 
 /* If an error occurred, clean up by annulling the Handle. This
    ensures that the Object pointer is annulled and returns the unused
@@ -8860,13 +8874,27 @@ int CheckThread( int ihandle, int *head, int *status ) {
    return result;
 }
 
+void astWatchPointer_( int ptr_id ){
+   Watched_Pointer = ptr_id;
+   Watched_Handle = -1;
+}
+
 void astWatchHandle_( int handle ){
    Watched_Handle = handle;
+   Watched_Pointer = -1;
 }
 
 void astHandleUse_( int handle, const char *verb, ... ){
+   const char *routine;
+   const char *file;
+   int line;
    va_list args;
    if( handle == Watched_Handle ) {
+      astGetAt( &routine, &file, &line );
+      if( routine && file ) {
+         printf( "astHandleAlarm: In function %s (%s line %d)\n",
+                 routine, file, line );
+      }
       va_start( args, verb );
       astHandleAlarm( verb, args );
       va_end( args );
