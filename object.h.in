@@ -1943,16 +1943,19 @@ astINVOKE(V,astTestAttrib_(astCheckObject(this),attrib,STATUS_PTR))
 void astWatchHandle_( int );
 void astHandleUse_( int, const char *, ... );
 void astHandleAlarm_( const char *, va_list );
+void astWatchPointer_( int );
 
 #define astWatchHandle astWatchHandle_
 #define astHandleUse astHandleUse_
 #define astHandleAlarm astHandleAlarm_
+#define astWatchPointer astWatchPointer_
 
 #else
 
 #define astWatchHandle
 #define astHandleUse
 #define astHandleAlarm
+#define astWatchPointer
 
 #endif
 
