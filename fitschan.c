@@ -1204,6 +1204,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Added SipReplace attribute.
 *     30-DEC-2017 (DSB):
 *        Add the SipOK attribute, and support for writing SIP headers.
+*     14-FEB-2018 (DSB):
+*        In SipIntWorld, check linearity of mappings numerically rather
+*        than on the basis of their class. This is because some linear
+*        combinations contain non-linear mappings (eg. a spherical
+*        rotation projected using a TAN projection).
+
 *class--
 */
 
@@ -1774,7 +1780,7 @@ static AstMapping *LogWcs( FitsStore *, int, char, const char *, const char *, i
 static AstMapping *MakeColumnMap( AstFitsTable *, const char *, int, int, const char *, const char *, int * );
 static AstMapping *NonLinSpecWcs( AstFitsChan *, char *, FitsStore *, int, char, AstSpecFrame *, const char *, const char *, int * );
 static AstMapping *OtherAxes( AstFitsChan *, AstFrameSet *, double *, int *, char, FitsStore *, double *, int *, const char *, const char *, int * );
-static AstMapping *SIPIntWorld( AstMapping *, int, int, char, FitsStore *, double *, int[2], double[2], double[4], const char *, const char *, int * );
+static AstMapping *SIPIntWorld( AstMapping *, double, int, int, char, FitsStore *, double *, int[2], double[2], double[4], const char *, const char *, int * );
 static AstMapping *SIPMapping( AstFitsChan *, double *, FitsStore *, char, int, const char *, const char *, int * );
 static AstMapping *SpectralAxes( AstFitsChan *, AstFrameSet *, double *, int *, char, FitsStore *, double *, int *, const char *, const char *, int * );
 static AstMapping *TabMapping( AstFitsChan *, FitsStore *, char, int **, const char *, const char *, int *);
@@ -21010,7 +21016,7 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
    returns the CRPIX and CD values to use with the celestial axes. */
    havesip = 0;
    if( sipok && lonax != -1 ){
-      sipmap = SIPIntWorld( map, lonax, latax, s, store, dim, sipax,
+      sipmap = SIPIntWorld( map, fitstol, lonax, latax, s, store, dim, sipax,
                             crpix_sip, cd_sip, method, class, status );
 
 /* If SIP headers were stored successfully, use the modified mapping from
@@ -27343,8 +27349,8 @@ static void SinkWrap( void (* sink)( const char * ), const char *line, int *stat
    ( *sink )( line );
 }
 
-static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
-                                char s, FitsStore *store, double *dim,
+static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
+                                int latax, char s, FitsStore *store, double *dim,
                                 int inaxes[2], double crpix[2], double cd[4],
                                 const char *method, const char *class,
                                 int *status ){
@@ -27361,8 +27367,8 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
 
 *  Synopsis:
 *     #include "fitschan.h"
-*     AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
-*                              char s, FitsStore *store, double *dim,
+*     AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
+*                              int latax, char s, FitsStore *store, double *dim,
 *                              int inaxes[2], double crpix[2], double cd[4],
 *                              const char *method, const char *class,
 *                              int *status )
@@ -27396,6 +27402,9 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
 *     map
 *        A pointer to a Mapping which transforms grid coordinates into
 *        intermediate world coordinates.
+*     tol
+*        The tolerance, in pixels, used to determine if the pre-PolyMap and
+*        post-PolyMap Mappings are sufficiently linear.
 *     lonax
 *        The zero-based index of the output of "map" corresponding to
 *        celestial longitude.
@@ -27411,7 +27420,8 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
 *        are stored.
 *     dim
 *        An array holding the image dimensions in pixels. AST__BAD can be
-*        supplied for any unknwon dimensions.
+*        supplied for any unknown dimensions, in which case a default
+*        value of 1000 pixel is used..
 *     inaxes
 *        Returned holding the indices of the two Mapping inputs that generate
 *        the returned "crpix" and "cd" values.
@@ -27464,8 +27474,6 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
    double ****item;
    double *coeffs;
    double *pc;
-   double *scales;
-   double *shifts;
    double fit[ 6 ];
    double iwcxin;
    double iwcyin;
@@ -27559,25 +27567,11 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
          if( polymap ){
             if( astGetNin( polymap ) == 2 && astGetNout( polymap ) == 2 ){
 
-/* Check that each Mapping before the PolyMap is a shift of origin, and
-   accumulate them into a single CmpMap. */
+/* Accumulate each Mapping before the PolyMap into a single CmpMap. */
                map_lower = NULL;
-               ok = 1;
-               for( imap = 0; ok && imap < imap_pm; imap++ ) {
+               for( imap = 0; imap < imap_pm; imap++ ) {
                   old_invert = astGetInvert(  map_list[ imap ] );
                   astSetInvert(  map_list[ imap ], invert_list[ imap ] );
-
-                  if( astGetNin( map_list[ imap ] ) != 2 ){
-                     ok = 0;
-
-                  } else if( astIsAWinMap( map_list[ imap ] ) ) {
-                     astWinTerms( map_list[ imap ], &shifts, &scales );
-                     if( scales[ 0 ] != 1.0 || scales[ 1 ] != 1.0 ) ok = 0;
-
-                  } else if( !astIsAShiftMap( map_list[ imap ] ) &&
-                             !astIsAUnitMap( map_list[ imap ] ) ) {
-                     ok = 0;
-                  }
 
                   if( map_lower ) {
                      tmap = (AstMapping *) astCmpMap( map_lower, map_list[ imap ], 1, " ", status );
@@ -27590,25 +27584,11 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
                   astSetInvert(  map_list[ imap ], old_invert );
                }
 
-/* Check that each Mapping after the PolyMap is a scaling or matrix,
-   and accumulate them into a single CmpMap. */
+/* Accumulate each Mapping after the PolyMap into a single CmpMap. */
                map_upper = NULL;
-               for( imap = imap_pm + 1; ok && imap < nmap; imap++ ) {
+               for( imap = imap_pm + 1; imap < nmap; imap++ ) {
                   old_invert = astGetInvert(  map_list[ imap ] );
                   astSetInvert(  map_list[ imap ], invert_list[ imap ] );
-
-                  if( astGetNin( map_list[ imap ] ) != 2 ){
-                     ok = 0;
-
-                  } else if( astIsAWinMap( map_list[ imap ] ) ) {
-                     astWinTerms( map_list[ imap ], &shifts, &scales );
-                     if( shifts[ 0 ] != 0.0 || shifts[ 1 ] != 0.0 ) ok = 0;
-
-                  } else if( !astIsAMatrixMap( map_list[ imap ] ) &&
-                             !astIsAZoomMap( map_list[ imap ] ) &&
-                             !astIsAUnitMap( map_list[ imap ] ) ) {
-                     ok = 0;
-                  }
 
                   if( map_upper ) {
                      tmap = (AstMapping *) astCmpMap( map_upper, map_list[ imap ], 1, " ", status );
@@ -27621,6 +27601,38 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
                   astSetInvert(  map_list[ imap ], old_invert );
                }
 
+/* Check that both Mappings have 2 inputs and 2 outputs */
+               ok = ( astGetNin( map_lower ) == 2 &&
+                      astGetNout( map_lower ) == 2 &&
+                      astGetNin( map_upper ) == 2 &&
+                      astGetNout( map_upper ) == 2 );
+
+/* Check that the lower Mapping is a shift of origin with no scaling or
+   rotation. */
+               if( ok ) {
+                  lbnd[ 0 ] = 0.0;
+                  lbnd[ 1 ] = 0.0;
+                  ubnd[ 0 ] = dim[ 0 ];
+                  ubnd[ 1 ] = dim[ 1 ];
+                  if( ubnd[ 0 ] == AST__BAD ) ubnd[ 0 ] = 1000.0;
+                  if( ubnd[ 1 ] == AST__BAD ) ubnd[ 1 ] = 1000.0;
+                  ok = astLinearApprox( map_lower, lbnd, ubnd, tol, fit );
+                  if( fabs( fit[ 2 ] - 1.0 ) > 1.0E-7  ||
+                      fabs( fit[ 3 ] ) > 1.0E-7 ||
+                      fabs( fit[ 4 ] ) > 1.0E-7 ||
+                      fabs( fit[ 5 ] - 1.0 ) > 1.0E-7  ) ok = 0;
+               }
+
+/* Check that the upper Mapping is a linear Mapping with no shift of origin.
+   Retain the fit coefficients for later use. */
+               if( ok ) {
+                  lbnd[ 0 ] = -ubnd[ 0 ];
+                  lbnd[ 1 ] = -ubnd[ 1 ];
+                  ok = astLinearApprox( map_upper, lbnd, ubnd, tol, fit );
+                  if( fabs( fit[ 0 ] ) > 1.0E-7 ||
+                      fabs( fit[ 1 ] ) > 1.0E-7 ) ok = 0;
+               }
+
 /* Split the supplied Mapping to generate the Mapping that gives
    any remaining non-celestial output axes. We only need to do this if
    the supplied Mapping has any surplus inputs or outputs. */
@@ -27628,7 +27640,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
                tmap2 = NULL;
                outrem = NULL;
 
-               if( nout > 2 ) {
+               if( nout > 2 && ok ) {
                   noutrem = nout - 2;
                   outrem = astMalloc( noutrem*sizeof(int) );
                   if( astOK ) {
@@ -27658,21 +27670,9 @@ static AstMapping *SIPIntWorld( AstMapping *map, int lonax, int latax,
                   iwcyin = 0.0;
                   astTran2( smap, 1, &iwcxin, &iwcyin, 0, crpix, crpix + 1 );
 
-/* Determine the CD matrix. We already know the upper Mapping is linear
-   because we have checked that it contains only linear atomic mappings.
-   So we can use fixed bounds for the fitting area safely. */
-                  lbnd[ 0 ] = -1.0;
-                  lbnd[ 1 ] = -1.0;
-                  ubnd[ 0 ] = 1.0;
-                  ubnd[ 1 ] = 1.0;
-                  if( !astLinearApprox( map_upper, lbnd, ubnd, 0.01, fit ) ) {
-                     astError( AST__INTER, "%s(%s): SipIntWorld: Mapping "
-                               "following PolyMap is not linear (internal "
-                               "AST programming error).", status, method,
-                               class );
-                  }
-
-/* Store the matrix elements in the required order. */
+/* The "fit" array currently contains the coefficients of a linear
+   approximation to the upper Mapping. These give us the CD matrix.
+   Store the matrix elements in the required order. */
                   cd[ 0 ] = fit[ 2 ];
                   cd[ 1 ] = fit[ 3 ];
                   cd[ 2 ] = fit[ 4 ];
