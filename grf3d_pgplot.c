@@ -29,12 +29,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -1109,6 +1109,73 @@ int PG3DSetCamera( float eye[3], float target[3], float up[3], float screen ){
    return result;
 }
 
+int PG3DGetCamera( float eye[3], float target[3], float up[3], float *screen ){
+/*
+*+
+*  Name:
+*     PG3DGetCamera
+
+*  Purpose:
+*     Get the current camera settings for the current PGPLOT device.
+
+*  Synopsis:
+*     #include "grf3d.h"
+*     int PG3DGetCamera( float eye[3], float target[3], float up[3],
+*                        float *screen )
+
+*  Description:
+*     This function retrieves the current camera settings for the current
+*     PGPLOT device. See PG3DSetCamera for more info. Any of the supplied
+*     parameters can be set to NULL if the information is not needed.
+
+*  Parameters:
+*     eye
+*        The position vector of the camera's "eye", in 3D world coordinates.
+*     target
+*        The position vector of a point in 3D world coordinates that is
+*        at the centre of the camera's view. In other words, the camera is
+*        looking towards this point. Zero will be returned if the target
+*        is the same position as the eye.
+*     up
+*        A vector in 3D world coordinates that will appear vertically
+*        upwards when projected onto the screen. Zero will be returned if
+*        the up vector has zero length or is parallel to the line joining
+*        the eye and the target.
+*     screen
+*        The distance from the camera's eye to the projection screen. If
+*        this is zero, then an orthographic projection is used.
+
+*  Returned Value:
+*     A value of 0 is returned if an error occurs, and 1 is returned
+*     otherwise.
+
+*  Notes:
+*     - Zero is returned if no PGPLOT device has been opened prior to
+*     calling this function.
+*-
+*/
+
+/* Local Variables: */
+   Camera *cam;
+   int result = 0;
+
+/* Get a pointer to the Camera structure for the current PGPLOT device.
+   Return without action if no PGPLOT device is open. */
+   cam = getCamera( 0 );
+   if( cam ) {
+      result = 1;
+
+/* Copy the current values into the supplied arrays. */
+      if( target ) memcpy( target, cam->target_vector, 3*sizeof( float ) );
+      if( eye) memcpy( eye, cam->eye_vector, 3*sizeof( float ) );
+      if( up ) memcpy( up, cam->up_vector, 3*sizeof( float ) );
+      if( screen ) *screen = cam->screen_distance;
+      result = ( cam->ok_flag == CAMERA_OK );
+   }
+
+   return result;
+}
+
 int PG3DSetEye( float eye[3] ){
 /*
 *+
@@ -1270,6 +1337,141 @@ int PG3DRotateEye( int dir, float angle ){
    return result;
 }
 
+int PG3DRotateTarget( int axis, float angle ){
+/*
+*+
+*  Name:
+*     PG3DRotateTarget
+
+*  Purpose:
+*     Move the target by rotating the (u,v,w) coordinate system.
+
+*  Synopsis:
+*     #include "grf3d.h"
+*     int PG3DRotateTarget( int dir, float angle )
+
+*  Description:
+*     This function modifies the camera target position for the current
+*     PGPLOT device. Other camera settings are left unchanged. See
+*     PG3DSetCamera for more details.
+*
+*     The (u,v,w) coordinate system that defines the position of the
+*     target relative to the eye is rotated, and the target is placed at
+*     the end of the "w" axis. The eye position is left unchanged. This
+*     is equivalent to a roll, pitch or yaw of the camera.
+
+*  Parameters:
+*     axis
+*        The axis around which to rotate:
+*        1 - the U axis (pitch)
+*        2 - the V axis (yaw)
+*        3 - the W axis (roll)
+*     angle
+*        The angle, in degrees, by which to rotate around the specified
+*        axis.
+
+*  Returned Value:
+*     A value of 0 is returned if an error occurs, and 1 is returned
+*     otherwise.
+
+*  Notes:
+*     - Zero is returned if no PGPLOT device has been opened prior to
+*     calling this function.
+*     - This function can only be called to modify an existing Camera.
+*     Consequently it returns zero if a camera has not already been set
+*     for the current PGPLOT device by calling PG3DSetCamera.
+*-
+*/
+
+/* Local Variables: */
+   float m[ 9 ], newmat[ 9 ];
+   Camera *cam;
+   int result = 0;
+   int i, j, k;
+   float sina, cosa, *p, *p1, *p2;
+
+/* Get a pointer to the Camera structure for the current PGPLOT device.
+   Return without action if no PGPLOT device is open. */
+   cam = getCamera( 1 );
+   if( cam ) {
+      result = 1;
+
+/* Get the cos and sine of the supplied angle. */
+      cosa = cos( angle*TWOPI/360 );
+      sina = sin( angle*TWOPI/360 );
+
+/* Get the 3x3 rotation matrix. */
+      if( axis == 1 ) {
+         m[ 0 ] = 1.0;
+         m[ 1 ] = 0.0;
+         m[ 2 ] = 0.0;
+         m[ 3 ] = 0.0;
+         m[ 4 ] = cosa;
+         m[ 5 ] = -sina;
+         m[ 6 ] = 0.0;
+         m[ 7 ] = sina;
+         m[ 8 ] = cosa;
+
+      } else if( axis == 2 ) {
+         m[ 0 ] = cosa;
+         m[ 1 ] = 0.0;
+         m[ 2 ] = -sina;
+         m[ 3 ] = 0.0;
+         m[ 4 ] = 1.0;
+         m[ 5 ] = 0.0;
+         m[ 6 ] = sina;
+         m[ 7 ] = 0.0;
+         m[ 8 ] = cosa;
+
+      } else if( axis == 3 ) {
+         m[ 0 ] = cosa;
+         m[ 1 ] = -sina;
+         m[ 2 ] = 0.0;
+         m[ 3 ] = sina;
+         m[ 4 ] = cosa;
+         m[ 5 ] = 0.0;
+         m[ 6 ] = 0.0;
+         m[ 7 ] = 0.0;
+         m[ 8 ] = 1.0;
+
+      } else {
+         result = 0;
+      }
+
+/* If the axis value is OK, multiple the existing w2c_matrix by the
+   rotation matrix to get the new camera matrix. The w2c_matrix is a
+   3x3 matrix that rotates vectors in the (x,y,z) system into vectors
+   in the (u,v,w) system. Each row in the matrix is a unit vector
+   along the u, v or w axes. */
+      p = newmat;
+      for( i = 0; i < 3; i++ ) {
+         for( j = 0; j < 3; j++, p++ ) {
+            p1 = m + i*3;
+            p2 = cam->w2c_matrix + j;
+            *p = 0.0;
+            for( k = 0; k < 3; k++ ) {
+               *p += (*p1) * (*p2);
+               p1++;
+               p2 += 3;
+            }
+         }
+      }
+
+/* Store the new camera matrix. */
+      memcpy( cam->w2c_matrix, newmat, sizeof(float)*9 );
+
+/* Store corresponding new values for the target and up vectors. */
+      for( k = 0; k < 3; k++ ) {
+         cam->target_vector[ k ] = cam->eye_vector[ k ] +
+                                   newmat[ 6 + k ]*cam->screen_distance;
+      }
+      memcpy( cam->up_vector, newmat + 3, 3*sizeof( float ) );
+
+   }
+
+   return result;
+}
+
 int PG3DForward( float distance ){
 /*
 *+
@@ -1344,7 +1546,7 @@ int PG3DFindNearest( int n, float *x, float *y, float *z, int *iclose ){
 /*
 *+
 *  Name:
-*     PG3DForward
+*     PG3DFindNearest
 
 *  Purpose:
 *     Find the closest point to the eye.
@@ -2995,7 +3197,7 @@ static void ccpgsch(float ch){
 static void ccpgsci(int ci){
    F77_INTEGER_TYPE CI;
    CI = (F77_INTEGER_TYPE) ci;
-   F77_CALL(pgsci)( INTEGER_ARG(&ci) );
+   F77_CALL(pgsci)( INTEGER_ARG(&CI) );
 }
 
 static void ccpgsls(int ls){
@@ -3058,6 +3260,22 @@ F77_LOGICAL_FUNCTION(pg3d_setcamera)( REAL_ARRAY(EYE),
    return PG3DSetCamera( EYE, TARGET, UP, *SCREEN ) ? F77_TRUE : F77_FALSE;
 }
 
+F77_LOGICAL_FUNCTION(pg3d_getcamera)( REAL_ARRAY(EYE),
+                                      REAL_ARRAY(TARGET),
+                                      REAL_ARRAY(UP),
+                                      REAL(SCREEN) ){
+   GENPTR_REAL_ARRAY(EYE)
+   GENPTR_REAL_ARRAY(TARGET)
+   GENPTR_REAL_ARRAY(UP)
+   GENPTR_REAL(SCREEN)
+   return PG3DGetCamera( EYE, TARGET, UP, SCREEN ) ? F77_TRUE : F77_FALSE;
+}
+
+F77_LOGICAL_FUNCTION(pg3d_rotatetarget)( INTEGER(AXIS), REAL(ANGLE) ){
+   GENPTR_INTEGER(AXIS)
+   GENPTR_REAL(ANGLE)
+   return PG3DRotateTarget( *AXIS, *ANGLE ) ? F77_TRUE : F77_FALSE;
+}
 
 F77_LOGICAL_FUNCTION(pg3d_autocamera)( REAL_ARRAY(LBND),
                                          REAL_ARRAY(UBND) ){
