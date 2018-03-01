@@ -27601,6 +27601,10 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                   astSetInvert(  map_list[ imap ], old_invert );
                }
 
+/* Use UnitMaps if no Mappings were found. */
+               if( !map_lower ) map_lower = (AstMapping *) astUnitMap( 2, " ", status );
+               if( !map_upper ) map_upper = (AstMapping *) astUnitMap( 2, " ", status );
+
 /* Check that both Mappings have 2 inputs and 2 outputs */
                ok = ( astGetNin( map_lower ) == 2 &&
                       astGetNout( map_lower ) == 2 &&
