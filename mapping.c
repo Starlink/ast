@@ -10806,7 +10806,7 @@ static void RebinSection( AstMapping *this, const double *linear_fit,
    start of the params array to exclude it. */
    if( flags & AST__PARWGT ) {
       params = iparams + 1;
-      conwgt = params[ 0 ];
+      conwgt = iparams[ 0 ];
    } else {
       params = iparams;
       conwgt = 1.0;
