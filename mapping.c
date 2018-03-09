@@ -383,9 +383,11 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        error prone than performing tests on the appropriateness of the
 *        mapping in teh astMapMerge method of each and every mapping class.
 *     9-JAN-2018 (DSB):
-*        Modify astLinearApprox so that a linear mapping in parallel with a 
+*        Modify astLinearApprox so that a linear mapping in parallel with a
 *        mapping that generates bad values is considered linear. The returned
 *        coeffs for the bad outputs are set bad.
+*     9-MAR-2018 (DSB):
+*        Added the AST__PARWGT flag in astRebinSeq.
 *
 *class--
 */
@@ -629,17 +631,17 @@ static void SpreadKernel1##X( AstMapping *, int, const int *, const int *, \
                          const Xtype *, const Xtype *, double, int, const int *, \
                          const double *const *, \
                          void (*)( double, const double *, int, double *, int * ), \
-                         int, const double *, int, Xtype, int, Xtype *, \
+                         int, const double *, double, int, Xtype, int, Xtype *, \
                          Xtype *, double *, int64_t *, int * ); \
 \
 static void SpreadLinear##X( int, const int *, const int *, const Xtype *, \
                              const Xtype *, double, int, const int *, const double *const *, \
-                             int, Xtype, int, Xtype *, Xtype *, double *, int64_t *, \
+                             double, int, Xtype, int, Xtype *, Xtype *, double *, int64_t *, \
                              int * ); \
 \
 static void SpreadNearest##X( int, const int *, const int *, const Xtype *, \
                               const Xtype *, double, int, const int *, const double *const *, \
-                              int, Xtype, int, Xtype *, Xtype *, double *, \
+                              double, int, Xtype, int, Xtype *, Xtype *, double *, \
                               int64_t *, int * );
 
 DECLARE_GENERIC(D,double)
@@ -9993,6 +9995,8 @@ static void Rebin##X( AstMapping *this, double wlim, int ndim_in, \
       badflag = "AST__DISVAR"; \
    } else if( flags & AST__VARWGT ) { \
       badflag = "AST__VARWGT"; \
+   } else if( flags & AST__PARWGT ) { \
+      badflag = "AST__PARWGT"; \
    } else if( flags & AST__NONORM ) { \
       badflag = "AST__NONORM"; \
    } else if( flags & AST__CONSERVEFLUX ) { \
@@ -10552,7 +10556,7 @@ static int RebinAdaptively( AstMapping *this, int ndim_in,
 static void RebinSection( AstMapping *this, const double *linear_fit,
                           int ndim_in, const int *lbnd_in, const int *ubnd_in,
                           const void *in, const void *in_var, double infac,
-                          DataType type, int spread, const double *params,
+                          DataType type, int spread, const double *iparams,
                           int flags, const void *badval_ptr, int ndim_out,
                           const int *lbnd_out, const int *ubnd_out,
                           const int *lbnd, const int *ubnd, int npix_out,
@@ -10573,7 +10577,7 @@ static void RebinSection( AstMapping *this, const double *linear_fit,
 *     void RebinSection( AstMapping *this, const double *linear_fit,
 *                        int ndim_in, const int *lbnd_in, const int *ubnd_in,
 *                        const void *in, const void *in_var, double infac,
-*                        DataType type, int spread, const double *params,
+*                        DataType type, int spread, const double *iparams,
 *                        int flags, const void *badval_ptr, int ndim_out,
 *                        const int *lbnd_out, const int *ubnd_out,
 *                        const int *lbnd, const int *ubnd, int npix_out,
@@ -10662,7 +10666,7 @@ static void RebinSection( AstMapping *this, const double *linear_fit,
 *     spread
 *        A value selected from a set of pre-defined macros to identify
 *        which pixel spread function should be used.
-*     params
+*     iparams
 *        Pointer to an optional array of parameters that may be passed
 *        to the pixel spread algorithm, if required. If no parameters
 *        are required, a NULL pointer should be supplied.
@@ -10747,11 +10751,13 @@ static void RebinSection( AstMapping *this, const double *linear_fit,
    astDECLARE_GLOBALS            /* Thread-specific data */
    AstPointSet *pset_in;         /* Input PointSet for transformation */
    AstPointSet *pset_out;        /* Output PointSet for transformation */
+   const double *params;         /* Pointer to spreading scheme parameters */
    const double *grad;           /* Pointer to gradient matrix of linear fit */
    const double *zero;           /* Pointer to zero point array of fit */
    double **ptr_in;              /* Pointer to input PointSet coordinates */
    double **ptr_out;             /* Pointer to output PointSet coordinates */
    double *accum;                /* Pointer to array of accumulated sums */
+   double conwgt;                /* Constant weight for all pixels */
    double x1;                    /* Interim x coordinate value */
    double xx1;                   /* Initial x coordinate value */
    double y1;                    /* Interim y coordinate value */
@@ -10792,6 +10798,19 @@ static void RebinSection( AstMapping *this, const double *linear_fit,
    pset_out = NULL;
    neighb = 0;
    kernel = NULL;
+
+/* If a constant weight is to be factored in to all pixels, it will have
+   been supplied as the first value in the "params" array, with the remaining
+   values being the actual parameters of the requested spreading scheme.
+   Copy the constant weight into another value and modify the pointer to the
+   start of the params array to exclude it. */
+   if( flags & AST__PARWGT ) {
+      params = iparams + 1;
+      conwgt = params[ 0 ];
+   } else {
+      params = iparams;
+      conwgt = 1.0;
+   }
 
 /* Calculate the number of input points, as given by the product of
    the input grid dimensions. */
@@ -11136,7 +11155,7 @@ static void RebinSection( AstMapping *this, const double *linear_fit,
                                     (Xtype *) in, (Xtype *) in_var, \
                                     infac, npoint, offset, \
                                     (const double *const *) ptr_out, \
-                                    flags, *( (Xtype *) badval_ptr ), \
+                                    conwgt, flags, *( (Xtype *) badval_ptr ), \
                                     npix_out, (Xtype *) out, \
                                     (Xtype *) out_var, work, nused, status ); \
                   break;
@@ -11179,7 +11198,7 @@ static void RebinSection( AstMapping *this, const double *linear_fit,
                                    (Xtype *) in, (Xtype *) in_var, \
                                    infac, npoint, offset, \
                                    (const double *const *) ptr_out, \
-                                   flags, *( (Xtype *) badval_ptr ), \
+                                   conwgt, flags, *( (Xtype *) badval_ptr ), \
                                    npix_out, (Xtype *) out, \
                                    (Xtype *) out_var, work, nused, status ); \
                   break;
@@ -11376,7 +11395,7 @@ static void RebinSection( AstMapping *this, const double *linear_fit,
                                          (Xtype *) in, (Xtype *) in_var, \
                                          infac, npoint, offset, \
                                          (const double *const *) ptr_out, \
-                                         kernel, neighb, par, flags, \
+                                         kernel, neighb, par, conwgt, flags, \
                                          *( (Xtype *) badval_ptr ), \
                                          npix_out, (Xtype *) out, \
                                          (Xtype *) out_var, work, nused, \
@@ -11670,7 +11689,7 @@ c        astRebin<X> functions.
 f        AST_REBIN<X> routines.
 *
 c        If no additional parameters are required, this array is not
-c        used and a NULL pointer may be given.
+c        used and a NULL pointer may be given. See also flag AST__PARWGT.
 f        If no additional parameters are required, this array is not
 f        used. A dummy (e.g. one-element) array may then be supplied.
 c        Not used if "in" is NULL.
@@ -11974,15 +11993,29 @@ f     routine
 *     the reciprocal of the input variances. Otherwise, all input data are
 *     given equal weight. If this flag is specified, the calculation of the
 *     output variances (if any) is modified to take account of the
-*     varying weights assigned to the input data values.
+*     varying weights assigned to the input data values. See also AST__PARWGT.
+*     - AST__PARWGT: Indicates that a constant weight should be used when
+*     pasting each pixel of the supplied input array into the returned
+*     arrays. This extra weight value should be inserted at the start of the
+c     "params"
+f     'PARAMS
+*     array (which should consequently be one element longer than specified in
+*     the "Pixel Spreading Schemes" section in the description of the
+c     astRebin<X> functions).
+f     AST_REBIN<X> routines).
+*     If the AST__VARWGT flag is also specified, the total weight for
+*     each pixel is the product of the reciprocal of the pixel variance
+*     and the value supplied in the last element of the
+c     "params" array.
+f     'PARAMS array.
 *     - AST__NONORM: If the simple unnormalised sum of all input data falling
 *     in each output pixel is required, then this flag should be set on
 *     each call in the sequence and the AST__REBINEND should not be used
 *     on the last call. In this case
 c     NULL pointers can be supplied for "weights" and "nused".
 f     WEIGHTS and NUSED are ignored.
-*     This flag cannot be used with the AST__CONSERVEFLUX, AST__GENVAR
-*     or AST__VARWGT flag.
+*     This flag cannot be used with the AST__CONSERVEFLUX, AST__GENVAR,
+*     AST__PARWGT or AST__VARWGT flag.
 *     - AST__CONSERVEFLUX: Indicates that the normalized output pixel values
 *     generated by the AST__REBINEND flag should be scaled in such a way as
 *     to preserve the total data value in a feature on the sky. Without this
@@ -12297,6 +12330,10 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
          } else if( ( flags & AST__VARWGT ) && astOK ) { \
             astError( AST__BDPAR, "astRebinSeq"#X"(%s): Incompatible flags " \
                       "AST__VARWGT and AST__NONORM have been specified " \
+                      "together (programming error).", status, astGetClass( this ) ); \
+         } else if( ( flags & AST__PARWGT ) && astOK ) { \
+            astError( AST__BDPAR, "astRebinSeq"#X"(%s): Incompatible flags " \
+                      "AST__PARWGT and AST__NONORM have been specified " \
                       "together (programming error).", status, astGetClass( this ) ); \
          } else if( ( flags & AST__CONSERVEFLUX ) && astOK ) { \
             astError( AST__BDPAR, "astRebinSeq"#X"(%s): Incompatible flags " \
@@ -17111,8 +17148,8 @@ static int SpecialBounds( const MapData *mapdata, double *lbnd, double *ubnd,
 *                           const double *const *coords,
 *                           void (* kernel)( double, const double [], int,
 *                                            double *, int * ),
-*                           int neighb, const double *params, int flags,
-*                           <Xtype> badval, int npix_out, <Xtype> *out,
+*                           int neighb, const double *params, double conwgt,
+*                           int flags, <Xtype> badval, int npix_out, <Xtype> *out,
 *                           <Xtype> *out_var, double *work, int64_t *nused,
 *                           int *status )
 
@@ -17211,6 +17248,10 @@ static int SpecialBounds( const MapData *mapdata, double *lbnd, double *ubnd,
 *        Pointer to an optional array of parameter values to be passed
 *        to the kernel function. If no parameters are required by this
 *        function, then a NULL pointer may be supplied.
+*     conwgt
+*        The initial weight to use for all pixels (typically 1.0). Other
+*        weights (e.g. interpolation weights, variance weights, etc) are
+*        applied as factors to this initial value.
 *     flags
 *        The bitwise OR of a set of flag values which control the
 *        operation of the function. These are chosend from:
@@ -17283,7 +17324,7 @@ static void SpreadKernel1##X( AstMapping *this, int ndim_out, \
                               void (* kernel)( double, const double [], \
                                                int, double *, int * ), \
                               int neighb, const double *params, \
-                              int flags, Xtype badval, int npix_out, \
+                              double conwgt, int flags, Xtype badval, int npix_out, \
                               Xtype *out, Xtype *out_var, double *work, \
                               int64_t *nused, int *status ) { \
 \
@@ -17723,12 +17764,12 @@ static void SpreadKernel1##X( AstMapping *this, int ndim_out, \
 /* If we are using the input data variances as weights, calculate the \
    total weight, incorporating the normalisation factor for the kernel. */ \
             if( Varwgt ) { \
-               wgt = 1.0/(sum*in_var[ off_in ]); \
+               wgt = conwgt/(sum*in_var[ off_in ]); \
 \
 /* If we are not using input variances as weights, the weight is just the \
    kernel normalisation factor. */ \
             } else { \
-               wgt = 1.0/sum; \
+               wgt = conwgt/sum; \
             } \
 \
 /* Loop round all the output pixels which receive contributions from this \
@@ -17980,12 +18021,12 @@ static void SpreadKernel1##X( AstMapping *this, int ndim_out, \
 /* If we are using the input data variances as weights, calculate the \
    total weight, incorporating the normalisation factor for the kernel. */ \
                if( Varwgt ) { \
-                  wgt = 1.0/(sum*in_var[ off_in ]); \
+                  wgt = conwgt/(sum*in_var[ off_in ]); \
 \
 /* If we are not using input variances as weights, the weight is just the \
    kernel normalisation factor. */ \
                } else { \
-                  wgt = 1.0/sum; \
+                  wgt = conwgt/sum; \
                } \
 \
 /* Find the offset into the output array at the first modified output pixel \
@@ -18239,12 +18280,12 @@ static void SpreadKernel1##X( AstMapping *this, int ndim_out, \
 /* If we are using the input data variances as weights, calculate the \
    total weight, incorporating the normalisation factor for the kernel. */ \
             if( Varwgt ) { \
-               wgt = 1.0/(sum*in_var[ off_in ]); \
+               wgt = conwgt/(sum*in_var[ off_in ]); \
 \
 /* If we are not using input variances as weights, the weight is just the \
    kernel normalisation factor. */ \
             } else { \
-               wgt = 1.0/sum; \
+               wgt = conwgt/sum; \
             } \
 \
 /* Increment the number of input pixels pasted into the output array. */ \
@@ -18357,7 +18398,7 @@ MAKE_SPREAD_KERNEL1(UB,unsigned char,1)
 *                           const int *lbnd_out, const int *ubnd_out,
 *                           const <Xtype> *in, const <Xtype> *in_var,
 *                           double infac, int npoint, const int *offset,
-*                           const double *const *coords, int flags,
+*                           const double *const *coords, double conwgt, int flags,
 *                           <Xtype> badval, int npix_out, <Xtype> *out,
 *                           <Xtype> *out_var, double *work, int64_t *nused  )
 
@@ -18448,6 +18489,13 @@ MAKE_SPREAD_KERNEL1(UB,unsigned char,1)
 *        - AST__GENVAR: Indicates that any input variances are to be
 *        ignored, and that the output variances should be generated from
 *        the spread of values contributing to each output pixel.
+*     conwgt
+*        The initial weight to use for all pixels (typically 1.0). Other
+*        weights (e.g. interpolation weights, variance weights, etc) are
+*        applied as factors to this initial value.
+*     flags
+*        The bitwise OR of a set of flag values which control the
+*        operation of the function.
 *     badval
 *        If the AST__USEBAD flag is set in the "flags" value (above),
 *        this parameter specifies the value which is used to identify
@@ -18502,7 +18550,7 @@ static void SpreadLinear##X( int ndim_out, \
                             const int *lbnd_out, const int *ubnd_out, \
                             const Xtype *in, const Xtype *in_var, \
                             double infac, int npoint, const int *offset, \
-                            const double *const *coords, int flags, \
+                            const double *const *coords, double conwgt, int flags, \
                             Xtype badval, int npix_out, Xtype *out, \
                             Xtype *out_var, double *work, int64_t *nused, \
                             int *status ) { \
@@ -18826,11 +18874,10 @@ static void SpreadLinear##X( int ndim_out, \
 \
 /* If we are using the input data variances as weights, calculate the \
    weight, and scale the fractions of each input pixel by the weight. */ \
-         if( Varwgt ) { \
-            wgt = 1.0/in_var[ off_in ]; \
-            frac_lo_x *= wgt; \
-            frac_hi_x *= wgt; \
-         } \
+         wgt = conwgt; \
+         if( Varwgt ) wgt *= 1.0/in_var[ off_in ]; \
+         frac_lo_x *= wgt; \
+         frac_hi_x *= wgt; \
 \
 /* For each of the two pixels which may be updated, test if the pixel index \
    lies within the output grid. Where it does, update the output pixel \
@@ -18930,13 +18977,12 @@ static void SpreadLinear##X( int ndim_out, \
    as the weight (so that when the product of two fractions is taken, \
    the square roots multiply together to give the required 1/variance \
    weight).  */ \
-            if( Varwgt ) { \
-               wgt = 1.0/sqrt( in_var[ off_in ] ); \
-               frac_lo_x *= wgt; \
-               frac_hi_x *= wgt; \
-               frac_lo_y *= wgt; \
-               frac_hi_y *= wgt; \
-            } \
+            wgt = conwgt; \
+            if( Varwgt ) wgt *= 1.0/sqrt( in_var[ off_in ] ); \
+            frac_lo_x *= wgt; \
+            frac_hi_x *= wgt; \
+            frac_lo_y *= wgt; \
+            frac_hi_y *= wgt; \
 \
 /* Obtain the offset within the output array of the first pixel to be \
    updated (the one with the smaller index along both dimensions). */ \
@@ -19076,13 +19122,12 @@ static void SpreadLinear##X( int ndim_out, \
 \
 /* If we are using the input data variances as weights, calculate the \
    weight, and scale the fractions of each input pixel by the weight. */ \
-         if( Varwgt ) { \
-            wgt = pow( in_var[ off_in ], -1.0/(double)ndim_out ); \
-            for ( idim = 0; idim < ndim_out; idim++ ) { \
-               frac_lo[ idim ] *= wgt; \
-               frac_hi[ idim ] *= wgt; \
-               wt[ idim ] = frac_lo[ idim ]; \
-            } \
+         wgt = conwgt; \
+         if( Varwgt ) wgt *= pow( in_var[ off_in ], -1.0/(double)ndim_out ); \
+         for ( idim = 0; idim < ndim_out; idim++ ) { \
+            frac_lo[ idim ] *= wgt; \
+            frac_hi[ idim ] *= wgt; \
+            wt[ idim ] = frac_lo[ idim ]; \
          } \
 \
 /* If OK, increment the number of input pixels pasted into the output array. */ \
@@ -19196,7 +19241,7 @@ MAKE_SPREAD_LINEAR(UB,unsigned char,1)
 *                            const int *ubnd_out, const <Xtype> *in,
 *                            const <Xtype> *in_var, double infac, int npoint,
 *                            const int *offset, const double *const *coords,
-*                            int flags, <Xtype> badval, int npix_out, <Xtype> *out,
+*                            double conwgt, int flags, <Xtype> badval, int npix_out, <Xtype> *out,
 *                            <Xtype> *out_var, double *work, int64_t *nused,
 *                            int *status )
 
@@ -19276,9 +19321,13 @@ MAKE_SPREAD_LINEAR(UB,unsigned char,1)
 *        zero-based).  If any point has a coordinate value of AST__BAD
 *        associated with it, then the corresponding input data (and
 *        variance) value will be ignored.
+*     conwgt
+*        The initial weight to use for all pixels (typically 1.0). Other
+*        weights (e.g. interpolation weights, variance weights, etc) are
+*        applied as factors to this initial value.
 *     flags
 *        The bitwise OR of a set of flag values which control the
-*        operation of the function. These are chosend from:
+*        operation of the function. These are chosen from:
 *
 *        - AST__USEBAD: indicates whether there are "bad" (i.e. missing) data
 *        in the input array(s) which must be recognised.  If this flag is not
@@ -19343,7 +19392,7 @@ static void SpreadNearest##X( int ndim_out, \
                              const int *lbnd_out, const int *ubnd_out, \
                              const Xtype *in, const Xtype *in_var, \
                              double infac, int npoint, const int *offset, \
-                             const double *const *coords, int flags, \
+                             const double *const *coords, double conwgt, int flags, \
                              Xtype badval, int npix_out, Xtype *out, \
                              Xtype *out_var, double *work, int64_t *nused, \
                              int *status ) { \
@@ -19622,11 +19671,8 @@ static void SpreadNearest##X( int ndim_out, \
 \
 /* If we are using the input data variances as weights, calculate the \
    weight. */ \
-                  if( Varwgt ) { \
-                     pixwt = 1.0/in_var[ off_in ]; \
-                  } else { \
-                     pixwt = 1.0; \
-                  } \
+                  pixwt = conwgt; \
+                  if( Varwgt ) pixwt *= 1.0/in_var[ off_in ]; \
 \
 /* Get the weighted input data value, including any extra scaling. */ \
                   pfac = pixwt*infac; \
@@ -19714,11 +19760,8 @@ static void SpreadNearest##X( int ndim_out, \
 \
 /* If we are using the input data variances as weights, calculate the \
    weight. */ \
-                     if( Varwgt ) { \
-                        pixwt = 1.0/in_var[ off_in ]; \
-                     } else { \
-                        pixwt = 1.0; \
-                     } \
+                     pixwt = conwgt; \
+                     if( Varwgt ) pixwt *= 1.0/in_var[ off_in ]; \
 \
 /* Get the weighted input data value, including any extra scaling. */ \
                      pfac = pixwt*infac; \
@@ -19809,11 +19852,8 @@ static void SpreadNearest##X( int ndim_out, \
 \
 /* If we are using the input data variances as weights, calculate the \
    weight. */ \
-                     if( Varwgt ) { \
-                        pixwt = 1.0/in_var[ off_in ]; \
-                     } else { \
-                        pixwt = 1.0; \
-                     } \
+                     pixwt = conwgt; \
+                     if( Varwgt ) pixwt *= 1.0/in_var[ off_in ]; \
 \
 /* Get the weighted input data value, including any extra scaling. */ \
                      pfac = pixwt*infac; \

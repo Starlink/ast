@@ -21845,6 +21845,12 @@ current version):
 
 \begin{enumerate}
 
+\item The astRebinSeq<X> functions accepts a new flag, AST\_\_PARWGT, which
+allows the initial weight to be given for the data being pasted into the
+output arrays (the initial weight to use should be include in the "params"
+array). This initial weight defaults to 1.0 if the AST\_\_PARWGT flag is not
+given.
+
 \item The behaviour of the astLinearApprox method of the Mapping class has
 been changed in cases where the Mapping being approximated generates bad
 (AST\_\_BAD) values for one or more of its outputs. Previously, any such

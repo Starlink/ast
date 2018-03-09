@@ -56,6 +56,7 @@
       call test10( NDIM, SPREAD, params, status )
       call test11( NDIM, SPREAD, params, status )
       call test12( NDIM, SPREAD, params, status )
+      call test12( NDIM, SPREAD, params, status )
 
       if( status .ne. SAI__OK ) then
          call msg_seti( 'N', ndim )
@@ -1573,6 +1574,95 @@
       CALL AST_END( STATUS )
       IF( STATUS .NE. SAI__OK ) THEN
          CALL ERR_REP( ' ', 'test12 failed', STATUS )
+      END IF
+
+      END
+
+
+
+
+
+
+
+
+
+      SUBROUTINE TEST13( NDIM, SPREAD, PARAMS, STATUS )
+      IMPLICIT NONE
+      INCLUDE 'SAE_PAR'
+      INCLUDE 'AST_PAR'
+      INCLUDE 'PRM_PAR'
+
+      INTEGER SPREAD, STATUS, NDIM
+      DOUBLE PRECISION PARAMS(2)
+
+      INTEGER NX, NY, JHI
+      PARAMETER( NX = 100 )
+      PARAMETER( NY = 200 )
+
+      REAL IN( 8 )
+      REAL OUT( 8 )
+      DOUBLE PRECISION WEIGHTS( 8 ), LPARAMS( 3 )
+      INTEGER LBND_IN(3), UBND_IN(3), LBND_OUT(3), UBND_OUT(3),
+     :        FLAGS, I, J
+      INTEGER*8 NUSED
+      REAL DVALS( 4 )
+      REAL WVALS( 4 )
+
+      IF( STATUS .NE. SAI__OK ) RETURN
+      CALL AST_BEGIN( STATUS )
+
+      LPARAMS( 2 ) = PARAMS( 1 )
+      LPARAMS( 3 ) = PARAMS( 2 )
+
+      LBND_IN(1) = 1
+      LBND_IN(2) = 1
+      LBND_IN(3) = 1
+      UBND_IN(1) = 2
+      UBND_IN(2) = 2
+      UBND_IN(3) = 2
+
+      LBND_OUT(1) = 1
+      LBND_OUT(2) = 1
+      LBND_OUT(3) = 1
+      UBND_OUT(1) = 2
+      UBND_OUT(2) = 2
+      UBND_OUT(3) = 2
+
+      DO I = 1, 4
+         DO J = 1, 8
+            IN( J ) = I
+         END DO
+         LPARAMS( 1 ) = 1.0D0/DBLE(I)
+
+         FLAGS = AST__PARWGT
+
+         IF( I .EQ. 1 ) THEN
+            FLAGS = FLAGS + AST__REBININIT
+         ELSE IF( I .EQ. 4 ) THEN
+            FLAGS = FLAGS + AST__REBINEND
+         END IF
+
+         CALL AST_REBINSEQR( AST_UNITMAP( NDIM, ' ', STATUS ), 0.0,
+     :                       NDIM, LBND_IN, UBND_IN, IN, 0.0, SPREAD,
+     :                       LPARAMS, FLAGS, 0.01D0, 50, VAL__BADR,
+     :                       NDIM, LBND_OUT, UBND_OUT, LBND_IN, UBND_IN,
+     :                       OUT, 0.0, WEIGHTS, NUSED, STATUS )
+      END DO
+
+      DO J = 1, 2**NDIM
+         IF( OUT( J ) .NE. 0.92 .AND. STATUS .EQ. SAI__OK ) THEN
+            STATUS = SAI__ERROR
+            CALL MSG_SETR( 'G', OUT( J ) )
+            CALL MSG_SETI( 'J', J )
+            CALL ERR_REP( ' ', 'Expected 0.92 at pixel ^J - got ^G.',
+     :                    STATUS )
+
+         END IF
+      END DO
+
+      CALL AST_END( STATUS )
+      IF( STATUS .NE. SAI__OK ) THEN
+         CALL ERR_REP( ' ', 'test13 failed', STATUS )
       END IF
 
       END

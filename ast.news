@@ -33,6 +33,11 @@ fit is returned, provided the other outputs of the Mapping are linear,
 but the fit contains AST__BAD values for the coefficients describing the
 bad Mapping output.
 
+- The astRebinSeq<X> functions accepts a new flag, AST__PARWGT, which
+allows the initial weight to be given for the data being pasted into the
+output arrays (the initial weight to use should be include in the "params"
+array). This initial weight defaults to 1.0 if the AST__PARWGT flag is not
+given.
 
 Main Changes in V8.6.1
 ----------------------
