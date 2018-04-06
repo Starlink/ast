@@ -144,17 +144,17 @@
       if ( $unix_script ) {
          ;
       } elsif ( !$key && $C ) {
-         s/\\sstinvocation{/\\sstsynopsis{/;
-         s/\\sstarguments{/\\sstparameters{/;
+         s/\\sstinvocation\{/\\sstsynopsis{/;
+         s/\\sstarguments\{/\\sstparameters{/;
       } elsif ( $key =~ /att/ ) {
-         s/\\sstinvocation{/\\sstattributetype{/;
+         s/\\sstinvocation\{/\\sstattributetype{/;
       } elsif ( $key =~ /class/ ) {
-         s/\\sstinvocation{/\\sstconstructor{/;
+         s/\\sstinvocation\{/\\sstconstructor{/;
       }
 
 #  Fix up constructs that don't otherwise convert to HTML properly.
-      s/{\\tt \'}/'/g;
-      s/{\\tt \"}/{\\tt{\"}}/g;
+      s/\{\\tt \'\}/'/g;
+      s/\{\\tt \"\}/{\\tt{\"}}/g;
       print;
    }
    close( LATEX );

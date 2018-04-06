@@ -8,7 +8,7 @@
    while ( <> ) {
 
 #  Spot the \include{file} lines and extract the file name.
-      if ( ( $file ) = /^ *\\include{(.*)} *$/ ) {
+      if ( ( $file ) = /^ *\\include\{(.*)\} *$/ ) {
 
 #  Read the contents of the included file.
          open( INCLUDE, $file . ".tex" );
