@@ -126,6 +126,9 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *     9-JAN-2018 (DSB):
 *        Correct Transform to take account of AST__BAD coeffs correctly.
 *        Previously bad coeffs could generate NaN output values.
+*     27-APR-2018 (DSB):
+*        When calculating the iterative inverse, use an initial guess based
+*        on the linear truncation of the PolyMap rather than a UnitMap.
 *class--
 */
 
@@ -146,6 +149,8 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 #include "memory.h"              /* Memory allocation facilities */
 #include "object.h"              /* Base Object class */
 #include "pointset.h"            /* Sets of points/coordinates */
+#include "matrixmap.h"           /* Matrix multiplication mappings */
+#include "shiftmap.h"            /* Shift of origin mappings */
 #include "mapping.h"             /* Coordinate mappings (parent class) */
 #include "cmpmap.h"              /* Compound mappings */
 #include "polymap.h"             /* Interface definition for this class */
@@ -227,6 +232,7 @@ AstPolyMap *astPolyMapId_( int, int, int, const double[], int, const double[], c
 
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
+static AstMapping *LinearTruncation( AstPolyMap *, int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstPolyMap **GetJacobian( AstPolyMap *, int * );
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
@@ -245,17 +251,17 @@ static int ReplaceTransformation( AstPolyMap *, int, double, double, int, const 
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *obj, int * );
 static void Dump( AstObject *, AstChannel *, int * );
+static void FitPoly1DInit( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
+static void FitPoly2DInit( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
 static void FreeArrays( AstPolyMap *, int, int * );
 static void IterInverse( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
 static void LMFunc1D(  const double *, double *, int, int, void * );
 static void LMFunc2D(  const double *, double *, int, int, void * );
 static void LMJacob1D( const double *, double *, int, int, void * );
 static void LMJacob2D( const double *, double *, int, int, void * );
+static void PolyCoeffs( AstPolyMap *, int, int, double *, int *, int * );
 static void PolyPowers( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static void StoreArrays( AstPolyMap *, int, int, const double *, int * );
-static void PolyCoeffs( AstPolyMap *, int, int, double *, int *, int * );
-static void FitPoly1DInit( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
-static void FitPoly2DInit( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
 
 #if defined(THREAD_SAFE)
 static int ManageLock( AstObject *, int, int, AstObject **, int * );
@@ -1971,6 +1977,7 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 */
 
 /* Local Variables: */
+   AstMapping *lintrunc;
    AstPointSet *work;
    AstPointSet **ps_jac;
    AstPolyMap **jacob;
@@ -2068,13 +2075,13 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 /* Check pointers can be used safely. */
    if( astOK ) {
 
-/* Store the initial guess at the required input positions. We assume initially
-   that the inverse transformation is a unit mapping, and so we just copy
-   the supplied outputs positions to the results PointSet holding the
-   corresponding input positions. */
-      for( icoord = 0; icoord < ncoord; icoord++ ) {
-         memcpy( ptr_in[ icoord ], ptr_out[ icoord ], sizeof( double )*npoint );
-      }
+/* Store the initial guess at the required input positions. These are
+   determined by transformiung the supplied output positions using the
+   inverse of the linear truncation of the PolyMap's forward
+   transformation. */
+      lintrunc = LinearTruncation( this, status );
+      (void) astTransform( lintrunc, out, 0, result );
+      lintrunc = astAnnul( lintrunc );
 
 /* Get the maximum number of iterations to perform. */
       maxiter = astGetNiterInverse( this );
@@ -2171,7 +2178,7 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
                   }
 
 /* Check for convergence. */
-                  if( vlensq < maxerr*xlensq ) {
+                  if( vlensq <= maxerr*xlensq ) {
                      flags[ ipoint ] = 1;
                      nconv++;
                   }
@@ -2196,6 +2203,171 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    }
 
    ptr_jac = astFree( ptr_jac );
+
+}
+
+static AstMapping *LinearTruncation( AstPolyMap *this, int *status ){
+/*
+*  Name:
+*     LinearTruncation
+
+*  Purpose:
+*     Get a Mapping representing the linear truncation of a PolyMap
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     AstMapping *LinearTruncation( AstPolyMap *this, int *status )
+
+*  Description:
+*     This function returns a linear Mapping representing the linear
+*     and constant terms in the supplied PolyMap. If the forward
+*     transformation of the PolyMap is defined, then it is used to
+*     determine the returned Mapping. Otherwise, the inverse
+*     transformation of the PolyMap is used.The forward transformation of
+*     the returned Mapping always represents the forward transformation
+*     of the supplied PolyMap.
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The returned linear Mapping, or NULL if an error occurs.
+
+*/
+
+/* Local Variables: */
+   AstMapping *result;           /* Pointer to returned Mapping */
+   AstMatrixMap *mm;             /* MatrixMap representing linear terms */
+   AstShiftMap *sm;              /* ShiftMap representing offset terms */
+   double **coeff;               /* Pointer to coefficient value arrays */
+   double *matrix;               /* Linear scaling matrix */
+   double *vector;               /* Offset vector */
+   int ***power;                 /* Pointer to coefficient power arrays */
+   int *ncoeff;                  /* Pointer to no. of coefficients */
+   int flag;                     /* Indicates nature of current coeff */
+   int ico;                      /* Coefficient index */
+   int iin;                      /* Index of transformation input */
+   int inverse;                  /* PolyMap inverse transformation selected? */
+   int iout;                     /* Index of transformation output */
+   int jin;                      /* Transformation input for current coeff */
+   int nin;                      /* No. of i/ps for selected transformation */
+   int nout;                     /* No. of o/ps for selected transformation */
+   int pow;                      /* Power for current coeff and input */
+
+/* Initialise returned value */
+   result = NULL;
+
+/* Check inherited status */
+   if( !astOK ) return result;
+
+/* If the required Mapping has already been determined, return a pointer
+   to it. */
+   if( this->lintrunc ) return astClone( this->lintrunc );
+
+/* Get pointers to the arrays holding the required coefficient
+   values and powers. Use the forward transformation if it is
+   defined and the inverse transformation otherwise. */
+   if ( this->ncoeff_f ){
+      ncoeff = this->ncoeff_f;
+      coeff = this->coeff_f;
+      power = this->power_f;
+      nin = astGetNin( this );
+      nout = astGetNout( this );
+      inverse = 0;
+
+   } else {
+      ncoeff = this->ncoeff_i;
+      coeff = this->coeff_i;
+      power = this->power_i;
+      nout = astGetNin( this );
+      nin = astGetNout( this );
+      inverse = 1;
+   }
+
+/* Allocate memory to hold a matrix holding the linear terms of the
+   PolyMap transformation selected above. Initialise it to hold zeros. */
+   matrix = astCalloc( nin*nout, sizeof( double * ) );
+
+/* Allocate memory to hold a vector holding the offset terms of the
+   PolyMap transformation selected above. Initialise it to hold zeros. */
+   vector = astCalloc( nout, sizeof( double * ) );
+   if( astOK ){
+
+/* Loop round all the outputs of the transformation selected above. */
+      for( iout = 0; iout < nout; iout++ ){
+
+/* Loop round all the coefficients for the current transformation output. */
+         for( ico = 0; ico < ncoeff[iout]; ico++ ){
+
+/* Initialise a tristate flag that indicates if the current coefficient is
+   constant (0), linear (1) or something else (2). */
+            flag = 0;
+
+/* Look for the first input axis for which the current coeff uses a
+   non-zero power. If the power is not one, the current coeff is neither
+   linear nor constant, and so we can pass on to the next coeff. If any
+   subsequent non-zero power is found, the coeff is not linear. */
+            jin = 0;
+            for( iin = 0; iin < nin; iin++ ){
+               pow = power[iout][ico][iin];
+               if( pow ) {
+                  if( pow != 1 ) {
+                     flag = 2;
+                     break;
+                  } else if( flag == 1 ) {
+                     flag = 2;
+                     break;
+                  } else {
+                     flag = 1;
+                     jin = iin;
+                  }
+               }
+            }
+
+/* If the coeff is a constant term, insert it into the offset vector. */
+            if( flag == 0 ) {
+               vector[ iout ] = coeff[ iout ][ ico ];
+
+/* If the coeff is a linear term, insert it into the matrix. */
+            } else if( flag == 1 ) {
+               matrix[ jin + iout*nin ] = coeff[ iout ][ ico ];
+            }
+         }
+      }
+
+/* Create a MatrixMap to represent the matrix. */
+      mm = astMatrixMap( nin, nout, 0, matrix, " ", status );
+
+/* Create a ShiftMap to represent the offset. */
+      sm = astShiftMap( nout, vector, " ", status );
+
+/* Combine them in series into a single compound Mapping. */
+      result = (AstMapping *) astCmpMap( mm, sm, 1, " ", status );
+
+/* If this CmpMap represents the inverse transformation of the supplied
+   PolyMap, invert it so that it represents the forward transformation. */
+      if( inverse ) astInvert( result );
+
+/* Free resources */
+      mm = astAnnul( mm );
+      sm = astAnnul( sm );
+
+/* Store the Mapping in the PolyMap structure so we do not need to
+   recalculate it every time it is needed. */
+      if( astOK ) this->lintrunc = astClone( result );
+   }
+
+/* Free resources */
+   matrix = astFree( matrix );
+   vector = astFree( vector );
+
+/* Return the required Mapping. */
+   return result;
 
 }
 
@@ -4313,7 +4485,7 @@ static void StoreArrays( AstPolyMap *this, int forward, int ncoeff,
 /* Allocate the arrays to store the input powers associated with each
    coefficient, and the coefficient values. Reset the coefficient count
    for each axis to zero afterwards so that we can use the array as an index
-   to the next vacant slot withint he following loop. */
+   to the next vacant slot within the following loop. */
          for( i = 0; i < nout; i++ ) {
             this->power_f[ i ] = astMalloc( sizeof( int * )*
                                            (size_t) this->ncoeff_f[ i ] );
@@ -4978,6 +5150,7 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    out->mxpow_i = NULL;
 
    out->jacobian = NULL;
+   out->lintrunc = NULL;
 
 /* Get the number of inputs and outputs of the uninverted Mapping. */
    nin = ( (AstMapping *) in )->nin;
@@ -5057,6 +5230,9 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
       }
    }
 
+/* Copy the linear truncation of the PolyMap - if it has been found. */
+   if( in->lintrunc ) out->lintrunc = astCopy( in->lintrunc );
+
 /* If an error has occurred, free al the resources allocated above. */
    if( !astOK ) {
       FreeArrays( out, 1, status );
@@ -5135,6 +5311,9 @@ static void Delete( AstObject *obj, int *status ) {
       }
       this->jacobian = astFree( this->jacobian );
    }
+
+/* Free the linear truncation. */
+   if( this->lintrunc ) this->lintrunc = astAnnul( this->lintrunc );
 }
 
 /* Dump function. */
@@ -5721,6 +5900,7 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
       new->niterinverse = -INT_MAX;
       new->tolinverse = AST__BAD;
       new->jacobian = NULL;
+      new->lintrunc = NULL;
 
 /* If an error occurred, clean up by deleting the new PolyMap. */
       if ( !astOK ) new = astDelete( new );
@@ -6037,6 +6217,9 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
 /* The Jacobian of the PolyMap's forward transformation has not yet been
    found. */
       new->jacobian = NULL;
+
+/* The linear truncation of the PolyMap has not yet been found. */
+      new->lintrunc = NULL;
 
 /* If an error occurred, clean up by deleting the new PolyMap. */
       if ( !astOK ) new = astDelete( new );

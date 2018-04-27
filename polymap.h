@@ -164,6 +164,7 @@ typedef struct AstPolyMap {
    int niterinverse;          /* Max number of iterations for iterative inverse */
    double tolinverse;         /* Target relative error for iterative inverse */
    struct AstPolyMap **jacobian;/* PolyMaps defining Jacobian of forward transformation */
+   AstMapping *lintrunc;      /* A linear truncation of the PolyMap */
 } AstPolyMap;
 
 /* Virtual function table. */
