@@ -232,7 +232,7 @@ AstPolyMap *astPolyMapId_( int, int, int, const double[], int, const double[], c
 
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
-static AstMapping *LinearTruncation( AstPolyMap *, int * );
+static AstMapping *LinearGuess( AstPolyMap *, int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstPolyMap **GetJacobian( AstPolyMap *, int * );
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
@@ -2076,10 +2076,10 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    if( astOK ) {
 
 /* Store the initial guess at the required input positions. These are
-   determined by transformiung the supplied output positions using the
-   inverse of the linear truncation of the PolyMap's forward
+   determined by transforming the supplied output positions using the
+   inverse of a linear truncation of the PolyMap's forward
    transformation. */
-      lintrunc = LinearTruncation( this, status );
+      lintrunc = LinearGuess( this, status );
       (void) astTransform( lintrunc, out, 0, result );
       lintrunc = astAnnul( lintrunc );
 
@@ -2206,28 +2206,30 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 
 }
 
-static AstMapping *LinearTruncation( AstPolyMap *this, int *status ){
+static AstMapping *LinearGuess( AstPolyMap *this, int *status ){
 /*
 *  Name:
 *     LinearTruncation
 
 *  Purpose:
-*     Get a Mapping representing the linear truncation of a PolyMap
+*     Get a Mapping representing a linear approximation of a PolyMap
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
-*     AstMapping *LinearTruncation( AstPolyMap *this, int *status )
+*     AstMapping *LinearGuess( AstPolyMap *this, int *status )
 
 *  Description:
-*     This function returns a linear Mapping representing the linear
-*     and constant terms in the supplied PolyMap. If the forward
-*     transformation of the PolyMap is defined, then it is used to
-*     determine the returned Mapping. Otherwise, the inverse
-*     transformation of the PolyMap is used.The forward transformation of
-*     the returned Mapping always represents the forward transformation
-*     of the supplied PolyMap.
+*     This function returns a linear Mapping approximating to the forward
+*     transformation of the supplied PolyMap. The linear and constant
+*     terms in the supplied PolyMap are used for all outputs that have
+*     such terms. Any other outptus are assumed to be equal to the
+*     corresponding inputs. If the forward transformation of the PolyMap
+*     is defined, then it is used to determine the returned Mapping.
+*     Otherwise, the inverse transformation of the PolyMap is used. The
+*     forward transformation of the returned Mapping always represents the
+*     forward transformation of the supplied PolyMap.
 
 *  Parameters:
 *     this
@@ -2242,8 +2244,8 @@ static AstMapping *LinearTruncation( AstPolyMap *this, int *status ){
 
 /* Local Variables: */
    AstMapping *result;           /* Pointer to returned Mapping */
-   AstMatrixMap *mm;             /* MatrixMap representing linear terms */
-   AstShiftMap *sm;              /* ShiftMap representing offset terms */
+   AstMapping *mm;               /* MatrixMap representing linear terms */
+   AstMapping *sm;               /* ShiftMap representing offset terms */
    double **coeff;               /* Pointer to coefficient value arrays */
    double *matrix;               /* Linear scaling matrix */
    double *vector;               /* Offset vector */
@@ -2257,6 +2259,7 @@ static AstMapping *LinearTruncation( AstPolyMap *this, int *status ){
    int jin;                      /* Transformation input for current coeff */
    int nin;                      /* No. of i/ps for selected transformation */
    int nout;                     /* No. of o/ps for selected transformation */
+   int ok;                       /* Current output is defined? */
    int pow;                      /* Power for current coeff and input */
 
 /* Initialise returned value */
@@ -2299,6 +2302,7 @@ static AstMapping *LinearTruncation( AstPolyMap *this, int *status ){
    if( astOK ){
 
 /* Loop round all the outputs of the transformation selected above. */
+
       for( iout = 0; iout < nout; iout++ ){
 
 /* Loop round all the coefficients for the current transformation output. */
@@ -2340,11 +2344,30 @@ static AstMapping *LinearTruncation( AstPolyMap *this, int *status ){
          }
       }
 
+/* If any PolyMap output has no linear terms, the matrix will not be
+   invertable. So insert a 1.0 value on the diagonal of such rows. */
+      for( iout = 0; iout < nout; iout++ ){
+         ok = 0;
+         for( iin = 0; iin < nin; iin++ ) {
+            if( matrix[ iin + iout*nin ] != 0.0 ) {
+               ok = 1;
+               break;
+            }
+         }
+         if( ! ok ) matrix[ iout + iout*nin ] = 1.0;
+      }
+
 /* Create a MatrixMap to represent the matrix. */
-      mm = astMatrixMap( nin, nout, 0, matrix, " ", status );
+      mm = (AstMapping *) astMatrixMap( nin, nout, 0, matrix, " ", status );
+
+/* If the MatrixMap cannot be inverted, use a unit map instead. */
+      if( !astGetTranInverse( mm ) ) {
+         mm = astAnnul( mm );
+         mm = (AstMapping *) astUnitMap( nin, " ", status );
+      }
 
 /* Create a ShiftMap to represent the offset. */
-      sm = astShiftMap( nout, vector, " ", status );
+      sm = (AstMapping *) astShiftMap( nout, vector, " ", status );
 
 /* Combine them in series into a single compound Mapping. */
       result = (AstMapping *) astCmpMap( mm, sm, 1, " ", status );
