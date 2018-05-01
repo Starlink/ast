@@ -2224,7 +2224,7 @@ static AstMapping *LinearGuess( AstPolyMap *this, int *status ){
 *     This function returns a linear Mapping approximating to the forward
 *     transformation of the supplied PolyMap. The linear and constant
 *     terms in the supplied PolyMap are used for all outputs that have
-*     such terms. Any other outptus are assumed to be equal to the
+*     such terms. Any other outputs are assumed to be equal to the
 *     corresponding inputs. If the forward transformation of the PolyMap
 *     is defined, then it is used to determine the returned Mapping.
 *     Otherwise, the inverse transformation of the PolyMap is used. The
