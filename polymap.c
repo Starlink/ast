@@ -129,6 +129,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *     27-APR-2018 (DSB):
 *        When calculating the iterative inverse, use an initial guess based
 *        on the linear truncation of the PolyMap rather than a UnitMap.
+*     3-MAY-2018 (DSB):
+*        Clear the IterInverse attribute in the PolyMap returned by
+*        astPolyTran (why would you want to use the iterative inverse if
+*        you have just created an inverse fit?).
 *class--
 */
 
@@ -3681,6 +3685,10 @@ c        was created are used.
 *        first kind.
 
 *  Notes:
+*     - The IterInverse attribute is always cleared in the returned PolyMap.
+*     This means that the returned PolyMap will always use the new fit by
+*     default, rather than the iterative inverse, regardless of the setting
+*     of IterInverse in the supplied PolyMap.
 *     - This function can only be used on 1D or 2D PolyMaps which have
 *     the same number of inputs and outputs.
 *     - A null Object pointer (AST__NULL) will be returned if this
@@ -3709,7 +3717,14 @@ f     function is invoked with STATUS set to an error value, or if it
 
 /* If an error occurred, or the fit was not good enough, annul the returned
    PolyMap. */
-   if ( !ok || !astOK ) result = astAnnul( result );
+   if ( !ok || !astOK ) {
+      result = astAnnul( result );
+
+/* Otherwise, ensure the new fit is used in preference to the iterative
+   inverse by clearing the IterInverse attribute. */
+   } else {
+      astClearIterInverse( result );
+   }
 
 /* Return the result. */
    return result;
