@@ -133,6 +133,12 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        Clear the IterInverse attribute in the PolyMap returned by
 *        astPolyTran (why would you want to use the iterative inverse if
 *        you have just created an inverse fit?).
+*     4-MAY-2018 (DSB):
+*        Fix various places where there was confusion over whether the 
+*        "forward transformation" refers to the forward transformation
+*        of the original uninverted PolyMap, or the current forward 
+*        transformation of the PolyMap (i.e. taking the "Invert" flag into
+*        account).
 *class--
 */
 
@@ -1281,7 +1287,7 @@ static void FreeArrays( AstPolyMap *this, int forward, int *status ) {
    nout = ( (AstMapping *) this )->nout;
 
 /* Free the dynamic arrays for the forward transformation. */
-   if( forward ) {
+   if( forward != astGetInvert( this ) ) {
 
       if( this->coeff_f ) {
          for( i = 0; i < nout; i++ ) {
@@ -1449,8 +1455,8 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
 *     GetJacobian
 
 *  Purpose:
-*     Get a description of a Jacobian matrix for the fwd transformation
-*     of a PolyMap.
+*     Get a description of a Jacobian matrix for the original
+*     fwd transformation of a PolyMap.
 
 *  Type:
 *     Private function.
@@ -1460,10 +1466,11 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
 
 *  Description:
 *     This function returns a set of PolyMaps which define the Jacobian
-*     matrix of the forward transformation of the supplied PolyMap.
+*     matrix of the original forward transformation of the supplied PolyMap
+*     (i.e. the Negated attribute is assumed to be zero).
 *
 *     The Jacobian matrix has "nout" rows and "nin" columns, where "nin"
-*     and "nout" are the number of inputs and outputs of the supplied PolyMap.
+*     and "nout" are the number of inputs and outputs of the original PolyMap.
 *     Row "i", column "j" of the matrix holds the rate of change of the
 *     i'th PolyMap output with respect to the j'th PolyMap input.
 *
@@ -1511,9 +1518,15 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
 /* Ensure there is a Jacobian stored in the PolyMap. */
    if( !this->jacobian ) {
 
-/* Get the number of inputs and outputs. */
-      nin = astGetNin( this );
-      nout = astGetNout( this );
+/* Get the number of inputs and outputs of the original forward
+   transformation. */
+      if( astGetInvert( this ) ){
+         nout = astGetNin( this );
+         nin = astGetNout( this );
+      } else {
+         nin = astGetNin( this );
+         nout = astGetNout( this );
+      }
 
 /* Allocate memory to hold pointers to the PolyMaps used to describe the
    Jacobian matrix. */
@@ -1717,7 +1730,7 @@ static int GetTranForward( AstMapping *this, int *status ) {
    map = (AstPolyMap *) this;
 
 /* First deal with cases where the PolyMap has not been inverted. */
-   if( ! astGetInvert( this ) ) {
+   if( !astGetInvert( this ) ) {
 
 /* The PolyMap has a defined forward transformation if one or more
    coefficients values were supplied for the original forward
@@ -1789,7 +1802,7 @@ static int GetTranInverse( AstMapping *this, int *status ) {
    map = (AstPolyMap *) this;
 
 /* First deal with cases where the PolyMap has not been inverted. */
-   if( ! astGetInvert( this ) ) {
+   if( !astGetInvert( this ) ) {
 
 /* The PolyMap has a defined inverse transformation if one or more
    coefficients values were supplied for the original inverse
@@ -1950,8 +1963,8 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 *     IterInverse
 
 *  Purpose:
-*     Use an iterative method to evaluate the inverse transformation of a
-*     PolyMap at a set of output positions.
+*     Use an iterative method to evaluate the original inverse transformation
+*     of a PolyMap at a set of (original) output positions.
 
 *  Type:
 *     Private function.
@@ -1961,20 +1974,23 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 *                       int *status )
 
 *  Description:
-*     This function transforms a set of PolyMap output positions using
-*     the inverse transformation of the PolyMap, to generate the corresponding
-*     input positions. An iterative Newton-Raphson method is used which
-*     only required the forward transformation of the PolyMap to be deifned.
+*     This function transforms a set of PolyMap positions using the original
+*     inverse transformation of the PolyMap (i.e. the Negated attribute
+*     is assumed to be zero). An iterative Newton-Raphson method is used
+*     which only required the original forward transformation of the PolyMap
+*     to be defined.
 
 *  Parameters:
 *     this
 *        The PolyMap.
 *     out
-*        A PointSet holding the PolyMap output positions that are to be
-*        transformed using the inverse transformation.
+*        A PointSet holding the positions that are to be transformed using
+*        the original inverse transformation. These corresponds to
+*        outputs of the original (i.e. uninverted) PolyMap
 *     result
-*        A PointSet into which the generated PolyMap input positions are to be
-*        stored.
+*        A PointSet into which the transformed positions are to be stored.
+*        These corresponds to inputs of the original (i.e. uninverted) PolyMap
+
 *     status
 *        Pointer to the inherited status variable.
 
@@ -2041,7 +2057,7 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 /* Get another PointSet to hold intermediate results. */
    work = astPointSet( npoint, ncoord, " ", status );
 
-/* See if the PolyMap has been inverted. */
+/* See if the PolyMap has been inverted.*/
    fwd = !astGetInvert( this );
 
 /* Get pointers to the data arrays for all PointSets. Note, here "in" and
@@ -2104,9 +2120,9 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    maximum number of iterations have been performed. */
       for( iter = 0; iter < maxiter && nconv < npoint && astOK; iter++ ) {
 
-/* Use the forward transformation of the supplied PolyMap to transform
-   the current guesses at the required input positions into the
-   corresponding output positions. Store the results in the "work"
+/* Use the original forward transformation of the supplied PolyMap to
+   transform the current guesses at the required input positions into
+   the corresponding output positions. Store the results in the "work"
    PointSet. */
          (void) astTransform( this, result, fwd, work );
 
@@ -2225,15 +2241,16 @@ static AstMapping *LinearGuess( AstPolyMap *this, int *status ){
 *     AstMapping *LinearGuess( AstPolyMap *this, int *status )
 
 *  Description:
-*     This function returns a linear Mapping approximating to the forward
-*     transformation of the supplied PolyMap. The linear and constant
-*     terms in the supplied PolyMap are used for all outputs that have
-*     such terms. Any other outputs are assumed to be equal to the
-*     corresponding inputs. If the forward transformation of the PolyMap
-*     is defined, then it is used to determine the returned Mapping.
-*     Otherwise, the inverse transformation of the PolyMap is used. The
-*     forward transformation of the returned Mapping always represents the
-*     forward transformation of the supplied PolyMap.
+*     This function returns a linear Mapping approximating the original
+*     forward transformation of the supplied PolyMap (i.e. the Invert
+*     flag is assume to be zero). The linear and constant terms in the
+*     supplied PolyMap are used for all outputs that have such terms. Any
+*     other outputs are assumed to be equal to the corresponding inputs.
+*     If the forward transformation of the PolyMap is defined, then it is
+*     used to determine the returned Mapping. Otherwise, the inverse
+*     transformation of the PolyMap is used. The forward transformation of
+*     the returned Mapping always represents the forward transformation of
+*     the original (i.e. uninverted) PolyMap.
 
 *  Parameters:
 *     this
@@ -2277,8 +2294,9 @@ static AstMapping *LinearGuess( AstPolyMap *this, int *status ){
    if( this->lintrunc ) return astClone( this->lintrunc );
 
 /* Get pointers to the arrays holding the required coefficient
-   values and powers. Use the forward transformation if it is
-   defined and the inverse transformation otherwise. */
+   values and powers. Use the forward transformation of the original
+   (uninverted) PolyMap if it is defined and the inverse transformation
+   otherwise. */
    if ( this->ncoeff_f ){
       ncoeff = this->ncoeff_f;
       coeff = this->coeff_f;
@@ -2376,8 +2394,9 @@ static AstMapping *LinearGuess( AstPolyMap *this, int *status ){
 /* Combine them in series into a single compound Mapping. */
       result = (AstMapping *) astCmpMap( mm, sm, 1, " ", status );
 
-/* If this CmpMap represents the inverse transformation of the supplied
-   PolyMap, invert it so that it represents the forward transformation. */
+/* If this CmpMap represents the inverse transformation of the original
+   (i.e. uninverted) PolyMap, invert it so that it represents the forward
+   transformation. */
       if( inverse ) astInvert( result );
 
 /* Free resources */
@@ -4454,21 +4473,28 @@ static void StoreArrays( AstPolyMap *this, int forward, int ncoeff,
    int iin;                      /* Input index extracted from coeff. description */
    int iout;                     /* Output index extracted from coeff. description */
    int j;                        /* Loop count */
-   int nin;                      /* Number of inputs */
-   int nout;                     /* Number of outputs */
+   int nin;                      /* Number of orignal inputs */
+   int nout;                     /* Number of original outputs */
    int pow;                      /* Power extracted from coeff. description */
 
 /* Check the global status. */
    if ( !astOK ) return;
 
-/* Get the number of inputs and outputs. */
-   nin = astGetNin( this );
-   nout = astGetNout( this );
-
 /* First Free any existing arrays. */
    FreeArrays( this, forward, status );
 
-/* Now initialise the forward transformation, if required. */
+/* Get the number of inputs and outputs of the original uninverted PolyMap.
+   Swap the transformation to be set if the PolyMap has been inverted. */
+   if( astGetInvert( this ) ) {
+      nout = astGetNin( this );
+      nin = astGetNout( this );
+      forward = !forward;
+   } else {
+      nin = astGetNin( this );
+      nout = astGetNout( this );
+   }
+
+/* Now initialise the original forward transformation, if required. */
    if( forward && ncoeff > 0 ) {
 
 /* Create the arrays decribing the forward transformation. */
@@ -4554,7 +4580,7 @@ static void StoreArrays( AstPolyMap *this, int forward, int ncoeff,
       }
    }
 
-/* Now initialise the inverse transformation, if required. */
+/* Now initialise the original inverse transformation, if required. */
    if( !forward && ncoeff > 0 ) {
 
 /* Create the arrays decribing the inverse transformation. */
@@ -4987,14 +5013,19 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     Integer (boolean).
 
 *  Description:
-*     This attribute indicates whether the inverse transformation of
-*     the PolyMap should be implemented via an iterative Newton-Raphson
+*     This attribute indicates whether the original inverse transformation
+*     of the PolyMap should be implemented via an iterative Newton-Raphson
 *     approximation that uses the forward transformation to transform
 *     candidate input positions until an output position is found which
 *     is close to the required output position. By default, an iterative
 *     inverse is provided if, and only if, no inverse polynomial was supplied
 *     when the PolyMap was constructed.
 *
+*     Note, the term "inverse transformation" here refers to the inverse
+*     transformation of the original PolyMap, ignoring any subsequent
+*     invertions. Also, "input" and "output" refer to the inputs and
+*     outputs of the original PolyMap.
+
 *     The NiterInverse and TolInverse attributes provide parameters that
 *     control the behaviour of the inverse approximation method.
 *
@@ -5194,8 +5225,8 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    nin = ( (AstMapping *) in )->nin;
    nout = ( (AstMapping *) in )->nout;
 
-/* Copy the number of coefficients associated with each output of the forward
-   transformation. */
+/* Copy the number of coefficients associated with each output of the
+   forward transformation of the uninverted Mapping. */
    if( in->ncoeff_f ) {
       out->ncoeff_f = (int *) astStore( NULL, (void *) in->ncoeff_f,
                                         sizeof( int )*(size_t) nout );
@@ -5271,7 +5302,7 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
 /* Copy the linear truncation of the PolyMap - if it has been found. */
    if( in->lintrunc ) out->lintrunc = astCopy( in->lintrunc );
 
-/* If an error has occurred, free al the resources allocated above. */
+/* If an error has occurred, free all the resources allocated above. */
    if( !astOK ) {
       FreeArrays( out, 1, status );
       FreeArrays( out, 0, status );

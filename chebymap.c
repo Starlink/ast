@@ -130,6 +130,9 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *     30-MAR-2017 (DSB):
 *        Over-ride the astFitPoly1DInit and astFitPoly2DInit virtual
 *        functions inherited form the PolyMap class.
+*     5-MAY-2018 (DSB):
+*        Correct usage of "forward" argument in astFitPoly1DInit and 
+*        astFitPoly2DInit.
 *class--
 */
 
@@ -605,7 +608,7 @@ static void FitPoly1DInit( AstPolyMap *this_polymap, int forward, double **table
                 "on axis 1.", status, astGetClass(this));
    }
 
-   if( forward ) {
+   if( forward != astGetInvert( this ) ) {
       this->scale_f = (double *) astFree( this->scale_f );
       this->offset_f = (double *) astFree( this->offset_f );
 
@@ -769,7 +772,7 @@ static void FitPoly2DInit( AstPolyMap *this_polymap, int forward, double **table
                 "on or both axes.", status, astGetClass(this));
    }
 
-   if( forward ) {
+   if( forward != astGetInvert( this ) ) {
       this->scale_f = (double *) astFree( this->scale_f );
       this->offset_f = (double *) astFree( this->offset_f );
 
