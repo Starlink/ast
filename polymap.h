@@ -154,12 +154,16 @@ typedef struct AstPolyMap {
 /* Attributes specific to objects in this class. */
    int *ncoeff_f;             /* No. of coeffs for each forward polynomial */
    int *mxpow_f;              /* Max power of each i/p axis for each forward polynomial */
+   int *hmxpow_f;             /* Max power of each i/p axis for each forward polynomial */
    int ***power_f;            /* Pointer to i/p powers for all forward coefficients */
    double **coeff_f;          /* Pointer to values of all forward coefficients */
+   double **hcoeff_f;         /* Pointer to values of all forward coefficients */
    int *ncoeff_i;             /* No. of coeffs for each inverse polynomial */
    int *mxpow_i;              /* Max power of each i/p axis for each inverse polynomial */
+   int *hmxpow_i;             /* Max power of each i/p axis for each inverse polynomial */
    int ***power_i;            /* Pointer to i/p powers for all inverse coefficients */
    double **coeff_i;          /* Pointer to values of all inverse coefficients */
+   double **hcoeff_i;         /* Pointer to values of all inverse coefficients */
    int iterinverse;           /* Use an iterative inverse? */
    int niterinverse;          /* Max number of iterations for iterative inverse */
    double tolinverse;         /* Target relative error for iterative inverse */
@@ -180,6 +184,7 @@ typedef struct AstMinPackData {
    double *xp1;    /* Pointer to powers of X1 (1st poly i/p) at all samples */
    double *xp2;    /* Pointer to powers of X2 (2nd poly i/p) at all samples */
    double *y[ 2 ]; /* Pointers to Y1 and Y2 values at all samples */
+   double *x[ 2 ]; /* Pointers to X1 and X2 values at all samples */
 } AstMinPackData;
 
 

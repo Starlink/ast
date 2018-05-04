@@ -237,6 +237,7 @@ AstPolyMap *astPolyMapId_( int, int, int, const double[], int, const double[], c
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
 static AstMapping *LinearGuess( AstPolyMap *, int * );
+static AstPointSet *SlowTransform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstPolyMap **GetJacobian( AstPolyMap *, int * );
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
@@ -244,6 +245,9 @@ static double **SamplePoly1D( AstPolyMap *, int, double **, double, double, int,
 static double **SamplePoly2D( AstPolyMap *, int, double **, const double *, const double *, int, int *, double[4], int * );
 static double *FitPoly1D( AstPolyMap *, int, int, double, int, double **, double[2], int *, double *, int * );
 static double *FitPoly2D( AstPolyMap *, int, int, double, int, double **, double[4], int *, double *, int * );
+static double Horner1D( double, int, double * );
+static double Horner2D( double, double, int, int, double *, double * );
+static double Horner3D( double, double, double, int, int, int, double *, double * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetObjSize( AstObject *, int * );
 static int GetTranForward( AstMapping *, int * );
@@ -266,6 +270,7 @@ static void LMJacob2D( const double *, double *, int, int, void * );
 static void PolyCoeffs( AstPolyMap *, int, int, double *, int *, int * );
 static void PolyPowers( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static void StoreArrays( AstPolyMap *, int, int, const double *, int * );
+static void StoreHornerArrays( AstPolyMap *, int, int *);
 
 #if defined(THREAD_SAFE)
 static int ManageLock( AstObject *, int, int, AstObject **, int * );
@@ -676,6 +681,8 @@ static double *FitPoly1D( AstPolyMap *this, int forward, int nsamp, double acc,
    data.xp2 = NULL;
    data.y[ 0 ] = table[ 1 ];
    data.y[ 1 ] = NULL;
+   data.x[ 0 ] = table[ 0 ];
+   data.x[ 1 ] = NULL;
 
 /* Work space to hold coefficients. */
    coeffs = astMalloc( ncof*sizeof( double ) );
@@ -1290,6 +1297,13 @@ static void FreeArrays( AstPolyMap *this, int forward, int *status ) {
          this->coeff_f = astFree( this->coeff_f );
       }
 
+      if( this->hcoeff_f ) {
+         for( i = 0; i < nout; i++ ) {
+            this->hcoeff_f[ i ] = astFree( this->hcoeff_f[ i ] );
+         }
+         this->hcoeff_f = astFree( this->hcoeff_f );
+      }
+
       if( this->power_f ) {
          for( i = 0; i < nout; i++ ) {
             if( this->ncoeff_f && this->power_f[ i ] ) {
@@ -1304,6 +1318,7 @@ static void FreeArrays( AstPolyMap *this, int forward, int *status ) {
 
       this->ncoeff_f = astFree( this->ncoeff_f );
       this->mxpow_f = astFree( this->mxpow_f );
+      this->hmxpow_f = astFree( this->hmxpow_f );
 
 /* Free the dynamic arrays for the inverse transformation. */
    } else {
@@ -1313,6 +1328,13 @@ static void FreeArrays( AstPolyMap *this, int forward, int *status ) {
             this->coeff_i[ i ] = astFree( this->coeff_i[ i ] );
          }
          this->coeff_i = astFree( this->coeff_i );
+      }
+
+      if( this->hcoeff_i ) {
+         for( i = 0; i < nin; i++ ) {
+            this->hcoeff_i[ i ] = astFree( this->hcoeff_i[ i ] );
+         }
+         this->hcoeff_i = astFree( this->hcoeff_i );
       }
 
       if(this->power_i ) {
@@ -1329,6 +1351,7 @@ static void FreeArrays( AstPolyMap *this, int forward, int *status ) {
 
       this->ncoeff_i = astFree( this->ncoeff_i );
       this->mxpow_i = astFree( this->mxpow_i );
+      this->hmxpow_i = astFree( this->hmxpow_i );
    }
 }
 
@@ -2439,7 +2462,7 @@ static void LMFunc1D( const double *p, double *hx, int m, int n, void *adata ){
 
 /* Local Variables: */
    AstMinPackData *data;
-   double *px1;
+   double *px;
    double *py;
    const double *vp;
    double *vr;
@@ -2456,32 +2479,15 @@ static void LMFunc1D( const double *p, double *hx, int m, int n, void *adata ){
 /* Initialise a pointer to the sampled Y values for the polynomial output. */
    py = data->y[ 0 ];
 
-/* Initialise a pointer to the powers of the input X values at the curent
-   (i.e. first) sample. */
-   px1 = data->xp1;
+/* Initialise a pointer to the input X value at the curent (i.e. first) sample. */
+   px = data->x[ 0 ];
 
 /* Loop over the index of the sample to which this residual refers. */
    for( k = 0; k < data->nsamp; k++ ) {
 
-/* Initialise a pointer to the first coefficient (the  constant term) for the
-   polynomial output coordinate. */
-      vp = p;
-
-/* Initialise this residual to hold the sampled Y value. Increment the
-   pointer to the next sampled value for the current polynomial output. */
-      res = -( *(py++) );
-
-/* Loop over the coefficients. */
-      for( w1 = 0; w1 < data->order; w1++ ) {
-
-/* Increment the residual by the value of the current term Cw1*(x1^w1).
-   Increment the pointer to the next coefficient (C). Also increment the
-   pointer to the next higher power of X1. */
-         res += ( *(vp++) )*( *(px1++) );
-      }
-
-/* Store the complete residual in the returned array, and increment the
+/* Calculate the residual, store in the returned array, and increment the
    pointer to the next residual. */
+      res = Horner1D( *(px++), data->order - 1, p ) - ( *(py++) );
       *(vr++) = res;
    }
 }
@@ -4397,6 +4403,248 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
    }
 }
 
+static AstPointSet *SlowTransform( AstMapping *this, AstPointSet *in,
+                                   int forward, AstPointSet *out, int *status ) {
+/*
+*  Name:
+*     SlowTransform
+
+*  Purpose:
+*     Apply a PolyMap to transform a set of points.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     AstPointSet *SlowTransform( AstMapping *this, AstPointSet *in,
+*                                 int forward, AstPointSet *out, int *status )
+
+
+*  Description:
+*     This function takes a PolyMap and a set of points encapsulated in a
+*     PointSet and transforms the points. It can be used for transformations
+*     that have more than 3 input axes, but is slower and less accurate
+*     than the algorithm implemented in Transform (which can only be used for
+*     transforms with up to 3 inpux axes).
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap.
+*     in
+*        Pointer to the PointSet holding the input coordinate data.
+*     forward
+*        A non-zero value indicates that the forward coordinate transformation
+*        should be applied, while a zero value requests the inverse
+*        transformation.
+*     out
+*        Pointer to a PointSet which will hold the transformed (output)
+*        coordinate values. A NULL value may also be given, in which case a
+*        new PointSet will be created by this function.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Pointer to the output (possibly new) PointSet.
+
+*  Notes:
+*     -  A null pointer will be returned if this function is invoked with the
+*     global error status set, or if it should fail for any reason.
+*     -  The number of coordinate values per point in the input PointSet must
+*     match the number of columns in the PolyMap being applied.
+*     -  The number of coordinate values per point in the output PointSet will
+*     equal the number of rows in the PolyMap being applied.
+*     -  If an output PointSet is supplied, it must have space for sufficient
+*     number of points and coordinate values per point to accommodate the
+*     result. Any excess space will be ignored.
+*/
+
+/* Local Variables: */
+   AstPointSet *result;          /* Pointer to output PointSet */
+   AstPolyMap *map;              /* Pointer to PolyMap to be applied */
+   double **coeff;               /* Pointer to coefficient value arrays */
+   double **ptr_in;              /* Pointer to input coordinate data */
+   double **ptr_out;             /* Pointer to output coordinate data */
+   double **work;                /* Pointer to exponentiated axis values */
+   double *outcof;               /* Pointer to next coefficient value */
+   double outval;                /* Output axis value */
+   double term;                  /* Term to be added to output value */
+   double xp;                    /* Exponentiated input axis value */
+   int ***power;                 /* Pointer to coefficient power arrays */
+   int **outpow;                 /* Pointer to next set of axis powers */
+   int *mxpow;                   /* Pointer to max used power for each input */
+   int *ncoeff;                  /* Pointer to no. of coefficients */
+   int in_coord;                 /* Index of output coordinate */
+   int ico;                      /* Coefficient index */
+   int nc;                       /* No. of coefficients in polynomial */
+   int ncoord_in;                /* Number of coordinates per input point */
+   int ncoord_out;               /* Number of coordinates per output point */
+   int npoint;                   /* Number of points */
+   int out_coord;                /* Index of output coordinate */
+   int point;                    /* Loop counter for points */
+   int pow;                      /* Next axis power */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Obtain a pointer to the PolyMap. */
+   map = (AstPolyMap *) this;
+
+/* Apply the parent mapping using the stored pointer to the Transform member
+   function inherited from the parent Mapping class. This function validates
+   all arguments and generates an output PointSet if necessary, but does not
+   actually transform any coordinate values. */
+   result = (*parent_transform)( this, in, forward, out, status );
+
+/* Determine whether to apply the original forward or inverse mapping,
+   according to the direction specified and whether the mapping has been
+   inverted. */
+   if ( astGetInvert( map ) ) forward = !forward;
+
+/* We will now extend the parent astTransform method by performing the
+   calculations needed to generate the output coordinate values. */
+
+/* If we are using the original inverse transformatiom, and the IterInverse
+   attribute is non-zero, use an iterative inverse algorithm rather than any
+   inverse transformation defined within the PolyMap. */
+   if( !forward && astGetIterInverse(map) ) {
+      IterInverse( map, in, result, status );
+
+/* Otherwise, determine the numbers of points and coordinates per point from
+   the input and output PointSets and obtain pointers for accessing the input
+   and output coordinate values. */
+   } else {
+      ncoord_in = astGetNcoord( in );
+      ncoord_out = astGetNcoord( result );
+      npoint = astGetNpoint( in );
+      ptr_in = astGetPoints( in );
+      ptr_out = astGetPoints( result );
+
+/* Get a pointer to the arrays holding the required coefficient
+   values and powers, according to the direction of mapping required. */
+      if ( forward ) {
+         ncoeff = map->ncoeff_f;
+         coeff = map->coeff_f;
+         power = map->power_f;
+         mxpow = map->mxpow_f;
+      } else {
+         ncoeff = map->ncoeff_i;
+         coeff = map->coeff_i;
+         power = map->power_i;
+         mxpow = map->mxpow_i;
+      }
+
+/* Allocate memory to hold the required powers of the input axis values. */
+      work = astMalloc( sizeof( double * )*(size_t) ncoord_in );
+      for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
+         work[ in_coord ] = astMalloc( sizeof( double )*
+                           (size_t) ( astMAX( 2, mxpow[in_coord]+1 ) ) );
+      }
+
+/* Perform coordinate arithmetic. */
+/* ------------------------------ */
+      if ( astOK ) {
+
+/* Loop to apply the polynomial to each point in turn.*/
+         for ( point = 0; point < npoint; point++ ) {
+
+/* Find the required powers of the input axis values and store them
+   in the work array. Note, using a virtual method here slows the PolyMap
+   Transform function down by about 5%, compared to doing the equivalent
+   calculations in-line. But we need some way to allow the ChebyMap class
+   to over-ride the calculation of the powers, so we must do something
+   like this. If the 5% slow-down is too much, it can be reduced down to
+   about 2% by replacing the invocation of the astPolyPowers_ interface
+   function with a direct call to the implementation function itself.
+   This involves replacing the astPolyPowers call below with this:
+
+   (**astMEMBER(this,PolyMap,PolyPowers))( (AstPolyMap *) this, work, ncoord_in,
+                                           mxpow, ptr_in, point, forward, status );
+
+   The above could be wrapped up in an alternative implementation of the
+   astPolyPowers macro, so that it looks the same as the existing code.
+   In fact, this scheme could be more widely used to speed up invocation
+   of virtual functions within AST. The disadvantage is that the interface
+   functions for some virtual methods includes some extra processing,
+   over and above simply invoking the implementation function.
+
+   Of course the other way to get rid of the 5% slow down, is to
+   revert to using in-line code below, and then replicate this entire
+   function in the ChebyMap class, making suitable changes to use
+   Chebyshev functions in place of simple powers. But that is bad
+   structuring... */
+            astPolyPowers( this, work, ncoord_in, mxpow, ptr_in, point,
+                           forward );
+
+/* Loop round each output. */
+            for( out_coord = 0; out_coord < ncoord_out; out_coord++ ) {
+
+/* Initialise the output value. */
+               outval = 0.0;
+
+/* Get pointers to the coefficients and powers for this output. */
+               outcof = coeff[ out_coord ];
+               outpow = power[ out_coord ];
+
+/* Loop round all polynomial coefficients.*/
+               nc = ncoeff[ out_coord ];
+               for ( ico = 0; ico < nc && outval != AST__BAD;
+                     ico++, outcof++, outpow++ ) {
+
+/* Initialise the current term to be equal to the value of the coefficient.
+   If it is bad, store a bad output value. */
+                  term = *outcof;
+                  if( term == AST__BAD ) {
+                     outval = AST__BAD;
+
+/* Otherwise, loop round all inputs */
+                  } else {
+                     for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
+
+/* Get the power of the current input axis value used by the current
+   coefficient. If it is zero, pass on. */
+                        pow = (*outpow)[ in_coord ];
+                        if( pow > 0 ) {
+
+/* Get the axis value raised to the appropriate power. */
+                           xp = work[ in_coord ][ pow ];
+
+/* If bad, set the output value bad and break. */
+                           if( xp == AST__BAD ) {
+                              outval = AST__BAD;
+                              break;
+
+/* Otherwise multiply the current term by the exponentiated axis value. */
+                           } else {
+                              term *= xp;
+                           }
+                        }
+                     }
+                  }
+
+/* Increment the output value by the current term of the polynomial. */
+                  if( outval != AST__BAD ) outval += term;
+
+               }
+
+/* Store the output value. */
+               ptr_out[ out_coord ][ point ] = outval;
+
+            }
+         }
+      }
+
+/* Free resources. */
+      for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
+         work[ in_coord ] = astFree( work[ in_coord ] );
+      }
+      work = astFree( work );
+   }
+
+/* Return a pointer to the output PointSet. */
+   return result;
+}
+
 static void StoreArrays( AstPolyMap *this, int forward, int ncoeff,
                          const double *coeff, int *status ){
 /*
@@ -4640,6 +4888,181 @@ static void StoreArrays( AstPolyMap *this, int forward, int ncoeff,
          }
       }
    }
+
+/* Set up additional arrays that allow the PolyMap to be avaluated using
+   Horner's method. */
+   StoreHornerArrays( this, forward, status );
+
+}
+
+static void StoreHornerArrays( AstPolyMap *this, int forward, int *status ){
+/*
+*  Name:
+*     StoreHornerArrays
+
+*  Purpose:
+*     Store the Horner arrays for a single transformation within a PolyMap
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void StoreHornerArrays( AstPolyMap *this, int forward, int *status )
+
+*  Description:
+*     This function sets up the arrays within a PolyMap structure that
+*     describes either the forward or inverse transformation in a form
+*     that can be used by the Horner method. This can only be done if the
+*     specified transformation has no more than 3 inputs, and the PolyMap
+*     is not of a derived class (e.g. a ChebyMap).
+
+*  Parameters:
+*     this
+*        The PolyMap.
+*     forward
+*        If non-zero, store the forward transformation values. Otherwise,
+*        store the inverse transformation values.
+*     status
+*        Pointer to inherited status.
+
+*   Notes:
+*     - Any existing Horner arrays in the PolyMap should be freed before
+*     calling this function.
+*     - This function returns without action if the requested transformation
+*     has more than 3 inputs or the supplied PolyMap is of a derived class
+*     (e.g. ChebyMap).
+
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
+   double cof;                   /* Coefficient value */
+   int i;                        /* Loop count */
+   int j;                        /* Loop count */
+   int ncof;                     /* Total number of powers for each axis */
+   int nin;                      /* Number of inputs */
+   int nout;                     /* Number of outputs */
+   int nxp;                      /* Number of powers for X axis */
+   int nyp;                      /* Number of powers for Y axis */
+   int nzp;                      /* Number of powers for Z axis */
+   int xpow;                     /* Power for X axis value */
+   int ypow;                     /* Power for Y axis value */
+   int zpow;                     /* Power for Z axis value */
+
+/* Check the global status. */
+   if ( !astOK ) return;
+
+/* Get a pointer to the thread specific global data structure. */
+   astGET_GLOBALS(this);
+
+/* Return without action if the PolyMap is of a derived class (e.g.
+   ChebyMap). */
+   if( ((AstObject*)this)->vtab != (AstObjectVtab *) &class_vtab ) return;
+
+/* Get the number of inputs and outputs. */
+   nin = astGetNin( this );
+   nout = astGetNout( this );
+
+/* Now initialise the forward transformation, if required. */
+   if( forward && nin <= 3 && this->ncoeff_f ) {
+
+/* The array holding the maximum power used on each input axis is just
+   the same as the equivalent array used for the non-Horner evaluations. */
+      this->hmxpow_f = astStore( NULL, this->mxpow_f, astSizeOf(this->mxpow_f) );
+
+/* Create an array of pointers, one for each output. Each pointer will be
+   used to point to an array holding the coefficient values used by the
+   output. */
+      this->hcoeff_f = astMalloc( sizeof( double * )*(size_t) nout );
+      if( astOK ) {
+
+/* Find the number of coefficients needed for each output. */
+         nxp = this->hmxpow_f[ 0 ] + 1;
+         nyp = 1;
+         nzp = 1;
+         if( nin > 1 ) {
+            nyp = this->hmxpow_f[ 1 ] + 1;
+            if( nin > 2 ) {
+               nzp = this->hmxpow_f[ 2 ] + 1;
+            }
+         }
+         ncof = nxp*nyp*nzp;
+
+/* Allocate arrays to store the coefficients for each output axis and
+   fill these arrays with zeros. Each array holds a coefficient value
+   for every possible combination of powers (zero is stored for those
+   combinations which have not been specified in the supplied "coeff"
+   array). The axes of this array correspond to powers on the x, y
+   and z axes (in that order). */
+         for( i = 0; i < nout; i++ ) {
+            this->hcoeff_f[ i ] = astCalloc( ncof, sizeof( double ) );
+            if( astOK ){
+               for( j = 0; j < this->ncoeff_f[ i ]; j++ ) {
+                  cof = (this->coeff_f)[ i ][ j ];
+                  xpow = (this->power_f)[ i ][ j ][ 0 ];
+                  ypow = 0;
+                  zpow = 0;
+                  if( nin > 1 ) {
+                     ypow = (this->power_f)[ i ][ j ][ 1 ];
+                     if( nin > 2 )  zpow = (this->power_f)[ i ][ j ][ 2 ];
+                  }
+                  this->hcoeff_f[ i ][ xpow + nxp*( ypow + nyp*zpow ) ] = cof;
+               }
+            }
+         }
+      }
+   }
+
+/* Now initialise the inverse transformation, if required. */
+   if( !forward && nout <= 3 && this->ncoeff_i ) {
+
+/* The array holding the maximum power used on each input axis is just
+   the same as the equivalent array used for the non-Horner evaluations. */
+      this->hmxpow_i = astStore( NULL, this->mxpow_i, astSizeOf(this->mxpow_i) );
+
+/* Create an array of pointers, one for each output. Each pointer will be
+   used to point to an array holding the coefficient values used by the
+   output. */
+      this->hcoeff_i = astMalloc( sizeof( double * )*(size_t) nin );
+      if( astOK ) {
+
+/* Find the number of coefficients needed for each input. */
+         nxp = this->hmxpow_i[ 0 ] + 1;
+         nyp = 1;
+         nzp = 1;
+         if( nout > 1 ) {
+            nyp = this->hmxpow_i[ 1 ] + 1;
+            if( nout > 2 ) {
+               nzp = this->hmxpow_i[ 2 ] + 1;
+            }
+         }
+         ncof = nxp*nyp*nzp;
+
+/* Allocate arrays to store the coefficients for each input axis and
+   fill these arrays with zeros. Each array holds a coefficient value
+   for every possible combination of powers (zero is stored for those
+   combinations which have not been specified in the supplied "coeff"
+   array). The axes of this array correspond to powers on the x, y
+   and z axes (in that order). */
+         for( i = 0; i < nin; i++ ) {
+            this->hcoeff_i[ i ] = astCalloc( ncof, sizeof( double ) );
+            if( astOK ){
+               for( j = 0; j < this->ncoeff_i[ i ]; j++ ) {
+                  cof = (this->coeff_i)[ i ][ j ];
+                  xpow = (this->power_i)[ i ][ j ][ 0 ];
+                  ypow = 0;
+                  zpow = 0;
+                  if( nout > 1 ) {
+                     ypow = (this->power_i)[ i ][ j ][ 1 ];
+                     if( nout > 2 )  zpow = (this->power_i)[ i ][ j ][ 2 ];
+                  }
+                  this->hcoeff_i[ i ][ xpow + nxp*( ypow + nyp*zpow ) ] = cof;
+               }
+            }
+         }
+      }
+   }
 }
 
 static int TestAttrib( AstObject *this_object, const char *attrib, int *status ) {
@@ -4782,27 +5205,22 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Local Variables: */
    AstPointSet *result;          /* Pointer to output PointSet */
    AstPolyMap *map;              /* Pointer to PolyMap to be applied */
-   double **coeff;               /* Pointer to coefficient value arrays */
    double **ptr_in;              /* Pointer to input coordinate data */
    double **ptr_out;             /* Pointer to output coordinate data */
-   double **work;                /* Pointer to exponentiated axis values */
-   double *outcof;               /* Pointer to next coefficient value */
+   double **coeff;               /* Pointer to coefficient values array */
+   double **pc;                  /* Pointer to next coefficient array */
+   double *px;                   /* Pointer to next input x value */
+   double *py;                   /* Pointer to next input y value */
+   double *pz;                   /* Pointer to next input z value */
+   double *work;                 /* Pointer to work array */
    double outval;                /* Output axis value */
-   double term;                  /* Term to be added to output value */
-   double xp;                    /* Exponentiated input axis value */
-   int ***power;                 /* Pointer to coefficient power arrays */
-   int **outpow;                 /* Pointer to next set of axis powers */
    int *mxpow;                   /* Pointer to max used power for each input */
-   int *ncoeff;                  /* Pointer to no. of coefficients */
-   int in_coord;                 /* Index of output coordinate */
-   int ico;                      /* Coefficient index */
-   int nc;                       /* No. of coefficients in polynomial */
+   int ncof;                     /* Number of coeffs for each output */
    int ncoord_in;                /* Number of coordinates per input point */
    int ncoord_out;               /* Number of coordinates per output point */
    int npoint;                   /* Number of points */
    int out_coord;                /* Index of output coordinate */
    int point;                    /* Loop counter for points */
-   int pow;                      /* Next axis power */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
@@ -4820,6 +5238,22 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    according to the direction specified and whether the mapping has been
    inverted. */
    if ( astGetInvert( map ) ) forward = !forward;
+
+/* Get a pointer to the arrays holding the required coefficient
+   values (in the form required by the Horner functions), according to
+   the direction of mapping required. */
+   if ( forward ) {
+      coeff = map->hcoeff_f;
+      mxpow = map->hmxpow_f;
+   } else {
+      coeff = map->hcoeff_i;
+      mxpow = map->hmxpow_i;
+   }
+
+/* If the Horner arrays for the required transformation do not exist
+   within the PolyMap we cannot evaluate it using Horner's method, as used
+   by this function. So revert to slower, less accurate method. */
+   if( !coeff ) return SlowTransform( this, in, forward, result, status );
 
 /* We will now extend the parent astTransform method by performing the
    calculations needed to generate the output coordinate values. */
@@ -4840,130 +5274,71 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
       ptr_in = astGetPoints( in );
       ptr_out = astGetPoints( result );
 
-/* Get a pointer to the arrays holding the required coefficient
-   values and powers, according to the direction of mapping required. */
-      if ( forward ) {
-         ncoeff = map->ncoeff_f;
-         coeff = map->coeff_f;
-         power = map->power_f;
-         mxpow = map->mxpow_f;
-      } else {
-         ncoeff = map->ncoeff_i;
-         coeff = map->coeff_i;
-         power = map->power_i;
-         mxpow = map->mxpow_i;
+/* Get the number of coefficients per output. */
+      ncof = mxpow[ 0 ] + 1;
+      if( ncoord_in > 1 ) {
+         ncof *= mxpow[ 1 ] + 1;
+         if( ncoord_in > 2 ) {
+            ncof *= mxpow[ 2 ] + 1;
+         }
       }
 
-/* Allocate memory to hold the required powers of the input axis values. */
-      work = astMalloc( sizeof( double * )*(size_t) ncoord_in );
-      for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
-         work[ in_coord ] = astMalloc( sizeof( double )*
-                           (size_t) ( astMAX( 2, mxpow[in_coord]+1 ) ) );
-      }
+/* Allocate a work array for use by the Horner functions. */
+      work = astMalloc( ncof*sizeof( *work ) );
 
 /* Perform coordinate arithmetic. */
 /* ------------------------------ */
       if ( astOK ) {
 
+/* Get pointers to the values for each input axis. */
+         px = ptr_in[0];
+         if( ncoord_in > 1 ) {
+            py = ptr_in[1];
+            if( ncoord_in > 2 ) {
+               pz = ptr_in[2];
+            }
+         }
+
 /* Loop to apply the polynomial to each point in turn.*/
-         for ( point = 0; point < npoint; point++ ) {
-
-/* Find the required powers of the input axis values and store them
-   in the work array. Note, using a virtual method here slows the PolyMap
-   Transform function down by about 5%, compared to doing the equivalent
-   calculations in-line. But we need some way to allow the ChebyMap class
-   to over-ride the calculation of the powers, so we must do something
-   like this. If the 5% slow-down is too much, it can be reduced down to
-   about 2% by replacing the invocation of the astPolyPowers_ interface
-   function with a direct call to the implementation function itself.
-   This involves replacing the astPolyPowers call below with this:
-
-   (**astMEMBER(this,PolyMap,PolyPowers))( (AstPolyMap *) this, work, ncoord_in,
-                                           mxpow, ptr_in, point, forward, status );
-
-   The above could be wrapped up in an alternative implementation of the
-   astPolyPowers macro, so that it looks the same as the existing code.
-   In fact, this scheme could be more widely used to speed up invocation
-   of virtual functions within AST. The disadvantage is that the interface
-   functions for some virtual methods includes some extra processing,
-   over and above simply invoking the implementation function.
-
-   Of course the other way to get rid of the 5% slow down, is to
-   revert to using in-line code below, and then replicate this entire
-   function in the ChebyMap class, making suitable changes to use
-   Chebyshev functions in place of simple powers. But that is bad
-   structuring... */
-            astPolyPowers( this, work, ncoord_in, mxpow, ptr_in, point,
-                           forward );
+         for ( point = 0; point < npoint; point++,px++,py++,pz++ ) {
 
 /* Loop round each output. */
+            pc = coeff;
             for( out_coord = 0; out_coord < ncoord_out; out_coord++ ) {
+               if( ncoord_in == 1 ) {
+                  outval = Horner1D( *px, mxpow[0], *pc );
 
-/* Initialise the output value. */
-               outval = 0.0;
+               } else if( ncoord_in == 2 ) {
+                  outval = Horner2D( *px, *py, mxpow[0], mxpow[1], *pc, work );
 
-/* Get pointers to the coefficients and powers for this output. */
-               outcof = coeff[ out_coord ];
-               outpow = power[ out_coord ];
+               } else if( ncoord_in == 3 ) {
+                  outval = Horner3D( *px, *py, *pz, mxpow[0], mxpow[1],
+                                     mxpow[2], *pc, work );
 
-/* Loop round all polynomial coefficients.*/
-               nc = ncoeff[ out_coord ];
-               for ( ico = 0; ico < nc && outval != AST__BAD;
-                     ico++, outcof++, outpow++ ) {
-
-/* Initialise the current term to be equal to the value of the coefficient.
-   If it is bad, store a bad output value. */
-                  term = *outcof;
-                  if( term == AST__BAD ) {
-                     outval = AST__BAD;
-
-/* Otherwise, loop round all inputs */
-                  } else {
-                     for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
-
-/* Get the power of the current input axis value used by the current
-   coefficient. If it is zero, pass on. */
-                        pow = (*outpow)[ in_coord ];
-                        if( pow > 0 ) {
-
-/* Get the axis value raised to the appropriate power. */
-                           xp = work[ in_coord ][ pow ];
-
-/* If bad, set the output value bad and break. */
-                           if( xp == AST__BAD ) {
-                              outval = AST__BAD;
-                              break;
-
-/* Otherwise multiply the current term by the exponentiated axis value. */
-                           } else {
-                              term *= xp;
-                           }
-                        }
-                     }
-                  }
-
-/* Increment the output value by the current term of the polynomial. */
-                  if( outval != AST__BAD ) outval += term;
-
+               } else if( astOK ) {
+                  astError( AST__INTER, "astTransform(PolyMap): Unexpected "
+                            "dimensionality (%d) encountered (internal AST "
+                            "programming error).", status, ncoord_in );
+                  break;
                }
 
 /* Store the output value. */
                ptr_out[ out_coord ][ point ] = outval;
 
+/* Get a pointer to the coeffs for the next output. */
+               pc++;
             }
          }
       }
 
 /* Free resources. */
-      for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
-         work[ in_coord ] = astFree( work[ in_coord ] );
-      }
       work = astFree( work );
    }
 
 /* Return a pointer to the output PointSet. */
    return result;
 }
+
 
 /* Functions which access class attributes. */
 /* ---------------------------------------- */
@@ -5181,11 +5556,15 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    out->power_f = NULL;
    out->coeff_f = NULL;
    out->mxpow_f = NULL;
+   out->hcoeff_f = NULL;
+   out->hmxpow_f = NULL;
 
    out->ncoeff_i = NULL;
    out->power_i = NULL;
    out->coeff_i = NULL;
    out->mxpow_i = NULL;
+   out->hcoeff_i = NULL;
+   out->hmxpow_i = NULL;
 
    out->jacobian = NULL;
    out->lintrunc = NULL;
@@ -5205,6 +5584,11 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
       out->mxpow_f = (int *) astStore( NULL, (void *) in->mxpow_f,
                                        sizeof( int )*(size_t) nin );
 
+/* Copy the maximum Horner power of each input axis value used by the forward
+   transformation. */
+      out->hmxpow_f = (int *) astStore( NULL, (void *) in->hmxpow_f,
+                                        sizeof( int )*(size_t) nin );
+
 /* Copy the coefficient values used by the forward transformation. */
       if( in->coeff_f ) {
          out->coeff_f = astMalloc( sizeof( double * )*(size_t) nout );
@@ -5212,6 +5596,17 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
             for( i = 0; i < nout; i++ ) {
                out->coeff_f[ i ] = (double *) astStore( NULL, (void *) in->coeff_f[ i ],
                                                      sizeof( double )*(size_t) in->ncoeff_f[ i ] );
+            }
+         }
+      }
+
+/* Copy the Horner coefficient values used by the forward transformation. */
+      if( in->hcoeff_f ) {
+         out->hcoeff_f = astMalloc( sizeof( double * )*(size_t) nout );
+         if( astOK ) {
+            for( i = 0; i < nout; i++ ) {
+               out->hcoeff_f[ i ] = (double *) astStore( NULL, (void *) in->hcoeff_f[ i ],
+                                                         astSizeOf(in->hcoeff_f[ i ]) );
             }
          }
       }
@@ -5241,6 +5636,8 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
 
       out->mxpow_i = (int *) astStore( NULL, (void *) in->mxpow_i,
                                        sizeof( int )*(size_t) nout );
+      out->hmxpow_i = (int *) astStore( NULL, (void *) in->hmxpow_i,
+                                        sizeof( int )*(size_t) nout );
 
       if( in->coeff_i ) {
          out->coeff_i = astMalloc( sizeof( double * )*(size_t) nin );
@@ -5248,6 +5645,16 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
             for( i = 0; i < nin; i++ ) {
                out->coeff_i[ i ] = (double *) astStore( NULL, (void *) in->coeff_i[ i ],
                                                      sizeof( double )*(size_t) in->ncoeff_i[ i ] );
+            }
+         }
+      }
+
+      if( in->hcoeff_i ) {
+         out->hcoeff_i = astMalloc( sizeof( double * )*(size_t) nin );
+         if( astOK ) {
+            for( i = 0; i < nin; i++ ) {
+               out->hcoeff_i[ i ] = (double *) astStore( NULL, (void *) in->hcoeff_i[ i ],
+                                                         astSizeOf(in->hcoeff_i[ i ]) );
             }
          }
       }
@@ -5921,11 +6328,15 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
       new->power_f = NULL;
       new->coeff_f = NULL;
       new->mxpow_f = NULL;
+      new->hcoeff_f = NULL;
+      new->hmxpow_f = NULL;
 
       new->ncoeff_i = NULL;
       new->power_i = NULL;
       new->coeff_i = NULL;
       new->mxpow_i = NULL;
+      new->hcoeff_i = NULL;
+      new->hmxpow_i = NULL;
 
 /* Store the forward transformation. */
       StoreArrays( new, 1, ncoeff_f, coeff_f, status );
@@ -6075,6 +6486,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
    nin = ( (AstMapping *) new )->nin;
    nout = ( (AstMapping *) new )->nout;
 
+/* Initialise null Horner arrays. */
+   new->hcoeff_f = NULL;
+   new->hcoeff_i = NULL;
+   new->hmxpow_f = NULL;
+   new->hmxpow_i = NULL;
+
 /* Read input data. */
 /* ================ */
 /* Request the input Channel to read all the input data appropriate to
@@ -6159,6 +6576,10 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
             new->mxpow_f = astFree( new->mxpow_f );
             new->power_f = astFree( new->power_f );
             new->coeff_f = astFree( new->coeff_f );
+
+/* Otherwise, set up the corresponding forward Horner arrays if possible. */
+         } else {
+            StoreHornerArrays( new, 1, status );
          }
       }
 
@@ -6237,6 +6658,10 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
             new->mxpow_i = astFree( new->mxpow_i );
             new->power_i = astFree( new->power_i );
             new->coeff_i = astFree( new->coeff_i );
+
+/* Otherwise, set up the corresponding inverse Horner arrays if possible. */
+         } else {
+            StoreHornerArrays( new, 0, status );
          }
       }
 
@@ -6322,6 +6747,210 @@ void astFitPoly2DInit_( AstPolyMap *this, int forward, double **table,
    (**astMEMBER(this,PolyMap,FitPoly2DInit))( this, forward, table, data, scales,
                                               status );
 }
+
+
+
+
+static double Horner1D( double x, int maxpow, double *coeffs ){
+/*
+*  Name:
+*     Horner1D
+
+*  Purpose:
+*     Evaluate a 1-D polynomial using Horner's method.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     double Horner1D( double x, int maxpow, double *coeffs )
+
+*  Description:
+*     This function evaluates the one-dimensional polynomial specified by
+*     "coeffs" at the value specified by "x" using Horner's method.
+
+*  Parameters:
+*     x
+*        The value at which to evaluate the 1-D polynomial.
+*     maxpow
+*        The maximum power of "x" in the polynomial.
+*     coeffs
+*        An array containing "maxpow+1" elements. Element "i" contains
+*        the coefficient to use with "x**i".
+
+*  Notes:
+*     - For speed, this function has no status argument, and does no
+*     error checking. Therefore the caller should ensure that "x" is not
+*     AST__BAD and the "coeffs" pointer is not NULL.
+
+*/
+
+/* Local Variables: */
+   int pow;
+   double result;
+
+/* Evaluate the one-dimensional polynomial at X using Horner's method. */
+   result = coeffs[ maxpow ];
+   for( pow = maxpow-1; pow >= 0; pow-- ) result = result*x + coeffs[ pow ];
+
+/* Return the result. */
+   return result;
+
+}
+
+
+static double Horner2D( double x, double y, int maxpowx, int maxpowy,
+                        double *coeffs, double *work ){
+/*
+*  Name:
+*     Horner2D
+
+*  Purpose:
+*     Evaluate a 2-D polynomial using Horner's method.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     double Horner2D( double x, double y, int maxpowx, int maxpowy,
+*                      double *coeffs, double *work )
+
+*  Description:
+*     This function evaluates the two-dimensional polynomial specified by
+*     "coeffs" at the position specified by "x" and "y" using Horner's
+*     method.
+
+*  Parameters:
+*     x
+*        The first axis value at which to evaluate the 2-D polynomial.
+*     y
+*        The second axis value at which to evaluate the 2-D polynomial.
+*     maxpowx
+*        The maximum power of "x" in the polynomial.
+*     maxpowy
+*        The maximum power of "y" in the polynomial.
+*     coeffs
+*        An array containing "(maxpowx+1)*(maxpowy+1)" elements. Element
+*        "i+maxpowx*j" contains the coefficient to use with "(x**i)*(y**j)".
+*     work
+*        A work array with "maxpowy+1" elements.
+
+*  Notes:
+*     - For speed, this function has no status argument, and does no
+*     error checking. Therefore the caller should ensure that neither "x"
+*     nor "y" is AST__BAD, and that the "coeffs" and "work" pointers are
+*     not NULL.
+
+*/
+
+/* Local Variables: */
+   int nx;
+   int ypow;
+   double result;
+
+/* The number of X coefficients for each Y coefficient. */
+   nx = maxpowx + 1;
+
+/* Consider the 2D polynomial as a 1D polynomial in Y, with the X factors
+   incorporated into the coefficients. Each of these new coefficients is
+   itself a 1D polynomial in X. Use the 1D Horner function to evaluate
+   each of these new coefficients. */
+   for( ypow = 0; ypow <= maxpowy; ypow++ ) {
+      work[ ypow ] = Horner1D( x, maxpowx, coeffs + ypow*nx );
+   }
+
+/* Now evaluate the 1D polynomial in Y, using the 1D Horner function with
+   the coefficennts stored in "work". */
+   result = Horner1D( y, maxpowy, work );
+
+/* Return the result. */
+   return result;
+}
+
+static double Horner3D( double x, double y, double z, int maxpowx,
+                        int maxpowy, int maxpowz, double *coeffs,
+                        double *work ){
+/*
+*  Name:
+*     Horner3D
+
+*  Purpose:
+*     Evaluate a 3-D polynomial using Horner's method.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     double Horner3D( double x, double y, double z, int maxpowx,
+*                      int maxpowy, int maxpowz, double *coeffs,
+*                      double *work )
+
+*  Description:
+*     This function evaluates the three-dimensional polynomial specified by
+*     "coeffs" at the position specified by "x", "y" and "z" using Horner's
+*     method.
+
+*  Parameters:
+*     x
+*        The first axis value at which to evaluate the 3-D polynomial.
+*     y
+*        The second axis value at which to evaluate the 3-D polynomial.
+*     z
+*        The third axis value at which to evaluate the 3-D polynomial.
+*     maxpowx
+*        The maximum power of "x" in the polynomial.
+*     maxpowy
+*        The maximum power of "y" in the polynomial.
+*     maxpowz
+*        The maximum power of "z" in the polynomial.
+*     coeffs
+*        An array containing "(maxpowx+1)*(maxpowy+1)*(maxpowz+1)" elements.
+*        Element "i+maxpowx*(j+maxpowy*k)" contains the coefficient to use
+*        with "(x**i)*(y**j)*(z**k)".
+*     work
+*        A work array with "maxpowz+maxpowy+2" elements.
+
+*  Notes:
+*     - For speed, this function has no status argument, and does no
+*     error checking. Therefore the caller should ensure none of "x", "y"
+*     or "z" is AST__BAD, and that the "coeffs" and "work" pointers are
+*     not NULL.
+
+*/
+
+/* Local Variables: */
+   double *pw;
+   double result;
+   int nxy;
+   int zpow;
+
+/* The number of (X,Y) coefficients for each Z coefficient. */
+   nxy = ( maxpowx + 1 )*( maxpowy + 1 );
+
+/* Pointer to the second part of the work array. */
+   pw = work + maxpowz + 1;
+
+/* Consider the 3D polynomial as a 1D polynomial in Z with the (X,Y) factors
+   incorporated into the coefficients. Each of these new coefficients is
+   itself a 2D polynomial in (X,Y). Use the 2D Horner function to evaluate
+   each of these new coefficients. */
+   for( zpow = 0; zpow <= maxpowz; zpow++ ) {
+      work[ zpow ] = Horner2D( x, y, maxpowx, maxpowy, coeffs + zpow*nxy, pw );
+   }
+
+/* Now evaluate the 1D polynomial in Z, using the 1D Horner function with
+   the coefficennts stored in "work". */
+   result = Horner1D( z, maxpowz, work );
+
+/* Return the result. */
+   return result;
+}
+
+
+
 
 
 
