@@ -134,9 +134,9 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        astPolyTran (why would you want to use the iterative inverse if
 *        you have just created an inverse fit?).
 *     4-MAY-2018 (DSB):
-*        Fix various places where there was confusion over whether the 
+*        Fix various places where there was confusion over whether the
 *        "forward transformation" refers to the forward transformation
-*        of the original uninverted PolyMap, or the current forward 
+*        of the original uninverted PolyMap, or the current forward
 *        transformation of the PolyMap (i.e. taking the "Invert" flag into
 *        account).
 *class--
@@ -5023,7 +5023,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *
 *     Note, the term "inverse transformation" here refers to the inverse
 *     transformation of the original PolyMap, ignoring any subsequent
-*     invertions. Also, "input" and "output" refer to the inputs and
+*     inversions. Also, "input" and "output" refer to the inputs and
 *     outputs of the original PolyMap.
 
 *     The NiterInverse and TolInverse attributes provide parameters that
