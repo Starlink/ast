@@ -1403,7 +1403,7 @@ char **astChrSplit_( const char *str, int *n, int *status ) {
 
 *  Synopsis:
 *     #include "memory.h"
-*     char **astChrSplit_( const char *str, int *n )
+*     char **astChrSplit( const char *str, int *n )
 
 *  Description:
 *     This function extracts all space-separated words form the supplied
@@ -2369,7 +2369,7 @@ int astIsDynamic_( const void *ptr, int *status ) {
 
 *  Synopsis:
 *     #include "memory.h"
-*     int astIsDynamic_( const void *ptr )
+*     int astIsDynamic( const void *ptr )
 
 *  Description:
 *     This function takes a pointer to a region of memory and tests if
