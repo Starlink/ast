@@ -169,6 +169,13 @@ f     The MatrixMap class does not define any new routines beyond those
 *        transformation of "a".
 *     7-NOW-2017 (DSB):
 *        Allow a diagonal MatrixMap to merge with a WinMap.
+*     5-JUN-2018 (DSB):
+*        Include the inverse matrix in the dump of a MatrixMap. Previously,
+*        the inverse matrix was calculated afresh using function InvertMatrix
+*        when a MatrixMap was read from a dump. However this could introduce 
+*        small round-trip errors if the inverse matrix in the original 
+*        MatrixMap was created by astMtrRot etc, rather than the InvertMatrix
+*        function. 
 *class--
 */
 
@@ -5052,18 +5059,27 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* Write out values representing the instance variables for the
    MatrixMap class.  */
 
-/* The forward matrix. The inverse matrix not written out since it can be
-   re-calculated when the MatrixMap is read back in. Note BAD values are
-   not written out as the AST__BAD value may differ on different machines.
-   If a matrix element is not found when reading the matrix back in
-   again (in astLoadMatrixMap), then it is assigned a default value of
-   AST__BAD. */
+/* The forward matrix. Note BAD values are not written out as the
+   AST__BAD value may differ on different machines. If a matrix element
+   is not found when reading the matrix back in again (in astLoadMatrixMap),
+   then it is assigned a default value of AST__BAD. */
    if( this->f_matrix ){
       for( el = 0; el < nel; el++ ){
          if( (this->f_matrix)[ el ] != AST__BAD ) {
             (void) sprintf( buff, "M%d", el );
             astWriteDouble( channel, buff, 1, 1, (this->f_matrix)[ el ],
                             "Forward matrix value" );
+         }
+      }
+   }
+
+/* The inverse matrix. */
+   if( this->i_matrix ){
+      for( el = 0; el < nel; el++ ){
+         if( (this->i_matrix)[ el ] != AST__BAD ) {
+            (void) sprintf( buff, "IM%d", el );
+            astWriteDouble( channel, buff, 1, 1, (this->i_matrix)[ el ],
+                            "Inverse matrix value" );
          }
       }
    }
@@ -5685,11 +5701,31 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
 
       }
 
-/* Create an inverse matrix if possible, otherwise store a NULL pointer. */
-      if( new->f_matrix ){
-         new->i_matrix = InvertMatrix( new->form, nout, nin, new->f_matrix, status );
-      } else {
-         new->i_matrix = NULL;
+/* The inverse matrix. */
+      new->i_matrix = (double *) astMalloc( sizeof(double)*(size_t)nel );
+      if( new->i_matrix ){
+         def = 0;
+
+         for( el = 0; el < nel; el++ ){
+            (void) sprintf( buff, "im%d", el );
+            (new->i_matrix)[ el ] = astReadDouble( channel, buff, AST__BAD );
+            if( (new->i_matrix)[ el ] != AST__BAD ) def = 1;
+         }
+
+/* If no elements of the matrix were found, create an inverse matrix if
+   possible, otherwise store a NULL pointer. Note, prior to AST 8.6.3, the 
+   inverse matrix was not included in the dump - it was always recalculated 
+   using InvertMatrix, but this led to small round-trip errors in cases, 
+   where the original inverse matrix was not created using InvertMatrix 
+   (e.g. was created by astMtrRot).  */
+         if( !def ) {
+            new->i_matrix = (double *) astFree( (void *) new->i_matrix );
+            if( new->f_matrix ){
+               new->i_matrix = InvertMatrix( new->form, nout, nin, new->f_matrix, status );
+            } else {
+               new->i_matrix = NULL;
+            }
+         }
       }
 
 /* If an error occurred, clean up by deleting the new MatrixMap. */

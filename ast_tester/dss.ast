@@ -148,6 +148,15 @@
                                   M6 = -0.49599824042101986 	# Forward matrix value
                                   M7 = 0 	# Forward matrix value
                                   M8 = -0.86832352582390171 	# Forward matrix value
+                                  IM0 = 0.82577216035104439 	# Inverse matrix value
+                                  IM1 = -0.26848851872737706 	# Inverse matrix value
+                                  IM2 = -0.49599824042101986 	# Inverse matrix value
+                                  IM3 = -0.30920332196760869 	# Inverse matrix value
+                                  IM4 = -0.95099595460979502 	# Inverse matrix value
+                                  IM5 = 0 	# Inverse matrix value
+                                  IM6 = -0.47169232013396639 	# Inverse matrix value
+                                  IM7 = 0.153364303628268 	# Inverse matrix value
+                                  IM8 = -0.86832352582390171 	# Inverse matrix value
                                   Form = "Full" 	# Matrix storage form
                                End MatrixMap
                             MapB = 	# Second component Mapping
