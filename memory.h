@@ -231,6 +231,7 @@ char *astAppendString_( char *, int *, const char *, int * );
 char *astAppendStringf_( char *, int *, const char *, ... )__attribute__((format(printf,3,4)));
 char *astChrSub_( const char *, const char *, const char *[], int, int * );
 void astChrTrunc_( char *, int * );
+int astBrackets_( const char *, size_t, size_t, char, char, int, size_t *, size_t *, char **, char **, char **, int * );
 
 #ifdef MEM_PROFILE
 void astStartTimer_( const char *, int, const char *, int * );
@@ -285,6 +286,7 @@ void astEndPM_( int * );
 #define astRemoveLeadingBlanks(string) astERROR_INVOKE(astRemoveLeadingBlanks_(string,STATUS_PTR))
 #define astChrSub(test,template,subs,nsub) astERROR_INVOKE(astChrSub_(test,template,subs,nsub,STATUS_PTR))
 #define astChrCase(in,out,upper,blen) astERROR_INVOKE(astChrCase_(in,out,upper,blen,STATUS_PTR))
+#define astBrackets(text,start,end,opchar,clchar,strip,openat,closeat,before,in,after) astERROR_INVOKE(astBrackets_(text,start,end,opchar,clchar,strip,openat,closeat,before,in,after,STATUS_PTR))
 
 #if defined(astCLASS) /* Protected */
 #define astMallocInit(size) astMalloc_(size,1,STATUS_PTR)
