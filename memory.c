@@ -2304,6 +2304,111 @@ void astChrTrunc_( char *text, int *status ){
    text[ astChrLen( text ) ] = 0;
 }
 
+void astFandl_( const char *text, size_t start, size_t end,
+                size_t *f, size_t *l, int *status ){
+/*
+*++
+*  Name:
+*     astFandl
+
+*  Purpose:
+*     Identify the used section of a string.
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+*     #include "memory.h"
+*     void astFandl_( const char *text, size_t start, size_t end,
+*                     size_t *f, size_t *l )
+
+*  Description:
+*     This function searches a specified section of the supplied text
+*     for non-space characters, returning the indices of the first and
+*     last.
+
+*  Parameters:
+*     text
+*        The text string to be seached.
+*     start
+*        The zero-based index of the first character to be checked within
+*        "text". The whole string is used if "start" is greater than "end".
+*     end
+*        The zero-based index of the last character to be checked within
+*        "text". The whole string is used if "start" is greater than "end".
+*        The last character is used if "end" is greater than the length
+*        of the string.
+*     f
+*        Returned holding the zero-based index of the first non-space
+*        character. Ignored if NULL.
+*     l
+*        Returned holding the zero-based index of the last non-space
+*        character. Ignored if NULL.
+
+*  Notes:
+*     - "f" is returned greater than "l" if the specified section of the
+*     string is entirely blank.
+*--
+*/
+/* Local Variables: */
+   size_t nct;
+   const char *pstart;
+   const char *pend;
+
+/* Initialise. */
+   if( f ) *f = 1;
+   if( l ) *l = 0;
+
+/* Check the global error status. Also check a text string was supplied. */
+   if ( !astOK || !text ) return;
+
+/* Get the total length of the supplied string, including any trailing blanks
+   but excluding the terminating null. */
+   nct = strlen( text );
+
+/* Get the actual start and end positions to use. */
+   if( start > end ) {
+      start = 0;
+      end = nct - 1;
+   } else if( end >= nct ) {
+      end = nct - 1;
+   }
+
+/* Check there is some text to search. */
+   if( start <= end ) {
+
+/* If we want the position of the first non-space... */
+      if( f ) {
+
+/* Move forward through all the characters in the substring to be searched.
+   Break when the first non-space is found. */
+         pend = text + end;
+         pstart = text + start - 1;
+         while( ++pstart <= pend ){
+            if( *pstart != ' ' ) {
+               *f = pstart - text;
+               break;
+            }
+         }
+      }
+
+/* If we want the position of the last non-space... */
+      if( l ) {
+
+/* Move backwards through all the characters in the substring to be
+   searched. Break when the first non-space is found. */
+         pend = text + end + 1;
+         pstart = text + start;
+         while( --pend >= pstart ) {
+            if( *pend != ' ' ) {
+               *l = pend - text;
+               break;
+            }
+         }
+      }
+   }
+}
+
 void *astFree_( void *ptr, int *status ) {
 /*
 *++
