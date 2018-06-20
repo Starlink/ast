@@ -204,6 +204,7 @@ void astInitMemoryGlobals_( AstMemoryGlobals * );
                                  /* use in developing (e.g.) foreign */
                                  /* language or graphics interfaces. */
 int astMemCaching_( int, int * );
+void astChrClean_( char * );
 void astChrCase_( const char *, char *, int, int, int * );
 char **astChrSplit_( const char *, int *, int * );
 char **astChrSplitRE_( const char *, const char *, int *, const char **, int * );
@@ -281,6 +282,7 @@ void astEndPM_( int * );
 #define astString(chars,nchars) astERROR_INVOKE(astString_(chars,nchars,STATUS_PTR))
 #define astStringArray(chars,nel,len) astERROR_INVOKE(astStringArray_(chars,nel,len,STATUS_PTR))
 #define astStringCase(string,toupper) astERROR_INVOKE(astStringCase_(string,toupper,STATUS_PTR))
+#define astChrClean(string) astERROR_INVOKE(astChrClean_(string))
 #define astChrLen(string) astERROR_INVOKE(astChrLen_(string,STATUS_PTR))
 #define astChrTrunc(string) astERROR_INVOKE(astChrTrunc_(string,STATUS_PTR))
 #define astChr2Double(string) astERROR_INVOKE(astChr2Double_(string,STATUS_PTR))

@@ -1470,6 +1470,45 @@ void astChrCase_( const char *in, char *out, int upper, int blen, int *status ) 
    }
 }
 
+void astChrClean_( char *text ) {
+/*
+*++
+*  Name:
+*     astChrClean
+
+*  Purpose:
+*     Replace unprintable characters in a string with spaces.
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+*     #include "memory.h"
+*     void astChrClean( char *text )
+
+*  Description:
+*     This function replaces all unprintable characters in the given
+*     string with spaces. It is assumed that the string contains only
+*     ASCII characters.
+
+*  Parameters:
+*     text
+*        Pointer to the null terminated string to be modified.
+
+*--
+*/
+
+/* Local Variables: */
+   char *pr;
+
+   if( !text ) return;
+
+   pr = text - 1;
+   while( *(++pr) ) {
+      if( *pr < ' ' || *pr > '~' ) *pr = ' ';
+   }
+}
+
 int astChrMatch_( const char *str1, const char *str2, int *status ) {
 /*
 *++
