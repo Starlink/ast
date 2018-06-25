@@ -1648,6 +1648,48 @@ int astChrMatchN_( const char *str1, const char *str2, size_t n, int *status ) {
    return match;
 }
 
+void astChrRemoveBlanks_( char *text ) {
+/*
+*++
+*  Name:
+*     astChrRemoveBlanks
+
+*  Purpose:
+*     Remove all spaces from a string.
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+*     #include "memory.h"
+*     void astChrClean( char *text )
+
+*  Description:
+*     This function removes all spaces form the supplied string by moving
+*     non-space characters to the left. The string is terminated to
+*     remove any trailing spaces.
+
+*  Parameters:
+*     text
+*        Pointer to the null terminated string to be modified.
+
+*--
+*/
+
+/* Local Variables: */
+   char *pr;
+   char *pw;
+
+   if( !text ) return;
+
+   pw = text;
+   pr = text - 1;
+   while( *(++pr) ) {
+      if( *pr != ' ' ) *(pw++) = *pr;
+   }
+   *pw = 0;
+}
+
 char **astChrSplit_( const char *str, int *n, int *status ) {
 /*
 *++
