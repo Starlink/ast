@@ -21837,11 +21837,9 @@ are those between TAI and UTC, and those between TT and TDB.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.6}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.5.1 and V8.6.2 (the
-current version):
+\subsection{Changes Introduced in V8.6.2}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.5.1 and V8.6.2:
 
 \begin{enumerate}
 
@@ -21878,6 +21876,28 @@ values returned by AST functions.
 \item If a FrameSet is supplied as the ``map'' argument to astAddFrame, it now
 extracts and stores the base->current Mapping from the supplied FrameSet.
 Previously, the entire FrameSet was stored as the Mapping.
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V8.6.3}
+The following describes the most significant changes which have
+occurred in the AST library between versions V8.6.2 and V8.6.3 (the
+current version):
+
+\begin{enumerate}
+
+\item Small memory leaks in Region  and FitsChan classes have been fixed.
+
+\item A bug that could cause an internal buffer overrun within the FitsChan
+class when writing out a FITS-WCS spectral axis with the ``-LOG'' algorithm
+has been fixed.
+
+\item The test that a Mapping conforms to the requirements of the SIP FITS
+distortion scheme has been improved.
+
+\item The astRebinSeq method of the Mapping class can now use a different
+weight when pasting each separate input data array into the output mosaic.
 
 \end{enumerate}
 
