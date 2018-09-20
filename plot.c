@@ -29417,8 +29417,8 @@ static int ToggleLogLin( AstPlot *this, int axis, int islog,
    AstMathMap *logmap;  /* 1D Logarithmic axis Mapping */
    AstUnitMap *unitmap;  /* 1D Unit mapping */
    AstWinMap *linmap;   /* 1D Linear axis Mapping */
-   char fwdexp[ 25 + 2*AST__DBL_DIG ];  /* Forward log mapping expression */
-   char invexp[ 28 + 2*AST__DBL_DIG ];  /* Inverse log mapping expression */
+   char fwdexp[ 25 + 2*AST__DBL_WIDTH ];  /* Forward log mapping expression */
+   char invexp[ 28 + 2*AST__DBL_WIDTH ];  /* Inverse log mapping expression */
    const char *fwd[1];  /* Pointer to pass to MathMap constructor */
    const char *inv[1];  /* Pointer to pass to MathMap constructor */
    double a;            /* Constant for log expression */

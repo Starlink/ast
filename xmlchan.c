@@ -610,7 +610,7 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
    IVOAScan *scan;
    char *decset;
    char *raset;
-   char buff[ AST__DBL_DIG + 30 ];
+   char buff[ AST__DBL_WIDTH + 30 ];
    char setting[ 100 ];
    const char *dom;
    const char *id;
