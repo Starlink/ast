@@ -20,7 +20,8 @@ Main Changes in this Version
 
 - Small memory leaks in Region  and FitsChan classes have been fixed.
 
-- A bug that could cause an internal buffer overrun within the FitsChan class
+-  A bug that could cause an internal buffer overrun within the FitsChan
+class when writing out a FITS-WCS spectral axis with the "-LOG" algorithm
 has been fixed.
 
 - The test that a Mapping conforms to the requirements of the SIP FITS
