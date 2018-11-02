@@ -37419,7 +37419,7 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
    AstMapping *map2;         /* Pointer to a Mapping */
    AstMapping *ret;          /* The returned Mapping */
    char **comms;             /* Pointer to array of CTYPE commments */
-   char buf[ 100 ];          /* Buffer for textual attribute value */
+   char buf[ 101 ];          /* Buffer for textual attribute value */
    char buf2[ 100 ];         /* Buffer for textual attribute value */
    char buf3[ 20 ];          /* Buffer for default CTYPE value */
    char *newdom;             /* Pointer to new Domain value */
