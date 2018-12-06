@@ -17531,6 +17531,7 @@ Object             - Base class for all AST Objects
             CmpRegion  - A combination of two regions within a single Frame
             Ellipse    - An elliptical region within a 2-dimensional Frame
             Interval   - Intervals on one or more axes of a Frame.
+            Moc        - An arbitrary region within a SkyFrame
             NullRegion - A boundless region within a Frame
             PointList  - A collection of points in a Frame
             Polygon    - A polygonal region within a 2-dimensional Frame
@@ -21879,11 +21880,9 @@ Previously, the entire FrameSet was stored as the Mapping.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.6.3}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.6.2 and V8.6.3 (the
-current version):
+\subsection{Changes Introduced in V8.6.3}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.6.2 and V8.6.3:
 
 \begin{enumerate}
 
@@ -21899,10 +21898,25 @@ distortion scheme has been improved.
 \item The astRebinSeq method of the Mapping class can now use a different
 weight when pasting each separate input data array into the output mosaic.
 
-\item The Plot class has a new attribute called TextGapType, which controls
-the interpretation of the TextLabGap and TitleGap attributes. It allows
-gaps to be specified with reference to the edge of the plotting area
-rather than the edge of the bounding box.
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V8.7.0}
+The following describes the most significant changes which have
+occurred in the AST library between versions V8.6.3 and V8.7.0 (the
+current version):
+
+\begin{enumerate}
+
+\item A new subclass of Region called ``Moc'' has been added. A Moc
+describes an arbitrary region of the sky in the form of a set of HEALPix
+cells.
+
+\item The Bounded attribute defined by the Region class is now always
+non-zero for Regions defined within a SkyFrame, regardless of whether the
+Region has been negated. Previously, it was non-zero only if the Region
+had not been negated. Note, this change only affects Regions defined
+within SkyFrames.
 
 \end{enumerate}
 

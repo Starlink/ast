@@ -70,7 +70,7 @@ if( $1 != "-nd" ) then
    draw3d draw3d-test1.txt
 endif
 
-foreach prog (testmapping testchebymap testunitnormmap testskyframe testframeset testchannel testpolymap testcmpmap testlutmap testfitstable testtable teststcschan teststc testspecframe testfitschan testswitchmap testrebin testrebinseq testtrangrid testnormmap testtime testrate testflux testratemap testspecflux testxmlchan testregions testkeymap )
+foreach prog (testmoc testmapping testchebymap testunitnormmap testskyframe testframeset testchannel testpolymap testcmpmap testlutmap testfitstable testtable teststcschan teststc testspecframe testfitschan testswitchmap testrebin testrebinseq testtrangrid testnormmap testtime testrate testflux testratemap testspecflux testxmlchan testregions testkeymap )
 
 gfortran -fno-second-underscore -w -g -o $prog -g $prog.f -fno-range-check $LDFLAGS -I$AST/include \
      -I$STARLINK_DIR/include -L$AST/lib -L$STARLINK_DIR/lib `ast_link -ems` \
@@ -84,11 +84,11 @@ end
 
 
 foreach prog (testobject testconvert testerror)
+   gcc -o $prog $prog.c -I.. -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK_DIR/lib \
+         -I$STARLINK_DIR/include `ast_link` `ndf_link`
 
-gcc -o $prog $prog.c -I.. -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK_DIR/lib `ast_link`
-
-./$prog
-\rm $prog
+   ./$prog
+   \rm $prog
 
 end
 

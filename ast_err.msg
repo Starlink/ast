@@ -211,4 +211,12 @@ IMMUT           <Attempt to change an immutable attribute>
 ! New codes introduced for V8.5.0
 NOBOX           <No bounding box available>
 
+! New codes introduced for V8.7.0
+NOSKY           <Supplied Frame has no sky coordinate axes>
+BDSKY           <Sky axes cannot be separated from other axes>
+BDCLS           <Wrong class of object supplied>
+NOIMP           <Class does not implement the invoked method>
+BGMOC           <Normalised MOC is too big>
+INVAR           <Invalid argument value supplied to an AST method>
+
 .END

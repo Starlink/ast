@@ -5001,6 +5001,7 @@ static int Boundary( AstPlot *this, const char *method, const char *class, int *
          rat = sqrt( rat );
          dim = (int) ( rat*dim );
          if( dim < 3 ) dim = 3;
+         if( dim > 2000 ) dim = 2000;
 
 /* If the current Frame is not a Region, use the whole plot. */
       } else {
@@ -9615,9 +9616,8 @@ static int DrawRegion( AstPlot *this, AstFrame *frm, const char *method,
    Region). */
       Map5_ncoord =  astGetNaxes( frm );
 
-/* A pointer to the Plot, the Region, and the Mapping. */
+/* A pointer to the Plot. */
       Map5_plot = this;
-      Map5_region = (AstRegion *) frm;
 
 /* Also store a pointer to the Mapping, ensuring that the Mapping does
    not contain any masking effects from the Region. */

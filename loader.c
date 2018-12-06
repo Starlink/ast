@@ -25,6 +25,7 @@
 #include "mapping.h"
 #include "mathmap.h"
 #include "matrixmap.h"
+#include "moc.h"
 #include "nullregion.h"
 #include "object.h"
 #include "pcdmap.h"
@@ -55,6 +56,7 @@
 #include "wcsmap.h"
 #include "winmap.h"
 #include "xmlchan.h"
+#include "xphmap.h"
 #include "zoommap.h"
 #include "stc.h"
 #include "stcresourceprofile.h"
@@ -147,6 +149,7 @@ if ( !strcmp( class, #name ) ) return (AstLoaderType *) astLoad##name##_
    LOAD(Mapping);
    LOAD(MathMap);
    LOAD(MatrixMap);
+   LOAD(Moc);
    LOAD(NullRegion);
    LOAD(Object);
    LOAD(PcdMap);
@@ -180,6 +183,7 @@ if ( !strcmp( class, #name ) ) return (AstLoaderType *) astLoad##name##_
    LOAD(WcsMap);
    LOAD(WinMap);
    LOAD(XmlChan);
+   LOAD(XphMap);
    LOAD(ZoomMap);
 
    LOAD(StcsChan);

@@ -31,6 +31,7 @@ GRP_C_ROUTINES = \
     mathmap.c \
     matrixmap.c \
     memory.c \
+    moc.c \
     normmap.c \
     nullregion.c \
     object.c \
@@ -72,6 +73,7 @@ GRP_C_ROUTINES = \
     winmap.c \
     xml.c \
     xmlchan.c \
+    xphmap.c \
     zoommap.c
 
 
@@ -103,6 +105,7 @@ F_C_ROUTINES = \
     fmapping.c \
     fmathmap.c \
     fmatrixmap.c \
+    fmoc.c \
     fnormmap.c \
     fnullregion.c \
     fobject.c \
@@ -190,6 +193,7 @@ AST_H_FILES = \
           unitnormmap.h \
           wcsmap.h \
           winmap.h \
+          xphmap.h \
           zoommap.h \
           frame.h \
              cmpframe.h \
@@ -207,6 +211,7 @@ AST_H_FILES = \
                 cmpregion.h \
                 ellipse.h \
                 interval.h \
+                moc.h \
                 nullregion.h \
                 pointlist.h \
                 polygon.h \

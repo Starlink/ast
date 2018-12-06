@@ -51,6 +51,7 @@ goodsource="${srcdir}/axis.c \
             ${srcdir}/mapping.c \
             ${srcdir}/mathmap.c \
             ${srcdir}/matrixmap.c \
+            ${srcdir}/moc.c \
             ${srcdir}/nullregion.c \
             ${srcdir}/object.c \
             ${srcdir}/pcdmap.c \

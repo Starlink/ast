@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V8.6.3) of the Starlink AST (astrometry) library is
+   A new release (V8.7.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -18,6 +18,19 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+-  A new subclass of Region called "Moc" has been added. A Moc
+describes an arbitrary region of the sky in the form of a set of HEALPix
+cells using the IVOA Multi-Order Coverage scheme..
+
+- The Bounded attribute defined by the Region class is now always
+non-zero for Regions defined within a SkyFrame, regardless of whether the
+Region has been negated. Previously, it was non-zero only if the Region
+had not been negated. Note, this change only affects Regions defined
+within SkyFrames.
+
+Main Changes in V8.6.3
+----------------------
+
 - Small memory leaks in Region  and FitsChan classes have been fixed.
 
 -  A bug that could cause an internal buffer overrun within the FitsChan
@@ -29,11 +42,6 @@ distortion scheme has been improved.
 
 - The astRebinSeq method of the Mapping class can now use a different
 weight when pasting each separate input data array into the output mosaic.
-
-- The Plot class has a new attribute called TextGapType, which controls
-the interpretation of the TextLabGap and TitleGap attributes. It allows
-gaps to be specified with reference to the edge of the plotting area
-rather than the edge of the bounding box.
 
 Main Changes in V8.6.2
 ----------------------

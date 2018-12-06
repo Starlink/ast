@@ -378,7 +378,9 @@ static void Cache( AstCircle *this, int *status ){
 
 /* Free resources */
       frm = astAnnul( frm );
-      if( centre ) centre = astFree( centre );
+      centre = astFree( centre );
+      lb = astFree( lb );
+      ub = astFree( ub );
 
 /* Indicate cached information is up to date. */
       this->stale = 0;
@@ -1532,7 +1534,7 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
 /* If an error has occurred, return zero. */
    if( !astOK ) {
       result = 0;
-      if( mask ) *mask = astAnnul( *mask );
+      if( mask ) *mask = astFree( *mask );
    }
 
 /* Return the result. */
