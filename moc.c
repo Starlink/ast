@@ -76,8 +76,6 @@ f     following routines may also be applied to all Mocs:
 *
 c     - astAddCell: Adds a single HEALPix cell into an existing Moc
 f     - AST_ADDCELL: Adds a single HEALPix cell into an existing Moc
-c     - astAddMoc: Adds another Moc object into an existing Moc
-f     - AST_ADDMOC: Adds another Moc object into an existing Moc
 c     - astAddMocData: Adds a FITS binary table into an existing Moc
 f     - ADT_ADDMOCDATA: Adds a FITS binary table into an existing Moc
 c     - astAddPixelMask<X>: Adds a pixel mask to an existing Moc
@@ -382,7 +380,8 @@ static void TestPixels( PixelMask *, int *, AstPointSet *, int *, int *);
 
 /* For debugging of astRegBaseMesh and astRegTrace......
 static void dump_cell( AstMoc *, Cell *, int );
-static void dump_corner( Corner *this, int ); */
+static void dump_corner( Corner *this, int );
+static void dump_moc( AstMoc *, const char *, int *); */
 
 static const char *GetAttrib( AstObject *, const char *, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
@@ -4641,7 +4640,7 @@ static void MakeCorners( AstMoc *this, int order, Cell *cell_foot,
       nppf = ( 1 << order );
       s1 = nppf + 1;
       s2 = 9*nppf + 1;
-      lim = nppf/10;
+      lim = nppf;
 
 /* Get the grid coords at the corners, within an HPX12 projection at the
    specified order. Note, to avoid problems at discontinuities, the corner
@@ -6606,13 +6605,14 @@ static int RegTrace( AstRegion *this_region, int n, double *dist, double **ptr,
       mesh = astRegBaseMesh( this );
       ptr_mesh = astGetPoints( mesh );
       len_mesh = astGetNpoint( mesh );
+      if( astOK ) {
 
 /* Another array is created at the same time as the above mesh, which
    holds indices into the mesh array. These index values are sorted
    so that the corresponding mesh positions move monotonically around
    the perimeter of the MOC. We use this array to find the required
    positions. Do each required distance in turn. */
-      for( i = 0; i < n; i++ ) {
+         for( i = 0; i < n; i++ ) {
 
 /* Scale the supplied distance (in the range 0 -> 1) into the range 0
    -> len_mesh-1. Do linear interpolation between adjacent points. A Moc
@@ -6623,35 +6623,36 @@ static int RegTrace( AstRegion *this_region, int n, double *dist, double **ptr,
    curve plotting algorithm in the Plot class to introduce a break, rather
    than connecting the two regions with a straight line. The
    "this->meshdist" converts distance values into indices into the mesh. */
-         x = dist[ i ]*( len_mesh - 1 );
-         jlo = (int)( x );
-         jhi = jlo + 1;
-         whi = x - jlo;
-         wlo = 1.0 - whi;
+            x = dist[ i ]*( len_mesh - 1 );
+            jlo = (int)( x );
+            jhi = jlo + 1;
+            whi = x - jlo;
+            wlo = 1.0 - whi;
 
-         if( jlo < 0 ) {
-            imesh =  (this->meshdist)[ 0 ];
-            ptr[ 0 ][ i ] = ptr_mesh[ 0 ][ imesh ];
-            ptr[ 1 ][ i ] = ptr_mesh[ 1 ][ imesh ];
+            if( jlo < 0 ) {
+               imesh =  (this->meshdist)[ 0 ];
+               ptr[ 0 ][ i ] = ptr_mesh[ 0 ][ imesh ];
+               ptr[ 1 ][ i ] = ptr_mesh[ 1 ][ imesh ];
 
-         } else if( jhi >= len_mesh ) {
-            imesh =  (this->meshdist)[ len_mesh - 1 ];
-            ptr[ 0 ][ i ] = ptr_mesh[ 0 ][ imesh ];
-            ptr[ 1 ][ i ] = ptr_mesh[ 1 ][ imesh ];
+            } else if( jhi >= len_mesh ) {
+               imesh =  (this->meshdist)[ len_mesh - 1 ];
+               ptr[ 0 ][ i ] = ptr_mesh[ 0 ][ imesh ];
+               ptr[ 1 ][ i ] = ptr_mesh[ 1 ][ imesh ];
 
-         } else {
-            imesh_hi = (this->meshdist)[ jhi ];
-            if( imesh_hi < 0 ) {
-               ptr[ 0 ][ i ] = AST__BAD;
-               ptr[ 1 ][ i ] = AST__BAD;
             } else {
-               imesh_lo = (this->meshdist)[ jlo ];
-               if( imesh_lo < 0 ) imesh_lo = -imesh_lo;
+               imesh_hi = (this->meshdist)[ jhi ];
+               if( imesh_hi < 0 ) {
+                  ptr[ 0 ][ i ] = AST__BAD;
+                  ptr[ 1 ][ i ] = AST__BAD;
+               } else {
+                  imesh_lo = (this->meshdist)[ jlo ];
+                  if( imesh_lo < 0 ) imesh_lo = -imesh_lo;
 
-               ptr[ 0 ][ i ] = wlo*ptr_mesh[ 0 ][ imesh_lo ] +
-                               whi*ptr_mesh[ 0 ][ imesh_hi ];
-               ptr[ 1 ][ i ] = wlo*ptr_mesh[ 1 ][ imesh_lo ] +
-                               whi*ptr_mesh[ 1 ][ imesh_hi ];
+                  ptr[ 0 ][ i ] = wlo*ptr_mesh[ 0 ][ imesh_lo ] +
+                                  whi*ptr_mesh[ 0 ][ imesh_hi ];
+                  ptr[ 1 ][ i ] = wlo*ptr_mesh[ 1 ][ imesh_lo ] +
+                                  whi*ptr_mesh[ 1 ][ imesh_hi ];
+               }
             }
          }
       }
@@ -8810,20 +8811,24 @@ MAKE_ADDPIXELMASK_(UB,unsigned char)
 
 
 
-/* For debugging of astRegBaseMesh and astRegTrace......
+/* For debugging of astRegBaseMesh and astRegTrace...... 
 
 static void dump_corner( Corner *this, int order ) {
    static FILE *fd = NULL;
    int i;
+   double alpha, beta;
 
    if( !fd ) {
       fd = fopen( "corners.asc", "w" );
-      fprintf( fd, "# this ra dec order int dist prev cell0 cell1 cell2 cell3\n");
+      fprintf( fd, "# this ra dec alpha beta order int dist prev cell0 cell1 cell2 cell3\n");
 
    }
 
-   fprintf( fd, "%p %g %g %d %d %d %p ", this, this->ra, this->dec, order,
-            this->interior, this->dist, this->prev );
+   alpha = cos( this->dec )*cos( this->ra );
+   beta = cos( this->dec )*sin( this->ra );
+
+   fprintf( fd, "%p %g %g %g %g %d %d %d %p ", this, this->ra, this->dec,
+            alpha, beta, order, this->interior, this->dist, this->prev );
    for( i = 0; i < this->ncell; i++ ) fprintf(fd, "%p ", this->cells[i] );
    for( ; i < 4; i++ ) fprintf( fd, "null " );
    fprintf(fd, "\n");
@@ -8834,7 +8839,7 @@ static void dump_cell( AstMoc *this, Cell *cell, int order ) {
    int status_value;
    int *old_status;
    int *status;
-   double x, y, ra, dec;
+   double x, y, ra, dec, alpha, beta;
    static FILE *fd = NULL;
 
    status_value = 0;
@@ -8843,7 +8848,7 @@ static void dump_cell( AstMoc *this, Cell *cell, int order ) {
 
    if( !fd ) {
       fd = fopen( "cells.asc", "w" );
-      fprintf( fd, "# this x18 y18 ix iy ra dec order int prev bl tl tr br\n");
+      fprintf( fd, "# this x18 y18 ix iy ra dec alpha beta order int prev bl tl tr br\n");
 
    }
 
@@ -8853,12 +8858,15 @@ static void dump_cell( AstMoc *this, Cell *cell, int order ) {
    x = cell->ix;
    y = cell->iy;
    astTran2( map, 1, &x, &y, 0, &ra, &dec );
+   alpha = cos( dec )*cos( ra );
+   beta = cos( dec )*sin( ra );
+
 
    double x18 = ( 1L << (18 - order) )*( cell->ix - 0.5 ) + 0.5;
    double y18 = ( 1L << (18 - order) )*( cell->iy - 0.5 ) + 0.5;
 
-   fprintf( fd, "%p %g %g %d %d %g %g %d %d %p ", cell, x18, y18, cell->ix, cell->iy,
-            ra, dec, order, cell->interior, cell->prev );
+   fprintf( fd, "%p %g %g %d %d %g %g %g %g %d %d %p ", cell, x18, y18, cell->ix, cell->iy,
+            ra, dec, alpha, beta, order, cell->interior, cell->prev );
 
    if( cell->bl ) {
       fprintf(fd, "%p ", cell->bl );
@@ -8890,5 +8898,64 @@ static void dump_cell( AstMoc *this, Cell *cell, int order ) {
 
 }
 
+
+static void dump_moc( AstMoc *this, const char *fname, int *status ) {
+   double *px, *py, *pa, *pb;
+   FILE *fd;
+   int64_t npix, *pr;
+   int npoint, maxorder, irange, ix, iy;
+   AstMapping *map;
+   AstPointSet *ps, *ps2;
+   double **ptr, **ptr2, alpha, beta;
+
+   if( !astOK ) return;
+
+   fd = fopen( fname, "w" );
+   fprintf( fd, "# ix iy ra dec alpha beta\n");
+
+   maxorder = astGetMaxOrder( this );
+   map = GetCachedMapping( this, maxorder, "dump_moc", status );
+
+   pr = this->range;
+   for( irange = 0; irange < this->nrange; irange++, pr += 2 ){
+
+      npoint = pr[ 1 ] - pr[ 0 ]  + 1;
+      ps = astPointSet( npoint, 2, " ", status );
+      ptr = astGetPoints( ps );
+      if( astOK ) {
+        px = ptr[ 0 ];
+        py = ptr[ 1 ];
+        for( npix = pr[ 0 ]; npix <= pr[1 ]; npix++ ) {
+           NestedToXy( npix, maxorder, &ix, &iy );
+           *(px++) = ix;
+           *(py++) = iy;
+        }
+      }
+
+      ps2 = astTransform( map, ps, 0, NULL );
+      ptr2 = astGetPoints( ps2 );
+      if( astOK ) {
+        px = ptr[ 0 ];
+        py = ptr[ 1 ];
+        pa = ptr2[ 0 ];
+        pb = ptr2[ 1 ];
+        for( npix = pr[ 0 ]; npix <= pr[1 ]; npix++ ) {
+           alpha = cos(*pb)*cos(*pa);
+           beta = cos(*pb)*sin(*pa);
+           fprintf( fd, "%g %g %g %g %g %g\n", *(px++), *(py++), *(pa++),
+                    *(pb++), alpha, beta  );
+        }
+      }
+
+      ps = astAnnul( ps );
+      ps2 = astAnnul( ps2 );
+
+   }
+
+   fclose( fd );
+}
+
 */
+
+
 
