@@ -1106,6 +1106,12 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
                 astGetClass(this), astGetClass(wcs) ); \
    } \
 \
+   if( dims[ 0 ] < 1 || dims[ 1 ] < 1 ) { \
+      astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid values " \
+                "(%d,%d) supplied for parameter 'dims'.", status,  \
+                astGetClass(this), astGetClass(wcs) ); \
+   } \
+\
 /* The current Frame of the supplied FrameSet must contain a SkyFrame  \
    (possibly plus other Frames).  Identify the sky axes in the FrameSet, \
    and create a FrameSet by picking the associated pixel axes from the  \
@@ -1117,7 +1123,7 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
    if( picked ) { \
 \
 /* If the MaxOrder attribute has not been set, set it now to the smallest \
-   value that gives cells that are no larger than ha;f the pixel size at  \
+   value that gives cells that are no larger than half the pixel size at  \
    centre of the array (i.e 0.25 of the pixel area). */ \
       if( !astTestMaxOrder( this ) ) { \
          pixarea = GetPixelArea( picked, dims, status ); \
@@ -8811,7 +8817,7 @@ MAKE_ADDPIXELMASK_(UB,unsigned char)
 
 
 
-/* For debugging of astRegBaseMesh and astRegTrace...... 
+/* For debugging of astRegBaseMesh and astRegTrace......
 
 static void dump_corner( Corner *this, int order ) {
    static FILE *fd = NULL;
