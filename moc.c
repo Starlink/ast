@@ -376,7 +376,7 @@ static void NegateRanges( AstMoc *, int, int, int * );
 static void NestedToXy( int64_t, int, int *, int * );
 static void PutCell( AstMoc *, AstMapping **, int, int, int, CellList *, int, void *, int, const char *, int * );
 static void RegBaseBox( AstRegion *, double *, double *, int * );
-static void TestPixels( PixelMask *, int *, AstPointSet *, int *, int *);
+static void TestPixels( PixelMask *, int *, AstPointSet *, int[9], int *);
 
 /* For debugging of astRegBaseMesh and astRegTrace......
 static void dump_cell( AstMoc *, Cell *, int );
@@ -7202,7 +7202,7 @@ f        included in the Moc. .FALSE. otherwise.
 
 
 static void TestPixels( PixelMask *pixelmask, int *npos, AstPointSet *ps,
-                        int *inside, int *status ){
+                        int inside[ 9 ], int *status ){
 /*
 *  Name:
 *     TestPixels
@@ -7216,7 +7216,7 @@ static void TestPixels( PixelMask *pixelmask, int *npos, AstPointSet *ps,
 *  Synopsis:
 *     #include "moc.h"
 *     void TestPixels( PixelMask *pixelmask, int *npos, AstPointSet *ps,
-*                      int *inside, int *status )
+*                      int inside[ 9 ], int *status )
 
 *  Class Membership:
 *     Moc member function
@@ -7263,6 +7263,9 @@ static void TestPixels( PixelMask *pixelmask, int *npos, AstPointSet *ps,
    if( astOK ) {
       px = ptr[ 0 ];
       py = ptr[ 1 ];
+
+/* Initialise the returned flags to zero. */
+      memset( inside, 0, 9*sizeof(*inside) );
 
 /* Store convenience values */
       nx = pixelmask->nx;
