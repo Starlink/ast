@@ -721,6 +721,14 @@ f     - Title: The Plot title drawn using AST_GRID
 *        can be very non-smooth.
 *     25-OCT-2018 (DSB):
 *        Added attribute TextGapType for Angus Comrie (IDIA).
+*     11-DEC-2018 (DSB):
+*        In Crv, draw a segment as a single line if all segments are good and
+*        the total of all segments os very short, regardless of anything else.
+*        Without this, we were getting situations where the curve was being
+*        subdivied for too much to produce a polyline with a huge number of
+*        points for no good reason (e.g. when drawing the boundary of a Moc).
+*        Plotting all these unnecessary points slows down the drawing badly
+*        with soime devices (e.g. GWM).
 *class--
 */
 
@@ -7688,7 +7696,7 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
 *        drawn curve and the true curve, in graphics coordinates.
 *     Crv_scerr = double (Read)
 *        If the ratio of the lengths of adjacent sub-segments is larger
-*        than Crv_scerr,then the seub-segments will be sub-divided. Note,
+*        than Crv_scerr,then the sub-segments will be sub-divided. Note,
 *        if either axis is mapped logarithmically onto the screen, then
 *        there will naturally be large changes in scale. Crv_scerr should
 *        always be larger than 1.0.
@@ -7722,6 +7730,7 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
    double dl2[ CRV_NSEG ];/* Squred segment lengths */
    double dx[ CRV_NSEG ]; /* X increment along each segment */
    double dy[ CRV_NSEG ]; /* Y increment along each segment */
+   double totlen;         /* Total of all segment lengths */
    int i;                 /* Segment index */
    int seg_ok[ CRV_NSEG ];/* Flags indicating which segments can be drawn */
    int subdivide;         /* Flag indicating if segments can be subdivided */
@@ -7796,7 +7805,7 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
       statics->all_bad = 1;
    }
 
-/* Initialise the bouding box for the this segment. */
+/* Initialise the bounding box for this segment. */
    bbox[ 0 ] = DBL_MAX;
    bbox[ 1 ] = -DBL_MAX;
    bbox[ 2 ] = DBL_MAX;
@@ -7814,9 +7823,11 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
    statics->pdy = dy;
    statics->pdl2 = dl2;
 
-/* Initialise the number of long and short segments. */
+/* Initialise the number of long and short segments, and the total length
+   of all segments. */
    statics->nlong = 0;
    statics->nshort = 0;
+   totlen = 0.0;
 
 /* Loop round each segment. */
    for( i = 0; i < CRV_NSEG; i++ ){
@@ -7846,6 +7857,9 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
             *(statics->pdy++) = statics->t2;
             *(statics->pdl2++) = statics->t3;
 
+/* Measure the total length of all segments. */
+            if( totlen != AST__BAD ) totlen += sqrt( statics->t3 );
+
 /* Count the number of segments which are, and are not, shorter than the
    minimum significant length. */
             if( statics->t3 > statics->limit2 ) {
@@ -7860,6 +7874,7 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
             *(statics->pdx++) = AST__BAD;
             *(statics->pdy++) = AST__BAD;
             *(statics->pdl2++) = AST__BAD;
+            totlen = AST__BAD;
          }
 
 /* The point at the end of the current segment becomes the point at the
@@ -7874,6 +7889,7 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
          *(statics->pdx++) = AST__BAD;
          *(statics->pdy++) = AST__BAD;
          *(statics->pdl2++) = AST__BAD;
+         totlen = AST__BAD;
 
 /* The point at the end of the current segment becomes the point at the
    start of the next segment. */
@@ -7904,7 +7920,13 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
    statics->pdx = dx;
    statics->pdy = dy;
 
-/* Check each segment in turn to see if it can be drawn as a single
+/* Normalise and square totlen so that we can compare it to Crv_limit */
+   if( totlen != AST__BAD ) {
+      totlen /= CRV_NSEG;
+      totlen *= totlen;
+   }
+
+/* Check each segment in turn to see if it can b0e drawn as a single
    straight line. */
    for( i = 0; i < CRV_NSEG; i++ ){
 
@@ -7917,10 +7939,15 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
          statics->vx = *statics->pdx/statics->dl;
          statics->vy = *statics->pdy/statics->dl;
 
-/* If a unit vector in the direction of the previous segment is available,
-   we check that the angle between the previous segment and the current
+/* If all segments are good and the total of all segments is very short,
+   draw it as a single line. */
+         if( totlen != AST__BAD && totlen < Crv_limit ) {
+            seg_ok[ i ] = 1;
+
+/* Otherwise, if a unit vector in the direction of the previous segment is
+   available, we check that the angle between the previous segment and the current
    segment is not too high. */
-         if( statics->vxl != AST__BAD ){
+         } else if( statics->vxl != AST__BAD ){
             statics->cosang = statics->vxl*statics->vx + statics->vyl*statics->vy;
 
 /* If the angle is too high, set a flag to indicate that the segment cannot
@@ -9639,7 +9666,7 @@ static int DrawRegion( AstPlot *this, AstFrame *frm, const char *method,
       Crv_scerr = ( astGetLogPlot( this, 0 ) ||
                     astGetLogPlot( this, 1 ) ) ? 100.0 : 1.5;
       Crv_ux0 = AST__BAD;
-      Crv_tol = tol;
+      Crv_tol = 2*tol;
       Crv_limit = 0.5*tol*tol;
       Crv_map = Map5;
       Crv_ink = 1;
