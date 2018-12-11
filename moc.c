@@ -7726,11 +7726,13 @@ f     AST_ADDREGION or AST__ADDPIXELMASK.
 *     the selection) that are smaller than one cell of this initial grid may
 *     be missed (i.e. such holes may be "filled in" in the resulting Moc).
 *
-*     The default value is 10, meaning that bounded holes within selected
-*     areas may be filled in if the hole is smaller than 3.4 arc-minutes.
-*     Increase the value of this attribute to ensures that only holes
-*     smaller than this value can be missed. Note, doing so will increase
-*     the time spent creating the Moc.
+*     The default value is (MaxOrder-5), with a lower limit of zero. For
+*     instance, if MaxOrder is 16 (a resolution of 3.2 arc-seconds), then
+*     MinOrder will be 11, meaning that bounded holes within selected areas
+*     may be filled in if the hole is smaller than 100 arc-seconds. Increase
+*     the value of this attribute to ensures that only holes smaller than
+*     this value can be missed. Note, doing so will increase the time spent
+*     creating the Moc.
 *
 *     If MinOrder is set greater than MaxOrder, the value of MaxOrder
 *     will be used whenever MinOrder is required.
@@ -7748,7 +7750,7 @@ f     AST_ADDREGION or AST__ADDPIXELMASK.
 */
 astMAKE_CLEAR(Moc,MinOrder,minorder,-INT_MAX)
 astMAKE_GET(Moc,MinOrder,int,0,( ( this->minorder != -INT_MAX ) ?
-                                   this->minorder : 10 ))
+                                this->minorder:astMAX(0,astGetMaxOrder(this)-5)))
 astMAKE_SET(Moc,MinOrder,int,minorder, astMIN(astMAX(value,0),AST__MXORDHPX))
 astMAKE_TEST(Moc,MinOrder,( this->minorder != -INT_MAX ))
 
