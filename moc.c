@@ -1109,7 +1109,7 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
    if( dims[ 0 ] < 1 || dims[ 1 ] < 1 ) { \
       astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid values " \
                 "(%d,%d) supplied for parameter 'dims'.", status,  \
-                astGetClass(this), astGetClass(wcs) ); \
+                astGetClass(this), dims[ 0 ], dims[ 1 ] ); \
    } \
 \
 /* The current Frame of the supplied FrameSet must contain a SkyFrame  \
@@ -7724,9 +7724,9 @@ f     methods AST_ADDREGION or AST__ADDPIXELMASK.
 *     It gives the resolution of the initial grid used to identify areas
 *     that are inside or outside the Region or pixel mask, expressed as a
 *     HEALPix order in the range zero to 27 (this class does not support
-*     orders greater than 27). Unselected areas (i.e. bounded "holes" or 
-*     or "islands"in the selection) that are smaller than one cell of this 
-*     initial grid may be missed (i.e. such holes may be "filled in" and 
+*     orders greater than 27). Unselected areas (i.e. bounded "holes" or
+*     or "islands"in the selection) that are smaller than one cell of this
+*     initial grid may be missed (i.e. such holes may be "filled in" and
 *     islands omitted in the resulting Moc).
 *
 *     The default value is (MaxOrder-4), with a lower limit of zero. For
