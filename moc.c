@@ -7135,6 +7135,7 @@ f        included in the Moc. .FALSE. otherwise.
 \
 /* Loop round all positions to be tested. */ \
       for( ipos = 0; ipos < *npos; ipos++,px++,py++) { \
+         inside[ ipos ] = 0; \
 \
 /* Get the 1-based grid indices of the pixel containing the position. */ \
          if( *px != AST__BAD && *py != AST__BAD ) { \
@@ -7264,9 +7265,6 @@ static void TestPixels( PixelMask *pixelmask, int *npos, AstPointSet *ps,
    if( astOK ) {
       px = ptr[ 0 ];
       py = ptr[ 1 ];
-
-/* Initialise the returned flags to zero. */
-      memset( inside, 0, 9*sizeof(*inside) );
 
 /* Store convenience values */
       nx = pixelmask->nx;
@@ -7719,27 +7717,29 @@ astMAKE_TEST(Moc,MaxOrder,( this->maxorder != -INT_MAX ))
 *     Integer.
 
 *  Description:
-*     This attribute controls the size of the largest hole that could be
-*     missed when adding Regions or pixel masks into a Moc using methods
-c     astAddRegion or astAddPixelMask.
-f     AST_ADDREGION or AST__ADDPIXELMASK.
+*     This attribute controls the size of the largest hole or island that
+*     could be missed when adding Regions or pixel masks into a Moc using
+c     methods astAddRegion or astAddPixelMask.
+f     methods AST_ADDREGION or AST__ADDPIXELMASK.
 *     It gives the resolution of the initial grid used to identify areas
 *     that are inside or outside the Region or pixel mask, expressed as a
 *     HEALPix order in the range zero to 27 (this class does not support
-*     orders greater than 27). Unselected areas (i.e. bounded "holes" in
-*     the selection) that are smaller than one cell of this initial grid may
-*     be missed (i.e. such holes may be "filled in" in the resulting Moc).
+*     orders greater than 27). Unselected areas (i.e. bounded "holes" or 
+*     or "islands"in the selection) that are smaller than one cell of this 
+*     initial grid may be missed (i.e. such holes may be "filled in" and 
+*     islands omitted in the resulting Moc).
 *
-*     The default value is (MaxOrder-5), with a lower limit of zero. For
+*     The default value is (MaxOrder-4), with a lower limit of zero. For
 *     instance, if MaxOrder is 16 (a resolution of 3.2 arc-seconds), then
-*     MinOrder will be 11, meaning that bounded holes within selected areas
-*     may be filled in if the hole is smaller than 100 arc-seconds. Increase
+*     MinOrder will be 12, meaning that bounded holes within selected areas
+*     may be filled in if the hole is smaller than 51 arc-seconds. Increase
 *     the value of this attribute to ensures that only holes smaller than
 *     this value can be missed. Note, doing so will increase the time spent
 *     creating the Moc.
 *
-*     If MinOrder is set greater than MaxOrder, the value of MaxOrder
-*     will be used whenever MinOrder is required.
+*     To ensure no pixels are missed, set MinOrder to some very large
+*     value (larger than 27). If MinOrder is set greater than MaxOrder, the
+*     value of MaxOrder will be used whenever MinOrder is required.
 *
 *     The MinRes attribute is equivalent to MinOrder but expresses the
 *     resolution as a number of arc-seconds rather than as a HEALPix order.
