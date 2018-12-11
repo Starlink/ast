@@ -1221,7 +1221,8 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
             xphmap = astAnnul( xphmap ); \
 \
 /* Use this Mapping to determine the bounding box of the selected pixels \
-   within HEALPix grid coords in the projection given by "iproj". */ \
+   within HEALPix grid coords in the projection given by "iproj" at \
+   "maxorder. */ \
             lbnd_in[ 0 ] = lx - HALF; \
             ubnd_in[ 0 ] = hx + HALF; \
             lbnd_in[ 1 ] = ly - HALF; \
@@ -4956,9 +4957,9 @@ static void MergeRanges( AstMoc *this, int start, int *status ){
 /* Check inherited status */
    if( !astOK ) return;
 
-/* Nothing to do if the Moc is empty, or if the first range to be merged
-   is the last range. */
-   if( this->nrange > 0 || start >= this->nrange - 1 ) {
+/* Nothing to do if the Moc is empty or has only one range, or if the
+   first range to be merged is the last range. */
+   if( this->nrange > 1 && start < this->nrange - 1 ) {
 
 /* Sort the specified ranges into increasing order of lower bound. */
       qsort( this->range + 2*start, this->nrange - start,
