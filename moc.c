@@ -1482,7 +1482,9 @@ f        The global status.
 *     function will automatically set it to a value that depends on the
 *     class of Region being added. If the Region being added is another
 *     Moc, the MaxOrder attribute of the Moc is used. For other classes
-*     of Region, a fixed value of 18 is used.
+*     of Region, the value used corresponds to the resolution closest to
+*     0.1% of the linear size of the Region being added (determined using
+*     method astGetRegionDisc).
 *--
 */
 
@@ -1504,6 +1506,7 @@ f        The global status.
    AstWinMap *incmap;       /* Mapping from grid coords at order N+1 to order N */
    AstXphMap *xphmap;       /* "iproj" grid coords -> HPX12 grid coords */
    CellList clist;          /* Staging area for list of cells in the Moc */
+   double centre[2];        /* Centre of bounding disc */
    double delta;            /* Width of safety margin */
    double glbnd[2];         /* Lower bounds of region in grid coords */
    double gubnd[2];         /* Upper bounds of region in grid coords */
@@ -1511,6 +1514,7 @@ f        The global status.
    double inb[2];           /* Top right corner of input box */
    double outa[2];          /* Bottom left corner of output box */
    double outb[2];          /* Top right corner of output box */
+   double radius;           /* Radius of bounding disc */
    int glbnd_min[2];        /* Best lower bounds of region in grid coords */
    int gubnd_min[2];        /* Best upper bounds of region in grid coords */
    int i;                   /* Loop count */
@@ -1624,11 +1628,13 @@ f        The global status.
          astClearNegated( picked );
 
 /* Get the maximum HEALPix order. This defines the finest resolution of
-   the resulting MOC. Set it to 18 if it has not already been set. */
+   the resulting MOC. Set it to 0.1 % of the diameter of the Region if it
+   has not already been set. */
          if( astTestMaxOrder( this ) ){
             maxorder = astGetMaxOrder( this );
          } else {
-            maxorder = 18;
+            astGetRegionDisc( picked, centre, &radius );
+            maxorder = ResToOrder( 0.001*radius*AST__DR2D*3600.0 );
             astSetMaxOrder( this, maxorder );
          }
 
@@ -7658,28 +7664,24 @@ static int64_t XyToNested( int order, int ix, int iy ){
 *     first area to the Moc:
 
 c     - astAddCell: the order of the specified cell.
-c
-c     - astAddRegion: if the added Region is a Moc, then the Moc's MaxOrder
-c                     value is used, Otherwise a fixed order of 18 is used.
-c
-c     - astAddPixelMask<X>: the smallest order that results in the cells in
-c     the Moc being no larger than the size of the pixels in the centre of
-c     the pixel mask.
-c
-c     - astAddMocData: the largest order present in the supplied normalised
-c      MOC data array.
-*
 f     - AST_ADDCELL: the order of the specified cell.
-f
-f     - AST_ADDREGION: If the added Region is a Moc, then the Moc's MaxOrder
-f                      value is used, Otherwise a fixed order of 18 is used.
-f
+*
+c     - astAddRegion: if the added Region is a Moc, then the Moc's MaxOrder
+f     - AST_ADDREGION: if the added Region is a Moc, then the Moc's MaxOrder
+*                     value is used, Otherwise the value used corresponds to
+*                     the resolution closest to 0.1% of the linear size of
+*                     the Region being added (determined using method
+c                     astGetRegionDisc).
+f                     AST_GETREGIONDISC).
+*
+c     - astAddPixelMask<X>: the smallest order that results in the cells in
 f     - AST_ADDPIXELMASK<X>: the smallest order that results in the cells in
-f     the Moc being no larger than the size of the pixels in the centre of
-f     the pixel mask.
-f
+*     the Moc being no larger than the size of the pixels in the centre of
+*     the pixel mask.
+*
+c     - astAddMocData: the largest order present in the supplied normalised
 f     - AST_ADDMOCDATA: the largest order present in the supplied normalised
-f      MOC data array.
+*      MOC data array.
 *
 *     A default value of -1 will be returned for the MaxOrder attribute
 *     prior to its value being set.
