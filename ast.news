@@ -22,6 +22,10 @@ Main Changes in this Version
 describes an arbitrary region of the sky in the form of a set of HEALPix
 cells using the IVOA Multi-Order Coverage scheme..
 
+-  The Region class has a new method called astGetRegionDisc, which
+returns the centre and radius of a disc that just encloses a
+2-dimensional Region.
+
 - The Bounded attribute defined by the Region class is now always
 non-zero for Regions defined within a SkyFrame, regardless of whether the
 Region has been negated. Previously, it was non-zero only if the Region

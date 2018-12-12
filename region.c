@@ -107,8 +107,8 @@ c     following functions may also be applied to all Regions:
 f     In addition to those routines applicable to all Frames, the
 f     following routines may also be applied to all Regions:
 *
-c     - astGetRegionBounds: Get the bounds of a Region
-f     - AST_GETREGIONBOUNDS: Get the bounds of a Region
+c     - astGetRegionBounds: Get the bounds of a box containing a Region
+f     - AST_GETREGIONBOUNDS: Get the bounds of a box containing a Region
 c     - astGetRegionFrame: Get a copy of the Frame represent by a Region
 f     - AST_GETREGIONFRAME: Get a copy of the Frame represent by a Region
 c     - astGetRegionFrameSet: Get a copy of the Frameset encapsulated by a Region
@@ -118,6 +118,8 @@ f     - AST_GETREGIONMESH: Get a mesh of points covering a Region
 c     - astGetRegionPoints: Get the positions that define a Region
 f     - AST_GETREGIONPOINTS: Get the positions that define a Region
 c     - astGetUnc: Obtain uncertainty information from a Region
+c     - astGetRegionDisc: Get the bounds of disc containing a Region
+f     - AST_GETREGIONDISC: Get the bounds of disc containing a Region
 f     - AST_GETUNC: Obtain uncertainty information from a Region
 c     - astMapRegion: Transform a Region into a new coordinate system
 f     - AST_MAPREGION: Transform a Region into a new coordinate system
@@ -238,6 +240,8 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *     4-DEC-2018 (DSB):
 *        Change GetBounded so that Regions defined within SkyFrames are
 *        always bounded, whether negated or not.
+*     11-DEC-2018 (DSB):
+*        Add astGetRegionDisc.
 *class--
 
 *  Implementation Notes:
@@ -812,6 +816,7 @@ static int Test##attribute( AstFrame *this_frame, int axis, int *status ) { \
 #include "circle.h"              /* Circular regions */
 #include "box.h"                 /* Box regions */
 #include "cmpregion.h"           /* Compound regions */
+#include "wcsmap.h"              /* For AST__DPI */
 #include "ellipse.h"             /* Elliptical regions */
 #include "pointset.h"            /* Sets of points */
 #include "globals.h"             /* Thread-safe global data access */
@@ -962,6 +967,7 @@ static void GetRegionBounds( AstRegion *, double *, double *, int * );
 static void GetRegionBounds2( AstRegion *, double *, double *, int * );
 static void GetRegionMesh( AstRegion *, int, int, int, int *, double *, int * );
 static void GetRegionPoints( AstRegion *, int, int, int *, double *, int * );
+static void GetRegionDisc( AstRegion *, double[2], double *, int * );
 static void Intersect( AstFrame *, const double[2], const double[2], const double[2], const double[2], double[2], int * );
 static void LineOffset( AstFrame *, AstLineDef *, double, double, double[2], int * );
 static void MatchAxes( AstFrame *, AstFrame *, int *, int * );
@@ -4599,6 +4605,7 @@ void astInitRegionVtab_(  AstRegionVtab *vtab, const char *name, int *status ) {
    vtab->GetRegionBounds2 = GetRegionBounds2;
    vtab->GetRegionMesh = GetRegionMesh;
    vtab->GetRegionPoints = GetRegionPoints;
+   vtab->GetRegionDisc = GetRegionDisc;
    vtab->RegOverlay = RegOverlay;
    vtab->RegFrame = RegFrame;
    vtab->RegDummyFS = RegDummyFS;
@@ -9471,6 +9478,231 @@ f        AST_DECOMPOSE
    }
 }
 
+static void GetRegionDisc( AstRegion *this, double centre[2], double *radius,
+                           int *status ){
+/*
+*++
+*  Name:
+c     astGetRegionDisc
+f     AST_GETREGIONDisc
+
+*  Purpose:
+*     Returns the centre and radius of a disc containing a 2D Region.
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+c     #include "region.h"
+c     void GetRegionDisc( AstRegion *this, double centre[3],
+c                         double *radius )
+f     CALL AST_GETREGIONDISC( THIS, CENTRE, RADIUS, STATUS )
+
+*  Class Membership:
+*     Region method.
+
+*  Description:
+c     This function
+f     This routine
+*     returns the centre and radius of a disce that just encloses the
+*     supplied 2-dimensional Region. The centre is returned as a pair
+*     of axis values within the Frame represented by the Region. The
+*     value of the Negated attribute is ignored (i.e. it is assumed
+*     that the Region has not been negated).
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the Region.
+c     centre
+f     CENTRE( 2 ) = DOUBLE PRECISION (Returned)
+c        Pointer to a
+f        A
+*        two-element array in which to return the axis values at the centre
+*        of the bounding disc.
+c     radius
+f     RADIUS = DOUBLE PRECISION (Returned)
+c        Pointer to a variable in which to return the
+f        The
+*        radius of the bounding disc, as a geodesic distance within the
+*        Frame represented by the Region. It will be returned holding
+*        AST__BAD If the Region is unbounded.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Notes:
+*    - An error is reported if the Region is not 2-dimensional.
+*    - The value of the Negated attribute is ignored (i.e. it is assumed that
+*    the Region has not been negated).
+*    - If the Region is unbounded, the radius will be returned set to
+*    AST__BAD and the supplied centre axis values will be returned unchanged.
+
+*--
+*/
+
+/* Local Variables: */
+   AstPointSet *mesh;
+   double **ptr;
+   double angle;
+   double dist;
+   double dx;
+   double dxmax;
+   double dxmin;
+   double dy;
+   double dymax;
+   double dymin;
+   double point1[ 2 ];
+   double point2[ 2 ];
+   double point3[ 2 ];
+   double point4[ 2 ];
+   int ipoint;
+   int nax;
+   int npoint;
+   int old_neg;
+   int step;
+
+/* Initialise the radius. */
+   *radius = AST__BAD;
+
+/* Check the inherited status. */
+   if( !astOK ) return;
+
+/* Validate */
+   nax = astGetNaxes( this );
+   if( nax != 2 ) {
+      astError( AST__INVAR, "astGetRegionDisc(%s): Supplied %s is not "
+                "2-dimensional.", status, astGetClass( this ),
+                astGetClass( this ));
+   }
+
+/* Temporarily set the Negated flag to zero. */
+   if( astTestNegated( this ) ) {
+      old_neg = astGetNegated( this );
+   } else {
+      old_neg = -100;
+   }
+   astSetNegated( this, 0 );
+
+/* If the Region is not bounded, return AST__BAD as the radius. */
+   if( astGetBounded( this ) ){
+
+/* Get a mesh of points over the boundary of the Region within the
+   current Frame. */
+      mesh = astRegMesh( this );
+      ptr = astGetPoints( mesh );
+      if( astOK ) {
+
+/* Since the Region may be defined on the sky, we cannot just find the
+   centroid of the mesh points since the axes may not have a flat
+   geometry. Instead we form a local coordinate system by choosing an
+   arbitrary mesh point as the origin, and then defining a basis vector
+   joining this origin with another arbitrary mesh point. The local
+   coordinate system is then distance from the origin parallel and
+   perpendicular to the basis vector. This is not necessarily a flat
+   system, but it should allow us to find the centre of the disk by
+   taking the centroid of the mesh points (in the local coordinate
+   system). First choose the origin of the local system - the first mesh
+   point. */
+         point1[ 0 ] = ptr[ 0 ][ 0 ];
+         point1[ 1 ] = ptr[ 1 ][ 0 ];
+
+/* Next choose the other end of the basis vector - a point about half way
+   round the boundary */
+         npoint = astGetNpoint( mesh );
+         point2[ 0 ] = ptr[ 0 ][ npoint/2 ];
+         point2[ 1 ] = ptr[ 1 ][ npoint/2 ];
+
+/* Check all these axis values are good. */
+         if( point1[ 0 ] != AST__BAD && point1[ 1 ] != AST__BAD &&
+             point2[ 0 ] != AST__BAD && point2[ 1 ] != AST__BAD ) {
+
+/* No need to use all mesh points (there can be thousands). Choose a step
+   length that gives us about two hundred. */
+            step = ( npoint > 200 ) ? npoint/200 : 1;
+
+/* Loop over 200ish points in the mesh, maintaining the bounding box of
+   the mesh points in the local system. No need to do point 0 since we
+   know it is at (0,0) in the local system. */
+            dxmax = 0.0;
+            dxmin = 0.0;
+            dymax = 0.0;
+            dymin = 0.0;
+            for( ipoint = step; ipoint < npoint; ipoint += step ) {
+
+/* Check the mesh point is good. */
+               point3[ 0 ] = ptr[ 0 ][ ipoint ];
+               point3[ 1 ] = ptr[ 1 ][ ipoint ];
+               if( point3[ 0 ] != AST__BAD && point3[ 1 ] != AST__BAD ) {
+
+/* Resolve the vector from point1 to the current point into two
+   components - parallel and perpendicular to the vector from point1 to
+   point2. */
+                  astResolve( this, point1, point2, point3, point4, &dx, &dy );
+
+/* The dy value returned by astResolve is always positive. Assign it a
+   sign depending on the sign of the angle at point4. */
+                  if( astAngle( this, point1, point4, point3 ) < 0.0 ) dy = -dy;
+
+/* Record the max and min values of the two components. */
+                  dxmax = astMAX( dx, dxmax );
+                  dxmin = astMIN( dx, dxmin );
+                  dymax = astMAX( dy, dymax );
+                  dymin = astMIN( dy, dymin );
+               }
+            }
+
+/* The centre of the bounding box is a good enough approximation to the
+   centre of the bounding disc. Get the centre in the local system. */
+            dx = 0.5*( dxmax + dxmin );
+            dy = 0.5*( dymax + dymin );
+
+/* Convert to the system of the Region. First get the Region coords of a
+   point slightly "north" of point1 (go "north" by a distance equal to
+   0.001 of the distance along the basis vector used above). */
+            dist = astDistance( this, point1, point2 );
+            point3[ 0 ] = point1[ 0 ];
+            point3[ 1 ] = point1[ 1 ] + 0.001*dist;
+
+/* Find the angle from "north" to the basis vector. */
+            angle = astAngle( this, point3, point1, point2 );
+
+/* Offset away from point1 at the above angle by the local x value of the
+   centre. */
+            angle = astOffset2( this, point1, angle, dx, point3 );
+
+/* Rotate by 90 degrees and offset away from the above point (point3)
+   by the local y value of the centre. This gives us the centre in Region
+   coordinates. */
+            (void) astOffset2( this, point3, angle - AST__DPIBY2, dy, centre );
+
+/* Now loop round all good points on the mesh and find the maximum distance
+   from this centre to any mesh point. */
+            *radius = 0.0;
+            for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+               point3[ 0 ] = ptr[ 0 ][ ipoint ];
+               point3[ 1 ] = ptr[ 1 ][ ipoint ];
+               dist = astDistance( this, centre, point3 );
+               if( dist != AST__BAD ) *radius = astMAX( *radius, dist );
+            }
+
+/* Increase the radius by a very small amount to account for possible
+   rounding errors. */
+            *radius *= 1.000001;
+         }
+      }
+
+/* Free resources. */
+      mesh = astAnnul( mesh );
+   }
+
+/* Re-instate the orignal value of the Negated flag. */
+   if( old_neg == -100 ) {
+      astClearNegated( this );
+   } else {
+      astSetNegated( this, old_neg );
+   }
+}
+
 static void RegOverlay( AstRegion *this, AstRegion *that, int unc, int *status ){
 /*
 *+
@@ -13359,6 +13591,10 @@ void astGetRegionPoints_( AstRegion *this, int maxpoint, int maxcoord,
    if ( !astOK ) return;
    (**astMEMBER(this,Region,GetRegionPoints))( this, maxpoint, maxcoord,
                                                npoint, points, status );
+}
+void astGetRegionDisc_( AstRegion *this, double centre[2], double *radius, int *status ){
+   if ( !astOK ) return;
+   (**astMEMBER(this,Region,GetRegionDisc))( this, centre, radius, status );
 }
 void astShowMesh_( AstRegion *this, int format, const char *ttl, int *status ){
    if ( !astOK ) return;

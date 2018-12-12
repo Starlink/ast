@@ -42,7 +42,7 @@ c      call ast_watchmemory( 282905 )
       include 'SAE_PAR'
 
       integer status, frm1, frm2, frm3, reg1, reg2, reg3, reg4, reg5
-      double precision lbnd(3), ubnd(3), p1(2), p2(2)
+      double precision lbnd(3), ubnd(3), p1(2), p2(2), centre(2), radius
 
       if( status .ne.sai__ok ) return
 
@@ -78,7 +78,13 @@ c      call ast_watchmemory( 282905 )
       if( ubnd(1) .ne. 1.0D0 ) call stopit( status, 'General 7' )
       if( ubnd(2) .ne. 1.0D0 ) call stopit( status, 'General 8' )
 
-
+      call ast_getregiondisc( reg2, centre, radius, status )
+      if( abs( centre( 1 ) ) .gt. 1D-5 )
+     :       call stopit( status, 'General 8a' )
+      if( abs( centre( 2 ) ) .gt. 1D-5 )
+     :       call stopit( status, 'General 8b' )
+      if( abs( radius - 1.0D0 ) .gt. 1D-5  )
+     :       call stopit( status, 'General 8c' )
 
       reg3 = ast_cmpregion( reg1, reg2, AST__OR, ' ', status )
 
@@ -848,7 +854,7 @@ c      call ast_watchmemory( 282905 )
       integer status, frm, unc, pol1, pol2, f2, r2, r3, r4
       double precision pi, p(5,2), q(5,2), p1(2), p2(2)
       double precision xin(2), yin(2), xout(2), yout(2), lbnd(5),
-     :                 ubnd(5)
+     :                 ubnd(5), centre(2), radius
       logical hasframeset
 
 
@@ -1001,6 +1007,11 @@ c      call ast_watchmemory( 282905 )
       if( abs( ubnd(2) - 1.57079633 ) .gt. 1.0E-6 )
      :           call stopit( status, 'Poly 26' )
 
+      call ast_getregiondisc( pol1, centre, radius, status )
+      if( abs( centre( 2 ) - 0.5*pi ) .gt. 1D-6 )
+     :       call stopit( status, 'Poly 26A' )
+      if( abs( radius - 0.1*pi ) .gt. 1D-6  )
+     :       call stopit( status, 'Poly 26B' )
 
       f2 = ast_specframe( 'Unit=Angstrom', status )
       lbnd( 1 ) = 5000.0
@@ -2290,7 +2301,8 @@ C
      :        npoint, j
       double precision p1(4),p2(4),xin(2),yin(2),xout(2),yout(2),
      :                 p3(3),rad,zin(2),zout(2),pp1(3),pp2(3),
-     :                 lbnd(2),ubnd(2), mesh(250,3)
+     :                 lbnd(2),ubnd(2), mesh(250,3),centre(2),
+     :                 radius
       character cards(8)*80, sys*40
       logical hasframeset
 
@@ -2336,6 +2348,14 @@ C
      :    call stopit( status, 'Circle: Error AA3' )
       if( abs(ubnd(2)-(1.009994987166073)) .gt. 1.0E-6 )
      :    call stopit( status, 'Circle: Error AA4' )
+
+      call ast_getregiondisc( cir1, centre, radius, status )
+      if( abs( centre( 1 ) - p1( 1 ) ) .gt. 1D-6 )
+     :       call stopit( status, 'Circle: Error AA5' )
+      if( abs( centre( 2 ) - p1( 2 ) ) .gt. 1D-6 )
+     :       call stopit( status, 'Circle: Error AA6' )
+      if( abs( radius - p2( 1 ) ) .gt. 1D-6  )
+     :       call stopit( status, 'Circle: Error AA7' )
 
       p1( 1 ) = 0.0
       p1( 2 ) = 1.57
@@ -3295,7 +3315,8 @@ C
       include 'PRM_PAR'
 
       integer status, r1, r2, r3, cr, f1, f2, cr2, cr3, frm, map, fs
-      double precision p1(2),p2(2),xout(4),yout(4),xin(4),yin(4)
+      double precision p1(2),p2(2),xout(4),yout(4),xin(4),yin(4),
+     :                 centre(2), radius
       logical hasframeset
 
       if( status .ne.sai__ok ) return
@@ -3375,6 +3396,13 @@ C
       if( yout(4) .ne. AST__BAD ) call stopit( status,
      :                                     'CmpRegion: OR Error 4y')
 
+      call ast_getregiondisc( cr, centre, radius, status )
+      if( abs( centre( 1 ) - 5.3625D-5 ) .gt. 1D-9 )
+     :       call stopit( status, 'CmpRegion: Disc error 1' )
+      if( abs( centre( 2 ) - 5.1030D-5 ) .gt. 1D-9 )
+     :       call stopit( status, 'CmpRegion: Disc error 2' )
+      if( abs( radius - 2.1543D-4 ) .gt. 1D-8  )
+     :       call stopit( status, 'CmpRegion: Disc error 3' )
 
       call ast_negate( r2, status )
       cr = ast_cmpregion( r1, r2, AST__AND, ' ', status )
