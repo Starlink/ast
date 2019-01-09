@@ -3118,11 +3118,11 @@ f        one.
 c        or equal to
 *        the value of the MocLength attribute.
 c     order
-f     ORDER = INTEGER (Given)
+f     ORDER = INTEGER (Returned)
 *        Returned holding the HEALPix order of the cell at the requested
 *        index.
 c     npix
-f     NPIX = INTEGER*8 (Given)
+f     NPIX = INTEGER*8 (Returned)
 *        Returned holding the "npix" value of the cell at the requested
 *        index.
 f     STATUS = INTEGER (Given and Returned)
