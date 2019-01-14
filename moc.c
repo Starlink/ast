@@ -5765,9 +5765,11 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
 
       this->basemesh = astPointSet( 1, 2, "", status );
       ptr = astGetPoints( this->basemesh );
+      this->meshdist = astMalloc( sizeof( *(this->meshdist ) ) );
       if( ptr ) {
          ptr[ 0 ][ 0 ] = AST__BAD;
          ptr[ 1 ][ 0 ] = AST__BAD;
+         this->meshdist[ 0 ] = 0.0;
       }
       result = astClone( this->basemesh );
 
