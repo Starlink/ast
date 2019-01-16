@@ -2644,7 +2644,7 @@ AstEllipse *astEllipseId_( void *frame_void, int form, const double centre[2],
 
 /* Obtain a Region pointer from the supplied "unc" ID and validate the
    pointer to ensure it identifies a valid Region . */
-   unc = unc_void ? astCheckRegion( astMakePointer( unc_void ) ) : NULL;
+   unc = unc_void ? astVerifyRegion( astMakePointer( unc_void ) ) : NULL;
 
 /* Initialise the Ellipse, allocating memory and initialising the
    virtual function table as well if necessary. */

@@ -3089,7 +3089,7 @@ f     function is invoked with STATUS set to an error value, or if it
 
 /* Obtain a Region pointer from the supplied "unc" ID and validate the
    pointer to ensure it identifies a valid Region . */
-   unc = unc_void ? astCheckRegion( astMakePointer( unc_void ) ) : NULL;
+   unc = unc_void ? astVerifyRegion( astMakePointer( unc_void ) ) : NULL;
 
 /* Initialise the PointList, allocating memory and initialising the
    virtual function table as well if necessary. */

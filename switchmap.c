@@ -2437,8 +2437,8 @@ f     function is invoked with STATUS set to an error value, or if it
 
 /* Obtain and validate pointers to the Mapping structures provided. */
    if( astOK ) {
-      fsmap = fsmap_void ? astCheckMapping( astMakePointer(fsmap_void) ) : NULL;
-      ismap = ismap_void ? astCheckMapping( astMakePointer(ismap_void) ) : NULL;
+      fsmap = fsmap_void ? astVerifyMapping( astMakePointer(fsmap_void) ) : NULL;
+      ismap = ismap_void ? astVerifyMapping( astMakePointer(ismap_void) ) : NULL;
       for( i = 0; i < nroute; i++ ) {
          routemaps[ i ] = astVerifyMapping( astMakePointer(routemaps_void[ i ]) );
       }
