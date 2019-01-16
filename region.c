@@ -242,6 +242,10 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        always bounded, whether negated or not.
 *     11-DEC-2018 (DSB):
 *        Add astGetRegionDisc.
+*     16-JAN-2019 (DSB):
+*        Change Conv() so that it aligns in the current Frame of "to". Without this, 
+*        it is possible for uncertainty regions to be mapped incorrectly into the 
+*        frame of the new region when creating new regions.
 *class--
 
 *  Implementation Notes:
@@ -2301,6 +2305,8 @@ static AstFrameSet *Conv( AstFrameSet *from, AstFrameSet *to, int *status ){
 *     This function provides a convenient interface for astConvert.
 *     It is like astConvert except it does not alter the base Frames of
 *     the supplied FrameSets and does not require a Domain list.
+*
+*     It aligns in the current Frame of "to".
 
 *  Parameters:
 *     from
@@ -2317,6 +2323,7 @@ static AstFrameSet *Conv( AstFrameSet *from, AstFrameSet *to, int *status ){
 
 /* Local Variables: */
    AstFrameSet *result;        /* FrameSet to return */
+   const char *dom;            /* Domain in which to align */
    int from_base;              /* Index of original base Frame in "from" */
    int to_base;                /* Index of original base Frame in "to" */
 
@@ -2327,8 +2334,11 @@ static AstFrameSet *Conv( AstFrameSet *from, AstFrameSet *to, int *status ){
    to_base = astGetBase( to );
    from_base = astGetBase( from );
 
+/* Get the domain of the currentFrame of "to". */
+   dom = astGetDomain( to );
+
 /* Invoke astConvert. */
-   result = astConvert( from, to, "" );
+   result = astConvert( from, to, dom );
 
 /* Re-instate original base Frames. */
    astSetBase( to, to_base );
@@ -10678,7 +10688,7 @@ f        The global status.
 
 /* Check an uncertainty Region was supplied, and is of a usable class
    (i.e. a class which can be re-centred). */
-   cen0 = unc ? astRegCentre( unc, NULL, NULL, 0, 0 ) : NULL;
+   cen0 = unc ? astRegCentre( unc, NULL, NULL, 0, AST__CURRENT ) : NULL;
    if( cen0 ) {
       cen0 = astFree( cen0 );
 
