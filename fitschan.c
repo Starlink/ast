@@ -1214,6 +1214,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        the FITS card is used rather than assuming AST__FLOAT. The previous
 *        behaviour could cause spurious PV values for QV values that have no
 *        decimal point.
+*     27-FEB-2019 (DSB):
+*        In GetEncoding, do not require CRPIX CRVAL and CTYPE all to be
+*        present for the header to be considered FITS-WCS of some
+*        flavour. These keywords have defined default values in FITS-WCS
+*        paper 1 and so can be missing in a valid FITS-WCS header.
+
 *class--
 */
 
@@ -11759,11 +11765,8 @@ static int GetEncoding( AstFitsChan *this, int *status ){
 *     11) If none of the above keywords are found, Native encoding is assumed.
 *
 *     For cases 2) to 9), a check is also made that the header contains
-*     at least one of each keyword CTYPE, CRPIX and CRVAL. If not, then
-*     the checking process continues to the next case. This goes some way
-*     towards ensuring that the critical keywords used to determine the
-*     encoding are part of a genuine WCS description and have not just been
-*     left in the header by accident.
+*     at least one of the keywords CTYPE, CRPIX and CRVAL. If not, then
+*     the checking process continues to the next case.
 
 *  Parameters:
 *     this
@@ -11796,9 +11799,11 @@ static int GetEncoding( AstFitsChan *this, int *status ){
 /* Otherwise, check for the existence of certain critcal keywords... */
    } else {
 
-/* See if the header contains some CTYPE, CRPIX and CRVAL keywords. */
-      haswcs = astKeyFields( this, "CTYPE%d", 0, NULL, NULL ) &&
-               astKeyFields( this, "CRPIX%d", 0, NULL, NULL ) &&
+/* See if the header contains some CTYPE, CRPIX or CRVAL keywords. Note,
+   the FITS-WCS standard provides defaults for these keywords and so we
+   cannot rely on them all being present. */
+      haswcs = astKeyFields( this, "CTYPE%d", 0, NULL, NULL ) ||
+               astKeyFields( this, "CRPIX%d", 0, NULL, NULL ) ||
                astKeyFields( this, "CRVAL%d", 0, NULL, NULL );
 
 /* See if there are any CDi_j keywords. */
