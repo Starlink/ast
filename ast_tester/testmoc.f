@@ -5,6 +5,12 @@
       include 'SAE_PAR'
       include 'CNF_PAR'
 
+      character mocstr1*27
+      parameter( mocstr1 = '1/1-2,4 2/12-14,21,23,25 8/' )
+
+      character mocstr2*32
+      parameter( mocstr2 = ' 1/1,2,4   2/12-14, 21,23,25 8/ ' )
+
       integer szmesh1
       parameter( szmesh1 = 868 )
 
@@ -20,10 +26,10 @@
       integer moc, fc, sf, reg1, status, ival, ip, nb, ln, reg2, reg
       double precision centre(2), point(2), lbnd(2), ubnd(2), d,
      :                 mesh1( szmesh1, 2 ), mesh2( szmesh2, 2 )
-      character cval*18
+      character cval*18, buf*100
       logical there
       integer npoint, i, moc2, moc3, dims(2), iwcs, order
-      integer*8 npix
+      integer*8 npix, size
 
 c      call ast_watchmemory( 2276565 )
 
@@ -314,7 +320,30 @@ c      call ast_watchmemory( 2276565 )
 
 
 
+      moc = ast_moc( ' ', status )
+      call ast_addmocstring( moc, AST__OR, 0, -1, len(mocstr1), mocstr1,
+     :                       status )
+      call ast_getmocstring( moc, 0, ' ', size, status )
+      if( size .ne. 27 ) then
+         call stopit( 'Error 33', status )
+      end if
+      call ast_getmocstring( moc, len(buf), buf, size, status )
+      if( size .ne. 27 ) then
+         call stopit( 'Error 34', status )
+      end if
+      if( buf( :size ) .ne.  mocstr1( :size ) ) then
+         call stopit( 'Error 35', status )
+      end if
 
+      moc2 = ast_moc( ' ', status )
+      call ast_addmocstring( moc2, AST__OR, 0, -1, len(mocstr2),
+     :                       mocstr2, status )
+      if( .not. ast_equal( moc, moc2, status ) ) then
+         call stopit( 'Error 36', status )
+      end if
+      if( ast_geti( moc, 'MaxOrder', status ) .ne. 8 ) then
+         call stopit( 'Error 37', status )
+      end if
 
 
 

@@ -51,7 +51,7 @@ f     AST_ADDMOCDATA method.
 *
 *     Note, this class is limited to MOCs for which the number of cells
 *     in the normalised MOC can be represented in a four byte signed integer.
-*     No support is yet provided for the JSON or ASCII formats described
+*     No support is yet provided for the JSON format described
 *     in the MOC reommendation.
 
 *  Inheritance:
@@ -78,6 +78,8 @@ c     - astAddCell: Adds a single HEALPix cell into an existing Moc
 f     - AST_ADDCELL: Adds a single HEALPix cell into an existing Moc
 c     - astAddMocData: Adds a FITS binary table into an existing Moc
 f     - ADT_ADDMOCDATA: Adds a FITS binary table into an existing Moc
+c     - astAddMocString: Adds a string-encoded MOC into an existing Moc
+f     - ADT_ADDMOCSTRING: Adds a string-encoded MOC into an existing Moc
 c     - astAddPixelMask<X>: Adds a pixel mask to an existing Moc
 f     - AST_ADDPIXELMASK<X>: Adds a pixel mask to an existing Moc
 c     - astAddRegion: Adds a Region to an existing Moc
@@ -88,6 +90,8 @@ c     - astGetMocData: Get the FITS binary table data describing a Moc
 f     - AST_GETMOCDATA: Get the FITS binary table data describing a Moc
 c     - astGetMocHeader: Get the FITS binary table headers describing a Moc
 f     - AST_GETMOCHEADER: Get the FITS binary table headers describing a Moc
+c     - astGetMocString: Get the string-encoded respresentation of a Moc
+f     - AST_GETMOCSTRING: Get the string-encoded respresentation of a Moc
 c     - astTestCell: Test if a single HEALPix cell is included in a Moc
 f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 
@@ -117,6 +121,8 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *  History:
 *     10-OCT-2018 (DSB):
 *        Original version.
+*     6-MAY-2019 (DSB):
+*        Added methods astAddMocString and astGetMocString.
 *class--
 */
 
@@ -189,6 +195,7 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 
 /* C header files. */
 /* --------------- */
+#include <ctype.h>
 #include <float.h>
 #include <math.h>
 #include <stdarg.h>
@@ -244,6 +251,10 @@ typedef struct Corner {
    struct Corner *prev;
 } Corner;
 
+typedef struct Sink2Data {
+   char *string;
+   size_t mxsize;
+} Sink2Data;
 
 /* Module Variables. */
 /* ================= */
@@ -359,6 +370,7 @@ static int TestCell( AstMoc *, int, int64_t, int, int * );
 static int64_t XyToNested( int, int, int );
 static void AddCell( AstMoc *, int, int, int64_t, int * );
 static void AddMocData( AstMoc *, int, int, int, int, int, const void *, int * );
+static void AddMocString( AstMoc *, int, int, int, size_t, const char *, int * );
 static void AddRegion( AstMoc *, int, AstRegion *, int * );
 static void AppendChildren( AstMoc *, Cell *, int, Cell **, int *);
 static void ClearCache( AstMoc *, int * );
@@ -368,6 +380,7 @@ static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void GetCell( AstMoc *, int, int *, int64_t *, int * );
 static void GetMocData( AstMoc *, size_t, void *, int * );
+static void GetMocString( AstMoc *, size_t, char *, size_t *, int * );
 static void GetNorm( AstMoc *, const char *, int * );
 static void IncorporateCells( AstMoc *, CellList *, int, int, const char *, int * );
 static void MakeCorners( AstMoc *, int, Cell *, Corner **, int, int * );
@@ -376,6 +389,8 @@ static void NegateRanges( AstMoc *, int, int, int * );
 static void NestedToXy( int64_t, int, int *, int * );
 static void PutCell( AstMoc *, AstMapping **, int, int, int, CellList *, int, void *, int, const char *, int * );
 static void RegBaseBox( AstRegion *, double *, double *, int * );
+static void Sink1( void *, size_t, const char *, int * );
+static void Sink2( void *, size_t, const char *, int * );
 static void TestPixels( PixelMask *, int *, AstPointSet *, int[9], int *);
 
 /* For debugging of astRegBaseMesh and astRegTrace......
@@ -468,7 +483,7 @@ c     astAddCell
 f     AST_ADDCELL
 
 *  Purpose:
-*     Adds a single HEALPix cell into an axisting Moc.
+*     Adds a single HEALPix cell into an existing Moc.
 
 *  Type:
 *     Public virtual function.
@@ -576,15 +591,9 @@ f        The global status.
          pr[ 1 ] = ihigh;
       }
 
-/* Merge contiguous ranges together. */
-      MergeRanges( this, irange, status );
-
-/* If required, replace the ranges added above with the gaps between
-   the ranges. */
-      if( cmode == AST__AND ) NegateRanges( this, irange, maxorder, status );
-
-/* Combine all the ranges in the Moc, using the specified combination mode. */
-      CombineRanges( this, cmode, "astAddCell", status );
+/* Normalise the Moc. */
+      astMocNorm( this, cmode == AST__AND, cmode, irange, maxorder,
+                  "astAddCell" );
    }
 }
 
@@ -597,7 +606,7 @@ c     astAddMocData
 f     AST_ADDMOCDATA
 
 *  Purpose:
-*     Adds a FITS binary table into an axisting Moc.
+*     Adds a FITS binary table into an existing Moc.
 
 *  Type:
 *     Public virtual function.
@@ -814,15 +823,441 @@ f     MAXORDER  is negative.
          }
       }
 
-/* Merge contiguous ranges together. */
-      MergeRanges( this, nold, status );
+/* Normalise the Moc. */
+      astMocNorm( this, negate, cmode, nold, maxorder, "astAddMocData" );
+   }
+}
 
-/* If required, replace the ranges added above with the gaps between
-   the ranges. */
-      if( negate ) NegateRanges( this, nold, maxorder, status );
+static void AddMocString( AstMoc *this, int cmode, int negate, int maxorder,
+                          size_t len, const char *string, int *status ) {
+/*
+*++
+*  Name:
+c     astAddMocString
+f     AST_ADDMOCSTRING
 
-/* Combine all the ranges in the Moc, using the specified combination mode. */
-      CombineRanges( this, cmode, "astAddMocData", status );
+*  Purpose:
+*     Adds a string-encoded MOC into an existing Moc.
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+c     #include "moc.h"
+c     void astAddMocString( AstMoc *this, int cmode, int negate, int maxorder,
+c                           size_t len, const char*string );
+f     CALL AST_ADDMOCSTRING( THIS, CMODE, NEGATE, MAXORDER, LEN, STRING,
+f                            STATUS )
+
+*  Class Membership:
+*     Moc method.
+
+*  Description:
+*     This function modifies a Moc by combining it with the MOC described
+*     by the supplied string - assumed to be encoded using the string
+*     serialisation described in the MOC recommendation. The way in which they
+*     are combined is determined by the
+c     "cmode" parameter.
+f     CMODE parameter.
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the Moc to be modified.
+c     cmode
+f     CMODE = INTEGER (Given)
+*        Indicates how the supplied MOC is to be combined with the
+*        existing Moc. Any of the following values may be supplied:
+*        - AST__AND: The modified Moc is the intersection of the original
+*        Moc and the sipplied MOC.
+*        - AST__OR: The modified Moc is the union of the original Moc and
+*        the supplied MOC.
+*        - AST__XOR: The modified Moc is the exclusive disjunction of the
+*        original Moc and the supplied MOC.
+c     negate
+f     NEGATE = LOGICAL (Given)
+*        If
+c        non-zero,
+f        .FALSE.,
+*        the cells added to the existing Moc will be those included in the
+*        supplied MOC.
+*        If
+c        zero,
+f        .TRUE.,
+*        the cells added to the existing Moc will be those not included in the
+*        supplied MOC.
+c     maxorder
+f     MAXORDER = INTEGER (Given)
+*        The maximum HEALPix order to use. If a negative value is supplied,
+*        the maximum order will be determined by searching the supplied MOC
+*        (this will take extra time). In either case, if a value has already
+*        been set for the MaxOrder attribute in the Moc, then the attribute
+*        value is used in preference to the value supplied for this parameter.
+*        Any HEALPix cells in the supplied MOC that refer to an order greater
+*        than
+c        "maxorder"
+f        MAXORDER
+*        are ignored.
+c     len
+f     LEN = INTEGER (Given)
+*        The number of characters to read from the supplied string. If
+*        this is greater than the length of the string, it is ignored and the
+*        whole string is read.
+c     string
+f     STRING = CHARACTER * ( * ) (Given)
+c        Pointer to the
+f        The
+*        array of characters holding the supplied MOC. It should be
+*        encoded using the string serialisation described in the MOC
+*        recommendation.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Notes:
+*     - If no value has yet been set for attribute MaxOrder, then this
+*     function will automatically set it to the value supplied for
+c     "Maxorder",
+f     MAXORDER,
+*     or to the largest order present in the supplied binary MOC if
+c     "Maxorder" is negative.
+f     MAXORDER  is negative.
+*--
+*/
+
+/* Local Variables: */
+   int nold;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Validate */
+   if( maxorder > AST__MXORDHPX ) {
+      astError( AST__INVAR, "astAddMocString(%s): Invalid value (%d) "
+                "supplied for parameter 'maxorder' - must be no greater "
+                "than %d.", status, astGetClass( this ), maxorder,
+                AST__MXORDHPX );
+
+/* If the supplied MOC is empty (i.e. len==0) then the resulting Moc
+   will be unchanged unless "cmode" is AST__AND, in which case the
+   resulting Moc will be empty. */
+   } else if( len == 0 ) {
+      if( cmode == AST__AND ) {
+         this->nrange = 0;
+         this->range = astFree( this->range );
+         ClearCache( this, status );
+      }
+
+/* Otherwise, read a MOC from the string and combine it with the supplied
+   Moc. */
+   } else {
+      nold = this->nrange;
+      astAddMocText( this, maxorder, len, string, "astAddMocString" );
+      astMocNorm( this, negate, cmode, nold, maxorder, "astAddMocString" );
+   }
+}
+
+void astAddMocText_( AstMoc *this, int maxorder, size_t len, const char *string,
+                     const char *method, int *status ) {
+/*
+*+
+*  Name:
+*     astAddMocText
+
+*  Purpose:
+*     Adds a string-encoded MOC into an existing Moc but does not normalise.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     void astAddMocText( AstMoc *this, int maxorder, size_t len,
+*                         const char *string, const char *method );
+
+*  Class Membership:
+*     Moc method.
+
+*  Description:
+*     This function identifies the ranges of cells at "maxorder" that are
+*     included in the supplied string-encoded MOC, and appends them to
+*     the cell ranges stored in the supplied Moc. It does not normalise the
+*     Moc (astMocNorm should be called to do this one all ranges have
+*     been added to the Moc).
+
+*  Parameters:
+*     this
+*        Pointer to the Moc to be modified.
+*     maxorder
+*        The maximum HEALPix order to use. If a negative value is supplied,
+*        the maximum order will be determined by searching the supplied MOC
+*        (this will take extra time). In either case, if a value has already
+*        been set for the MaxOrder attribute in the Moc, then the attribute
+*        value is used in preference to the value supplied for this parameter.
+*        Any HEALPix cells in the supplied MOC that refer to an order greater
+*        than "maxorder" are ignored.
+*     len
+*        The number of characters to read from the supplied string. If
+*        this is greater than the length of the string, it is ignored and the
+*        whole string is read.
+*     string
+*        Pointer to the array of characters holding the supplied MOC. It
+*        should be encoded using the string serialisation described in the MOC
+*        recommendation.
+*     method
+*        Method name to include in error messages.
+
+*  Notes:
+*     - If no value has yet been set for attribute MaxOrder, then this
+*     function will automatically set it to the value supplied for "Maxorder",
+*     or to the largest order present in the supplied binary MOC if "Maxorder"
+*     is negative.
+*-
+*/
+
+/* Local Variables: */
+   char *endptr;
+   const char *pend;
+   const char *pnext;
+   const char *pstart;
+   int irange;
+   int isrange;
+   int issep;
+   int order;
+   int shift;
+   int64_t *pr;
+   int64_t ihigh;
+   int64_t ilow;
+   int64_t ipix;
+   int64_t npix0;
+   int64_t npix;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Validate */
+   if( maxorder > AST__MXORDHPX ) {
+      astError( AST__INVAR, "%s(%s): Invalid value (%d) supplied for parameter"
+                " 'maxorder' - must be no greater than %d.", status, method,
+                astGetClass( this ), maxorder, AST__MXORDHPX );
+
+/* If the supplied MOC is empty (i.e. len==0) then the resulting Moc
+   will be unchanged. */
+   } else if( len > 0 ) {
+
+/* Pointer to the first character not to be read. Reading will stop if
+   a terminating null occurs earlier than this. */
+      pend = string + len;
+
+/* Skip any leading white space. */
+      while( *string && string < pend && isspace( *string ) ) string++;
+
+/* If the MaxOrder attribute is set in the Moc, use it in preference to
+   the value supplied for parameter "maxorder". */
+      if( astTestMaxOrder( this ) ) {
+         maxorder = astGetMaxOrder( this );
+
+/* Otherwise, we use the supplied "maxorder" value. If "maxorder" was
+   not supplied (i.e. is negative), make an initial pass through the string
+   to determine the maximum order. */
+      } else {
+         if( maxorder < 0 ) {
+
+            pstart = NULL;    /* First character in integer */
+            pnext = string;   /* Next character to read */
+
+            while( *pnext && pnext < pend ) {
+               if( *pnext == '/' ) {
+                  if( pstart ) order = strtol( pstart, &endptr, 0 );
+                  if( !pstart || endptr == pstart ) {
+                     astError( AST__INMOC, "astAddMocString(%s): Invalid "
+                               "string-encoded MOC supplied: '%.30s...'",
+                               status, astGetClass( this ), string );
+                     astError( AST__INMOC, "A '/' character was found with "
+                               "no directly preceding integer at position "
+                               "%zu ('%.10s...').", status, pnext - string,
+                               pnext );
+                     break;
+                  } else if( order > maxorder ) {
+                     maxorder = order;
+                  }
+                  pstart = NULL;
+
+               } else if( isdigit( *pnext ) ){
+                  if( !pstart ) pstart = pnext;
+
+               } else {
+                  pstart = NULL;
+               }
+
+               pnext++;
+            }
+         }
+
+/* Use this value as the Moc's MaxOrder attribute value from now on. */
+         astSetMaxOrder( this, maxorder );
+      }
+
+/* Convert the supplied MOC string to a list of ranges of cells at
+   "maxorder" and append to the end of the ranges currently in the Moc. */
+
+      isrange = 0;     /* In a cell range? */
+      issep = 0;       /* In a multi-space separator? */
+      order = -1;      /* Current order */
+      pstart = NULL;   /* Pointer to start of integer */
+      pnext = string;  /* Pointer to next character to read */
+
+/* Read all usable characters in the supplied MOC. */
+      while( *pnext && pnext < pend ) {
+
+/* If the current character is a digit, set the pointer to the start of
+   the current integer (so long as we are not already in an integer). */
+         if( isdigit( *pnext ) ) {
+            if( !pstart ) pstart = pnext;
+            issep = 0;
+
+/* If the current character is not a digit, it must be a separator, a dash
+   or a slash. */
+         } else {
+
+/* If a slash, it should mark the end of an integer giving the current
+   order. Update the current order. */
+            if( *pnext == '/' ) {
+               if( pstart ) order = strtol( pstart, &endptr, 0 );
+               if( !pstart || endptr == pstart ) {
+                  astError( AST__INMOC, "astAddMocString(%s): Invalid "
+                            "string-encoded MOC supplied: '%.30s...'",
+                            status, astGetClass( this ), string );
+                  astError( AST__INMOC, "A '/' character was found with "
+                            "no directly preceding integer at position "
+                            "%zu ('%.10s...').", status, pnext - string,
+                            pnext );
+                  break;
+               }
+               issep = 0;
+
+/* If a separator.... */
+            } else if( *pnext == ' ' || *pnext == '\r' || *pnext == '\n' ||
+                       *pnext == ',' ) {
+
+/* If we are already in a separator, and the current character is a space,
+   ignore it. */
+               if( !issep || *pnext != ' ' ) {
+                  issep = 1;
+
+/* We should be in an integer. Get its value (an NPIX value identifying a
+   single cell or the end of a range of cells at order "order"). */
+                  if( pstart ) {
+                     npix = strtoll( pstart, &endptr, 0 );
+
+/* We can safely ignore any trailing white space. */
+                  } else {
+                     int ok = 1;
+                     while( *pnext && pnext < pend ) {
+                        if( !isspace( *pnext ) ) {
+                           ok = 0;
+                           break;
+                        }
+                        pnext++;
+                     }
+                     if( ok ) break;
+                  }
+
+                  if( !pstart || endptr == pstart ) {
+                     astError( AST__INMOC, "astAddMocString(%s): Invalid "
+                               "string-encoded MOC supplied: '%.30s...'",
+                               status, astGetClass( this ), string );
+                     astError( AST__INMOC, "A separator character was found with "
+                               "no directly preceding integer at position "
+                               "%zu ('%.10s...').", status, pnext - string,
+                               pnext );
+                     break;
+                  }
+
+/* Report an error if no order value has yet been found. */
+                  if( order == -1 ) {
+                     astError( AST__INMOC, "astAddMocString(%s): Invalid "
+                               "string-encoded MOC supplied: '%.30s...'",
+                               status, astGetClass( this ), string );
+                     astError( AST__INMOC, "The string does not start with a "
+                               "ORDER value.", status );
+                     break;
+                  } else {
+                     shift = 2*( maxorder - order );
+                  }
+
+/* Loop round each cell in the range */
+                  if( !isrange ) npix0 = npix;
+                  for( ipix = npix0; ipix <= npix; ipix++ ) {
+
+/* Get the upper and lower bounds of the cells at maxorder contained within
+   this cell, and append this as a new range to the Moc. */
+                     ilow = ( ipix << shift );
+                     ihigh = ( (ipix + 1 ) << shift ) - 1;
+
+                     irange = this->nrange++;
+                     this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
+                     if( astOK ) {
+                        pr = this->range + 2*irange;
+                        pr[ 0 ] = ilow;
+                        pr[ 1 ] = ihigh;
+                     } else {
+                        break;
+                     }
+                  }
+
+/* Indicate we are not reading a cell range. */
+                  isrange = 0;
+               }
+
+/* If a dash... */
+            } else if( *pnext == '-' ) {
+               issep = 0;
+
+/* We should be in an integer. Get its value (the NPIX value identifying
+   the start of a range of cells at order "order"). */
+               if( pstart ) npix0 = strtoll( pstart, &endptr, 0 );
+               if( !pstart || endptr == pstart ) {
+                  astError( AST__INMOC, "astAddMocString(%s): Invalid "
+                            "string-encoded MOC supplied: '%.30s...'",
+                            status, astGetClass( this ), string );
+                  astError( AST__INMOC, "A separator character was found with "
+                            "no directly preceding integer at position %zu "
+                            "('%.10s...').", status, pnext - string, pnext );
+                  break;
+               }
+
+/* Indicate we are reading a cell range. We expect the next integer to be
+   the end of the range.  */
+               if( ! isrange ) {
+                  isrange = 1;
+               } else {
+                  astError( AST__INMOC, "astAddMocString(%s): Invalid "
+                            "string-encoded MOC supplied: '%.30s...'",
+                            status, astGetClass( this ), string );
+                  astError( AST__INMOC, "A spurious dash was found at "
+                            "position %zu ('%.10s...').", status,
+                            pnext - string, pnext );
+                  break;
+               }
+
+/* Anything else is an error. */
+            } else {
+               astError( AST__INMOC, "astAddMocString(%s): Invalid "
+                         "string-encoded MOC supplied: '%.30s...'",
+                         status, astGetClass( this ), string );
+               astError( AST__INMOC, "Illegal character '%c' found at "
+                         "position %zu ('%.10s...').", status, *pnext,
+                         pnext - string, pnext );
+               break;
+            }
+
+/* Indicate we are not currently in an integer. */
+            pstart = NULL;
+         }
+
+/* Move on to the next character to be read. */
+         pnext++;
+      }
    }
 }
 
@@ -1570,7 +2005,7 @@ f        The global status.
             astSetMaxOrder( this, that_order );
          }
 
-/* Record the original number of ranges in "this"> */
+/* Record the original number of ranges in "this". */
          nold = this->nrange;
 
 /* Append each cell range in "that" to the end of the array of cell
@@ -1600,15 +2035,9 @@ f        The global status.
             }
          }
 
-/* Merge contiguous ranges together. */
-         MergeRanges( this, nold, status );
-
-/* If required, replace the ranges added above with the gaps between
-   the ranges. */
-         if( astGetNegated( that ) ) NegateRanges( this, nold, maxorder, status );
-
-/* Combine all the ranges in the Moc, using the specified combination mode. */
-         CombineRanges( this, cmode, "astAddRegion", status );
+/* Normalise the Moc. */
+         astMocNorm( this, astGetNegated( that ), cmode, nold, maxorder,
+                     "astAddRegion" );
       }
 
 /* Mow handle cases where the Region being added is not a Moc. */
@@ -3655,6 +4084,270 @@ static int GetMocLength( AstMoc *this, int *status ){
    return this->moclength;
 }
 
+static void GetMocString( AstMoc *this, size_t mxsize, char *string,
+                          size_t *size, int *status ){
+/*
+*++
+*  Name:
+c     astGetMocString
+f     AST_GETMOCSTRING
+
+*  Purpose:
+*     Get the streng-encoded representation of a Moc
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+c     #include "moc.h"
+c     void astGetMocString( AstMoc *this, size_t mxsize, char *string,
+c                           size_t *size, int *status )
+f     CALL AST_GETMOCSTRING( THIS, MXSIZE, STRING, SIZE, STATUS )
+
+*  Class Membership:
+*     Moc method.
+
+*  Description:
+*     This function stores the string-encoded representation of the
+*     supplied Moc in the supplied string buffer.
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the Moc.
+c     mxsize
+f     MXSIZE = INTEGER (Given)
+*        The length of the supplied string buffer in bytes. An error will
+*        be reported if this value is smaller than the number required to
+*        describe the Moc. However, if zero is supplied, the buffer will
+*        be ignored - no string will be returned but the required size of
+*        the buffer will still be returned in
+c        'size'.
+f        SIZE.
+c     string
+f     STRING( * ) = BYTE (Returned)
+c        Pointer to the
+f        The
+*        area of memory in which to return the string-encoded
+*        representation of the Moc. This area is assumed to contain at least
+c        'mxsize' bytes. Only used if 'mxsize' is greater than zero.
+f        MXSIZE bytes. Only used if MXSIZE is greater than zero.
+c        Note, the string is not null-terminated.
+c     size
+f     SIZE = INTEGER*8 (Returned)
+*        Returned holding the number of bytes needed to store the complete
+*        string-encoded representation of the Moc.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*--
+*/
+
+/* Local Variables: */
+   char lbuf[ 200 ];
+   Sink2Data data2;
+   void *data;
+   void (*sink)( void *, size_t, const char *, int * );
+
+/* Initialise */
+   *size = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* If a buffer size of zero has been supplied, use a sink function that
+   just accumulates the length of the strings. */
+   if( mxsize == 0 ) {
+      data = size;
+      sink = Sink1;
+
+/* Otherwise use a sink function that appends the strings to the supplied
+   buffer. */
+   } else {
+      data2.string = string;
+      data2.mxsize = mxsize;
+      data = &data2;
+      sink = Sink2;
+   }
+
+/* Do the work. The sink function is called to write out the buffer each
+   time the buffer is filled. */
+   astGetMocText( this, sizeof( lbuf ), lbuf, sink, data, "astGetMocString" );
+
+/* Return the used size, if it is not already there. */
+   if( mxsize > 0 ) *size = mxsize - data2.mxsize;
+}
+
+void astGetMocText_( AstMoc *this, size_t bufsize, char *buf,
+                     void (*sink)( void *, size_t, const char *, int * ),
+                     void *data, const char *method, int *status ){
+/*
+*+
+*  Name:
+*     astGetMocText
+
+*  Purpose:
+*     Gets a string-encoded representation of the supplied Moc.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     void astGetMocText( AstMoc *this, size_t bufsize, char *buf,
+*                         void (*sink)( void *, size_t, const char *, int * ),
+*                         void *data, const char *method, int *status )
+
+*  Class Membership:
+*     Moc method.
+
+*  Description:
+*     This function converts the supplied Moc to a text string using the
+*     string serialisation described in the MOC recommendation.
+
+*  Parameters:
+*     this
+*        Pointer to the Moc.
+*     bufsize
+*        Length of "buf" in bytes.
+*     buf
+*        A buffer in which to store a section of the Moc's string
+*        representation. It must have room for at least "bufsize"
+*        characters.
+*     sink
+*        A function to call to write out each section of the MOC's string
+*        representation. It shoud have the following synopsis:
+*
+*        void sink( void *data, size_t bufsize, const char *buf, int *status )
+*
+*        The sink function should write out the first "bufsize" bytes
+*        from "buf" to the appropriate external destination. The "data"
+*        pointer can be used for any purpose. The text supplied to the
+*        sink function in the buffer will not be null terminated. A NULL
+*        pointer may be supplied, in which case the text will be written
+*        out to standard output.
+*     data
+*        A pointer to an arbitrary structure to be passed to the sink
+*        function. Can be NULL.
+*     method
+*        Method name to include in error messages.
+*-
+*/
+
+/* Macro to append a token to the buffer, flushing the buiffer using the
+   sink function if the buffer fills up. */
+#define TOKEN_WRITE \
+   ptok = token; \
+   while( nc > nleft ) { \
+      if( nleft ) memcpy( pwrite, ptok, nleft ); \
+      if( sink ) { \
+         (*sink)( data, bufsize, buf, status ); \
+      } else { \
+         printf( "%.*s", (int) bufsize, buf ); \
+      } \
+      ptok += nleft; \
+      nc -= nleft; \
+      nleft = bufsize; \
+      pwrite = buf; \
+   } \
+   if( nc > 0 ) { \
+      memcpy( pwrite, ptok, nc ); \
+      pwrite += nc; \
+      nleft -= nc; \
+   }
+
+/* Local Variables: */
+   char *ptok;
+   char *pwrite;
+   char token[ 30 ];
+   int first;
+   int icell;
+   int maxorder;
+   int moclen;
+   int neworder;
+   int order;
+   int64_t npix;
+   int64_t npix_start;
+   int64_t npix_prev;
+   size_t nc;
+   size_t nleft;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Ensure we have the normalised form available in the Moc structure. */
+   GetNorm( this, method, status );
+
+/* Initialise a pointer into the buffer at which to store the next
+   character, and the number of elements currently left in the buffer. */
+   pwrite = buf;
+   nleft = bufsize;
+
+/* Loop over all cells in the Moc. */
+   first = 1;
+   order = -1;
+   npix_start = 0;
+   npix_prev = 0;
+   moclen = astGetMocLength( this );
+   for( icell = 0; icell < moclen; icell++ ){
+
+/* Decode the nuniq value to get the order and npix, using a fast log2
+   function. */
+      if( this->inorm ) {
+         neworder = log2_32( (this->inorm)[ icell ] / 4 ) / 2;
+         npix = (this->inorm)[ icell ] - ( 1 << (2 + 2*(neworder)) );
+      } else {
+         neworder = log2_64( (this->knorm)[ icell ] / 4 ) / 2;
+         npix = (this->knorm)[ icell ] - ( 1L << (2 + 2*(neworder)) );
+      }
+
+/* If the order has changed, record the new order then append
+   " <order>/<npix>" to the sink. */
+      if( neworder != order){
+         order = neworder;
+         npix_start = npix;
+         nc = sprintf( token, first?"%d/%zu":" %d/%zu", order, npix );
+         first = 0;
+         TOKEN_WRITE;
+
+/* If we have reached the first non-contiguous npix value, write out the
+   end of the previous range. */
+      } else if( npix > npix_prev + 1 ) {
+         if( npix_start < npix_prev ) {
+            nc = sprintf( token, "-%zu", npix_prev );
+            TOKEN_WRITE;
+         }
+
+/* Then write the (potential) start of the new range. */
+         nc = sprintf( token, ",%zu", npix );
+         TOKEN_WRITE;
+         npix_start = npix;
+      }
+
+      npix_prev = npix;
+   }
+
+
+/* If the Moc's maximum order has not yet been reached, append it
+   explicity. */
+   maxorder = astGetMaxOrder( this );
+   if( order < maxorder ) {
+      nc = sprintf( token, " %d/", maxorder );
+      TOKEN_WRITE;
+   }
+
+/* Flush anything remaining in the buffer. */
+   if( pwrite > buf ) {
+      if( sink ) {
+         (*sink)( data, pwrite - buf, buf, status );
+      } else {
+         printf( "%.*s",  (int)( pwrite - buf ), buf );
+      }
+   }
+}
+
+#undef TOKEN_WRITE
+
 static int GetMocType( AstMoc *this, int *status ){
 /*
 *  Name:
@@ -4245,15 +4938,8 @@ static void IncorporateCells( AstMoc *this, CellList *clist, int negate,
       }
    }
 
-/* Sort the new ranges added above into increasing order of lower bound. */
-   MergeRanges( this, nold, status );
-
-/* If the cell list is to be inverted, we replace the ranges added above
-   with the gaps between the ranges. */
-   if( negate ) NegateRanges( this, nold, clist->maxorder, status );
-
-/* Combine all the ranges using the specified combination method. */
-   CombineRanges( this, cmode, method, status );
+/* Normalise the Moc. */
+   astMocNorm( this, negate, cmode, nold, clist->maxorder, method );
 }
 
 void astInitMocVtab_(  AstMocVtab *vtab, const char *name, int *status ) {
@@ -4321,6 +5007,8 @@ void astInitMocVtab_(  AstMocVtab *vtab, const char *name, int *status ) {
    virtual methods for this class. */
    vtab->AddRegion = AddRegion;
    vtab->AddMocData = AddMocData;
+   vtab->AddMocString = AddMocString;
+   vtab->GetMocString = GetMocString;
    vtab->AddCell = AddCell;
    vtab->GetCell = GetCell;
    vtab->TestCell = TestCell;
@@ -5011,6 +5699,74 @@ static void MergeRanges( AstMoc *this, int start, int *status ){
 /* Clear the cached information stored in the Moc structure so that it is
    re-calculated when next needed. */
    ClearCache( this, status );
+}
+
+void astMocNorm_( AstMoc *this, int negate, int cmode, int nold,
+                  int maxorder, const char *method, int *status ){
+/*
+*+
+*  Name:
+*     astMocNorm
+
+*  Purpose:
+*     Normalise the supplied Moc.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     void astMocNorm( AstMoc *this, int negate, int cmode, int nold,
+*                      int maxorder, const char *method )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function normalises the supplied Moc. It is assumed that the
+*     ranges of HEALPix cell indices within Moc structure are in two
+*     groups: 1) range zero to range 'nold-1' are assumed to be already
+*     normalised, 2) ranges 'nold' to the end are assumed not be be
+*     normalised.
+
+*  Parameters:
+*     this
+*        Pointer to the Moc.
+*     negate
+*        If non-zero, the HEALPix cells in ranges "nold" to the end are
+*        negated before being merged with the earlier ranges.
+*     cmode
+*        Indicates how ranges 'nold' to the end are to be combined with the
+*        earlier ranges. Any of the following values may be supplied:
+*        - AST__AND: The modified Moc is the intersection of the original
+*        Moc and the cell list.
+*        - AST__OR: The modified Moc is the union of the original Moc and
+*        the cell list.
+*        - AST__XOR: The modified Moc is the exclusive disjunction of the
+*        original Moc and the cell list.
+*     nold
+*        The number of cell ranges that are already normalised.
+*     maxorder
+*        The maximum HEALPix order.
+*     method:
+*        Name of calling method to include in error messages.
+*     status
+*        The inherited status.
+
+*/
+
+/* Check inherited status */
+   if( !astOK ) return;
+
+/* Sort the new ranges into increasing order of lower bound. */
+   MergeRanges( this, nold, status );
+
+/* If the cell list is to be inverted, we replace the new ranges
+   with the gaps between the new ranges. */
+   if( negate ) NegateRanges( this, nold, maxorder, status );
+
+/* Combine all the ranges using the specified combination method. */
+   CombineRanges( this, cmode, method, status );
 }
 
 static void NegateRanges( AstMoc *this, int start, int order,
@@ -6897,6 +7653,92 @@ static void SetMaxOrder( AstMoc *this, int value, int *status ){
    ClearCache( this, status );
 }
 
+static void Sink1( void *data, size_t nc, const char *buf, int *status ){
+/*
+*  Name:
+*     Sink1
+
+*  Purpose:
+*     A sink function for use with astGetMocText
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     void Sink1( void *data, size_t nc, const char *buf, int *status )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function accumulates the length of the strings written out by
+*     astGetMocText, but does not actually write the strings out anywhere.
+
+*  Parameters:
+*     data
+*        Pointer to an arbitrary structure used to communicate with the
+*        code that is calling astGetMocText.
+*     nc
+*        The number of character to be written out from "buf".
+*     buf
+*        A buffer holding the characters to be written out.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+   if( data ) *((size_t *) data) += nc;
+}
+
+static void Sink2( void *data, size_t nc, const char *buf, int *status ){
+/*
+*  Name:
+*     Sink2
+
+*  Purpose:
+*     A sink function for use with astGetMocText
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     void Sink2( void *data, size_t nc, const char *buf, int *status )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function appends the supplied strings to the string pointed to
+*     by the supplied data structure, reporting an error if the string is
+*     too small.
+
+*  Parameters:
+*     data
+*        Pointer to an arbitrary structure used to communicate with the
+*        code that is calling astGetMocText.
+*     nc
+*        The number of character to be written out from "buf".
+*     buf
+*        A buffer holding the characters to be written out.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+   Sink2Data *data2 = (Sink2Data *) data;
+   if( !astOK ) return;
+
+   data2 = (Sink2Data *) data;
+   if( nc > data2->mxsize ) {
+      astError( AST__SMBUF, "astGetMocString(Moc): The supplied string "
+                "buffer is too small.", status );
+   } else {
+      memcpy( data2->string, buf, nc );
+      data2->string += nc;
+      data2->mxsize -= nc;
+   }
+}
+
 static int TestAttrib( AstObject *this_object, const char *attrib, int *status ) {
 /*
 *  Name:
@@ -7684,6 +8526,9 @@ f     - AST_ADDPIXELMASK<X>: the smallest order that results in the cells in
 c     - astAddMocData: the largest order present in the supplied normalised
 f     - AST_ADDMOCDATA: the largest order present in the supplied normalised
 *      MOC data array.
+*
+c     - astAddMocString: the largest order present in the supplied MOC.
+f     - AST_ADDMOCString: the largest order present in the supplied MOC.
 *
 *     A default value of -1 will be returned for the MaxOrder attribute
 *     prior to its value being set.
@@ -8765,6 +9610,12 @@ void astGetMocData_( AstMoc *this, size_t mxsize, void *array, int *status ) {
    (**astMEMBER(this,Moc,GetMocData))( this, mxsize, array, status );
 }
 
+void astGetMocString_( AstMoc *this, size_t mxsize, char *string, size_t *size,
+                       int *status ){
+   if ( !astOK ) return;
+   (**astMEMBER(this,Moc,GetMocString))( this, mxsize, string, size, status );
+}
+
 void astSetMaxOrder_( AstMoc *this, int value, int *status ){
    if ( !astOK ) return;
    (**astMEMBER(this,Moc,SetMaxOrder))( this, value, status );
@@ -8780,6 +9631,13 @@ void astAddMocData_( AstMoc *this, int cmode, int negate, int maxorder,
    if ( !astOK ) return;
    (**astMEMBER(this,Moc,AddMocData))( this, cmode, negate, maxorder, len,
                                        nbyte, data, status );
+}
+
+void astAddMocString_( AstMoc *this, int cmode, int negate, int maxorder,
+                     size_t len, const char *string, int *status ) {
+   if ( !astOK ) return;
+   (**astMEMBER(this,Moc,AddMocString))( this, cmode, negate, maxorder, len,
+                                         string, status );
 }
 
 void astAddCell_( AstMoc *this, int cmode, int order, int64_t npix, int *status ) {

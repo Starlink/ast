@@ -218,5 +218,7 @@ BDCLS           <Wrong class of object supplied>
 NOIMP           <Class does not implement the invoked method>
 BGMOC           <Normalised MOC is too big>
 INVAR           <Invalid argument value supplied to an AST method>
+INMOC           <Invalid string-encoded MOC>
+SMBUF           <Supplied buffer too small>
 
 .END
