@@ -102,6 +102,7 @@ F77_SUBROUTINE(ast_addmocstring)( INTEGER(THIS),
                                   INTEGER(MAXORDER),
                                   INTEGER8(LEN),
                                   CHARACTER(STRING),
+                                  LOGICAL(JSON),
                                   INTEGER(STATUS)
                                   TRAIL(STRING) ) {
    GENPTR_INTEGER(THIS)
@@ -110,7 +111,9 @@ F77_SUBROUTINE(ast_addmocstring)( INTEGER(THIS),
    GENPTR_INTEGER(MAXORDER)
    GENPTR_INTEGER8(LEN)
    GENPTR_CHARACTER(STRING)
+   GENPTR_LOGICAL(JSON)
    size_t len;
+   int json;
 
    if( *LEN > STRING_length ) {
       len = STRING_length;
@@ -121,7 +124,8 @@ F77_SUBROUTINE(ast_addmocstring)( INTEGER(THIS),
    astAt( "AST_ADDMOCSTRING", NULL, 0 );
    astWatchSTATUS(
       astAddMocString( astI2P( *THIS ), *CMODE, F77_ISTRUE( *NEGATE ),
-                     *MAXORDER, len, (const char *) STRING );
+                     *MAXORDER, len, (const char *) STRING, &json );
+      *JSON = json ? F77_TRUE : F77_FALSE;
    )
 }
 
@@ -290,11 +294,13 @@ F77_LOGICAL_FUNCTION(ast_testcell)( INTEGER(THIS),
 }
 
 F77_SUBROUTINE(ast_getmocstring)( INTEGER(THIS),
+                                  LOGICAL(JSON),
                                   INTEGER(MXSIZE),
                                   CHARACTER(STRING),
                                   INTEGER8(SIZE),
                                   INTEGER(STATUS) ) {
    GENPTR_INTEGER(THIS)
+   GENPTR_LOGICAL(JSON)
    GENPTR_INTEGER(MXSIZE)
    GENPTR_CHARACTER(STRING)
    GENPTR_INTEGER8(SIZE)
@@ -306,7 +312,8 @@ F77_SUBROUTINE(ast_getmocstring)( INTEGER(THIS),
 
    astAt( "AST_GETMOCSTRING", NULL, 0 );
    astWatchSTATUS(
-      astGetMocString( astI2P( *THIS ), mxsize, (char *) STRING, &size );
+      astGetMocString( astI2P( *THIS ), F77_ISTRUE( *JSON ) ? 1 : 0,
+                       mxsize, (char *) STRING, &size );
       *SIZE = size;
    )
 }

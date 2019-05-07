@@ -5,6 +5,13 @@
       include 'SAE_PAR'
       include 'CNF_PAR'
 
+      character mocjson1*47
+      parameter( mocjson1 = '{"1":[1,2,4], "2":[12,13,14,21,23,25],'//
+     :                      '"8":[]}' )
+      character mocjson2*46
+      parameter( mocjson2 = '{"1":[1,2,4],"2":[12,13,14,21,23,25],'//
+     :                      '"8":[]}' )
+
       character mocstr1*27
       parameter( mocstr1 = '1/1-2,4 2/12-14,21,23,25 8/' )
 
@@ -27,7 +34,7 @@
       double precision centre(2), point(2), lbnd(2), ubnd(2), d,
      :                 mesh1( szmesh1, 2 ), mesh2( szmesh2, 2 )
       character cval*18, buf*100
-      logical there
+      logical there, json
       integer npoint, i, moc2, moc3, dims(2), iwcs, order
       integer*8 npix, size
 
@@ -322,12 +329,12 @@ c      call ast_watchmemory( 2276565 )
 
       moc = ast_moc( ' ', status )
       call ast_addmocstring( moc, AST__OR, 0, -1, len(mocstr1), mocstr1,
-     :                       status )
-      call ast_getmocstring( moc, 0, ' ', size, status )
+     :                       json, status )
+      call ast_getmocstring( moc, .FALSE., 0, ' ', size, status )
       if( size .ne. 27 ) then
          call stopit( 'Error 33', status )
       end if
-      call ast_getmocstring( moc, len(buf), buf, size, status )
+      call ast_getmocstring( moc, .FALSE., len(buf), buf, size, status )
       if( size .ne. 27 ) then
          call stopit( 'Error 34', status )
       end if
@@ -337,12 +344,30 @@ c      call ast_watchmemory( 2276565 )
 
       moc2 = ast_moc( ' ', status )
       call ast_addmocstring( moc2, AST__OR, 0, -1, len(mocstr2),
-     :                       mocstr2, status )
+     :                       mocstr2, json, status )
       if( .not. ast_equal( moc, moc2, status ) ) then
          call stopit( 'Error 36', status )
       end if
       if( ast_geti( moc, 'MaxOrder', status ) .ne. 8 ) then
          call stopit( 'Error 37', status )
+      end if
+
+      moc = ast_moc( ' ', status )
+      call ast_addmocstring( moc, AST__OR, 0, -1, len(mocjson1),
+     :                       mocjson1, json, status )
+      if( .not. json ) then
+         call stopit( 'Error 38', status )
+      end if
+      call ast_getmocstring( moc, .TRUE., 0, ' ', size, status )
+      if( size .ne. 44 ) then
+         call stopit( 'Error 39', status )
+      end if
+      call ast_getmocstring( moc, .TRUE., len(buf), buf, size, status )
+      if( size .ne. 44 ) then
+         call stopit( 'Error 40', status )
+      end if
+      if( buf( :size ) .ne.  mocjson2( :size ) ) then
+         call stopit( 'Error 41', status )
       end if
 
 

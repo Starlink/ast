@@ -51,8 +51,6 @@ f     AST_ADDMOCDATA method.
 *
 *     Note, this class is limited to MOCs for which the number of cells
 *     in the normalised MOC can be represented in a four byte signed integer.
-*     No support is yet provided for the JSON format described
-*     in the MOC reommendation.
 
 *  Inheritance:
 *     The Moc class inherits from the Region class.
@@ -78,8 +76,8 @@ c     - astAddCell: Adds a single HEALPix cell into an existing Moc
 f     - AST_ADDCELL: Adds a single HEALPix cell into an existing Moc
 c     - astAddMocData: Adds a FITS binary table into an existing Moc
 f     - ADT_ADDMOCDATA: Adds a FITS binary table into an existing Moc
-c     - astAddMocString: Adds a string-encoded MOC into an existing Moc
-f     - ADT_ADDMOCSTRING: Adds a string-encoded MOC into an existing Moc
+c     - astAddMocString: Adds a JSON or string-encoded MOC into an existing Moc
+f     - ADT_ADDMOCSTRING: Adds a JSON or string-encoded MOC into an existing Moc
 c     - astAddPixelMask<X>: Adds a pixel mask to an existing Moc
 f     - AST_ADDPIXELMASK<X>: Adds a pixel mask to an existing Moc
 c     - astAddRegion: Adds a Region to an existing Moc
@@ -90,8 +88,8 @@ c     - astGetMocData: Get the FITS binary table data describing a Moc
 f     - AST_GETMOCDATA: Get the FITS binary table data describing a Moc
 c     - astGetMocHeader: Get the FITS binary table headers describing a Moc
 f     - AST_GETMOCHEADER: Get the FITS binary table headers describing a Moc
-c     - astGetMocString: Get the string-encoded respresentation of a Moc
-f     - AST_GETMOCSTRING: Get the string-encoded respresentation of a Moc
+c     - astGetMocString: Get the JSON or string-encoded form of a Moc
+f     - AST_GETMOCSTRING: Get the JSON or string-encoded form of a Moc
 c     - astTestCell: Test if a single HEALPix cell is included in a Moc
 f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 
@@ -123,6 +121,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        Original version.
 *     6-MAY-2019 (DSB):
 *        Added methods astAddMocString and astGetMocString.
+*     7-MAY-2019 (DSB):
+*        Modify astAddMocString and astGetMocString so that they can
+*        handle JSON encoding as well as string encodiing.
 *class--
 */
 
@@ -251,10 +252,22 @@ typedef struct Corner {
    struct Corner *prev;
 } Corner;
 
-typedef struct Sink2Data {
+typedef struct SinkData {
    char *string;
    size_t mxsize;
-} Sink2Data;
+} SinkData;
+
+typedef struct SourceData {
+   const char *string;
+   size_t mxsize;
+} SourceData;
+
+typedef struct List {
+   int nval;
+   size_t *values;
+} List;
+
+
 
 /* Module Variables. */
 /* ================= */
@@ -370,7 +383,7 @@ static int TestCell( AstMoc *, int, int64_t, int, int * );
 static int64_t XyToNested( int, int, int );
 static void AddCell( AstMoc *, int, int, int64_t, int * );
 static void AddMocData( AstMoc *, int, int, int, int, int, const void *, int * );
-static void AddMocString( AstMoc *, int, int, int, size_t, const char *, int * );
+static void AddMocString( AstMoc *, int, int, int, size_t, const char *, int *, int * );
 static void AddRegion( AstMoc *, int, AstRegion *, int * );
 static void AppendChildren( AstMoc *, Cell *, int, Cell **, int *);
 static void ClearCache( AstMoc *, int * );
@@ -380,7 +393,7 @@ static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void GetCell( AstMoc *, int, int *, int64_t *, int * );
 static void GetMocData( AstMoc *, size_t, void *, int * );
-static void GetMocString( AstMoc *, size_t, char *, size_t *, int * );
+static void GetMocString( AstMoc *, int, size_t, char *, size_t *, int * );
 static void GetNorm( AstMoc *, const char *, int * );
 static void IncorporateCells( AstMoc *, CellList *, int, int, const char *, int * );
 static void MakeCorners( AstMoc *, int, Cell *, Corner **, int, int * );
@@ -391,6 +404,7 @@ static void PutCell( AstMoc *, AstMapping **, int, int, int, CellList *, int, vo
 static void RegBaseBox( AstRegion *, double *, double *, int * );
 static void Sink1( void *, size_t, const char *, int * );
 static void Sink2( void *, size_t, const char *, int * );
+static const char *Source1( void *, size_t *, int * );
 static void TestPixels( PixelMask *, int *, AstPointSet *, int[9], int *);
 
 /* For debugging of astRegBaseMesh and astRegTrace......
@@ -829,7 +843,8 @@ f     MAXORDER  is negative.
 }
 
 static void AddMocString( AstMoc *this, int cmode, int negate, int maxorder,
-                          size_t len, const char *string, int *status ) {
+                          size_t len, const char *string, int *json,
+                          int *status ) {
 /*
 *++
 *  Name:
@@ -837,26 +852,26 @@ c     astAddMocString
 f     AST_ADDMOCSTRING
 
 *  Purpose:
-*     Adds a string-encoded MOC into an existing Moc.
+*     Adds a JSON or string-encoded MOC into an existing Moc.
 
 *  Type:
 *     Public virtual function.
 
 *  Synopsis:
 c     #include "moc.h"
-c     void astAddMocString( AstMoc *this, int cmode, int negate, int maxorder,
-c                           size_t len, const char*string );
+c     int astAddMocString( AstMoc *this, int cmode, int negate, int maxorder,
+c                          size_t len, const char*string, int *json );
 f     CALL AST_ADDMOCSTRING( THIS, CMODE, NEGATE, MAXORDER, LEN, STRING,
-f                            STATUS )
+f                            JSON, STATUS )
 
 *  Class Membership:
 *     Moc method.
 
 *  Description:
 *     This function modifies a Moc by combining it with the MOC described
-*     by the supplied string - assumed to be encoded using the string
-*     serialisation described in the MOC recommendation. The way in which they
-*     are combined is determined by the
+*     by the supplied string - assumed to be encoded using either the string
+*     or JSON serialisation described in the MOC recommendation. The way in
+*     which they are combined is determined by the
 c     "cmode" parameter.
 f     CMODE parameter.
 
@@ -908,8 +923,18 @@ f     STRING = CHARACTER * ( * ) (Given)
 c        Pointer to the
 f        The
 *        array of characters holding the supplied MOC. It should be
-*        encoded using the string serialisation described in the MOC
-*        recommendation.
+*        encoded using either the string or JSON serialisation described
+*        in the MOC recommendation. The used serialisation is determined
+*        from the first non-blank character, which should be either a
+*        curly brace ('{'- JSON serialisation) or a digit (string
+*        serialisation).
+c     json
+f     JSON = LOGICAL (Returned)
+c        Pointer to an int in which to return a
+f        A
+*        boolean flag indicating if the supplied string was interpreted
+c        using the JSON (non-zero) or string (zero) serialisation.
+f        using the JSON (.TRUE.) or string (.FALSE.) serialisation.
 f     STATUS = INTEGER (Given and Returned)
 f        The global status.
 
@@ -918,7 +943,7 @@ f        The global status.
 *     function will automatically set it to the value supplied for
 c     "Maxorder",
 f     MAXORDER,
-*     or to the largest order present in the supplied binary MOC if
+*     or to the largest order present in the supplied string MOC if
 c     "Maxorder" is negative.
 f     MAXORDER  is negative.
 *--
@@ -926,6 +951,7 @@ f     MAXORDER  is negative.
 
 /* Local Variables: */
    int nold;
+   SourceData data;
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -951,37 +977,42 @@ f     MAXORDER  is negative.
    Moc. */
    } else {
       nold = this->nrange;
-      astAddMocText( this, maxorder, len, string, "astAddMocString" );
+      data.string = string;
+      data.mxsize = len;
+      astAddMocText( this, maxorder, Source1, &data, "astAddMocString", json );
       astMocNorm( this, negate, cmode, nold, maxorder, "astAddMocString" );
    }
 }
 
-void astAddMocText_( AstMoc *this, int maxorder, size_t len, const char *string,
-                     const char *method, int *status ) {
+void astAddMocText_( AstMoc *this, int maxorder,
+                     const char *(*source)( void *, size_t *nc, int * ),
+                     void *data, const char *method, int *json, int *status ){
 /*
 *+
 *  Name:
 *     astAddMocText
 
 *  Purpose:
-*     Adds a string-encoded MOC into an existing Moc but does not normalise.
+*     Adds a JSON or string-encoded MOC into an existing Moc but does not
+*     normalise.
 
 *  Type:
 *     Protected function.
 
 *  Synopsis:
 *     #include "moc.h"
-*     void astAddMocText( AstMoc *this, int maxorder, size_t len,
-*                         const char *string, const char *method );
+*     void astAddMocText_( AstMoc *this, int maxorder,
+*                          const char *(*source)( void *, size_t *, int * ),
+*                          void *data, const char *method, int *json )
 
 *  Class Membership:
 *     Moc method.
 
 *  Description:
 *     This function identifies the ranges of cells at "maxorder" that are
-*     included in the supplied string-encoded MOC, and appends them to
-*     the cell ranges stored in the supplied Moc. It does not normalise the
-*     Moc (astMocNorm should be called to do this one all ranges have
+*     included in the supplied JSON or string-encoded MOC, and appends them
+*     to the cell ranges stored in the supplied Moc. It does not normalise
+*     the Moc (astMocNorm should be called to do this one all ranges have
 *     been added to the Moc).
 
 *  Parameters:
@@ -989,47 +1020,69 @@ void astAddMocText_( AstMoc *this, int maxorder, size_t len, const char *string,
 *        Pointer to the Moc to be modified.
 *     maxorder
 *        The maximum HEALPix order to use. If a negative value is supplied,
-*        the maximum order will be determined by searching the supplied MOC
-*        (this will take extra time). In either case, if a value has already
-*        been set for the MaxOrder attribute in the Moc, then the attribute
-*        value is used in preference to the value supplied for this parameter.
-*        Any HEALPix cells in the supplied MOC that refer to an order greater
-*        than "maxorder" are ignored.
-*     len
-*        The number of characters to read from the supplied string. If
-*        this is greater than the length of the string, it is ignored and the
-*        whole string is read.
-*     string
-*        Pointer to the array of characters holding the supplied MOC. It
-*        should be encoded using the string serialisation described in the MOC
-*        recommendation.
+*        the maximum order will be determined by searching the supplied MOC.
+*        In either case, if a value has already been set for the MaxOrder
+*        attribute in the Moc, then the attribute value is used in preference
+*        to the value supplied for this parameter. Any HEALPix cells in the
+*        supplied MOC that refer to an order greater than "maxorder" are
+*        ignored.
+*     source
+*        A function to call to read in each section of the MOC's string
+*        representation. It should have the following synopsis:
+*
+*        const char *source( void *data, size_t *nc, int *status )
+*
+*        The source function should return a pointer to a string holding the
+*        next set of characters within the JSON or string encoded MOC. It
+*        should also return the maximum number of characters (nc) to be
+*        used from the string. If a null character is found in the string
+*        before 'nc' characters have been read, parsing of the string
+*        ends at that point. The "data" pointer can be used for any purpose.
+*        A NULL pointer should be returned if there are no more characters
+*        to return.
+*     data
+*        A pointer to an arbitrary structure to be passed to the source
+*        function. Can be NULL.
 *     method
 *        Method name to include in error messages.
+*     json
+*        Pointer to an int in which to return a boolean flag indicating if
+*        the supplied string was interpreted using the JSON (non-zero) or
+*        string (zero) serialisation.
 
 *  Notes:
 *     - If no value has yet been set for attribute MaxOrder, then this
 *     function will automatically set it to the value supplied for "Maxorder",
-*     or to the largest order present in the supplied binary MOC if "Maxorder"
+*     or to the largest order present in the supplied MOC if "Maxorder"
 *     is negative.
 *-
 */
 
 /* Local Variables: */
-   char *endptr;
+   List orders[ 1 + AST__MXORDHPX ];
+   const char *text;
    const char *pend;
-   const char *pnext;
-   const char *pstart;
+   const char *pt;
+   int first;
    int irange;
    int isrange;
-   int issep;
+   int mxord;
+   int nval;
    int order;
    int shift;
-   int64_t *pr;
+   int state;
    int64_t ihigh;
    int64_t ilow;
    int64_t ipix;
-   int64_t npix0;
+   int64_t nadd;
    int64_t npix;
+   int64_t npix0;
+   int64_t *pr;
+   size_t *values;
+   size_t nc;
+
+/* Initialise */
+   *json = 0;
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -1040,223 +1093,425 @@ void astAddMocText_( AstMoc *this, int maxorder, size_t len, const char *string,
                 " 'maxorder' - must be no greater than %d.", status, method,
                 astGetClass( this ), maxorder, AST__MXORDHPX );
 
-/* If the supplied MOC is empty (i.e. len==0) then the resulting Moc
-   will be unchanged. */
-   } else if( len > 0 ) {
+/* Otherwise, read in and process the text. */
+   } else {
 
-/* Pointer to the first character not to be read. Reading will stop if
-   a terminating null occurs earlier than this. */
-      pend = string + len;
+/* Initialise the maximum order found in the text. */
+      mxord = -1;
 
-/* Skip any leading white space. */
-      while( *string && string < pend && isspace( *string ) ) string++;
+/* Initialise the current order and npix value. */
+      order = -1;
+      npix = 0;
+
+/* Indicate we are not in a string-format range. */
+      isrange = 0;
+
+/* Indicate we are currently looking for the first non-space character,
+   from which we determine the format of the supplied string. */
+      state = 0;
+
+/* Use the source function to get a pointer to a null-terminated string
+   holding the first characters to read. */
+      text = (*source)( data, &nc, status );
+
+/* Initialise the list of NPIX values at each order. */
+      for( order = 0; order <= AST__MXORDHPX; order++ ) {
+         orders[ order ].nval = 0;
+         orders[ order ].values = NULL;
+      }
+
+/* Loop to parse all available text. This loop populates the above array
+   of "Order" structures, which hold the orders used, and the NPIX values
+   at each order. It also determines the maximum order. But it does not
+   modifiy the supplied Moc structure. */
+      while( text && astOK ) {
+
+/* Process each character in the current text string, Stop when 'nc'
+   characters have been read or a null character is encountered, which ever
+   happens first.  */
+         pend = text + nc;
+         pt = text;
+         while( *pt && pt < pend ){
+
+/* If we are currently looking for the first non-space character... */
+            if( state == 0 ) {
+
+/* If the first non-space character is an opening curly brace, assume the
+   text uses JSON-serialisation, and indicate we are now looking for an
+   order value. */
+               if( *pt == '{' ) {
+                  *json = 1;
+                  state = 1;
+
+/* If the first non-space character is a digit, assume the text uses
+   string-serialisation, and indicate we are now looking for an order
+   value. Backup by one character so that the digit is re-read on the
+   next pass. */
+               } else if( isdigit( *pt ) ) {
+                  *json = 0;
+                  state = 1;
+                  pt--;
+
+/* If the first non-space character is anything else, report an error. */
+               } else if( !isspace( *pt ) ) {
+                  astError( AST__INMOC, "%s(%s): Invalid textual MOC supplied: '%.30s...'",
+                            status, method, astGetClass( this ), pt );
+                  astError( AST__INMOC, "Cannot determine the serialisation from "
+                            "the first character.", status );
+                  break;
+               }
+
+/* First deal with JSON-serialisation. */
+            } else if( *json ) {
+
+/* If we are looking for the double quote starting an order value, skip
+   spaces until we find a double quote... */
+               if( state == 1 ) {
+                  if( *pt == '"' ) {
+                     order = 0;
+                     state = 2;
+                  } else if( !isspace( *pt ) ) {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected double quote at '%.15s'.",
+                               status, pt );
+                     break;
+                  }
+
+/* If we are looking for the digits in an order value, record digits until
+   we find a double quote... */
+               } else if( state == 2 ) {
+                  if( isdigit( *pt ) ) {
+                     order = ( *pt - '0' ) + 10*order;
+                  } else if( *pt == '"' ) {
+                     state = 3;
+                  } else {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected double quote or digit "
+                               "at '%.15s'.", status, pt );
+                     break;
+                  }
+
+/* If we are looking for the colon following an order value, skip spaces
+   until we find a colon. */
+               } else if( state == 3 ) {
+                  if( *pt == ':' ) {
+                     state = 4;
+                  } else if( !isspace( *pt ) ) {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected colon at '%.15s'.",
+                               status, pt );
+                     break;
+                  }
+
+/* If we are looking for the opening square bracket that marks the start
+   of a list of NPIX values, skip spaces until we find an opening square
+   bracket. */
+               } else if( state == 4 ) {
+                  if( *pt == '[' ) {
+                     first = 1;
+                     state = 5;
+                  } else if( !isspace( *pt ) ) {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected opening square bracket "
+                               "at '%.15s'.", status, pt );
+                     break;
+                  }
+
+/* If we are looking for the first digit in an NPIX value, skip spaces until
+   we find a digit. Record the digit. Note an empty list of NPIX values is
+   acceptable so also check for a closing square bacrket so long as we
+   have not yet found any NPIX values in this list. */
+               } else if( state == 5 ) {
+                  if( isdigit( *pt ) ){
+                     state = 6;
+                     npix = *pt - '0';
+
+                  } else if( first && *pt == ']' ){
+                     if( order > mxord ) mxord = order;
+                     state = 8;
+
+                  } else if( !isspace( *pt ) ) {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected digit at '%.15s'.",
+                               status, pt );
+                     break;
+                  }
+
+/* If we are looking for the terminator marking the end of an NPIX value,
+   skip digits until we find a space, comma or closing square bracket.
+   Update the NPIX value with any digits. */
+               } else if( state == 6 ) {
+                  first = 0;
+
+                  if( isdigit( *pt ) ){
+                     npix = ( *pt - '0' ) + 10*npix;
+                  } else if( isspace( *pt ) ) {
+                     state = 7;
+                  } else if( *pt == ',' ) {
+                     state = 5;
+                  } else if( *pt == ']' ) {
+                     state = 8;
+                  } else {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected digit, comma or "
+                               "closing square bracket at '%.15s'.", status, pt );
+                     break;
+                  }
+
+/* When the NPIX value is complete append it to the current list of NPIX
+   values for the current order. */
+                  if( state != 6 ) {
+                     nval = orders[ order ].nval;
+                     if( nval == 0 && order > mxord ) mxord = order;
+                     values = astGrow( orders[ order ].values, nval + 1,
+                                       sizeof( *(orders->values) ) );
+                     if( astOK ) {
+                        values[ nval ] = npix;
+                        orders[ order ].values = values;
+                        orders[ order ].nval = nval + 1;
+                     }
+                  }
+
+/* If we are looking for a comma or closing square bracket marking the
+   end of an NPIX value, skip spaces until we find one. */
+               } else if( state == 7 ) {
+                  if( *pt == ',' ){
+                     state = 5;
+                  } else if( *pt == ']' ) {
+                     state = 8;
+                  } else if( !isspace( *pt ) ) {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected comma or closing "
+                               "square bracket at '%.15s'.", status, pt );
+                     break;
+                  }
+
+/* If we are looking for a comma or closing curly brace following a list
+   of NPIX values, skip spaces until we find one. */
+               } else if( state == 8 ) {
+                  if( *pt == ',' ){
+                     state = 1;
+                  } else if( *pt == '}' ) {
+                     state = 9;
+                  } else if( !isspace( *pt ) ) {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected comma or closing "
+                               "curly brace at '%.15s'.", status, pt );
+                     break;
+                  }
+
+/* If we are looking for any non-space characters following the closing
+   curly brace, report an error if any are found. */
+               } else if( state == 9 ) {
+                  if( !isspace( *pt ) ) {
+                     astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Illegal non-blank characters "
+                               "following final closing curly brace at '%.15s'.",
+                               status, pt );
+                     break;
+                  }
+
+/* No other state value should be encountered. */
+               } else {
+                  astError( AST__INMOC, "%s(%s): Invalid JSON 'state' value "
+                            "(%d) (internal AST programming error).", status,
+                            method, astGetClass( this ), state );
+                  break;
+               }
+
+/* Now deal with string-serialisation. */
+            } else {
+
+/* If we are looking for the first digit of an order or npix value, skip
+   spaces until we find a digit. We do not know yet whether it is an order
+   or npix value, but we use "npix" to record the value anyway. */
+               if( state == 1 ) {
+                  if( isdigit( *pt ) ) {
+                     npix = *pt - '0';
+                     state = 2;
+                  } else if( !isspace( *pt ) ) {
+                     astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Expected digit at '%.15s'.",
+                               status, pt );
+                     break;
+                  }
+
+/* If we are looking for the second and subsequent digits in an order or
+   npix value, record digits until we find a space, comma, slash or dash... */
+               } else if( state == 2 ) {
+
+/* digit - update the order or npix value recorded in "npix". */
+                  if( isdigit( *pt ) ) {
+                     npix = ( *pt - '0' ) + 10*npix;
+
+/* space or comma - the value previously recorded is an npix value,
+   either a single npix value or the end of a range of npix values.
+   Record the npix values and then look for the start of the next
+   numerical value. Report an error if the order has not yet been
+   specified. */
+                  } else if( isspace( *pt ) || *pt == ',') {
+                     if( order < 0 ) {
+                        astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                                  status, method, astGetClass( this ), text );
+                        astError( AST__INMOC, "No order value found at start "
+                                  "of string.", status );
+                        break;
+                     }
+
+                     if( !isrange ) {
+                        npix0 = npix;
+                        nadd = 1;
+                     } else {
+                        isrange = 0;
+                        nadd = npix - npix0 + 1;
+                     }
+
+                     nval = orders[ order ].nval;
+                     values = astGrow( orders[ order ].values, nval + nadd,
+                                       sizeof( *(orders->values) ) );
+                     if( astOK ) {
+                        for( ; npix0 <= npix; npix0++ ) {
+                           values[ nval++ ] = npix0;
+                        }
+
+                        orders[ order ].values = values;
+                        orders[ order ].nval = nval;
+                     }
+
+                     state = 1;
+
+/* slash - the value previously recorded is an order value. Update the
+   maximum order and then look for the start of the next numerical value. */
+                  } else if( *pt == '/' ) {
+                     order = npix;
+                     if( order > mxord ) mxord = order;
+                     state = 1;
+
+/* dash - the value previously recorded is an npix value marking the
+   start of a range. Remember the range start then look for the start
+   of the next numerical value. */
+                  } else if( *pt == '-' ) {
+                     isrange = 1;
+                     npix0 = npix;
+                     state = 1;
+
+                  } else {
+                     astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                               status, method, astGetClass( this ), text );
+                     astError( AST__INMOC, "Illegal character at '%.15s'.",
+                               status, pt );
+                     break;
+                  }
+
+/* No other state value should be encountered. */
+               } else {
+                  astError( AST__INMOC, "%s(%s): Invalid string 'state' value "
+                            "(%d) (internal AST programming error).", status,
+                            method, astGetClass( this ), state );
+                  break;
+               }
+            }
+
+/* Advance to look at the next character in the text string. */
+            pt++;
+         }
+
+/* Use the source function to get a pointer to a null-terminated string
+   holding the next set of characters to read. NULL is returned if there
+   are no more characters to read. */
+         text = (*source)( data, &nc, status );
+      }
+
+/* Check JSON mocs are terminated properly. */
+      if( *json ) {
+         if( state != 9 && astOK ) {
+            astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                      status, method, astGetClass( this ), text );
+            astError( AST__INMOC, "No closing curly brace found.", status );
+         }
+
+/* Incorporate any final numerical value in a string moc. The end of
+   string is like a terminator (space or comma) in "state 2" for
+   string mocs above. */
+      } else if( state == 2 ) {
+         if( order < 0 ) {
+            astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                      status, method, astGetClass( this ), text );
+            astError( AST__INMOC, "No order value found at start of string.",
+                      status );
+         }
+
+         if( !isrange ) {
+            npix0 = npix;
+            nadd = 1;
+         } else {
+            isrange = 0;
+            nadd = npix - npix0 + 1;
+         }
+
+         nval = orders[ order ].nval;
+         values = astGrow( orders[ order ].values, nval + nadd,
+                           sizeof( *(orders->values) ) );
+         if( astOK ) {
+            for( ; npix0 <= npix; npix0++ ) {
+               values[ nval++ ] = npix0;
+            }
+
+            orders[ order ].values = values;
+            orders[ order ].nval = nval;
+         }
+      }
 
 /* If the MaxOrder attribute is set in the Moc, use it in preference to
    the value supplied for parameter "maxorder". */
       if( astTestMaxOrder( this ) ) {
          maxorder = astGetMaxOrder( this );
 
-/* Otherwise, we use the supplied "maxorder" value. If "maxorder" was
-   not supplied (i.e. is negative), make an initial pass through the string
-   to determine the maximum order. */
+/* Otherwise, we use the supplied "maxorder" value unless "maxorder" was
+   not supplied (i.e. is negative), in which case we use the value
+   determind above from the supplied text. */
       } else {
-         if( maxorder < 0 ) {
-
-            pstart = NULL;    /* First character in integer */
-            pnext = string;   /* Next character to read */
-
-            while( *pnext && pnext < pend ) {
-               if( *pnext == '/' ) {
-                  if( pstart ) order = strtol( pstart, &endptr, 0 );
-                  if( !pstart || endptr == pstart ) {
-                     astError( AST__INMOC, "astAddMocString(%s): Invalid "
-                               "string-encoded MOC supplied: '%.30s...'",
-                               status, astGetClass( this ), string );
-                     astError( AST__INMOC, "A '/' character was found with "
-                               "no directly preceding integer at position "
-                               "%zu ('%.10s...').", status, pnext - string,
-                               pnext );
-                     break;
-                  } else if( order > maxorder ) {
-                     maxorder = order;
-                  }
-                  pstart = NULL;
-
-               } else if( isdigit( *pnext ) ){
-                  if( !pstart ) pstart = pnext;
-
-               } else {
-                  pstart = NULL;
-               }
-
-               pnext++;
-            }
-         }
-
-/* Use this value as the Moc's MaxOrder attribute value from now on. */
+         if( maxorder < 0 ) maxorder = mxord;
          astSetMaxOrder( this, maxorder );
       }
 
-/* Convert the supplied MOC string to a list of ranges of cells at
-   "maxorder" and append to the end of the ranges currently in the Moc. */
+/* For each order and NPIX value found during the parsing of the text
+   (except for any that have an order greater than 'maxorder', which are
+   ignored), get the upper and lower bounds of the cells at maxorder
+   contained within this cell, and append this as a new range to the Moc. */
+      for( order = 0; order <= maxorder; order++ ) {
+         nval = orders[ order ].nval;
+         values = orders[ order ].values;
+         shift = 2*( maxorder - order );
 
-      isrange = 0;     /* In a cell range? */
-      issep = 0;       /* In a multi-space separator? */
-      order = -1;      /* Current order */
-      pstart = NULL;   /* Pointer to start of integer */
-      pnext = string;  /* Pointer to next character to read */
+         for( ipix = 0; ipix < nval; ipix++,values++ ){
 
-/* Read all usable characters in the supplied MOC. */
-      while( *pnext && pnext < pend ) {
+            ilow = ( *values << shift );
+            ihigh = ( (*values + 1 ) << shift ) - 1;
 
-/* If the current character is a digit, set the pointer to the start of
-   the current integer (so long as we are not already in an integer). */
-         if( isdigit( *pnext ) ) {
-            if( !pstart ) pstart = pnext;
-            issep = 0;
-
-/* If the current character is not a digit, it must be a separator, a dash
-   or a slash. */
-         } else {
-
-/* If a slash, it should mark the end of an integer giving the current
-   order. Update the current order. */
-            if( *pnext == '/' ) {
-               if( pstart ) order = strtol( pstart, &endptr, 0 );
-               if( !pstart || endptr == pstart ) {
-                  astError( AST__INMOC, "astAddMocString(%s): Invalid "
-                            "string-encoded MOC supplied: '%.30s...'",
-                            status, astGetClass( this ), string );
-                  astError( AST__INMOC, "A '/' character was found with "
-                            "no directly preceding integer at position "
-                            "%zu ('%.10s...').", status, pnext - string,
-                            pnext );
-                  break;
-               }
-               issep = 0;
-
-/* If a separator.... */
-            } else if( *pnext == ' ' || *pnext == '\r' || *pnext == '\n' ||
-                       *pnext == ',' ) {
-
-/* If we are already in a separator, and the current character is a space,
-   ignore it. */
-               if( !issep || *pnext != ' ' ) {
-                  issep = 1;
-
-/* We should be in an integer. Get its value (an NPIX value identifying a
-   single cell or the end of a range of cells at order "order"). */
-                  if( pstart ) {
-                     npix = strtoll( pstart, &endptr, 0 );
-
-/* We can safely ignore any trailing white space. */
-                  } else {
-                     int ok = 1;
-                     while( *pnext && pnext < pend ) {
-                        if( !isspace( *pnext ) ) {
-                           ok = 0;
-                           break;
-                        }
-                        pnext++;
-                     }
-                     if( ok ) break;
-                  }
-
-                  if( !pstart || endptr == pstart ) {
-                     astError( AST__INMOC, "astAddMocString(%s): Invalid "
-                               "string-encoded MOC supplied: '%.30s...'",
-                               status, astGetClass( this ), string );
-                     astError( AST__INMOC, "A separator character was found with "
-                               "no directly preceding integer at position "
-                               "%zu ('%.10s...').", status, pnext - string,
-                               pnext );
-                     break;
-                  }
-
-/* Report an error if no order value has yet been found. */
-                  if( order == -1 ) {
-                     astError( AST__INMOC, "astAddMocString(%s): Invalid "
-                               "string-encoded MOC supplied: '%.30s...'",
-                               status, astGetClass( this ), string );
-                     astError( AST__INMOC, "The string does not start with a "
-                               "ORDER value.", status );
-                     break;
-                  } else {
-                     shift = 2*( maxorder - order );
-                  }
-
-/* Loop round each cell in the range */
-                  if( !isrange ) npix0 = npix;
-                  for( ipix = npix0; ipix <= npix; ipix++ ) {
-
-/* Get the upper and lower bounds of the cells at maxorder contained within
-   this cell, and append this as a new range to the Moc. */
-                     ilow = ( ipix << shift );
-                     ihigh = ( (ipix + 1 ) << shift ) - 1;
-
-                     irange = this->nrange++;
-                     this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
-                     if( astOK ) {
-                        pr = this->range + 2*irange;
-                        pr[ 0 ] = ilow;
-                        pr[ 1 ] = ihigh;
-                     } else {
-                        break;
-                     }
-                  }
-
-/* Indicate we are not reading a cell range. */
-                  isrange = 0;
-               }
-
-/* If a dash... */
-            } else if( *pnext == '-' ) {
-               issep = 0;
-
-/* We should be in an integer. Get its value (the NPIX value identifying
-   the start of a range of cells at order "order"). */
-               if( pstart ) npix0 = strtoll( pstart, &endptr, 0 );
-               if( !pstart || endptr == pstart ) {
-                  astError( AST__INMOC, "astAddMocString(%s): Invalid "
-                            "string-encoded MOC supplied: '%.30s...'",
-                            status, astGetClass( this ), string );
-                  astError( AST__INMOC, "A separator character was found with "
-                            "no directly preceding integer at position %zu "
-                            "('%.10s...').", status, pnext - string, pnext );
-                  break;
-               }
-
-/* Indicate we are reading a cell range. We expect the next integer to be
-   the end of the range.  */
-               if( ! isrange ) {
-                  isrange = 1;
-               } else {
-                  astError( AST__INMOC, "astAddMocString(%s): Invalid "
-                            "string-encoded MOC supplied: '%.30s...'",
-                            status, astGetClass( this ), string );
-                  astError( AST__INMOC, "A spurious dash was found at "
-                            "position %zu ('%.10s...').", status,
-                            pnext - string, pnext );
-                  break;
-               }
-
-/* Anything else is an error. */
+            irange = this->nrange++;
+            this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
+            if( astOK ) {
+               pr = this->range + 2*irange;
+               pr[ 0 ] = ilow;
+               pr[ 1 ] = ihigh;
             } else {
-               astError( AST__INMOC, "astAddMocString(%s): Invalid "
-                         "string-encoded MOC supplied: '%.30s...'",
-                         status, astGetClass( this ), string );
-               astError( AST__INMOC, "Illegal character '%c' found at "
-                         "position %zu ('%.10s...').", status, *pnext,
-                         pnext - string, pnext );
                break;
             }
-
-/* Indicate we are not currently in an integer. */
-            pstart = NULL;
          }
 
-/* Move on to the next character to be read. */
-         pnext++;
+/* Free the list of NPIX values at each order. */
+         orders[ order ].values = astFree( orders[ order ].values );
       }
    }
 }
@@ -4084,7 +4339,7 @@ static int GetMocLength( AstMoc *this, int *status ){
    return this->moclength;
 }
 
-static void GetMocString( AstMoc *this, size_t mxsize, char *string,
+static void GetMocString( AstMoc *this, int json, size_t mxsize, char *string,
                           size_t *size, int *status ){
 /*
 *++
@@ -4093,28 +4348,34 @@ c     astGetMocString
 f     AST_GETMOCSTRING
 
 *  Purpose:
-*     Get the streng-encoded representation of a Moc
+*     Get the JSON or string-encoded representation of a Moc
 
 *  Type:
 *     Public function.
 
 *  Synopsis:
 c     #include "moc.h"
-c     void astGetMocString( AstMoc *this, size_t mxsize, char *string,
-c                           size_t *size, int *status )
-f     CALL AST_GETMOCSTRING( THIS, MXSIZE, STRING, SIZE, STATUS )
+c     void astGetMocString( AstMoc *this, int json, size_t mxsize,
+c                           char *string, size_t *size, int *status )
+f     CALL AST_GETMOCSTRING( THIS, JSON, MXSIZE, STRING, SIZE, STATUS )
 
 *  Class Membership:
 *     Moc method.
 
 *  Description:
-*     This function stores the string-encoded representation of the
-*     supplied Moc in the supplied string buffer.
+*     This function stores the JSON or string-encoded representation of
+*     the supplied Moc in the supplied string buffer.
 
 *  Parameters:
 c     this
 f     THIS = INTEGER (Given)
 *        Pointer to the Moc.
+c     json
+f     JSON = LOGICAL (Given)
+c        If non-zero,
+f        If .TRUE.,
+*        the Moc is encoded using JSON serialisation. Otherwise it is
+*        encoded using string-serialisation.
 c     mxsize
 f     MXSIZE = INTEGER (Given)
 *        The length of the supplied string buffer in bytes. An error will
@@ -4128,7 +4389,7 @@ c     string
 f     STRING( * ) = BYTE (Returned)
 c        Pointer to the
 f        The
-*        area of memory in which to return the string-encoded
+*        area of memory in which to return the JSON or string-encoded
 *        representation of the Moc. This area is assumed to contain at least
 c        'mxsize' bytes. Only used if 'mxsize' is greater than zero.
 f        MXSIZE bytes. Only used if MXSIZE is greater than zero.
@@ -4136,7 +4397,7 @@ c        Note, the string is not null-terminated.
 c     size
 f     SIZE = INTEGER*8 (Returned)
 *        Returned holding the number of bytes needed to store the complete
-*        string-encoded representation of the Moc.
+*        JSON or string-encoded representation of the Moc.
 f     STATUS = INTEGER (Given and Returned)
 f        The global status.
 
@@ -4145,7 +4406,7 @@ f        The global status.
 
 /* Local Variables: */
    char lbuf[ 200 ];
-   Sink2Data data2;
+   SinkData data2;
    void *data;
    void (*sink)( void *, size_t, const char *, int * );
 
@@ -4172,13 +4433,14 @@ f        The global status.
 
 /* Do the work. The sink function is called to write out the buffer each
    time the buffer is filled. */
-   astGetMocText( this, sizeof( lbuf ), lbuf, sink, data, "astGetMocString" );
+   astGetMocText( this, json, sizeof( lbuf ), lbuf, sink, data,
+                  "astGetMocString" );
 
 /* Return the used size, if it is not already there. */
    if( mxsize > 0 ) *size = mxsize - data2.mxsize;
 }
 
-void astGetMocText_( AstMoc *this, size_t bufsize, char *buf,
+void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
                      void (*sink)( void *, size_t, const char *, int * ),
                      void *data, const char *method, int *status ){
 /*
@@ -4187,14 +4449,14 @@ void astGetMocText_( AstMoc *this, size_t bufsize, char *buf,
 *     astGetMocText
 
 *  Purpose:
-*     Gets a string-encoded representation of the supplied Moc.
+*     Gets a JSON or string-encoded representation of the supplied Moc.
 
 *  Type:
 *     Protected function.
 
 *  Synopsis:
 *     #include "moc.h"
-*     void astGetMocText( AstMoc *this, size_t bufsize, char *buf,
+*     void astGetMocText( AstMoc *this, int json, size_t bufsize, char *buf,
 *                         void (*sink)( void *, size_t, const char *, int * ),
 *                         void *data, const char *method, int *status )
 
@@ -4203,20 +4465,23 @@ void astGetMocText_( AstMoc *this, size_t bufsize, char *buf,
 
 *  Description:
 *     This function converts the supplied Moc to a text string using the
-*     string serialisation described in the MOC recommendation.
+*     JSON or string serialisation described in the MOC recommendation.
 
 *  Parameters:
 *     this
 *        Pointer to the Moc.
+*     json
+*        If non-zero, the Moc is encoded using JSON serialisation. Otherwise
+*        it is encoded using string-serialisation.
 *     bufsize
 *        Length of "buf" in bytes.
 *     buf
-*        A buffer in which to store a section of the Moc's string
+*        A buffer in which to store a section of the Moc's JSON or string
 *        representation. It must have room for at least "bufsize"
 *        characters.
 *     sink
-*        A function to call to write out each section of the MOC's string
-*        representation. It shoud have the following synopsis:
+*        A function to call to write out each section of the MOC's JSON or
+*        string representation. It should have the following synopsis:
 *
 *        void sink( void *data, size_t bufsize, const char *buf, int *status )
 *
@@ -4234,7 +4499,7 @@ void astGetMocText_( AstMoc *this, size_t bufsize, char *buf,
 *-
 */
 
-/* Macro to append a token to the buffer, flushing the buiffer using the
+/* Macro to append a token to the buffer, flushing the buffer using the
    sink function if the buffer fills up. */
 #define TOKEN_WRITE \
    ptok = token; \
@@ -4301,38 +4566,75 @@ void astGetMocText_( AstMoc *this, size_t bufsize, char *buf,
          npix = (this->knorm)[ icell ] - ( 1L << (2 + 2*(neworder)) );
       }
 
-/* If the order has changed, record the new order then append
-   " <order>/<npix>" to the sink. */
-      if( neworder != order){
-         order = neworder;
-         npix_start = npix;
-         nc = sprintf( token, first?"%d/%zu":" %d/%zu", order, npix );
-         first = 0;
-         TOKEN_WRITE;
+/* First do JSON serialisatioon... */
+      if( json ) {
 
-/* If we have reached the first non-contiguous npix value, write out the
-   end of the previous range. */
-      } else if( npix > npix_prev + 1 ) {
-         if( npix_start < npix_prev ) {
-            nc = sprintf( token, "-%zu", npix_prev );
+/* If the order has changed, complete any previous pixlist, and start a
+   new one. */
+         if( neworder != order){
+            order = neworder;
+            nc = sprintf( token, first?"{\"%d\":[%zu":"],\"%d\":[%zu",
+                          order, npix );
+            first = 0;
+            TOKEN_WRITE;
+
+/* If the order has not changed, just append the new npix value to the
+   existing pixlist. */
+         } else {
+            nc = sprintf( token, ",%zu", npix );
             TOKEN_WRITE;
          }
 
-/* Then write the (potential) start of the new range. */
-         nc = sprintf( token, ",%zu", npix );
-         TOKEN_WRITE;
-         npix_start = npix;
-      }
+/* Now do string serialisation... */
+      } else {
 
-      npix_prev = npix;
+/* If the order has changed, record the new order then append
+   " <order>/<npix>" to the sink. */
+         if( neworder != order){
+            order = neworder;
+            npix_start = npix;
+            nc = sprintf( token, first?"%d/%zu":" %d/%zu", order, npix );
+            first = 0;
+            TOKEN_WRITE;
+
+/* If we have reached the first non-contiguous npix value, write out the
+   end of the previous range. */
+         } else if( npix > npix_prev + 1 ) {
+            if( npix_start < npix_prev ) {
+               nc = sprintf( token, "-%zu", npix_prev );
+               TOKEN_WRITE;
+            }
+
+/* Then write the (potential) start of the new range. */
+            nc = sprintf( token, ",%zu", npix );
+            TOKEN_WRITE;
+            npix_start = npix;
+         }
+         npix_prev = npix;
+      }
    }
 
+/* Terminate the last pixlist in the JSON string. */
+   if( json ) {
+      nc = sprintf( token, "]" );
+      TOKEN_WRITE;
+   }
 
 /* If the Moc's maximum order has not yet been reached, append it
    explicity. */
    maxorder = astGetMaxOrder( this );
    if( order < maxorder ) {
-      nc = sprintf( token, " %d/", maxorder );
+      if( json ) {
+         nc = sprintf( token, ",\"%d\":[]", maxorder );
+      } else {
+         nc = sprintf( token, " %d/", maxorder );
+      }
+      TOKEN_WRITE;
+   }
+
+/* Terminate the complete JSON string. */
+   if( json ) {
+      nc = sprintf( token, "}" );
       TOKEN_WRITE;
    }
 
@@ -7725,10 +8027,10 @@ static void Sink2( void *data, size_t nc, const char *buf, int *status ){
 *        Pointer to the inherited status variable.
 
 */
-   Sink2Data *data2 = (Sink2Data *) data;
    if( !astOK ) return;
 
-   data2 = (Sink2Data *) data;
+   SinkData *data2 = (SinkData *) data;
+
    if( nc > data2->mxsize ) {
       astError( AST__SMBUF, "astGetMocString(Moc): The supplied string "
                 "buffer is too small.", status );
@@ -7737,6 +8039,59 @@ static void Sink2( void *data, size_t nc, const char *buf, int *status ){
       data2->string += nc;
       data2->mxsize -= nc;
    }
+}
+
+static const char *Source1( void *data, size_t *nc, int *status ){
+/*
+*  Name:
+*     Source1
+
+*  Purpose:
+*     A source function for use with astAddMocText
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     const char *Source1( void *data, size_t *nc, int *status )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function returns a pointer to the next set of characters to be
+*     added into the Moc by astAddMocText, together with the number of
+*     characters in the set.
+
+*  Parameters:
+*     data
+*        Pointer to an arbitrary structure used to communicate with the
+*        code that is calling astAddMocText.
+*     nc
+*        Returned holding the number of character to be added into the Moc.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A pointer to the characters to be added into the Moc, or NULL if no
+*     more characters remain to be added or an error has occurred.
+
+*/
+
+   SourceData *data2 = (SourceData *) data;
+   const char *result = NULL;
+   *nc = 0;
+
+   if( !astOK || ! data ) return result;
+
+   result = data2->string;
+   *nc = data2->mxsize;
+
+   data2->string = NULL;
+   data2->mxsize = 0;
+
+   return result;
 }
 
 static int TestAttrib( AstObject *this_object, const char *attrib, int *status ) {
@@ -9610,10 +9965,11 @@ void astGetMocData_( AstMoc *this, size_t mxsize, void *array, int *status ) {
    (**astMEMBER(this,Moc,GetMocData))( this, mxsize, array, status );
 }
 
-void astGetMocString_( AstMoc *this, size_t mxsize, char *string, size_t *size,
-                       int *status ){
+void astGetMocString_( AstMoc *this, int json, size_t mxsize, char *string,
+                       size_t *size, int *status ){
    if ( !astOK ) return;
-   (**astMEMBER(this,Moc,GetMocString))( this, mxsize, string, size, status );
+   (**astMEMBER(this,Moc,GetMocString))( this, json, mxsize, string, size,
+                                         status );
 }
 
 void astSetMaxOrder_( AstMoc *this, int value, int *status ){
@@ -9634,10 +9990,10 @@ void astAddMocData_( AstMoc *this, int cmode, int negate, int maxorder,
 }
 
 void astAddMocString_( AstMoc *this, int cmode, int negate, int maxorder,
-                     size_t len, const char *string, int *status ) {
+                     size_t len, const char *string, int *json, int *status ) {
    if ( !astOK ) return;
    (**astMEMBER(this,Moc,AddMocString))( this, cmode, negate, maxorder, len,
-                                         string, status );
+                                         string, json, status );
 }
 
 void astAddCell_( AstMoc *this, int cmode, int order, int64_t npix, int *status ) {
