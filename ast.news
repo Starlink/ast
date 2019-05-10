@@ -19,8 +19,12 @@ Main Changes in this Version
 ----------------------------
 
 - The Moc class now supports version 1.1 of the the MOC recommendation.
-This includes new support for string and JSON encoded MOCs.
+This includes new support for string and JSON encoded MOCs. See methods
+astGetMocString and astAddMocString in the Moc class, and also the new
+MocChan class.
 
+- The FitsChan class will now read FITS-WCS headers that have
+alternate axis descriptions but no primary axis descriptions.
 
 Main Changes in V8.7.0
 ----------------------

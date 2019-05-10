@@ -32,6 +32,7 @@ GRP_C_ROUTINES = \
     matrixmap.c \
     memory.c \
     moc.c \
+    mocchan.c \
     normmap.c \
     nullregion.c \
     object.c \
@@ -106,6 +107,7 @@ F_C_ROUTINES = \
     fmathmap.c \
     fmatrixmap.c \
     fmoc.c \
+    fmocchan.c \
     fnormmap.c \
     fnullregion.c \
     fobject.c \
@@ -224,6 +226,7 @@ AST_H_FILES = \
              timeframe.h \
        channel.h \
           fitschan.h \
+          mocchan.h \
           stcschan.h \
           xmlchan.h
 

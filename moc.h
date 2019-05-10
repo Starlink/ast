@@ -256,7 +256,7 @@ AstFitsChan *astGetMocHeader_( AstMoc *, int * );
 # if defined(astCLASS)           /* Protected */
 void astMocNorm_( AstMoc *, int, int, int, int, const char *, int *);
 void astAddMocText_( AstMoc *, int, const char *(*)( void *, size_t *, int * ), void *, const char *, int *, int * );
-void astGetMocText_( AstMoc *, int, size_t, char *, void (*)( void *, size_t, const char *, int * ), void *, const char *, int * );
+void astGetMocText_( AstMoc *, int, size_t, void (*)( void *, size_t, const char *, int * ), void *, const char *, int * );
 
 int astGetMocType_( AstMoc *, int * );
 double astGetMocArea_( AstMoc *, int * );
@@ -373,8 +373,8 @@ astINVOKE(O,astGetMocHeader_(astCheckMoc(this),STATUS_PTR))
 astMocNorm_(astCheckMoc(this),negate,cmode,nold,maxorder,method,STATUS_PTR)
 #define astAddMocText(this,maxorder,source,data,method,json) \
 astAddMocText_(this,maxorder,source,data,method,json,STATUS_PTR)
-#define astGetMocText(this,json,bufsize,buf,sink,data,method) \
-astGetMocText_(astCheckMoc(this),json,bufsize,buf,sink,data,method,STATUS_PTR)
+#define astGetMocText(this,json,buflen,sink,data,method) \
+astGetMocText_(astCheckMoc(this),json,buflen,sink,data,method,STATUS_PTR)
 
 #define astGetMocType(this) \
 astINVOKE(V,astGetMocType_(astCheckMoc(this),STATUS_PTR))

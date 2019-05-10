@@ -35,6 +35,7 @@
 #include "matrixmap.h"
 #include "memory.h"
 #include "moc.h"
+#include "mocchan.h"
 #include "normmap.h"
 #include "nullregion.h"
 #include "object.h"
@@ -189,6 +190,7 @@ typedef struct AstGlobals {
    AstIntervalGlobals Interval;
    AstMatrixMapGlobals MatrixMap;
    AstMocGlobals Moc;
+   AstMocChanGlobals MocChan;
    AstNormMapGlobals NormMap;
    AstNullRegionGlobals NullRegion;
    AstPermMapGlobals PermMap;

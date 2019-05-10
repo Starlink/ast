@@ -21900,11 +21900,9 @@ weight when pasting each separate input data array into the output mosaic.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.7.0}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.6.3 and V8.7.0 (the
-current version):
+\subsection{Changes Introduced in V8.7.0}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.6.3 and V8.7.0:
 
 \begin{enumerate}
 
@@ -21921,6 +21919,24 @@ non-zero for Regions defined within a SkyFrame, regardless of whether the
 Region has been negated. Previously, it was non-zero only if the Region
 had not been negated. Note, this change only affects Regions defined
 within SkyFrames.
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V8.7.1}
+The following describes the most significant changes which have
+occurred in the AST library between versions V8.7.0 and V8.7.1 (the
+current version):
+
+\begin{enumerate}
+
+\item The Moc class now supports version 1.1 of the the MOC recommendation.
+This includes new support for string and JSON encoded MOCs. See methods
+astGetMocString and astAddMocString in the Moc class, and also the new
+MocChan class.
+
+\item The FitsChan class will now read FITS-WCS headers that have
+alternate axis descriptions but no primary axis descriptions.
 
 \end{enumerate}
 

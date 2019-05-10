@@ -26,6 +26,7 @@
 #include "mathmap.h"
 #include "matrixmap.h"
 #include "moc.h"
+#include "mocchan.h"
 #include "nullregion.h"
 #include "object.h"
 #include "pcdmap.h"
@@ -150,6 +151,7 @@ if ( !strcmp( class, #name ) ) return (AstLoaderType *) astLoad##name##_
    LOAD(MathMap);
    LOAD(MatrixMap);
    LOAD(Moc);
+   LOAD(MocChan);
    LOAD(NullRegion);
    LOAD(Object);
    LOAD(PcdMap);

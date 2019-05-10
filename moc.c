@@ -263,7 +263,7 @@ typedef struct SourceData {
 } SourceData;
 
 typedef struct List {
-   int nval;
+   int64_t nval;
    size_t *values;
 } List;
 
@@ -538,7 +538,8 @@ f     ORDER = INTEGER (Given)
 *        higher than the maximum order allowed in the Moc (as given by its
 *        MaxOrder attribute). If no value has been set for the MaxOrder
 *        attribute, calling this method causes it to be set to the supplied
-*        order value.
+*        order value. So the highest order cells should usually be added
+*        first.
 c     npix
 f     NPIX = INTEGER*8 (Given)
 *        The "npix" value identifying the required cell (see the MOC
@@ -980,7 +981,8 @@ f     MAXORDER  is negative.
       data.string = string;
       data.mxsize = len;
       astAddMocText( this, maxorder, Source1, &data, "astAddMocString", json );
-      astMocNorm( this, negate, cmode, nold, maxorder, "astAddMocString" );
+      astMocNorm( this, negate, cmode, nold, astGetMaxOrder( this ),
+                  "astAddMocString" );
    }
 }
 
@@ -1061,24 +1063,25 @@ void astAddMocText_( AstMoc *this, int maxorder,
 /* Local Variables: */
    List orders[ 1 + AST__MXORDHPX ];
    const char *text;
-   const char *pend;
    const char *pt;
+   const char *pend;
    int first;
    int irange;
    int isrange;
    int mxord;
-   int nval;
    int order;
    int shift;
    int state;
+   int64_t *pr;
    int64_t ihigh;
    int64_t ilow;
    int64_t ipix;
    int64_t nadd;
-   int64_t npix;
    int64_t npix0;
-   int64_t *pr;
+   int64_t npix;
+   int64_t nval;
    size_t *values;
+   size_t nbyte;
    size_t nc;
 
 /* Initialise */
@@ -1105,6 +1108,7 @@ void astAddMocText_( AstMoc *this, int maxorder,
 
 /* Indicate we are not in a string-format range. */
       isrange = 0;
+      npix0 = 0;
 
 /* Indicate we are currently looking for the first non-space character,
    from which we determine the format of the supplied string. */
@@ -1269,8 +1273,8 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   if( state != 6 ) {
                      nval = orders[ order ].nval;
                      if( nval == 0 && order > mxord ) mxord = order;
-                     values = astGrow( orders[ order ].values, nval + 1,
-                                       sizeof( *(orders->values) ) );
+                     nbyte = ( nval + 1 )*sizeof( size_t );
+                     values = astGrow( orders[ order ].values, 1, nbyte );
                      if( astOK ) {
                         values[ nval ] = npix;
                         orders[ order ].values = values;
@@ -1377,8 +1381,8 @@ void astAddMocText_( AstMoc *this, int maxorder,
                      }
 
                      nval = orders[ order ].nval;
-                     values = astGrow( orders[ order ].values, nval + nadd,
-                                       sizeof( *(orders->values) ) );
+                     nbyte = ( nval + nadd )*sizeof( size_t );
+                     values = astGrow( orders[ order ].values, 1, nbyte );
                      if( astOK ) {
                         for( ; npix0 <= npix; npix0++ ) {
                            values[ nval++ ] = npix0;
@@ -1460,8 +1464,8 @@ void astAddMocText_( AstMoc *this, int maxorder,
          }
 
          nval = orders[ order ].nval;
-         values = astGrow( orders[ order ].values, nval + nadd,
-                           sizeof( *(orders->values) ) );
+         nbyte = ( nval + nadd )*sizeof( size_t );
+         values = astGrow( orders[ order ].values, 1, nbyte );
          if( astOK ) {
             for( ; npix0 <= npix; npix0++ ) {
                values[ nval++ ] = npix0;
@@ -4405,10 +4409,10 @@ f        The global status.
 */
 
 /* Local Variables: */
-   char lbuf[ 200 ];
    SinkData data2;
    void *data;
    void (*sink)( void *, size_t, const char *, int * );
+   size_t buflen;
 
 /* Initialise */
    *size = 0;
@@ -4433,14 +4437,14 @@ f        The global status.
 
 /* Do the work. The sink function is called to write out the buffer each
    time the buffer is filled. */
-   astGetMocText( this, json, sizeof( lbuf ), lbuf, sink, data,
-                  "astGetMocString" );
+   buflen = ( mxsize > 0 ) ? mxsize : 80;
+   astGetMocText( this, json, buflen, sink, data, "astGetMocString" );
 
 /* Return the used size, if it is not already there. */
    if( mxsize > 0 ) *size = mxsize - data2.mxsize;
 }
 
-void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
+void astGetMocText_( AstMoc *this, int json, size_t buflen,
                      void (*sink)( void *, size_t, const char *, int * ),
                      void *data, const char *method, int *status ){
 /*
@@ -4456,7 +4460,7 @@ void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
 
 *  Synopsis:
 *     #include "moc.h"
-*     void astGetMocText( AstMoc *this, int json, size_t bufsize, char *buf,
+*     void astGetMocText( AstMoc *this, int json, size_t buflen,
 *                         void (*sink)( void *, size_t, const char *, int * ),
 *                         void *data, const char *method, int *status )
 
@@ -4473,12 +4477,9 @@ void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
 *     json
 *        If non-zero, the Moc is encoded using JSON serialisation. Otherwise
 *        it is encoded using string-serialisation.
-*     bufsize
-*        Length of "buf" in bytes.
-*     buf
-*        A buffer in which to store a section of the Moc's JSON or string
-*        representation. It must have room for at least "bufsize"
-*        characters.
+*     buflen
+*        The maximum number of characters sent to the sink function in each
+*        call.
 *     sink
 *        A function to call to write out each section of the MOC's JSON or
 *        string representation. It should have the following synopsis:
@@ -4506,13 +4507,13 @@ void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
    while( nc > nleft ) { \
       if( nleft ) memcpy( pwrite, ptok, nleft ); \
       if( sink ) { \
-         (*sink)( data, bufsize, buf, status ); \
+         (*sink)( data, buflen, buf, status ); \
       } else { \
-         printf( "%.*s", (int) bufsize, buf ); \
+         printf( "%.*s", (int) buflen, buf ); \
       } \
       ptok += nleft; \
       nc -= nleft; \
-      nleft = bufsize; \
+      nleft = buflen; \
       pwrite = buf; \
    } \
    if( nc > 0 ) { \
@@ -4522,6 +4523,7 @@ void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
    }
 
 /* Local Variables: */
+   char *buf;
    char *ptok;
    char *pwrite;
    char token[ 30 ];
@@ -4543,10 +4545,13 @@ void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
 /* Ensure we have the normalised form available in the Moc structure. */
    GetNorm( this, method, status );
 
+/* Allocate a suitable buffer */
+   buf = astMalloc( buflen );
+
 /* Initialise a pointer into the buffer at which to store the next
    character, and the number of elements currently left in the buffer. */
    pwrite = buf;
-   nleft = bufsize;
+   nleft = buflen;
 
 /* Loop over all cells in the Moc. */
    first = 1;
@@ -4588,9 +4593,13 @@ void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
 /* Now do string serialisation... */
       } else {
 
-/* If the order has changed, record the new order then append
-   " <order>/<npix>" to the sink. */
+/* If the order has changed, finish any previous pixlist, record the new
+   order then append " <order>/<npix>" to the sink. */
          if( neworder != order){
+            if( npix_start < npix_prev ) {
+               nc = sprintf( token, "-%zu", npix_prev );
+               TOKEN_WRITE;
+            }
             order = neworder;
             npix_start = npix;
             nc = sprintf( token, first?"%d/%zu":" %d/%zu", order, npix );
@@ -4614,9 +4623,12 @@ void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
       }
    }
 
-/* Terminate the last pixlist in the JSON string. */
+/* Terminate the last pixlist. */
    if( json ) {
       nc = sprintf( token, "]" );
+      TOKEN_WRITE;
+   } else if( npix_start < npix ) {
+      nc = sprintf( token, "-%zu", npix );
       TOKEN_WRITE;
    }
 
@@ -4646,6 +4658,9 @@ void astGetMocText_( AstMoc *this, int json, size_t bufsize, char *buf,
          printf( "%.*s",  (int)( pwrite - buf ), buf );
       }
    }
+
+/* Free the buffer. */
+   buf = astFree( buf );
 }
 
 #undef TOKEN_WRITE

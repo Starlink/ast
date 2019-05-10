@@ -193,6 +193,7 @@ AstGlobals *astGlobalsInit_( void ) {
       INIT( Interval );
       INIT( MatrixMap );
       INIT( Moc );
+      INIT( MocChan );
       INIT( NormMap );
       INIT( NullRegion );
       INIT( PermMap );
