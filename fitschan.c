@@ -1219,7 +1219,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        present for the header to be considered FITS-WCS of some
 *        flavour. These keywords have defined default values in FITS-WCS
 *        paper 1 and so can be missing in a valid FITS-WCS header.
-
+*     10-MAY-2019 (DSB):
+*        Cater for reading FITS-WCS headers that have alternate axis
+*        descriptions but do not have any primary axis descriptions
+*        (see email from Bill Joye on 9/5/2019).
 *class--
 */
 
@@ -1615,7 +1618,7 @@ static pthread_mutex_t mutex4 = PTHREAD_MUTEX_INITIALIZER;
 static char getattrib_buff[ AST__FITSCHAN_GETATTRIB_BUFF_LEN + 1 ];
 
 /* Buffer for returned text string in CnvType */
-static char cnvtype_text[ AST__FITSCHAN_FITSCARDLEN + 1 ];
+static char cnvtype_text[ 2*AST__FITSCHAN_FITSCARDLEN + 3 ];
 
 /* Buffer for real value in CnvType */
 static char cnvtype_text0[ AST__FITSCHAN_FITSCARDLEN + 1 ];
@@ -10645,6 +10648,9 @@ static FitsStore *FitsToStore( AstFitsChan *this, int encoding,
 /* Local Variables: */
    AstFitsChan *trans;
    FitsStore *ret;
+   char s;
+   char smax;
+   int naxis;
 
 /* Initialise */
    ret = NULL;
@@ -10719,8 +10725,13 @@ static FitsStore *FitsToStore( AstFitsChan *this, int encoding,
       if( trans ) trans = (AstFitsChan *) astDelete( trans );
 
 /* Store the number of pixel axes. This is taken as the highest index used
-   in any primary CRPIX keyword. */
+   in any primary or alternate CRPIX keyword. */
       ret->naxis = GetMaxJM( &(ret->crpix), ' ', status ) + 1;
+      smax = GetMaxS( &(ret->crval), status );
+      for( s = 'A'; s <= smax && astOK; s++ ){
+         naxis = GetMaxJM( &(ret->crpix), s, status ) + 1;
+         if( naxis > ret->naxis ) ret->naxis = naxis;
+      }
    }
 
 /* If an error has occurred, free the returned FitsStore, and return a null
@@ -11224,8 +11235,11 @@ static AstObject *FsetFromStore( AstFitsChan *this, FitsStore *store,
       pixel = astGetCurrent( ret );
 
 /* Produce the Frame describing the primary axis descriptions, and add it
-   into the FrameSet. */
-      AddFrame( this, ret, pixel, store->naxis, store, ' ', method, class, status );
+   into the FrameSet. Only do this if there are some primary axis
+   descriptions. */
+      if( GetMaxJM( &(store->crpix), ' ', status ) >= 0 ) {
+         AddFrame( this, ret, pixel, store->naxis, store, ' ', method, class, status );
+      }
 
 /* Get the index of the primary physical co-ordinate Frame in the FrameSet. */
       physical = astGetCurrent( ret );
@@ -11801,16 +11815,17 @@ static int GetEncoding( AstFitsChan *this, int *status ){
 
 /* See if the header contains some CTYPE, CRPIX or CRVAL keywords. Note,
    the FITS-WCS standard provides defaults for these keywords and so we
-   cannot rely on them all being present. */
-      haswcs = astKeyFields( this, "CTYPE%d", 0, NULL, NULL ) ||
-               astKeyFields( this, "CRPIX%d", 0, NULL, NULL ) ||
-               astKeyFields( this, "CRVAL%d", 0, NULL, NULL );
+   cannot rely on them all being present. Check alternate axis descriptions
+   as well as primary axis descriptions. */
+      haswcs = astKeyFields( this, "CTYPE%d%0c", 0, NULL, NULL ) ||
+               astKeyFields( this, "CRPIX%d%0c", 0, NULL, NULL ) ||
+               astKeyFields( this, "CRVAL%d%0c", 0, NULL, NULL );
 
 /* See if there are any CDi_j keywords. */
-      hascd = astKeyFields( this, "CD%1d_%1d", 0, NULL, NULL );
+      hascd = astKeyFields( this, "CD%1d_%1d%0c", 0, NULL, NULL );
 
 /* See if there are any PCi_j keywords. */
-      haspc = astKeyFields( this, "PC%1d_%1d", 0, NULL, NULL );
+      haspc = astKeyFields( this, "PC%1d_%1d%0c", 0, NULL, NULL );
 
 /* Save the current card index, and rewind the FitsChan. */
       icard = astGetCard( this );
@@ -11885,7 +11900,7 @@ static int GetEncoding( AstFitsChan *this, int *status ){
 
 /* Otherwise, if the FitsChan contains any keywords with the format
    "CRVALi" then return "FITS-WCS" encoding. */
-      } else if( haswcs && astKeyFields( this, "CRVAL%d", 0, NULL, NULL ) ){
+      } else if( haswcs && astKeyFields( this, "CRVAL%d%0c", 0, NULL, NULL ) ){
          ret = FITSWCS_ENCODING;
 
 /* If none of these conditions is met, assume Native encoding. */
