@@ -860,8 +860,8 @@ f     AST_ADDMOCSTRING
 
 *  Synopsis:
 c     #include "moc.h"
-c     int astAddMocString( AstMoc *this, int cmode, int negate, int maxorder,
-c                          size_t len, const char*string, int *json );
+c     void astAddMocString( AstMoc *this, int cmode, int negate, int maxorder,
+c                           size_t len, const char*string, int *json );
 f     CALL AST_ADDMOCSTRING( THIS, CMODE, NEGATE, MAXORDER, LEN, STRING,
 f                            JSON, STATUS )
 
