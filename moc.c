@@ -1837,6 +1837,11 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
 \
 /* Ensure we do not start at a higher order than we can handle. */ \
    if( minorder >= maxorder ) minorder = maxorder - 1; \
+   if( minorder < 0 && astOK ) { \
+      astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid value " \
+                "(%d) supplied for parameter 'MinOrder'.", status,  \
+                astGetClass(this), minorder ); \
+   } \
 \
 /* Invert the WCS FrameSet for the picked (i.e. sky) axes, so that the \
    current Frame represents grid coords in the array and the base Frame \
@@ -7962,8 +7967,14 @@ static void SetMaxOrder( AstMoc *this, int value, int *status ){
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Store the supplied value. */
-   this->maxorder = astMIN(astMAX(value,0),AST__MXORDHPX);
+/* If out of bounds, report an error. Otherwise, store the supplied value. */
+   if( value < 0 || value > AST__MXORDHPX ) {
+      astError( AST__INVAR, "astSetMaxOrder(%s): Invalid value "
+                "(%d) supplied for parameter 'MaxOrder'.", status,
+                astGetClass(this), value );
+   } else {
+      this->maxorder = value;
+   }
 
 /* Clear the cached information stored in the Moc structure so that it is
    re-calculated when next needed. */
