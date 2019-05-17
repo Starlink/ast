@@ -267,6 +267,11 @@ typedef struct List {
    size_t *values;
 } List;
 
+typedef struct EndPoint {
+   int64_t value;
+   int start;
+} EndPoint;
+
 
 
 /* Module Variables. */
@@ -371,6 +376,7 @@ static double GetPixelArea( AstFrameSet *, const int *, int * );
 static double OrderToRes( int order );
 static int Comp_corner( const void *, const void * );
 static int Comp_decra( const void *, const void * );
+static int Comp_endpoint( const void *, const void * );
 static int Comp_range( const void *, const void * );
 static int Comp_int64( const void *, const void * );
 static int Equal( AstObject *, AstObject *, int * );
@@ -2832,15 +2838,19 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
 */
 
 /* Local Variables: */
+   EndPoint *list;
+   EndPoint *plist;
+   int depth;
+   int ipoint;
    int irange;
+   int isstart;
    int nnew;
-   int64_t *newlist;
-   int64_t *pcur;
+   int npoint;
+   int64_t *newranges;
    int64_t *pnew;
-   int64_t *pr;
+   int64_t *pcur;
    int64_t *pw;
-   int64_t cur_end;
-   int64_t cur_start;
+   int64_t *pr;
 
 /* Check inherited status */
    if( !astOK ) return;
@@ -2848,161 +2858,214 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
 /* Nothing to do if there are fewer than 2 ranges in the Moc. */
    if( this->nrange > 1 ) {
 
-/* Now sort all the ranges currently stored in the Moc into increasing order
-   of lower bound. */
-      qsort( this->range, this->nrange, 2*sizeof(*(this->range)), Comp_range );
+/* Create an array of structures, each holding the start or end value of
+   a range, and a flag indicating if the value is the start or the end. */
+      npoint = 2*this->nrange;
+      list = astMalloc( npoint*sizeof( *list ) );
+      if( astOK ) {
+         plist = list;
+         pnew = this->range;
+         isstart = 1;
+         for( ipoint = 0; ipoint < npoint; ipoint++,plist++,pnew++ ) {
+            plist->value = *pnew;
+            plist->start = isstart;
+            isstart = ( isstart == 0 );
+         }
+
+/* Sort these structures into ascending value. */
+         qsort( list, npoint, sizeof(*list), Comp_endpoint );
+
+/* Allocate an initial array to hold the new list of merged ranges. This
+   array will grow in size dynamically if required. */
+         newranges = astMalloc( npoint*sizeof( *(this->range) ) );
+      }
+
+      if( astOK ) {
+
+/* Initialise the number of input ranges that encompass the current
+   value. */
+         depth = 0;
 
 /* Result is union of old and new */
 /* ------------------------------ */
-      if( cmode == AST__OR ){
+         if( cmode == AST__OR ){
 
-/* Merge overlapping ranges. "pnew" points to each range in the Moc in
-   turn. If it overlaps the previous range (the "current" range), then
-   the previous range is extended to incorprate it. */
-         nnew = 1;
-         cur_start = this->range[0];
-         cur_end = this->range[1];
-         pnew = this->range + 2;
-         pw = this->range;
-         for( irange = 1; irange < this->nrange; irange++,pnew += 2 ) {
+/* The number of new ranges will never be greater than the number of original
+   ranges, so we can safely use the initial newranges array without checking
+   its size. Loop round each end-point in the sorted list. Maintain a depth
+   indicating how many input ranges are active at each point. */
+            nnew = 0;
+            pnew = newranges;
+            plist = list;
+            for( ipoint = 0; ipoint < npoint; ipoint++,plist++ ) {
 
-/* Gap between new range and current range. New range becomes current
-   range. Increment the number of new ranges. */
-            if( pnew[ 0 ] > cur_end + 1 ) {
-               pw[ 0 ] = cur_start;
-               pw[ 1 ] = cur_end;
-               pw += 2;
-               cur_start = pnew[ 0 ];
-               cur_end = pnew[ 1 ];
-               nnew++;
+/* If this end-point is the start of one of the original ranges, and we
+   are not currently inside a range, record the start of a new range.
+   Increment the number of original ranges that include the current value. */
+               if( plist->start ) {
+                  if( !depth ) pnew[ 0 ] = plist->value;
+                  depth++;
 
-/* New range extends the current range. The upper bound of the current
-   range is set to the upper bound of the new range. */
-            } else if( pnew[ 1 ] > cur_end ){
-               cur_end = pnew[ 1 ];
-
-/* New range is contained within the current range. Do nothing. */
-            }
-         }
-
-/* Add in the final range. */
-         pw[ 0 ] = cur_start;
-         pw[ 1 ] = cur_end;
-
-/* Update the number of ranges in the Moc. */
-         this->nrange =  nnew;
-
-/* Result is intersection of old and new */
-/* ------------------------------ */
-      } else if( cmode == AST__AND ){
-
-/* Look for overlaps of adjcent ranges. "pnew" points to each range in the Moc in
-   turn. If it overlaps the "current" range, then append the overlap
-   range to a new list of ranges. */
-         nnew = 0;
-         newlist = NULL;
-         pcur = this->range;
-         pnew = this->range + 2;
-         for( irange = 1; irange < this->nrange; irange++,pnew += 2 ) {
-
-/* Gap between new range and current range, so no intersection and
-   nothing to store. New range becomes current range. */
-            if( pnew[ 0 ] > pcur[ 1 ] ) {
-               pcur = pnew;
-
-/* New range overlaps the current range. Store the overlap in the list of
-   new ranges. New range becomes the current range if it extends beyond
-   the current range. */
-            } else {
-               newlist = astGrow( newlist, nnew + 1, 2*sizeof(*newlist) );
-               if( astOK ) {
-                  pr = newlist +2*(nnew++);
-                  pr[ 0 ] = pnew[ 0 ];
-                  if( pnew[ 1 ] > pcur[ 1 ] ) {
-                     pr[ 1 ] = pcur[ 1 ];
-                     pcur = pnew;
-                  } else {
-                     pr[ 1 ] = pnew[ 1 ];
+/* If this end-point is the end of one of the original ranges, decrement
+   the number of original ranges that include the current value. If we
+   are then no longer inside a range, record the end of a new range. */
+               } else {
+                  depth--;
+                  if( !depth ) {
+                     pnew[ 1 ] = plist->value;
+                     nnew++;
+                     pnew += 2;
+                  } else if( depth < 0 ) {
+                     astError( AST__INTER, "CombineRanges(%s): Negative "
+                               "depth at end-point %zu (internal programming"
+                               " error).", status, astGetClass(this),
+                               plist->value );
+                     break;
                   }
                }
             }
-         }
 
-/* Update the ranges in the Moc. */
-         (void) astFree( this->range );
-         this->range = newlist;
-         this->nrange =  nnew;
+/* Result is intersection of old and new */
+/* ------------------------------ */
+         } else if( cmode == AST__AND ){
+
+/* We cannot put a limit on how many ranges we shall end up with, so
+   we grow the newranges array dynamically as required. Loop round
+   each end-point in the sorted list. Maintain a depth indicating how many
+   input ranges are active at each point. */
+            nnew = 0;
+            pnew = newranges;
+            plist = list;
+            for( ipoint = 0; ipoint < npoint; ipoint++,plist++ ) {
+
+/* If this end-point is the start of one of the original ranges,
+   increment the number of ranges that are active at the current value.
+   Otherwise, decrement the number. */
+               if( plist->start ) {
+                  depth++;
+               } else {
+                  depth--;
+               }
+
+/* If the depth has risen to more than 2, report an error. */
+               if( depth > 2 ) {
+                  astError( AST__INTER, "CombineRanges(%s): More than 2 "
+                            "active ranges at %zu (internal programming "
+                            "error).", status, astGetClass(this), plist->value );
+                  break;
+
+/* If the depth has risen to 2, record the start of a new range. */
+               } else if( depth == 2 ) {
+                  newranges = astGrow( newranges, nnew + 1,
+                                       2*sizeof( *newranges ) );
+                  if( astOK ) {
+                     pnew = newranges + 2*nnew;
+                     pnew[ 0 ] = plist->value;
+                     nnew++;
+                  } else {
+                     break;
+                  }
+
+/* If the depth has dropped to 1, record the end of the new range. */
+               } else if( depth == 1 && !plist->start ){
+                  pnew[ 1 ] = plist->value;
+
+/* If the depth has become negative, report an error. */
+               } else if( depth < 0 ) {
+                  astError( AST__INTER, "CombineRanges(%s): Negative depth at "
+                            "%zu (internal programming error).", status,
+                            astGetClass(this), plist->value );
+                  break;
+
+/* Otherwise (depth has risen to 1 or dropped to 0), do nothing. */
+               } else {
+               }
+            }
 
 /* Result is exclusive disjunction of old and new */
 /* ---------------------------------------------- */
-      } else if( cmode == AST__XOR ){
+         } else if( cmode == AST__XOR ){
 
-/* Look for overlaps of adjcent ranges. "pnew" points to each range in the Moc in
-   turn. If it overlaps the "current" range, then append the earlier non-overlap
-   range to a new list of ranges. */
-         nnew = 0;
-         newlist = NULL;
-         pcur = this->range;
-         pnew = this->range + 2;
-         for( irange = 1; irange < this->nrange; irange++,pnew += 2 ) {
+/* We cannot put a limit on how many ranges we shall end up with, so
+   we grow the newranges array dynamically as required. Loop round
+   each end-point in the sorted list. Maintain a depth indicating how many
+   input ranges are active at each point. */
+            nnew = 0;
+            pnew = newranges;
+            plist = list;
+            for( ipoint = 0; ipoint < npoint; ipoint++,plist++ ) {
 
-/* Gap between new range and current range, so no intersection. Add the
-   current range to the new range list. The new range then becomes the
-   current range. */
-            if( pnew[ 0 ] > pcur[ 1 ] ) {
-               newlist = astGrow( newlist, nnew + 1, 2*sizeof(*newlist) );
-               if( astOK ) {
-                  pr = newlist +2*(nnew++);
-                  pr[ 0 ] = pcur[ 0 ];
-                  pr[ 1 ] = pcur[ 1 ];
-               }
-               pcur = pnew;
-
-/* New range overlaps the current range. Store the earlier section of the
-   current range (before the new range starts) as a new range. */
-            } else {
-               newlist = astGrow( newlist, nnew + 1, 2*sizeof(*newlist) );
-               if( astOK ) {
-                  pr = newlist +2*(nnew++);
-                  pr[ 0 ] = pcur[ 0 ];
-                  pr[ 1 ] = pnew[ 0 ] - 1;
-               }
-
-/* If the new range ends after the current range ends, modify the lower bound
-   of the new range to be adjacent to the upper bound of the current
-   range. Then use the new range as the current range. */
-               if( pcur[ 1 ] < pnew[ 1 ] ) {
-                  pnew[ 0 ] = pcur[ 1 ] + 1;
-                  pcur = pnew;
-
-/* If the new range ends before the current range ends, modify the lower bound
-   of the current range to be adjacent to the upper bound of the new range.
-   The current range pointer remains unchanged. */
+/* If this end-point is the start of one of the original ranges,
+   increment the number of ranges that are active at the current value.
+   Otherwise, decrement the number. */
+               if( plist->start ) {
+                  depth++;
                } else {
-                  pcur[ 0 ] = pnew[ 1 ] + 1;
+                  depth--;
+               }
+
+/* If the depth has risen to more than 2, report an error. */
+               if( depth > 2 ) {
+                  astError( AST__INTER, "CombineRanges(%s): More than 2 "
+                            "active ranges at %zu (internal programming "
+                            "error).", status, astGetClass(this), plist->value );
+                  break;
+
+/* If the depth has risen to 2, end the current range. Ignore ranges that
+   have negative length. */
+               } else if( depth == 2 ) {
+                  pnew[ 1 ] = plist->value - 1;
+                  if( pnew[ 1 ] < pnew[ 0 ] ) nnew--;
+
+/* If the depth has dropped or risen to 1, record the start of a new range. */
+               } else if( depth == 1 ){
+                  newranges = astGrow( newranges, nnew + 1,
+                                       2*sizeof( *newranges ) );
+                  if( astOK ) {
+                     pnew = newranges + 2*nnew;
+                     pnew[ 0 ] = plist->value;
+                     if( !plist->start ) pnew[ 0 ]++;
+                     nnew++;
+                  } else {
+                     break;
+                  }
+
+/* If the depth has become negative, report an error. */
+               } else if( depth < 0 ) {
+                  astError( AST__INTER, "CombineRanges(%s): Negative depth at "
+                            "%zu (internal programming error).", status,
+                            astGetClass(this), plist->value );
+                  break;
+
+/* Otherwise (depth has dropped to 0), end the current range. Ignore
+   ranges that have negative length. */
+               } else {
+                  pnew[ 1 ] = plist->value;
+                  if( pnew[ 1 ] < pnew[ 0 ] ) nnew--;
                }
             }
-         }
-
-/* Add in the final range. */
-         newlist = astGrow( newlist, nnew + 1, 2*sizeof(*newlist) );
-         if( astOK ) {
-            pr = newlist +2*(nnew++);
-            pr[ 0 ] = pcur[ 0 ];
-            pr[ 1 ] = pcur[ 1 ];
-         }
-
-/* Update the ranges in the Moc. */
-         (void) astFree( this->range );
-         this->range = newlist;
-         this->nrange =  nnew;
 
 /* Unknown operation new */
 /* --------------------- */
-      } else if( astOK ){
-         astError( AST__BDPAR, "%s(%s): Bad value (%d) suppied for "
-                   "parameter 'cmode'.", status, method,
-                   astGetClass(this), cmode );
+         } else if( astOK ){
+            astError( AST__BDPAR, "%s(%s): Bad value (%d) suppied for "
+                      "parameter 'cmode'.", status, method,
+                      astGetClass(this), cmode );
+         }
+
+/* Report an error if the final depth is non-zero. */
+         if( depth != 0 && astOK ) {
+            astError( AST__INTER, "CombineRanges(%s): Un-balanced ranges - "
+                      "final depth %d (internal programming error).", status,
+                      astGetClass(this), depth );
+         }
+      }
+
+/* Store the new ranges in the Moc. */
+      if( astOK ) {
+         (void) astFree( this->range );
+         this->range = newranges;
+         this->nrange =  nnew;
       }
 
 /* Check the new ranges do not overlap and are not reversed. */
@@ -3022,14 +3085,32 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
                             "programming error).", status, astGetClass(this),
                             irange, pnew[ 0 ], pnew[ 1 ] );
                   break;
+
                } else if( pcur[ 1 ] >= pnew[ 0 ] ) {
                   astError( AST__INTER, "CombineRanges(%s): Range %d [%zu:%zu]"
                             " overlaps range %d [%zu:%zu] (internal programming "
                             "error).", status, astGetClass(this), irange - 1,
                             pcur[ 0 ], pcur[ 1 ], irange, pnew[ 0 ], pnew[ 1 ] );
                   break;
+
+/* Flag adjacent ranges to be merged. */
+               } else if( pcur[ 1 ] == pnew[ 0 ] - 1 ) {
+                  pcur[ 1 ] = INT64_MIN;
+                  pnew[ 0 ] = INT64_MIN;
+                  nnew--;
                }
                pcur = pnew;
+            }
+
+/* Merge any adjacent ranges. */
+            if( nnew < this->nrange ) {
+               npoint = 2*this->nrange;
+               pr = this->range;
+               pw = this->range;
+               for( ipoint = 0; ipoint < npoint; ipoint++,pr++ ){
+                  if( *pr != INT64_MIN ) *(pw++) = *pr;
+               }
+               this->nrange = nnew;
             }
          }
       }
@@ -3191,6 +3272,54 @@ static int Comp_decra( const void *a, const void *b ){
       return -1;
    } else {
       return 1;
+   }
+}
+
+static int Comp_endpoint( const void *a, const void *b ){
+/*
+*  Name:
+*     Comp_endpoint
+
+*  Purpose:
+*     A comparison function for use with the qsort function.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     int Comp_endpoint( const void *a, const void *b )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function compares two EndPoint structures and returns
+*     a value indicating which has the larger value. If they are the
+*     same, then the end point is considered larger than the start point.
+
+*  Parameters:
+*     a
+*        Pointer to the first EndPoint.
+*     b
+*        Pointer to the second EndPoint.
+
+*  Returned Value:
+*     An integer less than, equal to, or greater than  zero if  the
+*     first  parameter  is considered to be respectively less than,
+*     equal to, or greater than the second.
+
+*/
+   if( ((EndPoint *) a)->value < ((EndPoint *) b)->value ) {
+      return -1;
+   } else if( ((EndPoint *) a)->value > ((EndPoint *) b)->value ) {
+      return 1;
+   } else if( ((EndPoint *) a)->start && !((EndPoint *) b)->start ) {
+      return -1;
+   } else if( !((EndPoint *) a)->start && ((EndPoint *) b)->start ) {
+      return 1;
+   } else {
+      return 0;
    }
 }
 
