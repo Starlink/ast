@@ -1375,9 +1375,15 @@ void astAddMocText_( AstMoc *this, int maxorder,
                      if( !isrange ) {
                         npix0 = npix;
                         nadd = 1;
-                     } else {
+                     } else if( npix >= npix0 ){
                         isrange = 0;
                         nadd = npix - npix0 + 1;
+                     } else {
+                        astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                                  status, method, astGetClass( this ), text );
+                        astError( AST__INMOC, "Range start (%zu) is after range "
+                                  "end (%zu).", status, npix0, npix );
+                        break;
                      }
 
                      nval = orders[ order ].nval;
@@ -4505,30 +4511,71 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
 *-
 */
 
+/* Macro to write a number of characters from the buffer to the sink
+   function or to standard output. */
+#define STRING_WRITE(NC) \
+   if( sink ) { \
+      (*sink)( data, (NC), buf, status ); \
+   } else { \
+      printf( "%.*s\n", (int) (NC), buf ); \
+   }
+
 /* Macro to append a token to the buffer, flushing the buffer using the
    sink function if the buffer fills up. */
 #define TOKEN_WRITE \
+\
+/* Copy characters from the token to the buffer until the whole token has \
+   been copied or the end of the buffer is reached. */ \
    ptok = token; \
-   while( nc > nleft ) { \
-      if( nleft ) memcpy( pwrite, ptok, nleft ); \
-      if( sink ) { \
-         (*sink)( data, buflen, buf, status ); \
-      } else { \
-         printf( "%.*s", (int) buflen, buf ); \
-      } \
-      ptok += nleft; \
-      nc -= nleft; \
-      nleft = buflen; \
-      pwrite = buf; \
+   mc = nc; \
+   while( nleft > 0 && mc > 0 ) { \
+      *(pwrite++) = *(ptok++); \
+      nleft--; \
+      mc--; \
    } \
-   if( nc > 0 ) { \
-      memcpy( pwrite, ptok, nc ); \
-      pwrite += nc; \
-      nleft -= nc; \
+\
+/* If the end of the buffer was reached before the whole token had been \
+   copied, find the last space or comma in the buffer. */ \
+   if( nleft == 0 && mc > 0 ) { \
+      pc = pwrite - 1; \
+      while( pc >= buf && *pc != ' ' && *pc != ',' ) pc--; \
+\
+/* Write out the buffer up to and including the final space or comma. */ \
+      if( pc >= buf ) { \
+         STRING_WRITE( pc - buf + 1 ); \
+\
+/* Copy any remaining characters following the comma or space to the  \
+   start of the buffer. */ \
+         nleft = pc - buf + 1; \
+         pwrite = buf  + buflen - nleft; \
+         memcpy( buf, pc + 1, pwrite - buf ); \
+\
+/* Append the remaining part of the token to the buffer. */ \
+         while( nleft > 0 && mc > 0 ) { \
+            *(pwrite++) = *(ptok++); \
+            nleft--; \
+            mc--; \
+         } \
+\
+/* Report an error if the whole token has still not been copied. */ \
+         if( nleft == 0 && mc > 0 ) { \
+            astError( AST__SMBUF, "%s(%s): Supplied buffer length (%zu) " \
+                      "is too small.", status, method, astGetClass(this), \
+                      buflen ); \
+         } \
+\
+/* Report an error if no previous comma or space was found in the buffer. */ \
+      } else { \
+         astError( AST__SMBUF, "%s(%s): Supplied buffer length (%zu) " \
+                   "is too small.", status, method, astGetClass(this), \
+                   buflen ); \
+      } \
    }
+
 
 /* Local Variables: */
    char *buf;
+   char *pc;
    char *ptok;
    char *pwrite;
    char token[ 30 ];
@@ -4539,8 +4586,9 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
    int neworder;
    int order;
    int64_t npix;
-   int64_t npix_start;
    int64_t npix_prev;
+   int64_t npix_start;
+   size_t mc;
    size_t nc;
    size_t nleft;
 
@@ -4657,11 +4705,7 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
 
 /* Flush anything remaining in the buffer. */
    if( pwrite > buf ) {
-      if( sink ) {
-         (*sink)( data, pwrite - buf, buf, status );
-      } else {
-         printf( "%.*s",  (int)( pwrite - buf ), buf );
-      }
+      STRING_WRITE(pwrite - buf);
    }
 
 /* Free the buffer. */
@@ -4669,6 +4713,7 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
 }
 
 #undef TOKEN_WRITE
+#undef STRING_WRITE
 
 static int GetMocType( AstMoc *this, int *status ){
 /*
