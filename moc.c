@@ -9585,30 +9585,17 @@ f     RESULT = AST_MOC( OPTIONS, STATUS )
 *     HEALPix cells. See the MOC recommendation for further information
 *     (http://www.ivoa.net/documents/MOC/).
 *
-*     As a description of a region on the sky, the Moc class can be seen
-*     as an alternative to the Region class. Note, Mocs and Regions
-*     are not interchangable (that is, a Moc is not a subclass of Region
-*     and therefore Region methods cannot be applied to Mocs). The Moc
-*     class is intended to describe an arbitrary collection of cells on
-*     the sky, whereas the Region classes describe exact geometric shapes.
-*     The Moc class has a method that allow a Region to be converted into
-*     an approximating Moc, but Mocs cannot be converted into Regions.
+*     The Moc class describes an arbitrary collection of cells on the sky,
+*     whereas other subclasses of Region describe exact geometric shapes
+*     in any arbitrary domain. This results in some differences between
+*     Mocs and other types of Region, the main one being that Mocs have
+*     no associated uncertainty.
 *
 *     The MOC recommendation requires that a MOC always describes a sky
-*     area using the ICRS coordinate system. However, the Moc class
-*     allows its attributes to be changed so that it represents any
-*     celestial coordinate system that can be mapped to ICRS. Note,
-*     changing the System attribute will not change the area on the
-*     sky covered by the Moc - it will just change the way that area is
-*     described. For instance, if a Moc is created that covers a particular
-*     galaxy in ICRS, and the System attriubute is then changed to Galactic,
-*     the Moc will still cover the same galaxy, but it will now be described
-*     in Galactic coordinates rather than ICRS. When a Moc is written out
-*     through a FitsChan, FITS headers describing the Moc will be stored
-*     in the FitsChan. The binary data for the single column of the
-*     coresponding FITS binary table can be retrieved from the Moc using
-c     method astGetMocData.
-f     method AST_GETMOCDATA.
+*     area using the ICRS coordinate system. However, the Moc class, like
+*     other subclasses of Region, allows its attributes to be changed so
+*     that it represents the equivalent area in any celestial coordinate
+*     system that can be mapped to ICRS. See attribute Adaptive.
 *
 *     In practice, to use this class an empty Moc object (i.e. a Moc
 *     describing a null area of the sky) should first be created using the
@@ -9616,6 +9603,19 @@ c     astMoc
 f     AST_MOC
 *     constructor. Areas of the sky should then be added into the empty
 *     Moc using one or more of the class methods.
+*
+*     If it is required to write a Moc out to a FITS binary table, the
+*     data value and headers to put in the table can be obtained using
+*     methods
+c     astGetMocData and astGetMocHeader
+f     AST_GETMOCDATA and AST_GETMOCHEADER.
+*     The MOC described by an existing FITS binary table can be added
+*     into a Moc object using the
+c     astAddMocData method.
+f     AST_ADDMOCDATA method.
+*
+*     Note, this class is limited to MOCs for which the number of cells
+*     in the normalised MOC can be represented in a four byte signed integer.
 
 *  Parameters:
 c     maxorder
