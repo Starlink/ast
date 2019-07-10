@@ -388,6 +388,13 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        coeffs for the bad outputs are set bad.
 *     9-MAR-2018 (DSB):
 *        Added the AST__PARWGT flag in astRebinSeq.
+*     10-JUL-2019 (DSB):
+*        When rebinning a data array, use the absolute value of the
+*        determinant of the Mapping's linear approximation as the
+*        flux conservation factor. Previously the signed determinant
+*        was used directly. Thus negative determinants (as generated if
+*        the input and output pixel coords have different handed-ness)
+*        caused flux values to change sign.
 *
 *class--
 */
@@ -12865,7 +12872,7 @@ static int RebinWithBlocking( AstMapping *this, const double *linear_fit,
             factor = MatrixDet( ndim_out, ndim_in, linear_fit + ndim_out,
                                 status );
             if( factor != 0.0 ) {
-               factor = 1.0/factor;
+               factor = 1.0/fabs( factor );
             } else {
                result = 1;
             }
@@ -16080,6 +16087,7 @@ static int ResampleWithBlocking( AstMapping *this, const double *linear_fit,
 /* --------------------------------------------------- */
    if( ( flags & AST__CONSERVEFLUX ) && linear_fit ) {
       factor = MatrixDet( ndim_in, ndim_out, linear_fit + ndim_in, status );
+      factor = fabs( factor );
    } else {
       factor = 1.0;
    }
