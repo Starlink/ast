@@ -18,12 +18,12 @@ f+
 \stardocnumber      {210.28}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {6th December 2018}
+\stardocdate        {7th August 2019}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
                                 in Astronomy}
-\stardoccopyright   {Copyright (C) 2017 East Asian Observatory}
+\stardoccopyright   {Copyright (C) 2019 East Asian Observatory}
 \stardocversion     {V<VERSION_NUMBER>}
 c+
 \stardocmanual      {Programmer's Guide\\(C Version)}
@@ -231,7 +231,7 @@ included using:
 \begin{small}
 \begin{terminalv}
 extern "C" {
-#include "ast.h"
+#include "star/ast.h"
 }
 \end{terminalv}
 \end{small}
@@ -771,7 +771,7 @@ c+
 \begin{small}
 \begin{terminalv}
 /* Include the interface to the AST library. */
-#include "ast.h"
+#include "star/ast.h"
 
 /* Main program (or could be any function). */
 main () {
@@ -2642,7 +2642,7 @@ simply as follows:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstZoomMap *zoommap;
 
 ...
@@ -4504,7 +4504,7 @@ f-
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstZoomMap *zoommap;
 int nout;
 
@@ -5076,7 +5076,7 @@ that applies these Mappings in series as follows:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstCmpMap *cmpmap;
 AstPermMap *permmap;
 AstZoomMap *zoommap;
@@ -5595,7 +5595,7 @@ Creating a Frame is straightforward and follows the usual pattern:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 astFrame *frame;
 
 ...
@@ -7634,7 +7634,7 @@ SkyFrame with default attributes is created as follows:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstSkyFrame *skyframe;
 
 ...
@@ -8299,7 +8299,7 @@ SpecFrame with default attributes is created as follows:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstSpecFrame *specframe;
 
 ...
@@ -8776,7 +8776,7 @@ TimeFrame with default attributes is created as follows:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstTimeFrame *timeframe;
 
 ...
@@ -9067,7 +9067,7 @@ coordinate systems, as follows:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstSkyFrame *skyframe1, *skyframe2;
 
 ...
@@ -9374,7 +9374,7 @@ position, \emph{etc} a second time since they are all inherited by the copy):
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstSpecFrame *specframe1, *specframe2;
 
 ...
@@ -9923,7 +9923,7 @@ put into it, so let's create a simple one:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstFrame *frame1;
 
 ...
@@ -10598,7 +10598,7 @@ SkyFrames:
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstFrameSet *cvt;
 AstSkyFrame *skyframe1, *skyframe2;
 
@@ -11727,7 +11727,7 @@ might expect, it uses the constructor function astChannel:
 
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstChannel *channel;
 
 ...
@@ -12503,7 +12503,7 @@ those found:
 
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 main() {
    AstChannel *channel;
    AstObject *object;
@@ -13126,7 +13126,7 @@ f-
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 AstFitsChan *fitschan;
 
 ...
@@ -14337,7 +14337,7 @@ f-
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 #define MAXCARD 100
 AstFitsChan *fitschan;
 char *cards[ MAXCARD ];
@@ -15244,7 +15244,7 @@ f-
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 #include <math.h>
 
 void SqrTran( AstMapping *this, int npoint, int ncoord_in,
@@ -16514,7 +16514,7 @@ f-
 c+
 \small
 \begin{terminalv}
-#include "ast.h"
+#include "star/ast.h"
 #define NCOORD 2
 #define NMARK 10
 double in[ NCOORD ][ NMARK ];
@@ -17319,8 +17319,17 @@ f-
 
 c+
 The ``ast.h'' header file defines the external interface to the AST library,
-including all constants, function prototypes, macros, \emph{etc.}. This file
-should be located using the usual compiler options for finding C
+including all constants, function prototypes, macros, \emph{etc.}. It
+should usually be include into a C source file using the statement:
+
+\small
+\begin{terminalv}
+#include "star/ast.h"
+\end{terminalv}
+\normalsize
+
+The header file is usually stored within the directory ``/star/include/star''
+and should be located using the usual compiler options for finding C
 include files, for instance:
 
 \small
@@ -17331,6 +17340,14 @@ cc prog.c -I/star/include -o prog
 
 This is preferable to specifying the file's absolute name within your
 software.
+
+Note, the default installation procedure places a copy of ``ast.h'' into
+both ``/star/include'' and ``/star/include/star''. This is for the benefit of
+legacy software that expects to find the AST header file in ``/star/include''
+rather than ``/star/include/star''. The installation of ``ast.h'' into
+``/star/include'' can be disabled at build-time by specifying the
+``--without-topinclude'' option when running the configure script.
+
 c-
 f+
 
@@ -21922,11 +21939,9 @@ within SkyFrames.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.7.1}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.7.0 and V8.7.1 (the
-current version):
+\subsection{Changes Introduced in V8.7.1}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.7.0 and V8.7.1:
 
 \begin{enumerate}
 
@@ -21937,6 +21952,22 @@ MocChan class.
 
 \item The FitsChan class will now read FITS-WCS headers that have
 alternate axis descriptions but no primary axis descriptions.
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V8.7.2}
+The following describes the most significant changes which have
+occurred in the AST library between versions V8.7.1 and V8.7.2 (the
+current version):
+
+\begin{enumerate}
+
+\item By default, the AST header file ``ast.h'' is now installed into both
+\texttt{STARLINK\_DIR/include} and \texttt{STARLINK\_DIR/include/star}. The
+new configure option ``\texttt{--without-topinclude}'' can be used to prevent
+the header file being installed into \texttt{STARLINK\_DIR/include}.
+
 
 \end{enumerate}
 

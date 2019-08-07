@@ -7,7 +7,7 @@ dnl   1.5.  It should work with autoconf versions 2.50 or better, and
 dnl   automake 1.6 or better.
 
 dnl   Initialisation: package name and version number
-AC_INIT([ast],[8.7.1],[starlink@jiscmail.ac.uk])
+AC_INIT([ast],[8.7.2],[starlink@jiscmail.ac.uk])
 AC_CONFIG_AUX_DIR([build-aux])
 
 dnl   Require autoconf-2.50 at least
@@ -20,6 +20,22 @@ AC_CONFIG_SRCDIR([ast_link.in])
 
 #   Include defaults for Starlink configurations
 STAR_DEFAULTS
+
+#   See if the --without-topinclude option has been provided. This sets the
+#   automake conditional TOPINCLUDE. By default header files are installed
+#   into both includedir and includedir/star. If --without-topinclude is
+#   specified when running configure, then the header files are only
+#   installed into includedir/star.
+AC_ARG_WITH(
+      [topinclude],
+      AS_HELP_STRING([--without-topinclude],[install headers only in includedir/star - not includedir]),
+      if test "$withval" = "yes"; then
+         topinclude="1"
+      else
+         topinclude="0"
+      fi,
+      topinclude="1")
+AM_CONDITIONAL(TOPINCLUDE, test x$topinclude = x1)
 
 #   See if the --with-starmem option has been provided. This sets the
 #   preprocesor macro HAVE_STAR_MEM_H.

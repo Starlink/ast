@@ -592,10 +592,20 @@ dist_noinst_SCRIPTS = makeh
 
 # Headers required by library users.  Both of the following lines
 # indicate headers which are installed.
-include_HEADERS = GRF_PAR grf.h grf3d.h
+cincludedir = $(includedir)/star
+cinclude_HEADERS = GRF_PAR grf.h grf3d.h
 # Following are generated, so should not be distributed.
-nodist_include_HEADERS = ast.h AST_PAR
+nodist_cinclude_HEADERS = ast.h AST_PAR
 include_MESSAGES = AST_ERR ast_err.h
+
+# Also install headers in main include directory for the benefit of
+# legacy code that does '#include "ast.h"' instead of '#include
+# "star/ast.h"'. Note, currently _MESSAGES files must be installed in
+# the main include directory.
+if TOPINCLUDE
+include_HEADERS = GRF_PAR grf.h grf3d.h
+nodist_include_HEADERS = ast.h AST_PAR
+endif
 
 if EXTERNAL_PAL
 PAL_LIB =

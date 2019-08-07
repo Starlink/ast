@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V8.7.1) of the Starlink AST (astrometry) library is
+   A new release (V8.7.2) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,6 +17,15 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- By default, the AST header file "ast.h" is now installed into both
+$STARLINK_DIR/include and $STARLINK_DIR/include/star. The new configure
+option "--without-topinclude" can be used to prevent the header file
+being installed into $STARLINK_DIR/include.
+
+
+Main Changes in V8.7.1
+----------------------
 
 - The Moc class now supports version 1.1 of the the MOC recommendation.
 This includes new support for string and JSON encoded MOCs. See methods
