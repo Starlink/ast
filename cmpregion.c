@@ -1935,7 +1935,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                    astGetClass( this ), astGetClass( this ) );
 
 /* If only one Region has a mesh, we can produce a mesh so long as the
-    boolean operator is not OR. */
+   boolean operator is not OR. */
       } else if( ( !hasMesh1 || !hasMesh2 ) && this->oper == AST__OR && astOK ) {
          astError( AST__INTER, "astRegBaseMesh(%s): No mesh can be produced "
                    "for the %s bacause one its component Regions has no "

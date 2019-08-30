@@ -291,7 +291,6 @@ AstRegion *astConvertToPrism_( AstRegion *this, int *status ) {
    int i;                        /* Loop index */
    int mask;                     /* Integer with a set bit at current axis */
    int nax;                      /* Number of selected axes */
-   int nin;                      /* No. of base Frame axes (Mapping inputs) */
    int nout;                     /* No. of current Frame axes (Mapping outputs) */
    int topmask;                  /* Integer that selects all axes */
 
@@ -304,8 +303,7 @@ AstRegion *astConvertToPrism_( AstRegion *this, int *status ) {
 /* Get the Mapping from base to current Frame. */
    map = astGetMapping( this->frameset, AST__BASE, AST__CURRENT );
 
-/* Get the number of inputs and outputs for the Mapping. */
-   nin = astGetNin( map );
+/* Get the number of outputs for the Mapping. */
    nout = astGetNout( map );
 
 /* Allocate memory to hold the indices of the current Frame axes in the
@@ -1295,7 +1293,6 @@ void astInitPrismVtab_(  AstPrismVtab *vtab, const char *name, int *status ) {
 
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
-   AstFrameVtab *frame;          /* Pointer to Frame component of Vtab */
    AstMappingVtab *mapping;      /* Pointer to Mapping component of Vtab */
    AstObjectVtab *object;        /* Pointer to Object component of Vtab */
    AstRegionVtab *region;        /* Pointer to Region component of Vtab */
@@ -1329,7 +1326,6 @@ void astInitPrismVtab_(  AstPrismVtab *vtab, const char *name, int *status ) {
    object = (AstObjectVtab *) vtab;
    mapping = (AstMappingVtab *) vtab;
    region = (AstRegionVtab *) vtab;
-   frame = (AstFrameVtab *) vtab;
 
    parent_getobjsize = object->GetObjSize;
    object->GetObjSize = GetObjSize;
@@ -2092,7 +2088,6 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    int msz;                       /* Original MeshSize */
    int mszp;                      /* MeshSize value for Prism */
    int nax1;                      /* Number of axes in region1 */
-   int nax2;                      /* Number of axes in region2 */
    int nax;                       /* Number of axes in Prism */
 
 /* Initialise */
@@ -2190,9 +2185,8 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
             astSetMeshSize( reg1, msz );
          }
 
-/* Note the number of axes in the two component Regions. */
+/* Note the number of axes in the first component Region. */
          nax1 = astGetNcoord( mesh1 );
-         nax2 = astGetNcoord( mesh2 );
 
 /* The above mesh and grid sizes are only approximate. Find the values
    actually used. */

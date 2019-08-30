@@ -1927,7 +1927,6 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
    AstPointSet *pset3;          /* This PointList masked by supplied points */
    double **ptr2;               /* Pointer to axis values in "pset2" */
    double **ptr3;               /* Pointer to axis values in "pset3" */
-   double **ptr;                /* Pointer to axis values in "this" */
    double *p;                   /* Pointer to next axis value to read */
    int ic;                      /* Axis index */
    int icurr;                   /* Index of original current Frame in "this" */
@@ -1954,9 +1953,7 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
    icurr = astGetCurrent( this_region->frameset );
    astSetCurrent( this_region->frameset, AST__BASE );
 
-/* Get pointer to the supplied axis values, the number of points and the
-   number of axis values per point. */
-   ptr = astGetPoints( pset );
+/* Get the number of points and the number of axis values per point. */
    np = astGetNpoint( pset );
    nc = astGetNcoord( pset );
 
@@ -2212,7 +2209,6 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    AstRegion *new;               /* Pointer to simplified Region */
    AstRegion *this;              /* Pointer to original Region structure */
    AstRegion *unc;               /* Pointer to new uncertainty Region */
-   double **ptr2;                /* Pointer to current Frame points */
    int simpler;                  /* Has some simplication taken place? */
 
 /* Initialise. */
@@ -2249,7 +2245,6 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
 
 /* Transform the PointSet using this Mapping. */
       pset2 = astTransform( map, pset1, 1, NULL );
-      ptr2 = astGetPoints( pset2 );
 
 /* Get the Region describing the positional uncertainty within the
    supplied PointList, in its current Frame. */
@@ -2333,7 +2328,6 @@ static int TestAttrib( AstObject *this_object, const char *attrib,
 */
 
 /* Local Variables: */
-   AstPointList *this;            /* Pointer to the PointList structure */
    int result;                   /* Result value to return */
 
 /* Initialise. */
@@ -2341,9 +2335,6 @@ static int TestAttrib( AstObject *this_object, const char *attrib,
 
 /* Check the global error status. */
    if ( !astOK ) return result;
-
-/* Obtain a pointer to the PointList structure. */
-   this = (AstPointList *) this_object;
 
 /* Check the attribute name and test the appropriate attribute. */
 
@@ -2753,30 +2744,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 *        Pointer to the inherited status variable.
 */
 
-/* Local Variables: */
-   AstPointList *this;                 /* Pointer to the PointList structure */
-
 /* Check the global error status. */
    if ( !astOK ) return;
-
-/* Obtain a pointer to the PointList structure. */
-   this = (AstPointList *) this_object;
-
-/* Write out values representing the instance variables for the
-   PointList class.  Accompany these with appropriate comment strings,
-   possibly depending on the values being written.*/
-
-/* In the case of attributes, we first use the appropriate (private)
-   Test...  member function to see if they are set. If so, we then use
-   the (private) Get... function to obtain the value to be written
-   out.
-
-   For attributes which are not set, we use the astGet... method to
-   obtain the value instead. This will supply a default value
-   (possibly provided by a derived class which over-rides this method)
-   which is more useful to a human reader as it corresponds to the
-   actual default attribute value.  Since "set" will be zero, these
-   values are for information only and will not be read back. */
 
 }
 

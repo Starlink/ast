@@ -2352,30 +2352,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 *        Pointer to the inherited status variable.
 */
 
-/* Local Variables: */
-   AstEllipse *this;                 /* Pointer to the Ellipse structure */
-
 /* Check the global error status. */
    if ( !astOK ) return;
-
-/* Obtain a pointer to the Ellipse structure. */
-   this = (AstEllipse *) this_object;
-
-/* Write out values representing the instance variables for the
-   Ellipse class.  Accompany these with appropriate comment strings,
-   possibly depending on the values being written.*/
-
-/* In the case of attributes, we first use the appropriate (private)
-   Test...  member function to see if they are set. If so, we then use
-   the (private) Get... function to obtain the value to be written
-   out.
-
-   For attributes which are not set, we use the astGet... method to
-   obtain the value instead. This will supply a default value
-   (possibly provided by a derived class which over-rides this method)
-   which is more useful to a human reader as it corresponds to the
-   actual default attribute value.  Since "set" will be zero, these
-   values are for information only and will not be read back. */
 
 /* There are no values to write, so return without further action. */
 }

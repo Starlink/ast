@@ -51,6 +51,7 @@ c      call ast_flushmemory( 1 )
       external source, sink
 
       double precision lbnd(4), ubnd(4)
+      double precision xin(7), yin(7), xout(7), yout(7)
       if( status .ne. sai__ok ) return
 
       call ast_begin( status )
@@ -216,6 +217,47 @@ c      call ast_flushmemory( 1 )
       call assertc( 'line 17 3', buff(17),
      :              'RedshiftInterval BARYCENTER VELOCITY OPTICAL '//
      :              '200 2300 Redshift 300', status )
+
+
+      idoc = 6
+      iread = 0
+      call ast_set( ch, 'StcsArea=1,StcsCoords=0,StcsProps=0', status )
+      obj = ast_read( ch, status )
+
+      call ast_GetRegionBounds( obj, lbnd, ubnd, status )
+      call assertd( 'RA lower bound', lbnd(1), 1.91424188686355D0,
+     :              status )
+      call assertd( 'RA upper bound', ubnd(1), 3.6708117195183D0,
+     :              status )
+      call assertd( 'Dec lower bound', lbnd(2), -1.04715070055065D0,
+     :              status )
+      call assertd( 'Dec upper bound', ubnd(2), 0.523598775598299D0,
+     :              status )
+
+      xin(1) =  2.174188D0
+      xin(2) =  2.051477D0
+      xin(3) =  2.5302D0
+      xin(4) =  2.171585D0
+      xin(5) =  2.818546D0
+      xin(6) =  2.900912D0
+      xin(7) =  3.615757D0
+
+      yin(1) =  -0.1689054D0
+      yin(2) =  -0.1311494D0
+      yin(3) =  -0.2462959D0
+      yin(4) =  0.05485025D0
+      yin(5) =  -0.9324675D0
+      yin(6) =  0.3367061D0
+      yin(7) =  0.1548211D0
+
+      call ast_tran2( obj, 7, xin, yin, .true., xout, yout, status)
+      if( xout(1) .ne. AST__BAD ) call error( 'XOUT(1) not bad', status)
+      if( xout(2) .ne. AST__BAD ) call error( 'XOUT(2) not bad', status)
+      if( xout(3) .ne. AST__BAD ) call error( 'XOUT(3) not bad', status)
+      if( xout(4) .eq. AST__BAD ) call error( 'XOUT(4) is bad', status )
+      if( xout(5) .eq. AST__BAD ) call error( 'XOUT(5) is bad', status )
+      if( xout(6) .eq. AST__BAD ) call error( 'XOUT(6) is bad', status )
+      if( xout(7) .eq. AST__BAD ) call error( 'XOUT(7) is bad', status )
 
       call ast_end( status )
 
@@ -475,6 +517,37 @@ c      call ast_flushmemory( 1 )
             done = .true.
          end if
 
+      else if( idoc .eq. 6 ) then
+         if( iread .eq. 0 ) then
+            c = 'Union ICRS TOPOCENTER ('
+         else if( iread .eq. 1 ) then
+            c = '   Circle 180 10 20'
+         else if( iread .eq. 2 ) then
+            c = '   Circle 190 10 20'
+         else if( iread .eq. 3 ) then
+            c = '   Intersection ('
+         else if( iread .eq. 4 ) then
+            c = '      Circle 120 -10 20'
+         else if( iread .eq. 5 ) then
+            c = '      Difference ('
+         else if( iread .eq. 6 ) then
+            c = '         Circle 130 -10 20'
+         else if( iread .eq. 7 ) then
+            c = '         Circle 125 -10 2'
+         else if( iread .eq. 8 ) then
+            c = '      )'
+         else if( iread .eq. 9 ) then
+            c = '      Not ( Circle 118 -8 3 )'
+         else if( iread .eq. 10 ) then
+            c = '   )'
+         else if( iread .eq. 11 ) then
+            c = '   Box 165 -30 30 60'
+         else if( iread .eq. 12 ) then
+            c = ')'
+         else
+            done = .true.
+         endif
+
       end if
 
       l = max( chr_len( c ), 1 )
@@ -598,7 +671,7 @@ c      call ast_flushmemory( 1 )
       character name*(*)
       double precision val, sb
 
-      if( abs( val - sb ) .gt. 0.5E-8*( val + sb ) ) then
+      if( abs( val - sb ) .gt. abs( 0.5E-8*( val + sb ) ) ) then
          call msg_setc( 'A', name )
          call msg_setd( 'B', val )
          call msg_setd( 'C', sb )
