@@ -124,6 +124,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *     7-MAY-2019 (DSB):
 *        Modify astAddMocString and astGetMocString so that they can
 *        handle JSON encoding as well as string encodiing.
+*     12-SEP-2019 (DSB):
+*        - Fix bugs in RegBaseMesh that could cause complex outlines to
+*        fail.
 *class--
 */
 
@@ -413,10 +416,17 @@ static void Sink2( void *, size_t, const char *, int * );
 static const char *Source1( void *, size_t *, int * );
 static void TestPixels( PixelMask *, int *, AstPointSet *, int[9], int *);
 
-/* For debugging of astRegBaseMesh and astRegTrace......
+/* For debugging of astRegBaseMesh and astRegTrace. If the macro
+   MESH_DEBUG is defined, output ascii tables will be created when the
+   boundary of a MOC is plotted. The moctohtml script in the ast_tester
+   subdirectory of AST will convert these ascii tables into an HTML file
+   that allows the boundary-walking algorithm to be explored in a web
+   browser. See moctohtml for more details. */
+#ifdef MESH_DEBUG
 static void dump_cell( AstMoc *, Cell *, int );
 static void dump_corner( Corner *this, int );
-static void dump_moc( AstMoc *, const char *, int *); */
+static void dump_moc( AstMoc *, const char *, int *);
+#endif
 
 static const char *GetAttrib( AstObject *, const char *, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
@@ -7029,7 +7039,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    } else {
 
 /* Get the resolution of the Moc. Convert from arc-seconds to radians.
-   Use a tenbgth of the MOC resolution at the current order. */
+   Use a tenth of the MOC resolution at the current order. */
       Comp_Corner_Tol = 0.1*AST__DD2R*OrderToRes( astGetMaxOrder( this ) )/3600.0;
 
 /* Initialise pointers to the end of the chain of Cell structures at each
@@ -7038,7 +7048,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
          cell_foot[ order ] = NULL;
       }
 
-/* Ensure the the normalised form of the MOC is available. */
+/* Ensure the normalised form of the MOC is available. */
       GetNorm( this, "astRegBaseMesh", status );
 
 /* Set the pointer to the first nuniq value in the normalised moc. Use a
@@ -7083,10 +7093,10 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
       }
 
 /* Find the edges of the cells at increasing orders. Each pass round this
-   loop moves bundary cells from 'order' to the equivalent 4 child cells
-   at 'order+1', and then deletes all remaining cells at 'order'. So after
-   the final pass (which has order = maxorder-1), all cells will be at
-   order 'maxorder'. */
+   loop moves boundary cells from 'order' to the equivalent 4 child cells
+   at 'order+1', and then deletes all remaining (i.e. non-boundary) cells
+   at 'order'. So after the final pass (which has order = maxorder-1), all
+   cells will be at order 'maxorder'. */
       for( order = minorder; order < maxorder; order++ ) {
 
 /* Skip this order if there are no cells at it. */
@@ -7094,7 +7104,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
 
 /* Create chains of Corner structures for all cells at the current order.
    A Corner holds the (RA,Dec) of a point on the sky, plus pointers to
-   up to four Cell structures that has that point at one of its corners.
+   up to four Cell structures that have that point at one of its corners.
    A Corner is an "interior position" if it corresponds to a corner of
    exactly four cells (there are a few special cases where interior
    points may only be used by 3 cells). Note, whether a corner is
@@ -7217,11 +7227,33 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
          }
       }
 
-/* All cells are now at the maximum order. Create the chain of Corners
-   for the cells at this order. Indicate that the chain should be sorted
+/* All cells are now at the maximum order and "core" cells have been
+   removed (i.e. each remaining cell is either a boundary cell or
+   adjacent to a boundary cell). Create the chain of Corners for the
+   cells at this order.  Indicate that the chain should be sorted
    (primary key is Dec, secondary key is RA). */
       MakeCorners( this, maxorder, cell_foot[ maxorder ], &corner_foot,
                    1, status );
+
+
+#ifdef MESH_DEBUG
+corner = corner_foot;
+while( corner ) {
+   dump_corner( corner, maxorder );
+   corner = corner->prev;
+}
+
+cell = cell_foot[ maxorder ];
+while( cell ) {
+   dump_cell( this, cell, maxorder );
+   cell = cell->prev;
+}
+
+FILE *fd = fopen( "path.asc", "w" );
+fprintf( fd, "# corner dist\n" );
+#endif
+
+
 
 /* We now measure how far around the perimeter we need to go to reach
    each non-interior corner, starting from an arbitrary starting point.
@@ -7259,9 +7291,14 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                corner->dist = dist++;
 
 /* The Moc may contain several disjoint regions. We mark the start of each such
-   region with a negative "dist" value. */
+   region with a negative "dist" value ( "dist" == 0 marks the start of
+   the first disjoint region). */
                if( !old_corner ) corner->dist = -corner->dist;
             }
+
+#ifdef MESH_DEBUG
+fprintf( fd, "%p %d\n", corner, corner->dist );
+#endif
 
 /* Indicate we have not yet chosen the next corner on the path. */
             new_corner = NULL;
@@ -7279,7 +7316,9 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
 /* If the corner is used by two cells, the cell that contains the old
    corner as well as the current corner becomes "cell1", and the other
    cell becomes "cell0". This gives priority to onward routes that go to
-   the new cell ("cell0") rather than going back to the old cell. */
+   the new cell ("cell0") rather than going back to the old cell. If
+   there is no old corner (i.e. this is the start of a new disjoint
+   region), the choice is arbitrary. */
             } else if( corner->ncell == 2 ) {
                cell1 = corner->cells[ 0 ];
                if( cell1->bl == old_corner ||
@@ -7289,27 +7328,34 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                   cell0 = corner->cells[ 1 ];
                } else {
                   cell0 = cell1;
-                  cell1 = corner->cells[ 0 ];
+                  cell1 = corner->cells[ 1 ];
                }
                cell2 = NULL;
 
 /* If the corner is used by three cells, the cell that contains the old
    corner as well as the current corner becomes "cell2" (lowest priority),
    and the other two cells become "cell0" and "cell1". This gives priority
-   to onward routes that do not go back to the old cell. */
+   to onward routes that do not go back to the old cell. If there is no
+   old corner (i.e. this is the start of a new disjoint region), the choice
+   is arbitrary. */
             } else if( corner->ncell == 3 ) {
-               for( icell = 0; icell < 3; icell++ ) {
-                  cell2 = corner->cells[ icell ];
-                  if( cell2->bl == old_corner ||
-                      cell2->tl == old_corner ||
-                      cell2->tr == old_corner ||
-                      cell2->br == old_corner ) break;
-               }
-               if( icell == 4 && old_corner ) {
-                  astError( AST__INTER, "astRegBaseMesh(%s): Old corner "
-                            "not found (internal programming error).",
-                            status, astGetClass( this ) );
-                  break;
+               if( old_corner ) {
+                  for( icell = 0; icell < 3; icell++ ) {
+                     cell2 = corner->cells[ icell ];
+                     if( cell2->bl == old_corner ||
+                         cell2->tl == old_corner ||
+                         cell2->tr == old_corner ||
+                         cell2->br == old_corner ) break;
+                  }
+                  if( icell == 4 && old_corner ) {
+                     astError( AST__INTER, "astRegBaseMesh(%s): Old corner "
+                               "not found (internal programming error).",
+                               status, astGetClass( this ) );
+                     break;
+                  }
+               } else {
+                  icell = 0;
+                  cell2 = corner->cells[ 0 ];
                }
 
 /* Of the other two cells, prefer routes that continue to the cell that
@@ -7335,9 +7381,10 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                break;
             }
 
-/* Find the corner in cell0 and see if the neighbouring corner in
+/* Find the corner in cell0 and see if the neighbouring corner in the
    clockwise direction within cell0 is a boundary point that has not yet
    been included in the path. If so, we use it as the next corner. */
+            new_corner = NULL;
             if( corner == cell0->bl && !cell0->tl->interior && cell0->tl->dist == INT_MAX ) {
                new_corner = cell0->tl;
             } else if( corner == cell0->tl && !cell0->tr->interior && cell0->tr->dist == INT_MAX ) {
@@ -7346,10 +7393,28 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                new_corner = cell0->br;
             } else if( corner == cell0->br && !cell0->bl->interior && cell0->bl->dist == INT_MAX ) {
                new_corner = cell0->bl;
+            }
+
+/* If both the original corner and the new corner are corners of one of the
+   neighbouring cells, then the boundary cannot pass between them since the
+   line between the two corners must be a border between the two cells. */
+            if( new_corner ) {
+               if( cell1 &&( new_corner == cell1->tl ||
+                             new_corner == cell1->tr ||
+                             new_corner == cell1->br ||
+                             new_corner == cell1->bl ) ){
+                  new_corner = NULL;
+               } else if( cell2 &&( new_corner == cell2->tl ||
+                             new_corner == cell2->tr ||
+                             new_corner == cell2->br ||
+                             new_corner == cell2->bl ) ){
+                  new_corner = NULL;
+               }
+            }
 
 /* If this failed to produce a new corner, then do the same using cell1
    (if it exists). */
-            } else if( cell1 ) {
+            if( !new_corner && cell1 ) {
                if( corner == cell1->bl && !cell1->tl->interior && cell1->tl->dist == INT_MAX ) {
                   new_corner = cell1->tl;
                } else if( corner == cell1->tl && !cell1->tr->interior && cell1->tr->dist == INT_MAX ) {
@@ -7358,18 +7423,46 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                   new_corner = cell1->br;
                } else if( corner == cell1->br && !cell1->bl->interior && cell1->bl->dist == INT_MAX ) {
                   new_corner = cell1->bl;
+               }
 
-/* If this failed to produce a new corner, then do the same using cell3
+               if( new_corner ) {
+                  if( cell0 &&( new_corner == cell0->tl ||
+                                new_corner == cell0->tr ||
+                                new_corner == cell0->br ||
+                                new_corner == cell0->bl ) ){
+                     new_corner = NULL;
+                  } else if( cell2 &&( new_corner == cell2->tl ||
+                                new_corner == cell2->tr ||
+                                new_corner == cell2->br ||
+                                new_corner == cell2->bl ) ){
+                     new_corner = NULL;
+                  }
+               }
+            }
+
+/* If this failed to produce a new corner, then do the same using cell2
    (if it exists). */
-               } else if( cell2 ) {
-                  if( corner == cell2->bl && !cell2->tl->interior && cell2->tl->dist == INT_MAX ) {
-                     new_corner = cell2->tl;
-                  } else if( corner == cell2->tl && !cell2->tr->interior && cell2->tr->dist == INT_MAX ) {
-                     new_corner = cell2->tr;
-                  } else if( corner == cell2->tr && !cell2->br->interior && cell2->br->dist == INT_MAX ) {
-                     new_corner = cell2->br;
-                  } else if( corner == cell2->br && !cell2->bl->interior && cell2->bl->dist == INT_MAX ) {
-                     new_corner = cell2->bl;
+            if( !new_corner && cell2 ) {
+               if( corner == cell2->bl && !cell2->tl->interior && cell2->tl->dist == INT_MAX ) {
+                  new_corner = cell2->tl;
+               } else if( corner == cell2->tl && !cell2->tr->interior && cell2->tr->dist == INT_MAX ) {
+                  new_corner = cell2->tr;
+               } else if( corner == cell2->tr && !cell2->br->interior && cell2->br->dist == INT_MAX ) {
+                  new_corner = cell2->br;
+               } else if( corner == cell2->br && !cell2->bl->interior && cell2->bl->dist == INT_MAX ) {
+                  new_corner = cell2->bl;
+               }
+               if( new_corner ) {
+                  if( cell0 &&( new_corner == cell0->tl ||
+                                new_corner == cell0->tr ||
+                                new_corner == cell0->br ||
+                                new_corner == cell0->bl ) ){
+                     new_corner = NULL;
+                  } else if( cell1 &&( new_corner == cell1->tl ||
+                                new_corner == cell1->tr ||
+                                new_corner == cell1->br ||
+                                new_corner == cell1->bl ) ){
+                     new_corner = NULL;
                   }
                }
             }
@@ -7391,8 +7484,23 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                   new_corner = cell0->br;
                } else if( corner == cell0->br && !cell0->bl->interior ) {
                   new_corner = cell0->bl;
+               }
 
-               } else if( cell1 ) {
+               if( new_corner ) {
+                  if( cell1 &&( new_corner == cell1->tl ||
+                                new_corner == cell1->tr ||
+                                new_corner == cell1->br ||
+                                new_corner == cell1->bl ) ){
+                     new_corner = NULL;
+                  } else if( cell2 &&( new_corner == cell2->tl ||
+                                new_corner == cell2->tr ||
+                                new_corner == cell2->br ||
+                                new_corner == cell2->bl ) ){
+                     new_corner = NULL;
+                  }
+               }
+
+               if( !new_corner && cell1 ) {
                   if( corner == cell1->bl && !cell1->tl->interior ) {
                      new_corner = cell1->tl;
                   } else if( corner == cell1->tl && !cell1->tr->interior ) {
@@ -7401,8 +7509,23 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                      new_corner = cell1->br;
                   } else if( corner == cell1->br && !cell1->bl->interior ) {
                      new_corner = cell1->bl;
+                  }
 
-                  } else if( cell2 ) {
+                  if( new_corner ) {
+                     if( cell0 &&( new_corner == cell0->tl ||
+                                   new_corner == cell0->tr ||
+                                   new_corner == cell0->br ||
+                                   new_corner == cell0->bl ) ){
+                        new_corner = NULL;
+                     } else if( cell2 &&( new_corner == cell2->tl ||
+                                   new_corner == cell2->tr ||
+                                   new_corner == cell2->br ||
+                                   new_corner == cell2->bl ) ){
+                        new_corner = NULL;
+                     }
+                  }
+
+                  if( !new_corner && cell2 ) {
                      if( corner == cell2->bl && !cell2->tl->interior ) {
                         new_corner = cell2->tl;
                      } else if( corner == cell2->tl && !cell2->tr->interior ) {
@@ -7411,6 +7534,19 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                         new_corner = cell2->br;
                      } else if( corner == cell2->br && !cell2->bl->interior ) {
                         new_corner = cell2->bl;
+                     }
+                     if( new_corner ) {
+                        if( cell0 &&( new_corner == cell0->tl ||
+                                      new_corner == cell0->tr ||
+                                      new_corner == cell0->br ||
+                                      new_corner == cell0->bl ) ){
+                           new_corner = NULL;
+                        } else if( cell1 &&( new_corner == cell1->tl ||
+                                      new_corner == cell1->tr ||
+                                      new_corner == cell1->br ||
+                                      new_corner == cell1->bl ) ){
+                           new_corner = NULL;
+                        }
                      }
                   }
                }
@@ -7423,6 +7559,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                             "previously drawn corners (internal "
                             "programming error).", status, astGetClass( this ) );
                }
+
             } else {
                nused = 0;
             }
@@ -7448,6 +7585,10 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
             corner = new_corner;
          }
       }
+
+#ifdef MESH_DEBUG
+fclose( fd );
+#endif
 
 /* Create the returned PointSet and put the (ra,dec) values into it
    from each non-interior corner. First count the number of non-interior
@@ -10241,7 +10382,8 @@ MAKE_ADDPIXELMASK_(UB,unsigned char)
 
 
 
-/* For debugging of astRegBaseMesh and astRegTrace......
+/* For debugging of astRegBaseMesh and astRegTrace...... */
+#ifdef MESH_DEBUG
 
 static void dump_corner( Corner *this, int order ) {
    static FILE *fd = NULL;
@@ -10385,7 +10527,6 @@ static void dump_moc( AstMoc *this, const char *fname, int *status ) {
    fclose( fd );
 }
 
-*/
-
+#endif
 
 
