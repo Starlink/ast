@@ -127,6 +127,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *     12-SEP-2019 (DSB):
 *        - Fix bugs in RegBaseMesh that could cause complex outlines to
 *        fail.
+*        - Check for illegal order values possibly caused by inappropriate
+*        removal of white space within the source function when reading
+*        string encoded MOCs.
 *class--
 */
 
@@ -1045,8 +1048,8 @@ void astAddMocText_( AstMoc *this, int maxorder,
 *        supplied MOC that refer to an order greater than "maxorder" are
 *        ignored.
 *     source
-*        A function to call to read in each section of the MOC's string
-*        representation. It should have the following synopsis:
+*        A function that will be called to read in each section of the MOC's
+*        string representation. It should have the following synopsis:
 *
 *        const char *source( void *data, size_t *nc, int *status )
 *
@@ -1203,6 +1206,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
                } else if( state == 2 ) {
                   if( isdigit( *pt ) ) {
                      order = ( *pt - '0' ) + 10*order;
+                     if( order > AST__MXORDHPX ){
+                        astError( AST__INMOC, "%s(%s): Error reading JSON MOC: '%.30s...'",
+                                  status, method, astGetClass( this ), text );
+                        astError( AST__INMOC, "Invalid MOC order %d encountrered.",
+                                  status, order );
+                        break;
+                     }
                   } else if( *pt == '"' ) {
                      state = 3;
                   } else {
@@ -1420,6 +1430,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
    maximum order and then look for the start of the next numerical value. */
                   } else if( *pt == '/' ) {
                      order = npix;
+                     if( order > AST__MXORDHPX ){
+                        astError( AST__INMOC, "%s(%s): Error reading string MOC: '%.30s...'",
+                                  status, method, astGetClass( this ), text );
+                        astError( AST__INMOC, "Invalid MOC order %d encountrered.",
+                                  status, order );
+                        break;
+                     }
                      if( order > mxord ) mxord = order;
                      state = 1;
 
@@ -1458,86 +1475,90 @@ void astAddMocText_( AstMoc *this, int maxorder,
          text = (*source)( data, &nc, status );
       }
 
+/* Check no error has occurred. */
+      if( astOK ) {
+
 /* Check JSON mocs are terminated properly. */
-      if( *json ) {
-         if( state != 9 && astOK ) {
-            astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
-                      status, method, astGetClass( this ), text );
-            astError( AST__INMOC, "No closing curly brace found.", status );
-         }
+         if( *json ) {
+            if( state != 9 && astOK ) {
+               astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                         status, method, astGetClass( this ), text );
+               astError( AST__INMOC, "No closing curly brace found.", status );
+            }
 
 /* Incorporate any final numerical value in a string moc. The end of
    string is like a terminator (space or comma) in "state 2" for
    string mocs above. */
-      } else if( state == 2 ) {
-         if( order < 0 ) {
-            astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
-                      status, method, astGetClass( this ), text );
-            astError( AST__INMOC, "No order value found at start of string.",
-                      status );
-         }
-
-         if( !isrange ) {
-            npix0 = npix;
-            nadd = 1;
-         } else {
-            isrange = 0;
-            nadd = npix - npix0 + 1;
-         }
-
-         nval = orders[ order ].nval;
-         nbyte = ( nval + nadd )*sizeof( size_t );
-         values = astGrow( orders[ order ].values, 1, nbyte );
-         if( astOK ) {
-            for( ; npix0 <= npix; npix0++ ) {
-               values[ nval++ ] = npix0;
+         } else if( state == 2 ) {
+            if( order < 0 ) {
+               astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                         status, method, astGetClass( this ), text );
+               astError( AST__INMOC, "No order value found at start of string.",
+                         status );
             }
 
-            orders[ order ].values = values;
-            orders[ order ].nval = nval;
+            if( !isrange ) {
+               npix0 = npix;
+               nadd = 1;
+            } else {
+               isrange = 0;
+               nadd = npix - npix0 + 1;
+            }
+
+            nval = orders[ order ].nval;
+            nbyte = ( nval + nadd )*sizeof( size_t );
+            values = astGrow( orders[ order ].values, 1, nbyte );
+            if( astOK ) {
+               for( ; npix0 <= npix; npix0++ ) {
+                  values[ nval++ ] = npix0;
+               }
+
+               orders[ order ].values = values;
+               orders[ order ].nval = nval;
+            }
          }
-      }
 
 /* If the MaxOrder attribute is set in the Moc, use it in preference to
    the value supplied for parameter "maxorder". */
-      if( astTestMaxOrder( this ) ) {
-         maxorder = astGetMaxOrder( this );
+         if( astTestMaxOrder( this ) ) {
+            maxorder = astGetMaxOrder( this );
 
 /* Otherwise, we use the supplied "maxorder" value unless "maxorder" was
    not supplied (i.e. is negative), in which case we use the value
    determind above from the supplied text. */
-      } else {
-         if( maxorder < 0 ) maxorder = mxord;
-         astSetMaxOrder( this, maxorder );
-      }
+         } else {
+            if( maxorder < 0 ) maxorder = mxord;
+            astSetMaxOrder( this, maxorder );
+         }
 
 /* For each order and NPIX value found during the parsing of the text
    (except for any that have an order greater than 'maxorder', which are
    ignored), get the upper and lower bounds of the cells at maxorder
    contained within this cell, and append this as a new range to the Moc. */
-      for( order = 0; order <= maxorder; order++ ) {
-         nval = orders[ order ].nval;
-         values = orders[ order ].values;
-         shift = 2*( maxorder - order );
+         for( order = 0; order <= maxorder; order++ ) {
+            nval = orders[ order ].nval;
+            values = orders[ order ].values;
+            shift = 2*( maxorder - order );
 
-         for( ipix = 0; ipix < nval; ipix++,values++ ){
+            for( ipix = 0; ipix < nval; ipix++,values++ ){
 
-            ilow = ( *values << shift );
-            ihigh = ( (*values + 1 ) << shift ) - 1;
+               ilow = ( *values << shift );
+               ihigh = ( (*values + 1 ) << shift ) - 1;
 
-            irange = this->nrange++;
-            this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
-            if( astOK ) {
-               pr = this->range + 2*irange;
-               pr[ 0 ] = ilow;
-               pr[ 1 ] = ihigh;
-            } else {
-               break;
+               irange = this->nrange++;
+               this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
+               if( astOK ) {
+                  pr = this->range + 2*irange;
+                  pr[ 0 ] = ilow;
+                  pr[ 1 ] = ihigh;
+               } else {
+                  break;
+               }
             }
-         }
 
 /* Free the list of NPIX values at each order. */
-         orders[ order ].values = astFree( orders[ order ].values );
+            orders[ order ].values = astFree( orders[ order ].values );
+         }
       }
    }
 }
