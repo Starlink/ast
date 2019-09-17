@@ -130,6 +130,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        - Check for illegal order values possibly caused by inappropriate
 *        removal of white space within the source function when reading
 *        string encoded MOCs.
+*     17-SEP-2019 (DSB):
+*        Modify the meshdist attribute of the Moc structure so that each 
+*        disjoint region ends with a copy of the first point in the region.
+*        This causes the boundary drawn around each region to be closed.
 *class--
 */
 
@@ -2784,6 +2788,7 @@ static void ClearCache( AstMoc *this, int *status ){
    orders the mesh points around the perimeter. */
    if( this->basemesh ) this->basemesh = astAnnul( this->basemesh );
    this->meshdist = astFree( this->meshdist );
+   this->mdlen = 0;
 
 /* Indicate the bounding box needs to be recalculated. */
    this->lbnd[ 0 ] = AST__BAD;
@@ -7021,15 +7026,20 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    double **ptr;
    double *pdec;
    double *pra;
+   int *newdist;
    int *pni;
    int core;
    int dist;
+   int dstart;
    int icell;
    int icorner;
+   int i;
    int ix;
    int iy;
+   int j;
    int maxorder;
    int minorder;
+   int ndis;
    int npoint;
    int nused;
    int order;
@@ -7062,6 +7072,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
       this->basemesh = astPointSet( 1, 2, "", status );
       ptr = astGetPoints( this->basemesh );
       this->meshdist = astMalloc( sizeof( *(this->meshdist ) ) );
+      this->mdlen = 1;
       if( ptr ) {
          ptr[ 0 ][ 0 ] = AST__BAD;
          ptr[ 1 ][ 0 ] = AST__BAD;
@@ -7649,7 +7660,9 @@ fclose( fd );
    the corners. Also invert the "distance" values stored in the Corner
    structures to get an array that indexes the mesh in order of distance
    around the perimeter. Negative values in this array indicate breaks
-   in the perimeter between separate disjoint regions. */
+   in the perimeter between separate disjoint regions. Count the number
+   of disjoint regions. */
+         ndis = 1;
          icorner = 0;
          corner = corner_foot;
          while( corner ) {
@@ -7661,6 +7674,7 @@ fclose( fd );
                    (this->meshdist)[ corner->dist ] = icorner++;
                 } else {
                    (this->meshdist)[ -corner->dist ] = -(icorner++);
+                   ndis++;
                 }
 
              }
@@ -7671,6 +7685,48 @@ fclose( fd );
 
 /* Store it in the parent Region structure for future use. */
          this->basemesh = astClone( result );
+      }
+
+/* Add an extra point into the meshdist array at the end of each disjoint
+   region. This extra point is set to be a copy of the first point in the
+   same disjoint region, and causes each region to be closed (last point
+   joined to first point). */
+      this->mdlen = npoint + ndis;
+      newdist = astMalloc( this->mdlen*sizeof( *newdist ) );
+      if( astOK ) {
+         j = 0;
+         dstart = (this->meshdist)[ 0 ];
+
+/* Loop round each point in the existing meshdist array. */
+         for( i = 0; i < npoint; i++ ) {
+
+/* If the meshdist value is negative, insert a copy of the meshdist value
+   from the start of the current disjoint region. Then record the
+   distance at the start of the new disjoint region, negating it to make
+   it positive. */
+            if( (this->meshdist)[ i ] < 0 ) {
+               newdist[ j++ ] = dstart;
+               dstart = -(this->meshdist)[ i ];
+            }
+
+/* Copy the current meshdist value to the new array. */
+            newdist[ j++ ] = (this->meshdist)[ i ];
+         }
+
+/* Finish with a copy of the distance at the start of the final disjoint
+   region. */
+         newdist[ j++ ] = dstart;
+
+/* Sanity check. */
+         if( j != this->mdlen && astOK ) {
+            astError( AST__INTER, "astRegBaseMesh(%s): Mesh distance "
+                      "array has wrong length (internal programming error).",
+                      status, astGetClass( this ) );
+         }
+
+/* Free the original meshdist array and use the new one instead. */
+         (void) astFree( this->meshdist );
+         this->meshdist = newdist;
       }
 
 /* Free the remaining cells. */
@@ -8046,7 +8102,7 @@ static int RegTrace( AstRegion *this_region, int n, double *dist, double **ptr,
    All RA values are in the range [0,2PI[. */
       mesh = astRegBaseMesh( this );
       ptr_mesh = astGetPoints( mesh );
-      len_mesh = astGetNpoint( mesh );
+      len_mesh = this->mdlen;  /* Length of this->meshdist array */
       if( astOK ) {
 
 /* Another array is created at the same time as the above mesh, which
@@ -10049,6 +10105,7 @@ AstMoc *astInitMoc_( void *mem, size_t size, int init, AstMocVtab *vtab,
       new->mocarea = AST__BAD;
       new->nrange = 0;
       new->meshdist = NULL;
+      new->mdlen = 0;
       new->maxorder = -INT_MAX;
       new->minorder = -INT_MAX;
       new->lbnd[ 0 ] = AST__BAD;
@@ -10277,6 +10334,7 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
       new->moclength = 0;
       new->mocarea = AST__BAD;
       new->meshdist = NULL;
+      new->mdlen = 0;
       new->lbnd[ 0 ] = AST__BAD;
       new->lbnd[ 1 ] = AST__BAD;
       new->ubnd[ 0 ] = AST__BAD;

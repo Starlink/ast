@@ -107,6 +107,7 @@ typedef struct AstMoc {
    double ubnd[ 2 ];       /* Upper bounds in ICRS */
    int *inorm;             /* Normalised form of 32 bit MOC */
    int *meshdist;          /* Index of Region's base mesh that traces perimeter */
+   int mdlen;              /* Length of meshdist array */
    int maxorder;           /* HEALPix order giving MOC's best resolution */
    int minorder;           /* HEALPix order giving MOC's worst resolution */
    int moclength;          /* Length of normalised form */
