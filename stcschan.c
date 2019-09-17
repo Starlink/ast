@@ -202,6 +202,9 @@ f     The StcsChan class does not define any new routines beyond those
    for use in an error message. */
 #define NEWORD 10
 
+/* Maximum allowed length for a single word */
+#define MXWORDLEN 50
+
 /* Max length of string returned by GetAttrib */
 #define GETATTRIB_BUFF_LEN 50
 
@@ -800,8 +803,14 @@ static char *ContextFragment( WordContext *con, char **buf, int *status ){
       if( ++j == NEWORD ) j = 0;
    }
 
-/* Remove the final trailing space. */
-   if( nc ) (*buf)[ nc - 1 ] = 0;
+/* Limit the length of the returned fragement to 50 characters. */
+   if( nc > 50 ) {
+      strcpy( (*buf) + 50, "..." );
+
+/* Otherwise, remove the final trailing space. */
+   } else if( nc ) {
+      (*buf)[ nc - 1 ] = 0;
+   }
 
 /* Return a pointer to the supplied buffer. */
    return *buf;
@@ -1328,6 +1337,13 @@ static const char *GetNextWord( AstStcsChan *this, WordContext *con,
       } else if( ! con->done ) {
          result = "";
       }
+   }
+
+/* Report an error if the word is longer than expected. */
+   if( astOK && result && strlen( result ) > MXWORDLEN ){
+      astError( AST__BGWRD, "astRead(StcsChan): Word is too long (%zu "
+                "characters): %.*s...", status, strlen( result ),
+                MXWORDLEN, result );
    }
 
 /* Return the pointer to the next word. */

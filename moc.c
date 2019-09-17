@@ -1478,8 +1478,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
 /* Check no error has occurred. */
       if( astOK ) {
 
+/* Report an error if no text was obtained. */
+         if( state == 0 ) {
+            astError( AST__INMOC, "%s(%s): Blank MOC text supplied.",
+                      status, method, astGetClass( this ) );
+
 /* Check JSON mocs are terminated properly. */
-         if( *json ) {
+         } else if( *json ) {
             if( state != 9 && astOK ) {
                astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
                          status, method, astGetClass( this ), text );
@@ -1527,7 +1532,15 @@ void astAddMocText_( AstMoc *this, int maxorder,
    not supplied (i.e. is negative), in which case we use the value
    determind above from the supplied text. */
          } else {
-            if( maxorder < 0 ) maxorder = mxord;
+            if( maxorder < 0 ) {
+               if( mxord < 0 && astOK ) {
+                  astError( AST__INMOC, "%s(%s): Failed to read string MOC.",
+                         status, method, astGetClass( this ) );
+                  astError( AST__INMOC, "No order value found.", status );
+               } else {
+                  maxorder = mxord;
+               }
+            }
             astSetMaxOrder( this, maxorder );
          }
 

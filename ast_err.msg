@@ -220,5 +220,6 @@ BGMOC           <Normalised MOC is too big>
 INVAR           <Invalid argument value supplied to an AST method>
 INMOC           <Invalid string-encoded MOC>
 SMBUF           <Supplied buffer too small>
+BGWRD           <Word is too long>
 
 .END

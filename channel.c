@@ -1267,8 +1267,9 @@ static void GetNextData( AstChannel *this, int skip, char **name,
          *val = astString( line + nc1, nc2 - nc1 );
 
 /* If the input line didn't match any of the above and the "skip" flag
-   is not set, then report an error. */
+   is not set, then report an error. Truncate long lines for display. */
       } else if ( !skip ) {
+         if( len > 50 ) strcpy( line + 50, "..." );
          astError( AST__BADIN,
                    "astRead(%s): Cannot interpret the input data: \"%s\".", status,
                    astGetClass( this ), line );
