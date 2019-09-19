@@ -371,6 +371,41 @@ c      call ast_watchmemory( 2276565 )
       end if
 
 
+      do i = 0, 11
+         moc = ast_moc( ' ', status )
+         call ast_addmocstring( moc, AST__OR, .false., i, 100,
+     :                          '4/0-1', json, status )
+         call ast_addmocstring( moc, AST__AND, .true., -1, 100,
+     :                          '5/0,3', json, status )
+         call ast_getmocstring( moc, .false., len(buf), buf,
+     :                           size, status )
+         if( i .eq. 0 .and. buf(:size) .ne. '0/' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 1 .and. buf(:size) .ne. '1/' ) then
+            call stopit( 'Error 43', status )
+         else if( i .eq. 2 .and. buf(:size) .ne. '2/' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 3 .and. buf(:size) .ne. '3/' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 4 .and. buf(:size) .ne. '4/0-1' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 5 .and. buf(:size) .ne. '4/1 5/1-2' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 6 .and. buf(:size) .ne. '4/1 5/1-2 6/' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 7 .and. buf(:size) .ne. '4/1 5/1-2 7/' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 8 .and. buf(:size) .ne. '4/1 5/1-2 8/' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 9 .and. buf(:size) .ne. '4/1 5/1-2 9/' ) then
+            call stopit( 'Error 42', status )
+         else if( i .eq. 10 .and. buf(:size) .ne. '4/1 5/1-2 10/' ) then
+            call stopit( 'Error 42', status )
+         end if
+         call ast_annul( moc, status )
+      end do
+
+
 
       call ast_end( status )
       call err_rlse( status )

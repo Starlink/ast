@@ -131,7 +131,7 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        removal of white space within the source function when reading
 *        string encoded MOCs.
 *     17-SEP-2019 (DSB):
-*        Modify the meshdist attribute of the Moc structure so that each 
+*        Modify the meshdist attribute of the Moc structure so that each
 *        disjoint region ends with a copy of the first point in the region.
 *        This causes the boundary drawn around each region to be closed.
 *class--
@@ -4789,6 +4789,7 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
    order = -1;
    npix_start = 0;
    npix_prev = 0;
+   npix = 0;
    moclen = astGetMocLength( this );
    for( icell = 0; icell < moclen; icell++ ){
 
@@ -4854,13 +4855,15 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
       }
    }
 
-/* Terminate the last pixlist. */
-   if( json ) {
-      nc = sprintf( token, "]" );
-      TOKEN_WRITE;
-   } else if( npix_start < npix ) {
-      nc = sprintf( token, "-%zu", npix );
-      TOKEN_WRITE;
+/* Terminate the last pixlist (if any pixlist has been started). */
+   if( !first ) {
+      if( json ) {
+         nc = sprintf( token, "]" );
+         TOKEN_WRITE;
+      } else if( npix_start < npix ) {
+         nc = sprintf( token, "-%zu", npix );
+         TOKEN_WRITE;
+      }
    }
 
 /* If the Moc's maximum order has not yet been reached, append it
@@ -4868,9 +4871,9 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
    maxorder = astGetMaxOrder( this );
    if( order < maxorder ) {
       if( json ) {
-         nc = sprintf( token, ",\"%d\":[]", maxorder );
+         nc = sprintf( token, first?"{\"%d\":[]":",\"%d\":[]", maxorder );
       } else {
-         nc = sprintf( token, " %d/", maxorder );
+         nc = sprintf( token, first?"%d/":" %d/", maxorder );
       }
       TOKEN_WRITE;
    }
@@ -6269,7 +6272,7 @@ void astMocNorm_( AstMoc *this, int negate, int cmode, int nold,
 
 *  Description:
 *     This function normalises the supplied Moc. It is assumed that the
-*     ranges of HEALPix cell indices within Moc structure are in two
+*     ranges of HEALPix cell indices within the Moc structure are in two
 *     groups: 1) range zero to range 'nold-1' are assumed to be already
 *     normalised, 2) ranges 'nold' to the end are assumed not be be
 *     normalised.
@@ -6367,30 +6370,39 @@ static void NegateRanges( AstMoc *this, int start, int order,
 /* Check inherited status */
    if( !astOK ) return;
 
-/* Nothing to do if the Moc is empty. */
-   if( this->nrange > 0 ) {
+/* Nothing to do if the Moc is empty, or no ranges are to be negated. */
+   if( this->nrange > 0 && start < this->nrange ) {
 
-/* Get the maximum number of nested indices at the highest order in use. */
+/* Get the maximum number of nested indices at the highest order in use.
+   The indices go from zero to (max_nest-1). */
       max_nest = 12*( 1L << 2*order );
 
-/* Does the first range start at zero? If so, there is no gap before it. */
+/* Does the first range to be negated start at zero? If so, there is no
+   gap before it. */
       if( this->range[ 2*start ] == 0 ) {
 
-/* Loop round all the new ranges stored in the Moc above. Replace each
-   range with the gap between it and the following range. */
+/* Loop round all the ranges to be negated. Replace each range with the gap
+   between it and the following range. */
          pr = this->range + 2*start;
          for( irange = start; irange < this->nrange; irange++ ) {
 
-/* The start of the next "gap" is the end of the current "range". */
-            pr[ 0 ] = pr[ 1 ] + 1;
-
-/* Check that the current range does not extend all the way to the last
-   nested index value. If it does not, stoe the end of the current gap.
-   If it does, break out of the range loop. */
-            if( pr[ 0 ] < max_nest ) {
-               pr[ 1 ] = pr[ 2 ] - 1;
-            } else {
+/* If the current range extends all the way to the last nested index
+   value, there is no gap after it, so break out of the loop without
+   storing another gap. */
+            if( pr[ 1 ] >= max_nest - 1 ) {
                break;
+
+/* Otherwise, if there is another range to do, store the gap between the
+   end of the current range and the start of the next range. */
+            } else if( irange < this->nrange - 1 ) {
+               pr[ 0 ] = pr[ 1 ] + 1;
+               pr[ 1 ] = pr[ 2 ] - 1;
+
+/* Otherwise, if this is the last range, store the gap between the
+   end of the current range and the last nested index value. */
+            } else {
+               pr[ 0 ] = pr[ 1 ] + 1;
+               pr[ 1 ] = max_nest - 1;
             }
 
 /* Increment the pointer to the next range. */
@@ -6405,17 +6417,19 @@ static void NegateRanges( AstMoc *this, int start, int order,
    will be a gap before it. */
       } else {
 
-/* Loop round all the new ranges stored in the Moc above. Replace each
-   range with the gap between it and the preceding range. */
+/* Loop round all the ranges to be negated. Replace each range with the
+   gap between it and the preceding range (or cell zero if there is no
+   preceding range). */
          istart = 0;
          pr = this->range + 2*start;
          for( irange = start; irange < this->nrange; irange++ ) {
 
-/* Record the index at which the next gap starts. */
+/* Record the index at which the next gap (if any) starts. */
             next_start = pr[ 1 ] + 1;
 
 /* The end of the "current range" is changed to be the end of the gap
-   between the previous range and the current range. */
+   between the previous range and the current range. Note, we have
+   already checked that "pr[0]" is greater than zero. */
             pr[ 1 ] = pr[ 0 ] - 1;
 
 /* The start of the "current range" is changed to be the start of the gap
