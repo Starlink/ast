@@ -21955,11 +21955,9 @@ alternate axis descriptions but no primary axis descriptions.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.7.2}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.7.1 and V8.7.2 (the
-current version):
+\subsection{Changes Introduced in V8.7.2}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.7.1 and V8.7.2:
 
 \begin{enumerate}
 
@@ -21968,6 +21966,30 @@ current version):
 new configure option ``\texttt{--without-topinclude}'' can be used to prevent
 the header file being installed into \texttt{STARLINK\_DIR/include}.
 
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V8.8.0}
+The following describes the most significant changes which have
+occurred in the AST library between versions V8.7.2 and V8.8.0 (the
+current version):
+
+\begin{enumerate}
+\item Functions such as
+c+
+astResample and astMask
+c-
+f+
+AST\_RESAMPLE and AST\_MASK
+f-
+that handle grids of data values now have alternative interfaces that can
+handle grids that contain more pixels than can be represented in a 4-byte
+integer. The names of these ``8-byte'' interfaces are the same as the
+4-byte interfaces but have the digit ``8'' appended to the function name
+(before any trailing data type code). These new interfaces are documented
+in an extra paragraph entitled \emph{Handling of Huge Pixel Arrays} attached
+to the reference documentation for the main function.
 
 \end{enumerate}
 

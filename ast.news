@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V8.7.2) of the Starlink AST (astrometry) library is
+   A new release (V8.8.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,6 +17,19 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- Functions such as astResample and astMask that handle grids of data
+values now have alternative interfaces that can handle grids that contain
+more pixels than can be represented in a 4-byte integer. The names of
+these "8-byte" interfaces are the same as the 4-byte interfaces but have
+the digit "8" appended to the function name (before any trailing data
+type code). These new interfaces are documented in an extra paragraph
+entitled "Handling of Huge Pixel Arrays" attached to the reference
+documentation for the main function.
+
+
+Main Changes in V8.7.2
+----------------------
 
 - By default, the AST header file "ast.h" is now installed into both
 $STARLINK_DIR/include and $STARLINK_DIR/include/star. The new configure

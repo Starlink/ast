@@ -164,18 +164,18 @@ typedef struct AstRegionVtab {
    double *(* RegCentre)( AstRegion *, double *, double **, int, int, int * );
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-   int (* MaskLD)( AstRegion *, AstMapping *, int, int, const int[], const int ubnd[], long double [], long double, int * );
+   AstDim (* MaskLD)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim ubnd[], long double [], long double, int * );
 #endif
-   int (* MaskB)( AstRegion *, AstMapping *, int, int, const int[], const int[], signed char[], signed char, int * );
-   int (* MaskD)( AstRegion *, AstMapping *, int, int, const int[], const int[], double[], double, int * );
-   int (* MaskF)( AstRegion *, AstMapping *, int, int, const int[], const int[], float[], float, int * );
-   int (* MaskI)( AstRegion *, AstMapping *, int, int, const int[], const int[], int[], int, int * );
-   int (* MaskL)( AstRegion *, AstMapping *, int, int, const int[], const int[], long int[], long int, int * );
-   int (* MaskS)( AstRegion *, AstMapping *, int, int, const int[], const int[], short int[], short int, int * );
-   int (* MaskUB)( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned char[], unsigned char, int * );
-   int (* MaskUI)( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned int[], unsigned int, int * );
-   int (* MaskUL)( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned long int[], unsigned long int, int * );
-   int (* MaskUS)( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned short int[], unsigned short int, int * );
+   AstDim (* MaskB)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], signed char[], signed char, int * );
+   AstDim (* MaskD)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], double[], double, int * );
+   AstDim (* MaskF)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], float[], float, int * );
+   AstDim (* MaskI)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], int[], int, int * );
+   AstDim (* MaskL)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], long int[], long int, int * );
+   AstDim (* MaskS)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], short int[], short int, int * );
+   AstDim (* MaskUB)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned char[], unsigned char, int * );
+   AstDim (* MaskUI)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned int[], unsigned int, int * );
+   AstDim (* MaskUL)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned long int[], unsigned long int, int * );
+   AstDim (* MaskUS)( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned short int[], unsigned short int, int * );
 
    int (* GetNegated)( AstRegion *, int * );
    int (* TestNegated)( AstRegion *, int * );
@@ -257,18 +257,30 @@ int astOverlap_( AstRegion *, AstRegion *, int * );
 void astNegate_( AstRegion *, int * );
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-int astMaskLD_( AstRegion *, AstMapping *, int, int, const int[], const int[], long double [], long double, int * );
+int astMask4LD_( AstRegion *, AstMapping *, int, int, const int[], const int[], long double [], long double, int * );
+AstDim astMask8LD_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], long double [], long double, int * );
 #endif
-int astMaskB_( AstRegion *, AstMapping *, int, int, const int[], const int[], signed char[], signed char, int * );
-int astMaskD_( AstRegion *, AstMapping *, int, int, const int[], const int[], double[], double, int * );
-int astMaskF_( AstRegion *, AstMapping *, int, int, const int[], const int[], float[], float, int * );
-int astMaskI_( AstRegion *, AstMapping *, int, int, const int[], const int[], int[], int, int * );
-int astMaskL_( AstRegion *, AstMapping *, int, int, const int[], const int[], long int[], long int, int * );
-int astMaskS_( AstRegion *, AstMapping *, int, int, const int[], const int[], short int[], short int, int * );
-int astMaskUB_( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned char[], unsigned char, int * );
-int astMaskUI_( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned int[], unsigned int, int * );
-int astMaskUL_( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned long int[], unsigned long int, int * );
-int astMaskUS_( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned short int[], unsigned short int, int * );
+int astMask4B_( AstRegion *, AstMapping *, int, int, const int[], const int[], signed char[], signed char, int * );
+int astMask4D_( AstRegion *, AstMapping *, int, int, const int[], const int[], double[], double, int * );
+int astMask4F_( AstRegion *, AstMapping *, int, int, const int[], const int[], float[], float, int * );
+int astMask4I_( AstRegion *, AstMapping *, int, int, const int[], const int[], int[], int, int * );
+int astMask4L_( AstRegion *, AstMapping *, int, int, const int[], const int[], long int[], long int, int * );
+int astMask4S_( AstRegion *, AstMapping *, int, int, const int[], const int[], short int[], short int, int * );
+int astMask4UB_( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned char[], unsigned char, int * );
+int astMask4UI_( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned int[], unsigned int, int * );
+int astMask4UL_( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned long int[], unsigned long int, int * );
+int astMask4US_( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned short int[], unsigned short int, int * );
+AstDim astMask8B_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], signed char[], signed char, int * );
+AstDim astMask8D_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], double[], double, int * );
+AstDim astMask8F_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], float[], float, int * );
+AstDim astMask8I_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], int[], int, int * );
+AstDim astMask8L_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], long int[], long int, int * );
+AstDim astMask8S_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], short int[], short int, int * );
+AstDim astMask8UB_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned char[], unsigned char, int * );
+AstDim astMask8UI_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned int[], unsigned int, int * );
+AstDim astMask8UL_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned long int[], unsigned long int, int * );
+AstDim astMask8US_( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned short int[], unsigned short int, int * );
+
 void astSetUnc_( AstRegion *, AstRegion *, int * );
 AstRegion *astGetNegation_( AstRegion *, int * );
 AstRegion *astGetUnc_( AstRegion *, int, int * );
@@ -385,6 +397,77 @@ astINVOKE(O,astLoadRegion_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 /* Here we make use of astCheckRegion to validate Region pointers before
    use. This provides a contextual error report if a pointer to the wrong sort
    of object is supplied. */
+
+
+/* Functions that have arguments representing pixel indices or counts have
+   two variant interfaces - one that uses 4-byte integers and one that uses
+   8-byte integers. For backward compatibility, the 4-byte interface is
+   invoked using the old macro name. The new 8-byte interface is invoked
+   using a modified macro name consisting of the base name, followed by
+   "8", followed by the data type code. */
+
+
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
+#define astMaskLD(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4LD_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8LD(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8LD_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#endif
+
+#define astMaskB(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4B_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8B(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8B_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskD(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4D_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8D(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8D_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskF(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4F_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8F(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8F_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskI(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4I_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8I(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8I_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskL(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4L_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8L(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8L_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskS(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4S_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8S(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8S_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskUB(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4UB_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8UB(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8UB_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskUI(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4UI_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8UI(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8UI_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskUL(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4UL_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8UL(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8UL_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+#define astMaskUS(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask4US_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+#define astMask8US(this,map,inside,ndim,lbnd,ubnd,in,val) \
+astINVOKE(V,astMask8US_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
+
+
+/* The remaining function invocation macros have only a single variant
+   (no pixel indice args ). */
+
 #define astGetRegionFrame(this) \
 astINVOKE(O,astGetRegionFrame_(astCheckRegion(this),STATUS_PTR))
 #define astGetRegionFrameSet(this) \
@@ -393,32 +476,6 @@ astINVOKE(O,astGetRegionFrameSet_(astCheckRegion(this),STATUS_PTR))
 astINVOKE(V,astNegate_(astCheckRegion(this),STATUS_PTR))
 #define astOverlap(this,that) \
 astINVOKE(V,astOverlap_(astCheckRegion(this),astCheckRegion(that),STATUS_PTR))
-
-#if HAVE_LONG_DOUBLE     /* Not normally implemented */
-#define astMaskLD(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskLD_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#endif
-
-#define astMaskB(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskB_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskD(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskD_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskF(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskF_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskI(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskI_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskL(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskL_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskS(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskS_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskUB(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskUB_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskUI(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskUI_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskUL(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskUL_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
-#define astMaskUS(this,map,inside,ndim,lbnd,ubnd,in,val) \
-astINVOKE(V,astMaskUS_(astCheckRegion(this),(map?astCheckMapping(map):NULL),inside,ndim,lbnd,ubnd,in,val,STATUS_PTR))
 #define astSetUnc(this,unc) astINVOKE(V,astSetUnc_(astCheckRegion(this),unc?astCheckRegion(unc):NULL,STATUS_PTR))
 #define astGetUnc(this,def) astINVOKE(O,astGetUnc_(astCheckRegion(this),def,STATUS_PTR))
 #define astGetRegionBounds(this,lbnd,ubnd) astINVOKE(V,astGetRegionBounds_(astCheckRegion(this),lbnd,ubnd,STATUS_PTR))

@@ -152,12 +152,12 @@ print(
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -199,6 +199,7 @@ while( <TEMP> ) {
 #  Remove the underscores from the protected lines and macros.
    s/^_#include(\s)/#include$1/;
    s/^_#define(\s)/#define$1/;
+   s/^_#undef(\s)/#undef$1/;
    s/___LINE__/__LINE__/g;
    s/___FILE__/__FILE__/g;
 
@@ -269,12 +270,15 @@ line: while ( <INCLUDE> ) {
          s/^/_/;
       }
 
-#  Also protect "#define ..." lines, to prevent macro substitution being
-#  performed by the C preprocessor. Do not do this to lines of the form
+#  Also protect "#define ..." and "#undef ..." lines, to prevent macro substitution
+#  being performed by the C preprocessor. Do not do this to lines of the form
 #  "#define XXX_INCLUDED" because these are still needed to determine which
 #  AST header files get included.
       if ( /^\#define\s/ ) {
          if ( ! /^\#define\s+\w*_INCLUDED/ ) { s/^/_/ };
+      }
+      if ( /^\#undef\s/ ) {
+         s/^/_/;
       }
 
 #  Similarly add underscores to protect standard C macros.

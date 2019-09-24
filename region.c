@@ -252,6 +252,8 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        failed for some Regions defined within a SkyFrame, since the
 *        negation of a bounded region on the sky is also bounded (unlike
 *        regions defiend in cartesian spaces).
+*     24-SEP-2019 (DSB):
+*        Added 8-byte interface for astMask<X>.
 *class--
 
 *  Implementation Notes:
@@ -896,18 +898,18 @@ static int class_init = 0;       /* Virtual function table initialised? */
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-static int MaskLD( AstRegion *, AstMapping *, int, int, const int[], const int ubnd[], long double [], long double, int * );
+static AstDim MaskLD( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim ubnd[], long double [], long double, int * );
 #endif
-static int MaskB( AstRegion *, AstMapping *, int, int, const int[], const int[], signed char[], signed char, int * );
-static int MaskD( AstRegion *, AstMapping *, int, int, const int[], const int[], double[], double, int * );
-static int MaskF( AstRegion *, AstMapping *, int, int, const int[], const int[], float[], float, int * );
-static int MaskI( AstRegion *, AstMapping *, int, int, const int[], const int[], int[], int, int * );
-static int MaskL( AstRegion *, AstMapping *, int, int, const int[], const int[], long int[], long int, int * );
-static int MaskS( AstRegion *, AstMapping *, int, int, const int[], const int[], short int[], short int, int * );
-static int MaskUB( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned char[], unsigned char, int * );
-static int MaskUI( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned int[], unsigned int, int * );
-static int MaskUL( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned long int[], unsigned long int, int * );
-static int MaskUS( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned short int[], unsigned short int, int * );
+static AstDim MaskB( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], signed char[], signed char, int * );
+static AstDim MaskD( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], double[], double, int * );
+static AstDim MaskF( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], float[], float, int * );
+static AstDim MaskI( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], int[], int, int * );
+static AstDim MaskL( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], long int[], long int, int * );
+static AstDim MaskS( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], short int[], short int, int * );
+static AstDim MaskUB( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned char[], unsigned char, int * );
+static AstDim MaskUI( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned int[], unsigned int, int * );
+static AstDim MaskUL( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned long int[], unsigned long int, int * );
+static AstDim MaskUS( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned short int[], unsigned short int, int * );
 
 static AstAxis *GetAxis( AstFrame *, int, int * );
 static AstFrame *GetRegionFrame( AstRegion *, int * );
@@ -5915,16 +5917,41 @@ f     For compatibility with other Starlink facilities, the codes W
 f     and UW are provided as synonyms for S and US respectively (but
 f     only in the Fortran interface to AST).
 
+*  Handling of Huge Pixel Arrays:
+*     If the input grid is so large that an integer pixel index,
+*     (or a count of pixels) could exceed the largest value that can be
+*     represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte) to hold pixel
+*     indices and pixel counts. Specifically, the arguments
+c     "lbnd" and "ubnd" are
+c     changed from type "int" to type "int64_t" (defined in header file
+c     stdint.h). The function return type is similarly changed to type
+c     int64_t.
+f     LBND, UBND are changed from
+f     type INTEGER to type INTEGER*8. The function return type is similarly
+f     changed to type INTEGER*8.
+*     The function name is changed by inserting the digit "8" before the
+*     trailing data type code. Thus,
+c     astMask<X> becomes astMask8<X>.
+f     AST_MASK<X> becomes AST_MASK8<X>.
+
 *--
 */
 /* Define a macro to implement the function for a specific data
    type. */
 #define MAKE_MASK(X,Xtype) \
-static int Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
-                    const int lbnd[], const int ubnd[], \
-                    Xtype in[], Xtype val, int *status ) { \
+static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
+                       const AstDim lbnd[], const AstDim ubnd[], \
+                       Xtype in[], Xtype val, int *status ) { \
 \
 /* Local Variables: */ \
+   AstDim *lbndg;                /* Pointer to array holding lower grid bounds */ \
+   AstDim *ubndg;                /* Pointer to array holding upper grid bounds */ \
+   AstDim ipix;                  /* Loop counter for pixel index */ \
+   AstDim npix;                  /* Number of pixels in supplied array */ \
+   AstDim npixg;                 /* Number of pixels in bounding box */ \
+   AstDim result;                /* Result value to return */ \
    AstFrame *grid_frame;         /* Pointer to Frame describing grid coords */ \
    AstRegion *used_region;       /* Pointer to Region to be used by astResample */ \
    Xtype *c;                     /* Pointer to next array element */ \
@@ -5933,16 +5960,10 @@ static int Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
    Xtype *tmp_out;               /* Pointer to temporary output array */ \
    double *lbndgd;               /* Pointer to array holding lower grid bounds */ \
    double *ubndgd;               /* Pointer to array holding upper grid bounds */ \
-   int *lbndg;                   /* Pointer to array holding lower grid bounds */ \
-   int *ubndg;                   /* Pointer to array holding upper grid bounds */ \
    int idim;                     /* Loop counter for coordinate dimensions */ \
-   int ipix;                     /* Loop counter for pixel index */ \
    int nax;                      /* Number of Region axes */ \
    int nin;                      /* Number of Mapping input coordinates */ \
    int nout;                     /* Number of Mapping output coordinates */ \
-   int npix;                     /* Number of pixels in supplied array */ \
-   int npixg;                    /* Number of pixels in bounding box */ \
-   int result;                   /* Result value to return */ \
 \
 /* Initialise. */ \
    result = 0; \
@@ -6008,9 +6029,9 @@ static int Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
       for ( idim = 0; idim < ndim; idim++ ) { \
          if ( lbnd[ idim ] > ubnd[ idim ] ) { \
             astError( AST__GBDIN, "astMask"#X"(%s): Lower bound of " \
-                      "input grid (%d) exceeds corresponding upper bound " \
-                      "(%d).", status, astGetClass( this ), \
-                      lbnd[ idim ], ubnd[ idim ] ); \
+                      "input grid (%" AST__DIMFMT ") exceeds corresponding " \
+                      "upper bound (%" AST__DIMFMT ").", status, \
+                      astGetClass( this ), lbnd[ idim ], ubnd[ idim ] ); \
             astError( AST__GBDIN, "Error in input dimension %d.", status, \
                       idim + 1 ); \
             break; \
@@ -6021,8 +6042,8 @@ static int Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
 /* Allocate memory, and then get the bounding box of this new Region in its \
    current Frame (grid coordinates). This bounding box assumes the region \
    has not been negated. */ \
-   lbndg = astMalloc( sizeof( int )*(size_t) ndim ); \
-   ubndg = astMalloc( sizeof( int )*(size_t) ndim ); \
+   lbndg = astMalloc( sizeof( AstDim )*(size_t) ndim ); \
+   ubndg = astMalloc( sizeof( AstDim )*(size_t) ndim ); \
    lbndgd = astMalloc( sizeof( double )*(size_t) ndim ); \
    ubndgd = astMalloc( sizeof( double )*(size_t) ndim ); \
    if( astOK ) { \
@@ -6101,9 +6122,9 @@ static int Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
 /* Invoke astResample to mask just the region inside the bounding box found \
    above (specified by lbndg and ubndg), since all the points outside this \
    box will already contain their required value. */ \
-         result += astResample##X( used_region, ndim, lbnd, ubnd, in, NULL, AST__NEAREST, \
-                                   NULL, NULL, 0, 0.0, 100, val, ndim, \
-                                   lbnd, ubnd, lbndg, ubndg, out, NULL ); \
+         result += astResample8##X( used_region, ndim, lbnd, ubnd, in, NULL, AST__NEAREST, \
+                                    NULL, NULL, 0, 0.0, 100, val, ndim, \
+                                    lbnd, ubnd, lbndg, ubndg, out, NULL ); \
 \
 /* Revert to the original setting of the Negated attribute. */ \
          if( inside ) astNegate( used_region ); \
@@ -13576,27 +13597,80 @@ AstPointSet *astBndMesh_( AstRegion *this, double *lbnd, double *ubnd, int *stat
    return (**astMEMBER(this,Region,BndMesh))( this, lbnd, ubnd, status );
 }
 
-#define MAKE_MASK_(X,Xtype) \
-int astMask##X##_( AstRegion *this, AstMapping *map, int inside, int ndim, \
-                   const int lbnd[], const int ubnd[], Xtype in[], \
-                   Xtype val, int *status ) { \
+#define MAKE_MASK8_(X,Xtype) \
+AstDim astMask8##X##_( AstRegion *this, AstMapping *map, int inside, int ndim, \
+                       const AstDim lbnd[], const AstDim ubnd[], Xtype in[], \
+                       Xtype val, int *status ) { \
    if ( !astOK ) return 0; \
    return (**astMEMBER(this,Region,Mask##X))( this, map, inside, ndim, lbnd, \
                                               ubnd, in, val, status ); \
 }
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-MAKE_MASK_(LD,long double)
+MAKE_MASK8_(LD,long double)
 #endif
-MAKE_MASK_(D,double)
-MAKE_MASK_(F,float)
-MAKE_MASK_(L,long int)
-MAKE_MASK_(UL,unsigned long int)
-MAKE_MASK_(I,int)
-MAKE_MASK_(UI,unsigned int)
-MAKE_MASK_(S,short int)
-MAKE_MASK_(US,unsigned short int)
-MAKE_MASK_(B,signed char)
-MAKE_MASK_(UB,unsigned char)
+MAKE_MASK8_(D,double)
+MAKE_MASK8_(F,float)
+MAKE_MASK8_(L,long int)
+MAKE_MASK8_(UL,unsigned long int)
+MAKE_MASK8_(I,int)
+MAKE_MASK8_(UI,unsigned int)
+MAKE_MASK8_(S,short int)
+MAKE_MASK8_(US,unsigned short int)
+MAKE_MASK8_(B,signed char)
+MAKE_MASK8_(UB,unsigned char)
+#undef MAKE_MASK8_
+
+#define MAKE_MASK4_(X,Xtype) \
+int astMask4##X##_( AstRegion *this, AstMapping *map, int inside, int ndim, \
+                    const int lbnd[], const int ubnd[], Xtype in[], \
+                    Xtype val, int *status ) { \
+\
+   AstDim *lbnd8; \
+   AstDim *ubnd8; \
+   AstDim result8; \
+   int i; \
+   int result; \
+\
+   if ( !astOK ) return 0; \
+\
+   lbnd8 = astMalloc( ndim*sizeof(AstDim) ); \
+   ubnd8 = astMalloc( ndim*sizeof(AstDim) ); \
+   if( astOK ) { \
+      for( i = 0; i < ndim; i++ ) { \
+         lbnd8[ i ] = (AstDim) lbnd[ i ]; \
+         ubnd8[ i ] = (AstDim) ubnd[ i ]; \
+      } \
+\
+      result8 = astMask8##X##_( this, map, inside, ndim, lbnd8, \
+                                ubnd8, in, val, status ); \
+\
+      result = (int) result8; \
+      if( (AstDim) result != result8 && astOK ) { \
+         astError( AST__TOOBG, "astMask" #X "(%s): Return value is too " \
+                  "large to fit in a 4-byte integer. Use the 8-byte interface " \
+                  "instead (programming error).", status, astGetClass(this) ); \
+      } \
+   } \
+\
+   lbnd8 = astFree( lbnd8 );\
+   ubnd8 = astFree( ubnd8 ); \
+\
+   return result; \
+}
+
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
+MAKE_MASK4_(LD,long double)
+#endif
+MAKE_MASK4_(D,double)
+MAKE_MASK4_(F,float)
+MAKE_MASK4_(L,long int)
+MAKE_MASK4_(UL,unsigned long int)
+MAKE_MASK4_(I,int)
+MAKE_MASK4_(UI,unsigned int)
+MAKE_MASK4_(S,short int)
+MAKE_MASK4_(US,unsigned short int)
+MAKE_MASK4_(B,signed char)
+MAKE_MASK4_(UB,unsigned char)
 #undef MAKE_MASK_
 
 /* Special public interface functions. */

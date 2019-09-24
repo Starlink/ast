@@ -97,16 +97,23 @@
 /* ============= */
 #include "f77.h"                 /* FORTRAN <-> C interface macros (SUN/209) */
 #include "c2f77.h"               /* F77 <-> C support functions/macros */
+#include "memory.h"              /* Memory management facilities */
 #include "error.h"               /* Error reporting facilities */
 #include "mapping.h"             /* C interface to the Mapping class */
+#include "ast_err.h"             /* AST error codes */
 
 #include <stdint.h>
 
 /* Module Variables. */
 /* ================= */
 /* Pointer to user-supplied (FORTRAN 77) interpolation function for
-   use by AST_RESAMPLE<X>. */
+   use by AST_RESAMPLE<X> and AST_RESAMPLE8<X>. */
 static void (* ast_resample_FINTERP)();
+
+
+
+
+/* ----------   Interface for 32 bit integer dimensions -------------- */
 
 /* Interpolation function interface. */
 /* ================================= */
@@ -128,40 +135,103 @@ static void (* ast_resample_FINTERP)();
    "ast_resample_FINTERP". */
 #define MAKE_AST_RESAMPLE_UINTERP(X,Xtype,Ftype) \
 static void ast_resample_uinterp##X( int ndim, \
-                                     const int lbnd[], const int ubnd[], \
+                                     const AstDim lbnd[], const AstDim ubnd[], \
                                      const Xtype in[], const Xtype in_var[], \
-                                     int npoint, const int offset[], \
+                                     AstDim npoint, const AstDim offset[], \
                                      const double *const coords[], \
                                      const double params[], int flags, \
                                      Xtype badval, \
                                      Xtype *out, Xtype *out_var, \
-                                     int *nbad ) { \
+                                     AstDim *nbad ) { \
    DECLARE_INTEGER(STATUS); \
+   int *offset4; \
    int *status; \
+   int i; \
+   int lbnd4[ AST__MXDIM ]; \
+   int nbad4; \
+   int npoint4; \
+   int ubnd4[ AST__MXDIM ]; \
 \
 /* Get a pointer to the inherited staus value. */ \
    status = astGetStatusPtr; \
+\
+/* Convert supplied arrays holding 64 bit pixel counts and indices to 32 \
+   bit values that can be passed to the 32 bit Fortran routine. */ \
+   if( ndim <= AST__MXDIM ) { \
+      for( i = 0; i < ndim; i++ ) { \
+         lbnd4[ i ] = (int) lbnd[ i ]; \
+         ubnd4[ i ] = (int) ubnd[ i ]; \
+         if( (AstDim) lbnd4[ i ] != lbnd[ i ] || \
+             (AstDim) ubnd4[ i ] != ubnd[ i ] ) { \
+            astError( AST__TOOBG, "ast_resample_uinterp(Mapping): Axis %d " \
+                     "is too long to use with the 4-byte Fortran interface. " \
+                     "Use the 8 byte Fortran interface instead (programming " \
+                     "error).",  status, i + 1); \
+            break; \
+         } \
+      }          \
+\
+/* Report an error if the array has too many axes. */ \
+   } else if( astOK ) { \
+      astError( AST__NAXIN, "ast_resample_uinterp(Mapping): Too many " \
+               "array dimensions (%d). Must be no more than %d.", status, \
+               ndim, AST__MXDIM ); \
+      return; \
+   } \
+\
+/* Report an error if the number of points to be resampled overflows a \
+   4-byte integer. */ \
+   npoint4 = (int) npoint; \
+   if( (AstDim) npoint4 != npoint && astOK ) { \
+      astError( AST__TOOBG, "ast_resample_uinterp(Mapping): Too many " \
+               "resampling points for the 4-byte Fortran interface. " \
+               "Use the 8 byte Fortran interface instead (programming " \
+               "error).",  status ); \
+   } \
+\
+/* Allocate an array of int values and copy the offsets into it, checking for  \
+   overflow. */ \
+   offset4 = astMalloc( npoint4*sizeof(int) ); \
+   if( astOK ) { \
+      for( i = 0; i < npoint4; i++ ) { \
+         offset4[ i ] = (int) offset[ i ]; \
+         if( (AstDim) offset4[ i ] != offset[ i ] ) { \
+            astError( AST__TOOBG, "ast_resample_uinterp(Mapping): The " \
+                     "array has too many pixels to use with the 4-byte " \
+                     "Fortran interface. Use the 8 byte Fortran interface " \
+                     "instead (programming error).",  status ); \
+            break; \
+         } \
+      } \
+   }   \
 \
 /* Obtain the C status and then invoke the FORTRAN 77 interpolation \
    function via the stored pointer. Note that the "coords" array we \
    pass to FORTRAN has to be a contiguous 2-d array, so we must \
    de-reference one level of pointer compared to the C case. */ \
    STATUS = astStatus; \
+   nbad4 = 0; \
    ( *ast_resample_FINTERP )( INTEGER_ARG(&ndim), \
-                              INTEGER_ARRAY_ARG(lbnd), \
-                              INTEGER_ARRAY_ARG(ubnd), \
+                              INTEGER_ARRAY_ARG(lbnd4), \
+                              INTEGER_ARRAY_ARG(ubnd4), \
                               Ftype##_ARRAY_ARG(in), \
                               Ftype##_ARRAY_ARG(in_var), \
-                              INTEGER_ARG(&npoint), \
-                              INTEGER_ARRAY_ARG(offset), \
+                              INTEGER_ARG(&npoint4), \
+                              INTEGER_ARRAY_ARG(offset4), \
                               DOUBLE_ARRAY_ARG(coords[ 0 ]), \
                               DOUBLE_ARRAY_ARG(params), \
                               INTEGER_ARG(&flags), \
                               Ftype##_ARG(&badval), \
                               Ftype##_ARRAY_ARG(out), \
                               Ftype##_ARRAY_ARG(out_var), \
-                              INTEGER_ARG(nbad), \
+                              INTEGER_ARG(nbad4), \
                               INTEGER_ARG(&STATUS) ); \
+\
+/* Convert the 4-byte bad pixel count to 8-byte. */ \
+   *nbad = (AstDim) nbad4; \
+\
+/* Free the array of 4-byte offsets. */ \
+   offset4 = astFree( offset4 ); \
 \
 /* Set the C status to the returned FORTRAN 77 status. */ \
    astSetStatus( STATUS ); \
@@ -381,10 +451,10 @@ F77_INTEGER_FUNCTION(ast_resample##f)( INTEGER(THIS), \
    GENPTR_##Ftype##_ARRAY(OUT_VAR) \
    GENPTR_INTEGER(STATUS) \
 \
-   void (* finterp)(); \
+   F77_INTEGER_TYPE RESULT; \
    Xtype *out_var; \
    const Xtype *in_var; \
-   F77_INTEGER_TYPE RESULT; \
+   void (* finterp)(); \
 \
    astAt( "AST_RESAMPLE"#F, NULL, 0 ); \
    astWatchSTATUS( \
@@ -768,4 +838,199 @@ F77_SUBROUTINE(ast_mapsplit)( INTEGER(THIS),
       *MAP = astP2I( map );
    )
 }
+
+
+
+
+
+
+
+
+
+/* ----------   Interface for 64 bit integer dimensions -------------- */
+/* This section repeats sections above that involve 32 bit integer
+   dimensions in order to cater for 64 bit integers. Interfaces that do
+   not include dimension values are not repeated. */
+
+
+/* Interpolation function interface. */
+/* ================================= */
+/* These functions are associated with allowing FORTRAN 77
+   implementations of interpolation functions to be passed to
+   AST_RESAMPLE8<X> via the FORTRAN 77 interface and then to be invoked
+   when necessary by the C code in the main implementation of
+   astResample<X>. */
+
+/* Define a macro which defines an interface function called
+   ast_resample_uinterp8<X> for a specific data type.
+
+   The resulting function has a suitable interface to allow it to be
+   passed as an interpolation function to the C interface of
+   astResample<X> in the case where the "interp" parameter is set to
+   AST__UINTERP. In turn, it invokes the equivalent user-supplied
+   FORTRAN 77 interpolation function, a pointer to which should
+   previously have been stored in the static variable
+   "ast_resample_FINTERP". */
+#define MAKE_AST_RESAMPLE_UINTERP8(X,Xtype,Ftype) \
+static void ast_resample_uinterp8##X( int ndim, \
+                                      const AstDim lbnd[], const AstDim ubnd[], \
+                                      const Xtype in[], const Xtype in_var[], \
+                                      AstDim npoint, const AstDim offset[], \
+                                      const double *const coords[], \
+                                      const double params[], int flags, \
+                                      Xtype badval, \
+                                      Xtype *out, Xtype *out_var, \
+                                      AstDim *nbad ) { \
+   DECLARE_INTEGER(STATUS); \
+   int *status; \
+\
+/* Get a pointer to the inherited staus value. */ \
+   status = astGetStatusPtr; \
+\
+/* Obtain the C status and then invoke the FORTRAN 77 interpolation \
+   function via the stored pointer. Note that the "coords" array we \
+   pass to FORTRAN has to be a contiguous 2-d array, so we must \
+   de-reference one level of pointer compared to the C case. */ \
+   STATUS = astStatus; \
+   ( *ast_resample_FINTERP )( INTEGER_ARG(&ndim), \
+                              INTEGER8_ARRAY_ARG(lbnd), \
+                              INTEGER8_ARRAY_ARG(ubnd), \
+                              Ftype##_ARRAY_ARG(in), \
+                              Ftype##_ARRAY_ARG(in_var), \
+                              INTEGER8_ARG(&npoint), \
+                              INTEGER8_ARRAY_ARG(offset), \
+                              DOUBLE_ARRAY_ARG(coords[ 0 ]), \
+                              DOUBLE_ARRAY_ARG(params), \
+                              INTEGER_ARG(&flags), \
+                              Ftype##_ARG(&badval), \
+                              Ftype##_ARRAY_ARG(out), \
+                              Ftype##_ARRAY_ARG(out_var), \
+                              INTEGER8_ARG(nbad), \
+                              INTEGER_ARG(&STATUS) ); \
+\
+/* Set the C status to the returned FORTRAN 77 status. */ \
+   astSetStatus( STATUS ); \
+}
+
+/* Invoke the above macro to define an interface function for each
+   required data type. */
+MAKE_AST_RESAMPLE_UINTERP8(D,double,DOUBLE)
+MAKE_AST_RESAMPLE_UINTERP8(F,float,REAL)
+MAKE_AST_RESAMPLE_UINTERP8(I,int,INTEGER)
+MAKE_AST_RESAMPLE_UINTERP8(UI,unsigned int,INTEGER)
+MAKE_AST_RESAMPLE_UINTERP8(K,INT_BIG,INTEGER8)
+MAKE_AST_RESAMPLE_UINTERP8(UK,UINT_BIG,INTEGER8)
+MAKE_AST_RESAMPLE_UINTERP8(S,short int,WORD)
+MAKE_AST_RESAMPLE_UINTERP8(US,unsigned short int,UWORD)
+MAKE_AST_RESAMPLE_UINTERP8(B,signed char,BYTE)
+MAKE_AST_RESAMPLE_UINTERP8(UB,unsigned char,UBYTE)
+
+/* Undefine the macro. */
+#undef MAKE_AST_RESAMPLE_UINTERP8
+
+
+/* 8-byte FORTRAN interface functions. */
+/* =================================== */
+/* These functions implement the remainder of the 8-byte FORTRAN interface. */
+
+/* AST_RESAMPLE8<X> requires a function for each possible data type, so
+   define it via a macro. */
+#define MAKE_AST_RESAMPLE8(f,F,Ftype,X,Xtype) \
+F77_INTEGER8_FUNCTION(ast_resample8##f)( INTEGER(THIS), \
+                                        INTEGER(NDIM_IN), \
+                                        INTEGER8_ARRAY(LBND_IN), \
+                                        INTEGER8_ARRAY(UBND_IN), \
+                                        Ftype##_ARRAY(IN), \
+                                        Ftype##_ARRAY(IN_VAR), \
+                                        INTEGER(INTERP), \
+                                        void (* FINTERP)(), \
+                                        DOUBLE_ARRAY(PARAMS), \
+                                        INTEGER(FLAGS), \
+                                        DOUBLE(TOL), \
+                                        INTEGER(MAXPIX), \
+                                        Ftype(BADVAL), \
+                                        INTEGER(NDIM_OUT), \
+                                        INTEGER8_ARRAY(LBND_OUT), \
+                                        INTEGER8_ARRAY(UBND_OUT), \
+                                        INTEGER8_ARRAY(LBND), \
+                                        INTEGER8_ARRAY(UBND), \
+                                        Ftype##_ARRAY(OUT), \
+                                        Ftype##_ARRAY(OUT_VAR), \
+                                        INTEGER(STATUS) ) { \
+   GENPTR_INTEGER(THIS) \
+   GENPTR_INTEGER(NDIM_IN) \
+   GENPTR_INTEGER8_ARRAY(LBND_IN) \
+   GENPTR_INTEGER8_ARRAY(UBND_IN) \
+   GENPTR_##Ftype##_ARRAY(IN) \
+   GENPTR_##Ftype##_ARRAY(IN_VAR) \
+   GENPTR_INTEGER(INTERP) \
+   GENPTR_DOUBLE_ARRAY(PARAMS) \
+   GENPTR_INTEGER(FLAGS) \
+   GENPTR_DOUBLE(TOL) \
+   GENPTR_INTEGER(MAXPIX) \
+   GENPTR_##Ftype(BADVAL) \
+   GENPTR_INTEGER(NDIM_OUT) \
+   GENPTR_INTEGER8_ARRAY(LBND_OUT) \
+   GENPTR_INTEGER8_ARRAY(UBND_OUT) \
+   GENPTR_INTEGER8_ARRAY(LBND) \
+   GENPTR_INTEGER8_ARRAY(UBND) \
+   GENPTR_##Ftype##_ARRAY(OUT) \
+   GENPTR_##Ftype##_ARRAY(OUT_VAR) \
+   GENPTR_INTEGER(STATUS) \
+\
+   void (* finterp)(); \
+   Xtype *out_var; \
+   const Xtype *in_var; \
+   F77_INTEGER8_TYPE RESULT; \
+\
+   astAt( "AST_RESAMPLE8"#F, NULL, 0 ); \
+   astWatchSTATUS( \
+\
+/* If *INTERP is set to a value that requires a user-supplied \
+   interpolation function, then store a pointer to the supplied \
+   FORTRAN 77 version of this function and use the appropriate C \
+   wrapper function (defined above) to invoke it. */ \
+      if ( *INTERP == AST__UINTERP ) { \
+         ast_resample_FINTERP = FINTERP; \
+         finterp = (void (*)()) ast_resample_uinterp8##X; \
+      } else if ( *INTERP == AST__UKERN1 ) { \
+         ast_resample_FINTERP = FINTERP; \
+         finterp = (void (*)()) ast_resample_ukern1; \
+      } else { \
+         ast_resample_FINTERP = NULL; \
+         finterp = NULL; \
+      } \
+\
+/* If the AST__USEVAR flag is set, use the input and output variance \
+   arrays, otherwise pass NULL pointers. */ \
+      in_var = out_var = NULL; \
+      if ( AST__USEVAR & *FLAGS ) { \
+         in_var = (const Xtype *) IN_VAR; \
+         out_var = (Xtype *) OUT_VAR; \
+      } \
+      RESULT = astResample8##X( astI2P( *THIS ), *NDIM_IN, \
+                                LBND_IN, UBND_IN, (const Xtype *) IN, in_var, \
+                                *INTERP, finterp, PARAMS, *FLAGS, \
+                                *TOL, *MAXPIX, *BADVAL, \
+                                *NDIM_OUT, LBND_OUT, UBND_OUT, \
+                                LBND, UBND, (Xtype *) OUT, out_var ); \
+   ) \
+   return RESULT; \
+}
+
+/* Invoke the above macro to define a function for each data
+   type. Include synonyms for some functions. */
+MAKE_AST_RESAMPLE8(d,D,DOUBLE,D,double)
+MAKE_AST_RESAMPLE8(r,R,REAL,F,float)
+MAKE_AST_RESAMPLE8(i,I,INTEGER,I,int)
+MAKE_AST_RESAMPLE8(ui,UI,INTEGER,UI,unsigned int)
+MAKE_AST_RESAMPLE8(k,K,INTEGER8,K,INT_BIG)
+MAKE_AST_RESAMPLE8(uk,UK,INTEGER8,UK,UINT_BIG)
+MAKE_AST_RESAMPLE8(s,S,WORD,S,short int)
+MAKE_AST_RESAMPLE8(us,US,UWORD,US,unsigned short int)
+MAKE_AST_RESAMPLE8(w,W,WORD,S,short int)
+MAKE_AST_RESAMPLE8(uw,UW,UWORD,US,unsigned short int)
+MAKE_AST_RESAMPLE8(b,B,BYTE,B,signed char)
+MAKE_AST_RESAMPLE8(ub,UB,UBYTE,UB,unsigned char)
+#undef MAKE_AST_RESAMPLE8
 

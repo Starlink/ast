@@ -221,5 +221,5 @@ INVAR           <Invalid argument value supplied to an AST method>
 INMOC           <Invalid string-encoded MOC>
 SMBUF           <Supplied buffer too small>
 BGWRD           <Word is too long>
-
+TOOBG           <Array is too big>
 .END

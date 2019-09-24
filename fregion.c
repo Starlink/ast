@@ -66,6 +66,7 @@
 #include "error.h"               /* Error reporting facilities */
 #include "memory.h"              /* Memory management facilities */
 #include "region.h"              /* C interface to the Region class */
+#include "ast_err.h"             /* AST error codes */
 
 /* FORTRAN interface functions. */
 /* ============================ */
@@ -200,7 +201,6 @@ F77_INTEGER_FUNCTION(ast_mask##f)( INTEGER(THIS), \
 \
    astAt( "AST_MASK"#F, NULL, 0 ); \
    astWatchSTATUS( \
-\
       RESULT = astMask##X( astI2P( *THIS ), astI2P( *MAP ), \
                            F77_ISTRUE( *INSIDE ) ? 1 : 0, *NDIM, \
                            LBND, UBND, (Xtype *) IN, *VAL ); \
@@ -221,6 +221,53 @@ MAKE_AST_MASK(uw,UW,UWORD,US,unsigned short int)
 MAKE_AST_MASK(b,B,BYTE,B,signed char)
 MAKE_AST_MASK(ub,UB,UBYTE,UB,unsigned char)
 #undef MAKE_AST_MASK
+
+/* AST_MASK<X> requires a function for each possible data type, so
+   define it via a macro. */
+#define MAKE_AST_MASK8(f,F,Ftype,X,Xtype) \
+F77_INTEGER8_FUNCTION(ast_mask8##f)( INTEGER(THIS), \
+                                     INTEGER(MAP), \
+                                     LOGICAL(INSIDE), \
+                                     INTEGER(NDIM), \
+                                     INTEGER8_ARRAY(LBND), \
+                                     INTEGER8_ARRAY(UBND), \
+                                     Ftype##_ARRAY(IN), \
+                                     Ftype(VAL), \
+                                     INTEGER(STATUS) ) { \
+   GENPTR_INTEGER(THIS) \
+   GENPTR_INTEGER(MAP) \
+   GENPTR_LOGICAL(INSIDE) \
+   GENPTR_INTEGER(NDIM) \
+   GENPTR_INTEGER8_ARRAY(LBND) \
+   GENPTR_INTEGER8_ARRAY(UBND) \
+   GENPTR_##Ftype##_ARRAY(IN) \
+   GENPTR_##Ftype(VAL) \
+   GENPTR_INTEGER(STATUS) \
+\
+   F77_INTEGER8_TYPE RESULT; \
+\
+   astAt( "AST_MASK8"#F, NULL, 0 ); \
+   astWatchSTATUS( \
+      RESULT = astMask8##X( astI2P( *THIS ), astI2P( *MAP ), \
+                            F77_ISTRUE( *INSIDE ) ? 1 : 0, *NDIM, \
+                            LBND, UBND, (Xtype *) IN, *VAL ); \
+   ) \
+   return RESULT; \
+}
+
+/* Invoke the above macro to define a function for each data
+   type. Include synonyms for some functions. */
+MAKE_AST_MASK8(d,D,DOUBLE,D,double)
+MAKE_AST_MASK8(r,R,REAL,F,float)
+MAKE_AST_MASK8(i,I,INTEGER,I,int)
+MAKE_AST_MASK8(ui,UI,INTEGER,UI,unsigned int)
+MAKE_AST_MASK8(s,S,WORD,S,short int)
+MAKE_AST_MASK8(us,US,UWORD,US,unsigned short int)
+MAKE_AST_MASK8(w,W,WORD,S,short int)
+MAKE_AST_MASK8(uw,UW,UWORD,US,unsigned short int)
+MAKE_AST_MASK8(b,B,BYTE,B,signed char)
+MAKE_AST_MASK8(ub,UB,UBYTE,UB,unsigned char)
+#undef MAKE_AST_MASK8
 
 F77_SUBROUTINE(ast_getregionbounds)( INTEGER(THIS),
                                      DOUBLE(LBND),

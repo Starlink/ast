@@ -3195,8 +3195,9 @@ C
       include 'SAE_PAR'
       include 'PRM_PAR'
 
-      integer status, f1, f2, f3, nr, cir, i, j, lbnd_in(2), ubnd_in(2),
-     :        nr2, res
+      integer status, f1, f2, f3, nr, cir, i, j, nr2, res
+      integer*8 lbnd_in8(2), ubnd_in8(2)
+
       double precision p1(4),p2(4),rin(5,5)
       logical hasframeset
 
@@ -3249,10 +3250,10 @@ C
       if( hasframeset( nr, status ) ) call stopit( status,
      :                                          'NullRegion: error 7' )
 
-      lbnd_in(1) = 1
-      lbnd_in(2) = 1
-      ubnd_in(1) = 5
-      ubnd_in(2) = 5
+      lbnd_in8(1) = 1
+      lbnd_in8(2) = 1
+      ubnd_in8(1) = 5
+      ubnd_in8(2) = 5
 
       do i =1, 5
          do j = 1, 5
@@ -3261,8 +3262,8 @@ C
       end do
 
       nr = ast_NullRegion( f2, AST__NULL, 'negated=1', status )
-      res = ast_maskd( nr, AST__NULL, .false., 2, lbnd_in, ubnd_in,
-     :                 rin, VAL__BADD, status )
+      res = ast_mask8d( nr, AST__NULL, .false., 2, lbnd_in8, ubnd_in8,
+     :                  rin, VAL__BADD, status )
 
       if( res .ne. 0 ) then
          write(*,*) 'NullRegion:Res is ',res
@@ -3279,8 +3280,8 @@ C
       end do
 
       call ast_negate( nr, status )
-      res = ast_maskd( nr, AST__NULL, .false., 2, lbnd_in, ubnd_in,
-     :                 rin, VAL__BADD, status )
+      res = ast_mask8d( nr, AST__NULL, .false., 2, lbnd_in8, ubnd_in8,
+     :                  rin, VAL__BADD, status )
 
       if( res .ne. 25 ) then
          write(*,*) 'NullRegion:Res is ',res
