@@ -772,6 +772,35 @@ F77_SUBROUTINE(ast_trangrid)( INTEGER(THIS),
    )
 }
 
+F77_SUBROUTINE(ast_trangrid8)( INTEGER(THIS),
+                               INTEGER(NCOORD_IN),
+                               INTEGER8_ARRAY(LBND),
+                               INTEGER8_ARRAY(UBND),
+                               DOUBLE(TOL),
+                               INTEGER(MAXPIX),
+                               LOGICAL(FORWARD),
+                               INTEGER(NCOORD_OUT),
+                               INTEGER8(OUTDIM),
+                               DOUBLE_ARRAY(OUT),
+                               INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_INTEGER(NCOORD_IN)
+   GENPTR_INTEGER8_ARRAY(LBND)
+   GENPTR_INTEGER8_ARRAY(UBND)
+   GENPTR_DOUBLE(TOL)
+   GENPTR_INTEGER(MAXPIX)
+   GENPTR_LOGICAL(FORWARD)
+   GENPTR_INTEGER(NCOORD_OUT)
+   GENPTR_INTEGER8(OUTDIM)
+   GENPTR_DOUBLE_ARRAY(OUT)
+
+   astAt( "AST_TRANGRID8", NULL, 0 );
+   astWatchSTATUS(
+      astTranGrid8( astI2P( *THIS ), *NCOORD_IN, LBND, UBND, *TOL, *MAXPIX,
+                    F77_ISTRUE( *FORWARD ), *NCOORD_OUT, *OUTDIM, OUT );
+   )
+}
+
 F77_SUBROUTINE(ast_trann)( INTEGER(THIS),
                            INTEGER(NPOINT),
                            INTEGER(NCOORD_IN),

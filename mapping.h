@@ -477,7 +477,7 @@ typedef struct AstMappingVtab {
    void (* SetReport)( AstMapping *, int, int * );
    void (* Tran1)( AstMapping *, int, const double [], int, double [], int * );
    void (* Tran2)( AstMapping *, int, const double [], const double [], int, double [], double [], int * );
-   void (* TranGrid)( AstMapping *, int, const int[], const int[], double, int, int, int, int, double *, int * );
+   void (* TranGrid)( AstMapping *, int, const AstDim[], const AstDim[], double, int, int, int, AstDim, double *, int * );
    void (* TranN)( AstMapping *, int, int, int, const double *, int, int, int, double *, int * );
    void (* TranP)( AstMapping *, int, int, const double *[], int, int, double *[], int * );
 
@@ -664,7 +664,8 @@ int astLinearApprox_( AstMapping *, const double *, const double *, double, doub
 int astQuadApprox_( AstMapping *, const double[2], const double[2], int, int, double *, double *, int * );
 void astTran1_( AstMapping *, int, const double [], int, double [], int * );
 void astTran2_( AstMapping *, int, const double [], const double [], int, double [], double [], int * );
-void astTranGrid_( AstMapping *, int, const int[], const int[], double, int, int, int, int, double *, int * );
+void astTranGrid4_( AstMapping *, int, const int[], const int[], double, int, int, int, int, double *, int * );
+void astTranGrid8_( AstMapping *, int, const AstDim[], const AstDim[], double, int, int, int, AstDim, double *, int * );
 void astTranN_( AstMapping *, int, int, int, const double *, int, int, int, double *, int * );
 void astTranP_( AstMapping *, int, int, const double *[], int, int, double *[], int * );
 
@@ -855,7 +856,9 @@ astINVOKE(V,astTran1_(astCheckMapping(this),npoint,xin,forward,xout,STATUS_PTR))
 #define astTran2(this,npoint,xin,yin,forward,xout,yout) \
 astINVOKE(V,astTran2_(astCheckMapping(this),npoint,xin,yin,forward,xout,yout,STATUS_PTR))
 #define astTranGrid(this,ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out) \
-astINVOKE(V,astTranGrid_(astCheckMapping(this),ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out,STATUS_PTR))
+astINVOKE(V,astTranGrid4_(astCheckMapping(this),ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out,STATUS_PTR))
+#define astTranGrid8(this,ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out) \
+astINVOKE(V,astTranGrid8_(astCheckMapping(this),ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out,STATUS_PTR))
 #define astTranN(this,npoint,ncoord_in,indim,in,forward,ncoord_out,outdim,out) \
 astINVOKE(V,astTranN_(astCheckMapping(this),npoint,ncoord_in,indim,in,forward,ncoord_out,outdim,out,STATUS_PTR))
 #define astTranP(this,npoint,ncoord_in,ptr_in,forward,ncoord_out,ptr_out) \

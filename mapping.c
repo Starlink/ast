@@ -735,13 +735,13 @@ static void Somb( double, const double [], int, double *, int * );
 static void SombCos( double, const double [], int, double *, int * );
 static void Tran1( AstMapping *, int, const double [], int, double [], int * );
 static void Tran2( AstMapping *, int, const double [], const double [], int, double [], double [], int * );
-static void TranGrid( AstMapping *, int, const int[], const int[], double, int, int, int, int, double *, int * );
-static void TranGridAdaptively( AstMapping *, int, const int[], const int[], const int[], const int[], double, int, int, double *[], int * );
-static void TranGridSection( AstMapping *, const double *, int, const int *, const int *, const int *, const int *, int, double *[], int * );
-static void TranGridWithBlocking( AstMapping *, const double *, int, const int *, const int *, const int *, const int *, int, double *[], int * );
+static void TranGrid( AstMapping *, int, const AstDim[], const AstDim[], double, int, int, int, AstDim, double *, int * );
+static void TranGridAdaptively( AstMapping *, int, const AstDim[], const AstDim[], const AstDim[], const AstDim[], double, int, int, double *[], int * );
+static void TranGridSection( AstMapping *, const double *, int, const AstDim *, const AstDim *, const AstDim *, const AstDim *, int, double *[], int * );
+static void TranGridWithBlocking( AstMapping *, const double *, int, const AstDim *, const AstDim *, const AstDim *, const AstDim *, int, double *[], int * );
 static void TranN( AstMapping *, int, int, int, const double *, int, int, int, double *, int * );
 static void TranP( AstMapping *, int, int, const double *[], int, int, double *[], int * );
-static void ValidateMapping( AstMapping *, int, int, int, int, const char *, int * );
+static void ValidateMapping( AstMapping *, int, AstDim, int, int, const char *, int * );
 
 
 
@@ -20277,9 +20277,9 @@ f        The global status.
    }
 }
 
-static void TranGrid( AstMapping *this, int ncoord_in, const int lbnd[],
-                      const int ubnd[], double tol, int maxpix, int forward,
-                      int ncoord_out, int outdim, double *out, int *status ) {
+static void TranGrid( AstMapping *this, int ncoord_in, const AstDim lbnd[],
+                      const AstDim ubnd[], double tol, int maxpix, int forward,
+                      int ncoord_out, AstDim outdim, double *out, int *status ) {
 /*
 *++
 *  Name:
@@ -20446,17 +20446,35 @@ f     Mapping supplied must have the value of NCOORD_IN for its Nin
 f     attribute and the value of NCOORD_OUT for its Nout attribute. If
 f     the inverse transformation is being applied, these values should
 f     be reversed.
+
+*  Handling of Huge Pixel Arrays:
+*     If the output grid is so large that an integer pixel index,
+*     (or a count of pixels) could exceed the largest value that can be
+*     represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte) to hold pixel
+*     indices and pixel counts. Specifically, the arguments
+c     "lbnd", "ubnd", "outdim" are
+c     changed from type "int" to type "int64_t" (defined in header file
+c     stdint.h).
+f     LBND, UBND, OUTDIM are changed from
+f     type INTEGER to type INTEGER*8.
+*     The function name is changed by appending the digit "8" to the
+*     name. Thus,
+c     astTranGrid becomes astTranGrid8.
+f     AST_TRANGRID becomes AST_TRANGRID8.
+
 *--
 */
 
 /* Local Variables: */
-   astDECLARE_GLOBALS            /* Thread-specific data */
+   AstDim npoint;                /* Number of points in the grid */
    AstMapping *simple;           /* Pointer to simplified Mapping */
+   INT_BIG mpix;                 /* Number of points for testing */
+   astDECLARE_GLOBALS            /* Thread-specific data */
    double **out_ptr;             /* Pointer to array of output data pointers */
    int coord;                    /* Loop counter for coordinates */
    int idim;                     /* Loop counter for coordinate dimensions */
-   int npoint;                   /* Number of points in the grid */
-   int64_t mpix;                 /* Number of points for testing */
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -20471,9 +20489,9 @@ f     be reversed.
    for ( idim = 0; idim < ncoord_in; idim++ ) {
       if ( lbnd[ idim ] > ubnd[ idim ] ) {
          astError( AST__GBDIN, "astTranGrid(%s): Lower bound of "
-                   "input grid (%d) exceeds corresponding upper bound "
-                   "(%d).", status, astGetClass( this ),
-                   lbnd[ idim ], ubnd[ idim ] );
+                   "input grid (%" AST__DIMFMT ") exceeds corresponding "
+                   "upper bound (%" AST__DIMFMT ").", status,
+                   astGetClass( this ), lbnd[ idim ], ubnd[ idim ] );
          astError( AST__GBDIN, "Error in input dimension %d.", status,
                    idim + 1 );
          break;
@@ -20483,20 +20501,19 @@ f     be reversed.
    }
 
 /* Report an error if there are too many pixels in the input. */
-   npoint = mpix;
-   if ( astOK && npoint != mpix ) {
-      astError( AST__EXSPIX, "astTranGrid(%s): Supplied grid "
-                "contains too many points (%g): must be fewer than %d.",
-                status, astGetClass( this ), (double) mpix, INT_MAX/ncoord_out );
+   npoint = (AstDim) mpix;
+   if ( astOK && (INT_BIG) npoint != mpix ) {
+      astError( AST__EXSPIX, "astTranGrid(%s): Supplied grid contains "
+                "too many points (%g).", status, astGetClass( this ),
+                (double) mpix );
    }
 
    mpix = outdim*ncoord_out;
-   if ( astOK && (int) mpix != mpix ) {
+   if ( astOK && (AstDim) mpix != mpix ) {
       astError( AST__EXSPIX, "astTranGrid(%s): Supplied output array "
-                "contains too many pixels (%g): must be fewer than %d.",
-                status, astGetClass( this ), (double) mpix, INT_MAX );
+                "contains too many pixels (%g).", status,
+                astGetClass( this ), (double) mpix );
    }
-
 
 /* Validate the mapping and numbers of points/coordinates. */
    ValidateMapping( this, forward, npoint, ncoord_in, ncoord_out,
@@ -20521,10 +20538,12 @@ f     be reversed.
 
 /* Validate the output array dimension argument. */
    if ( astOK && ( outdim < npoint ) ) {
-      astError( AST__DIMIN, "astTranGrid(%s): The output array dimension value "
-                "(%d) is invalid.", status, astGetClass( this ), outdim );
+      astError( AST__DIMIN, "astTranGrid(%s): The output array dimension value"
+                " (%" AST__DIMFMT ") is invalid.", status, astGetClass( this ),
+                outdim );
       astError( AST__DIMIN, "This should not be less than the number of "
-                "grid points being transformed (%d).", status, npoint );
+                "grid points being transformed (% "AST__DIMFMT ").", status,
+                npoint );
    }
 
 /* If there are sufficient pixels to make it worthwhile, simplify the
@@ -20587,8 +20606,8 @@ f     be reversed.
 }
 
 static void TranGridAdaptively( AstMapping *this, int ncoord_in,
-                                const int *lbnd_in, const int *ubnd_in,
-                                const int lbnd[], const int ubnd[],
+                                const AstDim *lbnd_in, const AstDim *ubnd_in,
+                                const AstDim lbnd[], const AstDim ubnd[],
                                 double tol, int maxpix, int ncoord_out,
                                 double *out[], int *status ){
 /*
@@ -20604,8 +20623,8 @@ static void TranGridAdaptively( AstMapping *this, int ncoord_in,
 *  Synopsis:
 *     #include "mapping.h"
 *     void TranGridAdaptively( AstMapping *this, int ncoord_in,
-*                              const int *lbnd_in, const int *ubnd_in,
-*                              const int lbnd[], const int ubnd[],
+*                              const AstDim *lbnd_in, const AstDim *ubnd_in,
+*                              const AstDim lbnd[], const AstDim ubnd[],
 *                              double tol, int maxpix, int ncoord_out,
 *                              double *out[] )
 
@@ -20720,19 +20739,19 @@ static void TranGridAdaptively( AstMapping *this, int ncoord_in,
 */
 
 /* Local Variables: */
+   AstDim *hi;                   /* Pointer to array of section upper bounds */
+   AstDim *lo;                   /* Pointer to array of section lower bounds */
+   AstDim dim;                   /* Output section dimension size */
+   AstDim mxdim;                 /* Largest output section dimension size */
+   AstDim npix;                  /* Number of pixels in output section */
    double *flbnd;                /* Array holding floating point lower bounds */
    double *fubnd;                /* Array holding floating point upper bounds */
    double *linear_fit;           /* Pointer to array of fit coefficients */
-   int *hi;                      /* Pointer to array of section upper bounds */
-   int *lo;                      /* Pointer to array of section lower bounds */
    int coord_in;                 /* Loop counter for input coordinates */
-   int dim;                      /* Output section dimension size */
    int dimx;                     /* Dimension with maximum section extent */
    int divide;                   /* Sub-divide the output section? */
    int i;                        /* Loop count */
    int isLinear;                 /* Is the transformation linear? */
-   int mxdim;                    /* Largest output section dimension size */
-   int npix;                     /* Number of pixels in output section */
    int npoint;                   /* Number of points for obtaining a fit */
    int nvertex;                  /* Number of vertices of output section */
    int toobig;                   /* Section too big (must sub-divide)? */
@@ -20854,8 +20873,8 @@ static void TranGridAdaptively( AstMapping *this, int ncoord_in,
 
 /* Otherwise, allocate workspace to perform the sub-division. */
       } else {
-         lo = astMalloc( sizeof( int ) * (size_t) ncoord_in );
-         hi = astMalloc( sizeof( int ) * (size_t) ncoord_in );
+         lo = astMalloc( sizeof( AstDim ) * (size_t) ncoord_in );
+         hi = astMalloc( sizeof( AstDim ) * (size_t) ncoord_in );
          if ( astOK ) {
 
 /* Initialise the bounds of a new input section to match the original
@@ -20867,8 +20886,8 @@ static void TranGridAdaptively( AstMapping *this, int ncoord_in,
 
 /* Replace the upper bound of the section's largest dimension with the
    mid-point of the section along this dimension, rounded downwards. */
-            hi[ dimx ] =
-               (int) floor( 0.5 * (double) ( lbnd[ dimx ] + ubnd[ dimx ] ) );
+            hi[ dimx ] = (AstDim) floor( 0.5 * (double) ( lbnd[ dimx ] +
+                                                          ubnd[ dimx ] ) );
 
 /* Rebin the resulting smaller section using a recursive invocation
    of this function. */
@@ -20899,9 +20918,10 @@ static void TranGridAdaptively( AstMapping *this, int ncoord_in,
 }
 
 static void TranGridSection( AstMapping *this, const double *linear_fit,
-                             int ndim_in, const int *lbnd_in,
-                             const int *ubnd_in, const int *lbnd,
-                             const int *ubnd, int ndim_out, double *out[], int *status ){
+                             int ndim_in, const AstDim *lbnd_in,
+                             const AstDim *ubnd_in, const AstDim *lbnd,
+                             const AstDim *ubnd, int ndim_out, double *out[],
+                             int *status ){
 /*
 *  Name:
 *     TranGridSection
@@ -20915,9 +20935,10 @@ static void TranGridSection( AstMapping *this, const double *linear_fit,
 *  Synopsis:
 *     #include "mapping.h"
 *     void TranGridSection( AstMapping *this, const double *linear_fit,
-*                           int ndim_in, const int *lbnd_in,
-*                           const int *ubnd_in, const int *lbnd,
-*                           const int *ubnd, int ndim_out, double *out[] )
+*                           int ndim_in, const AstDim *lbnd_in,
+*                           const AstDim *ubnd_in, const AstDim *lbnd,
+*                           const AstDim *ubnd, int ndim_out, double *out[],
+*                           int *status  )
 
 *  Class Membership:
 *     Mapping member function.
@@ -21003,6 +21024,17 @@ static void TranGridSection( AstMapping *this, const double *linear_fit,
 */
 
 /* Local Variables: */
+   AstDim *dim;                  /* Pointer to array of output pixel indices */
+   AstDim *offset;               /* Pointer to array of output pixel offsets */
+   AstDim *stride;               /* Pointer to array of output grid strides */
+   AstDim ix;                    /* Loop counter for output x coordinate */
+   AstDim iy;                    /* Loop counter for output y coordinate */
+   AstDim npoint;                /* Number of output points (pixels) */
+   AstDim off1;                  /* Interim pixel offset into output array */
+   AstDim off2;                  /* Interim pixel offset into output array */
+   AstDim off;                   /* Final pixel offset into output array */
+   AstDim point;                 /* Counter for output points (pixels ) */
+   AstDim s;                     /* Temporary variable for strides */
    AstPointSet *pset_in;         /* Input PointSet for transformation */
    AstPointSet *pset_out;        /* Output PointSet for transformation */
    const double *grad;           /* Pointer to gradient matrix of linear fit */
@@ -21014,23 +21046,12 @@ static void TranGridSection( AstMapping *this, const double *linear_fit,
    double xx1;                   /* Initial x coordinate value */
    double y1;                    /* Interim y coordinate value */
    double yy1;                   /* Initial y coordinate value */
-   int *dim;                     /* Pointer to array of output pixel indices */
-   int *offset;                  /* Pointer to array of output pixel offsets */
-   int *stride;                  /* Pointer to array of output grid strides */
    int coord_in;                 /* Loop counter for input dimensions */
    int coord_out;                /* Loop counter for output dimensions */
    int done;                     /* All pixel indices done? */
    int i1;                       /* Interim offset into "accum" array */
    int i2;                       /* Final offset into "accum" array */
    int idim;                     /* Loop counter for dimensions */
-   int ix;                       /* Loop counter for output x coordinate */
-   int iy;                       /* Loop counter for output y coordinate */
-   int npoint;                   /* Number of output points (pixels) */
-   int off1;                     /* Interim pixel offset into output array */
-   int off2;                     /* Interim pixel offset into output array */
-   int off;                      /* Final pixel offset into output array */
-   int point;                    /* Counter for output points (pixels ) */
-   int s;                        /* Temporary variable for strides */
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -21048,8 +21069,8 @@ static void TranGridSection( AstMapping *this, const double *linear_fit,
    }
 
 /* Allocate workspace. */
-   offset = astMalloc( sizeof( int ) * (size_t) npoint );
-   stride = astMalloc( sizeof( int ) * (size_t) ndim_in );
+   offset = astMalloc( sizeof( AstDim ) * (size_t) npoint );
+   stride = astMalloc( sizeof( AstDim ) * (size_t) ndim_in );
    if ( astOK ) {
 
 /* Calculate the stride for each input grid dimension. */
@@ -21137,7 +21158,7 @@ static void TranGridSection( AstMapping *this, const double *linear_fit,
 /* Allocate workspace. */
                accum = astMalloc( sizeof( double ) *
                                  (size_t) ( ndim_in * ndim_out ) );
-               dim = astMalloc( sizeof( int ) * (size_t) ndim_in );
+               dim = astMalloc( sizeof( AstDim ) * (size_t) ndim_in );
                if ( astOK ) {
 
 /* Initialise an array of pixel indices for the input grid which refer to the
@@ -21284,7 +21305,7 @@ static void TranGridSection( AstMapping *this, const double *linear_fit,
             } else {
 
 /* Allocate workspace. */
-               dim = astMalloc( sizeof( int ) * (size_t) ndim_in );
+               dim = astMalloc( sizeof( AstDim ) * (size_t) ndim_in );
                if ( astOK ) {
 
 /* Initialise an array of pixel indices for the input grid which
@@ -21375,9 +21396,9 @@ static void TranGridSection( AstMapping *this, const double *linear_fit,
 }
 
 static void TranGridWithBlocking( AstMapping *this, const double *linear_fit,
-                                  int ndim_in, const int *lbnd_in,
-                                  const int *ubnd_in, const int *lbnd,
-                                  const int *ubnd, int ndim_out,
+                                  int ndim_in, const AstDim *lbnd_in,
+                                  const AstDim *ubnd_in, const AstDim *lbnd,
+                                  const AstDim *ubnd, int ndim_out,
                                   double *out[], int *status ){
 /*
 *  Name:
@@ -21392,9 +21413,9 @@ static void TranGridWithBlocking( AstMapping *this, const double *linear_fit,
 *  Synopsis:
 *     #include "mapping.h"
 *     void TranGridWithBlocking( AstMapping *this, const double *linear_fit,
-*                                int ndim_in, const int *lbnd_in,
-*                                const int *ubnd_in, const int *lbnd,
-*                                const int *ubnd, int ndim_out,
+*                                int ndim_in, const AstDim *lbnd_in,
+*                                const AstDim *ubnd_in, const AstDim *lbnd,
+*                                const AstDim *ubnd, int ndim_out,
 *                                double *out[], int *status )
 
 *  Class Membership:
@@ -21486,24 +21507,24 @@ static void TranGridWithBlocking( AstMapping *this, const double *linear_fit,
                                     performance) */
 
 /* Local Variables: */
-   int *dim_block;               /* Pointer to array of block dimensions */
-   int *lbnd_block;              /* Pointer to block lower bound array */
-   int *ubnd_block;              /* Pointer to block upper bound array */
-   int dim;                      /* Dimension size */
+   AstDim *dim_block;            /* Pointer to array of block dimensions */
+   AstDim *lbnd_block;           /* Pointer to block lower bound array */
+   AstDim *ubnd_block;           /* Pointer to block upper bound array */
+   AstDim dim;                   /* Dimension size */
+   AstDim hilim;                 /* Upper limit on maximum block dimension */
+   AstDim lolim;                 /* Lower limit on maximum block dimension */
+   AstDim mxdim_block;           /* Maximum block dimension */
+   AstDim npix;                  /* Number of pixels in block */
    int done;                     /* All blocks rebinned? */
-   int hilim;                    /* Upper limit on maximum block dimension */
    int idim;                     /* Loop counter for dimensions */
-   int lolim;                    /* Lower limit on maximum block dimension */
-   int mxdim_block;              /* Maximum block dimension */
-   int npix;                     /* Number of pixels in block */
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
 /* Allocate workspace. */
-   lbnd_block = astMalloc( sizeof( int ) * (size_t) ndim_in );
-   ubnd_block = astMalloc( sizeof( int ) * (size_t) ndim_in );
-   dim_block = astMalloc( sizeof( int ) * (size_t) ndim_in );
+   lbnd_block = astMalloc( sizeof( AstDim ) * (size_t) ndim_in );
+   ubnd_block = astMalloc( sizeof( AstDim ) * (size_t) ndim_in );
+   dim_block = astMalloc( sizeof( AstDim ) * (size_t) ndim_in );
    if ( astOK ) {
 
 /* Find the optimum block size. */
@@ -22821,7 +22842,7 @@ static double UphillSimplex( const MapData *mapdata, double acc, int maxcall,
 }
 
 static void ValidateMapping( AstMapping *this, int forward,
-                             int npoint, int ncoord_in, int ncoord_out,
+                             AstDim npoint, int ncoord_in, int ncoord_out,
                              const char *method, int *status ) {
 /*
 *  Name:
@@ -22836,7 +22857,7 @@ static void ValidateMapping( AstMapping *this, int forward,
 *  Synopsis:
 *     #include "mapping.h"
 *     void ValidateMapping( AstMapping *this, int forward,
-*                           int npoint, int ncoord_in, int ncoord_out,
+*                           AstDim npoint, int ncoord_in, int ncoord_out,
 *                           const char *method, int *status )
 
 *  Class Membership:
@@ -22918,8 +22939,9 @@ static void ValidateMapping( AstMapping *this, int forward,
 /* Check that the number of points being transformed is not negative
    and report an error if necessary. */
    if ( astOK && ( npoint < 0 ) ) {
-      astError( AST__NPTIN, "%s(%s): Number of points to be transformed (%d) "
-                "is invalid.", status, method, astGetClass( this ), npoint );
+      astError( AST__NPTIN, "%s(%s): Number of points to be transformed "
+                "(%" AST__DIMFMT ") is invalid.", status, method,
+                astGetClass( this ), npoint );
    }
 }
 
@@ -24217,9 +24239,32 @@ void astTran2_( AstMapping *this,
    (**astMEMBER(this,Mapping,Tran2))( this, npoint, xin, yin,
                                       forward, xout, yout, status );
 }
-void astTranGrid_( AstMapping *this, int ncoord_in, const int lbnd[],
-                   const int ubnd[], double tol, int maxpix, int forward,
-                   int ncoord_out, int outdim, double *out, int *status ) {
+void astTranGrid4_( AstMapping *this, int ncoord_in, const int lbnd[],
+                    const int ubnd[], double tol, int maxpix, int forward,
+                    int ncoord_out, int outdim, double *out, int *status ) {
+   AstDim *lbnd8;
+   AstDim *ubnd8;
+   int i;
+
+   if ( !astOK ) return;
+
+   lbnd8 = astMalloc( ncoord_in*sizeof(AstDim) );
+   ubnd8 = astMalloc( ncoord_in*sizeof(AstDim) );\
+   if( astOK ) {
+      for( i = 0; i < ncoord_in; i++ ) {
+         lbnd8[ i ] = (AstDim) lbnd[ i ];
+         ubnd8[ i ] = (AstDim) ubnd[ i ];
+      }
+      (**astMEMBER(this,Mapping,TranGrid))( this, ncoord_in, lbnd8, ubnd8,
+                                            tol, maxpix, forward, ncoord_out,
+                                            outdim, out, status );
+      lbnd8 = astFree( lbnd8 );
+      ubnd8 = astFree( ubnd8 );
+   }
+}
+void astTranGrid8_( AstMapping *this, int ncoord_in, const AstDim lbnd[],
+                   const AstDim ubnd[], double tol, int maxpix, int forward,
+                   int ncoord_out, AstDim outdim, double *out, int *status ) {
    if ( !astOK ) return;
    (**astMEMBER(this,Mapping,TranGrid))( this, ncoord_in, lbnd, ubnd, tol,
                                          maxpix, forward, ncoord_out, outdim,
