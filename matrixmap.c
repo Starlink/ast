@@ -172,10 +172,15 @@ f     The MatrixMap class does not define any new routines beyond those
 *     5-JUN-2018 (DSB):
 *        Include the inverse matrix in the dump of a MatrixMap. Previously,
 *        the inverse matrix was calculated afresh using function InvertMatrix
-*        when a MatrixMap was read from a dump. However this could introduce 
-*        small round-trip errors if the inverse matrix in the original 
+*        when a MatrixMap was read from a dump. However this could introduce
+*        small round-trip errors if the inverse matrix in the original
 *        MatrixMap was created by astMtrRot etc, rather than the InvertMatrix
-*        function. 
+*        function.
+*     24-SEP-2019 (DSB):
+*        - Store the determinant of the forward matrix in the MatrixMap
+*        structure so that it does not need to be re-calculated each time
+*        it is needed.
+*        - Added method astMtrEuler.
 *class--
 */
 
@@ -190,6 +195,10 @@ f     The MatrixMap class does not define any new routines beyond those
 #define FULL       0
 #define DIAGONAL   1
 #define UNIT       2
+
+/* A special determinant value that indicates a singular matrix (AST__BAD
+   cannot be used as it is used to indicate "determinant not yet found"). */
+#define NODET (AST__BAD/2)
 
 /* Include files. */
 /* ============== */
@@ -277,28 +286,30 @@ static AstMatrixMap *MtrMult( AstMatrixMap *, AstMatrixMap *, int * );
 static AstMatrixMap *MtrRot( AstMatrixMap *, double, const double[], int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstWinMap *MatWin2( AstMatrixMap *, AstWinMap *, int, int, int, int * );
-static double *InvertMatrix( int, int, int, double *, int * );
+static double *InvertMatrix( int, int, int, double *, double *, int * );
+static double GetDet( AstMatrixMap *, int * );
 static double Rate( AstMapping *, double *, int, int, int * );
+static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
+static int CanSwap( AstMapping *, AstMapping *, int, int, int *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int FindString( int, const char *[], const char *, const char *, const char *, const char *, int * );
-static int Ustrcmp( const char *, const char *, int * );
-static int GetTranForward( AstMapping *, int * );
 static int GetIsLinear( AstMapping *, int * );
+static int GetTranForward( AstMapping *, int * );
 static int GetTranInverse( AstMapping *, int * );
-static int CanSwap( AstMapping *, AstMapping *, int, int, int *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
+static int MtrEuler( AstMatrixMap *, double[3], int * );
 static int PermOK( AstMapping *, int * );
 static int ScalingRowCol( AstMatrixMap *, int, int * );
+static int Ustrcmp( const char *, const char *, int * );
 static void CompressMatrix( AstMatrixMap *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *obj, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void ExpandMatrix( AstMatrixMap *, int * );
-static void MatWin( AstMapping **, int *, int, int * );
 static void MatPermSwap( AstMapping **, int *, int, int * );
+static void MatWin( AstMapping **, int *, int, int * );
 static void PermGet( AstPermMap *, int **, int **, double **, int * );
 static void SMtrMult( int, int, int, const double *, double *, double*, int * );
-static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
 
 /* Member functions. */
 /* ================= */
@@ -587,6 +598,7 @@ static void CompressMatrix( AstMatrixMap *this, int *status ){
    double *colmax;                /* Pointer to array holding column max values */
    double *fmat;                  /* Pointer to compressed forward matrix */
    double *rowmax;                /* Pointer to array holding row max values */
+   double det;                    /* Matrix determinant */
    double mval;                   /* Matrix element value */
    int i;                         /* Loop count */
    int j;                         /* Loop count */
@@ -625,18 +637,18 @@ static void CompressMatrix( AstMatrixMap *this, int *status ){
 /* If the MatrixMap is already stored in UNIT form, it cannot be compressed
    any further. */
    if( this->form == UNIT){
+      this->det = 1.0;
       return;
 
 /* Otherwise, if the MatrixMap is stored in DIAGONAL form, it could be
    compressed into a UNIT MatrixMap if all the supplied element values are
    one. */
    } else if( this->form == DIAGONAL ){
+      this->det = 1.0;
       new_form = UNIT;
       for( i = 0; i < ndiag; i++ ){
-         if( !astEQUAL( (this->f_matrix)[ i ], 1.0 ) ){
-            new_form = DIAGONAL;
-            break;
-         }
+         if( !astEQUAL( (this->f_matrix)[ i ], 1.0 ) ) new_form = DIAGONAL;
+         this->det *= (this->f_matrix)[ i ];
       }
 
 /* If it can be compressed, change the storage form and free the arrays
@@ -645,6 +657,7 @@ static void CompressMatrix( AstMatrixMap *this, int *status ){
          this->f_matrix = (double *) astFree( (void *)( this->f_matrix ) );
          this->i_matrix = (double *) astFree( (void *)( this->i_matrix ) );
          this->form = UNIT;
+         this->det = 1.0;
       }
 
 /* Otherwise, a full MatrixMap has been supplied, but this could be stored
@@ -757,6 +770,7 @@ static void CompressMatrix( AstMatrixMap *this, int *status ){
          this->f_matrix = (double *) astFree( (void *)( this->f_matrix ) );
          this->i_matrix = (double *) astFree( (void *)( this->i_matrix ) );
          this->form = UNIT;
+         this->det = 1.0;
 
 /* Otherwise, if it can be compressed into a DIAGONAL MatrixMap, copy the
    diagonal elements from the full forward matrix into a newly allocated
@@ -776,15 +790,18 @@ static void CompressMatrix( AstMatrixMap *this, int *status ){
             (void) astFree( (void *) this->i_matrix );
 
             this->f_matrix = fmat;
-            this->i_matrix = InvertMatrix( DIAGONAL, nrow, ncol, fmat, status );
+            this->i_matrix = InvertMatrix( DIAGONAL, nrow, ncol, fmat,
+                                           &det, status );
             this->form = DIAGONAL;
-
+            this->det = det;
          }
 
 /* Calculate a new inverse matrix if necessary. */
       } else if( new_inv ) {
          (void) astFree( (void *) this->i_matrix );
-         this->i_matrix = InvertMatrix( FULL, nrow, ncol, this->f_matrix, status );
+         this->i_matrix = InvertMatrix( FULL, nrow, ncol, this->f_matrix,
+                                        &det, status );
+         this->det = det;
       }
    }
 
@@ -1116,6 +1133,64 @@ static int FindString( int n, const char *list[], const char *test,
    return ret;
 }
 
+static double GetDet( AstMatrixMap *this, int *status ){
+/*
+*  Name:
+*     GetDet
+
+*  Purpose:
+*     Return the determinant of the forward matrix.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     double GetDet( AstMatrixMap *this, int *status )
+
+*  Class Membership:
+*     MatrixMap member function
+
+*  Description:
+*     This function returns the determinant of the forward matrix.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned value:
+*     The determinant, or NODET of the determinant is undefined.
+
+*/
+
+/* Local Variables: */
+   double *junk;
+   double det;
+
+/* Check the local error status. */
+   if( !astOK ) return NODET;
+
+/* If the determinant has not yet been calculated, calculate it now. */
+   if( this->det == AST__BAD ) {
+
+/* The determinant is a by-product of calculating the inverse matrix. */
+      junk = InvertMatrix( this->form, astGetNout( this ), astGetNin( this ),
+                           this->f_matrix, &det, status );
+
+/* Store the determinant in the MatrixMap structure for future use. */
+      this->det = det;
+
+/* Free the array returned by InvertMatrix. */
+      junk = astFree( junk );
+   }
+
+/* Return the pre-calculated determinant value stored in the MatrixMap
+   structure. */
+   return this->det;
+}
+
 static int GetIsLinear( AstMapping *this_mapping, int *status ){
 /*
 *  Name:
@@ -1295,6 +1370,7 @@ void astInitMatrixMapVtab_(  AstMatrixMapVtab *vtab, const char *name, int *stat
    virtual methods for this class. */
    vtab->MtrRot = MtrRot;
    vtab->MtrMult = MtrMult;
+   vtab->MtrEuler = MtrEuler;
 
 /* Save the inherited pointers to methods that will be extended, and
    replace them with pointers to the new member functions. */
@@ -1333,7 +1409,8 @@ void astInitMatrixMapVtab_(  AstMatrixMapVtab *vtab, const char *name, int *stat
 }
 
 
-static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *status ){
+static double *InvertMatrix( int form, int nrow, int ncol, double *matrix,
+                             double *det, int *status ){
 /*
 *  Name:
 *     InvertMatrix
@@ -1346,7 +1423,8 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
 
 *  Synopsis:
 *     #include "matrixmap.h"
-*     double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *status )
+*     double *InvertMatrix( int form, int nrow, int ncol, double *matrix,
+*                           double *det, int *status )
 
 *  Class Membership:
 *     MatrixMap member function.
@@ -1362,6 +1440,8 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
 *     the supplied matrix is not square.
 
 *  Parameters:
+*     this
+*        The MatrixMap.
 *     form
 *        The form of the MatrixMap; UNIT, DIAGONAL or FULL.
 *     nrow
@@ -1372,6 +1452,9 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
 *        A pointer to the input matrix. Elements should be stored in row
 *        order (i.e. (row 1,column 1 ), (row 1,column 2 )... (row 2,column 1),
 *        etc).
+*     det
+*        A pointer to a double in which to return the determinant of the
+*        forward matrix.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -1386,7 +1469,6 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
 */
 
 /* Local Variables: */
-   double det;                    /* Determinant of supplied matrix */
    double mval;                   /* Matrix element value */
    double *out;                   /* Pointer to returned inverse matrix */
    double *vector;                /* Pointer to vector used by palDmat */
@@ -1397,6 +1479,9 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
    int ok;                        /* Zero if any bad matrix values found */
    int sing;                      /* Zero if matrix is not singular */
 
+/* Initialise */
+   *det = NODET;
+
 /* Check the global error status. */
    if ( !astOK ) return NULL;
 
@@ -1405,6 +1490,7 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
 
 /* If a unit matrix map has been supplied, return NULL. */
    if( form == UNIT ){
+      *det = 1.0;
       return NULL;
 
 /* If a diagonal matrix has been supplied, allocate an array to hold
@@ -1422,8 +1508,10 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
       out = (double *) astMalloc( sizeof( double )*(size_t)ndiag );
 
       if( out ) {
+         *det = 1.0;
          for( i = 0; i < ndiag; i++ ) {
             mval = matrix[ i ];
+            *det *= mval;
             if( mval != 0.0 && mval != AST__BAD ){
                out[ i ] = 1.0/mval;
             } else {
@@ -1471,7 +1559,7 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
 /* Obtain work space and attempt to invert the matrix using SLALIB, then
    free the work space. */
                iw = (int *) astMalloc( sizeof(int)*(size_t) nrow );
-               if( astOK ) palDmat( nrow, out, vector, &det, &sing, iw );
+               if( astOK ) palDmat( nrow, out, vector, det, &sing, iw );
                iw = (int *) astFree( (void *) iw );
 
             }
@@ -1480,6 +1568,7 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
    square matrix, and return the NULL pointer. */
             if ( !astOK || sing != 0 ){
                out = (double *) astFree( (void *) out );
+               *det = NODET;
             }
 
 /*  Free the memory used to hold the vector. */
@@ -1489,9 +1578,7 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix, int *
    }
 
 /* Return the pointer. */
-
    return out;
-
 }
 
 static int MapMerge( AstMapping *this, int where, int series, int *nmap,
@@ -4001,6 +4088,154 @@ static void PermGet( AstPermMap *map, int **outperm, int **inperm,
    return;
 }
 
+static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
+/*
+*+
+*  Name:
+*     astMtrEuler
+
+*  Purpose:
+*     Retrieve the Euler angles from a 3x3 rotation MatrixMap.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     int astMtrEuler( AstMatrixMap *this, double euler[3] );
+
+*  Class Membership:
+*     MatrixMap method.
+
+*  Description:
+*     If the supplied MatrixMap represents a 3x3 solid-body rotation, it
+*     returns the equivalent three Eulker angles.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+*     euler
+*        An array in which to return the three euler angles. These are
+*        the rotations, in radians, that must be applied to the 3x3
+*        coordinate system to produce the same transformation as the
+*        forward transformation of the supplied MatrixMap. The first,
+*        second and third returned values refers to rotation about the
+*        first (x), second (y) and third (z) axis, and the rotations must
+*        be applied in that order (x followed by y followed by z).
+*
+*        A rotation is positive when the coordinate system rotates
+*        anti-clockwise as seen looking towards the origin from the
+*        positive region of the specified axis.
+*
+*        The (x,y,z) system is right-handed (if x points to the right and
+*        y points upwards, then z points towards you).
+
+*  Returned Value:
+*     Non-zero if the supplied MatrixMap corresponds to a 3x3 solid-body
+*     rotation. Zero otherwise.
+
+*  Notes:
+*     - If the MatrixMap does not corresponds to a 3x3 solid-body rotation,
+*     a function value of zero will be returned and the contents of the
+*     "euler" array will be left unchanged.
+*     - A function value of zero will be returned if an error has already
+*     occurred, or if this function fails for any reason.
+*-
+*/
+
+/* Local variables. */
+   double *matrix;
+   double *p;
+   double *q;
+   double sum;
+   int col;
+   int i;
+   int orth;
+   int row;
+
+/* Initialise */
+   orth = 0;
+
+/* Return a NULL pointer if an error has already occurred. */
+   if ( !astOK ) return orth;
+
+/* The matrix must be 3x3. */
+   if( astGetNin( this ) == 3 &&  astGetNout( this ) == 3 ) {
+
+/* The determinant must be very close to 1.0. */
+      if( fabs( GetDet( this, status ) - 1.0 ) < 1.0E-5 ){
+
+/* Get a pointer to the array holding the required matrix elements, according
+   to whether the MatrixMap has been inverted. */
+         if( !astGetInvert( this ) ) {
+            matrix = this->f_matrix;
+         } else {
+            matrix = this->i_matrix;
+         }
+
+/* The matrix must be orthogonal (i.e. the product of itself and its
+   transpose must be a unit matrix). Unit matrices are orthogonal. */
+         if( this->form == UNIT){
+            orth = 1;
+
+/* Diagonal matrices are only orthogonal if all the diagonal elements are
+   unity. */
+         } else if( this->form == DIAGONAL ){
+            orth = ( fabs( matrix[ 0 ] - 1.0 ) < 1.0E-5 &&
+                     fabs( matrix[ 1 ] - 1.0 ) < 1.0E-5 &&
+                     fabs( matrix[ 2 ] - 1.0 ) < 1.0E-5 );
+
+/* For full 3x3 matrices, assume initially that the matrix is orthogonal. */
+         } else {
+            orth = 1.0;
+
+/* Multiply the matrix by its own transpose. */
+            for( row = 0; row < 3 && orth; row++ ){
+               for( col = 0; col < 3; col++ ){
+                  p = matrix + row*3;
+                  q = p;
+                  sum = 0.0;
+                  for( i = 0; i < 3; i++ ){
+                     sum += (*p)*(*q);
+                     p++;
+                     q++;
+                  }
+
+/* Diagonal elements of the product must be unity for the matrix to be
+   orthogonal. */
+                  if( row == col ) {
+                     if( fabs( sum - 1.0E-5 ) > 1.0E-5 ) {
+                        orth = 0;
+                        break;
+                     }
+
+/* Off-diagonal elements of the product must be zero for the matrix to be
+   orthogonal. */
+                  } else {
+                     if( fabs( sum ) > 1.0E-5 ) {
+                        orth = 0;
+                        break;
+                     }
+                  }
+               }
+            }
+         }
+
+/* If the matrix os orthogonal, calculate the returned angles. */
+         if( orth ) {
+#define INDEX(j,i) (i-1)+3*(j-1)
+            euler[ 0 ] = -atan2( matrix[INDEX(3,2)], matrix[INDEX(3,3)]);
+            euler[ 1 ] = asin( matrix[INDEX(3,1)] );
+            euler[ 2 ] = -atan2( matrix[INDEX(2,1)], matrix[INDEX(1,1)]);
+#undef INDEX
+         }
+      }
+   }
+
+   return orth;
+}
+
+
 static int PermOK( AstMapping *pm, int *status ){
 /*
 *  Name:
@@ -5433,6 +5668,7 @@ AstMatrixMap *astInitMatrixMap_( void *mem, size_t size, int init,
    AstMatrixMap *new;              /* Pointer to new MatrixMap */
    double *fmat;                   /* Pointer to the forward matrix */
    double *imat;                   /* Pointer to the inverse matrix */
+   double det;                     /* Determinant of forward matrix */
    int i;                          /* Loop count */
    int nel;                        /* No. of elements in matrix array */
    int nuse;                       /* Number of usable matrix elements */
@@ -5513,12 +5749,13 @@ AstMatrixMap *astInitMatrixMap_( void *mem, size_t size, int init,
          }
 
 /* Create an inverse matrix if possible. */
-         imat = InvertMatrix( used_form, nout, nin, fmat, status );
+         imat = InvertMatrix( used_form, nout, nin, fmat, &det, status );
 
 /* Store the matrix arrays. */
          new->form = used_form;
          new->f_matrix = fmat;
          new->i_matrix = imat;
+         new->det = det;
 
 /* Attempt to compress the MatrixMap into DIAGONAL or UNIT form. */
          CompressMatrix( new, status );
@@ -5615,6 +5852,7 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
    AstMatrixMap *new;            /* Pointer to the new MatrixMap */
    char buff[ KEY_LEN + 1 ];     /* Buffer for keyword string */
    const char *form;             /* String form */
+   double det;                   /* Determinant of forward matrix */
    int def;                      /* Is the matrix defined? */
    int el;                       /* Element index */
    int nel;                      /* No. of elements in the matrix */
@@ -5680,6 +5918,9 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
          nel = 0;
       }
 
+/* Indicate the determinant is not yet available. */
+      new->det = AST__BAD;
+
 /* Allocate memory to hold the forward matrix. */
       new->f_matrix = (double *) astMalloc( sizeof(double)*(size_t)nel );
 
@@ -5713,15 +5954,17 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
          }
 
 /* If no elements of the matrix were found, create an inverse matrix if
-   possible, otherwise store a NULL pointer. Note, prior to AST 8.6.3, the 
-   inverse matrix was not included in the dump - it was always recalculated 
-   using InvertMatrix, but this led to small round-trip errors in cases, 
-   where the original inverse matrix was not created using InvertMatrix 
+   possible, otherwise store a NULL pointer. Note, prior to AST 8.6.3, the
+   inverse matrix was not included in the dump - it was always recalculated
+   using InvertMatrix, but this led to small round-trip errors in cases,
+   where the original inverse matrix was not created using InvertMatrix
    (e.g. was created by astMtrRot).  */
          if( !def ) {
             new->i_matrix = (double *) astFree( (void *) new->i_matrix );
             if( new->f_matrix ){
-               new->i_matrix = InvertMatrix( new->form, nout, nin, new->f_matrix, status );
+               new->i_matrix = InvertMatrix( new->form, nout, nin,
+                                             new->f_matrix, &det, status );
+               new->det = det;
             } else {
                new->i_matrix = NULL;
             }
@@ -5762,6 +6005,9 @@ AstMatrixMap *astMtrMult_( AstMatrixMap *this, AstMatrixMap *a, int *status ){
    return (**astMEMBER(this,MatrixMap,MtrMult))( this, a, status );
 }
 
-
+int astMtrEuler_( AstMatrixMap *this, double euler[3], int *status ){
+   if( !astOK ) return 0;
+   return (**astMEMBER(this,MatrixMap,MtrEuler))( this, euler, status );
+}
 
 

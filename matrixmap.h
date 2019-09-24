@@ -112,12 +112,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -181,7 +181,7 @@ typedef struct AstMatrixMap {
    double *f_matrix;             /* Pointer to forward matrix */
    double *i_matrix;             /* Pointer to inverse matrix */
    int form;                     /* Matrix storage form */
-
+   double det;                   /* Determinant */
 } AstMatrixMap;
 
 /* Virtual function table. */
@@ -200,6 +200,7 @@ typedef struct AstMatrixMapVtab {
 /* Properties (e.g. methods) specific to this class. */
    AstMatrixMap *(* MtrRot)( AstMatrixMap *, double, const double[], int * );
    AstMatrixMap *(* MtrMult)( AstMatrixMap *,  AstMatrixMap *, int * );
+   int (* MtrEuler)( AstMatrixMap *, double[3], int * );
 
 } AstMatrixMapVtab;
 
@@ -255,6 +256,7 @@ AstMatrixMap *astLoadMatrixMap_( void *, size_t, AstMatrixMapVtab *,
 # if defined(astCLASS)           /* Protected */
 AstMatrixMap *astMtrRot_( AstMatrixMap *, double, const double[], int * );
 AstMatrixMap *astMtrMult_( AstMatrixMap *, AstMatrixMap *, int * );
+int astMtrEuler_( AstMatrixMap *, double[3], int * );
 #endif
 
 /* Function interfaces. */
@@ -309,6 +311,10 @@ astINVOKE(O,astMtrRot_(astCheckMatrixMap(this),theta,axis,STATUS_PTR))
 
 #define astMtrMult(this,a) \
 astINVOKE(O,astMtrMult_(astCheckMatrixMap(this),astCheckMatrixMap(a),STATUS_PTR))
+
+#define astMtrEuler(this,euler) \
+astINVOKE(V,astMtrEuler_(astCheckMatrixMap(this),euler,STATUS_PTR))
+
 #endif
 #endif
 
