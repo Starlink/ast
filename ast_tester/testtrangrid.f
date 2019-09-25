@@ -188,6 +188,9 @@
       call testgrid( map, nout, lbndi, ubndi, tol, maxpix, .false., nin,
      :               outdim, itest + 1, status )
 
+      call testgrid8( map, nout, lbndi, ubndi, tol, maxpix, .false.,
+     :                nin, outdim, itest + 1, status )
+
 
       end
 
@@ -274,3 +277,93 @@
       end if
 
       end
+
+      subroutine testgrid8( map, nin, lbnd, ubnd, tol, maxpix, fwd,
+     :                      nout, outdim, itest, status )
+      implicit none
+      include 'SAE_PAR'
+
+      integer MAXPNT
+      parameter( MAXPNT = 50000 )
+
+      integer status, lbnd( 3 ), ubnd( 3 ), nin, nout, i, outdim,
+     :         maxpix, itest, pos(3), j, map
+      integer*8 lbnd8( 3 ), ubnd8( 3 ), maxpnt8
+
+      logical fwd
+      double precision tol, out( MAXPNT, 3 ), in( MAXPNT, 3 )
+
+      if( status .ne. sai__ok ) return
+
+* Check arrays are not over full
+      maxpnt8 = MAXPNT
+      if( outdim .gt. MAXPNT ) then
+         status = sai__error
+         write(*,*) 'Array length exceeded in TESTTRANGRID:TESTGRID'
+         return
+      end if
+
+*  Copy supplied 4-byte bounds to 8-byte array.
+      do i = 1, 3
+         lbnd8( i ) = lbnd( i )
+         ubnd8( i ) = ubnd( i )
+      end do
+
+*  Create a regular grid of positions within the input space of the
+*  Mapping, and transform it to the output space of the Mapping.
+      call ast_trangrid8( map, nin, lbnd8, ubnd8, tol, maxpix, fwd,
+     :                    nout, maxpnt8, out, status )
+
+*  Convert the transformed output positions back into the input space.
+      call ast_trann( map, outdim, nout, MAXPNT, out, .not. fwd, nin,
+     :                MAXPNT, in, status )
+
+*  Check the input space positions are close to a regular grid.
+      if( status .eq. sai__ok ) then
+
+         do i = 1, nin
+            pos( i ) = lbnd( i )
+         end do
+
+         do j = 1, outdim
+
+            do i = 1, nin
+
+               if( pos( i ) .ne. 0 ) then
+                  if( abs( in( j, i ) - pos( i ) ) .gt.
+     :                1.0E-6*abs( 0.5*( in( j, i ) + pos( i ) ) ) ) then
+                     status = sai__error
+                     write(*,*) 'Test ',itest,' failed at point ',j,
+     :                          ' axis ',i,': ',in( j, i ),
+     :                          ' should be ',pos(1)
+                     return
+                  end if
+               else
+                  if( abs( in( j, i ) ) .gt. 1.0E-5 ) then
+                     status = sai__error
+                     write(*,*) 'Test ',itest,'(8) failed at point ',j,
+     :                          ' axis ',i,': ',in( j, i ),
+     :                          ' should be ', pos(i)
+                     return
+                  end if
+               end if
+            end do
+
+            pos( 1 ) = pos( 1 ) + 1
+            if( pos( 1 ) .gt. ubnd( 1 ) ) then
+               pos( 1 ) = lbnd( 1 )
+               if( nin .gt. 1 ) then
+                  pos( 2 ) = pos( 2 ) + 1
+                  if( pos( 2 ) .gt. ubnd( 2 ) ) then
+                     pos( 2 ) = lbnd( 2 )
+                     if( nin .gt. 2 ) then
+                        pos( 3 ) = pos( 3 ) + 1
+                     end if
+                  end if
+               end if
+            end if
+         end do
+      end if
+
+      end
+
