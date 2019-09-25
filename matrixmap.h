@@ -201,7 +201,7 @@ typedef struct AstMatrixMapVtab {
    AstMatrixMap *(* MtrRot)( AstMatrixMap *, double, const double[], int * );
    AstMatrixMap *(* MtrMult)( AstMatrixMap *,  AstMatrixMap *, int * );
    int (* MtrEuler)( AstMatrixMap *, double[3], int * );
-
+   double *(* MtrGet)( AstMatrixMap *, int, int * );
 } AstMatrixMapVtab;
 
 #if defined(THREAD_SAFE)
@@ -257,6 +257,7 @@ AstMatrixMap *astLoadMatrixMap_( void *, size_t, AstMatrixMapVtab *,
 AstMatrixMap *astMtrRot_( AstMatrixMap *, double, const double[], int * );
 AstMatrixMap *astMtrMult_( AstMatrixMap *, AstMatrixMap *, int * );
 int astMtrEuler_( AstMatrixMap *, double[3], int * );
+double *astMtrGet_( AstMatrixMap *, int, int * );
 #endif
 
 /* Function interfaces. */
@@ -314,6 +315,9 @@ astINVOKE(O,astMtrMult_(astCheckMatrixMap(this),astCheckMatrixMap(a),STATUS_PTR)
 
 #define astMtrEuler(this,euler) \
 astINVOKE(V,astMtrEuler_(astCheckMatrixMap(this),euler,STATUS_PTR))
+
+#define astMtrGet(this,fwd) \
+astINVOKE(V,astMtrGet_(astCheckMatrixMap(this),fwd,STATUS_PTR))
 
 #endif
 #endif

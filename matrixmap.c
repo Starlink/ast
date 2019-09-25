@@ -180,7 +180,9 @@ f     The MatrixMap class does not define any new routines beyond those
 *        - Store the determinant of the forward matrix in the MatrixMap
 *        structure so that it does not need to be re-calculated each time
 *        it is needed.
-*        - Added method astMtrEuler.
+*        - Add protected method astMtrEuler.
+*     25-SEP-2019 (DSB):
+*        Added protected method astMtrGet.
 *class--
 */
 
@@ -287,6 +289,7 @@ static AstMatrixMap *MtrRot( AstMatrixMap *, double, const double[], int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstWinMap *MatWin2( AstMatrixMap *, AstWinMap *, int, int, int, int * );
 static double *InvertMatrix( int, int, int, double *, double *, int * );
+static double *MtrGet( AstMatrixMap *, int, int * );
 static double GetDet( AstMatrixMap *, int * );
 static double Rate( AstMapping *, double *, int, int, int * );
 static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
@@ -1371,6 +1374,7 @@ void astInitMatrixMapVtab_(  AstMatrixMapVtab *vtab, const char *name, int *stat
    vtab->MtrRot = MtrRot;
    vtab->MtrMult = MtrMult;
    vtab->MtrEuler = MtrEuler;
+   vtab->MtrGet = MtrGet;
 
 /* Save the inherited pointers to methods that will be extended, and
    replace them with pointers to the new member functions. */
@@ -4235,6 +4239,65 @@ static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
    return orth;
 }
 
+static double *MtrGet( AstMatrixMap *this, int fwd, int *status ){
+/*
+*+
+*  Name:
+*     astMtrGet
+
+*  Purpose:
+*     Get the matrix represented by a MatrxiMap.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     double *astMtrGet( AstMatrixMap *this, int fwd );
+
+*  Class Membership:
+*     MatrixMap method.
+
+*  Description:
+*     A pointer to a dynamically allocated array holding the elements of
+*     the requested matrix is returned.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+*     fwd
+*        If non-zero, return the forward matriux. Otherwise return the
+*        inverse matrix.
+
+*  Returned Value:
+*     A pointer to a dynamically allocated array holding the elements of
+*     the requested matrix, or NULL if an error occurs. The returned
+*     pointer should be freed using astFree when no longer needed.
+*-
+*/
+
+/* Local variables. */
+   double *matrix;
+   int nel;
+
+/* Return a NULL pointer if an error has already occurred. */
+   if ( !astOK ) return NULL;
+
+/* Get the required pointer, taking account of whether or not the
+   MatrixMap has been inverted. */
+   if( !astGetInvert( this ) ) {
+      matrix = fwd?this->f_matrix:this->i_matrix;
+   } else {
+      matrix = fwd?this->i_matrix:this->f_matrix;
+   }
+
+/* Get the number of elements in the matrix. */
+   nel = astGetNin( this )*astGetNout( this );
+
+/* Return a pointer to a newly allocated array holding a copy of the
+   matrix. */
+   return astStore( NULL, matrix, nel*sizeof( *matrix ) );
+}
 
 static int PermOK( AstMapping *pm, int *status ){
 /*
@@ -6008,6 +6071,11 @@ AstMatrixMap *astMtrMult_( AstMatrixMap *this, AstMatrixMap *a, int *status ){
 int astMtrEuler_( AstMatrixMap *this, double euler[3], int *status ){
    if( !astOK ) return 0;
    return (**astMEMBER(this,MatrixMap,MtrEuler))( this, euler, status );
+}
+
+double *astMtrGet_( AstMatrixMap *this, int fwd, int *status ){
+   if( !astOK ) return NULL;
+   return (**astMEMBER(this,MatrixMap,MtrGet))( this, fwd, status );
 }
 
 
