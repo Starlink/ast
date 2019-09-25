@@ -475,11 +475,11 @@ typedef struct AstMappingVtab {
    void (* ReportPoints)( AstMapping *, int, AstPointSet *, AstPointSet *, int * );
    void (* SetInvert)( AstMapping *, int, int * );
    void (* SetReport)( AstMapping *, int, int * );
-   void (* Tran1)( AstMapping *, int, const double [], int, double [], int * );
-   void (* Tran2)( AstMapping *, int, const double [], const double [], int, double [], double [], int * );
+   void (* Tran1)( AstMapping *, AstDim, const double [], int, double [], int * );
+   void (* Tran2)( AstMapping *, AstDim, const double [], const double [], int, double [], double [], int * );
    void (* TranGrid)( AstMapping *, int, const AstDim[], const AstDim[], double, int, int, int, AstDim, double *, int * );
-   void (* TranN)( AstMapping *, int, int, int, const double *, int, int, int, double *, int * );
-   void (* TranP)( AstMapping *, int, int, const double *[], int, int, double *[], int * );
+   void (* TranN)( AstMapping *, AstDim, int, AstDim, const double *, int, int, AstDim, double *, int * );
+   void (* TranP)( AstMapping *, AstDim, int, const double *[], int, int, double *[], int * );
 
 #define DECLARE_GENERIC_ALL(X,Xtype) \
    AstDim (* Resample##X)( AstMapping *, int, const AstDim [], const AstDim [], \
@@ -662,12 +662,12 @@ AstMapping *astSimplify_( AstMapping *, int * );
 void astInvert_( AstMapping *, int * );
 int astLinearApprox_( AstMapping *, const double *, const double *, double, double *, int * );
 int astQuadApprox_( AstMapping *, const double[2], const double[2], int, int, double *, double *, int * );
-void astTran1_( AstMapping *, int, const double [], int, double [], int * );
-void astTran2_( AstMapping *, int, const double [], const double [], int, double [], double [], int * );
+void astTran18_( AstMapping *, AstDim, const double [], int, double [], int * );
+void astTran28_( AstMapping *, AstDim, const double [], const double [], int, double [], double [], int * );
 void astTranGrid4_( AstMapping *, int, const int[], const int[], double, int, int, int, int, double *, int * );
 void astTranGrid8_( AstMapping *, int, const AstDim[], const AstDim[], double, int, int, int, AstDim, double *, int * );
-void astTranN_( AstMapping *, int, int, int, const double *, int, int, int, double *, int * );
-void astTranP_( AstMapping *, int, int, const double *[], int, int, double *[], int * );
+void astTranN8_( AstMapping *, AstDim, int, AstDim, const double *, int, int, AstDim, double *, int * );
+void astTranP8_( AstMapping *, AstDim, int, const double *[], int, int, double *[], int * );
 
 #if defined(astCLASS)            /* Protected */
 void astDecompose_( AstMapping *, AstMapping **, AstMapping **, int *, int *, int *, int * );
@@ -852,17 +852,25 @@ astINVOKE(V,astRebinSeqUB_(astCheckMapping(this),wlim,ndim_in,lbnd_in,ubnd_in,in
 #define astRemoveRegions(this) astINVOKE(O,astRemoveRegions_(astCheckMapping(this),STATUS_PTR))
 #define astSimplify(this) astINVOKE(O,astSimplify_(astCheckMapping(this),STATUS_PTR))
 #define astTran1(this,npoint,xin,forward,xout) \
-astINVOKE(V,astTran1_(astCheckMapping(this),npoint,xin,forward,xout,STATUS_PTR))
+astINVOKE(V,astTran18_(astCheckMapping(this),npoint,xin,forward,xout,STATUS_PTR))
+#define astTran18(this,npoint,xin,forward,xout) \
+astINVOKE(V,astTran18_(astCheckMapping(this),npoint,xin,forward,xout,STATUS_PTR))
 #define astTran2(this,npoint,xin,yin,forward,xout,yout) \
-astINVOKE(V,astTran2_(astCheckMapping(this),npoint,xin,yin,forward,xout,yout,STATUS_PTR))
+astINVOKE(V,astTran28_(astCheckMapping(this),npoint,xin,yin,forward,xout,yout,STATUS_PTR))
+#define astTran28(this,npoint,xin,yin,forward,xout,yout) \
+astINVOKE(V,astTran28_(astCheckMapping(this),npoint,xin,yin,forward,xout,yout,STATUS_PTR))
 #define astTranGrid(this,ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out) \
 astINVOKE(V,astTranGrid4_(astCheckMapping(this),ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out,STATUS_PTR))
 #define astTranGrid8(this,ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out) \
 astINVOKE(V,astTranGrid8_(astCheckMapping(this),ncoord_in,lbnd,ubnd,tol,maxpix,forward,ncoord_out,outdim,out,STATUS_PTR))
 #define astTranN(this,npoint,ncoord_in,indim,in,forward,ncoord_out,outdim,out) \
-astINVOKE(V,astTranN_(astCheckMapping(this),npoint,ncoord_in,indim,in,forward,ncoord_out,outdim,out,STATUS_PTR))
+astINVOKE(V,astTranN8_(astCheckMapping(this),npoint,ncoord_in,indim,in,forward,ncoord_out,outdim,out,STATUS_PTR))
+#define astTranN8(this,npoint,ncoord_in,indim,in,forward,ncoord_out,outdim,out) \
+astINVOKE(V,astTranN8_(astCheckMapping(this),npoint,ncoord_in,indim,in,forward,ncoord_out,outdim,out,STATUS_PTR))
 #define astTranP(this,npoint,ncoord_in,ptr_in,forward,ncoord_out,ptr_out) \
-astINVOKE(V,astTranP_(astCheckMapping(this),npoint,ncoord_in,ptr_in,forward,ncoord_out,ptr_out,STATUS_PTR))
+astINVOKE(V,astTranP8_(astCheckMapping(this),npoint,ncoord_in,ptr_in,forward,ncoord_out,ptr_out,STATUS_PTR))
+#define astTranP8(this,npoint,ncoord_in,ptr_in,forward,ncoord_out,ptr_out) \
+astINVOKE(V,astTranP8_(astCheckMapping(this),npoint,ncoord_in,ptr_in,forward,ncoord_out,ptr_out,STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astDecompose(this,map1,map2,series,inv1,inv2) \

@@ -733,14 +733,14 @@ static void SincGauss( double, const double [], int, double *, int * );
 static void SincSinc( double, const double [], int, double *, int * );
 static void Somb( double, const double [], int, double *, int * );
 static void SombCos( double, const double [], int, double *, int * );
-static void Tran1( AstMapping *, int, const double [], int, double [], int * );
-static void Tran2( AstMapping *, int, const double [], const double [], int, double [], double [], int * );
+static void Tran1( AstMapping *, AstDim, const double [], int, double [], int * );
+static void Tran2( AstMapping *, AstDim, const double [], const double [], int, double [], double [], int * );
 static void TranGrid( AstMapping *, int, const AstDim[], const AstDim[], double, int, int, int, AstDim, double *, int * );
 static void TranGridAdaptively( AstMapping *, int, const AstDim[], const AstDim[], const AstDim[], const AstDim[], double, int, int, double *[], int * );
 static void TranGridSection( AstMapping *, const double *, int, const AstDim *, const AstDim *, const AstDim *, const AstDim *, int, double *[], int * );
 static void TranGridWithBlocking( AstMapping *, const double *, int, const AstDim *, const AstDim *, const AstDim *, const AstDim *, int, double *[], int * );
-static void TranN( AstMapping *, int, int, int, const double *, int, int, int, double *, int * );
-static void TranP( AstMapping *, int, int, const double *[], int, int, double *[], int * );
+static void TranN( AstMapping *, AstDim, int, AstDim, const double *, int, int, AstDim, double *, int * );
+static void TranP( AstMapping *, AstDim, int, const double *[], int, int, double *[], int * );
 static void ValidateMapping( AstMapping *, int, AstDim, int, int, const char *, int * );
 
 
@@ -20053,7 +20053,7 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
    return result;
 }
 
-static void Tran1( AstMapping *this, int npoint, const double xin[],
+static void Tran1( AstMapping *this, AstDim npoint, const double xin[],
                    int forward, double xout[], int *status ) {
 /*
 *++
@@ -20114,6 +20114,21 @@ f        The global status.
 *  Notes:
 *     - The Mapping supplied must have the value 1 for both its Nin
 *     and Nout attributes.
+
+*  Handling of Huge Pixel Arrays:
+*     If the number of points to be transformed exceeds the largest value that
+*     can be represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte). Specifically, the
+*     argument
+c     "npoint", is changed from type "int" to type "int64_t" (defined in header file
+c     stdint.h).
+f     NPOINT is changed from type INTEGER to type INTEGER*8.
+*     The function name is changed by appending the digit "8" to the
+*     name. Thus,
+c     astTran1 becomes astTran18
+f     AST_TRAN1 becomes AST_TRAN18.
+
 *--
 */
 
@@ -20158,9 +20173,9 @@ f        The global status.
    }
 }
 
-static void Tran2( AstMapping *this,
-                   int npoint, const double xin[], const double yin[],
-                   int forward, double xout[], double yout[], int *status ) {
+static void Tran2( AstMapping *this, AstDim npoint, const double xin[],
+                   const double yin[], int forward, double xout[],
+                   double yout[], int *status ) {
 /*
 *++
 *  Name:
@@ -20231,6 +20246,21 @@ f        The global status.
 *  Notes:
 *     - The Mapping supplied must have the value 2 for both its Nin
 *     and Nout attributes.
+
+*  Handling of Huge Pixel Arrays:
+*     If the number of points to be transformed exceeds the largest value that
+*     can be represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte). Specifically, the
+*     argument
+c     "npoint", is changed from type "int" to type "int64_t" (defined in header file
+c     stdint.h).
+f     NPOINT is changed from type INTEGER to type INTEGER*8.
+*     The function name is changed by appending the digit "8" to the
+*     name. Thus,
+c     astTran2 becomes astTran28
+f     AST_TRAN2 becomes AST_TRAN28.
+
 *--
 */
 
@@ -21645,10 +21675,10 @@ static void TranGridWithBlocking( AstMapping *this, const double *linear_fit,
    dim_block = astFree( dim_block );
 }
 
-static void TranN( AstMapping *this, int npoint,
-                   int ncoord_in, int indim, const double *in,
-                   int forward,
-                   int ncoord_out, int outdim, double *out, int *status ) {
+static void TranN( AstMapping *this, AstDim npoint, int ncoord_in,
+                   AstDim indim, const double *in, int forward,
+                   int ncoord_out, AstDim outdim, double *out,
+                   int *status ) {
 /*
 *++
 *  Name:
@@ -21770,6 +21800,21 @@ f     Mapping supplied must have the value of NCOORD_IN for its Nin
 f     attribute and the value of NCOORD_OUT for its Nout attribute. If
 f     the inverse transformation is being applied, these values should
 f     be reversed.
+
+*  Handling of Huge Pixel Arrays:
+*     If the number of points to be transformed exceeds the largest value that
+*     can be represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte). Specifically, the
+*     arguments
+c     "npoint", "indim" and "outdim" are changed from type "int" to type
+c     "int64_t" (defined in header file stdint.h).
+f     NPOINT, INDIM and OUTDIM are changed from type INTEGER to type INTEGER*8.
+*     The function name is changed by appending the digit "8" to the
+*     name. Thus,
+c     astTranN becomes astTranN8
+f     AST_TRANN becomes AST_TRANN8.
+
 *--
 */
 
@@ -21789,17 +21834,19 @@ f     be reversed.
 /* Also validate the input array dimension argument. */
    if ( astOK && ( indim < npoint ) ) {
       astError( AST__DIMIN, "astTranN(%s): The input array dimension value "
-                "(%d) is invalid.", status, astGetClass( this ), indim );
+                "(%" AST__DIMFMT ") is invalid.", status, astGetClass( this ),
+                indim );
       astError( AST__DIMIN, "This should not be less than the number of "
-                "points being transformed (%d).", status, npoint );
+                "points being transformed (%" AST__DIMFMT ").", status, npoint );
    }
 
 /* Similarly, validate the output array dimension argument. */
    if ( astOK && ( outdim < npoint ) ) {
       astError( AST__DIMIN, "astTranN(%s): The output array dimension value "
-                "(%d) is invalid.", status, astGetClass( this ), outdim );
+                "(%" AST__DIMFMT ") is invalid.", status, astGetClass( this ),
+                outdim );
       astError( AST__DIMIN, "This should not be less than the number of "
-                "points being transformed (%d).", status, npoint );
+                "points being transformed (%" AST__DIMFMT ").", status, npoint );
    }
 
 /* Allocate memory to hold the arrays of input and output data
@@ -21811,7 +21858,7 @@ f     be reversed.
 
 
 #ifdef DEBUG
-      { int i, ns;
+      { AstDim i, ns;
         ns = ncoord_out*outdim;
         for( i = 0; i < ns; i++ ) out[ i ] = 0.0;
       }
@@ -21860,9 +21907,9 @@ f     be reversed.
    }
 }
 
-static void TranP( AstMapping *this, int npoint,
-                   int ncoord_in, const double *ptr_in[],
-                   int forward, int ncoord_out, double *ptr_out[], int *status ) {
+static void TranP( AstMapping *this, AstDim npoint, int ncoord_in,
+                   const double *ptr_in[], int forward, int ncoord_out,
+                   double *ptr_out[], int *status ) {
 /*
 c++
 *  Name:
@@ -21939,6 +21986,16 @@ c++
 *     values should be reversed.
 *     - This routine is not available in the Fortran 77 interface to
 *     the AST library.
+
+*  Handling of Huge Pixel Arrays:
+*     If the number of points to be transformed exceeds the largest value that
+*     can be represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte). Specifically, the
+*     argument "npoint", is changed from type "int" to type "int64_t" (defined
+*     in header file stdint.h). The function name is changed by appending the
+*     digit "8" to the name. Thus, astTranP becomes astTranP8.
+
 c--
 */
 
@@ -24227,14 +24284,14 @@ AstPointSet *astTransform_( AstMapping *this, AstPointSet *in,
    (void) astReplaceNaN( result );
    return result;
 }
-void astTran1_( AstMapping *this, int npoint, const double xin[],
-                int forward, double xout[], int *status ) {
+void astTran18_( AstMapping *this, AstDim npoint, const double xin[],
+                 int forward, double xout[], int *status ) {
    if ( !astOK ) return;
    (**astMEMBER(this,Mapping,Tran1))( this, npoint, xin, forward, xout, status );
 }
-void astTran2_( AstMapping *this,
-                int npoint, const double xin[], const double yin[],
-                int forward, double xout[], double yout[], int *status ) {
+void astTran28_( AstMapping *this,
+                 AstDim npoint, const double xin[], const double yin[],
+                 int forward, double xout[], double yout[], int *status ) {
    if ( !astOK ) return;
    (**astMEMBER(this,Mapping,Tran2))( this, npoint, xin, yin,
                                       forward, xout, yout, status );
@@ -24270,17 +24327,17 @@ void astTranGrid8_( AstMapping *this, int ncoord_in, const AstDim lbnd[],
                                          maxpix, forward, ncoord_out, outdim,
                                          out, status );
 }
-void astTranN_( AstMapping *this, int npoint,
-                int ncoord_in, int indim, const double *in,
-                int forward, int ncoord_out, int outdim, double *out, int *status ) {
+void astTranN8_( AstMapping *this, AstDim npoint,
+                int ncoord_in, AstDim indim, const double *in,
+                int forward, int ncoord_out, AstDim outdim, double *out, int *status ) {
    if ( !astOK ) return;
    (**astMEMBER(this,Mapping,TranN))( this, npoint,
                                       ncoord_in, indim, in,
                                       forward, ncoord_out, outdim, out, status );
 }
-void astTranP_( AstMapping *this, int npoint,
-                int ncoord_in, const double *ptr_in[],
-                int forward, int ncoord_out, double *ptr_out[], int *status ) {
+void astTranP8_( AstMapping *this, AstDim npoint,
+                 int ncoord_in, const double *ptr_in[],
+                 int forward, int ncoord_out, double *ptr_out[], int *status ) {
    if ( !astOK ) return;
    (**astMEMBER(this,Mapping,TranP))( this, npoint,
                                       ncoord_in, ptr_in,

@@ -25,7 +25,8 @@ these "8-byte" interfaces are the same as the 4-byte interfaces but have
 the digit "8" appended to the function name (before any trailing data
 type code). These new interfaces are documented in an extra paragraph
 entitled "Handling of Huge Pixel Arrays" attached to the reference
-documentation for the main function.
+documentation for the main function. Note, all C or C++ code that uses
+AST should be recompiled to pick uyp changes made to the header file ast.h.
 
 
 Main Changes in V8.7.2

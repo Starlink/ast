@@ -720,6 +720,24 @@ F77_SUBROUTINE(ast_tran1)( INTEGER(THIS),
    )
 }
 
+F77_SUBROUTINE(ast_tran18)( INTEGER(THIS),
+                            INTEGER8(NPOINT),
+                            DOUBLE(XIN),
+                            LOGICAL(FORWARD),
+                            DOUBLE(XOUT),
+                            INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_INTEGER8(NPOINT)
+   GENPTR_DOUBLE(XIN)
+   GENPTR_LOGICAL(FORWARD)
+   GENPTR_DOUBLE(XOUT)
+
+   astAt( "AST_TRAN18", NULL, 0 );
+   astWatchSTATUS(
+      astTran18( astI2P( *THIS ), *NPOINT, XIN, F77_ISTRUE( *FORWARD ), XOUT );
+   )
+}
+
 F77_SUBROUTINE(ast_tran2)( INTEGER(THIS),
                            INTEGER(NPOINT),
                            DOUBLE(XIN),
@@ -740,6 +758,29 @@ F77_SUBROUTINE(ast_tran2)( INTEGER(THIS),
    astWatchSTATUS(
       astTran2( astI2P( *THIS ), *NPOINT, XIN, YIN,
                 F77_ISTRUE( *FORWARD ), XOUT, YOUT );
+   )
+}
+
+F77_SUBROUTINE(ast_tran28)( INTEGER(THIS),
+                            INTEGER8(NPOINT),
+                            DOUBLE(XIN),
+                            DOUBLE(YIN),
+                            LOGICAL(FORWARD),
+                            DOUBLE(XOUT),
+                            DOUBLE(YOUT),
+                            INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_INTEGER8(NPOINT)
+   GENPTR_DOUBLE(XIN)
+   GENPTR_DOUBLE(YIN)
+   GENPTR_LOGICAL(FORWARD)
+   GENPTR_DOUBLE(XOUT)
+   GENPTR_DOUBLE(YOUT)
+
+   astAt( "AST_TRAN28", NULL, 0 );
+   astWatchSTATUS(
+      astTran28( astI2P( *THIS ), *NPOINT, XIN, YIN,
+                 F77_ISTRUE( *FORWARD ), XOUT, YOUT );
    )
 }
 
@@ -826,6 +867,34 @@ F77_SUBROUTINE(ast_trann)( INTEGER(THIS),
       astTranN( astI2P( *THIS ), *NPOINT, *NCOORD_IN, *INDIM,
                 (const double *)IN, F77_ISTRUE( *FORWARD ),
                 *NCOORD_OUT, *OUTDIM, OUT );
+   )
+}
+
+F77_SUBROUTINE(ast_trann8)( INTEGER(THIS),
+                            INTEGER8(NPOINT),
+                            INTEGER(NCOORD_IN),
+                            INTEGER8(INDIM),
+                            DOUBLE_ARRAY(IN),
+                            LOGICAL(FORWARD),
+                            INTEGER(NCOORD_OUT),
+                            INTEGER8(OUTDIM),
+                            DOUBLE_ARRAY(OUT),
+                            INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_INTEGER8(NPOINT)
+   GENPTR_INTEGER(NCOORD_IN)
+   GENPTR_INTEGER8(INDIM)
+   GENPTR_DOUBLE_ARRAY(IN)
+   GENPTR_LOGICAL(FORWARD)
+   GENPTR_INTEGER(NCOORD_OUT)
+   GENPTR_INTEGER8(OUTDIM)
+   GENPTR_DOUBLE_ARRAY(OUT)
+
+   astAt( "AST_TRANN8", NULL, 0 );
+   astWatchSTATUS(
+      astTranN8( astI2P( *THIS ), *NPOINT, *NCOORD_IN, *INDIM,
+                 (const double *)IN, F77_ISTRUE( *FORWARD ),
+                 *NCOORD_OUT, *OUTDIM, OUT );
    )
 }
 
