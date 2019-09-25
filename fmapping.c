@@ -584,6 +584,81 @@ MAKE_AST_REBIN(b,B,BYTE,B,signed char)
 MAKE_AST_REBIN(ub,UB,UBYTE,UB,unsigned char)
 #undef MAKE_AST_REBIN
 
+#define MAKE_AST_REBIN(f,F,Ftype,X,Xtype) \
+F77_SUBROUTINE(ast_rebin8##f)( INTEGER(THIS), \
+                              DOUBLE(WLIM), \
+                              INTEGER(NDIM_IN), \
+                              INTEGER8_ARRAY(LBND_IN), \
+                              INTEGER8_ARRAY(UBND_IN), \
+                              Ftype##_ARRAY(IN), \
+                              Ftype##_ARRAY(IN_VAR), \
+                              INTEGER(INTERP), \
+                              DOUBLE_ARRAY(PARAMS), \
+                              INTEGER(FLAGS), \
+                              DOUBLE(TOL), \
+                              INTEGER(MAXPIX), \
+                              Ftype(BADVAL), \
+                              INTEGER(NDIM_OUT), \
+                              INTEGER8_ARRAY(LBND_OUT), \
+                              INTEGER8_ARRAY(UBND_OUT), \
+                              INTEGER8_ARRAY(LBND), \
+                              INTEGER8_ARRAY(UBND), \
+                              Ftype##_ARRAY(OUT), \
+                              Ftype##_ARRAY(OUT_VAR), \
+                              INTEGER(STATUS) ) { \
+   GENPTR_INTEGER(THIS) \
+   GENPTR_DOUBLE(WLIM) \
+   GENPTR_INTEGER(NDIM_IN) \
+   GENPTR_INTEGER8_ARRAY(LBND_IN) \
+   GENPTR_INTEGER8_ARRAY(UBND_IN) \
+   GENPTR_##Ftype##_ARRAY(IN) \
+   GENPTR_##Ftype##_ARRAY(IN_VAR) \
+   GENPTR_INTEGER(INTERP) \
+   GENPTR_DOUBLE_ARRAY(PARAMS) \
+   GENPTR_INTEGER(FLAGS) \
+   GENPTR_DOUBLE(TOL) \
+   GENPTR_INTEGER(MAXPIX) \
+   GENPTR_##Ftype(BADVAL) \
+   GENPTR_INTEGER(NDIM_OUT) \
+   GENPTR_INTEGER8_ARRAY(LBND_OUT) \
+   GENPTR_INTEGER8_ARRAY(UBND_OUT) \
+   GENPTR_INTEGER8_ARRAY(LBND) \
+   GENPTR_INTEGER8_ARRAY(UBND) \
+   GENPTR_##Ftype##_ARRAY(OUT) \
+   GENPTR_##Ftype##_ARRAY(OUT_VAR) \
+   GENPTR_INTEGER(STATUS) \
+\
+   Xtype *out_var; \
+   const Xtype *in_var; \
+\
+   astAt( "AST_REBIN"#F, NULL, 0 ); \
+   astWatchSTATUS( \
+\
+/* If the AST__USEVAR flag is set, use the input and output variance \
+   arrays, otherwise pass NULL pointers. */ \
+      in_var = out_var = NULL; \
+      if ( AST__USEVAR & *FLAGS ) { \
+         in_var = (const Xtype *) IN_VAR; \
+         out_var = (Xtype *) OUT_VAR; \
+      } \
+      astRebin8##X( astI2P( *THIS ), *WLIM, *NDIM_IN, \
+                   LBND_IN, UBND_IN, (const Xtype *) IN, in_var, \
+                   *INTERP, PARAMS, *FLAGS, \
+                   *TOL, *MAXPIX, *BADVAL, \
+                   *NDIM_OUT, LBND_OUT, UBND_OUT, \
+                   LBND, UBND, (Xtype *) OUT, out_var ); \
+   ) \
+}
+
+/* Invoke the above macro to define a function for each data
+   type. Include synonyms for some functions. */
+MAKE_AST_REBIN(d,D,DOUBLE,D,double)
+MAKE_AST_REBIN(r,R,REAL,F,float)
+MAKE_AST_REBIN(i,I,INTEGER,I,int)
+MAKE_AST_REBIN(b,B,BYTE,B,signed char)
+MAKE_AST_REBIN(ub,UB,UBYTE,UB,unsigned char)
+#undef MAKE_AST_REBIN
+
 /* AST_REBINSEQ<X> requires a function for each possible data type, so
    define it via a macro. */
 #define MAKE_AST_REBINSEQ(f,F,Ftype,X,Xtype) \
@@ -659,6 +734,98 @@ F77_SUBROUTINE(ast_rebinseq##f)( INTEGER(THIS), \
 \
       nused = *NUSED; \
       astRebinSeq##X( astI2P( *THIS ), *WLIM, *NDIM_IN, \
+                   LBND_IN, UBND_IN, (const Xtype *) IN, in_var, \
+                   *INTERP, PARAMS, *FLAGS, \
+                   *TOL, *MAXPIX, *BADVAL, \
+                   *NDIM_OUT, LBND_OUT, UBND_OUT, \
+                   LBND, UBND, (Xtype *) OUT, out_var, WEIGHTS, \
+                   &nused ); \
+      *NUSED = nused; \
+   ) \
+} \
+
+/* Invoke the above macro to define a function for each data
+   type. Include synonyms for some functions. */
+MAKE_AST_REBINSEQ(d,D,DOUBLE,D,double)
+MAKE_AST_REBINSEQ(r,R,REAL,F,float)
+MAKE_AST_REBINSEQ(i,I,INTEGER,I,int)
+MAKE_AST_REBINSEQ(b,B,BYTE,B,signed char)
+MAKE_AST_REBINSEQ(ub,UB,UBYTE,UB,unsigned char)
+#undef MAKE_AST_REBINSEQ
+
+#define MAKE_AST_REBINSEQ(f,F,Ftype,X,Xtype) \
+F77_SUBROUTINE(ast_rebinseq8##f)( INTEGER(THIS), \
+                              DOUBLE(WLIM), \
+                              INTEGER(NDIM_IN), \
+                              INTEGER8_ARRAY(LBND_IN), \
+                              INTEGER8_ARRAY(UBND_IN), \
+                              Ftype##_ARRAY(IN), \
+                              Ftype##_ARRAY(IN_VAR), \
+                              INTEGER(INTERP), \
+                              DOUBLE_ARRAY(PARAMS), \
+                              INTEGER(FLAGS), \
+                              DOUBLE(TOL), \
+                              INTEGER(MAXPIX), \
+                              Ftype(BADVAL), \
+                              INTEGER(NDIM_OUT), \
+                              INTEGER8_ARRAY(LBND_OUT), \
+                              INTEGER8_ARRAY(UBND_OUT), \
+                              INTEGER8_ARRAY(LBND), \
+                              INTEGER8_ARRAY(UBND), \
+                              Ftype##_ARRAY(OUT), \
+                              Ftype##_ARRAY(OUT_VAR), \
+                              DOUBLE_ARRAY(WEIGHTS), \
+                              INTEGER8(NUSED), \
+                              INTEGER(STATUS) ) { \
+   GENPTR_INTEGER(THIS) \
+   GENPTR_DOUBLE(WLIM) \
+   GENPTR_INTEGER(NDIM_IN) \
+   GENPTR_INTEGER8_ARRAY(LBND_IN) \
+   GENPTR_INTEGER8_ARRAY(UBND_IN) \
+   GENPTR_##Ftype##_ARRAY(IN) \
+   GENPTR_##Ftype##_ARRAY(IN_VAR) \
+   GENPTR_INTEGER(INTERP) \
+   GENPTR_DOUBLE_ARRAY(PARAMS) \
+   GENPTR_INTEGER(FLAGS) \
+   GENPTR_DOUBLE(TOL) \
+   GENPTR_INTEGER(MAXPIX) \
+   GENPTR_##Ftype(BADVAL) \
+   GENPTR_INTEGER(NDIM_OUT) \
+   GENPTR_INTEGER8_ARRAY(LBND_OUT) \
+   GENPTR_INTEGER8_ARRAY(UBND_OUT) \
+   GENPTR_INTEGER8_ARRAY(LBND) \
+   GENPTR_INTEGER8_ARRAY(UBND) \
+   GENPTR_##Ftype##_ARRAY(OUT) \
+   GENPTR_##Ftype##_ARRAY(OUT_VAR) \
+   GENPTR_DOUBLE_ARRAY(WEIGHTS) \
+   GENPTR_INTEGER8(NUSED) \
+   GENPTR_INTEGER(STATUS) \
+\
+   Xtype *out_var; \
+   const Xtype *in_var; \
+   int64_t nused; \
+\
+   astAt( "AST_REBINSEQ"#F, NULL, 0 ); \
+   astWatchSTATUS( \
+\
+/* We need the input variances if the AST__USEVAR or AST__VARWGT flag is \
+   set. Otherwise use a NULL pointer for the input variances. */ \
+      if ( AST__USEVAR & *FLAGS || AST__VARWGT & *FLAGS ) { \
+         in_var = (const Xtype *) IN_VAR; \
+      } else { \
+         in_var = NULL; \
+      } \
+\
+/* We need the output variances if the AST__USEVAR or AST__GENVAR flag is \
+   set. Otherwise use a NULL pointer for the output variances. */ \
+      if ( AST__USEVAR & *FLAGS || AST__GENVAR & *FLAGS ) { \
+         out_var = (Xtype *) OUT_VAR; \
+      } else { \
+         out_var = NULL; \
+      } \
+\
+      nused = *NUSED; \
+      astRebinSeq8##X( astI2P( *THIS ), *WLIM, *NDIM_IN, \
                    LBND_IN, UBND_IN, (const Xtype *) IN, in_var, \
                    *INTERP, PARAMS, *FLAGS, \
                    *TOL, *MAXPIX, *BADVAL, \
