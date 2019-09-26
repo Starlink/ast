@@ -103,12 +103,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -177,7 +177,7 @@ typedef struct AstShiftMapVtab {
    AstClassIdentifier id;
 
 /* Properties (e.g. methods) specific to this class. */
-
+   double *(* GetShifts)( AstShiftMap *, int * );
 } AstShiftMapVtab;
 
 #if defined(THREAD_SAFE)
@@ -230,6 +230,7 @@ AstShiftMap *astLoadShiftMap_( void *, size_t, AstShiftMapVtab *,
 /* Prototypes for member functions. */
 /* -------------------------------- */
 # if defined(astCLASS)           /* Protected */
+double *astGetShifts_( AstShiftMap *, int * );
 #endif
 
 /* Function interfaces. */
@@ -280,6 +281,8 @@ astINVOKE(O,astLoadShiftMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_
    to the wrong sort of Object is supplied. */
 
 #if defined(astCLASS)            /* Protected */
+#define astGetShifts(this) \
+astINVOKE(V,astGetShifts_(astCheckShiftMap(this),STATUS_PTR))
 #endif
 
 #endif

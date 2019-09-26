@@ -56,6 +56,8 @@ f     The ShiftMap class does not define any new routines beyond those
 *        Override astGetObjSize.
 *     10-MAY-2006 (DSB):
 *        Override astEqual.
+*     26-SEP-2019 (DSB):
+*        Added protected method astGetShifts
 *class--
 */
 
@@ -147,15 +149,16 @@ AstShiftMap *astShiftMapId_( int, const double [], const char *, ... );
 /* ======================================== */
 
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
-static int GetObjSize( AstObject *, int * );
+static double *GetShifts( AstShiftMap *, int * );
 static double Rate( AstMapping *, double *, int, int, int * );
+static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
+static int Equal( AstObject *, AstObject *, int * );
+static int GetIsLinear( AstMapping *, int * );
+static int GetObjSize( AstObject *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
-static int Equal( AstObject *, AstObject *, int * );
-static int GetIsLinear( AstMapping *, int * );
-static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
 
 /* Member functions. */
 /* ================= */
@@ -358,6 +361,63 @@ static int GetObjSize( AstObject *this_object, int *status ) {
    return result;
 }
 
+static double *GetShifts( AstShiftMap *this, int *status ){
+/*
+*+
+*  Name:
+*     astGetShifts
+
+*  Purpose:
+*     Get the shifts represented by the forward transformation of a ShiftMap.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "shiftmap.h"
+*     double *astGetShifts( AstShiftMap *this );
+
+*  Class Membership:
+*     ShiftMap method.
+
+*  Description:
+*     A pointer to a dynamically allocated array holding the shifts
+*     is returned.
+
+*  Parameters:
+*     this
+*        Pointer to the ShiftMap.
+
+*  Returned Value:
+*     A pointer to a dynamically allocated array holding the shifts,
+*     or NULL if an error occurs. The returned pointer should be freed
+*     using astFree when no longer needed.
+*-
+*/
+
+/* Local variables. */
+   double *result;
+   int n;
+   int i;
+
+/* Return a NULL pointer if an error has already occurred. */
+   if ( !astOK ) return NULL;
+
+/* Get the number of shifts. */
+   n = astGetNin( this );
+
+/* Allocate the require space and store a copy of the shifts. */
+   result = astStore( NULL, this->shift, n*sizeof( double ) );
+
+/* If the ShiftMap is inverted, negate the returned shifts. */
+   if( astGetInvert( this ) && astOK ){
+      for( i = 0; i < n; i++ ) result[ i ] *= -1;
+   }
+
+/* Return the array of shifts. */
+   return result;
+}
+
 void astInitShiftMapVtab_(  AstShiftMapVtab *vtab, const char *name, int *status ) {
 /*
 *+
@@ -421,6 +481,7 @@ void astInitShiftMapVtab_(  AstShiftMapVtab *vtab, const char *name, int *status
 /* ------------------------------------ */
 /* Store pointers to the member functions (implemented here) that provide
    virtual methods for this class. */
+   vtab->GetShifts = GetShifts;
 
 /* Save the inherited pointers to methods that will be extended, and
    replace them with pointers to the new member functions. */
@@ -1610,6 +1671,11 @@ AstShiftMap *astLoadShiftMap_( void *mem, size_t size,
    Note that the member function may not be the one defined here, as it may
    have been over-ridden by a derived class. However, it should still have the
    same interface. */
+
+double *astGetShifts_( AstShiftMap *this, int *status ){
+   if( !astOK ) return NULL;
+   return (**astMEMBER(this,ShiftMap,GetShifts))( this, status );
+}
 
 
 
