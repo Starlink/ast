@@ -43,12 +43,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -196,32 +196,60 @@ AstPolygon *astLoadPolygon_( void *, size_t, AstPolygonVtab *,
 AstPolygon *astDownsize_( AstPolygon *, double, int, int * );
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-AstPolygon *astOutlineLD_( long double, int, const long double[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4LD_( long double, int, const long double[], const int[2], const int[2], double, int, const int[2], int, int * );
 #endif
-AstPolygon *astOutlineB_( signed char, int, const signed char[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineD_( double, int, const double[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineF_( float, int, const float[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineI_( int, int, const int[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineL_( long int, int, const long int[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineS_( short int, int, const short int[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineUB_( unsigned char, int, const unsigned char[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineUI_( unsigned int, int, const unsigned int[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineUL_( unsigned long int, int, const unsigned long int[], const int[2], const int[2], double, int, const int[2], int, int * );
-AstPolygon *astOutlineUS_( unsigned short int, int, const unsigned short int[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4B_( signed char, int, const signed char[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4D_( double, int, const double[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4F_( float, int, const float[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4I_( int, int, const int[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4L_( long int, int, const long int[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4S_( short int, int, const short int[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4UB_( unsigned char, int, const unsigned char[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4UI_( unsigned int, int, const unsigned int[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4UL_( unsigned long int, int, const unsigned long int[], const int[2], const int[2], double, int, const int[2], int, int * );
+AstPolygon *astOutline4US_( unsigned short int, int, const unsigned short int[], const int[2], const int[2], double, int, const int[2], int, int * );
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-AstPolygon *astConvexLD_( long double, int, const long double[], const int[2], const int[2], int, int * );
+AstPolygon *astOutline8LD_( long double, int, const long double[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
 #endif
-AstPolygon *astConvexB_( signed char, int, const signed char[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexD_( double, int, const double[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexF_( float, int, const float[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexI_( int, int, const int[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexL_( long int, int, const long int[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexS_( short int, int, const short int[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexUB_( unsigned char, int, const unsigned char[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexUI_( unsigned int, int, const unsigned int[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexUL_( unsigned long int, int, const unsigned long int[], const int[2], const int[2], int, int * );
-AstPolygon *astConvexUS_( unsigned short int, int, const unsigned short int[], const int[2], const int[2], int, int * );
+AstPolygon *astOutline8B_( signed char, int, const signed char[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8D_( double, int, const double[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8F_( float, int, const float[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8I_( int, int, const int[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8L_( long int, int, const long int[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8S_( short int, int, const short int[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8UB_( unsigned char, int, const unsigned char[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8UI_( unsigned int, int, const unsigned int[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8UL_( unsigned long int, int, const unsigned long int[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+AstPolygon *astOutline8US_( unsigned short int, int, const unsigned short int[], const AstDim[2], const AstDim[2], double, int, const AstDim[2], int, int * );
+
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
+AstPolygon *astConvex4LD_( long double, int, const long double[], const int[2], const int[2], int, int * );
+#endif
+AstPolygon *astConvex4B_( signed char, int, const signed char[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4D_( double, int, const double[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4F_( float, int, const float[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4I_( int, int, const int[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4L_( long int, int, const long int[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4S_( short int, int, const short int[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4UB_( unsigned char, int, const unsigned char[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4UI_( unsigned int, int, const unsigned int[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4UL_( unsigned long int, int, const unsigned long int[], const int[2], const int[2], int, int * );
+AstPolygon *astConvex4US_( unsigned short int, int, const unsigned short int[], const int[2], const int[2], int, int * );
+
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
+AstPolygon *astConvex8LD_( long double, int, const long double[], const AstDim[2], const AstDim[2], int, int * );
+#endif
+AstPolygon *astConvex8B_( signed char, int, const signed char[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8D_( double, int, const double[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8F_( float, int, const float[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8I_( int, int, const int[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8L_( long int, int, const long int[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8S_( short int, int, const short int[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8UB_( unsigned char, int, const unsigned char[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8UI_( unsigned int, int, const unsigned int[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8UL_( unsigned long int, int, const unsigned long int[], const AstDim[2], const AstDim[2], int, int * );
+AstPolygon *astConvex8US_( unsigned short int, int, const unsigned short int[], const AstDim[2], const AstDim[2], int, int * );
 
 # if defined(astCLASS)           /* Protected */
 int astGetSimpVertices_( AstPolygon *, int * );
@@ -284,56 +312,108 @@ astINVOKE(O,astDownsize_(astCheckPolygon(this),maxerr,maxvert,STATUS_PTR))
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
 #define astOutlineLD(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineLD_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4LD_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #endif
 
 #define astOutlineB(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineB_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4B_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineD(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineD_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4D_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineF(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineF_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4F_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineI(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineI_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4I_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineL(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineL_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4L_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineS(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineS_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4S_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineUB(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineUB_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4UB_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineUI(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineUI_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4UI_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineUL(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineUL_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4UL_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 #define astOutlineUS(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
-astINVOKE(O,astOutlineUS_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+astINVOKE(O,astOutline4US_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
 
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
+#define astOutline8LD(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8LD_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#endif
+
+#define astOutline8B(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8B_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8D(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8D_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8F(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8F_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8I(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8I_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8L(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8L_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8S(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8S_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8UB(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8UB_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8UI(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8UI_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8UL(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8UL_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+#define astOutline8US(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix) \
+astINVOKE(O,astOutline8US_(value,oper,array,lbnd,ubnd,maxerr,maxvert,inside,starpix,STATUS_PTR))
+
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
 #define astConvexLD(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O,astConvexLD_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O,astConvex4LD_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #endif
 
 #define  astConvexB(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexB_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4B_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexD(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexD_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4D_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexF(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexF_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4F_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexI(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexI_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4I_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexL(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexL_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4L_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexS(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexS_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4S_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexUB(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexUB_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4UB_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexUI(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexUI_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4UI_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexUL(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexUL_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4UL_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 #define  astConvexUS(value,oper,array,lbnd,ubnd,starpix) \
-astINVOKE(O, astConvexUS_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+astINVOKE(O, astConvex4US_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
+#define astConvex8LD(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O,astConvex8LD_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#endif
+
+#define  astConvex8B(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8B_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8D(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8D_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8F(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8F_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8I(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8I_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8L(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8L_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8S(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8S_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8UB(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8UB_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8UI(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8UI_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8UL(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8UL_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
+#define  astConvex8US(value,oper,array,lbnd,ubnd,starpix) \
+astINVOKE(O, astConvex8US_(value,oper,array,lbnd,ubnd,starpix,STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astClearSimpVertices(this) \

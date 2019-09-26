@@ -181,6 +181,55 @@ MAKE_AST_OUTLINE(ub,UB,UBYTE,UB,unsigned char)
 #undef MAKE_AST_OUTLINE
 
 
+/* AST_OUTLINE 8-byte API */
+#define MAKE_AST_OUTLINE(f,F,Ftype,X,Xtype) \
+F77_INTEGER_FUNCTION(ast_outline8##f)( Ftype(VALUE), \
+                                      INTEGER(OPER), \
+                                      Ftype##_ARRAY(ARRAY), \
+                                      INTEGER8_ARRAY(LBND), \
+                                      INTEGER8_ARRAY(UBND), \
+                                      DOUBLE(MAXERR), \
+                                      INTEGER(MAXVERT), \
+                                      INTEGER8_ARRAY(INSIDE), \
+                                      LOGICAL(STARPIX), \
+                                      INTEGER(STATUS) ) { \
+   GENPTR_##Ftype(VALUE) \
+   GENPTR_INTEGER(OPER) \
+   GENPTR_##Ftype##_ARRAY(ARRAY) \
+   GENPTR_INTEGER8_ARRAY(LBND) \
+   GENPTR_INTEGER8_ARRAY(UBND) \
+   GENPTR_DOUBLE(MAXERR) \
+   GENPTR_INTEGER(MAXVERT) \
+   GENPTR_INTEGER8_ARRAY(INSIDE) \
+   GENPTR_LOGICAL(STARPIX) \
+   GENPTR_INTEGER(STATUS) \
+\
+   F77_INTEGER_TYPE RESULT; \
+\
+   astAt( "AST_OUTLINE8"#F, NULL, 0 ); \
+   astWatchSTATUS( \
+      RESULT = astP2I( astOutline8##X( *VALUE, *OPER, (Xtype *) ARRAY, LBND, \
+                                        UBND, *MAXERR, *MAXVERT, INSIDE, \
+                                        F77_ISTRUE( *STARPIX ) ? 1 : 0 ) ); \
+   ) \
+   return RESULT; \
+}
+
+/* Invoke the above macro to define a function for each data
+   type. Include synonyms for some functions. */
+MAKE_AST_OUTLINE(d,D,DOUBLE,D,double)
+MAKE_AST_OUTLINE(r,R,REAL,F,float)
+MAKE_AST_OUTLINE(i,I,INTEGER,I,int)
+MAKE_AST_OUTLINE(ui,UI,INTEGER,UI,unsigned int)
+MAKE_AST_OUTLINE(s,S,WORD,S,short int)
+MAKE_AST_OUTLINE(us,US,UWORD,US,unsigned short int)
+MAKE_AST_OUTLINE(w,W,WORD,S,short int)
+MAKE_AST_OUTLINE(uw,UW,UWORD,US,unsigned short int)
+MAKE_AST_OUTLINE(b,B,BYTE,B,signed char)
+MAKE_AST_OUTLINE(ub,UB,UBYTE,UB,unsigned char)
+#undef MAKE_AST_OUTLINE
+
+
 /* AST_CONVEX<X> requires a function for each possible data type, so
    define it via a macro. */
 #define MAKE_AST_CONVEX(f,F,Ftype,X,Xtype) \
@@ -205,6 +254,47 @@ F77_INTEGER_FUNCTION(ast_convex##f)( Ftype(VALUE), \
    astWatchSTATUS( \
       RESULT = astP2I( astConvex##X( *VALUE, *OPER, (Xtype *) ARRAY, LBND, \
                                      UBND, F77_ISTRUE( *STARPIX ) ? 1 : 0 ) ); \
+   ) \
+   return RESULT; \
+}
+
+/* Invoke the above macro to define a function for each data
+   type. Include synonyms for some functions. */
+MAKE_AST_CONVEX(d,D,DOUBLE,D,double)
+MAKE_AST_CONVEX(r,R,REAL,F,float)
+MAKE_AST_CONVEX(i,I,INTEGER,I,int)
+MAKE_AST_CONVEX(ui,UI,INTEGER,UI,unsigned int)
+MAKE_AST_CONVEX(s,S,WORD,S,short int)
+MAKE_AST_CONVEX(us,US,UWORD,US,unsigned short int)
+MAKE_AST_CONVEX(w,W,WORD,S,short int)
+MAKE_AST_CONVEX(uw,UW,UWORD,US,unsigned short int)
+MAKE_AST_CONVEX(b,B,BYTE,B,signed char)
+MAKE_AST_CONVEX(ub,UB,UBYTE,UB,unsigned char)
+#undef MAKE_AST_CONVEX
+
+
+#define MAKE_AST_CONVEX(f,F,Ftype,X,Xtype) \
+F77_INTEGER_FUNCTION(ast_convex8##f)( Ftype(VALUE), \
+                                      INTEGER(OPER), \
+                                      Ftype##_ARRAY(ARRAY), \
+                                      INTEGER8_ARRAY(LBND), \
+                                      INTEGER8_ARRAY(UBND), \
+                                      LOGICAL(STARPIX), \
+                                      INTEGER(STATUS) ) { \
+   GENPTR_##Ftype(VALUE) \
+   GENPTR_INTEGER(OPER) \
+   GENPTR_##Ftype##_ARRAY(ARRAY) \
+   GENPTR_INTEGER8_ARRAY(LBND) \
+   GENPTR_INTEGER8_ARRAY(UBND) \
+   GENPTR_LOGICAL(STARPIX) \
+   GENPTR_INTEGER(STATUS) \
+\
+   F77_INTEGER_TYPE RESULT; \
+\
+   astAt( "AST_CONVEX"#F, NULL, 0 ); \
+   astWatchSTATUS( \
+      RESULT = astP2I( astConvex8##X( *VALUE, *OPER, (Xtype *) ARRAY, LBND, \
+                                      UBND, F77_ISTRUE( *STARPIX ) ? 1 : 0 ) ); \
    ) \
    return RESULT; \
 }

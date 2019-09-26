@@ -261,7 +261,7 @@ AstPolygon *astPolygonId_( void *, int, int, const double *, void *, const char 
 /* Define a macro that expands to a single prototype for function
    FindInsidePoint for a given data type and operation. */
 #define FINDINSIDEPOINT_PROTO0(X,Xtype,Oper) \
-static void FindInsidePoint##Oper##X( Xtype, const Xtype *, const int[2], const int[2], int *, int *, int *, int * );
+static void FindInsidePoint##Oper##X( Xtype, const Xtype *, const AstDim[2], const AstDim[2], AstDim *, AstDim *, AstDim *, int * );
 
 /* Define a macro that expands to a set of prototypes for all operations
    for function FindInsidePoint for a given data type. */
@@ -292,7 +292,7 @@ FINDINSIDEPOINT_PROTO(F,float)
 /* Define a macro that expands to a single prototype for function
    TraceEdge for a given data type and operation. */
 #define TRACEEDGE_PROTO0(X,Xtype,Oper) \
-static AstPointSet *TraceEdge##Oper##X( Xtype, const Xtype *, const int[2], const int[2], int, int, int, int, int, int * );
+static AstPointSet *TraceEdge##Oper##X( Xtype, const Xtype *, const AstDim[2], const AstDim[2], AstDim, AstDim, AstDim, int, int, int * );
 
 /* Define a macro that expands to a set of prototypes for all operations
    for function TraceEdge for a given data type. */
@@ -323,7 +323,7 @@ TRACEEDGE_PROTO(F,float)
 /* Define a macro that expands to a single prototype for function
    PartHull for a given data type and operation. */
 #define PARTHULL_PROTO0(X,Xtype,Oper) \
-static void PartHull##Oper##X( Xtype, const Xtype[], int, int, int, int, int, int, int, const int[2], double **, double **, int *, int * );
+static void PartHull##Oper##X( Xtype, const Xtype[], AstDim, AstDim, AstDim, AstDim, AstDim, AstDim, int, const AstDim[2], double **, double **, int *, int * );
 
 /* Define a macro that expands to a set of prototypes for all operations
    for function PartHull for a given data type. */
@@ -354,7 +354,7 @@ PARTHULL_PROTO(F,float)
 /* Define a macro that expands to a single prototype for function
    ConvexHull for a given data type and operation. */
 #define CONVEXHULL_PROTO0(X,Xtype,Oper) \
-static AstPointSet *ConvexHull##Oper##X( Xtype, const Xtype[], const int[2], int, int, int, int * );
+static AstPointSet *ConvexHull##Oper##X( Xtype, const Xtype[], const AstDim[2], int, AstDim, AstDim, int * );
 
 /* Define a macro that expands to a set of prototypes for all operations
    for function ConvexHull for a given data type. */
@@ -385,7 +385,7 @@ CONVEXHULL_PROTO(F,float)
 /* Define a macro that expands to a single prototype for function
    FindBoxEdge for a given data type and operation. */
 #define FINDBOXEDGE_PROTO0(X,Xtype,Oper) \
-static void FindBoxEdge##Oper##X( Xtype, const Xtype[], int, int, int, int, int *, int *, int *, int * );
+static void FindBoxEdge##Oper##X( Xtype, const Xtype[], AstDim, AstDim, int, int, AstDim *, AstDim *, AstDim *, int * );
 
 /* Define a macro that expands to a set of prototypes for all operations
    for function FindBoxEdge for a given data type. */
@@ -926,6 +926,21 @@ f     For compatibility with other Starlink facilities, the codes W
 f     and UW are provided as synonyms for S and US respectively (but
 f     only in the Fortran interface to AST).
 
+*  Handling of Huge Pixel Arrays:
+*     If the input grid is so large that an integer pixel index,
+*     (or a count of pixels) could exceed the largest value that can be
+*     represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte) to hold pixel
+*     indices and pixel counts. Specifically, the arguments
+c     "lbnd" and "ubnd" are changed from type "int" to type "int64_t"
+c     (defined in header file stdint.h).
+f     LBND and UBND are changed from type INTEGER to type INTEGER*8.
+*     The function name is changed by inserting the digit "8" before the
+*     trailing data type code. Thus,
+c     astConvex<X> becomes astConvex8<X>.
+f     AST_CONVEX<X> becomes AST_CONVEX8<X>.
+
 *--
 */
 /* Define a macro to implement the function for a specific data
@@ -933,16 +948,16 @@ f     only in the Fortran interface to AST).
    argument list does not include a Polygon, and so no virtual function
    table is available. */
 #define MAKE_CONVEX(X,Xtype) \
-AstPolygon *astConvex##X##_( Xtype value, int oper, const Xtype array[], \
-                             const int lbnd[2], const int ubnd[2], \
-                             int starpix, int *status ) { \
+AstPolygon *astConvex8##X##_( Xtype value, int oper, const Xtype array[], \
+                              const AstDim lbnd[2], const AstDim ubnd[2], \
+                              int starpix, int *status ) { \
 \
 /* Local Variables: */ \
    AstFrame *frm;            /* Frame in which to define the Polygon */ \
    AstPointSet *candidate;   /* Candidate polygon vertices */ \
    AstPolygon *result;       /* Result value to return */ \
-   int xdim;                 /* Number of pixels per row */ \
-   int ydim;                 /* Number of rows */ \
+   AstDim xdim;              /* Number of pixels per row */ \
+   AstDim ydim;              /* Number of rows */ \
    static double junk[ 6 ] = {0.0, 0.0, 1.0, 1.0, 0.0, 1.0 }; /* Junk poly */ \
 \
 /* Initialise. */ \
@@ -1023,6 +1038,42 @@ MAKE_CONVEX(F,float)
 /* Undefine the macros. */
 #undef MAKE_CONVEX
 
+/* Now define the 4-byte API for astConvex, which calls the 8-byte API. */
+#define MAKE_CONVEX(X,Xtype) \
+AstPolygon *astConvex4##X##_( Xtype value, int oper, const Xtype array[], \
+                              const int lbnd[2], const int ubnd[2], \
+                              int starpix, int *status ) { \
+\
+/* Local Variables; */ \
+   AstDim lbnd8[ 2 ]; \
+   AstDim ubnd8[ 2 ]; \
+\
+   if ( !astOK ) return NULL; \
+\
+   lbnd8[ 0 ] = (AstDim) lbnd[ 0 ]; \
+   lbnd8[ 1 ] = (AstDim) lbnd[ 1 ]; \
+   ubnd8[ 0 ] = (AstDim) ubnd[ 0 ]; \
+   ubnd8[ 1 ] = (AstDim) ubnd[ 1 ]; \
+\
+   return astConvex8##X##_( value, oper, array, lbnd8, ubnd8, \
+                            starpix, status ); \
+}
+
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
+MAKE_CONVEX(LD,long double)
+#endif
+MAKE_CONVEX(D,double)
+MAKE_CONVEX(L,long int)
+MAKE_CONVEX(UL,unsigned long int)
+MAKE_CONVEX(I,int)
+MAKE_CONVEX(UI,unsigned int)
+MAKE_CONVEX(S,short int)
+MAKE_CONVEX(US,unsigned short int)
+MAKE_CONVEX(B,signed char)
+MAKE_CONVEX(UB,unsigned char)
+MAKE_CONVEX(F,float)
+#undef MAKE_CONVEX
+
 /*
 *  Name:
 *     ConvexHull
@@ -1036,8 +1087,8 @@ MAKE_CONVEX(F,float)
 *  Synopsis:
 *     #include "polygon.h"
 *     AstPointSet *ConvexHull<Oper><X>( <Xtype> value, const <Xtype> array[],
-*                                       const int lbnd[2], int starpix,
-*                                       int xdim, int ydim, int *status )
+*                                       const AstDim lbnd[2], int starpix,
+*                                       AstDim xdim, AstDim ydim, int *status )
 
 *  Class Membership:
 *     Polygon member function
@@ -1083,10 +1134,22 @@ MAKE_CONVEX(F,float)
    type and operation. */
 #define MAKE_CONVEXHULL(X,Xtype,Oper,OperI) \
 static AstPointSet *ConvexHull##Oper##X( Xtype value, const Xtype array[], \
-                                         const int lbnd[2], int starpix, \
-                                         int xdim, int ydim, int *status ) { \
+                                         const AstDim lbnd[2], int starpix, \
+                                         AstDim xdim, AstDim ydim, int *status ) { \
 \
 /* Local Variables: */ \
+   AstDim xhi; \
+   AstDim xhiymax; \
+   AstDim xhiymin; \
+   AstDim xlo; \
+   AstDim xloymax; \
+   AstDim xloymin; \
+   AstDim yhi; \
+   AstDim yhixmax; \
+   AstDim yhixmin; \
+   AstDim ylo; \
+   AstDim yloxmax; \
+   AstDim yloxmin; \
    AstPointSet *result; \
    double **ptr; \
    double *xv1; \
@@ -1104,18 +1167,6 @@ static AstPointSet *ConvexHull##Oper##X( Xtype value, const Xtype array[], \
    int nv3; \
    int nv4; \
    int nv; \
-   int xhi; \
-   int xhiymax; \
-   int xhiymin; \
-   int xlo; \
-   int xloymax; \
-   int xloymin; \
-   int yhi; \
-   int yhixmax; \
-   int yhixmin; \
-   int ylo; \
-   int yloxmax; \
-   int yloxmin; \
 \
 /* Initialise */ \
    result = NULL; \
@@ -1796,8 +1847,8 @@ static void EnsureInside( AstPolygon *this, int *status ){
 *  Synopsis:
 *     #include "polygon.h"
 *     void FindBoxEdge<Oper><X>( <Xtype> value, const <Xtype> array[],
-*                                int xdim, int ydim, int axis, int low,
-*                                int *val, int *valmax, int *valmin,
+*                                AstDim xdim, AstDim ydim, int axis, int low,
+*                                AstDim *val, AstDim *valmax, AstDim *valmin,
 *                                int *status )
 
 *  Class Membership:
@@ -1848,21 +1899,21 @@ static void EnsureInside( AstPolygon *this, int *status ){
 /* Define a macro to implement the function for a specific data
    type and operation. */
 #define MAKE_FINDBOXEDGE(X,Xtype,Oper,OperI) \
-static void FindBoxEdge##Oper##X( Xtype value, const Xtype array[], int xdim, \
-                                  int ydim, int axis, int low, int *val, \
-                                  int *valmax, int *valmin, int *status ) { \
+static void FindBoxEdge##Oper##X( Xtype value, const Xtype array[], AstDim xdim, \
+                                  AstDim ydim, int axis, int low, AstDim *val, \
+                                  AstDim *valmax, AstDim *valmin, int *status ) { \
 \
 /* Local Variables: */ \
-   int astep; \
-   int bstep; \
-   int a0; \
-   int a1; \
-   int b0; \
-   int b1; \
-   int inc; \
-   int a; \
-   int b; \
+   AstDim a0; \
+   AstDim a1; \
+   AstDim a; \
+   AstDim astep; \
+   AstDim b0; \
+   AstDim b1; \
+   AstDim b; \
+   AstDim bstep; \
    const Xtype *pc; \
+   int inc; \
 \
 /* Initialise. */ \
    *val = 0; \
@@ -1990,8 +2041,8 @@ MAKEALL_FINDBOXEDGE(F,float)
 *  Synopsis:
 *     #include "polygon.h"
 *     void FindInsidePoint<Oper><X>( <Xtype> value, const <Xtype> array[],
-*                                    const int lbnd[ 2 ], const int ubnd[ 2 ],
-*                                    int *inx, int *iny, int *iv,
+*                                    const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+*                                    AstDim *inx, AstDim *iny, AstDim *iv,
 *                                    int *status );
 
 *  Class Membership:
@@ -2037,22 +2088,22 @@ MAKEALL_FINDBOXEDGE(F,float)
    type and operation. */
 #define MAKE_FINDINSIDEPOINT(X,Xtype,Oper,OperI) \
 static void FindInsidePoint##Oper##X( Xtype value, const Xtype array[], \
-                                      const int lbnd[ 2 ], const int ubnd[ 2 ], \
-                                      int *inx, int *iny, int *iv, \
+                                      const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ], \
+                                      AstDim *inx, AstDim *iny, AstDim *iv, \
                                       int *status ){ \
 \
 /* Local Variables: */ \
-   const Xtype *pv;  /* Pointer to next data value to test */ \
-   const char *text; /* Pointer to text describing oper */ \
-   int cy;           /* Central row index */ \
-   int iskin;        /* Index of spiral layer being searched */ \
-   int nskin;        /* Number of spiral layers to search */ \
-   int nx;           /* Pixel per row */ \
-   int tmp;          /* Temporary storage */ \
-   int xhi;          /* High X pixel index bound of current skin */ \
-   int xlo;          /* Low X pixel index bound of current skin */ \
-   int yhi;          /* High X pixel index bound of current skin */ \
-   int ylo;          /* Low X pixel index bound of current skin */ \
+   const Xtype *pv;     /* Pointer to next data value to test */ \
+   const char *text;    /* Pointer to text describing oper */ \
+   AstDim cy;           /* Central row index */ \
+   AstDim iskin;        /* Index of spiral layer being searched */ \
+   AstDim nskin;        /* Number of spiral layers to search */ \
+   AstDim nx;           /* Pixel per row */ \
+   AstDim tmp;          /* Temporary storage */ \
+   AstDim xhi;          /* High X pixel index bound of current skin */ \
+   AstDim xlo;          /* Low X pixel index bound of current skin */ \
+   AstDim yhi;          /* High X pixel index bound of current skin */ \
+   AstDim ylo;          /* Low X pixel index bound of current skin */ \
 \
 /* Check the global error status. */ \
    if ( !astOK ) return; \
@@ -3243,6 +3294,23 @@ f     For compatibility with other Starlink facilities, the codes W
 f     and UW are provided as synonyms for S and US respectively (but
 f     only in the Fortran interface to AST).
 
+*  Handling of Huge Pixel Arrays:
+*     If the input grid is so large that an integer pixel index,
+*     (or a count of pixels) could exceed the largest value that can be
+*     represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte) to hold pixel
+*     indices and pixel counts. Specifically, the arguments
+c     "lbnd", "ubnd" and "inside" are
+c     changed from type "int" to type "int64_t" (defined in header file
+c     stdint.h).
+f     LBND, UBND and INSIDE are changed from
+f     type INTEGER to type INTEGER*8.
+*     The function name is changed by inserting the digit "8" before the
+*     trailing data type code. Thus,
+c     astOutline<X> becomes astOutline8<X>.
+f     AST_OUTLINE<X> becomes AST_OUTLINE8<X>.
+
 *--
 */
 /* Define a macro to implement the function for a specific data
@@ -3250,26 +3318,26 @@ f     only in the Fortran interface to AST).
    argument list does not include a Polygon, and so no virtual function
    table is available. */
 #define MAKE_OUTLINE(X,Xtype) \
-AstPolygon *astOutline##X##_( Xtype value, int oper, const Xtype array[], \
-                              const int lbnd[2], const int ubnd[2], double maxerr, \
-                              int maxvert, const int inside[2], int starpix, \
-                              int *status ) { \
+AstPolygon *astOutline8##X##_( Xtype value, int oper, const Xtype array[], \
+                               const AstDim lbnd[2], const AstDim ubnd[2], double maxerr, \
+                               int maxvert, const AstDim inside[2], int starpix, \
+                               int *status ) { \
 \
 /* Local Variables: */ \
+   AstDim inx;               /* X index of inside point */ \
+   AstDim iny;               /* Y index of inside point */ \
+   AstDim iv;                /* Vector index of next test pixel */ \
+   AstDim ixv;               /* X pixel index of next test point */ \
+   AstDim nx;                /* Length of array x axis */ \
    AstFrame *frm;            /* Frame in which to define the Polygon */ \
    AstPointSet *candidate;   /* Candidate polygon vertices */ \
    AstPointSet *pset;        /* PointSet holding downsized polygon vertices */ \
    AstPolygon *result;       /* Result value to return */ \
-   const Xtype *pv;          /* Pointer to next test point */ \
    Xtype v;                  /* Value of current pixel */ \
+   const Xtype *pv;          /* Pointer to next test point */ \
    double **ptr;             /* Pointers to PointSet arrays */ \
    int boxsize;              /* Half width of smoothign box in vertices */ \
-   int inx;                  /* X index of inside point */ \
-   int iny;                  /* Y index of inside point */ \
-   int iv;                   /* Vector index of next test pixel */ \
-   int ixv;                  /* X pixel index of next test point */ \
    int nv0;                  /* Number of vertices in accurate outline */ \
-   int nx;                   /* Length of array x axis */ \
    int smooth;               /* Do we need to smooth the polygon? */ \
    int stop_at_invalid;      /* Indicates when to stop rightwards search */ \
    int tmp;                  /* Alternative boxsize */ \
@@ -3500,7 +3568,7 @@ AstPolygon *astOutline##X##_( Xtype value, int oper, const Xtype array[], \
 /* If required smooth the full resolution polygon before downsizing it. */ \
    if( smooth ) { \
 \
-/* Initially, set the boxsize to be equal to the required accouracy. */ \
+/* Initially, set the boxsize to be equal to the required accuracy. */ \
       if( maxerr > 0 ) { \
          boxsize = (int) maxerr; \
       } else { \
@@ -3559,7 +3627,6 @@ AstPolygon *astOutline##X##_( Xtype value, int oper, const Xtype array[], \
    return result; \
 }
 
-
 /* Expand the above macro to generate a function for each required
    data type. */
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
@@ -3579,6 +3646,47 @@ MAKE_OUTLINE(F,float)
 /* Undefine the macros. */
 #undef MAKE_OUTLINE
 
+/* The 4-byte API for astOutline calls the 8-byte API. */
+#define MAKE_OUTLINE(X,Xtype) \
+AstPolygon *astOutline4##X##_( Xtype value, int oper, const Xtype array[], \
+                               const int lbnd[2], const int ubnd[2], double maxerr, \
+                               int maxvert, const int inside[2], int starpix, \
+                               int *status ) { \
+\
+/* Local Variables; */ \
+   AstDim lbnd8[ 2 ]; \
+   AstDim ubnd8[ 2 ]; \
+   AstDim inside8[ 2 ]; \
+\
+   if ( !astOK ) return 0; \
+\
+   lbnd8[ 0 ] = (AstDim) lbnd[ 0 ]; \
+   lbnd8[ 1 ] = (AstDim) lbnd[ 1 ]; \
+   ubnd8[ 0 ] = (AstDim) ubnd[ 0 ]; \
+   ubnd8[ 1 ] = (AstDim) ubnd[ 1 ]; \
+   inside8[ 0 ] = (AstDim) inside[ 0 ]; \
+   inside8[ 1 ] = (AstDim) inside[ 1 ]; \
+\
+   return astOutline8##X##_( value, oper, array, lbnd8, ubnd8, maxerr, \
+                             maxvert, inside8, starpix, status ); \
+}
+
+#if HAVE_LONG_DOUBLE
+MAKE_OUTLINE(LD,long double)
+#endif
+MAKE_OUTLINE(D,double)
+MAKE_OUTLINE(L,long int)
+MAKE_OUTLINE(UL,unsigned long int)
+MAKE_OUTLINE(I,int)
+MAKE_OUTLINE(UI,unsigned int)
+MAKE_OUTLINE(S,short int)
+MAKE_OUTLINE(US,unsigned short int)
+MAKE_OUTLINE(B,signed char)
+MAKE_OUTLINE(UB,unsigned char)
+MAKE_OUTLINE(F,float)
+#undef MAKE_OUTLINE
+
+
 /*
 *  Name:
 *     PartHull
@@ -3591,9 +3699,9 @@ MAKE_OUTLINE(F,float)
 
 *  Synopsis:
 *     #include "polygon.h"
-*     void PartHull<Oper><X>( <Xtype> value, const <Xtype> array[], int xdim,
-*                             int ydim, int xs, int ys, int xe, int ye,
-*                             int starpix, const int lbnd[2], double **xvert,
+*     void PartHull<Oper><X>( <Xtype> value, const <Xtype> array[], AstDim xdim,
+*                             AstDim ydim, AstDim xs, AstDim ys, AstDim xe, AstDim ye,
+*                             int starpix, const AstDim lbnd[2], double **xvert,
 *                             double **yvert, int *nvert, int *status )
 
 *  Class Membership:
@@ -3649,29 +3757,29 @@ MAKE_OUTLINE(F,float)
 /* Define a macro to implement the function for a specific data
    type and operation. */
 #define MAKE_PARTHULL(X,Xtype,Oper,OperI) \
-static void PartHull##Oper##X( Xtype value, const Xtype array[], int xdim, \
-                               int ydim, int xs, int ys, int xe, int ye, \
-                               int starpix, const int lbnd[2], \
+static void PartHull##Oper##X( Xtype value, const Xtype array[], AstDim xdim, \
+                               AstDim ydim, AstDim xs, AstDim ys, AstDim xe, AstDim ye, \
+                               int starpix, const AstDim lbnd[2], \
                                double **xvert, double **yvert, int *nvert, \
                                int *status ) { \
 \
 /* Local Variables: */ \
+   AstDim ix; \
+   AstDim iy; \
+   AstDim x0; \
+   AstDim x1; \
+   AstDim xl; \
+   AstDim xlim; \
+   AstDim xr; \
    const Xtype *pc; \
    double *pxy; \
-   double dx2; \
    double dx1; \
+   double dx2; \
    double dy1; \
    double dy2; \
    double off; \
    double xdelta; \
    int ivert; \
-   int ix; \
-   int iy; \
-   int x0; \
-   int x1; \
-   int xl; \
-   int xlim; \
-   int xr; \
    int yinc; \
 \
 /* Initialise */ \
@@ -3735,7 +3843,7 @@ static void PartHull##Oper##X( Xtype value, const Xtype array[], int xdim, \
    while( astOK ) { \
 \
 /* Get the GRID X coord where the line crosses this row. */ \
-      xlim = (int)( 0.5 + xs + xdelta*( iy - ys ) ); \
+      xlim = (AstDim)( 0.5 + xs + xdelta*( iy - ys ) ); \
 \
 /* Get the index of the first and last columns to be tested on this row. */ \
       if( yinc < 0 ) { \
@@ -5558,8 +5666,8 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 *  Synopsis:
 *     #include "polygon.h"
 *     void TraceEdge<Oper><X>( <Xtype> value, const <Xtype> array[],
-*                              const int lbnd[ 2 ], const int ubnd[ 2 ],
-*                              int iv0, int ix0, int iy0, int starpix,
+*                              const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+*                              AstDim iv0, AstDim ix0, AstDim iy0, int starpix,
 *                              int full, int *status );
 
 *  Class Membership:
@@ -5621,12 +5729,15 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
    type and operation. */
 #define MAKE_TRACEEDGE(X,Xtype,Oper,OperI) \
 static AstPointSet *TraceEdge##Oper##X( Xtype value, const Xtype array[], \
-                                        const int lbnd[ 2 ], const int ubnd[ 2 ], \
-                                        int iv0, int ix0, int iy0, \
+                                        const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ], \
+                                        AstDim iv0, AstDim ix0, AstDim iy0, \
                                         int starpix, int full, \
                                         int *status ){ \
 \
 /* Local Variables: */ \
+   AstDim ix;           /* X pixel index of current valid pixel */ \
+   AstDim iy;           /* Y pixel index of current valid pixel */ \
+   AstDim nx;           /* Pixels per row */ \
    AstPointSet *result; /* Pointer to text describing oper */ \
    const Xtype *pa;     /* Pointer to current valid pixel value */ \
    const Xtype *pb;     /* Pointer to neigbouring valid pixel value */ \
@@ -5641,11 +5752,8 @@ static AstPointSet *TraceEdge##Oper##X( Xtype value, const Xtype array[], \
    int at;              /* The pixel corner to draw to */ \
    int done;            /* Have we arrived back at the start of the polygon? */ \
    int ii;              /* Index of new vertex */ \
-   int ix;              /* X pixel index of current valid pixel */ \
-   int iy;              /* Y pixel index of current valid pixel */ \
    int nright;          /* Overall number of right hand turns along polygon */ \
    int nvert;           /* Number of vertices */ \
-   int nx;              /* Pixels per row */ \
 \
 /* Initialise */ \
    result = NULL; \
