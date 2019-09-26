@@ -223,8 +223,8 @@ typedef struct PixelMask {
    void *value;
    void *bad;
    int type;
-   int nx;
-   int ny;
+   AstDim nx;
+   AstDim ny;
    int oper;
 } PixelMask;
 
@@ -382,7 +382,7 @@ static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, 
 static AstRegion *GetDefUnc( AstRegion *, int * );
 static Cell *MakeCell( int, int, int, Cell **, int * );
 static double GetMocArea( AstMoc *, int * );
-static double GetPixelArea( AstFrameSet *, const int *, int * );
+static double GetPixelArea( AstFrameSet *, const AstDim *, int * );
 static double OrderToRes( int order );
 static int Comp_corner( const void *, const void * );
 static int Comp_decra( const void *, const void * );
@@ -416,7 +416,7 @@ static void MakeCorners( AstMoc *, int, Cell *, Corner **, int, int * );
 static void MergeRanges( AstMoc *, int, int * );
 static void NegateRanges( AstMoc *, int, int, int * );
 static void NestedToXy( int64_t, int, int *, int * );
-static void PutCell( AstMoc *, AstMapping **, int, int, int, CellList *, int, void *, int, const char *, int * );
+static void PutCell( AstMoc *, AstMapping **, AstDim, AstDim, int, CellList *, int, void *, int, const char *, int * );
 static void RegBaseBox( AstRegion *, double *, double *, int * );
 static void Sink1( void *, size_t, const char *, int * );
 static void Sink2( void *, size_t, const char *, int * );
@@ -460,7 +460,7 @@ static int GetMocLength( AstMoc *, int * );
    AddPixelMask prototypes for all data types. */
 #define ADDPIXELMASK_PROTO(X,Xtype) \
 static void AddPixelMask##X( AstMoc *, int, AstFrameSet *, Xtype, int, \
-                             int, Xtype, const Xtype[], const int[2], int * );
+                             int, Xtype, const Xtype[], const AstDim[2], int * );
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
 ADDPIXELMASK_PROTO(LD,long double)
@@ -479,7 +479,7 @@ ADDPIXELMASK_PROTO(F,float)
 /* Define a macro that expands to a single prototype for function
    GetSelectionBounds for a given data type and operation. */
 #define GETSELECTIONBOUNDS_PROTO0(X,Xtype,Oper) \
-static int GetSelectionBounds##Oper##X( Xtype, const Xtype[], const int[ 2 ], int *, int *, int *, int *, int * );
+static int GetSelectionBounds##Oper##X( Xtype, const Xtype[], const AstDim[ 2 ], AstDim *, AstDim *, AstDim *, AstDim *, int * );
 
 /* Define a macro that expands to a set of prototypes for all operations
    for function GetSelectionBounds for a given data type. */
@@ -1798,6 +1798,21 @@ f     For compatibility with other Starlink facilities, the codes W
 f     and UW are provided as synonyms for S and US respectively (but
 f     only in the Fortran interface to AST).
 
+*  Handling of Huge Pixel Arrays:
+*     If the input grid is so large that an integer pixel index,
+*     (or a count of pixels) could exceed the largest value that can be
+*     represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte) to hold pixel
+*     indices and pixel counts. Specifically, the argument
+c     "dims" is  changed from type "int" to type "int64_t" (defined in header file
+c     stdint.h).
+f     DIMS is changed from type INTEGER to type INTEGER*8.
+*     The function name is changed by inserting the digit "8" before the
+*     trailing data type code. Thus,
+c     astAddPixelMask<X> becomes astAddPixelMask8<X>.
+f     AST_ADDPIXELMASK<X> becomes AST_ADDPIXELMASK8<X>.
+
 *--
 */
 
@@ -1806,12 +1821,22 @@ f     only in the Fortran interface to AST).
 static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
                              Xtype value, int oper, int flags, \
                              Xtype badval, const Xtype array[], \
-                             const int dims[2], int *status ) { \
+                             const AstDim dims[2], int *status ) { \
 \
 /* Local Variables: */ \
    AstCmpMap *array2proj;   /* Mapping for HEALPix grid coordinates */ \
    AstCmpMap *array2proj_min;/* Mapping for best HEALPix grid coordinates */ \
    AstCmpMap *tempmap;      /* Temporary Mapping pointer */ \
+   AstDim glbnd_min[2];     /* Best lower bounds of region in grid coords */ \
+   AstDim gubnd_min[2];     /* Best upper bounds of region in grid coords */ \
+   AstDim hx;               /* Upper bound on 1st grid axis of selection box */ \
+   AstDim hy;               /* Upper bound on 2ns grid axis of selection box */ \
+   AstDim i;                /* Loop count */ \
+   AstDim j;                /* Loop count */ \
+   AstDim lx;               /* Lower bound on 1st grid axis of selection box */ \
+   AstDim ly;               /* Lower bound on 2nd grid axis of selection box */ \
+   AstDim npix;             /* Number of pixels in bounding box */ \
+   AstDim npix_min;         /* Number of pixels in smallest bounding box */ \
    AstFrameSet *array2hpx12;/* Array grid coords -> HPX12 grid coords */ \
    AstFrameSet *fs;         /* Connects grid and sky using HPX projection */ \
    AstFrameSet *fsconv;     /* Conversion FrameSet */ \
@@ -1833,22 +1858,12 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
    double pixarea;          /* Area of array pixel in square arc-sec */ \
    double res;              /* Mean pixel resolution in arc-sec */ \
    double ubnd_in[ 2 ];     /* Grid coord bounds of selected array pixels */ \
-   int glbnd_min[2];        /* Best lower bounds of region in grid coords */ \
-   int gubnd_min[2];        /* Best upper bounds of region in grid coords */ \
-   int hx;                  /* Upper bound on 1st grid axis of selection box */ \
-   int hy;                  /* Upper bound on 2ns grid axis of selection box */ \
-   int i;                   /* Loop count */ \
    int iax;                 /* Axis index */ \
    int iproj;               /* Identifier for type of HEALPix projection */ \
    int iproj_min;           /* Identifier for best type of HEALPix projection */ \
-   int j;                   /* Loop count */ \
-   int lx;                  /* Lower bound on 1st grid axis of selection box */ \
-   int ly;                  /* Lower bound on 2nd grid axis of selection box */ \
    int maxorder;            /* MOC order for final grid */ \
    int minorder;            /* MOC order for initial grid */ \
    int ok;                  /* At least one selected pixel? */ \
-   size_t npix;             /* Number of pixels in bounding box */ \
-   size_t npix_min;         /* Number of pixels in smallest bounding box */ \
 \
 /* Check the global error status. */ \
    if ( !astOK ) return; \
@@ -1861,9 +1876,9 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
    } \
 \
    if( dims[ 0 ] < 1 || dims[ 1 ] < 1 ) { \
-      astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid values " \
-                "(%d,%d) supplied for parameter 'dims'.", status,  \
-                astGetClass(this), dims[ 0 ], dims[ 1 ] ); \
+      astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid values (%" \
+                AST__DIMFMT ",%" AST__DIMFMT ") supplied for parameter \
+                'dims'.", status,  astGetClass(this), dims[ 0 ], dims[ 1 ] ); \
    } \
 \
 /* The current Frame of the supplied FrameSet must contain a SkyFrame  \
@@ -1993,18 +2008,18 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
             } \
 \
 /* Get the number of HEALPix cells in the bounding box. */ \
-            npix = (int)( ( gubnd[ 0 ] - glbnd[ 0 ] + 1 )* \
-                          ( gubnd[ 1 ] - glbnd[ 1 ] + 1 ) ); \
+            npix = (AstDim)( ( gubnd[ 0 ] - glbnd[ 0 ] + 1 )* \
+                             ( gubnd[ 1 ] - glbnd[ 1 ] + 1 ) ); \
 \
 /* If this is the smallest bounding box found so far, record its details, \
    increasing its size by 5% at each edge for safety. */ \
             if( iproj == 0 || npix < npix_min ) { \
                delta =  0.05*( gubnd[0] - glbnd[0] + 1 ); \
-               glbnd_min[ 0 ] = (int) ( glbnd[ 0 ] - delta ); \
-               gubnd_min[ 0 ] = (int) ( gubnd[ 0 ] + delta ); \
+               glbnd_min[ 0 ] = (AstDim) ( glbnd[ 0 ] - delta ); \
+               gubnd_min[ 0 ] = (AstDim) ( gubnd[ 0 ] + delta ); \
                delta =  0.05*( gubnd[1] - glbnd[1] + 1 ); \
-               glbnd_min[ 1 ] = (int) ( glbnd[ 1 ] - delta ); \
-               gubnd_min[ 1 ] = (int) ( gubnd[ 1 ] + delta ); \
+               glbnd_min[ 1 ] = (AstDim) ( glbnd[ 1 ] - delta ); \
+               gubnd_min[ 1 ] = (AstDim) ( gubnd[ 1 ] + delta ); \
                npix_min = npix; \
                iproj_min = iproj; \
                if( array2proj_min ) array2proj_min = astAnnul( array2proj_min ); \
@@ -2086,10 +2101,10 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
             ina[ 1 ] = gubnd_min[ 0 ]; \
             inb[ 1 ] = gubnd_min[ 1 ]; \
             astTran2( tempmap2, 2, ina, inb, 1, outa, outb ); \
-            glbnd_min[ 0 ] = (int)( outa[ 0 ] + 0.5 ) - 1; \
-            glbnd_min[ 1 ] = (int)( outb[ 0 ] + 0.5 ) - 1; \
-            gubnd_min[ 0 ] = (int)( outa[ 1 ] + 0.5 ) + 1; \
-            gubnd_min[ 1 ] = (int)( outb[ 1 ] + 0.5 ) + 1; \
+            glbnd_min[ 0 ] = (AstDim)( outa[ 0 ] + 0.5 ) - 1; \
+            glbnd_min[ 1 ] = (AstDim)( outb[ 0 ] + 0.5 ) - 1; \
+            gubnd_min[ 0 ] = (AstDim)( outa[ 1 ] + 0.5 ) + 1; \
+            gubnd_min[ 1 ] = (AstDim)( outb[ 1 ] + 0.5 ) + 1; \
             tempmap2 = astAnnul( tempmap2 ); \
 \
 /* Initialise a CellList structure holding the grid coords of the cells \
@@ -5105,7 +5120,7 @@ static void GetNorm( AstMoc *this, const char *method, int *status ){
 
 }
 
-static double GetPixelArea( AstFrameSet *wcs, const int *dims, int *status ){
+static double GetPixelArea( AstFrameSet *wcs, const AstDim *dims, int *status ){
 /*
 *  Name:
 *     GetPixelArea
@@ -5118,7 +5133,7 @@ static double GetPixelArea( AstFrameSet *wcs, const int *dims, int *status ){
 
 *  Synopsis:
 *     #include "moc.h"
-*     double GetPixelArea( AstFrameSet *wcs, const int *dims, int *status )
+*     double GetPixelArea( AstFrameSet *wcs, const AstDim *dims, int *status )
 
 *  Class Membership:
 *     Moc member function
@@ -5205,8 +5220,8 @@ static double GetPixelArea( AstFrameSet *wcs, const int *dims, int *status ){
 *  Synopsis:
 *     #include "moc.h"
 *     int GetSelectionBounds<Oper><X>( <Xtype> value, const <Xtype> array[],
-*                                      const int dims[ 2 ], int *lx, int *hx,
-*                                      int *ly, int *hy, int *status );
+*                                      const AstDim dims[ 2 ], AstDim *lx, AstDim *hx,
+*                                      AstDim *ly, AstDim *hy, int *status );
 
 *  Class Membership:
 *     Moc member function
@@ -5250,19 +5265,19 @@ static double GetPixelArea( AstFrameSet *wcs, const int *dims, int *status ){
    type and operation. */
 #define MAKE_GETSELECTIONBOUNDS(X,Xtype,Oper,OperI) \
 static int GetSelectionBounds##Oper##X( Xtype value, const Xtype array[], \
-                                        const int dims[ 2 ], int *lx, int *hx, \
-                                        int *ly, int *hy, int *status ){ \
+                                        const AstDim dims[ 2 ], AstDim *lx, AstDim *hx, \
+                                        AstDim *ly, AstDim *hy, int *status ){ \
 \
 /* Local Variables: */ \
-   const Xtype *pv;  /* Pointer to next data value to test */ \
-   int ix;           /* Pixel column */ \
-   int iy;           /* Pixel row */ \
+   const Xtype *pv;     /* Pointer to next data value to test */ \
+   AstDim ix;           /* Pixel column */ \
+   AstDim iy;           /* Pixel row */ \
 \
 /* Initialise the bounding box. */ \
-   *lx = INT_MAX; \
-   *hx = -INT_MAX; \
-   *ly = INT_MAX; \
-   *hy = -INT_MAX; \
+   *lx = INT64_MAX; \
+   *hx = -INT64_MAX; \
+   *ly = INT64_MAX; \
+   *hy = -INT64_MAX; \
 \
 /* Check the global error status. */ \
    if ( !astOK ) return 0; \
@@ -6609,7 +6624,7 @@ static double OrderToRes( int order ){
    return 211076.29/(double)( 1 << order );
 }
 
-static void PutCell( AstMoc *this, AstMapping **map, int ix, int iy, int order,
+static void PutCell( AstMoc *this, AstMapping **map, AstDim ix, AstDim iy, int order,
                      CellList *clist, int regtype, void *data, int cmode,
                      const char *method, int *status ){
 /*
@@ -6624,7 +6639,7 @@ static void PutCell( AstMoc *this, AstMapping **map, int ix, int iy, int order,
 
 *  Synopsis:
 *     #include "moc.h"
-*     void PutCell( AstMoc *this, AstMapping **map, int ix, int iy, int order,
+*     void PutCell( AstMoc *this, AstMapping **map, AstDim ix, AstDim iy, int order,
 *                   CellList *clist, int regtype, void *data, int cmode,
 *                   const char *method, int *status )
 
@@ -6697,6 +6712,8 @@ static void PutCell( AstMoc *this, AstMapping **map, int ix, int iy, int order,
 */
 
 /* Local Variables: */
+   AstDim ixc;
+   AstDim iyc;
    AstPointSet *ps3;
    AstPointSet *ps2;
    AstPointSet *ps1;
@@ -6710,8 +6727,6 @@ static void PutCell( AstMoc *this, AstMapping **map, int ix, int iy, int order,
    int allin;
    int allout;
    int inside[9];
-   int ixc;
-   int iyc;
    int j;
    int npoint;
 
@@ -6799,25 +6814,19 @@ static void PutCell( AstMoc *this, AstMapping **map, int ix, int iy, int order,
 /* If the specified pixel appears to be inside the region of interest, add it
    to the supplied CellList. */
    if( allin ) {
-      if( ix == AST__BAD || iy == AST__BAD ) {
-         astError( AST__INTER, "%s(%s): Bad interior cell centre "
-                   "(internal programming error).", status, method,
-                   astGetClass( this ) );
+      if( clist->len[ order ] < INT_MAX - 2 ) {
+         ii = clist->len[ order ]++;
+         clist->ix[ order ] = astGrow( clist->ix[ order ], ii + 1,
+                                       sizeof(*(clist->ix[ order ])));
+         clist->iy[ order ] = astGrow( clist->iy[ order ], ii + 1,
+                                       sizeof(*(clist->iy[ order ])));
       } else {
-         if( clist->len[ order ] < INT_MAX - 2 ) {
-            ii = clist->len[ order ]++;
-            clist->ix[ order ] = astGrow( clist->ix[ order ], ii + 1,
-                                          sizeof(*(clist->ix[ order ])));
-            clist->iy[ order ] = astGrow( clist->iy[ order ], ii + 1,
-                                          sizeof(*(clist->iy[ order ])));
-         } else {
-            astError( AST__BGMOC, "%s(%s): The normalised MOC has too "
-                      "many elements.", status, method, astGetClass( this ) );
-         }
-         if( astOK ) {
-            clist->ix[ order ][ ii ] = ix;
-            clist->iy[ order ][ ii ] = iy;
-         }
+         astError( AST__BGMOC, "%s(%s): The normalised MOC has too "
+                   "many elements.", status, method, astGetClass( this ) );
+      }
+      if( astOK ) {
+         clist->ix[ order ][ ii ] = ix;
+         clist->iy[ order ][ ii ] = iy;
       }
 
 /* Otherwise, if the cell appears to be partially inside the region of
@@ -10462,12 +10471,39 @@ void astGetCell_( AstMoc *this, int icell, int *order, int64_t *npix,
 
 
 #define MAKE_ADDPIXELMASK_(X,Xtype) \
-void astAddPixelMask##X##_( AstMoc *this, int cmode, AstFrameSet *wcs, Xtype value, \
+void astAddPixelMask8##X##_( AstMoc *this, int cmode, AstFrameSet *wcs, Xtype value, \
                             int oper, int flags, Xtype badval, const Xtype array[], \
-                            const int dims[2], int *status ) { \
+                            const AstDim dims[2], int *status ) { \
    if ( !astOK ) return; \
    (**astMEMBER(this,Moc,AddPixelMask##X))( this, cmode, wcs, value, oper, \
                                             flags, badval, array, dims, status ); \
+}
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
+MAKE_ADDPIXELMASK_(LD,long double)
+#endif
+MAKE_ADDPIXELMASK_(D,double)
+MAKE_ADDPIXELMASK_(F,float)
+MAKE_ADDPIXELMASK_(L,long int)
+MAKE_ADDPIXELMASK_(UL,unsigned long int)
+MAKE_ADDPIXELMASK_(I,int)
+MAKE_ADDPIXELMASK_(UI,unsigned int)
+MAKE_ADDPIXELMASK_(S,short int)
+MAKE_ADDPIXELMASK_(US,unsigned short int)
+MAKE_ADDPIXELMASK_(B,signed char)
+MAKE_ADDPIXELMASK_(UB,unsigned char)
+#undef MAKE_ADDPIXELMASK_
+
+
+#define MAKE_ADDPIXELMASK_(X,Xtype) \
+void astAddPixelMask4##X##_( AstMoc *this, int cmode, AstFrameSet *wcs, Xtype value, \
+                            int oper, int flags, Xtype badval, const Xtype array[], \
+                            const int dims[2], int *status ) { \
+   AstDim dims8[2]; \
+   if ( !astOK ) return; \
+   dims8[ 0 ] = dims[ 0 ]; \
+   dims8[ 1 ] = dims[ 1 ]; \
+   (**astMEMBER(this,Moc,AddPixelMask##X))( this, cmode, wcs, value, oper, \
+                                            flags, badval, array, dims8, status ); \
 }
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
 MAKE_ADDPIXELMASK_(LD,long double)

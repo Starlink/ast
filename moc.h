@@ -132,18 +132,18 @@ typedef struct AstMocVtab {
 /* Properties (e.g. methods) specific to this class. */
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-   void (* AddPixelMaskLD)( AstMoc *, int, AstFrameSet *, long double, int, int, long double, const long double[], const int[2], int * );
+   void (* AddPixelMaskLD)( AstMoc *, int, AstFrameSet *, long double, int, int, long double, const long double[], const AstDim[2], int * );
 #endif
-   void (* AddPixelMaskB)(  AstMoc *, int, AstFrameSet *, signed char, int, int, signed char, const signed char[], const int[2], int * );
-   void (* AddPixelMaskD)(  AstMoc *, int, AstFrameSet *,      double, int, int, double,      const double[], const int[2], int * );
-   void (* AddPixelMaskF)(  AstMoc *, int, AstFrameSet *,       float, int, int, float,       const float[], const int[2], int * );
-   void (* AddPixelMaskI)(  AstMoc *, int, AstFrameSet *,         int, int, int, int,         const int[], const int[2], int * );
-   void (* AddPixelMaskL)(  AstMoc *, int, AstFrameSet *,    long int, int, int, long int,    const long int[], const int[2], int * );
-   void (* AddPixelMaskS)(  AstMoc *, int, AstFrameSet *,   short int, int, int, short int,   const short int[], const int[2], int * );
-   void (* AddPixelMaskUB)( AstMoc *, int, AstFrameSet *,      unsigned char, int, int, unsigned char,      const unsigned char[], const int[2], int * );
-   void (* AddPixelMaskUI)( AstMoc *, int, AstFrameSet *,       unsigned int, int, int, unsigned int,      const unsigned int[], const int[2], int * );
-   void (* AddPixelMaskUL)( AstMoc *, int, AstFrameSet *,  unsigned long int, int, int, unsigned long int, const unsigned long int[], const int[2], int * );
-   void (* AddPixelMaskUS)( AstMoc *, int, AstFrameSet *, unsigned short int, int, int, unsigned short int,const unsigned short int[], const int[2], int * );
+   void (* AddPixelMaskB)(  AstMoc *, int, AstFrameSet *, signed char, int, int, signed char, const signed char[], const AstDim[2], int * );
+   void (* AddPixelMaskD)(  AstMoc *, int, AstFrameSet *,      double, int, int, double,      const double[], const AstDim[2], int * );
+   void (* AddPixelMaskF)(  AstMoc *, int, AstFrameSet *,       float, int, int, float,       const float[], const AstDim[2], int * );
+   void (* AddPixelMaskI)(  AstMoc *, int, AstFrameSet *,         int, int, int, int,         const int[], const AstDim[2], int * );
+   void (* AddPixelMaskL)(  AstMoc *, int, AstFrameSet *,    long int, int, int, long int,    const long int[], const AstDim[2], int * );
+   void (* AddPixelMaskS)(  AstMoc *, int, AstFrameSet *,   short int, int, int, short int,   const short int[], const AstDim[2], int * );
+   void (* AddPixelMaskUB)( AstMoc *, int, AstFrameSet *,      unsigned char, int, int, unsigned char,      const unsigned char[], const AstDim[2], int * );
+   void (* AddPixelMaskUI)( AstMoc *, int, AstFrameSet *,       unsigned int, int, int, unsigned int,      const unsigned int[], const AstDim[2], int * );
+   void (* AddPixelMaskUL)( AstMoc *, int, AstFrameSet *,  unsigned long int, int, int, unsigned long int, const unsigned long int[], const AstDim[2], int * );
+   void (* AddPixelMaskUS)( AstMoc *, int, AstFrameSet *, unsigned short int, int, int, unsigned short int,const unsigned short int[], const AstDim[2], int * );
 
    void (* AddRegion)( AstMoc *, int, AstRegion *, int * );
    void (* AddCell)( AstMoc *, int, int, int64_t, int * );
@@ -232,18 +232,32 @@ AstMoc *astLoadMoc_( void *, size_t, AstMocVtab *,
 void astAddRegion_( AstMoc *, int, AstRegion *, int * );
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-void astAddPixelMaskLD_( AstMoc *, int, AstFrameSet *, long double, int, int, long double, const long double[], const int[2], int * );
+void astAddPixelMask4LD_( AstMoc *, int, AstFrameSet *, long double, int, int, long double, const long double[], const int[2], int * );
 #endif
-void astAddPixelMaskB_(  AstMoc *, int, AstFrameSet *, signed char, int, int, signed char, const signed char[], const int[2], int * );
-void astAddPixelMaskD_(  AstMoc *, int, AstFrameSet *,      double, int, int, double,      const double[], const int[2], int * );
-void astAddPixelMaskF_(  AstMoc *, int, AstFrameSet *,       float, int, int, float,       const float[], const int[2], int * );
-void astAddPixelMaskI_(  AstMoc *, int, AstFrameSet *,         int, int, int, int,         const int[], const int[2], int * );
-void astAddPixelMaskL_(  AstMoc *, int, AstFrameSet *,    long int, int, int, long int,    const long int[], const int[2], int * );
-void astAddPixelMaskS_(  AstMoc *, int, AstFrameSet *,   short int, int, int, short int,   const short int[], const int[2], int * );
-void astAddPixelMaskUB_( AstMoc *, int, AstFrameSet *,      unsigned char, int, int, unsigned char,      const unsigned char[], const int[2], int * );
-void astAddPixelMaskUI_( AstMoc *, int, AstFrameSet *,       unsigned int, int, int, unsigned int,      const unsigned int[], const int[2], int * );
-void astAddPixelMaskUL_( AstMoc *, int, AstFrameSet *,  unsigned long int, int, int, unsigned long int, const unsigned long int[], const int[2], int * );
-void astAddPixelMaskUS_( AstMoc *, int, AstFrameSet *, unsigned short int, int, int, unsigned short int,const unsigned short int[], const int[2], int * );
+void astAddPixelMask4B_(  AstMoc *, int, AstFrameSet *, signed char, int, int, signed char, const signed char[], const int[2], int * );
+void astAddPixelMask4D_(  AstMoc *, int, AstFrameSet *,      double, int, int, double,      const double[], const int[2], int * );
+void astAddPixelMask4F_(  AstMoc *, int, AstFrameSet *,       float, int, int, float,       const float[], const int[2], int * );
+void astAddPixelMask4I_(  AstMoc *, int, AstFrameSet *,         int, int, int, int,         const int[], const int[2], int * );
+void astAddPixelMask4L_(  AstMoc *, int, AstFrameSet *,    long int, int, int, long int,    const long int[], const int[2], int * );
+void astAddPixelMask4S_(  AstMoc *, int, AstFrameSet *,   short int, int, int, short int,   const short int[], const int[2], int * );
+void astAddPixelMask4UB_( AstMoc *, int, AstFrameSet *,      unsigned char, int, int, unsigned char,      const unsigned char[], const int[2], int * );
+void astAddPixelMask4UI_( AstMoc *, int, AstFrameSet *,       unsigned int, int, int, unsigned int,      const unsigned int[], const int[2], int * );
+void astAddPixelMask4UL_( AstMoc *, int, AstFrameSet *,  unsigned long int, int, int, unsigned long int, const unsigned long int[], const int[2], int * );
+void astAddPixelMask4US_( AstMoc *, int, AstFrameSet *, unsigned short int, int, int, unsigned short int,const unsigned short int[], const int[2], int * );
+
+#if HAVE_LONG_DOUBLE     /* Not normally implemented */
+void astAddPixelMask8LD_( AstMoc *, int, AstFrameSet *, long double, int, int, long double, const long double[], const AstDim[2], int * );
+#endif
+void astAddPixelMask8B_(  AstMoc *, int, AstFrameSet *, signed char, int, int, signed char, const signed char[], const AstDim[2], int * );
+void astAddPixelMask8D_(  AstMoc *, int, AstFrameSet *,      double, int, int, double,      const double[], const AstDim[2], int * );
+void astAddPixelMask8F_(  AstMoc *, int, AstFrameSet *,       float, int, int, float,       const float[], const AstDim[2], int * );
+void astAddPixelMask8I_(  AstMoc *, int, AstFrameSet *,         int, int, int, int,         const int[], const AstDim[2], int * );
+void astAddPixelMask8L_(  AstMoc *, int, AstFrameSet *,    long int, int, int, long int,    const long int[], const AstDim[2], int * );
+void astAddPixelMask8S_(  AstMoc *, int, AstFrameSet *,   short int, int, int, short int,   const short int[], const AstDim[2], int * );
+void astAddPixelMask8UB_( AstMoc *, int, AstFrameSet *,      unsigned char, int, int, unsigned char,      const unsigned char[], const AstDim[2], int * );
+void astAddPixelMask8UI_( AstMoc *, int, AstFrameSet *,       unsigned int, int, int, unsigned int,      const unsigned int[], const AstDim[2], int * );
+void astAddPixelMask8UL_( AstMoc *, int, AstFrameSet *,  unsigned long int, int, int, unsigned long int, const unsigned long int[], const AstDim[2], int * );
+void astAddPixelMask8US_( AstMoc *, int, AstFrameSet *, unsigned short int, int, int, unsigned short int,const unsigned short int[], const AstDim[2], int * );
 
 void astGetCell_( AstMoc *, int, int *, int64_t *, int * );
 void astAddCell_( AstMoc *, int, int, int64_t, int * );
@@ -342,25 +356,50 @@ astINVOKE(V,astGetCell_(astCheckMoc(this),icell,order,npix,STATUS_PTR))
 astINVOKE(V,astAddPixelMaskLD_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #endif
 #define astAddPixelMaskB(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskB_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4B_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskD(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskD_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4D_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskF(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskF_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4F_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskI(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskI_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4I_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskL(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskL_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4L_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskS(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskS_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4S_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskUB(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskUB_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4UB_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskUI(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskUI_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4UI_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskUL(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskUL_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4UL_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 #define astAddPixelMaskUS(this,cmode,wcs,value,oper,flags,badval,array,dims) \
-astINVOKE(V,astAddPixelMaskUS_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+astINVOKE(V,astAddPixelMask4US_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+
+#if HAVE_LONG_DOUBLE
+#define astAddPixelMask8LD(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8LD_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#endif
+#define astAddPixelMask8B(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8B_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8D(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8D_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8F(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8F_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8I(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8I_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8L(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8L_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8S(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8S_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8UB(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8UB_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8UI(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8UI_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8UL(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8UL_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
+#define astAddPixelMask8US(this,cmode,wcs,value,oper,flags,badval,array,dims) \
+astINVOKE(V,astAddPixelMask8US_(astCheckMoc(this),cmode,astCheckFrameSet(wcs),value,oper,flags,badval,array,dims,STATUS_PTR))
 
 #define astGetMocData(this,mxsize,data) \
 astINVOKE(V,astGetMocData_(astCheckMoc(this),mxsize,data,STATUS_PTR))

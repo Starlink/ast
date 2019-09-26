@@ -273,6 +273,52 @@ MAKE_AST_ADDPIXELMASK(b,B,BYTE,B,signed char)
 MAKE_AST_ADDPIXELMASK(ub,UB,UBYTE,UB,unsigned char)
 #undef MAKE_AST_ADDPIXELMASK
 
+/* 8-byte API for AST__ADDPIXELMASK<X> */
+#define MAKE_AST_ADDPIXELMASK(f,F,Ftype,X,Xtype) \
+F77_SUBROUTINE(ast_addpixelmask8##f)( INTEGER(THIS), \
+                                     INTEGER(CMODE), \
+                                     INTEGER(WCS), \
+                                     Ftype(VALUE), \
+                                     INTEGER(OPER), \
+                                     INTEGER(FLAGS), \
+                                     Ftype(BADVAL), \
+                                     Ftype##_ARRAY(ARRAY), \
+                                     INTEGER8_ARRAY(DIMS), \
+                                     INTEGER(STATUS) ) { \
+\
+   GENPTR_INTEGER(THIS) \
+   GENPTR_INTEGER(CMODE) \
+   GENPTR_INTEGER(WCS) \
+   GENPTR_##Ftype(VALUE) \
+   GENPTR_INTEGER(OPER) \
+   GENPTR_INTEGER(FLAGS) \
+   GENPTR_##Ftype(BADVAL) \
+   GENPTR_##Ftype##_ARRAY(ARRAY) \
+   GENPTR_INTEGER8_ARRAY(DIMS) \
+   GENPTR_INTEGER(STATUS) \
+\
+   astAt( "AST_ADDPIXELMASK"#F, NULL, 0 ); \
+   astWatchSTATUS( \
+      astAddPixelMask8##X( astI2P( *THIS ), *CMODE, astI2P( *WCS ), \
+                           *VALUE, *OPER, *FLAGS, *BADVAL, (Xtype *) ARRAY, \
+                           DIMS ); \
+   ) \
+}
+
+/* Invoke the above macro to define a function for each data
+   type. Include synonyms for some functions. */
+MAKE_AST_ADDPIXELMASK(d,D,DOUBLE,D,double)
+MAKE_AST_ADDPIXELMASK(r,R,REAL,F,float)
+MAKE_AST_ADDPIXELMASK(i,I,INTEGER,I,int)
+MAKE_AST_ADDPIXELMASK(ui,UI,INTEGER,UI,unsigned int)
+MAKE_AST_ADDPIXELMASK(s,S,WORD,S,short int)
+MAKE_AST_ADDPIXELMASK(us,US,UWORD,US,unsigned short int)
+MAKE_AST_ADDPIXELMASK(w,W,WORD,S,short int)
+MAKE_AST_ADDPIXELMASK(uw,UW,UWORD,US,unsigned short int)
+MAKE_AST_ADDPIXELMASK(b,B,BYTE,B,signed char)
+MAKE_AST_ADDPIXELMASK(ub,UB,UBYTE,UB,unsigned char)
+#undef MAKE_AST_ADDPIXELMASK
+
 F77_LOGICAL_FUNCTION(ast_testcell)( INTEGER(THIS),
                                     INTEGER(ORDER),
                                     INTEGER8(NPIX),
