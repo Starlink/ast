@@ -59,12 +59,12 @@ f     The IntraMap class does not define any new routines beyond those
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -145,7 +145,7 @@ static int class_check;
 
 /* Pointers to parent class methods which are used or extended by this
    class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static int (* parent_getnin)( AstMapping *, int * );
@@ -212,7 +212,7 @@ void astIntraRegFor_( const char *, int, int, void (* tran)( AstMapping *, int, 
 /* ======================================== */
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static char *CleanName( const char *, const char *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
 static const char *GetIntraFlag( AstIntraMap *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
@@ -474,7 +474,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -487,7 +487,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "intramap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     IntraMap member function (over-rides the astGetObjSize protected
@@ -513,7 +513,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstIntraMap *this;         /* Pointer to IntraMap structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

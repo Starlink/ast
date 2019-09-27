@@ -239,7 +239,7 @@ static int class_check;
 
 /* Pointers to parent class methods which are used or extended by this
    class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstSystemType (* parent_getalignsystem)( AstFrame *, int * );
 static AstSystemType (* parent_getsystem)( AstFrame *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
@@ -322,7 +322,7 @@ static int class_init = 0;       /* Virtual function table initialised? */
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
 static AstStdOfRestType StdOfRestCode( const char *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static AstSystemType GetAlignSystem( AstFrame *, int * );
 static AstSystemType SystemCode( AstFrame *, const char *, int * );
 static AstSystemType ValidateSystem( AstFrame *, AstSystemType, const char *, int * );
@@ -1074,7 +1074,7 @@ static int EqualSor( AstSpecFrame *this, AstSpecFrame *that, int *status ) {
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -1087,7 +1087,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "specframe.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     SpecFrame member function (over-rides the astGetObjSize protected
@@ -1113,7 +1113,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstSpecFrame *this;         /* Pointer to SpecFrame structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
    int i;
 
 /* Initialise. */

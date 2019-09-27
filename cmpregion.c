@@ -175,7 +175,7 @@ static double (*parent_getfillfactor)( AstRegion *, int * );
 static void (*parent_regsetattrib)( AstRegion *, const char *, char **, int * );
 static void (*parent_regclearattrib)( AstRegion *, const char *, char **, int * );
 static void (* parent_resetcache)( AstRegion *, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 
 #if defined(THREAD_SAFE)
 static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
@@ -228,7 +228,7 @@ static double GetFillFactor( AstRegion *, int * );
 static int CmpRegionList( AstCmpRegion *, int *, AstRegion ***, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetBounded( AstRegion *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int RegPins( AstRegion *, AstPointSet *, AstRegion *, int **, int * );
 static int RegTrace( AstRegion *, int, double *, double **, int * );
 static void ClearClosed( AstRegion *, int * );
@@ -911,7 +911,7 @@ static double GetFillFactor( AstRegion *this_region, int *status ) {
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -924,7 +924,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "cmpregion.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     CmpRegion member function (over-rides the astGetObjSize protected
@@ -950,7 +950,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstCmpRegion *this;        /* Pointer to CmpRegion structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

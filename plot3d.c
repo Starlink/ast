@@ -1197,7 +1197,7 @@ static int class_check;
    class. */
 static AstObject *(* parent_cast)( AstObject *, AstObject *, int * );
 static void (* parent_removeframe)( AstFrameSet *, int, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_equal)( AstObject *, AstObject *, int * );
 static void (* parent_vset)( AstObject *, const char *, char **, va_list, int * );
 static void (* parent_clear)( AstObject *, const char *, int * );
@@ -1272,7 +1272,7 @@ static int Attr3D( AstKeyMap *, int, double, double *, int, int * );
 static int Border( AstPlot *, int * );
 static int Element2D( AstPlot3D *, int, int *, int *, int * );
 static int Equal( AstObject *, AstObject *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int Plot3DAttr( AstKeyMap *, int, double, double *, int );
 static int Plot3DCap( AstKeyMap *, int, int );
 static int Plot3DFlush( AstKeyMap * );
@@ -3292,7 +3292,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -3305,7 +3305,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "plot3d.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     Plot3D member function (over-rides the astGetObjSize protected
@@ -3331,7 +3331,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstPlot3D *this;         /* Pointer to Plot3D structure */
-   int result;              /* Result value to return */
+   size_t result;           /* Result value to return */
 
 /* Initialise. */
    result = 0;

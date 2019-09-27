@@ -497,7 +497,7 @@ static int (* parent_testattrib)( AstObject *, const char *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
 static int (* parent_equal)( AstObject *, AstObject *, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
@@ -550,7 +550,7 @@ static double **GetPoints( AstPointSet *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetNcoord( const AstPointSet *, int * );
 static AstDim GetNpoint( const AstPointSet *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int ReplaceNaN( AstPointSet *, int * );
 static int TestAttrib( AstObject *, const char *, int * );
 static AstPointSet *AppendPoints( AstPointSet *, AstPointSet *, int * );
@@ -1235,7 +1235,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -1248,7 +1248,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "pointset.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     PointSet member function (over-rides the astGetObjSize protected
@@ -1274,7 +1274,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstPointSet *this;         /* Pointer to PointSet structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

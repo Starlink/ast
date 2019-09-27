@@ -195,7 +195,7 @@ static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static int (* parent_testattrib)( AstObject *, const char *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 
 #if defined(THREAD_SAFE)
 static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
@@ -251,7 +251,7 @@ static double **SamplePoly2D( AstPolyMap *, int, double **, const double *, cons
 static double *FitPoly1D( AstPolyMap *, int, int, double, int, double **, double[2], int *, double *, int * );
 static double *FitPoly2D( AstPolyMap *, int, int, double, int, double **, double[4], int *, double *, int * );
 static int Equal( AstObject *, AstObject *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int GetTranForward( AstMapping *, int * );
 static int GetTranInverse( AstMapping *, int * );
 static int MPFunc1D( void *, int, int, const double *, double *, double *, int, int );
@@ -1608,7 +1608,7 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
    return this->jacobian;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -1621,7 +1621,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "polymap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     PolyMap member function (over-rides the astGetObjSize protected
@@ -1649,7 +1649,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
    AstPolyMap *this;
    int ic;
    int nc;
-   int result;
+   size_t result;
 
 /* Initialise. */
    result = 0;

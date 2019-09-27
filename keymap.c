@@ -364,7 +364,7 @@ typedef struct Entry1P {
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static int (* parent_testattrib)( AstObject *, const char *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
@@ -461,7 +461,7 @@ static const char *MapKey( AstKeyMap *, int index, int * );
 static const char *SortByString( int, const char *, int * );
 static int CompareEntries( const void *, const void * );
 static int ConvertValue( void *, int, void *, int, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int HashFun( const char *, int, unsigned long *, int * );
 static int KeyCmp( const char *, const char * );
 static int MapDefined( AstKeyMap *, const char *, int * );
@@ -3100,7 +3100,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -3113,7 +3113,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "keymap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     KeyMap member function (over-rides the astGetObjSize protected
@@ -3146,7 +3146,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
    int i;                 /* Loop count */
    int itab;              /* Table entry index */
    int nel;               /* No. of values in entry vector (0 => scalar) */
-   int result;            /* Result value to return */
+   size_t result;         /* Result value to return */
    int type;              /* Entry data type */
 
 /* Initialise. */

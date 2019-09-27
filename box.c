@@ -162,7 +162,7 @@ f     The Box class does not define any new routines beyond those
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstMapping *(* parent_simplify)( AstMapping *, int * );
 static void (* parent_setnegated)( AstRegion *, int, int * );
@@ -219,7 +219,7 @@ static AstRegion *RegBasePick( AstRegion *this, int, const int *, int * );
 static double *GeoCorner( AstFrame *, int, double *, double *, double *, int * );
 static double *GeoLengths( AstFrame *, int, double *, double *, double *, int * );
 static double *RegCentre( AstRegion *this, double *, double **, int, int, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int MakeGrid( int, double **, int, double *, double *, int *, int, int, double, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int RegPins( AstRegion *, AstPointSet *, AstRegion *, int **, int * );
@@ -1068,7 +1068,7 @@ static double *GeoLengths( AstFrame *frm, int nc, double *centre,
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -1081,7 +1081,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "box.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     Box member function (over-rides the astGetObjSize protected
@@ -1107,7 +1107,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstBox *this;         /* Pointer to Box structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

@@ -169,7 +169,7 @@ f     The WinMap class does not define any new routines beyond those
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static int (* parent_testattrib)( AstObject *, const char *, int * );
@@ -218,7 +218,7 @@ static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, 
 static AstWinMap *WinUnit( AstWinMap *, AstUnitMap *, int, int, int * );
 static AstWinMap *WinWin( AstMapping *, AstMapping *, int, int, int, int * );
 static AstWinMap *WinZoom( AstWinMap *, AstZoomMap *, int, int, int, int, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
 static double Rate( AstMapping *, double *, int, int, int * );
 static int CanSwap( AstMapping *, AstMapping *, int, int, int *, int * );
@@ -625,7 +625,7 @@ static int GetIsLinear( AstMapping *this_mapping, int *status ){
    return 1;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -638,7 +638,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "winmap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     WinMap member function (over-rides the astGetObjSize protected
@@ -664,7 +664,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstWinMap *this;         /* Pointer to WinMap structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

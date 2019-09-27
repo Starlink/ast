@@ -139,7 +139,7 @@ static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstP
 static AstRegion *(* parent_getdefunc)( AstRegion *, int * );
 static double (*parent_getfillfactor)( AstRegion *, int * );
 static int (* parent_equal)( AstObject *, AstObject *, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_maplist)( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int (* parent_overlapx)( AstRegion *, AstRegion *, int * );
 static void (* parent_clearclosed)( AstRegion *, int * );
@@ -200,7 +200,7 @@ static double *RegCentre( AstRegion *this, double *, double **, int, int, int * 
 static double GetFillFactor( AstRegion *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetBounded( AstRegion *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int MapList( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int Overlap( AstRegion *, AstRegion *, int * );
 static int OverlapX( AstRegion *, AstRegion *, int * );
@@ -710,7 +710,7 @@ MAKE_CLEAR(Closed,closed)
 /* Undefine the macro. */
 #undef MAKE_CLEAR
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -723,7 +723,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "prism.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     Prism member function (over-rides the astGetObjSize protected
@@ -749,7 +749,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstPrism *this;         /* Pointer to Prism structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

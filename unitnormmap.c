@@ -135,7 +135,7 @@ f     The UnitNormMap class does not define any new routines beyond those
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 
 
@@ -178,7 +178,7 @@ AstUnitNormMap *astUnitNormMapId_( int, const double [], const char *, ... );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static int GetMappingType( AstMapping *, int * );
 static AstMapping * MakeMergedMap( AstMapping *, AstMapping *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *, int * );
@@ -452,7 +452,7 @@ static int GetIsLinear( AstMapping *this_mapping, int *status ){
    return 0;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -465,7 +465,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "unitnormmap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     UnitNormMap member function (over-rides the astGetObjSize protected
@@ -1625,7 +1625,7 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
    new = astLoadMapping( mem, size, (AstMappingVtab *) vtab, name,
                          channel );
 
-/* Get the length of the centre array = the number of inputs in the 
+/* Get the length of the centre array = the number of inputs in the
    forward direction. */
    ncoord = 0;
    if ( astGetInvert( (AstMapping *) new ) ){
@@ -1634,7 +1634,7 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
       ncoord = astGetNin( (AstMapping *) new );
    }
    if( ncoord <= 0 && astOK ){
-      astError( AST__LDERR, "The UnitNormMap has %d axes - it must have at least one.", 
+      astError( AST__LDERR, "The UnitNormMap has %d axes - it must have at least one.",
                 status, ncoord );
       return NULL;
    }

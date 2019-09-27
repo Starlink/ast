@@ -1509,7 +1509,7 @@ static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
 static void (* parent_setsourcefile)( AstChannel *, const char *, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static int (* parent_getfull)( AstChannel *, int * );
 static int (* parent_getskip)( AstChannel *, int * );
@@ -1714,7 +1714,7 @@ AstFitsChan *astFitsChanId_( const char *(* source)( void ),
 
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static void ClearCard( AstFitsChan *, int * );
 static int GetCard( AstFitsChan *, int * );
 static int TestCard( AstFitsChan *, int * );
@@ -11585,7 +11585,7 @@ static int GetClean( AstFitsChan *this, int *status ) {
    return ( this->clean == -1 ) ? 0 : (this->clean ? 1 : 0 );
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -11598,7 +11598,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "fitschan.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     FitsChan member function (over-rides the astGetObjSize protected
@@ -11625,7 +11625,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 /* Local Variables: */
    AstFitsChan *this;         /* Pointer to FitsChan structure */
    FitsCard *card;            /* Pointer to next FitsCard */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

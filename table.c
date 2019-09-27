@@ -102,12 +102,12 @@ f     - AST_REMOVEROW: Remove a row from a Table
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -183,7 +183,7 @@ static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static void (* parent_setkeycase)( AstKeyMap *, int, int * );
 static void (* parent_clearkeycase)( AstKeyMap *, int * );
 static int (* parent_equal)( AstObject *, AstObject *, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_mapget0a)( AstKeyMap *, const char *, AstObject * *, int *);
 static int (* parent_mapget0c)( AstKeyMap *, const char *, const char **, int *);
 static int (* parent_mapget0d)( AstKeyMap *, const char *, double *, int *);
@@ -296,7 +296,7 @@ static int GetColumnNdim( AstTable *, const char *, int * );
 static int GetColumnType( AstTable *, const char *, int * );
 static int GetNcolumn( AstTable *, int * );
 static int GetNparameter( AstTable *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int HasColumn( AstTable *, const char *, int *);
 static int HasParameter( AstTable *, const char *, int *);
 static int MapGet0A( AstKeyMap *, const char *, AstObject **, int * );
@@ -1848,7 +1848,7 @@ static int GetNparameter( AstTable *this, int *status ) {
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -1861,7 +1861,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "table.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     Table member function (over-rides the astGetObjSize protected
@@ -1888,7 +1888,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 /* Local Variables: */
    AstKeyMap *km;             /* KeyMap holding column/parameter definitions */
    AstTable *this;            /* Pointer to Table structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

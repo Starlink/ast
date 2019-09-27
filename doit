@@ -1,0 +1,4 @@
+
+sed -e 's#int (\* parent_getobjsize)#size_t (\* parent_getobjsize)#' |
+sed -e 's# int GetObjSize(# size_t GetObjSize(#g'
+

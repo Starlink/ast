@@ -163,7 +163,7 @@ f     only within textual output (e.g. from AST_WRITE).
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static const char *(* parent_getaxislabel)( AstAxis *, int * );
 static const char *(* parent_getaxissymbol)( AstAxis *, int * );
@@ -243,7 +243,7 @@ AstSkyAxis *astSkyAxisId_( const char *, ... );
 /* ======================================== */
 static const char *AxisAbbrev( AstAxis *, const char *, const char *, const char *, int * );
 static const char *AxisFormat( AstAxis *, double, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
 static const char *GetAxisFormat( AstAxis *, int * );
 static const char *GetAxisInternalUnit( AstAxis *, int * );
@@ -2445,7 +2445,7 @@ static const char *DHmsUnit( const char *fmt, int digs, int output, int *status 
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -2458,7 +2458,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "skyaxis.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     SkyAxis member function (over-rides the astGetObjSize protected
@@ -2484,7 +2484,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstSkyAxis *this;         /* Pointer to SkyAxis structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

@@ -802,7 +802,7 @@ static int Test##attribute( AstFrame *this_frame, int axis, int *status ) { \
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static void (* parent_clear)( AstObject *, const char *, int * );
 static int (* parent_getusedefs)( AstObject *, int * );
 static void (* parent_vset)( AstObject *, const char *, char **, va_list, int * );
@@ -919,7 +919,7 @@ static int GetNframe( AstFrameSet *, int * );
 static int GetNin( AstMapping *, int * );
 static int GetNode( AstFrameSet *, int, int *, int *, AstMapping **, int *, int * );
 static int GetNout( AstMapping *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int GetPermute( AstFrame *, int * );
 static int GetPreserveAxes( AstFrame *, int * );
 static int GetTranForward( AstMapping *, int * );
@@ -4456,7 +4456,7 @@ static int GetNode( AstFrameSet *this, int inode, int *nnodes,
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -4469,7 +4469,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "frameset.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     FrameSet member function (over-rides the astGetObjSize protected
@@ -4495,7 +4495,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstFrameSet *this;         /* Pointer to FrameSet structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
    int iframe;                /* Loop counter for Frames */
    int inode;                 /* Loop counter for nodes */
 

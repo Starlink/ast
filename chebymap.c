@@ -131,7 +131,7 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        Over-ride the astFitPoly1DInit and astFitPoly2DInit virtual
 *        functions inherited form the PolyMap class.
 *     5-MAY-2018 (DSB):
-*        Correct usage of "forward" argument in astFitPoly1DInit and 
+*        Correct usage of "forward" argument in astFitPoly1DInit and
 *        astFitPoly2DInit.
 *class--
 */
@@ -180,7 +180,7 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_equal)( AstObject *, AstObject *, int * );
 static void (* parent_polypowers)( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static AstPolyMap *(*parent_polytran)( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
@@ -226,7 +226,7 @@ AstChebyMap *astChebyMapId_( int, int, int, const double[], int, const double[],
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetIterInverse( AstPolyMap *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static void ChebyDomain( AstChebyMap *, int, double *, double *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *obj, int * );
@@ -880,7 +880,7 @@ static int GetIterInverse( AstPolyMap *this, int *status ) {
    return 0;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -893,7 +893,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "chebymap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     ChebyMap member function (over-rides the astGetObjSize protected
@@ -921,7 +921,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
    AstChebyMap *this;
    int nin;
    int nout;
-   int result;
+   size_t result;
 
 /* Initialise. */
    result = 0;

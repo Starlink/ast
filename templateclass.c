@@ -108,7 +108,7 @@ static int class_init = 0;          /* Virtual function table initialised? */
 
 /* Pointers to parent class methods which are used or extended by this
    class. */
-static int (* parent_getobjsize)( AstObject * );
+static size_t (* parent_getobjsize)( AstObject * );
 static const char *(* parent_getattrib)( AstObject *, const char * );
 static int (* parent_testattrib)( AstObject *, const char * );
 static void (* parent_clearattrib)( AstObject *, const char * );
@@ -118,7 +118,7 @@ static int (* parent_equal)( AstObject *, AstObject * );
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
 static int Equal( AstObject *, AstObject * );
-static int GetObjSize( AstObject * );
+static size_t GetObjSize( AstObject * );
 static void Copy( const AstObject *, AstObject * );
 static void Delete( AstObject * );
 static void Dump( AstObject *, AstChannel * );
@@ -271,7 +271,7 @@ static int Equal( AstObject *this_object, AstObject *that_object ) {
    return result;
 }
 
-static int GetObjSize( AstObject *this_object ) {
+static size_t GetObjSize( AstObject *this_object ) {
 /*
 *  Name:
 *     GetObjSize
@@ -284,7 +284,7 @@ static int GetObjSize( AstObject *this_object ) {
 
 *  Synopsis:
 *     #include "templateclass.h"
-*     int GetObjSize( AstObject *this )
+*     size_t GetObjSize( AstObject *this )
 
 *  Class Membership:
 *     TemplateClass member function (over-rides the astGetObjSize protected
@@ -308,7 +308,7 @@ static int GetObjSize( AstObject *this_object ) {
 
 /* Local Variables: */
    AstTemplateClass *this;         /* Pointer to TemplateClass structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
    int i;
 
 /* Initialise. */

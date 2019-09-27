@@ -55,12 +55,12 @@ f     - AST_GETSTCNCOORD: Returns the number of AstroCoords elements in an Stc
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -132,7 +132,7 @@ static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstP
 static AstRegion *(* parent_getdefunc)( AstRegion *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static int (* parent_equal)( AstObject *, AstObject *, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_getusedefs)( AstObject *, int * );
 static int (* parent_testattrib)( AstObject *, const char *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
@@ -214,7 +214,7 @@ static AstRegion *RegBasePick( AstRegion *this, int, const int *, int * );
 static const char *GetRegionClass( AstStc *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetBounded( AstRegion *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int GetStcNCoord( AstStc *, int * );
 static int GetUseDefs( AstObject *, int * );
 static int Overlap( AstRegion *, AstRegion *, int * );
@@ -650,7 +650,7 @@ MAKE_TEST(Negated)
 
 
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -663,7 +663,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "stc.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     Stc member function (over-rides the astGetObjSize protected
@@ -689,7 +689,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstStc *this;         /* Pointer to Stc structure */
-   int result;           /* Result value to return */
+   size_t result;        /* Result value to return */
    int i;                /* AstroCoords index */
 
 /* Initialise. */

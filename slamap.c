@@ -210,7 +210,7 @@ f     - AST_SLAADD: Add a celestial coordinate conversion to an SlaMap
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 
 
@@ -286,7 +286,7 @@ static void Gsec( double, double[3][3], double[3], int * );
 static void STPConv( double, int, int, int, double[3], double *[3], int, double[3], double *[3], int * );
 static void J2000H( int, int, double *, double *, int * );
 
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 
 /* Member functions. */
 /* ================= */
@@ -533,7 +533,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 }
 
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -546,7 +546,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "slamap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     SlaMap member function (over-rides the astGetObjSize protected
@@ -572,7 +572,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstSlaMap *this;         /* Pointer to SlaMap structure */
-   int result;              /* Result value to return */
+   size_t result;           /* Result value to return */
    int cvt;                 /* Loop counter for coordinate conversions */
 
 /* Initialise. */

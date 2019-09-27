@@ -368,7 +368,7 @@
 
 /* Set to "1" (yes) or "0" (no) to indicate if AST was build with threads
    support. */
-#define AST__THREADSAFE @THREADS@
+#define AST__THREADSAFE 1
 
 #if defined(astCLASS )
 #define AST__GETATTRIB_BUFF_LEN 200 /* Length of string returned by GetAttrib. */
@@ -1437,9 +1437,6 @@ int astTest##attribute##_( Ast##class *this, int *status ) { \
    pointer. */
 #define AST__NULL (astI2P(0))
 
-/* Maximum number of array pixel axes that can be handled by the Fortran
-   interface */
-#define AST__MXDIM 7
 
 #if defined(astCLASS)            /* Protected */
 
@@ -1496,6 +1493,24 @@ typedef long long int AstDim;
 #else
 #define AstDim "no int64_t type available"
 #endif
+
+#define astCHECK_DIM( Astdimval, Func, Class ) \
+   if( astOK && (int)(Astdimval) != (Astdimval) ) { \
+      ast_err( AST__TOOBIG, "%s(%s): Array dimension or pixel count "  \
+               "too large to return in a 4 byte integer.", status, Func, \
+               Class ); \
+   }
+
+#define astCHECK_DIMS( Nval, astdimvals, Func, Class ) \
+   for( int ll = 0; ll < (Nval); ll++ ) {
+      astCHECK_DIM( astdimvaAstdimval, Func, Class ) \
+
+   if( astOK && (AstDim) (Ival) != (Astdimval) ) { \
+      ast_err( AST__TOOBIG, "%s(%s): Array dimension or pixel count "  \
+               "too large to return in a 4 byte integer.", status, Func, \
+               Class ); \
+   }
+
 
 /* Object structure. */
 /* ----------------- */
@@ -1588,7 +1603,7 @@ typedef struct AstObjectVtab {
    void *(* GetProxy)( AstObject *, int * );
    void (* SetProxy)( AstObject *, void *, int * );
 
-   size_t (* GetObjSize)( AstObject *, int * );
+   int (* GetObjSize)( AstObject *, int * );
 
    int (* TestUseDefs)( AstObject *, int * );
    int (* GetUseDefs)( AstObject *, int * );
@@ -1748,7 +1763,7 @@ AstObject *astCastCopy_( AstObject *, AstObject *, int * );
 int astManageLock_( AstObject *, int, int, AstObject **, int * );
 #endif
 
-size_t astGetObjSize_( AstObject *, int * );
+int astGetObjSize_( AstObject *, int * );
 
 int astTestUseDefs_( AstObject *, int * );
 int astGetUseDefs_( AstObject *, int * );

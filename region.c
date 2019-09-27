@@ -856,7 +856,7 @@ static int Test##attribute( AstFrame *this_frame, int axis, int *status ) { \
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_getusedefs)( AstObject *, int * );
 
 #if defined(THREAD_SAFE)
@@ -956,7 +956,7 @@ static double Gap( AstFrame *, int, double, int *, int * );
 static double Offset2( AstFrame *, const double[2], double, double, double[2], int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetNaxes( AstFrame *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int GetUseDefs( AstObject *, int * );
 static int IsUnitFrame( AstFrame *, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
@@ -3026,7 +3026,7 @@ static double Gap( AstFrame *this_frame, int axis, double gap, int *ntick, int *
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -3039,7 +3039,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "region.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     Region member function (over-rides the astGetObjSize protected
@@ -3065,7 +3065,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstRegion *this;         /* Pointer to Region structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

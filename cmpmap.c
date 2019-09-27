@@ -153,12 +153,12 @@ f     The CmpMap class does not define any new routines beyond those
 *        In Simplify, prevent mappings that are known to cause infinite
 *        loops from being nominated for simplification.
 *     5-DEC-2018 (DSB):
-*        In Simplify, ensure that the Mapping pointers in the list passed to 
-*        the subclass MapMerge methods are all independent of each other by 
+*        In Simplify, ensure that the Mapping pointers in the list passed to
+*        the subclass MapMerge methods are all independent of each other by
 *        taking deep copies if necessary. This is needed because some subclasses
-*        (e.g. MatrixMap) make temporary modifications to the Mappings in the 
-*        list causing unpredictable behaviour since changing one Mapping may 
-*        cause other Mappings to change. 
+*        (e.g. MatrixMap) make temporary modifications to the Mappings in the
+*        list causing unpredictable behaviour since changing one Mapping may
+*        cause other Mappings to change.
 *class--
 */
 
@@ -205,7 +205,7 @@ f     The CmpMap class does not define any new routines beyond those
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static int (* parent_maplist)( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int *(* parent_mapsplit)( AstMapping *, int, const int *, AstMapping **, int * );
@@ -277,7 +277,7 @@ static void Decompose( AstMapping *, AstMapping **, AstMapping **, int *, int *,
 static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void SeparateMappings( AstMapping **, int, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 
 #if defined(THREAD_SAFE)
 static int ManageLock( AstObject *, int, int, AstObject **, int * );
@@ -457,7 +457,7 @@ static int GetIsLinear( AstMapping *this_mapping, int *status ){
    return astGetIsLinear( this->map1 ) && astGetIsLinear( this->map2 );
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -470,7 +470,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "cmpmap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     CmpMap member function (over-rides the astGetObjSize protected
@@ -496,7 +496,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstCmpMap *this;         /* Pointer to CmpMap structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

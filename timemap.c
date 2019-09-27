@@ -200,7 +200,7 @@ f     - AST_TIMEADD: Add a time coordinate conversion to an TimeMap
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static double (* parent_rate)( AstMapping *, double *, int, int, int * );
 
@@ -256,7 +256,7 @@ static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void TimeAdd( AstTimeMap *, const char *, int, const double[], int * );
 
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 /* Member functions. */
 /* ================= */
 
@@ -373,7 +373,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -386,7 +386,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "timemap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     TimeMap member function (over-rides the astGetObjSize protected
@@ -412,7 +412,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstTimeMap *this;         /* Pointer to TimeMap structure */
-   int result;               /* Result value to return */
+   size_t result;            /* Result value to return */
    int cvt;                  /* Loop counter for coordinate conversions */
 
 /* Initialise. */

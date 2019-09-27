@@ -734,7 +734,7 @@ static int (* parent_testattrib)( AstObject *, const char *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
 static void (* parent_cleanattribs)( AstObject *, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 
 #if defined(THREAD_SAFE)
 static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
@@ -862,7 +862,7 @@ static int GetIsLinear( AstMapping *, int * );
 static int GetIsSimple( AstMapping *, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
 static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double **, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static void AxNorm( AstFrame *, int, int, int, double *, int * );
 static void CleanAttribs( AstObject *, int * );
 static void LineOffset( AstFrame *, AstLineDef *, double, double, double[2], int * );
@@ -5766,7 +5766,7 @@ static int GetNout( AstMapping *this_mapping, int *status ) {
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -5779,7 +5779,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "frame.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     Frame member function (over-rides the astGetObjSize protected
@@ -5806,7 +5806,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 /* Local Variables: */
    AstFrame *this;            /* Pointer to Frame structure */
    int axis;                  /* Axis index */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

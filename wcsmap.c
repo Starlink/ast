@@ -667,7 +667,7 @@ typedef struct PrjData {
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static int (* parent_testattrib)( AstObject *, const char *, int * );
@@ -753,7 +753,7 @@ AstWcsMap *astWcsMapId_( int, int, int, int, const char *options, ... );
 
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static double GetPV( AstWcsMap *, int, int, int * );
 static int TestPV( AstWcsMap *, int, int, int * );
 static void ClearPV( AstWcsMap *, int, int, int * );
@@ -1661,7 +1661,7 @@ static void FreePV( AstWcsMap *this, int *status ) {
 
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -1674,7 +1674,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "wcsmap.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     WcsMap member function (over-rides the astGetObjSize protected
@@ -1700,7 +1700,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstWcsMap *this;         /* Pointer to WcsMap structure */
-   int result;              /* Result value to return */
+   size_t result;           /* Result value to return */
    int i;                   /* Axis index */
 
 /* Initialise. */

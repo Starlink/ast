@@ -834,7 +834,7 @@ static double (* parent_getbottom)( AstFrame *, int, int * );
 static double (* parent_getepoch)( AstFrame *, int * );
 static double (* parent_gettop)( AstFrame *, int, int * );
 static int (* parent_getdirection)( AstFrame *, int, int * );
-static int (* parent_getobjsize)( AstObject *, int * );
+static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_match)( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
 static int (* parent_subframe)( AstFrame *, AstFrame *, int, const int *, const int *, AstMapping **, AstFrame **, int * );
 static int (* parent_testattrib)( AstObject *, const char *, int * );
@@ -996,7 +996,7 @@ static int GetIsLonAxis( AstSkyFrame *, int, int * );
 static int GetLatAxis( AstSkyFrame *, int * );
 static int GetLonAxis( AstSkyFrame *, int * );
 static int GetNegLon( AstSkyFrame *, int * );
-static int GetObjSize( AstObject *, int * );
+static size_t GetObjSize( AstObject *, int * );
 static int IsEquatorial( AstSystemType, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
 static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double **, int * );
@@ -2377,7 +2377,7 @@ static double Gap( AstFrame *this_frame, int axis, double gap, int *ntick, int *
    return result;
 }
 
-static int GetObjSize( AstObject *this_object, int *status ) {
+static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
 *     GetObjSize
@@ -2390,7 +2390,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 *  Synopsis:
 *     #include "skyframe.h"
-*     int GetObjSize( AstObject *this, int *status )
+*     size_t GetObjSize( AstObject *this, int *status )
 
 *  Class Membership:
 *     SkyFrame member function (over-rides the astGetObjSize protected
@@ -2416,7 +2416,7 @@ static int GetObjSize( AstObject *this_object, int *status ) {
 
 /* Local Variables: */
    AstSkyFrame *this;         /* Pointer to SkyFrame structure */
-   int result;                /* Result value to return */
+   size_t result;             /* Result value to return */
 
 /* Initialise. */
    result = 0;

@@ -1,0 +1,3 @@
+depbase=`echo moc.o | sed 's|[^/]*$|.deps/&|;s|\.o$||'`;\
+gcc -DHAVE_CONFIG_H -I.  -I/stardev/git/starlink/star/include    -g -Wall -MT moc.o -MD -MP -MF $depbase.Tpo -c -o moc.o moc.c &&\
+mv -f $depbase.Tpo $depbase.Po
