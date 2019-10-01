@@ -3798,7 +3798,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    int npoint;                   /* Number of points to be transformed */
 
 /* Local Constants: */
-   const int nbatch = 2048;      /* Maximum points in a batch */
+   const int nbatch = 8192;      /* Maximum points in a batch */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
