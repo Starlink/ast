@@ -2697,7 +2697,7 @@ VTAB_GENERIC(LD)
 *        "coords[coord][point]" (assuming both indices to be
 *        zero-based).  If any point has a coordinate value of AST__BAD
 *        associated with it, then the corresponding output data (and
-*        variance) will be set to the value given by "badval" (unles the
+*        variance) will be set to the value given by "badval" (unless the
 *        AST__NOBAD flag is specified).
 *     kernel
 *        Pointer to the 1-dimensional kernel function to be used.
@@ -2721,7 +2721,7 @@ VTAB_GENERIC(LD)
 *        this parameter specifies the value which is used to identify
 *        bad data and/or variance values in the input array(s). Its
 *        numerical type must match that of the "in" (and "in_var")
-*        arrays. Unles the AST__NOBAD flag is specified in "flags", the
+*        arrays. Unless the AST__NOBAD flag is specified in "flags", the
 *        same value will also be used to flag any output array elements
 *        for which resampled values could not be obtained.  The output
 *        arrays(s) may be flagged with this value whether or not the
@@ -3856,7 +3856,7 @@ MAKE_INTERPOLATE_KERNEL1(UB,unsigned char,0,float,0)
 *        "coords[coord][point]" (assuming both indices to be
 *        zero-based).  If any point has a coordinate value of AST__BAD
 *        associated with it, then the corresponding output data (and
-*        variance) will be set to the value given by "badval" (unles the
+*        variance) will be set to the value given by "badval" (unless the
 *        AST__NOBAD flag is specified).
 *     flags
 *        The bitwise OR of a set of flag values which control the
@@ -3870,7 +3870,7 @@ MAKE_INTERPOLATE_KERNEL1(UB,unsigned char,0,float,0)
 *        this parameter specifies the value which is used to identify
 *        bad data and/or variance values in the input array(s). Its
 *        numerical type must match that of the "in" (and "in_var")
-*        arrays. Unles the AST__NOBAD flag is specified in "flags", the
+*        arrays. Unless the AST__NOBAD flag is specified in "flags", the
 *        same value will also be used to flag any output array elements
 *        for which resampled values could not be obtained.  The output
 *        arrays(s) may be flagged with this value whether or not the
@@ -4798,7 +4798,7 @@ MAKE_INTERPOLATE_LINEAR(UB,unsigned char,0,float,0)
 *        "coords[coord][point]" (assuming both indices to be
 *        zero-based).  If any point has a coordinate value of AST__BAD
 *        associated with it, then the corresponding output data (and
-*        variance) will be set to the value given by "badval" (unles the
+*        variance) will be set to the value given by "badval" (unless the
 *        AST__NOBAD flag is specified).
 *     flags
 *        The bitwise OR of a set of flag values which control the
@@ -4812,7 +4812,7 @@ MAKE_INTERPOLATE_LINEAR(UB,unsigned char,0,float,0)
 *        this parameter specifies the value which is used to identify
 *        bad data and/or variance values in the input array(s). Its
 *        numerical type must match that of the "in" (and "in_var")
-*        arrays. Unles the AST__NOBAD flag is specified in "flags", the
+*        arrays. Unless the AST__NOBAD flag is specified in "flags", the
 *        same value will also be used to flag any output array elements
 *        for which resampled values could not be obtained.  The output
 *        arrays(s) may be flagged with this value whether or not the
@@ -5417,7 +5417,7 @@ MAKE_INTERPOLATE_NEAREST(UB,unsigned char,0)
 *        "coords[coord][point]" (assuming both indices to be
 *        zero-based).  If any point has a coordinate value of AST__BAD
 *        associated with it, then the corresponding output data (and
-*        variance) will be set to the value given by "badval" (unles the
+*        variance) will be set to the value given by "badval" (unless the
 *        AST__NOBAD flag is specified).
 *     params
 *        A pointer to an array of doubles giving further information
@@ -5439,7 +5439,7 @@ MAKE_INTERPOLATE_NEAREST(UB,unsigned char,0)
 *        this parameter specifies the value which is used to identify
 *        bad data and/or variance values in the input array(s). Its
 *        numerical type must match that of the "in" (and "in_var")
-*        arrays. Unles the AST__NOBAD flag is specified in "flags", the
+*        arrays. Unless the AST__NOBAD flag is specified in "flags", the
 *        same value will also be used to flag any output array elements
 *        for which resampled values could not be obtained.  The output
 *        arrays(s) may be flagged with this value whether or not the
