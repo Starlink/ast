@@ -927,7 +927,7 @@ static int GetTranInverse( AstMapping *, int * );
 static int GetVarFrm( AstFrameSet *, int, int * );
 static int IsUnitFrame( AstFrame *, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
-static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double **, int * );
+static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], int * );
 static int Match( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
 static int Span( AstFrameSet *, AstFrame **, int, int, int, AstMapping **, int *, int * );
 static int SubFrame( AstFrame *, AstFrame *, int, const int *, const int *, AstMapping **, AstFrame **, int * );
@@ -6465,7 +6465,7 @@ static int LineContains( AstFrame *this_frame, AstLineDef *l, int def, double *p
 }
 
 static int LineCrossing( AstFrame *this_frame, AstLineDef *l1, AstLineDef *l2,
-                         double **cross, int *status ) {
+                         double cross[5], int *status ) {
 /*
 *  Name:
 *     LineCrossing
@@ -6479,7 +6479,7 @@ static int LineCrossing( AstFrame *this_frame, AstLineDef *l1, AstLineDef *l2,
 *  Synopsis:
 *     #include "frameset.h"
 *     int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-*                       double **cross, int *status )
+*                       double cross[5], int *status )
 
 *  Class Membership:
 *     FrameSet member function (over-rides the protected astLineCrossing
@@ -6500,18 +6500,15 @@ static int LineCrossing( AstFrame *this_frame, AstLineDef *l1, AstLineDef *l2,
 *     l2
 *        Pointer to the structure defining the second line.
 *     cross
-*        Pointer to a location at which to put a pointer to a dynamically
-*        alocated array containing the axis values at the crossing. If
-*        NULL is supplied no such array is returned. Otherwise, the returned
-*        array should be freed using astFree when no longer needed. If the
+*        Pointer to an array in which to return the axis values at the
+*        crossing. If NULL is supplied the axis values are not returned. If the
 *        lines are parallel (i.e. do not cross) then AST__BAD is returned for
 *        all axis values. Note usable axis values are returned even if the
 *        lines cross outside the segment defined by the start and end points
 *        of the lines. The order of axes in the returned array will take
 *        account of the current axis permutation array if appropriate. Note,
 *        sub-classes such as SkyFrame may append extra values to the end
-*        of the basic frame axis values. A NULL pointer is returned if an
-*        error occurs.
+*        of the basic frame axis values.
 *     status
 *        Pointer to the inherited status variable.
 

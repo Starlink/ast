@@ -999,7 +999,7 @@ static int GetNegLon( AstSkyFrame *, int * );
 static size_t GetObjSize( AstObject *, int * );
 static int IsEquatorial( AstSystemType, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
-static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double **, int * );
+static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], int * );
 static int LineIncludes( SkyLineDef *, double[3], int * );
 static int MakeSkyMapping( AstSkyFrame *, AstSkyFrame *, AstSystemType, AstMapping **, int * );
 static int Match( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
@@ -5336,7 +5336,7 @@ static int LineContains( AstFrame *this, AstLineDef *l, int def, double *point, 
 }
 
 static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-                         double **cross, int *status ) {
+                         double cross[5], int *status ) {
 /*
 *  Name:
 *     LineCrossing
@@ -5350,7 +5350,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 *  Synopsis:
 *     #include "skyframe.h"
 *     int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-*                       double **cross, int *status )
+*                       double cross[5], int *status )
 
 *  Class Membership:
 *     SkyFrame member function (over-rides the protected astLineCrossing
@@ -5371,18 +5371,15 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 *     l2
 *        Pointer to the structure defining the second line.
 *     cross
-*        Pointer to a location at which to put a pointer to a dynamically
-*        alocated array containing the axis values at the crossing. If
-*        NULL is supplied no such array is returned. Otherwise, the returned
-*        array should be freed using astFree when no longer needed. If the
+*        Pointer to an array in which to return the axis values at the
+*        crossing. If NULL is supplied the axis values are not returned. If the
 *        lines are parallel (i.e. do not cross) then AST__BAD is returned for
 *        all axis values. Note usable axis values are returned even if the
 *        lines cross outside the segment defined by the start and end points
 *        of the lines. The order of axes in the returned array will take
 *        account of the current axis permutation array if appropriate. Note,
 *        sub-classes such as SkyFrame may append extra values to the end
-*        of the basic frame axis values. A NULL pointer is returned if an
-*        error occurs.
+*        of the basic frame axis values.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -5407,7 +5404,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
    SkyLineDef *sl1;              /* SkyLine information for line 1 */
    SkyLineDef *sl2;              /* SkyLine information for line 2 */
    const int *perm;              /* Pointer to axis permutation array */
-   double *crossing;             /* Pointer to returned array */
+   double crossing[5];           /* Local array to use if no array supplied */
    double *b;                    /* Pointer to Cartesian coords */
    double len;                   /* Vector length */
    double p[ 2 ];                /* Temporary (lon,lat) pair */
@@ -5416,14 +5413,12 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 
 /* Initialise */
    result = 0;
-   if( cross ) *cross = NULL;
 
 /* Check the global error status. */
    if ( !astOK ) return result;
 
-/* Allocate returned array (2 elements for the lon and lat values, plus 3
-   for the corresponding (x,y,z) coords). */
-   crossing = astMalloc( sizeof(double)*5 );
+/* Use a local array for storage if no array was supplied. */
+   if( !cross ) cross = crossing;
 
 /* Check that both lines refer to the supplied Frame. */
    if( l1->frame != this ) {
@@ -5439,7 +5434,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 /* Recast the supplied AstLineDefs into a SkyLineDefs to get the different
    structure (we know from the above check on the Frame that it is safe to
    do this). */
-   } else if( crossing ){
+   } else {
       sl1 = (SkyLineDef *) l1;
       sl2 = (SkyLineDef *) l2;
 
@@ -5447,7 +5442,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
    pole vectors of both great circles. Put the Cartesian coords in elements
    2 to 4 of the returned array. */
       palDvxv( sl1->q, sl2->q, temp );
-      b = crossing + 2;
+      b = cross + 2;
       palDvn( temp, b, &len );
 
 /* See if this point is within the length of both arcs. If so return it. */
@@ -5469,23 +5464,13 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 /* Permute the spherical axis value into the order used by the SkyFrame. */
       perm = astGetPerm( this );
       if( perm ){
-         crossing[ 0 ] = p[ perm[ 0 ] ];
-         crossing[ 1 ] = p[ perm[ 1 ] ];
+         cross[ 0 ] = p[ perm[ 0 ] ];
+         cross[ 1 ] = p[ perm[ 1 ] ];
       }
    }
 
 /* If an error occurred, return 0. */
-   if( !astOK ) {
-      result = 0;
-      crossing = astFree( crossing );
-   }
-
-/* Return the array */
-   if( cross ) {
-      *cross = crossing;
-   } else {
-      crossing = astFree( crossing );
-   }
+   if( !astOK ) result = 0;
 
 /* Return the result. */
    return result;

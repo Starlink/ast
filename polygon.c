@@ -4036,7 +4036,7 @@ static double Polywidth( AstFrame *frm, AstLineDef **edges, int i, int nv,
 
 /* Local Variables: */
    AstLineDef *line;
-   double *cross;
+   double cross[5];
    double d;
    double end[ 2 ];
    double l1;
@@ -4081,7 +4081,7 @@ static double Polywidth( AstFrame *frm, AstLineDef **edges, int i, int nv,
 /* Find the position at which the line created above crosses the current
    edge. Skip to the next edge if the line does not intersect the edge
    within the length of the edge. */
-         if( astLineCrossing( frm, line, edges[ j ], &cross ) ) {
+         if( astLineCrossing( frm, line, edges[ j ], cross ) ) {
 
 /* Find the distance between the crossing point and the line start. */
             d = astDistance( frm, start, cross );
@@ -4091,9 +4091,6 @@ static double Polywidth( AstFrame *frm, AstLineDef **edges, int i, int nv,
                result = d;
             }
          }
-
-/* Free resources */
-         cross = astFree( cross );
       }
    }
    line = astFree( line );
