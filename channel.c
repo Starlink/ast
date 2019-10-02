@@ -119,6 +119,10 @@ f     - AST_WRITE: Write an Object to a Channel
 *     2-OCT-2012 (DSB):
 *        Report an error if an Inf or NaN value is read from the external
 *        source.
+*     2-OCT-2019 (DSB):
+*        Speed up the reading of large objects (such as MOCs) by using 
+*        multiple linked lists accessed via a hash table to store the values
+*        at each nesting level, rather than a single linked list.
 *class--
 */
 
@@ -140,6 +144,10 @@ f     - AST_WRITE: Write an Object to a Channel
 
 /* String used to represent AST__BAD externally. */
 #define BAD_STRING "<bad>"
+
+/* The number of entries in the hash table used to speed up the search
+   for a specified value name. */
+#define HASHMAP_SIZE 128
 
 /* Include files. */
 /* ============== */
@@ -272,7 +280,7 @@ static char **object_class = NULL;
 
 /* Stack of pointers to the elements designated as the "heads" of
    circular, doubly linked lists of name-value associations. */
-static AstChannelValue **values_list = NULL;
+static AstChannelValue ***values_list = NULL;
 
 /* Stack of pointers to null-terminated character strings giving the
    names of the classes for which the values held in the values lists
@@ -330,6 +338,7 @@ static int GetComment( AstChannel *, int * );
 static int GetFull( AstChannel *, int * );
 static int GetSkip( AstChannel *, int * );
 static int GetStrict( AstChannel *, int * );
+static int HashFun( const char *, int, unsigned long * );
 static int ReadInt( AstChannel *, const char *, int, int * );
 static int TestAttrib( AstObject *, const char *, int * );
 static int TestComment( AstChannel *, int * );
@@ -746,6 +755,7 @@ static void ClearValues( AstChannel *this, int *status ) {
    astDECLARE_GLOBALS            /* Declare the thread specific global data */
    AstChannelValue **head;       /* Address of pointer to values list */
    AstChannelValue *value;       /* Pointer to value list element */
+   int indx;                     /* Index into hash map */
 
 /* Get a pointer to the structure holding thread-specific global data. */
    astGET_GLOBALS(this);
@@ -779,27 +789,29 @@ static void ClearValues( AstChannel *this, int *status ) {
    address of the pointer to the head of this list (at the current
    nesting level) and loop to remove Values from the list while it is
    not empty. */
-   head = values_list + nest;
-   while ( *head ) {
+   for( indx = 0; indx < HASHMAP_SIZE; indx++ ) {
+      head = values_list[ nest ] + indx;
+      while ( *head ) {
 
 /* Obtain a pointer to the first element. */
-      value = *head;
+         value = *head;
 
 /* Issue a warning. */
-      if ( value->is_object ) {
-         astAddWarning( this, 1, "The Object \"%s = <%s>\" was "
-                        "not recognised as valid input.", "astRead", status,
-                        value->name, astGetClass( value->ptr.object ) );
-      } else {
-         astAddWarning( this, 1, "The value \"%s = %s\" was not "
-                        "recognised as valid input.", "astRead", status,
-                        value->name, value->ptr.string );
-      }
+         if ( value->is_object ) {
+            astAddWarning( this, 1, "The Object \"%s = <%s>\" was "
+                           "not recognised as valid input.", "astRead", status,
+                           value->name, astGetClass( value->ptr.object ) );
+         } else {
+            astAddWarning( this, 1, "The value \"%s = %s\" was not "
+                           "recognised as valid input.", "astRead", status,
+                           value->name, value->ptr.string );
+         }
 
 /* Remove the Value structure from the list (which updates the head of
    list pointer) and free its resources. */
-      RemoveValue( value, head, status );
-      value = FreeValue( value, status );
+         RemoveValue( value, head, status );
+         value = FreeValue( value, status );
+      }
    }
 }
 
@@ -1292,6 +1304,60 @@ static void GetNextData( AstChannel *this, int skip, char **name,
       *name = astFree( *name );
       *val = astFree( *val );
    }
+}
+
+static int HashFun( const char *key, int bitmask, unsigned long *hash ){
+/*
+*  Name:
+*     HashFun
+
+*  Purpose:
+*     Returns an integer hash code for a string
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "channel.h"
+*     int HashFun( const char *key, int bitmask, int *hash )
+
+*  Class Membership:
+*     KeyMap member function.
+
+*  Description:
+*     This function returns an integer hash code for the supplied string,
+*     This is the value that isused as the index into the hash table for
+*     the specified key.
+
+*  Parameters:
+*     key
+*        Pointer to the string. Trailing spaces are ignored.
+*     bitmask
+*        A bit mask that is used to zero the upper bits of a full width
+*        hash value in order to produce the required array index. This
+*        should be one less than the length of the hash table.
+*     hash
+*        Pointer to a location at which to put the full width hash value.
+
+*  Returned Value:
+*     An integer in the range zero to ( mapsize - 1 ).
+
+*  Notes:
+*     - This function does not check or set the inherited status.
+*/
+
+/* Local Variables: */
+   int c;
+
+/* djb2: This hash function was first reported by Dan Bernstein many years
+   ago in comp.lang.c Each pass through the "while" loop corresponds to
+   "hash = hash*33 + c ". */
+
+   *hash = 5381;
+   while( (c = *key++) ) {
+      *hash = ((*hash << 5) + *hash) + c;
+   }
+   return ( *hash & bitmask );
 }
 
 static char *GetNextText( AstChannel *this, int *status ) {
@@ -2132,6 +2198,8 @@ static AstChannelValue *LookupValue( const char *name, int *status ) {
    AstChannelValue **head;       /* Address of head of list pointer */
    AstChannelValue *result;      /* Pointer value to return */
    AstChannelValue *value;       /* Pointer to list element */
+   int indx;                     /* Index into the hash table */
+   unsigned long hash;           /* Hash value for current name */
 
 /* Initialise. */
    result = NULL;
@@ -2147,9 +2215,18 @@ static AstChannelValue *LookupValue( const char *name, int *status ) {
    class loader, so we cannot return any Value. */
    if ( values_ok[ nest ] ) {
 
+/* The value in the values list (at the current nesting level) is a
+   pointer to an array containing HASHMAP_SIZE elements, each of which
+   holds a pointer to the first element in a linked list of values.
+   Values are appended to the appropriate linked list, depending on the
+   hash of the associated name. Use the hash function to get the index
+   of the element holding the appropriate linked list for the name of the
+   required value. */
+      indx = HashFun( name, HASHMAP_SIZE - 1, &hash );
+
 /* Obtain the address of the current "head of list" pointer for the
    values list (at the current nesting level). */
-      head = values_list + nest;
+      head = values_list[ nest ] + indx;
 
 /* Obtain the head of list pointer itself and check the list is not
    empty. */
@@ -2538,7 +2615,7 @@ f     is invoked with STATUS set to an error value, or if it should fail
          end_of_object = astGrow( end_of_object, nest + 2, sizeof( int ) );
          object_class = astGrow( object_class, nest + 2, sizeof( char * ) );
          values_class = astGrow( values_class, nest + 2, sizeof( char * ) );
-         values_list = astGrow( values_list, nest + 2, sizeof( AstChannelValue * ) );
+         values_list = astGrow( values_list, nest + 2, sizeof( AstChannelValue ** ) );
          values_ok = astGrow( values_ok, nest + 2, sizeof( int ) );
 
 /* If an error occurred, free the memory used by the class string,
@@ -2555,8 +2632,10 @@ f     is invoked with STATUS set to an error value, or if it should fail
             end_of_object[ nest ] = 0;
             object_class[ nest ] = class;
             values_class[ nest ] = NULL;
-            values_list[ nest ] = NULL;
             values_ok[ nest ] = 0;
+            values_list[ nest ] = astCalloc( HASHMAP_SIZE,
+                                             sizeof( AstChannelValue * ) );
+
 
 /* Invoke the loader, which reads the Object definition from the input
    data stream and builds the Object. Supply NULL/zero values to the
@@ -2590,6 +2669,9 @@ f     is invoked with STATUS set to an error value, or if it should fail
    (note this is the memory allocated for the "class" string
    earlier). */
             object_class[ nest ] = astFree( object_class[ nest ] );
+
+/* Clear the hash table. */
+            values_list[ nest ] = astFree( values_list[ nest ] );
 
 /* Restore the previous nesting level. */
             nest--;
@@ -2669,6 +2751,8 @@ static void ReadClassData( AstChannel *this, const char *class, int *status ) {
    char *name;                   /* Pointer to data item name string */
    char *val;                    /* Pointer to data item value string */
    int done;                     /* All class data read? */
+   int indx;                     /* Index into hash table */
+   unsigned long hash;           /* Hash value for current name */
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -2811,7 +2895,8 @@ static void ReadClassData( AstChannel *this, const char *class, int *status ) {
 
 /* Append the Value structure to the values list for the current
    nesting level. */
-                  AppendValue( value, values_list + nest, status );
+                  indx = HashFun( name, HASHMAP_SIZE - 1, &hash );
+                  AppendValue( value, values_list[ nest ] + indx, status );
 
 /* If an error occurred, free the memory holding the "name" and "val"
    strings. */
@@ -2845,7 +2930,8 @@ static void ReadClassData( AstChannel *this, const char *class, int *status ) {
 
 /* Append the Value structure to the values list for the current
    nesting level. */
-                  AppendValue( value, values_list + nest, status );
+                  indx = HashFun( name, HASHMAP_SIZE - 1, &hash );
+                  AppendValue( value, values_list[ nest ] + indx, status );
 
 /* If an error occurred, report a contextual error maessage and set
    the "astreadclassdata_msg" flag (this prevents multiple messages if this function is
