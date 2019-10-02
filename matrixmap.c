@@ -4197,7 +4197,7 @@ static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
             for( row = 0; row < 3 && orth; row++ ){
                for( col = 0; col < 3; col++ ){
                   p = matrix + row*3;
-                  q = p;
+                  q = matrix + col*3;
                   sum = 0.0;
                   for( i = 0; i < 3; i++ ){
                      sum += (*p)*(*q);
@@ -4208,7 +4208,7 @@ static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
 /* Diagonal elements of the product must be unity for the matrix to be
    orthogonal. */
                   if( row == col ) {
-                     if( fabs( sum - 1.0E-5 ) > 1.0E-5 ) {
+                     if( fabs( sum - 1.0 ) > 1.0E-5 ) {
                         orth = 0;
                         break;
                      }
