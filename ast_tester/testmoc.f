@@ -22,7 +22,7 @@
       parameter( szmesh1 = 868 )
 
       integer szmesh2
-      parameter( szmesh2 = 298 )
+      parameter( szmesh2 = 294 )
 
       double precision mxres1
       parameter( mxres1 = 824.5167D0 )
