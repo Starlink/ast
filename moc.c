@@ -143,9 +143,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        Also changed to use astCalloc rather than astMalloc since astCalloc
 *        seems to be much faster.
 *     2-OCT-2019  (DSB):
-*        Shorten the labels used by Dump/astLoadMoc so that larger MOCs
+*        - Shorten the labels used by Dump/astLoadMoc so that larger MOCs
 *        can be dumped withotu hitting the limit on label size imposed by
 *        the Channel class.
+*        - Fix two memory leaks.
 *class--
 */
 
@@ -1586,6 +1587,11 @@ void astAddMocText_( AstMoc *this, int maxorder,
             }
 
 /* Free the list of NPIX values at each order. */
+            orders[ order ].values = astFree( orders[ order ].values );
+         }
+
+/* Free the list of NPIX values at any unused orders. */
+         for( ; order <= AST__MXORDHPX; order++ ) {
             orders[ order ].values = astFree( orders[ order ].values );
          }
       }
@@ -3233,6 +3239,9 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
             }
          }
       }
+
+/* Free resources */
+      list = astFree( list );
    }
 
 /* Clear the cached information stored in the Moc structure so that it is
