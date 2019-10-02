@@ -136,12 +136,16 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        This causes the boundary drawn around each region to be closed.
 *     1-OCT-2019 (DSB):
 *        Speed up MOC generation by changing PutCell so that it:
-*        1: puts many cells (rather than just one cell) into the MOC in a 
-*           single call, and 
-*        2: only traces the edge recursively through subcells that have at 
+*        1: puts many cells (rather than just one cell) into the MOC in a
+*           single call, and
+*        2: only traces the edge recursively through subcells that have at
 *           least one corner in and one corner out of the region of interest.
-*        Also changed to use astCalloc rather than astMalloc since astCalloc 
+*        Also changed to use astCalloc rather than astMalloc since astCalloc
 *        seems to be much faster.
+*     2-OCT-2019  (DSB):
+*        Shorten the labels used by Dump/astLoadMoc so that larger MOCs
+*        can be dumped withotu hitting the limit on label size imposed by
+*        the Channel class.
 *class--
 */
 
@@ -9979,22 +9983,22 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    for( irange = 0; irange < this->nrange; irange++, pr += 2 ) {
       un.b = pr[0];
       if( un.a[0] ) {
-         sprintf( name, "Lba%d", irange );
+         sprintf( name, "I%d", irange );
          astWriteInt( channel, name, 1, 0, un.a[0], "" );
       }
       if( un.a[1] ) {
-         sprintf( name, "Lbb%d", irange );
+         sprintf( name, "J%d", irange );
          astWriteInt( channel, name, 1, 0, un.a[1], "" );
       }
 
       if( pr[1] != pr[0] ) {
          un.b = pr[1];
          if( un.a[0] ) {
-            sprintf( name, "Uba%d", irange );
+            sprintf( name, "K%d", irange );
             astWriteInt( channel, name, 1, 0, un.a[0], "" );
          }
          if( un.a[1] ) {
-            sprintf( name, "Ubb%d", irange );
+            sprintf( name, "L%d", irange );
             astWriteInt( channel, name, 1, 0, un.a[1], "" );
          }
       }
@@ -10512,15 +10516,15 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
 
          pr = new->range;
          for( irange = 0; irange < new->nrange; irange++,pr += 2 ) {
-            (void) sprintf( buff, "lba%d", irange );
+            (void) sprintf( buff, "i%d", irange );
             un.a[0] = astReadInt( channel, buff, 0 );
-            (void) sprintf( buff, "lbb%d", irange );
+            (void) sprintf( buff, "j%d", irange );
             un.a[1] = astReadInt( channel, buff, 0 );
             pr[ 0 ] = un.b;
 
-            (void) sprintf( buff, "uba%d", irange );
+            (void) sprintf( buff, "k%d", irange );
             un.a[0] = astReadInt( channel, buff, 0 );
-            (void) sprintf( buff, "ubb%d", irange );
+            (void) sprintf( buff, "l%d", irange );
             un.a[1] = astReadInt( channel, buff, 0 );
             pr[ 1 ] = ( un.b > 0 ) ? un.b : pr[ 0 ];
 
