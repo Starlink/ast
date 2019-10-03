@@ -5875,6 +5875,7 @@ int astManageLock_( AstObject *this, int mode, int extra, AstObject **fail,
 int astEqual_( AstObject *this, AstObject *that, int *status ) {
    if ( !astOK ) return 0;
    if( this == that ) return 1;
+   if( !this || !that ) return 0;
    return (**astMEMBER(this,Object,Equal))( this, that, status );
 }
 const char *astGetAttrib_( AstObject *this, const char *attrib, int *status ) {
