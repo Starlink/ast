@@ -21985,16 +21985,20 @@ AST\_RESAMPLE and AST\_MASK
 f-
 that handle grids of data values now have alternative interfaces that can
 handle grids that contain more pixels than can be represented in a 4-byte
-integer. The names of these ``8-byte'' interfaces are the same as the
-4-byte interfaces but have the digit ``8'' appended to the function name
-(before any trailing data type code). These new interfaces are documented
-in an extra paragraph entitled \emph{Handling of Huge Pixel Arrays} attached
-to the reference documentation for the main function.
+integer. This is achieved by using 8-byte integer arguments in place of
+4-byte arguments. The names of these ``8-byte'' interfaces are the same
+as the 4-byte interfaces but have the digit ``8'' appended to the
+function name (before any trailing data type code). These new interfaces
+are documented in an extra paragraph entitled \emph{Handling of Huge
+Pixel Arrays} attached to the reference documentation for each such
+function.
 
 \end{enumerate}
 
 c+
-Note, all C or C++ code that uses AST should be recompiled to pick up changes made to the header file ast.h.
+Note, all C or C++ code that uses AST should be recompiled to pick up
+changes made to the header file ast.h.  This should be done even if you
+do not intend to use the new 8-byte interfaces.
 c-
 
 Programs which are statically linked will need to be re-linked in
