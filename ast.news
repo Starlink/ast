@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V8.8.0) of the Starlink AST (astrometry) library is
+   A new release (V9.0.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -26,10 +26,11 @@ of these "8-byte" interfaces are the same as the 4-byte interfaces but
 have the digit "8" appended to the function name (before any trailing data
 type code). These new interfaces are documented in an extra paragraph
 entitled "Handling of Huge Pixel Arrays" attached to the reference
-documentation for each such function. Note, all C or C++ code that uses
-AST should be recompiled to pick up changes made to the header file
-ast.h. This should be done even if you do not intend to use the new
-8-byte interfaces.
+documentation for each such function.
+
+Note, all C or C++ code that uses AST should be recompiled to pick up
+changes made to the header file ast.h. This should be done even if you do
+not intend to use the new 8-byte interfaces.
 
 
 Main Changes in V8.7.2
