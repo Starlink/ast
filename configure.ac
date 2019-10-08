@@ -7,8 +7,19 @@ dnl   1.5.  It should work with autoconf versions 2.50 or better, and
 dnl   automake 1.6 or better.
 
 dnl   Initialisation: package name and version number
-AC_INIT([ast],[9.0.0],[starlink@jiscmail.ac.uk])
+m4_define([v_maj], [9])
+m4_define([v_min], [0])
+m4_define([v_mic], [1])
+m4_define([project_version], [v_maj.v_min.v_mic])
+AC_INIT([ast],[project_version],[starlink@jiscmail.ac.uk])
 AC_CONFIG_AUX_DIR([build-aux])
+
+dnl   Shared library versioning
+m4_define([lt_cur], [m4_eval(v_maj + v_min)])
+m4_define([lt_rev], [v_mic])
+m4_define([lt_age], [v_min])
+version_info="lt_cur:lt_rev:lt_age"
+AC_SUBST([version_info])
 
 dnl   Require autoconf-2.50 at least
 AC_PREREQ([2.69])

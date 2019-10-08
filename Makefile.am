@@ -672,6 +672,7 @@ libast_la_SOURCES = \
     $(CMINPACK_FILES) \
     $(WCSLIB_FILES) \
     ast_err.h
+libast_la_LDFLAGS = -version-info @version_info@
 
 # Ensure libast links against libraries containing functions used within
 # libast. If AST is configured --with-external-pal, then the internal
@@ -691,37 +692,47 @@ nodist_libast_la_SOURCES = \
 
 #  The default error reporting module.
 libast_err_la_SOURCES = err_null.c
+libast_err_la_LDFLAGS = -version-info @version_info@
 
 #  The error reporting module that uses EMS to deliver errors.
 libast_ems_la_SOURCES = err_ems.c
+libast_ems_la_LDFLAGS = -version-info @version_info@
 
 #  The error reporting module that uses DRAMA Ers to deliver errors.
 libast_drama_la_SOURCES = err_drama.c
+libast_drama_la_LDFLAGS = -version-info @version_info@
 
 #  The module containing null implementations of the 3D graphics routines
 #  required by AST
 libast_grf3d_la_SOURCES = grf3d.c
+libast_grf3d_la_LDFLAGS = -version-info @version_info@
 
 #  The module containing null implementations of the graphics routines
 #  required by AST V2.0
 libast_grf_2_0_la_SOURCES = grf_2.0.c
+libast_grf_2_0_la_LDFLAGS = -version-info @version_info@
 
 #  The module containing null implementations of the graphics routines
 #  added by AST V3.2 and not present in V2.0
 libast_grf_3_2_la_SOURCES = grf_3.2.c
+libast_grf_3_2_la_LDFLAGS = -version-info @version_info@
 
 #  The module containing null implementations of the graphics routines
 #  added by AST V5.6 and not present in V3.2
 libast_grf_5_6_la_SOURCES = grf_5.6.c
+libast_grf_5_6_la_LDFLAGS = -version-info @version_info@
 
 #  The graphics module that uses PGPLOT for 2D graphical output.
 libast_pgplot_la_SOURCES = $(GRF_PGPLOT_SOURCES)
+libast_pgplot_la_LDFLAGS = -version-info @version_info@
 
 #  The graphics module that uses PGPLOT for 3D graphical output.
 libast_pgplot3d_la_SOURCES = $(GRF3D_PGPLOT_SOURCES)
+libast_pgplot3d_la_LDFLAGS = -version-info @version_info@
 
 #  Positional astronomy libraries.
 libast_pal_la_SOURCES = $(PAL_FILES)
+libast_pal_la_LDFLAGS = -version-info @version_info@
 
 # The following files are built by the targets in this makefile.
 MAINTAINERCLEANFILES = version.h builddocs addversion \
