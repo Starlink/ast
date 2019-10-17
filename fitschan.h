@@ -176,6 +176,7 @@ typedef struct AstFitsChan {
    int encoding;    /* System for encoding AST objects ito FITS headers */
    int defb1950;    /* Use FK4 B1950 as defaults? */
    int tabok;       /* Support -TAB algorithm? */
+   int forcetab;    /* Force use of -TAB algorithm? */
    int cdmatrix;    /* Use a CD matrix in FITS-WCS Encoding? */
    int polytan;     /* Use distorted TAN convention? */
    int sipok;       /* Use SIP distortion convention? */
@@ -289,6 +290,11 @@ typedef struct AstFitsChanVtab {
    int (* TestTabOK)( AstFitsChan *, int * );
    void (* SetTabOK)( AstFitsChan *, int, int * );
    void (* ClearTabOK)( AstFitsChan *, int * );
+
+   int (* GetForceTab)( AstFitsChan *, int * );
+   int (* TestForceTab)( AstFitsChan *, int * );
+   void (* SetForceTab)( AstFitsChan *, int, int * );
+   void (* ClearForceTab)( AstFitsChan *, int * );
 
    int (* GetCarLin)( AstFitsChan *, int * );
    int (* TestCarLin)( AstFitsChan *, int * );
@@ -518,6 +524,11 @@ void astInitFitsChanGlobals_( AstFitsChanGlobals * );
    int astTestTabOK_( AstFitsChan *, int * );
    void astSetTabOK_( AstFitsChan *, int, int * );
    void astClearTabOK_( AstFitsChan *, int * );
+
+   int astGetForceTab_( AstFitsChan *, int * );
+   int astTestForceTab_( AstFitsChan *, int * );
+   void astSetForceTab_( AstFitsChan *, int, int * );
+   void astClearForceTab_( AstFitsChan *, int * );
 
    int astGetCDMatrix_( AstFitsChan *, int * );
    int astTestCDMatrix_( AstFitsChan *, int * );
@@ -796,6 +807,15 @@ astINVOKE(V,astGetTabOK_(astCheckFitsChan(this),STATUS_PTR))
 astINVOKE(V,astSetTabOK_(astCheckFitsChan(this),tabok,STATUS_PTR))
 #define astTestTabOK(this) \
 astINVOKE(V,astTestTabOK_(astCheckFitsChan(this),STATUS_PTR))
+
+#define astClearForceTab(this) \
+astINVOKE(V,astClearForceTab_(astCheckFitsChan(this),STATUS_PTR))
+#define astGetForceTab(this) \
+astINVOKE(V,astGetForceTab_(astCheckFitsChan(this),STATUS_PTR))
+#define astSetForceTab(this,frctab) \
+astINVOKE(V,astSetForceTab_(astCheckFitsChan(this),frctab,STATUS_PTR))
+#define astTestForceTab(this) \
+astINVOKE(V,astTestForceTab_(astCheckFitsChan(this),STATUS_PTR))
 
 #define astClearCDMatrix(this) \
 astINVOKE(V,astClearCDMatrix_(astCheckFitsChan(this),STATUS_PTR))

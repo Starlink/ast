@@ -21969,11 +21969,9 @@ the header file being installed into \texttt{STARLINK\_DIR/include}.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.0.0}
-The following describes the most significant changes which have
-occurred in the AST library between versions V8.7.2 and V0.0.0 (the
-current version):
+\subsection{Changes Introduced in V9.0.0}
+The following describes the most significant changes which
+occurred in the AST library between versions V8.7.2 and V9.0.0:
 
 \begin{enumerate}
 \item Functions such as
@@ -22000,6 +21998,20 @@ Note, all C or C++ code that uses AST should be recompiled to pick up
 changes made to the header file ast.h.  This should be done even if you
 do not intend to use the new 8-byte interfaces.
 c-
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.0.2}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.0.0 and V9.0.2 (the
+current version):
+
+\begin{enumerate}
+\item The AST sharable libraries now use a non-zero version number.
+\item The FitsChan class has a new attribute called ForceTab, which is used
+in conjunction with the TabOK attribute to force the use of the
+``-TAB'' algorithm when writing a FrameSet out using the FITS-WCS encoding.
+
+\end{enumerate}
 
 Programs which are statically linked will need to be re-linked in
 order to take advantage of these new facilities.

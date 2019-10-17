@@ -125,6 +125,7 @@ f     encodings), then write operations using AST_WRITE will
 *     - Encoding: System for encoding Objects as FITS headers
 *     - FitsAxisOrder: Sets the order of WCS axes within new FITS-WCS headers
 *     - FitsDigits: Digits of precision for floating-point FITS values
+*     - ForceTab: Force use of the FITS "-TAB" algorithm?
 *     - Iwc: Add a Frame describing Intermediate World Coords?
 *     - Ncard: Number of FITS header cards in a FitsChan
 *     - Nkey: Number of unique keywords in a FitsChan
@@ -1223,6 +1224,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Cater for reading FITS-WCS headers that have alternate axis
 *        descriptions but do not have any primary axis descriptions
 *        (see email from Bill Joye on 9/5/2019).
+*     17-OCT-2019 (DSB):
+*        Add ForceTab algorithm.
 *class--
 */
 
@@ -1743,6 +1746,10 @@ static void ClearTabOK( AstFitsChan *, int * );
 static int GetTabOK( AstFitsChan *, int * );
 static int TestTabOK( AstFitsChan *, int * );
 static void SetTabOK( AstFitsChan *, int, int * );
+static void ClearForceTab( AstFitsChan *, int * );
+static int GetForceTab( AstFitsChan *, int * );
+static int TestForceTab( AstFitsChan *, int * );
+static void SetForceTab( AstFitsChan *, int, int * );
 static void ClearCarLin( AstFitsChan *, int * );
 static int GetCarLin( AstFitsChan *, int * );
 static int TestCarLin( AstFitsChan *, int * );
@@ -4492,8 +4499,11 @@ static AstMapping *CelestialAxes( AstFitsChan *this, AstFrameSet *fs, double *di
    Mapping returned by this call is the result of compounding all the
    Mappings up to (but not including) the WcsMap, the second returned Mapping
    is the (inverted) WcsMap, and the third returned Mapping is anything
-   following the WcsMap. Only proceed if one and only one WcsMap is found. */
-      if( SplitMap( map, astGetInvert( map ), ilon, ilat, &map1, &map2, &map3,
+   following the WcsMap. Only proceed if one and only one WcsMap is found.
+   If the ForceTab attribute is used, then we attempt to use -TAB even if
+   the Mapping can be split. */
+      if( !astGetForceTab( this ) &&
+          SplitMap( map, astGetInvert( map ), ilon, ilat, &map1, &map2, &map3,
                     status ) ){
 
 /* Get the indices of the latitude and longitude axes within the SkyFrame
@@ -6577,6 +6587,11 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* ----- */
    } else if ( !strcmp( attrib, "tabok" ) ) {
       astClearTabOK( this );
+
+/* ForceTab */
+/* -------- */
+   } else if ( !strcmp( attrib, "forcetab" ) ) {
+      astClearForceTab( this );
 
 /* CarLin */
 /* ------ */
@@ -16228,6 +16243,15 @@ const char *GetAttrib( AstObject *this_object, const char *attrib, int *status )
          result = getattrib_buff;
       }
 
+/* ForceTab */
+/* -------- */
+   } else if ( !strcmp( attrib, "forcetab" ) ) {
+      ival = astGetForceTab( this );
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%d", ival );
+         result = getattrib_buff;
+      }
+
 /* CarLin */
 /* ------ */
    } else if ( !strcmp( attrib, "carlin" ) ) {
@@ -17793,6 +17817,10 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    vtab->TestTabOK = TestTabOK;
    vtab->SetTabOK = SetTabOK;
    vtab->GetTabOK = GetTabOK;
+   vtab->ClearForceTab = ClearForceTab;
+   vtab->TestForceTab = TestForceTab;
+   vtab->SetForceTab = SetForceTab;
+   vtab->GetForceTab = GetForceTab;
    vtab->ClearCarLin = ClearCarLin;
    vtab->TestCarLin = TestCarLin;
    vtab->SetCarLin = SetCarLin;
@@ -23292,6 +23320,7 @@ static AstMapping *OtherAxes( AstFitsChan *this, AstFrameSet *fs, double *dim,
    int *outperm;           /* Pointer to permutation array for output axes */
    int extver;             /* Table version number for -TAB headers */
    int fits_i;             /* FITS WCS axis index */
+   int force_tab;          /* Use TAB even if another code could be used? */
    int i;                  /* Loop count */
    int iax;                /* WCS Frame axis index */
    int icolindex;          /* Index of table column holding index vector */
@@ -23380,10 +23409,13 @@ static AstMapping *OtherAxes( AstFitsChan *this, AstFrameSet *fs, double *dim,
    algorithm. This is the set value of the TabOK attribute (if positive). */
             extver = astGetTabOK( this );
 
+/* If the ForceTab attribute is set, we jump on immediately to using
+   -TAB regardless of whether some other algorithm could be used. */
+            force_tab = astGetForceTab( this );
+
 /* See if the axis is linear. If so, create a ShiftMap which subtracts off
    the CRVAL value. */
-
-            if( IsMapLinear( map, lbnd_p, ubnd_p, iax, status ) ) {
+            if( !force_tab && IsMapLinear( map, lbnd_p, ubnd_p, iax, status ) ) {
                crval = -crval;
                tmap0 = (AstMapping *) astShiftMap( 1, &crval, "", status );
                axmap = AddUnitMaps( tmap0, iax, nwcs, status );
@@ -23396,8 +23428,8 @@ static AstMapping *OtherAxes( AstFitsChan *this, AstFrameSet *fs, double *dim,
       s = Sr.EXP( a*p - b ). If this
    is the case, the log of s will be linearly related to pixel coordinates.
    Test this. If the test is passed a Mapping is returned from WCS to IWC. */
-            } else if( (axmap = LogAxis( map, iax, nwcs, lbnd_p, ubnd_p,
-                                         crval, status ) ) ) {
+            } else if( !force_tab && (axmap = LogAxis( map, iax, nwcs, lbnd_p,
+                                                 ubnd_p, crval, status ) ) ) {
                log_axis = 1;
 
 /* If it is not linear or logarithmic, and the TabOK attribute is
@@ -26267,6 +26299,13 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
         ( 1 == astSscanf( setting, "tabok= %d %n", &ival, &nc ) )
         && ( nc >= len ) ) {
       astSetTabOK( this, ival );
+
+/* ForceTab */
+/* -------- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "forcetab= %d %n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+      astSetForceTab( this, ival );
 
 /* CarLin */
 /* ------ */
@@ -29140,12 +29179,14 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    coords corresponds to one of the algorithms supported in FITS-WCS paper
    III. First check for the "linear" algorithm in which the linear spectral
    coordinate given by the SpecFrame is related linearly to the pixel
-   coords. */
+   coords. If the ForceTab attribute is set, we jump on immediately to
+   using -TAB regardless of whether some other algorithm could be used. */
             ctype[ 0 ] = 0;
-            if( IsMapLinear( map, lbnd_p, ubnd_p, iax, status ) ) {
+            if( !astGetForceTab( this ) ) {
+               if( IsMapLinear( map, lbnd_p, ubnd_p, iax, status ) ) {
 
 /* The CTYPE value is just the spectral system. */
-               strcpy( ctype, orig_system );
+                  strcpy( ctype, orig_system );
 
 /* Create the Mapping which defines the spectral IWC axis. This is
    initially the Mapping from WCS to IWCS - it subtracts the CRVAL value
@@ -29153,81 +29194,81 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    non-spectral axes are left unchanged by this Mapping). This results
    in the spectral IWC axis having the same axis index as the spectral
    WCS axis. */
-               crval = -crval;
-               tmap0 = (AstMapping *) astShiftMap( 1, &crval, "", status );
-               crval = -crval;
-               axmap = AddUnitMaps( tmap0, iax, nwcs, status );
-               tmap0 = astAnnul( tmap0 );
-            }
+                  crval = -crval;
+                  tmap0 = (AstMapping *) astShiftMap( 1, &crval, "", status );
+                  crval = -crval;
+                  axmap = AddUnitMaps( tmap0, iax, nwcs, status );
+                  tmap0 = astAnnul( tmap0 );
+               }
 
 /* If the "linear" algorithm above is inappropriate, see if the "non-linear"
    algorithm defined in FITS-WCS paper III can be used, in which pixel
    coords are linearly related to some spectral system (called "X") other
    than the one represented by the supplied SpecFrame (called "S"). */
-            if( !ctype[ 0 ] ) {
+               if( !ctype[ 0 ] ) {
 
 /* Loop round each of the 4 allowed X systems. All other spectral systems
    are linearly related to one of these 4 systems and so do not need to be
    tested. */
-               for( ix = 0; ix < 4 && !ctype[ 0 ]; ix++ ) {
+                  for( ix = 0; ix < 4 && !ctype[ 0 ]; ix++ ) {
 
 /* Set the system of the spectral WCS axis to the new trial X system. Clear
    the Unit attribute to ensure we are using the default linear units.
    Using the FrameSet pointer "fs" ensures that the Mappings within the
    FrameSet are modified to maintain the correct inter-Frame relationships. */
-                  astSetC( fs, system_attr, x_sys[ ix ] );
-                  astClear( fs, unit_attr );
+                     astSetC( fs, system_attr, x_sys[ ix ] );
+                     astClear( fs, unit_attr );
 
 /* Now we check to see if the current X system is linearly related to
    pixel coordinates. */
-                  tmap3 = astGetMapping( fs, AST__BASE, AST__CURRENT );
-                  if( IsMapLinear( tmap3, lbnd_p, ubnd_p, iax, status ) ) {
+                     tmap3 = astGetMapping( fs, AST__BASE, AST__CURRENT );
+                     if( IsMapLinear( tmap3, lbnd_p, ubnd_p, iax, status ) ) {
 
 /* CTYPE: First 4 characters specify the "S" system. */
-                     strcpy( ctype, orig_system );
+                        strcpy( ctype, orig_system );
 
 /* The non-linear algorithm code to be appended to the "S" system is of the
    form "-X2P" ("P" is the system which is linearly related to "S"). */
-                     if( !strcmp( x_sys[ ix ], "FREQ" ) ) {
-                        strcpy( ctype + 4, "-F2" );
-                     } else if( !strcmp( x_sys[ ix ], "WAVE" ) ) {
-                        strcpy( ctype + 4, "-W2" );
-                     } else if( !strcmp( x_sys[ ix ], "AWAV" ) ) {
-                        strcpy( ctype + 4, "-A2" );
-                     } else {
-                        strcpy( ctype + 4, "-V2" );
-                     }
-                     if( !strcmp( orig_system, "FREQ" ) ||
-                         !strcmp( orig_system, "ENER" ) ||
-                         !strcmp( orig_system, "WAVN" ) ||
-                         !strcmp( orig_system, "VRAD" ) ) {
-                        strcpy( ctype + 7, "F" );
-                     } else if( !strcmp( orig_system, "WAVE" ) ||
-                                !strcmp( orig_system, "VOPT" ) ||
-                                !strcmp( orig_system, "ZOPT" ) ) {
-                        strcpy( ctype + 7, "W" );
-                     } else if( !strcmp( orig_system, "AWAV" ) ) {
-                        strcpy( ctype + 7, "A" );
-                     } else {
-                        strcpy( ctype + 7, "V" );
-                     }
+                        if( !strcmp( x_sys[ ix ], "FREQ" ) ) {
+                           strcpy( ctype + 4, "-F2" );
+                        } else if( !strcmp( x_sys[ ix ], "WAVE" ) ) {
+                           strcpy( ctype + 4, "-W2" );
+                        } else if( !strcmp( x_sys[ ix ], "AWAV" ) ) {
+                           strcpy( ctype + 4, "-A2" );
+                        } else {
+                           strcpy( ctype + 4, "-V2" );
+                        }
+                        if( !strcmp( orig_system, "FREQ" ) ||
+                            !strcmp( orig_system, "ENER" ) ||
+                            !strcmp( orig_system, "WAVN" ) ||
+                            !strcmp( orig_system, "VRAD" ) ) {
+                           strcpy( ctype + 7, "F" );
+                        } else if( !strcmp( orig_system, "WAVE" ) ||
+                                   !strcmp( orig_system, "VOPT" ) ||
+                                   !strcmp( orig_system, "ZOPT" ) ) {
+                           strcpy( ctype + 7, "W" );
+                        } else if( !strcmp( orig_system, "AWAV" ) ) {
+                           strcpy( ctype + 7, "A" );
+                        } else {
+                           strcpy( ctype + 7, "V" );
+                        }
 
 /* Create a Mapping which gives S as a function of X. */
-                     tfrm = astCopy( specfrm );
-                     astSetC( tfrm, "System(1)", orig_system );
-                     astSetC( tfrm, "Unit(1)", lin_unit );
-                     tfs = astConvert( specfrm, tfrm, "" );
-                     tmap5 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
-                     tfs = astAnnul( tfs );
-                     tfrm = astAnnul( tfrm );
+                        tfrm = astCopy( specfrm );
+                        astSetC( tfrm, "System(1)", orig_system );
+                        astSetC( tfrm, "Unit(1)", lin_unit );
+                        tfs = astConvert( specfrm, tfrm, "" );
+                        tmap5 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
+                        tfs = astAnnul( tfs );
+                        tfrm = astAnnul( tfrm );
 
 /* Use the inverse of this Mapping to get the X value at the reference S
    value. */
-                     astTran1( tmap5, 1, &crval, 0, &xval );
+                        astTran1( tmap5, 1, &crval, 0, &xval );
 
 /* Also use it to get the rate of change of S with respect to X at the
    reference point. */
-                     dsbydx = astRate( tmap5, &xval, 0, 0 );
+                        dsbydx = astRate( tmap5, &xval, 0, 0 );
 
 /* Create the Mapping which defines the spectral IWC axis. This is the
    Mapping from WCS to IWC - it first converts from S to X, then subtracts
@@ -29236,50 +29277,50 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    FITS-WCS paper III). Other non-spectral axes are left unchanged by
    the Mapping. The spectral IWC axis has the same axis index as the
    spectral WCS axis. */
-                     xval = -xval;
-                     tmap2 = (AstMapping *) astShiftMap( 1, &xval, "", status );
-                     astInvert( tmap5 );
-                     tmap0 = (AstMapping *) astCmpMap( tmap5, tmap2, 1, "", status );
-                     tmap5 = astAnnul( tmap5 );
-                     tmap2 = astAnnul( tmap2 );
-                     tmap2 = (AstMapping *) astZoomMap( 1, dsbydx, "", status );
-                     tmap1 = (AstMapping *) astCmpMap( tmap0, tmap2, 1, "", status );
-                     tmap0 = astAnnul( tmap0 );
-                     tmap2 = astAnnul( tmap2 );
-                     axmap = AddUnitMaps( tmap1, iax, nwcs, status );
-                     tmap1 = astAnnul( tmap1 );
-                  }
-                  tmap3 = astAnnul( tmap3 );
+                        xval = -xval;
+                        tmap2 = (AstMapping *) astShiftMap( 1, &xval, "", status );
+                        astInvert( tmap5 );
+                        tmap0 = (AstMapping *) astCmpMap( tmap5, tmap2, 1, "", status );
+                        tmap5 = astAnnul( tmap5 );
+                        tmap2 = astAnnul( tmap2 );
+                        tmap2 = (AstMapping *) astZoomMap( 1, dsbydx, "", status );
+                        tmap1 = (AstMapping *) astCmpMap( tmap0, tmap2, 1, "", status );
+                        tmap0 = astAnnul( tmap0 );
+                        tmap2 = astAnnul( tmap2 );
+                        axmap = AddUnitMaps( tmap1, iax, nwcs, status );
+                        tmap1 = astAnnul( tmap1 );
+                     }
+                     tmap3 = astAnnul( tmap3 );
 
 /* Re-instate the original system and unit attributes for the spectral axis. */
-                  astSetC( fs, system_attr, orig_system );
-                  astSetC( fs, unit_attr, lin_unit );
+                     astSetC( fs, system_attr, orig_system );
+                     astSetC( fs, unit_attr, lin_unit );
+                  }
                }
-            }
 
 /* If the "non-linear" algorithm above is inappropriate, see if the
    "log-linear" algorithm defined in FITS-WCS paper III can be used, in
    which the spectral axis is logarithmically spaced in the spectral
    system given by the SpecFrame. */
-            if( !ctype[ 0 ] ) {
+               if( !ctype[ 0 ] ) {
 
 /* If the "log-linear" algorithm is appropriate, the supplied SpecFrame (s)
    is related to pixel coordinate (p) by s = Sr.EXP( a*p - b ). If this
    is the case, then the log of s will be linearly related to pixel
    coordinates. Test this. If the test is passed a Mapping is returned from
    WCS to IWC. */
-               axmap = LogAxis( map, iax, nwcs, lbnd_p, ubnd_p, crval, status );
+                  axmap = LogAxis( map, iax, nwcs, lbnd_p, ubnd_p, crval, status );
 
 /* If the axis is logarithmic... */
-               if( axmap ) {
+                  if( axmap ) {
 
 /* CTYPE: First 4 characters specify the "S" system. */
-                  strcpy( ctype, orig_system );
+                     strcpy( ctype, orig_system );
 
 /* The rest is "-LOG". */
-                  strcpy( ctype + 4, "-LOG" );
+                     strcpy( ctype + 4, "-LOG" );
+                  }
                }
-            }
 
 /* If the "log-linear" algorithm above is inappropriate, see if the "grism"
    algorithm defined in FITS-WCS paper III can be used, in which pixel
@@ -29287,64 +29328,64 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    implemented in AST by a GrismMap. GrismMaps produce either vacuum
    wavelength or air wavelength as output. Temporarily set the SpecFrame
    to these two systems in turn before we do the check for a GrismMap. */
-            for( ix = 0; ix < 2 && !ctype[ 0 ]; ix++ ) {
-               astSetC( fs, system_attr, ( ix == 0 ) ? "WAVE" : "AWAV" );
-               astSetC( fs, unit_attr, "m" );
+               for( ix = 0; ix < 2 && !ctype[ 0 ]; ix++ ) {
+                  astSetC( fs, system_attr, ( ix == 0 ) ? "WAVE" : "AWAV" );
+                  astSetC( fs, unit_attr, "m" );
 
 /* Get the simplified Mapping from pixel to wavelength. If the Mapping is
    a CmpMap containing a GrismMap, and if the output of the GrismMap is
    scaled by a neighbouring ZoomMap (e.g. into different wavelength units),
    then the GrismMap will be modified to incorporate the effect of the
    ZoomMap, and the ZoomMap will be removed. */
-               tmap2 = astGetMapping( fs, AST__BASE, AST__CURRENT );
-               tmap1 = astSimplify( tmap2 );
-               tmap2 = astAnnul( tmap2 );
+                  tmap2 = astGetMapping( fs, AST__BASE, AST__CURRENT );
+                  tmap1 = astSimplify( tmap2 );
+                  tmap2 = astAnnul( tmap2 );
 
 /* Analyse this Mapping to see if the iax'th output is created diretcly by a
    GrismMap (i.e. the output of theGrismMap must not subsequently be
    modified by some other Mapping). If so, ExtractGrismMap returns a pointer
    to the GrismMap as its function value, and also returns "tmap2" as a copy
    of tmap1 in which the GrismMap has been replaced by a UnitMap. */
-               gmap = ExtractGrismMap( tmap1, iax, &tmap2, status );
-               if( gmap ) {
+                  gmap = ExtractGrismMap( tmap1, iax, &tmap2, status );
+                  if( gmap ) {
 
 /* The Mapping without the GrismMap must be linear on the spectral axis. */
-                  if( IsMapLinear( tmap2, lbnd_p, ubnd_p, iax, status ) ) {
+                     if( IsMapLinear( tmap2, lbnd_p, ubnd_p, iax, status ) ) {
 
 /* Get the reference wavelength (in "m") stored in the GrismMap. */
-                     crval = astGetGrismWaveR( gmap );
+                        crval = astGetGrismWaveR( gmap );
 
 /* Save a copy of the current Wavelength (in "m") SpecFrame. */
-                     tfrm1 = astCopy( specfrm );
+                        tfrm1 = astCopy( specfrm );
 
 /* Re-instate the original System and Unit attributes for the SpecFrame. */
-                     astSetC( fs, system_attr, orig_system );
-                     astSetC( fs, unit_attr, lin_unit );
+                        astSetC( fs, system_attr, orig_system );
+                        astSetC( fs, unit_attr, lin_unit );
 
 /* Find the Mapping from the original "S" system to wavelength (in "m"). */
-                     tfs = astConvert( specfrm, tfrm1, "" );
-                     tfrm1 = astAnnul( tfrm1 );
-                     if( tfs ) {
-                        tmap3 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
-                        tfs = astAnnul( tfs );
+                        tfs = astConvert( specfrm, tfrm1, "" );
+                        tfrm1 = astAnnul( tfrm1 );
+                        if( tfs ) {
+                           tmap3 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
+                           tfs = astAnnul( tfs );
 
 /* Use the inverse of this Mapping to convert the reference value from
    wavelength to the "S" system. */
-                        astTran1( tmap3, 1, &crval, 0, &crval );
+                           astTran1( tmap3, 1, &crval, 0, &crval );
 
 /* Concatenate the "S"->wavelength Mapping with the inverse GrismMap (from
    wavelength to grism parameter), to get the "S" -> "grism parameter"
    Mapping. */
-                        astInvert( gmap );
-                        tmap4 = (AstMapping *) astCmpMap( tmap3, gmap, 1, "", status );
-                        tmap3 = astAnnul( tmap3 );
+                           astInvert( gmap );
+                           tmap4 = (AstMapping *) astCmpMap( tmap3, gmap, 1, "", status );
+                           tmap3 = astAnnul( tmap3 );
 
 /* Use this Mapping to find the grism parameter at the reference point. */
-                        astTran1( tmap4, 1, &crval, 1, &gval );
+                           astTran1( tmap4, 1, &crval, 1, &gval );
 
 /* Also use it to find the rate of change of grism parameter with respect
    to "S" at the reference point. */
-                        dgbyds = astRate( tmap4, &crval, 0, 0 );
+                           dgbyds = astRate( tmap4, &crval, 0, 0 );
 
 /* FITS-WCS paper III required ds/dw to be unity at the reference point.
    Therefore the rate of change of grism parameter with respect to IWC ("w")
@@ -29352,11 +29393,11 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    (at the reference point). The mapping from "w" to grism parameter is a
    ZoomMap which scales "w" by "dgbyds" followed by a ShiftMap which adds
    on "gval". */
-                        tmap5 = (AstMapping *) astZoomMap( 1, dgbyds, "", status );
-                        tmap6 = (AstMapping *) astShiftMap( 1, &gval, "", status );
-                        tmap3 = (AstMapping *) astCmpMap( tmap5, tmap6, 1, "", status );
-                        tmap5 = astAnnul( tmap5 );
-                        tmap6 = astAnnul( tmap6 );
+                           tmap5 = (AstMapping *) astZoomMap( 1, dgbyds, "", status );
+                           tmap6 = (AstMapping *) astShiftMap( 1, &gval, "", status );
+                           tmap3 = (AstMapping *) astCmpMap( tmap5, tmap6, 1, "", status );
+                           tmap5 = astAnnul( tmap5 );
+                           tmap6 = astAnnul( tmap6 );
 
 /* Create the Mapping which defines the spectral IWC axis. This is the
    Mapping from WCS "S" to IWCS "w", formed by combining the Mapping from
@@ -29364,50 +29405,51 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    "w" (inverse of tmap3). Other non-spectral axes are left unchanged by the
    Mapping. The spectral IWC axis has the same axis index as the spectral
    WCS axis. */
-                        astInvert( tmap3 );
-                        tmap5 = (AstMapping *) astCmpMap( tmap4, tmap3, 1, "", status );
-                        tmap3 = astAnnul( tmap3 );
-                        tmap4 = astAnnul( tmap4 );
-                        axmap = AddUnitMaps( tmap5, iax, nwcs, status );
-                        tmap5 = astAnnul( tmap5 );
+                           astInvert( tmap3 );
+                           tmap5 = (AstMapping *) astCmpMap( tmap4, tmap3, 1, "", status );
+                           tmap3 = astAnnul( tmap3 );
+                           tmap4 = astAnnul( tmap4 );
+                           axmap = AddUnitMaps( tmap5, iax, nwcs, status );
+                           tmap5 = astAnnul( tmap5 );
 
 /* CTYPE: First 4 characters specify the "S" system. */
-                        strcpy( ctype, orig_system );
+                           strcpy( ctype, orig_system );
 
 /* Last 4 characters are "-GRA" or "-GRI". */
-                        strcpy( ctype + 4, ( ix == 0 ) ? "-GRI" : "-GRA"  );
+                           strcpy( ctype + 4, ( ix == 0 ) ? "-GRI" : "-GRA"  );
 
 /* Store values for the projection parameters in the FitsStore. Ignore
    parameters which are set to the default values defined in FITS-WCS
    paper III. */
-                        pv = astGetGrismG( gmap );
-                        if( pv != 0 ) SetItem( &(store->pv), fits_i, 0, s, pv, status );
-                        pv = (double) astGetGrismM( gmap );
-                        if( pv != 0 ) SetItem( &(store->pv), fits_i, 1, s, pv, status );
-                        pv = astGetGrismAlpha( gmap );
-                        if( pv != 0 ) SetItem( &(store->pv), fits_i, 2, s, pv*AST__DR2D, status );
-                        pv = astGetGrismNR( gmap );
-                        if( pv != 1.0 ) SetItem( &(store->pv), fits_i, 3, s, pv, status );
-                        pv = astGetGrismNRP( gmap );
-                        if( pv != 0 ) SetItem( &(store->pv), fits_i, 4, s, pv, status );
-                        pv = astGetGrismEps( gmap );
-                        if( pv != 0 ) SetItem( &(store->pv), fits_i, 5, s, pv*AST__DR2D, status );
-                        pv = astGetGrismTheta( gmap );
-                        if( pv != 0 ) SetItem( &(store->pv), fits_i, 6, s, pv*AST__DR2D, status );
+                           pv = astGetGrismG( gmap );
+                           if( pv != 0 ) SetItem( &(store->pv), fits_i, 0, s, pv, status );
+                           pv = (double) astGetGrismM( gmap );
+                           if( pv != 0 ) SetItem( &(store->pv), fits_i, 1, s, pv, status );
+                           pv = astGetGrismAlpha( gmap );
+                           if( pv != 0 ) SetItem( &(store->pv), fits_i, 2, s, pv*AST__DR2D, status );
+                           pv = astGetGrismNR( gmap );
+                           if( pv != 1.0 ) SetItem( &(store->pv), fits_i, 3, s, pv, status );
+                           pv = astGetGrismNRP( gmap );
+                           if( pv != 0 ) SetItem( &(store->pv), fits_i, 4, s, pv, status );
+                           pv = astGetGrismEps( gmap );
+                           if( pv != 0 ) SetItem( &(store->pv), fits_i, 5, s, pv*AST__DR2D, status );
+                           pv = astGetGrismTheta( gmap );
+                           if( pv != 0 ) SetItem( &(store->pv), fits_i, 6, s, pv*AST__DR2D, status );
+                        }
                      }
+
+/* Release resources. */
+                     tmap2 = astAnnul( tmap2 );
+                     gmap = astAnnul( gmap );
                   }
 
 /* Release resources. */
-                  tmap2 = astAnnul( tmap2 );
-                  gmap = astAnnul( gmap );
-               }
-
-/* Release resources. */
-               tmap1 = astAnnul( tmap1 );
+                  tmap1 = astAnnul( tmap1 );
 
 /* Re-instate the original System and Unit attributes for the SpecFrame. */
-               astSetC( fs, system_attr, orig_system );
-               astSetC( fs, unit_attr, lin_unit );
+                  astSetC( fs, system_attr, orig_system );
+                  astSetC( fs, unit_attr, lin_unit );
+               }
             }
 
 /* If none of the above algorithms are appropriate, we must resort to
@@ -32839,6 +32881,11 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* ------ */
    } else if ( !strcmp( attrib, "tabok" ) ) {
       result = astTestTabOK( this );
+
+/* ForceTab. */
+/* --------- */
+   } else if ( !strcmp( attrib, "forcetab" ) ) {
+      result = astTestForceTab( this );
 
 /* CDMatrix. */
 /* --------- */
@@ -41071,7 +41118,8 @@ c     The astWrite
 f     The AST_WRITE
 *     method will generate headers that use the -TAB algorithm (if
 *     possible) if no other known FITS-WCS algorithm can be used to
-*     describe the supplied FrameSet. This will result in a table of
+*     describe the supplied FrameSet (but see the ForceTab attribute). This
+*     will result in a table of
 *     coordinate values and index vectors being stored in the FitsChan.
 *     After the write operation, the calling application should check to
 *     see if such a table has been stored in the FitsChan. If so, the
@@ -41134,6 +41182,45 @@ astMAKE_CLEAR(FitsChan,TabOK,tabok,-INT_MAX)
 astMAKE_GET(FitsChan,TabOK,int,0,(this->tabok == -INT_MAX ? 0 : this->tabok))
 astMAKE_SET(FitsChan,TabOK,int,tabok,value)
 astMAKE_TEST(FitsChan,TabOK,( this->tabok != -INT_MAX ))
+
+/* ForceTab */
+/* ======== */
+
+/*
+*att++
+*  Name:
+*     ForceTab
+
+*  Purpose:
+*     Force the use of the -TAB algorithm when writing FITS-WCS headers?
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Integer (boolean).
+
+*  Description:
+*     This attribute is a  boolean value which indicates if the "-TAB"
+*     algorithm, defined in FITS-WCS paper III, should be used if at all
+*     possible when writing out a FrameSet using the FITS-WCS encoding.
+*
+*     Note this attribute has no effect unless the TabOK attribute is set
+*     to a positive non-zero value. If, in addition to setting TabOK,
+*     ForceTab is set to non-zero value, astWrite will attempt to use the
+*     -TAB algorithm even if another algorithm could have been used. If
+*     ForceTab is left at its default value of zero, then the -TAB algorithm
+*     will be used only if no other algorithm can be used.
+
+*  Applicability:
+*     FitsChan
+*        All FitsChans have this attribute.
+*att--
+*/
+astMAKE_CLEAR(FitsChan,ForceTab,forcetab,-INT_MAX)
+astMAKE_GET(FitsChan,ForceTab,int,0,(this->forcetab == -INT_MAX ? 0 : this->forcetab))
+astMAKE_SET(FitsChan,ForceTab,int,forcetab,value)
+astMAKE_TEST(FitsChan,ForceTab,( this->forcetab != -INT_MAX ))
 
 /* CarLin */
 /* ====== */
@@ -42211,6 +42298,12 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    ival = set ? GetTabOK( this, status ) : astGetTabOK( this );
    astWriteInt( channel, "TabOK", set, 1, ival, ( ival > 0 ? "EXTVER value for -TAB headers": "Do not support -TAB CTYPE codes") );
 
+/* ForceTab. */
+/* --------- */
+   set = TestForceTab( this, status );
+   ival = set ? GetForceTab( this, status ) : astGetForceTab( this );
+   astWriteInt( channel, "FrcTab", set, 1, ival, ( ival != 0 ? "Force use of -TAB": "Only use -TAB if necessary") );
+
 /* CDMatrix */
 /* -------- */
    set = TestCDMatrix( this, status );
@@ -43083,6 +43176,7 @@ AstFitsChan *astInitFitsChan_( void *mem, size_t size, int init,
       new->keywords = NULL;
       new->defb1950 = -1;
       new->tabok = -INT_MAX;
+      new->forcetab = -INT_MAX;
       new->cdmatrix = -1;
       new->carlin = -1;
       new->sipreplace = -1;
@@ -43300,6 +43394,11 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 /* ----- */
       new->tabok = astReadInt( channel, "tabok", -INT_MAX );
       if ( TestTabOK( new, status ) ) SetTabOK( new, new->tabok, status );
+
+/* ForceTab */
+/* -------- */
+      new->forcetab = astReadInt( channel, "frctab", -INT_MAX );
+      if ( TestForceTab( new, status ) ) SetForceTab( new, new->forcetab, status );
 
 /* CDMatrix */
 /* -------- */

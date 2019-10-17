@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.0.0) of the Starlink AST (astrometry) library is
+   A new release (V9.0.2) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,6 +17,14 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- The AST sharable libraries now use a non-zero version number.
+- The FitsChan class has a new attribute called ForceTab, which is used
+in conjunction with the TabOK attribute to force the use of the
+"-TAB" algorithm when writing a FrameSet out using the FITS-WCS encoding.
+
+Main Changes in V9.0.0
+----------------------
 
 - Functions such as astResample and astMask that handle grids of data
 values now have alternative interfaces that can handle grids that contain
