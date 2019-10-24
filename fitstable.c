@@ -82,6 +82,8 @@ f     - AST_PUTTABLEHEADER: Store FITS headers within a FitsTable
 *        Original version.
 *     2-OCT-2012 (DSB):
 *        Check for Infs as well as NaNs.
+*     24-OCT-2019 (DSB):
+*        Correct docs for astColumnSize.
 *class--
 */
 
@@ -348,7 +350,7 @@ f                              STATUS )
 *  Parameters:
 c     this
 f     THIS = INTEGER (Given)
-*        Pointer to the Table.
+*        Pointer to the FitsTable.
 c     column
 f     COLUMN = CHARACTER * ( * ) (Given)
 *        The character string holding the name of the column. Trailing
@@ -668,8 +670,7 @@ f     AST_COLUMNSIZE
 
 *  Synopsis:
 c     #include "table.h"
-c     size_t astColumnSize( AstFitsTable *this, const char *column,
-c                           int *hasnull )
+c     size_t astColumnSize( AstFitsTable *this, const char *column )
 f     RESULT = AST_COLUMNSIZE( THIS, COLUMN, STATUS )
 
 *  Class Membership:
@@ -677,14 +678,15 @@ f     RESULT = AST_COLUMNSIZE( THIS, COLUMN, STATUS )
 
 *  Description:
 *     This function returns the number of bytes of memory that must be
-*     allocated prior to retrieving the data from a column using
+*     allocated prior to retrieving the data from a column of a FitsTable
+*     using
 c     astGetColumnData.
 f     AST_GETCOLUMNDATA.
 
 *  Parameters:
 c     this
 f     THIS = INTEGER (Given)
-*        Pointer to the Table.
+*        Pointer to the FitsTable.
 c     column
 f     COLUMN = CHARACTER * ( * ) (Given)
 *        The character string holding the name of the column. Trailing
@@ -693,8 +695,8 @@ f     STATUS = INTEGER (Given and Returned)
 f        The global status.
 
 *  Returned Value:
-c     astColumnNull()
-f     AST_COLUMNNULL = INTEGER
+c     astColumnSize()
+f     AST_COLUMNSIZE = INTEGER
 *        The number of bytes required to store the column data.
 
 *  Notes:
