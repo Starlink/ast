@@ -224,7 +224,7 @@ static void ast_resample_uinterp##X( int ndim, \
                               Ftype##_ARG(&badval), \
                               Ftype##_ARRAY_ARG(out), \
                               Ftype##_ARRAY_ARG(out_var), \
-                              INTEGER_ARG(nbad4), \
+                              INTEGER_ARG(&nbad4), \
                               INTEGER_ARG(&STATUS) ); \
 \
 /* Convert the 4-byte bad pixel count to 8-byte. */ \
