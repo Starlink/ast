@@ -379,12 +379,12 @@
 #define AST__UNLOCK 2    /* Unlock the object */
 #define AST__CHECKLOCK 3 /* Check if the object is locked */
 
+#endif
+
 /* Values returned by astThread */
 #define AST__UNLOCKED 1  /* Object is unlocked */
 #define AST__RUNNING 2   /* Object is locked by the running thread */
 #define AST__OTHER 3     /* Object is locked by another thread */
-
-#endif
 
 /* Value that indicates that two classes are not in direct line from each
    other. */

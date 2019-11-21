@@ -58,6 +58,7 @@ c     - astSet<X>: Set an attribute value for an Object
 c     - astShow: Display a textual representation of an Object on standard
 c     output
 c     - astTest: Test if an attribute value is set for an Object
+c     - astThread: Get the thread (if any) that has locked an Object
 c     - astTune: Set or get an integer AST tuning parameter
 c     - astTuneC: Set or get a character AST tuning parameter
 c     - astUnlock: Unlock an Object for use by other threads
@@ -236,6 +237,10 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        Add function astCreatedAt. This increases the size of a Handle
 *        structure by 20 bytes. If this turns out to be problematic
 *        this facility could be controlled using a configure option.
+*     21-NOV-2019 (DSB):
+*        Include thrThread in public metrhod list, and change it so 
+*        that it does not report an error if the supplied object handle
+*        is owned by a different thread.
 *class--
 */
 
@@ -8558,8 +8563,9 @@ c--
       LOCK_MUTEX2;
 
 /* Check the supplied object identifier is valid and get the
-   corresponding index into the handles array. */
-      ihandle = CheckId( this_id, 1, status );
+   corresponding index into the handles array. Do not report an
+   error if the handle is in an Object context for a different thread. */
+      ihandle = CheckId( this_id, 0, status );
       if( ihandle != -1 ) {
 
 /* Set the returned value on the basis of the threa didentifier stored in
