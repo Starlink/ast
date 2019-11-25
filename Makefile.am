@@ -3,149 +3,149 @@
 # First declare various groups of files.  These were initially extracted
 # from the grp.make file, as constructed by the SDT newdev command
 GRP_C_ROUTINES = \
-    axis.c \
-    box.c \
-    channel.c \
-    chebymap.c \
-    circle.c \
-    cmpframe.c \
-    cmpmap.c \
-    cmpregion.c \
-    dsbspecframe.c \
-    dssmap.c \
-    ellipse.c \
-    error.c \
-    fitschan.c \
-    fitstable.c \
-    fluxframe.c \
-    frame.c \
-    frameset.c \
-    globals.c \
-    grismmap.c \
-    interval.c \
-    intramap.c \
-    keymap.c \
-    loader.c \
-    lutmap.c \
-    mapping.c \
-    mathmap.c \
-    matrixmap.c \
-    memory.c \
-    moc.c \
-    mocchan.c \
-    normmap.c \
-    nullregion.c \
-    object.c \
-    pcdmap.c \
-    permmap.c \
-    plot.c \
-    plot3d.c \
-    pointlist.c \
-    pointset.c \
-    polygon.c \
-    polymap.c \
-    prism.c \
-    ratemap.c \
-    region.c \
-    selectormap.c \
-    shiftmap.c \
-    skyaxis.c \
-    skyframe.c \
-    slamap.c \
-    specfluxframe.c \
-    specframe.c \
-    specmap.c \
-    sphmap.c \
-    stc.c \
-    stccatalogentrylocation.c \
-    stcobsdatalocation.c \
-    stcresourceprofile.c \
-    stcschan.c \
-    stcsearchlocation.c \
-    switchmap.c \
-    table.c \
-    timeframe.c \
-    timemap.c \
-    tranmap.c \
-    unit.c \
-    unitmap.c \
-    unitnormmap.c \
-    wcsmap.c \
-    winmap.c \
-    xml.c \
-    xmlchan.c \
-    xphmap.c \
-    zoommap.c
+    src/axis.c \
+    src/box.c \
+    src/channel.c \
+    src/chebymap.c \
+    src/circle.c \
+    src/cmpframe.c \
+    src/cmpmap.c \
+    src/cmpregion.c \
+    src/dsbspecframe.c \
+    src/dssmap.c \
+    src/ellipse.c \
+    src/error.c \
+    src/fitschan.c \
+    src/fitstable.c \
+    src/fluxframe.c \
+    src/frame.c \
+    src/frameset.c \
+    src/globals.c \
+    src/grismmap.c \
+    src/interval.c \
+    src/intramap.c \
+    src/keymap.c \
+    src/loader.c \
+    src/lutmap.c \
+    src/mapping.c \
+    src/mathmap.c \
+    src/matrixmap.c \
+    src/memory.c \
+    src/moc.c \
+    src/mocchan.c \
+    src/normmap.c \
+    src/nullregion.c \
+    src/object.c \
+    src/pcdmap.c \
+    src/permmap.c \
+    src/plot.c \
+    src/plot3d.c \
+    src/pointlist.c \
+    src/pointset.c \
+    src/polygon.c \
+    src/polymap.c \
+    src/prism.c \
+    src/ratemap.c \
+    src/region.c \
+    src/selectormap.c \
+    src/shiftmap.c \
+    src/skyaxis.c \
+    src/skyframe.c \
+    src/slamap.c \
+    src/specfluxframe.c \
+    src/specframe.c \
+    src/specmap.c \
+    src/sphmap.c \
+    src/stc.c \
+    src/stccatalogentrylocation.c \
+    src/stcobsdatalocation.c \
+    src/stcresourceprofile.c \
+    src/stcschan.c \
+    src/stcsearchlocation.c \
+    src/switchmap.c \
+    src/table.c \
+    src/timeframe.c \
+    src/timemap.c \
+    src/tranmap.c \
+    src/unit.c \
+    src/unitmap.c \
+    src/unitnormmap.c \
+    src/wcsmap.c \
+    src/winmap.c \
+    src/xml.c \
+    src/xmlchan.c \
+    src/xphmap.c \
+    src/zoommap.c
 
 
 # The C source files required for the Fortran interface
 if !NOFORTRAN
 F_C_ROUTINES = \
-    c2f77.c \
-    fbox.c \
-    fchannel.c \
-    fchebymap.c \
-    fcircle.c \
-    fcmpframe.c \
-    fcmpmap.c \
-    fcmpregion.c \
-    fdsbspecframe.c \
-    fdssmap.c \
-    fellipse.c \
-    ferror.c \
-    ffitschan.c \
-    ffitstable.c \
-    ffluxframe.c \
-    fframe.c \
-    fframeset.c \
-    fgrismmap.c \
-    finterval.c \
-    fintramap.c \
-    fkeymap.c \
-    flutmap.c \
-    fmapping.c \
-    fmathmap.c \
-    fmatrixmap.c \
-    fmoc.c \
-    fmocchan.c \
-    fnormmap.c \
-    fnullregion.c \
-    fobject.c \
-    fpcdmap.c \
-    fpermmap.c \
-    fplot.c \
-    fplot3d.c \
-    fpointlist.c \
-    fpolygon.c \
-    fpolymap.c \
-    fprism.c \
-    fratemap.c \
-    fregion.c \
-    fselectormap.c \
-    fshiftmap.c \
-    fskyframe.c \
-    fslamap.c \
-    fspecfluxframe.c \
-    fspecframe.c \
-    fspecmap.c \
-    fsphmap.c \
-    fstc.c \
-    fstccatalogentrylocation.c \
-    fstcobsdatalocation.c \
-    fstcresourceprofile.c \
-    fstcschan.c \
-    fstcsearchlocation.c \
-    fswitchmap.c \
-    ftable.c \
-    ftimeframe.c \
-    ftimemap.c \
-    ftranmap.c \
-    funitmap.c \
-    funitnormmap.c \
-    fwcsmap.c \
-    fwinmap.c \
-    fxmlchan.c \
-    fzoommap.c
+    src/c2f77.c \
+    src/fbox.c \
+    src/fchannel.c \
+    src/fchebymap.c \
+    src/fcircle.c \
+    src/fcmpframe.c \
+    src/fcmpmap.c \
+    src/fcmpregion.c \
+    src/fdsbspecframe.c \
+    src/fdssmap.c \
+    src/fellipse.c \
+    src/ferror.c \
+    src/ffitschan.c \
+    src/ffitstable.c \
+    src/ffluxframe.c \
+    src/fframe.c \
+    src/fframeset.c \
+    src/fgrismmap.c \
+    src/finterval.c \
+    src/fintramap.c \
+    src/fkeymap.c \
+    src/flutmap.c \
+    src/fmapping.c \
+    src/fmathmap.c \
+    src/fmatrixmap.c \
+    src/fmoc.c \
+    src/fmocchan.c \
+    src/fnormmap.c \
+    src/fnullregion.c \
+    src/fobject.c \
+    src/fpcdmap.c \
+    src/fpermmap.c \
+    src/fplot.c \
+    src/fplot3d.c \
+    src/fpointlist.c \
+    src/fpolygon.c \
+    src/fpolymap.c \
+    src/fprism.c \
+    src/fratemap.c \
+    src/fregion.c \
+    src/fselectormap.c \
+    src/fshiftmap.c \
+    src/fskyframe.c \
+    src/fslamap.c \
+    src/fspecfluxframe.c \
+    src/fspecframe.c \
+    src/fspecmap.c \
+    src/fsphmap.c \
+    src/fstc.c \
+    src/fstccatalogentrylocation.c \
+    src/fstcobsdatalocation.c \
+    src/fstcresourceprofile.c \
+    src/fstcschan.c \
+    src/fstcsearchlocation.c \
+    src/fswitchmap.c \
+    src/ftable.c \
+    src/ftimeframe.c \
+    src/ftimemap.c \
+    src/ftranmap.c \
+    src/funitmap.c \
+    src/funitnormmap.c \
+    src/fwcsmap.c \
+    src/fwinmap.c \
+    src/fxmlchan.c \
+    src/fzoommap.c
 else
 F_C_ROUTINES =
 endif
@@ -153,116 +153,116 @@ endif
 # Header files which contribute to the "ast.h" file, organised to correspond
 # with the class hierarchy.
 AST_H_FILES = \
-    xml.h \
-    wcstrig.h \
-    proj.h \
-    memory.h \
-    error.h \
-    globals.h \
-    unit.h \
+    src/xml.h \
+    wcslib/wcstrig.h \
+    wcslib/proj.h \
+    src/memory.h \
+    src/error.h \
+    src/globals.h \
+    src/unit.h \
     ast_err.h \
-    version.h \
-    object.h \
-       keymap.h \
-          table.h \
-             fitstable.h \
-       pointset.h \
-       axis.h \
-          skyaxis.h \
-       mapping.h \
-          cmpmap.h \
-          dssmap.h \
-          grismmap.h \
-          intramap.h \
-          lutmap.h \
-          mathmap.h \
-          matrixmap.h \
-          pcdmap.h \
-          permmap.h \
-          polymap.h \
-             chebymap.h \
-          ratemap.h \
-          normmap.h \
-          shiftmap.h \
-          slamap.h \
-          specmap.h \
-          sphmap.h \
-          timemap.h \
-          selectormap.h \
-          switchmap.h \
-          tranmap.h \
-          unitmap.h \
-          unitnormmap.h \
-          wcsmap.h \
-          winmap.h \
-          xphmap.h \
-          zoommap.h \
-          frame.h \
-             cmpframe.h \
-                specfluxframe.h \
-             fluxframe.h \
-             frameset.h \
-                plot.h \
-                   plot3d.h \
-             skyframe.h \
-             specframe.h \
-                dsbspecframe.h \
-             region.h \
-                box.h \
-                circle.h \
-                cmpregion.h \
-                ellipse.h \
-                interval.h \
-                moc.h \
-                nullregion.h \
-                pointlist.h \
-                polygon.h \
-                prism.h \
-                stc.h \
-                    stcresourceprofile.h \
-                    stcsearchlocation.h \
-                    stccatalogentrylocation.h \
-                    stcobsdatalocation.h \
-             timeframe.h \
-       channel.h \
-          fitschan.h \
-          mocchan.h \
-          stcschan.h \
-          xmlchan.h
+    src/version.h \
+    src/object.h \
+       src/keymap.h \
+          src/table.h \
+             src/fitstable.h \
+       src/pointset.h \
+       src/axis.h \
+          src/skyaxis.h \
+       src/mapping.h \
+          src/cmpmap.h \
+          src/dssmap.h \
+          src/grismmap.h \
+          src/intramap.h \
+          src/lutmap.h \
+          src/mathmap.h \
+          src/matrixmap.h \
+          src/pcdmap.h \
+          src/permmap.h \
+          src/polymap.h \
+          src/chebymap.h \
+          src/ratemap.h \
+          src/normmap.h \
+          src/shiftmap.h \
+          src/slamap.h \
+          src/specmap.h \
+          src/sphmap.h \
+          src/timemap.h \
+          src/selectormap.h \
+          src/switchmap.h \
+          src/tranmap.h \
+          src/unitmap.h \
+          src/unitnormmap.h \
+          src/wcsmap.h \
+          src/winmap.h \
+          src/xphmap.h \
+          src/zoommap.h \
+          src/frame.h \
+             src/cmpframe.h \
+                 src/specfluxframe.h \
+             src/fluxframe.h \
+             src/frameset.h \
+                 src/plot.h \
+                     src/plot3d.h \
+             src/skyframe.h \
+             src/specframe.h \
+                 src/dsbspecframe.h \
+             src/region.h \
+                src/box.h \
+                src/circle.h \
+                src/cmpregion.h \
+                src/ellipse.h \
+                src/interval.h \
+                src/moc.h \
+                src/nullregion.h \
+                src/pointlist.h \
+                src/polygon.h \
+                src/prism.h \
+                src/stc.h \
+                   src/stcresourceprofile.h \
+                   src/stcsearchlocation.h \
+                   src/stccatalogentrylocation.h \
+                   src/stcobsdatalocation.h \
+             src/timeframe.h \
+       src/channel.h \
+          src/fitschan.h \
+          src/mocchan.h \
+          src/stcschan.h \
+          src/xmlchan.h
 
 # All the (C) include files required to build the library.
 GRP_C_INCLUDE_FILES = \
     $(AST_H_FILES) \
-    ems.h \
-    err.h \
-    Ers.h \
-    f77.h \
-    grf.h \
-    grf3d.h \
-    pg3d.h \
-    loader.h \
-    pal2ast.h \
-    skyaxis.h \
-    erfa2ast.h \
-    stc.h \
-    stcresourceprofile.h \
-    stcsearchlocation.h \
-    stccatalogentrylocation.h \
-    stcobsdatalocation.h \
-    wcsmath.h \
-    wcstrig.h \
-    xmlchan.h
+    src/ems.h \
+    src/err.h \
+    src/Ers.h \
+    src/f77.h \
+    src/grf.h \
+    src/grf3d.h \
+    src/pg3d.h \
+    src/loader.h \
+    src/pal2ast.h \
+    src/skyaxis.h \
+    src/erfa2ast.h \
+    src/stc.h \
+    src/stcresourceprofile.h \
+    src/stcsearchlocation.h \
+    src/stccatalogentrylocation.h \
+    src/stcobsdatalocation.h \
+    wcslib/wcsmath.h \
+    wcslib/wcstrig.h \
+    src/xmlchan.h
 
 if !NOFORTRAN
 F_C_INCLUDE_FILES = \
-    c2f77.h
+    src/c2f77.h
 
 # The following list should include AST_PAR, but that must not be
 # distributed, and so it is listed separately in
 # nodist_libast_la_SOURCES below.
 GRP_F_INCLUDE_FILES = \
-    GRF_PAR \
-    AST_ERR
+    src/GRF_PAR \
+    src/ST_ERR
 
 else
 F_C_INCLUDE_FILES =
@@ -276,14 +276,14 @@ endif
 # the pgplot to always error if used.
 if !NOFORTRAN
 GRF_PGPLOT_SOURCES = \
-    grf_pgplot.c
+    src/grf_pgplot.c
 GRF3D_PGPLOT_SOURCES = \
-    grf3d_pgplot.c
+    src/grf3d_pgplot.c
 else
 GRF_PGPLOT_SOURCES = \
-    grf_5.6.c
+    src/grf_5.6.c
 GRF3D_PGPLOT_SOURCES = \
-    grf3d.c
+    src/grf3d.c
 endif
 
 
@@ -322,12 +322,12 @@ PDF_FIGURES = \
     simpexamp.pdf
 
 WCSLIB_FILES = \
-    proj.c \
-    tpn.c \
-    proj.h \
-    wcstrig.c \
-    wcsmath.h \
-    wcstrig.h
+    wcslib/proj.c \
+    wcslib/tpn.c \
+    wcslib/proj.h \
+    wcslib/wcstrig.c \
+    wcslib/wcsmath.h \
+    wcslib/wcstrig.h
 
 STAR_PAL_FILES = \
     pal/pal.h \
@@ -593,7 +593,7 @@ dist_noinst_SCRIPTS = makeh
 # Headers required by library users.  Both of the following lines
 # indicate headers which are installed.
 cincludedir = $(includedir)/star
-cinclude_HEADERS = GRF_PAR grf.h grf3d.h
+cinclude_HEADERS = GRF_PAR src/grf.h src/grf3d.h
 # Following are generated, so should not be distributed.
 nodist_cinclude_HEADERS = ast.h AST_PAR
 include_MESSAGES = AST_ERR ast_err.h
@@ -603,7 +603,7 @@ include_MESSAGES = AST_ERR ast_err.h
 # "star/ast.h"'. Note, currently _MESSAGES files must be installed in
 # the main include directory.
 if TOPINCLUDE
-include_HEADERS = GRF_PAR grf.h grf3d.h
+include_HEADERS = GRF_PAR src/grf.h src/grf3d.h
 nodist_include_HEADERS = ast.h AST_PAR
 endif
 
@@ -691,35 +691,35 @@ nodist_libast_la_SOURCES = \
     AST_PAR
 
 #  The default error reporting module.
-libast_err_la_SOURCES = err_null.c
+libast_err_la_SOURCES = src/err_null.c
 libast_err_la_LDFLAGS = -version-info @version_info@
 
 #  The error reporting module that uses EMS to deliver errors.
-libast_ems_la_SOURCES = err_ems.c
+libast_ems_la_SOURCES = src/err_ems.c
 libast_ems_la_LDFLAGS = -version-info @version_info@
 
 #  The error reporting module that uses DRAMA Ers to deliver errors.
-libast_drama_la_SOURCES = err_drama.c
+libast_drama_la_SOURCES = src/err_drama.c
 libast_drama_la_LDFLAGS = -version-info @version_info@
 
 #  The module containing null implementations of the 3D graphics routines
 #  required by AST
-libast_grf3d_la_SOURCES = grf3d.c
+libast_grf3d_la_SOURCES = src/grf3d.c
 libast_grf3d_la_LDFLAGS = -version-info @version_info@
 
 #  The module containing null implementations of the graphics routines
 #  required by AST V2.0
-libast_grf_2_0_la_SOURCES = grf_2.0.c
+libast_grf_2_0_la_SOURCES = src/grf_2.0.c
 libast_grf_2_0_la_LDFLAGS = -version-info @version_info@
 
 #  The module containing null implementations of the graphics routines
 #  added by AST V3.2 and not present in V2.0
-libast_grf_3_2_la_SOURCES = grf_3.2.c
+libast_grf_3_2_la_SOURCES = src/grf_3.2.c
 libast_grf_3_2_la_LDFLAGS = -version-info @version_info@
 
 #  The module containing null implementations of the graphics routines
 #  added by AST V5.6 and not present in V3.2
-libast_grf_5_6_la_SOURCES = grf_5.6.c
+libast_grf_5_6_la_SOURCES = src/grf_5.6.c
 libast_grf_5_6_la_LDFLAGS = -version-info @version_info@
 
 #  The graphics module that uses PGPLOT for 2D graphical output.
@@ -735,7 +735,7 @@ libast_pal_la_SOURCES = $(PAL_FILES)
 libast_pal_la_LDFLAGS = -version-info @version_info@
 
 # The following files are built by the targets in this makefile.
-MAINTAINERCLEANFILES = version.h builddocs addversion \
+MAINTAINERCLEANFILES = src/version.h builddocs addversion \
 	ast.h $(DOCUMENTATION_PRODUCTS)
 CLEANFILES = AST_PAR ast.h
 
@@ -747,7 +747,7 @@ CLEANFILES = AST_PAR ast.h
 # and ast_par.source must be distributed (the generation of the
 # AST__BAD value must be done on the build host) but not installed.
 noinst_PROGRAMS = astbad
-astbad_SOURCES = astbad.c pointset.h
+astbad_SOURCES = src/astbad.c src/pointset.h
 AST_PAR: ast_par.source astbad
 	sed -e 's/<AST__BAD>/'`./astbad AST__BAD | tr 'E' 'D'`'/' \
 	    -e 's/<AST__NAN>/'`./astbad AST__NAN | tr 'E' 'D'`'/' \
@@ -781,7 +781,7 @@ ast.h: $(AST_H_FILES) ast_err.h makeh config.h
 #
 # version.h is included by object.h, and thus indirectly by most modules.
 # It's most straightforward to build it at the beginning.
-BUILT_SOURCES = AST_ERR ast_err.h version.h
+BUILT_SOURCES = AST_ERR ast_err.h src/version.h
 
 #  Form a second link to the main object library (static and shared). This
 #  is used when a second pass through the library is needed during linking
@@ -818,8 +818,8 @@ install-exec-hook: libast.la
 @PREDIST@    -e 's,@PERL\@,$(PERL),' \
 @PREDIST@    -e 's,@STARLINK\@,$(STARLINK),'
 
-@PREDIST@version.h: version.h.in configure.ac
-@PREDIST@	rm -f $@; $(predist_subs) version.h.in >$@
+@PREDIST@src/version.h: src/version.h.in configure.ac
+@PREDIST@	rm -f $@; $(predist_subs) src/version.h.in >$@
 @PREDIST@builddocs: builddocs.in configure.ac
 @PREDIST@	rm -f $@; $(predist_subs) builddocs.in >$@; chmod +x $@
 @PREDIST@addversion: addversion.in configure.ac

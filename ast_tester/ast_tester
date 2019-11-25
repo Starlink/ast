@@ -85,7 +85,7 @@ end
 
 
 foreach prog (testobject testconvert testerror)
-   gcc -o $prog $prog.c -I.. -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK_DIR/lib \
+   gcc -o $prog $prog.c -I.. -I../src -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK_DIR/lib \
          -I$STARLINK_DIR/include `ast_link`
 
    ./$prog

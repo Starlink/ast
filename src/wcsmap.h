@@ -273,8 +273,7 @@
 /* Interface definitions. */
 /* ---------------------- */
 #include "mapping.h"             /* Coordinate mappings (parent class) */
-#include "proj.h"                /* Mark Calabretta's WCSLIB library header
-                                    file */
+#include "../wcslib/proj.h"      /* Mark Calabretta's WCSLIB library */
 
 #if defined(astCLASS)            /* Protected */
 #include "pointset.h"            /* Sets of points/coordinates */

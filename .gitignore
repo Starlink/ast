@@ -7,13 +7,10 @@
 /ast_link_adam
 /ast_test
 /builddocs
-/f77.h
-/object.h
 /sun210.tex
 /sun210.pdf
 /sun211.tex
 /sun211.pdf
-/version.h
 /*.trs
 *.safe
 *.lo
@@ -63,3 +60,10 @@ make.log.err
 /ast_tester/fred.tmp
 /ast_tester/fred.txt
 /ast_tester/fred2.txt
+/ast_tester/draw3d
+wcslib/.dirstamp
+src/.dirstamp
+src/f77.h
+src/object.h
+src/version.h
+

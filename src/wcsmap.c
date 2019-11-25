@@ -627,7 +627,7 @@ int astTest##attr##_( AstWcsMap *this, int axis, int *status ) { \
 #include "wcsmap.h"              /* Interface definition for this class */
 #include "pal.h"                 /* SLALIB function prototypes */
 #include "channel.h"             /* I/O channels */
-#include "proj.h"                /* WCSLIB projections and WCSLIB_MXPAR */
+#include "../wcslib/proj.h"      /* WCSLIB projections and WCSLIB_MXPAR */
 
 /* Error code definitions. */
 /* ----------------------- */

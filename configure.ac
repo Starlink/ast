@@ -9,7 +9,7 @@ dnl   automake 1.6 or better.
 dnl   Initialisation: package name and version number
 m4_define([v_maj], [9])
 m4_define([v_min], [0])
-m4_define([v_mic], [2])
+m4_define([v_mic], [3])
 m4_define([project_version], [v_maj.v_min.v_mic])
 AC_INIT([ast],[project_version],[starlink@jiscmail.ac.uk])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -257,14 +257,14 @@ STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
 
 AC_CONFIG_HEADERS(config.h)
 
-AC_CONFIG_FILES(Makefile component.xml ast_link ast_link_adam object.h)
+AC_CONFIG_FILES(Makefile component.xml ast_link ast_link_adam src/object.h)
 if test "$use_fortran" = "1"; then
-AC_CONFIG_FILES(f77.h)
+AC_CONFIG_FILES(src/f77.h)
 fi
 
 AC_CONFIG_FILES([ast_cpp], [chmod +x ast_cpp])
 #   Following are files which are substituted by the Makefile at
 #   distribution time, rather than by configure.  They are not distributed.
-STAR_PREDIST_SOURCES(version.h.in builddocs.in addversion.in)
+STAR_PREDIST_SOURCES(src/version.h.in builddocs.in addversion.in)
 
 AC_OUTPUT

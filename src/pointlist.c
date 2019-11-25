@@ -180,18 +180,18 @@ AstPointList *astPointListId_( void *, int, int, int, const double *, void *, co
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
-static int MaskLD( AstRegion *, AstMapping *, int, int, const int[], const int ubnd[], long double [], long double, int * );
+static AstDim MaskLD( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim ubnd[], long double [], long double, int * );
 #endif
-static int MaskB( AstRegion *, AstMapping *, int, int, const int[], const int[], signed char[], signed char, int * );
-static int MaskD( AstRegion *, AstMapping *, int, int, const int[], const int[], double[], double, int * );
-static int MaskF( AstRegion *, AstMapping *, int, int, const int[], const int[], float[], float, int * );
-static int MaskI( AstRegion *, AstMapping *, int, int, const int[], const int[], int[], int, int * );
-static int MaskL( AstRegion *, AstMapping *, int, int, const int[], const int[], long int[], long int, int * );
-static int MaskS( AstRegion *, AstMapping *, int, int, const int[], const int[], short int[], short int, int * );
-static int MaskUB( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned char[], unsigned char, int * );
-static int MaskUI( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned int[], unsigned int, int * );
-static int MaskUL( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned long int[], unsigned long int, int * );
-static int MaskUS( AstRegion *, AstMapping *, int, int, const int[], const int[], unsigned short int[], unsigned short int, int * );
+static AstDim MaskB( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], signed char[], signed char, int * );
+static AstDim MaskD( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], double[], double, int * );
+static AstDim MaskF( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], float[], float, int * );
+static AstDim MaskI( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], int[], int, int * );
+static AstDim MaskL( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], long int[], long int, int * );
+static AstDim MaskS( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], short int[], short int, int * );
+static AstDim MaskUB( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned char[], unsigned char, int * );
+static AstDim MaskUI( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned int[], unsigned int, int * );
+static AstDim MaskUL( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned long int[], unsigned long int, int * );
+static AstDim MaskUS( AstRegion *, AstMapping *, int, int, const AstDim[], const AstDim[], unsigned short int[], unsigned short int, int * );
 
 static AstMapping *Simplify( AstMapping *, int * );
 static AstPointSet *RegBaseMesh( AstRegion *, int * );
@@ -791,29 +791,29 @@ void astInitPointListVtab_(  AstPointListVtab *vtab, const char *name,
 /* Define a macro to implement the function for a specific data
    type. */
 #define MAKE_MASK(X,Xtype) \
-static int Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
-                    const int lbnd[], const int ubnd[], \
-                    Xtype in[], Xtype val, int *status ) { \
+static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
+                       const AstDim lbnd[], const AstDim ubnd[], \
+                       Xtype in[], Xtype val, int *status ) { \
 \
 /* Local Variables: */ \
+   AstDim *iv;                   /* Pointer to index array */ \
+   AstDim i;                     /* Point index */ \
+   AstDim ii;                    /* Vectorised point index */ \
+   AstDim npnt;                  /* Number of points in PointList */ \
+   AstDim result;                /* Result value to return */ \
+   AstDim vlen;                  /* Length of vectorised array */ \
    AstFrame *grid_frame;         /* Pointer to Frame describing grid coords */ \
    AstPointSet *pset1;           /* Pointer to base Frame positions */ \
    AstPointSet *pset2;           /* Pointer to current Frame positions */ \
    AstRegion *used_region;       /* Pointer to Region to be used by astResample */ \
    Xtype *temp;                  /* Pointer to temp storage for retained points */ \
    double **ptr2;                /* Pointer to pset2 data values */ \
-   int *iv;                      /* Pointer to index array */ \
-   int i;                        /* Point index */ \
    int idim;                     /* Loop counter for coordinate dimensions */ \
-   int ii;                       /* Vectorised point index */ \
    int j;                        /* Axis index */ \
    int nax;                      /* Number of Region axes */ \
    int negated;                  /* Has Region been negated? */ \
    int nin;                      /* Number of Mapping input coordinates */ \
    int nout;                     /* Number of Mapping output coordinates */ \
-   int npnt;                     /* Number of points in PointList */ \
-   int result;                   /* Result value to return */ \
-   int vlen;                     /* Length of vectorised array */ \
 \
 /* Initialise. */ \
    result = 0; \

@@ -283,7 +283,7 @@
 #include <stdlib.h>
 #include "wcsmath.h"
 #include "wcstrig.h"
-#include "memory.h"
+#include "../src/memory.h"
 #include "proj.h"
 
 /* Following variables are not needed in AST and are commented out to

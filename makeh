@@ -270,6 +270,12 @@ line: while ( <INCLUDE> ) {
          s/^/_/;
       }
 
+#  Detect '#include "..."' lines, removing any directory path.
+      if ( ( $header ) = /^\#include\s+"(.+)"/ ) {
+         $header =~ s|^.*/||;
+         $_ = "#include \"$header\"\n"
+      }
+
 #  Also protect "#define ..." and "#undef ..." lines, to prevent macro substitution
 #  being performed by the C preprocessor. Do not do this to lines of the form
 #  "#define XXX_INCLUDED" because these are still needed to determine which
