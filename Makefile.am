@@ -233,6 +233,8 @@ AST_H_FILES = \
 # All the (C) include files required to build the library.
 GRP_C_INCLUDE_FILES = \
     $(AST_H_FILES) \
+    pal2ast.h \
+    erfa2ast.h \
     src/ems.h \
     src/err.h \
     src/Ers.h \
@@ -241,9 +243,7 @@ GRP_C_INCLUDE_FILES = \
     src/grf3d.h \
     src/pg3d.h \
     src/loader.h \
-    src/pal2ast.h \
     src/skyaxis.h \
-    src/erfa2ast.h \
     src/stc.h \
     src/stcresourceprofile.h \
     src/stcsearchlocation.h \
@@ -261,8 +261,8 @@ F_C_INCLUDE_FILES = \
 # distributed, and so it is listed separately in
 # nodist_libast_la_SOURCES below.
 GRP_F_INCLUDE_FILES = \
-    src/GRF_PAR \
-    src/ST_ERR
+    GRF_PAR \
+    AST_ERR
 
 else
 F_C_INCLUDE_FILES =
