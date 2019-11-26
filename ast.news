@@ -21,6 +21,8 @@ Main Changes in this Version
 - The AST source directory has been reorganised to put most of the AST
 source files into a subdirectory named "src".
 
+- A bug has been fixed in the TimeFrame class that caused the time
+returned by astCurrentTime to be wrong by 37 seconds.
 
 Main Changes in V9.0.2
 ----------------------

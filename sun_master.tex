@@ -22011,10 +22011,6 @@ in conjunction with the TabOK attribute to force the use of the
 
 \end{enumerate}
 
-Programs which are statically linked will need to be re-linked in
-order to take advantage of these new facilities.
-
-
 
 \subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
 Introduced in V9.0.3}
@@ -22025,6 +22021,13 @@ current version):
 \begin{enumerate}
 \item The AST source directory has been reorganised to put most of the AST
 source files into a subdirectory named ``src''.
+
+\item A bug has been fixed in the TimeFrame class that caused the time
+returned by astCurrentTime to be wrong by 37 seconds.
+
 \end{enumerate}
+
+Programs which are statically linked will need to be re-linked in
+order to take advantage of these new facilities.
 
 \end{document}

@@ -172,6 +172,9 @@ f     - AST_CURRENTTIME: Return the current system time
 *        - Added macro to test floating point equality and used it for Dtai.
 *     27-APR-2017 (DSB):
 *        Conversions between TT and TDB now require DTAI as an argument.
+*     26-NOV-2019 (DSB):
+*        The system time is in the UTC timescale, not TAI. This caused the 
+*        astCurrentTime method to be 37 seconds out.
 *class--
 */
 
@@ -306,10 +309,6 @@ static void (* parent_overlay)( AstFrame *, const int *, AstFrame *, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
 static void (* parent_setsystem)( AstFrame *, AstSystemType, int * );
 static void (* parent_setunit)( AstFrame *, int, const char *, int * );
-
-/* The Unix epoch (00:00:00 UTC 1 January 1970 AD) as an absolute MJD in
-   the TAI timescale. */
-static double tai_epoch;
 
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
@@ -1193,11 +1192,11 @@ f     invoked with STATUS set to an error value, or if it should fail for
 /* Check the global error status. */
    if ( !astOK ) return result;
 
-/* Get a Mapping from the system time (TAI seconds relative to "tai_epoch")
+/* Get a Mapping from the system time (UTC seconds relative to "UNIX_EPOCH")
    to the system represented by the supplied TimeFrame. */
    map = MakeMap( this, AST__MJD, astGetSystem( this ),
-                  AST__TAI, astGetTimeScale( this ),
-                  tai_epoch, astGetTimeOrigin( this ),
+                  AST__UTC, astGetTimeScale( this ),
+                  UNIX_EPOCH, astGetTimeOrigin( this ),
                   "s", astGetUnit( this, 0 ), "astCurrentTime", status );
    if( !map ) {
       astError( AST__INCTS, "astCurrentTime(%s): Cannot convert the "
@@ -3365,7 +3364,6 @@ void astInitTimeFrameVtab_(  AstTimeFrameVtab *vtab, const char *name, int *stat
    AstFrameVtab *frame;          /* Pointer to Frame component of Vtab */
    AstMapping *map;              /* Temporary Maping */
    AstObjectVtab *object;        /* Pointer to Object component of Vtab */
-   double utc_epoch;             /* Unix epoch as a UTC MJD */
 
 /* Check the local error status. */
    if ( !astOK ) return;
@@ -3495,15 +3493,6 @@ void astInitTimeFrameVtab_(  AstTimeFrameVtab *vtab, const char *name, int *stat
    function. */
    astSetDump( vtab, Dump, "TimeFrame",
                "Description of time coordinate system" );
-
-/* Convert the Unix Epoch (00:00:00 UTC 1 January 1970 AD) from UTC to TAI. */
-   LOCK_MUTEX2
-   map = MakeMap( NULL, AST__MJD, AST__MJD, AST__UTC, AST__TAI,
-                  0.0, 0.0, "d", "d", "astInitTimeFrameVtab", status );
-   utc_epoch = UNIX_EPOCH;
-   astTran1( map, 1, &utc_epoch, 1, &tai_epoch );
-   map = astAnnul( map );
-   UNLOCK_MUTEX2
 
 /* If we have just initialised the vtab for the current class, indicate
    that the vtab is now initialised, and store a pointer to the class
