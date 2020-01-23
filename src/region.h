@@ -120,6 +120,7 @@ typedef struct AstRegionVtab {
 /* Properties (e.g. methods) specific to this class. */
    int (* Overlap)( AstRegion *, AstRegion *, int * );
    int (* OverlapX)( AstRegion *, AstRegion *, int * );
+   int (* PointInRegion)( AstRegion *, const double *, int * );
    AstRegion *(* MapRegion)( AstRegion *, AstMapping *, AstFrame *, int * );
    AstFrame *(* GetRegionFrame)( AstRegion *, int * );
    AstFrameSet *(* GetRegionFrameSet)( AstRegion *, int * );
@@ -255,6 +256,7 @@ AstFrame *astGetRegionFrame_( AstRegion *, int * );
 AstFrameSet *astGetRegionFrameSet_( AstRegion *, int * );
 int astOverlap_( AstRegion *, AstRegion *, int * );
 void astNegate_( AstRegion *, int * );
+int astPointInRegion_( AstRegion *, const double *, int * );
 
 #if HAVE_LONG_DOUBLE     /* Not normally implemented */
 int astMask4LD_( AstRegion *, AstMapping *, int, int, const int[], const int[], long double [], long double, int * );
@@ -476,6 +478,8 @@ astINVOKE(O,astGetRegionFrameSet_(astCheckRegion(this),STATUS_PTR))
 astINVOKE(V,astNegate_(astCheckRegion(this),STATUS_PTR))
 #define astOverlap(this,that) \
 astINVOKE(V,astOverlap_(astCheckRegion(this),astCheckRegion(that),STATUS_PTR))
+#define astPointInRegion(this,point) \
+astINVOKE(V,astPointInRegion_(astCheckRegion(this),point,STATUS_PTR))
 #define astSetUnc(this,unc) astINVOKE(V,astSetUnc_(astCheckRegion(this),unc?astCheckRegion(unc):NULL,STATUS_PTR))
 #define astGetUnc(this,def) astINVOKE(O,astGetUnc_(astCheckRegion(this),def,STATUS_PTR))
 #define astGetRegionBounds(this,lbnd,ubnd) astINVOKE(V,astGetRegionBounds_(astCheckRegion(this),lbnd,ubnd,STATUS_PTR))

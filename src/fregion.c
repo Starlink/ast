@@ -21,6 +21,7 @@
 *     AST_GETREGIONFRAME
 *     AST_GETREGIONFRAMESET
 *     AST_OVERLAP
+*     AST_POINTINREGION
 *     AST_SETUNC
 *     AST_GETUNC
 *     AST_SHOWMESH
@@ -171,6 +172,20 @@ F77_INTEGER_FUNCTION(ast_overlap)( INTEGER(THIS),
    astAt( "AST_OVERLAP", NULL, 0 );
    astWatchSTATUS(
       RESULT = astOverlap( astI2P( *THIS ), astI2P( *THAT ) );
+   )
+   return RESULT;
+}
+
+F77_LOGICAL_FUNCTION(ast_pointinregion)( INTEGER(THIS),
+                                         DOUBLE_ARRAY(POINT),
+                                         INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_DOUBLE(POINT)
+   F77_LOGICAL_TYPE(RESULT);
+
+   astAt( "AST_POINTINREGION", NULL, 0 );
+   astWatchSTATUS(
+      RESULT = astPointInRegion( astI2P( *THIS ), POINT ) ? F77_TRUE : F77_FALSE;
    )
    return RESULT;
 }

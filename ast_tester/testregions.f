@@ -193,7 +193,7 @@ c      call ast_watchmemory( 282905 )
       integer status, frm1, frm2, frm3, unc, int1, int2, int3, int4,
      :        int5, frm4, map, outperm(6), inperm(6), pm, reg
       double precision lbnd(3), ubnd(3), p(5,3), q(5,3),in(4,3),out(4,3)
-      double precision xin(9), yin(9), xout(9), yout(9)
+      double precision xin(9), yin(9), xout(9), yout(9), point(3)
 
       logical hasframeset
 
@@ -260,6 +260,20 @@ c      call ast_watchmemory( 282905 )
       if( q(5,1) .ne. AST__BAD ) call stopit( status, 'Interval 5' )
       if( q(5,2) .ne. AST__BAD ) call stopit( status, 'Interval 5b' )
       if( q(5,3) .ne. AST__BAD ) call stopit( status, 'Interval 5c' )
+
+      point(1) = p(1,1)
+      point(2) = p(1,2)
+      point(3) = p(1,3)
+      if( .not. ast_pointinregion( int1, point, status ) ) then
+         call stopit( status, 'Interval 5d' )
+      end if
+
+      point(1) = p(5,1)
+      point(2) = p(5,2)
+      point(3) = p(5,3)
+      if( ast_pointinregion( int1, point, status ) ) then
+         call stopit( status, 'Interval 5e' )
+      end if
 
       call ast_negate( int1, status )
       call ast_trann( int1, 5, 3, 5, p, .true., 3, 5, q, status )

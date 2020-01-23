@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.0.3) of the Starlink AST (astrometry) library is
+   A new release (V9.1.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -14,7 +14,6 @@ celestial coordinate systems. AST is portable and
 environment-independent.
 
 
-
 Main Changes in this Version
 ----------------------------
 
@@ -24,6 +23,10 @@ source files into a subdirectory named "src".
 - A bug has been fixed in the TimeFrame class that caused the time
 returned by astCurrentTime to be wrong by 37 seconds.
 
+- The Region class has a new convenience method (astPointInRegion) to
+test a if a single point is inside a Region.
+
+
 Main Changes in V9.0.2
 ----------------------
 
@@ -31,6 +34,7 @@ Main Changes in V9.0.2
 - The FitsChan class has a new attribute called ForceTab, which is used
 in conjunction with the TabOK attribute to force the use of the
 "-TAB" algorithm when writing a FrameSet out using the FITS-WCS encoding.
+
 
 Main Changes in V9.0.0
 ----------------------

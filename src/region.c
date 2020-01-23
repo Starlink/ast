@@ -37,7 +37,10 @@ f     AST_FORMAT routine
 c     astTran<X> functions
 f     AST_TRAN<X> routines
 *     is the way to determine if a given position is inside or outside the
-*     Region. When used as a Mapping, most classes of Frame are equivalent to
+*     Region (but see also the convenience function
+c     astPointInRegion).
+f     AST_POINTINREGION).
+*     When used as a Mapping, most classes of Frame are equivalent to
 *     a UnitMap. However, the Region class modifies this behaviour so that a
 *     Region acts like a UnitMap only for input positions which are within the
 *     area represented by the Region. Input positions which are outside the
@@ -127,6 +130,8 @@ c     - astNegate: Toggle the value of the Negated attribute
 f     - AST_NEGATE: Toggle the value of the Negated attribute
 c     - astOverlap: Determines the nature of the overlap between two Regions
 f     - AST_OVERLAP: Determines the nature of the overlap between two Regions
+c     - astPointInRegion: Test if a single point is inside a Region
+f     - AST_POINTINREGION: Test if a single point is inside a Region
 c     - astMask<X>: Mask a region of a data grid
 f     - AST_MASK<X>: Mask a region of a data grid
 c     - astSetUnc: Associate a new uncertainty with a Region
@@ -138,6 +143,7 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *     Copyright (C) 1997-2006 Council for the Central Laboratory of the
 *     Research Councils
 *     Copyright (C) 2009 Science & Technology Facilities Council.
+*     Copyright (C) 2020 East Asian Observatory
 *     All Rights Reserved.
 
 *  Licence:
@@ -254,6 +260,8 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        regions defiend in cartesian spaces).
 *     24-SEP-2019 (DSB):
 *        Added 8-byte interface for astMask<X>.
+*     23-JAN-2020 (DSB):
+*        Added astPointInRegion.
 *class--
 
 *  Implementation Notes:
@@ -964,6 +972,7 @@ static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], int 
 static int Match( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
 static int Overlap( AstRegion *, AstRegion *, int * );
 static int OverlapX( AstRegion *, AstRegion *, int * );
+static int PointInRegion( AstRegion *, const double *, int * );
 static int RegDummyFS( AstRegion *, int * );
 static int RegPins( AstRegion *, AstPointSet *, AstRegion *, int **, int * );
 static int SubFrame( AstFrame *, AstFrame *, int, const int *, const int *, AstMapping **, AstFrame **, int * );
@@ -4624,6 +4633,7 @@ void astInitRegionVtab_(  AstRegionVtab *vtab, const char *name, int *status ) {
    vtab->GetRegionMesh = GetRegionMesh;
    vtab->GetRegionPoints = GetRegionPoints;
    vtab->GetRegionDisc = GetRegionDisc;
+   vtab->PointInRegion = PointInRegion;
    vtab->RegOverlay = RegOverlay;
    vtab->RegFrame = RegFrame;
    vtab->RegDummyFS = RegDummyFS;
@@ -7632,6 +7642,111 @@ static AstFrame *PickAxes( AstFrame *this_frame, int naxes, const int axes[],
    return frame;
 }
 
+static int PointInRegion( AstRegion *this, const double *point, int *status ){
+/*
+*++
+*  Name:
+c     astPointInRegion
+f     AST_POINTINREGION
+
+*  Purpose:
+*     Tests if a single point is inside a Region.
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+c     #include "region.h"
+c     int astPointInRegion( AstRegion *this, const double point[] )
+f     RESULT = AST_POINTINREGION( THIS, POINT, STATUS )
+
+*  Class Membership:
+*     Region method.
+
+*  Description:
+c     This function
+f     This routine
+*     returns a logical value indicating if a supplied point is inside a
+*     supplied Region.
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the Region.
+c     point
+f     POINT( * ) = DOUBLE PRECISION (Given)
+c        Pointer to an
+f        An
+*        array holding the axis values of the point to be tested. The
+*        number of values in this array should match the number of axes in
+*        the supplied Region.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Returned Value:
+c     astPointInRegion()
+f     AST_POINTINREGION = LOGICAL
+c        Zero if the point is outside the Region, and non-zero otherwise.
+f        .FALSE. if the point is outside the Region, and .TRUE. otherwise.
+
+*  Notes:
+*    - If the supplied value is AST__BAD on every axis, then
+c    0
+f    .FALSE.
+*    is always returned.
+*    - If many points need to be tested, then it is usually more
+*    efficient to use the Region as a Mapping to transform all the
+*    points. This can be done using one of the Mapping transformation
+*    methods
+c    (astTran<X>).
+f    (AST_TRAN<X>).
+*    If a transformed axis value is AST__BAD then the corresponding
+*    input point is outside the Region.
+c    - Zero will be returned if an error occurs.
+f    - .FALSE. will be returned if an error occurs.
+
+*--
+*/
+
+/* Local Variables: */
+   double *out;
+   int i;
+   int naxes;
+   int result;
+
+/* Initialise the radius. */
+   result = 0;
+
+/* Check the inherited status. */
+   if( !astOK ) return result;
+
+/* Get the number of axes in the Region. */
+   naxes = astGetNaxes( this );
+
+/* Allocate an array in which to store the transformed axis values. */
+   out = astMalloc( naxes*sizeof(*out) );
+
+/* Use the Region to transform the supplied position. */
+   astTranN( this, 1, naxes, 1, point, 1, naxes, 1, out );
+
+/* If any good output axis value has been set to AST__BAD, then the point is
+   outside the Region. */
+   if( astOK ) {
+      for( i = 0; i < naxes; i++ ) {
+         if( point[ i ] != AST__BAD ) {
+            if( out[ i ] != AST__BAD ) result = 1;
+            break;
+         }
+      }
+   }
+
+/* Free resources. */
+   out = astFree( out );
+
+/* Return the result */
+   return result;
+}
+
 static void RegBaseBox( AstRegion *this, double *lbnd, double *ubnd, int *status ){
 /*
 *+
@@ -9418,8 +9533,8 @@ f     AST_GETREGIONDisc
 
 *  Synopsis:
 c     #include "region.h"
-c     void GetRegionDisc( AstRegion *this, double centre[3],
-c                         double *radius )
+c     void astGetRegionDisc( AstRegion *this, double centre[3],
+c                            double *radius )
 f     CALL AST_GETREGIONDISC( THIS, CENTRE, RADIUS, STATUS )
 
 *  Class Membership:
@@ -13544,6 +13659,10 @@ double *astRegCentre_( AstRegion *this, double *cen, double **ptr, int index,
                        int ifrm, int *status ){
    if ( !astOK ) return NULL;
    return (**astMEMBER(this,Region,RegCentre))( this, cen, ptr, index, ifrm, status );
+}
+int astPointInRegion_( AstRegion *this, const double *point, int *status ){
+   if ( !astOK ) return 0;
+   return (**astMEMBER(this,Region,PointInRegion))( this, point, status );
 }
 AstRegion *astGetNegation_( AstRegion *this, int *status ){
    if ( !astOK ) return NULL;
