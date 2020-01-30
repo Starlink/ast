@@ -349,6 +349,8 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *        Added dtai to AstSkyLastTable.
 *     10-APR-2017 (GSB):
 *        Added macro to test floating point equality and used it for Dtai.
+*     30-JAN-2020 (DSB):
+*        Reduce the tolerance in LineIncludes from 1E-8 to 1E-10.
 *class--
 */
 
@@ -5680,7 +5682,7 @@ static int LineIncludes( SkyLineDef *l, double point[3], int *status ) {
    t1 = palDvdv( l->start, point );
    t2 = acos( t1 );
    t3 = palDvdv( l->dir, point );
-   return ( ((l->length > 0) ? t2 < l->length : t2 == 0.0 ) && t3 >= -1.0E-8 );
+   return ( ((l->length > 0) ? t2 < l->length : t2 == 0.0 ) && t3 >= -1.0E-10 );
 }
 
 static void LineOffset( AstFrame *this, AstLineDef *line, double par,
