@@ -9533,7 +9533,7 @@ f     AST_GETREGIONDisc
 
 *  Synopsis:
 c     #include "region.h"
-c     void astGetRegionDisc( AstRegion *this, double centre[3],
+c     void astGetRegionDisc( AstRegion *this, double centre[2],
 c                            double *radius )
 f     CALL AST_GETREGIONDISC( THIS, CENTRE, RADIUS, STATUS )
 
@@ -9543,7 +9543,7 @@ f     CALL AST_GETREGIONDISC( THIS, CENTRE, RADIUS, STATUS )
 *  Description:
 c     This function
 f     This routine
-*     returns the centre and radius of a disce that just encloses the
+*     returns the centre and radius of a disc that just encloses the
 *     supplied 2-dimensional Region. The centre is returned as a pair
 *     of axis values within the Frame represented by the Region. The
 *     value of the Negated attribute is ignored (i.e. it is assumed
