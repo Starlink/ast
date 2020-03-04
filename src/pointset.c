@@ -70,6 +70,11 @@
 *        Added astShowPoints.
 *     25-SEP-2019 (DSB):
 *        Convert to use 8 byte "npoint" values.
+*     27-FEB-2020 (DSB):
+*        Initialise ast_nan and ast_nanf when they are needed rather than
+*        in the VTAB initialiser. The VTAB initialiser is not called
+*        until the first PointSet is created, but ast_nan/f values may be
+*        needed before then.
 */
 
 /* Module Macros. */
@@ -482,11 +487,11 @@ static int class_check;
 
 /* This static variable is used to hold an IEEE 754 quiet double precision
    Nan value. */
-static double ast_nan;
+static double ast_nan = 0.0;
 
 /* This static variable is used to hold an IEEE 754 quiet single precision
    Nan value. */
-static float ast_nanf;
+static float ast_nanf = 0.0;
 
 /* Enable or disable the astReplaceNan method. */
 static int replace_nan = -1;
@@ -1545,8 +1550,6 @@ void astInitPointSetVtab_(  AstPointSetVtab *vtab, const char *name, int *status
    AstObjectVtab *object;        /* Pointer to Object component of Vtab */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    const char *envvar;           /* Pointer to environment variable value */
-   size_t i;                     /* Index of next byte in NaN value */
-   unsigned char *p;             /* Pointer to next byte in NaN value */
 
 /* Check the local error status. */
    if ( !astOK ) return;
@@ -1608,20 +1611,13 @@ void astInitPointSetVtab_(  AstPointSetVtab *vtab, const char *name, int *status
    astSetDelete( vtab, Delete );
    astSetDump( vtab, Dump, "PointSet", "Container for a set of points" );
 
-/* Calculate single and double precision NaN values and store in static
-   module variables. Setting all bits to 1 produces a quiet NaN. */
-   LOCK_MUTEX1
-   p = (unsigned char *) &ast_nan;
-   for( i = 0; i < sizeof( ast_nan ); i++ ) *(p++) = 255;
-   p = (unsigned char *) &ast_nanf;
-   for( i = 0; i < sizeof( ast_nanf ); i++ ) *(p++) = 255;
-
 /* See what  action the astReplaceNaN method should perform. This
    is determined by the value of the AST_REPLACE_NAN environment
    variable. Not set = do not check for NaNs, "1" = replace NaNs with
    AST__BAD silently, anything else = report an error if any NaNs are
    encountered. */
    if( replace_nan == -1 ) {
+      LOCK_MUTEX1
       envvar = getenv( "AST_REPLACE_NAN" );
       if( !envvar ) {
          replace_nan = IGNORE_NANS;
@@ -1630,8 +1626,8 @@ void astInitPointSetVtab_(  AstPointSetVtab *vtab, const char *name, int *status
       } else {
          replace_nan = REPORT_NANS;
       }
+      UNLOCK_MUTEX1
    }
-   UNLOCK_MUTEX1
 
 /* If we have just initialised the vtab for the current class, indicate
    that the vtab is now initialised, and store a pointer to the class
@@ -1679,6 +1675,19 @@ double astCheckNaN_( double value ) {
 
 *-
 */
+
+/* Ensure the ast_nan static variable has been initialised.
+   Setting all bits to 1 produces a quiet NaN. */
+   if( ast_nan == 0.0 ) {
+      unsigned char *p;
+      int i;
+      LOCK_MUTEX1
+      p = (unsigned char *) &ast_nan;
+      for( i = 0; i < sizeof( ast_nan ); i++ ) *(p++) = 255;
+      UNLOCK_MUTEX1
+   }
+
+/* Do the test */
    return ( value == AST__NAN ) ? ast_nan : value;
 }
 
@@ -1719,6 +1728,19 @@ float astCheckNaNF_( float value ) {
 
 *-
 */
+
+/* Ensure the ast_nanf static variable has been initialised.
+   Setting all bits to 1 produces a quiet NaN. */
+   if( ast_nanf == 0.0 ) { 
+      unsigned char *p; 
+      int i; 
+      LOCK_MUTEX1 
+      p = (unsigned char *) &ast_nanf; 
+      for( i = 0; i < sizeof( ast_nanf ); i++ ) *(p++) = 255; 
+      UNLOCK_MUTEX1 
+   }
+
+/* Now do the test */
    return ( value == AST__NANF ) ? ast_nanf : value;
 }
 
