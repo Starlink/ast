@@ -147,6 +147,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        can be dumped withotu hitting the limit on label size imposed by
 *        the Channel class.
 *        - Fix two memory leaks.
+*     4-MAR-2020 (DSB):
+*        Changes to remove bugs that occur only when running on 32-bit
+*        systems.
 *class--
 */
 
@@ -182,6 +185,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 
 /* The maximum "npix" value for a given order. */
 #define MaxNpix(order) (12*(1L<<(2*(order)))-1)
+
+/* A 64 bit literal integer value of 1 */
+#define ONE INT64_C(1)
 
 
 /* Include files. */
@@ -228,6 +234,7 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <inttypes.h>
 
 /* Type definitions. */
 /* ================= */
@@ -849,7 +856,7 @@ f     MAXORDER  is negative.
             npix = *(pni++) - ( 1 << (2 + 2*order) );
          } else {
             order = log2_64( *pnk / 4 ) / 2;
-            npix = *(pnk++) - ( 1L << (2 + 2*order) );
+            npix = *(pnk++) - ( ONE << (2 + 2*order) );
          }
 
 /* Ignore cells at orders higher than maxorder. */
@@ -4118,7 +4125,7 @@ f        The global status.
          *npix = (this->inorm)[ icell ] - ( 1 << (2 + 2*(*order)) );
       } else {
          *order = log2_64( (this->knorm)[ icell ] / 4 ) / 2;
-         *npix = (this->knorm)[ icell ] - ( 1L << (2 + 2*(*order)) );
+         *npix = (this->knorm)[ icell ] - ( ONE << (2 + 2*(*order)) );
       }
    }
 }
@@ -4879,7 +4886,7 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
          npix = (this->inorm)[ icell ] - ( 1 << (2 + 2*(neworder)) );
       } else {
          neworder = log2_64( (this->knorm)[ icell ] / 4 ) / 2;
-         npix = (this->knorm)[ icell ] - ( 1L << (2 + 2*(neworder)) );
+         npix = (this->knorm)[ icell ] - ( ONE << (2 + 2*(neworder)) );
       }
 
 /* First do JSON serialisatioon... */
@@ -5086,10 +5093,10 @@ static void GetNorm( AstMoc *this, const char *method, int *status ){
 #define UNMAP \
          norm = NULL; \
          for( order = 0; order <= maxorder && nrange > 0; order++ ) { \
-            nuniq_offset = ( 1L << 2*( order + 1 ) ); \
+            nuniq_offset = ( ONE << 2*( order + 1 ) ); \
 \
             shift = 2*( maxorder - order ); \
-            offset = ( 1L << shift ) - 1; \
+            offset = ( ONE << shift ) - 1; \
 \
             newranges = NULL; \
             nnew = 0; \
@@ -6454,7 +6461,7 @@ static void NegateRanges( AstMoc *this, int start, int order,
 
 /* Get the maximum number of nested indices at the highest order in use.
    The indices go from zero to (max_nest-1). */
-      max_nest = 12*( 1L << 2*order );
+      max_nest = 12*( ONE << 2*order );
 
 /* Does the first range to be negated start at zero? If so, there is no
    gap before it. */
@@ -6594,7 +6601,7 @@ static void NestedToXy( int64_t nested, int order, int *ix, int *iy ){
    if( fi < 12 ) {
 
 /* Get the lowest "2*order" bits. */
-      tj = nested & ( ( 1L << (2*order) ) - 1 );
+      tj = nested & ( ( ONE << (2*order) ) - 1 );
 
 /* Reverse the process in XyToNested to extract the even and odd bits
    from "tj" into "tx" and "ty" - the zero-based offsets from the bottom
@@ -7311,7 +7318,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    it has no boundary by returned a PointSet containing a single point with
    a value of AST__BAD on every axis. */
    } else if( this->nrange == 0 || ( this->range[0] == 0 &&
-              this->range[1] == 12*( 1L << 2*astGetMaxOrder(this) ) - 1 )){
+              this->range[1] == 12*( ONE << 2*astGetMaxOrder(this) ) - 1 )){
 
       this->basemesh = astPointSet( 1, 2, "", status );
       ptr = astGetPoints( this->basemesh );
@@ -7359,7 +7366,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    function. Increment the pointer to the next nuniq value. */
          if( pnk ) {
             order = log2_64( *pnk / 4 ) / 2;
-            npix = *pnk - ( 1L << (2 + 2*order) );
+            npix = *pnk - ( ONE << (2 + 2*order) );
             pnk++;
          } else {
             order = log2_32( *pni / 4 ) / 2;
@@ -7882,11 +7889,13 @@ fclose( fd );
 /* Create the returned PointSet and put the (ra,dec) values into it
    from each non-interior corner. First count the number of non-interior
    corners. */
-      npoint = 0;
-      corner = corner_foot;
-      while( corner ) {
-          if( !(corner->interior) ) npoint++;
-          corner = corner->prev;
+      if( astOK ){
+         npoint = 0;
+         corner = corner_foot;
+         while( corner ) {
+            if( !(corner->interior) ) npoint++;
+            corner = corner->prev;
+         }
       }
 
 /* Allocate an array to hold the indices within the returned PointSet in
@@ -10514,7 +10523,7 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
       if ( TestMinOrder( new, status ) ) SetMinOrder( new, new->minorder, status );
 
 /* Get the maximum number of nested indices at the order in use. */
-      max_nest = 12*( 1L << (2*new->maxorder) );
+      max_nest = 12*( ONE << (2*new->maxorder) );
 
 /* Initialise other class properties. */
       new->nrange = astReadInt( channel, "nrange", 0 );
@@ -10792,8 +10801,8 @@ static void dump_cell( AstMoc *this, Cell *cell, int order ) {
    beta = cos( dec )*sin( ra );
 
 
-   double x18 = ( 1L << (18 - order) )*( cell->ix - 0.5 ) + 0.5;
-   double y18 = ( 1L << (18 - order) )*( cell->iy - 0.5 ) + 0.5;
+   double x18 = ( ONE << (18 - order) )*( cell->ix - 0.5 ) + 0.5;
+   double y18 = ( ONE << (18 - order) )*( cell->iy - 0.5 ) + 0.5;
 
    fprintf( fd, "%p %g %g %d %d %g %g %g %g %d %d %p ", cell, x18, y18, cell->ix, cell->iy,
             ra, dec, alpha, beta, order, cell->interior, cell->prev );
