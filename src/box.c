@@ -582,7 +582,7 @@ static AstBox *BestBox( AstFrame *frm, AstPointSet *mesh, AstRegion *unc, int *s
 
          if( nxl > 0 ) {
             mxl = sxl/nxl;
-            liml = sxl2/nxl - mxl*mxl;
+            liml = ( nxl > 1 ) ? ( sxl2/nxl - mxl*mxl ) : 0.0;
             eps = 100*mxl*DBL_EPSILON;
             if( liml < eps*eps ) {
                liml = eps;
@@ -596,7 +596,7 @@ static AstBox *BestBox( AstFrame *frm, AstPointSet *mesh, AstRegion *unc, int *s
 
          if( nxu > 0 ) {
             mxu = sxu/nxu;
-            limu = sxu2/nxu - mxu*mxu;
+            limu = ( nxu > 1 ) ? ( sxu2/nxu - mxu*mxu ) : 0.0;
             eps = 100*mxu*DBL_EPSILON;
             if( limu < eps*eps ) {
                limu = eps;
