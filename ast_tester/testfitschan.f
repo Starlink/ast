@@ -834,8 +834,8 @@ c --------------------------------------------------------------------
       else if( coords( nelem ) .ne. 1.0D-4 ) then
          call stopit( 2004, ' ', status )
 
-      else if( coords( nelem/2 ) .ne.
-     :         indx( nelem/2 )**(-2) ) then
+      else if( abs( coords( nelem/2 ) -
+     :         indx( nelem/2 )**(-2) ) .gt. 1D-20 ) then
          call stopit( 2005, ' ', status )
       end if
 
