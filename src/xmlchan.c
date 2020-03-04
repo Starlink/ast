@@ -87,6 +87,12 @@ f     The XmlChan class does not define any new routines beyond those
 *        Free memory allocated by calls to astReadString.
 *     12-FEB-2010 (DSB):
 *        Represent AST__BAD externally using the string "<bad>".
+*     4-MAR-2020 (DSB):
+*        In AstroCoordAreaReader, correct the way the TimeOrigin value
+*        is transferred from the main TimeFrame to the uncertainty region.
+*        This bug only manifested itself as a result of running the STC 
+*        tester on a 32 bit machine, where the loss of prcision caused 
+*        by the bug caused a test to fail.
 *class--
 
 * Further STC work:
@@ -592,6 +598,7 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
    AstFrame *space_frame;
    AstFrame *spec_frame;
    AstFrameSet *fs;
+   AstFrameSet *uncfs;
    AstMapping *map;
    AstObject *o;
    AstRegion **red_list;
@@ -611,12 +618,10 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
    char *decset;
    char *raset;
    char buff[ AST__DBL_WIDTH + 30 ];
-   char setting[ 100 ];
    const char *dom;
    const char *id;
    const char *names[4];
    const char *name;
-   const char *old_units;
    const char *text;
    double decref;
    double lbnd[2];
@@ -624,9 +629,12 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
    double space_val[2];
    double spec_val;
    double time_val;
+   double torig1;
+   double torig2;
    double ubnd[2];
    int i;
    int ianc;
+   int ifrm;
    int ired;
    int ispace;
    int ispec;
@@ -789,39 +797,56 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
                                                        scan->el[ 1 ][ itime ],
                                                        time_frame, status );
 
-/* Store any uncertainty region. Transfer the System and TimeOrigin
-   values from the time region to the time uncertainty, if set. */
+/* Store any uncertainty region. Transfer the TimeOrigin value from the
+   time region to the time uncertainty, if set. */
                if( uncs[ 1 ] ) {
+                  if( astTestTimeOrigin( time_frame ) ) {
 
-                  if( astTestSystem( time_frame ) &&
-                      astTestTimeOrigin( time_frame ) ) {
+/* We set the TimeOrigin attribute in both the base and current Frame of
+   the uncertainty region's FrameSet, but without remapping the FrameSet.
+   First get a pointer to the Regions FrameSet. */
+                     uncfs = astGetRegFS( uncs[ 1 ] );
 
-                     sprintf( setting, "System=%s",
-                              astGetC( time_frame, "System" ) );
-                     astRegSetAttrib( uncs[ 1 ], setting, NULL );
+/* Modify base and current Frames of the above FrameSet in turn. */
+                     ifrm = AST__BASE;
+                     while( astOK ){
 
+/* Get a pointer to the base or current Frame in the uncertainty region's
+   FrameSet. */
+                        fr = astGetFrame( uncfs, ifrm );
 
-                     if( astTestUnit( time_frame, 0 ) ) {
-                        old_units = astGetUnit( time_frame, 0 );
-                        old_units = astStore( NULL, old_units,
-                                              strlen( old_units ) + 1 );
-                     } else {
-                        old_units = NULL;
+/* Get the Mapping from the frame of "time_frame" to the above frame. */
+                        fs = astConvert( time_frame, fr, "TIME" );
+                        if( !fs ) {
+                           astError( AST__INTER, "AstroCoordAreaReader(XmlChan):"
+                                     " Cannot convert time origin to required "
+                                     "system (internal AST programming error).",
+                                     status );
+
+/* Use it to convert the time origin (i.e. zero) in the time frame to the
+   system/units/timescale/etc, of the uncertainty frame. */
+                        } else {
+                           torig1 = 0.0;
+                           astTran1( fs, 1, &torig1, 1, &torig2 );
+
+/* Set the TimeOrigin in the uncertainty region. */
+                           astSetD( fr, "TimeOrigin", torig2 );
+
+/* Free resources. */
+                           fs = astAnnul( fs );
+                        }
+                        fr = astAnnul( fr );
+
+/* Loop to modify the other frame in the uncertainty FrameSet */
+                        if( ifrm == AST__BASE ) {
+                           ifrm = AST__CURRENT;
+                        } else {
+                           break;
+                        }
                      }
 
-                     astSetUnit( time_frame, 0, astGetUnit( uncs[ 1 ], 0 ) );
-
-                     sprintf( setting, "TimeOrigin=%s",
-                              astGetC( time_frame, "TimeOrigin" ) );
-                     astRegSetAttrib( uncs[ 1 ], setting, NULL );
-
-                     if( old_units ) {
-                        astSetUnit( time_frame, 0, old_units );
-                        old_units = astFree( (void *) old_units );
-                     } else {
-                        astClearUnit( time_frame, 0 );
-                     }
-
+/* Free resources */
+                     uncfs = astAnnul( uncfs );
                   }
 
                   astSetUnc( time_list[ itime ], uncs[ 1 ] );
