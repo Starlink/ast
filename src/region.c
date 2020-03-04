@@ -7035,7 +7035,7 @@ L1:
       lbnd = astGrow( lbnd, nc, sizeof(double) );
       ubnd = astGrow( ubnd, nc, sizeof(double) );
       if( astOK ) {
-         for( i = 0; i < nc && !good; i++ ) {
+         for( i = 0; i < nc; i++ ) {
             lbnd[ i ] = DBL_MAX;
             ubnd[ i ] = -DBL_MAX;
             for( j = 0; j < np; j++ ) {
@@ -11778,14 +11778,6 @@ double *astRegTranPoint_( AstRegion *this, double *in, int np, int forward, int 
 
 /* Get a pointer to the memory in the transformed PointSet. */
       ptr_out = astGetPoints( pset_out );
-
-      if( pset_out && astStatus == AST__INTER ) {
-         p = in;
-         for( ip = 0; ip < np; ip++ ) {
-            for( ic = 0; ic < naxin; ic++ ) printf("%.*g\n", AST__DBL_DIG, *(p++) );
-         }
-      }
-
       if( astOK ) {
 
 /* Store the resulting axis values in the output array. */
