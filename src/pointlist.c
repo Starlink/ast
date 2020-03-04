@@ -879,9 +879,9 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
       for ( idim = 0; idim < ndim; idim++ ) { \
          if ( lbnd[ idim ] > ubnd[ idim ] ) { \
             astError( AST__GBDIN, "astMask"#X"(%s): Lower bound of " \
-                      "input grid (%d) exceeds corresponding upper bound " \
-                      "(%d).", status, astGetClass( this ), \
-                      lbnd[ idim ], ubnd[ idim ] ); \
+                      "input grid (%" AST__DIMFMT ") exceeds corresponding " \
+                      "upper bound (%" AST__DIMFMT ").", status, \
+                      astGetClass( this ), lbnd[ idim ], ubnd[ idim ] ); \
             astError( AST__GBDIN, "Error in input dimension %d.", status, \
                       idim + 1 ); \
             break; \
@@ -897,7 +897,7 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
 \
 /* Allocate memory to hold the corresponding vector indices. */ \
    npnt = astGetNpoint( pset2 ); \
-   iv = astMalloc( sizeof(int)*(size_t) npnt ); \
+   iv = astMalloc( sizeof(*iv)*(size_t) npnt ); \
    if( astOK ) { \
 \
 /* Convert the transformed GRID positions into integer indices into the \
@@ -908,7 +908,7 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
          ii = 0; \
          for( j = 0; j < ndim; j++ ) { \
             ii += vlen*( (int)( ptr2[ j ][ i ] + 0.5 ) - lbnd[ j ] ); \
-            vlen *= ubnd[ i ] - lbnd[ i ] + 1; \
+            vlen *= ubnd[ j ] - lbnd[ j ] + 1; \
          }  \
          iv[ i ] = ii; \
       } \
