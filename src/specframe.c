@@ -158,6 +158,10 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *     29-APR-2011 (DSB):
 *        Prevent astFindFrame from matching a subclass template against a
 *        superclass target.
+*     11-MAR-2020 (DSB):
+*         In Overlay, only clear the results Units, Label, etc if the result
+*         and template Systems differ AND the template System has been set
+*         explicitly.
 *class--
 */
 
@@ -3480,8 +3484,12 @@ static void Overlay( AstFrame *template, const int *template_axes,
    if( specframe ) {
 
 /* If the coordinate system will change, any value already set for the result
-   SpecFrame's Title will no longer be appropriate, so clear it. */
-      if ( new_system != old_system ) {
+   SpecFrame's Title will no longer be appropriate, so clear it. But note
+   the coordinate system will change only if the system values are
+   different AND the system has been set explicitly in the template. If
+   the system has not been set explicitly in the template, the result will
+   retain its original system value. */
+      if ( new_system != old_system && astTestSystem( template ) ) {
          astClearTitle( result );
 
 /* If the systems have the same default units, we can retain the current

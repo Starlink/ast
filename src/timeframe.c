@@ -173,8 +173,12 @@ f     - AST_CURRENTTIME: Return the current system time
 *     27-APR-2017 (DSB):
 *        Conversions between TT and TDB now require DTAI as an argument.
 *     26-NOV-2019 (DSB):
-*        The system time is in the UTC timescale, not TAI. This caused the 
+*        The system time is in the UTC timescale, not TAI. This caused the
 *        astCurrentTime method to be 37 seconds out.
+*     11-MAR-2020 (DSB):
+*         In Overlay, only clear the results Units, Label, etc if the result
+*         and template Systems differ AND the template System has been set
+*         explicitly.
 *class--
 */
 
@@ -336,10 +340,6 @@ astMAKE_INITGLOBALS(TimeFrame)
 
 
 
-static pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
-#define LOCK_MUTEX2 pthread_mutex_lock( &mutex2 );
-#define UNLOCK_MUTEX2 pthread_mutex_unlock( &mutex2 );
-
 /* If thread safety is not needed, declare and initialise globals at static
    variables. */
 #else
@@ -356,9 +356,6 @@ static char gettitle_buff[ AST__TIMEFRAME_GETTITLE_BUFF_LEN + 1 ];
    as static variables. */
 static AstTimeFrameVtab class_vtab;   /* Virtual function table */
 static int class_init = 0;       /* Virtual function table initialised? */
-
-#define LOCK_MUTEX2
-#define UNLOCK_MUTEX2
 
 #endif
 
@@ -3362,7 +3359,6 @@ void astInitTimeFrameVtab_(  AstTimeFrameVtab *vtab, const char *name, int *stat
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstFrameVtab *frame;          /* Pointer to Frame component of Vtab */
-   AstMapping *map;              /* Temporary Maping */
    AstObjectVtab *object;        /* Pointer to Object component of Vtab */
 
 /* Check the local error status. */
@@ -4525,8 +4521,12 @@ static void Overlay( AstFrame *template, const int *template_axes,
    if( timeframe ) {
 
 /* If the coordinate system will change, any value already set for the result
-   TimeFrame's Title, etc,  will no longer be appropriate, so clear it. */
-      if ( new_system != old_system ) {
+   TimeFrame's Title, etc,  will no longer be appropriate, so clear it. But
+   note, the coordinate system will change only if the system values are
+   different AND the system has been set explicitly in the template. If
+   the system has not been set explicitly in the template, the result will
+   retain its original system value. */
+      if ( new_system != old_system && astTestSystem( template ) ) {
          astClearTitle( result );
          astClearLabel( result, 0 );
          astClearSymbol( result, 0 );

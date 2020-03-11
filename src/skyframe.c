@@ -351,6 +351,10 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *        Added macro to test floating point equality and used it for Dtai.
 *     30-JAN-2020 (DSB):
 *        Reduce the tolerance in LineIncludes from 1E-8 to 1E-10.
+*     11-MAR-2020 (DSB):
+*         In Overlay, only clear the results Units, Label, etc if the result
+*         and template Systems differ AND the template System has been set
+*         explicitly.
 *class--
 */
 
@@ -7861,8 +7865,11 @@ static void Overlay( AstFrame *template, const int *template_axes,
                          astGetSkyRef( template, 1 ) );
 
 /* If the coordinate system will change, any value already set for the result
-   SkyFrame's Title will no longer be appropriate, so clear it. */
-      if ( new_system != old_system || skyref_changed ) {
+   SkyFrame's Title will no longer be appropriate, so clear it. Note, the
+   system value will only be changed in the result if it has been set in the
+   template. */
+      if ( ( (new_system != old_system) && astTestSystem( template ) )
+           || skyref_changed ) {
          astClearTitle( result );
 
 /* Test if the old and new sky coordinate systems are similar enough to make

@@ -2571,7 +2571,7 @@ static void Overlay( AstFrame *template, const int *template_axes,
 
 /* If the coordinate system will change, any value already set for the result
    FluxFrame's Title will no longer be appropriate, so clear it. */
-      if ( new_system != old_system ) {
+      if ( ( new_system != old_system ) && astTestSystem( template ) ) {
          astClearTitle( result );
 
 /* If the systems have the same default units, we can retain the current
