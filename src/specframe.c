@@ -162,6 +162,8 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *         In Overlay, only clear the results Units, Label, etc if the result
 *         and template Systems differ AND the template System has been set
 *         explicitly.
+*     27-APR-2020 (DSB):
+*         Correct "Heliographic" to "heliocentric".
 *class--
 */
 
@@ -4346,7 +4348,7 @@ static int SorConvert( AstSpecFrame *this, AstSpecFrame *that,
    the conversions used below). */
       VerifyAttrs( this, vmess, "RefRA RefDec", "astMatch", status );
 
-/* Convert from the "this" rest frame to heliographic. */
+/* Convert from the "this" rest frame to heliocentric. */
       if( from == AST__TPSOR ) {
          VerifyAttrs( this, vmess, "ObsLon ObsLat ObsAlt Epoch", "astMatch", status );
          TRANSFORM_6( "TPF2HL", lon, lat, alt, epoch, ra, dec )
@@ -5819,7 +5821,7 @@ f     AST_FINDFRAME or AST_CONVERT) as a template to match another (target)
 *     SpecFrame. It identifies the standard of rest in which alignment is
 *     to occur. See the StdOfRest attribute for a desription of the values
 *     which may be assigned to this attribute. The default AlignStdOfRest
-*     value is "Helio" (heliographic).
+*     value is "Helio" (heliocentric).
 *
 c     When astFindFrame or astConvert is used on two SpecFrames (potentially
 f     When AST_FindFrame or AST_CONVERT is used on two SpecFrames (potentially
