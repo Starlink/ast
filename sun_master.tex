@@ -18,12 +18,12 @@ f+
 \stardocnumber      {210.29}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {23rd January 2020}
+\stardocdate        {26th May 2020}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
                                 in Astronomy}
-\stardoccopyright   {Copyright (C) 2019 East Asian Observatory}
+\stardoccopyright   {Copyright (C) 2020 East Asian Observatory}
 \stardocversion     {V<VERSION_NUMBER>}
 c+
 \stardocmanual      {Programmer's Guide\\(C Version)}
@@ -8638,11 +8638,11 @@ rest frame to the local group is about 5 $km/s$ over a 1 degree field of
 view.
 
 \subsection{\label{ss:handlingdualsidebandspectra}Handling Dual-Sideband Spectra}
-Dual sideband super-heterodyne receivers produce spectra in which each channel
-contains contributions from two different frequencies, referred to as the
-``upper sideband frequency'' and the ``lower sideband frequency''. In the
-rest frame of the observer (topocentric), these are related to each other as
-follows:
+Dual sideband super-heterodyne receivers produce spectra in which each
+channel contains contributions from two different frequencies, referred to
+as the ``upper sideband'' (USB) frequency and the ``lower sideband'' (LSB)
+frequency. In the rest frame of the observer (topocentric), these are
+related to each other as follows:
 
 \begin{quote}
 \begin{small}
@@ -8657,56 +8657,52 @@ where $f_{LO}$ is a fixed frequency known as the ``local oscillator
 frequency''. In other words, the local oscillator frequency is always
 mid-way between any pair of corresponding upper and lower sideband
 frequencies\footnote{Note, this simple relationship only applies if all
-frequencies are topocentric.}. If you want to describe the spectral axis
-of such a spectrum using a SpecFrame you must choose whether you want the
-SpecFrame to describe $f_{lsb}$ or $f_{usb}$ - a basic SpecFrame cannot
-describe both sidebands simultaneously. However, there is a sub-class of
-SpecFrame, called DSBSpecFrame, which overcomes this difficulty.
+frequencies are topocentric.}. This is illustrated in
+Figure~\ref{fig:dsbspec1}. The astronomical signal received in the two
+spectral windows (one corresponding to each sideband) are superimposed in
+the final measured spectrum, with the signal from the USB window first being
+reversed in frequency.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.9\textwidth]{sun211_figures/dsbspec1}
+\caption[A dual-sideband spectrum is formed by superimposing the
+signal received from two spectral windows]{A dual-sideband spectrum is
+formed by superimposing the signal received from two spectral windows---the
+lower sideband (LSB) and upper sideband (USB). In topocentric frequency,
+the two sidebands are equally spaced on either side of the local oscillator
+(LO) frequency. In other spectral systems the width and placement of the
+windows may not be symetric about the LO.}
+\label{fig:dsbspec1}
+\end{center}
+\end{figure}
+
+To describe the spectral axis of the final measured spectrum
+using a SpecFrame you must choose whether you want the SpecFrame to
+describe the frequency of the LSB window ($f_{lsb}$) or of the USB window
+($f_{usb}$) - a basic SpecFrame cannot describe both sidebands
+simultaneously. However, there is a sub-class of SpecFrame, called
+DSBSpecFrame, which overcomes this difficulty.
 
 A DSBSpecFrame has a SideBand attribute which indicates if the
 DSBSpecFrame is currently being used to describe the upper or lower
 sideband spectral axis. The value of this attribute can be changed at any
-time. If you use the
+time. A DSBSpecFrame knows how to transform frequencies between the two
+sidebands. For instance, if you have two DSBSpecFrame objects that
+describe topocentric frequency and are identical except that they
+describe opposite sidebands, then the
 c+
 astConvert
 c-
 f+
 AST\_CONVERT
 f-
-function to find the Mapping between two DSBSpecFrames, the setting for
-the two SideBand attributes will be taken into account. Thus, if you take
-a copy of a DSBSpecFrame, toggle its SideBand attribute, and then use
-c+
-astConvert
-c-
-f+
-AST\_CONVERT
-f-
-to find a Mapping from the original to the modified copy, the resulting
-Mapping will be of the form of equation \ref{eqn:dsb} (if the
-DSBSpecFrame has its StdOfRest attribute set to ``Topocentric'').
-
-In general, when finding a Mapping between two arbitrary DSBSpecFrames,
-the total Mapping is made of of three parts in series:
-
-\begin{enumerate}
-\item A Mapping which converts the first DSBSpecFrame into its upper
-sideband representation. If the DSBSpecFrame already represents its upper
-sideband, this Mapping will be a UnitMap.
-\item A Mapping which converts from the first to the second DSBSpecFrame,
-treating them as if they were both basic SpecFrames. This takes account of
-any difference in units, standard of rest, system, \emph{etc} between the
-two DSBSpecFrames.
-\item A Mapping which converts the second DSBSpecFrame from its upper
-sideband representation to its current sideband. If the DSBSpecFrame
-currently represents its upper sideband, this Mapping will be a UnitMap.
-\end{enumerate}
-
-If an attempt is made to find the Mapping between a DSBSpecFrame and a
-basic SpecFrame, then the DSBSpecFrame will be treated like a basic
-SpecFrame. In other words, the returned Mapping will not be affected by
-the setting of the SideBand attribute (or any of the other attributes
-specific to the DSBSpecFrame class).
+function will return a Mapping that implement equation
+\ref{eqn:dsb}\footnote{This requires the AlignSideband attribute to be
+set to a non-zero value in both DSBSpecFrames.}. If the DSBSpecFrames
+describe anything other than topocentric frequency, then the returned
+Mapping will be more complicated since it will include conversions to and
+from topocentric frequency.
 
 In practice, the local oscillator frequency for a dual sideband
 instrument may not be easily available to an observer. Instead, it is
@@ -8727,18 +8723,361 @@ oscillator. So:
 \end{small}
 \end{quote}
 
-The DSBSpecFrame class uses the DSBCentre attribute to specify the central
-spectral position ($f_{central}$), and the IF attribute to specify the
-intermediate frequency ($f_{if}$). The DSBCentre value is given and returned
-in the spectral system described by the DSBSpecFrame (thus you do not need to
-calculate the corresponding topocentric frequency yourself - this will be
-done automatically by the DSBSpecFrame when you assign a new value to the
+The DSBSpecFrame class uses the DSBCentre attribute to specify the
+central spectral position ($f_{central}$), and the IF attribute to
+specify the intermediate frequency ($f_{if}$). This is illustrated in
+Figure~\ref{fig:dsbspec1}, where the values of the DSBCentre and IF
+attributes have been chosen to put an emission line at the centre of the
+LSB window. The DSBSpecFrame determines LO from these two attribute values.
+
+Note, in principle there is no reason why the attribute values should not
+have been chosen to put the spectral line in the USB instead of the LSB.
+The choice of which sideband to use for the observed feature is usually
+made in order to exclude any bright features from the other window. The
+sideband that contains the observation centre is known as the ``observed''
+sideband, and the other sideband is known as the ``image'' sideband.
+
+The DSBCentre value is given and returned in the spectral system
+described by the DSBSpecFrame (thus you do not need to calculate the
+corresponding topocentric frequency yourself - this will be done
+automatically by the DSBSpecFrame when you assign a new value to the
 DSBCentre attribute). The value assigned to the IF attribute should
-always be a topocentric frequency in units of Hz, however a negative
-value may be given to indicate that the DSBCentre value is in the upper
-sideband (that is, if $IF < 0$  then $f_{central} > f_{LO}$). A positive
-value for IF indicates that the DSBCentre value is in the lower sideband
-(that is, if $IF > 0$  then $f_{central} < f_{LO}$).
+always be a topocentric frequency in units of Hz. It's sign indicates
+whether the observation centre (given by DSBCentre) is in the LSB or the
+USB---a positive IF puts the observation centre in the LSB and a negative
+IF puts it in the USB.
+
+
+\subsubsection{Aligning Dual-Sideband Spectra}
+Usually, a DSBSpecFrame will be used to describe the WCS for a
+1-dimensional array of data values measured using a dual-sideband
+instrument. The FrameSet for this sort of situation will typically
+contain two Frames: the base Frame will be a simple 1-dimensional Frame
+describing the value used to index the data array (i.e. ``pixel''
+coordinates) and the current Frame will be a DSBSpecFrame with values for
+the DSBCentre and IF attributes that match the settings of the dual
+side-band instrument. The Mapping connecting the base (pixel) Frame to
+the current (spectral) Frame will depend on exactly how the instrument
+samples the spectrum (linear, logarithmic, \emph{etc}) but should always
+generate spectral values\footnote{Within the spectral system described by
+the attributes of the parent SpecFrame class - System, StdOfRest, Units,
+Epoch, etc.} within the window corresponding to the value of the SideBand
+attribute in the DSBSpecFrame. For instance, if the SideBand attribute is
+set to USB, then the Mapping should generate the USB
+frequency (or wavelength, velocity, etc\footnote{As selected by the
+System attribute.}) for each pixel.
+
+As an example, the following code creates a FrameSet that associates a
+radio velocity (km/s) in the LSRK standard of rest with each element
+in an array of 1000 data values. The velocity range -100 to 100 km/s in
+the LSB window (see Figure~\ref{fig:dsbspec1}) is mapped linearly onto the
+pixel array. The spectral feature of interest is at 10 km/s (i.e. within the
+velocity range of the LSB window) and the IF is +5 GHz (topocentric).
+
+c+
+\small
+\begin{terminalv}
+
+/* Declare AST functions */
+   #include "ast.h"
+
+/* Declare local variables */
+   AstFrame *pixel_frame;
+   AstDSBSpecFrame *spectral_frame;
+   AstWinMap *pix_to_spec;
+   AstFrameSet *frameset;
+   double pix_lo, pix_hi, vel_lo, vel_hi, xin[ 2 ], vout[ 2 ];
+
+/* Create a Frame to describe 1-D pixel coordinates within the data
+   array. */
+   pixel_frame = astFrame( 1, "Domain=PIXEL" );
+
+/* Create a DSBSpecFrame to describe radio velocity in the LSB window of
+   the dual-sideband spectral axis. */
+   spectral_frame = astDSBSpecFrame( "System=VRAD,"
+                                     "StdOfRest=LSRK,"
+                                     "Unit=km/s,"
+                                     "RefRA=7:10:04.5,"
+                                     "RefDec=-10:48:50,"
+                                     "Epoch=2020-Oct-2T12:13:56.985,"
+                                     "RestFreq=345.7959899 GHz,"
+                                     "SideBand=LSB,"
+                                     "DSBCentre=10.0,"
+                                     "IF=5.0 GHz" );
+
+/* Create a linear mapping to describe the transformation from pixel
+   coordinate to the spectral coordinate system described by spectral_frame.
+   The definition of pixel coordinates used here puts the centre of the
+   first pixel at pixel coordinate 1.0, corresponding to a velocity of
+   -100.0 km/s, and puts the centre of the last pixel at pixel coordinate
+   1000.0, corresponding to a velocity of +100.0 km/s. */
+   pix_lo = 1.0;
+   pix_hi = 1000.0;
+   vel_lo = -100.0;
+   vel_hi = 100.0;
+   pix_to_spec = astWinMap( 1, &pix_lo, &pix_hi, &vel_lo, &vel_hi, " " );
+
+/* Construct the FrameSet. First create a FrameSet holding just the pixel
+   Frame (which becomes the base Frame). Then add in the spectral Frame,
+   using the above mapping to connect it to the pixel Frame (i.e. the base
+   Frame). The spectral Frame becomes the current Frame (the base Frame
+   remains the pixel Frame). */
+   frameset = astFrameSet( pixel_frame, " " );
+   astAddFrame( frameset, AST__BASE, pix_to_spec, spectral_frame );
+
+/* Use the FrameSet as a Mapping to get the range of radio velocity
+   spanned by the pixel array. This is done by transforming the first and
+   last pixel coordinate into radio velocity. The displayed velocity range
+   should be vel_lo to vel_hi. */
+   xin[ 0 ] = pix_lo;
+   xin[ 1 ] = pix_hi;
+   astTran1( frameset, 2, xin, 1, vout );
+   printf("The %s window covers the radio velocity range [%g,%g] %s\n",
+          astGetC( frameset, "SideBand" ), vout[ 0 ], vout[ 1 ],
+          astGetC( frameset, "Unit" ) );
+
+/* Now change the FrameSet so that the DSBSpecFrame represents the USB
+   instead of the LSB. Doing this modifies the Mapping inside the
+   FrameSet so that transforming a given pixel position generates the
+   equivalent USB velocity rather tha the original LSB velocity. */
+   astSet( frameset, "Sideband=USB" );
+
+/* Display the range of USB radio velocity now spanned by the pixel
+   array. */
+   astTran1( frameset, 2, xin, 1, vout );
+   printf("The %s window covers the radio velocity range [%g,%g] %s\n",
+          astGetC( frameset, "SideBand" ), vout[ 0 ], vout[ 1 ],
+          astGetC( frameset, "Unit" ) );
+\end{terminalv}
+\normalsize
+The code above should generate the following screen output:
+\small
+\begin{terminalv}
+The LSB window covers the radio velocity range [-100,100] km/s
+The USB window covers the radio velocity range [-8549.46,-8749.46] km/s
+\end{terminalv}
+\normalsize
+c-
+f+
+\small
+\begin{terminalv}
+
+*  Declare required functions and constants
+      INCLUDE 'AST_PAR'
+      INCLUDE 'SAE_PAR'
+
+*  Declare local variables.
+      INTEGER FRAMESET
+      INTEGER PIXEL_FRAME
+      INTEGER SPECTRAL_FRAME
+      INTEGER PIX_TO_SPEC
+      INTEGER STATUS
+      DOUBLE PRECISION XIN( 2 )
+      DOUBLE PRECISION VOUT( 2 )
+
+*  Initialise the inherited status value
+      STATUS = SAI__OK
+
+*  Create a Frame to describe 1-D pixel coordinates within the data
+*  array.
+      PIXEL_FRAME = AST_FRAME( 1, 'Domain=PIXEL', STATUS )
+
+*  Create a DSBSpecFrame to describe radio velocity in the LSB window of
+*  the dual-sideband spectral axis.
+      SPECTRAL_FRAME = AST_DSBSPECFRAME( 'System=VRAD,' //
+     :                               'StdOfRest=LSRK,' //
+     :                               'Unit=km/s,' //
+     :                               'RefRA=7:10:04.5,' //
+     :                               'RefDec=-10:48:50,' //
+     :                               'Epoch=2020-Oct-2T12:13:56.985,' //
+     :                               'RestFreq=345.7959899 GHz,' //
+     :                               'SideBand=LSB,' //
+     :                               'DSBCentre=10.0,' //
+     :                               'IF=5.0 GHz', STATUS )
+
+*  Create a linear mapping to describe the transformation from pixel
+*  coordinate to the spectral coordinate system described by spectral_frame.
+*  The definition of pixel coordinates used here puts the centre of the
+*  first pixel at pixel coordinate 1.0, corresponding to a velocity of
+*  -100.0 km/s, and puts the centre of the last pixel at pixel coordinate
+*  1000.0, corresponding to a velocity of +100.0 km/s.
+      PIX_TO_SPEC = AST_WINMAP( 1, 1.0D0, 1000.0D0, -100.0D0, 100.0D0,
+     :                          ' ', STATUS )
+
+*  Construct the FrameSet. First create a FrameSet holding just the pixel
+*  Frame (which becomes the base Frame). Then add in the spectral Frame,
+*  using the above mapping to connect it to the pixel Frame (i.e. the base
+*  Frame). The spectral Frame becomes the current Frame (the base Frame
+*  remains the pixel Frame).
+      FRAMESET = AST_FRAMESET( PIXEL_FRAME, ' ', STATUS )
+      CALL AST_ADDFRAME( FRAMESET, AST__BASE, PIX_TO_SPEC,
+     :                   SPECTRAL_FRAME, STATUS )
+
+*  Use the FrameSet as a Mapping to get the range of radio velocity
+*  spanned by the pixel array. This is done by transforming the first and
+*  last pixel coordinate into radio velocity. The displayed velocity range
+*  should be vel_lo to vel_hi.
+      XIN( 1 ) = 1.0
+      XIN( 2 ) = 1000.0
+      CALL AST_TRAN1( FRAMESET, 2, XIN, .TRUE., VOUT, STATUS )
+      WRITE(*,*) 'The LSB window covers the radio velocity range ',
+     :           VOUT( 1 ),' to ',VOUT(2),' km/s'
+
+*  Now change the FrameSet so that the DSBSpecFrame represents the USB
+*  instead of the LSB. Doing this modifies the Mapping inside the
+*  FrameSet so that transforming a given pixel position generates the
+*  equivalent USB velocity rather tha the original LSB velocity.
+       CALL AST_SET( FRAMESET, 'Sideband=USB', STATUS )
+
+*  Display the range of USB radio velocity now spanned by the pixel
+*  array.
+      CALL AST_TRAN1( FRAMESET, 2, XIN, .TRUE., VOUT, STATUS )
+      WRITE(*,*) 'The USB window covers the radio velocity range ',
+     :           VOUT( 1 ),' to ',VOUT(2),' km/s'
+\end{terminalv}
+\normalsize
+The code above should generate the following screen output:
+\small
+\begin{terminalv}
+The LSB window covers the radio velocity range -100 to 100 km/s
+The USB window covers the radio velocity range -8549.46 to -8749.46 km/s
+\end{terminalv}
+\normalsize
+f-
+
+Note, changing the value of the Sideband attribute using the FrameSet
+pointer, as is done above, automatically causes the Mapping inside the
+FrameSet to be updated to include the mapping from LSB frequency to USB
+frequency. This automatic modification of the Mappings inside a FrameSet
+is described further in \secref{ss:framesetintegrity} and illustrated in
+Figure~\ref{fig:dsbspec2}. It relies on  the
+c+
+astConvert
+c-
+f+
+AST\_CONVERT
+f-
+function to find the Mapping that converts values from one DSBSpecFrame
+to another.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.9\textwidth]{sun211_figures/dsbspec2}
+\caption{When a FrameSet pointer is used to change the attributes of its
+current Frame (C) a copy of the original current Frame is first made (C')
+and the requested attribute changes are applied to this copy. The Mapping
+from the original Frame to the modified Frame is then found using the
+astConvert function. The modified Frame (C') is then added into the
+FrameSet, using the Mapping returned by astConvert (shown by the dotted
+arrow) to connect it to the original Frame (C). Finally, the original
+Frame is removed leaving the new modified Frame as the current Frame. The
+base Frame (B) is unchanged.}
+\label{fig:dsbspec2}
+\end{center}
+\end{figure}
+
+When the
+c+
+astConvert
+c-
+f+
+AST\_CONVERT
+f-
+function to used to find the Mapping between two DSBSpecFrames, it is
+sometimes appropriate for it to take account of the potentially different
+settings of the Sideband attribute in the two DSBSpecFrames. The above
+example, in which
+c+
+astConvert
+c-
+f+
+AST\_CONVERT
+f-
+is used to modify the Mapping inside a FrameSet to accomodate a change to
+the Sideband attribute of the current Frame, is such a case -
+c+
+astConvert
+c-
+f+
+AST\_CONVERT
+f-
+returns a Mapping that implements equation \ref{eqn:dsb} in some form.
+
+However, there are also cases where it is better for
+c+
+astConvert
+c-
+f+
+AST\_CONVERT
+f-
+\emph{not} to take account of differences in the settings of the Sideband
+attribute. For instance, if a spectral line is observed twice such that
+the line is in the LSB in one observation and in the USB in the other, as
+illustrated in Figure~\ref{fig:dsbspec3}, then it would be inappropriate
+to take account of this difference when co-adding the two observations.
+In this case, a frequency in one observation should be matched to exactly
+the same frequency in the other observation, regardless of the difference
+in Sideband.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.9\textwidth]{sun211_figures/dsbspec3}
+\caption{Two observations of a single line are made - observation 1
+places the line in the LSB and observation 2 places the line in the USB.}
+\label{fig:dsbspec3}
+\end{center}
+\end{figure}
+
+The AlignSideband attribute is used to determine whether any difference
+is Sideband setting should be taken into account when finding the Mapping
+between two DSBSpecFrame objects. The default for this attribute is zero,
+meaning that the Sideband settings are usually ignored by the
+c+
+astConvert and astFindframe
+c-
+f+
+AST\_CONVERT and AST\_FINDFRAME
+f-
+functions (i.e. the DSBSpecFrames are aligned as if they were simple
+SpecFrames). The one exception is that differences in Sideband are always
+taken into account, regardless of the value of the AlignSideband atribute,
+when using
+c+
+astConvert
+c-
+f+
+AST\_CONVERT
+f-
+to find the Mapping required to restore a FrameSet's integrity following
+a change to the Sideband attribute in the current Frame (as described
+earlier in this section).
+
+If an attempt is made to find the Mapping between a pair of DSBSpecFrame,
+then the Sideband attribute will be ignored if the AlignSideband
+attribute is zero in either of the DSBSpecFrames. In other words, the
+Mapping will be determined as if both objects were simple SpecFrames
+rather than DSBSpecFrames. This also happens if an attempt is made to
+align a DSBSpecFrame with a simple SpecFrame. See
+\secref{ss:alignmentsystem} for more about how simple SpecFrames align.
+
+If both DSBSpecFrames have non-zero AlignSideband attributes, the Mapping
+from one to the other is made of three parts in series:
+
+\begin{enumerate}
+\item A Mapping which converts the first DSBSpecFrame into its observed
+sideband representation (i.e. the sideband that contains the DSBCentre
+value). If the DSBSpecFrame already represents its observed sideband, this
+Mapping will be a UnitMap.
+\item A Mapping which converts from the first to the second DSBSpecFrame,
+treating them as if they were both basic SpecFrames. This takes account of
+any difference in units, standard of rest, system, \emph{etc} between the
+two DSBSpecFrames.
+\item A Mapping which converts the second DSBSpecFrame from its observed
+sideband representation to its current sideband. If the DSBSpecFrame
+currently represents its observed sideband, this Mapping will be a UnitMap.
+\end{enumerate}
+
+
 
 
 \cleardoublepage
