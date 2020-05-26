@@ -44,6 +44,13 @@
 #        Include the process ID in the name of the temporary directory and
 #        file, so that simultaneous invocations of this script do not trample
 #        all over each other.
+#     25-MAY-2020 (DSB):
+#        Previously, the temporary .c file included the header files using an
+#        absolute file path in each "#include" statement. But this does not
+#        work on mingw, which can only include header files using relative
+#        paths. So now each "#include" statement uses a relative path, and the
+#        appropriate parent directory is specified using the "-I" option when
+#        running the C pre-processor within the ast_cpp script.
 #-
 
 ( $#ARGV >= 0 ) || Usage();
@@ -84,15 +91,15 @@ foreach $file ( @ARGV ) {
 
 #  Open a pipe to a script (in the current directory) which runs the C
 # preprocessor and direct its output to a scratch file.
-open( CC, "| ./ast_cpp >/tmp/ast-$$.h" ) ||
+open( CC, "| ./ast_cpp $tmpdir >/tmp/ast-$$.h" ) ||
                                 die "Can't open pipe to C preprocessor (cpp)";
 
 if ( $need_config_h ) {
 # Include this directory's config.h, unescaped, in the output.  We
 # need to pay attention to the values in this file, but don't want
 # them unexpanded in the final ast.h.
-    chomp($cwd = `pwd`);
-    print(CC "#include \"$cwd/config.h\"\n");
+    system("cp ./config.h $tmpdir/config.h");
+    print(CC "#include \"config.h\"\n");
 }
 
 #  Before including each file, write an underlined heading in the form of
@@ -110,7 +117,7 @@ foreach $file ( @ARGV ) {
 #  preprocesses) each of the temporary files created above in turn.
    $tmp_file = $file;
    $tmp_file =~ s|^.*/||;
-   printf(CC "#include \"%s/%s\"\n", $tmpdir, $tmp_file);
+   printf(CC "#include \"%s\"\n", $tmp_file);
 };
 
 #  Close the pipe to cpp.
