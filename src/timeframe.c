@@ -6187,11 +6187,13 @@ static int Unformat( AstFrame *this_frame, int axis, const char *string,
 /* Attempt to read a date/time from the whol string. If this fails
    terminate the string in order to make it one character shorter and try
    again. */
-   for( lt = l; lt > 0; lt-- ) {
-      str[ lt ] = 0;
-      mjd = astReadDateTime( str );
-      if( !astOK ) astClearStatus;
-      if( mjd != AST__BAD ) break;
+   if( str ) {
+      for( lt = l; lt > 0; lt-- ) {
+         str[ lt ] = 0;
+         mjd = astReadDateTime( str );
+         if( !astOK ) astClearStatus;
+         if( mjd != AST__BAD ) break;
+      }
    }
 
 /* Re-instate error reporting. */
