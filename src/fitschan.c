@@ -1226,6 +1226,17 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        (see email from Bill Joye on 9/5/2019).
 *     17-OCT-2019 (DSB):
 *        Add ForceTab algorithm.
+*     28-MAY-2020 (DSB):
+*        - In SpecTrans, don't assume that the number of CRPIX kewords
+*        defines the number of axes. Treat each keyword separately so
+*        that no keywords are created that don't have corresponding keywords
+*        in the original header. This avoids the final Mapping having (say)
+*        3 inputs when there are are only two pixel axes speciofied in
+*        the header (i.e. avoid adding degenerate axes).
+*        - In AddFrame, feed a constant value of zero, instead of one,
+*        into any Mapping inputs that have no corresponding pixel axis.
+*        This is because the default value for CRPIX (specified in the 
+*        FITS-WCS papers) is 0.0, not 1.0.
 *class--
 */
 
@@ -2448,10 +2459,11 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
    mapping = WcsMapFrm( this, store, s, &frame, method, class, status );
 
 /* Add the Frame into the FrameSet, and annul the mapping and frame. If
-   the new Frame has more axes than the pixel Frame, use a PermMap which
-   assigns constant value 1.0 to the extra axes. If the new Frame has less
-   axes than the pixel Frame, use a PermMap which throws away the extra
-   axes. */
+   the mapping has more inputs than there are axes in the pixel Frame,
+   use a PermMap which assigns constant value 0.0 to the extra axes. Zero
+   is used rather than 1.0 because the default value for CRPIX is zero.
+   If the new Frame has fewer axes than the pixel Frame, use a PermMap
+   which throws away the extra axes. */
    if( mapping != NULL ) {
       nwcs = astGetNin( mapping );
       if( nwcs != npix ) {
@@ -2464,7 +2476,7 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
             for( i = 0; i < nwcs; i++ ) {
                outperm[ i ] = ( i < npix ) ? i : -1;
             }
-            con = 1.0;
+            con = 0.0;
             pmap = astPermMap( npix, inperm, nwcs, outperm, &con, "", status );
             tmap = (AstMapping *) astCmpMap( pmap, mapping, 1, "", status );
             pmap = astAnnul( pmap );
@@ -29883,100 +29895,94 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
    for( s = 'A' - 1; s <= 'Z' && astOK; s++ ){
       if( s == 'A' - 1 ) s = ' ';
 
-/* Find the number of axes by finding the highest axis number in any
-   CRPIXi keyword name. Pass on if there are no axes for this axis
-   description. */
+/* Find the highest axis index in a CTYPE keyword. */
       if( s != ' ' ) {
-         sprintf( template, "CRPIX%%d%c", s );
+         sprintf( template, "CTYPE%%d%c", s );
       } else {
-         strcpy( template, "CRPIX%d" );
+         strcpy( template, "CTYPE%d" );
       }
-      if( !astKeyFields( this, template, 1, &naxis, lbnd ) ) {
-         if( s == ' ' ) s = 'A' - 1;
-         continue;
-      }
+      if( astKeyFields( this, template, 1, &naxis, lbnd ) ) {
 
 /* Find the longitude and latitude axes by examining the CTYPE values.
    They are marked as read. Such markings are only provisional, and they
    can be read again any number of times until the current astRead
    operation is completed. Also note the projection type. */
-      j = 0;
-      axlon = -1;
-      axlat = -1;
-      while( j < naxis && astOK ){
-         if( GetValue2( ret, this, FormatKey( "CTYPE", j + 1, -1, s, status ),
-                       AST__STRING, (void *) &cval, 0, method,
-                       class, status ) ){
-            nc = strlen( cval );
-            if( !strncmp( cval, "RA--", 4 ) ||
-                !strncmp( cval, "AZ--", 4 ) ||
-                ( nc > 1 && !strncmp( cval + 1, "LON", 3 ) ) ||
-                ( nc > 2 && !strncmp( cval + 2, "LN", 2 ) ) ) {
-               axlon = j;
-               strncpy( prj, cval + 4, 4 );
-               strncpy( lontype, cval, 10 );
-               prj[ 4 ] = 0;
-            } else if( !strncmp( cval, "DEC-", 4 ) ||
-                !strncmp( cval, "EL--", 4 ) ||
-                ( nc > 1 && !strncmp( cval + 1, "LAT", 3 ) ) ||
-                ( nc > 2 && !strncmp( cval + 2, "LT", 2 ) ) ) {
-               axlat = j;
-               strncpy( prj, cval + 4, 4 );
-               strncpy( lattype, cval, 10 );
-               prj[ 4 ] = 0;
+         j = 0;
+         axlon = -1;
+         axlat = -1;
+         while( j < naxis && astOK ){
+            if( GetValue2( ret, this, FormatKey( "CTYPE", j + 1, -1, s, status ),
+                          AST__STRING, (void *) &cval, 0, method,
+                          class, status ) ){
+               nc = strlen( cval );
+               if( !strncmp( cval, "RA--", 4 ) ||
+                   !strncmp( cval, "AZ--", 4 ) ||
+                   ( nc > 1 && !strncmp( cval + 1, "LON", 3 ) ) ||
+                   ( nc > 2 && !strncmp( cval + 2, "LN", 2 ) ) ) {
+                  axlon = j;
+                  strncpy( prj, cval + 4, 4 );
+                  strncpy( lontype, cval, 10 );
+                  prj[ 4 ] = 0;
+               } else if( !strncmp( cval, "DEC-", 4 ) ||
+                   !strncmp( cval, "EL--", 4 ) ||
+                   ( nc > 1 && !strncmp( cval + 1, "LAT", 3 ) ) ||
+                   ( nc > 2 && !strncmp( cval + 2, "LT", 2 ) ) ) {
+                  axlat = j;
+                  strncpy( prj, cval + 4, 4 );
+                  strncpy( lattype, cval, 10 );
+                  prj[ 4 ] = 0;
 
 /* Check for spectral algorithms from early drafts of paper III */
-            } else {
-               sprj[ 0 ] = '-';
-               if( ( nc > 4 && !strncmp( cval + 4, "-WAV", 4 ) ) ) {
-                  sprj[ 1 ] = 'W';
-               } else if( ( nc > 4 && !strncmp( cval + 4, "-FRQ", 4 ) ) ) {
-                  sprj[ 1 ] = 'F';
-               } else if( ( nc > 4 && !strncmp( cval + 4, "-VEL", 4 ) ) ) {
-                  sprj[ 1 ] = 'V';
                } else {
-                  sprj[ 0 ] = 0;
-               }
-               if( *sprj ) {
-                  sprj[ 2 ] = '2';
-                  if( !strncmp( cval, "WAVE", 4 ) ) {
-                     sprj[ 3 ] = 'W';
-                  } else if( !strncmp( cval, "FREQ", 4 ) ) {
-                     sprj[ 3 ] = 'F';
-                  } else if( !strncmp( cval, "VELO", 4 ) ) {
-                     sprj[ 3 ] = 'V';
-                  } else if( !strncmp( cval, "VRAD", 4 ) ) {
-                     sprj[ 3 ] = 'F';
-                  } else if( !strncmp( cval, "VOPT", 4 ) ) {
-                     sprj[ 3 ] = 'W';
-                  } else if( !strncmp( cval, "ZOPT", 4 ) ) {
-                     sprj[ 3 ] = 'W';
-                  } else if( !strncmp( cval, "ENER", 4 ) ) {
-                     sprj[ 3 ] = 'F';
-                  } else if( !strncmp( cval, "WAVN", 4 ) ) {
-                     sprj[ 3 ] = 'F';
-                  } else if( !strncmp( cval, "BETA", 4 ) ) {
-                     sprj[ 3 ] = 'V';
+                  sprj[ 0 ] = '-';
+                  if( ( nc > 4 && !strncmp( cval + 4, "-WAV", 4 ) ) ) {
+                     sprj[ 1 ] = 'W';
+                  } else if( ( nc > 4 && !strncmp( cval + 4, "-FRQ", 4 ) ) ) {
+                     sprj[ 1 ] = 'F';
+                  } else if( ( nc > 4 && !strncmp( cval + 4, "-VEL", 4 ) ) ) {
+                     sprj[ 1 ] = 'V';
                   } else {
                      sprj[ 0 ] = 0;
                   }
-               }
-               if( *sprj ) {
-                  strcpy( spectype, cval );
-                  if( sprj[ 1 ] == sprj[ 3 ] ) {
-                     strcpy( sprj, strlen( cval ) > 8 ? "----" : "    " );
-                  } else {
-                     sprj[ 4 ] = 0;
+                  if( *sprj ) {
+                     sprj[ 2 ] = '2';
+                     if( !strncmp( cval, "WAVE", 4 ) ) {
+                        sprj[ 3 ] = 'W';
+                     } else if( !strncmp( cval, "FREQ", 4 ) ) {
+                        sprj[ 3 ] = 'F';
+                     } else if( !strncmp( cval, "VELO", 4 ) ) {
+                        sprj[ 3 ] = 'V';
+                     } else if( !strncmp( cval, "VRAD", 4 ) ) {
+                        sprj[ 3 ] = 'F';
+                     } else if( !strncmp( cval, "VOPT", 4 ) ) {
+                        sprj[ 3 ] = 'W';
+                     } else if( !strncmp( cval, "ZOPT", 4 ) ) {
+                        sprj[ 3 ] = 'W';
+                     } else if( !strncmp( cval, "ENER", 4 ) ) {
+                        sprj[ 3 ] = 'F';
+                     } else if( !strncmp( cval, "WAVN", 4 ) ) {
+                        sprj[ 3 ] = 'F';
+                     } else if( !strncmp( cval, "BETA", 4 ) ) {
+                        sprj[ 3 ] = 'V';
+                     } else {
+                        sprj[ 0 ] = 0;
+                     }
                   }
-                  strncpy( spectype + 4, sprj, 4 );
-                  cval = spectype;
-                  SetValue( ret, FormatKey( "CTYPE", j + 1, -1, s, status ),
-                           (void *) &cval, AST__STRING, NULL, status );
+                  if( *sprj ) {
+                     strcpy( spectype, cval );
+                     if( sprj[ 1 ] == sprj[ 3 ] ) {
+                        strcpy( sprj, strlen( cval ) > 8 ? "----" : "    " );
+                     } else {
+                        sprj[ 4 ] = 0;
+                     }
+                     strncpy( spectype + 4, sprj, 4 );
+                     cval = spectype;
+                     SetValue( ret, FormatKey( "CTYPE", j + 1, -1, s, status ),
+                              (void *) &cval, AST__STRING, NULL, status );
+                  }
                }
+               j++;
             }
-            j++;
-         } else {
-            break;
          }
       }
 
@@ -30005,13 +30011,14 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 /* Zero CDELT values.
    ----------------- */
 
-/* Check there are some CDELT keywords... */
+/* Find the highest axis index in a CDELT keyword. Pass on if there are
+   none. */
       if( s != ' ' ) {
-         sprintf( template, "CDELT%%d%c", s );
+         sprintf( template, "CTYPE%%d%c", s );
       } else {
-         strcpy( template, "CDELT%d" );
+         strcpy( template, "CTYPE%d" );
       }
-      if( astKeyFields( this, template, 0, NULL, NULL ) ){
+      if( astKeyFields( this, template, 1, &naxis, lbnd ) ){
 
 /* Do each row in the matrix. */
          for( j = 0; j < naxis; j++ ){
@@ -30046,12 +30053,12 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
       } else {
          strcpy( template, "PC%d_%d" );
       }
-      gotpcij = astKeyFields( this, template, 0, NULL, NULL );
+      gotpcij = astKeyFields( this, template, 1, &naxis, lbnd );
       if( !gotpcij ){
 
 /* CDjjjiii
    -------- */
-         if( s == ' ' && astKeyFields( this, "CD%3d%3d", 0, NULL, NULL ) ){
+         if( s == ' ' && astKeyFields( this, "CD%3d%3d", 1, &naxis, lbnd ) ){
 
 /* Do each row in the matrix. */
             for( j = 0; j < naxis; j++ ){
@@ -30086,7 +30093,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
          } else {
             strcpy( template, "CD%d_%d" );
          }
-         if( !gotpcij && astKeyFields( this, template, 0, NULL, NULL ) ){
+         if( !gotpcij && astKeyFields( this, template, 1, &naxis, lbnd ) ){
 
 /* Do each row in the matrix. */
             for( j = 0; j < naxis; j++ ){
@@ -30139,7 +30146,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
          } else {
             strcpy( template, "CDELT%d" );
          }
-         if( !gotpcij && astKeyFields( this, template, 0, NULL, NULL ) ){
+         if( !gotpcij && astKeyFields( this, template, 1, &naxis, lbnd ) ){
 
 /* See if there is a CROTA keyword. Try to read values for both axes
    since they are sometimes both included. This ensures they will not be
@@ -30363,6 +30370,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 /* CmELTi keywords
    --------------- */
          if( astKeyFields( this, "C%1dELT%d", 2, ubnd, lbnd ) ){
+            naxis = ubnd[ 1 ];
             ss = 'A';
             for( m = lbnd[ 0 ]; m <= ubnd[ 0 ]; m++ ){
 
@@ -30785,7 +30793,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 
 /* MSX CAR projections.
    ------------------- */
-      if( !Ustrcmp( prj, "-CAR", status ) && !astGetCarLin( this ) ) {
+      if( s == ' ' && !Ustrcmp( prj, "-CAR", status ) && !astGetCarLin( this ) ) {
 
 /* The CAR projection has valid projection plane points only for native
    longitudes in the range [-180,+180]. The reference pixel (CRPIX) is at
@@ -30857,20 +30865,28 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
    These are of the form AAAA-BBB, where "AAAA" can be "FREQ", "VELO" (=VRAD!)
    or "FELO" (=VOPT-F2W), and BBB can be "LSR", "LSD", "HEL" (=*Bary*centric!)
    or "GEO". Also convert "LAMBDA" to "WAVE". */
-      for( j = 0; j < naxis; j++ ) {
-         if( GetValue2( ret, this, FormatKey( "CTYPE", j + 1, -1, s, status ),
-                       AST__STRING, (void *) &cval, 0, method,
-                       class, status ) ){
-            if( IsAIPSSpectral( cval, &astype, &assys, status ) ) {
-               SetValue( ret, FormatKey( "CTYPE", j + 1, -1, s, status ),
-                         (void *) &astype, AST__STRING, NULL, status );
-               SetValue( ret, "SPECSYS", (void *) &assys, AST__STRING, NULL, status );
-               break;
-            } else if( !strcmp( cval, "LAMBDA  " ) ) {
-               cval = "WAVE";
-               SetValue( ret, FormatKey( "CTYPE", j + 1, -1, s, status ),
-                         (void *) &cval, AST__STRING, NULL, status );
-               break;
+
+      if( s != ' ' ) {
+         sprintf( template, "CTYPE%%d%c", s );
+      } else {
+         strcpy( template, "CTYPE%d" );
+      }
+      if( astKeyFields( this, template, 1, &naxis, lbnd ) ){
+         for( j = 0; j < naxis; j++ ) {
+            if( GetValue2( ret, this, FormatKey( "CTYPE", j + 1, -1, s, status ),
+                          AST__STRING, (void *) &cval, 0, method,
+                          class, status ) ){
+               if( IsAIPSSpectral( cval, &astype, &assys, status ) ) {
+                  SetValue( ret, FormatKey( "CTYPE", j + 1, -1, s, status ),
+                            (void *) &astype, AST__STRING, NULL, status );
+                  SetValue( ret, "SPECSYS", (void *) &assys, AST__STRING, NULL, status );
+                  break;
+               } else if( !strcmp( cval, "LAMBDA  " ) ) {
+                  cval = "WAVE";
+                  SetValue( ret, FormatKey( "CTYPE", j + 1, -1, s, status ),
+                            (void *) &cval, AST__STRING, NULL, status );
+                  break;
+               }
             }
          }
       }

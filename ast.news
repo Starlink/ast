@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.1.0) of the Starlink AST (astrometry) library is
+   A new release (V9.1.2) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,6 +17,18 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- A bug in the way in which the FitsChan class reads FITS-WCS headers
+that have more WCS axes than pixel axes has been fixed (i.e. axes for
+which there is no CRPIX value). Previously, the missing pixel axes were
+assigned a constant value 1.0. However, the default value for CRPIX
+specified by FITS-WCS Paper I is 0.0, not 1.0. So now the missing pixel
+axes are assigned the value 0.0.
+
+
+
+Main Changes in V9.1.0
+----------------------
+
 - The AST source directory has been reorganised to put most of the AST
 source files into a subdirectory named "src".
 
@@ -31,6 +43,7 @@ Main Changes in V9.0.2
 ----------------------
 
 - The AST sharable libraries now use a non-zero version number.
+
 - The FitsChan class has a new attribute called ForceTab, which is used
 in conjunction with the TabOK attribute to force the use of the
 "-TAB" algorithm when writing a FrameSet out using the FITS-WCS encoding.

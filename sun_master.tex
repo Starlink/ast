@@ -18,7 +18,7 @@ f+
 \stardocnumber      {210.29}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {26th May 2020}
+\stardocdate        {28th May 2020}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -22351,11 +22351,9 @@ in conjunction with the TabOK attribute to force the use of the
 \end{enumerate}
 
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.1.0}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.0.2 and V9.1.0 (the
-current version):
+\subsection{Changes Introduced in V9.1.0}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.0.2 and V9.1.0.
 
 \begin{enumerate}
 \item The AST source directory has been reorganised to put most of the AST
@@ -22366,6 +22364,23 @@ returned by astCurrentTime to be wrong by 37 seconds.
 
 \item The Region class has a new convenience method (astPointInRegion) to
 test a if a single point is inside a Region.
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.1.2}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.1.0 and V9.1.2 (the
+current version):
+
+\begin{enumerate}
+
+\item A bug in the way in which the FitsChan class reads FITS-WCS headers
+that have more WCS axes than pixel axes has been fixed (i.e. axes for
+which there is no CRPIX value). Previously, the missing pixel axes were
+assigned a constant value 1.0. However, the default value for CRPIX
+specified by FITS-WCS Paper I is 0.0, not 1.0. So now the missing pixel
+axes are assigned the value 0.0.
 
 \end{enumerate}
 
