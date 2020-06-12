@@ -680,6 +680,7 @@ c  Test putting single elements into vector entries.
       call ast_annul( map, status )
 
 
+
 C  Test ast_mapcopy
       map = ast_keymap( ' ', status )
       map1 = ast_keymap( ' ', status )
@@ -965,6 +966,56 @@ C  Test AST_MAPPUTU and undefined values
       else if( ival .ne. 0 ) then
          call stopit( status, 'Error RENAME_6' )
       endif
+
+
+
+C  Test ast_mapcopyentry
+      map = ast_keymap( ' ', status )
+      map1 = ast_keymap( ' ', status )
+      map2 = ast_keymap( ' ', status )
+      map3 = ast_keymap( ' ', status )
+
+      call ast_mapput0i( map1, 'a1', 1, ' ', status )
+      call ast_mapput0i( map1, 'a2', 2, ' ', status )
+      call ast_mapput0i( map1, 'a3', 3, ' ', status )
+
+      call ast_mapput0c( map, 'aa1', 'Yes', ' ', status )
+      call ast_mapput0i( map, 'aa2', 2, ' ', status )
+      call ast_mapput0a( map, 'aa3', map1, ' ', status )
+
+      call ast_mapput0i( map2, 'b1', 10, ' ', status )
+      call ast_mapput0i( map2, 'b2', 20, ' ', status )
+      call ast_mapput0i( map2, 'b3', 30, ' ', status )
+
+      call ast_mapput0c( map3, 'bb1', 'No', ' ', status )
+      call ast_mapput0i( map3, 'aa2', 20, ' ', status )
+      call ast_mapput0a( map3, 'aa3', map2, ' ', status )
+
+      call ast_mapcopyentry( map, 'bb1', map3, .FALSE., status )
+      if( ast_mapsize( map, status ) .ne. 4 ) then
+         call stopit( status, 'Error MAPCOPYENTRY_1' )
+      end if
+      if( .not. ast_mapget0c( map, 'bb1', cval, l,
+     :                        status ) ) then
+         call stopit( status, 'Error MAPCOPYENTRY_2' )
+      end if
+      if( cval .ne. 'No' ) then
+         call stopit( status, 'Error MAPCOPYENTRY_3' )
+      end if
+
+      call ast_mapcopyentry( map, 'aa3', map3, .FALSE., status )
+      if( .not. ast_mapget0a( map, 'aa3', aval, status ) ) then
+         call stopit( status, 'Error MAPCOPYENTRY_4' )
+      end if
+      if( .not. ast_mapget0i( aval, 'b3', ival, status ) ) then
+         call stopit( status, 'Error MAPCOPYENTRY_5' )
+      end if
+      if( ival .ne. 30 ) then
+         call stopit( status, 'Error MAPCOPYENTRY_6' )
+      end if
+      if( ast_mapget0i( aval, 'a1', ival, status ) ) then
+         call stopit( status, 'Error MAPCOPYENTRY_7' )
+      end if
 
 
 

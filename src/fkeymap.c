@@ -17,6 +17,7 @@
 *     AST_ISAKEYMAP
 *     AST_KEYMAP
 *     AST_MAPCOPY
+*     AST_MAPCOPYENTRY
 *     AST_MAPPUT0<X>
 *     AST_MAPPUT1<X>
 *     AST_MAPPUTU
@@ -926,6 +927,26 @@ F77_SUBROUTINE(ast_mapcopy)( INTEGER(THIS),
    astAt( "AST_MAPCOPY", NULL, 0 );
    astWatchSTATUS(
       astMapCopy( astI2P( *THIS ), astI2P( *THAT ) );
+   )
+}
+
+F77_SUBROUTINE(ast_mapcopyentry)( INTEGER(THIS),
+                                  CHARACTER(KEY),
+                                  INTEGER(THAT),
+                                  LOGICAL(MERGE),
+                                  INTEGER(STATUS)
+                                  TRAIL(KEY) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_CHARACTER(KEY)
+   GENPTR_INTEGER(THAT)
+   GENPTR_LOGICAL(MERGE)
+   char *key;
+
+   astAt( "AST_MAPCOPYENTRY", NULL, 0 );
+   astWatchSTATUS(
+      key = astString( KEY, KEY_length );
+      astMapCopyEntry( astI2P( *THIS ), key, astI2P( *THAT ), *MERGE );
+      astFree( key );
    )
 }
 

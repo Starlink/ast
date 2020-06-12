@@ -212,6 +212,7 @@ typedef struct AstKeyMapVtab {
    void (* MapRemove)( AstKeyMap *, const char *, int * );
    void (* MapRename)( AstKeyMap *, const char *, const char *, int * );
    void (* MapCopy)( AstKeyMap *, AstKeyMap *, int * );
+   void (* MapCopyEntry)( AstKeyMap *, const char *, AstKeyMap *, int, int * );
    int (* MapSize)( AstKeyMap *, int * );
    int (* MapLength)( AstKeyMap *, const char *, int * );
    int (* MapLenC)( AstKeyMap *, const char *, int * );
@@ -348,6 +349,7 @@ int astMapLength_( AstKeyMap *, const char *, int * );
 int astMapSize_( AstKeyMap *, int * );
 int astMapType_( AstKeyMap *, const char *, int * );
 void astMapCopy_( AstKeyMap *, AstKeyMap *, int * );
+void astMapCopyEntry_( AstKeyMap *, const char *, AstKeyMap *, int, int * );
 void astMapPut0A_( AstKeyMap *, const char *, AstObject *, const char *, int * );
 void astMapPut0B_( AstKeyMap *, const char *, unsigned char, const char *, int * );
 void astMapPut0C_( AstKeyMap *, const char *, const char *, const char *, int * );
@@ -494,6 +496,7 @@ astINVOKE(O,astLoadKeyMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 #define astMapRemove(this,key) astINVOKE(V,astMapRemove_(astCheckKeyMap(this),key,STATUS_PTR))
 #define astMapRename(this,oldkey,newkey) astINVOKE(V,astMapRename_(astCheckKeyMap(this),oldkey,newkey,STATUS_PTR))
 #define astMapCopy(this,that) astINVOKE(V,astMapCopy_(astCheckKeyMap(this),astCheckKeyMap(that),STATUS_PTR))
+#define astMapCopyEntry(this,key,that,merge) astINVOKE(V,astMapCopyEntry_(astCheckKeyMap(this),key,astCheckKeyMap(that),merge,STATUS_PTR))
 #define astMapSize(this) astINVOKE(V,astMapSize_(astCheckKeyMap(this),STATUS_PTR))
 #define astMapLength(this,key) astINVOKE(V,astMapLength_(astCheckKeyMap(this),key,STATUS_PTR))
 #define astMapLenC(this,key) astINVOKE(V,astMapLenC_(astCheckKeyMap(this),key,STATUS_PTR))
