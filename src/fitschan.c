@@ -1235,8 +1235,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        the header (i.e. avoid adding degenerate axes).
 *        - In AddFrame, feed a constant value of zero, instead of one,
 *        into any Mapping inputs that have no corresponding pixel axis.
-*        This is because the default value for CRPIX (specified in the 
+*        This is because the default value for CRPIX (specified in the
 *        FITS-WCS papers) is 0.0, not 1.0.
+*     12-JUN-2020 (DSB):
+*        In SpecTrans ("Zero cdelt values:") use "CDELT", not "CTYPE", to
+*        define the number of available CDELT values. 
 *class--
 */
 
@@ -30014,9 +30017,9 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 /* Find the highest axis index in a CDELT keyword. Pass on if there are
    none. */
       if( s != ' ' ) {
-         sprintf( template, "CTYPE%%d%c", s );
+         sprintf( template, "CDELT%%d%c", s );
       } else {
-         strcpy( template, "CTYPE%d" );
+         strcpy( template, "CDELT%d" );
       }
       if( astKeyFields( this, template, 1, &naxis, lbnd ) ){
 
