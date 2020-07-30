@@ -408,7 +408,9 @@ typedef unsigned long long int UINT_BIG;
    Mapping structure. */
 #if defined(astCLASS)         /* Protected */
 #define AST__ISSIMPLE_FLAG 1  /* Mapping has been simplified */
-#define AST__FROZEN_FLAG 2    /* Mapping cannot be nominated for simplification */
+#define AST__FROZEN_FLAG 2    /* No further changes to Mapping allowed
+                                 during simplification */
+#define AST__MERGE_FLAG 4     /* Mapping can be changed during simplification */
 #endif
 
 
@@ -463,6 +465,7 @@ typedef struct AstMappingVtab {
    int (* LinearApprox)( AstMapping *, const double *, const double *, double, double *, int * );
    int (* MapMerge)( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
    int (* QuadApprox)( AstMapping *, const double[2], const double[2], int, int, double *, double *, int * );
+   int (* MergeFlag)( AstMapping *, int, int * );
    int (* TestInvert)( AstMapping *, int * );
    int (* TestReport)( AstMapping *, int * );
    void (* ClearInvert)( AstMapping *, int * );
@@ -702,6 +705,7 @@ int astGetTranForward_( AstMapping *, int * );
 int astGetTranInverse_( AstMapping *, int * );
 int astGetIsLinear_( AstMapping *, int * );
 int astDoNotSimplify_( AstMapping *, int * );
+int astMergeFlag_( AstMapping *, int, int * );
 int astMapMerge_( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 int astTestInvert_( AstMapping *, int * );
 int astTestReport_( AstMapping *, int * );
@@ -964,6 +968,8 @@ astINVOKE(V,astTestInvert_(astCheckMapping(this),STATUS_PTR))
 astINVOKE(V,astTestReport_(astCheckMapping(this),STATUS_PTR))
 #define astDoNotSimplify(this) \
 astINVOKE(V,astDoNotSimplify_(astCheckMapping(this),STATUS_PTR))
+#define astMergeFlag(this,oper) \
+astINVOKE(V,astMergeFlag_(astCheckMapping(this),oper,STATUS_PTR))
 
 /* Since a NULL PointSet pointer is acceptable here, we must omit the argument
    checking in that case. (But unfortunately, "out" then gets evaluated

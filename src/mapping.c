@@ -33,6 +33,7 @@
 *     - IsSimple: Has the Mapping been simplified?
 *     - Nin: Number of input coordinates for a Mapping
 *     - Nout: Number of output coordinates for a Mapping
+*     - Protect: Prevent simplification of Mapping?
 *     - Report: Report transformed coordinates?
 *     - TranForward: Forward transformation defined?
 *     - TranInverse: Inverse transformation defined?
@@ -399,6 +400,10 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        - Added 8-byte interface for astResample<X>.
 *        - Added 8-byte interface for astTran1, astTran2, astTranN and
 *        astTranP.
+*     30-JUL-2020 (DSB):
+*        - Add protected method astMergeFlag.
+*        - Added Protect attribute (a virtual attribute that gives public
+*        access to the astMergeFlag method).
 *
 *class--
 */
@@ -708,6 +713,7 @@ static int RebinWithBlocking( AstMapping *, const double *, int, const AstDim *,
 static AstDim ResampleAdaptively( AstMapping *, int, const AstDim *, const AstDim *, const void *, const void *, DataType, int, void (*)( void ), const double *, int, double, int, const void *, int, const AstDim *, const AstDim *, const AstDim *, const AstDim *, void *, void *, int * );
 static AstDim ResampleSection( AstMapping *, const double *, int, const AstDim *, const AstDim *, const void *, const void *, DataType, int, void (*)( void ), const double *, double, int, const void *, int, const AstDim *, const AstDim *, const AstDim *, const AstDim *, void *, void *, int * );
 static AstDim ResampleWithBlocking( AstMapping *, const double *, int, const AstDim *, const AstDim *, const void *, const void *, DataType, int, void (*)( void ), const double *, int, const void *, int, const AstDim *, const AstDim *, const AstDim *, const AstDim *, void *, void *, int * );
+static int MergeFlag( AstMapping *, int, int * );
 static int SpecialBounds( const MapData *, double *, double *, double [], double [], int * );
 static int TestAttrib( AstObject *, const char *, int * );
 static int TestInvert( AstMapping *, int * );
@@ -798,6 +804,11 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* ------- */
    if ( !strcmp( attrib, "invert" ) ) {
       astClearInvert( this );
+
+/* Protect.*/
+/* ------- */
+   } else if ( !strcmp( attrib, "protect" ) ) {
+      astMergeFlag( this, 1 );
 
 /* Report. */
 /* ------- */
@@ -1039,7 +1050,7 @@ static int DoNotSimplify( AstMapping *this, int *status ) {
 /*
 *+
 *  Name:
-*     astMapMerge
+*     astDoNotSimplify
 
 *  Purpose:
 *     Check if a Mapping is appropriate for simplification.
@@ -1049,14 +1060,15 @@ static int DoNotSimplify( AstMapping *this, int *status ) {
 
 *  Synopsis:
 *     #include "mapping.h"
-*     int astDoNotSImplify( AstMapping *this );
+*     int astDoNotSimplify( AstMapping *this );
 
 *  Class Membership:
 *     Mapping method.
 
 *  Description:
 *     This function returns a flag indivating if the supplied Mapping is
-*     appropriate for simplification.
+*     appropriate for simplification. This causes the Mapping to be left
+*     unchanged by the astSimplify, astMapMerge and astMapList methods.
 
 *  Parameters:
 *     this
@@ -1452,6 +1464,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    int issimple;                 /* IsSimple attribute value */
    int nin;                      /* Nin attribute value */
    int nout;                     /* Nout attribute value */
+   int protect;                  /* Protect attribute value */
    int report;                   /* Report attribute value */
    int tran_forward;             /* TranForward attribute value */
    int tran_inverse;             /* TranInverse attribute value */
@@ -1515,6 +1528,15 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
       nout = astGetNout( this );
       if ( astOK ) {
          (void) sprintf( getattrib_buff, "%d", nout );
+         result = getattrib_buff;
+      }
+
+/* Protect. */
+/* -------- */
+   } else if ( !strcmp( attrib, "protect" ) ) {
+      protect = !astMergeFlag( this, -1 );
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%d", protect );
          result = getattrib_buff;
       }
 
@@ -2555,6 +2577,7 @@ VTAB_GENERIC(LD)
    vtab->SetInvert = SetInvert;
    vtab->SetReport = SetReport;
    vtab->Simplify = Simplify;
+   vtab->MergeFlag = MergeFlag;
    vtab->TestInvert = TestInvert;
    vtab->TestReport = TestReport;
    vtab->Tran1 = Tran1;
@@ -16262,6 +16285,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
    int invert;                   /* Invert attribute value */
    int len;                      /* Length of setting string */
    int nc;                       /* Number of characters read by astSscanf */
+   int protect;                  /* Protect attribute value */
    int report;                   /* Report attribute value */
 
 /* Check the global error status. */
@@ -16285,6 +16309,13 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
         ( 1 == astSscanf( setting, "invert= %d %n", &invert, &nc ) )
         && ( nc >= len ) ) {
       astSetInvert( this, invert );
+
+/* Protect */
+/* ------- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "protect= %d %n", &protect, &nc ) )
+        && ( nc >= len ) ) {
+      astMergeFlag( this, 0 );
 
 /* Report. */
 /* ------- */
@@ -16319,6 +16350,95 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 
 /* Undefine macros local to this function. */
 #undef MATCH
+}
+
+static int MergeFlag( AstMapping *this, int oper, int *status ) {
+/*
+*+
+*  Name:
+*     astMergeFlag
+
+*  Purpose:
+*     Set, clear or get a flag that indicates if a Mapping can be merged
+*     during simplification.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     int astMergeFlag( AstMapping *this, int oper )
+
+*  Class Membership:
+*     Mapping method.
+
+*  Description:
+*     Each Mapping has a flag that controls whether the Mapping may be
+*     nominated for simplification within astSimplify. If the flag is set
+*     (the default) the Mapping is nominated for simplication when a
+*     parent CmpMap that contains the Mapping is simplified. If it is
+*     clear then Mapping is never nominated for simplication. This allows
+*     component Mappings within a CmpMap to be protected from change during
+*     simplification.
+
+*  Parameters:
+*     this
+*        Pointer to the Mapping.
+*     oper
+*        Indicates what the method should do. If zero, the flag is
+*        cleared. If positive the flag is set. If negative the flag is
+*        left unchanged.
+
+*  Returned Value:
+*     The original value of the flag on entry to this function.
+
+*  Notes:
+*     - Mappings that have a set value for the Ident attribute are
+*     never simplified (see astDoNotSimplify).
+*     - A value of zero will be returned if an error has already occurred.
+
+*  Applicability:
+*     Mapping
+*        This function applies to all Mappings.
+*     CmpMap
+*        When setting or clearing the flag for a CmpMap, all component
+*        Mappings inside the CmpMap will be set or cleared in the same way.
+*        The returned value of the flag will be the value in the CmpMap
+*        itself (it is possible that some component Mappings may have a
+*        different value).
+*     TranMap
+*        When setting or clearing the flag for a TranMap, both component
+*        Mappings inside the TranMap will be set or cleared in the same way.
+*        The returned value of the flag will be the value in the TranMap
+*        itself (it is possible that one or both component Mappings may have
+*        a different value).
+
+*-
+*/
+
+/* Local Variables: */
+   int result;
+
+/* Check inherited status. */
+   if( !astOK ) return 0;
+
+/* The "flags" value in the Mapping structure is initialised to zero when
+   a  new Mapping is initialised. But we want the Simplify flag to have a
+   default of "set". So we need to invert the sense of the internally
+   stored flag bit. */
+   result = !((this->flags)&AST__MERGE_FLAG);
+
+/* Set the Simplify flag if requested (i.e. clear the internal flags bit). */
+   if( oper > 0 ) {
+      (this->flags) &= ~AST__MERGE_FLAG;
+
+/* Clear the Simplify flag if requested (i.e. set the internal flags bit). */
+   } else if( oper == 0 ) {
+      (this->flags) |= AST__MERGE_FLAG;
+   }
+
+/* Return the original flag value */
+   return result;
 }
 
 static void Sinc( double offset, const double params[], int flags,
@@ -20066,6 +20186,11 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
    if ( !strcmp( attrib, "invert" ) ) {
       result = astTestInvert( this );
 
+/* Protect */
+/* ------- */
+   } else if ( !strcmp( attrib, "protect" ) ) {
+      result = !astMergeFlag( this, -1 );
+
 /* Report. */
 /* ------- */
    } else if ( !strcmp( attrib, "report" ) ) {
@@ -23279,6 +23404,46 @@ astMAKE_GET(Mapping,IsSimple,int,0,((this->flags)&AST__ISSIMPLE_FLAG))
 /*
 *att++
 *  Name:
+*     Protect
+
+*  Purpose:
+*     Protect a Mapping from changes during simplification.
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Integer (boolean).
+
+*  Description:
+*     This attribute controls how the Mapping is affected by the
+c     astSimplify method. If it is zero,
+f     AST_SIMPLIFY method. If it is .FALSE.,
+*     the Mapping will be left unchanged during simplification (i.e. it
+*     will never be simplified). Otherwise it will be subject to
+*     simplification as normal. This provides a way to protect whole
+*     Mappings or selected component Mappings within a parent CmpMap from
+*     change.
+
+*  Notes:
+*     - Mappings that have a set value for the Ident attribute are always
+*     protected from change during simplification, regardless of the
+*     value of the Protect attribute.
+
+*  Applicability:
+*     Mapping
+*        All Mappings have this attribute.
+
+*att--
+*/
+/* The Protect attribute is a public interface to the merge flag (see
+   method astMergeFlag) and so does not have the usual protected access
+   functions. */
+
+
+/*
+*att++
+*  Name:
 *     Report
 
 *  Purpose:
@@ -23634,6 +23799,13 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
                 ival ? "Inverse transformation defined" :
                        "Inverse transformation not defined" );
 
+/* Protect */
+/* ------- */
+   ival = !astMergeFlag( this, -1 );
+   astWriteInt( channel, "Protct", ival, 0, ival,
+                ival ? "Mapping cannot be simplified" :
+                       "Mapping can be simplified" );
+
 /* Report. */
 /* ------- */
    set = TestReport( this, status );
@@ -23952,6 +24124,10 @@ AstMapping *astLoadMapping_( void *mem, size_t size,
 /* ------------ */
       new->tran_inverse = ( astReadInt( channel, "inv", 1 ) != 0 );
 
+/* Protect */
+/* ------- */
+      if( astReadInt( channel, "protct", 0 ) ) astMergeFlag( new, 1 );
+
 /* Report. */
 /* ------- */
       new->report = astReadInt( channel, "report", CHAR_MAX );
@@ -24047,6 +24223,10 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
 int astDoNotSimplify_( AstMapping *this, int *status ) {
    if ( !astOK ) return 0;
    return (**astMEMBER(this,Mapping,DoNotSimplify))( this, status );
+}
+int astMergeFlag_( AstMapping *this, int oper, int *status ) {
+   if ( !astOK ) return 0;
+   return (**astMEMBER(this,Mapping,MergeFlag))( this, oper, status );
 }
 void astReportPoints_( AstMapping *this, int forward,
                        AstPointSet *in_points, AstPointSet *out_points, int *status ) {

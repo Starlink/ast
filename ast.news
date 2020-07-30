@@ -20,6 +20,9 @@ Main Changes in this Version
 - The KeyMap class has a new method called astMapCopyEntry that can be used
 to copy a single entry from one KeyMap to another.
 
+- The Mapping class has a new attribute called "Protect" that can be used
+to prevent individual Mappings being affected by the astSimplify method.
+
 
 Main Changes in V9.1.2
 ----------------------
