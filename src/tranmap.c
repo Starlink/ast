@@ -70,8 +70,6 @@ f     The TranMap class does not define any new routines beyond those
 *        Override astGetObjSize.
 *     10-MAY-2006 (DSB):
 *        Override astEqual.
-*     30-JUL-2020 (DSB):
-*        Override the new astMergeFlag method.
 *class--
 */
 
@@ -122,7 +120,6 @@ static int class_check;
 static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static int *(* parent_mapsplit)( AstMapping *, int, const int *, AstMapping **, int * );
-static int (* parent_mergeflag)( AstMapping *, int, int * );
 
 #if defined(THREAD_SAFE)
 static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
@@ -171,7 +168,6 @@ static double Rate( AstMapping *, double *, int, int, int * );
 static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
-static int MergeFlag( AstMapping *, int, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
@@ -540,9 +536,6 @@ void astInitTranMapVtab_(  AstTranMapVtab *vtab, const char *name, int *status )
 
    parent_mapsplit = mapping->MapSplit;
    mapping->MapSplit = MapSplit;
-
-   parent_mergeflag = mapping->MergeFlag;
-   mapping->MergeFlag = MergeFlag;
 
 /* Store replacement pointers for methods which will be over-ridden by
    new member functions implemented here. */
@@ -1192,75 +1185,6 @@ static int *MapSplit( AstMapping *this_map, int nin, const int *in, AstMapping *
    }
 
 /* Return the list of output indices. */
-   return result;
-}
-
-static int MergeFlag( AstMapping *this_mapping, int oper, int *status ) {
-/*
-*  Name:
-*     MergeFlag
-
-*  Purpose:
-*     Set, clear or get a flag that indicates if a Mapping can be merged
-*     during simplification.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "mapping.h"
-*     int astMergeFlag( AstMapping *this, int oper )
-
-*  Class Membership:
-*     TranMap method (over-rides the astMergFlag method inherited from
-*     the Mapping class).
-
-*  Description:
-*     Each Mapping has a flag that controls whether the Mapping may be
-*     nominated for simplification within astSimplify. If the flag is set
-*     (the default) the Mapping is nominated for simplication when a
-*     parent CmpMap that contains the Mapping is simplified. If it is
-*     clear then Mapping is never nominated for simplication. This allows
-*     component Mappings within a CmpMap to be protected from change during
-*     simplification.
-
-*  Parameters:
-*     this
-*        Pointer to the Mapping.
-*     oper
-*        Indicates what the method should do. If zero, the flag is
-*        cleared. If positive the flag is set. If negative the flag is
-*        left unchanged.
-
-*  Returned Value:
-*     The original value of the flag on entry to this function.
-
-*  Notes:
-*     - Mappings that have a set value for the Ident attribute are
-*     never simplified (see astDoNotSimplify).
-*     - A value of zero will be returned if an error has already occurred.
-*/
-
-/* Local Variables: */
-   AstTranMap *this;
-   int result;
-
-/* Check the global error status. */
-   if ( !astOK ) return 0;
-
-/* Invoke the MergeFlag method inherited from the parent class. This sets
-   and returns the flag in the TranMap structure. */
-   result = (*parent_mergeflag)( this_mapping, oper, status );
-
-/* If the flag is being changed, change it within the component Mappings in
-   the same way. */
-   if( oper >= 0 ) {
-      this = (AstTranMap *) this_mapping;
-      (void) astMergeFlag( this->map1, oper );
-      (void) astMergeFlag( this->map2, oper );
-   }
-
-/* Return the result. */
    return result;
 }
 

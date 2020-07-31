@@ -159,12 +159,6 @@ f     The CmpMap class does not define any new routines beyond those
 *        (e.g. MatrixMap) make temporary modifications to the Mappings in the
 *        list causing unpredictable behaviour since changing one Mapping may
 *        cause other Mappings to change.
-*     30-JUL-2020 (DSB):
-*        - Override the new astMergeFlag method.
-*        - In Simplify, ensure that Mappings that have a clear value for
-*        the merge flag (as set by new protected method astMergeFlag) are
-*        never merged. This allows specific component Mappings within a
-*        CmpMap to be protcted from change during simplification.
 *class--
 */
 
@@ -211,7 +205,6 @@ f     The CmpMap class does not define any new routines beyond those
 static int class_check;
 
 /* Pointers to parent class methods which are extended by this class. */
-static int (* parent_mergeflag)( AstMapping *, int, int * );
 static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static int (* parent_maplist)( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
@@ -278,7 +271,6 @@ static int Equal( AstObject *, AstObject *, int * );
 static int GetIsLinear( AstMapping *, int * );
 static int MapList( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
-static int MergeFlag( AstMapping *, int, int * );
 static int PatternCheck( int, int, int **, int *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Decompose( AstMapping *, AstMapping **, AstMapping **, int *, int *, int *, int * );
@@ -881,9 +873,6 @@ void astInitCmpMapVtab_(  AstCmpMapVtab *vtab, const char *name, int *status ) {
 
    parent_mapsplit = mapping->MapSplit;
    mapping->MapSplit = MapSplit;
-
-   parent_mergeflag = mapping->MergeFlag;
-   mapping->MergeFlag = MergeFlag;
 
 /* Store replacement pointers for methods which will be over-ridden by
    new member functions implemented here. */
@@ -2849,79 +2838,10 @@ static int *MapSplit( AstMapping *this, int nin, const int *in,
    return MapSplit0( this, nin, in, map, 0, status );
 }
 
-static int MergeFlag( AstMapping *this_mapping, int oper, int *status ) {
-/*
-*  Name:
-*     MergeFlag
-
-*  Purpose:
-*     Set, clear or get a flag that indicates if a Mapping can be merged
-*     during simplification.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "mapping.h"
-*     int astMergeFlag( AstMapping *this, int oper )
-
-*  Class Membership:
-*     CmpMap method (over-rides the astMergFlag method inherited from
-*     the Mapping class).
-
-*  Description:
-*     Each Mapping has a flag that controls whether the Mapping may be
-*     nominated for simplification within astSimplify. If the flag is set
-*     (the default) the Mapping is nominated for simplication when a
-*     parent CmpMap that contains the Mapping is simplified. If it is
-*     clear then Mapping is never nominated for simplication. This allows
-*     component Mappings within a CmpMap to be protected from change during
-*     simplification.
-
-*  Parameters:
-*     this
-*        Pointer to the Mapping.
-*     oper
-*        Indicates what the method should do. If zero, the flag is
-*        cleared. If positive the flag is set. If negative the flag is
-*        left unchanged.
-
-*  Returned Value:
-*     The original value of the flag on entry to this function.
-
-*  Notes:
-*     - Mappings that have a set value for the Ident attribute are
-*     never simplified (see astDoNotSimplify).
-*     - A value of zero will be returned if an error has already occurred.
-*/
-
-/* Local Variables: */
-   AstCmpMap *this;
-   int result;
-
-/* Check the global error status. */
-   if ( !astOK ) return 0;
-
-/* Invoke the MergeFlag method inherited from the parent class. This sets
-   and returns the flag in the CmpMap structure. */
-   result = (*parent_mergeflag)( this_mapping, oper, status );
-
-/* If the flag is being changed, change it within the component Mappings in
-   the same way. */
-   if( oper >= 0 ) {
-      this = (AstCmpMap *) this_mapping;
-      (void) astMergeFlag( this->map1, oper );
-      (void) astMergeFlag( this->map2, oper );
-   }
-
-/* Return the result. */
-   return result;
-}
-
 static int PatternCheck( int val, int check, int **list, int *list_len, int *status ){
 /*
 *  Name:
-*     PatternCheck
+*     Looping
 
 *  Purpose:
 *     Check for repeating patterns in a set of integer values.
@@ -3531,10 +3451,6 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(this_mapping);
 
-/* If the supplied CmpMap has its merge flag clearered (indicating we
-   cannot do anything to it), then returna clone of the supplied pointer. */
-   if( astMergeFlag( this_mapping, -1 ) == 0 ) return astClone( this_mapping );
-
 /* It is possible for the astSimplify method to be called recursively from
    within astSimplify. It is also possible that the Mapping being
    simplified by the current invocation is the same as the Mapping being
@@ -3592,19 +3508,9 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    would create an infinite loop in which neighbouring mappings argue as to
    their form. Freezing a mapping prevents the frozen mapping contributing any
    further to the argument, so the other Mapping "wins" the argument.
-
-   The initial value of the frozen flag for each Mapping is determined by
-   the value of its "merge flag" (see method astMergeFlag. If a Mapping's
-   merge flag is cleared (i.e. it should never be merged), then its
-   frozen flag is initially set. Conversely, if a Mapping's merge flag
-   is set (i.e. it can be merged), then its frozen flag is initially
-   cleared. */
+   Ensure no Mappings are frozen to begin with. */
    for( i = 0; i < nmap; i++ ) {
-      if( astMergeFlag( map_list[ i ], -1 ) ){
-         map_list[ i ]->flags &= ~AST__FROZEN_FLAG;
-      } else {
-         map_list[ i ]->flags |= AST__FROZEN_FLAG;
-      }
+      map_list[ i ]->flags &= ~AST__FROZEN_FLAG;
    }
 
 /* Initialise pointers to memory used to hold lists of the modified
