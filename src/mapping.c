@@ -399,6 +399,17 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        - Added 8-byte interface for astResample<X>.
 *        - Added 8-byte interface for astTran1, astTran2, astTranN and
 *        astTranP.
+*     31-JUL-2020 (DSB):
+*        Added the RESTRICTED_SIMPLIFY and ALLOW_SIMPLIFY flags to the base
+*        Mapping structure. If the astSimplify method is called on a Mapping
+*        for which the RESTRICTED_SIMPLIFY flag is set, the simplification
+*        is restricted to component Mappings that have the ALLOW_SIMPLIFY
+*        flag set. Both of these flags are initially cleared when a Mapping
+*        is constructed. The RESTRICTED_SIMPLIFY flag is always cleared in
+*        the Mapping returned by astSimplify. The purpose of all this is to
+*        allow selected sections of a complex CmpMaps to be protected from
+*        simplification. These flags are protected (not available in the
+*        public API).
 *
 *class--
 */
@@ -16698,6 +16709,15 @@ f     function is invoked with STATUS set to an error value, or if it
 /* Check the inherited status. */
    if ( !astOK ) return result;
 
+/* Check the flag that indicates if the supplied Mapping uses the restricted
+   simplify method. If so, we only simplify the Mapping if it also has the
+   ALLOW_SIMPLIFY flag set. If not, return the Mapping unchanged. In
+   either case, we clear the RESTRICTED_SIMPLIFY flag before returning. */
+   if( astRestrictedSimplify(this) ) {
+      astClearRestrictedSimplify(this);
+      if( !astAllowSimplify(this) ) return astClone( this );
+   }
+
 /* Initialise dynamic arrays of Mapping pointers and associated invert
    flags. */
    nmap = 0;
@@ -23098,7 +23118,7 @@ f     performed with the AST_INVERT routine.
 astMAKE_CLEAR(Mapping,Invert,invert,CHAR_MAX)
 astMAKE_GET(Mapping,Invert,int,0,( ( this->invert == CHAR_MAX ) ?
                                    0 : this->invert ))
-astMAKE_SET(Mapping,Invert,int,invert,( (this->flags&=~AST__ISSIMPLE_FLAG),(value!=0) ))
+astMAKE_SET(Mapping,Invert,int,invert,(astClearIsSimple(this),(value!=0)))
 astMAKE_TEST(Mapping,Invert,( this->invert != CHAR_MAX ))
 
 /*
@@ -23185,7 +23205,7 @@ f     AST_SIMPLIFY
 
 *att--
 */
-astMAKE_GET(Mapping,IsSimple,int,0,((this->flags)&AST__ISSIMPLE_FLAG))
+astMAKE_GET(Mapping,IsSimple,int,0,astIsSimple(this))
 
 /*
 *att++
@@ -23606,6 +23626,20 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
                 ival ? "Mapping has been simplified" :
                        "Mapping has not been simplified" );
 
+/* RestrictedSimplify. */
+/* ------------------- */
+   ival = astRestrictedSimplify( this );
+   astWriteInt( channel, "ReSimp", ival, 0, ival,
+                ival ? "Simplify restricted to allowed Mappings" :
+                       "Simplify uses all Mappings" );
+
+/* AllowSimplify. */
+/* -------------- */
+   ival = astAllowSimplify( this );
+   astWriteInt( channel, "AlSimp", ival, 0, ival,
+                ival ? "Will be used by restricted Simplify" :
+                       "Will not be used by restricted Simplify" );
+
 /* Invert. */
 /* ------- */
    set = TestInvert( this, status );
@@ -23942,7 +23976,16 @@ AstMapping *astLoadMapping_( void *mem, size_t size,
 
 /* IsSimple. */
 /* --------- */
-      if( astReadInt( channel, "issimp", 0 ) ) new->flags |= AST__ISSIMPLE_FLAG;
+      if( astReadInt( channel, "issimp", 0 ) ) astSetIsSimple(new);
+
+
+/* RestrictedSimplify. */
+/* ------------------- */
+      if( astReadInt( channel, "resimp", 0 ) ) astSetRestrictedSimplify(new);
+
+/* AllowSimplify. */
+/* -------------- */
+      if( astReadInt( channel, "alsimp", 0 ) ) astSetAllowSimplify(new);
 
 /* TranForward. */
 /* ------------ */
@@ -24432,7 +24475,7 @@ AstMapping *astSimplify_( AstMapping *this, int *status ) {
 /* If a result was returned, indicate it has been simplified and so does
    not need to be simplified again. */
       if( result ) {
-         result->flags |= AST__ISSIMPLE_FLAG;
+         astSetIsSimple(result);
 
 /* If the simplification process failed due to the supplied Mappings
    being inappropriate (e.g. because it attempted to ue an undefined
