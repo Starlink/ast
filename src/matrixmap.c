@@ -183,6 +183,8 @@ f     The MatrixMap class does not define any new routines beyond those
 *        - Add protected method astMtrEuler.
 *     25-SEP-2019 (DSB):
 *        Added protected method astMtrGet.
+*     30-JUL-2020 (DSB):
+*        Added protected method astMtrZoom.
 *class--
 */
 
@@ -285,6 +287,7 @@ static AstMatrixMap *MatMat( AstMapping *, AstMapping *, int, int, int * );
 static AstMatrixMap *MatPerm( AstMatrixMap *, AstPermMap *, int, int, int, int * );
 static AstMatrixMap *MatZoom( AstMatrixMap *, AstZoomMap *, int, int, int * );
 static AstMatrixMap *MtrMult( AstMatrixMap *, AstMatrixMap *, int * );
+static AstMatrixMap *MtrZoom( AstMatrixMap *, double, int * );
 static AstMatrixMap *MtrRot( AstMatrixMap *, double, const double[], int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstWinMap *MatWin2( AstMatrixMap *, AstWinMap *, int, int, int, int * );
@@ -1373,6 +1376,7 @@ void astInitMatrixMapVtab_(  AstMatrixMapVtab *vtab, const char *name, int *stat
    virtual methods for this class. */
    vtab->MtrRot = MtrRot;
    vtab->MtrMult = MtrMult;
+   vtab->MtrZoom = MtrZoom;
    vtab->MtrEuler = MtrEuler;
    vtab->MtrGet = MtrGet;
 
@@ -3061,7 +3065,7 @@ static void MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
 
 /* Get copies of the shift and scale terms used by the WinMap. This
    also returns the number of axes in the WinMap. */
-   nin = astWinTerms( wm, &a, &b );
+   nin = astWinTerms( wm, 0, &a, &b );
 
 /* Create a diagonal MatrixMap holding the scale factors from the
    supplied WinMap. */
@@ -3255,7 +3259,7 @@ static AstWinMap *MatWin2( AstMatrixMap *mm, AstWinMap *wm, int minv,
 
 /* Get the scales and shifts implemented by the WinMap. These take into
    account the current Invert attribute of the WinMap. */
-   nt = astWinTerms( wm, &shifts, &scales );
+   nt = astWinTerms( wm, 0, &shifts, &scales );
 
 /* First deal with cases where the MatrixMap is applied first. */
    if( mat1 ){
@@ -3457,13 +3461,6 @@ static AstMatrixMap *MatZoom( AstMatrixMap *mm, AstZoomMap *zm, int minv,
 /* Return a pointer to the output MatrixMap. */
    return result;
 }
-
-/* Functions which access class attributes. */
-/* ---------------------------------------- */
-/* Implement member functions to access the attributes associated with
-   this class using the macros defined for this purpose in the
-   "object.h" file. For a description of each attribute, see the class
-   interface (in the associated .h file). */
 
 static AstMatrixMap *MtrMult( AstMatrixMap *this, AstMatrixMap *a, int *status ){
 /*
@@ -3909,6 +3906,89 @@ f        when looking along the vector given by AXIS. Note, THETA measures
 
    return new;
 
+}
+
+static AstMatrixMap *MtrZoom( AstMatrixMap *this, double zoom,
+                              int *status ){
+/*
+*+
+*  Name:
+*     astMtrZoom
+
+*  Purpose:
+*     Multiply a MatrixMap by a scale factor.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     AstMatrixMap *astMtrZoom( astMatrixMap *this, double zoom )
+
+*  Class Membership:
+*     MatrixMap method.
+
+*  Description:
+*     This function creates a new MatrixMap which is a copy of "this",
+*     with all matrix elements scaled by a constnt factor.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+*     zoom
+*        The scale factor.
+
+*  Returned Value:
+*     A pointer to the scaled MatrixMap.
+
+*  Notes:
+*     - A null Object pointer will also be returned if this function
+*     is invoked with the AST error status set, or if it should fail
+*     for any reason.
+*-
+*/
+
+/* Local variables. */
+   AstMatrixMap *new;        /* New MatrixMap holding the rotated matrix */
+   double *matrix;           /* Pointer to array of matrix elements */
+   int i;                    /* Index of element in the matrix */
+   int nel;                  /* No. of elements in the matrix */
+
+/* Return a NULL pointer if an error has already occurred. */
+   if ( !astOK ) return NULL;
+
+/* Initialise the returned MatrixMap to be a copy of the supplied MatrixMap. */
+   new = astCopy( this );
+
+/* Get the number of elements in the matrix. */
+   nel = astGetNout( new )*astGetNin( new );
+
+/* Ensure that the MatrixMap is stored in full form rather than
+   compressed form. */
+   ExpandMatrix( new, status );
+
+/* Get a pointer to the current forward matrix (taking into account
+   the current state of the Mapping inversion flag ). */
+   matrix = astGetInvert( new ) ? new->i_matrix : new->f_matrix;
+
+/* If defined, scale it by the supplied zoom factor. */
+   if( matrix ) for( i = 0; i < nel; i++ ) matrix[ i ] *= zoom;
+
+/* Get a pointer to the current inverse matrix (taking into account
+   the current state of the Mapping inversion flag ). */
+   matrix = astGetInvert( new ) ? new->f_matrix : new->i_matrix;
+
+/* If defined, scale it by the reciprocal of the supplied zoom factor. */
+   if( matrix ) for( i = 0; i < nel; i++ ) matrix[ i ] /= zoom;
+
+/* See if the matrix can be stored as a UNIT or DIAGONAL matrix. */
+   CompressMatrix( new, status );
+
+/* Delete the new MatrixMap if an error has occurred. */
+   if( !astOK ) new = astDelete( new );
+
+/* Return the new MatrixMap. */
+   return new;
 }
 
 static void PermGet( AstPermMap *map, int **outperm, int **inperm,
@@ -4494,7 +4574,7 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2, int *status 
 }
 
 static void SMtrMult( int post, int m, int n, const double *mat1,
-                        double *mat2, double *work, int *status ){
+                      double *mat2, double *work, int *status ){
 /*
 *  Name:
 *     SMtrMult
@@ -6066,6 +6146,11 @@ AstMatrixMap *astMtrRot_( AstMatrixMap *this, double theta,
 AstMatrixMap *astMtrMult_( AstMatrixMap *this, AstMatrixMap *a, int *status ){
    if( !astOK ) return NULL;
    return (**astMEMBER(this,MatrixMap,MtrMult))( this, a, status );
+}
+
+AstMatrixMap *astMtrZoom_( AstMatrixMap *this, double zoom, int *status ){
+   if( !astOK ) return NULL;
+   return (**astMEMBER(this,MatrixMap,MtrZoom))( this, zoom, status );
 }
 
 int astMtrEuler_( AstMatrixMap *this, double euler[3], int *status ){

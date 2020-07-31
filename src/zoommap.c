@@ -70,6 +70,9 @@ f     The ZoomMap class does not define any new routines beyond those
 *        method.
 *     10-MAY-2006 (DSB):
 *        Override astEqual.
+*     31-JUL-2020 (DSB):
+*        MapMerge improved to allow ZoomMaps to merge with neighbouring
+*        MatrixMaps, WInMaps and ShiftMaps.
 *class--
 */
 
@@ -698,6 +701,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    double minzoom;               /* Minimum zoom factor */
    double zoom;                  /* Zoom factor */
    int coord;                    /* Loop counter for coordinates */
+   int i;                        /* Loop index */
    int imap1;                    /* Index of first ZoomMap */
    int imap2;                    /* Index of last ZoomMap */
    int imap;                     /* Loop counter for Mappings */
@@ -709,6 +713,9 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    int simpler;                  /* Mapping(s) simplified? */
    int single;                   /* Replacement is a single ZoomMap? */
    int unit;                     /* Replacement Mapping is a UnitMap? */
+   int imod;                     /* Index of modified mapping */
+   double *a;                    /* Pointer to array of shift terms */
+   double *b;                    /* Pointer to array of scale terms */
 
 /* Initialise the returned result. */
    result = -1;
@@ -971,6 +978,136 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    annul it. */
    } else {
       if ( new ) new = astAnnul( new );
+   }
+
+/* If the above approach didn't produce any simplification, see if it is
+   possible to absort the ZoomMap into a neigbouring non-ZoomMap. This
+   can only be done in series. */
+   if( astOK && !simpler && series ){
+      new = NULL;
+
+/* If the ZoomMap is not the first Mapping in the list, consider merging the
+   ZoomMap into the previous Mapping in the list. */
+      if( where > 0 ) {
+         imod = where - 1;
+
+/* If the previous mapping is a MatrixMap, create a new MatrixMap by
+   multiplying all the elements of the old MatrixMap by the zoom factor. */
+         if( astIsAMatrixMap( (*map_list)[ imod ] ) ) {
+            new = (AstMapping *) astMtrZoom( (*map_list)[ imod ], zoom );
+
+/* If the previous mapping is a WinMap, create a new WinMap by multiplying
+   the scale and offset terms in the old WinMap by the zoom factor. */
+         } else if( astIsAWinMap( (*map_list)[ imod ] ) ) {
+            new = astCopy( ( *map_list )[ imod ] );
+            nin = astWinTerms( new, 0, &a, &b );
+            if( astOK ) {
+               for( i = 0; i < nin; i++ ) {
+                  a[ i ] *= zoom;
+                  b[ i ] *= zoom;
+               }
+            }
+            (void) astWinTerms( new, 1, &a, &b );
+            a = astFree( a );
+            b = astFree( b );
+
+/* If the previous mapping is a ShiftMap, create a new WinMap by multiplying
+   the scale and offset terms in the equivalent old WinMap by the zoom
+   factor. */
+         } else if( astIsAShiftMap( (*map_list)[ imod ] ) ) {
+            nin = astGetNin( (*map_list)[ imod ] );
+            new = (AstMapping *) astWinMap( nin, NULL, NULL, NULL, NULL, " ",
+                                            status );
+            a = astGetShifts( (*map_list)[ imod ] );
+            b = astMalloc( nin*sizeof(*b) );
+            if( astOK ) {
+               for( i = 0; i < nin; i++ ) {
+                  a[ i ] *= zoom;
+                  b[ i ] = zoom;
+               }
+            }
+            (void) astWinTerms( new, 1, &a, &b );
+            a = astFree( a );
+            b = astFree( b );
+         }
+      }
+
+/* If the ZoomMap could not be merged into the previous Mapping, and if
+   the ZoomMap is not the last Mapping in the list, consider merging the
+   ZoomMap into the next Mapping in the list. */
+      if( !new && where < *nmap - 1 ) {
+         imod = where + 1;
+
+/* If the next mapping is a MatrixMap, create a new MatrixMap by
+   multiplying all the elements of the old MatrixMap by the zoom factor. */
+         if( astIsAMatrixMap( (*map_list)[ imod ] ) ) {
+            new = (AstMapping *) astMtrZoom( (*map_list)[ imod ], zoom );
+
+/* If the next mapping is a WinMap, create a new WinMap by multiplying
+   the scale terms in the old WinMap by the zoom factor (the offsets
+   terms are unchanged). */
+         } else if( astIsAWinMap( (*map_list)[ imod ] ) ) {
+            new = astCopy( ( *map_list )[ imod ] );
+            nin = astWinTerms( new, 0, &a, &b );
+            if( astOK ) {
+               for( i = 0; i < nin; i++ ) {
+                  b[ i ] *= zoom;
+               }
+            }
+            (void) astWinTerms( new, 1, &a, &b );
+            a = astFree( a );
+            b = astFree( b );
+
+/* If the next mapping is a ShiftMap, create a new WinMap with scales
+   equal to the zoom and offsets equal to the shifts. */
+         } else if( astIsAShiftMap( (*map_list)[ imod ] ) ) {
+            nin = astGetNin( (*map_list)[ imod ] );
+            new = (AstMapping *) astWinMap( nin, NULL, NULL, NULL, NULL, " ",
+                                            status );
+            a = astGetShifts( (*map_list)[ imod ] );
+            b = astMalloc( nin*sizeof(*b) );
+            if( astOK ) {
+               for( i = 0; i < nin; i++ ) {
+                  b[ i ] = zoom;
+               }
+            }
+            (void) astWinTerms( new, 1, &a, &b );
+            a = astFree( a );
+            b = astFree( b );
+         }
+      }
+
+/* If any simplication is possible, replace the modified Mapping in the
+   list and remove the ZoomMap from the list. */
+      if( new ) {
+
+/* Annull the pointer to the neighbouring Mapping that has been modified. */
+         ( *map_list )[ imod ]  = astAnnul( ( *map_list )[ imod ] );
+
+/* Annull the pointer to the ZoomMap that has been merged into a neighbour. */
+         ( *map_list )[ where ]  = astAnnul( ( *map_list )[ where ] );
+
+/* Store a a pointer to the new Mapping in place of the modified neighbour.
+   Also store its current Invert flag. */
+         ( *map_list )[ imod ]  = new;
+         ( *invert_list )[ imod ] = astGetInvert( new );
+
+/* Shuffle the later Mappings down to fill the gap left by the deletion
+   of the ZoomMap. */
+         for ( imap = where+1; imap < *nmap; imap++ ) {
+            ( *map_list )[ imap - 1 ] = ( *map_list )[ imap ];
+            ( *invert_list )[ imap - 1 ] = ( *invert_list )[ imap ];
+         }
+
+/* Clear the vacated element at the end. */
+         ( *map_list )[ imap - 1 ] = NULL;
+         ( *invert_list )[ imap - 1 ] = 0;
+
+/* Decrement the Mapping count and return the index of the first
+   modified element. */
+         (*nmap)--;
+         result = ( where < imod ) ? where : imod;
+      }
    }
 
 /* If an error occurred, clear the returned result. */

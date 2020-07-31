@@ -1050,7 +1050,7 @@ static int DoNotSimplify( AstMapping *this, int *status ) {
 /*
 *+
 *  Name:
-*     astMapMerge
+*     astDoNotSimplify
 
 *  Purpose:
 *     Check if a Mapping is appropriate for simplification.
@@ -1060,14 +1060,15 @@ static int DoNotSimplify( AstMapping *this, int *status ) {
 
 *  Synopsis:
 *     #include "mapping.h"
-*     int astDoNotSImplify( AstMapping *this );
+*     int astDoNotSimplify( AstMapping *this );
 
 *  Class Membership:
 *     Mapping method.
 
 *  Description:
 *     This function returns a flag indivating if the supplied Mapping is
-*     appropriate for simplification.
+*     appropriate for simplification. This causes the Mapping to be left
+*     unchanged by the astSimplify, astMapMerge and astMapList methods.
 
 *  Parameters:
 *     this

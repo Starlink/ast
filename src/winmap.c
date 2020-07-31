@@ -118,6 +118,8 @@ f     The WinMap class does not define any new routines beyond those
 *        if the intervening neighbour could not itself merge. This could
 *        result in an infinite simplification loop, which was detected by
 *        CmpMap and and aborted, resulting in no useful simplification.
+*     31-JUL-2020 (DSB):
+*        astWinTerms can now be used to set terms as well as to get terms.
 *class--
 */
 
@@ -226,7 +228,7 @@ static int Equal( AstObject *, AstObject *, int * );
 static int GetIsLinear( AstMapping *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int TestAttrib( AstObject *, const char *, int * );
-static int WinTerms( AstWinMap *, double **, double **, int * );
+static int WinTerms( AstWinMap *, int, double **, double **, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *, int * );
@@ -565,8 +567,8 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    into account the setting of the Invert attribute. Finding the inverted
    terms involves arithmetic which introduces rounding errors, so this
    test is not as reliable as the above direct comparison of terms. */
-            astWinTerms( this, &a_this, &b_this );
-            astWinTerms( that, &a_that, &b_that );
+            astWinTerms( this, 0, &a_this, &b_this );
+            astWinTerms( that, 0, &a_that, &b_that );
             result = 1;
 
             for( i = 0; i < nin; i++ ) {
@@ -1083,7 +1085,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
       astSetInvert( newwm, ( *invert_list )[ where ] );
 
 /* Get a copy of the scale terms from the WinMap. */
-      astWinTerms( newwm, NULL, &b );
+      astWinTerms( newwm, 0, NULL, &b );
 
 /* Create a diagonal MatrixMap holding the scale terms. */
       mtr = astMatrixMap( nin, nin, 1, b, "", status );
@@ -1225,7 +1227,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Now get pointers to the scale and zero terms of the nominated WinMap
    (these describe the forward transformation, taking into account the
    setting of the Invert flag). */
-            (void) astWinTerms( oldwm , &a, &b );
+            (void) astWinTerms( oldwm, 0, &a, &b );
 
 /* Get pointers to the two components of the parallel CmpMap. */
             astDecompose( cm, mc, mc + 1, &ser, ic, ic + 1 );
@@ -1808,7 +1810,7 @@ static int *MapSplit( AstMapping *this_map, int nin, const int *in, AstMapping *
 /* Now get pointers to the scale and zero terms of the supplied WinMap
    (these describe the forward transformation, taking into account the
    setting of the Invert flag). */
-   (void) astWinTerms( this , &a, &b );
+   (void) astWinTerms( this, 0, &a, &b );
 
 /* Check pointers can be used safely. */
    if( astOK ) {
@@ -2485,7 +2487,7 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
 
 /* Get copies of the shift and scale terms used by the WinMap. This
    also returns the number of axes in the WinMap. */
-   nin = astWinTerms( wm, &a, &b );
+   nin = astWinTerms( wm, 0, &a, &b );
 
 /* Create a diagonal MatrixMap holding the scale factors from the
    supplied WinMap. */
@@ -2729,7 +2731,7 @@ static void WinPerm( AstMapping **maps, int *inverts, int iwm, int *status ){
 
 /* Get copies of the shift and scale terms used by the WinMap. This
    also returns the number of axes in the WinMap. */
-   nin = astWinTerms( wm, &a, &b );
+   nin = astWinTerms( wm, 0, &a, &b );
 
 /* Get the axis permutation and constants arrays representing the
    PermMap. Note, no constants are used more than once in the returned
@@ -2911,57 +2913,72 @@ static void WinPerm( AstMapping **maps, int *inverts, int iwm, int *status ){
    return;
 }
 
-static int WinTerms( AstWinMap *this, double **shift, double **scale, int *status ){
+static int WinTerms( AstWinMap *this, int set, double **shift, double **scale,
+                     int *status ){
 /*
 *+
 *  Name:
 *     astWinTerms
 
 *  Purpose:
-*     Obtain the scale and shift terms used by a WinMap.
+*     Get or set the scale and shift terms used by a WinMap.
 
 *  Type:
 *     Protected virtual function.
 
 *  Synopsis:
 *     #include "winmap.h"
-*     int astWinTerms( AstWinMap *this, double **shift, double **scale )
+*     int astWinTerms( AstWinMap *this, int set, double **shift, double **scale )
 
 *  Class Membership:
 *     WinMap mewthod.
 
 *  Description:
-*     This function returns copies of the scale and shift terms used by a
+*     This function will get or set the scale and shift terms used by a
 *     WinMap when transforming points. Each axis of the WinMap has a scale
 *     term B, and a shift term A, and the transformation of a point is done
 *     by applying these to each input axis value X in turn, to get the
-*     output axis value B.X + A. The returned terms take into account the
-*     current setting of the Invert attribute of the WinMap.
+*     output axis value B.X + A. The supplied or returned terms take into
+*     account the current setting of the Invert attribute of the WinMap.
 
 *  Parameters:
 *     this
 *        Pointer to the WinMap.
+*     set
+*        If non-zero, the values in the "*shift" and "*scale" arrays on
+*        entry are stored in the WinMap replacing the original values (the
+*        original values are returned in the supplied arrays on exit). In
+*        this case the number of values supplied should equal the number of
+*        axes in the WinMap.  If "set" is zero, the the values in the
+*        "*shift" and "*scale" arrays on entry are ignored.
 *     shift
-*        The address of a location at which to return a pointer to the
-*        start of a dynamically allocated array holding the shift terms
-*        for each axis.
+*        If "set" is zero, this is an address at which to return a pointer
+*        to the start of a dynamically allocated array holding the shift
+*        terms for each axis. If "set" is non-zero, this is the address of
+*        an existing arrray holding new values for the shift terms in the
+*        WinMap (these values are stored in the WinMap and the original
+*        shifts are returned in their place).
 *     scale
-*        The address of a location at which to return a pointer to the
-*        start of a dynamically allocated array holding the scale terms
-*        for each axis.
+*        If "set" is zero, this is an address at which to return a pointer
+*        to the start of a dynamically allocated array holding the scale
+*        terms for each axis. If "set" is non-zero, this is the address of
+*        an existing arrray holding new values for the scale terms in the
+*        WinMap (these values are stored in the WinMap and the original
+*        shifts are returned in their place).
 
 *  Returned Value:
 *     The number of axes in the WinMap. This is the same as the number of
 *     elements in the returned arrays.
 
 *  Notes:
-*     -  The returned arrays should be released using astFree when no
-*     longer needed.
-*     -  NULL pointers can be supplied for "scale" or "shift" if the
-*     corresponding arrays are not required.
-*     -  A value of zero will be returned, together with NULL pointers
-*     for "scale" and "shift" if this function is invoked with the
-*     global error status set, or if it should fail for any reason.
+*     -  If "set"is zero, the returned arrays should be released using
+*     astFree when no longer needed.
+*     -  If "set"is zero, a NULL pointer can be supplied for "scale" or
+*     "shift" if the corresponding array is not required (NULL may not be
+*     supplied if "set" is non-zero).
+*     -  A value of zero will be returned, together (if "set" is zero) with
+*     NULL pointers for "*scale" and "*shift" if this function is invoked
+*     with the global error status set, or if it should fail for any reason.
 *-
 */
 
@@ -2970,14 +2987,18 @@ static int WinTerms( AstWinMap *this, double **shift, double **scale, int *statu
    double *aa;            /* Pointer to the next shift term */
    double *b;             /* Pointer to a copy of the scale term array */
    double *bb;            /* Pointer to the next scale term */
+   double aold;           /* Original shift value in WinMap */
+   double bold;           /* Original scale value in WinMap */
    int i;                 /* Axis count */
    int result;            /* The returned number of axes */
    size_t absize;         /* Size of shift and scale arrays */
 
 /* Initialise. */
    result = 0;
-   if( scale ) *scale = NULL;
-   if( shift ) *shift = NULL;
+   if( !set ) {
+      if( scale ) *scale = NULL;
+      if( shift ) *shift = NULL;
+   }
 
 /* Check the global status. */
    if ( !astOK ) return result;
@@ -2985,60 +3006,120 @@ static int WinTerms( AstWinMap *this, double **shift, double **scale, int *statu
 /* Get the number of axes in the WinMap. */
    result = astGetNin( this );
 
-/* Create copies of the scale and shift terms from the WinMap. */
-   absize = sizeof( double )*(size_t) result;
-   b = (double *) astStore( NULL, (void *) this->b, absize );
-   a = (double *) astStore( NULL, (void *) this->a, absize );
+/* First handle "set" operations. */
+   if( set ) {
 
-/* Check the pointers can be used. */
-   if( astOK ){
-
-/* If the WinMap is inverted, replace the scale and shift terms
-   by the corresponding values for the inverted mapping. */
+/* The terms stored in the WinMap define the forward transformation of
+   the WinMap when it was first constructed. If the WinMap has since been
+   inverted, they will now define the inverse transformation of the WinMap
+   as it is at the moment. So if the WinMap is inverted, invert the supplied
+   terms before storing them in the WinMap, and invert the original terms
+   before returning them in the arrays. */
       if( astGetInvert( this ) ){
-         bb = b;
-         aa = a;
+
+         bb = *scale;
+         aa = *shift;
 
          for( i = 0; i < result; i++ ){
+            aold = (this->a)[ i ];
+            bold = (this->b)[ i ];
+
             if( *aa != AST__BAD && *bb != 0.0 && *bb != AST__BAD ){
-               *bb = 1.0/(*bb);
-               *aa *= -(*bb);
+               (this->b)[ i ] = 1.0/(*bb);
+               (this->a)[ i ] = -(*aa)/(*bb);
             } else {
-               *bb = AST__BAD;
-               *aa = AST__BAD;
+               (this->b)[ i ] = AST__BAD;
+               (this->a)[ i ] = AST__BAD;
             }
 
-            aa++;
-            bb++;
+            if( aold != AST__BAD && bold != 0.0 && bold != AST__BAD ){
+               bold = 1.0/bold;
+               aold *= -bold;
+            } else {
+               bold = AST__BAD;
+               aold = AST__BAD;
+            }
 
+            *(aa++) = aold;
+            *(bb++) = bold;
+         }
+
+/* If the WinMap is not inverted, store the supplied terms without change
+   and return the original terms without change. */
+      } else {
+
+         bb = *scale;
+         aa = *shift;
+
+         for( i = 0; i < result; i++ ){
+            aold = (this->a)[ i ];
+            bold = (this->b)[ i ];
+
+            (this->b)[ i ] = *bb;
+            (this->a)[ i ] = *aa;
+
+            *(aa++) = aold;
+            *(bb++) = bold;
          }
       }
 
+/* Now handle "get" operations. */
+   } else {
+
+/* Create copies of the scale and shift terms from the WinMap. */
+      absize = sizeof( double )*(size_t) result;
+      b = (double *) astStore( NULL, (void *) this->b, absize );
+      a = (double *) astStore( NULL, (void *) this->a, absize );
+
+/* Check the pointers can be used. */
+      if( astOK ){
+
+/* If the WinMap is inverted, replace the scale and shift terms
+   by the corresponding values for the inverted mapping. */
+         if( astGetInvert( this ) ){
+            bb = b;
+            aa = a;
+
+            for( i = 0; i < result; i++ ){
+               if( *aa != AST__BAD && *bb != 0.0 && *bb != AST__BAD ){
+                  *bb = 1.0/(*bb);
+                  *aa *= -(*bb);
+               } else {
+                  *bb = AST__BAD;
+                  *aa = AST__BAD;
+               }
+
+               aa++;
+               bb++;
+
+            }
+         }
+
 /* Store the required pointers, and free arrays which are not required. */
-      if( scale ){
-         *scale = b;
-      } else {
-         b = (double *) astFree( (void *) b );
-      }
+         if( scale ){
+            *scale = b;
+         } else {
+            b = (double *) astFree( (void *) b );
+         }
 
-      if( shift ){
-         *shift = a;
-      } else {
-         a = (double *) astFree( (void *) a );
-      }
+         if( shift ){
+            *shift = a;
+         } else {
+            a = (double *) astFree( (void *) a );
+         }
 
-   }
+      }
 
 /* If an error has occurred, free the arrays and return zero. */
-   if( !astOK ){
-      if( scale ) *scale = (double *) astFree( (void *) *scale );
-      if( shift ) *shift = (double *) astFree( (void *) *shift );
-      result = 0;
+      if( !astOK ){
+         if( scale ) *scale = (double *) astFree( (void *) *scale );
+         if( shift ) *shift = (double *) astFree( (void *) *shift );
+         result = 0;
+      }
    }
 
 /* Return the answer. */
    return result;
-
 }
 
 static AstWinMap *WinUnit( AstWinMap *wm, AstUnitMap *um, int winv,
@@ -3125,7 +3206,7 @@ static AstWinMap *WinUnit( AstWinMap *wm, AstUnitMap *um, int winv,
 
 /* Create copies of the scale and shift terms from the WinMap, and store the
    number of axes in it. */
-   ninw = astWinTerms( wm, &a, &b );
+   ninw = astWinTerms( wm, 0, &a, &b );
 
 /* Get the number of axes in the UnitMap. */
    ninu = astGetNin( um );
@@ -3292,8 +3373,8 @@ static AstWinMap *WinWin( AstMapping *map1, AstMapping *map2, int inv1,
 /* Create copies of the scale and shift terms from the two WinMaps,
    and store the number of axes in each WinMap. The scale and shift terms
    returned take into account the setting of the Invert attribute. */
-   nin[ 0 ] = astWinTerms( wm1, a, b );
-   nin[ 1 ] = astWinTerms( wm2, a + 1, b + 1 );
+   nin[ 0 ] = astWinTerms( wm1, 0, a, b );
+   nin[ 1 ] = astWinTerms( wm2, 0, a + 1, b + 1 );
 
 /* Check the pointers can be used. */
    if( astOK ){
@@ -3533,7 +3614,7 @@ static AstWinMap *WinZoom( AstWinMap *wm, AstZoomMap *zm, int winv,
 
 /* Create copies of the scale and shift terms from the WinMap, and store the
    number of axes in it. */
-   ninw = astWinTerms( wm, &a, &b );
+   ninw = astWinTerms( wm, 0, &a, &b );
 
 /* Check the pointers can be used. */
    if( astOK ){
@@ -4379,9 +4460,9 @@ AstWinMap *astLoadWinMap_( void *mem, size_t size,
    have been over-ridden by a derived class. However, it should still have the
    same interface. */
 
-int astWinTerms_( AstWinMap *this, double **scale, double **shift, int *status ){
+int astWinTerms_( AstWinMap *this, int set, double **scale, double **shift, int *status ){
    if( !astOK ) return 0;
-   return (**astMEMBER(this,WinMap,WinTerms))( this, scale, shift, status );
+   return (**astMEMBER(this,WinMap,WinTerms))( this, set, scale, shift, status );
 }
 
 

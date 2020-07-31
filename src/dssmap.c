@@ -1014,7 +1014,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
             astSetInvert( wm, ( *invert_list )[ wmi ] );
 
 /* Get a copy of the scale and shift terms from the WinMap. */
-            astWinTerms( wm, &a, &b );
+            astWinTerms( wm, 0, &a, &b );
 
 /* Check that the scale and shift terms are usable. */
             if( astOK &&

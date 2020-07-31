@@ -200,6 +200,7 @@ typedef struct AstMatrixMapVtab {
 /* Properties (e.g. methods) specific to this class. */
    AstMatrixMap *(* MtrRot)( AstMatrixMap *, double, const double[], int * );
    AstMatrixMap *(* MtrMult)( AstMatrixMap *,  AstMatrixMap *, int * );
+   AstMatrixMap *(* MtrZoom)( AstMatrixMap *,  double, int * );
    int (* MtrEuler)( AstMatrixMap *, double[3], int * );
    double *(* MtrGet)( AstMatrixMap *, int, int * );
 } AstMatrixMapVtab;
@@ -256,6 +257,7 @@ AstMatrixMap *astLoadMatrixMap_( void *, size_t, AstMatrixMapVtab *,
 # if defined(astCLASS)           /* Protected */
 AstMatrixMap *astMtrRot_( AstMatrixMap *, double, const double[], int * );
 AstMatrixMap *astMtrMult_( AstMatrixMap *, AstMatrixMap *, int * );
+AstMatrixMap *astMtrZoom_( AstMatrixMap *,  double, int * );
 int astMtrEuler_( AstMatrixMap *, double[3], int * );
 double *astMtrGet_( AstMatrixMap *, int, int * );
 #endif
@@ -312,6 +314,9 @@ astINVOKE(O,astMtrRot_(astCheckMatrixMap(this),theta,axis,STATUS_PTR))
 
 #define astMtrMult(this,a) \
 astINVOKE(O,astMtrMult_(astCheckMatrixMap(this),astCheckMatrixMap(a),STATUS_PTR))
+
+#define astMtrZoom(this,zoom) \
+astINVOKE(O,astMtrZoom_(astCheckMatrixMap(this),zoom,STATUS_PTR))
 
 #define astMtrEuler(this,euler) \
 astINVOKE(V,astMtrEuler_(astCheckMatrixMap(this),euler,STATUS_PTR))

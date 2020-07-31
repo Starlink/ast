@@ -8,6 +8,7 @@
 #include "unitmap.h"
 #include "zoommap.h"
 #include "cmpmap.h"
+#include "winmap.h"
 #include "mapping.h"
 
 int main(){
@@ -62,7 +63,7 @@ int main(){
       astError( AST__INTER, "Error 7\n",  status );
    }
    if( !inv2 && astOK ){
-      astError( AST__INTER, "Error 7\n",  status );
+      astError( AST__INTER, "Error 8\n",  status );
    }
 
 
@@ -78,11 +79,30 @@ int main(){
 
    m2 = astSimplify( cm2 );
    if( !astIsAZoomMap( m2 ) && astOK ){
-      astError( AST__INTER, "Error 8\n",  status );
-   }
-   if( ( astGetZoom( m2 ) != 2.0 ) && astOK ){
       astError( AST__INTER, "Error 9\n",  status );
    }
+   if( ( astGetZoom( m2 ) != 2.0 ) && astOK ){
+      astError( AST__INTER, "Error 10\n",  status );
+   }
+
+   astSetRestrictedSimplify( cm2 );
+   astSetAllowSimplify( zm1 );
+   m2 = astSimplify( cm2 );
+
+
+   astDecompose( m2, &map1, &map2, &series, &inv1, &inv2  );
+   if( ( !astIsAWinMap( map1 ) || !astIsAShiftMap( map2 ) ) && astOK ){
+      astError( AST__INTER, "Error 11\n",  status );
+   }
+   if( inv1 && astOK ){
+      astError( AST__INTER, "Error 12\n",  status );
+   }
+   if( inv2 && astOK ){
+      astError( AST__INTER, "Error 13\n",  status );
+   }
+
+
+
 
 
    if( astOK ) {

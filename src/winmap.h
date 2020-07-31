@@ -104,12 +104,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -182,7 +182,7 @@ typedef struct AstWinMapVtab {
    AstClassIdentifier id;
 
 /* Properties (e.g. methods) specific to this class. */
-   int (* WinTerms)( AstWinMap *, double **, double **, int * );
+   int (* WinTerms)( AstWinMap *, int, double **, double **, int * );
 
 } AstWinMapVtab;
 
@@ -237,7 +237,7 @@ AstWinMap *astLoadWinMap_( void *, size_t, AstWinMapVtab *,
 /* Prototypes for member functions. */
 /* -------------------------------- */
 # if defined(astCLASS)           /* Protected */
-int astWinTerms_( AstWinMap *, double **, double **, int * );
+int astWinTerms_( AstWinMap *, int, double **, double **, int * );
 #endif
 
 /* Function interfaces. */
@@ -288,8 +288,8 @@ astINVOKE(O,astLoadWinMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
    to the wrong sort of Object is supplied. */
 
 #if defined(astCLASS)            /* Protected */
-#define astWinTerms(this,scale,shift) \
-astINVOKE(V,astWinTerms_(astCheckWinMap(this),scale,shift,STATUS_PTR))
+#define astWinTerms(this,set,scale,shift) \
+astINVOKE(V,astWinTerms_(astCheckWinMap(this),set,scale,shift,STATUS_PTR))
 #endif
 
 #endif
