@@ -188,6 +188,8 @@ f     The MatrixMap class does not define any new routines beyond those
 *     3-AUG-2020 (DSB):
 *        - Added protected method astIsDiagonal.
 *        - Protected astMtrGet now returns the matrix storage form.
+*     4-AUG-2020 (DSB):
+*        astMtrGet now has option to return the expanded matrix.
 *class--
 */
 
@@ -295,7 +297,7 @@ static AstMatrixMap *MtrRot( AstMatrixMap *, double, const double[], int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstWinMap *MatWin2( AstMatrixMap *, AstWinMap *, int, int, int, int * );
 static double *InvertMatrix( int, int, int, double *, double *, int * );
-static double *MtrGet( AstMatrixMap *, int, int *, int * );
+static double *MtrGet( AstMatrixMap *, int, int, int *, int * );
 static double GetDet( AstMatrixMap *, int * );
 static double Rate( AstMapping *, double *, int, int, int * );
 static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
@@ -4369,7 +4371,8 @@ static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
    return orth;
 }
 
-static double *MtrGet( AstMatrixMap *this, int fwd, int *form, int *status ){
+static double *MtrGet( AstMatrixMap *this, int fwd, int expand, int *form,
+                       int *status ){
 /*
 *+
 *  Name:
@@ -4383,7 +4386,7 @@ static double *MtrGet( AstMatrixMap *this, int fwd, int *form, int *status ){
 
 *  Synopsis:
 *     #include "matrixmap.h"
-*     double *astMtrGet( AstMatrixMap *this, int fwd, int *form );
+*     double *astMtrGet( AstMatrixMap *this, int fwd, int expand, int *form );
 
 *  Class Membership:
 *     MatrixMap method.
@@ -4398,9 +4401,13 @@ static double *MtrGet( AstMatrixMap *this, int fwd, int *form, int *status ){
 *     fwd
 *        If non-zero, return the forward matrix. Otherwise return the
 *        inverse matrix.
+*     expand
+*        If non-zero, return the full expanded Nin*Nout matrix. Otherwise
+*        return the compressed matrix (which will be in the storage form
+*        indicated by "*form").
 *     form
 *        Returned holding the form of the matrix: 0 (full), 1 (diagonal)
-*        or 2 (unit).
+*        or 2 (unit). Always returns 0 if "expand" is non-zero.
 
 *  Returned Value:
 *     A pointer to a dynamically allocated array holding the elements of
@@ -4414,10 +4421,19 @@ static double *MtrGet( AstMatrixMap *this, int fwd, int *form, int *status ){
 
 /* Local variables. */
    double *matrix;
+   double *result;
    int nel;
 
 /* Return a NULL pointer if an error has already occurred. */
    if ( !astOK ) return NULL;
+
+/* If the expanded matrix is required, ensure that the MatrixMap is stored
+   in full form. Otherwise, ensure it is stored in compressed form. */
+   if( expand ) {
+      ExpandMatrix( this, status );
+   } else {
+      CompressMatrix( this, status );
+   }
 
 /* Get the required pointer, taking account of whether or not the
    MatrixMap has been inverted. */
@@ -4439,9 +4455,14 @@ static double *MtrGet( AstMatrixMap *this, int fwd, int *form, int *status ){
       nel = 0;
    }
 
-/* Return a pointer to a newly allocated array holding a copy of the
-   matrix. */
-   return astStore( NULL, matrix, nel*sizeof( *matrix ) );
+/* Create a copy of the matrix. */
+   result = astStore( NULL, matrix, nel*sizeof( *matrix ) );
+
+/* Ensure that the MatrixMap is left in compressed form. */
+   CompressMatrix( this, status );
+
+/* Return the matrix. */
+   return result;
 }
 
 static int PermOK( AstMapping *pm, int *status ){
@@ -6223,9 +6244,9 @@ int astMtrEuler_( AstMatrixMap *this, double euler[3], int *status ){
    return (**astMEMBER(this,MatrixMap,MtrEuler))( this, euler, status );
 }
 
-double *astMtrGet_( AstMatrixMap *this, int fwd, int *form, int *status ){
+double *astMtrGet_( AstMatrixMap *this, int fwd, int expand, int *form, int *status ){
    if( !astOK ) return NULL;
-   return (**astMEMBER(this,MatrixMap,MtrGet))( this, fwd, form, status );
+   return (**astMEMBER(this,MatrixMap,MtrGet))( this, fwd, expand, form, status );
 }
 
 int astIsDiagonal_( AstMatrixMap *this, int *status ){

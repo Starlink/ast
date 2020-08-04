@@ -202,7 +202,7 @@ typedef struct AstMatrixMapVtab {
    AstMatrixMap *(* MtrMult)( AstMatrixMap *,  AstMatrixMap *, int * );
    AstMatrixMap *(* MtrZoom)( AstMatrixMap *,  double, int * );
    int (* MtrEuler)( AstMatrixMap *, double[3], int * );
-   double *(* MtrGet)( AstMatrixMap *, int, int *, int * );
+   double *(* MtrGet)( AstMatrixMap *, int, int, int *, int * );
    int (* IsDiagonal)( AstMatrixMap *, int * );
 } AstMatrixMapVtab;
 
@@ -260,7 +260,7 @@ AstMatrixMap *astMtrRot_( AstMatrixMap *, double, const double[], int * );
 AstMatrixMap *astMtrMult_( AstMatrixMap *, AstMatrixMap *, int * );
 AstMatrixMap *astMtrZoom_( AstMatrixMap *,  double, int * );
 int astMtrEuler_( AstMatrixMap *, double[3], int * );
-double *astMtrGet_( AstMatrixMap *, int, int *, int * );
+double *astMtrGet_( AstMatrixMap *, int, int, int *, int * );
 int astIsDiagonal_( AstMatrixMap *, int * );
 #endif
 
@@ -323,8 +323,8 @@ astINVOKE(O,astMtrZoom_(astCheckMatrixMap(this),zoom,STATUS_PTR))
 #define astMtrEuler(this,euler) \
 astINVOKE(V,astMtrEuler_(astCheckMatrixMap(this),euler,STATUS_PTR))
 
-#define astMtrGet(this,fwd,form) \
-astINVOKE(V,astMtrGet_(astCheckMatrixMap(this),fwd,form,STATUS_PTR))
+#define astMtrGet(this,fwd,expand,form) \
+astINVOKE(V,astMtrGet_(astCheckMatrixMap(this),fwd,expand,form,STATUS_PTR))
 
 #define astIsDiagonal(this) \
 astINVOKE(V,astIsDiagonal_(astCheckMatrixMap(this),STATUS_PTR))

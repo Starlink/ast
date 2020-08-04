@@ -2651,7 +2651,7 @@ static AstWinMap *WinDiagMat( AstWinMap *wm, AstMatrixMap *mm, int winv,
    astSetInvert( mm, minv );
 
 /* Get the diagonal elements of the forward matrix. */
-   diag = astMtrGet( mm, 1, &form );
+   diag = astMtrGet( mm, 1, 0, &form );
 
 /* Report an error if the matrix is not diagonal. */
    if( form == 0 ) {
