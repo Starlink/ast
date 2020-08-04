@@ -4447,7 +4447,7 @@ static double *MtrGet( AstMatrixMap *this, int fwd, int expand, int *form,
    *form = this->form;
 
 /* Get the number of elements in the returned array. */
-   if( *form  == DIAGONAL ){
+   if( *form  == FULL ){
       nel = astGetNin( this )*astGetNout( this );
    } else if( *form  == DIAGONAL ){
       nel = astMIN( astGetNin( this ), astGetNout( this ) );
