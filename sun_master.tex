@@ -22393,6 +22393,25 @@ current version):
 \item The KeyMap class has a new method called astMapCopyEntry that can be used
 to copy a single entry from one KeyMap to another.
 
+\item The
+c+
+astSimplify
+c-
+f+
+AST\_SIMPLIFY
+f-
+method now prefers ShiftMaps over equivalent WinMaps.
+
+\item The
+c+
+astSimplify
+c-
+f+
+AST\_SIMPLIFY
+f-
+method will now merge WinMaps with neighbouring diagonal MatrixMaps.
+
+
 \end{enumerate}
 
 Programs which are statically linked will need to be re-linked in

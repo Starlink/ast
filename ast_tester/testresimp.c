@@ -26,6 +26,7 @@ int main(){
    astInvert( m1 );
    AstCmpMap *cm2 = astCmpMap( cm1, m1, 1, " ", status );
    AstMapping *m2 = astSimplify( cm2 );
+
    if( !astIsAUnitMap( m2 ) && astOK ){
       astError( AST__INTER, "Error 1\n",  status );
    }
@@ -87,10 +88,10 @@ int main(){
 
    astSetRestrictedSimplify( cm2 );
    astSetAllowSimplify( zm1 );
+
    m2 = astSimplify( cm2 );
-
-
    astDecompose( m2, &map1, &map2, &series, &inv1, &inv2  );
+
    if( ( !astIsAWinMap( map1 ) || !astIsAShiftMap( map2 ) ) && astOK ){
       astError( AST__INTER, "Error 11\n",  status );
    }
@@ -102,8 +103,15 @@ int main(){
    }
 
 
-
-
+   double ina = 1.0;
+   double inb = 2.0;
+   double outa = 1.2;
+   double outb = 2.2;
+   AstWinMap *wm = astWinMap( 1, &ina, &inb, &outa, &outb, " ", status );
+   shift = 1.0;
+   sm1 = astShiftMap( 1, &shift, " ", status );
+   cm1 = astCmpMap( wm, sm1, 1, " ", status );
+   m2 = astSimplify( cm1 );
 
    if( astOK ) {
       printf(" All restricted simplify tests passed\n");

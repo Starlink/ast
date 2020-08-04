@@ -20,6 +20,11 @@ Main Changes in this Version
 - The KeyMap class has a new method called astMapCopyEntry that can be used
 to copy a single entry from one KeyMap to another.
 
+- The astSimplify method now prefers ShiftMaps over equivalent WinMaps.
+
+- The astSimplify method will now merge WinMaps with neighbouring
+diagonal MatrixMaps.
+
 
 Main Changes in V9.1.2
 ----------------------

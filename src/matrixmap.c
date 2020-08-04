@@ -185,6 +185,9 @@ f     The MatrixMap class does not define any new routines beyond those
 *        Added protected method astMtrGet.
 *     30-JUL-2020 (DSB):
 *        Added protected method astMtrZoom.
+*     3-AUG-2020 (DSB):
+*        - Added protected method astIsDiagonal.
+*        - Protected astMtrGet now returns the matrix storage form.
 *class--
 */
 
@@ -292,7 +295,7 @@ static AstMatrixMap *MtrRot( AstMatrixMap *, double, const double[], int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstWinMap *MatWin2( AstMatrixMap *, AstWinMap *, int, int, int, int * );
 static double *InvertMatrix( int, int, int, double *, double *, int * );
-static double *MtrGet( AstMatrixMap *, int, int * );
+static double *MtrGet( AstMatrixMap *, int, int *, int * );
 static double GetDet( AstMatrixMap *, int * );
 static double Rate( AstMapping *, double *, int, int, int * );
 static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
@@ -302,6 +305,7 @@ static int FindString( int, const char *[], const char *, const char *, const ch
 static int GetIsLinear( AstMapping *, int * );
 static int GetTranForward( AstMapping *, int * );
 static int GetTranInverse( AstMapping *, int * );
+static int IsDiagonal( AstMatrixMap *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int MtrEuler( AstMatrixMap *, double[3], int * );
 static int PermOK( AstMapping *, int * );
@@ -1379,6 +1383,7 @@ void astInitMatrixMapVtab_(  AstMatrixMapVtab *vtab, const char *name, int *stat
    vtab->MtrZoom = MtrZoom;
    vtab->MtrEuler = MtrEuler;
    vtab->MtrGet = MtrGet;
+   vtab->IsDiagonal = IsDiagonal;
 
 /* Save the inherited pointers to methods that will be extended, and
    replace them with pointers to the new member functions. */
@@ -1587,6 +1592,51 @@ static double *InvertMatrix( int form, int nrow, int ncol, double *matrix,
 
 /* Return the pointer. */
    return out;
+}
+
+static int IsDiagonal( AstMatrixMap *this, int *status ){
+/*
+*  Name:
+*     astIsDiagonal
+
+*  Purpose:
+*     Return a flag indicating if a MaytrixMap is diagonal.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     int astIsDiagonal( AstMapping *this )
+
+*  Class Membership:
+*     MatrixMap method
+
+*  Description:
+*     This function returns a flag indicatig if the supplied MatrixMap is
+*     diagonal (i.e. all off-diagonal elements are zero).
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+
+*  Returned Value:
+*     Non-zero if the MatrixMap is diagonal. Zero otherwise.
+
+*  Notes:
+*     - A value of zero will be returned if this function is invoked
+*     with the global error status set, or if it should fail for any
+*     reason.
+*/
+
+/* Check the global status */
+   if( !astOK ) return 0;
+
+/* Ensure the MatrixMap is tored in compressed form. */
+   CompressMatrix( this, status );
+
+/* Return a flag based on the compressed storage form. */
+   return ( this->form == DIAGONAL || this->form == UNIT );
 }
 
 static int MapMerge( AstMapping *this, int where, int series, int *nmap,
@@ -4319,7 +4369,7 @@ static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
    return orth;
 }
 
-static double *MtrGet( AstMatrixMap *this, int fwd, int *status ){
+static double *MtrGet( AstMatrixMap *this, int fwd, int *form, int *status ){
 /*
 *+
 *  Name:
@@ -4333,7 +4383,7 @@ static double *MtrGet( AstMatrixMap *this, int fwd, int *status ){
 
 *  Synopsis:
 *     #include "matrixmap.h"
-*     double *astMtrGet( AstMatrixMap *this, int fwd );
+*     double *astMtrGet( AstMatrixMap *this, int fwd, int *form );
 
 *  Class Membership:
 *     MatrixMap method.
@@ -4346,13 +4396,19 @@ static double *MtrGet( AstMatrixMap *this, int fwd, int *status ){
 *     this
 *        Pointer to the MatrixMap.
 *     fwd
-*        If non-zero, return the forward matriux. Otherwise return the
+*        If non-zero, return the forward matrix. Otherwise return the
 *        inverse matrix.
+*     form
+*        Returned holding the form of the matrix: 0 (full), 1 (diagonal)
+*        or 2 (unit).
 
 *  Returned Value:
 *     A pointer to a dynamically allocated array holding the elements of
 *     the requested matrix, or NULL if an error occurs. The returned
-*     pointer should be freed using astFree when no longer needed.
+*     pointer should be freed using astFree when no longer needed. The
+*     returned array will contain Nin*Nout elements if "form" is 0 (full),
+*     MIN(Nin,Nout) elements if "form" is 1 (diagonal) and zero elements if
+*     form is 2 (unit).
 *-
 */
 
@@ -4371,8 +4427,17 @@ static double *MtrGet( AstMatrixMap *this, int fwd, int *status ){
       matrix = fwd?this->i_matrix:this->f_matrix;
    }
 
-/* Get the number of elements in the matrix. */
-   nel = astGetNin( this )*astGetNout( this );
+/* Return the storage form. */
+   *form = this->form;
+
+/* Get the number of elements in the returned array. */
+   if( *form  == DIAGONAL ){
+      nel = astGetNin( this )*astGetNout( this );
+   } else if( *form  == DIAGONAL ){
+      nel = astMIN( astGetNin( this ), astGetNout( this ) );
+   } else {
+      nel = 0;
+   }
 
 /* Return a pointer to a newly allocated array holding a copy of the
    matrix. */
@@ -6158,9 +6223,14 @@ int astMtrEuler_( AstMatrixMap *this, double euler[3], int *status ){
    return (**astMEMBER(this,MatrixMap,MtrEuler))( this, euler, status );
 }
 
-double *astMtrGet_( AstMatrixMap *this, int fwd, int *status ){
+double *astMtrGet_( AstMatrixMap *this, int fwd, int *form, int *status ){
    if( !astOK ) return NULL;
-   return (**astMEMBER(this,MatrixMap,MtrGet))( this, fwd, status );
+   return (**astMEMBER(this,MatrixMap,MtrGet))( this, fwd, form, status );
+}
+
+int astIsDiagonal_( AstMatrixMap *this, int *status ){
+   if( !astOK ) return 0;
+   return (**astMEMBER(this,MatrixMap,IsDiagonal))( this, status );
 }
 
 

@@ -3437,6 +3437,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    int modified;                 /* Index of first modified Mapping */
    int nmap;                     /* Mapping count */
    int nominated;                /* Index of nominated Mapping */
+   int restricted;               /* Restrict simplification to flagged mappings? */
    int set;                      /* Invert attribute set? */
    int set_n;                    /* Invert set for final Mapping? */
    int simpler;                  /* Simplification possible? */
@@ -3500,11 +3501,19 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    simpler = astMapList( this_mapping, this->series, astGetInvert( this ), &nmap,
                          &map_list, &invert_list );
 
-/* If theCmpMap is subject to a restricted simplify, the we ignore the
+/* If the RESTRICTED_SIMPLIFY flag is set in the supplied CmpMap it
+   indicates that the simplification should be restricted to a subset
+   of the component Mappings - namely, those components that have the
+   ALLOW_SIMPLIFY flag set. By default, Mappings do not have this flag
+   set - it must be set explicitly if required using the astSetAllowSimplify
+   macro. */
+   restricted = astRestrictedSimplify( this_mapping );
+
+/* If the CmpMap is subject to a restricted simplify, the we ignore the
    simpler flag set above if any inverted CmpMaps were found, since we do
    not know yet whether the inverted CmpMap will be available for
    simplification or not (as indicated by the ALLOW_SIMPLY flag). */
-   if( astRestrictedSimplify(this_mapping) ) simpler = 0;
+   if( restricted ) simpler = 0;
 
 /* Ensure that the mappings in the list are independent of each other, so
    that modifying one does not modify any of the others. This is needed
@@ -3515,33 +3524,10 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    be nominated for simplification). Mappings become frozen if nominating them
    would create an infinite loop in which neighbouring mappings argue as to
    their form. Freezing a mapping prevents the frozen mapping contributing any
-   further to the argument, so the other Mapping "wins" the argument.
-
-   It can also be useful to freeze Mappings in order to ensure that they
-   are not changed by the simplification process.
-
-   The initial value of the frozen flag for each Mapping is determined as
-   follows: If the RESTRICTED_SIMPLIFY flag is set in the supplied CmpMap
-   it indicates that the simplification should be restricted to a subset
-   of the component Mappings. Mappings in this subset are unfrozen initially
-   and the others are frozen initially. The subset consists of those
-   component Mappings that have the ALLOW_SIMPLIFY flag set. By default,
-   Mappings do not have this flag set - it must be set explicitly if
-   required using the astSetAllowSimplify macro. If the RESTRICTED_SIMPLIFY
-   flag is not set in the supplied CmpMap, all component Mappings are
-   unfrozen initially. */
-   if( astRestrictedSimplify(this_mapping) ) {
-      for( i = 0; i < nmap; i++ ) {
-         if( astAllowSimplify(map_list[ i ]) ){
-            astClearFrozen(map_list[ i ]);
-         } else {
-            astSetFrozen(map_list[ i ]);
-         }
-      }
-   } else {
-      for( i = 0; i < nmap; i++ ) {
-         astClearFrozen(map_list[ i ]);
-      }
+   further to the argument, so the other Mapping "wins" the argument. All
+   component Mappings are unfrozen initially. */
+   for( i = 0; i < nmap; i++ ) {
+      astClearFrozen(map_list[ i ]);
    }
 
 /* Initialise pointers to memory used to hold lists of the modified
@@ -3563,8 +3549,11 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
 /* If the current nominated mapping has been frozen, then we do not allow
    it to suggest changes to the mapping sequence. Instead, just increment
    the index of the next mapping to be checked and continue on to the next
-   pass round the while loop. */
-         if( astFrozen(map_list[ nominated ]) ) {
+   pass round the while loop. We also do this if the simplification is
+   restricted to just those components that have the AllowSimplify flag set
+   and the current component does not have the AllowSimplify flag set.*/
+         if( astFrozen(map_list[ nominated ]) ||
+             ( restricted && !astAllowSimplify(map_list[ nominated ]) ) ) {
             nominated++;
             continue;
          }
@@ -3726,10 +3715,6 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
          }
       }
    }
-
-/* Ensure the returned Mapping does not use the restricted simplify
-   method. */
-   astClearRestrictedSimplify( result );
 
 /* Clean up. */
 /* ========= */

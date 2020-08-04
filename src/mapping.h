@@ -415,32 +415,32 @@ typedef unsigned long long int UINT_BIG;
                                  been restricted */
 
 #define astSetIsSimple(this) \
-(((AstMapping*)this)->flags|=AST__ISSIMPLE_FLAG)
+((void)(this&&(((AstMapping*)this)->flags|=AST__ISSIMPLE_FLAG)))
 #define astClearIsSimple(this) \
-(((AstMapping*)this)->flags&=~AST__ISSIMPLE_FLAG)
+((void)(this&&(((AstMapping*)this)->flags&=~AST__ISSIMPLE_FLAG)))
 #define astIsSimple(this) \
-((((AstMapping*)this)->flags&AST__ISSIMPLE_FLAG)!=0)
+(this&&((((AstMapping*)this)->flags&AST__ISSIMPLE_FLAG)!=0))
 
 #define astSetFrozen(this) \
-(((AstMapping*)this)->flags|=AST__FROZEN_FLAG)
+((void)(this&&(((AstMapping*)this)->flags|=AST__FROZEN_FLAG)))
 #define astClearFrozen(this) \
-(((AstMapping*)this)->flags&=~AST__FROZEN_FLAG)
+((void)(this&&(((AstMapping*)this)->flags&=~AST__FROZEN_FLAG)))
 #define astFrozen(this) \
-((((AstMapping*)this)->flags&AST__FROZEN_FLAG)!=0)
+(this&&((((AstMapping*)this)->flags&AST__FROZEN_FLAG)!=0))
 
 #define astSetRestrictedSimplify(this) \
-(((AstMapping*)this)->flags|=AST__RESTRICTED_SIMPLIFY_FLAG)
+((void)(this&&(((AstMapping*)this)->flags|=AST__RESTRICTED_SIMPLIFY_FLAG)))
 #define astClearRestrictedSimplify(this) \
-(((AstMapping*)this)->flags&=~AST__RESTRICTED_SIMPLIFY_FLAG)
+((void)(this&&(((AstMapping*)this)->flags&=~AST__RESTRICTED_SIMPLIFY_FLAG)))
 #define astRestrictedSimplify(this) \
-((((AstMapping*)this)->flags&AST__RESTRICTED_SIMPLIFY_FLAG)!=0)
+(this&&((((AstMapping*)this)->flags&AST__RESTRICTED_SIMPLIFY_FLAG)!=0))
 
 #define astSetAllowSimplify(this) \
-(((AstMapping*)this)->flags|=AST__ALLOW_SIMPLIFY_FLAG)
+((void)(this&&(((AstMapping*)this)->flags|=AST__ALLOW_SIMPLIFY_FLAG)))
 #define astClearAllowSimplify(this) \
-(((AstMapping*)this)->flags&=~AST__ALLOW_SIMPLIFY_FLAG)
+((void)(this&&(((AstMapping*)this)->flags&=~AST__ALLOW_SIMPLIFY_FLAG)))
 #define astAllowSimplify(this) \
-((((AstMapping*)this)->flags&AST__ALLOW_SIMPLIFY_FLAG)!=0)
+(this&&((((AstMapping*)this)->flags&AST__ALLOW_SIMPLIFY_FLAG)!=0))
 
 #endif
 

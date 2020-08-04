@@ -493,7 +493,7 @@ c      call ast_watchmemory(22617)
 
       end if
 
-*  Check no simplification is done on a single non-inverted SwicthMap.
+*  Check no simplification is done on a single non-inverted SwitchMap.
       call ast_setl( swm, 'Invert', .false., status )
       swm2 = ast_simplify( swm, status )
       call compare( swm, swm2, 'ast_equal 3', status )

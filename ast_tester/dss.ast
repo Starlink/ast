@@ -70,12 +70,11 @@
           MapA = 	# First component Mapping
              Begin WinMap 	# Map one window on to another
                 Nin = 2 	# Number of input coordinates
-                Invert = 0 	# Mapping not inverted
              IsA Mapping 	# Mapping between coordinate systems
                 Sft1 = -0.3287946560728543 	# Shift for axis 1
-                Scl1 = -0.00044129690205585437 	# Scale factor for axis 1
+                Scl1 = -0.00044129690205588028 	# Scale factor for axis 1
                 Sft2 = 0.38797155568647818 	# Shift for axis 2
-                Scl2 = 0.00044129690205585437 	# Scale factor for axis 2
+                Scl2 = 0.00044129690205588028 	# Scale factor for axis 2
              End WinMap
           MapB = 	# Second component Mapping
              Begin CmpMap 	# Compound Mapping
@@ -137,7 +136,6 @@
                             MapA = 	# First component Mapping
                                Begin MatrixMap 	# Matrix transformation
                                   Nin = 3 	# Number of input coordinates
-                                  Invert = 0 	# Mapping not inverted
                                IsA Mapping 	# Mapping between coordinate systems
                                   M0 = 0.82577216035104439 	# Forward matrix value
                                   M1 = -0.30920332196760869 	# Forward matrix value
@@ -163,7 +161,6 @@
                                Begin SphMap 	# Cartesian to Spherical mapping
                                   Nin = 3 	# Number of input coordinates
                                   Nout = 2 	# Number of output coordinates
-                                  Invert = 0 	# Mapping not inverted
                                IsA Mapping 	# Mapping between coordinate systems
                                   UntRd = 1 	# All input vectors have unit length
                                   PlrLg = 2.8272374655684112 	# Polar longitude (rad.s)

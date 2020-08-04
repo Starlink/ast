@@ -5,7 +5,6 @@
     MapA = 	# First component Mapping
        Begin WinMap 	# Map one window on to another
           Nin = 3 	# Number of input coordinates
-          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Sft1 = -0.215698 	# Shift for axis 1
           Scl2 = 5.2359877559829903e-06 	# Scale factor for axis 2
@@ -14,13 +13,11 @@
     MapB = 	# Second component Mapping
        Begin CmpMap 	# Compound Mapping
           Nin = 3 	# Number of input coordinates
-          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Series = 0 	# Component Mappings applied in parallel
           MapA = 	# First component Mapping
              Begin LutMap 	# Map 1-d coordinates using a lookup table
                 Nin = 1 	# Number of input coordinates
-                Invert = 0 	# Mapping not inverted
              IsA Mapping 	# Mapping between coordinate systems
                 Nlut = 11 	# Number of lookup table elements
                 Start = 1 	# Input value at first element
@@ -41,7 +38,6 @@
           MapB = 	# Second component Mapping
              Begin WcsMap 	# FITS-WCS sky projection
                 Nin = 2 	# Number of input coordinates
-                Invert = 0 	# Mapping not inverted
              IsA Mapping 	# Mapping between coordinate systems
                 Type = "TAN" 	# Gnomonic projection
              End WcsMap

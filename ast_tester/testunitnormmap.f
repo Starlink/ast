@@ -263,7 +263,7 @@ c      call ast_activememory( 'testunitnormmap' )
 
       map1(1) = unm1
       map2(1) = unm2inv
-      class(1) = 'WinMap'
+      class(1) = 'ShiftMap'
 
       map1(2) = shiftmap
       map2(2) = unm2
@@ -290,7 +290,9 @@ c      call ast_activememory( 'testunitnormmap' )
       class(7) = 'CmpMap'
 
       do i = 1, 7
+
          cmpmap = ast_cmpmap( map1(i), map2(i), .true.,  ' ', status )
+
          cmpmap_simp = ast_simplify( cmpmap, status )
 
          if( ast_getc( cmpmap_simp, 'Class', status ) .ne. class(i) )

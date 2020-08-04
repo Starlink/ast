@@ -2519,6 +2519,8 @@ f        The global status.
                mapped = astMapRegion( picked, reg2proj, gridframe );
                if( astStatus == AST__NODEF ) astClearStatus;
                astReporting( rep );
+            } else {
+               mapped = 0;
             }
 
 /* Find the bounds of the Region in grid coords. Get the number of pixels

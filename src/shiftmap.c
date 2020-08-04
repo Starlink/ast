@@ -649,13 +649,16 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 */
 
 /* Local Variables: */
-   AstWinMap *w1;        /* Pointer to replacement Mapping */
    AstShiftMap *sm;      /* Pointer to this ShiftMap */
+   AstWinMap *w1;        /* Pointer to replacement Mapping */
    double *aa;           /* Pointer to shift terms for new WinMap */
    double *bb;           /* Pointer to scale terms for new WinMap */
    int i;                /* Axis count */
    int nin;              /* Number of axes */
+   int old_inv;          /* Original invert flag for the ShiftMap */
+   int old_nmap;         /* Original number of Mappings in list */
    int result;           /* Returned value */
+   int revert;           /* Revert WinMap back to original ShiftMap? */
 
 /* Initialise. */
    result = -1;
@@ -663,15 +666,20 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Check the global error status. */
    if ( !astOK ) return result;
 
-/* A ShiftMap is equivalent to a WinMap with unit scaling. The policy on
-   simplifying a ShiftMap is to convert it to the equivalent WinMap and let
-   the WinMap class do the simplifying. Create the returned WinMap, initially
-   with undefined corners. */
+/* A ShiftMap is equivalent to a WinMap with unit scaling. The implementation
+   of astMapMerge provided by the WinMap class has extensive logic for
+   identifying different possible mergers. Rather than duplicate all that
+   logic here, we convert the ShiftMap into a WinMap and then use the
+   WinMap's astMapMerge method to check for possible mergers. First, create
+   a WinMap with undefined corners. */
    nin = astGetNin( this );
    w1 = astWinMap( nin, NULL, NULL, NULL, NULL, "", status );
 
 /* If succesful, store the scale and shift terms in the WinMap. The scale
-   terms are unity. */
+   terms are unity. This gives us a WinMap that is equivalent to the
+   supplied ShiftMap. The forward transformation in the WinMap is the
+   same as the requested transformation in the ShiftMap (requested via
+   invert_list). */
    if( astOK ){
       sm = (AstShiftMap *) this;
 
@@ -682,14 +690,55 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          *(aa++) = ( *invert_list )[ where ] ? -(sm->shift)[ i ] : (sm->shift)[ i ];
       }
 
-/* Replace the supplied ShiftMap with the new WinMap and reset the invert
-   flag. */
+/* Replace the pointer to the supplied ShiftMap within the mapping list by a
+   pointer to the new WinMap and reset the invert flag (record the old invert
+   flag first in case we need to revert this change). */
       (void) astAnnul( ( *map_list )[ where ] );
       ( *map_list )[ where ] = (AstMapping *) w1;
+      old_inv = ( *invert_list )[ where ];
       ( *invert_list )[ where ] = 0;
 
-/* Return the index of the first modified element. */
-      result = where;
+/* Attempt to merge the WinMap with its neighbouring Mappings, recording
+   the original number of Mappings in the list first. */
+      old_nmap = *nmap;
+      result = astMapMerge( (AstMapping *) w1, where, series, nmap, map_list,
+                            invert_list );
+
+/* It is possible that the above call just turned the WinMap back into
+   the equivalent ShiftMap, putting us back where we started. This could
+   cause an infinite loop if we allowed this change to go back to the
+   caller. So check if a) the first modified mapping is the WinMap, b) the
+   total number of mappings has not changed, c) the modified mapping is
+   equivalent to the old ShiftMap. If so, we will revert the WinMap back
+   to the original ShiftMap and return -1 indicating "no changes made". */
+      revert = ( result == where && *nmap == old_nmap &&
+                 astEqual( (*map_list)[ where ], this ) );
+
+/* We also revert the WinMap back to the original ShiftMap if the above
+   call to astMapMerge made no changes. */
+      if( revert || ( result == -1 ) ){
+         (void) astAnnul( ( *map_list )[ where ] );
+
+/* If the original ShiftMap was used in an inverted sense, we can at least
+   ensure that the returned ShiftMap is used in a forward sense. Take a
+   deep copy of the supplied ShiftMap and negate its shift terms. */
+         if( old_inv ) {
+            ( *map_list )[ where ] = astCopy( this );
+            sm = (AstShiftMap *) ( *map_list )[ where ];
+            for( i = 0; i < nin; i++ ) (sm->shift)[ i ] *= -1.0;
+            result = where;
+
+/* If the original ShiftMap was used in the forward sense, just clone it
+   and indicate no change has taken place. */
+         } else {
+            ( *map_list )[ where ] = astClone( this );
+            result = -1;
+         }
+
+/* In either case, the ShiftMap now at index "where" should be used in a
+   forward sense. */
+         ( *invert_list )[ where ] = 0;
+      }
    }
 
 /* Return the result. */
