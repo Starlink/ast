@@ -58,6 +58,8 @@ f     The ShiftMap class does not define any new routines beyond those
 *        Override astEqual.
 *     26-SEP-2019 (DSB):
 *        Added protected method astGetShifts
+*      20-AUG-2020 (DSB):
+*        Avoid possible segfault in MapMerge.
 *class--
 */
 
@@ -717,7 +719,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* We also revert the WinMap back to the original ShiftMap if the above
    call to astMapMerge made no changes. */
       if( revert || ( result == -1 ) ){
-         (void) astAnnul( ( *map_list )[ where ] );
+         if( ( *map_list )[ where ] ) astAnnul( ( *map_list )[ where ] );
 
 /* If the original ShiftMap was used in an inverted sense, we can at least
    ensure that the returned ShiftMap is used in a forward sense. Take a
