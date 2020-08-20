@@ -1239,7 +1239,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        FITS-WCS papers) is 0.0, not 1.0.
 *     12-JUN-2020 (DSB):
 *        In SpecTrans ("Zero cdelt values:") use "CDELT", not "CTYPE", to
-*        define the number of available CDELT values. 
+*        define the number of available CDELT values.
+*     17-AUG-2020 (DSB):
+*        Fix potential infinite loop in SpecTrans.
 *class--
 */
 
@@ -29984,8 +29986,8 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
                               (void *) &cval, AST__STRING, NULL, status );
                   }
                }
-               j++;
             }
+            j++;
          }
       }
 
