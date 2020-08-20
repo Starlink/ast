@@ -413,6 +413,8 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *     4-AUG-2020 (DSB):
 *        Only include the Invert value in a Mapping dump if it is set to
 *        a true value. Otherwise, it will default to unset.
+*     20-AUG-2020 (DSB):
+*        Fix possible segfault in astMapMerge wrapper
 *
 *class--
 */
@@ -24123,7 +24125,19 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
 
 /* Attemp to the merge the nominated Mapping into its neighbours. */
    result = (**astMEMBER(this,Mapping,MapMerge))( this, where, series, nmap,
-                                                map_list, invert_list, status );
+                                                  map_list, invert_list,
+                                                  status );
+
+/* If the only change is that one or more Mappings have been removed from
+   the end of the list, then "result" will refer to a Mapping beyond the
+   end of the returned list. For instance, if the last Mapping in a list of
+   4 Mappings (i.e. index 3) is removed, whithout any change to earlier
+   Mappings, then "result" will be returned as 3, but the last Mapping in
+   the returned list will have index 2 (since the returned list only
+   contains 3 Mappings). In such cases, change "result" to -1 since there
+   is no need to do another pass through the list looking for further
+   changes. */
+   if( result >= *nmap ) result = -1;
 
 /* If anything changed, and we may be doing a restricted simplification,
    find the indices within the input and output mapping lists of the last
