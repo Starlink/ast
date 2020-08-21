@@ -4698,6 +4698,157 @@ int astSscanf_( const char *str, const char *fmt, ...) {
 
 }
 
+AstStringList *astStringList_( size_t nline, int *status ){
+/*
+*+
+*  Name:
+*     astStringList
+
+*  Purpose:
+*     Create a list of empty strings.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "memory.h"
+*     AstStringList astStringList( size_t nline )
+
+*  Description:
+*     This function create a new StringList containing "nline" strings,
+*     and initialises them all to be zero length.
+
+*  Parameters:
+*     nline
+*        The number of lines required in the string list.
+
+*  Returned Value:
+*     The newly created StringList.
+
+*-
+*/
+
+/* Local Variables: */
+   AstStringList *result;
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Allocate the returned structure. */
+   result = astMalloc( sizeof(*result) );
+   if( result ) {
+
+/* Initialise the number of lines in the structure. */
+      result->nline = nline;
+
+/* Allocate the array of lines, initialising them to zero (NULL). */
+      result->lines = astCalloc( nline, sizeof(char *) );
+
+/* If the above allocation failed, free the returned structure. */
+      if( !astOK ) result = astFree( result );
+   }
+
+   return result;
+}
+
+void astAppendStringList_( AstStringList *this, const char *text, int *status ){
+/*
+*+
+*  Name:
+*     astAppendStringList
+
+*  Purpose:
+*     Append a string to the end of a StringList.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "memory.h"
+*     astAppendStringList( AstStringList *this, const char *text )
+
+*  Description:
+*     This function appends a string to the end of a StringList.
+
+*  Parameters:
+*     this
+*        Pointer to the StringList.
+*     text
+*        The null-terminated character string to append to "this".
+*-
+*/
+
+/* Local Variables: */
+   size_t iline;
+   char *mem;
+
+/* Check the global error status. */
+   if( !astOK ) return;
+
+   iline = this->nline;
+   this->lines = astGrow( this->lines, ++(this->nline), sizeof( char * ) );
+   mem = astCalloc( 1, strlen( text ) + 1 );
+   if( astOK ) {
+      strcpy( mem, text );
+      this->lines[ iline ] = mem;
+   }
+}
+
+AstStringList *astFreeStringList_( AstStringList *list, int *status ){
+/*
+*+
+*  Name:
+*     astFreeStringList
+
+*  Purpose:
+*     Free a list of strings.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "memory.h"
+*     AstStringList *astStringList( AstStringList *list )
+
+*  Description:
+*     This function frees all resources used by the supplied StringList,
+*     returning a NULL pointer.
+
+*  Parameters:
+*     list
+*        Pointer to the StringList to be freed.
+
+*  Returned Value:
+*     A NULL pointer.
+*-
+*/
+
+/* Local Variables: */
+   size_t i;
+
+/* Check a non-null pointer was supplied */
+   if( !list ) return NULL;
+
+/* Free the individual strings. */
+   if( list->lines ) {
+      for( i = 0; i < list->nline; i++ ) {
+         list->lines[ i ] = astFree( list->lines[ i ] );
+      }
+
+/* Free the array of lines. */
+      list->lines = astFree( list->lines );
+   }
+
+/* Zero out the number of lines. */
+   list->nline = 0;
+
+/* Free the memory holding the StringList structure and return the
+   resulting NULL pointer. */
+   return astFree( list );
+}
+
+
+
 
 /* The next functions are used only when memory debugging is
    switched on via the MEM_DEBUG macro. They can be used for locating

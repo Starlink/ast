@@ -120,7 +120,7 @@ f     - AST_WRITE: Write an Object to a Channel
 *        Report an error if an Inf or NaN value is read from the external
 *        source.
 *     2-OCT-2019 (DSB):
-*        Speed up the reading of large objects (such as MOCs) by using 
+*        Speed up the reading of large objects (such as MOCs) by using
 *        multiple linked lists accessed via a hash table to store the values
 *        at each nesting level, rather than a single linked list.
 *class--
@@ -5187,6 +5187,9 @@ astMAKE_TEST(Channel,SinkFile,( this->fn_out != NULL ))
 *        The default value is non-zero for a FitsChan.
 *     XmlChan
 *        The default value is zero for an XmlChan.
+*     YamlChan
+*        This attribute is ignored by the YamlChan class. Comments are
+*        never produced.
 
 *att--
 */
@@ -5229,11 +5232,13 @@ astMAKE_TEST(Channel,Comment,( this->comment != -INT_MAX ))
 *        The default value is zero for a normal Channel.
 *     FitsChan
 *        The default value is zero for a FitsChan.
-*     XmlChan
-*        The default value is -1 for an XmlChan.
 *     StcsChan
 *        The default value is zero for an StcsChan. Set a positive value
 *        to cause default values to be included in STC-S descriptions.
+*     XmlChan
+*        The default value is -1 for an XmlChan.
+*     YamlChan
+*        This attribute is ignored by the YamlChan class.
 
 *  Notes:
 *     - All positive values supplied for this attribute are converted
@@ -5312,6 +5317,9 @@ f        within AST_GETLINE.
 *        space characters will be inserted as necessary to ensure that each
 *        XML tag starts on a new line, and each tag will be indented by
 *        a further 3 spaces to show its depth in the containment hierarchy.
+*     YamlChan
+*        The default value for a YamlChan is two. Only non-zero values in
+*        the range 1-10 are allowed.
 *att--
 */
 
@@ -5348,7 +5356,7 @@ astMAKE_TEST(Channel,Indent,( this->indent != -INT_MAX ))
 *     1 - Report only conditions where significant information content has been
 *     changed. For instance, an unsupported time-scale has been replaced by a
 *     supported near-equivalent time-scale. Another example is if a basic
-*     Channel unexpected encounters data items that may have been introduced
+*     Channel encounters unexpected data items that may have been introduced
 *     by later versions of AST.
 *
 *     2 - Report the above, and in addition report significant default
@@ -5365,9 +5373,14 @@ astMAKE_TEST(Channel,Indent,( this->indent != -INT_MAX ))
 *     another example.
 *
 *     The default value is 1. Note, there are many other conditions that
-*     can occur whilst reading or writing an Object that completely
-*     prevent the conversion taking place. Such conditions will always
-*     generate errors, irrespective of the ReportLevel and Strict attributes.
+*     can occur whilst reading an Object that completely prevent the
+*     conversion taking place. Such conditions will always generate errors,
+*     irrespective of the ReportLevel and Strict attributes. Note, failure
+*     to write an Object to a Channel does not usually generate an error.
+*     Instead,
+c     astWrite
+f     AST_WRITE
+*     returns a function value of zero.
 
 *  Applicability:
 *     Channel
@@ -5418,6 +5431,8 @@ astMAKE_TEST(Channel,ReportLevel,( this->report_level != -INT_MAX ))
 *        The FitsChan class sets the default value of this attribute
 *        to 1, so that all irrelevant FITS headers will normally be
 *        ignored.
+*     YamlChan
+*        The YamlChan class ignores this attribute.
 *att--
 */
 
@@ -5434,7 +5449,7 @@ astMAKE_TEST(Channel,Skip,( this->skip != -INT_MAX ))
 *     Strict
 
 *  Purpose:
-*     Report an error if any unexpeted data items are found?
+*     Report an error if any unexpected data items are found?
 
 *  Type:
 *     Public attribute.
@@ -5465,8 +5480,8 @@ f     AST_WARNINGS
 *     description has changed.
 
 *  Applicability:
-*     Channel
-*        All Channels have this attribute.
+*     YamlChan
+*        The YamlChan class ignores this attribute.
 *att--
 */
 

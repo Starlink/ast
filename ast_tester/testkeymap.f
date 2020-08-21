@@ -1020,7 +1020,17 @@ C  Test ast_mapcopyentry
 
 
 
+      map = ast_keymap( ' ', status )
+      call ast_mapputelemd( map, "HHH", -1, 1.0, status );
+      call ast_mapputelemd( map, "HHH", -1, 2.0, status );
+      call ast_mapputelemd( map, "HHH", -1, 3.0, status );
+      call ast_mapputelemd( map, "HHH", -1, 4.0, status );
+      call ast_mapputelemd( map, "HHH", -1, 15.0, status );
+      if( ast_maplength( map, "HHH", status ) .ne. 5 ) then
+         call stopit( status, 'Error MAPPUTELEM_7' )
+      end if
 
+      call ast_annul( map, status )
 
       call ast_end( status )
 

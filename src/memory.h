@@ -193,6 +193,13 @@ typedef struct AstMemoryGlobals {
 
 #endif
 
+/* A list of null terminated character strings. */
+typedef struct AstStringList {
+   size_t nline;
+   char **lines;
+} AstStringList;
+
+
 /* Function prototypes. */
 /* ==================== */
 
@@ -217,6 +224,9 @@ char *astStringCase_( const char *, int, int * );
 char *astString_( const char *, int, int * );
 int astSscanf_( const char *str, const char *format, ...);
 size_t astSizeOf_( const void *, int * );
+AstStringList *astStringList_( size_t, int * );
+AstStringList *astFreeStringList_( AstStringList *, int * );
+void astAppendStringList_( AstStringList *, const char *, int * );
 int astIsDynamic_( const void *, int * );
 size_t astTSizeOf_( const void *, int * );
 void *astFree_( void *, int * );
@@ -296,6 +306,9 @@ void astEndPM_( int * );
 
 #if defined(astCLASS) /* Protected */
 #define astMallocInit(size) astMalloc_(size,1,STATUS_PTR)
+#define astStringList(nline) astERROR_INVOKE(astStringList_(nline,STATUS_PTR))
+#define astFreeStringList(list) astERROR_INVOKE(astFreeStringList_(list,STATUS_PTR))
+#define astAppendStringList(list,text) astERROR_INVOKE(astAppendStringList_(list,text,STATUS_PTR))
 #endif
 
 #ifdef HAVE_NONANSI_SSCANF

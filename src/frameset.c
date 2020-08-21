@@ -869,6 +869,7 @@ static AstFrame *PickAxes( AstFrame *, int, const int[], AstMapping **, int * );
 static AstFrameSet *Convert( AstFrame *, AstFrame *, const char *, int * );
 static AstFrameSet *ConvertX( AstFrame *, AstFrame *, const char *, int * );
 static AstFrameSet *FindFrame( AstFrame *, AstFrame *, const char *, int * );
+static AstFrameSet *FrameChain( AstFrameSet *, int, int * );
 static AstLineDef *LineDef( AstFrame *, const double[2], const double[2], int * );
 static AstMapping *CombineMaps( AstMapping *, int, AstMapping *, int, int, int * );
 static AstMapping *GetMapping( AstFrameSet *, int, int, int * );
@@ -929,7 +930,7 @@ static int IsUnitFrame( AstFrame *, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
 static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], int * );
 static int Match( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
-static int Span( AstFrameSet *, AstFrame **, int, int, int, AstMapping **, int *, int * );
+static int Span( AstFrameSet *, AstFrame **, int, int, int, AstMapping **, int *, AstFrame **, int * );
 static int SubFrame( AstFrame *, AstFrame *, int, const int *, const int *, AstMapping **, AstFrame **, int * );
 static int TestActiveUnit( AstFrame *, int * );
 static int TestAttrib( AstObject *, const char *, int * );
@@ -4018,6 +4019,186 @@ static AstFrameSet *FindFrame( AstFrame *target_frame, AstFrame *template,
    return result;
 }
 
+static AstFrameSet *FrameChain( AstFrameSet *this, int method,
+                                int *status ){
+/*
+*+
+*  Name:
+*     astFrameChain
+
+*  Purpose:
+*     Extract a linear chain of Frames from a FrameSet.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "frameset.h"
+*     AstFrameSet *FrameChain( AstFrameSet *this, int method,
+*                              int *status )
+
+*  Class Membership:
+*     FrameSet method.
+
+*  Description:
+*     This function returns a new FrameSet containing a subset of the
+*     Frames in the supplied FrameSet, organised as a linear chain rather
+*     than a tree.
+
+*  Parameters:
+*     this
+*        Pointer to the FrameSet.
+*     method
+*        Indicates how the returned FrameSet should be constructed
+*        (currently only one option is provied):
+*
+*        1 - The chain starts at the base Frame and ends at the current
+*        Frame. The shortest chain is returned. Frames in the supplied
+*        FrameSet that are not on the shortest path between base and
+*        current Frame are not included in the returned FrameSet.
+
+*  Returned Value:
+*     A pointer to the new FrameSet or a NULL pointer if an error occurs.
+*     The new FrameSet will contain deep copies of the required Frames and
+*     Mappings.
+
+*-
+*/
+
+/* Local Variables: */
+   AstFrameSet *result;          /* Pointer to the returned FrameSet */
+   AstFrame *fr;                 /* Temporary pointer to Frame */
+   AstFrame **frames;            /* Pointer to array of Frames */
+   AstFrame **frm;               /* Pointer to array of Frames along the path */
+   AstMapping **path;            /* Pointer to array of conversion Mappings */
+   AstMapping *tmp;              /* Temporary pointer for joining Mappings */
+   AstMapping *totmap;           /* Total Mapping between Frames */
+   int *forward;                 /* Pointer to array of Mapping directions */
+   int ipath;                    /* Loop counter for conversion path steps */
+   int iframe;                   /* Frame index */
+   int iframe1;                  /* Starting Frame index */
+   int iframe2;                  /* Ending Frame index */
+   int inode;                    /* Node index */
+   int npath;                    /* Number of steps in conversion path */
+
+/* Initialise returned values. */
+   result = NULL;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* If the shortest chain is required. */
+   if( method == 1 ) {
+
+/* Get the (one-based) indices of the base and current Frames. */
+      iframe1 = astGetBase( this );
+      iframe2 = astGetCurrent( this );
+
+/* Allocate memory to hold an array of Mapping pointers and associated
+   direction flags - a maximum of one element for each Mapping and one
+   for each Frame in the FrameSet. */
+      path = astMalloc( sizeof( AstMapping * ) * (size_t) ( this->nnode - 1 +
+                                                            this->nframe ) );
+      forward = astMalloc( sizeof( int ) * (size_t) ( this->nnode - 1 +
+                                                      this->nframe ) );
+
+/* Allocate memory to hold a list of the Frame pointers associated
+   with each Mapping along the path. */
+      frm = astMalloc( sizeof( AstFrame * ) * (size_t) ( this->nnode - 1 +
+                                                         this->nframe ) );
+
+/* Allocate memory to hold a list of the Frame pointers (if any) associated
+   with each node. */
+      frames = astMalloc( sizeof( AstFrame * )  * (size_t) ( this->nnode ) );
+
+/* If OK, set up an array of Frame pointers indexed by node index. If a
+   node has no associated Frame store a NULL pointer. This is needed so
+   that we can find Frame pointers quickly within the Span function. Note,
+   we simply copy the pointers rather than cloning them, so they do not
+   need to be annulled when finished with. */
+      if ( astOK ) {
+         for( inode = 0; inode < this->nnode; inode++ ) frames[ inode ] = NULL;
+         for( iframe = 0; iframe < this->nframe; iframe++ ) {
+            frames[ this->node[ iframe ] ] = this->frame[ iframe ];
+         }
+
+/* Obtain lists of the Mappings and Frames visited on the shortest path between
+   the base and current Frames. */
+         npath = Span( this, frames, this->node[ iframe1 - 1 ],
+                       this->node[ iframe2 - 1 ], -1, path, forward, frm,
+                       status ) - 1;
+
+/* If this failed, it indicates a corrupt FrameSet object, so report
+   an error. */
+         if ( npath < 0 ) {
+            astError( AST__FRSIN, "astGetMapping(%s): Invalid or corrupt "
+                      "%s - could not find conversion path between Frames "
+                      "%d and %d.", status, astGetClass( this ), astGetClass( this ),
+                      iframe1, iframe2 );
+
+/* Otherwise create a new FrameSet holding a copy of the base Frame in
+   the supplied FrameSet. */
+         } else {
+            fr = astGetFrame( this, iframe1 );
+            result = astFrameSet( fr, " ", status );
+            fr = astAnnul( fr );
+
+/* Loop round each Mapping along the path from base to current Frame. */
+            totmap = NULL;
+            for( ipath = 0; ipath < npath; ipath++ ) {
+
+/* A pair of adjacent Frames in the chain may be separated by more than
+   one Mapping. In such cases all but the last Mapping will have a
+   negative value in "ifrm" (indicating "no Frame associated with the
+   Mapping outputs"). Accumulate such Mappings together in series,
+   inverting the Mapping first if required, and re-inverting it
+   afterwards. */
+               if( totmap ) {
+                  if( !forward[ ipath ] ) astInvert( path[ ipath ] );
+                  tmp = (AstMapping *) astCmpMap( totmap, path[ ipath ],
+                                                  1,  " ", status );
+                  if( !forward[ ipath ] ) astInvert( path[ ipath ] );
+
+                  (void) astAnnul( totmap );
+                  totmap = tmp;
+               } else {
+                  totmap = astCopy( path[ ipath ] );
+                  if ( !forward[ 0 ] ) astInvert( totmap );
+               }
+
+/* If the Mapping has an associated Frame, the Frame will describe the outputs
+   of the Mapping. Add the Frame into the returned FrameSet. */
+               if( frm[ ipath ] ) {
+                  astAddFrame( result, AST__CURRENT, totmap, frm[ ipath ] );
+                  totmap = astAnnul( totmap );
+               }
+            }
+
+/* If the final mapping did not have a Frame, "totmap" will still have a
+   value. In which case annul it. */
+            if( totmap ) totmap = astAnnul( totmap );
+         }
+      }
+
+/* Free the memory allocated for the conversion path information. */
+      path = astFree( path );
+      forward = astFree( forward );
+      frames = astFree( frames );
+      frm = astFree( frm );
+
+/* Any other 'method' value is an error. */
+   } else if( astOK ) {
+      astError( AST__INTER, "astFrameChain(%s): Supplied 'method' value "
+               "(%d) is illegal (internal AST programming error).", status,
+               astGetClass( this ), method );
+   }
+
+/* If an error has occurred, attempt to annull the returned FrameSet. */
+   if( !astOK ) result = astAnnul( result );
+
+   return result;
+}
+
 static AstPointSet *FrameGrid( AstFrame *this_frame, int size, const double *lbnd,
                                const double *ubnd, int *status ){
 /*
@@ -5226,7 +5407,8 @@ f     function is invoked with STATUS set to an error value, or if it
    coordinates between the nodes associated with the two specified
    Frames. */
       npath = Span( this, frames, this->node[ iframe1 - 1 ],
-                    this->node[ iframe2 - 1 ], -1, path, forward, status ) - 1;
+                    this->node[ iframe2 - 1 ], -1, path, forward, NULL,
+                    status ) - 1;
 
 /* If this failed, it indicates a corrupt FrameSet object, so report
    an error. */
@@ -6005,13 +6187,14 @@ void astInitFrameSetVtab_(  AstFrameSetVtab *vtab, const char *name, int *status
    vtab->AddVariant = AddVariant;
    vtab->ClearBase = ClearBase;
    vtab->ClearCurrent = ClearCurrent;
+   vtab->FrameChain = FrameChain;
+   vtab->GetAllVariants = GetAllVariants;
    vtab->GetBase = GetBase;
    vtab->GetCurrent = GetCurrent;
    vtab->GetFrame = GetFrame;
    vtab->GetMapping = GetMapping;
    vtab->GetNframe = GetNframe;
    vtab->GetNode = GetNode;
-   vtab->GetAllVariants = GetAllVariants;
    vtab->MirrorVariants = MirrorVariants;
    vtab->RemapFrame = RemapFrame;
    vtab->RemoveFrame = RemoveFrame;
@@ -9961,7 +10144,8 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
 }
 
 static int Span( AstFrameSet *this, AstFrame **frames, int inode1, int inode2,
-                 int avoid, AstMapping **map, int *forward, int *status ) {
+                 int avoid, AstMapping **map, int *forward, AstFrame **frm,
+                 int *status ) {
 /*
 *  Name:
 *     Span
@@ -9975,7 +10159,8 @@ static int Span( AstFrameSet *this, AstFrame **frames, int inode1, int inode2,
 *  Synopsis:
 *     #include "frameset.h"
 *     int Span( AstFrameSet *this, AstFrame **frames, int inode1, int inode2,
-*               int avoid, AstMapping **map, int *forward, int *status )
+*               int avoid, AstMapping **map, int *forward, AstFrame **frm,
+*               int *status )
 
 *  Class Membership:
 *     FrameSet member function.
@@ -10024,6 +10209,19 @@ static int Span( AstFrameSet *this, AstFrame **frames, int inode1, int inode2,
 *        each Mapping returned in order to effect the transformation
 *        between the starting and ending nodes. This array should be the
 *        same size as the "map" array.
+*     frm
+*        Pointer to the start of an array of Frame pointers. Each element
+*        will be returned holding a pointer to the Frame that describes
+*        the outputs of the Mapping stored in the corresponding element of
+*        the "map" array. A NULL value will be returned if the FrameSet
+*        does not contain a Frame describing the Mapping outputs. A NULL
+*        pointer may be supplied for "frm" if the frame information is not
+*        required. If supplied, this array should be the same size as the
+*        "map" array.
+*
+*        Note that the pointers are simply copies of the pointers
+*        supplied in the "frames" array. They are not cloned, so should
+*        not be annulled by the caller.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -10086,6 +10284,7 @@ static int Span( AstFrameSet *this, AstFrame **frames, int inode1, int inode2,
             result++;
             *map = (AstMapping *) frame;
             *forward = 1;
+            if( frm ) *frm = NULL;
          }
       }
 
@@ -10128,7 +10327,8 @@ static int Span( AstFrameSet *this, AstFrame **frames, int inode1, int inode2,
    direction information in the arrays supplied, but leave extra space to
    insert information about the Mapping between nodes inode1 and inode. */
                result = Span( this, frames, inode, inode2, inode1,
-                              map + nextra, forward + nextra, status );
+                              map + nextra, forward + nextra,
+                              frm ? (frm + nextra) : NULL, status );
 
 /* If a path was found, increment the Mapping count to account for the
    one that transforms between nodes inode1 and inode and insert
@@ -10138,6 +10338,7 @@ static int Span( AstFrameSet *this, AstFrame **frames, int inode1, int inode2,
                   nextra--;
                   map[ nextra ] = this->map[ ( fwd ? inode : inode1 ) - 1 ];
                   forward[ nextra ] = fwd;
+                  if( frm ) frm[ nextra ] = frames[ inode ];
 
 /* Obtain the original value of the Invert attribute for the Mapping
    between nodes inode1 and inode (recorded when the Mapping was first
@@ -10158,6 +10359,7 @@ static int Span( AstFrameSet *this, AstFrame **frames, int inode1, int inode2,
                      result++;
                      *map = (AstMapping *) frame;
                      *forward = 1;
+                     if( frm ) *frm = NULL;
                   }
 
 /* Quit searching once a path has been found. */
@@ -13039,6 +13241,13 @@ int astGetNode_( AstFrameSet *this, int inode, int *nnodes,
    return (**astMEMBER(this,FrameSet,GetNode))( this, inode, nnodes,
                                                 iframe, map, parent, status );
 }
+
+AstFrameSet *astFrameChain_( AstFrameSet *this, int method, int *status ) {
+   if ( !astOK ) return NULL;
+   return (**astMEMBER(this,FrameSet,FrameChain))( this, method, status );
+}
+
+
 
 /* Special public interface functions. */
 /* =================================== */

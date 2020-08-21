@@ -8,6 +8,7 @@
 /* ============== */
 
 /* AST includes */
+#include "yamlchan.h"
 #include "axis.h"
 #include "box.h"
 #include "channel.h"
@@ -149,6 +150,7 @@ typedef struct AstGlobals {
    AstMemoryGlobals Memory;
    AstErrorGlobals  Error;
    AstObjectGlobals Object;
+   AstYamlChanGlobals YamlChan;
    AstAxisGlobals Axis;
    AstMappingGlobals Mapping;
    AstFrameGlobals Frame;

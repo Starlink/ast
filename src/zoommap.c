@@ -1609,14 +1609,16 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 *  Description:
 *     This attribute holds the ZoomMap scale factor, by which
-*     coordinate values are multiplied (by the forward transformation)
-*     or divided (by the inverse transformation). The default value
-*     is unity.
+*     coordinate values are multiplied. The default value is unity.
 *
-c     Note that if a ZoomMap is inverted (e.g. by using astInvert),
-f     Note that if a ZoomMap is inverted (e.g. by using AST_INVERT),
-*     then the reciprocal of this zoom factor will, in effect, be
-*     used.
+*     Note that the returned value describes the multiplication factor
+*     applied to the inputs by the forward transformation of the ZoomMap
+*     assuming the ZoomMap has not been inverted. If the ZoomMap has been
+*     inverted (e.g. by using
+c     astInvert),
+f     AST_INVERT),
+*     then the reciprocal of the returned factor will, in effect,
+*     be used by the forward transformation of the ZoomMap.
 *
 *     In general, Mapping attributes cannot be changed after the Mapping
 *     has been created (the exception to this is the Invert attribute,

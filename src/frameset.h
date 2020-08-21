@@ -399,12 +399,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -505,6 +505,7 @@ typedef struct AstFrameSetVtab {
 
 /* Properties (e.g. methods) specific to this class. */
    AstFrame *(* GetFrame)( AstFrameSet *, int, int * );
+   AstFrameSet *(* FrameChain)( AstFrameSet *, int, int * );
    AstMapping *(* GetMapping)( AstFrameSet *, int, int, int * );
    int (* GetBase)( AstFrameSet *, int * );
    int (* GetCurrent)( AstFrameSet *, int * );
@@ -593,6 +594,7 @@ void astRemoveFrame_( AstFrameSet *, int, int * );
 int astGetNodeId_( AstFrameSet *, int, int *, int *, AstMapping **, int *, int * );
 
 #if defined(astCLASS)            /* Protected */
+AstFrameSet *astFrameChain_( AstFrameSet *, int, int * );
 const char *astGetAllVariants_( AstFrameSet *, int * );
 int astGetBase_( AstFrameSet *, int * );
 int astGetCurrent_( AstFrameSet *, int * );
@@ -705,6 +707,8 @@ astINVOKE(V,astSetVariant_(astCheckFrameSet(this),variant,STATUS_PTR))
 astINVOKE(V,astTestVariant_(astCheckFrameSet(this),STATUS_PTR))
 #define astGetAllVariants(this) \
 astINVOKE(V,astGetAllVariants_(astCheckFrameSet(this),STATUS_PTR))
+#define astFrameChain(this,method) \
+astINVOKE(O,astFrameChain_(astCheckFrameSet(this),method,STATUS_PTR))
 #endif
 #endif
 

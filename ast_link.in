@@ -442,6 +442,10 @@
 #  ----------------------------
       args="${args} -lm"
 
+#  Link with the yaml library.
+#  ----------------------------
+      if test "@YAML@" = '1'; then args="${args} -lyaml"; fi
+
 #  Link with the starmem library, if available.
 #  --------------------------------------------
       args="${args} `\`find starmem_link\``"

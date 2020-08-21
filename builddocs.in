@@ -26,7 +26,8 @@ PATH="${here}:${perldir}:${PATH}"
 export PATH
 
 srcdir="${here}/src"
-goodsource="${srcdir}/axis.c \
+goodsource="${srcdir}/yamlchan.c \
+            ${srcdir}/axis.c \
             ${srcdir}/box.c \
             ${srcdir}/channel.c \
             ${srcdir}/chebymap.c \

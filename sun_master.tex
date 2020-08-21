@@ -653,6 +653,10 @@ written out in the form of STC documents.}. The version of STC-X that has
 been adopted by the IVOA differs in several significant respects from
 V1.20, and therefore this XmlChan format is of historical interest only.
 
+The YamlChan class provides facilities for reading and writing WCS
+information stored in YAML format using a subset of the the ASDF model
+developed at StSci (see \url{http://asdf-standard.readthedocs.io}).
+
 Finally, the StcsChan class provides facilities for reading and writing
 IVOA STC-S region descriptions. STC-S (see
 \url{http://www.ivoa.net/Documents/latest/STC-S.html}) is a linear string
@@ -15423,7 +15427,6 @@ into an equivalent AST Region object, and vice-versa. For further
 details, see the full description of the StcsChan class in
 \appref{ss:classdescriptions}.
 
-
 \cleardoublepage
 \section{\label{ss:intramaps}Creating Your Own Private Mappings (IntraMaps)}
 
@@ -22382,11 +22385,9 @@ axes are assigned the value 0.0.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.1.3}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.1.2 and V9.1.3 (the
-current version):
+\subsection{Changes Introduced in V9.1.3}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.1.2 and V9.1.3:
 
 \begin{enumerate}
 
@@ -22411,6 +22412,21 @@ AST\_SIMPLIFY
 f-
 method will now merge WinMaps with neighbouring diagonal MatrixMaps.
 
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.2.0}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.1.3 and V9.2.0 (the
+current version):
+
+\begin{enumerate}
+
+\item - A new subclass of Channel called YamlChan has been added. It allows AST
+objects to be read and written using YAML. Currently, the ASDF format
+developed by STSci (\url{https://asdf-standard.readthedocs.io}) is the only
+supported encoding.
 
 \end{enumerate}
 

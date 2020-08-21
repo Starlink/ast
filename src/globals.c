@@ -153,6 +153,7 @@ AstGlobals *astGlobalsInit_( void ) {
       INIT( Error );
       INIT( Memory );
       INIT( Object );
+      INIT( YamlChan );
       INIT( Axis );
       INIT( Mapping );
       INIT( Frame );

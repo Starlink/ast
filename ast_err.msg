@@ -222,4 +222,18 @@ INMOC           <Invalid string-encoded MOC>
 SMBUF           <Supplied buffer too small>
 BGWRD           <Word is too long>
 TOOBG           <Array is too big>
+
+! New codes introduced for V8.8.0
+NOTSP           <Requested feature is not supported>
+
+! New codes introduced for V9.2.0
+TRUNC           <Text truncated>
+LYAML           <Error in libyaml function>
+YAML            <Error reading YAML text>
+NOYAML          <AST was configured without YAML support>
+NOTMP           <No TMapping found>
+BYAML           <Invalid YAML object supplied>
+BASDF           <Invalid ASDF object supplied>
+UASDF           <Unsupported ASDF object supplied>
+
 .END
