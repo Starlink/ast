@@ -8,8 +8,8 @@ dnl   automake 1.6 or better.
 
 dnl   Initialisation: package name and version number
 m4_define([v_maj], [9])
-m4_define([v_min], [1])
-m4_define([v_mic], [3])
+m4_define([v_min], [2])
+m4_define([v_mic], [0])
 m4_define([project_version], [v_maj.v_min.v_mic])
 AC_INIT([ast],[project_version],[starlink@jiscmail.ac.uk])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -110,6 +110,21 @@ AC_CHECK_LIB([pthread], [pthread_create], ,[use_pthreads="0"])
 fi
 AM_CONDITIONAL(NOTHREADS, test x$use_pthreads = x0)
 AC_SUBST(THREADS, $use_pthreads)
+
+#  Conditional defining whether we build with YAML support.
+AC_ARG_WITH([yaml],
+            [ --without-yaml   Build package without YAML support],
+        if test "$withval" = "yes"; then
+           use_yaml="1"
+        else
+           use_yaml="0"
+        fi,
+        use_yaml="1")
+if test "$use_yaml" = "1"; then
+AC_CHECK_LIB([yaml], [yaml_parser_initialize], ,[use_yaml="0"])
+fi
+AM_CONDITIONAL(NOYAML, test x$use_yaml = x0)
+AC_SUBST(YAML, $use_yaml)
 
 # See which variadic function API to use
 AC_CHECK_HEADERS(stdarg.h varargs.h, break)

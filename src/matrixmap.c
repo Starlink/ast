@@ -190,6 +190,8 @@ f     The MatrixMap class does not define any new routines beyond those
 *        - Protected astMtrGet now returns the matrix storage form.
 *     4-AUG-2020 (DSB):
 *        astMtrGet now has option to return the expanded matrix.
+*     14-AUG-2020 (DSB):
+*        Added argument "order" to astMtrEuler.
 *class--
 */
 
@@ -309,7 +311,7 @@ static int GetTranForward( AstMapping *, int * );
 static int GetTranInverse( AstMapping *, int * );
 static int IsDiagonal( AstMatrixMap *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
-static int MtrEuler( AstMatrixMap *, double[3], int * );
+static int MtrEuler( AstMatrixMap *, int, double[3], int * );
 static int PermOK( AstMapping *, int * );
 static int ScalingRowCol( AstMatrixMap *, int, int * );
 static int Ustrcmp( const char *, const char *, int * );
@@ -980,6 +982,12 @@ static void ExpandMatrix( AstMatrixMap *this, int *status ){
 *        A pointer to the MatrixMap to be expanded.
 *     status
 *        Pointer to the inherited status variable.
+
+*  Notes:
+*     - With hind-sight, it was a bad idea to store the matrix in
+*     compressed form within the MatrixMap structure, as this requires
+*     many methods to expand the matrix on entry and then compress it
+*     again on exit - all to save a few bytes.
 
 */
 
@@ -4224,7 +4232,8 @@ static void PermGet( AstPermMap *map, int **outperm, int **inperm,
    return;
 }
 
-static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
+static int MtrEuler( AstMatrixMap *this, int order, double euler[3],
+                     int *status ){
 /*
 *+
 *  Name:
@@ -4238,26 +4247,38 @@ static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
 
 *  Synopsis:
 *     #include "matrixmap.h"
-*     int astMtrEuler( AstMatrixMap *this, double euler[3] );
+*     int astMtrEuler( AstMatrixMap *this, int order, double euler[3] );
 
 *  Class Membership:
 *     MatrixMap method.
 
 *  Description:
 *     If the supplied MatrixMap represents a 3x3 solid-body rotation, it
-*     returns the equivalent three Eulker angles.
+*     returns the equivalent three Euler angles. See:
+*     https://www.geometrictools.com/Documentation/EulerAngles.pdf
 
 *  Parameters:
 *     this
 *        Pointer to the MatrixMap.
+*     order
+*        Indicates the axes to which each returned angle refers:
+*        0 - xyz
+*        1 - xzx
 *     euler
 *        An array in which to return the three euler angles. These are
 *        the rotations, in radians, that must be applied to the 3x3
 *        coordinate system to produce the same transformation as the
-*        forward transformation of the supplied MatrixMap. The first,
-*        second and third returned values refers to rotation about the
-*        first (x), second (y) and third (z) axis, and the rotations must
-*        be applied in that order (x followed by y followed by z).
+*        forward transformation of the supplied MatrixMap.
+*
+*        If "order" is zero, the first, second and third returned values
+*        refers to rotation about the first (x), second (y) and third (z)
+*        axis, and the rotations must be applied in that order (x followed
+*        by y followed by z).
+*
+*        If "order" is one, the first, second and third returned values
+*        refers to rotation about the first (x), third (z) and first (x)
+*        axis, and the rotations must be applied in that order (x followed
+*        by y followed by x).
 *
 *        A rotation is positive when the coordinate system rotates
 *        anti-clockwise as seen looking towards the origin from the
@@ -4297,6 +4318,10 @@ static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
 
 /* The matrix must be 3x3. */
    if( astGetNin( this ) == 3 &&  astGetNout( this ) == 3 ) {
+
+/* Ensure that the MatrixMap is stored in full form rather than
+   compressed form. */
+      ExpandMatrix( this, status );
 
 /* The determinant must be very close to 1.0. */
       if( fabs( GetDet( this, status ) - 1.0 ) < 1.0E-5 ){
@@ -4357,15 +4382,56 @@ static int MtrEuler( AstMatrixMap *this, double euler[3], int *status ){
             }
          }
 
-/* If the matrix os orthogonal, calculate the returned angles. */
+/* If the matrix is orthogonal, calculate the returned angles. */
          if( orth ) {
 #define INDEX(j,i) (i-1)+3*(j-1)
-            euler[ 0 ] = -atan2( matrix[INDEX(3,2)], matrix[INDEX(3,3)]);
-            euler[ 1 ] = asin( matrix[INDEX(3,1)] );
-            euler[ 2 ] = -atan2( matrix[INDEX(2,1)], matrix[INDEX(1,1)]);
+
+/* If required, calculate the rotation angles about the X, then Y, then Z axes. */
+            if( order == 0 ) {
+               if( matrix[INDEX(3,1)] < 1.0 ) {
+                  if( matrix[INDEX(3,1)] > -1.0 ) {
+                     euler[ 0 ] = atan2( -matrix[INDEX(3,2)], matrix[INDEX(3,3)]);
+                     euler[ 1 ] = asin( matrix[INDEX(3,1)] );
+                     euler[ 2 ] = atan2( -matrix[INDEX(2,1)], matrix[INDEX(1,1)]);
+                  } else {
+                     euler[ 0 ] = -atan2( matrix[INDEX(1,2)], matrix[INDEX(2,2)]);
+                     euler[ 1 ] = -AST__DPIBY2;
+                     euler[ 2 ] = 0.0;
+                  }
+               } else {
+                  orth = 0;
+               }
+
+/* If required, calculate the rotation angles about the X, then Z, then X axes. */
+            } else if( order == 1 ) {
+               if( matrix[INDEX(1,1)] < 1.0 ) {
+                  if( matrix[INDEX(1,1)] > -1.0 ) {
+                     euler[ 0 ] = atan2( matrix[INDEX(1,3)], matrix[INDEX(1,2)]);
+                     euler[ 1 ] = acos( matrix[INDEX(1,1)] );
+                     euler[ 2 ] = atan2( matrix[INDEX(3,1)], -matrix[INDEX(2,1)]);
+                  } else {
+                     euler[ 0 ] = -atan2( matrix[INDEX(2,3)], matrix[INDEX(3,3)]);
+                     euler[ 1 ] = AST__DPI;
+                     euler[ 2 ] = 0.0;
+                  }
+               } else {
+                  euler[ 0 ] = atan2( matrix[INDEX(2,3)], matrix[INDEX(3,3)]);
+                  euler[ 1 ] = 0.0;
+                  euler[ 2 ] = 0.0;
+               }
+
+/* Report an error for any other 'order' value. */
+            } else if( astOK ) {
+               astError( "astMtrEuler(MatrixMap): Bad value (%d) supplied "
+                         "for argument 'order' (internal AST programming "
+                         "error).", status, order );
+            }
 #undef INDEX
          }
       }
+
+/* See if the matrix can be stored as a UNIT or DIAGONAL matrix. */
+      CompressMatrix( this, status );
    }
 
    return orth;
@@ -6239,9 +6305,9 @@ AstMatrixMap *astMtrZoom_( AstMatrixMap *this, double zoom, int *status ){
    return (**astMEMBER(this,MatrixMap,MtrZoom))( this, zoom, status );
 }
 
-int astMtrEuler_( AstMatrixMap *this, double euler[3], int *status ){
+int astMtrEuler_( AstMatrixMap *this, int order, double euler[3], int *status ){
    if( !astOK ) return 0;
-   return (**astMEMBER(this,MatrixMap,MtrEuler))( this, euler, status );
+   return (**astMEMBER(this,MatrixMap,MtrEuler))( this, order, euler, status );
 }
 
 double *astMtrGet_( AstMatrixMap *this, int fwd, int expand, int *form, int *status ){

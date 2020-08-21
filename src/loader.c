@@ -1,4 +1,5 @@
 #define astCLASS
+#include "yamlchan.h"
 #include "axis.h"
 #include "box.h"
 #include "channel.h"

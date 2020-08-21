@@ -88,7 +88,7 @@ f     The PermMap class does not define any new routines beyond those
 *        number of inputs exceeds the number of outputs. Also do the
 *        equivalent for default outperm arrays.
 *     26-MAY-2016 (DSB):
-*        Allow the PermSplit attribute to be changed at any time. This is 
+*        Allow the PermSplit attribute to be changed at any time. This is
 *        because it does not directly affect either the forward or inverse
 *        transformation of the PermMap. The FitsCHan class needs to be able
 *        to change it to determine when checking if the -TAB algorithm can
@@ -473,21 +473,19 @@ static int *GetInPerm( AstPermMap *this, int *status ){
 
 *  Synopsis:
 *     #include "permmap.h"
-*     int *astGetInPerm( AstPermMap *this, int *status )
+*     int *astGetInPerm( AstPermMap *this )
 
 *  Class Membership:
 *     PermMap method
 
 *  Description:
 *     This function returns a pointer to a dynamically allocated array
-*     holding a copy of the InPerm array supplied when thre PermMap was
+*     holding a copy of the InPerm array supplied when the PermMap was
 *     created.
 
 *  Parameters:
 *     this
 *        Pointer to the PermMap.
-*     status
-*        Pointer to the inherited status variable.
 
 *  Returned Value:
 *     A pointer to a dynamically allocated array holding a copy of the
@@ -552,14 +550,14 @@ static int *GetOutPerm( AstPermMap *this, int *status ){
 
 *  Synopsis:
 *     #include "permmap.h"
-*     int *astGetOutPerm( AstPermMap *this, int *status )
+*     int *astGetOutPerm( AstPermMap *this )
 
 *  Class Membership:
 *     PermMap method
 
 *  Description:
 *     This function returns a pointer to a dynamically allocated array
-*     holding a copy of the OutPerm array supplied when thre PermMap was
+*     holding a copy of the OutPerm array supplied when the PermMap was
 *     created.
 
 *  Parameters:

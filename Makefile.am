@@ -3,6 +3,7 @@
 # First declare various groups of files.  These were initially extracted
 # from the grp.make file, as constructed by the SDT newdev command
 GRP_C_ROUTINES = \
+    src/yamlchan.c \
     src/axis.c \
     src/box.c \
     src/channel.c \
@@ -81,6 +82,7 @@ GRP_C_ROUTINES = \
 # The C source files required for the Fortran interface
 if !NOFORTRAN
 F_C_ROUTINES = \
+    src/fyamlchan.c \
     src/c2f77.c \
     src/fbox.c \
     src/fchannel.c \
@@ -225,6 +227,7 @@ AST_H_FILES = \
                    src/stcobsdatalocation.h \
              src/timeframe.h \
        src/channel.h \
+          src/yamlchan.h \
           src/fitschan.h \
           src/mocchan.h \
           src/stcschan.h \
@@ -630,23 +633,27 @@ stardocs_DATA = @STAR_LATEX_DOCUMENTATION@
 dist_starnews_DATA = ast.news
 dist_pkgdata_DATA = COPYING COPYING.LESSER COPYING.LIB
 
+if !NOYAML
+yaml = -DYAML
+else
+yaml =
+endif
+
+if !NOTHREADS
+threadsafe = -DTHREAD_SAFE
+else
+threadsafe =
+endif
+
 # Make all library code position independent by default. This is handy for
 # creating shareable libraries from the static ones (Java JNI libraries).
 # Note we do not simply set the AM_CFLAGS variable, as this would also
 # apply to programs compiled without using libtool, possibly causing the
 # compilation to fail.
-
-if !NOTHREADS
-
 if !NOPIC
-libast_la_CFLAGS = $(AM_CFLAGS) -prefer-pic -DTHREAD_SAFE
+libast_la_CFLAGS = $(AM_CFLAGS) -prefer-pic $(threadsafe) $(yaml)
 else
-libast_la_CFLAGS = $(AM_CFLAGS) -DTHREAD_SAFE
-endif
-
-else
-libast_la_CFLAGS = $(AM_CFLAGS) -prefer-pic
-
+libast_la_CFLAGS = $(AM_CFLAGS) $(threadsafe) $(yaml)
 endif
 
 if !NOPIC
