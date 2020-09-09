@@ -98,6 +98,8 @@ f     The ZoomMap class does not define any new routines beyond those
 #include "channel.h"             /* I/O channels */
 #include "unitmap.h"             /* Unit Mappings */
 #include "matrixmap.h"           /* Matrix Mappings */
+#include "shiftmap.h"            /* Shift of origin Mappings */
+#include "winmap.h"              /* Shift and scale Mappings */
 #include "zoommap.h"             /* Interface definition for this class */
 
 /* Error code definitions. */
