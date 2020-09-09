@@ -112,6 +112,14 @@ f     - AST_OUTLINE<X>: Create a Polygon outlining values in a pixel array
 *        rounding errors in subsequent code may push the vertices into
 *        neighbouring pixels, which may have bad WCS coords (e.g.
 *        vertices on the boundary of a polar cusp in an HPX map).
+*     7-SEP-2020 (DSB):
+*        - In RegBaseMesh, normalise the each vertex position before using it.
+*        - In Polywidth, ensure the perpendicular probing line is of infinite 
+*        extent to that it will always reach the other side of the polygon. This 
+*        was a problem for polygons with many vertices separated by very short 
+*        distances (compared to the width of the polygon), as 10 times the length 
+*        of a side (the previous length of the probing line) may not reach all 
+*        the way across the polygon. 
 *class--
 */
 
@@ -4073,6 +4081,7 @@ static double Polywidth( AstFrame *frm, AstLineDef **edges, int i, int nv,
 
 /* Create a description of the required line. */
    line = astLineDef( frm, start, end );
+   line->infinite = 1;
 
 /* Loop round every edge, except for the supplied edge. */
    for( j = 0; j < nv; j++ ) {
@@ -4407,7 +4416,9 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                   end[ 1 ] = vptr[ 1 ][ iv ];
                   if( lens[ iv ] != AST__BAD ) {
 
-/* Add the position of the starting vertex to the returned mesh. */
+/* Normalise the position of the starting vertex and add it to the returned
+   mesh (astOffset used below returns normalised positions). */
+                     astNorm( frm, start );
                      rptr[ 0 ][ next ] = start[ 0 ];
                      rptr[ 1 ][ next ] = start[ 1 ];
                      next++;
@@ -4444,6 +4455,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
                end[ 0 ] = vptr[ 0 ][ 0 ];
                end[ 1 ] = vptr[ 1 ][ 0 ];
                if( lens[ 0 ] != AST__BAD ) {
+                  astNorm( frm, start );
                   rptr[ 0 ][ next ] = start[ 0 ];
                   rptr[ 1 ][ next ] = start[ 1 ];
                   next++;
