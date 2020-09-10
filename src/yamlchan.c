@@ -20,7 +20,8 @@ f     AST_WRITE) will, if the Object is suitable, generate an
 *
 *     YAML itself does not define a way to store coordinate systems or
 *     transformations - such definitions must be provided by a suitable
-*     WCS-oriented schema.  Currently, the only schema supported by this
+*     WCS-oriented schema.  The scheme to use is defined by the
+*     YamlEncoding attribute. Currently, the only schema supported by this
 *     class is "ASDF", defined by the Space Telescope Science Institute.
 *     (see http://asdf-standard.readthedocs.io). At some point in the future
 *     support will be added for the AST NATIVE scheme.
@@ -40,37 +41,6 @@ f     encodings and the internal ASCII encoding. If no such routines
 *     specific text files using the SinkFile and SourceFile attributes,
 *     in which case no sink or source function need be supplied.
 
-*  Notes on Reading ASDF WCS Information:
-*     This class does not currently support the complete ASDF WCS
-*     schema. When reading an AST Object from an ASDF YAML file, the
-*     following restrictions on the ASDF file apply:
-*
-*     - The ASDF spectral_frame, temporal_frame and composite_frame
-*     classes are not supported.
-*     - Only the following celestial coordinate frames are supported:
-*     icrs, fk4, fk4noeterms, fk5, galactic, supergalactic, altaz,
-*     barycentricmeanecliptic.
-*     - Earth locations must be specified using the WGS84 ellipsoid.
-*     - Times must be specified in one of the following formats: iso,
-*     byear, jyear, jd, mjd.
-*     - Only the following transform classes are supported:
-*     identity, scale, multiplyscale, remap_axes, shift, compose,
-*     concatenate, constant, fix_inputs, affine, rotate2d,
-*     rotate_sequence_3d, rotate3d, linear1d, ortho_polynomial
-*     (chebyshev only), planar2d, polynomial. In addition, all sky
-*     projections are supported.
-
-*  Notes on Writing ASDF WCS Information:
-*     This class does not currently support the complete ASDF WCS
-*     schema. When writing an AST Object to an ASDF YAML file, the
-*     following restrictions on the AST object apply:
-*
-*     - Only Frames, Mappings and FrameSets can be written.
-*     - Frames must be basic Frames or SkyFrames.
-*     - The following SkyFrame systems are not supported: GAPPT,
-*     HELIOECLIPTIC, J2000, UNKNOWN.
-*     - Only the following Napping classes are supported:
-
 *  Inheritance:
 *     The YamlChan class inherits from the Channel class.
 
@@ -80,6 +50,7 @@ f     encodings and the internal ASCII encoding. If no such routines
 *
 *     - VerboseRead: Echo YAML text to standard output as it is read?
 *     - PreserveName: Save the ASDF name attributes as AST Ident values?
+*     - YamlEncoding: The external formatting system to use.
 
 *  Functions:
 c     The YamlChan class does not define any new functions beyond those
@@ -186,6 +157,13 @@ f     The YamlChan class does not define any new routines beyond those
 /* Value for proxy pointer used to indicate that a CmpMap has been
    checked and found not to be equivalent to an atomic ASDF transform. */
 #define NOTASDF ((void *)0x1)
+
+/* Encodings */
+#define UNKNOWN_ENCODING  -1
+#define ASDF_ENCODING     0
+#define MAX_ENCODING      0
+#define UNKNOWN_STRING    "UNKNOWN"
+#define ASDF_STRING       "ASDF"
 
 /* Value for proxy pointer used to indicate that the inverse transform of a
    Mapping should not be used. */
@@ -307,6 +285,10 @@ static void (* parent_clearattrib)( AstObject *, const char *, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
 static int (* parent_getindent)( AstChannel *, int * );
 static void (* parent_setindent)( AstChannel *, int, int * );
+
+/* Text values used to represent YamlEncoding values externally. These
+   should be in the order defined by the associated constants above. */
+static const char *xencod[1] = { ASDF_STRING };
 
 /* Address of this static variable is used as a unique identifier for
    member of this class. */
@@ -575,8 +557,11 @@ MAKE_PROTO(NDArray)
 static AstObject *Read( AstChannel *, int * );
 static char *SourceWrap( const char *(*)( void ), int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
+static int FindString( int, const char *[], const char *, const char *, const char *, const char *, int * );
 static int GetIndent( AstChannel *, int * );
 static int TestAttrib( AstObject *, const char *, int * );
+static int Ustrcmp( const char *, const char *, int * );
+static int Ustrncmp( const char *, const char *, size_t, int * );
 static int Write( AstChannel *, AstObject *, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
@@ -595,6 +580,10 @@ static int TestPreserveName( AstYamlChan *, int * );
 static void ClearPreserveName( AstYamlChan *, int * );
 static void SetPreserveName( AstYamlChan *, int, int * );
 
+static void ClearYamlEncoding( AstYamlChan *, int * );
+static int GetYamlEncoding( AstYamlChan *, int * );
+static int TestYamlEncoding( AstYamlChan *, int * );
+static void SetYamlEncoding( AstYamlChan *, int, int * );
 
 /* Member functions that are available even if libyaml is not available. */
 /* ===================================================================== */
@@ -650,11 +639,96 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
    } else if ( !strcmp( attrib, "preservename" ) ) {
       astClearPreserveName( this );
 
+   } else if ( !strcmp( attrib, "yamlencoding" ) ) {
+      astClearYamlEncoding( this );
+
 /* If the attribute is still not recognised, pass it on to the parent
    method for further interpretation. */
    } else {
       (*parent_clearattrib)( this_object, attrib, status );
    }
+}
+
+static int FindString( int n, const char *list[], const char *test,
+                       const char *text, const char *method,
+                       const char *class, int *status ){
+/*
+*  Name:
+*     FindString
+
+*  Purpose:
+*     Find a given string within an array of character strings.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     int FindString( int n, const char *list[], const char *test,
+*                     const char *text, const char *method, const char *class, int *status )
+
+*  Class Membership:
+*     YamlChan method.
+
+*  Description:
+*     This function identifies a supplied string within a supplied
+*     array of valid strings, and returns the index of the string within
+*     the array. The test option may not be abbreviated, but case is
+*     insignificant.
+
+*  Parameters:
+*     n
+*        The number of strings in the array pointed to be "list".
+*     list
+*        A pointer to an array of legal character strings.
+*     test
+*        A candidate string.
+*     text
+*        A string giving a description of the object, parameter,
+*        attribute, etc, to which the test value refers.
+*        This is only for use in constructing error messages. It should
+*        start with a lower case letter.
+*     method
+*        Pointer to a string holding the name of the calling method.
+*        This is only for use in constructing error messages.
+*     class
+*        Pointer to a string holding the name of the supplied object class.
+*        This is only for use in constructing error messages.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The index of the identified string within the supplied array, starting
+*     at zero.
+
+*  Notes:
+*     -  A value of -1 is returned if an error has already occurred, or
+*     if this function should fail for any reason (for instance if the
+*     supplied option is not specified in the supplied list).
+*/
+
+/* Local Variables: */
+   int ret;                /* The returned index */
+
+/* Check global status. */
+   if( !astOK ) return -1;
+
+/* Compare the test string with each element of the supplied list. Leave
+   the loop when a match is found. */
+   for( ret = 0; ret < n; ret++ ) {
+      if( !Ustrcmp( test, list[ ret ], status ) ) break;
+   }
+
+/* Report an error if the supplied test string does not match any element
+   in the supplied list. */
+   if( ret >= n && astOK ) {
+      astError( AST__RDERR, "%s(%s): Illegal value '%s' supplied for %s.", status,
+                method, class, test, text );
+      ret = -1;
+   }
+
+/* Return the answer. */
+   return ret;
 }
 
 static const char *GetAttrib( AstObject *this_object, const char *attrib, int *status ) {
@@ -742,6 +816,16 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
       if ( astOK ) {
          (void) sprintf( getattrib_buff, "%d", ival );
          result = getattrib_buff;
+      }
+
+   } else if ( !strcmp( attrib, "yamlencoding" ) ) {
+      ival = astGetYamlEncoding( this );
+      if ( astOK ) {
+         if( ival == ASDF_ENCODING ){
+            result = ASDF_STRING;
+         } else {
+            result = UNKNOWN_STRING;
+         }
       }
 
 /* If the attribute name was not recognised, pass it on to the parent
@@ -953,6 +1037,11 @@ void astInitYamlChanVtab_(  AstYamlChanVtab *vtab, const char *name, int *status
    vtab->SetPreserveName = SetPreserveName;
    vtab->TestPreserveName = TestPreserveName;
 
+   vtab->ClearYamlEncoding = ClearYamlEncoding;
+   vtab->GetYamlEncoding = GetYamlEncoding;
+   vtab->SetYamlEncoding = SetYamlEncoding;
+   vtab->TestYamlEncoding = TestYamlEncoding;
+
 /* Declare the Dump function for this class. There is no destructor or
    copy constructor. */
    astSetDump( vtab, Dump, "YamlChan", "YAML I/O Channel" );
@@ -1135,6 +1224,21 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
                ( 1 == astSscanf( setting, "preservename= %d %n", &ival, &nc ) )
                && ( nc >= len ) ) {
       astSetPreserveName( this, ival );
+
+   } else if( nc = 0,
+        ( 0 == astSscanf( setting, "yamlencoding=%n%*[^\n]%n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+
+      nc = astChrLen( setting + ival );
+
+      if( !Ustrncmp( setting + ival, ASDF_STRING, nc, status ) ){
+         astSetYamlEncoding( this, ASDF_ENCODING );
+
+      } else {
+         astError( AST__BADAT, "astSet(%s): Unknown YAML encoding '%s' "
+                   "requested for a %s.", status, astGetClass( this ), setting + ival,
+                   astGetClass( this ) );
+      }
 
 /* If the attribute is still not recognised, pass it on to the parent
    method for further interpretation. */
@@ -1359,6 +1463,9 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
    } else if ( !strcmp( attrib, "preservename" ) ) {
       result = astTestPreserveName( this );
 
+   } else if ( !strcmp( attrib, "yamlencoding" ) ) {
+      result = astTestYamlEncoding( this );
+
 /* If the attribute is still not recognised, pass it on to the parent
    method for further interpretation. */
    } else {
@@ -1367,6 +1474,170 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 
 /* Return the result, */
    return result;
+}
+
+static int Ustrcmp( const char *a, const char *b, int *status ){
+/*
+*  Name:
+*     Ustrcmp
+
+*  Purpose:
+*     A case blind version of strcmp.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     int Ustrcmp( const char *a, const char *b, int *status )
+
+*  Class Membership:
+*     YamlChan member function.
+
+*  Description:
+*     Returns 0 if there are no differences between the two strings, and 1
+*     otherwise. Comparisons are case blind.
+
+*  Parameters:
+*     a
+*        Pointer to first string.
+*     b
+*        Pointer to second string.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Zero if the strings match, otherwise one.
+
+*  Notes:
+*     -  This function does not consider the sign of the difference between
+*     the two strings, whereas "strcmp" does.
+*     -  This function attempts to execute even if an error has occurred.
+*/
+
+/* Local Variables: */
+   const char *aa;         /* Pointer to next "a" character */
+   const char *bb;         /* Pointer to next "b" character */
+   int ret;                /* Returned value */
+
+/* Initialise the returned value to indicate that the strings match. */
+   ret = 0;
+
+/* Initialise pointers to the start of each string. */
+   aa = a;
+   bb = b;
+
+/* Loop round each character. */
+   while( 1 ){
+
+/* We leave the loop if either of the strings has been exhausted. */
+      if( !(*aa ) || !(*bb) ){
+
+/* If one of the strings has not been exhausted, indicate that the
+   strings are different. */
+         if( *aa || *bb ) ret = 1;
+
+/* Break out of the loop. */
+         break;
+
+/* If neither string has been exhausted, convert the next characters to
+   upper case and compare them, incrementing the pointers to the next
+   characters at the same time. If they are different, break out of the
+   loop. */
+      } else {
+         if( toupper( (int) *(aa++) ) != toupper( (int) *(bb++) ) ){
+            ret = 1;
+            break;
+         }
+      }
+   }
+
+/* Return the result. */
+   return ret;
+}
+
+static int Ustrncmp( const char *a, const char *b, size_t n, int *status ){
+/*
+*  Name:
+*     Ustrncmp
+
+*  Purpose:
+*     A case blind version of strncmp.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     int Ustrncmp( const char *a, const char *b, size_t n, int *status )
+
+*  Class Membership:
+*     YamlChan member function.
+
+*  Description:
+*     Returns 0 if there are no differences between the first "n"
+*     characters of the two strings, and 1 otherwise. Comparisons are
+*     case blind.
+
+*  Parameters:
+*     a
+*        Pointer to first string.
+*     b
+*        Pointer to second string.
+*     n
+*        The maximum number of characters to compare.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Zero if the strings match, otherwise one.
+
+*  Notes:
+*     -  This function does not consider the sign of the difference between
+*     the two strings, whereas "strncmp" does.
+*     -  This function attempts to execute even if an error has occurred.
+*/
+
+/* Local Variables: */
+   const char *aa;         /* Pointer to next "a" character */
+   const char *bb;         /* Pointer to next "b" character */
+   int i;                  /* Character index */
+   int ret;                /* Returned value */
+
+/* Initialise the returned value to indicate that the strings match. */
+   ret = 0;
+
+/* Initialise pointers to the start of each string. */
+   aa = a;
+   bb = b;
+
+/* Compare up to "n" characters. */
+   for( i = 0; i < (int) n; i++ ){
+
+/* We leave the loop if either of the strings has been exhausted. */
+      if( !(*aa ) || !(*bb) ){
+
+/* If one of the strings has not been exhausted, indicate that the
+   strings are different. */
+         if( *aa || *bb ) ret = 1;
+
+/* Break out of the loop. */
+         break;
+
+/* If neither string has been exhausted, convert the next characters to
+   upper case and compare them, incrementing the pointers to the next
+   characters at the same time. If they are different, break out of the
+   loop. */
+      } else {
+         if( toupper( (int) *(aa++) ) != toupper( (int) *(bb++) ) ){
+            ret = 1;
+            break;
+         }
+      }
+   }
+
+/* Return the result. */
+   return ret;
 }
 
 static int Write( AstChannel *this_channel, AstObject *obj, int *status ) {
@@ -15781,6 +16052,87 @@ astMAKE_GET(YamlChan,PreserveName,int,0,( this->preservename != -INT_MAX ? this-
 astMAKE_SET(YamlChan,PreserveName,int,preservename,( value != 0 ))
 astMAKE_TEST(YamlChan,PreserveName,( this->preservename != -INT_MAX ))
 
+/*
+*att++
+*  Name:
+*     YamlEncoding
+
+*  Purpose:
+*     System for formatting Objects as YAML.
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     String.
+
+*  Description:
+*     This attribute specifies the formatting system to use when AST
+*     Objects are written out as YAML through a YamlChan. It
+c     affects the behaviour of the astWrite function when
+f     affects the behaviour of the AST_WRITE routine  when
+*     they are used to transfer any AST Object to or from an external
+*     XML representation.
+
+*  Formats Available:
+*     The YamlEncoding attribute can take any of the following (case
+*     insensitive) string values to select the corresponding formatting
+*     system:
+*
+*     - "ASDF": Currently, this is the only schema supported by the
+*     YamlChan class. It is defined by the Space Telescope Science Institute.
+*     (see http://asdf-standard.readthedocs.io). See below for details of
+*     the support this class provides for reading and writing ASDF objects.
+*     In future, the YamlChan class may allow AST objects to be represented
+*     in other ways (e.g. AST Native format).
+
+*  Notes on Reading ASDF WCS Information:
+*     This class does not currently support the complete ASDF WCS
+*     schema. When reading an AST Object from an ASDF YAML file, the
+*     following restrictions on the ASDF file apply:
+*
+*     - The ASDF spectral_frame, temporal_frame and composite_frame
+*     classes are not supported.
+*     - Only the following celestial coordinate frames are supported:
+*     icrs, fk4, fk4noeterms, fk5, galactic, supergalactic, altaz,
+*     barycentricmeanecliptic.
+*     - Earth locations must be specified using the WGS84 ellipsoid.
+*     - Times must be specified in one of the following formats: iso,
+*     byear, jyear, jd, mjd.
+*     - Only the following transform classes are supported:
+*     identity, scale, multiplyscale, remap_axes, shift, compose,
+*     concatenate, constant, fix_inputs, affine, rotate2d,
+*     rotate_sequence_3d, rotate3d, linear1d, ortho_polynomial
+*     (chebyshev only), planar2d, polynomial. In addition, all sky
+*     projections are supported.
+
+*  Notes on Writing ASDF WCS Information:
+*     This class does not currently support the complete ASDF WCS
+*     schema. When writing an AST Object to an ASDF YAML file, the
+*     following restrictions on the AST object apply:
+*
+*     - Only Frames, Mappings and FrameSets can be written.
+*     - Frames must be basic Frames or SkyFrames.
+*     - The following SkyFrame systems are not supported: GAPPT,
+*     HELIOECLIPTIC, J2000, UNKNOWN.
+*     - Only the following Mapping classes are supported: CmpMap, TranMap,
+*     UnitMap, ZoomMap, ShiftMap, WinMap, MatrixMap, PermMap, WcsMap,
+*     PolyMap, ChebyMap.
+
+*  Applicability:
+*     YamlChan
+*        All YamlChans have this attribute.
+*att--
+*/
+astMAKE_CLEAR(YamlChan,YamlEncoding,yamlencoding,UNKNOWN_ENCODING)
+astMAKE_SET(YamlChan,YamlEncoding,int,yamlencoding,(
+   value == ASDF_ENCODING ? value :
+   (astError( AST__BADAT, "astSetYamlEncoding: Unknown YAML formatting system %d "
+              "supplied.", status, value ), UNKNOWN_ENCODING )))
+astMAKE_TEST(YamlChan,YamlEncoding,( this->yamlencoding != UNKNOWN_ENCODING ))
+astMAKE_GET(YamlChan,YamlEncoding,int,0,(this->yamlencoding == UNKNOWN_ENCODING ?
+                                ASDF_ENCODING : this->yamlencoding))
+
 
 /* Copy constructor. */
 /* ----------------- */
@@ -15856,6 +16208,15 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    astWriteInt( channel, "PreserveName", set, 0, ival,
                 ival ? "Store ASDF 'name' as AST 'Ident'" :
                        "Store ASDF 'name' as AST 'Id'" );
+
+   set = TestYamlEncoding( this, status );
+   ival = set ? GetYamlEncoding( this, status ) : astGetYamlEncoding( this );
+   if( ival > UNKNOWN_ENCODING && ival <= MAX_ENCODING ) {
+      astWriteString( channel, "YamlEnc", set, 1, xencod[ival], "Encoding system" );
+   } else {
+      astWriteString( channel, "YamlEnc", set, 1, UNKNOWN_STRING, "Encoding system" );
+   }
+
 }
 
 /* Standard class functions. */
@@ -16483,6 +16844,7 @@ AstYamlChan *astInitYamlChan_( void *mem, size_t size, int init,
 /* ---------------------------- */
       new->verboseread = -INT_MAX;
       new->preservename = -INT_MAX;
+      new->yamlencoding = UNKNOWN_ENCODING;
       new->anchors = NULL;
       new->gotwcs = 0;
 
@@ -16570,8 +16932,9 @@ AstYamlChan *astLoadYamlChan_( void *mem, size_t size,
 */
 
 /* Local Variables: */
-   astDECLARE_GLOBALS           /* Pointer to thread-specific global data */
-   AstYamlChan *new;            /* Pointer to the new YamlChan */
+   astDECLARE_GLOBALS
+   AstYamlChan *new;
+   char *text;
 
 /* Initialise. */
    new = NULL;
@@ -16625,6 +16988,19 @@ AstYamlChan *astLoadYamlChan_( void *mem, size_t size,
 
       new->preservename = astReadInt( channel, "preservename", -INT_MAX );
       if ( TestPreserveName( new, status ) ) SetPreserveName( new, new->preservename, status );
+
+      text = astReadString( channel, "yamlenc", UNKNOWN_STRING );
+      if( strcmp( text, UNKNOWN_STRING ) ) {
+         new->yamlencoding = FindString( MAX_ENCODING + 1, xencod, text,
+                                         "the YamlChan component 'YamlEnc'",
+                                         "astRead", astGetClass( channel ),
+                                         status );
+      } else {
+         new->yamlencoding = UNKNOWN_ENCODING;
+      }
+      if ( TestYamlEncoding( new, status ) ) SetYamlEncoding( new,
+                                                    new->yamlencoding, status );
+      text = astFree( text );
 
 /* Initialise transient values that are not stored in the external
    representation of the YamlChan. */
