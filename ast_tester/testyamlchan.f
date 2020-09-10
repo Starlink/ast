@@ -13,6 +13,35 @@
 c      call ast_watchmemory( 8200 );
 
       ch = ast_yamlchan( AST_NULL, AST_NULL, ' ', status )
+
+      if( ast_getc( ch, 'YamlEncoding', status ) .ne. 'ASDF' ) then
+         call stopit( -1, status )
+      end if
+
+      if( ast_test( ch, 'YamlEncoding', status ) ) then
+         call stopit( -2, status )
+      end if
+
+      call ast_setc( ch, 'YamlEncoding', 'ASDF', status )
+
+      if( .not. ast_test( ch, 'YamlEncoding', status ) ) then
+         call stopit( -3, status )
+      end if
+
+      if( ast_getc( ch, 'YamlEncoding', status ) .ne. 'ASDF' ) then
+         call stopit( -4, status )
+      end if
+
+      call ast_clear( ch, 'YamlEncoding', status )
+
+      if( ast_test( ch, 'YamlEncoding', status ) ) then
+         call stopit( -5, status )
+      end if
+
+      if( ast_getc( ch, 'YamlEncoding', status ) .ne. 'ASDF' ) then
+         call stopit( -6, status )
+      end if
+
       call ast_set( ch, 'SourceFile=imaging_wcs.asdf,'//
      :                  'SinkFile=yamltest.asdf', status )
 

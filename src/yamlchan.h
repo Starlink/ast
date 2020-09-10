@@ -95,6 +95,7 @@ typedef struct AstYamlChan {
 /* Attributes specific to objects in this class. */
    int preservename;      /* Store ASDF 'name' as Ident? */
    int verboseread;       /* Echo yaml text to stdout as it is read? */
+   int yamlencoding;      /* Output format to use when writing */
    AstKeyMap *anchors;    /* KeyMap holding transient YAML anchor definitions */
    int gotwcs;            /* Has a complete WCS been read yet? */
 } AstYamlChan;
@@ -122,6 +123,11 @@ typedef struct AstYamlChanVtab {
    int (* TestPreserveName)( AstYamlChan *, int * );
    void (* ClearPreserveName)( AstYamlChan *, int * );
    void (* SetPreserveName)( AstYamlChan *, int, int * );
+
+   int (* GetYamlEncoding)( AstYamlChan *, int * );
+   int (* TestYamlEncoding)( AstYamlChan *, int * );
+   void (* ClearYamlEncoding)( AstYamlChan *, int * );
+   void (* SetYamlEncoding)( AstYamlChan *, int, int * );
 
 } AstYamlChanVtab;
 
@@ -201,6 +207,11 @@ int astTestPreserveName_( AstYamlChan *, int * );
 void astClearPreserveName_( AstYamlChan *, int * );
 void astSetPreserveName_( AstYamlChan *, int, int * );
 
+int astGetYamlEncoding_( AstYamlChan *, int * );
+int astTestYamlEncoding_( AstYamlChan *, int * );
+void astClearYamlEncoding_( AstYamlChan *, int * );
+void astSetYamlEncoding_( AstYamlChan *, int, int * );
+
 #endif
 
 /* Function interfaces. */
@@ -269,6 +280,11 @@ astINVOKE(V,astGetPreserveName_(astCheckYamlChan(this),STATUS_PTR))
 astINVOKE(V,astSetPreserveName_(astCheckYamlChan(this),value,STATUS_PTR))
 #define astTestPreserveName(this) \
 astINVOKE(V,astTestPreserveName_(astCheckYamlChan(this),STATUS_PTR))
+
+#define astClearYamlEncoding(this) astINVOKE(V,astClearYamlEncoding_(astCheckYamlChan(this),STATUS_PTR))
+#define astGetYamlEncoding(this) astINVOKE(V,astGetYamlEncoding_(astCheckYamlChan(this),STATUS_PTR))
+#define astSetYamlEncoding(this,yamlencoding) astINVOKE(V,astSetYamlEncoding_(astCheckYamlChan(this),yamlencoding,STATUS_PTR))
+#define astTestYamlEncoding(this) astINVOKE(V,astTestYamlEncoding_(astCheckYamlChan(this),STATUS_PTR))
 
 #endif
 #endif
