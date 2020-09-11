@@ -1976,8 +1976,8 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 *  Description:
 *     This function transforms a set of PolyMap positions using the original
 *     inverse transformation of the PolyMap (i.e. the Negated attribute
-*     is assumed to be zero). An iterative Newton-Raphson method is used
-*     which only required the original forward transformation of the PolyMap
+*     is assumed to be zero). An iterative Newton-Raphson method is used,
+*     which only requires the original forward transformation of the PolyMap
 *     to be defined.
 
 *  Parameters:
@@ -1985,11 +1985,11 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 *        The PolyMap.
 *     out
 *        A PointSet holding the positions that are to be transformed using
-*        the original inverse transformation. These corresponds to
+*        the original inverse transformation. These correspond to
 *        outputs of the original (i.e. uninverted) PolyMap
 *     result
 *        A PointSet into which the transformed positions are to be stored.
-*        These corresponds to inputs of the original (i.e. uninverted) PolyMap
+*        These correspond to inputs of the original (i.e. uninverted) PolyMap
 
 *     status
 *        Pointer to the inherited status variable.
