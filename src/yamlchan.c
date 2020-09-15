@@ -5358,8 +5358,10 @@ static int LibYamlWriter( void *data, yaml_char_t *buffer,
 */
 
 /* Local Variables: */
-   int *status;
    AstYamlChan * this;
+   char *nl;
+   char *pb;
+   int *status;
 
 /* Get the AST status pointer */
    status = astGetStatusPtr;
@@ -5370,9 +5372,28 @@ static int LibYamlWriter( void *data, yaml_char_t *buffer,
 /* Get a pointer to the YamlChan */
    this = (AstYamlChan *) data;
 
+/* Check the supplied string is terminated. */
    if( !buffer[ size ] ){
-      astPutNextText( this, (char *) buffer );
+
+/* LibYaml seems to concatenate many lines into a single write operation.
+   This can be a problem when writing out through a Fortran sink function
+   that may have a fairly short buffer. So split the supplied text into
+   individual lines (using newline \n as the delimiter) and write out
+   each line using a separate call to astPutNextText. Temporarily replace
+   each newline character with a null terminator. */
+      pb  = (char *) buffer;
+      nl = strchr( pb, '\n' );
+      while( nl ) {
+         *nl = 0;
+         astPutNextText( this, pb );
+         *nl = '\n';
+         pb = nl + 1;
+         nl = strchr( pb, '\n' );
+      }
+      astPutNextText( this, pb );
+
       return astOK ? 1 : 0;
+
    } else {
       fprintf( stderr, "LibyamlWriter(YamlChan): Supplied string is not terminated" );
       return 0;
@@ -14908,11 +14929,12 @@ static void WriteValues( AstYamlChan *this, const char *key, AstKeyMap *obj,
                 "emitter", status, astGetClass( this ) );
       LibYamlEmitterError( emitter, status );
 
-/* If OK, register the sink function with the emitter, and set the indent
-   increment. */
+/* If OK, register the sink function with the emitter, set the indent
+   increment and select Unix-style line breaks. */
    } else {
       yaml_emitter_set_output( emitter, LibYamlWriter, this );
       yaml_emitter_set_indent( emitter, astGetIndent( this ) );
+      yaml_emitter_set_break( emitter, YAML_LN_BREAK );
    }
 
 /* Create and emit the STREAM-START event. */
