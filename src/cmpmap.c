@@ -3672,6 +3672,11 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    equivalent CmpMap. */
             for ( i = nmap - 1; i >= 0; i-- ) {
 
+/* Now that the sequence has been simplified, the protected AllowSimplify
+   flag is not needed any more. So ensure it is cleared (we do not want
+   this protected flag to appear in public dumps of the Mapping). */
+              astClearAllowSimplify( map_list[ i ] );
+
 /* Simply clone the pointer to the last Mapping in the sequence (which
    will be encountered first). */
               if ( !result ) {

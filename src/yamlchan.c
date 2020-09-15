@@ -9401,15 +9401,6 @@ static AstFrameSet *ReadWcs( AstYamlChan *this, AstKeyMap *km, int *status ){
    flagged should be any extra ZoomMaps that have been introduced in
    order to perform conversions between radians (as used by AST) and
    degrees (as used by ASDF). */
-
-/* We will be simplifying the total Mapping in order to merge the above
-   scaling into the neighbouring Mappings. But we do not want to change
-   the overall structire of the total Mapping. So we will be doing a
-   "restricted simplification" - this is a simplification that only
-   affects component Mappings that have been nominated for simplification
-   by being flagged using astSetAllowSimplify. So flag the above mapping
-   now to indicate that it can be merged durinfg the subsequent restricted
-   simplification. */
                astSetRestrictedSimplify( totmap );
                map = astSimplify( totmap );
                (void) astAnnul( totmap );

@@ -16717,10 +16717,8 @@ f     function is invoked with STATUS set to an error value, or if it
 
 /* Check the flag that indicates if the supplied Mapping uses the restricted
    simplify method. If so, we only simplify the Mapping if it also has the
-   ALLOW_SIMPLIFY flag set. If not, return the Mapping unchanged. In
-   either case, we clear the RESTRICTED_SIMPLIFY flag before returning. */
+   ALLOW_SIMPLIFY flag set. If not, return the Mapping unchanged. */
    if( astRestrictedSimplify(this) ) {
-      astClearRestrictedSimplify(this);
       if( !astAllowSimplify(this) ) return astClone( this );
    }
 
@@ -24579,8 +24577,12 @@ AstMapping *astSimplify_( AstMapping *this, int *status ) {
          if( astRestrictedSimplify( this ) ){
             astClearRestrictedSimplify( result );
          } else {
-            astSetIsSimple(result);
+            astSetIsSimple( result );
          }
+
+/* Ensure it is cleared (we do not want this protected flag to appear in public 
+   dumps of the Mapping). */
+         astClearAllowSimplify( result );
 
 /* If the simplification process failed due to the supplied Mappings
    being inappropriate (e.g. because it attempted to use an undefined
