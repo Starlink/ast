@@ -248,6 +248,8 @@ static int nest_type[ 100 ];
 #include "tranmap.h"             /* Mappings with specified transformations */
 #include "winmap.h"              /* Window Mappings */
 #include "zoommap.h"             /* Scale Mappings */
+#include "chebymap.h"            /* Chebyshev Mappings */
+#include "fitschan.h"            /* FITS header channels */
 #include "permmap.h"             /* Axis permutation Mappings */
 #include "unit.h"                /* Unit handling */
 #include "erfa.h"                /* SOFA interface */
@@ -5359,9 +5361,12 @@ static int LibYamlWriter( void *data, yaml_char_t *buffer,
 
 /* Local Variables: */
    AstYamlChan * this;
-   char *nl;
+   char *line;
    char *pb;
+   char *pend;
+   char *pstart;
    int *status;
+   int nc;
 
 /* Get the AST status pointer */
    status = astGetStatusPtr;
@@ -5372,32 +5377,39 @@ static int LibYamlWriter( void *data, yaml_char_t *buffer,
 /* Get a pointer to the YamlChan */
    this = (AstYamlChan *) data;
 
-/* Check the supplied string is terminated. */
-   if( !buffer[ size ] ){
+/* Get a pointer to the first character beyond the end of the buffer. */
+   pend = (char *) buffer + size;
 
-/* LibYaml seems to concatenate many lines into a single write operation.
-   This can be a problem when writing out through a Fortran sink function
-   that may have a fairly short buffer. So split the supplied text into
-   individual lines (using newline \n as the delimiter) and write out
-   each line using a separate call to astPutNextText. Temporarily replace
-   each newline character with a null terminator. */
-      pb  = (char *) buffer;
-      nl = strchr( pb, '\n' );
-      while( nl ) {
-         *nl = 0;
-         astPutNextText( this, pb );
-         *nl = '\n';
-         pb = nl + 1;
-         nl = strchr( pb, '\n' );
+/* Initialise a pointer to the next buffer character to write out. */
+   pb  = (char *) buffer;
+
+/* Initialise a pointer to the first character in the next line to be
+   written out. */
+   pstart = pb;
+
+/* Loop round all buffer characters. */
+   line = NULL;
+   pb--;
+   while( ++pb <= pend ){
+
+/* If the current buffer character is a newline, or we have reached the
+   end of the buffer, get a null terminated copy of the line that ends
+   here, then write it out using astPutNextText. */
+      if( pb == pend || *pb == '\n' ){
+         nc = pb - pstart;
+         line = astStore( line, pstart, nc + 1 );
+         if( astOK ) line[ nc ] = 0;
+         astPutNextText( this, line );
+
+/* Indicate any subsequent line starts at the next character. */
+         pstart = pb + 1;
       }
-      astPutNextText( this, pb );
-
-      return astOK ? 1 : 0;
-
-   } else {
-      fprintf( stderr, "LibyamlWriter(YamlChan): Supplied string is not terminated" );
-      return 0;
    }
+
+/* Free the line copy. */
+   line = astFree( line );
+
+   return astOK ? 1 : 0;
 }
 
 static AstKeyMap *MergeAsdf( AstYamlChan *this, AstKeyMap *km,
