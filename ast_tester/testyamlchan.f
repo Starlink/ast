@@ -84,6 +84,38 @@ c      call ast_watchmemory( 8200 );
 
 
 
+
+
+
+
+
+      call ast_set( ch2, 'SourceFile=lsst_wcs.txt', status )
+      obj = ast_read( ch2, status )
+
+      call ast_set( ch, 'SinkFile=lsst_wcs.asdf', status )
+      if( ast_write( ch, obj, status ) .ne. 1 ) then
+         call stopit( 15, status )
+      end if
+
+      call ast_clear( ch, 'SinkFile', status )
+      call ast_set( ch, 'SourceFile=lsst_wcs.asdf', status )
+      obj2 = ast_read( ch, status )
+
+      if( obj2 .eq. AST__NULL ) then
+         call stopit( 16, status )
+      end if
+
+      call test3( obj, obj2, 'Tests failed for lsst_wcs.txt',
+     :            status )
+
+
+
+
+
+
+
+
+
       call ast_end( status )
       call ast_activememory( ' ' )
       call ast_flushmemory( 1 )
@@ -161,6 +193,7 @@ c      call ast_watchmemory( 8200 );
       end
 
 
+
       subroutine test2( obj, text, status )
 
       implicit none
@@ -215,6 +248,68 @@ c      call ast_watchmemory( 8200 );
             call stopit( 18 + i, status )
          end if
       end do
+
+      if( status .ne. SAI__OK ) THEN
+         call err_rep( ' ', text, status )
+      end if
+
+      end
+
+
+
+      subroutine test3( obj, obj2, text, status )
+
+      implicit none
+      include 'SAE_PAR'
+      include 'AST_PAR'
+
+      character text*(*)
+      integer obj, obj2, status, i
+
+      double precision xout( 6 ), yout( 6 )
+      double precision xout2( 6 ), yout2( 6 )
+      double precision xin( 6 ), yin( 6 )
+      double precision xrec( 6 ), yrec( 6 )
+      double precision xrec2( 6 ), yrec2( 6 )
+
+      data xin / -25.0, -200.0, -100.0,  10.0, 150.0, 100.0 /,
+     :     yin /   0.0,  0.0, -250.0, -20.0, 250.0, 250.0 /
+
+      if( status .ne. sai__ok ) return
+
+      call ast_tran2( obj, 6, xin, yin, .true., xout, yout, status )
+      call ast_tran2( obj2, 6, xin, yin, .true., xout2, yout2, status )
+
+      do i = 1, 6
+         if( abs( xout( i ) - xout2( i ) ) .gt. 1D-12) then
+            if(status.eq.SAI__OK) write(*,*) xout( i ), xout2( i ),
+     :                 abs( xout( i ) - xout2( i ) )
+            call stopit( i, status )
+         else if( abs( yout( i ) - yout2( i ) ) .gt. 1D-12) then
+            if(status.eq.SAI__OK) write(*,*) yout( i ), yout2( i ),
+     :                 abs( yout( i ) - yout2( i ) )
+            call stopit( 6 + i, status )
+         end if
+      end do
+
+
+      call ast_tran2( obj, 6, xout, yout, .false., xrec, yrec,
+     :                status )
+      call ast_tran2( obj, 6, xout2, yout2, .false., xrec2, yrec2,
+     :                status )
+
+      do i = 1, 6
+         if( abs( xrec( i ) - xrec2( i ) ) .gt. 1D-8) then
+            if(status.eq.SAI__OK) write(*,*) xrec( i ), xrec2( i ),
+     :                 abs( xrec( i ) - xrec2( i ) )
+            call stopit( 12 + i, status )
+         else if( abs( yrec( i ) - yrec2( i ) ) .gt. 1D-8) then
+            if(status.eq.SAI__OK) write(*,*) yrec( i ), yrec2( i ),
+     :                 abs( yrec( i ) - yrec2( i ) )
+            call stopit( 18 + i, status )
+         end if
+      end do
+
 
       if( status .ne. SAI__OK ) THEN
          call err_rep( ' ', text, status )
