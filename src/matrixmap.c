@@ -223,11 +223,12 @@ f     The MatrixMap class does not define any new routines beyond those
 #include "pointset.h"            /* Sets of points/coordinates */
 #include "mapping.h"             /* Coordinate mappings (parent class) */
 #include "matrixmap.h"           /* Interface definition for this class */
-#include "pal.h"              /* SLALIB function definitions */
+#include "pal.h"                 /* SLALIB function definitions */
 #include "permmap.h"
 #include "zoommap.h"
 #include "unitmap.h"
 #include "winmap.h"
+#include "wcsmap.h"
 
 /* Error code definitions. */
 /* ----------------------- */
@@ -4422,9 +4423,9 @@ static int MtrEuler( AstMatrixMap *this, int order, double euler[3],
 
 /* Report an error for any other 'order' value. */
             } else if( astOK ) {
-               astError( "astMtrEuler(MatrixMap): Bad value (%d) supplied "
-                         "for argument 'order' (internal AST programming "
-                         "error).", status, order );
+               astError( AST__INVAR, "astMtrEuler(MatrixMap): Bad value (%d) "
+                         "supplied for argument 'order' (internal AST "
+                         "programming error).", status, order );
             }
 #undef INDEX
          }
