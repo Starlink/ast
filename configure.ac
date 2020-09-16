@@ -86,6 +86,29 @@ else
 fi
 AM_CONDITIONAL(EXTERNAL_PAL, test x$external_pal = x1)
 
+#  Conditional defining whether we want to support Fortran libraries
+#  (e.g. pgplot) and applications. It seems that this must come before
+#  any uses of AC_CHECK_LIB as otherwise the library checked using 
+#  AC_CHECK_LIB is automatically added to the list of linker options 
+#  created by AC_FC_LIBRARY_LDFLAGS
+AC_ARG_WITH([fortran],
+            [ --without-fortran   Build package without Fortran support],
+        if test "$withval" = "yes"; then
+           use_fortran="1"
+        else
+           use_fortran="0"
+        fi,
+        use_fortran="1")
+AM_CONDITIONAL(NOFORTRAN, test x$use_fortran = x0)
+AC_SUBST(FORTRAN, $use_fortran)
+
+#   ast_link needs to be able to link against the Fortran runtime if
+#   necessary
+if test "$use_fortran" = "1"; then
+AC_PROG_FC
+AC_FC_LIBRARY_LDFLAGS
+fi
+
 
 #   Checks for programs
 AC_PROG_CC
@@ -176,26 +199,6 @@ AC_DEFUN([CIT_FUNCTIONSTRING], [
 ])
 
 CIT_FUNCTIONSTRING
-
-#  Conditional defining whether we want to support Fortran libraries
-#  (e.g. pgplot) and applications.
-AC_ARG_WITH([fortran],
-            [ --without-fortran   Build package without Fortran support],
-        if test "$withval" = "yes"; then
-           use_fortran="1"
-        else
-           use_fortran="0"
-        fi,
-        use_fortran="1")
-AM_CONDITIONAL(NOFORTRAN, test x$use_fortran = x0)
-AC_SUBST(FORTRAN, $use_fortran)
-
-#   ast_link needs to be able to link against the Fortran runtime if
-#   necessary
-if test "$use_fortran" = "1"; then
-AC_PROG_FC
-AC_FC_LIBRARY_LDFLAGS
-fi
 
 #   Find an absolute path to the Perl binary, augmenting the path with the
 #   location of the Starlink Perl build.  If this fails, then set @PERL@
