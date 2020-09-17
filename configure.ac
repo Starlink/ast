@@ -9,7 +9,7 @@ dnl   automake 1.6 or better.
 dnl   Initialisation: package name and version number
 m4_define([v_maj], [9])
 m4_define([v_min], [2])
-m4_define([v_mic], [0])
+m4_define([v_mic], [1])
 m4_define([project_version], [v_maj.v_min.v_mic])
 AC_INIT([ast],[project_version],[starlink@jiscmail.ac.uk])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -28,6 +28,12 @@ AM_INIT_AUTOMAKE([1.8.2-starlink subdir-objects])
 
 dnl   Sanity-check: name a file in the source directory
 AC_CONFIG_SRCDIR([ast_link.in])
+
+#   Checks for programs
+AC_PROG_CC
+AC_PROG_CPP
+LT_INIT
+AC_PROG_LN_S
 
 #   Include defaults for Starlink configurations
 STAR_DEFAULTS
@@ -88,8 +94,8 @@ AM_CONDITIONAL(EXTERNAL_PAL, test x$external_pal = x1)
 
 #  Conditional defining whether we want to support Fortran libraries
 #  (e.g. pgplot) and applications. It seems that this must come before
-#  any uses of AC_CHECK_LIB as otherwise the library checked using 
-#  AC_CHECK_LIB is automatically added to the list of linker options 
+#  any uses of AC_CHECK_LIB as otherwise the library checked using
+#  AC_CHECK_LIB is automatically added to the list of linker options
 #  created by AC_FC_LIBRARY_LDFLAGS
 AC_ARG_WITH([fortran],
             [ --without-fortran   Build package without Fortran support],
@@ -108,13 +114,6 @@ if test "$use_fortran" = "1"; then
 AC_PROG_FC
 AC_FC_LIBRARY_LDFLAGS
 fi
-
-
-#   Checks for programs
-AC_PROG_CC
-AC_PROG_CPP
-LT_INIT
-AC_PROG_LN_S
 
 #   If --with-pic=no is set we should honour that.
 AM_CONDITIONAL(NOPIC, test x$pic_mode = xno)
