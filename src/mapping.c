@@ -415,6 +415,9 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        a true value. Otherwise, it will default to unset.
 *     20-AUG-2020 (DSB):
 *        Fix possible segfault in astMapMerge wrapper
+*     28-SEP-2020 (DSB):
+*        Fix bug in astMapMerge handling of AllowSimplify flag that could
+*        result in unnecessary UnitMaps being left in a simplified Mapping chain.
 *
 *class--
 */
@@ -24091,13 +24094,18 @@ int *astMapSplit_( AstMapping *this, int nin, const int *in, AstMapping **map,
 int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
                   AstMapping ***map_list, int **invert_list, int *status ) {
 
+/* Local Variables: */
    AstMapping **clones;
-   int result = -1;
-   int nmap_old;
    int allset;
    int iin;
    int iout;
+   int nmap_old;
+   int present;
+   int result = -1;
 
+/* Check inherited status. Also return immediately if the Ident attribute
+   has been set and we are therefore trying to preserve the Identity of the
+   Mapping */
    if ( !astOK || astDoNotSimplify( this ) ) return result;
 
 /* If the nominated Mapping has the AllowSimplify flag set we are
@@ -24121,54 +24129,101 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
       clones = NULL;
    }
 
-/* Attemp to the merge the nominated Mapping into its neighbours. */
+/* Attempt to the merge the nominated Mapping into its neighbours. */
    result = (**astMEMBER(this,Mapping,MapMerge))( this, where, series, nmap,
                                                   map_list, invert_list,
                                                   status );
 
-/* If the only change is that one or more Mappings have been removed from
-   the end of the list, then "result" will refer to a Mapping beyond the
-   end of the returned list. For instance, if the last Mapping in a list of
-   4 Mappings (i.e. index 3) is removed, whithout any change to earlier
-   Mappings, then "result" will be returned as 3, but the last Mapping in
-   the returned list will have index 2 (since the returned list only
-   contains 3 Mappings). In such cases, change "result" to -1 since there
-   is no need to do another pass through the list looking for further
-   changes. */
-   if( result >= *nmap ) result = -1;
+/* If we may be doing a restricted simplify, we now ensure that the
+   AllowSimplify flag is propagated appropriately from the input Mapping
+   list to any new output Mappings. For instance, if the nominated Mapping
+   has the AllowSimplify flag set and is converted into a UnitMap in the
+   returned Mapping list, we want that UnitMap to be simplified again on
+   the next pass through the Mapping chain (see astSimplify), so we need
+   to ensure that its AllowSimplify flag is set. Note, we do NOT want to
+   propagate the AllowSimpify flag if the nominated Mapping was merged with
+   a neighbouring Mapping. */
+   if( clones && result >= 0 ){
 
-/* If anything changed, and we may be doing a restricted simplification,
-   find the indices within the input and output mapping lists of the last
-   modified Mapping pointer. */
-   if( result >= 0 && clones ) {
-      iin = nmap_old;
-      iout = *nmap;
-      while( iin > result && iout > result ){
-         if( (*map_list)[ --iout ] != clones[ --iin ] ) break;
-      }
-
-/* Set a flag indicating if *all* the input Mappings between the first
-   and last modified input Mapping had the AllowSimplify flag set. */
+/* Initialise a flag that indicates that all the input Mappings that are
+   not present in the output Mapping list (i.e. input Mappings that have been
+   changed or merged by the above call to astMapMerge) have the AllowSimplify
+   flag set. */
       allset = 1;
-      while( iin >= result ){
-         if( !astAllowSimplify( clones[ iin ] ) ) {
+
+/* Go through all the Mappings in the input list, looking for a Mapping
+   that is not present in the output Mapping list and that does not have its
+   AllowSimplify flag set. Clear the above flag and leave the loop if one is
+   found. */
+      for( iin = 0; iin < nmap_old; iin++ ){
+
+/* See if the current input Mapping is present in the returned list of output
+   mappings. */
+         present = 0;
+         for( iout = 0; iout < *nmap; iout++ ){
+            if( (*map_list)[iout] == clones[ iin ] ) {
+               present = 1;
+               break;
+            }
+         }
+
+/* If the current input Mapping is not present in the output list, it
+   means that it has been modified to create a new output Mapping, or
+   merged into a neighbouring input mapping to create a new output
+   Mapping. If all such input Mappings have the AllowSimplify flag set,
+   then all new output Mappings (i.e. output mappings that are not
+   present in the input list) are derived from Mappings that have the
+   AllowSimplify flag set and so the new output Mappings should also have
+   the AllowSimplify flag set. On the other hand if none of the input
+   Mappings that are not present in the output have the AllowSimplify
+   flag set, then the new output Mappings should all have the
+   AllowSimplify flag cleared. There is a problem if some of the
+   non-present input Mappings have the AllowSimplify flag set and some do
+   not. Usually this will mean that the non-present input Mappings have
+   been merged together and so the new output Mappings should all have
+   their AllowSimplify flag cleared. But it is just possible that some
+   subset of the new output Mappings may be derived from a subset of the
+   non-present input mappings that all have AllowSimplify flag set, in
+   which case the subset of new output Mappings should have the
+   AllowSimplify flag set. This is very unlikely to happen, given how the
+   MapMerge methods for individual Mapping classes are usually written.
+   But if it ever did become a problem, the only solution I can see at
+   the moment is to remove the following code and for the MapMerge method
+   in each individual Mapping class to take responsibility for setting
+   the AllowSimplify flag in the output Mappings. A lot of work! */
+         if( !present && !astAllowSimplify( clones[ iin ] ) ) {
             allset = 0;
             break;
          }
-         iin--;
       }
 
-/* Ensure all the output Mappings in the modified range have AllowSimplify
-   set to the above value (i.e. if all the removed or modified input
-   Mappings were candidates for simplification, then indicate that all
-   the new Mappings are also candidates for simplification). */
-      while( iout >= result ){
-         if( allset ) {
-            astSetAllowSimplify( (*map_list)[ iout ] );
-         } else {
-            astClearAllowSimplify( (*map_list)[ iout ] );
+/* If all non-present input Mappings have the AllowSimplify flag set, set
+   the flag in all new output Mappings. Otherwise, we can leave the new
+   output Mappings unchanged since the AllowSimplify flag defaults to
+   cleared. */
+      if( allset ) {
+
+/* Go through all the Mappings in the output list. */
+         for( iout = 0; iout < *nmap; iout++ ){
+
+/* See if the current output Mapping is present in the list of input
+   mappings. */
+            present = 0;
+            for( iin = 0; iin < nmap_old; iin++ ){
+               if( (*map_list)[iout] == clones[ iin ] ) {
+                  present = 1;
+                  break;
+               }
+            }
+
+/* If the current output Mapping is not present in the input list, it has
+   been created from a set of one or more input Mappings that all have
+   the AllowSimplify flag set. So the output Mapping should also have the
+   AllowSimplify flag set. */
+            if( !present ) {
+               astSetAllowSimplify( (*map_list)[ iout ] );
+            }
          }
-         iout--;
       }
    }
 
@@ -24580,7 +24635,7 @@ AstMapping *astSimplify_( AstMapping *this, int *status ) {
             astSetIsSimple( result );
          }
 
-/* Ensure it is cleared (we do not want this protected flag to appear in public 
+/* Ensure it is cleared (we do not want this protected flag to appear in public
    dumps of the Mapping). */
          astClearAllowSimplify( result );
 
