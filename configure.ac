@@ -9,7 +9,7 @@ dnl   automake 1.6 or better.
 dnl   Initialisation: package name and version number
 m4_define([v_maj], [9])
 m4_define([v_min], [2])
-m4_define([v_mic], [2])
+m4_define([v_mic], [3])
 m4_define([project_version], [v_maj.v_min.v_mic])
 AC_INIT([ast],[project_version],[starlink@jiscmail.ac.uk])
 AC_CONFIG_AUX_DIR([build-aux])
