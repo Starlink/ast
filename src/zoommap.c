@@ -72,7 +72,7 @@ f     The ZoomMap class does not define any new routines beyond those
 *        Override astEqual.
 *     31-JUL-2020 (DSB):
 *        MapMerge improved to allow ZoomMaps to merge with neighbouring
-*        MatrixMaps, WInMaps and ShiftMaps.
+*        MatrixMaps, WinMaps and ShiftMaps.
 *class--
 */
 
@@ -711,6 +711,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    int ngone;                    /* Number of Mappings eliminated */
    int nin;                      /* Total number of input coordinates */
    int nzoom;                    /* Number of zoom factors */
+   int old_inv;                  /* Value of Invert in supplied Mapping */
    int result;                   /* Result value to return */
    int simpler;                  /* Mapping(s) simplified? */
    int single;                   /* Replacement is a single ZoomMap? */
@@ -994,14 +995,27 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          imod = where - 1;
 
 /* If the previous mapping is a MatrixMap, create a new MatrixMap by
-   multiplying all the elements of the old MatrixMap by the zoom factor. */
+   multiplying all the elements of the old MatrixMap by the zoom factor.
+   Temporarily set the MatrixMap's Invert flag to the required value
+   before getting the elements. */
          if( astIsAMatrixMap( (*map_list)[ imod ] ) ) {
+            old_inv = astGetInvert( (*map_list)[ imod ] );
+            astSetInvert( (*map_list)[ imod ], (*invert_list)[ imod ] );
+
             new = (AstMapping *) astMtrZoom( (*map_list)[ imod ], zoom );
 
+            if( old_inv ){
+               astSetInvert( (*map_list)[ imod ], 1 );
+            } else {
+               astClearInvert( (*map_list)[ imod ] );
+            }
+
 /* If the previous mapping is a WinMap, create a new WinMap by multiplying
-   the scale and offset terms in the old WinMap by the zoom factor. */
+   the scale and offset terms in the old WinMap by the zoom factor. Set the
+   new WinMap's Invert flag to the required value before getting the terms. */
          } else if( astIsAWinMap( (*map_list)[ imod ] ) ) {
             new = astCopy( ( *map_list )[ imod ] );
+            astSetInvert( new, (*invert_list)[ imod ] );
             nin = astWinTerms( new, 0, &a, &b );
             if( astOK ) {
                for( i = 0; i < nin; i++ ) {
@@ -1014,13 +1028,22 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
             b = astFree( b );
 
 /* If the previous mapping is a ShiftMap, create a new WinMap by multiplying
-   the scale and offset terms in the equivalent old WinMap by the zoom
-   factor. */
+   the scale and offset terms for a WinMap that is equivalent to the old
+   ShiftMap by the zoom factor. */
          } else if( astIsAShiftMap( (*map_list)[ imod ] ) ) {
             nin = astGetNin( (*map_list)[ imod ] );
             new = (AstMapping *) astWinMap( nin, NULL, NULL, NULL, NULL, " ",
                                             status );
+
+            old_inv = astGetInvert( (*map_list)[ imod ] );
+            astSetInvert( (*map_list)[ imod ], (*invert_list)[ imod ] );
             a = astGetShifts( (*map_list)[ imod ] );
+            if( old_inv ){
+               astSetInvert( (*map_list)[ imod ], 1 );
+            } else {
+               astClearInvert( (*map_list)[ imod ] );
+            }
+
             b = astMalloc( nin*sizeof(*b) );
             if( astOK ) {
                for( i = 0; i < nin; i++ ) {
@@ -1043,13 +1066,23 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* If the next mapping is a MatrixMap, create a new MatrixMap by
    multiplying all the elements of the old MatrixMap by the zoom factor. */
          if( astIsAMatrixMap( (*map_list)[ imod ] ) ) {
+            old_inv = astGetInvert( (*map_list)[ imod ] );
+            astSetInvert( (*map_list)[ imod ], (*invert_list)[ imod ] );
+
             new = (AstMapping *) astMtrZoom( (*map_list)[ imod ], zoom );
+
+            if( old_inv ){
+               astSetInvert( (*map_list)[ imod ], 1 );
+            } else {
+               astClearInvert( (*map_list)[ imod ] );
+            }
 
 /* If the next mapping is a WinMap, create a new WinMap by multiplying
    the scale terms in the old WinMap by the zoom factor (the offsets
    terms are unchanged). */
          } else if( astIsAWinMap( (*map_list)[ imod ] ) ) {
             new = astCopy( ( *map_list )[ imod ] );
+            astSetInvert( new, (*invert_list)[ imod ] );
             nin = astWinTerms( new, 0, &a, &b );
             if( astOK ) {
                for( i = 0; i < nin; i++ ) {
@@ -1066,7 +1099,16 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
             nin = astGetNin( (*map_list)[ imod ] );
             new = (AstMapping *) astWinMap( nin, NULL, NULL, NULL, NULL, " ",
                                             status );
+
+            old_inv = astGetInvert( (*map_list)[ imod ] );
+            astSetInvert( (*map_list)[ imod ], (*invert_list)[ imod ] );
             a = astGetShifts( (*map_list)[ imod ] );
+            if( old_inv ){
+               astSetInvert( (*map_list)[ imod ], 1 );
+            } else {
+               astClearInvert( (*map_list)[ imod ] );
+            }
+
             b = astMalloc( nin*sizeof(*b) );
             if( astOK ) {
                for( i = 0; i < nin; i++ ) {
