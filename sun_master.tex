@@ -12,13 +12,13 @@
 
 % Variable part - replace [xxx] as appropriate.
 c+
-\stardocnumber      {211.29}
+\stardocnumber      {211.30}
 c-
 f+
-\stardocnumber      {210.29}
+\stardocnumber      {210.30}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {15th Sep 2020}
+\stardocdate        {30th Sep 2020}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -22415,11 +22415,9 @@ method will now merge WinMaps with neighbouring diagonal MatrixMaps.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.2.0}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.1.3 and V9.2.0 (the
-current version):
+\subsection{Changes Introduced in V9.2.0}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.1.3 and V9.2.0:
 
 \begin{enumerate}
 
@@ -22428,6 +22426,25 @@ objects to be read and written using YAML. Currently, the ASDF format
 developed by STSci (\url{https://asdf-standard.readthedocs.io}) is the only
 supported encoding.
 
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.2.4}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.2.0 and V9.2.4 (the
+current version):
+
+\begin{enumerate}
+
+\item - The KeyMap class now supports 64 bit integer
+c+
+(int64_t)
+c-
+f+
+(INTEGER*8)
+f-
+entries, represented by the new data type code ``K''.
+\item Two simplification bugs introduced at V9.2.0 have been fixed.
 \end{enumerate}
 
 Programs which are statically linked will need to be re-linked in

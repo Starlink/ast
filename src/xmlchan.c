@@ -90,8 +90,8 @@ f     The XmlChan class does not define any new routines beyond those
 *     4-MAR-2020 (DSB):
 *        In AstroCoordAreaReader, correct the way the TimeOrigin value
 *        is transferred from the main TimeFrame to the uncertainty region.
-*        This bug only manifested itself as a result of running the STC 
-*        tester on a 32 bit machine, where the loss of prcision caused 
+*        This bug only manifested itself as a result of running the STC
+*        tester on a 32 bit machine, where the loss of prcision caused
 *        by the bug caused a test to fail.
 *class--
 
@@ -425,6 +425,7 @@ static int GetFull( AstChannel *, int * );
 static int GetIndent( AstChannel *, int * );
 static int IsUsable( AstXmlElement *, int * );
 static int ReadInt( AstChannel *, const char *, int, int * );
+static int64_t ReadInt64( AstChannel *, const char *, int64_t, int * );
 static int TestAttrib( AstObject *, const char *, int * );
 static int Use( AstXmlChan *, int, int, int * );
 static int Ustrcmp( const char *, const char *, int * );
@@ -445,6 +446,7 @@ static void WriteBegin( AstChannel *, const char *, const char *, int * );
 static void WriteDouble( AstChannel *, const char *, int, int, double, const char *, int * );
 static void WriteEnd( AstChannel *, const char *, int * );
 static void WriteInt( AstChannel *, const char *, int, int, int, const char *, int * );
+static void WriteInt64( AstChannel *, const char *, int, int, int64_t, const char *, int * );
 static void WriteIsA( AstChannel *, const char *, const char *, int * );
 static void WriteObject( AstChannel *, const char *, int, int, AstObject *, const char *, int * );
 static void WriteString( AstChannel *, const char *, int, int, const char *, const char *, int * );
@@ -2165,6 +2167,7 @@ void astInitXmlChanVtab_(  AstXmlChanVtab *vtab, const char *name, int *status )
    channel->WriteIsA = WriteIsA;
    channel->WriteEnd = WriteEnd;
    channel->WriteInt = WriteInt;
+   channel->WriteInt64 = WriteInt64;
    channel->WriteDouble = WriteDouble;
    channel->WriteString = WriteString;
    channel->WriteObject = WriteObject;
@@ -2172,6 +2175,7 @@ void astInitXmlChanVtab_(  AstXmlChanVtab *vtab, const char *name, int *status )
    channel->Read = Read;
    channel->ReadClassData = ReadClassData;
    channel->ReadDouble = ReadDouble;
+   channel->ReadInt64 = ReadInt64;
    channel->ReadInt = ReadInt;
    channel->ReadObject = ReadObject;
    channel->ReadString = ReadString;
@@ -7390,6 +7394,119 @@ static int ReadInt( AstChannel *this_channel, const char *name, int def, int *st
    return result;
 }
 
+static int64_t ReadInt64( AstChannel *this_channel, const char *name,
+                          int64_t def, int *status ) {
+/*
+*  Name:
+*     ReadInt64
+
+*  Purpose:
+*     Read a 64 bit int value as part of loading a class.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "xmlchan.h"
+*     int64_t ReadInt64( AstChannel *this, const char *name, int64_t def )
+
+*  Class Membership:
+*     XmlChan member function (over-rides the astReadInt method
+*     inherited from the Channel class).
+
+*  Description:
+*     This function searches the current container element of an XmlChan to
+*     identify a 64 bit int value with a specified name. If such a value
+*     is found, it is returned, otherwise a default value is returned
+*     instead.
+*
+*     This function should only be invoked from within the loader
+*     function associated with a class, in order to return a int
+*     value to be assigned to an instance variable. It must be
+*     preceded by a call to the astReadClassData function.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     name
+*        Pointer to a constant null-terminated character string
+*        containing the name of the required value. This must be in
+*        lower case with no surrounding white space. Note that names
+*        longer than 6 characters will not match any value.
+*     def
+*        If no suitable value can be found (e.g. it is absent from the
+*        data stream being read), then this value will be returned
+*        instead.
+
+*  Returned Value:
+*     The required value, or the default if the value was not found.
+
+*  Notes:
+*     - A value of zero will be returned if this function is invoked
+*     with the global error status set, or if it should fail for any
+*     reason.
+*-
+*/
+
+/* Local Variables: */
+   AstXmlChan *this;             /* Pointer to the XmlChan structure */
+   AstXmlElement *element;       /* Pointer to element holding required value */
+   const char *value;            /* Pointer to attribute value */
+   int64_t result;               /* Value to be returned */
+   int nc;                       /* Number of characters read by astSscanf */
+
+/* Initialise. */
+   result = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Obtain a pointer to the XmlChan structure. */
+   this = (AstXmlChan *) this_channel;
+
+/* Search the current container element for an ATTR element
+   describing an AST attribute of the specified name. This call ignores
+   ATTR elements which represent default values. No error is
+   reported if an ATTR element with the given name cannot be
+   found. */
+   element = FindAttribute( this, name, status );
+
+/* If an element was found, attempt to decode the string to give a int
+   value, checking that the entire string is read. If this fails, then the
+   wrong name has probably been given, or the input data are corrupt,
+   so report an error. */
+   if( element ) {
+      value = astXmlGetAttributeValue( element, VALUE );
+      if( value ) {
+         nc = 0;
+         if ( !( ( 1 == astSscanf( value, " %" SCNd64 " %n", &result, &nc ) )
+                 && ( nc >= (int) strlen( value ) ) ) ) {
+            astError( AST__BADIN,
+                      "astRead(XmlChan): The value \"%s = %s\" cannot "
+                      "be read as an integer.", status, name, value );
+
+/* If the value was succesfully read, remove the ATTR element
+   from the container. */
+         } else {
+            element = Remove( this, element, status );
+         }
+
+/* Report an error if the attribute does not have a value. */
+      } else {
+         astError( AST__BADIN, "astRead(XmlChan): No value for attribute "
+                   "\"%s\" within element \"%s\".", status, name,
+                   GetTag( (AstXmlObject *) element, 1, status ) );
+      }
+
+/* If no suitable element was found, then use the default value instead. */
+   } else {
+      result = def;
+   }
+
+/* Return the result. */
+   return result;
+}
+
 static AstObject *ReadObject( AstChannel *this_channel, const char *name,
                               AstObject *def, int *status ) {
 /*
@@ -12488,6 +12605,153 @@ static void WriteInt( AstChannel *this_channel, const char *name, int set, int h
 /* Format the value as a decimal string and add it to the element as the
    VALUE attribute. */
          (void) sprintf( buff, "%d", value );
+         astXmlAddAttr( elem, VALUE, buff, NULL );
+
+/* If we are adding comments, and if a comment was supplied as a
+   parameter to this function, then store the commment as an attribute of
+   the element. */
+         if( comment && *comment && astGetComment( this_channel ) ) {
+            astXmlAddAttr( elem, DESC, comment, NULL );
+         }
+
+/* If the object has all default values, store a true value for the
+   DEFAULT attribute. */
+         if( !set ) astXmlAddAttr( elem, DEFAULT, TRUE, NULL );
+
+/* Initialise a flag to indicate that the next "IsA" item should be
+   written. */
+         this->write_isa = 1;
+      }
+   }
+
+/* If an error has occurred, annul the container element in the XmlChan. */
+   if( !astOK ) this->container = astXmlAnnulTree( this->container );
+
+/* Undefine macros local to this function. */
+#undef BUFF_LEN
+}
+
+static void WriteInt64( AstChannel *this_channel, const char *name, int set, int helpful,
+                        int64_t value, const char *comment, int *status ) {
+/*
+*  Name:
+*     WriteInt
+
+*  Purpose:
+*     Write a 64 bit integer value to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "xmlchan.h"
+*     void WriteInt64( AstChannel *this, const char *name, int set, int helpful,
+*                      int64_t value, const char *comment, int *status )
+
+*  Class Membership:
+*     XmlChan member function (over-rides the protected
+*     astWriteInt method inherited from the Channel class).
+
+*  Description:
+*     This function writes a named 64 bit integer value, representing the
+*     value of a class instance variable, to the data sink associated
+*     with a Channel. It is intended for use by class "Dump" functions
+*     when writing out class information which will subsequently be
+*     re-read.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     name
+*        Pointer to a constant null-terminated string containing the
+*        name to be used to identify the value in the external
+*        representation. This will form the key for identifying it
+*        again when it is re-read. The name supplied should be unique
+*        within its class.
+*
+*        Mixed case may be used and will be preserved in the external
+*        representation (where possible) for cosmetic effect. However,
+*        case is not significant when re-reading values.
+*
+*        It is recommended that a maximum of 6 alphanumeric characters
+*        (starting with an alphabetic character) be used. This permits
+*        maximum flexibility in adapting to standard external data
+*        representations (e.g. FITS).
+*     set
+*        If this is zero, it indicates that the value being written is
+*        a default value (or can be re-generated from other values) so
+*        need not necessarily be written out. Such values will
+*        typically be included in the external representation with
+*        (e.g.) a comment character so that they are available to
+*        human readers but will be ignored when re-read. They may also
+*        be completely omitted in some circumstances.
+*
+*        If "set" is non-zero, the value will always be explicitly
+*        included in the external representation so that it can be
+*        re-read.
+*     helpful
+*        This flag provides a hint about whether a value whose "set"
+*        flag is zero (above) should actually appear at all in the
+*        external representaton.
+*
+*        If the external representation allows values to be "commented
+*        out" then, by default, values will be included in this form
+*        only if their "helpful" flag is non-zero. Otherwise, they
+*        will be omitted entirely. When possible, omitting the more
+*        obscure values associated with a class is recommended in
+*        order to improve readability.
+*
+*        This default behaviour may be further modified if the
+*        Channel's Full attribute is set - either to permit all values
+*        to be shown, or to suppress non-essential information
+*        entirely.
+*     value
+*        The value to be written.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the value.
+*
+*        Note that this comment may not actually be used, depending on
+*        the nature of the Channel supplied and the setting of its
+*        Comment attribute.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Constants: */
+#define BUFF_LEN 50             /* Size of local formatting buffer */
+
+/* Local Variables: */
+   AstXmlChan *this;             /* A pointer to the XmlChan structure. */
+   AstXmlElement *elem;          /* Pointer to new element */
+   char buff[ BUFF_LEN + 1 ];    /* Local formatting buffer */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the XmlChan structure. */
+   this = (AstXmlChan *) this_channel;
+
+/* If the object to be written is a component of a default AST object (i.e.
+   an object which is "not set"), then we do not write out this item. */
+   if( this->objectset ) {
+
+/* Use the "set" and "helpful" flags, along with the Channel's
+   attributes to decide whether this value should actually be
+   written. */
+      if( Use( this, set, helpful, status ) ) {
+
+/* Create a new XmlElement with a name of ATTR (and no namespace
+   prefix), and add it into the current container (i.e. parent) element. */
+         elem = astXmlAddElement( this->container, ATTR,
+                                  astGetXmlPrefix( this ) );
+
+/* Add a NAME attribute to this element containing the item name. */
+         astXmlAddAttr( elem, NAME, name, NULL );
+
+/* Format the value as a decimal string and add it to the element as the
+   VALUE attribute. */
+         (void) sprintf( buff, "%" PRId64, value );
          astXmlAddAttr( elem, VALUE, buff, NULL );
 
 /* If we are adding comments, and if a comment was supplied as a

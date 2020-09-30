@@ -231,7 +231,7 @@ int astIsDynamic_( const void *, int * );
 size_t astTSizeOf_( const void *, int * );
 void *astFree_( void *, int * );
 void *astFreeDouble_( void *, int * );
-void *astGrow_( void *, int, size_t, int * );
+void *astGrow_( void *, size_t, size_t, int * );
 void *astCalloc_( size_t, size_t, int * );
 void *astMalloc_( size_t, int, int * );
 void *astRealloc_( void *, size_t, int * );

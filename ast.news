@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.2.0) of the Starlink AST (astrometry) library is
+   A new release (V9.2.4) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -16,6 +16,12 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- The KeyMap class now supports 64 bit signed integer entries.
+- Two simplification bugs introduced at V9.2.0 have been fixed.
+
+Main Changes in V9.2.0
+----------------------
 
 - A new subclass of Channel called YamlChan has been added. It allows AST
 objects to be read and written using YAML. Currently, the ASDF format

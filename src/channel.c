@@ -340,6 +340,7 @@ static int GetSkip( AstChannel *, int * );
 static int GetStrict( AstChannel *, int * );
 static int HashFun( const char *, int, unsigned long * );
 static int ReadInt( AstChannel *, const char *, int, int * );
+static int64_t ReadInt64( AstChannel *, const char *, int64_t, int * );
 static int TestAttrib( AstObject *, const char *, int * );
 static int TestComment( AstChannel *, int * );
 static int TestFull( AstChannel *, int * );
@@ -375,6 +376,7 @@ static void WriteBegin( AstChannel *, const char *, const char *, int * );
 static void WriteDouble( AstChannel *, const char *, int, int, double, const char *, int * );
 static void WriteEnd( AstChannel *, const char *, int * );
 static void WriteInt( AstChannel *, const char *, int, int, int, const char *, int * );
+static void WriteInt64( AstChannel *, const char *, int, int, int64_t, const char *, int * );
 static void WriteIsA( AstChannel *, const char *, const char *, int * );
 static void WriteObject( AstChannel *, const char *, int, int, AstObject *, const char *, int * );
 static void WriteString( AstChannel *, const char *, int, int, const char *, const char *, int * );
@@ -1969,6 +1971,7 @@ void astInitChannelVtab_(  AstChannelVtab *vtab, const char *name, int *status )
    vtab->ReadClassData = ReadClassData;
    vtab->ReadDouble = ReadDouble;
    vtab->ReadInt = ReadInt;
+   vtab->ReadInt64 = ReadInt64;
    vtab->ReadObject = ReadObject;
    vtab->ReadString = ReadString;
    vtab->SetComment = SetComment;
@@ -1984,6 +1987,7 @@ void astInitChannelVtab_(  AstChannelVtab *vtab, const char *name, int *status )
    vtab->WriteDouble = WriteDouble;
    vtab->WriteEnd = WriteEnd;
    vtab->WriteInt = WriteInt;
+   vtab->WriteInt64 = WriteInt64;
    vtab->WriteIsA = WriteIsA;
    vtab->WriteObject = WriteObject;
    vtab->WriteString = WriteString;
@@ -3176,6 +3180,118 @@ static int ReadInt( AstChannel *this, const char *name, int def, int *status ) {
             astError( AST__BADIN,
                       "astRead(%s): The Object \"%s = <%s>\" cannot "
                       "be read as an integer.", status, astGetClass( this ),
+                      value->name, astGetClass( value->ptr.object ) );
+         }
+
+/* Free the Value structure and the resources it points at. */
+         value = FreeValue( value, status );
+
+/* If no suitable Value structure was found, then use the default
+   value instead. */
+      } else {
+         result = def;
+      }
+   }
+
+/* Return the result. */
+   return result;
+}
+
+static int64_t ReadInt64( AstChannel *this, const char *name, int64_t def, int *status ) {
+/*
+*+
+*  Name:
+*     astReadInt64
+
+*  Purpose:
+*     Read a 64 bit int value as part of loading a class.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "channel.h"
+*     int64_t astReadInt64( AstChannel *this, const char *name, int64_t def )
+
+*  Class Membership:
+*     Channel method.
+
+*  Description:
+*     This function searches the current values list of a Channel to
+*     identify an int value with a specified name. If such a value is
+*     found, it is returned, otherwise a default value is returned
+*     instead.
+*
+*     This function should only be invoked from within the loader
+*     function associated with a class, in order to return an int
+*     value to be assigned to an instance variable. It must be
+*     preceded by a call to the astReadClassData function, which loads
+*     the values associated with the class into the current values
+*     list from the input data source.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     name
+*        Pointer to a constant null-terminated character string
+*        containing the name of the required value. This must be in
+*        lower case with no surrounding white space. Note that names
+*        longer than 6 characters will not match any value.
+*     def
+*        If no suitable value can be found (e.g. it is absent from the
+*        data stream being read), then this value will be returned
+*        instead.
+
+*  Returned Value:
+*     The required value, or the default if the value was not found.
+
+*  Notes:
+*     - A value of zero will be returned if this function is invoked
+*     with the global error status set, or if it should fail for any
+*     reason.
+*-
+*/
+
+/* Local Variables: */
+   AstChannelValue *value;       /* Pointer to required Value structure */
+   int nc;                       /* Number of characters read by astSscanf */
+   int64_t result;               /* Value to be returned */
+
+/* Initialise. */
+   result = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Search for a Value structure with the required name in the current
+   values list.*/
+   value = LookupValue( name, status );
+   if ( astOK ) {
+
+/* If a Value was found, check that it describes a string (as opposed
+   to an Object). */
+      if ( value ) {
+         if ( !value->is_object ) {
+
+/* If so, then attempt to decode the string to give an int value,
+   checking that the entire string is read. If this fails, then the
+   wrong name has probably been given, or the input data are corrupt,
+   so report an error. */
+            nc = 0;
+            if ( !( ( 1 == astSscanf( value->ptr.string, " %" SCNd64 " %n",
+                                                      &result, &nc ) )
+                    && ( nc >= (int) strlen( value->ptr.string ) ) ) ) {
+               astError( AST__BADIN,
+                         "astRead(%s): The value \"%s = %s\" cannot "
+                         "be read as a 64 bit integer.", status,
+                         astGetClass( this ), value->name, value->ptr.string );
+            }
+
+/* Report a similar error if the Value does not describe a string. */
+         } else {
+            astError( AST__BADIN,
+                      "astRead(%s): The Object \"%s = <%s>\" cannot be read "
+                      "as a 64 bit integer.", status, astGetClass( this ),
                       value->name, astGetClass( value->ptr.object ) );
          }
 
@@ -4537,6 +4653,147 @@ static void WriteInt( AstChannel *this, const char *name, int set, int helpful,
 
 /* Format the value as a decimal string and append this. */
       (void) sprintf( buff, "%d", value );
+      line = astAppendString( line, &nc, buff );
+
+/* If required, also append the comment. */
+      if ( astGetComment( this ) && *comment ) {
+         line = astAppendString( line, &nc, " \t# " );
+         line = astAppendString( line, &nc, comment );
+      }
+
+/* Write out the resulting line of text. */
+      OutputTextItem( this, line, status );
+
+/* Free the dynamic string. */
+      line = astFree( line );
+   }
+
+/* Undefine macros local to this function. */
+#undef BUFF_LEN
+}
+
+static void WriteInt64( AstChannel *this, const char *name, int set, int helpful,
+                        int64_t value, const char *comment, int *status ) {
+/*
+*+
+*  Name:
+*     astWriteInt64
+
+*  Purpose:
+*     Write a 64 bit integer value to a data sink.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "channel.h"
+*     void astWriteInt64( AstChannel *this, const char *name,
+*                         int set, int helpful,
+*                         int64_t value, const char *comment )
+
+*  Class Membership:
+*     Channel method.
+
+*  Description:
+*     This function writes a named 64 bit integer value, representing the
+*     value of a class instance variable, to the data sink associated
+*     with a Channel. It is intended for use by class "Dump" functions
+*     when writing out class information which will subsequently be
+*     re-read.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     name
+*        Pointer to a constant null-terminated string containing the
+*        name to be used to identify the value in the external
+*        representation. This will form the key for identifying it
+*        again when it is re-read. The name supplied should be unique
+*        within its class.
+*
+*        Mixed case may be used and will be preserved in the external
+*        representation (where possible) for cosmetic effect. However,
+*        case is not significant when re-reading values.
+*
+*        It is recommended that a maximum of 6 alphanumeric characters
+*        (starting with an alphabetic character) be used. This permits
+*        maximum flexibility in adapting to standard external data
+*        representations (e.g. FITS).
+*     set
+*        If this is zero, it indicates that the value being written is
+*        a default value (or can be re-generated from other values) so
+*        need not necessarily be written out. Such values will
+*        typically be included in the external representation with
+*        (e.g.) a comment character so that they are available to
+*        human readers but will be ignored when re-read. They may also
+*        be completely omitted in some circumstances.
+*
+*        If "set" is non-zero, the value will always be explicitly
+*        included in the external representation so that it can be
+*        re-read.
+*     helpful
+*        This flag provides a hint about whether a value whose "set"
+*        flag is zero (above) should actually appear at all in the
+*        external representaton.
+*
+*        If the external representation allows values to be "commented
+*        out" then, by default, values will be included in this form
+*        only if their "helpful" flag is non-zero. Otherwise, they
+*        will be omitted entirely. When possible, omitting the more
+*        obscure values associated with a class is recommended in
+*        order to improve readability.
+*
+*        This default behaviour may be further modified if the
+*        Channel's Full attribute is set - either to permit all values
+*        to be shown, or to suppress non-essential information
+*        entirely.
+*     value
+*        The value to be written.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the value.
+*
+*        Note that this comment may not actually be used, depending on
+*        the nature of the Channel supplied and the setting of its
+*        Comment attribute.
+*-
+*/
+
+/* Local Constants: */
+#define BUFF_LEN 50              /* Size of local formatting buffer */
+
+/* Local Variables: */
+   astDECLARE_GLOBALS            /* Declare the thread specific global data */
+   char *line;                   /* Pointer to dynamic output string */
+   char buff[ BUFF_LEN + 1 ];    /* Local formatting buffer */
+   int i;                        /* Loop counter for indentation characters */
+   int nc;                       /* Number of output characters */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Get a pointer to the structure holding thread-specific global data. */
+   astGET_GLOBALS(this);
+
+/* Use the "set" and "helpful" flags, along with the Channel's
+   attributes to decide whether this value should actually be
+   written. */
+   if ( Use( this, set, helpful, status ) ) {
+
+/* Start building a dynamic string with an initial space, or a comment
+   character if "set" is zero. Then add further spaces to suit the
+   current indentation level. */
+      line = astAppendString( NULL, &nc, set ? " " : "#" );
+      for ( i = 0; i < current_indent; i++ ) {
+         line = astAppendString( line, &nc, " " );
+      }
+
+/* Append the name string followed by " = ". */
+      line = astAppendString( line, &nc, name );
+      line = astAppendString( line, &nc, " = " );
+
+/* Format the value as a decimal string and append this. */
+      (void) sprintf( buff, "%" PRId64, value );
       line = astAppendString( line, &nc, buff );
 
 /* If required, also append the comment. */
@@ -6445,6 +6702,10 @@ int astReadInt_( AstChannel *this, const char *name, int def, int *status ) {
    if ( !astOK ) return 0;
    return (**astMEMBER(this,Channel,ReadInt))( this, name, def, status );
 }
+int64_t astReadInt64_( AstChannel *this, const char *name, int64_t def, int *status ) {
+   if ( !astOK ) return 0;
+   return (**astMEMBER(this,Channel,ReadInt64))( this, name, def, status );
+}
 AstObject *astReadObject_( AstChannel *this, const char *name,
                            AstObject *def, int *status ) {
    if ( !astOK ) return NULL;
@@ -6474,6 +6735,12 @@ void astWriteInt_( AstChannel *this, const char *name, int set, int helpful,
    if ( !astOK ) return;
    (**astMEMBER(this,Channel,WriteInt))( this, name, set, helpful, value,
                                          comment, status );
+}
+void astWriteInt64_( AstChannel *this, const char *name, int set, int helpful,
+                     int64_t value, const char *comment, int *status ) {
+   if ( !astOK ) return;
+   (**astMEMBER(this,Channel,WriteInt64))( this, name, set, helpful, value,
+                                           comment, status );
 }
 void astWriteIsA_( AstChannel *this, const char *class, const char *comment, int *status ) {
    if ( !astOK ) return;

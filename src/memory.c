@@ -2659,7 +2659,7 @@ void *astFreeDouble_( void *ptr, int *status ) {
    return NULL;
 }
 
-void *astGrow_( void *ptr, int n, size_t size, int *status ) {
+void *astGrow_( void *ptr, size_t n, size_t size, int *status ) {
 /*
 *++
 *  Name:
@@ -2673,7 +2673,7 @@ void *astGrow_( void *ptr, int n, size_t size, int *status ) {
 
 *  Synopsis:
 *     #include "memory.h"
-*     void *astGrow( void *ptr, int n, size_t size )
+*     void *astGrow( void *ptr, size_t n, size_t size )
 
 *  Description:
 *     This function allocates memory in which to store an array of
@@ -2728,7 +2728,7 @@ void *astGrow_( void *ptr, int n, size_t size, int *status ) {
    new = ptr;
 
 /* Calculate the total size of memory needed. */
-   size *= (size_t) n;
+   size *= n;
 
 /* If no memory has yet been allocated, allocate exactly the amount
    required. */

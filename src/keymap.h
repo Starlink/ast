@@ -81,6 +81,7 @@
 #define AST__SINTTYPE 7
 #define AST__UNDEFTYPE 8
 #define AST__BYTETYPE 9
+#define AST__KINTTYPE 10
 
 /* Define constants used to size global arrays in this module. */
 #define AST__KEYMAP_GETATTRIB_BUFF_LEN 50       /* Max length of string returned by GetAttrib */
@@ -163,6 +164,7 @@ typedef struct AstKeyMapVtab {
    void (* MapPut0D)( AstKeyMap *, const char *, double, const char *, int * );
    void (* MapPut0B)( AstKeyMap *, const char *, unsigned char, const char *, int * );
    void (* MapPut0S)( AstKeyMap *, const char *, short int, const char *, int * );
+   void (* MapPut0K)( AstKeyMap *, const char *, int64_t, const char *, int * );
    void (* MapPut0F)( AstKeyMap *, const char *, float, const char *, int * );
    void (* MapPut0C)( AstKeyMap *, const char *, const char *, const char *, int * );
    void (* MapPut0A)( AstKeyMap *, const char *, AstObject *, const char *, int * );
@@ -171,6 +173,7 @@ typedef struct AstKeyMapVtab {
    void (* MapPut1D)( AstKeyMap *, const char *, int, const double[], const char *, int * );
    void (* MapPut1B)( AstKeyMap *, const char *, int, const unsigned char[], const char *, int * );
    void (* MapPut1S)( AstKeyMap *, const char *, int, const short int[], const char *, int * );
+   void (* MapPut1K)( AstKeyMap *, const char *, int, const int64_t[], const char *, int * );
    void (* MapPut1F)( AstKeyMap *, const char *, int, const float[], const char *, int * );
    void (* MapPut1C)( AstKeyMap *, const char *, int, const char *const [], const char *, int * );
    void (* MapPut1A)( AstKeyMap *, const char *, int, AstObject *const [], const char *, int * );
@@ -180,6 +183,7 @@ typedef struct AstKeyMapVtab {
    int (* MapGet0D)( AstKeyMap *, const char *, double *, int * );
    int (* MapGet0B)( AstKeyMap *, const char *, unsigned char *, int * );
    int (* MapGet0S)( AstKeyMap *, const char *, short int *, int * );
+   int (* MapGet0K)( AstKeyMap *, const char *, int64_t *, int * );
    int (* MapGet0F)( AstKeyMap *, const char *, float *, int * );
    int (* MapGet0C)( AstKeyMap *, const char *, const char **, int * );
    int (* MapGet0A)( AstKeyMap *, const char *, AstObject **, int * );
@@ -190,6 +194,7 @@ typedef struct AstKeyMapVtab {
    int (* MapGet1D)( AstKeyMap *, const char *, int, int *, double *, int * );
    int (* MapGet1B)( AstKeyMap *, const char *, int, int *, unsigned char *, int * );
    int (* MapGet1S)( AstKeyMap *, const char *, int, int *, short int *, int * );
+   int (* MapGet1K)( AstKeyMap *, const char *, int, int *, int64_t *, int * );
    int (* MapGet1F)( AstKeyMap *, const char *, int, int *, float *, int * );
    int (* MapGet1I)( AstKeyMap *, const char *, int, int *, int *, int * );
    int (* MapGetC)( AstKeyMap *, const char *, const char **, int * );
@@ -199,6 +204,7 @@ typedef struct AstKeyMapVtab {
    int (* MapGetElemD)( AstKeyMap *, const char *, int, double *, int * );
    int (* MapGetElemB)( AstKeyMap *, const char *, int, unsigned char *, int * );
    int (* MapGetElemS)( AstKeyMap *, const char *, int, short int *, int * );
+   int (* MapGetElemK)( AstKeyMap *, const char *, int, int64_t *, int * );
    int (* MapGetElemF)( AstKeyMap *, const char *, int, float *, int * );
    int (* MapGetElemI)( AstKeyMap *, const char *, int, int *, int * );
    void (* MapPutElemA)( AstKeyMap *, const char *, int, AstObject *, int * );
@@ -207,6 +213,7 @@ typedef struct AstKeyMapVtab {
    void (* MapPutElemD)( AstKeyMap *, const char *, int, double, int * );
    void (* MapPutElemB)( AstKeyMap *, const char *, int, unsigned char, int * );
    void (* MapPutElemS)( AstKeyMap *, const char *, int, short int, int * );
+   void (* MapPutElemK)( AstKeyMap *, const char *, int, int64_t, int * );
    void (* MapPutElemF)( AstKeyMap *, const char *, int, float, int * );
    void (* MapPutElemI)( AstKeyMap *, const char *, int, int, int * );
    void (* MapRemove)( AstKeyMap *, const char *, int * );
@@ -327,6 +334,7 @@ int astMapGet0F_( AstKeyMap *, const char *, float *, int * );
 int astMapGet0I_( AstKeyMap *, const char *, int *, int * );
 int astMapGet0P_( AstKeyMap *, const char *, void **, int * );
 int astMapGet0S_( AstKeyMap *, const char *, short int *, int * );
+int astMapGet0K_( AstKeyMap *, const char *, int64_t *, int * );
 int astMapGet1B_( AstKeyMap *, const char *, int, int *, unsigned char *, int * );
 int astMapGet1C_( AstKeyMap *, const char *, int, int, int *, char *, int * );
 int astMapGet1D_( AstKeyMap *, const char *, int, int *, double *, int * );
@@ -334,6 +342,7 @@ int astMapGet1F_( AstKeyMap *, const char *, int, int *, float *, int * );
 int astMapGet1I_( AstKeyMap *, const char *, int, int *, int *, int * );
 int astMapGet1P_( AstKeyMap *, const char *, int, int *, void **, int * );
 int astMapGet1S_( AstKeyMap *, const char *, int, int *, short int *, int * );
+int astMapGet1K_( AstKeyMap *, const char *, int, int *, int64_t *, int * );
 int astMapGetC_( AstKeyMap *, const char *, const char **, int * );
 int astMapGetElemB_( AstKeyMap *, const char *, int, unsigned char *, int * );
 int astMapGetElemC_( AstKeyMap *, const char *, int, int, char *, int * );
@@ -342,6 +351,7 @@ int astMapGetElemF_( AstKeyMap *, const char *, int, float *, int * );
 int astMapGetElemI_( AstKeyMap *, const char *, int, int *, int * );
 int astMapGetElemP_( AstKeyMap *, const char *, int, void **, int * );
 int astMapGetElemS_( AstKeyMap *, const char *, int, short int *, int * );
+int astMapGetElemK_( AstKeyMap *, const char *, int, int64_t *, int * );
 int astMapHasKey_( AstKeyMap *, const char *, int * );
 int astMapDefined_( AstKeyMap *, const char *, int * );
 int astMapLenC_( AstKeyMap *, const char *, int * );
@@ -358,6 +368,7 @@ void astMapPut0F_( AstKeyMap *, const char *, float, const char *, int * );
 void astMapPut0I_( AstKeyMap *, const char *, int, const char *, int * );
 void astMapPut0P_( AstKeyMap *, const char *, void *, const char *, int * );
 void astMapPut0S_( AstKeyMap *, const char *, short int, const char *, int * );
+void astMapPut0K_( AstKeyMap *, const char *, int64_t, const char *, int * );
 void astMapPut1B_( AstKeyMap *, const char *, int, const unsigned char[], const char *, int * );
 void astMapPut1C_( AstKeyMap *, const char *, int, const char *const [], const char *, int * );
 void astMapPut1D_( AstKeyMap *, const char *, int, const double *, const char *, int * );
@@ -365,6 +376,7 @@ void astMapPut1F_( AstKeyMap *, const char *, int, const float *, const char *, 
 void astMapPut1I_( AstKeyMap *, const char *, int, const int *, const char *, int * );
 void astMapPut1P_( AstKeyMap *, const char *, int, void *const [], const char *, int * );
 void astMapPut1S_( AstKeyMap *, const char *, int, const short int *, const char *, int * );
+void astMapPut1K_( AstKeyMap *, const char *, int, const int64_t *, const char *, int * );
 void astMapPutElemA_( AstKeyMap *, const char *, int, AstObject *, int * );
 void astMapPutElemB_( AstKeyMap *, const char *, int, unsigned char, int * );
 void astMapPutElemC_( AstKeyMap *, const char *, int, const char *, int * );
@@ -373,6 +385,7 @@ void astMapPutElemF_( AstKeyMap *, const char *, int, float, int * );
 void astMapPutElemI_( AstKeyMap *, const char *, int, int, int * );
 void astMapPutElemP_( AstKeyMap *, const char *, int, void *, int * );
 void astMapPutElemS_( AstKeyMap *, const char *, int, short int, int * );
+void astMapPutElemK_( AstKeyMap *, const char *, int, int64_t, int * );
 void astMapPutU_( AstKeyMap *, const char *, const char *, int * );
 void astMapRemove_( AstKeyMap *, const char *, int * );
 void astMapRename_( AstKeyMap *, const char *, const char *, int * );
@@ -454,6 +467,7 @@ astINVOKE(O,astLoadKeyMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 #define astMapPut0I(this,key,value,comment) astINVOKE(V,astMapPut0I_(astCheckKeyMap(this),key,value,comment,STATUS_PTR))
 #define astMapPut0B(this,key,value,comment) astINVOKE(V,astMapPut0B_(astCheckKeyMap(this),key,value,comment,STATUS_PTR))
 #define astMapPut0S(this,key,value,comment) astINVOKE(V,astMapPut0S_(astCheckKeyMap(this),key,value,comment,STATUS_PTR))
+#define astMapPut0K(this,key,value,comment) astINVOKE(V,astMapPut0K_(astCheckKeyMap(this),key,value,comment,STATUS_PTR))
 #define astMapPut0D(this,key,value,comment) astINVOKE(V,astMapPut0D_(astCheckKeyMap(this),key,value,comment,STATUS_PTR))
 #define astMapPut0F(this,key,value,comment) astINVOKE(V,astMapPut0F_(astCheckKeyMap(this),key,value,comment,STATUS_PTR))
 #define astMapPut0C(this,key,value,comment) astINVOKE(V,astMapPut0C_(astCheckKeyMap(this),key,value,comment,STATUS_PTR))
@@ -462,12 +476,14 @@ astINVOKE(O,astLoadKeyMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 #define astMapPut1I(this,key,size,value,comment) astINVOKE(V,astMapPut1I_(astCheckKeyMap(this),key,size,value,comment,STATUS_PTR))
 #define astMapPut1B(this,key,size,value,comment) astINVOKE(V,astMapPut1B_(astCheckKeyMap(this),key,size,value,comment,STATUS_PTR))
 #define astMapPut1S(this,key,size,value,comment) astINVOKE(V,astMapPut1S_(astCheckKeyMap(this),key,size,value,comment,STATUS_PTR))
+#define astMapPut1K(this,key,size,value,comment) astINVOKE(V,astMapPut1K_(astCheckKeyMap(this),key,size,value,comment,STATUS_PTR))
 #define astMapPut1D(this,key,size,value,comment) astINVOKE(V,astMapPut1D_(astCheckKeyMap(this),key,size,value,comment,STATUS_PTR))
 #define astMapPut1F(this,key,size,value,comment) astINVOKE(V,astMapPut1F_(astCheckKeyMap(this),key,size,value,comment,STATUS_PTR))
 #define astMapPut1C(this,key,size,value,comment) astINVOKE(V,astMapPut1C_(astCheckKeyMap(this),key,size,value,comment,STATUS_PTR))
 #define astMapGet0I(this,key,value) astINVOKE(V,astMapGet0I_(astCheckKeyMap(this),key,value,STATUS_PTR))
 #define astMapGet0B(this,key,value) astINVOKE(V,astMapGet0B_(astCheckKeyMap(this),key,value,STATUS_PTR))
 #define astMapGet0S(this,key,value) astINVOKE(V,astMapGet0S_(astCheckKeyMap(this),key,value,STATUS_PTR))
+#define astMapGet0K(this,key,value) astINVOKE(V,astMapGet0K_(astCheckKeyMap(this),key,value,STATUS_PTR))
 #define astMapGet0D(this,key,value) astINVOKE(V,astMapGet0D_(astCheckKeyMap(this),key,value,STATUS_PTR))
 #define astMapGet0F(this,key,value) astINVOKE(V,astMapGet0F_(astCheckKeyMap(this),key,value,STATUS_PTR))
 #define astMapGet0C(this,key,value) astINVOKE(V,astMapGet0C_(astCheckKeyMap(this),key,value,STATUS_PTR))
@@ -475,12 +491,14 @@ astINVOKE(O,astLoadKeyMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 #define astMapGet1I(this,key,mxval,nval,value) astINVOKE(V,astMapGet1I_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))
 #define astMapGet1B(this,key,mxval,nval,value) astINVOKE(V,astMapGet1B_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))
 #define astMapGet1S(this,key,mxval,nval,value) astINVOKE(V,astMapGet1S_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))
+#define astMapGet1K(this,key,mxval,nval,value) astINVOKE(V,astMapGet1K_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))
 #define astMapGet1D(this,key,mxval,nval,value) astINVOKE(V,astMapGet1D_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))
 #define astMapGet1F(this,key,mxval,nval,value) astINVOKE(V,astMapGet1F_(astCheckKeyMap(this),key,mxval,nval,value,STATUS_PTR))
 #define astMapGet1C(this,key,l,mxval,nval,value) astINVOKE(V,astMapGet1C_(astCheckKeyMap(this),key,l,mxval,nval,value,STATUS_PTR))
 #define astMapGetElemI(this,key,elem,value) astINVOKE(V,astMapGetElemI_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapGetElemB(this,key,elem,value) astINVOKE(V,astMapGetElemB_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapGetElemS(this,key,elem,value) astINVOKE(V,astMapGetElemS_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
+#define astMapGetElemK(this,key,elem,value) astINVOKE(V,astMapGetElemK_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapGetElemD(this,key,elem,value) astINVOKE(V,astMapGetElemD_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapGetElemF(this,key,elem,value) astINVOKE(V,astMapGetElemF_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapGetElemC(this,key,l,elem,value) astINVOKE(V,astMapGetElemC_(astCheckKeyMap(this),key,l,elem,value,STATUS_PTR))
@@ -489,6 +507,7 @@ astINVOKE(O,astLoadKeyMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 #define astMapPutElemI(this,key,elem,value) astINVOKE(V,astMapPutElemI_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapPutElemB(this,key,elem,value) astINVOKE(V,astMapPutElemB_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapPutElemS(this,key,elem,value) astINVOKE(V,astMapPutElemS_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
+#define astMapPutElemK(this,key,elem,value) astINVOKE(V,astMapPutElemK_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapPutElemD(this,key,elem,value) astINVOKE(V,astMapPutElemD_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapPutElemF(this,key,elem,value) astINVOKE(V,astMapPutElemF_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))
 #define astMapPutElemC(this,key,elem,value) astINVOKE(V,astMapPutElemC_(astCheckKeyMap(this),key,elem,value,STATUS_PTR))

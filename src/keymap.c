@@ -276,6 +276,12 @@ typedef struct Entry0S {
    short int value;          /* The short int value */
 } Entry0S;
 
+/* This structure is a AstMapEntry holding a scalar 64 bit int */
+typedef struct Entry0K {
+   struct AstMapEntry entry; /* The parent Entry information */
+   int64_t value;          /* The short int value */
+} Entry0K;
+
 /* This structure is a AstMapEntry holding a scalar unsigned byte
    (unsigned char) */
 typedef struct Entry0B {
@@ -324,8 +330,14 @@ typedef struct Entry1D {
 /* This structure is a AstMapEntry holding a 1D array of short ints */
 typedef struct Entry1S {
    struct AstMapEntry entry; /* The parent Entry information */
-   short int *value;         /* The short int values */
+   short int *value;         /* The 64 bit int values */
 } Entry1S;
+
+/* This structure is a AstMapEntry holding a 1D array of 64 bit ints */
+typedef struct Entry1K {
+   struct AstMapEntry entry; /* The parent Entry information */
+   int64_t *value;           /* The 64 bit int values */
+} Entry1K;
 
 /* This structure is a AstMapEntry holding a 1D array of unsigned bytes */
 typedef struct Entry1B {
@@ -476,6 +488,7 @@ static int MapGet0S( AstKeyMap *, const char *, short int *, int * );
 static int MapGet0B( AstKeyMap *, const char *, unsigned char *, int * );
 static int MapGet0F( AstKeyMap *, const char *, float *, int * );
 static int MapGet0I( AstKeyMap *, const char *, int *, int * );
+static int MapGet0K( AstKeyMap *, const char *, int64_t *, int * );
 static int MapGet0P( AstKeyMap *, const char *, void **, int * );
 static int MapGet1A( AstKeyMap *, const char *, int, int *, AstObject **, int * );
 static int MapGet1C( AstKeyMap *, const char *, int, int, int *, char *, int * );
@@ -484,6 +497,7 @@ static int MapGet1B( AstKeyMap *, const char *, int, int *, unsigned char *, int
 static int MapGet1S( AstKeyMap *, const char *, int, int *, short int *, int * );
 static int MapGet1F( AstKeyMap *, const char *, int, int *, float *, int * );
 static int MapGet1I( AstKeyMap *, const char *, int, int *, int *, int * );
+static int MapGet1K( AstKeyMap *, const char *, int, int *, int64_t *, int * );
 static int MapGet1P( AstKeyMap *, const char *, int, int *, void **, int * );
 static int MapGetC( AstKeyMap *, const char *, const char **, int * );
 static int MapGetElemA( AstKeyMap *, const char *, int, AstObject **, int * );
@@ -493,6 +507,7 @@ static int MapGetElemB( AstKeyMap *, const char *, int, unsigned char *, int * )
 static int MapGetElemS( AstKeyMap *, const char *, int, short int *, int * );
 static int MapGetElemF( AstKeyMap *, const char *, int, float *, int * );
 static int MapGetElemI( AstKeyMap *, const char *, int, int *, int * );
+static int MapGetElemK( AstKeyMap *, const char *, int, int64_t *, int * );
 static int MapGetElemP( AstKeyMap *, const char *, int, void **, int * );
 static int MapHasKey( AstKeyMap *, const char *, int * );
 static int MapLenC( AstKeyMap *, const char *, int * );
@@ -519,6 +534,7 @@ static void MapPut0C( AstKeyMap *, const char *, const char *, const char *, int
 static void MapPut0D( AstKeyMap *, const char *, double, const char *, int * );
 static void MapPut0B( AstKeyMap *, const char *, unsigned char, const char *, int * );
 static void MapPut0S( AstKeyMap *, const char *, short int, const char *, int * );
+static void MapPut0K( AstKeyMap *, const char *, int64_t, const char *, int * );
 static void MapPut0F( AstKeyMap *, const char *, float, const char *, int * );
 static void MapPut0I( AstKeyMap *, const char *, int, const char *, int * );
 static void MapPut0P( AstKeyMap *, const char *, void *, const char *, int * );
@@ -527,6 +543,7 @@ static void MapPut1C( AstKeyMap *, const char *, int, const char *const [], cons
 static void MapPut1D( AstKeyMap *, const char *, int, const double *, const char *, int * );
 static void MapPut1B( AstKeyMap *, const char *, int, const unsigned char *, const char *, int * );
 static void MapPut1S( AstKeyMap *, const char *, int, const short int *, const char *, int * );
+static void MapPut1K( AstKeyMap *, const char *, int, const int64_t *, const char *, int * );
 static void MapPut1F( AstKeyMap *, const char *, int, const float *, const char *, int * );
 static void MapPut1I( AstKeyMap *, const char *, int, const int *, const char *, int * );
 static void MapPut1P( AstKeyMap *, const char *, int, void *const [], const char *, int * );
@@ -535,6 +552,7 @@ static void MapPutElemC( AstKeyMap *, const char *, int, const char *, int * );
 static void MapPutElemD( AstKeyMap *, const char *, int, double, int * );
 static void MapPutElemB( AstKeyMap *, const char *, int, unsigned char, int * );
 static void MapPutElemS( AstKeyMap *, const char *, int, short int, int * );
+static void MapPutElemK( AstKeyMap *, const char *, int, int64_t, int * );
 static void MapPutElemF( AstKeyMap *, const char *, int, float, int * );
 static void MapPutElemI( AstKeyMap *, const char *, int, int, int * );
 static void MapPutElemP( AstKeyMap *, const char *, int, void *, int * );
@@ -1679,6 +1697,7 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
    int nc;                       /* Number of characters read from string */
    int nval;                     /* Number of values read from string */
    int result;                   /* Returned flag */
+   int64_t kval;                 /* 64 bit integer value */
    short int sval;               /* Short int value */
    unsigned char bval;           /* Byte value */
 
@@ -1722,6 +1741,10 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
       } else if( out_type == AST__SINTTYPE ) {
          if( out ) *( (short int *) out ) = (short int) ival;
 
+/* Consider conversion to "64 bit int". */
+      } else if( out_type == AST__KINTTYPE ) {
+         if( out ) *( (int64_t *) out ) = (int64_t) ival;
+
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
          if( out ) *( (unsigned char *) out ) = (unsigned char) ival;
@@ -1755,6 +1778,55 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
                    out_type );
       }
 
+/* Otherwise, consider conversion from "64 bit int". */
+    } else if( raw_type == AST__KINTTYPE ) {
+      kval = *( (int64_t *) raw );
+
+/* Consider conversion to "int". */
+      if( out_type == AST__INTTYPE ) {
+         if( out ) *( (int *) out ) = kval;
+
+/* Consider conversion to "short int". */
+      } else if( out_type == AST__SINTTYPE ) {
+         if( out ) *( (short int *) out ) = kval;
+
+/* Consider conversion to "64 bit int". */
+      } else if( out_type == AST__KINTTYPE ) {
+         if( out ) *( (int64_t *) out ) = kval;
+
+/* Consider conversion to "byte". */
+      } else if( out_type == AST__BYTETYPE ) {
+         if( out ) *( (unsigned char *) out ) = kval;
+
+/* Consider conversion to "float". */
+      } else if( out_type == AST__FLOATTYPE ) {
+         if( out ) *( (float *) out ) = (float) kval;
+
+/* Consider conversion to "double". */
+      } else if( out_type == AST__DOUBLETYPE ) {
+         if( out ) *( (double *) out ) = (double) kval;
+
+/* Consider conversion to "const char *". */
+      } else if( out_type == AST__STRINGTYPE ) {
+         (void) sprintf( convertvalue_buff, "%" PRId64, kval );
+         cvalue = convertvalue_buff;
+
+/* Consider conversion to "AstObject *". */
+      } else if( out_type == AST__OBJECTTYPE ) {
+         result = 0;
+
+/* Consider conversion to "void *". */
+      } else if( out_type == AST__POINTERTYPE ) {
+         result = 0;
+
+/* Report an error if the data type is unknown. */
+      } else {
+         result = 0;
+         astError( AST__INTER, "ConvertValue(KeyMap): Illegal map entry data "
+                   "type %d encountered (internal AST programming error).", status,
+                   out_type );
+      }
+
 /* Otherwise, consider conversion from "short int". */
     } else if( raw_type == AST__SINTTYPE ) {
       sval = *( (short int *) raw );
@@ -1766,6 +1838,10 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 /* Consider conversion to "short int". */
       } else if( out_type == AST__SINTTYPE ) {
          if( out ) *( (short int *) out ) = sval;
+
+/* Consider conversion to "64 bit int". */
+      } else if( out_type == AST__KINTTYPE ) {
+         if( out ) *( (int64_t *) out ) = sval;
 
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
@@ -1812,6 +1888,10 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
       } else if( out_type == AST__SINTTYPE ) {
          if( out ) *( (short int *) out ) = bval;
 
+/* Consider conversion to "int64_t". */
+      } else if( out_type == AST__KINTTYPE ) {
+         if( out ) *( (int64_t *) out ) = bval;
+
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
          if( out ) *( (unsigned char *) out ) = bval;
@@ -1856,6 +1936,10 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 /* Consider conversion to "short int". */
       } else if( out_type == AST__SINTTYPE ) {
          if( out ) *( (short int *) out ) = (int)( dval + 0.5 );
+
+/* Consider conversion to "64 bit int". */
+      } else if( out_type == AST__KINTTYPE ) {
+         if( out ) *( (int64_t *) out ) = (int64_t)( dval + 0.5 );
 
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
@@ -1911,6 +1995,10 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 /* Consider conversion to "short int". */
       } else if( out_type == AST__SINTTYPE ) {
          if( out ) *( (short int *) out ) = (int)( fval + 0.5 );
+
+/* Consider conversion to "64 bit int". */
+      } else if( out_type == AST__KINTTYPE ) {
+         if( out ) *( (int64_t *) out ) = (int64_t)( fval + 0.5 );
 
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
@@ -1976,6 +2064,22 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
             if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
                if( out ) *( (short int *) out ) = (int) ( dval + 0.5 );
+            } else {
+               result = 0;
+            }
+         }
+
+/* Consider conversion to "64 bit int". */
+      } else if( out_type == AST__KINTTYPE ) {
+         nc = 0;
+         nval = astSscanf( cval, " %" SCNd64 " %n", &kval, &nc );
+         if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
+            if( out ) *( (int64_t *) out ) = kval;
+         } else {
+            nc = 0;
+            nval = astSscanf( cval, " %lf %n", &dval, &nc );
+            if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
+               if( out ) *( (int64_t *) out ) = (int64_t) ( dval + 0.5 );
             } else {
                result = 0;
             }
@@ -2054,6 +2158,10 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
       } else if( out_type == AST__SINTTYPE ) {
          result = 0;
 
+/* Consider conversion to "64 bit int". */
+      } else if( out_type == AST__KINTTYPE ) {
+         result = 0;
+
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
          result = 0;
@@ -2096,6 +2204,10 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 
 /* Consider conversion to "short int". */
       } else if( out_type == AST__SINTTYPE ) {
+         result = 0;
+
+/* Consider conversion to "64 bit int". */
+      } else if( out_type == AST__KINTTYPE ) {
          result = 0;
 
 /* Consider conversion to "byte". */
@@ -2306,6 +2418,15 @@ static AstMapEntry *CopyMapEntry( AstMapEntry *in, int *status ){
          ( (Entry1S *) result )->value = astStore( NULL,
                                             ( (Entry1S *) in )->value,
                                             sizeof( short int )*(size_t)nel );
+      }
+
+/* Now deal with 64 bit int entries. Scalar entries do not need any further
+   action. If this is a vector entry copy the values array. */
+   } else if( type == AST__KINTTYPE ) {
+      if( nel > 0 ) {
+         ( (Entry1K *) result )->value = astStore( NULL,
+                                            ( (Entry1K *) in )->value,
+                                            sizeof( int64_t )*(size_t)nel );
       }
 
 /* Now deal with byte entries. Scalar entries do not need any further
@@ -2614,6 +2735,9 @@ static void DumpEntry( AstMapEntry *entry, AstChannel *channel, int nentry, int 
    } else if( type == AST__SINTTYPE ) {
       com = "Item data type (short int)";
 
+   } else if( type == AST__KINTTYPE ) {
+      com = "Item data type (64 bit int)";
+
    } else if( type == AST__BYTETYPE ) {
       com = "Item data type (unsigned byte)";
 
@@ -2668,6 +2792,20 @@ static void DumpEntry( AstMapEntry *entry, AstChannel *channel, int nentry, int 
          for( index = 0; index < nel; index++ ){
             (void) sprintf( buff, "V%d_%d", nentry, index + 1 );
             astWriteInt( channel, buff, 1, 1, (int) ((Entry1S *)entry)->value[ index ], com );
+            com = "";
+         }
+      }
+
+/* Similarly, deal with 64 bit int entries. */
+   } else if( type == AST__KINTTYPE ) {
+      if( entry->nel == 0 ) {
+         (void) sprintf( buff, "Val%d", nentry );
+         astWriteInt64( channel, buff, 1, 1, (int64_t) ((Entry0K *)entry)->value, "Item value" );
+      } else {
+         com = "Item values";
+         for( index = 0; index < nel; index++ ){
+            (void) sprintf( buff, "V%d_%d", nentry, index + 1 );
+            astWriteInt64( channel, buff, 1, 1, (int64_t) ((Entry1K *)entry)->value[ index ], com );
             com = "";
          }
       }
@@ -2868,6 +3006,11 @@ static AstMapEntry *FreeMapEntry( AstMapEntry *in, int *status ){
    action. If this is a vector entry free the values array. */
    } else if( type == AST__SINTTYPE ) {
       if( nel > 0 ) ( (Entry1S *) in )->value = astFree( ( (Entry1S *) in )->value );
+
+/* Now deal with 64 bit int entries. Scalar entries do not need any further
+   action. If this is a vector entry free the values array. */
+   } else if( type == AST__KINTTYPE ) {
+      if( nel > 0 ) ( (Entry1K *) in )->value = astFree( ( (Entry1K *) in )->value );
 
 /* Now deal with byte entries. Scalar entries do not need any further
    action. If this is a vector entry free the values array. */
@@ -3210,6 +3353,9 @@ static size_t GetObjSize( AstObject *this_object, int *status ) {
          } else if( type == AST__SINTTYPE ) {
             if( nel > 0 ) result += astTSizeOf( ( (Entry1S *) next )->value );
 
+         } else if( type == AST__KINTTYPE ) {
+            if( nel > 0 ) result += astTSizeOf( ( (Entry1K *) next )->value );
+
          } else if( type == AST__BYTETYPE ) {
             if( nel > 0 ) result += astTSizeOf( ( (Entry1B *) next )->value );
 
@@ -3540,6 +3686,7 @@ void astInitKeyMapVtab_(  AstKeyMapVtab *vtab, const char *name, int *status ) {
    vtab->MapGet0D = MapGet0D;
    vtab->MapGet0F = MapGet0F;
    vtab->MapGet0I = MapGet0I;
+   vtab->MapGet0K = MapGet0K;
    vtab->MapGet0B = MapGet0B;
    vtab->MapGet0S = MapGet0S;
    vtab->MapGet1P = MapGet1P;
@@ -3548,6 +3695,7 @@ void astInitKeyMapVtab_(  AstKeyMapVtab *vtab, const char *name, int *status ) {
    vtab->MapGet1D = MapGet1D;
    vtab->MapGet1F = MapGet1F;
    vtab->MapGet1I = MapGet1I;
+   vtab->MapGet1K = MapGet1K;
    vtab->MapGet1B = MapGet1B;
    vtab->MapGet1S = MapGet1S;
    vtab->MapGetC = MapGetC;
@@ -3557,6 +3705,7 @@ void astInitKeyMapVtab_(  AstKeyMapVtab *vtab, const char *name, int *status ) {
    vtab->MapGetElemD = MapGetElemD;
    vtab->MapGetElemF = MapGetElemF;
    vtab->MapGetElemI = MapGetElemI;
+   vtab->MapGetElemK = MapGetElemK;
    vtab->MapGetElemS = MapGetElemS;
    vtab->MapGetElemB = MapGetElemB;
    vtab->MapPutElemP = MapPutElemP;
@@ -3566,6 +3715,7 @@ void astInitKeyMapVtab_(  AstKeyMapVtab *vtab, const char *name, int *status ) {
    vtab->MapPutElemF = MapPutElemF;
    vtab->MapPutElemI = MapPutElemI;
    vtab->MapPutElemS = MapPutElemS;
+   vtab->MapPutElemK = MapPutElemK;
    vtab->MapPutElemB = MapPutElemB;
    vtab->MapPut0A = MapPut0A;
    vtab->MapPut0P = MapPut0P;
@@ -3574,6 +3724,7 @@ void astInitKeyMapVtab_(  AstKeyMapVtab *vtab, const char *name, int *status ) {
    vtab->MapPut0F = MapPut0F;
    vtab->MapPut0I = MapPut0I;
    vtab->MapPut0S = MapPut0S;
+   vtab->MapPut0K = MapPut0K;
    vtab->MapPut0B = MapPut0B;
    vtab->MapPut1P = MapPut1P;
    vtab->MapPut1A = MapPut1A;
@@ -3582,6 +3733,7 @@ void astInitKeyMapVtab_(  AstKeyMapVtab *vtab, const char *name, int *status ) {
    vtab->MapPut1F = MapPut1F;
    vtab->MapPut1I = MapPut1I;
    vtab->MapPut1S = MapPut1S;
+   vtab->MapPut1K = MapPut1K;
    vtab->MapPut1B = MapPut1B;
    vtab->MapPutU = MapPutU;
    vtab->MapRemove = MapRemove;
@@ -4439,6 +4591,7 @@ f     routine, you should replace <X> in the generic routine name AST_MAPPUT0<X>
 c     - D: double
 c     - F: float
 c     - I: int
+c     - K: int64_t
 c     - C: "const" pointer to null terminated character string
 c     - A: Pointer to AstObject
 c     - P: Generic "void *" pointer
@@ -4447,6 +4600,7 @@ c     - B: unsigned byte (i.e. unsigned char)
 f     - D: DOUBLE PRECISION
 f     - R: REAL
 f     - I: INTEGER
+f     - K: INTEGER*8
 f     - C: CHARACTER
 f     - A: INTEGER used to identify an AstObject
 f     - S: INTEGER*2 (short integer)
@@ -4562,6 +4716,7 @@ static void MapPut0##X( AstKeyMap *this, const char *skey, Xtype value, \
 #define CHECK_C
 #define CHECK_P
 #define CHECK_S
+#define CHECK_K
 #define CHECK_B
 
 /* Expand the above macro to generate a function for each required
@@ -4573,6 +4728,7 @@ MAKE_MAPPUT0(C,const char *,AST__STRINGTYPE,astStore(NULL,value,strlen(value)+1)
 MAKE_MAPPUT0(A,AstObject *,AST__OBJECTTYPE,(value?astClone(value):NULL))
 MAKE_MAPPUT0(P,void *,AST__POINTERTYPE,value)
 MAKE_MAPPUT0(S,short int,AST__SINTTYPE,value)
+MAKE_MAPPUT0(K,int64_t,AST__KINTTYPE,value)
 MAKE_MAPPUT0(B,unsigned char,AST__BYTETYPE,value)
 
 /* Undefine the macro. */
@@ -4580,6 +4736,7 @@ MAKE_MAPPUT0(B,unsigned char,AST__BYTETYPE,value)
 #undef CHECK_A
 #undef CHECK_I
 #undef CHECK_S
+#undef CHECK_K
 #undef CHECK_D
 #undef CHECK_F
 #undef CHECK_C
@@ -4663,6 +4820,7 @@ f     routine, you should replace <X> in the generic routine name AST_MAPPUT1<X>
 c     - D: double
 c     - F: float
 c     - I: int
+c     - K: int64_t
 c     - C: "const" pointer to null terminated character string
 c     - A: Pointer to AstObject
 c     - P: Generic "void *" pointer
@@ -4671,6 +4829,7 @@ c     - B: Unsigned byte (i.e. char)
 f     - D: DOUBLE PRECISION
 f     - R: REAL
 f     - I: INTEGER
+f     - I: INTEGER*8
 f     - C: CHARACTER
 f     - A: INTEGER used to identify an AstObject
 f     - S: INTEGER*2 (short integer)
@@ -4790,6 +4949,7 @@ for( i = 0; i < size; i++ ) { \
    CheckCircle( this, value[ i ], "astMapPut1A", status ); \
 }
 #define CHECK_I
+#define CHECK_K
 #define CHECK_S
 #define CHECK_B
 #define CHECK_D
@@ -4802,6 +4962,7 @@ for( i = 0; i < size; i++ ) { \
 MAKE_MAPPUT1(D,const double,AST__DOUBLETYPE,value[i])
 MAKE_MAPPUT1(F,const float,AST__FLOATTYPE,value[i])
 MAKE_MAPPUT1(I,const int,AST__INTTYPE,value[i])
+MAKE_MAPPUT1(K,const int64_t,AST__KINTTYPE,value[i])
 MAKE_MAPPUT1(C,const char *const,AST__STRINGTYPE,astStore(NULL,value[i],strlen(value[i])+1))
 MAKE_MAPPUT1(A,AstObject *const,AST__OBJECTTYPE,(value[i]?astClone(value[i]):NULL))
 MAKE_MAPPUT1(P,void *const,AST__POINTERTYPE,value[i])
@@ -4812,6 +4973,7 @@ MAKE_MAPPUT1(B,const unsigned char,AST__BYTETYPE,value[i])
 #undef MAKE_MAPPUT1
 #undef CHECK_A
 #undef CHECK_I
+#undef CHECK_K
 #undef CHECK_B
 #undef CHECK_S
 #undef CHECK_D
@@ -5183,6 +5345,7 @@ f     routine, you should replace <X> in the generic routine name AST_MAPGET0<X>
 c     - F: float
 c     - D: double
 c     - I: int
+c     - K: int64_t
 c     - C: "const" pointer to null terminated character string
 c     - A: Pointer to AstObject
 c     - P: Generic "void *" pointer
@@ -5191,6 +5354,7 @@ c     - B: Unsigned byte (i.e. word)
 f     - D: DOUBLE PRECISION
 f     - R: REAL
 f     - I: INTEGER
+f     - K: INTEGER*8
 f     - C: CHARACTER
 f     - A: INTEGER used to identify an AstObject
 f     - S: INTEGER*2 (short integer)
@@ -5250,6 +5414,13 @@ static int MapGet0##X( AstKeyMap *this, const char *skey, Xtype *value, int *sta
             raw = &( ((Entry0S *)mapentry)->value ); \
          } else { \
             raw = ((Entry1S *)mapentry)->value; \
+         } \
+\
+      } else if( raw_type == AST__KINTTYPE ){ \
+         if( mapentry->nel == 0 ) { \
+            raw = &( ((Entry0K *)mapentry)->value ); \
+         } else { \
+            raw = ((Entry1K *)mapentry)->value; \
          } \
 \
       } else if( raw_type == AST__BYTETYPE ){ \
@@ -5342,6 +5513,7 @@ MAKE_MAPGET0(C,const char *,AST__STRINGTYPE)
 MAKE_MAPGET0(A,AstObject *,AST__OBJECTTYPE)
 MAKE_MAPGET0(P,void *,AST__POINTERTYPE)
 MAKE_MAPGET0(S,short int,AST__SINTTYPE)
+MAKE_MAPGET0(K,int64_t,AST__KINTTYPE)
 MAKE_MAPGET0(B,unsigned char,AST__BYTETYPE)
 
 /* Undefine the macro. */
@@ -5428,6 +5600,13 @@ int astMapGet0AId_( AstKeyMap *this, const char *skey, AstObject **value, int *s
             raw = &( ((Entry0S *)mapentry)->value );
          } else {
             raw = ((Entry1S *)mapentry)->value;
+         }
+
+      } else if( raw_type == AST__KINTTYPE ){
+         if( mapentry->nel == 0 ) {
+            raw = &( ((Entry0K *)mapentry)->value );
+         } else {
+            raw = ((Entry1K *)mapentry)->value;
          }
 
       } else if( raw_type == AST__BYTETYPE ){
@@ -5617,6 +5796,7 @@ f     routine, you should replace <X> in the generic routine name AST_MAPGET1<X>
 c     - D: double
 c     - F: float
 c     - I: int
+c     - K: int64_t
 c     - C: "const" pointer to null terminated character string
 c     - A: Pointer to AstObject
 c     - P: Generic "void *" pointer
@@ -5625,6 +5805,7 @@ c     - B: Unsigned byte (i.e. char)
 f     - D: DOUBLE PRECISION
 f     - R: REAL
 f     - I: INTEGER
+f     - K: INTEGER*8
 f     - C: CHARACTER
 f     - A: INTEGER used to identify an AstObject
 f     - S: INTEGER*2 (short integer)
@@ -5700,6 +5881,14 @@ static int MapGet1##X( AstKeyMap *this, const char *skey, int mxval, int *nval, 
             raw = &( ((Entry0D *)mapentry)->value ); \
          } else { \
             raw = ((Entry1D *)mapentry)->value; \
+         } \
+\
+      } else if( raw_type == AST__KINTTYPE ){ \
+         raw_size = sizeof( int64_t ); \
+         if( nel == 0 ) { \
+            raw = &( ((Entry0K *)mapentry)->value ); \
+         } else { \
+            raw = ((Entry1K *)mapentry)->value; \
          } \
 \
       } else if( raw_type == AST__SINTTYPE ){ \
@@ -5807,6 +5996,7 @@ static int MapGet1##X( AstKeyMap *this, const char *skey, int mxval, int *nval, 
 /* Expand the above macro to generate a function for each required
    data type (except C which is done differently). */
 MAKE_MAPGET1(I,int,AST__INTTYPE)
+MAKE_MAPGET1(K,int64_t,AST__KINTTYPE)
 MAKE_MAPGET1(D,double,AST__DOUBLETYPE)
 MAKE_MAPGET1(F,float,AST__FLOATTYPE)
 MAKE_MAPGET1(A,AstObject *,AST__OBJECTTYPE)
@@ -5919,6 +6109,14 @@ static int MapGet1C( AstKeyMap *this, const char *skey, int l, int mxval,
             raw = &( ((Entry0S *)mapentry)->value );
          } else {
             raw = ((Entry1S *)mapentry)->value;
+         }
+
+      } else if( raw_type == AST__KINTTYPE ){
+         raw_size = sizeof( int64_t );
+         if( nel == 0 ) {
+            raw = &( ((Entry0K *)mapentry)->value );
+         } else {
+            raw = ((Entry1K *)mapentry)->value;
          }
 
       } else if( raw_type == AST__BYTETYPE ){
@@ -6110,6 +6308,14 @@ int astMapGet1AId_( AstKeyMap *this, const char *skey, int mxval, int *nval,
             raw = &( ((Entry0S *)mapentry)->value );
          } else {
             raw = ((Entry1S *)mapentry)->value;
+         }
+
+      } else if( raw_type == AST__KINTTYPE ){
+         raw_size = sizeof( int64_t );
+         if( nel == 0 ) {
+            raw = &( ((Entry0K *)mapentry)->value );
+         } else {
+            raw = ((Entry1K *)mapentry)->value;
          }
 
       } else if( raw_type == AST__BYTETYPE ){
@@ -6490,6 +6696,7 @@ f     AST_MAPGETELEM<X>
 c     - D: double
 c     - F: float
 c     - I: int
+c     - K: int64_t
 c     - C: "const" pointer to null terminated character string
 c     - A: Pointer to AstObject
 c     - P: Generic "void *" pointer
@@ -6498,6 +6705,7 @@ c     - B: Unsigned byte (i.e. char)
 f     - D: DOUBLE PRECISION
 f     - R: REAL
 f     - I: INTEGER
+f     - K: INTEGER*8
 f     - C: CHARACTER
 f     - A: INTEGER used to identify an AstObject
 f     - S: INTEGER*2 (short integer)
@@ -6571,6 +6779,14 @@ static int MapGetElem##X( AstKeyMap *this, const char *skey, int elem, \
             raw = &( ((Entry0D *)mapentry)->value ); \
          } else { \
             raw = ((Entry1D *)mapentry)->value; \
+         } \
+\
+      } else if( raw_type == AST__KINTTYPE ){ \
+         raw_size = sizeof( int64_t ); \
+         if( nel == 0 ) { \
+            raw = &( ((Entry0K *)mapentry)->value ); \
+         } else { \
+            raw = ((Entry1K *)mapentry)->value; \
          } \
 \
       } else if( raw_type == AST__SINTTYPE ){ \
@@ -6676,6 +6892,7 @@ static int MapGetElem##X( AstKeyMap *this, const char *skey, int elem, \
 /* Expand the above macro to generate a function for each required
    data type (except C which is done differently). */
 MAKE_MAPGETELEM(I,int,AST__INTTYPE)
+MAKE_MAPGETELEM(K,int64_t,AST__KINTTYPE)
 MAKE_MAPGETELEM(D,double,AST__DOUBLETYPE)
 MAKE_MAPGETELEM(F,float,AST__FLOATTYPE)
 MAKE_MAPGETELEM(A,AstObject *,AST__OBJECTTYPE)
@@ -6785,6 +7002,14 @@ static int MapGetElemC( AstKeyMap *this, const char *skey, int l, int elem,
             raw = &( ((Entry0S *)mapentry)->value );
          } else {
             raw = ((Entry1S *)mapentry)->value;
+         }
+
+      } else if( raw_type == AST__KINTTYPE ){
+         raw_size = sizeof( int64_t );
+         if( nel == 0 ) {
+            raw = &( ((Entry0K *)mapentry)->value );
+         } else {
+            raw = ((Entry1K *)mapentry)->value;
          }
 
       } else if( raw_type == AST__BYTETYPE ){
@@ -6960,6 +7185,14 @@ int astMapGetElemAId_( AstKeyMap *this, const char *skey, int elem,
             raw = &( ((Entry0S *)mapentry)->value );
          } else {
             raw = ((Entry1S *)mapentry)->value;
+         }
+
+      } else if( raw_type == AST__KINTTYPE ){
+         raw_size = sizeof( int64_t );
+         if( nel == 0 ) {
+            raw = &( ((Entry0K *)mapentry)->value );
+         } else {
+            raw = ((Entry1K *)mapentry)->value;
          }
 
       } else if( raw_type == AST__BYTETYPE ){
@@ -7653,6 +7886,14 @@ c        This does not include the trailing null character.
             raw = ((Entry1S *)mapentry)->value;
          }
 
+      } else if( raw_type == AST__KINTTYPE ){
+         raw_size = sizeof( int64_t );
+         if( nel == 0 ) {
+            raw = &( ((Entry0K *)mapentry)->value );
+         } else {
+            raw = ((Entry1K *)mapentry)->value;
+         }
+
       } else if( raw_type == AST__BYTETYPE ){
          raw_size = sizeof( unsigned char );
          if( nel == 0 ) {
@@ -7919,6 +8160,7 @@ f     AST_MAPPUTELEM<X>
 c     - D: double
 c     - F: float
 c     - I: int
+c     - K: int64_t
 c     - C: "const" pointer to null terminated character string
 c     - A: Pointer to AstObject
 c     - P: Generic "void *" pointer
@@ -7927,6 +8169,7 @@ c     - B: Unsigned byte (i.e. char)
 f     - D: DOUBLE PRECISION
 f     - R: REAL
 f     - I: INTEGER
+f     - K: INTEGER*8
 f     - C: CHARACTER
 f     - A: INTEGER used to identify an AstObject
 f     - S: INTEGER*2 (short integer)
@@ -8020,6 +8263,16 @@ static void MapPutElem##X( AstKeyMap *this, const char *skey, int elem, \
          raw = ((Entry1S *)mapentry)->value; \
          raw_size = sizeof( short int ); \
 \
+      } else if( raw_type == AST__KINTTYPE ){ \
+         if( nel == 0 ) { \
+            astMapPut1K( this, key, 1, &( ((Entry0K *)mapentry)->value ), \
+                         mapentry->comment ); \
+            mapentry = SearchTableEntry( this, itab, key, status ); \
+            nel = 1; \
+         } \
+         raw = ((Entry1K *)mapentry)->value; \
+         raw_size = sizeof( int64_t ); \
+\
       } else if( raw_type == AST__BYTETYPE ){ \
          if( nel == 0 ) { \
             astMapPut1B( this, key, 1, &( ((Entry0B *)mapentry)->value ), \
@@ -8100,6 +8353,8 @@ static void MapPutElem##X( AstKeyMap *this, const char *skey, int elem, \
                ((Entry1I *)mapentry)->value = (int *) raw; \
             } else if( raw_type == AST__SINTTYPE ){ \
                ((Entry1S *)mapentry)->value = (short int *) raw; \
+            } else if( raw_type == AST__KINTTYPE ){ \
+               ((Entry1K *)mapentry)->value = (int64_t *) raw; \
             } else if( raw_type == AST__BYTETYPE ){ \
                ((Entry1B *)mapentry)->value = (unsigned char *) raw; \
             } else if( raw_type == AST__DOUBLETYPE ){ \
@@ -8161,6 +8416,7 @@ static void MapPutElem##X( AstKeyMap *this, const char *skey, int elem, \
 #define CHECK_I
 #define CHECK_B
 #define CHECK_S
+#define CHECK_K
 #define CHECK_D
 #define CHECK_F
 #define CHECK_C
@@ -8175,6 +8431,7 @@ MAKE_MAPPUTELEM(A,AstObject *,AST__OBJECTTYPE)
 MAKE_MAPPUTELEM(P,void *,AST__POINTERTYPE)
 MAKE_MAPPUTELEM(C,const char *,AST__STRINGTYPE)
 MAKE_MAPPUTELEM(S,short int,AST__SINTTYPE)
+MAKE_MAPPUTELEM(K,int64_t,AST__KINTTYPE)
 MAKE_MAPPUTELEM(B,unsigned char,AST__BYTETYPE)
 
 /* Undefine the macro. */
@@ -8183,6 +8440,7 @@ MAKE_MAPPUTELEM(B,unsigned char,AST__BYTETYPE)
 #undef CHECK_I
 #undef CHECK_B
 #undef CHECK_S
+#undef CHECK_K
 #undef CHECK_D
 #undef CHECK_F
 #undef CHECK_C
@@ -8234,6 +8492,9 @@ f     AST_MAPTYPE = INTEGER
 *        One of AST__INTTYPE (for integer), AST__SINTTYPE (for
 c        short int),
 f        INTEGER*2),
+*        AST__KINTTYPE (for
+c        int64_t),
+f        INTEGER*8),
 *        AST__BYTETYPE (for unsigned bytes
 c        - i.e. unsigned chars
 *        ) AST__DOUBLETYPE (for double
@@ -9329,6 +9590,9 @@ static size_t SizeOfEntry( AstMapEntry *entry, int *status ){
 
    } else if( type == AST__SINTTYPE ) {
       result = ( nel == 0 ) ? sizeof( Entry0S ) : sizeof( Entry1S );
+
+   } else if( type == AST__KINTTYPE ) {
+      result = ( nel == 0 ) ? sizeof( Entry0K ) : sizeof( Entry1K );
 
    } else if( type == AST__BYTETYPE ) {
       result = ( nel == 0 ) ? sizeof( Entry0B ) : sizeof( Entry1B );
@@ -10627,6 +10891,8 @@ AstKeyMap *astLoadKeyMap_( void *mem, size_t size, AstKeyMapVtab *vtab,
    int type;                 /* Data type for an entry */
    short int *wlist;         /* Pointer to vector of entry values */
    short int wval;           /* Short int value for an entry */
+   int64_t *klist;           /* Pointer to vector of entry values */
+   int64_t kval;             /* 64 bit int value for an entry */
    unsigned char *blist;     /* Pointer to vector of entry values */
    unsigned char bval;       /* Byte value for an entry */
 
@@ -10800,6 +11066,22 @@ AstKeyMap *astLoadKeyMap_( void *mem, size_t size, AstKeyMapVtab *vtab,
                wlist = astFree( wlist );
             }
 
+/* Do the same for 64 bit int values. */
+         } else if( type == AST__KINTTYPE ) {
+            if( nel == 0 ) {
+               (void) sprintf( buff, "val%d", nentry );
+               kval = astReadInt64( channel, buff, 0 );
+               MapPut0K( new, key, kval, com, status );
+            } else {
+               klist = astMalloc( sizeof(int64_t)*nel );
+               for( index = 0; astOK && index < nel; index++ ) {
+                  (void) sprintf( buff, "v%d_%d", nentry, index + 1 );
+                  klist[ index ] = astReadInt64( channel, buff, 0 );
+               }
+               MapPut1K( new, key, nel, klist, com, status );
+               klist = astFree( klist );
+            }
+
 /* Do the same for byte values. */
          } else if( type == AST__BYTETYPE ) {
             if( nel == 0 ) {
@@ -10936,6 +11218,7 @@ void astMapPut0##X##_( AstKeyMap *this, const char *key, Xtype value, \
 MAKE_MAPPUT0_(D,double)
 MAKE_MAPPUT0_(F,float)
 MAKE_MAPPUT0_(I,int)
+MAKE_MAPPUT0_(K,int64_t)
 MAKE_MAPPUT0_(C,const char *)
 MAKE_MAPPUT0_(A,AstObject *)
 MAKE_MAPPUT0_(P,void *)
@@ -10956,6 +11239,7 @@ MAKE_MAPPUT1_(B,const unsigned char)
 MAKE_MAPPUT1_(D,const double)
 MAKE_MAPPUT1_(F,const float)
 MAKE_MAPPUT1_(I,const int)
+MAKE_MAPPUT1_(K,const int64_t)
 MAKE_MAPPUT1_(C,const char *const)
 MAKE_MAPPUT1_(A,AstObject *const)
 MAKE_MAPPUT1_(P,void *const)
@@ -10971,6 +11255,7 @@ MAKE_MAPGET0_(S,short int)
 MAKE_MAPGET0_(B,unsigned char)
 MAKE_MAPGET0_(F,float)
 MAKE_MAPGET0_(I,int)
+MAKE_MAPGET0_(K,int64_t)
 MAKE_MAPGET0_(C,const char *)
 MAKE_MAPGET0_(A,AstObject *)
 MAKE_MAPGET0_(P,void *)
@@ -10994,6 +11279,7 @@ MAKE_MAPGET1_(S,short int)
 MAKE_MAPGET1_(D,double)
 MAKE_MAPGET1_(F,float)
 MAKE_MAPGET1_(I,int)
+MAKE_MAPGET1_(K,int64_t)
 MAKE_MAPGET1_(A,AstObject *)
 MAKE_MAPGET1_(P,void *)
 #undef MAKE_MAPGET1_
@@ -11009,6 +11295,7 @@ MAKE_MAPGETELEM_(S,short int)
 MAKE_MAPGETELEM_(D,double)
 MAKE_MAPGETELEM_(F,float)
 MAKE_MAPGETELEM_(I,int)
+MAKE_MAPGETELEM_(K,int64_t)
 MAKE_MAPGETELEM_(A,AstObject *)
 MAKE_MAPGETELEM_(P,void *)
 #undef MAKE_MAPGETELEM_
@@ -11036,6 +11323,7 @@ MAKE_MAPPUTELEM_(S,short int)
 MAKE_MAPPUTELEM_(D,double)
 MAKE_MAPPUTELEM_(F,float)
 MAKE_MAPPUTELEM_(I,int)
+MAKE_MAPPUTELEM_(K,int64_t)
 MAKE_MAPPUTELEM_(A,AstObject *)
 MAKE_MAPPUTELEM_(C,const char *)
 MAKE_MAPPUTELEM_(P,void *)

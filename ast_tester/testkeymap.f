@@ -1,13 +1,17 @@
       program testkeymap
       implicit none
+
       include 'AST_PAR'
       include 'AST_ERR'
       include 'SAE_PAR'
+      include 'PRM_PAR'
+
       integer status,map,map2,ival,aval,l,ivec(2),avec(4),nval,i,iat,
      :        map1, map3, km2
+      integer*8 kvec(4), kval
       character cval*20,cvec(3)*10,key*20,cval0*40
       double precision dval, dvec(2)
-      logical gota, gotc, gotd, goti, gotr, gotw, lval
+      logical gota, gotc, gotd, goti, gotr, gotw, lval, gotk
       real rval
       integer*2 sval,svec(2)
 
@@ -24,6 +28,7 @@ c      call ast_watchmemory( 29286 )
 
       call ast_MapPut0s( map, 'Freds', 1999, 'com 1', status )
       call ast_MapPut0i( map, 'Fredi', 1999, 'com 1', status )
+      call ast_MapPut0k( map, 'Fredk', 1999_8, 'com 1', status )
       call ast_MapPut0d( map, 'Fredd', 1999.9D0, 'com2 ', status )
       call ast_MapPut0r( map, 'Fredr', 1999.9, 'com2 ', status )
       call ast_MapPut0c( map, 'Fredc', 'Hello', ' ', status )
@@ -84,12 +89,13 @@ c      call ast_watchmemory( 29286 )
       map2 = ast_copy( map, status )
 
 
-      if( ast_mapsize( map2, status ) .ne. 6 ) then
+      if( ast_mapsize( map2, status ) .ne. 7 ) then
          write(*,*) ast_mapsize( map2, status )
          call stopit( status, 'Error 0' )
       end if
 
       goti = .false.
+      gotk = .false.
       gotd = .false.
       gotr = .false.
       gotc = .false.
@@ -110,6 +116,8 @@ c      call ast_watchmemory( 29286 )
             gotc = .true.
          else if( .not. gota .and. key .eq. 'Freda' ) then
             gota = .true.
+         else if( .not. gotk .and. key .eq. 'Fredk' ) then
+            gotk = .true.
          else
             call stopit( status, 'Error badkey' )
          endif
@@ -130,6 +138,13 @@ c      call ast_watchmemory( 29286 )
       else if( ival .ne. 1999 ) then
          write(*,*) ival
          call stopit( status, 'Error 2' )
+      end if
+
+      if( .not. ast_mapget0k( map2, 'Fredk', kval, status ) ) then
+         call stopit( status, 'Error 1k' )
+      else if( kval .ne. 1999 ) then
+         write(*,*) kval
+         call stopit( status, 'Error 2k' )
       end if
 
       if( .not. ast_mapget0s( map2, 'Freds', sval, status ) ) then
@@ -207,6 +222,13 @@ c      call ast_watchmemory( 29286 )
       else if( ival .ne. 2000.0 ) then
          write(*,*) ival
          call stopit( status, 'Error 15' )
+      end if
+
+      if( .not. ast_mapget0k( map2, 'Fredd', kval, status ) ) then
+         call stopit( status, 'Error 14k' )
+      else if( kval .ne. 2000.0 ) then
+         write(*,*) kval
+         call stopit( status, 'Error 15k' )
       end if
 
       if( .not. ast_mapget0s( map2, 'Fredd', sval, status ) ) then
@@ -326,6 +348,13 @@ c      call ast_watchmemory( 29286 )
          call stopit( status, 'Error A2' )
       end if
 
+      if( .not. ast_mapget0k( map2, 'Fredk', kval, status ) ) then
+         call stopit( status, 'Error A1k' )
+      else if( kval .ne. 1999 ) then
+         write(*,*) kval
+         call stopit( status, 'Error A2k' )
+      end if
+
       if( .not. ast_mapget0d( map2, 'Fredd', dval, status ) ) then
          call stopit( status, 'Error A3' )
       else if( dval .ne. 1999.9D0 ) then
@@ -371,6 +400,13 @@ c      call ast_watchmemory( 29286 )
       else if( ival .ne. 2000.0 ) then
          write(*,*) ival
          call stopit( status, 'Error A15' )
+      end if
+
+      if( .not. ast_mapget0k( map2, 'Fredd', kval, status ) ) then
+         call stopit( status, 'Error A14k' )
+      else if( kval .ne. 2000.0 ) then
+         write(*,*) kval
+         call stopit( status, 'Error A15k' )
       end if
 
       if( .not. ast_mapget0c( map2, 'Fredd', cval, l, status ) ) then
@@ -510,12 +546,23 @@ c  Read single elements of vector entries as scalars.
 
       map = ast_keymap( ' ', status )
 
-      do i = 1, 500
+      do i = 1, 200
          key = 'Fred'
          iat = 4
          call chr_puti( i, key, iat )
          call ast_MapPut0i( map, key, i, ' ', status )
       end do
+
+      do i = 201, 499
+         key = 'Fred'
+         iat = 4
+         call chr_puti( i, key, iat )
+         call ast_MapPut0k( map, key, int(i,8), ' ', status )
+      end do
+
+      kval = VAL__MAXI
+      kval = 100*kval
+      call ast_MapPut0k( map, 'Fred500', kval, ' ', status )
 
       if( ast_mapsize( map, status ) .ne. 500 ) then
          call stopit( status, 'Error d1 ' )
@@ -525,10 +572,21 @@ c  Read single elements of vector entries as scalars.
          call stopit( status, 'Error d2 ' )
       end if
 
-      if( .not. ast_mapget0c( map, 'Fred489', cval, l, status ) ) then
-         call stopit( status, 'Error d2 ' )
-      else if( cval( : l ) .ne. '489' ) then
+      if( ast_maptype( map, 'Fred234', status ) .ne.
+     :                                              AST__KINTTYPE ) then
          call stopit( status, 'Error d3 ' )
+      end if
+
+      if( .not. ast_mapget0c( map, 'Fred489', cval, l, status ) ) then
+         call stopit( status, 'Error d4 ' )
+      else if( cval( : l ) .ne. '489' ) then
+         call stopit( status, 'Error d5 ' )
+      end if
+
+      if( .not. ast_mapget0k( map, 'Fred500', kval, status ) ) then
+         call stopit( status, 'Error d6 ' )
+      else if( kval/100 .ne. VAL__MAXI ) then
+         call stopit( status, 'Error d7 ' )
       end if
 
       call checkDump( map, 'checkDump 2 ', status )
@@ -689,7 +747,7 @@ C  Test ast_mapcopy
 
       call ast_mapput0i( map1, 'a1', 1, ' ', status )
       call ast_mapput0i( map1, 'a2', 2, ' ', status )
-      call ast_mapput0i( map1, 'a3', 3, ' ', status )
+      call ast_mapput0k( map1, 'a3', 3_8, ' ', status )
 
       call ast_mapput0c( map, 'aa1', 'Yes', ' ', status )
       call ast_mapput0i( map, 'aa2', 2, ' ', status )
@@ -744,10 +802,10 @@ C  Test ast_mapcopy
             call stopit( status, 'Error MAPCOPY_10' )
          end if
 
-         if( .not. ast_mapget0i( aval, 'a3', ival, status ) ) then
+         if( .not. ast_mapget0k( aval, 'a3', kval, status ) ) then
             call stopit( status, 'Error MAPCOPY_11' )
-         else if( ival .ne. 3 ) then
-            write(*,*) ival
+         else if( kval .ne. 3_8 ) then
+            write(*,*) kval
             call stopit( status, 'Error MAPCOPY_12' )
          end if
       end if
@@ -1031,6 +1089,73 @@ C  Test ast_mapcopyentry
       end if
 
       call ast_annul( map, status )
+
+
+
+
+      map = ast_keymap( ' ', status )
+      call ast_mapput0d( map, 'asa', 0.0D0, ' ', status )
+      call ast_mapput0r( map, 'asar', 1.0, ' ', status )
+      call ast_mapput0i( map, 'dfdfd', 1, ' ', status )
+
+      kvec(1) = -VAL__MAXI
+      kvec(2) = 10_8*VAL__MINI
+      call ast_mapput1k( map, 'AAA', 2, kvec, 'com 1', STATUS )
+      call ast_mapputelemi( map, 'AAA', -1, 1, status );
+      call ast_mapputelemk( map, 'AAA', -1, 1_8, status );
+      if( ast_maplength( map, 'AAA', status ) .ne. 4 ) then
+         call stopit( status, 'Error I8_1' )
+      end if
+
+      call ast_mapput0c( map, 'bb1', 'No', ' ', status )
+
+      call ast_show( map, status )
+
+
+      if( .not. ast_mapgetelemk( map, 'AAA', 2, kval, status ) ) then
+         call stopit( status, 'Error I8_2' )
+      else if( kval .ne. 10_8*VAL__MINI ) then
+         write(*,*) kval
+         call stopit( status, 'Error I8_3' )
+      end if
+
+      if( .not. ast_mapget1k( map, 'AAA', 4, nval, kvec, status ) ) then
+         call stopit( status, 'Error I8_4' )
+      else if( nval .ne. 4 ) then
+         write(*,*) nval
+         call stopit( status, 'Error I8_5' )
+      else if( kvec(1) .ne. -VAL__MAXI ) then
+         write(*,*) kvec(1)
+         call stopit( status, 'Error I8_6' )
+      else if( kvec(2) .ne. 10_8*VAL__MINI ) then
+         write(*,*) kvec(2)
+         call stopit( status, 'Error I8_6' )
+      else if( kvec(3) .ne. 1 ) then
+         write(*,*) kvec(3)
+         call stopit( status, 'Error I8_6' )
+      else if( kvec(4) .ne. 1_8) then
+         write(*,*) kvec(4)
+         call stopit( status, 'Error I8_6' )
+      end if
+
+      call ast_annul( map, status )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
       call ast_end( status )
 
