@@ -198,6 +198,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *         Added astMapGetC.
 *     12-JUN-2020 (DSB):
 *         Added astMapCopyEntry.
+*     5-OCT-2020 (DSB):
+*         Move definition of string used to represent AST__BAD values from here
+*         (BAD_STRING) to keymap.h (AST__BAD_STRING) so that it can be used in 
+*         other classes.
 *class--
 */
 
@@ -214,9 +218,6 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 /* The maximum number of entries per element of the hash table. If this
    value is exceeded the hash table will be doubled in size. */
 #define MAX_ENTRIES_PER_TABLE_ENTRY 10
-
-/* String used to represent the formatetd version of AST__BAD. */
-#define BAD_STRING "<bad>"
 
 /* Integer values to represent the different values of the SortBy attribute. */
 #define SORTBY_NONE 0
@@ -1965,7 +1966,7 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
             }
             cvalue = convertvalue_buff;
          } else {
-            cvalue = BAD_STRING;
+            cvalue = AST__BAD_STRING;
          }
 
 /* Consider conversion to "AstObject *". */
@@ -2104,8 +2105,7 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 /* Consider conversion to "double". */
       } else if( out_type == AST__DOUBLETYPE ) {
          nc = 0;
-         nval = astSscanf( cval, " " BAD_STRING " %n", &nc );
-         if( ( astSscanf( cval, " " BAD_STRING " %n", &nc ) == 0 ) &&
+         if( ( astSscanf( cval, " " AST__BAD_STRING " %n", &nc ) == 0 ) &&
              ( nc >= (int) strlen( cval ) ) ) {
             if( out ) *( (double *) out ) = AST__BAD;
 

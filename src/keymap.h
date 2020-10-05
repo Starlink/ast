@@ -70,6 +70,10 @@
 
 /* Macros */
 /* ====== */
+
+/* String used to represent the formatetd version of AST__BAD. */
+#define AST__BAD_STRING "<bad>"
+
 /* Data type constants: */
 #define AST__BADTYPE 0
 #define AST__INTTYPE 1
