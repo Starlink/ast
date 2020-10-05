@@ -1109,9 +1109,6 @@ C  Test ast_mapcopyentry
 
       call ast_mapput0c( map, 'bb1', 'No', ' ', status )
 
-      call ast_show( map, status )
-
-
       if( .not. ast_mapgetelemk( map, 'AAA', 2, kval, status ) ) then
          call stopit( status, 'Error I8_2' )
       else if( kval .ne. 10_8*VAL__MINI ) then

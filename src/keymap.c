@@ -199,9 +199,24 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *     12-JUN-2020 (DSB):
 *         Added astMapCopyEntry.
 *     5-OCT-2020 (DSB):
-*         Move definition of string used to represent AST__BAD values from here
-*         (BAD_STRING) to keymap.h (AST__BAD_STRING) so that it can be used in 
+*         - Move definition of string used to represent AST__BAD values from here
+*         (BAD_STRING) to keymap.h (AST__BAD_STRING) so that it can be used in
 *         other classes.
+*         - Conversion of double to string now uses AST__DBL_DIG decimal places rather
+*         than DBL_DIG. This typically gives two extra decimal places. This brings the
+*         formatting done within the KeyMap class into line with the formatting done
+*         in the Channel class.
+<<<<<<< HEAD
+=======
+*         - The astShow and astWrite methods can now be used on KeyMaps that contain
+*         "void pointer" entries. The value shown is the haxadecimal address represented
+*         by the pointer and thus will be of little value outside the running application.
+*         - A context message including the key name is now reported if an error occurs
+*         when freeing a keymap entry.
+*         - Fix a bug in astMapKey that caused a good key to be returned even if the supplied
+*         index was higher than the number of entries in the keymap.
+
+>>>>>>> 8af8e2d... wip
 *class--
 */
 
@@ -1955,14 +1970,14 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
          if( out ) *( (float *) out ) = (float) dval;
 
 /* Consider conversion to "const char *". If reducing the number of
-   decimal places by two produces a saving of 10 or more characters,
+   decimal places by three produces a saving of 10 or more characters,
    assume the least significant two characters are rounding error. */
       } else if( out_type == AST__STRINGTYPE ) {
          if( dval != AST__BAD ) {
-            n1 = sprintf( convertvalue_buff, "%.*g", DBL_DIG - 2, dval );
-            n2 = sprintf( convertvalue_buff, "%.*g", DBL_DIG, dval );
+            n1 = sprintf( convertvalue_buff, "%.*g", AST__DBL_DIG - 3, dval );
+            n2 = sprintf( convertvalue_buff, "%.*g", AST__DBL_DIG, dval );
             if( n2 - n1 > 9 ) {
-               (void) sprintf( convertvalue_buff, "%.*g", DBL_DIG - 2, dval );
+               (void) sprintf( convertvalue_buff, "%.*g", AST__DBL_DIG - 3, dval );
             }
             cvalue = convertvalue_buff;
          } else {
