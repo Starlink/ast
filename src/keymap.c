@@ -2974,6 +2974,7 @@ static AstMapEntry *FreeMapEntry( AstMapEntry *in, int *status ){
    const char **slist;    /* Pointer to list of text pointers */
    int i;                 /* Loop count */
    int nel;               /* No. of values in entry vector (0 => scalar) */
+   int old_status;        /* Status value on entry */
    int type;              /* Entry data type */
 
 /* Check the supplied pointer. */
@@ -2982,6 +2983,9 @@ static AstMapEntry *FreeMapEntry( AstMapEntry *in, int *status ){
 /* Get the data type and length of the MapEntry. */
    nel = in->nel;
    type = in->type;
+
+/* Record the current status */
+   old_status = astStatus;
 
 /* First deal with string entries. */
    if( type == AST__STRINGTYPE ) {
@@ -3065,10 +3069,16 @@ static AstMapEntry *FreeMapEntry( AstMapEntry *in, int *status ){
    in->next = NULL;
    in->snext = NULL;
    in->sprev = NULL;
-   in->key = astFree( (void *) in->key );
    in->comment = astFree( (void *) in->comment );
 
-/* Free the complete AstMapEntry structure. */
+/* If an error has occurred in this function, issue a context message. */
+   if( !astOK && old_status == 0 ) {
+      astError( astStatus, "astDelete(KeyMap): Error freeing KeyMap entry '%s'.",
+                status, in->key );
+   }
+
+/* Now free the key and then free the complete AstMapEntry structure. */
+   in->key = astFree( (void *) in->key );
    astFree( in );
 
 /* Return a NULL pointer. */
