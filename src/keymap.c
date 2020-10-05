@@ -206,8 +206,6 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *         than DBL_DIG. This typically gives two extra decimal places. This brings the
 *         formatting done within the KeyMap class into line with the formatting done
 *         in the Channel class.
-<<<<<<< HEAD
-=======
 *         - The astShow and astWrite methods can now be used on KeyMaps that contain
 *         "void pointer" entries. The value shown is the haxadecimal address represented
 *         by the pointer and thus will be of little value outside the running application.
@@ -215,8 +213,6 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *         when freeing a keymap entry.
 *         - Fix a bug in astMapKey that caused a good key to be returned even if the supplied
 *         index was higher than the number of entries in the keymap.
-
->>>>>>> 8af8e2d... wip
 *class--
 */
 
@@ -2715,6 +2711,7 @@ static void DumpEntry( AstMapEntry *entry, AstChannel *channel, int nentry, int 
 
 /* Local Variables: */
    char buff[20];                /* Buffer for item names */
+   char pbuff[100];              /* Buffer for pointer values */
    const char *com;              /* Pointer to comment string */
    int index;                    /* Index into vector valued entry */
    int nel;                      /* Number of elements in value */
@@ -2905,9 +2902,19 @@ static void DumpEntry( AstMapEntry *entry, AstChannel *channel, int nentry, int 
 
 /* Void pointer values cannot be dumped. */
    } else if( type == AST__POINTERTYPE ) {
-      astError( AST__INTER, "DumpEntry(KeyMap): Cannot dump KeyMaps in "
-                "which the values are arbitrary C pointers (possible "
-                "programming error)." , status);
+      if( entry->nel == 0 ) {
+         (void) sprintf( buff, "Val%d", nentry );
+         (void) sprintf( pbuff, "%p", ((Entry0P *)entry)->value );
+         astWriteString( channel, buff, 1, 1, pbuff, "Item value" );
+      } else {
+         com = "Item values";
+         for( index = 0; index < nel; index++ ){
+            (void) sprintf( buff, "V%d_%d", nentry, index + 1 );
+            (void) sprintf( pbuff, "%p", ((Entry1P *)entry)->value[ index ]);
+            astWriteString( channel, buff, 1, 1, pbuff, com );
+            com = "";
+         }
+      }
 
 /* Nothing further to do for undefined values. */
    } else if( type == AST__UNDEFTYPE ) {
