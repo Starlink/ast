@@ -88,6 +88,8 @@ f     The YamlChan class does not define any new routines beyond those
 *  History:
 *     30-APR-2020 (DSB):
 *        Original version.
+*     5-OCT-2020 (DSB):
+*        Add a NAITVE encoding option (see YamlEncoding attribute).
 *class--
 */
 
@@ -107,8 +109,14 @@ f     The YamlChan class does not define any new routines beyond those
 /* YAML tag prefix for all ASDF and gWCS objects */
 #define STSCI_TAG "tag:stsci.edu:"
 
-/* YAML tag prefix for all ASDF objects */
+/* YAML tag prefix for all AST-encoded objects */
+#define STARLINK_TAG "tag:starlink.ac.uk:"
+
+/* YAML tag prefix for all ASDF-encoded objects */
 #define ASDF_TAG STSCI_TAG"asdf/"
+
+/* YAML tag prefix for all AST-encoded objects */
+#define AST_TAG STARLINK_TAG"ast/"
 
 /* YAML tag prefix for all gWCS objects */
 #define GWCS_TAG STSCI_TAG"gwcs/"
@@ -161,9 +169,11 @@ f     The YamlChan class does not define any new routines beyond those
 /* Encodings */
 #define UNKNOWN_ENCODING  -1
 #define ASDF_ENCODING     0
-#define MAX_ENCODING      0
+#define NATIVE_ENCODING   1
+#define MAX_ENCODING      1
 #define UNKNOWN_STRING    "UNKNOWN"
 #define ASDF_STRING       "ASDF"
+#define NATIVE_STRING     "NATIVE"
 
 /* Value for proxy pointer used to indicate that the inverse transform of a
    Mapping should not be used. */
@@ -176,6 +186,7 @@ f     The YamlChan class does not define any new routines beyond those
                          Method );
 
 /* Emit a YAML event and report an error if it fails. */
+#if defined( YAML )
 static int TraceOutput = 0;
 static int nest_depth = 0;
 static int nest_type[ 100 ];
@@ -219,7 +230,7 @@ static int nest_type[ 100 ];
                 "%s", status, astGetClass( this ), YamlEventType(event) ); \
       LibYamlEmitterError( emitter, status ); \
    }
-
+#endif
 
 /* Include files. */
 /* ============== */
@@ -287,6 +298,7 @@ static void (* parent_clearattrib)( AstObject *, const char *, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
 static int (* parent_getindent)( AstChannel *, int * );
 static void (* parent_setindent)( AstChannel *, int, int * );
+static AstObject *(* parent_read)( AstChannel *, int * );
 
 /* Text values used to represent YamlEncoding values externally. These
    should be in the order defined by the associated constants above. */
@@ -361,6 +373,7 @@ AstYamlChan *astYamlChanId_( const char *(* source)( void ),
 
 static AstFrame *ReadFrame( AstKeyMap *, int, AstMapping **, int *status );
 static AstFrameSet *ReadWcs( AstYamlChan *, AstKeyMap *, int * );
+static AstObject *ReadNative( AstYamlChan *, AstKeyMap *, int * );
 static AstKeyMap *AddR2D( AstYamlChan *, AstKeyMap **, int, int, int, int * );
 static AstKeyMap *Get0A( AstKeyMap *, const char *, int, AstKeyMap *, const char *, int * );
 static AstKeyMap *IsAsdfTransform( AstYamlChan *, AstCmpMap *, AstObject *, const char *, AstCmpMap **, int * );
@@ -430,6 +443,7 @@ static char *Get1C( AstKeyMap *, const char *, int, int, const char **, int *, i
 static const char *FmtDouble( double, size_t, char * );
 static const char *Get0C( AstKeyMap *, const char *, int, const char *, int * );
 static const char *GetAsdfClass( AstKeyMap *, int * );
+static const char *GetNativeClass( AstKeyMap *, int * );
 static const char *GetName( AstYamlChan *, const char *, AstMapping *, int * );
 static const char *YamlEventType( yaml_event_t );
 static double *GetQuantityV( AstYamlChan *, AstKeyMap *, const char *, const char *, int, int, int *, int *,  int * );
@@ -451,11 +465,13 @@ static int LibYamlReader( void *, yaml_char_t *, size_t, size_t * );
 static int LibYamlWriter( void *, yaml_char_t *, long unsigned int );
 static int ReadBaseFrame( AstKeyMap *, AstSkyFrame *, int * );
 static int SimplifyAsdf( AstYamlChan *, AstKeyMap **, int *);
+static int Use( AstYamlChan *, int, int, int * );
 static void Deuler( const char *, double *, double[3][3], int * );
 static void ExpandAsdf( AstYamlChan *, AstKeyMap *, int, int *, AstKeyMap ***, int * );
 static void GetUCD( int, const char **, const char ** );
 static void LibYamlEmitterError( yaml_emitter_t *, int * );
 static void LibYamlParserError( yaml_parser_t *, int * );
+static void PutIntoKeyMap( AstKeyMap *, const char *, int, void *, int * );
 static void ReadEarthLocation( AstKeyMap *, AstFrame *, int * );
 static void ReadStep( AstYamlChan *, AstKeyMap *, int, AstMapping **, AstFrame **, AstMapping **, int * );
 static void ReadYAMLAlias( AstYamlChan *, AstKeyMap *, const char *, const char *, int * );
@@ -463,6 +479,8 @@ static void ReadYAMLEvent( AstYamlChan *, yaml_parser_t *, yaml_event_t *, AstKe
 static void ReadYAMLItem( AstYamlChan *, yaml_parser_t *, AstKeyMap *, const char *, int * );
 static void ReadYAMLSequence( AstYamlChan *, AstKeyMap *, const char *, yaml_parser_t *, int * );
 static void SetNotAsdf( AstCmpMap *, int * );
+static void EndYamlDoc( AstYamlChan *, yaml_emitter_t *, int * );
+static void StartYamlDoc( AstYamlChan *, yaml_emitter_t *, int * );
 static void StartYamlMapping( AstYamlChan *, const char *, const char *, yaml_emitter_t *, int * );
 static void Store0C( AstYamlChan *, const char *, int, AstKeyMap *, const char *, const char *, int * );
 static void Store0D( AstYamlChan *, const char *, AstKeyMap *, double, int * );
@@ -470,15 +488,26 @@ static void Store0I( AstYamlChan *, const char *, AstKeyMap *, int, int * );
 static void Store1C( AstYamlChan *, const char *, int, AstKeyMap *, int, const char *[], const char *, int * );
 static void Store1D( AstYamlChan *, const char *, AstKeyMap *, int, const double *, int * );
 static void Store1I( AstYamlChan *, const char *, AstKeyMap *, int, const int *, int * );
-static void StoreYaml0C( AstYamlChan *, const char *, int, yaml_emitter_t *, const char *, const char *, int * );
-static void StoreYaml0D( AstYamlChan *, const char *, yaml_emitter_t *, double, int * );
-static void StoreYaml0I( AstYamlChan *, const char *, yaml_emitter_t *, int, int * );
+static void StoreAnchor( AstYamlChan *, const char *, AstKeyMap *, const char *, int * );
+static void StoreYaml0C( AstYamlChan *, const char *, int, yaml_emitter_t *, int, const char *, const char *, int * );
+static void StoreYaml0D( AstYamlChan *, const char *, yaml_emitter_t *, int, double, int * );
+static void StoreYaml0I( AstYamlChan *, const char *, yaml_emitter_t *, int, int, int * );
+static void StoreYaml0K( AstYamlChan *, const char *, yaml_emitter_t *, int, int64_t, int * );
 static void StoreYaml1C( AstYamlChan *, const char *, int, yaml_emitter_t *, int, const char *[], const char *, int * );
 static void StoreYaml1D( AstYamlChan *, const char *, yaml_emitter_t *, int, const double *, int * );
 static void StoreYaml1I( AstYamlChan *, const char *, yaml_emitter_t *, int, const int *, int * );
 static void WriteValues( AstYamlChan *, const char *key, AstKeyMap *, int * );
 static void WriteYamlEntry( AstYamlChan *, AstKeyMap *, const char *, const char *, const char *, yaml_emitter_t *, int * );
 static void WriteYamlObject( AstYamlChan *, const char *, AstKeyMap *, yaml_emitter_t *, int * );
+static void WriteBegin( AstChannel *, const char *, const char *, int * );
+static void WriteDouble( AstChannel *, const char *, int, int, double, const char *, int * );
+static void WriteEnd( AstChannel *, const char *, int * );
+static void WriteInt( AstChannel *, const char *, int, int, int, const char *, int * );
+static void WriteInt64( AstChannel *, const char *, int, int, int64_t, const char *, int * );
+static void WriteIsA( AstChannel *, const char *, const char *, int * );
+static void WriteObject( AstChannel *, const char *, int, int, AstObject *, const char *, int * );
+static void WriteString( AstChannel *, const char *, int, int, const char *, const char *, int * );
+static void GetNextData( AstChannel *, int, char **, char **, int * );
 
 /* Prototypes for ASDF class testing functions. */
 #define MAKE_PROTO(Class) static int IsA##Class( const char *class, int *status );
@@ -570,7 +599,6 @@ static void Dump( AstObject *, AstChannel *, int * );
 static void SetAttrib( AstObject *, const char *, int * );
 static void SetIndent( AstChannel *, int, int * );
 static void SinkWrap( void (*)( const char * ), const char *, int * );
-static void StoreAnchor( AstYamlChan *, const char *, AstKeyMap *, const char *, int * );
 
 static int GetVerboseRead( AstYamlChan *, int * );
 static int TestVerboseRead( AstYamlChan *, int * );
@@ -586,6 +614,7 @@ static void ClearYamlEncoding( AstYamlChan *, int * );
 static int GetYamlEncoding( AstYamlChan *, int * );
 static int TestYamlEncoding( AstYamlChan *, int * );
 static void SetYamlEncoding( AstYamlChan *, int, int * );
+
 
 /* Member functions that are available even if libyaml is not available. */
 /* ===================================================================== */
@@ -825,6 +854,8 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
       if ( astOK ) {
          if( ival == ASDF_ENCODING ){
             result = ASDF_STRING;
+         } else if( ival == NATIVE_ENCODING ){
+            result = NATIVE_STRING;
          } else {
             result = UNKNOWN_STRING;
          }
@@ -878,71 +909,6 @@ static int GetIndent( AstChannel *this, int *status ) {
 /* If the attribute is set, return its value. Otherwise return a value of
    two. */
    return astTestIndent( this ) ? (*parent_getindent)( this, status ) : 2;
-}
-
-static void GetUCD( int system, const char **lon_ucd, const char **lat_ucd ){
-/*
-*  Name:
-*     GetUCD
-
-*  Purpose:
-*     Get the UCD1+ values corresponding to a given AST celestial system.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "Yamlchan.h"
-*     void GetUCD( int system, const char **lon_ucd, const char **lat_ucd )
-
-*  Description:
-*     This function returns a pair of strings holding the UCD1+ value
-*     corresponding to longitude and latitude in the supplied AST system.
-
-*  Parameters:
-*     system
-*        An integer value for the AST SkyFrame System attribute.
-*     lon_ucd
-*        Address at which to return a pointer to a string holding the
-*        UCD1+ string for longitude in the supplied system. Returned set
-*        to NULL if the supplied system is unknown or has no known UCD.
-*     lat_ucd
-*        Address at which to return a pointer to a string holding the
-*        UCD1+ string for latitude in the supplied system. Returned set
-*        to NULL if the supplied system is unknown or has no known UCD.
-
-*/
-
-/* Get the expected UCD strings. */
-   if( system == AST__ICRS ||
-       system == AST__FK4 ||
-       system == AST__FK4_NO_E ||
-       system == AST__FK5 ||
-       system == AST__GAPPT ||
-       system == AST__J2000 ){
-      *lat_ucd = "pos.eq.dec";
-      *lon_ucd = "pos.eq.ra";
-
-   } else if( system == AST__ECLIPTIC ){
-      *lat_ucd = "pos.ecliptic.lat";
-      *lon_ucd = "pos.ecliptic.lon";
-
-   } else if( system == AST__GALACTIC ){
-      *lat_ucd = "pos.galactic.lat";
-      *lon_ucd = "pos.galactic.lon";
-
-   } else if( system == AST__SUPERGALACTIC ){
-      *lat_ucd = "pos.supergalactic.lat";
-      *lon_ucd = "pos.supergalactic.lon";
-
-   } else if( system == AST__AZEL ){
-      *lat_ucd = "pos.az.alt";
-      *lon_ucd = "pos.az.azi";
-
-   } else {
-      *lon_ucd = NULL;
-      *lat_ucd = NULL;
-   }
 }
 
 void astInitYamlChanVtab_(  AstYamlChanVtab *vtab, const char *name, int *status ) {
@@ -1021,7 +987,20 @@ void astInitYamlChanVtab_(  AstYamlChanVtab *vtab, const char *name, int *status
    object->TestAttrib = TestAttrib;
 
    channel->Write = Write;
+   parent_read = channel->Read;
    channel->Read = Read;
+
+#if defined( YAML )
+   channel->GetNextData = GetNextData;
+   channel->WriteBegin = WriteBegin;
+   channel->WriteIsA = WriteIsA;
+   channel->WriteEnd = WriteEnd;
+   channel->WriteInt = WriteInt;
+   channel->WriteInt64 = WriteInt64;
+   channel->WriteDouble = WriteDouble;
+   channel->WriteString = WriteString;
+   channel->WriteObject = WriteObject;
+#endif
 
    parent_getindent = channel->GetIndent;
    channel->GetIndent = GetIndent;
@@ -1111,6 +1090,11 @@ static AstObject *Read( AstChannel *this_channel, int *status ) {
 /* Obtain a pointer to the YamlChan structure. */
    this = (AstYamlChan *) this_channel;
 
+/* If this function has been called to read an object embedded within a
+   higher level object which is already being read from a YamlChan, just use
+   the parent Read method. */
+   if( this->obj ) return (*parent_read)( (AstChannel *) this, status );
+
 /* Create the KeyMap holding definitions for YAML anchors. Delete any
    pre-existing KeyMap first. */
    if( this->anchors ) this->anchors = astAnnul( this->anchors );
@@ -1118,6 +1102,9 @@ static AstObject *Read( AstChannel *this_channel, int *status ) {
 
 /* Indicate we have not yet read a complete WCS object. */
    this->gotwcs = 0;
+
+/* Indicate we have not yet determined the default yaml encoding. */
+   this->defenc = UNKNOWN_ENCODING;
 
 /* Initialize a libyaml parser */
    if( !yaml_parser_initialize( &parser ) ){
@@ -1130,7 +1117,9 @@ static AstObject *Read( AstChannel *this_channel, int *status ) {
       yaml_parser_set_input( &parser, LibYamlReader, this );
 
 /* Read the YAML object from the external source, parse it, and
-   create a KeyMap containing the parsed values. */
+   create a KeyMap containing the parsed values. This will set the
+   default yaml encoding on the basis of the tags found in the
+   supplied yaml. */
       values = ReadValues( this, &parser, status );
 
 /* Delete the parser. */
@@ -1235,6 +1224,9 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 
       if( !Ustrncmp( setting + ival, ASDF_STRING, nc, status ) ){
          astSetYamlEncoding( this, ASDF_ENCODING );
+
+      } else if( !Ustrncmp( setting + ival, NATIVE_STRING, nc, status ) ){
+         astSetYamlEncoding( this, NATIVE_ENCODING );
 
       } else {
          astError( AST__BADAT, "astSet(%s): Unknown YAML encoding '%s' "
@@ -1692,7 +1684,10 @@ static int Write( AstChannel *this_channel, AstObject *obj, int *status ) {
    AstKeyMap *km;
    AstYamlChan *this;
    const char *key;
+   int enc;
    int ret;
+   yaml_emitter_t *emitter;
+   yaml_event_t event;
 
 /* Initialise. */
    ret = 0;
@@ -1700,55 +1695,88 @@ static int Write( AstChannel *this_channel, AstObject *obj, int *status ) {
 /* Check the global error status. */
    if ( !astOK ) return ret;
 
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* Get the encoding to use. */
+   enc = astGetYamlEncoding( this );
+
+/* For AST NATIVE encoding... */
+   if( enc == NATIVE_ENCODING ) {
+
+/* Initialise a libyaml emitter (stored in the YamlChan structure so that
+   the astWriteXxx functions can access it), and start a yaml document. */
+      emitter = &(this->emitter_data);
+      StartYamlDoc( this, emitter, status );
+
+/* Start an anonymous yaml mapping to hold a single named item - the top
+   level AST object */
+      StartYamlMapping( this, NULL, NULL, &(this->emitter_data), status );
+
+/* Indicate that the object has set values and so should always be
+   written out (regardless of the value of the YamlChan's "Full" attribute
+   value. */
+      this->objectset = 1;
+
+/* Write out the supplied object. */
+      astDump( obj, this );
+      ret = 1;
+
+/* End the anonymous yaml mapping. */
+      yaml_mapping_end_event_initialize( &event );
+      EMIT
+
+/* End the yaml document and delete the libyaml emitter. */
+      EndYamlDoc( this, emitter, status );
+
+/* For ASDF encoding... */
+   } else if( enc == ASDF_ENCODING ) {
+
 /* Check the supplied object is of a suitable AST class. Since Frames and
    FrameSets are subclasses of Mapping, we can just test that the supplied
    object is a Mapping. */
-   if( astIsAMapping( obj ) ) {
-
-/* Obtain a pointer to the YamlChan structure. */
-      this = (AstYamlChan *) this_channel;
+      if( astIsAMapping( obj ) ) {
 
 /* Convert the AST object to a set of ASDF objects, each stored as a list
    of properties in a KeyMap. Check the AST class in order of decreasing
    specialism (for instance, if we tested for Mappings first we would end
    up writing out Frames and FrameSets as the equivalent Mapping). */
-      if( astIsAFrameSet( obj ) ) {
-         key = "wcs";
-         km = WriteFrameSet( this, (AstFrameSet *) obj, status );
+         if( astIsAFrameSet( obj ) ) {
+            key = "wcs";
+            km = WriteFrameSet( this, (AstFrameSet *) obj, status );
 
-      } else if( astIsAFrame( obj ) ) {
-         key = "frame";
-         km = WriteFrame( this, (AstFrame *) obj, status );
+         } else if( astIsAFrame( obj ) ) {
+            key = "frame";
+            km = WriteFrame( this, (AstFrame *) obj, status );
 
-      } else if( astIsAMapping( obj ) ) {
-         key = "transform";
-         km = WriteMapping( this, (AstMapping *) obj, NULL, NULL, status );
-      }
+         } else if( astIsAMapping( obj ) ) {
+            key = "transform";
+            km = WriteMapping( this, (AstMapping *) obj, NULL, NULL, status );
+         }
 
 /* If the object was written to the KeyMap successfully, write it out as
    YAML through the sink function and then free the KeyMap. */
-      if( km ) {
-         WriteValues( this, key, km, status );
-         km = astAnnul( km );
-         ret = 1;
+         if( km ) {
+            WriteValues( this, key, km, status );
+            km = astAnnul( km );
+            ret = 1;
+         }
+
       }
 
-/* If an error has occurred, return zero. */
-      if( !astOK ) ret = 0;
+/* Unknown encoding */
+   } else if( astOK ) {
+      astError( AST__INTER, "astWrite(YamlChan): Unsupported encoding %d",
+                status, enc );
    }
+
+/* If an error has occurred, return zero. */
+   if( !astOK ) ret = 0;
 
 /* Return the answer. */
    return ret;
 #endif
 }
-
-
-
-
-
-
-
-
 
 /* Member functions that are only available if libyaml is available. */
 /* ================================================================= */
@@ -1951,6 +1979,57 @@ static void Deuler( const char *order, double *angles, double rmat[3][3],
 /* Go to the next position */
       i++;
    }
+}
+
+static void EndYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
+                        int *status ) {
+/*
+*  Name:
+*     EndYamlDoc
+
+*  Purpose:
+*     End a document and delete a yaml emitter.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "Yamlchan.h"
+*     void EndYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
+*                      int *status )
+
+*  Description:
+*     This function
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     emitter
+*        Pointer to the libyaml emitter to be destroyed.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   yaml_event_t event;
+
+/* Create and emit the DOCUMENT-END event. */
+   if( astOK ) {
+      yaml_document_end_event_initialize( &event, 0 );
+      EMIT
+   }
+
+/* Create and emit the STREAM-END event. */
+   if( astOK ) {
+      yaml_stream_end_event_initialize( &event );
+      EMIT
+   }
+
+/* Delete the emitter. */
+   yaml_emitter_delete( emitter );
+
+/* Nullify the emitter pointer in the YamlChan structure. */
+   this->emitter = NULL;
 }
 
 static void ExpandAsdf( AstYamlChan *this, AstKeyMap *km,
@@ -2543,37 +2622,38 @@ static const char *FmtDouble( double dval, size_t buflen, char *buf ) {
 #define EXTRA 8
 
 /* Local Variables: */
-   int ndig;
-   int idig;
+   int nc;
    int n1;
    int n2;
 
-/* If the supplied value was AST__BAD, store 5 asterisks in the returned
-   string (or fewer if the string is too short to hold 5). Also do this
-   if the buffer is too short to hold a full formatted value. */
+/* If the supplied value was AST__BAD, store the value of macro
+   AST__BAD_STRING ("<bad>") in the returned string (truncated if
+   the string is too short to hold it). Also do this if the buffer
+   is too short to hold a full formatted value. */
    if( dval == AST__BAD || buflen < EXTRA + MINDIG ) {
-      ndig = (buflen > 6) ? 5 : buflen - 1;
-      for( idig = 0; idig < ndig; idig++ ) buf[ idig ] = '*';
-      buf[ idig ] = 0;
+      nc = strlen( AST__BAD_STRING );
+      if( nc > buflen - 1 ) nc = buflen - 1;
+      strncpy( buf, AST__BAD_STRING, nc );
+      buf[ nc ] = 0;
 
    } else {
 
 /* Work out the maximum number of sig figs we can fit into the supplied
    buffer. No point in using more than AST__DBL_DIG. */
-      ndig = buflen - EXTRA;
-      if( ndig > AST__DBL_DIG ) ndig = AST__DBL_DIG;
+      nc = buflen - EXTRA;
+      if( nc > AST__DBL_DIG ) nc = AST__DBL_DIG;
 
 /* If reducing the number of sig figs by two produces a saving of 10 or
    more characters, assume the least significant two characters are
    rounding error. Also check for "-0" and change to "0". */
-      n1 = sprintf( buf, "%.*g", ndig - 2, dval );
+      n1 = sprintf( buf, "%.*g", nc - 2, dval );
       if( !strcmp( buf, "-0" ) ) {
          buf[ 0 ] = '0';
          buf[ 1 ] = '\0';
       } else {
-         n2 = sprintf( buf, "%.*g", ndig, dval );
+         n2 = sprintf( buf, "%.*g", nc, dval );
          if( n2 - n1 > 9 ) {
-            sprintf( buf, "%.*g", ndig - 2, dval );
+            sprintf( buf, "%.*g", nc - 2, dval );
          }
       }
    }
@@ -3508,6 +3588,339 @@ static int GetChoice( AstKeyMap *km, const char *name, const char *options,
    return result;
 }
 
+static const char *GetNativeClass( AstKeyMap *km, int *status ){
+/*
+*  Name:
+*     GetNativeClass
+
+*  Purpose:
+*     Get the NATIVE AST class name of the object held in the supplied KeyMap.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     const char *GetNativeClass( AstKeyMap *km, int *status )
+
+*  Class Membership:
+*     YamlChan member function
+
+*  Description:
+*     This function gets the AST class name of the NATIVE object held in
+*     the supplied KeyMap. No error is reported if the KeyMap does not
+*     hold an NATIVE object (but NULL is returned).
+
+*  Parameters:
+*     km
+*        Pointer to the KeyMap.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Pointer to a string identifying the class name (e.g. "FrameSet"),
+*     or NULL if the object is not an AST object. The string to which it
+*     points will not be over-written for a total of 50 successive invocations
+*     of this function. After this, the memory containing the string may be
+*     re-used, so a copy of the string should be made if it is needed for
+*     longer than this. The calling code should never attempt to free the
+*     returned pointer (for instance, using astFree).
+
+*/
+
+/* Local Variables; */
+   const char *result;
+
+/* Initialise */
+   result = NULL;
+
+/* Check inherited status. Also return if an earlier check passed. */
+   if( !astOK ) return result;
+
+/* Get the ASDFclass (used for both ASDF and NATIVE class names) entry from
+   the KeyMap. Report an error if it is not there or if it is blank. */
+   if( !astMapGet0C( km, "ASDFclass", &result ) ) {
+      astError( AST__INTER, "astRead(YamlChan): No ASDFclass found in "
+                "KeyMap (internal AST programming error)", status );
+      result = NULL;
+
+   } else if( !result || astChrLen( result ) == 0 ) {
+      astError( AST__INTER, "astRead(YamlChan): Blank ASDFclass found "
+                "in KeyMap (internal AST programming error)", status );
+      result = NULL;
+
+/* Return a NULL pointer if the  item has no class or is a sequence of
+   potentially disparate objects. */
+   } else if( !strcmp( result, ANON_TYPE ) ||
+              !strcmp( result, SEQ_TYPE ) ) {
+      result = NULL;
+
+/* Skip over the prefix. */
+   } else if( !strncmp( result, AST_TAG, strlen(AST_TAG) ) ) {
+      result += strlen(AST_TAG);
+
+/* Return NULL if it does not start with an appropriate prefix. */
+   } else if( astOK ) {
+      result = NULL;
+   }
+
+/* Return the class name. */
+   return result;
+}
+
+static void GetNextData( AstChannel *this_channel, int skip, char **name,
+                         char **val, int *status ) {
+/*
+*  Name:
+*     GetNextData
+
+*  Purpose:
+*     Read the next item of data from a data source.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void GetNextData( AstChannel *this, int skip, char **name, char **val )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astGetNextData method inherited from the Channel class).
+
+*  Description:
+*     This function reads the next item of input data from a data
+*     source associated with a YamlChan and returns the result.  It
+*     decodes the data item and returns name/value pairs ready for
+*     use.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     skip
+*        A non-zero value indicates that a new Object is to be read,
+*        and that all input data up to the next "Begin" item are to be
+*        skipped in order to locate it. This is useful if the data
+*        source contains AST objects interspersed with other data (but
+*        note that these other data cannot appear inside AST Objects,
+*        only between them).
+*
+*        A zero value indicates that all input data are significant
+*        and the next item will therefore be read and an attempt made
+*        to interpret it whatever it contains. Any other data
+*        inter-mixed with AST Objects will then result in an error.
+*     name
+*        An address at which to store a pointer to a null-terminated
+*        dynamically allocated string containing the name of the next
+*        item in the input data stream. This name will be in lower
+*        case with no surrounding white space.  It is the callers
+*        responsibilty to free the memory holding this string (using
+*        astFree) when it is no longer required.
+*
+*        A NULL pointer value will be returned (without error) to
+*        indicate when there are no further input data items to be
+*        read.
+*     val
+*        An address at which to store a pointer to a null-terminated
+*        dynamically allocated string containing the value associated
+*        with the next item in the input data stream. No case
+*        conversion is performed on this string and all white space is
+*        potentially significant.  It is the callers responsibilty to
+*        free the memory holding this string (using astFree) when it
+*        is no longer required.
+*
+*        The returned pointer will be NULL if an Object data item is
+*        read (see the "Data Representation" section).
+
+*  Data Representation:
+
+*     The returned data items fall into the following categories:
+*
+*     - Begin: Identified by the name string "begin", this indicates
+*     the start of an Object definition. The associated value string
+*     gives the class name of the Object being defined.
+*
+*     - IsA: Identified by the name string "isa", this indicates the
+*     end of the data associated with a particular class structure
+*     within the definiton of a larger Object. The associated value
+*     string gives the name of the class whose data have just been
+*     read.
+*
+*     - End: Identified by the name string "end", this indicates the
+*     end of the data associated with a complete Object
+*     definition. The associated value string gives the class name of
+*     the Object whose definition is being ended.
+*
+*     - Non-Object: Identified by any other name string plus a
+*     non-NULL "val" pointer, this gives the value of a non-Object
+*     structure component (instance variable). The name identifies
+*     which instance variable it is (within the context of the class
+*     whose data are being read) and the value is encoded as a string.
+*
+*     - Object: Identified by any other name string plus a NULL "val"
+*     pointer, this identifies the value of an Object structure
+*     component (instance variable).  The name identifies which
+*     instance variable it is (within the context of the class whose
+*     data are being read) and the value is given by subsequent data
+*     items (so the next item should be a "Begin" item).
+
+*  Notes:
+*     - NULL pointer values will be returned if this function is
+*     invoked with the global error status set, or if it should fail
+*     for any reason.
+*/
+
+/* Local Variables: */
+   AstKeyMap *km;
+   AstYamlChan *this;
+   const char *cptr;
+   const char *key;
+   const char *suf_start;
+   int klen;
+   void *pv;
+
+/* Initialise the returned pointer values. */
+   *name = NULL;
+   *val = NULL;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* The data values are stored in a KeyMap. A pointer to this KeyMap is
+   stored in the YamlChan structure (this->obj), together with the index
+   of the next entry to read from this KeyMap (this->index). If we are
+   about to read the first item, then first  return a "Begin" item. */
+   if( this->index == -1 ){
+      *name = astString( "begin", 5 );
+
+/* Get the AST class name and return a copy in dynamically allocated memory. */
+      cptr = GetNativeClass( this->obj, status );
+      *val = astString( cptr, strlen(cptr) );
+
+/* Increment the index of the next item to read from the object KeyMap. */
+      (this->index)++;
+
+/* If we have previously read the last item, then return an "End" item. */
+   } else if( this->index >= astMapSize( this->obj ) ){
+      *name = astString( "end", 3 );
+
+/* Get the AST class name and return a copy in dynamically allocated memory. */
+      cptr = GetNativeClass( this->obj, status );
+      *val = astString( cptr, strlen(cptr) );
+
+/* Re-instate the values stored before the start of the object that has just
+   ended, so that subsequent calls to this function will carry on reading
+   from where it left off. Note, if this->obj represents a top-level
+   object, these items will not exist. So test for this. */
+      if( astMapGet0P( this->obj, "PARENT_KM", &pv ) ) {
+         astMapRemove( this->obj, "PARENT_KM" );
+         astMapGet0I( this->obj, "PARENT_INDEX", &(this->index) );
+         astMapRemove( this->obj, "PARENT_INDEX" );
+         astAnnul( this->obj );
+         this->obj = (AstKeyMap *) pv;
+
+/* Increment the index of the next item to read from the object KeyMap. */
+         (this->index)++;
+      }
+
+/* Otherwise, read the required item from the Object KeyMap. */
+   } else {
+      key = astMapKey( this->obj, this->index );
+
+/* If this key holds YamlChan metadata used to describe the contents of the
+   KeyMap, skip it. */
+      while( !strcmp( key, "PARENT_KM" ) || !strcmp( key, "PARENT_INDEX" ) ||
+             !strcmp( key, "ASDFclass" ) || !strcmp( key, "PREVIOUS_KEY" ) ){
+         if( ++(this->index) < astMapSize( this->obj ) ){
+            key = astMapKey( this->obj, this->index );
+         } else {
+            key = NULL;
+            break;
+         }
+      }
+
+/* If no  usable entry was found, return an "end". */
+      if( !key ) {
+         *name = astString( "end", 3 );
+
+/* Get the AST class name and return a copy in dynamically allocated memory. */
+         cptr = GetNativeClass( this->obj, status );
+         *val = astString( cptr, strlen(cptr) );
+
+/* Re-instate the values stored before the start of the object that has just
+   ended, so that subsequent calls to this function will carry on reading
+   from where it left off. Note, if this->obj represents a top-level
+   object, these items will not exist. So test for this. */
+         if( astMapGet0P( this->obj, "PARENT_KM", &pv ) ){
+            astMapRemove( this->obj, "PARENT_KM" );
+            astMapGet0I( this->obj, "PARENT_INDEX", &(this->index) );
+            astMapRemove( this->obj, "PARENT_INDEX" );
+            astAnnul( this->obj );
+            this->obj = (AstKeyMap *) pv;
+
+/* Increment the index of the next item to read from the object KeyMap. */
+            (this->index)++;
+         }
+
+/* Otherwise, store the key and get its value. */
+      } else {
+
+/* Store a copy of the key in a dynamically allocated string. If the Key has
+   been modified to make it unique within the KeyMap (see function
+   PutIntoKeyMap), then exclude the suffix added by PutIntoKeyMap. */
+         klen = strlen( key );
+         suf_start = strchr( key, '%' );
+         if( suf_start && key[ klen - 1 ] == '%' &&
+             suf_start < key + klen - 1 ) klen = suf_start - key;
+         *name = astString( key, klen );
+
+/* Convert to lower case. */
+         astChrCase( NULL, *name, 0, 0 );
+
+/* If the entry is not an Object... */
+         if( astMapType( this->obj, key ) != AST__OBJECTTYPE ) {
+
+/* Get its value as a string. */
+            astMapGet0C( this->obj, key, &cptr );
+            *val = astString( cptr, strlen(cptr) );
+
+/* Increment the index of the next item to read from the object KeyMap. */
+            (this->index)++;
+
+/* If the entry is an Object, prepare to read subsequent data items from it. */
+         } else {
+
+/* Get a pointer to the KeyMap holding the object data. */
+            astMapGet0A( this->obj, key, &km );
+
+/* Store a void pointer to the current KeyMap and the index within the current
+   KeyMap so that we can reinstated them when the object has been read.
+   Note we cannot store a full Object pointer using astMapPut0A because
+   that would result in a circular referecne (km would contain this->obj
+   which would contain km). */
+            astMapPut0P( km, "PARENT_KM", this->obj, NULL );
+            astMapPut0I( km, "PARENT_INDEX", this->index, NULL );
+
+/* Store the new pointer in the YamlChan structure, and re-initialise the
+   index so that subsequent calls to this function will read data items from
+   it. */
+            this->obj = km;
+            this->index = -1;
+         }
+      }
+   }
+
+/* If an error occurred, ensure that any allocated memory is freed and
+   that NULL pointer values are returned. */
+   if ( !astOK ) {
+      *name = astFree( *name );
+      *val = astFree( *val );
+   }
+}
+
 static double GetQuantity( AstKeyMap *km, const char *name, const char *unit,
                            int usedef, double def, int *status ){
 /*
@@ -4155,6 +4568,71 @@ static double GetTime( AstKeyMap *km, const char *name, AstFrame *frm,
    tfrm = astAnnul( tfrm );
 
    return result;
+}
+
+static void GetUCD( int system, const char **lon_ucd, const char **lat_ucd ){
+/*
+*  Name:
+*     GetUCD
+
+*  Purpose:
+*     Get the UCD1+ values corresponding to a given AST celestial system.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "Yamlchan.h"
+*     void GetUCD( int system, const char **lon_ucd, const char **lat_ucd )
+
+*  Description:
+*     This function returns a pair of strings holding the UCD1+ value
+*     corresponding to longitude and latitude in the supplied AST system.
+
+*  Parameters:
+*     system
+*        An integer value for the AST SkyFrame System attribute.
+*     lon_ucd
+*        Address at which to return a pointer to a string holding the
+*        UCD1+ string for longitude in the supplied system. Returned set
+*        to NULL if the supplied system is unknown or has no known UCD.
+*     lat_ucd
+*        Address at which to return a pointer to a string holding the
+*        UCD1+ string for latitude in the supplied system. Returned set
+*        to NULL if the supplied system is unknown or has no known UCD.
+
+*/
+
+/* Get the expected UCD strings. */
+   if( system == AST__ICRS ||
+       system == AST__FK4 ||
+       system == AST__FK4_NO_E ||
+       system == AST__FK5 ||
+       system == AST__GAPPT ||
+       system == AST__J2000 ){
+      *lat_ucd = "pos.eq.dec";
+      *lon_ucd = "pos.eq.ra";
+
+   } else if( system == AST__ECLIPTIC ){
+      *lat_ucd = "pos.ecliptic.lat";
+      *lon_ucd = "pos.ecliptic.lon";
+
+   } else if( system == AST__GALACTIC ){
+      *lat_ucd = "pos.galactic.lat";
+      *lon_ucd = "pos.galactic.lon";
+
+   } else if( system == AST__SUPERGALACTIC ){
+      *lat_ucd = "pos.supergalactic.lat";
+      *lon_ucd = "pos.supergalactic.lon";
+
+   } else if( system == AST__AZEL ){
+      *lat_ucd = "pos.az.alt";
+      *lon_ucd = "pos.az.azi";
+
+   } else {
+      *lon_ucd = NULL;
+      *lat_ucd = NULL;
+   }
 }
 
 static int IsA( AstKeyMap *km, const char *class, int *status ) {
@@ -5645,6 +6123,155 @@ static AstKeyMap *MergeAsdf( AstYamlChan *this, AstKeyMap *km,
    return ret;
 }
 
+static void PutIntoKeyMap( AstKeyMap *km, const char *id, int type,
+                           void *data, int *status ){
+/*
+*  Name:
+*     PutIntoKeyMap
+
+*  Purpose:
+*     Put an item into a KeyMap
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void PutIntoKeyMap( AstKeyMap *km, const char *id, int type,
+*                         void *data, int *status )
+
+*  Class Membership:
+*     YamlChan member function
+
+*  Description:
+*     This function puts a value into  KeyMap. If the supplied key
+*     already exists in the KeyMap, this function decided where to append
+*     the new value to the existing vector entry, or to create a new
+*     entry with a modified name.
+
+*  Parameters:
+*     km
+*        Pointer to the KeyMap.
+*     id
+*        The key to associated with the new entry.
+*     type
+*        The data type of the new entry.
+*     data
+*        Pointer to the data for the new entry.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+
+/* Local Variables: */
+   char buf[ 100 ];
+   const char *key;
+   const char *pkey;
+   int index;
+   int keydiff;
+   size_t idlen;
+   size_t plen;
+
+/* Check inherited status */
+   if( !astOK ) return;
+
+/* Get the key associated with the previous entry added to the KeyMap. If
+   found, compare to the supplied key. If not found, assume the new key
+   is different to the old key. */
+   if( astMapGet0C( km, "PREVIOUS_KEY", &pkey ) ){
+      keydiff = strcmp( pkey, id );
+
+/* If the supplied id is different to the previously added key, see if
+   the previously added key was a modified form of the supplied id
+   (modified like "%123%" as done below). */
+      if( keydiff ) {
+         plen = strlen( pkey );
+         idlen = strlen( id );
+         if( plen > idlen+2 && pkey[ idlen ] == '%' && pkey[ plen - 1 ] == '%' ) {
+            keydiff = 0;
+         }
+      }
+   } else {
+      keydiff = 1;
+   }
+
+/* If the key associated with the new key is not the same as the previous key
+   added to the KeyMap, assume we are not reading a yaml sequence. In
+   which case the new value is stored as a separate entry in the KeyMap. */
+   if( keydiff ) {
+
+/* If an entry already exists in the KeyMap with the supplied Key, then
+   modify the supplied id so that the new value will not overwrite the old
+   value. For instance if "Fred" already exists in the KeyMap, try storing
+   it as "Fred%1%" instead, etc. */
+      key = id;
+      index = 1;
+      while( astMapHasKey( km, key ) ) {
+         sprintf( buf, "%s%%%d%%", id, index++ );
+         key = buf;
+      }
+
+/* Store the new value with the key determined above. */
+      if( type == AST__OBJECTTYPE ){
+         astMapPut0A( km, key, (AstObject *) data, NULL );
+      } else if( type == AST__INTTYPE ){
+         astMapPut0I( km, key, *((int *) data), NULL );
+      } else if( type == AST__DOUBLETYPE ){
+         astMapPut0D( km, key, *((double *) data), NULL );
+      } else if( type == AST__STRINGTYPE ){
+         astMapPut0C( km, key, (const char *) data, NULL );
+      } else if( type == AST__FLOATTYPE ){
+         astMapPut0F( km, key, *((float *) data), NULL );
+      } else if( type == AST__POINTERTYPE ){
+         astMapPut0P( km, key, data, NULL );
+      } else if( type == AST__SINTTYPE ){
+         astMapPut0S( km, key, *((short int *) data), NULL );
+      } else if( type == AST__BYTETYPE ){
+         astMapPut0B( km, key, *((unsigned char *) data), NULL );
+      } else if( type == AST__KINTTYPE ){
+         astMapPut0K( km, key, *((int64_t *) data), NULL );
+      } else if( astOK ){
+         astError( AST__INTER, "astRead(YamlChan): PutIntoKeyMap does not "
+                   "support data type %d (internal AST programming error).",
+                   status, type );
+      }
+
+/* Store the new key in the KeyMap so that it can be used next time this
+   function is called. */
+      astMapPut0C( km, "PREVIOUS_KEY", key, NULL );
+
+/* If the new value has the same id as the previously added value, assume
+   we are reading a yaml sequence and so append the new value to the end of
+   the vector entry for the supplied key. */
+   } else {
+      if( type == AST__OBJECTTYPE ){
+         astMapPutElemA( km, pkey, -1, (AstObject *) data );
+      } else if( type == AST__INTTYPE ){
+         astMapPutElemI( km, pkey, -1, *((int *) data) );
+      } else if( type == AST__DOUBLETYPE ){
+         astMapPutElemD( km, pkey, -1, *((double *) data) );
+      } else if( type == AST__STRINGTYPE ){
+         astMapPutElemC( km, pkey, -1, (const char *) data );
+      } else if( type == AST__FLOATTYPE ){
+         astMapPutElemF( km, pkey, -1, *((float *) data) );
+      } else if( type == AST__POINTERTYPE ){
+         astMapPutElemP( km, pkey, -1, data );
+      } else if( type == AST__SINTTYPE ){
+         astMapPutElemS( km, pkey, -1, *((short int *) data) );
+      } else if( type == AST__BYTETYPE ){
+         astMapPutElemB( km, pkey, -1, *((unsigned char *) data) );
+      } else if( type == AST__KINTTYPE ){
+         astMapPutElemK( km, pkey, -1, *((int64_t *) data) );
+      } else if( astOK ){
+         astError( AST__INTER, "astRead(YamlChan): PutIntoKeyMap does not "
+                   "support data type %d (internal AST programming error).",
+                   status, type );
+      }
+   }
+}
+
+
+
 static AstMapping *ReadAffine( AstYamlChan *this, AstKeyMap *km, int *status ){
 /*
 *  Name:
@@ -7068,6 +7695,79 @@ static AstMapping *ReadMultiplyScale( AstKeyMap *km, int *status ){
    }
 
 /* Return the Mapping. */
+   return result;
+}
+
+static AstObject *ReadNative( AstYamlChan *this, AstKeyMap *km, int *status ){
+/*
+*  Name:
+*     ReadNative
+
+*  Purpose:
+*     Attempt to read an AST Object from a KeyMap holding NATIVE yaml.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     AstObject *ReadNative( AstYamlChan *this, AstKeyMap *km, int *status )
+
+*  Class Membership:
+*     YamlChan member function
+
+*  Description:
+*     This function checks to see if the supplied KeyMap represents a
+*     NATIVE-encoded Object and if so, recreates and returned the Object.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     km
+*        Pointer to the KeyMap. Its contents need not be NATIVE yaml.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A pointer to the new Object, or NULL if the supplied KeyMap does
+*     not contain NATIVE yaml.
+*/
+
+/* Local Variables: */
+   AstObject *result;
+
+/* Initialise */
+   result = NULL;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Check if the supplied KeyMap holds a NATIVE object. If so the AST
+   class name is returned. Otherwise NULL is returned */
+   if( GetNativeClass( km, status ) ) {
+
+/* Store a pointer to the KeyMap holding the object values. Set
+   "this->index" so that, after incrementing, it becomes the index of the
+   next item from the KeyMap to be read. */
+      this->obj = km;
+      this->index = -1;
+
+/* Use the Read method inherited from the parent Channel class to read the
+   object. */
+      result = (*parent_read)( (AstChannel *) this, status );
+   }
+
+/* Ensure there is no object in the YamlChan since the Read method uses
+   this to determine if we are in the middle of reading a Native object. */
+   this->obj = NULL;
+
+/* If an error occurred, report the context. */
+   if( !astOK ) {
+      astError( astStatus, "Error occurred when reading a native AST "
+                "object.", status );
+   }
+
+/* Return the AST FrameSet. */
    return result;
 }
 
@@ -9614,6 +10314,8 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
    char *class;
    char *text;
    double dval;
+   int ival;
+   unsigned char bval;
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -9624,7 +10326,19 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
 
 /* Get the YAML class of the object stored in the YAML Mapping. */
       class = (char *) event->data.mapping_start.tag;
-      if( class ) class = astStore( NULL, class, strlen( class ) + 1 );
+      if( class ) {
+         class = astStore( NULL, class, strlen( class ) + 1 );
+
+/* If this is an ASDF or AST NATIVE class, store a default value for the
+   YamlEncoding attribute in the YamlChan structure. */
+         if( strstr( class, STARLINK_TAG ) ){
+            this->defenc = NATIVE_ENCODING;
+         } else if( strstr( class, ASTROPY_TAG ) ){
+            this->defenc = ASDF_ENCODING;
+         } else if( strstr( class, STSCI_TAG ) ){
+            this->defenc = ASDF_ENCODING;
+         }
+      }
 
 /* Get a KeyMap holding the content of the YAML Mapping. This consumes
    subsequent events up to and including the "Mapping end" event corresponding
@@ -9640,7 +10354,7 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
    been stored with this id, a new 1-element vector entry is created.
    Otherwise, the existing vector entry is extended and the new value is
    stored at the end. */
-      astMapPutElemA( km, id, -1, kmval );
+      PutIntoKeyMap( km, id, AST__OBJECTTYPE, kmval, status );
 
 /* If this mapping holds a wcs object, store a flag in the YamlChan
    structure indicating that a WCS object is now available in the KeyMap
@@ -9660,16 +10374,26 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
       dval = astChr2Double( text );
       if( dval != AST__BAD ) {
          if( strstr( text, "." ) ){
-            astMapPutElemD( km, id, -1, dval );
+            PutIntoKeyMap( km, id, AST__DOUBLETYPE, &dval, status );
          } else {
-            astMapPutElemI( km, id, -1, (int) dval );
+            ival = (int) dval;
+            PutIntoKeyMap( km, id, AST__INTTYPE, &ival, status );
          }
-      } else if astChrMatch( text, "False" ) {
-         astMapPutElemB( km, id, -1, 0 );
-      } else if astChrMatch( text, "True" ) {
-         astMapPutElemB( km, id, -1, 1 );
+
+      } else if( astChrMatch( text, AST__BAD_STRING ) ) {
+         dval = AST__BAD;
+         PutIntoKeyMap( km, id, AST__DOUBLETYPE, &dval, status );
+
+      } else if( astChrMatch( text, "False" ) ){
+         bval = 0;
+         PutIntoKeyMap( km, id, AST__BYTETYPE, &bval, status );
+
+      } else if( astChrMatch( text, "True" ) ){
+         bval = 1;
+         PutIntoKeyMap( km, id, AST__BYTETYPE, &bval, status );
+
       } else {
-         astMapPutElemC( km, id, -1, text );
+         PutIntoKeyMap( km, id, AST__STRINGTYPE, text, status );
       }
 
 /* New item is a sequence... */
@@ -9850,6 +10574,10 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int
 /* Delete the event before getting the next one from the parser. */
       yaml_event_delete( &event );
    }
+
+/* Remove the entry used to track the previously added key (see
+   PutINtoKeyMap). */
+   astMapRemove( result, "PREVIOUS_KEY" );
 
 /* Free the final id string. */
    id = astFree( id );
@@ -10630,6 +11358,169 @@ static AstKeyMap *StartAsdfKeyMap( AstYamlChan *this, int isseq, const char *tag
    return result;
 }
 
+static AstKeyMap *StartAsdfTransform( AstYamlChan *this, AstObject *mapinv,
+                                      const char *name, const char *tag,
+                                      int *status ) {
+/*
+*  Name:
+*     StartAsdfTransform
+
+*  Purpose:
+*     Create a KeyMap containing the properties of an ASDF transform
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "Yamlchan.h"
+*     AstKeyMap *StartAsdfTransform( AstYamlChan *this, AstObject *mapinv,
+*                                    const char *name, const char *tag,
+*                                    int *status )
+
+*  Description:
+*     This function creates a KeyMap holding the generic properties of an ASDF
+*     transform of any class (i.e. the components of the base transform
+*     class).
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     mapinv
+*        Pointer to an optional custom inverse mapping. The forward
+*        transformation of the supplied mapping (if any) is used to define
+*        the inverse operation of the ASDF transform.  It may be an AST
+*        Mapping or a KeyMap holding a description of an ASDF transform.
+*     name
+*        A string to use as the "name" property of the transform. May be
+*        NULL.
+*     tag
+*        Pointer to a string holding the yaml tag to store with the
+*        transform (e.g. "asdf/transform/shift-1.2.0").
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Pointer to the new KeyMap.
+*/
+
+/* Local Variables: */
+   AstKeyMap *km;
+   AstKeyMap *ret;
+
+/* Initialise */
+   ret = NULL;
+
+/* Check the global error status. */
+   if ( !astOK ) return ret;
+
+/* Create the returned KeyMap and store the appropriate ASDF tag. */
+   ret = StartAsdfKeyMap( this, 0, tag, status );
+
+/* The "name" property. */
+   if( name ) Store0C( this, "name", 0, ret, name, NULL, status );
+
+/* The "inverse" property. */
+   if( mapinv ) {
+      if( astIsAMapping( mapinv ) ) {
+         km = WriteMapping( this, (AstMapping *) mapinv, NULL, NULL,
+                            status );
+      } else {
+         km = astClone( mapinv );
+      }
+      ret = StoreKeyMap( this, "inverse", ret, &km, status );
+   }
+
+/* Return the answer. */
+   return ret;
+}
+
+static void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
+                          int *status ) {
+/*
+*  Name:
+*     StartYamlDoc
+
+*  Purpose:
+*     Initialise a yaml emitter and start a document
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "Yamlchan.h"
+*     void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
+*                        int *status )
+
+*  Description:
+*     This function initialises a supplied libyaml emitter structure,
+*     emits a STREAM-START event and a DOCUMENT-START event.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     emitter
+*        Pointer to the libyaml emitter to be initialised.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   int enc;
+   yaml_event_t event;
+   yaml_tag_directive_t tag;
+   yaml_version_directive_t yaml_version = { 1, 1 };
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Initialise the libyaml emitter. */
+   if( !yaml_emitter_initialize( emitter ) ){
+      astError( AST__LYAML, "astWrite(%s): Failed to initialize libyaml "
+                "emitter", status, astGetClass( this ) );
+      LibYamlEmitterError( emitter, status );
+
+/* If OK, register the sink function with the emitter, set the indent
+   increment and select Unix-style line breaks. */
+   } else {
+      yaml_emitter_set_output( emitter, LibYamlWriter, this );
+      yaml_emitter_set_indent( emitter, astGetIndent( this ) );
+      yaml_emitter_set_break( emitter, YAML_LN_BREAK );
+   }
+
+/* Create and emit the STREAM-START event. */
+   if( astOK ) {
+      yaml_stream_start_event_initialize( &event, YAML_UTF8_ENCODING );
+      EMIT
+   }
+
+/* Write the comment required by ASDF (libyaml cannot emit comments so we
+   need to format and write the line directly using our sink function). */
+   tag.handle = (yaml_char_t *) "!";
+   enc = astGetYamlEncoding( this );
+   if( enc == ASDF_ENCODING ) {
+      LibYamlWriter( this, (yaml_char_t *) ASDF_HEADER, strlen(ASDF_HEADER) );
+      tag.prefix = (yaml_char_t *) ASDF_TAG;
+
+   } else if( enc == NATIVE_ENCODING ) {
+      tag.prefix = (yaml_char_t *) AST_TAG;
+
+   } else if( astOK ) {
+      astError( AST__INTER, "astWrite(YamlChan): Unsupported encoding (%d) "
+                "in StartYamlDoc.", status, enc );
+   }
+
+/* Create and emit the DOCUMENT-START event. */
+   if( astOK ) {
+      yaml_document_start_event_initialize( &event, &yaml_version, &tag,
+                                            &tag + 1, 0 );
+      EMIT
+   }
+
+/* Store the emitter pointer in the YamlChan structure so that the
+   astWriteXxx (used by the AST NATIVE encoding) can acccess it). */
+   this->emitter = emitter;
+}
+
 static void StartYamlMapping( AstYamlChan *this, const char *key, const char *tag,
                               yaml_emitter_t *emitter, int *status ) {
 /*
@@ -10660,7 +11551,8 @@ static void StartYamlMapping( AstYamlChan *this, const char *key, const char *ta
 *     tag
 *        The string to use as the tag for the mapping. If it is NULL, or
 *        if it starts with "tag:", it will be used without change. Otherwise
-*        it will be prefixed by "tag:stsci.edu:".
+*        it will be prefixed by "tag:stsci.edu:". etc (depending on the
+*        encoding).
 *     emitter
 *        Pointer to a libyaml emitter.
 *     status
@@ -10685,10 +11577,14 @@ static void StartYamlMapping( AstYamlChan *this, const char *key, const char *ta
 
 /* Construct the full tag unless a full tag was supplied. */
    if( tag && strncmp( tag, "tag:", 4 ) ) {
-      if( !strncmp(tag, "astropy", 7 ) ) {
-         fulltag = astAppendStringf( NULL, &nc, ASTROPY_TAG"%s", tag );
+      if( astGetYamlEncoding( this ) == ASDF_ENCODING ){
+         if( !strncmp(tag, "astropy", 7 ) ) {
+            fulltag = astAppendStringf( NULL, &nc, ASTROPY_TAG"%s", tag );
+         } else {
+            fulltag = astAppendStringf( NULL, &nc, STSCI_TAG"%s", tag );
+         }
       } else {
-         fulltag = astAppendStringf( NULL, &nc, STSCI_TAG"%s", tag );
+         fulltag = astAppendStringf( NULL, &nc, AST_TAG"%s", tag );
       }
    } else {
       fulltag = tag;
@@ -10859,8 +11755,8 @@ static void Store0C( AstYamlChan *this, const char *key, int quote,
 }
 
 static void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
-                         yaml_emitter_t *emitter, const char *value,
-                         const char *tag, int *status ){
+                         yaml_emitter_t *emitter, int set,
+                         const char *value, const char *tag, int *status ){
 /*
 *  Name:
 *     StoreYaml0C
@@ -10874,7 +11770,7 @@ static void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
-*                       yaml_emitter_t *emitter, const char *value,
+*                       yaml_emitter_t *emitter, int set, const char *value,
 *                       const char *tag, int *status )
 
 *  Description:
@@ -10891,6 +11787,9 @@ static void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
 *        it is unquoted.
 *     emitter
 *        Pointer to a libyaml emitter.
+*     set
+*        Zero if the value is a default value and should thus be
+*        commented out. Non-zero otherwise. Ignored if "key" is NULL.
 *     value
 *        Pointer to the string to be stored as the scalar value.
 *     tag
@@ -10909,6 +11808,10 @@ static void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
 
 /* Check the global error status. */
    if ( !astOK ) return;
+
+/* Libyaml does not support writing comments, so for the moment all we
+   can do is return without action if "set" is zero. */
+   if( !set ) return;
 
 /* Choose the style for the scalar values. */
    style = quote ? YAML_SINGLE_QUOTED_SCALAR_STYLE : YAML_PLAIN_SCALAR_STYLE;
@@ -11250,7 +12153,7 @@ static void Store1I( AstYamlChan *this, const char *key,
 }
 
 static void StoreYaml0D( AstYamlChan *this, const char *key,
-                         yaml_emitter_t *emitter, double value,
+                         yaml_emitter_t *emitter, int set, double value,
                          int *status ){
 /*
 *  Name:
@@ -11265,7 +12168,7 @@ static void StoreYaml0D( AstYamlChan *this, const char *key,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml0D( AstYamlChan *this, const char *key,
-*                       yaml_emitter_t *emitter, double value,
+*                       yaml_emitter_t *emitter, int set, double value,
 *                       int *status )
 
 *  Description:
@@ -11279,6 +12182,9 @@ static void StoreYaml0D( AstYamlChan *this, const char *key,
 *        parent node in the yaml tree. May be NULL.
 *     emitter
 *        Pointer to a libyaml emitter.
+*     set
+*        Zero if the value is a default value and should thus be
+*        commented out. Non-zero otherwise. Ignored if "key" is NULL.
 *     value
 *        The value to store.
 *     status
@@ -11291,6 +12197,10 @@ static void StoreYaml0D( AstYamlChan *this, const char *key,
 
 /* Check the global error status. */
    if ( !astOK ) return;
+
+/* Libyaml does not support writing comments, so for the moment all we
+   can do is return without action if "set" is zero. */
+   if( !set ) return;
 
 /* Emit a scalar string holding the supplied key, if any. */
    if( key ) {
@@ -11309,7 +12219,7 @@ static void StoreYaml0D( AstYamlChan *this, const char *key,
 }
 
 static void StoreYaml0I( AstYamlChan *this, const char *key,
-                         yaml_emitter_t *emitter, int value,
+                         yaml_emitter_t *emitter, int set, int value,
                          int *status ){
 /*
 *  Name:
@@ -11324,7 +12234,7 @@ static void StoreYaml0I( AstYamlChan *this, const char *key,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml0I( AstYamlChan *this, const char *key,
-*                       yaml_emitter_t *emitter, int value,
+*                       yaml_emitter_t *emitter, int set, int value,
 *                       int *status )
 
 *  Description:
@@ -11338,6 +12248,9 @@ static void StoreYaml0I( AstYamlChan *this, const char *key,
 *        parent node in the yaml tree. May be NULL.
 *     emitter
 *        Pointer to a libyaml emitter.
+*     set
+*        Zero if the value is a default value and should thus be
+*        commented out. Non-zero otherwise. Ignored if "key" is NULL.
 *     value
 *        The value to store.
 *     status
@@ -11351,6 +12264,79 @@ static void StoreYaml0I( AstYamlChan *this, const char *key,
 /* Check the global error status. */
    if ( !astOK ) return;
 
+/* Libyaml does not support writing comments, so for the moment all we
+   can do is return without action if "set" is zero. */
+   if( !set ) return;
+
+/* Emit a scalar string holding the supplied key, if any. */
+   if( key ) {
+
+/* If the value is a default, turn the whole line into a comment by
+   pre-pending "#" to the key name. */
+      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
+                                    strlen(key), 1, 1, YAML_PLAIN_SCALAR_STYLE);
+      EMIT
+   }
+
+/* Format and store the value as a YAML scalar. */
+   if( astOK ) {
+      (void) sprintf( buff, "%d", value );
+      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) buff,
+                                    strlen(buff), 1, 1, YAML_PLAIN_SCALAR_STYLE );
+      EMIT
+   }
+}
+
+static void StoreYaml0K( AstYamlChan *this, const char *key,
+                         yaml_emitter_t *emitter, int set, int64_t value,
+                         int *status ){
+/*
+*  Name:
+*     StoreYaml0K
+
+*  Purpose:
+*     Store a 64 bit int as a yaml scalar.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "Yamlchan.h"
+*     void StoreYaml0K( AstYamlChan *this, const char *key,
+*                       yaml_emitter_t *emitter, int set, int64_t value,
+*                       int *status )
+
+*  Description:
+*     This function emits yaml events describing a scalar 64 bit int.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     key
+*        The string to use as the key for the new scalar within the
+*        parent node in the yaml tree. May be NULL.
+*     emitter
+*        Pointer to a libyaml emitter.
+*     set
+*        Zero if the value is a default value and should thus be
+*        commented out. Non-zero otherwise. Ignored if "key" is NULL.
+*     value
+*        The value to store.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   char buff[ 100 ];
+   yaml_event_t event;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Libyaml does not support writing comments, so for the moment all we
+   can do is return without action if "set" is zero. */
+   if( !set ) return;
+
 /* Emit a scalar string holding the supplied key, if any. */
    if( key ) {
       yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
@@ -11360,7 +12346,7 @@ static void StoreYaml0I( AstYamlChan *this, const char *key,
 
 /* Format and store the value as a YAML scalar. */
    if( astOK ) {
-      (void) sprintf( buff, "%d", value );
+      (void) sprintf( buff, "%" PRId64, value );
       yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) buff,
                                     strlen(buff), 1, 1, YAML_PLAIN_SCALAR_STYLE );
       EMIT
@@ -11671,6 +12657,77 @@ static AstKeyMap *StoreKeyMap( AstYamlChan *this, const char *key,
 
 /* Return the parent KeyMap pointer. */
    return km;
+}
+
+static int Use( AstYamlChan *this, int set, int helpful, int *status ) {
+/*
+*  Name:
+*     Use
+
+*  Purpose:
+*     Decide whether to write a value to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     int Use( AstYamlChan *this, int set, int helpful, int *status )
+
+*  Class Membership:
+*     YamlChan member function.
+
+*  Description:
+*     This function decides whether a value supplied by a class "Dump"
+*     function, via a call to one of the astWrite... protected
+*     methods, should actually be written to the data sink associated
+*     with a YamlChan.
+*
+*     This decision is based on the settings of the "set" and
+*     "helpful" flags supplied to the astWrite... method, plus the
+*     attribute settings of the YamlChan.
+
+*  Parameters:
+*     this
+*        A pointer to the YamlChan.
+*     set
+*        The "set" flag supplied.
+*     helpful
+*        The "helpful" value supplied.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if the value should be written out, otherwise zero.
+
+*  Notes:
+*     - A value of zero will be returned if this function is invoked
+*     with the global error status set or if it should fail for any
+*     reason.
+*/
+
+/* Local Variables: */
+   int full;                     /* Full attribute value */
+   int result;                   /* Result value to be returned */
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* If "set" is non-zero, then so is the result ("set" values must
+   always be written out). */
+   result = ( set != 0 );
+
+/* Otherwise, obtain the value of the YamlChan's Full attribute. */
+   if ( !set ) {
+      full = astGetFull( this );
+
+/* If Full is positive, display all values, if zero, display only
+   "helpful" values, if negative, display no (un-"set") values. */
+      if ( astOK ) result = ( ( helpful && ( full > -1 ) ) || ( full > 0 ) );
+   }
+
+/* Return the result. */
+   return result;
 }
 
 static AstKeyMap *WriteAsdfAffine( AstYamlChan *this, int nin, double *mat,
@@ -13471,82 +14528,6 @@ static AstKeyMap *WriteAsdfTime( AstYamlChan *this, double time, double obsgeo[3
    return ret;
 }
 
-static AstKeyMap *StartAsdfTransform( AstYamlChan *this, AstObject *mapinv,
-                                      const char *name, const char *tag,
-                                      int *status ) {
-/*
-*  Name:
-*     StartAsdfTransform
-
-*  Purpose:
-*     Create a KeyMap containing the properties of an ASDF transform
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "Yamlchan.h"
-*     AstKeyMap *StartAsdfTransform( AstYamlChan *this, AstObject *mapinv,
-*                                    const char *name, const char *tag,
-*                                    int *status )
-
-*  Description:
-*     This function creates a KeyMap holding the generic properties of an ASDF
-*     transform of any class (i.e. the components of the base transform
-*     class).
-
-*  Parameters:
-*     this
-*        Pointer to the YamlChan.
-*     mapinv
-*        Pointer to an optional custom inverse mapping. The forward
-*        transformation of the supplied mapping (if any) is used to define
-*        the inverse operation of the ASDF transform.  It may be an AST
-*        Mapping or a KeyMap holding a description of an ASDF transform.
-*     name
-*        A string to use as the "name" property of the transform. May be
-*        NULL.
-*     tag
-*        Pointer to a string holding the yaml tag to store with the
-*        transform (e.g. "asdf/transform/shift-1.2.0").
-*     status
-*        Pointer to the inherited status variable.
-
-*  Returned Value:
-*     Pointer to the new KeyMap.
-*/
-
-/* Local Variables: */
-   AstKeyMap *km;
-   AstKeyMap *ret;
-
-/* Initialise */
-   ret = NULL;
-
-/* Check the global error status. */
-   if ( !astOK ) return ret;
-
-/* Create the returned KeyMap and store the appropriate ASDF tag. */
-   ret = StartAsdfKeyMap( this, 0, tag, status );
-
-/* The "name" property. */
-   if( name ) Store0C( this, "name", 0, ret, name, NULL, status );
-
-/* The "inverse" property. */
-   if( mapinv ) {
-      if( astIsAMapping( mapinv ) ) {
-         km = WriteMapping( this, (AstMapping *) mapinv, NULL, NULL,
-                            status );
-      } else {
-         km = astClone( mapinv );
-      }
-      ret = StoreKeyMap( this, "inverse", ret, &km, status );
-   }
-
-/* Return the answer. */
-   return ret;
-}
-
 static AstKeyMap *WriteAsdfWcs( AstYamlChan *this, AstFrameSet *fs, int *status ) {
 /*
 *  Name:
@@ -14929,42 +15910,12 @@ static void WriteValues( AstYamlChan *this, const char *key, AstKeyMap *obj,
    yaml_emitter_t emitter_data;
    yaml_emitter_t *emitter = &emitter_data;
    yaml_event_t event;
-   yaml_tag_directive_t tag = { (yaml_char_t *) "!", (yaml_char_t *) ASDF_TAG };
-   yaml_version_directive_t yaml_version = { 1, 1 };
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
 /* Initialize a libyaml emitter. */
-   if( !yaml_emitter_initialize( emitter ) ){
-      astError( AST__LYAML, "astWrite(%s): Failed to initialize libyaml "
-                "emitter", status, astGetClass( this ) );
-      LibYamlEmitterError( emitter, status );
-
-/* If OK, register the sink function with the emitter, set the indent
-   increment and select Unix-style line breaks. */
-   } else {
-      yaml_emitter_set_output( emitter, LibYamlWriter, this );
-      yaml_emitter_set_indent( emitter, astGetIndent( this ) );
-      yaml_emitter_set_break( emitter, YAML_LN_BREAK );
-   }
-
-/* Create and emit the STREAM-START event. */
-   if( astOK ) {
-      yaml_stream_start_event_initialize( &event, YAML_UTF8_ENCODING );
-      EMIT
-   }
-
-/* Write the comment required by ASDF (libyaml cannot emit comments so we
-   need to format and write the line directly using our sink function). */
-   LibYamlWriter( this, (yaml_char_t *) ASDF_HEADER, strlen(ASDF_HEADER) );
-
-/* Create and emit the DOCUMENT-START event. */
-   if( astOK ) {
-      yaml_document_start_event_initialize( &event, &yaml_version, &tag,
-                                            &tag + 1, 0 );
-      EMIT
-   }
+   StartYamlDoc( this, emitter, status );
 
 /* Create and emit the start of the root node - a mapping of type
    given by macro ROOT_TAG. */
@@ -14983,20 +15934,8 @@ static void WriteValues( AstYamlChan *this, const char *key, AstKeyMap *obj,
       EMIT
    }
 
-/* Create and emit the DOCUMENT-END event. */
-   if( astOK ) {
-      yaml_document_end_event_initialize( &event, 0 );
-      EMIT
-   }
-
-/* Create and emit the STREAM-END event. */
-   if( astOK ) {
-      yaml_stream_end_event_initialize( &event );
-      EMIT
-   }
-
-/* Delete the emitter. */
-   yaml_emitter_delete( emitter );
+/* End the document and delete the emitter */
+   EndYamlDoc( this, emitter, status );
 }
 
 static AstKeyMap *WriteWcsMap( AstYamlChan *this, AstWcsMap *map,
@@ -15644,15 +16583,15 @@ static void WriteYamlEntry( AstYamlChan *this, AstKeyMap *km, const char *kmkey,
    if( nel == 1 ) {
       if( type == AST__DOUBLETYPE ){
          astMapGet0D( km, kmkey, &dval );
-         StoreYaml0D( this, yamlkey, emitter, dval, status );
+         StoreYaml0D( this, yamlkey, emitter, 1, dval, status );
 
       } else if( type == AST__INTTYPE ){
          astMapGet0I( km, kmkey, &ival );
-         StoreYaml0I( this, yamlkey, emitter, ival, status );
+         StoreYaml0I( this, yamlkey, emitter, 1, ival, status );
 
       } else if( type == AST__STRINGTYPE ){
          astMapGet0C( km, kmkey, &cval );
-         StoreYaml0C( this, yamlkey, quote, emitter, cval, tag, status );
+         StoreYaml0C( this, yamlkey, quote, emitter, 1, cval, tag, status );
 
       } else if( type == AST__OBJECTTYPE ){
          astMapGet0A( km, kmkey, &oval );
@@ -15716,6 +16655,808 @@ static void WriteYamlEntry( AstYamlChan *this, AstKeyMap *km, const char *kmkey,
       } else if( astOK ) {
          astError( AST__INTER, "astWrite(YamlChan): Unexpected keymap data "
                    "type (internal AST programming error).", status );
+      }
+   }
+}
+
+static void WriteBegin( AstChannel *this_channel, const char *class,
+                        const char *comment, int *status ) {
+/*
+*  Name:
+*     WriteBegin
+
+*  Purpose:
+*     Write a "Begin" data item to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void WriteBegin( AstChannel *this_channel, const char *class,
+*                      const char *comment, int *status )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astWriteBegin method inherited from the Channel class).
+
+*  Description:
+*     This function writes a "Begin" data item to the data sink
+*     associated with a Channel, so as to begin the output of a new
+*     Object definition.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     class
+*        Pointer to a constant null-terminated string containing the
+*        name of the class to which the Object belongs.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the "Begin"
+*        item. Normally, this will describe the purpose of the Object.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     - The comment supplied may not actually be used, depending on
+*     the nature of the Channel supplied.
+*/
+
+/* Local Variables: */
+   AstYamlChan *this;
+   const char *name;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* Initialise a flag to indicate that the next "IsA" item should not be
+   written. This flag will be changed if and when an item is added which
+   related to the class described by the "IsA" item. Save the old value
+   first. */
+   this->write_isa = 0;
+
+/* If this is a top level object (i.e. if there is no object name stored
+   in the YamlChan structure), use the class name as the object name and
+   set the "objectset" flag to indicate that the object is not a default
+   value. */
+   name = this->objectname;
+   if( !name ) {
+      name = class;
+      this->objectset = 1;
+   }
+
+/* Start a YAML Mapping to hold the object */
+   StartYamlMapping( this, name, class, this->emitter, status );
+}
+
+static void WriteDouble( AstChannel *this_channel, const char *name,
+                         int set, int helpful,
+                         double value, const char *comment, int *status ) {
+/*
+*  Name:
+*     WriteDouble
+
+*  Purpose:
+*     Write a double value to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void WriteDouble( AstChannel *this, const char *name,
+*                       int set, int helpful,
+*                       double value, const char *comment, int *status )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astWriteDouble method inherited from the Channel class).
+
+*  Description:
+*     This function writes a named double value, representing the
+*     value of a class instance variable, to the data sink associated
+*     with a Channel. It is intended for use by class "Dump" functions
+*     when writing out class information which will subsequently be
+*     re-read.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     name
+*        Pointer to a constant null-terminated string containing the
+*        name to be used to identify the value in the external
+*        representation. This will form the key for identifying it
+*        again when it is re-read. The name supplied should be unique
+*        within its class.
+*
+*        Mixed case may be used and will be preserved in the external
+*        representation (where possible) for cosmetic effect. However,
+*        case is not significant when re-reading values.
+*
+*        It is recommended that a maximum of 6 alphanumeric characters
+*        (starting with an alphabetic character) be used. This permits
+*        maximum flexibility in adapting to standard external data
+*        representations (e.g. FITS).
+*     set
+*        If this is zero, it indicates that the value being written is
+*        a default value (or can be re-generated from other values) so
+*        need not necessarily be written out. Such values will
+*        typically be included in the external representation with
+*        (e.g.) a comment character so that they are available to
+*        human readers but will be ignored when re-read. They may also
+*        be completely omitted in some circumstances.
+*
+*        If "set" is non-zero, the value will always be explicitly
+*        included in the external representation so that it can be
+*        re-read.
+*     helpful
+*        This flag provides a hint about whether a value whose "set"
+*        flag is zero (above) should actually appear at all in the
+*        external representaton.
+*
+*        If the external representation allows values to be "commented
+*        out" then, by default, values will be included in this form
+*        only if their "helpful" flag is non-zero. Otherwise, they
+*        will be omitted entirely. When possible, omitting the more
+*        obscure values associated with a class is recommended in
+*        order to improve readability.
+*
+*        This default behaviour may be further modified if the
+*        Channel's Full attribute is set - either to permit all values
+*        to be shown, or to suppress non-essential information
+*        entirely.
+*     value
+*        The value to be written.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the value.
+*
+*        Note that this comment may not actually be used, depending on
+*        the nature of the Channel supplied and the setting of its
+*        Comment attribute.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   AstYamlChan *this;            /* A pointer to the YamlChan structure. */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* If the object to be written is a component of a default AST object (i.e.
+   an object which is "not set"), then we do not write out this item. */
+   if( this->objectset ) {
+
+/* Use the "set" and "helpful" flags, along with the Channel's]
+   attributes to decide whether this value should actually be
+   written. */
+      if( Use( this, set, helpful, status ) ) {
+
+/* Write out the YAML */
+         StoreYaml0D( this, name, this->emitter, set, value, status );
+
+/* Initialise a flag to indicate that the next "IsA" item should be
+   written. */
+         this->write_isa = 1;
+      }
+   }
+}
+
+static void WriteEnd( AstChannel *this_channel, const char *class, int *status ) {
+/*
+*  Name:
+*     WriteEnd
+
+*  Purpose:
+*     Write an "End" data item to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void WriteEnd( AstChannel *this, const char *class, int *status )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astWriteEnd method inherited from the Channel class).
+
+*  Description:
+*     This function writes an "End" data item to the data sink
+*     associated with a Channel. This item delimits the end of an
+*     Object definition.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     class
+*        Pointer to a constant null-terminated string containing the
+*        class name of the Object whose definition is being terminated
+*        by the "End" item.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   AstYamlChan *this;
+   yaml_event_t event;
+   yaml_emitter_t *emitter;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Get a pointer to the emitter from the YamlChan structure, as required
+   by the EMIT macro. */
+   this = (AstYamlChan*) this_channel;
+   emitter = this->emitter;
+
+/* Create and emit the end of the yaml mapping. */
+   yaml_mapping_end_event_initialize( &event );
+   EMIT
+}
+
+static void WriteInt( AstChannel *this_channel, const char *name, int set, int helpful,
+                      int value, const char *comment, int *status ) {
+/*
+*  Name:
+*     WriteInt
+
+*  Purpose:
+*     Write an integer value to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void WriteInt( AstChannel *this, const char *name, int set, int helpful,
+*                    int value, const char *comment, int *status )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astWriteInt method inherited from the Channel class).
+
+*  Description:
+*     This function writes a named integer value, representing the
+*     value of a class instance variable, to the data sink associated
+*     with a Channel. It is intended for use by class "Dump" functions
+*     when writing out class information which will subsequently be
+*     re-read.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     name
+*        Pointer to a constant null-terminated string containing the
+*        name to be used to identify the value in the external
+*        representation. This will form the key for identifying it
+*        again when it is re-read. The name supplied should be unique
+*        within its class.
+*
+*        Mixed case may be used and will be preserved in the external
+*        representation (where possible) for cosmetic effect. However,
+*        case is not significant when re-reading values.
+*
+*        It is recommended that a maximum of 6 alphanumeric characters
+*        (starting with an alphabetic character) be used. This permits
+*        maximum flexibility in adapting to standard external data
+*        representations (e.g. FITS).
+*     set
+*        If this is zero, it indicates that the value being written is
+*        a default value (or can be re-generated from other values) so
+*        need not necessarily be written out. Such values will
+*        typically be included in the external representation with
+*        (e.g.) a comment character so that they are available to
+*        human readers but will be ignored when re-read. They may also
+*        be completely omitted in some circumstances.
+*
+*        If "set" is non-zero, the value will always be explicitly
+*        included in the external representation so that it can be
+*        re-read.
+*     helpful
+*        This flag provides a hint about whether a value whose "set"
+*        flag is zero (above) should actually appear at all in the
+*        external representaton.
+*
+*        If the external representation allows values to be "commented
+*        out" then, by default, values will be included in this form
+*        only if their "helpful" flag is non-zero. Otherwise, they
+*        will be omitted entirely. When possible, omitting the more
+*        obscure values associated with a class is recommended in
+*        order to improve readability.
+*
+*        This default behaviour may be further modified if the
+*        Channel's Full attribute is set - either to permit all values
+*        to be shown, or to suppress non-essential information
+*        entirely.
+*     value
+*        The value to be written.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the value.
+*
+*        Note that this comment may not actually be used, depending on
+*        the nature of the Channel supplied and the setting of its
+*        Comment attribute.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   AstYamlChan *this;             /* A pointer to the YamlChan structure. */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* If the object to be written is a component of a default AST object (i.e.
+   an object which is "not set"), then we do not write out this item. */
+   if( this->objectset ) {
+
+/* Use the "set" and "helpful" flags, along with the Channel's
+   attributes to decide whether this value should actually be
+   written. */
+      if( Use( this, set, helpful, status ) ) {
+
+/* Write out the YAML */
+         StoreYaml0I( this, name, this->emitter, set, value, status );
+
+/* Initialise a flag to indicate that the next "IsA" item should be
+   written. */
+         this->write_isa = 1;
+      }
+   }
+}
+
+static void WriteInt64( AstChannel *this_channel, const char *name, int set, int helpful,
+                        int64_t value, const char *comment, int *status ) {
+/*
+*  Name:
+*     WriteInt64
+
+*  Purpose:
+*     Write a 64 bit integer value to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void WriteInt64( AstChannel *this, const char *name, int set, int helpful,
+*                      int64_t value, const char *comment, int *status )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astWriteInt method inherited from the Channel class).
+
+*  Description:
+*     This function writes a named 64 bit integer value, representing the
+*     value of a class instance variable, to the data sink associated
+*     with a Channel. It is intended for use by class "Dump" functions
+*     when writing out class information which will subsequently be
+*     re-read.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     name
+*        Pointer to a constant null-terminated string containing the
+*        name to be used to identify the value in the external
+*        representation. This will form the key for identifying it
+*        again when it is re-read. The name supplied should be unique
+*        within its class.
+*
+*        Mixed case may be used and will be preserved in the external
+*        representation (where possible) for cosmetic effect. However,
+*        case is not significant when re-reading values.
+*
+*        It is recommended that a maximum of 6 alphanumeric characters
+*        (starting with an alphabetic character) be used. This permits
+*        maximum flexibility in adapting to standard external data
+*        representations (e.g. FITS).
+*     set
+*        If this is zero, it indicates that the value being written is
+*        a default value (or can be re-generated from other values) so
+*        need not necessarily be written out. Such values will
+*        typically be included in the external representation with
+*        (e.g.) a comment character so that they are available to
+*        human readers but will be ignored when re-read. They may also
+*        be completely omitted in some circumstances.
+*
+*        If "set" is non-zero, the value will always be explicitly
+*        included in the external representation so that it can be
+*        re-read.
+*     helpful
+*        This flag provides a hint about whether a value whose "set"
+*        flag is zero (above) should actually appear at all in the
+*        external representaton.
+*
+*        If the external representation allows values to be "commented
+*        out" then, by default, values will be included in this form
+*        only if their "helpful" flag is non-zero. Otherwise, they
+*        will be omitted entirely. When possible, omitting the more
+*        obscure values associated with a class is recommended in
+*        order to improve readability.
+*
+*        This default behaviour may be further modified if the
+*        Channel's Full attribute is set - either to permit all values
+*        to be shown, or to suppress non-essential information
+*        entirely.
+*     value
+*        The value to be written.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the value.
+*
+*        Note that this comment may not actually be used, depending on
+*        the nature of the Channel supplied and the setting of its
+*        Comment attribute.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   AstYamlChan *this;             /* A pointer to the YamlChan structure. */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* If the object to be written is a component of a default AST object (i.e.
+   an object which is "not set"), then we do not write out this item. */
+   if( this->objectset ) {
+
+/* Use the "set" and "helpful" flags, along with the Channel's
+   attributes to decide whether this value should actually be
+   written. */
+      if( Use( this, set, helpful, status ) ) {
+
+/* Write out the YAML */
+         StoreYaml0K( this, name, this->emitter, set, value, status );
+
+/* Initialise a flag to indicate that the next "IsA" item should be
+   written. */
+         this->write_isa = 1;
+      }
+   }
+}
+
+static void WriteIsA( AstChannel *this_channel, const char *class,
+                      const char *comment, int *status ) {
+/*
+*  Name:
+*     WriteIsA
+
+*  Purpose:
+*     Write an "IsA" data item to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void WriteIsA( AstChannel *this, const char *class,
+*                    const char *comment, int *status )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astWriteIsA method inherited from the Channel class).
+
+*  Description:
+*     This function writes an "IsA" data item to the data sink
+*     associated with a Channel. This item delimits the end of the
+*     data associated with the instance variables of a class, as part
+*     of an overall Object definition.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     class
+*        Pointer to a constant null-terminated string containing the
+*        name of the class whose data are terminated by the "IsA"
+*        item.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the "IsA"
+*        item. Normally, this will describe the purpose of the class
+*        whose data are being terminated.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     - The comment supplied may not actually be used, depending on
+*     the nature of the Channel supplied.
+*/
+
+/* Local Variables: */
+   AstYamlChan *this;             /* A pointer to the YamlChan structure. */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* If the object to be written is a component of a default AST object (i.e.
+   an object which is "not set"), then we do not write out this item. */
+   if( this->objectset ) {
+
+/* Output an "IsA" item only if there has been at least one item
+   written since the last "Begin" or "IsA" item, or if the Full
+   attribute for the Channel is greater than zero (requesting maximum
+   information). */
+      if ( this->write_isa || astGetFull( this ) > 0 ) {
+
+/* Write out the IsA element. */
+         StoreYaml0C( this, "IsA", 0, this->emitter, 1, class,
+                      NULL, status );
+      }
+   }
+
+/* Initialise a flag to indicate that the next "IsA" item should not be
+   written. This flag will be changed if and when an item is added which
+   related to the class described by the "IsA" item. */
+   this->write_isa = 0;
+}
+
+static void WriteObject( AstChannel *this_channel, const char *name,
+                         int set, int helpful,
+                         AstObject *value, const char *comment, int *status ) {
+/*
+*  Name:
+*     WriteObject
+
+*  Purpose:
+*     Write an Object as a value to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void WriteObject( AstChannel *this_channel, const char *name,
+*                       int set, int helpful,
+*                       AstObject *value, const char *comment, int *status )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astWriteObject method inherited from the Channel class).
+
+*  Description:
+*     This function writes an Object as a named value, representing
+*     the value of a class instance variable, to the data sink
+*     associated with an YamlChan. It is intended for use by class
+*     "Dump" functions when writing out class information which will
+*     subsequently be re-read.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     name
+*        Pointer to a constant null-terminated string containing the
+*        name to be used to identify the value in the external
+*        representation. This will form the key for identifying it
+*        again when it is re-read. The name supplied should be unique
+*        within its class.
+*
+*        Mixed case may be used and will be preserved in the external
+*        representation (where possible) for cosmetic effect. However,
+*        case is not significant when re-reading values.
+*
+*        It is recommended that a maximum of 6 alphanumeric characters
+*        (starting with an alphabetic character) be used. This permits
+*        maximum flexibility in adapting to standard external data
+*        representations.
+*     set
+*        If this is zero, it indicates that the value being written is
+*        a default value (or can be re-generated from other values) so
+*        need not necessarily be written out. Such values will
+*        typically be included in the external representation with
+*        (e.g.) a comment character so that they are available to
+*        human readers but will be ignored when re-read. They may also
+*        be completely omitted in some circumstances.
+*
+*        If "set" is non-zero, the value will always be explicitly
+*        included in the external representation so that it can be
+*        re-read.
+*     helpful
+*        This flag provides a hint about whether a value whose "set"
+*        flag is zero (above) should actually appear at all in the
+*        external representaton.
+*
+*        If the external representation allows values to be "commented
+*        out" then, by default, values will be included in this form
+*        only if their "helpful" flag is non-zero. Otherwise, they
+*        will be omitted entirely. When possible, omitting the more
+*        obscure values associated with a class is recommended in
+*        order to improve readability.
+*
+*        This default behaviour may be further modified if the
+*        Channel's Full attribute is set - either to permit all values
+*        to be shown, or to suppress non-essential information
+*        entirely.
+*     value
+*        A Pointer to the Object to be written.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the value.
+*
+*        Note that this comment may not actually be used, depending on
+*        the nature of the Channel supplied and the setting of its
+*        Comment attribute.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   AstYamlChan *this;
+   const char *oldname;
+   int oldset;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* If the object to be written is a component of a default AST object (i.e.
+   an object which is "not set"), then we do not write out the object. */
+   if( this->objectset ) {
+
+/* Use the "set" and "helpful" flags, along with the Channel's
+   attributes to decide whether this value should actually be
+   written. */
+      if ( Use( this, set, helpful, status ) ) {
+
+/* Save information about the parent object. */
+         oldname = this->objectname;
+         oldset = this->objectset;
+
+/* Store information describing the object to be written. The class item is
+   filled in when astWriteBegin is called. */
+         this->objectname = ( name && strlen( name ) ) ? name : NULL;
+         this->objectset = set;
+         this->write_isa = 0;
+
+/* Write the object to the YamlChan. */
+         (void) astDump( value, this );
+
+/* Re-instate the information about the parent object. */
+         this->objectname = oldname;
+         this->objectset = oldset;
+
+/* Since we have now written some output text describing the object
+   class, we need to write out the netx "IsA" item to mark the end of the
+   information about the current class. */
+         this->write_isa = 1;
+      }
+   }
+}
+
+static void WriteString( AstChannel *this_channel, const char *name, int set,
+                         int helpful, const char *value, const char *comment, int *status ){
+/*
+*  Name:
+*     WriteString
+
+*  Purpose:
+*     Write a string value to a data sink.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void WriteString( AstChannel *this, const char *name, int set, int helpful,
+*                       const char *value, const char *comment, int *status )
+
+*  Class Membership:
+*     YamlChan member function (over-rides the protected
+*     astWriteString method inherited from the Channel class).
+
+*  Description:
+*     This function writes a named string value, representing the
+*     value of a class instance variable, to the data sink associated
+*     with a Channel. It is intended for use by class "Dump" functions
+*     when writing out class information which will subsequently be
+*     re-read.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*     name
+*        Pointer to a constant null-terminated string containing the
+*        name to be used to identify the value in the external
+*        representation. This will form the key for identifying it
+*        again when it is re-read. The name supplied should be unique
+*        within its class.
+*
+*        Mixed case may be used and will be preserved in the external
+*        representation (where possible) for cosmetic effect. However,
+*        case is not significant when re-reading values.
+*
+*        It is recommended that a maximum of 6 alphanumeric characters
+*        (starting with an alphabetic character) be used. This permits
+*        maximum flexibility in adapting to standard external data
+*        representations (e.g. FITS).
+*     set
+*        If this is zero, it indicates that the value being written is
+*        a default value (or can be re-generated from other values) so
+*        need not necessarily be written out. Such values will
+*        typically be included in the external representation with
+*        (e.g.) a comment character so that they are available to
+*        human readers but will be ignored when re-read. They may also
+*        be completely omitted in some circumstances.
+*
+*        If "set" is non-zero, the value will always be explicitly
+*        included in the external representation so that it can be
+*        re-read.
+*     helpful
+*        This flag provides a hint about whether a value whose "set"
+*        flag is zero (above) should actually appear at all in the
+*        external representaton.
+*
+*        If the external representation allows values to be "commented
+*        out" then, by default, values will be included in this form
+*        only if their "helpful" flag is non-zero. Otherwise, they
+*        will be omitted entirely. When possible, omitting the more
+*        obscure values associated with a class is recommended in
+*        order to improve readability.
+*
+*        This default behaviour may be further modified if the
+*        Channel's Full attribute is set - either to permit all values
+*        to be shown, or to suppress non-essential information
+*        entirely.
+*     value
+*        Pointer to a constant null-terminated string containing the
+*        value to be written.
+*     comment
+*        Pointer to a constant null-terminated string containing a
+*        textual comment to be associated with the value.
+*
+*        Note that this comment may not actually be used, depending on
+*        the nature of the Channel supplied and the setting of its
+*        Comment attribute.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   AstYamlChan *this;             /* A pointer to the YamlChan structure. */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain a pointer to the YamlChan structure. */
+   this = (AstYamlChan *) this_channel;
+
+/* If the object to be written is a component of a default AST object (i.e.
+   an object which is "not set"), then we do not write out this item. */
+   if( this->objectset ) {
+
+/* Use the "set" and "helpful" flags, along with the Channel's
+   attributes to decide whether this value should actually be
+   written. */
+      if( Use( this, set, helpful, status ) ) {
+
+/* Write out the YAML */
+         StoreYaml0C( this, name, 1, this->emitter, set, value, NULL, status );
+
+/* Initialise a flag to indicate that the next "IsA" item should be
+   written. */
+         this->write_isa = 1;
       }
    }
 }
@@ -15937,6 +17678,7 @@ static AstObject *YamlToAst( AstYamlChan *this, AstKeyMap *km,
    AstObject *result;
    AstObject *obj;
    const char *key;
+   int enc;
    int iel;
    int ikey;
    int nel;
@@ -15947,6 +17689,19 @@ static AstObject *YamlToAst( AstYamlChan *this, AstKeyMap *km,
 
 /* Check inherited status */
    if( *status != 0 ) return result;
+
+/* If no value has been set for thr YamlEncoding attribute, set the
+   default value determined whilst the YAML was being parsed. */
+   if( !astTestYamlEncoding( this ) ){
+      enc = this->defenc;
+      astSetYamlEncoding( this, enc );
+
+/* If a value has been set for YamlEncoding, get it. If it is UNKNOWN,
+   then use the default (but do not set it). */
+   } else {
+      enc = astGetYamlEncoding( this );
+      if( enc == UNKNOWN_ENCODING ) enc = this->defenc;
+   }
 
 /* We need to find the first WCS in the supplied KeyMap, so loop
    round the entries in the KeyMap. */
@@ -15965,9 +17720,17 @@ static AstObject *YamlToAst( AstYamlChan *this, AstKeyMap *km,
             astMapGetElemA( km, key, iel, &obj );
             subkm = (AstKeyMap *) obj;
 
-/* If the KeyMap represents a WCS, read an AST FrameSet from it. */
-            if( IsA( subkm, "wcs", status ) ) {
-               result = (AstObject *) ReadWcs( this, subkm, status );
+/* If we are looking for ASDF objects, and the KeyMap represents a WCS, read
+   an AST FrameSet from it. */
+            if( enc == ASDF_ENCODING ) {
+               if( IsA( subkm, "wcs", status ) ) {
+                  result = (AstObject *) ReadWcs( this, subkm, status );
+               }
+
+/* If we are looking for NATIVE objects, attempt to read an AST Object
+   from it. */
+            } else if( enc == NATIVE_ENCODING ) {
+               result = (AstObject *) ReadNative( this, subkm, status );
             }
 
 /* Free the KeyMap pointer read from the current element of the vector. */
@@ -15978,8 +17741,8 @@ static AstObject *YamlToAst( AstYamlChan *this, AstKeyMap *km,
 
 /* Report an error if no WCS entry was found. */
    if( !result && astOK ) {
-      astError( AST__NOTMP, "astRead(YamlChan): No WCS found in "
-                "supplied YAML text", status );
+      astError( AST__NOTMP, "astRead(YamlChan): No suitable object was found "
+                "in the supplied YAML text", status );
 
 /* Delete any returned FrameSet pointer if an error occurred. */
    } else if( result && !astOK ) {
@@ -16151,7 +17914,8 @@ f     affects the behaviour of the AST_WRITE routine  when
 */
 astMAKE_CLEAR(YamlChan,YamlEncoding,yamlencoding,UNKNOWN_ENCODING)
 astMAKE_SET(YamlChan,YamlEncoding,int,yamlencoding,(
-   value == ASDF_ENCODING ? value :
+   ( value == ASDF_ENCODING ||
+     value == NATIVE_ENCODING ) ? value :
    (astError( AST__BADAT, "astSetYamlEncoding: Unknown YAML formatting system %d "
               "supplied.", status, value ), UNKNOWN_ENCODING )))
 astMAKE_TEST(YamlChan,YamlEncoding,( this->yamlencoding != UNKNOWN_ENCODING ))
@@ -16872,6 +18636,8 @@ AstYamlChan *astInitYamlChan_( void *mem, size_t size, int init,
       new->yamlencoding = UNKNOWN_ENCODING;
       new->anchors = NULL;
       new->gotwcs = 0;
+      new->defenc = UNKNOWN_ENCODING;
+      new->obj = NULL;
 
 /* If an error occurred, clean up by deleting the new object. */
       if ( !astOK ) new = astDelete( new );
@@ -17031,6 +18797,8 @@ AstYamlChan *astLoadYamlChan_( void *mem, size_t size,
    representation of the YamlChan. */
       new->anchors = NULL;
       new->gotwcs = 0;
+      new->defenc = UNKNOWN_ENCODING;
+      new->obj = NULL;
    }
 
 /* If an error occurred, clean up by deleting the new YamlChan. */

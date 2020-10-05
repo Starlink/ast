@@ -19,6 +19,7 @@ Main Changes in this Version
 
 - The KeyMap class now supports 64 bit signed integer entries.
 - Two simplification bugs introduced at V9.2.0 have been fixed.
+- The YamlChan class now supports AST "native" encoding.
 
 Main Changes in V9.2.0
 ----------------------

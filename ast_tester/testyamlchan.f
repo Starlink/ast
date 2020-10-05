@@ -55,9 +55,12 @@ c      call ast_watchmemory( 8200 );
 
       call ast_clear( ch, 'SourceFile,SinkFile', status )
       call ast_set( ch, 'SourceFile=yamltest.asdf', status )
+      call ast_clear( ch, 'YamlEncoding', status )
 
       obj2 = ast_read( ch, status )
-
+      if( ast_getc( ch, 'YamlEncoding', status ) .ne. 'ASDF' ) then
+         call stopit( 131, status )
+      end if
       call test1( obj, 'Read tests failed for yamltest.asdf',
      :            status )
 
@@ -112,6 +115,41 @@ c      call ast_watchmemory( 8200 );
 
 
 
+* Test NATIVE encoding.
+      ch = ast_yamlchan( AST_NULL, AST_NULL, 'YamlEncoding=NATIVE ',
+     :                   status )
+
+      if( ast_getc( ch, 'YamlEncoding', status ) .ne. 'NATIVE' ) then
+         call stopit( 17, status )
+      end if
+
+      if( .NOT. ast_test( ch, 'YamlEncoding', status ) ) then
+         call stopit( 18, status )
+      end if
+
+      call ast_set( ch, 'SinkFile=nativetest.yaml', status )
+
+      if( ast_write( ch, obj, status ) .ne. 1 ) then
+         call stopit( 19, status )
+      end if
+
+      call ast_clear( ch, 'YamlEncoding', status )
+      call ast_clear( ch, 'SinkFile', status )
+      call ast_set( ch, 'SourceFile=nativetest.yaml', status )
+
+      obj2 = ast_read( ch, status )
+
+      if( obj2 .eq. AST__NULL ) then
+         call stopit( 20, status )
+      end if
+
+      if( .not. ast_equal( obj2, obj, status )) then
+         call stopit( 21, status )
+      end if
+
+      if( ast_getc( ch, 'YamlEncoding', status ) .ne. 'NATIVE' ) then
+         call stopit( 22, status )
+      end if
 
 
 

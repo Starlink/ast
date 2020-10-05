@@ -67,6 +67,11 @@
 #include <stddef.h>
 #endif
 
+#if defined( YAML )
+#include <yaml.h>
+#endif
+
+
 /* Macros. */
 /* ------- */
 
@@ -96,8 +101,20 @@ typedef struct AstYamlChan {
    int preservename;      /* Store ASDF 'name' as Ident? */
    int verboseread;       /* Echo yaml text to stdout as it is read? */
    int yamlencoding;      /* Output format to use when writing */
+   int defenc;            /* Default yaml encoding */
    AstKeyMap *anchors;    /* KeyMap holding transient YAML anchor definitions */
    int gotwcs;            /* Has a complete WCS been read yet? */
+   const char *objectname;/* Name of Object currently being written. */
+   int objectset;         /* Is the Object currently being written set? */
+   int write_isa;         /* Is the next "isA" really needed? */
+   AstKeyMap *obj;        /* KeyMap holding the NATIVE object being read */
+   int index;             /* Index of next item to read from "obj" */
+
+#if defined( YAML )
+   yaml_emitter_t emitter_data; /* The body of a yaml emitter */
+   yaml_emitter_t *emitter;     /* Pointer to the above yaml emitter */
+#endif
+
 } AstYamlChan;
 
 /* Virtual function table. */
