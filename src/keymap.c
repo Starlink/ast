@@ -3520,7 +3520,13 @@ static const char *GetKey( AstKeyMap *this, int index, int *status ) {
       entry = this->first;
 
 /* Move up the sorted list by the required number of entries. */
-      for( istep = 0; entry && istep < index; istep++ ) entry = entry->snext;
+      for( istep = 0; entry && istep < index; istep++ ) {
+         entry = entry->snext;
+         if( entry == this->first ) {
+            entry = NULL;
+            break;
+         }
+      }
 
 /* Return a pointer to the key string. */
       if( entry ) result = entry->key;
