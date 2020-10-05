@@ -12635,7 +12635,7 @@ static void WriteInt64( AstChannel *this_channel, const char *name, int set, int
                         int64_t value, const char *comment, int *status ) {
 /*
 *  Name:
-*     WriteInt
+*     WriteInt64
 
 *  Purpose:
 *     Write a 64 bit integer value to a data sink.
