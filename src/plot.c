@@ -729,6 +729,13 @@ f     - Title: The Plot title drawn using AST_GRID
 *        points for no good reason (e.g. when drawing the boundary of a Moc).
 *        Plotting all these unnecessary points slows down the drawing badly
 *        with soime devices (e.g. GWM).
+*     9-OCT-2020 (DSB):
+*        In GetTicks, if the Gap attribute has been set, always round the
+*        set value to a close "nice" value, even if the Format attribute
+*        has been set. Previously, the set value was used without change
+*        if Format was set, but this caused things like 5 minor gaps
+*        between major tick values 40 and 44.
+
 *class--
 */
 
@@ -16852,14 +16859,8 @@ static double GetTicks( AstPlot *this, int axis, double *cen, double **ticks,
       } else {
 
 /* Find a likely value for the number of minor tick marks to use, and find
-   a nice gap close to the supplied gap (unless an explicit format has
-   been set). */
-         if( format_set ){
-            used_gap = gap;
-            (void) astGap( statics->frame, axis, used_gap, nminor );
-         } else {
-            used_gap = astGap( statics->frame, axis, gap, nminor );
-         }
+   a nice gap close to the supplied gap. */
+         used_gap = astGap( statics->frame, axis, gap, nminor );
 
 /* Find where the major ticks should be put. */
          if( cen ) *cen = cen0;
