@@ -6145,6 +6145,10 @@ static int Write( AstChannel *this_channel, AstObject *object, int *status ) {
    if( coords ) coords = astAnnul( coords );
    if( props ) props = astAnnul( props );
 
+/* Ensure all output is flushed to any associated output file specified
+   by the SinkFile attribute. */
+   astWriteFlush( this );
+
 /* If an error has occurred, return zero. */
    if( !astOK ) ret = 0;
 

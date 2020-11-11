@@ -39235,6 +39235,10 @@ static int Write( AstChannel *this_channel, AstObject *object, int *status ) {
    marked as "new". */
    mark_new = 0;
 
+/* Ensure all output is flushed to any associated output file specified
+   by the SinkFile attribute. */
+   astWriteFlush( this );
+
 /* If no object was written, re-instate the original current card. */
    if( !ret ) astSetCard( this, card0 );
 

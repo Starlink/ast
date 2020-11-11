@@ -380,6 +380,7 @@ static void WriteInt64( AstChannel *, const char *, int, int, int64_t, const cha
 static void WriteIsA( AstChannel *, const char *, const char *, int * );
 static void WriteObject( AstChannel *, const char *, int, int, AstObject *, const char *, int * );
 static void WriteString( AstChannel *, const char *, int, int, const char *, const char *, int * );
+static void WriteFlush( AstChannel *, int * );
 
 static int GetReportLevel( AstChannel *, int * );
 static int TestReportLevel( AstChannel *, int * );
@@ -1991,6 +1992,7 @@ void astInitChannelVtab_(  AstChannelVtab *vtab, const char *name, int *status )
    vtab->WriteIsA = WriteIsA;
    vtab->WriteObject = WriteObject;
    vtab->WriteString = WriteString;
+   vtab->WriteFlush = WriteFlush;
    vtab->PutChannelData = PutChannelData;
 
    vtab->ClearReportLevel = ClearReportLevel;
@@ -4224,6 +4226,10 @@ f     with STATUS set to an error value, or if it should fail for any
    adapt to the nature of either argument. */
    astDump( object, this );
 
+/* Ensure all output is flushed to any associated output file specified
+   by the SinkFile attribute. */
+   astWriteFlush( this );
+
 /* Return the number of Objects written. */
    return astOK ? 1 : 0;
 }
@@ -4529,6 +4535,42 @@ static void WriteEnd( AstChannel *this, const char *class, int *status ) {
 
 /* Free the dynamic string. */
    line = astFree( line );
+}
+
+static void WriteFlush( AstChannel *this, int *status ) {
+/*
+*+
+*  Name:
+*     astWriteFlush
+
+*  Purpose:
+*     Flush the output file associated with a Channel.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "channel.h"
+*     void astWriteFlush( AstChannel *this )
+
+*  Class Membership:
+*     Channel method.
+
+*  Description:
+*     This function flushes any buffered output to any ouput file
+*     associated with the supplied CHannel.
+
+*  Parameters:
+*     this
+*        Pointer to the Channel.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* If the Channel has an associated output file, flush it. */
+   if( this->fd_out ) fflush( this->fd_out );
 }
 
 static void WriteInt( AstChannel *this, const char *name, int set, int helpful,
@@ -6756,10 +6798,13 @@ void astPutChannelData_( AstChannel *this, void *data, int *status ) {
    if ( !astOK ) return;
    (**astMEMBER(this,Channel,PutChannelData))( this, data, status );
 }
-
 AstKeyMap *astWarnings_( AstChannel *this, int *status ){
    if( !astOK ) return NULL;
    return (**astMEMBER(this,Channel,Warnings))( this, status );
+}
+void astWriteFlush_( AstChannel *this, int *status ){
+   if( !astOK ) return;
+   return (**astMEMBER(this,Channel,WriteFlush))( this, status );
 }
 
 /* Because of the variable argument list, we need to work a bit harder on

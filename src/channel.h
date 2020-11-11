@@ -330,6 +330,7 @@ typedef struct AstChannelVtab {
    void (* WriteIsA)( AstChannel *, const char *, const char *, int * );
    void (* WriteObject)( AstChannel *, const char *, int, int, AstObject *, const char *, int * );
    void (* WriteString)( AstChannel *, const char *, int, int, const char *, const char *, int * );
+   void (* WriteFlush)( AstChannel *, int * );
 
    int (* GetSkip)( AstChannel *, int * );
    int (* TestSkip)( AstChannel *, int * );
@@ -488,6 +489,7 @@ int astWriteInvocations_( int * );
 void astWriteIsA_( AstChannel *, const char *, const char *, int * );
 void astWriteObject_( AstChannel *, const char *, int, int, AstObject *, const char *, int * );
 void astWriteString_( AstChannel *, const char *, int, int, const char *, const char *, int * );
+void astWriteFlush_( AstChannel *, int * );
 
 int astGetSkip_( AstChannel *, int * );
 int astTestSkip_( AstChannel *, int * );
@@ -638,6 +640,8 @@ astINVOKE(V,astWriteIsA_(astCheckChannel(this),class,comment,STATUS_PTR))
 astINVOKE(V,astWriteObject_(astCheckChannel(this),name,set,helpful,astCheckObject(value),comment,STATUS_PTR))
 #define astWriteString(this,name,set,helpful,value,comment) \
 astINVOKE(V,astWriteString_(astCheckChannel(this),name,set,helpful,value,comment,STATUS_PTR))
+#define astWriteFlush(this) \
+astINVOKE(V,astWriteFlush_(astCheckChannel(this),STATUS_PTR))
 
 #define astWriteInvocations astWriteInvocations_(STATUS_PTR)
 

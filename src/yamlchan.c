@@ -1770,6 +1770,10 @@ static int Write( AstChannel *this_channel, AstObject *obj, int *status ) {
                 status, enc );
    }
 
+/* Ensure all output is flushed to any associated output file specified
+   by the SinkFile attribute. */
+   astWriteFlush( this );
+
 /* If an error has occurred, return zero. */
    if( !astOK ) ret = 0;
 
