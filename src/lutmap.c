@@ -2087,8 +2087,8 @@ f        An array containing the
 *        lookup table entries.
 c     start
 f     START = DOUBLE PRECISION (Given)
-*        The input coordinate value which corresponds to the first lookup
-*        table entry.
+*        The input coordinate value which corresponds to the centre of the
+*        first lookup table entry.
 c     inc
 f     INC = DOUBLE PRECISION (Given)
 *        The lookup table spacing (the increment in input coordinate
