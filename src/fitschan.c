@@ -28763,25 +28763,25 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
          if( isoff > 0 ) {
             skyref = astGetC( skyfrm, "SkyRef" );
 
-            sprintf( attr, "Symbol(%d)", axlon + 1 );
+            sprintf( attr, "Symbol(%d)", lonax + 1 );
             sprintf( com, "%s offset from %s",astGetC( skyfrm, attr )+1, skyref );
             SetItemC( &(store->ctype_com), axlon, 0, s, com, status );
 
-            sprintf( attr, "Symbol(%d)", axlat + 1 );
+            sprintf( attr, "Symbol(%d)", latax + 1 );
             sprintf( com, "%s offset from %s",astGetC( skyfrm, attr )+1, skyref );
             SetItemC( &(store->ctype_com), axlat, 0, s, com, status );
 
 /* If the description is for absolute coords store the SkyFrame attribute
    values in AST-specific keywords. */
          } else {
-            sprintf( attr, "SkyRef(%d)", axlon + 1 );
+            sprintf( attr, "SkyRef(%d)", lonax + 1 );
             skyref_lon = astGetD( skyfrm, attr );
-            sprintf( attr, "SkyRef(%d)", axlat + 1 );
+            sprintf( attr, "SkyRef(%d)", latax + 1 );
             skyref_lat = astGetD( skyfrm, attr );
 
-            sprintf( attr, "SkyRefP(%d)", axlon + 1 );
+            sprintf( attr, "SkyRefP(%d)", lonax + 1 );
             skyrefp_lon = astGetD( skyfrm, attr );
-            sprintf( attr, "SkyRefP(%d)", axlat + 1 );
+            sprintf( attr, "SkyRefP(%d)", latax + 1 );
             skyrefp_lat = astGetD( skyfrm, attr );
 
             skyrefis = (isoff < -2) ? "IGNORED" :
