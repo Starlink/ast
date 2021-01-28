@@ -83,6 +83,8 @@ f     The Prism class does not define any new routines beyond those
 *     9-SEP-2014 (DSB):
 *        Record the pointer to the Prism implementation of RegBaseMesh
 *        within the class virtual function table.
+*     28-JAN-2021 (DSB):
+*        GetRegionBounds: Take account of axis permutation in the Prism's FrameSet.
 *class--
 */
 
@@ -1007,11 +1009,15 @@ static void GetRegionBounds( AstRegion *this_region, double *lbnd,
    AstPrism *this;              /* Pointer to Prism structure */
    AstRegion *reg1;             /* 1st component Region Mapping into Prism's Frame */
    AstRegion *reg2;             /* 2nd component Region Mapping into Prism's Frame */
+   double *tlbnd;               /* Unpermuted lower bounds */
+   double *tubnd;               /* Unpermuted upper bounds */
    int *baxes;                  /* Indicies of Base Frame axes to be picked */
-   int *caxes;                  /* Indicies of Current Frame axes to be picked */
+   int *caxes1;                 /* Indicies of Current Frame axes to be picked for component 1 */
+   int *caxes2;                 /* Indicies of Current Frame axes to be picked for component 2 */
    int iax;                     /* Axis index */
    int nax1;                    /* Number of axes in first component Region */
    int nax1_out;                /* Number of current Frame axes in first component Region */
+   int nax2_out;                /* Number of current Frame axes in second component Region */
    int nax2;                    /* Number of axes in second component Region */
 
 /* Check the global error status. */
@@ -1025,6 +1031,8 @@ static void GetRegionBounds( AstRegion *this_region, double *lbnd,
    cfrm2 = NULL;
    map1 = NULL;
    map2 = NULL;
+   caxes1 = NULL;
+   caxes2 = NULL;
    nax1_out = 0;
 
 /* The number of base-frame axes spanned by the two component Regions. */
@@ -1051,22 +1059,21 @@ static void GetRegionBounds( AstRegion *this_region, double *lbnd,
 /* Attempt to split these inputs from the total Mapping, thus creating a
    Mapping that converts just the axes spanned by the first component
    Region. */
-      caxes = astMapSplit( map, nax1, baxes, &map1 );
+      caxes1 = astMapSplit( map, nax1, baxes, &map1 );
 
 /* If the Mapping could be split, get a Frame spanning the current Frame
    axes corresponding to the first component Region. */
-      if( caxes ) {
+      if( caxes1 ) {
          nax1_out = astGetNout( map1 );
-         cfrm1 = astPickAxes( cfrm, nax1_out, caxes, NULL );
-         caxes = astFree( caxes );
+         cfrm1 = astPickAxes( cfrm, nax1_out, caxes1, NULL );
       }
 
 /* Do the same thing for the second component Region. */
       for( iax = 0; iax < nax2; iax++ ) baxes[ iax ] = iax + nax1;
-      caxes = astMapSplit( map, nax2, baxes, &map2 );
-      if( caxes ) {
-         cfrm2 = astPickAxes( cfrm, astGetNout( map2 ), caxes, NULL );
-         caxes = astFree( caxes );
+      caxes2 = astMapSplit( map, nax2, baxes, &map2 );
+      if( caxes2 ) {
+         nax2_out = astGetNout( map2 );
+         cfrm2 = astPickAxes( cfrm, nax2_out, caxes2, NULL );
       }
 
 /* Free resources. */
@@ -1083,26 +1090,43 @@ static void GetRegionBounds( AstRegion *this_region, double *lbnd,
 /* Otherwise, we get the bounds of the two component Regions separately. */
    } else {
 
+/* Workspace to hold the unpermuted bounds. */
+      tlbnd = astMalloc( ( nax1_out + nax2_out )*sizeof( double ) );
+      tubnd = astMalloc( ( nax1_out + nax2_out )*sizeof( double ) );
+      if( astOK ) {
+
 /* Remap the first component Region using the FrameSet created above. */
-      reg1 = astMapRegion( this->region1, map1, cfrm1 );
+         reg1 = astMapRegion( this->region1, map1, cfrm1 );
 
 /* Get the bounds of this Region, storing the results at the start of the
-   returned lbnd/ubnd arrays. */
-      astGetRegionBounds( reg1, lbnd, ubnd );
-      reg1 = astAnnul( reg1 );
+   the tlbnd/tubnd arrays. */
+         astGetRegionBounds( reg1, tlbnd, tubnd );
+         reg1 = astAnnul( reg1 );
 
 /* Do the same thing for the second component Region, storing the results
-   at the end of the returned lbnd/ubnd arrays. */
-      reg2 = astMapRegion( this->region2, map2, cfrm2 );
-      astGetRegionBounds( reg2, lbnd + nax1_out, ubnd + nax1_out );
-      reg2 = astAnnul( reg2 );
+   at the end of the tlbnd/tubnd arrays. */
+         reg2 = astMapRegion( this->region2, map2, cfrm2 );
+         astGetRegionBounds( reg2, tlbnd + nax1_out, tubnd + nax1_out );
+         reg2 = astAnnul( reg2 );
 
-/* What about the possibility that the axes of the Prism have been
-   permuted? */
-
-   }
+/* Take account of any axis permutation introduced by the Prism's FrameSet. */
+         for( iax = 0; iax < nax1_out; iax++ ) {
+            lbnd[ caxes1[ iax ] ] = tlbnd[ iax ];
+            ubnd[ caxes1[ iax ] ] = tubnd[ iax ];
+         }
+         for( iax = 0; iax < nax2_out; iax++ ) {
+            lbnd[ caxes2[ iax ] ] = tlbnd[ iax + nax1_out ];
+            ubnd[ caxes2[ iax ] ] = tubnd[ iax + nax1_out ];
+         }
+      }
 
 /* Free resources. */
+      tlbnd = astFree( tlbnd );
+      tubnd = astFree( tubnd );
+   }
+
+   caxes1 = astFree( caxes1 );
+   caxes2 = astFree( caxes2 );
    if( map1 ) map1 = astAnnul( map1 );
    if( map2 ) map2 = astAnnul( map2 );
    if( cfrm1 ) cfrm1 = astAnnul( cfrm1 );
