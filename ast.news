@@ -17,9 +17,15 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- A bug has been fixed that could prevent the astWrite method of the
+FitsChan class producing FITS-WCS headers describing alternate axes for
+some of the Frames in the supplied FrameSet.  Consequently, the headers
+produced by astWrite may now include alternate axis descriptions that
+were not present previously.
 - The KeyMap class now supports 64 bit signed integer entries.
 - Two simplification bugs introduced at V9.2.0 have been fixed.
 - The YamlChan class now supports AST "native" encoding.
+
 
 Main Changes in V9.2.0
 ----------------------

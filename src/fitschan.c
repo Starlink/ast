@@ -1245,8 +1245,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *     28-JAN-2021 (GSB):
 *        Correct the use of offset coords axis indices in SkySys.
 *     29-JAN-2021 (DSB):
-*        Check that the pointer returned by astGetC is not NULL before
+*        - Check that the pointer returned by astGetC is not NULL before
 *        attempting to use it.
+*        - Fix sorting of vector magnitudes in OrthVector. This bug accounts for why 
+*        FITS_WCS keywords describing alternate axes were often not produced. 
 *class--
 */
 
@@ -23049,11 +23051,11 @@ static double *OrthVector( int n, int m, double **in, int *status ){
    they are in order of decreasing ciolumn magnitude (i.e. colperm[0] will
    be left holding the index of the column with the largest magnitude). A
    simple bubble sort is used. */
-      ii = 1;
+      ii = n;
       done = 0;
       while( !done ) {
          done = 1;
-         for( i = ii; i < n; i++ ) {
+         for( i = 1; i < ii; i++ ) {
             ih = colperm[ i ];
             il = colperm[ i - 1 ];
             if( colmag[ ih ] > colmag[ il ] ) {
@@ -23062,7 +23064,7 @@ static double *OrthVector( int n, int m, double **in, int *status ){
                done = 0;
             }
          }
-         ii++;
+         ii--;
       }
 
 /* The first M elements in "colperm" now hold the indices of the

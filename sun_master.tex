@@ -18,12 +18,12 @@ f+
 \stardocnumber      {210.30}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {6th Oct 2020}
+\stardocdate        {29th Jan 2021}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
                                 in Astronomy}
-\stardoccopyright   {Copyright (C) 2020 East Asian Observatory}
+\stardoccopyright   {Copyright (C) 2021 East Asian Observatory}
 \stardocversion     {V<VERSION_NUMBER>}
 c+
 \stardocmanual      {Programmer's Guide\\(C Version)}
@@ -22436,6 +22436,11 @@ current version):
 
 \begin{enumerate}
 
+\item A bug has been fixed that could prevent the astWrite method of the
+FitsChan class producing FITS-WCS headers describing alternate axes for
+some of the Frames in the supplied FrameSet.  Consequently, the headers
+produced by astWrite may now include alternate axis descriptions that
+were not present previously.
 \item - The KeyMap class now supports 64 bit integer
 c+
 (int64\_t)
