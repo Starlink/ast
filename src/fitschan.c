@@ -1242,6 +1242,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        define the number of available CDELT values.
 *     17-AUG-2020 (DSB):
 *        Fix potential infinite loop in SpecTrans.
+*     28-JAN-2021 (GSB):
+*        Correct the use of offset coords axis indices in SkySys.
+*     29-JAN-2021 (DSB):
+*        Check that the pointer returned by astGetC is not NULL before
+*        attempting to use it.
 *class--
 */
 
@@ -22827,13 +22832,16 @@ static AstMapping *NonLinSpecWcs( AstFitsChan *this, char *algcode,
          pc = algcode[ 3 ];
          astError( AST__INTER, "%s: Function NonLinSpecWcs does not yet "
                    "support spectral axes of type %s (internal AST "
-                   "programming error).", status, method, astGetC( specfrm, "System" ) );
+                   "programming error).", status, method,
+                   astGetC( specfrm, "System" ) );
       }
       if( algcode[ 3 ] != pc ) {
-         sprintf( buf, "The spectral CTYPE value %s%s is not legal - "
-                 "using %s%.3s%c instead.", astGetC( specfrm, "System" ),
-                 algcode,  astGetC( specfrm, "System" ), algcode, pc );
-         Warn( this, "badctype", buf, method, class, status );
+         const char *text = astGetC( specfrm, "System" );
+         if( text ) {
+            sprintf( buf, "The spectral CTYPE value %s%s is not legal - using"
+                     " %s%.3s%c instead.", text, algcode, text, algcode, pc );
+            Warn( this, "badctype", buf, method, class, status );
+         }
       }
    }
 
@@ -28764,12 +28772,18 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
             skyref = astGetC( skyfrm, "SkyRef" );
 
             sprintf( attr, "Symbol(%d)", lonax + 1 );
-            sprintf( com, "%s offset from %s",astGetC( skyfrm, attr )+1, skyref );
-            SetItemC( &(store->ctype_com), axlon, 0, s, com, status );
+            const char *text = astGetC( skyfrm, attr );
+            if( skyref && text ) {
+               sprintf( com, "%s offset from %s", text + 1, skyref );
+               SetItemC( &(store->ctype_com), axlon, 0, s, com, status );
+            }
 
             sprintf( attr, "Symbol(%d)", latax + 1 );
-            sprintf( com, "%s offset from %s",astGetC( skyfrm, attr )+1, skyref );
-            SetItemC( &(store->ctype_com), axlat, 0, s, com, status );
+            text = astGetC( skyfrm, attr );
+            if( skyref && text ) {
+               sprintf( com, "%s offset from %s", text + 1, skyref );
+               SetItemC( &(store->ctype_com), axlat, 0, s, com, status );
+            }
 
 /* If the description is for absolute coords store the SkyFrame attribute
    values in AST-specific keywords. */
