@@ -185,6 +185,7 @@ typedef struct AstFitsChan {
    double fitstol;  /* Max departure from linearity, in pixels */
    int iwc;         /* Include an IWC Frame? */
    int clean;       /* Remove used cards even if an error occurs? */
+   int altaxes;     /* Controls creation of FITS-WCS alternate axes */
    int fitsdigits;  /* No. of decmial places in formatted floating point keyword values */
    char *fitsaxisorder; /* Pointer to a string defining WCS axis order */
    char *warnings;  /* Pointer to a string containing warning conditions */
@@ -275,6 +276,11 @@ typedef struct AstFitsChanVtab {
    int (* TestFitsDigits)( AstFitsChan *, int * );
    void (* SetFitsDigits)( AstFitsChan *, int, int * );
    void (* ClearFitsDigits)( AstFitsChan *, int * );
+
+   int (* GetAltAxes)( AstFitsChan *, int * );
+   int (* TestAltAxes)( AstFitsChan *, int * );
+   void (* SetAltAxes)( AstFitsChan *, int, int * );
+   void (* ClearAltAxes)( AstFitsChan *, int * );
 
    const char *(* GetFitsAxisOrder)( AstFitsChan *, int * );
    int (* TestFitsAxisOrder)( AstFitsChan *, int * );
@@ -574,6 +580,11 @@ void astInitFitsChanGlobals_( AstFitsChanGlobals * );
    int astTestFitsDigits_( AstFitsChan *, int * );
    void astSetFitsDigits_( AstFitsChan *, int, int * );
    void astClearFitsDigits_( AstFitsChan *, int * );
+
+   int astGetAltAxes_( AstFitsChan *, int * );
+   int astTestAltAxes_( AstFitsChan *, int * );
+   void astSetAltAxes_( AstFitsChan *, int, int * );
+   void astClearAltAxes_( AstFitsChan *, int * );
 
    const char *astGetFitsAxisOrder_( AstFitsChan *, int * );
    int astTestFitsAxisOrder_( AstFitsChan *, int * );
@@ -888,6 +899,15 @@ astINVOKE(V,astGetFitsDigits_(astCheckFitsChan(this),STATUS_PTR))
 astINVOKE(V,astSetFitsDigits_(astCheckFitsChan(this),fitsdigits,STATUS_PTR))
 #define astTestFitsDigits(this) \
 astINVOKE(V,astTestFitsDigits_(astCheckFitsChan(this),STATUS_PTR))
+
+#define astClearAltAxes(this) \
+astINVOKE(V,astClearAltAxes_(astCheckFitsChan(this),STATUS_PTR))
+#define astGetAltAxes(this) \
+astINVOKE(V,astGetAltAxes_(astCheckFitsChan(this),STATUS_PTR))
+#define astSetAltAxes(this,altaxes) \
+astINVOKE(V,astSetAltAxes_(astCheckFitsChan(this),altaxes,STATUS_PTR))
+#define astTestAltAxes(this) \
+astINVOKE(V,astTestAltAxes_(astCheckFitsChan(this),STATUS_PTR))
 
 #define astClearFitsAxisOrder(this) \
 astINVOKE(V,astClearFitsAxisOrder_(astCheckFitsChan(this),STATUS_PTR))

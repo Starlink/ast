@@ -21,7 +21,10 @@ Main Changes in this Version
 FitsChan class producing FITS-WCS headers describing alternate axes for
 some of the Frames in the supplied FrameSet.  Consequently, the headers
 produced by astWrite may now include alternate axis descriptions that
-were not present previously.
+were not present previously. These can be supressed using the new AltAxes
+attribute.
+- The FitsChan class has a new attribute, AltAxes, which controls the
+creation of FITS-WCS alternate axis descriptions by the astWrite method.
 - The KeyMap class now supports 64 bit signed integer entries.
 - Two simplification bugs introduced at V9.2.0 have been fixed.
 - The YamlChan class now supports AST "native" encoding.

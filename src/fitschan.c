@@ -114,6 +114,7 @@ f     encodings), then write operations using AST_WRITE will
 *     FitsChan also has the following attributes:
 *
 *     - AllWarnings: A list of the available conditions
+*     - AltAxes: Controls generation of FITS-WCS alternate axis descriptions
 *     - Card: Index of current FITS card in a FitsChan
 *     - CardComm: The comment of the current FITS card in a FitsChan
 *     - CardName: The keyword name of the current FITS card in a FitsChan
@@ -1247,8 +1248,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *     29-JAN-2021 (DSB):
 *        - Check that the pointer returned by astGetC is not NULL before
 *        attempting to use it.
-*        - Fix sorting of vector magnitudes in OrthVector. This bug accounts for why 
-*        FITS_WCS keywords describing alternate axes were often not produced. 
+*        - Fix sorting of vector magnitudes in OrthVector. This bug accounts for why
+*        FITS_WCS keywords describing alternate axes were often not produced.
+*        - Add AltAxes attribute, which controls the creation of FITS-WCS
+*        alternate axis descriptions.
 *class--
 */
 
@@ -1297,6 +1300,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 #define ZEROANG(aa) (fabs(aa)<1.0E-9)
 
 /* Constants: */
+#define ALTAXES_ALL          0
+#define ALTAXES_IDENT        1
+#define ALTAXES_NONE         2
+#define ALTAXES_ALL_STRING   "ALL"
+#define ALTAXES_IDENT_STRING "IDENT"
+#define ALTAXES_NONE_STRING  "NONE"
 #define UNKNOWN_ENCODING  -1
 #define NATIVE_ENCODING    0
 #define FITSPC_ENCODING    1
@@ -1355,6 +1364,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 #define SPD               86400.0
 #define FL  1.0/298.257  /*  Reference spheroid flattening factor */
 #define A0  6378140.0    /*  Earth equatorial radius (metres) */
+
+
+
+
 
 /* String used to represent AST__BAD externally. */
 #define BAD_STRING "<bad>"
@@ -1556,11 +1569,16 @@ static const char *type_names[9] = {"comment", "integer", "floating point",
                                     "continuation string", "undef" };
 
 /* Text values used to represent Encoding values externally. */
-
 static const char *xencod[8] = { NATIVE_STRING, FITSPC_STRING,
                                  DSS_STRING, FITSWCS_STRING,
                                  FITSIRAF_STRING, FITSAIPS_STRING,
                                  FITSAIPSPP_STRING, FITSCLASS_STRING };
+
+/* Text values used to represent AltAxes values externally. */
+static const char *xaltax[3] = { ALTAXES_ALL_STRING,
+                                 ALTAXES_IDENT_STRING,
+                                 ALTAXES_NONE_STRING };
+
 /* Define two variables to hold TimeFrames which will be used for converting
    MJD values between time scales. */
 static AstTimeFrame *tdbframe = NULL;
@@ -1757,6 +1775,10 @@ static void ClearFitsDigits( AstFitsChan *, int * );
 static int GetFitsDigits( AstFitsChan *, int * );
 static int TestFitsDigits( AstFitsChan *, int * );
 static void SetFitsDigits( AstFitsChan *, int, int * );
+static void ClearAltAxes( AstFitsChan *, int * );
+static int GetAltAxes( AstFitsChan *, int * );
+static int TestAltAxes( AstFitsChan *, int * );
+static void SetAltAxes( AstFitsChan *, int, int * );
 static void ClearFitsAxisOrder( AstFitsChan *, int * );
 static const char *GetFitsAxisOrder( AstFitsChan *, int * );
 static int TestFitsAxisOrder( AstFitsChan *, int * );
@@ -6582,6 +6604,11 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
    if ( !strcmp( attrib, "card" ) ) {
       astClearCard( this );
 
+/* AltAxes. */
+/* -------- */
+   } else if ( !strcmp( attrib, "altaxes" ) ) {
+      astClearAltAxes( this );
+
 /* Encoding. */
 /* --------- */
    } else if ( !strcmp( attrib, "encoding" ) ) {
@@ -11404,6 +11431,7 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
    FitsStore *ret;      /* Returned FitsStore */
    char s;              /* Next available co-ordinate version character */
    char s0;             /* Co-ordinate version character */
+   int altaxes;         /* Value of AltAxes  attribute */
    int ibase;           /* Base Frame index */
    int icurr;           /* Current Frame index */
    int ifrm;            /* Next Frame index */
@@ -11477,9 +11505,14 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
       primok = AddVersion( this, fset, ibase, icurr, ret, dim, ' ',
                            encoding, isoff, method, class, status );
 
+/* Get the value of the FitsChan AltAxes attribute. This controls which
+   Frames are used to generate alternate axis descriptions. */
+      altaxes =astGetAltAxes( this );
+
 /* Do not add any alternate axis descriptions if the primary axis
-   descriptions could not be produced. */
-      if( primok && astOK ) {
+   descriptions could not be produced or the AltAxes attribute indicates
+   that no alternate axis descriptions should be created. */
+      if( primok && astOK && altaxes != ALTAXES_NONE ) {
 
 /* Get the number of Frames in the FrameSet. */
          nfrm = astGetNframe( fset );
@@ -11524,15 +11557,19 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
 /* Now go round all the Frames again, looking for Frames which did not
    get a version letter assigned to it on the previous loop. Assign them
    letters now, selected them from the letters not already assigned
-   (lowest to highest). */
+   (lowest to highest). Do not do this if the AltAxes attribute
+   indicates that only Frames with suitable Ident values should be used to
+   create alternate axis descriptions. */
          s = 'A' - 1;
-         for( ifrm = 1; ifrm <= nfrm; ifrm++ ){
-            if( ifrm != icurr && ifrm != ibase && sid[ ifrm ] != 1 ) {
-               if( sid[ ifrm ] == 0 ){
-                  while( frms[ (int) ++s ] != 0 );
-                  if( s <= 'Z' ) {
-                     sid[ ifrm ] = s;
-                     frms[ (int) s ] = ifrm;
+         if( altaxes != ALTAXES_IDENT ){
+            for( ifrm = 1; ifrm <= nfrm; ifrm++ ){
+               if( ifrm != icurr && ifrm != ibase && sid[ ifrm ] != 1 ) {
+                  if( sid[ ifrm ] == 0 ){
+                     while( frms[ (int) ++s ] != 0 );
+                     if( s <= 'Z' ) {
+                        sid[ ifrm ] = s;
+                        frms[ (int) s ] = ifrm;
+                     }
                   }
                }
             }
@@ -16353,6 +16390,24 @@ const char *GetAttrib( AstObject *this_object, const char *attrib, int *status )
          result = getattrib_buff;
       }
 
+/* AltAxes. */
+/* -------- */
+   } else if ( !strcmp( attrib, "altaxes" ) ) {
+      ival = astGetAltAxes( this );
+      if ( astOK ) {
+         if( ival == ALTAXES_NONE ){
+            result = ALTAXES_NONE_STRING;
+         } else if( ival == ALTAXES_IDENT ){
+            result = ALTAXES_IDENT_STRING;
+         } else if( ival == ALTAXES_ALL ){
+            result = ALTAXES_ALL_STRING;
+         } else if( astOK ) {
+            astError( AST__INTER, "astGet(%s): Illegal AltAxes value %d "
+                      "encountered (internal AST programming error).", status,
+                      astGetClass( this ), ival );
+         }
+      }
+
 /* Ncard. */
 /* ------ */
    } else if ( !strcmp( attrib, "ncard" ) ) {
@@ -17825,6 +17880,10 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    vtab->TestCard = TestCard;
    vtab->SetCard = SetCard;
    vtab->GetCard = GetCard;
+   vtab->ClearAltAxes = ClearAltAxes;
+   vtab->TestAltAxes = TestAltAxes;
+   vtab->SetAltAxes = SetAltAxes;
+   vtab->GetAltAxes = GetAltAxes;
    vtab->ClearFitsDigits = ClearFitsDigits;
    vtab->TestFitsDigits = TestFitsDigits;
    vtab->SetFitsDigits = SetFitsDigits;
@@ -26291,6 +26350,23 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
                    "requested for a %s.", status, class, setting + ival, class );
       }
 
+/* AltAxes. */
+/* -------- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "altaxes= %d %n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+      nc = ChrLen( setting + ival, status );
+      if( !Ustrncmp( setting + ival, ALTAXES_NONE_STRING, nc, status ) ){
+         astSetAltAxes( this, ALTAXES_NONE );
+      } else if( !Ustrncmp( setting + ival, ALTAXES_IDENT_STRING, nc, status ) ){
+         astSetAltAxes( this, ALTAXES_IDENT );
+      } else if( !Ustrncmp( setting + ival, ALTAXES_ALL_STRING, nc, status ) ){
+         astSetAltAxes( this, ALTAXES_ALL );
+      } else {
+         astError( AST__BADAT, "astSet(%s): Illegal value '%s' supplied for "
+                   "attribute AltAxes.", status, class, setting + ival );
+      }
+
 /* FitsDigits. */
 /* ----------- */
    } else if ( nc = 0,
@@ -32903,6 +32979,11 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* -------------- */
    } else if ( !strcmp( attrib, "fitsaxisorder" ) ) {
       result = astTestFitsAxisOrder( this );
+
+/* AltAxes. */
+/* -------- */
+   } else if ( !strcmp( attrib, "altaxes" ) ) {
+      result = astTestAltAxes( this );
 
 /* FitsDigits. */
 /* ----------- */
@@ -41728,6 +41809,63 @@ astMAKE_GET(FitsChan,FitsDigits,int,AST__DBL_DIG,this->fitsdigits)
 astMAKE_SET(FitsChan,FitsDigits,int,fitsdigits,value)
 astMAKE_TEST(FitsChan,FitsDigits,( this->fitsdigits != AST__DBL_DIG ))
 
+/* AltAxes. */
+/* ======== */
+
+/*
+*att++
+*  Name:
+*     AltAxes
+
+*  Purpose:
+*     Controls generation of FITS-WCS alternate axis descriptions
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     String.
+
+*  Description:
+*     This attribute controls the generation of FITS-WCS alternate axis
+*     keywords by the
+c     astWrite
+f     AST_WRITE
+*     method. It determines which of the Frames in the FrameSet supplied
+c     to astWrite
+f     to AST_WRITE
+*     are used to create a set of alternate axis descriptions. It may be
+*     set to one of the following values (case insensitive):
+*
+*     - "ALL": A set of alternate axes will be created for each Frame in
+*     the supplied FrameSet, excluding the Base and Current Frames. This
+*     is the default.
+*
+*     - "NONE": No alternate axes will be created for any of the Frames in
+*     the supplied FrameSet.
+*
+*     - "IDENT": Alternate axes will be created for a Frame only if
+*     its Ident attribute is set to a single upper case alphabetical
+*     character (A-Z).
+
+*  Notes:
+*     - This attribute is used only if the Encoding attribute of the
+*     FitsChan is set to (or defaults to) "FITS-WCS" or "FITS-PC".
+*     - The Current Frame in the FrameSet is always used to create the
+*     primary axis descriptions in the output FITS header.
+*     - The Base Frame in the FrameSet is never used to create a set of
+*     alternate axis descriptions.
+
+*  Applicability:
+*     FitsChan
+*        All FitsChans have this attribute.
+*att--
+*/
+astMAKE_CLEAR(FitsChan,AltAxes,altaxes,INT_MAX)
+astMAKE_GET(FitsChan,AltAxes,int,INT_MAX,this->altaxes)
+astMAKE_SET(FitsChan,AltAxes,int,altaxes,value)
+astMAKE_TEST(FitsChan,AltAxes,( this->altaxes != INT_MAX ))
+
 /* CardComm */
 /* ======== */
 
@@ -42326,6 +42464,12 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    set = TestFitsDigits( this, status );
    ival = set ? GetFitsDigits( this, status ) : astGetFitsDigits( this );
    astWriteInt( channel, "FitsDg", set, 1, ival, "No. of digits for floating point values" );
+
+/* AltAXes. */
+/* -------- */
+   set = TestAltAxes( this, status );
+   ival = set ? GetAltAxes( this, status ) : astGetAltAxes( this );
+   astWriteString( channel, "AltAx", set, 1, xaltax[ival], "Creation of alternate axes" );
 
 /* DefB1950 */
 /* -------- */
@@ -43227,6 +43371,7 @@ AstFitsChan *astInitFitsChan_( void *mem, size_t size, int init,
       new->iwc = -1;
       new->clean = -1;
       new->fitsdigits = AST__DBL_DIG;
+      new->altaxes = INT_MAX;
       new->fitsaxisorder = NULL;
       new->encoding = UNKNOWN_ENCODING;
       new->warnings = NULL;
@@ -43420,6 +43565,18 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 /* FitsAxisOrder. */
 /* -------------- */
       new->fitsaxisorder = astReadString( channel, "faxord", NULL );
+
+/* AltAxes. */
+/* -------- */
+      text = astReadString( channel, "altax", NULL );
+      if( text ) {
+         new->altaxes = FindString( 3, xaltax, text, "the FitsChan component 'AltAx'",
+                                    "astRead", astGetClass( channel ), status );
+      } else {
+         new->altaxes = INT_MAX;
+      }
+      if ( TestAltAxes( new, status ) ) SetAltAxes( new, new->altaxes, status );
+      text = astFree( text );
 
 /* FitsDigits. */
 /* ----------- */

@@ -22440,7 +22440,10 @@ current version):
 FitsChan class producing FITS-WCS headers describing alternate axes for
 some of the Frames in the supplied FrameSet.  Consequently, the headers
 produced by astWrite may now include alternate axis descriptions that
-were not present previously.
+were not present previously. These can be supressed using the new AltAxes
+attribute.
+\item The FitsChan class has a new attribute, AltAxes, which controls the
+creation of FITS-WCS alternate axis descriptions by the astWrite method.
 \item - The KeyMap class now supports 64 bit integer
 c+
 (int64\_t)
