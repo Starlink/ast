@@ -3701,7 +3701,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
 /* Get the Mapping from base to current Frame. */
    map = astGetMapping( new->frameset, AST__BASE, AST__CURRENT );
 
-/* Get the number of inputs and outputs for the PermMap */
+/* Get the number of inputs and outputs for the Mapping. */
    nin = astGetNin( map );
    nout = astGetNout( map );
 
@@ -3993,7 +3993,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
          ps1 = astAnnul( ps1 );
       }
 
-/* If we have yet been able to produce a simpler region, we now try
+/* If we have not yet been able to produce a simpler region, we now try
    splitting the Box into two separate Boxes defined in separate
    coordinate Frames. If either of these two Boxes can be simplified,
    create a Prism containing the two simplified Boxes, and attempt to

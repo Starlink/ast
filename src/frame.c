@@ -6612,6 +6612,8 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
    double den;                /* Denominator */
    double dx;                 /* Offset in start X values */
    double dy;                 /* Offset in start Y values */
+   double len1;               /* Effective length of line 1 */
+   double len2;               /* Effective length of line 2 */
    double t1;                 /* Distance from start of line 1 to crossing */
    double t2;                 /* Distance from start of line 2 to crossing */
    int result;                /* Returned value */
@@ -6660,13 +6662,12 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
          }
 
 /* See if the intersection is within the length of both lines (excluding
-   the end points). If a line is flagged as infinite, set the "t" parameter
-   to zero to make it look like the crossing is within the line. */
-         if( l1->infinite ) t1 = 0.0;
-         if( l2->infinite ) t2 = 0.0;
-
-         if( t1 >= 0.0 && t1 < l1->length &&
-             t2 >= 0.0 && t2 < l2->length ) result = 1;
+   the end points). If a line is flagged as infinite, treat it as if it
+   extends from the start for an infinite length. */
+         len1 = l1->infinite ? DBL_MAX : l1->length;
+         len2 = l2->infinite ? DBL_MAX : l2->length;
+         if( t1 >= 0.0 && t1 < len1 &&
+             t2 >= 0.0 && t2 < len2 ) result = 1;
 
       } else {
          cross[ 0 ] = AST__BAD;
@@ -6772,9 +6773,9 @@ static AstLineDef *LineDef( AstFrame *this, const double start[2],
             result->dir[ 1 ] = 0.0;
          }
 
-/* Store a unit vector perpendicular to the line, such that the vector
-   points to the left, as vewied from the observer, when moving from the
-   start to the end of the line. */
+/* Store a unit vector perpendicular to the line. If the line points
+   along the positive direction of the X axis then the perpendicular
+   vector will point along the positive Y axis. */
          result->q[ 0 ] = -result->dir[ 1 ];
          result->q[ 1 ] = result->dir[ 0 ];
 
@@ -6827,9 +6828,9 @@ static void LineOffset( AstFrame *this, AstLineDef *line, double par,
 *     par
 *        The distance to move along the line from the start towards the end.
 *     prp
-*        The distance to move at right angles to the line. Positive
-*        values result in movement to the left of the line, as seen from
-*        the observer, when moving from start towards the end.
+*        The distance to move at right angles to the line. If the supplied
+*        line points along the positive direction of the X axis then positive
+*        perpendicular distance will move the point along the positive Y axis.
 
 *  Notes:
 *     - The pointer supplied for "line" should have been created using the
