@@ -1252,6 +1252,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        FITS_WCS keywords describing alternate axes were often not produced.
 *        - Add AltAxes attribute, which controls the creation of FITS-WCS
 *        alternate axis descriptions.
+*     19-FEB-2021 (DSB):
+*        - Fix bug in IsMapLinear for cases where the number of mapping
+         inputs and outputs differ and the Mapping can be split.
 *class--
 */
 
@@ -1943,7 +1946,7 @@ static int HasAIPSSpecAxis( AstFitsChan *, const char *, const char *, int * );
 static int HasCard( AstFitsChan *, const char *, const char *, const char *, int * );
 static int IRAFFromStore( AstFitsChan *, FitsStore *, const char *, const char *, int * );
 static int IsAIPSSpectral( const char *, char **, char **, int * );
-static int IsMapLinear( AstMapping *, const double [], const double [], int, int * );
+static int IsMapLinear( AstMapping *, const double [], const double [], int, int *, int * );
 static int IsSkyOff( AstFrameSet *, int, int * );
 static int KeyFields( AstFitsChan *, const char *, int, int *, int *, int * );
 static int LooksLikeClass( AstFitsChan *, const char *, const char *, int * );
@@ -18420,7 +18423,8 @@ static int IRAFFromStore( AstFitsChan *this, FitsStore *store,
 }
 
 static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
-                        const double ubnd_in[], int coord_out, int *status ) {
+                        const double ubnd_in[], int coord_out,
+                        int *coord_in, int *status ) {
 /*
 *  Name:
 *     IsMapLinear
@@ -18435,7 +18439,8 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
 *  Synopsis:
 *     #include "fitschan.h"
 *     int IsMapLinear( AstMapping *smap, const double lbnd_in[],
-*                      const double ubnd_in[], int coord_out, int *status )
+*                      const double ubnd_in[], int coord_out,
+*                      int *coord_in, int *status )
 
 *  Class Membership:
 *     FitsChan member function.
@@ -18469,6 +18474,10 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
 *        of the input box in each input dimension.
 *     coord_out
 *        The zero-based index of the Mapping output which is to be checked.
+*     coord_in
+*        Returned holding the zero-based index of the Mapping input that
+*        feeds output "coord_out". Returned as -1 if the output does not
+*        correspond to a single input. May be NULL.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -18516,6 +18525,7 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
 
 /* Initialise */
    ret = 0;
+   if( coord_in ) *coord_in = -1;
 
 /* Check inherited status */
    if( !astOK ) return ret;
@@ -18526,16 +18536,20 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
    ins = astMapSplit( smap, 1, &coord_out, &map );
    astInvert( smap );
 
-/* If successful, check that the output is fed by only one input. */
+/* If successful, check that the supplied output is fed by only one input.
+   At the moment "map" goes form wcs to pixel, so we check its Nout
+   attribute. If required, return the index of the input that feeds the
+   requested output. */
    if( ins ) {
-      if( astGetNin( map ) == 1 ) {
+      if( astGetNout( map ) == 1 ) {
+         if( coord_in ) *coord_in = ins[ 0 ];
 
-/* If so, invert the map so that it goes from pixel to wcs, and then
-   modify the supplied arguments so that they refer to the single required
-   axis. */
+/* If so, invert the map so that it goes from pixel to wcs. Here on we
+   use "map" in place of the supplied Mapping "smap", so modify the other
+   supplied arguments so that they refer to the single output of "map". */
          astInvert( map );
-         lbnd_in += coord_out;
-         ubnd_in += coord_out;
+         lbnd_in += ins[ 0 ];
+         ubnd_in += ins[ 0 ];
          coord_out = 0;
 
 /* If the output was fed by more than one input, annul the split mapping
@@ -19875,7 +19889,7 @@ static AstMapping *LogAxis( AstMapping *map, int iax, int nwcs, double *lbnd_p,
    tmap2 = astAnnul( tmap2 );
 
 /* See if this Mapping is linear. */
-   if( IsMapLinear( tmap0, lbnd_p, ubnd_p, iax, status ) ) {
+   if( IsMapLinear( tmap0, lbnd_p, ubnd_p, iax, NULL, status ) ) {
 
 /* Create the Mapping which defines the IWC axis. This is the Mapping from
    WCS to IWCS - "W = Sr.log( S/Sr )". Other axes are left unchanged by the
@@ -23501,7 +23515,7 @@ static AstMapping *OtherAxes( AstFitsChan *this, AstFrameSet *fs, double *dim,
 
 /* See if the axis is linear. If so, create a ShiftMap which subtracts off
    the CRVAL value. */
-            if( !force_tab && IsMapLinear( map, lbnd_p, ubnd_p, iax, status ) ) {
+            if( !force_tab && IsMapLinear( map, lbnd_p, ubnd_p, iax, NULL, status ) ) {
                crval = -crval;
                tmap0 = (AstMapping *) astShiftMap( 1, &crval, "", status );
                axmap = AddUnitMaps( tmap0, iax, nwcs, status );
@@ -29161,6 +29175,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    int j;                  /* Loop count */
    int npix;               /* Number of pixel axes */
    int nwcs;               /* Number of WCS axes */
+   int pax;                /* Pixel axis corresponding to iax */
    int paxis;              /* Axis index within primary Frame */
    int sourcevrf;          /* Rest Frame in which SourceVel is accesed */
 
@@ -29253,7 +29268,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
             crval = crvals ? crvals[ iax ] : AST__BAD;
             tmap1 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
             tfs = astAnnul( tfs );
-            if( !IsMapLinear( tmap1, &lbnd_s, &ubnd_s, 0, status ) ) {
+            if( !IsMapLinear( tmap1, &lbnd_s, &ubnd_s, 0, &pax, status ) ) {
                astClear( fs, unit_attr );
                (void) astAnnul( map );
                map = astGetMapping( fs, AST__BASE, AST__CURRENT );
@@ -29273,7 +29288,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    if the size of the spectral axis was given, or the lower bound (i.e.
    pixel 1) if the size of the spectral axis was not given. */
             if( crval == AST__BAD ) {
-               if( dim[ iax ] != AST__BAD ) {
+               if( pax >= 0 && dim[ pax ] != AST__BAD ) {
                   crval = 0.5*( lbnd_s + ubnd_s );
                } else {
                   crval = lbnd_s;
@@ -29292,7 +29307,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    using -TAB regardless of whether some other algorithm could be used. */
             ctype[ 0 ] = 0;
             if( !astGetForceTab( this ) ) {
-               if( IsMapLinear( map, lbnd_p, ubnd_p, iax, status ) ) {
+               if( IsMapLinear( map, lbnd_p, ubnd_p, iax, NULL, status ) ) {
 
 /* The CTYPE value is just the spectral system. */
                   strcpy( ctype, orig_system );
@@ -29331,7 +29346,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
 /* Now we check to see if the current X system is linearly related to
    pixel coordinates. */
                      tmap3 = astGetMapping( fs, AST__BASE, AST__CURRENT );
-                     if( IsMapLinear( tmap3, lbnd_p, ubnd_p, iax, status ) ) {
+                     if( IsMapLinear( tmap3, lbnd_p, ubnd_p, iax, NULL, status ) ) {
 
 /* CTYPE: First 4 characters specify the "S" system. */
                         strcpy( ctype, orig_system );
@@ -29450,7 +29465,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
                   tmap1 = astSimplify( tmap2 );
                   tmap2 = astAnnul( tmap2 );
 
-/* Analyse this Mapping to see if the iax'th output is created diretcly by a
+/* Analyse this Mapping to see if the iax'th output is created directly by a
    GrismMap (i.e. the output of theGrismMap must not subsequently be
    modified by some other Mapping). If so, ExtractGrismMap returns a pointer
    to the GrismMap as its function value, and also returns "tmap2" as a copy
@@ -29459,7 +29474,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
                   if( gmap ) {
 
 /* The Mapping without the GrismMap must be linear on the spectral axis. */
-                     if( IsMapLinear( tmap2, lbnd_p, ubnd_p, iax, status ) ) {
+                     if( IsMapLinear( tmap2, lbnd_p, ubnd_p, iax, NULL, status ) ) {
 
 /* Get the reference wavelength (in "m") stored in the GrismMap. */
                         crval = astGetGrismWaveR( gmap );
