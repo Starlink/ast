@@ -754,25 +754,31 @@
 *    tz = character*(*)
 *       Label for z axis. If blank then the z axis arrow is not drawn.
 *    order = character*(*)
-*       Up to 3 characters being some combination of 'X', 'Y' and 'Z',
-*       indicating the axis to which each of the phi, theta and psi angles
-*       refer.
+*       The name of a pre-defined spherical coord system set up using the
+*       SPHSYS command. If no system is defined with the supplied name,
+*       then the string should be up to 3 characters being some combination
+*       of 'X', 'Y' and 'Z', indicating the axis to which each of the phi,
+*       theta and psi angles refer.
 *    phi = real
-*       The first rotation angle
+*       The first rotation angle. Ignored if 'order' is the name of a
+*       pre-defined spherical coordinate system.
 *    theta = real
-*       The second rotation angle
+*       The second rotation angle. Ignored if 'order' is the name of a
+*       pre-defined spherical coordinate system.
 *    psi = real
-*       The third rotation angle
+*       The third rotation angle. Ignored if 'order' is the name of a
+*       pre-defined spherical coordinate system.
 *-
       implicit none
       include 'SAE_PAR'
 
-      character order*(*),tx*(*), ty*(*), tz*(*)
+      character order*(*),tx*(*), ty*(*), tz*(*), src*30
       real phi, theta, psi
       double precision rmat(3,3),va,vb
       real axlen, a1, a2, mat(3,3),x(10),y(10),z(10),r(3),u(3),n(3),
      :     origin(3)
       integer km, status
+      logical ok
 
 *  Check inherited status.
       if( status .ne. sai__ok ) return
@@ -781,8 +787,18 @@
       a1 = 0.05
       a2 = a1*0.6
 
-*  Find the rotation matrix that implements the requested rotations.
-      call deuler( order, dble(phi), dble(theta), dble(psi), rmat )
+*  Attempt to get the 3x3 rotation matrix that transforms from the named
+*  spherical coordinate system to the default Cartesian system.
+      call sphsysmat( km, .true., order, ok, rmat, src, status )
+
+*  If no definition was found with the requested name, treat the name as
+*  a set of X/Y/Z characters indicating the order of rotations. Find the
+*  rotation matrix that implements the requested rotations.
+      if( .not. ok ) then
+         call deuler( order, dble(phi), dble(theta), dble(psi), rmat,
+     :                ok )
+         if( .not. ok ) return
+      end if
       mat(1,1) = rmat(1,1)
       mat(1,2) = rmat(1,2)
       mat(1,3) = rmat(1,3)
@@ -912,13 +928,77 @@
 
 
 
-      subroutine deuler( order, phi, theta, psi, rmat )
+*  Attempt to get the 3x3 rotation matrix that transforms from the named
+*  spherical coordinate system to the default Cartesian system.
+      recursive subroutine sphsysmat( pars, defsrc, name, there, mat,
+     :                                src, status )
+      implicit none
+      include 'SAE_PAR'
+      include 'AST_PAR'
+
+      logical defsrc, there
+      character name*(*), src*(*), newsrc*30
+      double precision mat(9), smat(9), rmat(9)
+      integer pars, km_defs, km_def, nval, l, i, status, chr_len
+
+      if( status .ne. SAI__OK ) return
+
+*  Get the KeyMap holding spherical coord system definitions out of the
+*  pars keymap. Create it if it is not already there.
+      there = .false.
+      if( ast_mapget0a( pars, 'SphSysDefs', km_defs, status ) ) then
+
+*  attempt to get the KeyMap holding the definition of the requested spherical
+*  coord system.
+         if( ast_mapget0a( km_defs, name, km_def, status ) ) then
+
+* Get the corresponding matrix and source system.
+            if( ast_mapget1d( km_def, 'MATRIX', 9, nval, mat, status )
+     :          .and. ast_mapget0c( km_def, 'SRC', src, l, status )
+     :          ) then
+               there = .true.
+
+*  If we just want the matrix that describes the transformation from the
+*  source system to the defined system then we are done. But if we want the
+*  transformation all the way from the default system then we need to
+*  multiply this matrix with the matrix for the source system.
+               if( defsrc .and. src .ne. ' ' ) then
+                  call sphsysmat( pars, .true., src, there, smat,
+     :                            newsrc, status )
+                  if( .not. there ) then
+                     write(*,*) 'Cannot find definition of system ''',
+     :                          src(:chr_len(src)),
+     :                          ''' used in definition of system ''',
+     :                           name(:chr_len(name)),''''
+
+                  else
+                     call sla_dmxm( mat, smat, rmat )
+                     do i = 1, 9
+                        mat(i) = rmat(i)
+                     end do
+                  endif
+               endif
+            endif
+
+            call ast_annul( km_def, status )
+         end if
+
+         call ast_annul( km_defs, status )
+      end if
+
+      end
+
+
+      subroutine deuler( order, phi, theta, psi, rmat, ok )
       implicit none
       character order*(*)
       double precision phi, theta, psi, rmat(3,3), t(3), smat(3,3)
       double precision ang, v(3), ux(3), uy(3), uz(3), tmat(3,3),
      :                 axvec(3)
       integer n, i, j, chr_len
+      logical ok
+
+      ok = .true.
 
       n = chr_len( order )
       do i = 1, 3
@@ -942,20 +1022,24 @@
             else
                ang = psi
             end if
-            if( order( i : i ) .eq. 'X' ) then
+            if( order( i : i ) .eq. 'X' .or.
+     :          order( i : i ) .eq. 'x' ) then
                do j = 1, 3
                   axvec(j) = -ux(j)*ang
                end do
-            else if( order( i : i ) .eq. 'Y' ) then
+            else if( order( i : i ) .eq. 'Y' .or.
+     :               order( i : i ) .eq. 'y' ) then
                do j = 1, 3
                   axvec(j) = -uy(j)*ang
                end do
-            else if( order( i : i ) .eq. 'Z' ) then
+            else if( order( i : i ) .eq. 'Z' .or.
+     :               order( i : i ) .eq. 'z' ) then
                do j = 1, 3
                   axvec(j) = -uz(j)*ang
                end do
             else
                write(*,*) 'Bad axis label (',order(i:i),') in deuler!!!'
+               ok = .false.
             end if
             call sla_dav2m( axvec, tmat )
             do j = 1, 3
@@ -1068,11 +1152,29 @@
 
       subroutine s2c( lon, lat, r, p )
       implicit none
+      double precision v(3)
+      real lon, lat, r, p(3)
+
+      call sla_dcs2c( dble(lon), dble(lat), v )
+      p( 1 ) = v( 1 )*r
+      p( 2 ) = v( 2 )*r
+      p( 3 ) = v( 3 )*r
+
+      end
+
+      subroutine c2s( p, lon, lat, r )
+      implicit none
       real lon, lat, r, p(3), k
-      p( 3 ) = r*sin(lat)
-      k = r*cos(lat)
-      p( 1 ) = k*cos(lon)
-      p( 2 ) = k*sin(lon)
+      double precision v(3), dlon, dlat
+
+      v( 1 ) = p( 1 )
+      v( 2 ) = p( 2 )
+      v( 3 ) = p( 3 )
+      call sla_dcc2s( v, dlon, dlat )
+      lon = dlon
+      lat = dlat
+      r = sqrt( v( 1 )*v( 1 ) + v( 2 )*v( 2 ) + v( 3 )*v( 3 ) )
+
       end
 
       subroutine empty_km( km, status )
@@ -1277,27 +1379,35 @@
 
       if( status .ne. sai__ok ) return
 
+      pars = pars_km( km, status )
+      if( pars .eq. ast__null ) return
+
       var_name = getc( km, name, ' ', status )
       if( var_name .ne. ' ' ) then
+         call chr_ucase( var_name )
+         call ast_mapput0r( pars, var_name, value, ' ', status )
 
-         pars = pars_km( km, status )
-         if( pars .ne. ast__null ) then
-            call chr_ucase( var_name )
-            call ast_mapput0r( pars, var_name, value, ' ', status )
-
-            if( getl( pars, 'VERBOSE', .true., status ) ) then
-               text = '   Setting'
-               iat = 11
-               call chr_appnd( var_name, text, iat )
-               call chr_appnd( ' to', text, iat )
-               iat = iat + 1
-               call chr_putr( value, text, iat )
-               write(*,*) text( : iat )
-            end if
-
-            call ast_annul( pars, status )
+         if( getl( pars, 'VERBOSE', .true., status ) ) then
+            text = '   Setting'
+            iat = 11
+            call chr_appnd( var_name, text, iat )
+            call chr_appnd( ' to', text, iat )
+            iat = iat + 1
+            call chr_putr( value, text, iat )
+            write(*,*) text( : iat )
          end if
+
+      else if( getl( pars, 'VERBOSE', .true., status ) ) then
+         text = '   '
+         iat = 3
+         call chr_appnd( name, text, iat )
+         call chr_appnd( ' =', text, iat )
+         iat = iat + 1
+         call chr_putr( value, text, iat )
+         write(*,*) text( : iat )
       end if
+
+      call ast_annul( pars, status )
 
       end
 
@@ -1885,7 +1995,8 @@
      :           'TEXT ARC QUADRANT REVOLVE GREAT MOVE REDRAW CLEAR '//
      :           'SHOW SET RERUN EYE INCREMENT OFFSET2 DELETE DUMP '//
      :           'INTERSECT RADIUS SLEEP FITSBOX MARK ROLL PITCH '//
-     :           'YAW FORWARD BACKWARD RESET', 'command', icom, status )
+     :           'YAW FORWARD BACKWARD RESET SPHSYS SPHTRAN '//
+     :           'SPH2CART', 'command', icom, status )
 
 *  Replace the potentially abbreviated command name in the KeyMap with
 *  the full form.
@@ -2040,6 +2151,18 @@
 *  Reset
       else if( icom .eq. 36 ) then
          if( .not. redraw ) call do_reset( km, model, pars, status )
+
+*  SphSys
+      else if( icom .eq. 37 ) then
+         call do_sphsys( km, pars, status )
+
+*  SphTran
+      else if( icom .eq. 38 ) then
+         call do_sphtran( km, pars, status )
+
+*  Sph2Cart
+      else if( icom .eq. 39 ) then
+         call do_sph2cart( km, pars, status )
 
       else
          record = .false.
@@ -2239,7 +2362,7 @@
             if( ipar .gt. 0 .and. ast_mapget0c( km, key, cval, l,
      :                                          status ) ) then
 
-               if( verb ) then
+               if( verb .and. par .ne. 'VERBOSE' ) then
                   write(*,*) '   Setting ',par(:chr_len(par)),' to ',
      :                        cval( : l )
                end if
@@ -2251,6 +2374,242 @@
       end do
 
       end
+
+      subroutine do_sphsys( km, pars, status )
+      implicit none
+      include 'SAE_PAR'
+      include 'AST_PAR'
+
+      double precision mat(3,3)
+      real phi, theta, psi, getr
+      integer km, pars, km_defs, km_new, status, chr_len
+      character name*30, order*3, src*30, getc*200
+      logical getl, ok
+
+*  Check inherited status
+      if( status .ne. sai__ok ) return
+      ok = .true.
+
+*  If required display help info.
+      if( km .le. ast__null + 10 ) then
+         if( km .eq. ast__null ) then
+            call echo( 0, 'SPHSYS NAME ORDER PHI THETA PSI SRC' )
+            call echo( 3, 'Define a new spherical coord system with '//
+     :                 'name NAME derived from pre-existing system '//
+     :                 'SRC (defaults to built-in system if omitted) '//
+     :                 'using Euler angle PHI THETA PSI about axes '//
+     :                 'given by ORDER (X, Y or Z) - see sla_deuler.' )
+         end if
+         return
+      end if
+
+*  Ensure the positional keywords have their required names.
+      call fix_keys( km, 'NAME ORDER PHI THETA PSI SRC', 2, status )
+
+*  Get the parameter values from the KeyMap.
+      name = getc( km, 'NAME', 'NEW', status )
+      order = getc( km, 'ORDER', ' ', status )
+      phi = getr( km, 'PHI', 0.0, status )
+      theta = getr( km, 'THETA', 0.0, status )
+      psi = getr( km, 'PSI', 0.0, status )
+      src = getc( km, 'SRC', ' ', status )
+
+      if( name .eq. ' ' ) then
+         write(*,*) 'NAME is blank - Cannot redefine the built-in '//
+     :              'system.'
+         ok = .false.
+      end if
+
+*  If required convert from degs to rads
+      if( getl( pars, 'DEGREES', .true., status ) ) then
+         phi = phi*AST__DD2R
+         theta = theta*AST__DD2R
+         psi = psi*AST__DD2R
+      end if
+
+*  Calculate the 3x3 rotation matrix corresponding to the supplied Euler
+*  angles.
+      call deuler( order, dble(phi), dble(theta), dble(psi), mat, ok )
+
+*  Get the KeyMap holding spherical coord system definitions out of the
+*  pars keymap. Create it if it is not already there.
+      if( .not. ast_mapget0a( pars, 'SphSysDefs', km_defs,
+     :                        status ) ) then
+         km_defs = ast_keymap( 'KeyCase=0', status )
+         call ast_mapput0a( pars, 'SphSysDefs', km_defs, ' ', status )
+      end if
+
+*  Check the source system exists in this keymap (the default built-in
+*  system has a blank name and has no definition in the KeyMap).
+      if( ok .and. src .ne. ' ' ) then
+         if( .not. ast_maphaskey( km_defs, src, status ) ) then
+            write(*,*) 'Source system ''',src(:chr_len(src)),
+     :                 ''' has not been defined.'
+            ok = .false.
+         end if
+      end if
+
+*  Create a KeyMap holding a definition of the new coordinate system.
+      if( ok ) then
+         km_new = ast_keymap( ' ', status )
+         call ast_mapput0c( km_new, 'NAME', name, ' ', status )
+         call ast_mapput0c( km_new, 'ORDER', order, ' ', status )
+         call ast_mapput0c( km_new, 'SRC', src, ' ', status )
+         call ast_mapput0r( km_new, 'PHI', phi, ' ', status )
+         call ast_mapput0r( km_new, 'THETA', theta, ' ', status )
+         call ast_mapput0r( km_new, 'PSI', psi, ' ', status )
+         call ast_mapput1d( km_new, 'MATRIX', 9, mat, ' ', status )
+
+*  Store the new system definition in the keymap holding all such
+*  definitions. Use its name as the key. This will replace any previously
+*  stored definition with the same key.
+         call ast_mapput0a( km_defs, name, km_new, ' ', status )
+         call ast_annul( km_new, status )
+      endif
+
+      call ast_annul( km_defs, status )
+
+      end
+
+
+      subroutine do_sphtran( km, pars, status )
+      implicit none
+      include 'SAE_PAR'
+      include 'AST_PAR'
+
+      double precision mat(3,3), lonin, lonout, latin, latout, v(3),
+     :                 det
+      real phi, theta, psi, getr
+      integer km, pars, km_defs, km_new, status, chr_len, work(3), jf
+      character name*30, order*3, src*30, getc*200
+      logical getl, ok, fwd
+
+*  Check inherited status
+      if( status .ne. sai__ok ) return
+      ok = .true.
+
+*  If required display help info.
+      if( km .le. ast__null + 10 ) then
+         if( km .eq. ast__null ) then
+            call echo( 0, 'SPHTRAN LONIN LATIN NAME FWD LONOUT LATOUT' )
+            call echo( 3, 'Transform a (lon,lat) pair from the '//
+     :                 'default system to the NAME system (if FWD is '//
+     :                 'true) or from the NAME system to the default '//
+     :                 'system (if FWD is false). The NAME system '//
+     :                 'should have been defined using the SPHSYS '//
+     :                 'command.' )
+         end if
+         return
+      end if
+
+*  Ensure the positional keywords have their required names.
+      call fix_keys( km, 'LONIN LATIN NAME FWD LONOUT LATOUT', 2,
+     :               status )
+
+*  Get the parameter values from the KeyMap.
+      lonin = getr( km, 'LONIN', 0.0, status )
+      latin = getr( km, 'LATIN', 0.0, status )
+      name = getc( km, 'NAME', ' ', status )
+      fwd = getl( km, 'FWD', .true., status )
+
+*  If required convert from degs to rads
+      if( getl( pars, 'DEGREES', .true., status ) ) then
+         lonin = lonin*AST__DD2R
+         latin = latin*AST__DD2R
+      end if
+
+*  Attempt to get the 3x3 rotation matrix that transforms from the named
+*  spherical coordinate system to the default Cartesian system.
+      call sphsysmat( pars, .true., name, ok, mat, src, status )
+      if( .not. ok ) then
+         write(*,*) 'System ''',name(:chr_len(name)),''' has not '//
+     :              'been defined using the SPHSYS command.'
+         return
+      end if
+
+*  Convert inputs from spherical to Cartesian.
+      call sla_dcs2c( lonin, latin, v )
+
+*  Apply the matrix in the approipriate direction.
+      if( .not. fwd ) then
+         call sla_dmxv( mat, v, v )
+      else
+         call sla_dmat( 3, mat, v, det, jf, work )
+      end if
+
+*  Convert outputs from Cartesian to spherical.
+      call sla_dcc2s( v, lonout, latout )
+
+*  Store the returned values in the requested global variables.
+      call putr( km, 'LONOUT', real( lonout*AST__DR2D ), status )
+      call putr( km, 'LATOUT', real( latout*AST__DR2D ), status )
+
+      end
+
+
+
+
+
+
+      subroutine do_sph2cart( km, pars, status )
+      implicit none
+      include 'SAE_PAR'
+      include 'AST_PAR'
+
+      real in(3), out(3), getr
+      integer km, pars, status, chr_len
+      logical getl, fwd, degs
+
+*  Check inherited status
+      if( status .ne. sai__ok ) return
+
+*  If required display help info.
+      if( km .le. ast__null + 10 ) then
+         if( km .eq. ast__null ) then
+            call echo( 0, 'SPH2CART IN1 IN2 IN3 FWD OUT1 OUT2 OUT3' )
+            call echo( 3, 'Transform a point from (lon,lat,radius) '//
+     :                 'to (x,y,z) (if FWD is true) or from (x,y,z) '//
+     :                 'to (lon,lat,radius) (if FWD is true).' )
+         end if
+         return
+      end if
+
+*  Ensure the positional keywords have their required names.
+      call fix_keys( km, 'IN1 IN2 IN3 FWD OUT1 OUT2 OUT3', 2,
+     :               status )
+
+*  Get the parameter values from the KeyMap.
+      in( 1 ) = getr( km, 'IN1', 0.0, status )
+      in( 2 ) = getr( km, 'IN2', 0.0, status )
+      in( 3 ) = getr( km, 'IN3', 1.0, status )
+      fwd = getl( km, 'FWD', .true., status )
+
+*  If required convert from degs to rads
+      degs = getl( pars, 'DEGREES', .true., status )
+      if( fwd .and. degs ) then
+         in( 1 ) = in( 1 )*AST__DD2R
+         in( 2 ) = in( 2 )*AST__DD2R
+      end if
+
+* Do the required conversion.
+      if( fwd ) then
+         call s2c( in( 1 ), in( 2 ), in( 3 ), out )
+      else
+         call c2s( in, out( 1 ), out( 2 ), out( 3 ) )
+         if( degs ) then
+            out( 1 ) = out( 1 )*AST__DR2D
+            out( 2 ) = out( 2 )*AST__DR2D
+         end if
+      endif
+
+*  Store the returned values in the requested global variables.
+      call putr( km, 'OUT1', out( 1 ), status )
+      call putr( km, 'OUT2', out( 2 ), status )
+      call putr( km, 'OUT3', out( 3 ), status )
+
+      end
+
+
 
       subroutine do_sleep( km, pars, status )
       implicit none
@@ -2351,7 +2710,8 @@
      :              'QUADRANT QUIT REDRAW RERUN REVOLVE SET '//
      :              'SHOW SPHERE TEXT DELETE DUMP INTERSECT RADIUS '//
      :              'SLEEP FITSBOX MARK ROLL PITCH YAW FORWARD '//
-     :              'BACKWARD RESET', 'help topic', itopic, status )
+     :              'BACKWARD RESET SPHSYS SPHTRAN SPH2CART',
+     :              'help topic', itopic, status )
 
       else
          itopic = 0
@@ -2495,6 +2855,18 @@
 
       if( itopic .eq. 0 .or. itopic .eq. 34 ) then
          call do_reset( km_arg, ast__null, pars, status )
+      end if
+
+      if( itopic .eq. 0 .or. itopic .eq. 35 ) then
+         call do_sphsys( km_arg, pars, status )
+      end if
+
+      if( itopic .eq. 0 .or. itopic .eq. 36 ) then
+         call do_sphtran( km_arg, pars, status )
+      end if
+
+      if( itopic .eq. 0 .or. itopic .eq. 37 ) then
+         call do_sph2cart( km_arg, pars, status )
       end if
 
       end
@@ -3211,7 +3583,7 @@
 
       integer km, pars, status
       real getr, origin(3), axlen, phi, theta, psi
-      character getc*30, tx*30, ty*30, tz*30, order*3
+      character getc*30, tx*30, ty*30, tz*30, order*30
       logical getl
 
 *  Check inherited status
@@ -3224,9 +3596,14 @@
      :              'THETA PSI' )
             call echo( 3, 'Draw axes centred at (OX,OY,OZ), each of '//
      :                 'length AXLEN. TX, TY and TZ are the axis '//
-     :                 'labels. PHI, THETA and PSI are angles that '//
-     :                 'indicate how the axes should '//
-     :                 'be oriented (see sla_deuler).' )
+     :                 'labels. ORDER is either a set of X/Y/Z chars '//
+     :                 'indicating the rotation axes for the '//
+     :                 'following angles, or the name of a '//
+     :                 'pre-defined spherical coordinate system '//
+     :                 '(see command SPHSYS - the following angles '//
+     :                 'are ignored in this case). PHI, THETA and PSI'//
+     :                 ' are angles that indicate how the axes '//
+     :                 'should be oriented (see sla_deuler).' )
          end if
          return
       end if
@@ -3730,8 +4107,11 @@
       include 'SAE_PAR'
       include 'AST_PAR'
 
-      integer km, model, pars, status, ikeymap, npar, ipar, chr_len
-      character getc*80, keymap*10, par*20, val*80, what*20
+      integer km, model, pars, status, ikeymap, npar, ipar, chr_len,
+     :        km_defs, km_def, isys, nsys
+      character getc*80, keymap*10, par*20, val*80, what*20, name*20
+      logical degs, getl
+      real getr, rval
 
 *  Check inherited status
       if( status .ne. sai__ok ) return
@@ -3742,10 +4122,11 @@
             call echo( 0, 'SHOW WHAT' )
             call echo( 3, 'Show current information. WHAT can be a '//
      :                 'parameter name, or ALL to display all '//
-     :                 'currently set parameters. It can also be '//
-     :                 'HISTORY to show the current command '//
-     :                 'history. It can all be PARS or MODEL to '//
-     :                 'dump the internal pars or model KeyMap.' )
+     :                 'currently set parameters, or HISTORY to '//
+     :                 'show the current command history, or PARS '//
+     :                 'or MODEL to dump the internal pars or model '//
+     :                 'KeyMap, or SPHSYS to display all currently '//
+     :                 'defined spherical coordinate systems.' )
          end if
          return
       end if
@@ -3775,6 +4156,52 @@
             end do
          else
             write(*,*) '   No parameters have yet been set'
+         end if
+
+      else if( what .eq. 'SPHSYS' ) then
+         nsys = 0
+         if( ast_mapget0a( pars, 'SphSysDefs', km_defs, status ) ) then
+            nsys = ast_mapsize( km_defs, status )
+            if( nsys .gt. 0 ) then
+               degs = getl( pars, 'DEGREES', .true., status )
+
+               do isys = 1, nsys
+                  name = ast_mapkey( km_defs, isys, status )
+                  if( ast_mapget0a( km_defs, name, km_def,
+     :                              status ) ) then
+                     write(*,*) '   NAME = ',name(:chr_len(name))
+                     val = getc( km_def, 'ORDER', '<unset>', status )
+                     write(*,*) '   ORDER = ',val(:chr_len(val))
+
+                     rval = getr( km_def, 'PHI', 0.0, status )
+                     if( degs ) rval = rval*AST__DR2D
+                     write(*,*) '   PHI = ',rval
+
+                     rval = getr( km_def, 'THETA', 0.0, status )
+                     if( degs ) rval = rval*AST__DR2D
+                     write(*,*) '   THETA = ',rval
+
+                     rval = getr( km_def, 'PSI', 0.0, status )
+                     if( degs ) rval = rval*AST__DR2D
+                     write(*,*) '   PSI = ',rval
+
+                     val = getc( km_def, 'SRC', ' ', status )
+                     if( val .ne. ' ' ) then
+                        write(*,*) '   SRC = ',val(:chr_len(val))
+                     endif
+                     write(*,*) '   '
+
+                     call ast_annul( km_def, status )
+                  end if
+               end do
+
+            end if
+            call ast_annul( km_defs, status )
+
+         endif
+
+         if( nsys .eq. 0 ) then
+            write(*,*) '   No spherical coordinate systems are defined'
          end if
 
       else if( what .eq. 'HISTORY' ) then
