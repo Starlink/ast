@@ -596,18 +596,33 @@ dist_noinst_SCRIPTS = makeh
 # Headers required by library users.  Both of the following lines
 # indicate headers which are installed.
 cincludedir = $(includedir)/star
+if !NOFORTRAN
 cinclude_HEADERS = GRF_PAR src/grf.h src/grf3d.h
+else
+cinclude_HEADERS = src/grf.h src/grf3d.h
+endif
+
 # Following are generated, so should not be distributed.
-nodist_cinclude_HEADERS = ast.h AST_PAR
+if !NOFORTRAN
 include_MESSAGES = AST_ERR ast_err.h
+nodist_cinclude_HEADERS = ast.h AST_PAR
+else
+include_MESSAGES = ast_err.h
+nodist_cinclude_HEADERS = ast.h
+endif
 
 # Also install headers in main include directory for the benefit of
 # legacy code that does '#include "ast.h"' instead of '#include
 # "star/ast.h"'. Note, currently _MESSAGES files must be installed in
 # the main include directory.
 if TOPINCLUDE
+if !NOFORTRAN
 include_HEADERS = GRF_PAR src/grf.h src/grf3d.h
 nodist_include_HEADERS = ast.h AST_PAR
+else
+include_HEADERS = src/grf.h src/grf3d.h
+nodist_include_HEADERS = ast.h
+endif
 endif
 
 if EXTERNAL_PAL
@@ -693,9 +708,13 @@ endif
 
 # AST_PAR is really part of GRP_F_INCLUDE_FILES, but it must not be
 # distributed, so list it separately.
+if !NOFORTRAN
 nodist_libast_la_SOURCES = \
     ast.h \
     AST_PAR
+else
+nodist_libast_la_SOURCES = ast.h
+endif
 
 #  The default error reporting module.
 libast_err_la_SOURCES = src/err_null.c
@@ -744,7 +763,11 @@ libast_pal_la_LDFLAGS = -version-info @version_info@
 # The following files are built by the targets in this makefile.
 MAINTAINERCLEANFILES = src/version.h builddocs addversion \
 	ast.h $(DOCUMENTATION_PRODUCTS)
+if !NOFORTRAN
 CLEANFILES = AST_PAR ast.h
+else
+CLEANFILES = ast.h
+endif
 
 # Special cases start here
 
@@ -753,6 +776,7 @@ CLEANFILES = AST_PAR ast.h
 # also changing the "E" exponent character to a "D").  The astbad.c
 # and ast_par.source must be distributed (the generation of the
 # AST__BAD value must be done on the build host) but not installed.
+if !NOFORTRAN
 noinst_PROGRAMS = astbad$(EXEEXT)
 astbad_SOURCES = src/astbad.c src/pointset.h
 AST_PAR: ast_par.source astbad$(EXEEXT)
@@ -760,6 +784,7 @@ AST_PAR: ast_par.source astbad$(EXEEXT)
 	    -e 's/<AST__NAN>/'`./astbad$(EXEEXT) AST__NAN | tr 'E' 'D'`'/' \
 	    -e 's/<AST__NANR>/'`./astbad$(EXEEXT) AST__NANF | tr 'E' 'D'`'/' \
 	    ast_par.source >$@
+endif
 
 # ast_link is generated from ast_link.in; ast_link_adam does not
 # need configuration, and so is not mentioned in AC_CONFIG_FILES within
@@ -788,7 +813,11 @@ ast.h: $(AST_H_FILES) ast_err.h makeh config.h
 #
 # version.h is included by object.h, and thus indirectly by most modules.
 # It's most straightforward to build it at the beginning.
+if !NOFORTRAN
 BUILT_SOURCES = AST_ERR ast_err.h src/version.h
+else
+BUILT_SOURCES = ast_err.h src/version.h
+endif
 
 #  Form a second link to the main object library (static and shared). This
 #  is used when a second pass through the library is needed during linking
