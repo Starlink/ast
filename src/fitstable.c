@@ -1399,13 +1399,13 @@ f     AST_COLUMNNULL functiom.
 /* Append the right number of nulls to the returned array. */
          for( iel = 0; iel < nel; iel++ ) {
             memcpy( pout, pnull, nb );
-            pout += nb;
+            pout = (char*)pout + nb;
          }
 
 /* If the cell was found in the table, just increment the pointer to the next
    returned value. */
       } else {
-         pout += nbv;
+         pout = (char*)pout + nbv;
       }
    }
 
@@ -2054,7 +2054,7 @@ f        The global status.
       }
 
 /* Increment the pointer to the next input value. */
-      pin += nbv;
+      pin = (char*)pin + nbv;
    }
 
 /* Remove any remaining cells already present in this column. */
