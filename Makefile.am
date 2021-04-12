@@ -753,12 +753,12 @@ CLEANFILES = AST_PAR ast.h
 # also changing the "E" exponent character to a "D").  The astbad.c
 # and ast_par.source must be distributed (the generation of the
 # AST__BAD value must be done on the build host) but not installed.
-noinst_PROGRAMS = astbad
+noinst_PROGRAMS = astbad$(EXEEXT)
 astbad_SOURCES = src/astbad.c src/pointset.h
-AST_PAR: ast_par.source astbad
-	sed -e 's/<AST__BAD>/'`./astbad AST__BAD | tr 'E' 'D'`'/' \
-	    -e 's/<AST__NAN>/'`./astbad AST__NAN | tr 'E' 'D'`'/' \
-	    -e 's/<AST__NANR>/'`./astbad AST__NANF | tr 'E' 'D'`'/' \
+AST_PAR: ast_par.source astbad$(EXEEXT)
+	sed -e 's/<AST__BAD>/'`./astbad$(EXEEXT) AST__BAD | tr 'E' 'D'`'/' \
+	    -e 's/<AST__NAN>/'`./astbad$(EXEEXT) AST__NAN | tr 'E' 'D'`'/' \
+	    -e 's/<AST__NANR>/'`./astbad$(EXEEXT) AST__NANF | tr 'E' 'D'`'/' \
 	    ast_par.source >$@
 
 # ast_link is generated from ast_link.in; ast_link_adam does not
