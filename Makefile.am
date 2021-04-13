@@ -585,7 +585,7 @@ CMINPACK_FILES = \
 bin_SCRIPTS = ast_link
 dist_bin_SCRIPTS = ast_link_adam
 noinst_SCRIPTS = ast_cpp
-dist_noinst_SCRIPTS = makeh
+dist_noinst_SCRIPTS = $(srcdir)/makeh
 # Scripts are not distributed by default (since they might be derived objects)
 # Add these to the distribution below.  In fact, it would be useful
 # and straightforward  to make ast_link{,_adam} derived, since they
@@ -779,11 +779,11 @@ endif
 if !NOFORTRAN
 noinst_PROGRAMS = astbad$(EXEEXT)
 astbad_SOURCES = src/astbad.c src/pointset.h
-AST_PAR: ast_par.source astbad$(EXEEXT)
+AST_PAR: $(srcdir)/ast_par.source astbad$(EXEEXT)
 	sed -e 's/<AST__BAD>/'`./astbad$(EXEEXT) AST__BAD | tr 'E' 'D'`'/' \
 	    -e 's/<AST__NAN>/'`./astbad$(EXEEXT) AST__NAN | tr 'E' 'D'`'/' \
 	    -e 's/<AST__NANR>/'`./astbad$(EXEEXT) AST__NANF | tr 'E' 'D'`'/' \
-	    ast_par.source >$@
+	    $(srcdir)/ast_par.source >$@
 endif
 
 # ast_link is generated from ast_link.in; ast_link_adam does not
@@ -791,14 +791,14 @@ endif
 # configure.ac, and so is not distributed automatically.
 #
 # makeh is required in order to build ast.h after distribution (see below).
-EXTRA_DIST = ast_par.source sun210_figures sun211_figures pal erfa cminpack
+EXTRA_DIST = $(srcdir)/ast_par.source sun210_figures sun211_figures pal erfa cminpack
 
 # ast.h depends on the error-facility files.  ast.h _could_ be made
 # before distribution, but since it's generated from other distributed
 # files, it's more robust to distribute makeh and make ast.h on the
 # build host.
-ast.h: $(AST_H_FILES) ast_err.h makeh config.h
-	@PERL@ ./makeh -s $(srcdir) $(AST_H_FILES) >$@
+ast.h: $(AST_H_FILES) ast_err.h $(srcdir)/makeh config.h
+	@PERL@ $(srcdir)/makeh -s $(srcdir) $(AST_H_FILES) >$@
 
 # AST_ERR and ast_err.h are `generated source files', and so must be
 # generated before any other compilations are done.  Note that these
