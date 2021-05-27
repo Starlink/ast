@@ -213,6 +213,9 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *         when freeing a keymap entry.
 *         - Fix a bug in astMapKey that caused a good key to be returned even if the supplied
 *         index was higher than the number of entries in the keymap.
+*     27-MAY-2021 (DSB):
+*         Modify astMapGet1<X> so that nval=0 is returned if the value is
+*         undefined.
 *class--
 */
 
@@ -5779,7 +5782,8 @@ c        The address of an integer in which to put the
 f        The
 *        number of elements stored in the
 c        "value" array.
-*        Any unused elements of the array are left unchanged.
+*        Any unused elements of the array are left unchanged. Zero is
+*        returned if the required KeyMap entry has an undefined value.
 c     value
 f     VALUE( MXVAL ) = <X>type (Returned)
 c        A pointer to an array in which to return the requested values.
@@ -5996,7 +6000,7 @@ static int MapGet1##X( AstKeyMap *this, const char *skey, int mxval, int *nval, 
       if( nel > mxval ) nel = mxval; \
 \
 /* Return the number of values stored in the buffer. */ \
-      *nval = nel; \
+      if( raw ) *nval = nel; \
 \
 /* Loop round all values in the vector. */ \
       for( i = 0; i < nel && astOK; i++ ) { \
@@ -6208,7 +6212,7 @@ static int MapGet1C( AstKeyMap *this, const char *skey, int l, int mxval,
       if( nel > mxval ) nel = mxval;
 
 /* Return the number of values stored in the buffer. */
-      *nval = nel;
+      if( raw ) *nval = nel;
 
 /* Loop round all values in the vector. */
       val = value;
@@ -6415,7 +6419,7 @@ int astMapGet1AId_( AstKeyMap *this, const char *skey, int mxval, int *nval,
       if( nel > mxval ) nel = mxval;
 
 /* Return the number of values stored in the buffer. */
-      *nval = nel;
+      if( raw ) *nval = nel;
 
 /* Loop round all values in the vector. */
       for( i = 0; i < nel && astOK; i++ ) {

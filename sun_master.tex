@@ -22428,11 +22428,9 @@ supported encoding.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.2.4}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.2.0 and V9.2.4 (the
-current version):
+\subsection{Changes Introduced in V9.2.4}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.0 and V9.2.4:
 
 \begin{enumerate}
 
@@ -22455,6 +22453,21 @@ entries, represented by the new data type code ``K''.
 \item Two simplification bugs introduced at V9.2.0 have been fixed.
 \item The YamlChan class now supports AST ``native'' encoding.
 \end{enumerate}
+
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.2.5}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.2.4 and V9.2.5 (the
+current version):
+
+\begin{enumerate}
+
+\item A bug has been fixed in the KeyMap class that caused astMapGet1<X>
+functions to return a vector length of 1 for KeyMap entries with an
+undefined value. A vector length of zero is now returned in such cases.
+
+\end{description}
 
 Programs which are statically linked will need to be re-linked in
 order to take advantage of these new facilities.
