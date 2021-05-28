@@ -22467,6 +22467,12 @@ current version):
 functions to return a vector length of 1 for KeyMap entries with an
 undefined value. A vector length of zero is now returned in such cases.
 
+\item The way in which the astRebinSeq functions use the ``wlim'' argument
+has been modified in order to improve the performance when the input
+variances include aberrant ultra-low values. The change should result in
+fewer output pixels being set bad in such cases. This change only affects
+cases where the AST\_\_GENVAR flag is not set.
+
 \end{enumerate}
 
 Programs which are statically linked will need to be re-linked in

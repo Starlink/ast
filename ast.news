@@ -21,6 +21,12 @@ Main Changes in this Version
 functions to return a vector length of 1 for KeyMap entries with an
 undefined value. A vector length of zero is now returned in such cases.
 
+- The way in which the astRebinSeq<X> functions use the "wlim" argument
+has been modified in order to improve the performance when the input
+variances include aberrant ultra-low values. The change should result in
+fewer output pixels being set bad in such cases. This change only affects
+cases where the AST__GENVAR flag is not set.
+
 
 Main Changes in V9.2.4
 ----------------------

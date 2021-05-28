@@ -418,7 +418,12 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *     28-SEP-2020 (DSB):
 *        Fix bug in astMapMerge handling of AllowSimplify flag that could
 *        result in unnecessary UnitMaps being left in a simplified Mapping chain.
-*
+*     28-MAY-2021 (DSB):
+*        In astRebinSeq<X> calculate the mean weight per input point using
+*        sigma-clipping. This prevents the value being heavily dominated
+*        by pixels that have very low variance. This affects the interpretation
+*        of the supplied "wlim" value and thus the flagging of bad output
+*        pixels (but only in cases where the AST__GENVAR flag has not been set).
 *class--
 */
 
@@ -12202,11 +12207,20 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
    double *w;                    /* Pointer to next weight value */ \
    double mwpip;                 /* Mean weight per input pixel */ \
    double neff;                  /* Effective number of contributing input pixels */ \
+   double newval;                /* New value for mwpip */ \
+   double std;                   /* Standard deviation of weights */ \
+   double sw2;                   /* Sum of squared weights at output pixel */ \
    double sw;                    /* Sum of weights at output pixel */ \
    double wgt;                   /* Output pixel weight */ \
+   double whi;                   /* Upper limit for acceptable weights */ \
+   double wlo;                   /* Lower limit for acceptable weights */ \
+   double wval;                  /* Weight value */ \
    int idim;                     /* Loop counter for coordinate dimensions */ \
+   int more;                     /* Do another sigma-clipping iteration? */ \
    int nin;                      /* Number of Mapping input coordinates */ \
    int nout;                     /* Number of Mapping output coordinates */ \
+   int64_t nw;                   /* Number of values summed */ \
+   int64_t nwlim;                /* Minimum allowed number of values summed */ \
 \
 /* Check the global error status. */ \
    if ( !astOK ) return; \
@@ -12529,15 +12543,43 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
 /* Ensure "wlim" is not zero. */ \
       if( wlim < 1.0E-10 ) wlim = 1.0E-10; \
 \
-/* If it will be needed, find the average weight per input pixel. */ \
-      if( !( flags & AST__GENVAR ) && *nused > 0 ) { \
-         sw = 0.0; \
-         for( i = 0; i < npix_out; i++ ) { \
-            sw += weights[ i ]; \
+/* If it will be needed, find the sigma-clipped mean weight per input \
+   pixel. Ensure no more than 50% of the points are rejected. */ \
+      mwpip = AST__BAD; \
+      if( !( flags & AST__GENVAR ) && *nused > 0 && npix_out > 0 ) { \
+         wlo = -DBL_MAX; \
+         whi = DBL_MAX; \
+         nwlim = npix_out/2; \
+         more = 1; \
+         while( more ) { \
+            sw = 0.0; \
+            sw2 = 0.0; \
+            nw = 0; \
+            w = weights; \
+            for( i = 0; i < npix_out; i++,w++ ) { \
+               if( *w >= wlo && *w <= whi ){ \
+                  sw += *w; \
+                  sw2 += (*w)*(*w); \
+                  nw++; \
+               } \
+            } \
+            if( nw > nwlim ) { \
+               newval = sw/nw; \
+               if( mwpip != AST__BAD ){ \
+                  more = ( fabs( newval - mwpip ) > 0.05*mwpip ); \
+               } \
+               mwpip = newval; \
+               std = sw2/nw - mwpip*mwpip; \
+               std = (std>0.0)?sqrt( std ):0.0; \
+               wlo = mwpip - 3*std; \
+               whi = mwpip + 3*std; \
+            } else { \
+               more = 0; \
+            } \
          } \
-         mwpip = sw/( *nused ); \
-       } else { \
-         mwpip = AST__BAD; \
+\
+/* Convert mean weight per output point to mean weight per input point */ \
+         mwpip *= ((double) npix_out)/( *nused ); \
        } \
 \
 /* Normalise each output pixel. */ \
