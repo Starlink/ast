@@ -123,6 +123,9 @@ f     - AST_OUTLINE<X>: Create a Polygon outlining values in a pixel array
 *        distances (compared to the width of the polygon), as 10 times the length
 *        of a side (the previous length of the probing line) may not reach all
 *        the way across the polygon.
+*     9-JUN-2021 (DSB):
+*        Function PolyWidth now works correctly for Regions that represent a "hole 
+*        in the sky" (i.e. have widths larger than 180 degrees). 
 *class--
 */
 
@@ -4093,13 +4096,11 @@ static double Polywidth( AstFrame *frm, AstLineDef **edges, int i, int nv,
 
 /* Find the position at which the line created above crosses the current
    edge. Skip to the next edge if the line does not intersect the edge
-   within the length of the edge. */
-         if( astLineCrossing( frm, line, edges[ j ], cross ) ) {
+   within the length of the edge. This also returns the distance from the
+   line start to the crossing point. */
+         if( astLineCrossing( frm, line, edges[ j ], cross, &d ) ) {
 
-/* Find the distance between the crossing point and the line start. */
-            d = astDistance( frm, start, cross );
-
-/* If this is less than the smallest found so far, record it. */
+/* If the distance is less than the smallest found so far, record it. */
             if( d != AST__BAD && ( d < result || result == AST__BAD ) ) {
                result = d;
             }
@@ -6258,7 +6259,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
 
 /* Otherwise, see if the two lines cross within their extent. If so,
    increment the number of crossings. */
-               } else if( astLineCrossing( frm, b, a, NULL ) ) {
+               } else if( astLineCrossing( frm, b, a, NULL, NULL ) ) {
                   ncross++;
                }
             }
