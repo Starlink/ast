@@ -706,7 +706,7 @@ typedef struct AstFrameVtab {
    int (* GetPermute)( AstFrame *, int * );
    int (* GetPreserveAxes)( AstFrame *, int * );
    int (* IsUnitFrame)( AstFrame *, int * );
-   int (* LineCrossing)( AstFrame *, AstLineDef *, AstLineDef *, double[5], int * );
+   int (* LineCrossing)( AstFrame *, AstLineDef *, AstLineDef *, double[5], double *, int * );
    int (* LineContains)( AstFrame *, AstLineDef *, int, double *, int * );
    int (* Match)( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
    int (* SubFrame)( AstFrame *, AstFrame *, int, const int *, const int *, AstMapping **, AstFrame **, int * );
@@ -964,7 +964,7 @@ int astGetNaxes_( AstFrame *, int * );
 int astGetPermute_( AstFrame *, int * );
 int astGetPreserveAxes_( AstFrame *, int * );
 int astIsUnitFrame_( AstFrame *, int * );
-int astLineCrossing_( AstFrame *, AstLineDef *, AstLineDef *, double[5], int * );
+int astLineCrossing_( AstFrame *, AstLineDef *, AstLineDef *, double[5], double *, int * );
 int astLineContains_( AstFrame *, AstLineDef *, int, double *, int * );
 int astMatch_( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
 int astSubFrame_( AstFrame *, AstFrame *, int, const int *, const int *, AstMapping **, AstFrame **, int * );
@@ -1198,8 +1198,8 @@ astINVOKE(V,astLineDef_(astCheckFrame(this),p1,p2,STATUS_PTR))
 astINVOKE(V,astLineOffset_(astCheckFrame(this),line,par,prp,point,STATUS_PTR))
 #define astFrameGrid(this,size,lbnd,ubnd) \
 astINVOKE(O,astFrameGrid_(astCheckFrame(this),size,lbnd,ubnd,STATUS_PTR))
-#define astLineCrossing(this,l1,l2,cross) \
-astINVOKE(V,astLineCrossing_(astCheckFrame(this),l1,l2,cross,STATUS_PTR))
+#define astLineCrossing(this,l1,l2,cross,dist) \
+astINVOKE(V,astLineCrossing_(astCheckFrame(this),l1,l2,cross,dist,STATUS_PTR))
 #define astLineContains(this,l,def,point) \
 astINVOKE(V,astLineContains_(astCheckFrame(this),l,def,point,STATUS_PTR))
 #define astClearDigits(this) \

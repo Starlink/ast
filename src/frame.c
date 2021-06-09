@@ -292,6 +292,9 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        Added method astAxNorm.
 *     11-JAN-2017 (GSB):
 *        Add Dtai attribute.
+*     9-JUN-2021 (DSB):
+*         astLineCrossing now returns the distance from the line start to
+*         the crossing.
 *class--
 */
 
@@ -861,7 +864,7 @@ static int GetDirection( AstFrame *, int, int * );
 static int GetIsLinear( AstMapping *, int * );
 static int GetIsSimple( AstMapping *, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
-static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], int * );
+static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], double *, int * );
 static size_t GetObjSize( AstObject *, int * );
 static void AxNorm( AstFrame *, int, int, int, double *, int * );
 static void CleanAttribs( AstObject *, int * );
@@ -6542,7 +6545,7 @@ static int LineContains( AstFrame *this, AstLineDef *l, int def, double *point, 
 }
 
 static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-                         double cross[5], int *status ) {
+                         double cross[5], double *dist, int *status ) {
 /*
 *+
 *  Name:
@@ -6557,7 +6560,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 *  Synopsis:
 *     #include "frame.h"
 *     int astLineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-*                          double cross[5] )
+*                          double cross[5], double *dist )
 
 *  Class Membership:
 *     Frame method.
@@ -6586,6 +6589,10 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 *        account of the current axis permutation array if appropriate. Note,
 *        sub-classes such as SkyFrame may append extra values to the end
 *        of the basic frame axis values.
+*     dist
+*        Pointer to a double in which to return the distance from the
+*        start of line "l1" to the crossing point. May be NULL if not
+*        required. Returned equal to zero if an error occurs.
 
 *  Returned Value:
 *     A non-zero value is returned if the lines cross at a point which is
@@ -6623,6 +6630,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 
 /* Initialise. */
    result = 0;
+   if( dist ) *dist = 0.0;
 
 /* Use a local array for storage if no array was supplied. */
    if( !cross ) cross = crossing;
@@ -6652,7 +6660,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
          t1 = ( l2->dir[ 1 ]*dx - l2->dir[ 0 ]*dy )/den;
          t2 = ( l1->dir[ 1 ]*dx - l1->dir[ 0 ]*dy )/den;
 
-/* Store the crossing point, using the smaller t value to redue error. */
+/* Store the crossing point, using the smaller t value to reduce error. */
          if( fabs( t1 ) < fabs( t2 ) ) {
             cross[ 0 ] = l1->start[ 0 ] + t1*l1->dir[ 0 ];
             cross[ 1 ] = l1->start[ 1 ] + t1*l1->dir[ 1 ];
@@ -6672,11 +6680,19 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
       } else {
          cross[ 0 ] = AST__BAD;
          cross[ 1 ] = AST__BAD;
+         t1 = AST__BAD;
       }
+
+/* Return the distance from the start of line 1 to the intersection, if
+   required. */
+      if( dist ) *dist = t1;
    }
 
 /* Return zero if an error occurred. */
-   if( !astOK ) result = 0;
+   if( !astOK ) {
+      result = 0;
+      if( dist ) *dist = 0;
+   }
 
 /* Return a pointer to the output structure. */
    return result;
@@ -14945,9 +14961,9 @@ AstLineDef *astLineDef_( AstFrame *this, const double start[2],
    return (**astMEMBER(this,Frame,LineDef))( this, start, end, status );
 }
 int astLineCrossing_( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-                      double cross[5], int *status ) {
+                      double cross[5], double *dist, int *status ) {
    if ( !astOK ) return 0;
-   return (**astMEMBER(this,Frame,LineCrossing))( this, l1, l2, cross, status );
+   return (**astMEMBER(this,Frame,LineCrossing))( this, l1, l2, cross, dist, status );
 }
 void astLineOffset_( AstFrame *this, AstLineDef *line, double par, double prp,
                      double point[2], int *status ){

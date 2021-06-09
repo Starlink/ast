@@ -355,6 +355,10 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *         In Overlay, only clear the results Units, Label, etc if the result
 *         and template Systems differ AND the template System has been set
 *         explicitly.
+*     9-JUN-2021 (DSB):
+*         astLineCrossing now returns the distance from the line start to
+*         the crossing. This distance takes account of which half of the
+*         great circle contains the crossing.
 *class--
 */
 
@@ -772,6 +776,7 @@ int astTest##attr##_( AstSkyFrame *this, int axis, int *status ) { \
 #include "timemap.h"             /* Time conversions */
 #include "skyaxis.h"             /* Sky axes */
 #include "frame.h"               /* Parent Frame class */
+#include "region.h"              /* Regions within Frames */
 #include "matrixmap.h"           /* Matrix multiplication */
 #include "sphmap.h"              /* Cartesian<->Spherical transformations */
 #include "skyframe.h"            /* Interface definition for this class */
@@ -1005,8 +1010,8 @@ static int GetNegLon( AstSkyFrame *, int * );
 static size_t GetObjSize( AstObject *, int * );
 static int IsEquatorial( AstSystemType, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
-static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], int * );
-static int LineIncludes( SkyLineDef *, double[3], int * );
+static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], double *, int * );
+static int LineIncludes( SkyLineDef *, double[3], double *, int * );
 static int MakeSkyMapping( AstSkyFrame *, AstSkyFrame *, AstSystemType, AstMapping **, int * );
 static int Match( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
 static int SubFrame( AstFrame *, AstFrame *, int, const int *, const int *, AstMapping **, AstFrame **, int * );
@@ -5326,7 +5331,7 @@ static int LineContains( AstFrame *this, AstLineDef *l, int def, double *point, 
 
 /* Check that the point of closest approach of the line to the point is
    within the limits of the line. */
-      if( LineIncludes( sl, b, status ) ){
+      if( LineIncludes( sl, b, NULL, status ) ){
 
 /* Check that the point is 90 degrees away from the pole of the great
    circle containing the line. */
@@ -5342,7 +5347,7 @@ static int LineContains( AstFrame *this, AstLineDef *l, int def, double *point, 
 }
 
 static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-                         double cross[5], int *status ) {
+                         double cross[5], double *dist, int *status ) {
 /*
 *  Name:
 *     LineCrossing
@@ -5356,7 +5361,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 *  Synopsis:
 *     #include "skyframe.h"
 *     int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-*                       double cross[5], int *status )
+*                       double cross[5], double *dist, int *status )
 
 *  Class Membership:
 *     SkyFrame member function (over-rides the protected astLineCrossing
@@ -5386,6 +5391,10 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 *        account of the current axis permutation array if appropriate. Note,
 *        sub-classes such as SkyFrame may append extra values to the end
 *        of the basic frame axis values.
+*     dist
+*        Pointer to a double in which to return the distance from the
+*        start of line "l1" to the crossing point. May be NULL if not
+*        required. Returned equal to zero if an error occurs.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -5419,6 +5428,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
 
 /* Initialise */
    result = 0;
+   if( dist ) *dist = 0.0;
 
 /* Check the global error status. */
    if ( !astOK ) return result;
@@ -5452,7 +5462,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
       palDvn( temp, b, &len );
 
 /* See if this point is within the length of both arcs. If so return it. */
-      if( LineIncludes( sl2, b, status ) && LineIncludes( sl1, b, status ) ) {
+      if( LineIncludes( sl2, b, NULL, status ) && LineIncludes( sl1, b, dist, status ) ) {
          result = 1;
 
 /* If not, see if the negated b vector is within the length of both arcs.
@@ -5461,7 +5471,7 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
          b[ 0 ] *= -1.0;
          b[ 1 ] *= -1.0;
          b[ 2 ] *= -1.0;
-         if( LineIncludes( sl2, b, status ) && LineIncludes( sl1, b, status ) ) result = 1;
+         if( LineIncludes( sl2, b, NULL, status ) && LineIncludes( sl1, b, dist, status ) ) result = 1;
       }
 
 /* Store the spherical coords in elements 0 and 1 of the returned array. */
@@ -5476,7 +5486,10 @@ static int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
    }
 
 /* If an error occurred, return 0. */
-   if( !astOK ) result = 0;
+   if( !astOK ) {
+      result = 0;
+      if( dist ) *dist = 0.0;
+   }
 
 /* Return the result. */
    return result;
@@ -5627,7 +5640,8 @@ static AstLineDef *LineDef( AstFrame *this, const double start[2],
    return (AstLineDef *) result;
 }
 
-static int LineIncludes( SkyLineDef *l, double point[3], int *status ) {
+static int LineIncludes( SkyLineDef *l, double point[3], double *dist,
+                         int *status ) {
 /*
 *  Name:
 *     LineIncludes
@@ -5641,11 +5655,11 @@ static int LineIncludes( SkyLineDef *l, double point[3], int *status ) {
 
 *  Synopsis:
 *     #include "skyframe.h"
-*     int LineIncludes( SkyLineDef *l, double point[3], int *status )
+*     int LineIncludes( SkyLineDef *l, double point[3], double *dist,
+*                       int *status )
 
 *  Class Membership:
-*     SkyFrame member function (over-rides the protected astLineIncludes
-*     method inherited from the Frame class).
+*     SkyFrame member function
 
 *  Description:
 *     The supplied point is assumed to be a point on the great circle of
@@ -5658,6 +5672,10 @@ static int LineIncludes( SkyLineDef *l, double point[3], int *status ) {
 *        Pointer to the structure defining the line.
 *     point
 *        An array holding the Cartesian coords of the point to be tested.
+*     dist
+*        Pointer to a double in which to return the distance from the
+*        start of line "l" to the crossing point. May be NULL if not
+*        required. Returned equal to zero if an error occurs.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -5671,22 +5689,44 @@ static int LineIncludes( SkyLineDef *l, double point[3], int *status ) {
 
 /* Local Variables: */
    double t1, t2, t3;
+   int result;
+
+/* Initialise */
+   if( dist ) *dist = 0.0;
 
 /* Check the global error status. */
    if ( !astOK ) return 0;
 
-/* If the line is of infite length, it is assumed to include the supplied
-   point. */
-   if( l->infinite ) return 1;
-
-/* Otherwise, get the unsigned distance of the point from the start of the
-   line in the range 0 - 180 degs. Check it is less than the line length.
-   Then check that the point is not more than 90 degs away from the quarter
-   point. */
+/* Get the unsigned distance of the point in radians from the start of the
+   line, in the range 0 - 180 degs (t2). */
    t1 = palDvdv( l->start, point );
    t2 = acos( t1 );
+
+/* Get the cosine of the distance in radians from the point to the line's
+   quarter point (the point on the line that is 90 degrees away from the
+   line's start). */
    t3 = palDvdv( l->dir, point );
-   return ( ((l->length > 0) ? t2 < l->length : t2 == 0.0 ) && t3 >= -1.0E-10 );
+
+/* If the point is more than 90 degrees away from the quarter point, then
+   it is in the second half of the great circle (i.e. the half that does not
+   include the quarter point). So change "t2" to be the distance from the
+   start, along the line in the forward direction, to the point (it is
+   currently the distance in the reverse direction). */
+   if( t3 < -1.0E-10 ) t2 = 2*AST__DPI - t2;
+
+/* If the line is of infinite length, it is assumed to include the supplied
+   point. */
+   if( l->infinite ) {
+      result = 1;
+
+/* If the line is not infinite, check the distance from the start of the
+   line to the point is less than the line length. */
+   } else {
+      result = ((l->length > 0) ? t2 < l->length : t2 == 0.0 );
+   }
+
+   if( dist ) *dist = t2;
+   return result;
 }
 
 static void LineOffset( AstFrame *this, AstLineDef *line, double par,

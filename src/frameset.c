@@ -928,7 +928,7 @@ static int GetTranInverse( AstMapping *, int * );
 static int GetVarFrm( AstFrameSet *, int, int * );
 static int IsUnitFrame( AstFrame *, int * );
 static int LineContains( AstFrame *, AstLineDef *, int, double *, int * );
-static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], int * );
+static int LineCrossing( AstFrame *, AstLineDef *, AstLineDef *, double[5], double *, int * );
 static int Match( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
 static int Span( AstFrameSet *, AstFrame **, int, int, int, AstMapping **, int *, AstFrame **, int * );
 static int SubFrame( AstFrame *, AstFrame *, int, const int *, const int *, AstMapping **, AstFrame **, int * );
@@ -6648,7 +6648,7 @@ static int LineContains( AstFrame *this_frame, AstLineDef *l, int def, double *p
 }
 
 static int LineCrossing( AstFrame *this_frame, AstLineDef *l1, AstLineDef *l2,
-                         double cross[5], int *status ) {
+                         double cross[5], double *dist, int *status ) {
 /*
 *  Name:
 *     LineCrossing
@@ -6662,7 +6662,7 @@ static int LineCrossing( AstFrame *this_frame, AstLineDef *l1, AstLineDef *l2,
 *  Synopsis:
 *     #include "frameset.h"
 *     int LineCrossing( AstFrame *this, AstLineDef *l1, AstLineDef *l2,
-*                       double cross[5], int *status )
+*                       double cross[5], double *dist, int *status )
 
 *  Class Membership:
 *     FrameSet member function (over-rides the protected astLineCrossing
@@ -6692,6 +6692,10 @@ static int LineCrossing( AstFrame *this_frame, AstLineDef *l1, AstLineDef *l2,
 *        account of the current axis permutation array if appropriate. Note,
 *        sub-classes such as SkyFrame may append extra values to the end
 *        of the basic frame axis values.
+*     dist
+*        Pointer to a double in which to return the distance from the
+*        start of line "l1" to the crossing point. May be NULL if not
+*        required. Returned equal to zero if an error occurs.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -6718,11 +6722,12 @@ static int LineCrossing( AstFrame *this_frame, AstLineDef *l1, AstLineDef *l2,
 
 /* Initialise */
    result =0;
+   if( dist ) *dist = 0.0;
 
 /* Obtain a pointer to the FrameSet's current Frame and then invoke the
    method. Annul the Frame pointer afterwards. */
    fr = astGetFrame( (AstFrameSet *) this_frame, AST__CURRENT );
-   result = astLineCrossing( fr, l1, l2, cross );
+   result = astLineCrossing( fr, l1, l2, cross, dist );
    fr = astAnnul( fr );
 
 /* Return the result. */
