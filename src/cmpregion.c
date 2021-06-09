@@ -461,8 +461,8 @@ static void Decompose( AstMapping *this_mapping, AstMapping **map1,
 *        Pointer to the inherited status variable.
 
 *  Notes:
-*     - Any changes made to the component rames using the returned
-*     pointers will be reflected in the supplied CmpFrame.
+*     - Any changes made to the component Regions using the returned
+*     pointers will be reflected in the supplied CmpRegion.
 
 *-
 */

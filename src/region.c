@@ -262,6 +262,11 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        Added 8-byte interface for astMask<X>.
 *     23-JAN-2020 (DSB):
 *        Added astPointInRegion.
+*     8-JUN-2021 (DSB):
+*        When creating a deep copy of a Region, ensure the RegionFS attribute
+*        is cleared in the copy. This means that if a component Region within
+*        a CmpRegion is copied, a dump of the resulting copy will include the
+*        FrameSet.
 *class--
 
 *  Implementation Notes:
@@ -12811,6 +12816,11 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    if( in->unc ) out->unc = astCopy( in->unc );
    if( in->negation ) out->negation = astCopy( in->negation );
    if( in->defunc ) out->defunc = astCopy( in->defunc );
+
+/* Ensure the RegionFS attribute is cleared in the copy. This means that
+   if a component Region within a CmpRegion is copied, a dump of the
+   resulting copy will include the FrameSet. */
+   astClearRegionFS( out );
 }
 
 
