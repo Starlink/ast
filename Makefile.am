@@ -631,8 +631,15 @@ else
 PAL_LIB = libast_pal.la
 endif
 
+if EXTERNAL_CMINPACK
+CMINPACK_LIB =
+else
+CMINPACK_LIB = libast_cminpack.la
+endif
+
 lib_LTLIBRARIES = \
     $(PAL_LIB) \
+    $(CMINPACK_LIB) \
     libast.la \
     libast_err.la \
     libast_ems.la \
@@ -682,6 +689,7 @@ libast_grf_5_6_la_CFLAGS = $(AM_CFLAGS) -prefer-pic
 libast_pgplot_la_CFLAGS = $(AM_CFLAGS) -prefer-pic
 libast_pgplot3d_la_CFLAGS = $(AM_CFLAGS) -prefer-pic
 libast_pal_la_CFLAGS = $(AM_CFLAGS) -prefer-pic
+libast_cminpack_la_CFLAGS = $(AM_CFLAGS) -prefer-pic
 endif
 
 #  The module containing the main AST classes
@@ -691,7 +699,6 @@ libast_la_SOURCES = \
     $(GRP_C_INCLUDE_FILES) \
     $(F_C_INCLUDE_FILES) \
     $(GRP_F_INCLUDE_FILES) \
-    $(CMINPACK_FILES) \
     $(WCSLIB_FILES) \
     ast_err.h
 libast_la_LDFLAGS = -version-info @version_info@
@@ -699,12 +706,22 @@ libast_la_LDFLAGS = -version-info @version_info@
 # Ensure libast links against libraries containing functions used within
 # libast. If AST is configured --with-external-pal, then the internal
 # libast_pal library will be empty, and we link to an external PAL
-# library instead.
+# library instead. Do the same for cminpack
 if EXTERNAL_PAL
-libast_la_LIBADD =  $(libdir)/libpal.la
+if EXTERNAL_CMINPACK
+libast_la_LIBADD =  $(libdir)/libpal.la -lcminpack
 else
-libast_la_LIBADD = libast_pal.la
+libast_la_LIBADD = $(libdir)/libpal.la libast_cminpack.la
 endif
+else
+if EXTERNAL_CMINPACK
+libast_la_LIBADD =  libast_pal.la -lcminpack
+else
+libast_la_LIBADD = libast_pal.la libast_cminpack.la
+endif
+endif
+
+
 
 # AST_PAR is really part of GRP_F_INCLUDE_FILES, but it must not be
 # distributed, so list it separately.
@@ -759,6 +776,10 @@ libast_pgplot3d_la_LDFLAGS = -version-info @version_info@
 #  Positional astronomy libraries.
 libast_pal_la_SOURCES = $(PAL_FILES)
 libast_pal_la_LDFLAGS = -version-info @version_info@
+
+#  Cminpack
+libast_cminpack_la_SOURCES = $(CMINPACK_FILES)
+libast_cminpack_la_LDFLAGS = -version-info @version_info@
 
 # The following files are built by the targets in this makefile.
 MAINTAINERCLEANFILES = src/version.h builddocs addversion \
@@ -881,7 +902,7 @@ test: install
 
 #ast_test_LDADD = `ast_link`
 # Expand ast_link to avoid libast_pass2, which causes problems for Solaris
-ast_test_LDADD = @LIBPAL@ libast.la libast_pal.la libast_grf_3.2.la libast_grf_5.6.la libast_grf_2.0.la libast_grf3d.la libast_err.la -lm
+ast_test_LDADD = @LIBPAL@ @LIBCMINPACK@ libast.la libast_pal.la libast_cminpack.la libast_grf_3.2.la libast_grf_5.6.la libast_grf_2.0.la libast_grf3d.la libast_err.la -lm
 
 #  Need to include latex support files in the distribution tar ball so
 #  that the docs can be built from the tex source files. Requires environment

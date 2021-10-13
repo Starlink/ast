@@ -92,6 +92,27 @@ else
 fi
 AM_CONDITIONAL(EXTERNAL_PAL, test x$external_pal = x1)
 
+#   See if the --with-external_cminpack option has been provided. This sets the
+#   preprocesor macro EXTERNAL_CMINPACK which prevents use of the CMINPACK
+#   library functions that are included in the AST distribution. Suitable
+#   link options are used within ast_link(_adam) scripts to pull in libcminpack.
+AC_ARG_WITH([external_cminpack],
+            [ --with-external_cminpack   Use external CMINPACK libraries],
+        if test "$withval" = "yes"; then
+           external_cminpack="1"
+        else
+           external_cminpack="0"
+        fi,
+        external_cminpack="0")
+AC_SUBST( EXTERNAL_CMINPACK, $external_cminpack )
+if test "$external_cminpack" = "1"; then
+   AC_SUBST( LIBCMINPACK, "-lcminpack" )
+   AC_DEFINE([EXTERNAL_CMINPACK],[1],[use external CMINPACK libraries]),
+else
+   AC_SUBST( LIBCMINPACK, "" )
+fi
+AM_CONDITIONAL(EXTERNAL_CMINPACK, test x$external_cminpack = x1)
+
 #  Conditional defining whether we want to support Fortran libraries
 #  (e.g. pgplot) and applications. It seems that this must come before
 #  any uses of AC_CHECK_LIB as otherwise the library checked using

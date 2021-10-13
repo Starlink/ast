@@ -125,6 +125,15 @@
 #     the user should then ensure that external copies of the PAL and
 #     ERFA libraries are available (ERFA functions are used within PAL).
 
+#  CMINPACK:
+#     The AST distribution includes a bundled copy of the CMINPACK
+#     library. This will be used for various minimisation processes
+#     unless the "--with-external_cminpack" option was used when AST
+#     was configured. If "--with-external_cminpack" is used, this script
+#     will include "-lcminpack" in the returned list of linking options,
+#     and the user should then ensure that an external copy of the
+#     CMINPACK library is available.
+
 #  Examples:
 #c     cc display.c -L/star/lib `ast_link -pgplot` -o display
 #c        Compiles and links a C program called ``display'' which uses
@@ -201,6 +210,8 @@
 #        Add -drama option for DRAMA Ers support.
 #     3-MAR-2011 (DSB):
 #        Added grf 5.6 options.
+#     13-OCT-2021 (DSB):
+#        Added support for link with an external cminpack library.
 #     {enter_further_changes_here}
 
 #  Bugs:
@@ -341,6 +352,20 @@
 
 #  Otherwise, use the internal PAL & ERFA libraries.
       *) args="${args} -last_pal";;
+
+      esac
+
+#  Generate arguments for linking CMINPACK.
+#  -----------------------------------
+
+      case "@EXTERNAL_CMINPACK@" in
+
+#  If we configured --with-external_cminpack include a link option to pick up
+#  an external CMINPACK library.
+      1) args="${args} -lcminpack";;
+
+#  Otherwise, use the internal CMINPACK library.
+      *) args="${args} -last_cminpack";;
 
       esac
 

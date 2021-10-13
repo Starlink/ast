@@ -182,6 +182,8 @@
 #        Added "-grf3d", "-pgplot3d" and "-pgp3d" flags.
 #     4-MAR-2011 (DSB):
 #        Added v5.6 grf options.
+#     13-OCT-2021 (DSB):
+#        Added support for link with an external cminpack library.
 #     {enter_changes_here}
 
 #  Bugs:
@@ -303,6 +305,20 @@
 
 #  Otherwise, use the internal PAL & ERFA libraries.
       *) args="${args} -last_pal";;
+
+      esac
+
+#  Generate arguments for linking CMINPACK.
+#  ----------------------------------------
+
+      case "@EXTERNAL_CMINPACK@" in
+
+#  If we configured --with-external_cminpack include a link option to pick up
+#  an external CMINPACK library.
+      1) args="${args} -lcminpack";;
+
+#  Otherwise, use the internal CMINPACK library.
+      *) args="${args} -last_cminpack";;
 
       esac
 
