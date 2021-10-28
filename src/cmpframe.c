@@ -736,6 +736,7 @@ static int TestLabel( AstFrame *, int, int * );
 static int TestSymbol( AstFrame *, int, int * );
 static int TestUnit( AstFrame *, int, int * );
 static int Unformat( AstFrame *, int, const char *, double *, int * );
+static AstPointSet *NormalPoints( AstFrame *, AstPointSet *, int, AstPointSet *, int * );
 static void AddExtraAxes( int, int [], int, int, int, int * );
 static void ClearDirection( AstFrame *, int, int * );
 static void ClearFormat( AstFrame *, int, int * );
@@ -1537,8 +1538,8 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* Local Variables: */
    AstCmpFrame *this;            /* Pointer to the CmpFrame structure */
    AstFrame *pfrm;               /* Pointer to primary Frame containing axis */
-   char buf1[80];                /* For for un-indexed attribute name */
-   char buf2[80];                /* For for indexed attribute name */
+   char buf1[100];               /* For for un-indexed attribute name */
+   char buf2[200];               /* For for indexed attribute name */
    int axis;                     /* Sipplied (1-based) axis index */
    int len;                      /* Length of attrib string */
    int nc;                       /* Number of characters used so dar */
@@ -3226,8 +3227,8 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 /* Local Variables: */
    AstCmpFrame *this;            /* Pointer to the CmpFrame structure */
    AstFrame *pfrm;               /* Pointer to primary Frame containing axis */
-   char buf1[80];                /* For for un-indexed attribute name */
-   char buf2[80];                /* For for indexed attribute name */
+   char buf1[100];               /* For for un-indexed attribute name */
+   char buf2[200];               /* For for indexed attribute name */
    const char *result;           /* Pointer value to return */
    int axis;                     /* Supplied (1-base) axis index */
    int len;                      /* Length of attrib string */
@@ -4855,6 +4856,7 @@ void astInitCmpFrameVtab_(  AstCmpFrameVtab *vtab, const char *name, int *status
    frame->IsUnitFrame = IsUnitFrame;
    frame->Match = Match;
    frame->Norm = Norm;
+   frame->NormalPoints = NormalPoints;
    frame->NormBox = NormBox;
    frame->Offset = Offset;
    frame->PermAxes = PermAxes;
@@ -5611,6 +5613,212 @@ static void Norm( AstFrame *this_frame, double value[], int *status ) {
 
 /* Free the memory used for the permuted coordinates. */
    v = astFree( v );
+}
+
+static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int contig,
+                                  AstPointSet *out, int *status ) {
+/*
+*  Name:
+*     NormalPoints
+
+*  Purpose:
+*     Normalise a collection of points.
+
+*  Type:
+*     CmpFrame member function (over-rides the astNormalPoints method inherited
+*     from the Frame class).
+
+*  Synopsis:
+*     #include "frame.h"
+*     AstPointSet *NormalPoints( AstFrame *this, AstPointSet *in,
+*                                int contig, AstPointSet *out )
+
+*  Description:
+*     This function normalises the axis values representing a collection
+*     of points within a Frame. The normalisation can be done in two ways
+*     - 1) to put the axis values into the range expected for display to
+*     human readers or 2) to put the axis values into which ever range
+*     avoids discontinuities within the collection of positions. Using
+*     method 1) is the same as using function astNorm on each point in the
+*     collection. Using method 2) is useful when handling collections of
+*     points that may span some discontinuity in the coordinate system.
+
+*  Parameters:
+*     this
+*        Pointer to the Frame. The nature of the axis normalisation
+*        will depend on the class of Frame supplied.
+*     in
+*        Pointer to the PointSet holding the input coordinate data.
+*     contig
+*        Indicates the way in which the normalised axis values are to be
+*        calculated. A non-zero value causes the values to be normalised
+*        in such a way as to reduce the effects of any discontinuities in
+*        the coordinate system. For instance, points in a SkyFrame that
+*        span longitude zero will be normalized into a longitude range of
+*        -pi to +pi (otherwise they will be normalized into a range of
+*        zero to 2.pi). A zero value causes each point to be normalised
+*        independently using astNorm.
+*     out
+*        Pointer to a PointSet which will hold the normalised
+*        (output) coordinate values. A NULL value may also be given,
+*        in which case a new PointSet will be created by this
+*        function.
+
+*  Returned Value:
+*     Pointer to the output (possibly new) PointSet.
+
+*  Notes:
+*     - The number of coordinate values per point in the input and output
+*     PointSet must each match the number of axes for the Frame being
+*     used.
+*     - If an output PointSet is supplied, it must have space for
+*     sufficient number of points and coordinate values per point to
+*     accommodate the result. Any excess space will be ignored.
+*     - A null pointer will be returned if this function is invoked
+*     with the global error status set, or if it should fail for any
+*     reason.
+*-
+*/
+
+/* Local Variables: */
+   AstCmpFrame *this;            /* Pointer to the CmpFrame structure */
+   AstPointSet *in1;             /* Pointer to input PointSet for frame1 */
+   AstPointSet *in2;             /* Pointer to input PointSet for frame2 */
+   AstPointSet *out1;            /* Pointer to output PointSet for frame1 */
+   AstPointSet *out2;            /* Pointer to output PointSet for frame2 */
+   AstPointSet *result;          /* Pointer to returned PointSet */
+   const int *perm;              /* Pointer to axis permutation array */
+   int nax;                      /* Number of Frame axes */
+   int naxes1;                   /* Number of axes in frame1 */
+   int naxes2;                   /* Number of axes in frame2 */
+   int ncoord_in;                /* Number of input PointSet coordinates */
+   int ncoord_out;               /* Number of coordinates in output PointSet */
+   int npoint;                   /* Number of points to normalise */
+   int npoint_out;               /* Number of points in output PointSet */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Obtain a pointer to the CmpFrame structure. */
+   this = (AstCmpFrame *) this_frame;
+
+/* Obtain the number of axes in the two component Frames */
+   naxes1 = astGetNaxes( this->frame1 );
+   naxes2 = astGetNaxes( this->frame2 );
+
+/* For the total number of axes. */
+   nax = naxes1 + naxes2;
+
+/* Obtain the number of input positions to normalise and the number of
+   coordinate values per position. */
+   npoint = astGetNpoint( in );
+   ncoord_in = astGetNcoord( in );
+
+/* If OK, check that the number of input coordinates matches the number
+   required by the Frame. Report an error if these numbers do not match. */
+   if ( astOK && ( ncoord_in != nax ) ) {
+      astError( AST__NCPIN, "astNormalPoints(%s): Bad number of coordinate "
+                "values (%d) in input %s.", status, astGetClass( this ),
+                ncoord_in, astGetClass( in ) );
+      astError( AST__NCPIN, "The %s given requires %d coordinate value(s) for "
+                "each input point.", status, astGetClass( this ), nax );
+   }
+
+/* If still OK, and a non-NULL pointer has been given for the output PointSet,
+   then obtain the number of points and number of coordinates per point for
+   this PointSet. */
+   if ( astOK && out ) {
+      npoint_out = astGetNpoint( out );
+      ncoord_out = astGetNcoord( out );
+
+/* Check that the dimensions of this PointSet are adequate to accommodate the
+   output coordinate values and report an error if they are not. */
+      if ( astOK ) {
+         if ( npoint_out < npoint ) {
+            astError( AST__NOPTS, "astNormalPoints(%s): Too few points (%d) in "
+                      "output %s.", status, astGetClass( this ), npoint_out,
+                      astGetClass( out ) );
+            astError( AST__NOPTS, "The %s needs space to hold %d normalised "
+                      "point(s).", status, astGetClass( this ), npoint );
+         } else if ( ncoord_out != nax ) {
+            astError( AST__NCPIN, "astNormalPoints(%s): Bad number of coordinate "
+                      "values (%d) in output %s.", status, astGetClass( this ),
+                      ncoord_out, astGetClass( in ) );
+            astError( AST__NCPIN, "The %s given requires %d coordinate value(s) for "
+                      "each output point.", status, astGetClass( this ), nax );
+         }
+      }
+   }
+
+/* Obtain a pointer to the CmpFrame's axis permutation array. This array
+   holds the original axis index for each current Frame axis index. */
+   perm = astGetPerm( this );
+
+/* If all the validation stages are passed successfully, and a NULL output
+   pointer was given, then create a new PointSet to encapsulate the output
+   coordinate data. */
+   if ( astOK ) {
+      if ( !out ) {
+         result = astPointSet( npoint, nax, "", status );
+
+/* Otherwise, use the PointSet supplied. */
+      } else {
+         result = out;
+
+/* Temporarily permute the coordinates within the supplied PointSet back
+   in to the axis order which existed when the CmpFrame was created. */
+         astPermPoints( out, 0, perm );
+      }
+   }
+
+/* Temporarily permute the coordinates within the supplied PointSet back
+   in to the axis order which existed when the CmpFrame was created. */
+   astPermPoints( in, 0, perm );
+
+/* Create PointSets holding the input values which refer to each of the
+   two component Frames. */
+   in1 = astPointSet( npoint, naxes1, "", status );
+   in2 = astPointSet( npoint, naxes2, "", status );
+
+/* Associated the appropriate subset of the data in the supplied input
+   PointSet with each of these two PointSets. */
+   astSetSubPoints( in, 0, 0, in1 );
+   astSetSubPoints( in, 0, naxes1, in2 );
+
+/* Create PointSets to hold the output values which refer to each of the
+   two component Frames. */
+   out1 = astPointSet( npoint, naxes1, "", status );
+   out2 = astPointSet( npoint, naxes2, "", status );
+
+/* Associated the appropriate subset of the data in the previously created
+   output PointSet with each of these two PointSets. */
+   astSetSubPoints( result, 0, 0, out1 );
+   astSetSubPoints( result, 0, naxes1, out2 );
+
+/* Invoke the astNormalPoints method on each of the sub-Frames. These
+   invocations create two new PointSets containing the output values.  */
+   (void) astNormalPoints( this->frame1, in1, contig, out1 );
+   (void) astNormalPoints( this->frame2, in2, contig, out2 );
+
+/* Re-order the returned PointSet to match the axis permutation of
+   the CmpFrame */
+   astPermPoints( result, 1, perm );
+
+/* Re-instate the original ordering of the coordinates within the
+   input PointSet. */
+   astPermPoints( in, 1, perm );
+
+/* Free resources. */
+   out1 = astAnnul( out1 );
+   out2 = astAnnul( out2 );
+   in1 = astAnnul( in1 );
+   in2 = astAnnul( in2 );
+
+/* Annul the returned PointSet if an error occurred. */
+   if( !astOK ) result = astAnnul( result );
+
+/* Return a pointer to the output PointSet. */
+   return result;
 }
 
 static void NormBox( AstFrame *this_frame, double lbnd[], double ubnd[],
@@ -8233,8 +8441,8 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* Local Vaiables: */
    AstCmpFrame *this;            /* Pointer to the CmpFrame structure */
    AstFrame *pfrm;               /* Pointer to primary Frame containing axis */
-   char buf1[BUF_LEN];           /* For for un-indexed attribute name */
-   char buf2[BUF_LEN];           /* For for indexed attribute name */
+   char buf1[BUF_LEN+10];        /* For for un-indexed attribute name */
+   char buf2[BUF_LEN+20];        /* For for indexed attribute name */
    int axis;                     /* Supplied (1-base) axis index */
    int len;                      /* Length of setting string */
    int nc;                       /* Number of characters read by astSscanf */
@@ -9537,7 +9745,7 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
    AstCmpFrame *this;            /* Pointer to the CmpFrame structure */
    AstFrame *pfrm;               /* Pointer to primary Frame containing axis */
    char buf1[80];                /* For for un-indexed attribute name */
-   char buf2[80];                /* For for indexed attribute name */
+   char buf2[100];               /* For for indexed attribute name */
    int axis;                     /* Supplied (1-base) axis index */
    int len;                      /* Length of attrib string */
    int nc;                       /* Length of string used so far */

@@ -952,6 +952,7 @@ static int TestUnit( AstFrame *, int, int * );
 static int Unformat( AstFrame *, int, const char *, double *, int * );
 static int ValidateAxis( AstFrame *, int, int, const char *, int * );
 static int ValidateFrameIndex( AstFrameSet *, int, const char *, int * );
+static AstPointSet *NormalPoints( AstFrame *, AstPointSet *, int, AstPointSet *, int * );
 static void AddFrame( AstFrameSet *, int, AstMapping *, AstFrame *, int * );
 static void AppendAxes( AstFrameSet *, AstFrame *, int * );
 static void AxNorm( AstFrame *, int, int, int, double *, int * );
@@ -6310,6 +6311,7 @@ void astInitFrameSetVtab_(  AstFrameSetVtab *vtab, const char *name, int *status
    frame->MatchAxes = MatchAxes;
    frame->MatchAxesX = MatchAxesX;
    frame->Norm = Norm;
+   frame->NormalPoints = NormalPoints;
    frame->NormBox = NormBox;
    frame->Offset = Offset;
    frame->Offset2 = Offset2;
@@ -7632,6 +7634,93 @@ static void Norm( AstFrame *this_frame, double value[], int *status ) {
    fr = astGetFrame( this, AST__CURRENT );
    astNorm( fr, value );
    fr = astAnnul( fr );
+}
+
+static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int contig,
+                                  AstPointSet *out, int *status ) {
+/*
+*  Name:
+*     NormalPoints
+
+*  Purpose:
+*     Normalise a collection of points.
+
+*  Type:
+*     FrameSet member function (over-rides the astNormalPoints method inherited
+*     from the Frame class).
+
+*  Synopsis:
+*     #include "frame.h"
+*     AstPointSet *NormalPoints( AstFrame *this, AstPointSet *in,
+*                                int contig, AstPointSet *out )
+
+*  Description:
+*     This function normalises the axis values representing a collection
+*     of points within a Frame. The normalisation can be done in two ways
+*     - 1) to put the axis values into the range expected for display to
+*     human readers or 2) to put the axis values into which ever range
+*     avoids discontinuities within the collection of positions. Using
+*     method 1) is the same as using function astNorm on each point in the
+*     collection. Using method 2) is useful when handling collections of
+*     points that may span some discontinuity in the coordinate system.
+
+*  Parameters:
+*     this
+*        Pointer to the Frame. The nature of the axis normalisation
+*        will depend on the class of Frame supplied.
+*     in
+*        Pointer to the PointSet holding the input coordinate data.
+*     contig
+*        Indicates the way in which the normalised axis values are to be
+*        calculated. A non-zero value causes the values to be normalised
+*        in such a way as to reduce the effects of any discontinuities in
+*        the coordinate system. For instance, points in a SkyFrame that
+*        span longitude zero will be normalized into a longitude range of
+*        -pi to +pi (otherwise they will be normalized into a range of
+*        zero to 2.pi). A zero value causes each point to be normalised
+*        independently using astNorm.
+*     out
+*        Pointer to a PointSet which will hold the normalised
+*        (output) coordinate values. A NULL value may also be given,
+*        in which case a new PointSet will be created by this
+*        function.
+
+*  Returned Value:
+*     Pointer to the output (possibly new) PointSet.
+
+*  Notes:
+*     - The number of coordinate values per point in the input and output
+*     PointSet must each match the number of axes for the Frame being
+*     used.
+*     - If an output PointSet is supplied, it must have space for
+*     sufficient number of points and coordinate values per point to
+*     accommodate the result. Any excess space will be ignored.
+*     - A null pointer will be returned if this function is invoked
+*     with the global error status set, or if it should fail for any
+*     reason.
+*-
+*/
+
+/* Local Variables: */
+   AstFrame *fr;                 /* Pointer to the current Frame */
+   AstFrameSet *this;            /* Pointer to the FrameSet structure */
+   AstPointSet *result;          /* Pointer to returned PointSet */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Obtain a pointer to the FrameSet structure. */
+   this = (AstFrameSet *) this_frame;
+
+/* Obtain a pointer to the FrameSet's current Frame and invoke this
+   Frame's astNormalPoints method to obtain the new values. Annul the Frame
+   pointer afterwards. */
+   fr = astGetFrame( this, AST__CURRENT );
+   result = astNormalPoints( fr, in, contig, out );
+   fr = astAnnul( fr );
+
+/* Return a pointer to the output PointSet. */
+   return result;
 }
 
 static void NormBox( AstFrame *this_frame, double lbnd[], double ubnd[],

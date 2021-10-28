@@ -71,7 +71,7 @@ if( $1 != "-nd" ) then
 endif
 
 #  Note - testhuge is not included because it takes so long to run.
-foreach prog (testyamlchan testmoc testmocchan testmapping testchebymap testunitnormmap testskyframe testframeset testchannel testpolymap testcmpmap testlutmap testfitstable testtable teststcschan teststc testspecframe testfitschan testswitchmap testrebin testrebinseq testtrangrid testnormmap testtime testrate testflux testratemap testspecflux testxmlchan testregions testkeymap )
+foreach prog (testcmpframe testyamlchan testmoc testmocchan testmapping testchebymap testunitnormmap testskyframe testframeset testchannel testpolymap testcmpmap testlutmap testfitstable testtable teststcschan teststc testspecframe testfitschan testswitchmap testrebin testrebinseq testtrangrid testnormmap testtime testrate testflux testratemap testspecflux testxmlchan testregions testkeymap )
 
 gfortran -fno-second-underscore -w -g -o $prog -g $prog.f -fno-range-check -fallow-argument-mismatch $LDFLAGS -I$AST/include \
      -I$STARLINK_DIR/include -L$AST/lib -L$STARLINK_DIR/lib `ast_link -ems` \

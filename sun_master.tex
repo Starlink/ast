@@ -18,7 +18,7 @@ f+
 \stardocnumber      {210.30}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {29th Jan 2021}
+\stardocdate        {28th Oct 2021}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -22463,6 +22463,15 @@ current version):
 
 \begin{enumerate}
 
+\item A new method called astNormPoints has been added to the Frame
+class. This is similar to the existing astNorm method in that it can be
+used to normalise axis values, but can be used on a vector of points rather
+than just a single point. In addition, it has an option to choose a
+normalisation that avoids discontinuities in the Frame's coordinate
+system. The most common usage will be to modify vectors of sky position
+in such a way as to avoid sudden jumps of 360 degrees in longitude within
+groups of points that span the longitude origin.
+
 \item A bug has been fixed in the KeyMap class that caused astMapGet1<X>
 functions to return a vector length of 1 for KeyMap entries with an
 undefined value. A vector length of zero is now returned in such cases.
@@ -22472,6 +22481,11 @@ has been modified in order to improve the performance when the input
 variances include aberrant ultra-low values. The change should result in
 fewer output pixels being set bad in such cases. This change only affects
 cases where the AST\_\_GENVAR flag is not set.
+
+\item An option ``--with-external-cminpack'' had been added to the configure
+script. It omits the internal cminpack routines from the built library, and
+instead links with an external cminpack library.
+
 
 \end{enumerate}
 

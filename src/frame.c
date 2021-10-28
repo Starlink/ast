@@ -81,7 +81,8 @@ c     - astFormat: Format a coordinate value for a Frame axis
 c     - astGetActiveUnit: Determines how the Unit attribute will be used
 c     - astIntersect: Find the intersection between two geodesic curves
 c     - astMatchAxes: Find any corresponding axes in two Frames
-c     - astNorm: Normalise a set of Frame coordinates
+c     - astNorm: Normalise a set of Frame coordinates representing one point
+c     - astNormPoints: Normalise a collection of points
 c     - astOffset: Calculate an offset along a geodesic curve
 c     - astOffset2: Calculate an offset along a geodesic curve in a 2D Frame
 c     - astPermAxes: Permute the order of a Frame's axes
@@ -101,7 +102,8 @@ f     - AST_FORMAT: Format a coordinate value for a Frame axis
 f     - AST_GETACTIVEUNIT: Determines how the Unit attribute will be used
 f     - AST_INTERSECT: Find the intersection between two geodesic curves
 f     - AST_MATCHAXES: Find any corresponding axes in two Frames
-f     - AST_NORM: Normalise a set of Frame coordinates
+f     - AST_NORM: Normalise a set of Frame coordinates representing one point
+c     - AST_NORMPOINTS: Normalise a collection of points
 f     - AST_OFFSET: Calculate an offset along a geodesic curve
 f     - AST_OFFSET2: Calculate an offset along a geodesic curve in a 2D Frame
 f     - AST_PERMAXES: Permute the order of a Frame's axes
@@ -295,6 +297,8 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *     9-JUN-2021 (DSB):
 *         astLineCrossing now returns the distance from the line start to
 *         the crossing.
+*     25-OCT-2021 (DSB):
+*        Added astNormPoints method.
 *class--
 */
 
@@ -980,6 +984,7 @@ static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void Intersect( AstFrame *, const double[2], const double[2], const double[2], const double[2], double[2], int * );
 static void Norm( AstFrame *, double[], int * );
+static void NormPoints( AstFrame *, AstDim, int, AstDim, const double *, int, int, AstDim, double *, int * );
 static void NormBox( AstFrame *, double[], double[], AstMapping *, int * );
 static void Offset( AstFrame *, const double[], const double[], double, double[], int * );
 static void Overlay( AstFrame *, const int *, AstFrame *, int * );
@@ -1005,6 +1010,7 @@ static void SetTitle( AstFrame *, const char *, int * );
 static void SetUnit( AstFrame *, int, const char *, int * );
 static void NewUnit( AstAxis *, const char *, const char *, const char *, const char *, int * );
 static void ValidateAxisSelection( AstFrame *, int, const int *, const char *, int * );
+static AstPointSet *NormalPoints( AstFrame *, AstPointSet *, int, AstPointSet *, int * );
 
 #if defined(THREAD_SAFE)
 static int ManageLock( AstObject *, int, int, AstObject **, int * );
@@ -6066,6 +6072,8 @@ void astInitFrameVtab_(  AstFrameVtab *vtab, const char *name, int *status ) {
    vtab->IsUnitFrame = IsUnitFrame;
    vtab->Match = Match;
    vtab->Norm = Norm;
+   vtab->NormPoints = NormPoints;
+   vtab->NormalPoints = NormalPoints;
    vtab->NormBox = NormBox;
    vtab->AxDistance = AxDistance;
    vtab->AxNorm = AxNorm;
@@ -7670,7 +7678,7 @@ c     astNorm
 f     AST_NORM
 
 *  Purpose:
-*     Normalise a set of Frame coordinates.
+*     Normalise a set of Frame coordinates representing one point.
 
 *  Type:
 *     Public virtual function.
@@ -7806,6 +7814,415 @@ static void NormBox( AstFrame *this, double lbnd[], double ubnd[],
 */
 
 /* This base class returns the box limits unchanged. */
+}
+
+static void NormPoints( AstFrame *this, AstDim npoint, int ncoord_in,
+                        AstDim indim, const double *in, int contig,
+                        int ncoord_out, AstDim outdim, double *out,
+                        int *status ) {
+/*
+*++
+*  Name:
+c     astNormPoints
+f     AST_NORMPOINTS
+
+*  Purpose:
+*     Normalise a collection of points.
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+c     #include "frame.h"
+c     void astNormPoints( AstFrame *this, int npoint, int ncoord_in,
+c                         int indim, const double *in, int contig,
+c                         int ncoord_out, int outdim, double *out )
+f     CALL AST_NORMPOINTS( THIS, NPOINT, NCOORD_IN, INDIM, IN,
+f                          CONTIG, NCOORD_OUT, OUTDIM, OUT, STATUS )
+
+*  Class Membership:
+*     Frame method.
+
+*  Description:
+c     This function
+f     This routine
+*     normalises the axis values representing a collection of points within
+*     a Frame. The normalisation can be done in two ways - 1) to put the
+*     axis values into the range expected for display to human readers or 2)
+*     to put the axis values into which ever range avoids discontinuities
+*     within the collection of positions. Using method 1) is the same as
+c     using function astNorm
+f     using routine AST_NORM
+*     on each point in the collection. Using method 2) is useful when
+*     handling collections of points that may span some discontinuity in
+*     the coordinate system.
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the Frame.
+c     npoint
+f     NPOINT = INTEGER (Given)
+*        The number of points to be normalised.
+c     ncoord_in
+f     NCOORD_IN = INTEGER (Given)
+*        The number of coordinates being supplied for each input point.
+*        This should be the same as the number of axes in the Frame.
+c     indim
+f     INDIM = INTEGER (Given)
+c        The number of elements along the second dimension of the "in"
+f        The number of elements along the first dimension of the IN
+*        array (which contains the input coordinates). This value is
+*        required so that the coordinate values can be correctly
+*        located if they do not entirely fill this array. The value
+c        given should not be less than "npoint".
+f        given should not be less than NPOINT.
+c     in
+f     IN( INDIM, NCOORD_IN ) = DOUBLE PRECISION (Given)
+c        The address of the first element in a 2-dimensional array of
+c        shape "[ncoord_in][indim]",
+c        containing the coordinates of the input (unnormalised)
+c        points. These should be stored such that the value of
+c        coordinate number "coord" for input point number "point" is
+c        found in element "in[coord][point]".
+f        An array containing the coordinates of the input
+f        (unnormalised) points. These should be stored such that the
+f        value of coordinate number COORD for input point number POINT
+f        is found in element IN(POINT,COORD).
+c     contig
+f     CONTIG = LOGICAL (Given)
+*        Indicates the way in which the normalised axis values are to be
+*        calculated.
+c        A non-zero value
+f        .TRUE.
+*        causes the values to be normalised in such a way as to reduce
+*        the effects of any discontinuities in the coordinate system. For
+*        instance, points in a SkyFrame that span longitude zero will be
+*        normalized into a longitude range of -pi to +pi (otherwise they
+*        will be normalized into a range of 0 to 2.pi).
+c        A zero value causes each point to be normalised independently using
+c        astNorm.
+f        .FALSE. causes each point to be normalised independently using
+f        AST_NORM.
+c     ncoord_out
+f     NCOORD_OUT = INTEGER (Given)
+*        The number of coordinates being supplied for each output point.
+*        This should be the same as the number of axes in the Frame.
+c     outdim
+f     OUTDIM = INTEGER (Given)
+c        The number of elements along the second dimension of the "out"
+f        The number of elements along the first dimension of the OUT
+*        array (which will contain the output coordinates). This value
+*        is required so that the coordinate values can be correctly
+*        located if they will not entirely fill this array. The value
+c        given should not be less than "npoint".
+f        given should not be less than NPOINT.
+c     out
+f     OUT( OUTDIM, NCOORD_OUT ) = DOUBLE PRECISION (Returned)
+c        The address of the first element in a 2-dimensional array of
+c        shape "[ncoord_out][outdim]", into
+c        which the coordinates of the output (normalised) points will
+c        be written. These will be stored such that the value of
+c        coordinate number "coord" for output point number "point"
+c        will be found in element "out[coord][point]".
+f        An array into which the coordinates of the output
+f        (normalised) points will be written. These will be stored
+f        such that the value of coordinate number COORD for output
+f        point number POINT will be found in element OUT(POINT,COORD).
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Notes:
+*     - For some classes of Frame, whose coordinate values are not
+*     constrained, this function will never modify the values
+*     supplied. However, for Frames whose axes represent cyclic
+*     quantities (such as angles or positions on the sky), coordinates
+*     will typically be wrapped into an appropriate standard range,
+*     such as zero to 2*pi or -pi to +pi (depending on the normalisation
+*     method used).
+
+*  Handling of Huge Pixel Arrays:
+*     If the number of points to be normalised exceeds the largest value that
+*     can be represented by a 4-byte integer, then the alternative "8-byte"
+*     interface for this function should be used. This alternative interface
+*     uses 8 byte integer arguments (instead of 4-byte). Specifically, the
+*     arguments
+c     "npoint", "indim" and "outdim" are changed from type "int" to type
+c     "int64_t" (defined in header file stdint.h).
+f     NPOINT, INDIM and OUTDIM are changed from type INTEGER to type INTEGER*8.
+*     The function name is changed by appending the digit "8" to the
+*     name. Thus,
+c     astNormPoints becomes astNormPoints8
+f     AST_NORMPOINTS becomes AST_NORMPOINTS8.
+
+*--
+*/
+
+/* Local Variables: */
+   AstPointSet *in_points;       /* Pointer to input PointSet */
+   AstPointSet *out_points;      /* Pointer to output PointSet */
+   const double **in_ptr;        /* Pointer to array of input data pointers */
+   double **out_ptr;             /* Pointer to array of output data pointers */
+   int coord;                    /* Loop counter for coordinates */
+   int naxes;                    /* No of frame axes */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Obtain the number of Frame axes. */
+   naxes = astGetNaxes( this );
+
+/* Validate the number of input coordinates */
+   if ( astOK && ( naxes != ncoord_in ) ) {
+      astError( AST__DIMIN, "astNormPoints(%s): The number of input axes "
+                "(%d) is not the same as the number of axes in the %s (%d).",
+                status, astGetClass( this ), ncoord_in, astGetClass( this ),
+                naxes );
+   }
+
+/* Validate the number of output coordinates */
+   if ( astOK && ( naxes != ncoord_out ) ) {
+      astError( AST__DIMIN, "astNormPoints(%s): The number of output axes "
+                "(%d) is not the same as the number of axes in the %s (%d).",
+                status, astGetClass( this ), ncoord_out, astGetClass( this ),
+                naxes );
+   }
+
+/* Also validate the input array dimension argument. */
+   if ( astOK && ( indim < npoint ) ) {
+      astError( AST__DIMIN, "astNormPoints(%s): The input array dimension value "
+                "(%" AST__DIMFMT ") is invalid.", status, astGetClass( this ),
+                indim );
+      astError( AST__DIMIN, "This should not be less than the number of "
+                "points being transformed (%" AST__DIMFMT ").", status, npoint );
+   }
+
+/* Similarly, validate the output array dimension argument. */
+   if ( astOK && ( outdim < npoint ) ) {
+      astError( AST__DIMIN, "astNormPoints(%s): The output array dimension value "
+                "(%" AST__DIMFMT ") is invalid.", status, astGetClass( this ),
+                outdim );
+      astError( AST__DIMIN, "This should not be less than the number of "
+                "points being transformed (%" AST__DIMFMT ").", status, npoint );
+   }
+
+/* Allocate memory to hold the arrays of input and output data
+   pointers. */
+   if ( astOK ) {
+      in_ptr = (const double **) astMalloc( sizeof( const double * ) *
+                                            (size_t) ncoord_in );
+      out_ptr = astMalloc( sizeof( double * ) * (size_t) ncoord_out );
+
+/* Initialise the input data pointers to locate the coordinate data in
+   the "in" array. */
+      if ( astOK ) {
+         for ( coord = 0; coord < ncoord_in; coord++ ) {
+            in_ptr[ coord ] = in + coord * indim;
+         }
+
+/* Similarly initialise the output data pointers to point into the
+   "out" array. */
+         for ( coord = 0; coord < ncoord_out; coord++ ) {
+            out_ptr[ coord ] = out + coord * outdim;
+         }
+
+/* Create PointSets to describe the input and output points. */
+         in_points = astPointSet( npoint, ncoord_in, "", status );
+         out_points = astPointSet( npoint, ncoord_out, "", status );
+
+/* Associate the data pointers with the PointSets (note we must
+   explicitly remove the "const" qualifier from the input data here,
+   although they will not be modified).  */
+         astSetPoints( in_points, (double **) in_ptr );
+         astSetPoints( out_points, out_ptr );
+
+/* Do the required normalisation. */
+         (void) astNormalPoints( this, in_points, contig, out_points );
+
+/* Delete the two PointSets. */
+         in_points = astDelete( in_points );
+         out_points = astDelete( out_points );
+      }
+
+/* Free the memory used for the data pointers. */
+      in_ptr = (const double **) astFree( (void *) in_ptr );
+      out_ptr = astFree( out_ptr );
+   }
+}
+
+static AstPointSet *NormalPoints( AstFrame *this, AstPointSet *in, int contig,
+                                  AstPointSet *out, int *status ) {
+/*
+*+
+*  Name:
+*     astNormalPoints
+
+*  Purpose:
+*     Normalise a collection of points.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "frame.h"
+*     AstPointSet *astNormalPoints( AstFrame *this, AstPointSet *in,
+*                                   int contig, AstPointSet *out )
+
+*  Description:
+*     This function normalises the axis values representing a collection
+*     of points within a Frame. The normalisation can be done in two ways
+*     - 1) to put the axis values into the range expected for display to
+*     human readers or 2) to put the axis values into which ever range
+*     avoids discontinuities within the collection of positions. Using
+*     method 1) is the same as using function astNorm on each point in the
+*     collection. Using method 2) is useful when handling collections of
+*     points that may span some discontinuity in the coordinate system.
+
+*  Parameters:
+*     this
+*        Pointer to the Frame. The nature of the axis normalisation
+*        will depend on the class of Frame supplied.
+*     in
+*        Pointer to the PointSet holding the input coordinate data.
+*     contig
+*        Indicates the way in which the normalised axis values are to be
+*        calculated. A non-zero value causes the values to be normalised
+*        in such a way as to reduce the effects of any discontinuities in
+*        the coordinate system. For instance, points in a SkyFrame that
+*        span longitude zero will be normalized into a longitude range of
+*        -pi to +pi (otherwise they will be normalized into a range of
+*        zero to 2.pi). A zero value causes each point to be normalised
+*        independently using astNorm.
+*     out
+*        Pointer to a PointSet which will hold the normalised
+*        (output) coordinate values. A NULL value may also be given,
+*        in which case a new PointSet will be created by this
+*        function.
+
+*  Returned Value:
+*     Pointer to the output (possibly new) PointSet.
+
+*  Notes:
+*     - The number of coordinate values per point in the input and output
+*     PointSet must each match the number of axes for the Frame being
+*     used.
+*     - If an output PointSet is supplied, it must have space for
+*     sufficient number of points and coordinate values per point to
+*     accommodate the result. Any excess space will be ignored.
+*     - A null pointer will be returned if this function is invoked
+*     with the global error status set, or if it should fail for any
+*     reason.
+*-
+*/
+
+/* Local Variables: */
+   AstPointSet *result;          /* Pointer to output PointSet */
+   double *buf;                  /* Pointer to buffer for one position */
+   double **ptr_in;              /* Pointer to input pointset data arrays */
+   double **ptr_out;             /* Pointer to output pointset data arrays */
+   int coord;                    /* Loop counter for axis index */
+   int ncoord_in;                /* Number of input PointSet coordinates */
+   int ncoord_out;               /* Number of coordinates in output PointSet */
+   int naxes;                    /* Number of Frame axes */
+   int npoint;                   /* Number of points to transform */
+   int npoint_out;               /* Number of points in output PointSet */
+   int point;                    /* Loop counter for points */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Initialise. */
+   result = NULL;
+
+/* Obtain the number of axes in the Frame. */
+   naxes = astGetNaxes( this );
+
+/* Obtain the number of input points to transform and the number of coordinate
+   values per input point. */
+   npoint = astGetNpoint( in );
+   ncoord_in = astGetNcoord( in );
+
+/* If OK, check that the number of input coordinates matches the number
+   required by the Frameg. Report an error if these numbers do not match. */
+   if ( astOK && ( ncoord_in != naxes ) ) {
+      astError( AST__NCPIN, "astNormalPoints(%s): Bad number of coordinate "
+                "values (%d) in input %s.", status, astGetClass( this ), ncoord_in,
+                astGetClass( in ) );
+      astError( AST__NCPIN, "The %s given has %d axes.", status,
+                astGetClass( this ), naxes );
+   }
+
+/* If still OK, and a non-NULL pointer has been given for the output PointSet,
+   then obtain the number of points and number of coordinates per point for
+   this PointSet. */
+   if ( astOK && out ) {
+      npoint_out = astGetNpoint( out );
+      ncoord_out = astGetNcoord( out );
+
+/* Check that the dimensions of this PointSet are adequate to accommodate the
+   output coordinate values and report an error if they are not. */
+      if ( astOK ) {
+         if ( npoint_out < npoint ) {
+            astError( AST__NOPTS, "astTransform(%s): Too few points (%d) in "
+                      "output %s.", status, astGetClass( this ), npoint_out,
+                      astGetClass( out ) );
+            astError( AST__NOPTS, "The %s needs space to hold %d transformed "
+                      "point(s).", status, astGetClass( this ), npoint );
+         } else if ( ncoord_out < naxes ) {
+            astError( AST__NCPIN, "astNormalPoints(%s): Bad number of coordinate "
+                      "values (%d) in output %s.", status, astGetClass( this ), ncoord_out,
+                      astGetClass( out ) );
+            astError( AST__NCPIN, "The %s given has %d axes.", status,
+                      astGetClass( this ), naxes );
+         }
+      }
+   }
+
+/* If all the validation stages are passed successfully, and a NULL output
+   pointer was given, then create a new PointSet to encapsulate the output
+   coordinate data. */
+   if ( astOK ) {
+      if ( !out ) {
+         result = astPointSet( npoint, naxes, "", status );
+
+/* Otherwise, use the PointSet supplied. */
+      } else {
+         result = out;
+      }
+   }
+
+/* Obtain the pointers that give access to the coordinate data
+   associated with each PointSet. */
+   ptr_in = astGetPoints( in );
+   ptr_out = astGetPoints( result );
+
+/* Allocate a buffer for the axis values of a sinlge point. */
+   buf = astMalloc( naxes*sizeof(double) );
+
+/* Loop to normalise each point. */
+   if ( astOK ) {
+      for ( point = 0; point < npoint; point++ ) {
+
+/* Copy the axis values at the current point into the buffer. */
+         for ( coord = 0; coord < ncoord_in; coord++ ) {
+            buf[ coord ] = ptr_in[ coord ][ point ];
+         }
+
+/* Normalise the values stored in the buffer. */
+         astNorm( this, buf );
+
+/* Copy the normalised values to the output pointset. */
+         for ( coord = 0; coord < ncoord_out; coord++ ) {
+            ptr_out[ coord ][ point ] = buf[ coord ];
+         }
+      }
+   }
+
+/* Free resources. */
+   buf = astFree( buf );
+
+/* Return a pointer to the output PointSet. */
+   return result;
 }
 
 static double Offset2( AstFrame *this, const double point1[2], double angle,
@@ -15240,6 +15657,23 @@ int astGetFrameFlags_( AstFrame *this, int *status ) {
 void astSetFrameFlags_( AstFrame *this, int value, int *status ) {
    if ( !astOK ) return;
    (**astMEMBER(this,Frame,SetFrameFlags))( this, value, status );
+}
+
+void astNormPoints8_( AstFrame *this, AstDim npoint,
+                      int ncoord_in, AstDim indim, const double *in,
+                      int contig, int ncoord_out, AstDim outdim, double *out,
+                      int *status ) {
+   if ( !astOK ) return;
+   (**astMEMBER(this,Frame,NormPoints))( this, npoint, ncoord_in, indim, in,
+                                         contig, ncoord_out, outdim, out, status );
+}
+
+AstPointSet *astNormalPoints_( AstFrame *this, AstPointSet *in,
+                               int contig, AstPointSet *out, int *status ) {
+   AstPointSet *result;
+   if ( !astOK ) return NULL;
+   result = (**astMEMBER(this,Frame,NormalPoints))( this, in, contig, out, status );
+   return result;
 }
 
 

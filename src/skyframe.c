@@ -830,6 +830,8 @@ static int class_check;
 
 /* Pointers to parent class methods which are used or extended by this
    class. */
+
+static AstPointSet *(* parent_normalpoints)( AstFrame *, AstPointSet *, int, AstPointSet *, int * );
 static AstSystemType (* parent_getalignsystem)( AstFrame *, int * );
 static AstSystemType (* parent_getsystem)( AstFrame *, int * );
 static const char *(* parent_format)( AstFrame *, int, double, int * );
@@ -1023,6 +1025,7 @@ static int TestNegLon( AstSkyFrame *, int * );
 static int TestProjection( AstSkyFrame *, int * );
 static int TestSlaUnit( AstSkyFrame *, AstSkyFrame *, AstSlaMap *, int * );
 static int Unformat( AstFrame *, int, const char *, double *, int * );
+static AstPointSet *NormalPoints( AstFrame *, AstPointSet *, int, AstPointSet *, int * );
 static void ClearAsTime( AstSkyFrame *, int, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
 static void ClearDtai( AstFrame *, int * );
@@ -4879,6 +4882,9 @@ void astInitSkyFrameVtab_(  AstSkyFrameVtab *vtab, const char *name, int *status
    parent_gettop = frame->GetTop;
    frame->GetTop = GetTop;
 
+   parent_normalpoints = frame->NormalPoints;
+   frame->NormalPoints = NormalPoints;
+
    parent_setobsalt = frame->SetObsAlt;
    frame->SetObsAlt = SetObsAlt;
 
@@ -7268,6 +7274,196 @@ static void NormBox( AstFrame *this_frame, double lbnd[], double ubnd[],
       ubnd[ 0 ] = ub[ perm[ 0 ] ];
       ubnd[ 1 ] = ub[ perm[ 1 ] ];
    }
+}
+
+static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int contig,
+                                  AstPointSet *out, int *status ) {
+/*
+*  Name:
+*     NormalPoints
+
+*  Purpose:
+*     Normalise a collection of points.
+
+*  Type:
+*     SkyFrame member function (over-rides the astNormalPoints method inherited
+*     from the Frame class).
+
+*  Synopsis:
+*     #include "frame.h"
+*     AstPointSet *NormalPoints( AstFrame *this, AstPointSet *in,
+*                                int contig, AstPointSet *out )
+
+*  Description:
+*     This function normalises the axis values representing a collection
+*     of points within a Frame. The normalisation can be done in two ways
+*     - 1) to put the axis values into the range expected for display to
+*     human readers or 2) to put the axis values into which ever range
+*     avoids discontinuities within the collection of positions. Using
+*     method 1) is the same as using function astNorm on each point in the
+*     collection. Using method 2) is useful when handling collections of
+*     points that may span some discontinuity in the coordinate system.
+
+*  Parameters:
+*     this
+*        Pointer to the Frame. The nature of the axis normalisation
+*        will depend on the class of Frame supplied.
+*     in
+*        Pointer to the PointSet holding the input coordinate data.
+*     contig
+*        Indicates the way in which the normalised axis values are to be
+*        calculated. A non-zero value causes the values to be normalised
+*        in such a way as to reduce the effects of any discontinuities in
+*        the coordinate system. For instance, points in a SkyFrame that
+*        span longitude zero will be normalized into a longitude range of
+*        -pi to +pi (otherwise they will be normalized into a range of
+*        zero to 2.pi). A zero value causes each point to be normalised
+*        independently using astNorm.
+*     out
+*        Pointer to a PointSet which will hold the normalised
+*        (output) coordinate values. A NULL value may also be given,
+*        in which case a new PointSet will be created by this
+*        function.
+
+*  Returned Value:
+*     Pointer to the output (possibly new) PointSet.
+
+*  Notes:
+*     - The number of coordinate values per point in the input and output
+*     PointSet must each match the number of axes for the Frame being
+*     used.
+*     - If an output PointSet is supplied, it must have space for
+*     sufficient number of points and coordinate values per point to
+*     accommodate the result. Any excess space will be ignored.
+*     - A null pointer will be returned if this function is invoked
+*     with the global error status set, or if it should fail for any
+*     reason.
+*-
+*/
+
+/* Local Variables: */
+   AstDim hist[ 360 ];           /* Histogram of longitude values (degs) */
+   AstPointSet *result;          /* Pointer to output PointSet */
+   AstSkyFrame *this;            /* Pointer to the SkyFrame structure */
+   const int *perm;              /* Axis permutation array */
+   double **ptr_out;             /* Pointer to output pointset data arrays */
+   double *ptr_long;             /* Pointer to array of longitude values */
+   double hi;                    /* Highest acceptable longitude value (rads) */
+   double lo;                    /* Lowest acceptable longitude value (rads) */
+   int centre;                   /* Index at centre of longitude values */
+   int gap_end;                  /* Index of last bin in current gap */
+   int gap_size;                 /* Length of current gap */
+   int gap_start;                /* Index of first bin in current gap */
+   int ifirst;                   /* Index of first non-empty bin */
+   int ihist;                    /* Index into "hist" */
+   int ilast;                    /* Index of last non-empty bin */
+   int ingap;                    /* Currently in a gap? */
+   int maxgap;                   /* Length of largest gap found so far */
+   int maxgap_centre;            /* Index at centre of largest gap found so far */
+   int npoint;                   /* Number of points to transform */
+   int point;                    /* Loop counter for points */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Obtain a pointer to the SkyFrame structure. */
+   this = (AstSkyFrame *) this_frame;
+
+/* Apply the parent astNormalPoints method using the stored pointer to the
+   NormaPoints member function inherited from the parent Frame class. This
+   function validates all arguments and generates an output PointSet if
+   necessary. In addition it also calls astNorm to normalise each position.
+   The longitude values in the "result' PointSet will be in the range zero
+   to 2.pi */
+   result = (*parent_normalpoints)( this_frame, in, contig, out, status );
+
+/* If required, modify the returned values to ensure the longitude values
+   are contiguous. */
+   if( contig ) {
+
+/* Get the number of points in the PointSet and a pointer to the data
+   array. */
+      npoint = astGetNpoint( result );
+      ptr_out = astGetPoints( result );
+
+/* Obtain a pointer to the SkyFrame's axis permutation array. */
+      perm = astGetPerm( this );
+      if ( astOK ) {
+
+/* Get a pointer to the longitude array, allowing for any axis permutation. */
+         ptr_long =  ptr_out[  perm[ 0 ] ];
+
+/* Bin the longitude values into 1 degree bins. */
+         memset( hist, 0, sizeof( hist ) );
+         for( point = 0; point < npoint; point++, ptr_long++ ){
+            if ( *ptr_long != AST__BAD  ) {
+               ihist = (int) ( (*ptr_long)*AST__DR2D );
+               if( ihist >= 0 && ihist < 360 ) hist[ ihist ]++;
+            }
+         }
+
+/* Find the largest gap (a contiguous group of zeros) in the histogram.
+   Also note the indices of the first and last non-zero bins in the
+   histogram. */
+         ingap = 0;
+         maxgap = 0;
+         ifirst = -1;
+         ilast = -1;
+         for( ihist = 0; ihist < 360; ihist++ ){
+            if( hist[ ihist ] == 0 ) {
+               if( !ingap ){
+                  ingap = 1;
+                  gap_start = ihist;
+               }
+            } else {
+               if( ingap ){
+                  ingap = 0;
+                  gap_end = ihist - 1;
+                  gap_size = gap_end - gap_start + 1;
+                  if( gap_size > maxgap ) {
+                     maxgap = gap_size;
+                     maxgap_centre = (gap_start + gap_end)/2;
+                  }
+               }
+               if( ifirst == -1 ) ifirst = ihist;
+               ilast = ihist;
+            }
+         }
+
+/* Get the length of the gap that would occur if the gaps at end and
+   start of the histogram were combined together. If this is larger than
+   the largest gap found within the histogram, use it. */
+         gap_start = ilast - 360;
+         gap_end = ifirst;
+         gap_size = gap_end - gap_start + 1;
+         if( gap_size > maxgap ) {
+            maxgap = gap_size;
+            maxgap_centre = (gap_start + gap_end)/2;
+         }
+
+/* The centre of the longitude points is assumed to be diametrically
+   opposite the centre of the largest gap. */
+         if( maxgap_centre > 0 ) {
+            centre = maxgap_centre - 180;
+         } else {
+            centre = maxgap_centre + 180;
+         }
+
+/* Ensure all longitude values are in the range centre-pi to centre+pi. */
+         lo = ( centre - 180 )*AST__DD2R;
+         hi = lo + 2*AST__DPI;
+         ptr_long =  ptr_out[  perm[ 0 ] ];
+         for( point = 0; point < npoint; point++, ptr_long++ ){
+            if ( *ptr_long != AST__BAD  ) {
+               while( *ptr_long < lo ) *ptr_long += 2*AST__DPI;
+               while( *ptr_long > hi ) *ptr_long -= 2*AST__DPI;
+            }
+         }
+      }
+   }
+
+/* Return a pointer to the output PointSet. */
+   return result;
 }
 
 static void Offset( AstFrame *this_frame, const double point1[],

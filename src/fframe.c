@@ -357,6 +357,62 @@ F77_SUBROUTINE(ast_norm)( INTEGER(THIS),
    )
 }
 
+F77_SUBROUTINE(ast_normpoints)( INTEGER(THIS),
+                           INTEGER(NPOINT),
+                           INTEGER(NCOORD_IN),
+                           INTEGER(INDIM),
+                           DOUBLE_ARRAY(IN),
+                           LOGICAL(CONTIG),
+                           INTEGER(NCOORD_OUT),
+                           INTEGER(OUTDIM),
+                           DOUBLE_ARRAY(OUT),
+                           INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_INTEGER(NPOINT)
+   GENPTR_INTEGER(NCOORD_IN)
+   GENPTR_INTEGER(INDIM)
+   GENPTR_DOUBLE_ARRAY(IN)
+   GENPTR_LOGICAL(CONTIG)
+   GENPTR_INTEGER(NCOORD_OUT)
+   GENPTR_INTEGER(OUTDIM)
+   GENPTR_DOUBLE_ARRAY(OUT)
+
+   astAt( "AST_NORMPOINTS", NULL, 0 );
+   astWatchSTATUS(
+      astNormPoints( astI2P( *THIS ), *NPOINT, *NCOORD_IN, *INDIM,
+                (const double *)IN, F77_ISTRUE( *CONTIG ),
+                *NCOORD_OUT, *OUTDIM, OUT );
+   )
+}
+
+F77_SUBROUTINE(ast_normpoints8)( INTEGER(THIS),
+                            INTEGER8(NPOINT),
+                            INTEGER(NCOORD_IN),
+                            INTEGER8(INDIM),
+                            DOUBLE_ARRAY(IN),
+                            LOGICAL(CONTIG),
+                            INTEGER(NCOORD_OUT),
+                            INTEGER8(OUTDIM),
+                            DOUBLE_ARRAY(OUT),
+                            INTEGER(STATUS) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_INTEGER8(NPOINT)
+   GENPTR_INTEGER(NCOORD_IN)
+   GENPTR_INTEGER8(INDIM)
+   GENPTR_DOUBLE_ARRAY(IN)
+   GENPTR_LOGICAL(CONTIG)
+   GENPTR_INTEGER(NCOORD_OUT)
+   GENPTR_INTEGER8(OUTDIM)
+   GENPTR_DOUBLE_ARRAY(OUT)
+
+   astAt( "AST_NORMPOINTS8", NULL, 0 );
+   astWatchSTATUS(
+      astNormPoints8( astI2P( *THIS ), *NPOINT, *NCOORD_IN, *INDIM,
+                 (const double *)IN, F77_ISTRUE( *CONTIG ),
+                 *NCOORD_OUT, *OUTDIM, OUT );
+   )
+}
+
 F77_SUBROUTINE(ast_offset)( INTEGER(THIS),
                             DOUBLE_ARRAY(POINT1),
                             DOUBLE_ARRAY(POINT2),
