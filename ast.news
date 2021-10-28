@@ -26,6 +26,10 @@ system. The most common usage will be to modify vectors of sky position
 in such a way as to avoid sudden jumps of 360 degrees in longitude within
 groups of points that span the longitude origin.
 
+- The mesh of points returned by astGetRegionMesh and astShowMesh are now
+normalised to avoid discontinuities in celestial longitude. This uses the
+new astNormPoints methid described in the previous item.
+
 - A bug has been fixed in the KeyMap class that caused astMapGet1<X>
 functions to return a vector length of 1 for KeyMap entries with an
 undefined value. A vector length of zero is now returned in such cases.

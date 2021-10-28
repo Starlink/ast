@@ -8204,7 +8204,7 @@ static AstPointSet *NormalPoints( AstFrame *this, AstPointSet *in, int contig,
       for ( point = 0; point < npoint; point++ ) {
 
 /* Copy the axis values at the current point into the buffer. */
-         for ( coord = 0; coord < ncoord_in; coord++ ) {
+         for ( coord = 0; coord < naxes; coord++ ) {
             buf[ coord ] = ptr_in[ coord ][ point ];
          }
 
@@ -8212,7 +8212,7 @@ static AstPointSet *NormalPoints( AstFrame *this, AstPointSet *in, int contig,
          astNorm( this, buf );
 
 /* Copy the normalised values to the output pointset. */
-         for ( coord = 0; coord < ncoord_out; coord++ ) {
+         for ( coord = 0; coord < naxes; coord++ ) {
             ptr_out[ coord ][ point ] = buf[ coord ];
          }
       }

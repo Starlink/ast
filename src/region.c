@@ -267,6 +267,9 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        is cleared in the copy. This means that if a component Region within
 *        a CmpRegion is copied, a dump of the resulting copy will include the
 *        FrameSet.
+*     28-OCT-2021 (DSB):
+*        Modified astGetRegionMesh so that meshes for SkyFrame regions that cross
+*        zero longitude do not include jumps of 2.PI in logitude.
 *class--
 
 *  Implementation Notes:
@@ -9317,12 +9320,17 @@ f        The global status.
 *     original to new coordinate system is non-linear, the shape within
 *     the new coordinate system may be distorted, and so may not match
 *     that implied by the name of the Region subclass (Circle, Box, etc).
+*     - If the Region defines an area within a SkyFrame that traverses
+*     zero longitude, the returned positions will be normalised to avoid
+*     jumps of 2.PI radians in longitude (i.e. it will include longitude
+*     values less than zero or greater than 2.PI).
 
 *--
 */
 
 /* Local Variables: */
    AstPointSet *pset;       /* PointSet holding mesh/grid axis values */
+   AstPointSet *temp;       /* PointSet holding normalised mesh/grid axis values */
    double **ptr;            /* Pointer to mesh/grid axes values */
    double *p;               /* Pointer to next input axis value */
    double *q;               /* Pointer to next output axis value */
@@ -9351,12 +9359,18 @@ f        The global status.
          } else {
             pset = astRegBaseGrid( this );
          }
+
       } else {
          if( surface ) {
             pset = astRegMesh( this );
          } else {
             pset = astRegGrid( this );
          }
+
+/* Normalise the points to avoid discontinuities (e.g. at zero longitude). */
+         temp = astNormalPoints( this, pset, 1, NULL );
+         pset = astAnnul( pset );
+         pset = temp;
       }
 
 /* Return the number of points in the mesh or grid. */
@@ -10947,6 +10961,7 @@ f        The global status.
 
 /* Local Variables: */
    AstPointSet *ps;           /* PointSet holding mesh */
+   AstPointSet *temp;         /* PointSet holding normalised mesh */
    char *buffer = NULL;       /* Buffer for line output text */
    char buf[ 40 ];            /* Buffer for floating poitn value */
    double **ptr;              /* Pointers to the mesh data */
@@ -10962,6 +10977,11 @@ f        The global status.
 /* Get a PointSet holding the mesh */
    ps = astRegMesh( this );
    if( ps ) {
+
+/* Normalise it to avoid discontinuities in longitude etc */
+      temp = astNormalPoints( this, ps, 1, NULL );
+      ps = astAnnul( ps );
+      ps = temp;
 
 /* Get the number of axis values per position, and the number of positions. */
       nax = astGetNcoord( ps );
