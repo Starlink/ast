@@ -278,6 +278,8 @@ static int nest_type[ 100 ];
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 /* Include the libyaml header if it is available. Otherwise, define
    local stubs for the selected definitions in yaml.h */

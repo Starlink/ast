@@ -177,6 +177,8 @@ f     - AST_WRITE: Write an Object to a Channel
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 /* Module Variables. */
 /* ================= */

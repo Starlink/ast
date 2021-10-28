@@ -231,6 +231,7 @@
 /* C header files. */
 /* --------------- */
 #include <stddef.h>
+#include <stdint.h>
 
 /* Macros */
 /* ====== */

@@ -269,6 +269,8 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 /* Type Definitions */
 /* ================ */
