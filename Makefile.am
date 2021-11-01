@@ -709,9 +709,9 @@ libast_la_LDFLAGS = -version-info @version_info@
 # library instead. Do the same for cminpack
 if EXTERNAL_PAL
 if EXTERNAL_CMINPACK
-libast_la_LIBADD =  $(libdir)/libpal.la -lcminpack
+libast_la_LIBADD =  -lpal -lcminpack
 else
-libast_la_LIBADD = $(libdir)/libpal.la libast_cminpack.la
+libast_la_LIBADD = -lpal libast_cminpack.la
 endif
 else
 if EXTERNAL_CMINPACK
@@ -902,7 +902,7 @@ test: install
 
 #ast_test_LDADD = `ast_link`
 # Expand ast_link to avoid libast_pass2, which causes problems for Solaris
-ast_test_LDADD = @LIBPAL@ @LIBCMINPACK@ libast.la libast_pal.la libast_cminpack.la libast_grf_3.2.la libast_grf_5.6.la libast_grf_2.0.la libast_grf3d.la libast_err.la -lm
+ast_test_LDADD = @LIBPAL@ @LIBCMINPACK@ libast.la libast_grf_3.2.la libast_grf_5.6.la libast_grf_2.0.la libast_grf3d.la libast_err.la -lm
 
 #  Need to include latex support files in the distribution tar ball so
 #  that the docs can be built from the tex source files. Requires environment
