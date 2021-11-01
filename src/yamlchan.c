@@ -5341,7 +5341,7 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
    previous list Mappings. */
                tmp = astCmpMap( new, map_list[ imap ], series, " ",
                                 status );
-               (void *) astAnnul( new );
+               (void) astAnnul( new );
                new = (AstMapping *) tmp;
 
 /* Restore the original Invert value. */
@@ -5356,7 +5356,7 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
             }
 
 /* Annul the cloned CmpMap pointer and return the new one. */
-            (void *) astAnnul( *newmap );
+            (void) astAnnul( *newmap );
             *newmap = (AstCmpMap *) new;
          }
 

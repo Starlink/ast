@@ -612,7 +612,7 @@ f        The global status.
                 AST__MXORDHPX );
 
    } else if( npix < 0 || npix > MaxNpix( order ) ) {
-      astError( AST__INVAR, "astAddCell(%s): Invalid value (%zu) "
+      astError( AST__INVAR, "astAddCell(%s): Invalid value (%" PRId64 ") "
                 "supplied for parameter 'npix' - must be greater "
                 "than 0 and less than %zu.", status, astGetClass( this ),
                 npix, MaxNpix( order ) + 1 );
@@ -1431,8 +1431,8 @@ void astAddMocText_( AstMoc *this, int maxorder,
                      } else {
                         astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
                                   status, method, astGetClass( this ), text );
-                        astError( AST__INMOC, "Range start (%zu) is after range "
-                                  "end (%zu).", status, npix0, npix );
+                        astError( AST__INMOC, "Range start (%" PRId64 ") is after range "
+                                  "end (%" PRId64 ").", status, npix0, npix );
                         break;
                      }
 
@@ -3050,8 +3050,8 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
                      nnew++;
                      pnew += 2;
                   } else if( depth < 0 ) {
-                     astError( AST__INTER, "CombineRanges(%s): Negative "
-                               "depth at end-point %zu (internal programming"
+                     astError( AST__INTER, "CombineRanges(%s): Negative depth "
+                               "at end-point %" PRId64 " (internal programming"
                                " error).", status, astGetClass(this),
                                plist->value );
                      break;
@@ -3084,7 +3084,7 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
 /* If the depth has risen to more than 2, report an error. */
                if( depth > 2 ) {
                   astError( AST__INTER, "CombineRanges(%s): More than 2 "
-                            "active ranges at %zu (internal programming "
+                            "active ranges at %" PRId64 " (internal programming "
                             "error).", status, astGetClass(this), plist->value );
                   break;
 
@@ -3107,7 +3107,7 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
 /* If the depth has become negative, report an error. */
                } else if( depth < 0 ) {
                   astError( AST__INTER, "CombineRanges(%s): Negative depth at "
-                            "%zu (internal programming error).", status,
+                            "%" PRId64 " (internal programming error).", status,
                             astGetClass(this), plist->value );
                   break;
 
@@ -3141,7 +3141,7 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
 /* If the depth has risen to more than 2, report an error. */
                if( depth > 2 ) {
                   astError( AST__INTER, "CombineRanges(%s): More than 2 "
-                            "active ranges at %zu (internal programming "
+                            "active ranges at %" PRId64 " (internal programming "
                             "error).", status, astGetClass(this), plist->value );
                   break;
 
@@ -3167,7 +3167,7 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
 /* If the depth has become negative, report an error. */
                } else if( depth < 0 ) {
                   astError( AST__INTER, "CombineRanges(%s): Negative depth at "
-                            "%zu (internal programming error).", status,
+                            "%" PRId64 " (internal programming error).", status,
                             astGetClass(this), plist->value );
                   break;
 
@@ -3206,7 +3206,7 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
       if( astOK && this->nrange > 0 ) {
          pcur = this->range;
          if( pcur[ 1 ] < pcur[ 0 ] ) {
-            astError( AST__INTER, "CombineRanges(%s): Range 0 [%zu:%zu]"
+            astError( AST__INTER, "CombineRanges(%s): Range 0 [%" PRId64 ":%" PRId64 "]"
                       " - upper bound lower than lower bound (internal "
                       "programming error).", status, astGetClass(this),
                       pcur[ 0 ], pcur[ 1 ] );
@@ -3214,15 +3214,15 @@ static void CombineRanges( AstMoc *this, int cmode, const char *method,
             pnew = this->range + 2;
             for( irange = 1; irange < this->nrange; irange++,pnew += 2 ) {
                if( pnew[ 1 ] < pnew[ 0 ] ) {
-                  astError( AST__INTER, "CombineRanges(%s): Range %d [%zu:%zu]"
+                  astError( AST__INTER, "CombineRanges(%s): Range %d [%" PRId64 ":%" PRId64 "]"
                             " - upper bound lower than lower bound (internal "
                             "programming error).", status, astGetClass(this),
                             irange, pnew[ 0 ], pnew[ 1 ] );
                   break;
 
                } else if( pcur[ 1 ] >= pnew[ 0 ] ) {
-                  astError( AST__INTER, "CombineRanges(%s): Range %d [%zu:%zu]"
-                            " overlaps range %d [%zu:%zu] (internal programming "
+                  astError( AST__INTER, "CombineRanges(%s): Range %d [%" PRId64 ":%" PRId64 "]"
+                            " overlaps range %d [%" PRId64 ":%" PRId64 "] (internal programming "
                             "error).", status, astGetClass(this), irange - 1,
                             pcur[ 0 ], pcur[ 1 ], irange, pnew[ 0 ], pnew[ 1 ] );
                   break;
@@ -4898,7 +4898,7 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
    new one. */
          if( neworder != order){
             order = neworder;
-            nc = sprintf( token, first?"{\"%d\":[%zu":"],\"%d\":[%zu",
+            nc = sprintf( token, first?"{\"%d\":[%" PRId64 "":"],\"%d\":[%"PRId64,
                           order, npix );
             first = 0;
             TOKEN_WRITE;
@@ -4906,7 +4906,7 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
 /* If the order has not changed, just append the new npix value to the
    existing pixlist. */
          } else {
-            nc = sprintf( token, ",%zu", npix );
+            nc = sprintf( token, ",%" PRId64, npix );
             TOKEN_WRITE;
          }
 
@@ -4917,12 +4917,12 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
    order then append " <order>/<npix>" to the sink. */
          if( neworder != order){
             if( npix_start < npix_prev ) {
-               nc = sprintf( token, "-%zu", npix_prev );
+               nc = sprintf( token, "-%" PRId64, npix_prev );
                TOKEN_WRITE;
             }
             order = neworder;
             npix_start = npix;
-            nc = sprintf( token, first?"%d/%zu":" %d/%zu", order, npix );
+            nc = sprintf( token, first?"%d/%" PRId64 "":" %d/%" PRId64, order, npix );
             first = 0;
             TOKEN_WRITE;
 
@@ -4930,12 +4930,12 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
    end of the previous range. */
          } else if( npix > npix_prev + 1 ) {
             if( npix_start < npix_prev ) {
-               nc = sprintf( token, "-%zu", npix_prev );
+               nc = sprintf( token, "-%" PRId64, npix_prev );
                TOKEN_WRITE;
             }
 
 /* Then write the (potential) start of the new range. */
-            nc = sprintf( token, ",%zu", npix );
+            nc = sprintf( token, ",%" PRId64, npix );
             TOKEN_WRITE;
             npix_start = npix;
          }
@@ -4949,7 +4949,7 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
          nc = sprintf( token, "]" );
          TOKEN_WRITE;
       } else if( npix_start < npix ) {
-         nc = sprintf( token, "-%zu", npix );
+         nc = sprintf( token, "-%" PRId64, npix );
          TOKEN_WRITE;
       }
    }
@@ -8961,7 +8961,7 @@ f        included in the Moc. .FALSE. otherwise.
                 AST__MXORDHPX );
 
    } else if( npix < 0 || npix > MaxNpix( order ) ) {
-      astError( AST__INVAR, "astTestCell(%s): Invalid value (%zu) "
+      astError( AST__INVAR, "astTestCell(%s): Invalid value (%" PRId64 ") "
                 "supplied for parameter 'npix' - must be greater "
                 "than 0 and less than %zu.", status, astGetClass( this ),
                 npix, MaxNpix( order ) + 1 );
@@ -10551,22 +10551,22 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
             if( pr[ 1 ] >= max_nest ) {
                astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
                          status );
-               astError( AST__LDERR, "Upper bound (%zu) is too high for "
+               astError( AST__LDERR, "Upper bound (%" PRId64 ") is too high for "
                          "order %d.", status, pr[ 1 ], new->maxorder );
                break;
 
             } else if( pr[ 0 ] > pr[ 1 ] ) {
                astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
                          status );
-               astError( AST__LDERR, "Upper bound (%zu) lower than lower "
-                         "bound (%zu).", status, pr[ 1 ], pr[ 0 ] );
+               astError( AST__LDERR, "Upper bound (%" PRId64 ") lower than lower "
+                         "bound (%" PRId64 ").", status, pr[ 1 ], pr[ 0 ] );
                break;
 
             } else if( pr[ 0 ] <= ulast && irange != 0 ) {
                astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
                          status );
-               astError( AST__LDERR, "Range [%zu:%zu] overlaps range "
-                         "[%zu:%zu].", status, pr[ 0 ], pr[ 1 ], llast,
+               astError( AST__LDERR, "Range [%" PRId64 ":%" PRId64 "] overlaps range "
+                         "[%" PRId64 ":%" PRId64 "].", status, pr[ 0 ], pr[ 1 ], llast,
                          ulast );
                break;
             }
