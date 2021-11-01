@@ -6676,10 +6676,10 @@ f     .FALSE.
 /* On the assumption that the transformation applied above is
    approximately linear, loop to determine the matrix of gradients and
    the zero points which describe it. */
-      ii = 0;
       for ( coord_out = 0; coord_out < ndim_out; coord_out++ ) {
          bad_output = 0;
          z = 0.0;
+         ii = ndim_in*coord_out;
          for ( coord_in = 0; coord_in < ndim_in; coord_in++ ) {
 
 /* Find the indices of opposite faces in each input dimension. */
@@ -10438,6 +10438,7 @@ static int RebinAdaptively( AstMapping *this, int ndim_in,
    int result;                   /* Returned value */
    int toobig;                   /* Section too big (must sub-divide)? */
    int toosmall;                 /* Section too small to sub-divide? */
+   size_t nfitpar;               /* Number of paranmeters in linear fit */
 
 /* Initialise */
    result = 0;
@@ -10525,8 +10526,8 @@ static int RebinAdaptively( AstMapping *this, int ndim_in,
 /* Allocate memory for floating point bounds and for the coefficient array */
       flbnd = astMalloc( sizeof( double )*(size_t) ndim_in );
       fubnd = astMalloc( sizeof( double )*(size_t) ndim_in );
-      linear_fit = astMalloc( sizeof( double )*
-                              (size_t) ( ndim_out*( ndim_in + 1 ) ) );
+      nfitpar = ndim_out*( ndim_in + 1 );
+      linear_fit = astMalloc( sizeof( double )*nfitpar );
       if( astOK ) {
 
 /* Copy the bounds into these arrays, and change them so that they refer
@@ -10540,6 +10541,16 @@ static int RebinAdaptively( AstMapping *this, int ndim_in,
 
 /* Get the linear approximation to the forward transformation. */
          isLinear = astLinearApprox( this, flbnd, fubnd, tol, linear_fit );
+
+/* If a fit was returned, check there are no bad values in it. */
+         if( isLinear ){
+            for( i = 0; i < nfitpar; i++ ){
+               if( linear_fit[ i ] == AST__BAD ) {
+                  isLinear = 0;
+                  break;
+               }
+            }
+         }
 
 /* Free the coeff array if the inverse transformation is not linear. */
          if( !isLinear ) linear_fit = astFree( linear_fit );
@@ -12214,7 +12225,6 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
    double wgt;                   /* Output pixel weight */ \
    double whi;                   /* Upper limit for acceptable weights */ \
    double wlo;                   /* Lower limit for acceptable weights */ \
-   double wval;                  /* Weight value */ \
    int idim;                     /* Loop counter for coordinate dimensions */ \
    int more;                     /* Do another sigma-clipping iteration? */ \
    int nin;                      /* Number of Mapping input coordinates */ \
@@ -14640,6 +14650,7 @@ static AstDim ResampleAdaptively( AstMapping *this, int ndim_in,
    int result;                   /* Result value to return */
    int toobig;                   /* Section too big (must sub-divide)? */
    int toosmall;                 /* Section too small to sub-divide? */
+   size_t nfitpar;               /* Number of paranmeters in linear fit */
 
 /* Initialise. */
    result = 0;
@@ -14718,8 +14729,8 @@ static AstDim ResampleAdaptively( AstMapping *this, int ndim_in,
 /* Allocate memory for floating point bounds and for the coefficient array */
       flbnd = astMalloc( sizeof( double )*(size_t) ndim_out );
       fubnd = astMalloc( sizeof( double )*(size_t) ndim_out );
-      linear_fit = astMalloc( sizeof( double )*
-                              (size_t) ( ndim_in*( ndim_out + 1 ) ) );
+      nfitpar = ndim_in*( ndim_out + 1 );
+      linear_fit = astMalloc( sizeof( double )*nfitpar );
       if( astOK ) {
 
 /* Copy the bounds into these arrays, and change them so that they refer
@@ -14737,6 +14748,16 @@ static AstDim ResampleAdaptively( AstMapping *this, int ndim_in,
          astInvert( this );
          isLinear = astLinearApprox( this, flbnd, fubnd, tol, linear_fit );
          astInvert( this );
+
+/* If a fit was returned, check there are no bad values in it. */
+         if( isLinear ){
+            for( i = 0; i < nfitpar; i++ ){
+               if( linear_fit[ i ] == AST__BAD ) {
+                  isLinear = 0;
+                  break;
+               }
+            }
+         }
 
 /* Free the coeff array if the inverse transformation is not linear. */
          if( !isLinear ) linear_fit = astFree( linear_fit );
@@ -20898,6 +20919,7 @@ static void TranGridAdaptively( AstMapping *this, int ncoord_in,
    int nvertex;                  /* Number of vertices of output section */
    int toobig;                   /* Section too big (must sub-divide)? */
    int toosmall;                 /* Section too small to sub-divide? */
+   size_t nfitpar;               /* Number of paranmeters in linear fit */
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -20971,8 +20993,8 @@ static void TranGridAdaptively( AstMapping *this, int ncoord_in,
 /* Allocate memory for floating point bounds and for the coefficient array */
       flbnd = astMalloc( sizeof( double )*(size_t) ncoord_in );
       fubnd = astMalloc( sizeof( double )*(size_t) ncoord_in );
-      linear_fit = astMalloc( sizeof( double )*
-                              (size_t) ( ncoord_out*( ncoord_in + 1 ) ) );
+      nfitpar = ncoord_out*( ncoord_in + 1 );
+      linear_fit = astMalloc( sizeof( double )*nfitpar );
       if( astOK ) {
 
 /* Copy the bounds into these arrays, and change them so that they refer
@@ -20986,6 +21008,16 @@ static void TranGridAdaptively( AstMapping *this, int ncoord_in,
 
 /* Get the linear approximation to the forward transformation. */
          isLinear = astLinearApprox( this, flbnd, fubnd, tol, linear_fit );
+
+/* If a fit was returned, check there are no bad values in it. */
+         if( isLinear ){
+            for( i = 0; i < nfitpar; i++ ){
+               if( linear_fit[ i ] == AST__BAD ) {
+                  isLinear = 0;
+                  break;
+               }
+            }
+         }
 
 /* Free the coeff array if the inverse transformation is not linear. */
          if( !isLinear ) linear_fit = astFree( linear_fit );
