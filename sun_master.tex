@@ -18,7 +18,7 @@ f+
 \stardocnumber      {210.30}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {28th Oct 2021}
+\stardocdate        {5th Jan 2022}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -22455,11 +22455,9 @@ entries, represented by the new data type code ``K''.
 \end{enumerate}
 
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.2.5}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.2.4 and V9.2.5 (the
-current version):
+\subsection{Changes Introduced in V9.2.5}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.4 and V9.2.5:
 
 \begin{enumerate}
 
@@ -22490,6 +22488,21 @@ cases where the AST\_\_GENVAR flag is not set.
 script. It omits the internal cminpack routines from the built library, and
 instead links with an external cminpack library.
 
+\end{enumerate}
+
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.2.6}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.2.5 and V9.2.6 (the
+current version):
+
+\begin{enumerate}
+
+\item A bug has been fixed in the FitsChan class that caused an error to be
+reported when reading a legal FITS WCS header that uses the ``NCP''
+projection code. The error message related to a missing alternate axis
+description keyword.
 
 \end{enumerate}
 
