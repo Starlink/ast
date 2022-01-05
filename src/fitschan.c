@@ -1254,7 +1254,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        alternate axis descriptions.
 *     19-FEB-2021 (DSB):
 *        - Fix bug in IsMapLinear for cases where the number of mapping
-         inputs and outputs differ and the Mapping can be split.
+*        inputs and outputs differ and the Mapping can be split.
+*     5-JAN-2022 (DSB):
+*        Fix bug in SpecTrans that caused 'Unable to find a value for FITS keyword
+*        "CRVAL2A"' error when reading a basic NCP projection header (i.e. a header
+*        with no alternate axis keywords).
 *class--
 */
 
@@ -30007,6 +30011,12 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
    for( s = 'A' - 1; s <= 'Z' && astOK; s++ ){
       if( s == 'A' - 1 ) s = ' ';
 
+/* Indicate that no celestial axes have yet been found for the current
+   axis description. */
+      axlon = -1;
+      axlat = -1;
+      prj[ 0 ] = 0;
+
 /* Find the highest axis index in a CTYPE keyword. */
       if( s != ' ' ) {
          sprintf( template, "CTYPE%%d%c", s );
@@ -30020,8 +30030,6 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
    can be read again any number of times until the current astRead
    operation is completed. Also note the projection type. */
          j = 0;
-         axlon = -1;
-         axlat = -1;
          while( j < naxis && astOK ){
             if( GetValue2( ret, this, FormatKey( "CTYPE", j + 1, -1, s, status ),
                           AST__STRING, (void *) &cval, 0, method,
