@@ -23,6 +23,11 @@ c      call ast_watchmemory( 225192 )
          call stopit( 776, ' ', status )
       end if
 
+
+      call test_fitsrounding( fc, status )
+      call ast_emptyfits( fc, status )
+
+
 *  Put a FITS-WCS header into it.
       cards(1) = 'CRPIX1  =                   45'
       cards(2) = 'CRPIX2  =                   45'
@@ -416,7 +421,7 @@ c      call ast_setl( fc, 'Clean', .true., status )
       if( ast_write( fc, fs, status ) .ne. 0 ) then
          call stopit( 1000, ' ', status )
       else if( ast_gettables( fc, status ) .ne. AST__NULL ) then
-         call stopit( 1001, ' ', status )
+         call stopit( 1001, 'CheckTab', status )
       endif
 
       call ast_setl( fc, 'TabOK', .true., status )
@@ -984,5 +989,230 @@ c --------------------------------------------------------------------
 
       call ast_end( status )
       call err_end( status )
+
+      end
+
+
+      subroutine test_fitsrounding( fc, status )
+      implicit none
+
+      include 'SAE_PAR'
+      include 'AST_PAR'
+
+      integer fc
+      integer status
+      character cards(10)*80
+
+      if( status .ne. SAI__OK ) return
+
+      if( ast_geti( fc, 'FitsRounding', status ) .ne. 10 ) then
+         call stopit( 12314, ' ', status )
+      end if
+
+      cards(1) = 'DUMMY   =  1.0000010001'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =         1.0000010001' ) then
+            call stopit( 12310, ' ', status )
+         end if
+      else
+         call stopit( 12311, ' ', status )
+      end if
+
+      cards(1) = 'DUMMY   =  1.00000100001'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =             1.000001' ) then
+            call stopit( 12312, ' ', status )
+         end if
+      else
+         call stopit( 12313, ' ', status )
+      end if
+
+      cards(1) = 'DUMMY   =  1.0000019991'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =         1.0000019991' ) then
+            call stopit( 12314, ' ', status )
+         end if
+      else
+         call stopit( 12315, ' ', status )
+      end if
+
+      cards(1) = 'DUMMY   =  1.00000199991'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =             1.000002' ) then
+            call stopit( 12316, ' ', status )
+         end if
+      else
+         call stopit( 12317, ' ', status )
+      end if
+
+      cards(1) = 'DUMMY   =  -1.0000010000001'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =            -1.000001' ) then
+            call stopit( 12318, ' ', status )
+         end if
+      else
+         call stopit( 12319, ' ', status )
+      end if
+
+      call ast_seti( fc, 'FitsRounding', 5, status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =                 -1.0' ) then
+            call stopit( 12320, ' ', status )
+         end if
+      else
+         call stopit( 12321, ' ', status )
+      end if
+
+      call ast_clear( fc, 'FitsRounding', status )
+      if( ast_geti( fc, 'FitsRounding', status ) .ne. 10 ) then
+         call stopit( 12322, ' ', status )
+      end if
+
+      cards(1) = 'DUMMY   =  1.9999969999993E-02'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =           0.01999997' ) then
+            call stopit( 12323, ' ', status )
+         end if
+      else
+         call stopit( 12324, ' ', status )
+      end if
+
+      call ast_seti( fc, 'FitsRounding', 5, status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =                 0.02' ) then
+            call stopit( 12325, ' ', status )
+         end if
+      else
+         call stopit( 12326, ' ', status )
+      end if
+
+      call ast_seti( fc, 'FitsRounding', 10, status )
+      cards(1) = 'DUMMY   =  1.9999969999993E-08'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =          1.999997E-8' ) then
+            write(*,*) cards(1)
+            call stopit( 12327, ' ', status )
+         end if
+      else
+         call stopit( 12328, ' ', status )
+      end if
+
+      call ast_seti( fc, 'FitsRounding', 5, status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =               2.0E-8' ) then
+            write(*,*) cards(1)
+            call stopit( 12329, ' ', status )
+         end if
+      else
+         call stopit( 12330, ' ', status )
+      end if
+
+
+      cards(1) = 'DUMMY   =  9.999999E-6'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =              10.0E-6' ) then
+            write(*,*) cards(1)
+            call stopit( 12331, ' ', status )
+         end if
+      else
+         call stopit( 12332, ' ', status )
+      end if
+
+      cards(1) = 'DUMMY   =  -9.999999'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =                -10.0' ) then
+            write(*,*) cards(1)
+            call stopit( 12333, ' ', status )
+         end if
+      else
+         call stopit( 12334, ' ', status )
+      end if
+
+      call ast_clear( fc, 'FitsROunding', status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =            -9.999999' ) then
+            write(*,*) cards(1)
+            call stopit( 12335, ' ', status )
+         end if
+      else
+         call stopit( 12336, ' ', status )
+      end if
+
+      call ast_seti( fc, 'FitsROunding', 6, status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =                -10.0' ) then
+            write(*,*) cards(1)
+            call stopit( 12337, ' ', status )
+         end if
+      else
+         call stopit( 12338, ' ', status )
+      end if
+
+      call ast_seti( fc, 'FitsROunding', 7, status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =            -9.999999' ) then
+            write(*,*) cards(1)
+            call stopit( 12339, ' ', status )
+         end if
+      else
+         call stopit( 12340, ' ', status )
+      end if
+
+      call ast_seti( fc, 'fitsrounding', 6, status )
+      cards(1) = 'DUMMY   =  -0.0019999912'
+      call ast_putfits( fc, cards(1), .false., status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =        -0.0019999912' ) then
+            write(*,*) cards(1)
+            call stopit( 12341, ' ', status )
+         end if
+      else
+         call stopit( 12342, ' ', status )
+      end if
+
+      call ast_seti( fc, 'fitsrounding', 5, status )
+      call ast_clear( fc, 'Card', status )
+      if( ast_findfits( fc, 'DUMMY', cards(1), .false., status ) ) then
+         if( cards(1) .ne. 'DUMMY   =               -0.002' ) then
+            write(*,*) cards(1)
+            call stopit( 12343, ' ', status )
+         end if
+      else
+         call stopit( 12344, ' ', status )
+      end if
+
+
+
+
+
+
+
+
+      call ast_clear( fc, 'FitsRounding', status )
 
       end

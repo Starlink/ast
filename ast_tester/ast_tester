@@ -159,7 +159,7 @@ set ok = 1
 foreach n ( "timj ast fits-wcs cdmatrix=1" \
             "timj ast fits-iraf" \
             "timj ast fits-aips" \
-            "timj ast fits-pc" \
+            "timj ast fits-pc fitsrounding=0" \
             "timj ast native" \
             "timj ast native" \
             "a20070718_00010_02_cube ast fits-wcs" \

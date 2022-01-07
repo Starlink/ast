@@ -187,6 +187,7 @@ typedef struct AstFitsChan {
    int clean;       /* Remove used cards even if an error occurs? */
    int altaxes;     /* Controls creation of FITS-WCS alternate axes */
    int fitsdigits;  /* No. of decmial places in formatted floating point keyword values */
+   int fitsrounding;  /* No. of decmial places guarded against rounding in formatted floating point keyword values */
    char *fitsaxisorder; /* Pointer to a string defining WCS axis order */
    char *warnings;  /* Pointer to a string containing warning conditions */
    void *card;      /* Pointer to next FitsCard to be read */
@@ -276,6 +277,11 @@ typedef struct AstFitsChanVtab {
    int (* TestFitsDigits)( AstFitsChan *, int * );
    void (* SetFitsDigits)( AstFitsChan *, int, int * );
    void (* ClearFitsDigits)( AstFitsChan *, int * );
+
+   int (* GetFitsRounding)( AstFitsChan *, int * );
+   int (* TestFitsRounding)( AstFitsChan *, int * );
+   void (* SetFitsRounding)( AstFitsChan *, int, int * );
+   void (* ClearFitsRounding)( AstFitsChan *, int * );
 
    int (* GetAltAxes)( AstFitsChan *, int * );
    int (* TestAltAxes)( AstFitsChan *, int * );
@@ -580,6 +586,11 @@ void astInitFitsChanGlobals_( AstFitsChanGlobals * );
    int astTestFitsDigits_( AstFitsChan *, int * );
    void astSetFitsDigits_( AstFitsChan *, int, int * );
    void astClearFitsDigits_( AstFitsChan *, int * );
+
+   int astGetFitsRounding_( AstFitsChan *, int * );
+   int astTestFitsRounding_( AstFitsChan *, int * );
+   void astSetFitsRounding_( AstFitsChan *, int, int * );
+   void astClearFitsRounding_( AstFitsChan *, int * );
 
    int astGetAltAxes_( AstFitsChan *, int * );
    int astTestAltAxes_( AstFitsChan *, int * );
@@ -899,6 +910,15 @@ astINVOKE(V,astGetFitsDigits_(astCheckFitsChan(this),STATUS_PTR))
 astINVOKE(V,astSetFitsDigits_(astCheckFitsChan(this),fitsdigits,STATUS_PTR))
 #define astTestFitsDigits(this) \
 astINVOKE(V,astTestFitsDigits_(astCheckFitsChan(this),STATUS_PTR))
+
+#define astClearFitsRounding(this) \
+astINVOKE(V,astClearFitsRounding_(astCheckFitsChan(this),STATUS_PTR))
+#define astGetFitsRounding(this) \
+astINVOKE(V,astGetFitsRounding_(astCheckFitsChan(this),STATUS_PTR))
+#define astSetFitsRounding(this,fitsrounding) \
+astINVOKE(V,astSetFitsRounding_(astCheckFitsChan(this),fitsrounding,STATUS_PTR))
+#define astTestFitsRounding(this) \
+astINVOKE(V,astTestFitsRounding_(astCheckFitsChan(this),STATUS_PTR))
 
 #define astClearAltAxes(this) \
 astINVOKE(V,astClearAltAxes_(astCheckFitsChan(this),STATUS_PTR))

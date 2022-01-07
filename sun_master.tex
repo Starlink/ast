@@ -18,7 +18,7 @@ f+
 \stardocnumber      {210.30}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {5th Jan 2022}
+\stardocdate        {6th Jan 2022}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -22491,11 +22491,9 @@ instead links with an external cminpack library.
 \end{enumerate}
 
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.2.6}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.2.5 and V9.2.6 (the
-current version):
+\subsection{Changes Introduced in V9.2.6}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.5 and V9.2.6:
 
 \begin{enumerate}
 
@@ -22503,6 +22501,25 @@ current version):
 reported when reading a legal FITS WCS header that uses the ``NCP''
 projection code. The error message related to a missing alternate axis
 description keyword.
+
+\end{enumerate}
+
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.2.7}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.2.6 and V9.2.7 (the
+current version):
+
+\begin{enumerate}
+
+\item The FitsChan class has a new attribute called FitsRounding, which
+controls rounding applied when floating point values are formatted as
+FITS keyword values. Note, this changes the default rounding behaviour.
+Previously, sequences of four or more 9's or 0's were always rounded.
+Now, such sequences are only rounded if they extend beyond the tenth
+significant digit (the default value for FitsRounding being 10). To
+restore the original behaviour, set FitsRounding to 1.
 
 \end{enumerate}
 

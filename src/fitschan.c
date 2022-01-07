@@ -126,6 +126,7 @@ f     encodings), then write operations using AST_WRITE will
 *     - Encoding: System for encoding Objects as FITS headers
 *     - FitsAxisOrder: Sets the order of WCS axes within new FITS-WCS headers
 *     - FitsDigits: Digits of precision for floating-point FITS values
+*     - FitsRounding: Controls rounding of floating-point FITS values
 *     - ForceTab: Force use of the FITS "-TAB" algorithm?
 *     - Iwc: Add a Frame describing Intermediate World Coords?
 *     - Ncard: Number of FITS header cards in a FitsChan
@@ -1259,6 +1260,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Fix bug in SpecTrans that caused 'Unable to find a value for FITS keyword
 *        "CRVAL2A"' error when reading a basic NCP projection header (i.e. a header
 *        with no alternate axis keywords).
+*     6-JAN-2022 (DSB):
+*        - Added attribute FitsRounding and re-wrote RoundFString.
+*        - Increase some buffer sizes to avoid compilation warnings.
 *class--
 */
 
@@ -1782,6 +1786,10 @@ static void ClearFitsDigits( AstFitsChan *, int * );
 static int GetFitsDigits( AstFitsChan *, int * );
 static int TestFitsDigits( AstFitsChan *, int * );
 static void SetFitsDigits( AstFitsChan *, int, int * );
+static void ClearFitsRounding( AstFitsChan *, int * );
+static int GetFitsRounding( AstFitsChan *, int * );
+static int TestFitsRounding( AstFitsChan *, int * );
+static void SetFitsRounding( AstFitsChan *, int, int * );
 static void ClearAltAxes( AstFitsChan *, int * );
 static int GetAltAxes( AstFitsChan *, int * );
 static int TestAltAxes( AstFitsChan *, int * );
@@ -1907,12 +1915,12 @@ static int CLASSFromStore( AstFitsChan *, FitsStore *, AstFrameSet *, double *, 
 static int CardType( AstFitsChan *, int * );
 static int CheckFitsName( AstFitsChan *, const char *, const char *, const char *, int * );
 static int ChrLen( const char *, int * );
-static int CnvType( int, void *, size_t, int, int, void *, const char *, const char *, const char *, int * );
+static int CnvType( int, void *, size_t, int, int, int, void *, const char *, const char *, const char *, int * );
 static int CnvValue( AstFitsChan *, int , int, void *, const char *, int * );
 static int ComBlock( AstFitsChan *, int, const char *, const char *, int * );
 static int CountFields( const char *, char, const char *, const char *, int * );
 static int DSSFromStore( AstFitsChan *, FitsStore *, const char *, const char *, int * );
-static int EncodeFloat( char *, int, int, int, double, int * );
+static int EncodeFloat( char *, int, int, int, int, double, int * );
 static int EncodeValue( AstFitsChan *, char *, int, int, const char *, int * );
 static int FindBasisVectors( AstMapping *, int, int, double *, AstPointSet *, AstPointSet *, int * );
 static int FindFits( AstFitsChan *, const char *, char[ AST__FITSCHAN_FITSCARDLEN + 1 ], int, int * );
@@ -1984,7 +1992,7 @@ static void *CardData( AstFitsChan *, size_t *, int * );
 static void AdaptLut( AstMapping *, int, double, double, double, double, double, double **, double **, int *, int * );
 static void AddFrame( AstFitsChan *, AstFrameSet *, int, int, FitsStore *, char, const char *, const char *, int * );
 static void ChangePermSplit( AstMapping *, int * );
-static void CheckZero( char *, double, int, int * );
+static void CheckZero( char *, double, int, int, int * );
 static void Chpc1( double *, double *, int, int *, int *, int * );
 static void ClassTrans( AstFitsChan *, AstFitsChan *, int, int, const char *, const char *, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
@@ -2024,7 +2032,7 @@ static void ReadFits( AstFitsChan *, int * );
 static void ReadFromSource( AstFitsChan *, int * );
 static void RemoveTables( AstFitsChan *, const char *, int * );
 static void RetainFits( AstFitsChan *, int * );
-static void RoundFString( char *, int, int * );
+static void RoundFString( char *, int, int, int * );
 static void SetAlgCode( char *, const char *, int * );
 static void SetAttrib( AstObject *, const char *, int * );
 static void SetFitsCF( AstFitsChan *, const char *, double *, const char *, int, int * );
@@ -5440,7 +5448,8 @@ static int CheckFitsName( AstFitsChan *this, const char *name,
    return ret;
 }
 
-static void CheckZero( char *text, double value, int width, int *status ){
+static void CheckZero( char *text, double value, int width, int fitsrnd,
+                       int *status ){
 /*
 *  Name:
 *     CheckZero
@@ -5453,7 +5462,8 @@ static void CheckZero( char *text, double value, int width, int *status ){
 
 *  Synopsis:
 *     #include "fitschan.h"
-*     void CheckZero( char *text, double value, int width, int *status )
+*     void CheckZero( char *text, double value, int width, int fitsrnd,
+*                     int *status )
 
 *  Class Membership:
 *     FitsChan member function.
@@ -5477,6 +5487,9 @@ static void CheckZero( char *text, double value, int width, int *status ){
 *     width
 *        The minimum field width to use. The value is right justified in
 *        this field width. Ignored if zero.
+*     fitsrnd
+*        The value of the FitsRounding attribute - the number of leading
+*        digits to protect from rounding.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -5503,7 +5516,7 @@ static void CheckZero( char *text, double value, int width, int *status ){
 
 /* Otherwise, round out sequences of zeros or nines. */
    } else {
-      RoundFString( text, width, status );
+      RoundFString( text, width, fitsrnd, status );
    }
 }
 
@@ -5837,7 +5850,7 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    AstMapping *map3;   /* Mapping from (lon,lat) to (az,el) */
    char *comm;         /* Pointer to comment string */
    char *cval;         /* Pointer to string keyword value */
-   char attbuf[20];    /* Buffer for AST attribute name */
+   char attbuf[40];    /* Buffer for AST attribute name */
    char combuf[80];    /* Buffer for FITS card comment */
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
@@ -6636,6 +6649,11 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
    } else if ( !strcmp( attrib, "fitsdigits" ) ) {
       astClearFitsDigits( this );
 
+/* FitsRounding. */
+/* ------------- */
+   } else if ( !strcmp( attrib, "fitsrounding" ) ) {
+      astClearFitsRounding( this );
+
 /* DefB1950 */
 /* -------- */
    } else if ( !strcmp( attrib, "defb1950" ) ) {
@@ -6859,14 +6877,14 @@ static int CnvValue( AstFitsChan *this, int type, int undef, void *buff,
    odata = CardData( this, &osize, status );
 
 /* Do the conversion. */
-   return CnvType( otype, odata, osize, type, undef, buff,
-                   CardName( this, status ), method, astGetClass( this ),
+   return CnvType( otype, odata, osize, type, undef, astGetFitsRounding( this ),
+                   buff, CardName( this, status ), method, astGetClass( this ),
                    status );
 }
 
 static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
-                     void *buff, const char *name, const char *method,
-                     const char *class, int *status ){
+                    int fitsrnd, void *buff, const char *name, const char *method,
+                    const char *class, int *status ){
 /*
 *
 *  Name:
@@ -6881,8 +6899,8 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
 *  Synopsis:
 *     #include "fitschan.h"
 *     int CnvType( int otype, void *odata, size_t osize, int type, int undef,
-*                   void *buff, const char *name, const char *method,
-*                   const char *class, int *status )
+*                  int fitsrnd, void *buff, const char *name, const char *method,
+*                  const char *class, int *status )
 
 *  Class Membership:
 *     FitsChan method.
@@ -6907,6 +6925,9 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
 *        undefined If "undef" is zero, an error will be reported identifying
 *        the undefined keyword value. If "undef" is non-zero, no error is
 *        reported and the contents of the output buffer are left unchanged.
+*     fitsrnd
+*        The value of the FitsRounding attribute - the number of leading
+*        digits to protect from rounding.
 *     buff
 *        A pointer to a buffer to recieve the converted value. It is the
 *        responsibility of the caller to ensure that a suitable buffer is
@@ -7011,7 +7032,7 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
          } else if( type == AST__STRING || type == AST__CONTINUE  ){
             if( odouble != AST__BAD ) {
                (void) sprintf( cnvtype_text, "%.*g", AST__DBL_DIG, odouble );
-               CheckZero( cnvtype_text, odouble, 0, status );
+               CheckZero( cnvtype_text, odouble, 0, fitsrnd, status );
             } else {
                strcpy( cnvtype_text, BAD_STRING );
             }
@@ -7165,9 +7186,9 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             *( (double *) buff ) = odouble;
          } else if( type == AST__STRING || type == AST__CONTINUE  ){
             (void) sprintf( cnvtype_text0, "%.*g", AST__DBL_DIG, ( (double *) odata )[ 0 ] );
-            CheckZero( cnvtype_text0, ( (double *) odata )[ 0 ], 0, status );
+            CheckZero( cnvtype_text0, ( (double *) odata )[ 0 ], 0, fitsrnd, status );
             (void) sprintf( cnvtype_text1, "%.*g", AST__DBL_DIG, ( (double *) odata )[ 1 ] );
-            CheckZero( cnvtype_text1, ( (double *) odata )[ 1 ], 0, status );
+            CheckZero( cnvtype_text1, ( (double *) odata )[ 1 ], 0, fitsrnd, status );
             (void) sprintf( cnvtype_text, "%s %s", cnvtype_text0, cnvtype_text1 );
             *( (char **) buff ) = cnvtype_text;
          } else if( type == AST__INT      ){
@@ -7427,7 +7448,7 @@ static char *ConcatWAT( AstFitsChan *this, int iaxis, const char *method,
 */
 
 /* Local Variables: */
-   char keyname[ FITSNAMLEN + 5 ];/* Keyword name */
+   char keyname[ FITSNAMLEN + 20 ];/* Keyword name */
    char *wat;                     /* Pointer to a single WAT string */
    char *result;                  /* Returned string */
    int watlen;                    /* Length of total WAT string (inc. term null)*/
@@ -9090,7 +9111,7 @@ f     Unlike AST_WRITEFITS,
 }
 
 static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
-                        double value, int *status ){
+                        int fitsrnd, double value, int *status ){
 /*
 *
 *  Name:
@@ -9105,7 +9126,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 *  Synopsis:
 *     #include "fitschan.h"
 *     int EncodeFloat( char *buf, int digits, int width, int maxwidth,
-*                      double value, int *status )
+*                      int fitsrnd, double value, int *status )
 
 *  Class Membership:
 *     FitsChan method.
@@ -9133,6 +9154,9 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 *     maxwidth
 *        The maximum field width to use. A value of zero is returned if
 *        the maximum field width is exceeded.
+*     fitsrnd
+*        The value of the FitsRounding attribute - the number of leading
+*        digits to protect from rounding.
 *     value
 *        The value to format.
 *     status
@@ -9186,7 +9210,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 
 /* Check that the value zero is not encoded with a minus sign (e.g. "-0.").
    This also rounds out long sequences of zeros or nines.  */
-      CheckZero( buf, value, width, status );
+      CheckZero( buf, value, width, fitsrnd, status );
 
 /* If the formatted value includes an exponent, it will have 2 digits.
    If the exponent includes a leading zero, remove it. */
@@ -9378,7 +9402,8 @@ static int EncodeValue( AstFitsChan *this, char *buf, int col, int digits,
       if( type == AST__FLOAT ){
          dval = *( (double *) data );
          len = EncodeFloat( buf, digits, FITSRLCOL - FITSNAMLEN - 2,
-                            AST__FITSCHAN_FITSCARDLEN - col + 1, dval, status );
+                            AST__FITSCHAN_FITSCARDLEN - col + 1,
+                            astGetFitsRounding( this ), dval, status );
          if( len <= 0 && astOK ) {
             astError( AST__BDFTS, "%s(%s): Cannot encode floating point value "
                       "%g into a FITS header card for keyword '%s'.", status, method,
@@ -9457,7 +9482,8 @@ static int EncodeValue( AstFitsChan *this, char *buf, int col, int digits,
       } else if( type == AST__COMPLEXF ){
          dval = ( (double *) data )[ 0 ];
          rlen = EncodeFloat( buf, digits, FITSRLCOL - FITSNAMLEN - 2,
-                             AST__FITSCHAN_FITSCARDLEN - col + 1, dval, status );
+                             AST__FITSCHAN_FITSCARDLEN - col + 1,
+                             astGetFitsRounding( this ), dval, status );
          if( rlen <= 0 || rlen > AST__FITSCHAN_FITSCARDLEN - col ) {
             astError( AST__BDFTS, "%s(%s): Cannot encode real part of a complex "
                       "floating point value [%g,%g] into a FITS header card "
@@ -9467,7 +9493,8 @@ static int EncodeValue( AstFitsChan *this, char *buf, int col, int digits,
             dval = ( (double *) data )[ 1 ];
             ilen = EncodeFloat( buf + rlen, digits,
                                 FITSIMCOL - FITSRLCOL,
-                                AST__FITSCHAN_FITSCARDLEN - col - rlen, dval, status );
+                                AST__FITSCHAN_FITSCARDLEN - col - rlen,
+                                astGetFitsRounding( this ), dval, status );
             if( ilen <= 0 ) {
                astError( AST__BDFTS, "%s(%s): Cannot encode imaginary part of a "
                          "complex floating point value [%g,%g] into a FITS header "
@@ -10470,7 +10497,7 @@ static int FitsAxisOrder( AstFitsChan *this, int nwcs, AstFrame *wcsfrm,
 /* Local Variables: */
    AstKeyMap *km;    /* KeyMap holding axis indices keyed by axis symbols */
    char **words;     /* Pointer to array of words from FitsAxisOrder */
-   char attr_name[15];/* Attribute name */
+   char attr_name[50];/* Attribute name */
    const char *attr; /* Pointer to a string holding the FitsAxisOrder value */
    int i;            /* Loop count */
    int j;            /* Zero-based axis index */
@@ -11269,7 +11296,7 @@ static AstObject *FsetFromStore( AstFitsChan *this, FitsStore *store,
 /* Local Variables: */
    AstFrame *frame;   /* Pointer to pixel Frame */
    AstFrameSet *ret;  /* Pointer to returned FrameSet */
-   char buff[ 20 ];   /* Buffer for axis label */
+   char buff[ 40 ];   /* Buffer for axis label */
    char s;            /* Co-ordinate version character */
    int i;             /* Pixel axis index */
    int physical;      /* Index of primary physical co-ordinate Frame */
@@ -13267,7 +13294,7 @@ static int GetUsedPolyTan( AstFitsChan *this, AstFitsChan *out, int latax,
 */
 
 /* Local Variables... */
-   char template[ 20 ];
+   char template[ 50 ];
    double pval;
    int lbnd_lat;
    int lbnd_lon;
@@ -16397,6 +16424,15 @@ const char *GetAttrib( AstObject *this_object, const char *attrib, int *status )
          result = getattrib_buff;
       }
 
+/* FitsRounding. */
+/* ------------- */
+   } else if ( !strcmp( attrib, "fitsrounding" ) ) {
+      ival = astGetFitsRounding( this );
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%d", ival );
+         result = getattrib_buff;
+      }
+
 /* AltAxes. */
 /* -------- */
    } else if ( !strcmp( attrib, "altaxes" ) ) {
@@ -17091,6 +17127,7 @@ static void GetNextData( AstChannel *this_channel, int skip, char **name,
    const char *method;           /* Pointer to method name */
    int cont;                     /* String ends with an ampersand? */
    int done;                     /* Data item found? */
+   int fitsrnd;                  /* Value of FitsRounding attribute */
    int freedata;                 /* Should the data pointer be freed? */
    int i;                        /* Loop counter for keyword characters */
    int len;                      /* Length of current keyword */
@@ -17112,6 +17149,9 @@ static void GetNextData( AstChannel *this_channel, int skip, char **name,
 /* Store the method name and object class. */
    method = "astRead";
    class = astGetClass( this );
+
+/* Get the value of the FitsRounding attribute */
+   fitsrnd = astGetFitsRounding( this );
 
 /* Loop to consider successive cards stored in the FitsChan (starting
    at the "current" card) until a valid data item is read or "end of
@@ -17345,7 +17385,7 @@ static void GetNextData( AstChannel *this_channel, int skip, char **name,
    dynamically allocated string. */
             case AST__FLOAT:
                (void) sprintf( buff, "%.*g", AST__DBL_DIG, *( (double *) data ) );
-               CheckZero( buff,  *( (double *) data ), 0, status );
+               CheckZero( buff,  *( (double *) data ), 0, fitsrnd, status );
                *val = astString( buff, (int) strlen( buff ) );
                break;
             }
@@ -17895,6 +17935,10 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    vtab->TestFitsDigits = TestFitsDigits;
    vtab->SetFitsDigits = SetFitsDigits;
    vtab->GetFitsDigits = GetFitsDigits;
+   vtab->ClearFitsRounding = ClearFitsRounding;
+   vtab->TestFitsRounding = TestFitsRounding;
+   vtab->SetFitsRounding = SetFitsRounding;
+   vtab->GetFitsRounding = GetFitsRounding;
    vtab->ClearFitsAxisOrder = ClearFitsAxisOrder;
    vtab->TestFitsAxisOrder = TestFitsAxisOrder;
    vtab->SetFitsAxisOrder = SetFitsAxisOrder;
@@ -18842,7 +18886,7 @@ static AstMapping *IsMapTab1D( AstMapping *map, double scale, const char *unit,
    AstMapping *ret;        /* Returned WCS axis Mapping */
    AstMapping *tmap;       /* Temporary Mapping */
    AstPermMap *pm;         /* PermMap pointer */
-   char cellname[ 20 ];    /* Buffer for cell name */
+   char cellname[ 21 ];    /* Buffer for cell name */
    char colname[ 20 ];     /* Buffer for column name */
    double *lut;            /* Pointer to table of Y values */
    double *work1;          /* Pointer to work array */
@@ -20476,8 +20520,8 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
    AstSpecFrame *specfrm;  /* Pointer to the SpecFrame within WCS Frame */
    AstWcsMap *map2;        /* Pointer to WcsMap */
    char card[ AST__FITSCHAN_FITSCARDLEN + 1 ]; /* A FITS header card */
-   char equinox_attr[ 13 ];/* Name of Equinox attribute for sky axes */
-   char system_attr[ 12 ]; /* Name of System attribute for sky axes */
+   char equinox_attr[ 40 ];/* Name of Equinox attribute for sky axes */
+   char system_attr[ 40 ]; /* Name of System attribute for sky axes */
    const char *eqn;        /* Pointer to original sky Equinox value */
    const char *extunit;    /* External units string */
    const char *intunit;    /* Internal units string */
@@ -21135,6 +21179,10 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
 
 /* Check the inherited status. */
    if( !astOK ) return ret;
+
+/* Avoid compiler warnings. */
+   sipax[ 0 ] = 0;
+   sipax[ 1 ] = 0;
 
 /* Get the number of inputs and outputs for the Mapping. Return if the
    number of outputs is smaller than the number of inputs. */
@@ -23452,6 +23500,7 @@ static AstMapping *OtherAxes( AstFitsChan *this, AstFrameSet *fs, double *dim,
    }
 
 /* Only proceed if there are some axes to described. */
+   axmap = NULL;
    if( nother ) {
 
 /* Get a pointer to the WCS Frame. */
@@ -23763,7 +23812,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    char *comm;         /* Pointer to comment string */
    char *cval;         /* Pointer to string keyword value */
    char combuf[80];    /* Buffer for FITS card comment */
-   char keyname[10];   /* Buffer for keyword name string */
+   char keyname[40];   /* Buffer for keyword name string */
    char primsys[20];   /* Buffer for primnary RADECSYS value */
    char type[MXCTYPELEN];/* Buffer for CTYPE value */
    char s;             /* Co-ordinate version character */
@@ -25532,7 +25581,7 @@ f        The global status.
    ( (FitsCard *) this->card )->flags = flags | PROTECTED;
 }
 
-static void RoundFString( char *text, int width, int *status ){
+static void RoundFString( char *text, int width, int fitsrnd, int *status ){
 /*
 *  Name:
 *     RoundString
@@ -25546,7 +25595,7 @@ static void RoundFString( char *text, int width, int *status ){
 
 *  Synopsis:
 *     #include "fitschan.h"
-*     void RoundFString( char *text, int width )
+*     void RoundFString( char *text, int width, int fitsrnd )
 
 *  Class Membership:
 *     FitsChan member function.
@@ -25554,9 +25603,10 @@ static void RoundFString( char *text, int width, int *status ){
 *  Description:
 *     The supplied string is assumed to be a valid decimal representation of
 *     a floating point number. It is searched for sub-strings consisting
-*     of NSEQ or more adjacent zeros, or NSEQ or more adjacent nines. If found
-*     the string is modified to represent the result of rounding the
-*     number to remove the sequence of zeros or nines.
+*     of NSEQ or more adjacent zeros, or NSEQ or more adjacent nines. If
+*     found, and if the sub-string extends beyond the number of protected
+*     digits specified by "fitsrnd", the string is modified to represent the
+*     result of rounding the number to remove the sequence of zeros or nines.
 
 *  Parameters:
 *     text
@@ -25565,6 +25615,9 @@ static void RoundFString( char *text, int width, int *status ){
 *     width
 *        The minimum field width to use. The value is right justified in
 *        this field width. Ignored if zero.
+*     fitsrnd
+*        The value of the FitsRounding attribute - the number of leading
+*        digits to protect from rounding.
 */
 
 /* Local Constants: */
@@ -25573,261 +25626,280 @@ static void RoundFString( char *text, int width, int *status ){
 /* Local Variables: */
    char *a;
    char *c;
+   char *d;
    char *dot;
-   char *exp;
-   char *last;
-   char *start;
+   char *e;
    char *end;
-   int i;
-   int neg;
-   int nnine;
-   int nonzero;
-   int nzero;
-   int replace;
-   int started;
-   int len;
+   char *exp;
+   char *ltext;
+   char *prnd;
+   char *seq0;
+   char *seq9;
    int bu;
+   int first;
+   int len0;
+   int len;
    int nls;
+   int nsig;
+   int seqlen;
+   int started;
 
 /* Check the inherited status. */
    if( !astOK ) return;
 
 /* Save the original length of the text. */
-   len = strlen( text );
+   len0 = strlen( text );
 
-/* Locate the start of any exponent string. */
-   exp = strpbrk( text, "dDeE" );
+/* Allocate a buffer and store a copy of the text with an extra leading
+   space. */
+   len = len0 + 1;
+   ltext = astMalloc( len + 1 );
+   if( ltext ) {
+      *ltext = ' ';
+      strcpy( ltext + 1, text );
 
-/* First check for long strings of adjacent zeros.
-   =============================================== */
+/* Locate the start of any exponent string in the local copy. */
+      exp = strpbrk( ltext, "dDeE" );
 
-/* Indicate that we have not yet found a decimal point in the string. */
-   dot = NULL;
+/* Get a pointer to the terminator (either the exponent or the null at the end of
+   the string). */
+      end = exp ? exp : ltext + len;
 
-/* The "started" flag controls whether *leading* zeros should be removed
-   if there are more than NSEQ of them. They are only removed if there is an
-   exponent. */
-   started = ( exp != NULL );
+/* Values of "fitsrnd" that are less than 1 are equivalebnt to 1. */
+      if( fitsrnd < 1 ) fitsrnd = 1;
 
-/* We are not currently replacing digits with zeros. */
-   replace = 0;
+/* Get a pointer (prnd) to the character that defines the first position
+   at which rounding can occur. Step through the text from the start
+   until "fitsrnd" digits have been found (ignoring leading zeros) or
+   the terminator is reached. Also note if the string includes a decimal
+   point. */
+      started = 0;
+      nsig = 0;
+      prnd = NULL;
+      dot = NULL;
 
-/* We have not yet found any adjacent zeros. */
-   nzero = 0;
-
-/* We have no evidence yet that the number is non-zero. */
-   nonzero = 0;
-
-/* Loop round the supplied text string. */
-   c = text;
-   while( *c && c != exp ){
-
-/* If this is a zero, increment the number of adjacent zeros found, so
-   long as we have previously found a non-zero digit (or there is an
-   exponent). If this is the NSEQ'th adjacent zero, indicate that
-   subsequent digits should be replaced by zeros. */
-      if( *c == '0' ){
-         if( started && ++nzero >= NSEQ ) replace = 1;
-
-/* Note if the number contains a decimal point. */
-      } else if( *c == '.' ){
-         dot = c;
-
-/* If this character is a non-zero digit, indicate that we have found a
-   non-zero digit. If we have previously found a long string of adjacent
-   zeros, replace the digit by '0'. Otherwise, reset the count of
-   adjacent zeros, and indicate the final number is non-zero. */
-      } else if( *c != ' ' && *c != '+' && *c != '-' ){
-         started = 1;
-         if( replace ) {
-            *c = '0';
-         } else {
-            nzero = 0;
-            nonzero = 1;
+      c = ltext - 1;
+      while( ++c < end ){
+         if( isdigit( *c ) ){
+            if( *c != '0' ) started = 1;
+            if( started ) {
+               if( ++nsig == fitsrnd ) prnd = c;
+            }
+         } else if( *c == '.' ){
+            dot = c;
          }
       }
 
-/* Move on to the next character. */
-      c++;
-   }
-
-/* If the final number is zero, just return the most simple decimal zero
+/* If no non-zero digits were found, just return the most simple zero
    value. */
-   if( !nonzero ) {
-      strcpy( text, "0.0" );
+      if( !started ) {
+         if( dot ){
+            strcpy( ltext, "0.0" );
+         } else {
+            strcpy( ltext, "0" );
+         }
 
-/* Otherwise, we remove any trailing zeros which occur to the right of a
-   decimal point. */
-   } else if( dot ) {
+/* If the "fitsrnd" value is larger than the number of significant
+   figures in the value, "prnd" will be NULL, in which case we can do
+   no rounding. If "prnd" is not NULL, we round any sequences by modifying
+   the contents of the local text buffer. */
+      } else if( prnd ) {
 
-/* Find the last non-zero digit. */
-      while( c-- > text && *c == '0' );
+/* Initialise the current character pointer to point to the character immediately
+   before the terminator (either the exponent or the null at the end of the
+   string). */
+         c = end - 1;
 
-/* If any trailing zeros were found... */
-      if( c > text ) {
+/* Loop backwards over any trailing spaces */
+         while( c >= ltext && *c == ' ' ) c--;
 
-/* Retain one trailing zero after a decimal point. */
-         if( *c == '.' ) c++;
+/* Initialise flags to show we are not currently in any sequence. */
+         seq9 = NULL;
+         seq0 = NULL;
+         seqlen = 0;
 
-/* We put a terminator following the last non-zero character. The
-   terminator is the exponent, if there was one, or a null character.
-   Remember to update the pointer to the start of the exponent. */
-         c++;
+/* Loop backwards over the remaining characters, from end to start of the
+   string. */
+          while( c >= ltext ) {
+
+/* If we are in a sequence of 9's (i.e. the previous character was a 9)... */
+            if( seq9 ){
+
+/* If the current character is a 9, increment the length of the sequence. */
+               if( *c == '9' ) {
+                  seqlen++;
+
+/* If the current character is not a 9 but is a digit, the previous digit was
+   the start of the sequence. */
+               } else if( isdigit( *c ) ){
+
+/* If the sequence ends beyond the rounding limit and has a length of at
+   least NSEQ, replace it with a rounded value. */
+                  if( seq9 > prnd && seqlen >= NSEQ ){
+
+/* Replace all digits in or after the sequence with 0's. */
+                     d = c;
+                     while( ++d < end ) {
+                        if( isdigit(*d) ) *d = '0';
+                     }
+
+/* Increment the current digit (we know it's not a 9 and so it can
+   always be incremented to a higher digit value). */
+                     (*c)++;
+                  }
+
+/* If the current digit was incremented above to a 9 (i.e. the original
+   value was 8), we need to start a new sequence of 9's. */
+                  if( *c == '9' ) {
+                     seq9 = c;
+                     seqlen = 1;
+
+/* If the current digit is a 0, we need to start a new sequence of 0's. */
+                  } else if( *c == '0' ) {
+                     seq0 = c;
+                     seq9 = NULL;
+                     seqlen = 1;
+
+/* Otherwise, indicate we are no longer in a sequence of 9's. */
+                  } else {
+                     seq9 = NULL;
+                     seqlen = 0;
+                  }
+               }
+
+/* Otherwise, if we are in a sequence of 0's (i.e. the previous character
+   was a 0)... */
+            } else if( seq0 ){
+
+/* If the current character is a 0, increment the length of the sequence. */
+               if( *c == '0' ) {
+                  seqlen++;
+
+/* If the current character is not a 0 but is a digit, the previous digit
+   was the start of the sequence. */
+               } else if( isdigit( *c ) ){
+
+/* If the sequence ends beyond the rounding limit and has a length of at
+   least NSEQ, replace it with a rounded value. */
+                  if( seq0 > prnd && seqlen >= NSEQ ){
+
+/* Replace all digits in or after the sequence with 0's. */
+                     d = c;
+                     while( ++d < end ) {
+                        if( isdigit(*d) ) *d = '0';
+                     }
+                  }
+
+/* If the current digit is a 9, we need to start a new sequence of 9's. */
+                  if( *c == '9' ) {
+                     seq9 = c;
+                     seq0 = NULL;
+                     seqlen = 1;
+
+/* Otherwise, indicate we are no longer in a sequence of 0's. */
+                  } else {
+                     seq0 = NULL;
+                     seqlen = 0;
+                  }
+               }
+
+/* Otherwise we are not in a sequence. */
+            } else {
+
+/* If we are beyond the point at which any further rounding can occur, we
+   can leave the loop. */
+               if( c < prnd ) {
+                  break;
+
+/* If the current character is a 9, we are at the start of a possible
+   sequence of 9's. */
+               } else if( *c == '9' ) {
+                  seq9 = c;
+                  seqlen = 1;
+
+/* If the current character is a 0, we are at the start of a possible
+   sequence of 0's. */
+               } else if( *c == '0' ) {
+                  seq0 = c;
+                  seqlen = 1;
+               }
+            }
+
+/* Move the current character pointer to the next more significant
+   character in the formatted number. */
+            c--;
+         }
+
+/* If "seq9" is still set at the end of the loop, it must mean that the first
+   digit in the string is the start of a sequence of 9's. If the sequence ends
+   beyond the rounding limit and has a length of at least NSEQ, replace it with
+   a rounded value. */
+         if( seq9 && seq9 > prnd && seqlen >= NSEQ ){
+
+/* Replace all digits in or after the sequence with 0's. */
+            first = 1;
+            c = ltext - 1;
+            while( ++c < end ) {
+               if( isdigit( *c ) ) {
+                  *c = '0';
+
+/* If this is the first digit, move any characters (eg "+" or "-" ) that
+   occur before the digit one space to the left (we added a leading space
+   to the local buffer so that we could do this), and insert a "1"
+   immediately before the current zero. */
+                  if( first ) {
+                     e = ltext + 1;
+                     while( e < c ) {
+                        e[ -1 ] = e[ 0 ];
+                        e++;
+                     }
+                     e[ -1 ] = '1';
+                     first = 0;
+                  }
+               }
+            }
+         }
+      }
+
+/* Remove any trailing zeros which occur to the right of a decimal point. */
+      if( dot ) {
+
+/* Initialise the current character pointer to point to the character
+   immediately before the terminator (either the exponent or the null at
+   the end of the string). */
+         c = end - 1;
+
+/* Loop backwards over any trailing spaces or zeros. */
+         while( c >= ltext && ( *c == ' ' || *c == '0' ) ) c--;
+
+/* Ensure one space is left after a decimal point. */
+         if( *c == '.' ) *(++c) = '0';
+
+/* Move the terminator to the following character. */
          if( exp ) {
-            a = exp;
-            exp = c;
-            while( ( *(c++) = *(a++) ) );
+            strcpy( c + 1, exp );
          } else {
-            *c = 0;
-         }
-      }
-   }
-
-/* Next check for long strings of adjacent nines.
-   ============================================= */
-
-/* We have not yet found any adjacent nines. */
-   nnine = 0;
-
-/* We have not yet found a non-nine digit. */
-   a = NULL;
-
-/* We have not yet found a non-blank character */
-   start = NULL;
-   last = NULL;
-
-/* Number is assumed positive. */
-   neg = 0;
-
-/* Indicate that we have not yet found a decimal point in the string. */
-   dot = NULL;
-
-/* Loop round the supplied text string. */
-   c = text;
-   while( *c && c != exp ){
-
-/* Note the address of the first non-blank character. */
-      if( !start && *c != ' ' ) start = c;
-
-/* If this is a nine, increment the number of adjacent nines found. */
-      if( *c == '9' ){
-         ++nnine;
-
-/* Note if the number contains a decimal point. */
-      } else if( *c == '.' ){
-         dot = c;
-
-/* Note if the number is negative. */
-      } else if( *c == '-' ){
-         neg = 1;
-
-/* If this character is a non-nine digit, and we have not had a long
-   sequence of 9's, reset the count of adjacent nines, and update a pointer
-   to "the last non-nine digit prior to a long string of nines". */
-      } else if( *c != ' ' && *c != '+' ){
-         if( nnine < NSEQ ) {
-            nnine = 0;
-            a = c;
+            c[ 1 ] = 0;
          }
       }
 
-/* Note the address of the last non-blank character. */
-      if( *c != ' ' ) last = c;
+/* Copy the rounded string into the supplied text string, if there is room. */
+      if( astChrLen( ltext ) <= len0 ) strcpy( text, ltext );
 
-/* Move on to the next character. */
-      c++;
-   }
+/* Free local resources. */
+      ltext = astFree( ltext );
 
-/* If a long string of adjacent nines was found... */
-   if( nnine >= NSEQ ) {
-      c = NULL;
-
-/* If we found at least one non-nine digit. */
-      if( a ) {
-
-/* "a" points to the last non-nine digit before the first of the group of 9's.
-   Increment this digit by 1. Since we know the digit is not a nine, there
-   is no danger of a carry. */
-         *a = *a + 1;
-
-/* Fill with zeros up to the decimal point, or to  the end if there is no
-   decimal point. */
-         c = a + 1;
-         if( dot ) {
-            while( c < dot ) *(c++) = '0';
-         } else {
-            while( *c ) *(c++) = '0';
-         }
-
-/* Now make "c" point to the first character for the terminator. This is
-   usually the character following the last non-nine digit. However, if
-   the last non-nine digit appears immediately before a decimal point, then
-   we append ".0" to the string before appending the terminator. */
-         if( *c == '.' ) {
-            *(++c) = '0';
-            c++;
-         }
-
-/* If all digits were nines, the rounded number will occupy one more
-   character than the supplied number. We can only do the rounding if there
-   is a spare character (i.e.a space) in the supplied string. */
-      } else if( last - start + 1 < len ) {
-
-/* Put the modified text at the left of the available space. */
-         c = text;
-
-/* Start with a minus sing if needed, followed by the leading "1" (caused
-   by the overflow from the long string of 9's). */
-         if( neg ) *(c++) = '-';
-         *(c++) = '1';
-
-/* Now find the number of zeros to place after the leading "1". This is
-   the number of characters in front of the terminator marking the end of
-   the integer part of the number. */
-         if( dot ) {
-            nzero = dot - start;
-         } else if( exp ) {
-            nzero = exp - start;
-         } else {
-            nzero = last - start;
-         }
-
-/* If the number is negative, the above count will include the leading
-   minus sign, which is not a digit. So reduce the count by one. */
-         if( neg ) nzero--;
-
-/* Now put in the correct number of zeros. */
-         for( i = 0; i < nzero; i++ ) *(c++) = '0';
-
-/* If the original string containsed a decimal point, make sure the
-   returned string also contains one. */
-         if( dot ) {
-            *(c++) = '.';
-            if( *c ) *(c++) = '0';
+/* If a minimum field width has been given, move the text to the right
+   hand end of the supplied buffer. */
+      if( width ) {
+         end = text + len0;
+         c = text + astChrLen( text );
+         *end = 0;
+         if( c != end ) {
+            while( c > text ) *(--end) = *(--c);
+            while( end > text ) *(--end) = ' ';
          }
       }
-
-/* We put a terminator following the last non-zero character. The
-   terminator is the exponent, if there was one, or a null character. */
-      if( c ) {
-         if( exp ) {
-            while( ( *(c++) = *(exp++) ) );
-         } else {
-            *c = 0;
-         }
-      }
-   }
-
-/* If a minimum field width has been given, right justify the returned
-   string in the original field width. */
-   if( width ) {
-      end = text + len;
-      c = text + strlen( text );
-      if( c != end ) {
-         while( c >= text ) *(end--) = *(c--);
-         while( end >= text ) *(end--) = ' ';
-      }
-   }
 
 /* If a minimum field width was given, shunt the text to the left in
    order to reduce the used field width to the specified value. This
@@ -25838,24 +25910,25 @@ static void RoundFString( char *text, int width, int *status ){
    as possible. First find the number of spaces we would like to remove
    from the front of the string (in order to reduce the used width to the
    specified value). */
-   bu = len - width;
+      bu = len0 - width;
 
 /* If we need to remove any leading spaces... */
-   if( width > 0 && bu > 0 ) {
+      if( width > 0 && bu > 0 ) {
 
 /* Find the number of leading spaces which are available to be removed. */
-      c = text - 1;
-      while( *(++c) == ' ' );
-      nls = c - text;
+         c = text - 1;
+         while( *(++c) == ' ' );
+         nls = c - text;
 
 /* If there are insufficient leading spaces, just use however many there
    are. */
-      if( bu > nls ) bu = nls;
+         if( bu > nls ) bu = nls;
 
 /* Shift the string. */
-      c = text;
-      a = c + bu;
-      while( ( *(c++) = *(a++) ) );
+         c = text;
+         a = c + bu;
+         while( ( *(c++) = *(a++) ) );
+      }
    }
 
 /* Undefine local constants. */
@@ -26391,6 +26464,13 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
         ( 1 == astSscanf( setting, "fitsdigits= %d %n", &ival, &nc ) )
         && ( nc >= len ) ) {
       astSetFitsDigits( this, ival );
+
+/* FitsRounding. */
+/* ------------- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "fitsrounding= %d %n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+      astSetFitsRounding( this, ival );
 
 /* FitsAxisOrder. */
 /* -------------- */
@@ -27700,6 +27780,9 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
 /* Check the inherited status. */
    if( !astOK ) return result;
 
+/* Avoid compiler warnings */
+   noutrem = 0;
+
 /* Get the number of inputs and outputs for the Mapping. */
    nin = astGetNin( map );
    nout = astGetNin( map );
@@ -28645,10 +28728,10 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
 /* Local Variables: */
    astDECLARE_GLOBALS     /* Declare the thread specific global data */
    char *label;             /* Pointer to axis label string */
-   char attr[20];           /* Buffer for AST attribute name */
+   char attr[40];           /* Buffer for AST attribute name */
    char com[80];            /* Buffer for keyword comment */
-   char lattype[MXCTYPELEN];/* Latitude axis CTYPE value */
-   char lontype[MXCTYPELEN];/* Longitude axis CTYPE value */
+   char lattype[MXCTYPELEN+4];/* Latitude axis CTYPE value */
+   char lontype[MXCTYPELEN+4];/* Longitude axis CTYPE value */
    const char *latsym;      /* SkyFrame latitude axis symbol */
    const char *lonsym;      /* SkyFrame longitude axis symbol */
    const char *prj_name;    /* Pointer to projection name string */
@@ -29145,8 +29228,8 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    char ctype[ MXCTYPELEN ]; /* The value for the FITS CTYPE keyword */
    char lin_unit[ 20 ];    /* Linear spectral Units being used */
    char orig_system[ 40 ]; /* Value of System attribute for current WCS axis */
-   char system_attr[ 10 ]; /* Name of System attribute for current WCS axis */
-   char unit_attr[ 10 ];   /* Name of Unit attribute for current WCS axis */
+   char system_attr[ 20 ]; /* Name of System attribute for current WCS axis */
+   char unit_attr[ 20 ];   /* Name of Unit attribute for current WCS axis */
    const char *cval;       /* Pointer to temporary character string */
    const char *x_sys[ 4 ]; /* Basic spectral systems */
    double *lbnd_p;         /* Pointer to array of lower pixel bounds */
@@ -29952,13 +30035,13 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
    char *watmem;                  /* Pointer to total WAT string */
    char bj;                       /* Besselian/Julian indicator */
    char format[ 50 ];             /* scanf format string */
-   char keyname[ FITSNAMLEN + 5 ];/* General keyword name + formats */
+   char keyname[ FITSNAMLEN + 20 ];/* General keyword name + formats */
    char lattype[MXCTYPELEN];      /* CTYPE value for latitude axis */
    char lontype[MXCTYPELEN];      /* CTYPE value for longitude axis */
    char prj[6];                   /* Spatial projection string */
    char s;                        /* Co-ordinate version character */
-   char spectype[MXCTYPELEN];     /* CTYPE value for spectral axis */
-   char sprj[6];                  /* Spectral projection string */
+   char spectype[MXCTYPELEN + 20];/* CTYPE value for spectral axis */
+   char sprj[10];                  /* Spectral projection string */
    char ss;                       /* Co-ordinate version character */
    char template[ FITSNAMLEN + 1 ];/* General keyword name template */
    double *cvals;                 /* PVi_m values for TPN projection */
@@ -33012,6 +33095,11 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* ----------- */
    } else if ( !strcmp( attrib, "fitsdigits" ) ) {
       result = astTestFitsDigits( this );
+
+/* FitsRounding. */
+/* ------------- */
+   } else if ( !strcmp( attrib, "fitsrounding" ) ) {
+      result = astTestFitsRounding( this );
 
 /* DefB1950. */
 /* --------- */
@@ -37627,7 +37715,7 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
    AstMapping *map2;         /* Pointer to a Mapping */
    AstMapping *ret;          /* The returned Mapping */
    char **comms;             /* Pointer to array of CTYPE commments */
-   char buf[ 101 ];          /* Buffer for textual attribute value */
+   char buf[ 500 ];          /* Buffer for textual attribute value */
    char buf2[ 100 ];         /* Buffer for textual attribute value */
    char buf3[ 20 ];          /* Buffer for default CTYPE value */
    char *newdom;             /* Pointer to new Domain value */
@@ -41832,6 +41920,51 @@ astMAKE_GET(FitsChan,FitsDigits,int,AST__DBL_DIG,this->fitsdigits)
 astMAKE_SET(FitsChan,FitsDigits,int,fitsdigits,value)
 astMAKE_TEST(FitsChan,FitsDigits,( this->fitsdigits != AST__DBL_DIG ))
 
+/* FitsRounding. */
+/* =========== */
+
+/*
+*att++
+*  Name:
+*     FitsRounding
+
+*  Purpose:
+*     Controls rounding of floating-point FITS values.
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Integer.
+
+*  Description:
+*     This attribute controls how floating point values are rounded when
+*     formatted for inclusion in the FITS header cards within a FitsChan.
+*
+*     The value is first formatted using the field width specified by
+*     attribute FitsDigits. If this formatted value contains a sequence of
+*     4 or more adjacent "9"s or 4 or more adjacent "0"s, the formatted
+*     value is truncated at the start of the sequence (rounding the
+*     final remaining digit up by one if the sequence contains "9"s).
+*     However this truncation only occurs if the sequence extends beyond
+*     the digit specified by attribute FitsRounding. For instance, if
+*     FitsRounding is set to 10, then the rounding will only occur for
+*     sequences of 4 or more "9"s or "0"s that extend beyond the tenth
+*     significant figure in the formatted value.
+*
+*     The default value is 10. When setting a new value, negative values
+*     are converted to zero.
+
+*  Applicability:
+*     FitsChan
+*        All FitsChans have this attribute.
+*att--
+*/
+astMAKE_CLEAR(FitsChan,FitsRounding,fitsrounding,-1)
+astMAKE_GET(FitsChan,FitsRounding,int,10,((this->fitsrounding!=-1)?this->fitsrounding:10))
+astMAKE_SET(FitsChan,FitsRounding,int,fitsrounding,astMAX(0,value))
+astMAKE_TEST(FitsChan,FitsRounding,( this->fitsrounding != -1 ))
+
 /* AltAxes. */
 /* ======== */
 
@@ -42487,6 +42620,12 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    set = TestFitsDigits( this, status );
    ival = set ? GetFitsDigits( this, status ) : astGetFitsDigits( this );
    astWriteInt( channel, "FitsDg", set, 1, ival, "No. of digits for floating point values" );
+
+/* FitsRounding. */
+/* ------------- */
+   set = TestFitsRounding( this, status );
+   ival = set ? GetFitsRounding( this, status ) : astGetFitsRounding( this );
+   astWriteInt( channel, "FitsRn", set, 1, ival, "No. of digits guarded from rounding" );
 
 /* AltAXes. */
 /* -------- */
@@ -43394,6 +43533,7 @@ AstFitsChan *astInitFitsChan_( void *mem, size_t size, int init,
       new->iwc = -1;
       new->clean = -1;
       new->fitsdigits = AST__DBL_DIG;
+      new->fitsrounding = -1;
       new->altaxes = INT_MAX;
       new->fitsaxisorder = NULL;
       new->encoding = UNKNOWN_ENCODING;
@@ -43605,6 +43745,11 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 /* ----------- */
       new->fitsdigits = astReadInt( channel, "fitsdg", AST__DBL_DIG );
       if ( TestFitsDigits( new, status ) ) SetFitsDigits( new, new->fitsdigits, status );
+
+/* FitsRounding. */
+/* ------------- */
+      new->fitsrounding = astReadInt( channel, "fitsrn", -1 );
+      if ( TestFitsRounding( new, status ) ) SetFitsRounding( new, new->fitsrounding, status );
 
 /* DefB1950 */
 /* -------- */
