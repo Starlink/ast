@@ -20,6 +20,10 @@ Main Changes in this Version
 - The FitsChan class has a new attribute called FitsRounding, which
 controls rounding applied when floating point values are formatted as
 FITS keyword values. Note, this changes the default rounding behaviour.
+Previously, sequences of four or more 9's or 0's were always rounded.
+Now, such sequences are only rounded if they extend beyond the tenth
+significant digit (the default value for FitsRounding being 10). To
+restore the original behaviour, set FitsRounding to 1.
 
 
 Main Changes in V9.2.6
