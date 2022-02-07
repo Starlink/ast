@@ -424,6 +424,10 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        by pixels that have very low variance. This affects the interpretation
 *        of the supplied "wlim" value and thus the flagging of bad output
 *        pixels (but only in cases where the AST__GENVAR flag has not been set).
+*     7-FEB-2022 (DSB):
+*        RebinSeq<X>: change calculation of mean weight per input pixel so that
+*        it excludes pixels with zero weight. This will only affect the
+*        decision about which output pixels to set bad due to low weight.
 *class--
 */
 
@@ -12554,12 +12558,13 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
       if( wlim < 1.0E-10 ) wlim = 1.0E-10; \
 \
 /* If it will be needed, find the sigma-clipped mean weight per input \
-   pixel. Ensure no more than 50% of the points are rejected. */ \
+   pixel. Ensure no more than 50% of the usable points (i.e. points with \
+   non-zero weight) are rejected. Weights are always positive. */ \
       mwpip = AST__BAD; \
       if( !( flags & AST__GENVAR ) && *nused > 0 && npix_out > 0 ) { \
-         wlo = -DBL_MAX; \
+         wlo = 0.0; \
          whi = DBL_MAX; \
-         nwlim = npix_out/2; \
+         nwlim = -1; \
          more = 1; \
          while( more ) { \
             sw = 0.0; \
@@ -12567,12 +12572,13 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
             nw = 0; \
             w = weights; \
             for( i = 0; i < npix_out; i++,w++ ) { \
-               if( *w >= wlo && *w <= whi ){ \
+               if( *w > wlo && *w <= whi ){ \
                   sw += *w; \
                   sw2 += (*w)*(*w); \
                   nw++; \
                } \
             } \
+            if( nwlim == -1 ) nwlim = nw/2; \
             if( nw > nwlim ) { \
                newval = sw/nw; \
                if( mwpip != AST__BAD ){ \
@@ -12582,6 +12588,7 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
                std = sw2/nw - mwpip*mwpip; \
                std = (std>0.0)?sqrt( std ):0.0; \
                wlo = mwpip - 3*std; \
+               if( wlo < 0.0 ) wlo = 0.0; \
                whi = mwpip + 3*std; \
             } else { \
                more = 0; \
@@ -12589,8 +12596,8 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
          } \
 \
 /* Convert mean weight per output point to mean weight per input point */ \
-         mwpip *= ((double) npix_out)/( *nused ); \
-       } \
+         mwpip *= ((double) 2*nwlim)/( *nused ); \
+      } \
 \
 /* Normalise each output pixel. */ \
       for( i = 0; i < npix_out; i++ ) { \
