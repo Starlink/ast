@@ -22505,11 +22505,9 @@ description keyword.
 \end{enumerate}
 
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.2.7}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.2.6 and V9.2.7 (the
-current version):
+\subsection{Changes Introduced in V9.2.7}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.6 and V9.2.7:
 
 \begin{enumerate}
 
@@ -22520,6 +22518,32 @@ Previously, sequences of four or more 9's or 0's were always rounded.
 Now, such sequences are only rounded if they extend beyond the tenth
 significant digit (the default value for FitsRounding being 10). To
 restore the original behaviour, set FitsRounding to 1.
+
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.2.8}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.2.7 and V9.2.8 (the
+current version):
+
+\begin{enumerate}
+
+\item  The Fortran interface has been changed to fix a bug caused by a
+change in the way that gfortran passes character arguments. As of gfortran
+V8 the length of each character argument passed to a subroutine is stored in a
+size\_t value rather than an int value. AST now tests the version of
+gfortran at configure-time, and uses int or size\_t within the Fortran
+API as appropriate. Prior to this change int was always used, which could
+cause undefined behaviour and segmentation faults when calling AST
+routines under gfortran v8 and later.
+
+\item  A bug has been fixed in astRebinSeq that could cause NaN values to
+appear in the output array in cases where the overlap between two
+input arrays is very small.  The fix corrects the way in which the mean
+weight per input pixel is calculated. It may cause some general minor
+changes to the decision about which output pixels pass the ``wlim''
+criterion.
 
 \end{enumerate}
 

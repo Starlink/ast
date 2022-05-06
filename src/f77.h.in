@@ -469,7 +469,7 @@
 #define DECLARE_POINTER(X) F77_POINTER_TYPE X
 
 #define DECLARE_CHARACTER(X,L) F77_CHARACTER_TYPE X[L]; \
-   const int X##_length = L
+   const @TRAIL_TYPE@ X##_length = L
 
 
 /*  ---  Declare arrays ---						    */
@@ -484,11 +484,11 @@
 #define DECLARE_UWORD_ARRAY(X,D)   F77_UWORD_TYPE X[D]
 #define DECLARE_POINTER_ARRAY(X,D) F77_POINTER_TYPE X[D]
 #define DECLARE_CHARACTER_ARRAY(X,L,D) F77_CHARACTER_TYPE X[D][L]; \
-   const int X##_length = L
+   const @TRAIL_TYPE@ X##_length = L
 
 /*  ---  Declare and construct dynamic CHARACTER arguments ---                      */
 #define DECLARE_CHARACTER_DYN(X)   F77_CHARACTER_TYPE *X = NULL;\
-   int X##_length = 0
+   @TRAIL_TYPE@ X##_length = 0
 #define F77_CREATE_CHARACTER(X,L)  X=cnfCref(L);\
    X##_length = (L>0?L:1)
 
@@ -503,7 +503,7 @@
 #define DECLARE_UWORD_ARRAY_DYN(X)   F77_UWORD_TYPE *X = NULL
 #define DECLARE_POINTER_ARRAY_DYN(X) F77_POINTER_TYPE *X = NULL
 #define DECLARE_CHARACTER_ARRAY_DYN(X)   F77_CHARACTER_TYPE *X = NULL;\
-   int X##_length = 0
+   @TRAIL_TYPE@ X##_length = 0
 
 /* Create arrays dynamic Fortran arrays for those types which require */
 /* Separate space for Fortran and C arrays                            */
@@ -743,16 +743,16 @@
 
 #undef  DECLARE_CHARACTER
 #define DECLARE_CHARACTER(X,L)         F77_CHARACTER_TYPE X[L]; \
-   const int X/**/_length = L
+   const @TRAIL_TYPE@ X/**/_length = L
 #undef  DECLARE_CHARACTER_ARRAY
 #define DECLARE_CHARACTER_ARRAY(X,L,D) F77_CHARACTER_TYPE X[D][L]; \
-   const int X/**/_length = L
+   const @TRAIL_TYPE@ X/**/_length = L
 #undef DECLARE_CHARACTER_DYN
 #define DECLARE_CHARACTER_DYN(X)   F77_CHARACTER_TYPE *X;\
-   int X/**/_length
+   @TRAIL_TYPE@ X/**/_length
 #undef DECLARE_CHARACTER_ARRAY_DYN
 #define DECLARE_CHARACTER_ARRAY_DYN(X)   F77_CHARACTER_TYPE *X;\
-   int X/**/_length
+   @TRAIL_TYPE@ X/**/_length
 #undef F77_CREATE_CHARACTER
 #define F77_CREATE_CHARACTER(X,L)  X=cnfCref(L);\
    X/**/_length = L
@@ -847,7 +847,7 @@
 #undef  GENPTR_CHARACTER
 #define GENPTR_CHARACTER(X) \
    F77_CHARACTER_TYPE *X = X/**/_arg->dsc$a_pointer; \
-   int X/**/_length = X/**/_arg->dsc$w_length;
+   @TRAIL_TYPE@ X/**/_length = X/**/_arg->dsc$w_length;
 #undef  GENPTR_CHARACTER_ARRAY
 #define GENPTR_CHARACTER_ARRAY(X)   GENPTR_CHARACTER(X)
 
@@ -872,13 +872,13 @@
 
 #undef  DECLARE_CHARACTER
 #define DECLARE_CHARACTER(X,L) \
-   F77_CHARACTER_TYPE X[L];    const int X/**/_length = L; \
+   F77_CHARACTER_TYPE X[L];    const @TRAIL_TYPE@ X/**/_length = L; \
    F77_CHARACTER_ARG_TYPE X/**/_descr = \
       { L, DSC$K_DTYPE_T, DSC$K_CLASS_S, X }; \
    F77_CHARACTER_ARG_TYPE *X/**/_arg = &X/**/_descr
 #undef  DECLARE_CHARACTER_ARRAY
 #define DECLARE_CHARACTER_ARRAY(X,L,D) \
-   F77_CHARACTER_TYPE X[D][L]; const int X/**/_length = L; \
+   F77_CHARACTER_TYPE X[D][L]; const @TRAIL_TYPE@ X/**/_length = L; \
    F77_CHARACTER_ARRAY_ARG_TYPE X/**/_descr = \
       { L, DSC$K_DTYPE_T, DSC$K_CLASS_S, X }; \
    F77_CHARACTER_ARRAY_ARG_TYPE *X/**/_arg = &X/**/_descr
@@ -886,11 +886,11 @@
 
 /*  ---  The dynamic allocation of character arguments  ---                 */
 #undef DECLARE_CHARACTER_DYN
-#define DECLARE_CHARACTER_DYN(X) int X/**/_length;\
+#define DECLARE_CHARACTER_DYN(X) @TRAIL_TYPE@ X/**/_length;\
                                   F77_CHARACTER_ARG_TYPE *X/**/_arg;\
                                   F77_CHARACTER_TYPE *X
 #undef DECLARE_CHARACTER_ARRAY_DYN
-#define DECLARE_CHARACTER_ARRAY_DYN(X) int X/**/_length;\
+#define DECLARE_CHARACTER_ARRAY_DYN(X) @TRAIL_TYPE@ X/**/_length;\
                                   F77_CHARACTER_ARRAY_ARG_TYPE *X/**/_arg;\
                                   F77_CHARACTER_TYPE *X
 #undef F77_CREATE_CHARACTER

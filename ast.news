@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.2.7) of the Starlink AST (astrometry) library is
+   A new release (V9.2.8) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -16,6 +16,25 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- The Fortran interface has been changed to fix a bug caused by a change
+in the way that gfortran passes character arguments. As of gfortran V8 the
+length of each character argument passed to a subroutine is stored in a
+size_t value rather than an int value. AST now tests the version of
+gfortran at configure-time, and uses int or size_t within the Fortran
+API as appropriate. Prior to this change int was always used, which could
+cause undefined behaviour and segmentation faults when calling AST
+routines under gfortran v8 and later.
+
+- A bug has been fixed in astRebinSeq that could cause NaN values to
+appear in the output array in cases where the overlap between two
+input arrays is very small.  The fix corrects the way in which the mean
+weight per input pixel is calculated. It may cause some general minor
+changes to the decision about which output pixels pass the "wlim"
+criterion.
+
+Main Changes in V9.2.7
+----------------------
 
 - The FitsChan class has a new attribute called FitsRounding, which
 controls rounding applied when floating point values are formatted as
