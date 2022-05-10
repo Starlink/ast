@@ -103,16 +103,12 @@ F77_SUBROUTINE(ast_setputerr)( AstPutErrFun FUN, INTEGER(STATUS) ) {
 static void FPutErrWrapper( AstPutErrFun fun, int status_value, const char *message ){
 
    DECLARE_CHARACTER(LMESSAGE,MXSTRLEN);
-   int fmessage_length;
-
-   fmessage_length = strlen( message );
-   if( fmessage_length > LMESSAGE_length ) fmessage_length = LMESSAGE_length;
-   astStringExport( message, LMESSAGE, fmessage_length );
+   F77_EXPORT_CHARACTER(message, LMESSAGE);
 
    ( *(void (*)( INTEGER(status_value), CHARACTER(LMESSAGE)
-                TRAIL(fmessage) ) ) fun)(INTEGER_ARG(&status_value),
+                TRAIL(LMESSAGE) ) ) fun)(INTEGER_ARG(&status_value),
                                          CHARACTER_ARG(LMESSAGE)
-                                         TRAIL_ARG(fmessage));
+                                         TRAIL_ARG(LMESSAGE));
 
 
 }

@@ -23,12 +23,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -1076,7 +1076,7 @@ int astGAttr( int attr, double value, double *old_value, int prim ){
 
 *  Synopsis:
 *     #include "grf.h"
-*     int int astGAttr( int attr, double value, double *old_value, int prim )
+*     int astGAttr( int attr, double value, double *old_value, int prim )
 
 *  Description:
 *     This function returns the current value of a specified graphics
@@ -1281,20 +1281,16 @@ static void ccpgptxt(float x, float y, float angle, float fjust, char *text ){
    F77_REAL_TYPE ANGLE;
    F77_REAL_TYPE FJUST;
    DECLARE_CHARACTER(LTEXT,MXSTRLEN);
-   int ftext_length;
 
    X = (F77_REAL_TYPE) x;
    Y = (F77_REAL_TYPE) y;
    ANGLE = (F77_REAL_TYPE) angle;
    FJUST = (F77_REAL_TYPE) fjust;
-
-   ftext_length = strlen( text );
-   if( ftext_length > LTEXT_length ) ftext_length = LTEXT_length;
-   astStringExport( text, LTEXT, ftext_length );
+   F77_EXPORT_CHARACTER(text,LTEXT);
 
    F77_CALL(pgptxt)( REAL_ARG(&X), REAL_ARG(&Y), REAL_ARG(&ANGLE),
                      REAL_ARG(&FJUST), CHARACTER_ARG(LTEXT)
-                     TRAIL_ARG(ftext) );
+                     TRAIL_ARG(LTEXT) );
 }
 
 static void ccpgqtxt(float x, float y, float angle, float fjust, char *text,
@@ -1307,21 +1303,18 @@ static void ccpgqtxt(float x, float y, float angle, float fjust, char *text,
    F77_REAL_TYPE XBOX[ 4 ];
    F77_REAL_TYPE YBOX[ 4 ];
    int i;
-   int ftext_length;
 
    X = (F77_REAL_TYPE) x;
    Y = (F77_REAL_TYPE) y;
    ANGLE = (F77_REAL_TYPE) angle;
    FJUST = (F77_REAL_TYPE) fjust;
 
-   ftext_length = strlen( text );
-   if( ftext_length > LTEXT_length ) ftext_length = LTEXT_length;
-   astStringExport( text, LTEXT, ftext_length );
+   F77_EXPORT_CHARACTER(text,LTEXT);
 
    F77_CALL(pgqtxt)( REAL_ARG(&X), REAL_ARG(&Y), REAL_ARG(&ANGLE),
                      REAL_ARG(&FJUST), CHARACTER_ARG(LTEXT),
                      REAL_ARRAY_ARG(XBOX), REAL_ARRAY_ARG(YBOX)
-                     TRAIL_ARG(ftext) );
+                     TRAIL_ARG(LTEXT) );
 
    for( i = 0; i < 4; i++ ){
       xbox[ i ] = (float) XBOX[ i ];
@@ -1359,17 +1352,12 @@ static void ccpglen(int units, char *text, float *xl, float *yl ){
    F77_REAL_TYPE XL;
    F77_REAL_TYPE YL;
    DECLARE_CHARACTER(LTEXT,MXSTRLEN);
-   int ftext_length;
 
    UNITS = (F77_INTEGER_TYPE) units;
-
-
-   ftext_length = strlen( text );
-   if( ftext_length > LTEXT_length ) ftext_length = LTEXT_length;
-   astStringExport( text, LTEXT, ftext_length );
+   F77_EXPORT_CHARACTER(text,LTEXT);
 
    F77_CALL(pglen)( INTEGER_ARG(&UNITS), CHARACTER_ARG(LTEXT),
-                    REAL_ARG(&XL), REAL_ARG(&YL) TRAIL_ARG(ftext) );
+                    REAL_ARG(&XL), REAL_ARG(&YL) TRAIL_ARG(LTEXT) );
 
    *xl = (float) XL;
    *yl = (float) YL;

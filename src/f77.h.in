@@ -215,6 +215,11 @@
 *        Initialise pointers.
 *      11-MAY-2011 (DSB):
 *        Added F77_LOCK
+*      10-MAY-2022 (DSB):
+*        Added version of F77_EXPORT_CHARACTER that uses AST for memory
+*        management instead of CNF. This was driven by the change of
+*        TRAIL_TYPE from int to size_t in gfortran v8. Some AST source
+*        files were assuming int (e.g. fplot.c).
 *     {enter_further_changes_here}
 *
 
@@ -469,7 +474,7 @@
 #define DECLARE_POINTER(X) F77_POINTER_TYPE X
 
 #define DECLARE_CHARACTER(X,L) F77_CHARACTER_TYPE X[L]; \
-   const @TRAIL_TYPE@ X##_length = L
+   @TRAIL_TYPE@ X##_length = L
 
 
 /*  ---  Declare arrays ---						    */
@@ -556,7 +561,6 @@
 
 /*  ---  IMPORT and EXPORT of values  --- */
 /* Export C variables to Fortran variables */
-#define F77_EXPORT_CHARACTER(C,F,L) cnfExprt(C,F,L)
 #define F77_EXPORT_DOUBLE(C,F) F=C
 #define F77_EXPORT_INTEGER(C,F) F=C
 #define F77_EXPORT_LOGICAL(C,F) F=C?F77_TRUE:F77_FALSE
@@ -567,6 +571,19 @@
 #define F77_EXPORT_UWORD(C,F) F=C
 #define F77_EXPORT_POINTER(C,F) F=cnfFptr(C)
 #define F77_EXPORT_LOCATOR(C,F) cnfExpch(C,F,DAT__SZLOC)
+
+/* CNF functions are not available within AST, so re-define a
+   F77_EXPORT_CHARACTER macro that exports a character string
+   from C to Fortran using functions in the AST memory.c module. */
+/* #define F77_EXPORT_CHARACTER(C,F,L) cnfExprt(C,F,L) */
+#define F77_EXPORT_CHARACTERL(C,F,L) \
+   if( F##_length > L ) F##_length = L; \
+   astStringExport( C, F, F##_length ); \
+
+#define F77_EXPORT_CHARACTER(C,F) { \
+   @TRAIL_TYPE@ clen = strlen(C); \
+   F77_EXPORT_CHARACTERL(C,F,clen); \
+}
 
 /* Allow for character strings to be NULL, protects strlen. Note this
  * does not allow lengths to differ. */

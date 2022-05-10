@@ -529,25 +529,18 @@ static int FGTextWrapper( AstPlot *this, const char *text, float x, float y,
 
    DECLARE_CHARACTER(LTEXT,MXSTRLEN);
    DECLARE_CHARACTER(LJUST,MXSTRLEN);
-   int ftext_length;
-   int fjust_length;
 
    F77_INTEGER_TYPE(GRFCON);
    int *status = astGetStatusPtr;
    if ( !astOK ) return 0;
    GRFCON = astP2I( astGrfConID( this ) );
 
-   ftext_length = strlen( text );
-   if( ftext_length > LTEXT_length ) ftext_length = LTEXT_length;
-   astStringExport( text, LTEXT, ftext_length );
-
-   fjust_length = strlen( just );
-   if( fjust_length > LJUST_length ) fjust_length = LJUST_length;
-   astStringExport( just, LJUST, fjust_length );
+   F77_EXPORT_CHARACTER(text,LTEXT);
+   F77_EXPORT_CHARACTER(just,LJUST);
 
    return ( *(int (*)( INTEGER(grfcon), CHARACTER(LTEXT), REAL(x), REAL(y),
                        CHARACTER(LJUST), REAL(upx), REAL(upy)
-                       TRAIL(ftext) TRAIL(fjust) ) )
+                       TRAIL(LTEXT) TRAIL(LJUST) ) )
                   this->grffun[ AST__GTEXT ])(
                                       INTEGER_ARG(&GRFCON),
                                       CHARACTER_ARG(LTEXT),
@@ -556,8 +549,8 @@ static int FGTextWrapper( AstPlot *this, const char *text, float x, float y,
                                       CHARACTER_ARG(LJUST),
                                       REAL_ARG(&upx),
                                       REAL_ARG(&upy)
-                                      TRAIL_ARG(ftext)
-                                      TRAIL_ARG(fjust) );
+                                      TRAIL_ARG(LTEXT)
+                                      TRAIL_ARG(LJUST) );
 }
 
 static int FGCapWrapper( AstPlot *this, int cap, int value ) {
@@ -577,26 +570,19 @@ static int FGTxExtWrapper( AstPlot *this, const char *text, float x, float y,
                            float *yb ) {
    DECLARE_CHARACTER(LTEXT,MXSTRLEN);
    DECLARE_CHARACTER(LJUST,MXSTRLEN);
-   int ftext_length;
-   int fjust_length;
 
    F77_INTEGER_TYPE(GRFCON);
    int *status = astGetStatusPtr;
    if ( !astOK ) return 0;
    GRFCON = astP2I( astGrfConID( this ) );
 
-   ftext_length = strlen( text );
-   if( ftext_length > LTEXT_length ) ftext_length = LTEXT_length;
-   astStringExport( text, LTEXT, ftext_length );
-
-   fjust_length = strlen( just );
-   if( fjust_length > LJUST_length ) fjust_length = LJUST_length;
-   astStringExport( just, LJUST, fjust_length );
+   F77_EXPORT_CHARACTER(text,LTEXT);
+   F77_EXPORT_CHARACTER(just,LJUST);
 
    return ( *(int (*)( INTEGER(grfcon), CHARACTER(LTEXT), REAL(x), REAL(y),
                        CHARACTER(LJUST), REAL(upx), REAL(upy),
-                       REAL_ARRAY(xb), REAL_ARRAY(yb) TRAIL(ftext)
-                       TRAIL(fjust) ) )
+                       REAL_ARRAY(xb), REAL_ARRAY(yb) TRAIL(LTEXT)
+                       TRAIL(LJUST) ) )
                   this->grffun[ AST__GTXEXT ])(
                                                 INTEGER_ARG(&GRFCON),
                                                 CHARACTER_ARG(LTEXT),
@@ -607,8 +593,8 @@ static int FGTxExtWrapper( AstPlot *this, const char *text, float x, float y,
                                                 REAL_ARG(&upy),
                                                 REAL_ARRAY_ARG(xb),
                                                 REAL_ARRAY_ARG(yb)
-                                                TRAIL_ARG(ftext)
-                                                TRAIL_ARG(fjust) );
+                                                TRAIL_ARG(LTEXT)
+                                                TRAIL_ARG(LJUST) );
 }
 
 static int FGQchWrapper( AstPlot *this, float *chv, float *chh ) {
@@ -649,7 +635,7 @@ F77_SUBROUTINE(ast_stripescapes)( CHARACTER_RETURN_VALUE(RESULT),
    GENPTR_CHARACTER(TEXT)
    char *text;
    const char *result;
-   int i;
+   size_t i;
 
    astAt( "AST_STRIPESCAPES", NULL, 0 );
    astWatchSTATUS(
@@ -657,11 +643,11 @@ F77_SUBROUTINE(ast_stripescapes)( CHARACTER_RETURN_VALUE(RESULT),
       result = astStripEscapes( text );
       i = 0;
       if ( astOK ) {             /* Copy result */
-         for ( ; result[ i ] && i < RESULT_length; i++ ) {
+         for ( ; result[ i ] && i < (size_t) RESULT_length; i++ ) {
             RESULT[ i ] = result[ i ];
          }
       }
-      while ( i < RESULT_length ) RESULT[ i++ ] = ' '; /* Pad with blanks */
+      while ( i < (size_t) RESULT_length ) RESULT[ i++ ] = ' '; /* Pad with blanks */
       astFree( text );
    )
 }

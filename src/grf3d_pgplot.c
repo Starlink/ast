@@ -3102,14 +3102,11 @@ static void ccgrsyds( int *list, int *nlist, const char *text, int tlen,
    F77_INTEGER_TYPE NLIST;
    DECLARE_CHARACTER(LTEXT,MXSTRLEN);
    F77_INTEGER_TYPE FONT;
-   int ftext_length;
-   int i;
+   size_t i;
 
-   ftext_length = tlen;
-   if( ftext_length > LTEXT_length ) ftext_length = LTEXT_length;
-   astStringExport( text, LTEXT, ftext_length );
+   F77_EXPORT_CHARACTERL(text,LTEXT,tlen);
 
-   LIST = (F77_INTEGER_TYPE *) astMalloc( sizeof( F77_INTEGER_TYPE )*(size_t) ftext_length );
+   LIST = (F77_INTEGER_TYPE *) astMalloc( sizeof( F77_INTEGER_TYPE )*(size_t) LTEXT_length );
 
    if( astOK ){
 
@@ -3117,10 +3114,10 @@ static void ccgrsyds( int *list, int *nlist, const char *text, int tlen,
 
       F77_CALL(grsyds)( INTEGER_ARRAY_ARG(LIST), INTEGER_ARG(&NLIST),
                         CHARACTER_ARG(LTEXT), INTEGER_ARG(&FONT)
-                        TRAIL_ARG(ftext) );
+                        TRAIL_ARG(LTEXT) );
 
       *nlist = (int) NLIST;
-      for( i = 0; i < ftext_length; i++ ){
+      for( i = 0; i < LTEXT_length; i++ ){
          list[ i ] = (int) LIST[ i ];
       }
 
