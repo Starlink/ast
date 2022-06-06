@@ -1263,6 +1263,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *     6-JAN-2022 (DSB):
 *        - Added attribute FitsRounding and re-wrote RoundFString.
 *        - Increase some buffer sizes to avoid compilation warnings.
+*     6-JUN-2022 (DSB):
+*        Avoid copying overlapping strings in RoundFString.
 *class--
 */
 
@@ -25637,8 +25639,10 @@ static void RoundFString( char *text, int width, int fitsrnd, int *status ){
    char *seq9;
    int bu;
    int first;
+   int i;
    int len0;
    int len;
+   int lexp;
    int nls;
    int nsig;
    int seqlen;
@@ -25658,8 +25662,10 @@ static void RoundFString( char *text, int width, int fitsrnd, int *status ){
       *ltext = ' ';
       strcpy( ltext + 1, text );
 
-/* Locate the start of any exponent string in the local copy. */
+/* Locate the start of any exponent string in the local copy. ALso get
+   its length. */
       exp = strpbrk( ltext, "dDeE" );
+      lexp = exp ? strlen(exp) : 0;
 
 /* Get a pointer to the terminator (either the exponent or the null at the end of
    the string). */
@@ -25872,12 +25878,13 @@ static void RoundFString( char *text, int width, int fitsrnd, int *status ){
 /* Loop backwards over any trailing spaces or zeros. */
          while( c >= ltext && ( *c == ' ' || *c == '0' ) ) c--;
 
-/* Ensure one space is left after a decimal point. */
-         if( *c == '.' ) *(++c) = '0';
+/* Ensure one space is left after a decimal point, if there is room for it. */
+         if( *c == '.' && c < end - 1 ) *(++c) = '0';
 
-/* Move the terminator to the following character. */
+/* Move the terminator to the following character. We are sure not to
+   overrun the text buffer since "c" is always less than "exp". */
          if( exp ) {
-            strcpy( c + 1, exp );
+            for( i = 0; i <= lexp; i++ ) c[ i + 1 ] = exp[ i ];
          } else {
             c[ 1 ] = 0;
          }
