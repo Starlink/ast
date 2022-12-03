@@ -12392,7 +12392,7 @@ static void RebinSeq##X( AstMapping *this, double wlim, int ndim_in, \
 \
 /* Say which dimension produced the error. */ \
             if ( !astOK ) { \
-               astError( AST__GBDIN, "Error in output dimension %d.", status, \
+               astError( AST__GBDIN, "Error in input dimension %d.", status, \
                          idim + 1 ); \
                break; \
             } \
