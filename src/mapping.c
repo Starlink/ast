@@ -24610,8 +24610,8 @@ void astRebinSeq4##X##_( AstMapping *this, double wlim, int ndim_in, const int *
    ubnd_in8 = astMalloc( ndim_in*sizeof(AstDim) ); \
    lbnd_out8 = astMalloc( ndim_out*sizeof(AstDim) ); \
    ubnd_out8 = astMalloc( ndim_out*sizeof(AstDim) ); \
-   lbnd8 = astMalloc( ndim_out*sizeof(AstDim) ); \
-   ubnd8 = astMalloc( ndim_out*sizeof(AstDim) ); \
+   lbnd8 = astMalloc( ndim_in*sizeof(AstDim) ); \
+   ubnd8 = astMalloc( ndim_in*sizeof(AstDim) ); \
    if( astOK ) { \
       for( i = 0; i < ndim_in; i++ ) { \
          lbnd_in8[ i ] = (AstDim) lbnd_in[ i ]; \
@@ -24623,7 +24623,7 @@ void astRebinSeq4##X##_( AstMapping *this, double wlim, int ndim_in, const int *
          ubnd_out8[ i ] = (AstDim) ubnd_out[ i ]; \
       } \
 \
-      for( i = 0; i < ndim_out; i++ ) { \
+      for( i = 0; i < ndim_in; i++ ) { \
          lbnd8[ i ] = (AstDim) lbnd[ i ]; \
          ubnd8[ i ] = (AstDim) ubnd[ i ]; \
       } \
