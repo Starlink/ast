@@ -56,6 +56,7 @@ test-suite.log
 make.log
 make.log.err
 *~
+.*.swp
 /ast_tester/*.ps
 /ast_tester/fred.tmp
 /ast_tester/fred.txt
