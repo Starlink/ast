@@ -2316,11 +2316,11 @@ static AstMapping *LinearGuess( AstPolyMap *this, int *status ){
 
 /* Allocate memory to hold a matrix holding the linear terms of the
    PolyMap transformation selected above. Initialise it to hold zeros. */
-   matrix = astCalloc( nin*nout, sizeof( double * ) );
+   matrix = astCalloc( nin*nout, sizeof( *matrix ) );
 
 /* Allocate memory to hold a vector holding the offset terms of the
    PolyMap transformation selected above. Initialise it to hold zeros. */
-   vector = astCalloc( nout, sizeof( double * ) );
+   vector = astCalloc( nout, sizeof( *vector ) );
    if( astOK ){
 
 /* Loop round all the outputs of the transformation selected above. */
