@@ -25586,7 +25586,7 @@ f        The global status.
 static void RoundFString( char *text, int width, int fitsrnd, int *status ){
 /*
 *  Name:
-*     RoundString
+*     RoundFString
 
 *  Purpose:
 *     Modify a formatted floating point number to round out long
