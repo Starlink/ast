@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.2.8) of the Starlink AST (astrometry) library is
+   A new release (V9.2.10) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,6 +17,27 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- A bug has been fixed in the astRebinSeq4 wrapper where lbnd and ubnd
+had dimensions ndim_out rather than ndim_in.  Additionally the dimension
+check error message was corrected to refer to input dimensions.  These
+and other recent fixes to astRebinSeq were applied also to astRebin.
+
+- Some memory allocations in PolyMap were corrected.
+
+
+Main Changes in V9.2.9
+----------------------
+
+- Further changes were made to accomodate size_t string lengths in
+gfortran V8.
+
+- FitsChan private function RoundFString was updated to avoid copying
+overlapping input and output strings.
+
+
+Main Changes in V9.2.8
+----------------------
+
 - The Fortran interface has been changed to fix a bug caused by a change
 in the way that gfortran passes character arguments. As of gfortran V8 the
 length of each character argument passed to a subroutine is stored in a
@@ -32,6 +53,7 @@ input arrays is very small.  The fix corrects the way in which the mean
 weight per input pixel is calculated. It may cause some general minor
 changes to the decision about which output pixels pass the "wlim"
 criterion.
+
 
 Main Changes in V9.2.7
 ----------------------
