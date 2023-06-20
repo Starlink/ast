@@ -7,10 +7,9 @@
       integer status, m, m2, m3, f, perm(3)
       double precision at(3), bt(3)
 
-      call ast_begin( status )
-
-
       status = sai__ok
+
+      call ast_begin( status )
 
       f = ast_cmpframe( ast_specframe( ' ', status ),
      :                  ast_skyframe( ' ', status ), ' ', status )
