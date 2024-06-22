@@ -166,6 +166,11 @@
 *     5-OCT-2020 (DSB):
 *        Fix bug in astChrCase - the text was always converted to upper case 
 *        regardless of the value of argument "upper".
+*     22-JUN-2024 (DSB):
+*        Use a mutex to ensure that astBeginPM/astEndPM blocks in different
+*        threads occur sequentially rather than overlapping. Without
+*        this, the flagging of memory blocks as "permanent" is spurious (this
+*        only affects anything if AST is configured --with-memdebug).
 */
 
 /* Configuration results. */
@@ -472,9 +477,17 @@ static size_t Peak_Usage = 0;
 static pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_DEBUG_MUTEX pthread_mutex_lock( &mutex2 );
 #define UNLOCK_DEBUG_MUTEX pthread_mutex_unlock( &mutex2 );
+
+static pthread_mutex_t mutex3 = PTHREAD_MUTEX_INITIALIZER;
+#define LOCK_PM_MUTEX pthread_mutex_lock( &mutex3 );
+#define UNLOCK_PM_MUTEX pthread_mutex_unlock( &mutex3 );
+
 #else
 #define LOCK_DEBUG_MUTEX
 #define UNLOCK_DEBUG_MUTEX
+
+#define LOCK_PM_MUTEX
+#define UNLOCK_PM_MUTEX
 #endif
 
 #endif
@@ -487,12 +500,14 @@ static pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
 #define cache astGLOBAL(Memory,Cache)
 #define cache_init astGLOBAL(Memory,Cache_Init)
 #define use_cache astGLOBAL(Memory,Use_Cache)
+#define pm_depth astGLOBAL(Memory,PM_Depth)
 
 /* Define the initial values for the global data for this module. */
 #define GLOBAL_inits \
    globals->Sizeof_Memory = 0; \
    globals->Cache_Init = 0; \
    globals->Use_Cache = 0; \
+   globals->PM_Depth = 0; \
 
 /* Create the global initialisation function. */
 astMAKE_INITGLOBALS(Memory)
@@ -523,6 +538,9 @@ static int cache_init = 0;
 
 /* Should the cache be used? */
 static int use_cache = 0;
+
+/* Depth of nesting of astBeginPM/astEndPM blocks */
+static int pm_depth = 0;
 
 #endif
 
@@ -5307,7 +5325,21 @@ void astBeginPM_( int *status ) {
 *-
 */
 
-   LOCK_DEBUG_MUTEX;
+/* Get access to the thread-specific global variables: */
+   astDECLARE_GLOBALS
+   astGET_GLOBALS(NULL);
+
+/* If the current level of nesting of astBeginPM/astEndPM blocks is zero
+   for the current thread (i.e. this is a top level entry to this function),
+   then block until no other threads are in an astBeginPM/astEndPM block.
+   If the current level of nesting for this thread is greater than zero, we
+   can proceed safe in the knowledge that the top-level entry in this thread
+   has locked the mute, ensuring that no other threads can enter an
+   astBeginPM/astEndPM block. The mutex is unlocked by astEndPM. */
+   if( pm_depth == 0 ) LOCK_PM_MUTEX;
+
+/* Increment the depth of astBeginPM/astEndPM block nesting. */
+   pm_depth++;
 
 /* The global Perm_Mem flag indicates whether or not subsequent memory
    management functions in this module should store pointers to allocated
@@ -5323,7 +5355,6 @@ void astBeginPM_( int *status ) {
       PM_Stack[ PM_Stack_Size++ ] = Perm_Mem;
       Perm_Mem = 1;
    }
-   UNLOCK_DEBUG_MUTEX;
 }
 
 void astEndPM_( int *status ) {
@@ -5350,7 +5381,9 @@ void astEndPM_( int *status ) {
 *-
 */
 
-   LOCK_DEBUG_MUTEX;
+/* Get access to the thread-specific global variables: */
+   astDECLARE_GLOBALS
+   astGET_GLOBALS(NULL);
 
 /* The global Perm_Mem flag indicates whether or not subsequent memory
    management functions in this module should store pointers to allocated
@@ -5365,7 +5398,12 @@ void astEndPM_( int *status ) {
       Perm_Mem = PM_Stack[ --PM_Stack_Size ];
    }
 
-   UNLOCK_DEBUG_MUTEX;
+/* Decrement the level of nesting of astBeginPM/astEndPM blocks. */
+   pm_depth--;
+
+/* If this thread has now ended the top level block, unlock the PM
+   mutex so that other threads can start an astBeginPM/astEndPM block */
+   if( pm_depth == 0 ) UNLOCK_PM_MUTEX;
 }
 
 void astFlushMemory_( int leak, int *status ) {

@@ -188,6 +188,7 @@ typedef struct AstMemoryGlobals {
    int Cache_Init;
    int Use_Cache;
    Memory *Cache[ MXCSIZE + 1 ];
+   int PM_Depth;
 
 } AstMemoryGlobals;
 

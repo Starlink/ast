@@ -24,6 +24,9 @@ and other recent fixes to astRebinSeq were applied also to astRebin.
 
 - Some memory allocations in PolyMap were corrected.
 
+- A bug in the flagging of permanent memory blocks when AST is configured
+--with-memdebug has been fixed.
+
 
 Main Changes in V9.2.9
 ----------------------
