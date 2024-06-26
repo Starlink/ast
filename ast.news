@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.2.10) of the Starlink AST (astrometry) library is
+   A new release (V9.2.11) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,15 +17,19 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- A bug in the flagging of permanent memory blocks when AST is configured
+--with-memdebug has been fixed.
+
+
+Main Changes in V9.2.10
+-----------------------
+
 - A bug has been fixed in the astRebinSeq4 wrapper where lbnd and ubnd
 had dimensions ndim_out rather than ndim_in.  Additionally the dimension
 check error message was corrected to refer to input dimensions.  These
 and other recent fixes to astRebinSeq were applied also to astRebin.
 
 - Some memory allocations in PolyMap were corrected.
-
-- A bug in the flagging of permanent memory blocks when AST is configured
---with-memdebug has been fixed.
 
 
 Main Changes in V9.2.9
