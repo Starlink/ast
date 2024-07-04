@@ -2916,7 +2916,7 @@ static void ClearMaxOrder( AstMoc *this, int *status ){
 *     Moc member function
 
 *  Description:
-*     Clears the value of the MaxPlot attribute.
+*     Clears the value of the MaxOrder attribute.
 
 *  Parameters:
 *     this
@@ -8608,7 +8608,7 @@ static void SetMaxOrder( AstMoc *this, int value, int *status ){
 *     SetMaxOrder
 
 *  Purpose:
-*     Sety the value for the MaxOrder attribute
+*     Set the value for the MaxOrder attribute
 
 *  Type:
 *     Private function.
@@ -8621,7 +8621,7 @@ static void SetMaxOrder( AstMoc *this, int value, int *status ){
 *     Moc member function
 
 *  Description:
-*     Sets the value of the MaxPlot attribute.
+*     Sets the value of the MaxOrder attribute.
 
 *  Parameters:
 *     this
