@@ -439,7 +439,7 @@ static void GetCell( AstMoc *, int, int *, int64_t *, int * );
 static void GetMocData( AstMoc *, size_t, void *, int * );
 static void GetMocString( AstMoc *, int, size_t, char *, size_t *, int * );
 static void GetNorm( AstMoc *, const char *, int * );
-static void IncorporateCells( AstMoc *, CellList *, int, int, const char *, int * );
+static void IncorporateCells( AstMoc *, CellList *, int, int, int, const char *, int * );
 static void MakeCorners( AstMoc *, int, Cell *, Corner **, int, int * );
 static void MergeRanges( AstMoc *, int, int * );
 static void NegateRanges( AstMoc *, int, int, int * );
@@ -1901,6 +1901,7 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
    int iproj_min;           /* Identifier for best type of HEALPix projection */ \
    int maxorder;            /* MOC order for final grid */ \
    int minorder;            /* MOC order for initial grid */ \
+   int oversample;          /* Orders by which minorder exceeds maxorder */ \
    int ok;                  /* At least one selected pixel? */ \
 \
 /* Check the global error status. */ \
@@ -1949,7 +1950,12 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
    minorder = astGetMinOrder( this ); \
 \
 /* Ensure we do not start at a higher order than we can handle. */ \
-   if( minorder >= maxorder ) minorder = maxorder - 1; \
+   oversample = 0; \
+   if( minorder >= maxorder ) { \
+      oversample = minorder - maxorder; \
+      maxorder = minorder; \
+      minorder = maxorder - 1; \
+   } \
    if( minorder < 0 && astOK ) { \
       astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid value " \
                 "(%d) supplied for parameter 'MinOrder'.", status,  \
@@ -2186,7 +2192,7 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
 /* Convert all the grid coords stored in "clist" into nested indices at \
    order "maxorder" and incorporate them into the current contents of the \
    Moc. */ \
-         IncorporateCells( this, &clist, 0, cmode, "astAddPixelMask"#X, \
+         IncorporateCells( this, &clist, oversample, 0, cmode, "astAddPixelMask"#X, \
                            status ); \
 \
 /* Free resources. */ \
@@ -2658,7 +2664,7 @@ f        The global status.
 /* Convert all the grid coords stored in "clist" into nested indices at
    order "maxorder" and incorporate them into the current contents of the
    Moc. */
-         IncorporateCells( this, &clist, negated, cmode, "astAddRegion", status );
+         IncorporateCells( this, &clist, 0, negated, cmode, "astAddRegion", status );
 
 /* Reinstate the original value of the Nagated flag for the Region. */
          astSetNegated( picked, negated );
@@ -5436,7 +5442,8 @@ MAKEALL_GETSELECTIONBOUNDS(F,float)
 #undef EXTEND_BOX
 
 
-static void IncorporateCells( AstMoc *this, CellList *clist, int negate,
+static void IncorporateCells( AstMoc *this, CellList *clist,
+                              int oversample, int negate,
                               int cmode, const char *method, int *status ){
 /*
 *  Name:
@@ -5450,7 +5457,8 @@ static void IncorporateCells( AstMoc *this, CellList *clist, int negate,
 
 *  Synopsis:
 *     #include "moc.h"
-*     void IncorporateCells( AstMoc *this, CellList *clist, int negate,
+*     void IncorporateCells( AstMoc *this, CellList *clist,
+*                            int oversample, int negate,
 *                            int cmode, const char *method, int *status )
 
 *  Class Membership:
@@ -5466,6 +5474,8 @@ static void IncorporateCells( AstMoc *this, CellList *clist, int negate,
 *     clist
 *        Structure holding information about the cells to be incorporated
 *        in the Moc.
+*     oversample
+*        Number of orders by which the given cells exceed the maximum order.
 *     negate
 *        If zero, the list of HEALPix cells to incorporate into the
 *        Moc are those included in "clist". If non-zero, the list of
@@ -5554,7 +5564,7 @@ static void IncorporateCells( AstMoc *this, CellList *clist, int negate,
                    Comp_int64 );
 
 /* Look for ranges within the sorted list of indices. */
-            shift = 2*( clist->maxorder - order );
+            shift = 2*( clist->maxorder - order - oversample );
             pn = nested;
             pend = nested + clist->len[ order ];
             while( pn < pend ) {
@@ -5568,8 +5578,13 @@ static void IncorporateCells( AstMoc *this, CellList *clist, int negate,
                this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
                if( astOK ) {
                   pr = this->range + 2*irange;
-                  pr[ 0 ] = ( ilow << shift );
-                  pr[ 1 ] = ( ( ihigh + 1 ) << shift ) - 1;
+                  if( shift > 0 ) {
+                     pr[ 0 ] = ( ilow << shift );
+                     pr[ 1 ] = ( ( ihigh + 1 ) << shift ) - 1;
+                  } else {
+                     pr[ 0 ] = ( ilow >> -shift );
+                     pr[ 1 ] = ( ihigh >> -shift );
+                  }
                } else {
                   break;
                }
