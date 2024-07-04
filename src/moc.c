@@ -2366,6 +2366,7 @@ f        The global status.
    int minorder;            /* Minimum HEALPix order */
    int negated;             /* Is the Region negated? */
    int nold;                /* Number of ranges originally in "this" */
+   int oversample;          /* Orders by which minorder exceeds maxorder */
    int shift;               /* No. of bits to shift from that_order to maxorder */
    int that_order;          /* Order of Moc being added to "this" */
    int64_t *pr2;            /* Point to next range in "this" */
@@ -2477,7 +2478,12 @@ f        The global status.
          minorder = astGetMinOrder( this );
 
 /* Ensure we do not start at a higher order than we can handle. */
-         if( minorder >= maxorder ) minorder = maxorder - 1;
+         oversample = 0;
+         if( minorder >= maxorder ) {
+            oversample = minorder - maxorder;
+            maxorder = minorder;
+            minorder = maxorder - 1;
+         }
 
 /* Get a pointer to the Frame in which the Region is defined. We use this
    with astConvert below, rather than the original Region, so that the
@@ -2664,7 +2670,7 @@ f        The global status.
 /* Convert all the grid coords stored in "clist" into nested indices at
    order "maxorder" and incorporate them into the current contents of the
    Moc. */
-         IncorporateCells( this, &clist, 0, negated, cmode, "astAddRegion", status );
+         IncorporateCells( this, &clist, oversample, negated, cmode, "astAddRegion", status );
 
 /* Reinstate the original value of the Nagated flag for the Region. */
          astSetNegated( picked, negated );
