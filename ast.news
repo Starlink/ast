@@ -17,6 +17,16 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- The MinOrder attribute of the Moc class can be higher than MaxOrder
+to allow small features to be included in a lower-resolution MOC
+when using astAddPixelMask or astAddRegion with a non-MOC region.
+(It should no longer be set to a very large value to have MaxOrder
+used instead in these methods.)
+
+
+Main Changes in V9.2.11
+-----------------------
+
 - A bug in the flagging of permanent memory blocks when AST is configured
 --with-memdebug has been fixed.
 

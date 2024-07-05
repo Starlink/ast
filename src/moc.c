@@ -60,8 +60,8 @@ f     AST_ADDMOCDATA method.
 *     Moc also has the following attributes:
 *     - MaxOrder: the highest HEALPix order used in the MOC
 *     - MaxRes: the best resolution of the MOC, in arc-seconds
-*     - MinOrder: the lowest HEALPix order used in the MOC
-*     - MinRes: the worst resolution of the MOC, in arc-seconds
+*     - MinOrder: the HEALPix order at which to search when converting to MOC
+*     - MinRes: the resolution at which to search, in arc-seconds
 *     - MocArea: the area of the MOC
 *     - MocLength: the table length used to describe a MOC in FITS
 *     - MocType: the data type used to describe a MOC in FITS
@@ -1675,8 +1675,9 @@ f     CMODE parameter.
 *     function will automatically set it to the smallest value that results
 *     in the cells in the Moc being no larger than half the size of the pixels
 *     in the centre of the array. Note, if the value set for attribute
-*     MinOrder is greater than or equal to MaxOrder, a value of
-*     (MaxOrder-1) will be used in place of MinOrder.
+*     MinOrder is greater than or equal to MaxOrder, then the search will
+*     be performed at this order and smaller cells converted to the
+*     enclosing cells at MaxOrder.
 *
 *     You should use a function which matches the numerical type of the
 *     data you are processing by replacing <X> in the generic function
@@ -9623,7 +9624,7 @@ astMAKE_TEST(Moc,MaxOrder,( this->maxorder != -INT_MAX ))
 *     MinOrder
 
 *  Purpose:
-*     The lowest HEALPix order used in the MOC.
+*     The HEALPix order at which to search when converting to MOC.
 
 *  Type:
 *     Public attribute.
@@ -9652,9 +9653,8 @@ f     methods AST_ADDREGION or AST__ADDPIXELMASK.
 *     this value can be missed. Note, doing so will increase the time spent
 *     creating the Moc.
 *
-*     To ensure no pixels are missed, set MinOrder to some very large
-*     value (larger than 27). If MinOrder is set greater than MaxOrder, the
-*     value of MaxOrder will be used whenever MinOrder is required.
+*     To ensure no pixels are missed, set MinOrder equal to MaxOrder, or
+*     slightly higher to include features smaller than cells at MaxOrder.
 *
 *     The MinRes attribute is equivalent to MinOrder but expresses the
 *     resolution as a number of arc-seconds rather than as a HEALPix order.
@@ -9711,7 +9711,7 @@ astMAKE_TEST(Moc,MinOrder,( this->minorder != -INT_MAX ))
 *     MinRes
 
 *  Purpose:
-*     The worst resolution of the MOC.
+*     The resolution at which to search when converting to MOC.
 
 *  Type:
 *     Public attribute.
@@ -9720,7 +9720,8 @@ astMAKE_TEST(Moc,MinOrder,( this->minorder != -INT_MAX ))
 *     Floating point.
 
 *  Description:
-*     This attribute gives the poorest resolution of the MOC expressed as
+*     This attribute gives the size of the largest hole or island that could
+*     be missed when adding Regions or pixel masks into a Moc expressed as
 *     a number of arc-seconds. When a new value is set for MinRes, the
 *     MinOrder attribute will be set to the order that gives a resolution
 *     closest to the requested resolution. When the current value of
