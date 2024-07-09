@@ -387,7 +387,7 @@ c      call ast_watchmemory( 2276565 )
             call stopit( 'Error 42', status )
          else if( i .eq. 3 .and. buf(:size) .ne. '3/' ) then
             call stopit( 'Error 42', status )
-         else if( i .eq. 4 .and. buf(:size) .ne. '4/0-1' ) then
+         else if( i .eq. 4 .and. buf(:size) .ne. '4/1' ) then
             call stopit( 'Error 42', status )
          else if( i .eq. 5 .and. buf(:size) .ne. '4/1 5/1-2' ) then
             call stopit( 'Error 42', status )
