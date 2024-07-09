@@ -22,6 +22,9 @@ to allow small features to be included in a lower-resolution MOC
 when using astAddPixelMask or astAddRegion with a non-MOC region.
 (It should no longer be set to a very large value to have MaxOrder
 used instead in these methods.)
+- When adding FITS data or string representation to a Moc object,
+cells of greater order than the MaxOrder attribute will be degraded
+to that resolution.
 
 
 Main Changes in V9.2.11

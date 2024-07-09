@@ -731,7 +731,7 @@ f     MAXORDER = INTEGER (Given)
 *        than
 c        "maxorder"
 f        MAXORDER
-*        are ignored.
+*        are degraded to that resolution.
 c     len
 f     LEN = INTEGER (Given)
 *        The length of the supplied array (i.e. the number of 4 or 8 byte
@@ -845,36 +845,42 @@ f     MAXORDER  is negative.
          astSetMaxOrder( this, maxorder );
       }
 
+/* Check no error has occurred (e.g. maxorder not given but
+   value in array greater than AST__MXORDHPX). */
+      if( astOK ) {
+
 /* Record the orginal number of ranges in the Moc. */
-      nold =this->nrange;
+         nold = this->nrange;
 
 /* Convert the supplied MOC data to a list of ranges of cells at
   "maxorder" and append to the end of the ranges currently in the Moc. */
-      if( nbyte == 4 ) {
-         pni = data;
-      } else {
-         pnk = data;
-      }
-      for( icell = 0; icell < len; icell++ ) {
+         if( nbyte == 4 ) {
+            pni = data;
+         } else {
+            pnk = data;
+         }
+         for( icell = 0; icell < len; icell++ ) {
 
 /* Decode the data value (a "nuniq" value) to get the order and npix, using
    a fast log2 function. */
-         if( nbyte == 4 ) {
-            order = log2_32( *pni / 4 ) / 2;
-            npix = *(pni++) - ( 1 << (2 + 2*order) );
-         } else {
-            order = log2_64( *pnk / 4 ) / 2;
-            npix = *(pnk++) - ( ONE << (2 + 2*order) );
-         }
-
-/* Ignore cells at orders higher than maxorder. */
-         if( order <= maxorder ) {
+            if( nbyte == 4 ) {
+               order = log2_32( *pni / 4 ) / 2;
+               npix = *(pni++) - ( 1 << (2 + 2*order) );
+            } else {
+               order = log2_64( *pnk / 4 ) / 2;
+               npix = *(pnk++) - ( ONE << (2 + 2*order) );
+            }
 
 /* Get the upper and lower bounds of the cells at maxorder contained
    within this cell at order. */
             shift = 2*( maxorder - order );
-            ilow = ( npix << shift );
-            ihigh = ( (npix + 1 ) << shift ) - 1;
+            if( shift > 0 ) {
+               ilow = ( npix << shift );
+               ihigh = ( (npix + 1 ) << shift ) - 1;
+            } else {
+               ilow = ( npix >> -shift );
+               ihigh = ( npix >> -shift );
+            }
 
 /* Append this as a new range to the Moc. */
             irange = this->nrange++;
@@ -887,10 +893,10 @@ f     MAXORDER  is negative.
                break;
             }
          }
-      }
 
 /* Normalise the Moc. */
-      astMocNorm( this, negate, cmode, nold, maxorder, "astAddMocData" );
+         astMocNorm( this, negate, cmode, nold, maxorder, "astAddMocData" );
+      }
    }
 }
 
@@ -1078,7 +1084,7 @@ void astAddMocText_( AstMoc *this, int maxorder,
 *        attribute in the Moc, then the attribute value is used in preference
 *        to the value supplied for this parameter. Any HEALPix cells in the
 *        supplied MOC that refer to an order greater than "maxorder" are
-*        ignored.
+*        degraded to that resolution.
 *     source
 *        A function that will be called to read in each section of the MOC's
 *        string representation. It should have the following synopsis:
@@ -1580,15 +1586,20 @@ void astAddMocText_( AstMoc *this, int maxorder,
    (except for any that have an order greater than 'maxorder', which are
    ignored), get the upper and lower bounds of the cells at maxorder
    contained within this cell, and append this as a new range to the Moc. */
-         for( order = 0; order <= maxorder; order++ ) {
+         for( order = 0; order <= astMAX( maxorder, mxord ); order++ ) {
             nval = orders[ order ].nval;
             values = orders[ order ].values;
             shift = 2*( maxorder - order );
 
             for( ipix = 0; ipix < nval; ipix++,values++ ){
 
-               ilow = ( *values << shift );
-               ihigh = ( (*values + 1 ) << shift ) - 1;
+               if( shift > 0 ) {
+                  ilow = ( *values << shift );
+                  ihigh = ( (*values + 1 ) << shift ) - 1;
+               } else {
+                  ilow = ( *values >> -shift );
+                  ihigh = ( *values >> -shift );
+               }
 
                irange = this->nrange++;
                this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
