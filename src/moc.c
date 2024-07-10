@@ -7687,7 +7687,7 @@ fprintf( fd, "%p %d\n", corner, corner->dist );
                          cell2->tr == old_corner ||
                          cell2->br == old_corner ) break;
                   }
-                  if( icell == 4 && old_corner ) {
+                  if( icell == 3 ) {
                      astError( AST__INTER, "astRegBaseMesh(%s): Old corner "
                                "not found (internal programming error).",
                                status, astGetClass( this ) );
