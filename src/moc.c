@@ -7621,6 +7621,7 @@ fprintf( fd, "# corner dist\n" );
    perimeter. Loop until we arrive back at the starting corner. */
          old_corner = NULL;
          start = corner;
+         nused = 0;
          while( astOK  ) {
 
 /* Store the distance (as a number of corners) along the perimeter from the
