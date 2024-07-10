@@ -7305,9 +7305,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    AstMoc *this;
    AstPointSet *result;
    Cell **neb;
-   Cell *cell0;
-   Cell *cell1;
-   Cell *cell2;
+   Cell *cells[ 3 ];
    Cell *cell;
    Cell *cell_foot[ AST__MXORDHPX + 1 ];
    Cell *prev_cell;
@@ -7647,47 +7645,47 @@ fprintf( fd, "%p %d\n", corner, corner->dist );
 
 /* Since the current corner is not interior it can be used by at most 3
    cells. Save convenience pointers to them. These pointers are checked
-   in the order "cell0", "cell1", "cell2" to see if an onward route can
+   in the order "cells[0]", "cells[1]", "cells[2]" to see if an onward route can
    be found to a corner of the cell. If the corner is used by only one
-   cell, it becomes "cell0". */
+   cell, it becomes "cells[0]". */
             if( corner->ncell == 1 ) {
-               cell0 = corner->cells[ 0 ];
-               cell1 = NULL;
-               cell2 = NULL;
+               cells[0] = corner->cells[ 0 ];
+               cells[1] = NULL;
+               cells[2] = NULL;
 
 /* If the corner is used by two cells, the cell that contains the old
-   corner as well as the current corner becomes "cell1", and the other
-   cell becomes "cell0". This gives priority to onward routes that go to
-   the new cell ("cell0") rather than going back to the old cell. If
+   corner as well as the current corner becomes "cells[1]", and the other
+   cell becomes "cells[0]". This gives priority to onward routes that go to
+   the new cell ("cells[0]") rather than going back to the old cell. If
    there is no old corner (i.e. this is the start of a new disjoint
    region), the choice is arbitrary. */
             } else if( corner->ncell == 2 ) {
-               cell1 = corner->cells[ 0 ];
-               if( cell1->bl == old_corner ||
-                   cell1->tl == old_corner ||
-                   cell1->tr == old_corner ||
-                   cell1->br == old_corner ) {
-                  cell0 = corner->cells[ 1 ];
+               cells[1] = corner->cells[ 0 ];
+               if( cells[1]->bl == old_corner ||
+                   cells[1]->tl == old_corner ||
+                   cells[1]->tr == old_corner ||
+                   cells[1]->br == old_corner ) {
+                  cells[0] = corner->cells[ 1 ];
                } else {
-                  cell0 = cell1;
-                  cell1 = corner->cells[ 1 ];
+                  cells[0] = cells[1];
+                  cells[1] = corner->cells[ 1 ];
                }
-               cell2 = NULL;
+               cells[2] = NULL;
 
 /* If the corner is used by three cells, the cell that contains the old
-   corner as well as the current corner becomes "cell2" (lowest priority),
-   and the other two cells become "cell0" and "cell1". This gives priority
+   corner as well as the current corner becomes "cells[2]" (lowest priority),
+   and the other two cells become "cells[0]" and "cells[1]". This gives priority
    to onward routes that do not go back to the old cell. If there is no
    old corner (i.e. this is the start of a new disjoint region), the choice
    is arbitrary. */
             } else if( corner->ncell == 3 ) {
                if( old_corner ) {
                   for( icell = 0; icell < 3; icell++ ) {
-                     cell2 = corner->cells[ icell ];
-                     if( cell2->bl == old_corner ||
-                         cell2->tl == old_corner ||
-                         cell2->tr == old_corner ||
-                         cell2->br == old_corner ) break;
+                     cells[2] = corner->cells[ icell ];
+                     if( cells[2]->bl == old_corner ||
+                         cells[2]->tl == old_corner ||
+                         cells[2]->tr == old_corner ||
+                         cells[2]->br == old_corner ) break;
                   }
                   if( icell == 3 ) {
                      astError( AST__INTER, "astRegBaseMesh(%s): Old corner "
@@ -7697,22 +7695,22 @@ fprintf( fd, "%p %d\n", corner, corner->dist );
                   }
                } else {
                   icell = 0;
-                  cell2 = corner->cells[ 0 ];
+                  cells[2] = corner->cells[ 0 ];
                }
 
 /* Of the other two cells, prefer routes that continue to the cell that
    is diagonally opposite the cell containing the old corner. Assign the
-   remaining two cells to "cell0" and "cell1", then swap them if cell1
-   is diagonally opposite "cell2". */
-               cell0 = corner->cells[ ( icell + 1 ) % 3 ];
-               cell1 = corner->cells[ ( icell + 2 ) % 3 ];
-               if( ( cell2->tr == corner && cell1->bl == corner ) ||
-                   ( cell2->br == corner && cell1->tl == corner ) ||
-                   ( cell2->bl == corner && cell1->tr == corner ) ||
-                   ( cell2->tl == corner && cell1->br == corner ) ) {
-                  cell = cell0;
-                  cell0 = cell1;
-                  cell1 = cell;
+   remaining two cells to "cells[0]" and "cells[1]", then swap them if cells[1]
+   is diagonally opposite "cells[2]". */
+               cells[0] = corner->cells[ ( icell + 1 ) % 3 ];
+               cells[1] = corner->cells[ ( icell + 2 ) % 3 ];
+               if( ( cells[2]->tr == corner && cells[1]->bl == corner ) ||
+                   ( cells[2]->br == corner && cells[1]->tl == corner ) ||
+                   ( cells[2]->bl == corner && cells[1]->tr == corner ) ||
+                   ( cells[2]->tl == corner && cells[1]->br == corner ) ) {
+                  cell = cells[0];
+                  cells[0] = cells[1];
+                  cells[1] = cell;
                }
 
 /* The corner should never be used by more than 3 cells. */
@@ -7723,7 +7721,7 @@ fprintf( fd, "%p %d\n", corner, corner->dist );
                break;
             }
 
-/* Find the corner in each cell, starting with cell0,
+/* Find the corner in each cell, starting with cells[0],
    and see if the neighbouring corner in the
    clockwise direction within that cell is a boundary point that has not yet
    been included in the path. If so, we use it as the next corner.
@@ -7738,86 +7736,39 @@ fprintf( fd, "%p %d\n", corner, corner->dist );
    re-used if necessary. */
             new_corner = NULL;
             for( i_pass = 0; (i_pass < 2) && ! new_corner; i_pass ++ ) {
-               if( !new_corner ) {
-                  if( corner == cell0->bl && !cell0->tl->interior && (i_pass || cell0->tl->dist == INT_MAX) ) {
-                     new_corner = cell0->tl;
-                  } else if( corner == cell0->tl && !cell0->tr->interior && (i_pass || cell0->tr->dist == INT_MAX) ) {
-                     new_corner = cell0->tr;
-                  } else if( corner == cell0->tr && !cell0->br->interior && (i_pass || cell0->br->dist == INT_MAX) ) {
-                     new_corner = cell0->br;
-                  } else if( corner == cell0->br && !cell0->bl->interior && (i_pass || cell0->bl->dist == INT_MAX) ) {
-                     new_corner = cell0->bl;
-                  }
+               for( icell = 0; (icell < 3) && ! new_corner; icell ++ ) {
+                  cell = cells[icell];
+                  if (cell) {
+                     if( corner == cell->bl && !cell->tl->interior && (i_pass || cell->tl->dist == INT_MAX) ) {
+                        new_corner = cell->tl;
+                     } else if( corner == cell->tl && !cell->tr->interior && (i_pass || cell->tr->dist == INT_MAX) ) {
+                        new_corner = cell->tr;
+                     } else if( corner == cell->tr && !cell->br->interior && (i_pass || cell->br->dist == INT_MAX) ) {
+                        new_corner = cell->br;
+                     } else if( corner == cell->br && !cell->bl->interior && (i_pass || cell->bl->dist == INT_MAX) ) {
+                        new_corner = cell->bl;
+                     }
 
 /* If both the original corner and the new corner are corners of one of the
    neighbouring cells, then the boundary cannot pass between them since the
    line between the two corners must be a border between the two cells. */
-                  if( new_corner ) {
-                     if( cell1 &&( new_corner == cell1->tl ||
-                                   new_corner == cell1->tr ||
-                                   new_corner == cell1->br ||
-                                   new_corner == cell1->bl ) ){
-                        new_corner = NULL;
-                     } else if( cell2 &&( new_corner == cell2->tl ||
-                                   new_corner == cell2->tr ||
-                                   new_corner == cell2->br ||
-                                   new_corner == cell2->bl ) ){
-                        new_corner = NULL;
+                     cell = cells[(icell + 1) % 3];
+                     if( new_corner && cell ) {
+                        if( new_corner == cell->tl ||
+                            new_corner == cell->tr ||
+                            new_corner == cell->br ||
+                            new_corner == cell->bl ){
+                           new_corner = NULL;
+                        }
                      }
-                  }
-               }
-
-/* If this failed to produce a new corner, then do the same using cell1
-   (if it exists). */
-               if( !new_corner && cell1 ) {
-                  if( corner == cell1->bl && !cell1->tl->interior && (i_pass || cell1->tl->dist == INT_MAX) ) {
-                     new_corner = cell1->tl;
-                  } else if( corner == cell1->tl && !cell1->tr->interior && (i_pass || cell1->tr->dist == INT_MAX) ) {
-                     new_corner = cell1->tr;
-                  } else if( corner == cell1->tr && !cell1->br->interior && (i_pass || cell1->br->dist == INT_MAX) ) {
-                     new_corner = cell1->br;
-                  } else if( corner == cell1->br && !cell1->bl->interior && (i_pass || cell1->bl->dist == INT_MAX) ) {
-                     new_corner = cell1->bl;
-                  }
-
-                  if( new_corner ) {
-                     if( cell0 &&( new_corner == cell0->tl ||
-                                   new_corner == cell0->tr ||
-                                   new_corner == cell0->br ||
-                                   new_corner == cell0->bl ) ){
-                        new_corner = NULL;
-                     } else if( cell2 &&( new_corner == cell2->tl ||
-                                   new_corner == cell2->tr ||
-                                   new_corner == cell2->br ||
-                                   new_corner == cell2->bl ) ){
-                        new_corner = NULL;
-                     }
-                  }
-               }
-
-/* If this failed to produce a new corner, then do the same using cell2
-   (if it exists). */
-               if( !new_corner && cell2 ) {
-                  if( corner == cell2->bl && !cell2->tl->interior && (i_pass || cell2->tl->dist == INT_MAX) ) {
-                     new_corner = cell2->tl;
-                  } else if( corner == cell2->tl && !cell2->tr->interior && (i_pass || cell2->tr->dist == INT_MAX) ) {
-                     new_corner = cell2->tr;
-                  } else if( corner == cell2->tr && !cell2->br->interior && (i_pass || cell2->br->dist == INT_MAX) ) {
-                     new_corner = cell2->br;
-                  } else if( corner == cell2->br && !cell2->bl->interior && (i_pass || cell2->bl->dist == INT_MAX) ) {
-                     new_corner = cell2->bl;
-                  }
-                  if( new_corner ) {
-                     if( cell0 &&( new_corner == cell0->tl ||
-                                   new_corner == cell0->tr ||
-                                   new_corner == cell0->br ||
-                                   new_corner == cell0->bl ) ){
-                        new_corner = NULL;
-                     } else if( cell1 &&( new_corner == cell1->tl ||
-                                   new_corner == cell1->tr ||
-                                   new_corner == cell1->br ||
-                                   new_corner == cell1->bl ) ){
-                        new_corner = NULL;
+                     cell = cells[(icell + 2) % 3];
+                     if( new_corner && cell ) {
+                        if( new_corner == cell->tl ||
+                            new_corner == cell->tr ||
+                            new_corner == cell->br ||
+                            new_corner == cell->bl ){
+                           new_corner = NULL;
+                        }
                      }
                   }
                }
