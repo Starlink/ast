@@ -150,6 +150,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *     4-MAR-2020 (DSB):
 *        Changes to remove bugs that occur only when running on 32-bit
 *        systems.
+*     11-JUL-2024 (GSB)
+*        Update RegBaseMesh to track separately two possible "dist" values
+*        per corner, avoid tracing the same corner multiple times per path
+*        and backtrack if a dead end is found.
 *class--
 */
 
@@ -287,6 +291,9 @@ typedef struct Corner {
    int ncell;
    char interior;
    int dist;
+   int dist2;
+   struct Corner *path_start;
+   struct Corner *path_backtrack;
    struct Corner *prev;
 } Corner;
 
@@ -6277,6 +6284,7 @@ static void MakeCorners( AstMoc *this, int order, Cell *cell_foot,
 /* Initialise the distance of the corner around the perimeter to indicate
    no distance has yet been found. */
       corner->dist = INT_MAX;
+      corner->dist2 = INT_MAX;
 
 /* Move on to the next corner in the chain. */
       corner = corner->prev;
@@ -7337,6 +7345,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    int npoint;
    int nused;
    int order;
+   int start_dist;
    int64_t *pnk;
    int64_t npix;
 
@@ -7589,7 +7598,7 @@ while( cell ) {
 }
 
 FILE *fd = fopen( "path.asc", "w" );
-fprintf( fd, "# corner dist\n" );
+fprintf( fd, "# corner dist ndist\n" );
 #endif
 
 
@@ -7620,6 +7629,7 @@ fprintf( fd, "# corner dist\n" );
    perimeter. Loop until we arrive back at the starting corner. */
          old_corner = NULL;
          start = corner;
+         start_dist = dist;
          nused = 0;
          while( astOK  ) {
 
@@ -7634,11 +7644,27 @@ fprintf( fd, "# corner dist\n" );
    region with a negative "dist" value ( "dist" == 0 marks the start of
    the first disjoint region). */
                if( !old_corner ) corner->dist = -corner->dist;
-            }
 
 #ifdef MESH_DEBUG
-fprintf( fd, "%p %d\n", corner, corner->dist );
+fprintf( fd, "%p %d 0\n", corner, corner->dist );
 #endif
+
+            } else if( corner->dist2 == INT_MAX ) {
+               corner->dist2 = dist++;
+
+#ifdef MESH_DEBUG
+fprintf( fd, "%p %d 1\n", corner, corner->dist2 );
+#endif
+
+            } else {
+               astError( AST__INTER, "astRegBaseMesh(%s): Corner found "
+                         "in more than 2 regions (internal programming error).",
+                         status, astGetClass( this ) );
+            }
+
+/* Record which disjoint region we are searching in the corner to avoid
+   entering a loop, except for the start point to which we must return. */
+            if( old_corner ) corner->path_start = start;
 
 /* Indicate we have not yet chosen the next corner on the path. */
             new_corner = NULL;
@@ -7739,13 +7765,17 @@ fprintf( fd, "%p %d\n", corner, corner->dist );
                for( icell = 0; (icell < 3) && ! new_corner; icell ++ ) {
                   cell = cells[icell];
                   if (cell) {
-                     if( corner == cell->bl && !cell->tl->interior && (i_pass || cell->tl->dist == INT_MAX) ) {
+                     if( corner == cell->bl && !cell->tl->interior && (cell->tl->path_backtrack != start)
+                           && (i_pass ? (cell->tl->path_start != start) : (cell->tl->dist == INT_MAX)) ) {
                         new_corner = cell->tl;
-                     } else if( corner == cell->tl && !cell->tr->interior && (i_pass || cell->tr->dist == INT_MAX) ) {
+                     } else if( corner == cell->tl && !cell->tr->interior && (cell->tr->path_backtrack != start)
+                           && (i_pass ? (cell->tr->path_start != start) : (cell->tr->dist == INT_MAX)) ) {
                         new_corner = cell->tr;
-                     } else if( corner == cell->tr && !cell->br->interior && (i_pass || cell->br->dist == INT_MAX) ) {
+                     } else if( corner == cell->tr && !cell->br->interior && (cell->br->path_backtrack != start)
+                           && (i_pass ? (cell->br->path_start != start) : (cell->br->dist == INT_MAX)) ) {
                         new_corner = cell->br;
-                     } else if( corner == cell->br && !cell->bl->interior && (i_pass || cell->bl->dist == INT_MAX) ) {
+                     } else if( corner == cell->br && !cell->bl->interior && (cell->bl->path_backtrack != start)
+                        && (i_pass ? (cell->bl->path_start != start) : (cell->bl->dist == INT_MAX)) ) {
                         new_corner = cell->bl;
                      }
 
@@ -7791,12 +7821,42 @@ fprintf( fd, "%p %d\n", corner, corner->dist );
             if( new_corner == start ) break;
 
 /* Sanity check. Check the next corner selected above is OK. */
-            if( ( !new_corner || new_corner->interior ) && astOK ) {
+            if( astOK ) {
                if( !new_corner ) {
+                  if( corner != start ) {
+/* We reached a dead end.  Mark the current corner as not part of the
+   path from our start corner and begin again.  Need to clear the
+   "dist" and "path_start" attributes for the attempted path.
+
+   An example of a way in which this can happen is if we pass through
+   a 1-corner linkage between two holes, thereby getting stuck in the second. */
+                     corner->path_backtrack = start;
+
+                     for( corner = corner_foot; corner; corner = corner->prev ) {
+                        if( ! corner->interior ) {
+                           if( (corner->dist > 0 ? corner->dist : - corner->dist) >= start_dist ) {
+                              corner->dist = INT_MAX;
+                           }
+                           if( corner->dist2 >= start_dist ) {
+                              corner->dist2 = INT_MAX;
+                           }
+                           if( corner->path_start == start ) {
+                              corner->path_start = NULL;
+                           }
+                        }
+                     }
+
+                     old_corner = NULL;
+                     corner = start;
+                     dist = start_dist;
+                     nused = 0;
+                     continue;
+                  }
+
                   astError( AST__INTER, "astRegBaseMesh(%s): Next perimeter "
                             "corner is undefined (internal programming error).",
                             status, astGetClass( this ) );
-               } else {
+               } else if( new_corner->interior ) {
                   astError( AST__INTER, "astRegBaseMesh(%s): Next perimeter "
                             "corner is interior (internal programming error).",
                             status, astGetClass( this ) );
@@ -7820,7 +7880,12 @@ fclose( fd );
          npoint = 0;
          corner = corner_foot;
          while( corner ) {
-            if( !(corner->interior) ) npoint++;
+            if( !(corner->interior) ) {
+               npoint++;
+               if( corner->dist2 != INT_MAX ) {
+                  npoint++;
+               }
+            }
             corner = corner->prev;
          }
       }
@@ -7851,17 +7916,31 @@ fclose( fd );
                 *(pdec++) = corner->dec;
 
                 if( corner->dist >= 0 ) {
-                   (this->meshdist)[ corner->dist ] = icorner++;
+                   (this->meshdist)[ corner->dist ] = icorner;
                 } else {
-                   (this->meshdist)[ -corner->dist ] = -(icorner++);
+                   (this->meshdist)[ -corner->dist ] = -(icorner);
                    ndis++;
                 }
 
+                if( corner->dist2 != INT_MAX ) {
+                   (this->meshdist)[ corner->dist2 ] = icorner;
+                }
+
+                icorner++;
              }
              prev_corner = corner->prev;
              (void) astFree( corner );
              corner = prev_corner;
          }
+
+#ifdef MESH_DEBUG
+fd = fopen( "meshdist.asc", "w" );
+fprintf( fd, "# i icorner\n" );
+for( i = 0; i < npoint; i ++ ) {
+   fprintf( fd, "%d %d\n", i, (this->meshdist)[i] );
+}
+fclose( fd );
+#endif
 
 /* Store it in the parent Region structure for future use. */
          this->basemesh = astClone( result );
