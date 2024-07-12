@@ -4540,7 +4540,9 @@ f        The global status.
    astSetFitsS( result, "ORDERING", "NUNIQ", "NUNIQ coding method", 1 );
    astSetFitsS( result, "COORDSYS", "C", "ICRS coordinates", 1 );
    astSetFitsI( result, "MOCORDER", maxorder, "MOC resolution (best order)", 1 );
+#ifdef PACKAGE_STRING
    astSetFitsS( result, "MOCTOOL", PACKAGE_STRING,  "Name of the MOC generator", 1 );
+#endif
 
 /* If an error occurred, annul the returned FitsChan. */
    if ( !astOK ) result = astAnnul( result );
