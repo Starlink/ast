@@ -7344,6 +7344,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    int minorder;
    int ndis;
    int npoint;
+   int npoint2;
    int nused;
    int order;
    int start_dist;
@@ -7889,25 +7890,29 @@ fclose( fd );
    corners. */
       if( astOK ){
          npoint = 0;
+         npoint2 = 0;
          corner = corner_foot;
          while( corner ) {
             if( !(corner->interior) ) {
                npoint++;
                if( corner->dist2 != INT_MAX ) {
-                  npoint++;
+                  npoint2++;
                }
             }
             corner = corner->prev;
          }
       }
 
-/* Allocate an array to hold the indices within the returned PointSet in
-   order of increasing perimeter distance. */
-      this->meshdist = astCalloc( npoint, sizeof( *(this->meshdist ) ) );
-
 /* Create the PointSet, and get pointers to its data arrays. */
       result = astPointSet( npoint, 2, " ", status );
       ptr = astGetPoints( result );
+
+/* Allocate an array to hold the indices within the returned PointSet in
+   order of increasing perimeter distance.  We now include the extra points
+   to allow for corners which appear in multiple paths. */
+      npoint += npoint2;
+      this->meshdist = astCalloc( npoint, sizeof( *(this->meshdist ) ) );
+
       if( astOK ) {
          pra = ptr[ 0 ];
          pdec = ptr[ 1 ];
