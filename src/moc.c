@@ -7876,7 +7876,12 @@ fprintf( fd, "%p %d 1\n", corner, corner->dist2 );
             }
 
 /* If we have arrived back at the first corner, break out of the loop. */
-            if( new_corner == start ) break;
+            if( new_corner == start ) {
+#ifdef MESH_DEBUG
+fprintf( fd, "%p %d 2\n", new_corner, - new_corner->dist );
+#endif
+               break;
+            }
 
 /* Sanity check. Check the next corner selected above is OK. */
             if( astOK ) {
