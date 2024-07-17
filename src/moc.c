@@ -193,6 +193,8 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 /* A 64 bit literal integer value of 1 */
 #define ONE INT64_C(1)
 
+/* Absolute value (e.g. for path distance). */
+#define ABS(x) ( ((x) < 0) ? - (x) : (x) )
 
 /* Include files. */
 /* ============== */
@@ -7350,6 +7352,8 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    int nused;
    int order;
    int start_dist;
+   int prev_dist;
+   int new_dist;
    int64_t *pnk;
    int64_t npix;
 
@@ -7634,6 +7638,7 @@ fprintf( fd, "# corner dist ndist\n" );
          old_corner = NULL;
          start = corner;
          start_dist = dist;
+         prev_dist = INT_MAX;
          nused = 0;
          while( astOK  ) {
 
@@ -7680,6 +7685,7 @@ fprintf( fd, "%p %d 1\n", corner, corner->dist2 );
                old_corner = NULL; \
                corner = start; \
                dist = start_dist; \
+               prev_dist = INT_MAX; \
                nused = 0; \
                continue
 
@@ -7837,15 +7843,35 @@ fprintf( fd, "%p %d 1\n", corner, corner->dist2 );
    perimeter via a linking cell and be tracing an already-traced
    path. */
                if( i_pass ) {
-                  if( new_corner && ++nused == 5 ) {
-                     loop_detected = 1;
+                  if( new_corner ) {
+                     if( ++nused == 5 ) {
+                        loop_detected = 1;
+                     }
+                     else {
+/* Check if we are drawing over an existing path.  When this happens
+   the "dist" values at this corner and the previous one will
+   be consecutive numbers. */
+                        new_dist = new_corner->dist;
+                        if( new_dist != INT_MAX ) {
+                           if( prev_dist != INT_MAX ) {
+                              if( (new_dist == ABS(prev_dist) + 1) || (prev_dist == ABS(new_dist) + 1) ) {
+                                 loop_detected = 1;
+                              }
+                           }
+                        }
+                        prev_dist = new_dist;
+                     }
                   }
                } else if( new_corner ) {
                   nused = 0;
+                  prev_dist = INT_MAX;
                }
             }
 
             if (loop_detected) {
+/* Mark the new corner (not the current one) as not part of this path
+   and go back to the start.  (The BACKTRACK macro marks "corner".)  */
+               corner = new_corner;
                BACKTRACK;
             }
 
