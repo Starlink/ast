@@ -10790,7 +10790,7 @@ static void dump_corner( Corner *this, int order ) {
    alpha = cos( this->dec )*cos( this->ra );
    beta = cos( this->dec )*sin( this->ra );
 
-   fprintf( fd, "%p %g %g %g %g %d %d %d %p ", this, this->ra, this->dec,
+   fprintf( fd, "%p %.10g %.10g %g %g %d %d %d %p ", this, this->ra, this->dec,
             alpha, beta, order, this->interior, this->dist, this->prev );
    for( i = 0; i < this->ncell; i++ ) fprintf(fd, "%p ", this->cells[i] );
    for( ; i < 4; i++ ) fprintf( fd, "null " );
@@ -10828,7 +10828,7 @@ static void dump_cell( AstMoc *this, Cell *cell, int order ) {
    double x18 = ( ONE << (18 - order) )*( cell->ix - 0.5 ) + 0.5;
    double y18 = ( ONE << (18 - order) )*( cell->iy - 0.5 ) + 0.5;
 
-   fprintf( fd, "%p %g %g %d %d %g %g %g %g %d %d %p ", cell, x18, y18, cell->ix, cell->iy,
+   fprintf( fd, "%p %g %g %d %d %.10g %.10g %g %g %d %d %p ", cell, x18, y18, cell->ix, cell->iy,
             ra, dec, alpha, beta, order, cell->interior, cell->prev );
 
    if( cell->bl ) {
