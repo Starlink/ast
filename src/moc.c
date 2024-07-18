@@ -294,8 +294,10 @@ typedef struct Corner {
    char interior;
    int dist;
    int dist2;
+   int prev_dist_backtrack;
    struct Corner *path_start;
    struct Corner *path_backtrack;
+   struct Corner *path_wrong[4];
    struct Corner *prev;
 } Corner;
 
@@ -6289,6 +6291,7 @@ static void MakeCorners( AstMoc *this, int order, Cell *cell_foot,
    no distance has yet been found. */
       corner->dist = INT_MAX;
       corner->dist2 = INT_MAX;
+      corner->prev_dist_backtrack = INT_MAX;
 
 /* Move on to the next corner in the chain. */
       corner = corner->prev;
@@ -7340,16 +7343,16 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    int icorner;
    int i;
    int i_pass;
+   int i_try;
+   int is_backtrack;
    int ix;
    int iy;
    int j;
-   int loop_detected;
    int maxorder;
    int minorder;
    int ndis;
    int npoint;
    int npoint2;
-   int nused;
    int order;
    int start_dist;
    int prev_dist;
@@ -7639,62 +7642,59 @@ fprintf( fd, "# corner dist ndist\n" );
          start = corner;
          start_dist = dist;
          prev_dist = INT_MAX;
-         nused = 0;
+         is_backtrack = 0;
          while( astOK  ) {
 
 /* Store the distance (as a number of corners) along the perimeter from the
    start to the current corner. If the corner already has a distance
    (i.e. because it is the touching point between two otherwise disjoint
    regions), leave the existing distance unchanged. */
-            if( corner->dist == INT_MAX ) {
-               corner->dist = dist++;
+            if( ! is_backtrack ) {
+               if( corner->dist == INT_MAX ) {
+                  corner->dist = dist++;
 
 /* The Moc may contain several disjoint regions. We mark the start of each such
    region with a negative "dist" value ( "dist" == 0 marks the start of
    the first disjoint region). */
-               if( !old_corner ) corner->dist = -corner->dist;
+                  if( !old_corner ) corner->dist = -corner->dist;
 
 #ifdef MESH_DEBUG
 fprintf( fd, "%p %d 0\n", corner, corner->dist );
 #endif
 
-            } else if( corner->dist2 == INT_MAX ) {
-               corner->dist2 = dist++;
+               } else if( corner->dist2 == INT_MAX ) {
+                  corner->dist2 = dist++;
 
 #ifdef MESH_DEBUG
 fprintf( fd, "%p %d 1\n", corner, corner->dist2 );
 #endif
 
-            } else {
-
-#define BACKTRACK \
-               corner->path_backtrack = start; \
-               for( corner = corner_foot; corner; corner = corner->prev ) { \
-                  if( ! corner->interior ) { \
-                     if( (corner->dist > 0 ? corner->dist : - corner->dist) >= start_dist ) { \
-                        corner->dist = INT_MAX; \
-                     } \
-                     if( corner->dist2 >= start_dist ) { \
-                        corner->dist2 = INT_MAX; \
-                     } \
-                     if( corner->path_start == start ) { \
-                        corner->path_start = NULL; \
-                     } \
-                  } \
-               } \
-               old_corner = NULL; \
-               corner = start; \
-               dist = start_dist; \
-               prev_dist = INT_MAX; \
-               nused = 0; \
-               continue
-
-               BACKTRACK;
-            }
+               } else {
+                  astError( AST__INTER, "astRegBaseMesh(%s): Corner found "
+                            "in more than 2 regions (internal programming error).",
+                            status, astGetClass( this ) );
+               }
 
 /* Record which disjoint region we are searching in the corner to avoid
    entering a loop, except for the start point to which we must return. */
-            if( old_corner ) corner->path_start = start;
+               if( old_corner ) {
+                  corner->path_start = start;
+                  corner->path_backtrack = old_corner;
+                  corner->prev_dist_backtrack = prev_dist;
+               }
+               else {
+                  corner->path_backtrack = NULL;
+                  corner->prev_dist_backtrack = INT_MAX;
+               }
+
+               corner->path_wrong[0] = NULL;
+               corner->path_wrong[1] = NULL;
+               corner->path_wrong[2] = NULL;
+               corner->path_wrong[3] = NULL;
+            } else {
+              prev_dist = corner->prev_dist_backtrack;
+              is_backtrack = 0;
+            }
 
 /* Indicate we have not yet chosen the next corner on the path. */
             new_corner = NULL;
@@ -7791,23 +7791,34 @@ fprintf( fd, "%p %d 1\n", corner, corner->dist2 );
    corners that have not already been used, but allow used corners to be
    re-used if necessary. */
             new_corner = NULL;
-            loop_detected = 0;
-            for( i_pass = 0; (i_pass < 2) && ! new_corner; i_pass ++ ) {
-               for( icell = 0; (icell < 3) && ! new_corner; icell ++ ) {
-                  cell = cells[icell];
-                  if (cell) {
-                     if( corner == cell->bl && !cell->tl->interior && (cell->tl->path_backtrack != start)
-                           && (i_pass ? (cell->tl->path_start != start) : (cell->tl->dist == INT_MAX)) ) {
+            for( i_try = 0; (i_try < 4) && astOK && ! new_corner; i_try ++ ) {
+               for( i_pass = 0; (i_pass < 2) && ! new_corner; i_pass ++ ) {
+                  for( icell = 0; (icell < 3) && ! new_corner; icell ++ ) {
+                     cell = cells[icell];
+                     if( ! cell ) {
+                        continue;
+                     }
+
+                     if( corner == cell->bl && !cell->tl->interior ) {
                         new_corner = cell->tl;
-                     } else if( corner == cell->tl && !cell->tr->interior && (cell->tr->path_backtrack != start)
-                           && (i_pass ? (cell->tr->path_start != start) : (cell->tr->dist == INT_MAX)) ) {
+                     } else if( corner == cell->tl && !cell->tr->interior ) {
                         new_corner = cell->tr;
-                     } else if( corner == cell->tr && !cell->br->interior && (cell->br->path_backtrack != start)
-                           && (i_pass ? (cell->br->path_start != start) : (cell->br->dist == INT_MAX)) ) {
+                     } else if( corner == cell->tr && !cell->br->interior ) {
                         new_corner = cell->br;
-                     } else if( corner == cell->br && !cell->bl->interior && (cell->bl->path_backtrack != start)
-                        && (i_pass ? (cell->bl->path_start != start) : (cell->bl->dist == INT_MAX)) ) {
+                     } else if( corner == cell->br && !cell->bl->interior ) {
                         new_corner = cell->bl;
+                     }
+
+                     if( new_corner && (
+                           ( new_corner->path_start == start ) ||
+                           ( i_pass
+                              ? ( new_corner->dist2 != INT_MAX )
+                              : ( new_corner->dist != INT_MAX ) ) ||
+                           ( new_corner == corner->path_wrong[0] ) ||
+                           ( new_corner == corner->path_wrong[1] ) ||
+                           ( new_corner == corner->path_wrong[2] ) ||
+                           ( new_corner == corner->path_wrong[3] ) ) ) {
+                        new_corner = NULL;
                      }
 
 /* If both the original corner and the new corner are corners of one of the
@@ -7832,47 +7843,28 @@ fprintf( fd, "%p %d 1\n", corner, corner->dist2 );
                         }
                      }
                   }
-               }
-
-/* Count the number of consecutive corners that have already been used.
-   Abort if the last five corners were all re-used, since we have
-   probably got into a loop.  However we need to detect the problem
-   here and process it later so that we can "continue" the outer
-   path-tracing loop.  Note: this may well not actually be a
-   loop -- instead we may have escaped to the wrong side of a
-   perimeter via a linking cell and be tracing an already-traced
-   path. */
-               if( i_pass ) {
-                  if( new_corner ) {
-                     if( ++nused == 5 ) {
-                        loop_detected = 1;
-                     }
-                     else {
 /* Check if we are drawing over an existing path.  When this happens
    the "dist" values at this corner and the previous one will
-   be consecutive numbers. */
+   be consecutive numbers.  If this happens break out of the
+   i_pass loop to go to the next i_try. */
+                  if( new_corner ) {
+                     if( i_pass ) {
                         new_dist = new_corner->dist;
                         if( new_dist != INT_MAX ) {
                            if( prev_dist != INT_MAX ) {
                               if( (new_dist == ABS(prev_dist) + 1) || (prev_dist == ABS(new_dist) + 1) ) {
-                                 loop_detected = 1;
+                                 corner->path_wrong[i_try] = new_corner;
+                                 new_corner = NULL;
+                                 break;
                               }
                            }
                         }
                         prev_dist = new_dist;
+                     } else  {
+                        prev_dist = INT_MAX;
                      }
                   }
-               } else if( new_corner ) {
-                  nused = 0;
-                  prev_dist = INT_MAX;
                }
-            }
-
-            if (loop_detected) {
-/* Mark the new corner (not the current one) as not part of this path
-   and go back to the start.  (The BACKTRACK macro marks "corner".)  */
-               corner = new_corner;
-               BACKTRACK;
             }
 
 /* If we have arrived back at the first corner, break out of the loop. */
@@ -7886,14 +7878,29 @@ fprintf( fd, "%p %d 2\n", new_corner, - new_corner->dist );
 /* Sanity check. Check the next corner selected above is OK. */
             if( astOK ) {
                if( !new_corner ) {
-                  if( corner != start ) {
+                  if( corner->path_backtrack ) {
 /* We reached a dead end.  Mark the current corner as not part of the
    path from our start corner and begin again.  Need to clear the
    "dist" and "path_start" attributes for the attempted path.
 
    An example of a way in which this can happen is if we pass through
    a 1-corner linkage between two holes, thereby getting stuck in the second. */
-                     BACKTRACK;
+
+#ifdef MESH_DEBUG
+fprintf( fd, "%p %d -1\n", corner, -1 );
+#endif
+
+                     if( corner->dist2 == -- dist ) {
+                        corner->dist2 = INT_MAX;
+                     } else if( corner->dist == dist ) {
+                        corner->dist = INT_MAX;
+                     }
+
+                     corner = corner->path_backtrack;
+                     old_corner = corner->path_backtrack;
+
+                     is_backtrack = 1;
+                     continue;
                   }
 
                   astError( AST__INTER, "astRegBaseMesh(%s): Next perimeter "
@@ -7911,8 +7918,6 @@ fprintf( fd, "%p %d 2\n", new_corner, - new_corner->dist );
             corner = new_corner;
          }
       }
-
-#undef BACKTRACK
 
 #ifdef MESH_DEBUG
 fclose( fd );
