@@ -4,7 +4,7 @@ AST Library
 now available.
 
    AST provides a comprehensive range of facilities for attaching
-world coordinate systems (such as RA/Dec, frequency, etc) to astronomical
+world coordinate systems (such as RA/Dec, frequency, etc.) to astronomical
 data, for retrieving and interpreting that information and for generating
 graphical output based on it.
 
@@ -48,7 +48,7 @@ and other recent fixes to astRebinSeq were applied also to astRebin.
 Main Changes in V9.2.9
 ----------------------
 
-- Further changes were made to accomodate size_t string lengths in
+- Further changes were made to accommodate size_t string lengths in
 gfortran V8.
 
 - FitsChan private function RoundFString was updated to avoid copying
@@ -110,7 +110,7 @@ groups of points that span the longitude origin.
 
 - The mesh of points returned by astGetRegionMesh and astShowMesh are now
 normalised to avoid discontinuities in celestial longitude. This uses the
-new astNormPoints methid described in the previous item.
+new astNormPoints method described in the previous item.
 
 - A bug has been fixed in the KeyMap class that caused astMapGet1<X>
 functions to return a vector length of 1 for KeyMap entries with an
@@ -227,7 +227,7 @@ being installed into $STARLINK_DIR/include.
 Main Changes in V8.7.1
 ----------------------
 
-- The Moc class now supports version 1.1 of the the MOC recommendation.
+- The Moc class now supports version 1.1 of the MOC recommendation.
 This includes new support for string and JSON encoded MOCs. See methods
 astGetMocString and astAddMocString in the Moc class, and also the new
 MocChan class.
@@ -327,7 +327,7 @@ returns a named entry as a single string. If the entry is a vector the
 returned string is a comma-separated list of its elements, enclosed in
 parentheses.
 
-- The Frame class now has a new attribute caled DTAI, which can be used
+- The Frame class now has a new attribute called DTAI, which can be used
 to specify the number of leap seconds at the moment represented by the
 Frame's Epoch attribute. By default, the internal look-up table of leap
 seconds contained within AST is used. The DTAI attribute allows old
@@ -337,7 +337,7 @@ be used with new data.
 - The TimeMap class has been changed so that some conversions now require
 a "Dtai" value (i.e. the number of leap seconds) to be supplied by the
 caller. If AST__BAD is supplied for "Dtai", the internal look-up table of
-leap seconds contained withn AST will be used. The conversions affected
+leap seconds contained within AST will be used. The conversions affected
 are those between TAI and UTC, and those between TT and TDB.
 
 Main Changes in V8.3.0
@@ -532,7 +532,7 @@ Main Changes in V8.0.1
 ----------------------
 
 - The macro used to invoke the astAppendString utility function has
-  changed to allow printf-style converstions to be included in the
+  changed to allow printf-style conversions to be included in the
   supplied text. Any code that uses this macro must be re-compiled.
 
 - The astRebin and astRebinSeq family of functions now include support
@@ -566,7 +566,7 @@ Main Changes in V7.3.4
 edges are not bent by the simplification. A new attribute, SimpVertices,
 can be set to zero in order to re-instate this check.
 
-- The Polygon class has a new mathod, astConvex, that returns a Polygon
+- The Polygon class has a new method, astConvex, that returns a Polygon
 representing the shortest polygon (i.e. convex hull) enclosing a
 specified set of pixel values within a supplied array.
 
@@ -607,7 +607,7 @@ header, if the corresponding CTYPE values included no projection code.
 Main Changes in V7.3.1
 ----------------------
 
-- Fix bug that could cause a segmenatation fault when reading a FITS TNX
+- Fix bug that could cause a segmentation fault when reading a FITS TNX
 header.
 
 Main Changes in V7.3.0
@@ -635,7 +635,7 @@ Main Changes in V7.2.0
 ----------------------
 
 - A new method call astMapDefined has been added to the KeyMap class.
-It checks if a gtiven key name has a defined value in a given KeyMap.
+It checks if a given key name has a defined value in a given KeyMap.
 
 
 Main Changes in V7.1.1
@@ -901,7 +901,7 @@ Main Changes in V5.5-0
 than a boolean value. As in previous versions, it is used to indicate
 whether the "-TAB" algorithm should be supported by the astRead
 (AST_READ) and astWrite (AST_WRITE) methods, but in addition it is now
-also used to give the version number to assign to any table gebnerated as
+also used to give the version number to assign to any table generated as
 a consequence of calling astWrite (AST_WRITE).  A negative or zero value
 (the default) indicates that support for the -TAB algorithm is not
 available, where as a positive non-zero value indicates that support is
@@ -1007,7 +1007,7 @@ a KeyMap. The vector entry is extended automatically to hold the new
 element if required.
 
 - The DSBSpecFrame class now reports an error if the local oscillator
-frequency is less than the absoliute value of the intermediate frequency.
+frequency is less than the absolute value of the intermediate frequency.
 
 - A new method astQuadApprox produces a quadratic fit to a 2D Mapping.
 
@@ -1023,7 +1023,7 @@ astFindFrame and astConvert (AST_FINDFRAME and AST_CONVERT) functions
 have been changed. The changes mean that a Frame can now be aligned with
 an instance of a sub-class of Frame, so long as the number of axes and
 the Domain values are consistent. For instance, a basic 2-dimensional
-Frame with Domain "SKY" will now align succesfully with a SkyFrame,
+Frame with Domain "SKY" will now align successfully with a SkyFrame,
 conversion between the two Frames being achieved using a UnitMap.
 
 - The arrays that supply input values to astMapPut1<X> are now declared
@@ -1177,7 +1177,7 @@ from the velocity of the source to the velocity of the reference channel.
 class. This method removes all WCS-related header cards from a FitsChan.
 
 - The astRebinSeq functions now have an extra parameter that is used to
-record the total number of input data val;ues added into the output
+record the total number of input data values added into the output
 array. This is necessary to correct a flaw in the calculation of output
 variances based on the spread of input values. NOTE, THIS CHANGE WILL
 REQUIRE EXISTING CODE THAT USES ASTREBINSEQ TO BE MODIFIED TO INCLUDE THE
@@ -1188,7 +1188,7 @@ LabelUp was only used if the labels were drawn within the interior of
 the plot. The LabelUp attribute controls whether numerical labels are
 drawn horizontally or parallel to the axis they describe.
 - The Plot class has a new attribute called GrfContext that can be used
-to comminicate context information between an application and any
+to communicate context information between an application and any
 graphics functions registered with the Plot class via the astGrfSet
 (AST_GRFSET) function.
 - Functions registered with the Plot class using astGrfSet (AST_GRFSET)
@@ -1285,7 +1285,7 @@ encoding.
 that indicates that the current card in the FitsChan should not be
 stripped out of the FitsChan when an AST Object is read from the FitsChan.
 Unless this method is used, all cards that were involved in the creation
-of the AST Object will be stripped from the FitsChan afte a read operation.
+of the AST Object will be stripped from the FitsChan after a read operation.
 
 - The ast_link_adam and ast_link scripts now ignore the -fsla and -csla
 options, and always link against the minimal cut-down version of SLALIB
@@ -1304,7 +1304,7 @@ added to the Mapping class. This method creates a regular grid of points
 covering a rectangular region within the input space of a Mapping, and
 then transforms this set of points into the output space of the Mapping,
 using a piecewise-continuous linear approximation to the Mapping if
-appropriate in order to achive higher speed.
+appropriate in order to achieve higher speed.
 
 - A new subclass of Mapping has been added called SwitchMap. A
 SwitchMap represents several alternate Mappings, each of which is used to
@@ -1374,7 +1374,7 @@ existing AST_RESAMPLE<X>/astResample<X> methods.
 Main Changes in Version 3.7
 ---------------------------
 
-- Support for time coordinate systems has been introduced throught the
+- Support for time coordinate systems has been introduced through the
 addition of two new classes, TimeFrame and TimeMap. The TimeFrame is a
 1-dimensional Frame which can be used to describe moments in time (either
 absolute or relative) in various systems (MJD, Julian Epoch, etc.) and
@@ -1397,10 +1397,10 @@ clipping performed by AST at the plot boundary.
 - The PolyMap class has been modified to allow a PolyMap to be written
 succesfully to a FitsChan using Native encoding.
 
-- A mimimal cut down subset of the C version of SLALIB is now included
+- A minimal cut down subset of the C version of SLALIB is now included
 with the AST distribution and built as part of building AST. This means
 that it is no longer necessary to have SLALIB installed separately at
-your site. The SLALIB code included with AST is distrubuted under the
+your site. The SLALIB code included with AST is distributed under the
 GPL. The default behaviour of the ast_link script is now to link with
 this internal slalib subset. However, the ``-csla'' option can still be
 used to force linking with an external full C SLALIB library. A new
@@ -1421,12 +1421,12 @@ Region, testing two Regions for overlap, transforming Regions from one
 coordinate system to another, etc.
 
 - A new class of 1-dimensional Frame called FluxFrame has been added which
-can be used to describe various systems for describing ovserved value at a
+can be used to describe various systems for describing observed value at a
 single fixed spectral position.
 
 - A new class of 2-dimensional Frame called SpecFluxFrame has been added which
 can be used to describe a 2-d frame spanned by a spectral position axis
-and and an observed value axis.
+and an observed value axis.
 
 - A new class of Mapping called RateMap has been added. A RateMap encapsulates
 a previously created Mapping. The inputs of the RateMap correspond to the
