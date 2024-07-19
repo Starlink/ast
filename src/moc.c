@@ -7596,12 +7596,6 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
 
 
 #ifdef MESH_DEBUG
-corner = corner_foot;
-while( corner ) {
-   dump_corner( corner, maxorder );
-   corner = corner->prev;
-}
-
 cell = cell_foot[ maxorder ];
 while( cell ) {
    dump_cell( this, cell, maxorder );
@@ -7921,6 +7915,12 @@ fprintf( fd, "%p %d -1\n", corner, -1 );
 
 #ifdef MESH_DEBUG
 fclose( fd );
+
+corner = corner_foot;
+while( corner ) {
+   dump_corner( corner, maxorder );
+   corner = corner->prev;
+}
 #endif
 
 /* Create the returned PointSet and put the (ra,dec) values into it
@@ -10819,15 +10819,26 @@ static void dump_corner( Corner *this, int order ) {
 
    if( !fd ) {
       fd = fopen( "corners.asc", "w" );
-      fprintf( fd, "# this ra dec alpha beta order int dist prev cell0 cell1 cell2 cell3\n");
+      fprintf( fd, "# this ra dec alpha beta order int dist dist2 prev cell0 cell1 cell2 cell3\n");
 
    }
 
    alpha = cos( this->dec )*cos( this->ra );
    beta = cos( this->dec )*sin( this->ra );
 
-   fprintf( fd, "%p %.10g %.10g %g %g %d %d %d %p ", this, this->ra, this->dec,
-            alpha, beta, order, this->interior, this->dist, this->prev );
+   fprintf( fd, "%p %.10g %.10g %g %g %d %d ", this, this->ra, this->dec,
+            alpha, beta, order, this->interior);
+   if( this->dist == INT_MAX ) {
+      fprintf(fd, "none " );
+   } else {
+      fprintf(fd, "%d ", this->dist );
+   }
+   if( this->dist2 == INT_MAX ) {
+      fprintf(fd, "none " );
+   } else {
+      fprintf(fd, "%d ", this->dist2 );
+   }
+   fprintf( fd, "%p ", this->prev );
    for( i = 0; i < this->ncell; i++ ) fprintf(fd, "%p ", this->cells[i] );
    for( ; i < 4; i++ ) fprintf( fd, "null " );
    fprintf(fd, "\n");
