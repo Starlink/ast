@@ -359,6 +359,8 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *         astLineCrossing now returns the distance from the line start to
 *         the crossing. This distance takes account of which half of the
 *         great circle contains the crossing.
+*     30-JUL-2024 (GSB):
+*         Check for possible acos parameter out of range in astLineDef.
 *class--
 */
 
@@ -5554,6 +5556,7 @@ static AstLineDef *LineDef( AstFrame *this, const double start[2],
 /* Local Variables: */
    SkyLineDef *result;           /* Returned value */
    const int *perm;              /* Axis permutation array */
+   double coslength;             /* Intermediate value for length */
    double le;                    /* Length of end vector */
    double len;                   /* Permuted point1 coordinates */
    double ls;                    /* Length of start vector */
@@ -5600,7 +5603,14 @@ static AstLineDef *LineDef( AstFrame *this, const double start[2],
          le = result->end[0]*result->end[0] +
               result->end[1]*result->end[1] +
               result->end[2]*result->end[2];
-         result->length = acos( result->length/sqrt( ls*le ) );
+         coslength = result->length/sqrt( ls*le );
+         if ( coslength < -1.0 ) {
+            result->length = AST__DPI;
+         } else if ( coslength > 1.0 ) {
+            result->length = 0.0;
+         } else {
+            result->length = acos( coslength );
+         }
 
 /* Find a unit vector representing the pole of the system in which the
    equator is given by the great circle. This is such that going the
