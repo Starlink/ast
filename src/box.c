@@ -107,6 +107,10 @@ f     The Box class does not define any new routines beyond those
 *        Remove the unused box shrinking facility (a hang over from the
 *        days when the RegBaseGrid function operated by creating multiple
 *        meshes on the surface of the box, shrinking the box each time).
+*     1-AUG-2024 (GSB):
+*        Updated Simplify method of determination of Polygon vertex order
+*        when the current frame is a SkyFrame to check whether the central
+*        point is inside (since SkyFrame regions are always bounded).
 *class--
 */
 
@@ -3653,6 +3657,9 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    AstPointSet *mesh;            /* Mesh of current Frame positions */
    AstPointSet *ps1;             /* Box corners in base Frame */
    AstPointSet *ps2;             /* Box corners in current Frame */
+   AstPointSet *ps3;             /* Box centre in base Frame */
+   AstPointSet *ps4;             /* Box centre in current Frame */
+   AstPointSet *ps5;             /* Box centre transformed by new Polygon */
    AstPolygon *newpoly;          /* New Polygon to replace Box */
    AstRegion *prism;             /* Prism combining all axes */
    AstRegion *new;               /* Pointer to simplified Region */
@@ -3660,6 +3667,8 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    AstRegion *unc;               /* Pointer to uncertainty Region */
    double **ptr1;                /* Pointers to axis values in ps1 */
    double **ptr2;                /* Pointers to axis values in ps2 */
+   double **ptr3;                /* Pointers to axis values in ps3 */
+   double **ptr5;                /* Pointers to axis values in ps5 */
    double *constants;            /* Axis constants array */
    double *lbnd;                 /* Lower bounds for new Box */
    double *ubnd;                 /* Upper bounds for new Box */
@@ -3675,9 +3684,11 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    int ic;                       /* Axis index */
    int isInterval;               /* Is the simplified Box an Interval */
    int isNull;                   /* Is the simplified Box a NullRegion? */
+   int isSkyFrame;               /* Is the current frame a SkyFrame? */
    int neg;                      /* Was original Region negated? */
    int nin;                      /* No. of base Frame axes (Mapping inputs) */
    int nout;                     /* No. of current Frame axes (Mapping outputs) */
+   int right_way_round;          /* Is the Polygon the right way round? */
    int simpler;                  /* Has some simplication taken place? */
 
 /* Initialise. */
@@ -3917,6 +3928,15 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
             box = (AstBox *) new;
             Cache( box, 0, status );
 
+            isSkyFrame = astIsASkyFrame( frm );
+            if( isSkyFrame ) {
+               ps3 = astPointSet( 1, 2, "", status );
+               ptr3 = astGetPoints( ps3 );
+               ptr3[ 0 ][ 0 ] = box->centre[ 0 ];
+               ptr3[ 1 ][ 0 ] = box->centre[ 1 ];
+               ps4 = astTransform( map, ps3, 1, NULL );
+            }
+
 /* The order in which the polygon vertices are stored determines whether
    the interior or exterior of the polygon forms the inside of the
    Region. We want the inside to be the interior. First create a Polygon
@@ -3965,7 +3985,15 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
                   newpoly = astPolygon( frm, 4, 4, corners, unc, "", status );
 
 /* If the Polygon is bounded, break out of the loop. */
-                  if( astGetBounded( newpoly ) ) {
+                  if( isSkyFrame ) {
+                     ps5 = astTransform( newpoly, ps4, 1, NULL );
+                     ptr5 = astGetPoints( ps5 );
+                     right_way_round = ( ( ptr5[ 0 ][ 0 ] != AST__BAD ) && ( ptr5[ 1 ][ 0 ] != AST__BAD ) );
+                     ps5 = astAnnul( ps5 );
+                  } else {
+                     right_way_round = astGetBounded( newpoly );
+                  }
+                  if( right_way_round ) {
                      ps2 = astAnnul( ps2 );
                      break;
                   }
@@ -3974,6 +4002,11 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
 /* Free resources. */
                newpoly = astAnnul( newpoly );
                ps2 = astAnnul( ps2 );
+            }
+
+            if( isSkyFrame ) {
+               ps4 = astAnnul( ps4 );
+               ps3 = astAnnul( ps3 );
             }
 
 /* See if all points within the Box mesh fall on the boundary of this
