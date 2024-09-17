@@ -5423,7 +5423,7 @@ static AstRegion *MapRegion( AstRegion *this, AstMapping *map0,
 *  Notes:
 *     - This is the protected implementation of this function - it does
 *     not simplify the returned Region. The public implementation is
-*     astMapRegionID, which simplifies the returned Region.
+*     astMapRegionId, which simplifies the returned Region.
 *     - A null Object pointer (AST__NULL) will be returned if this
 *     function is invoked with the AST error status set, or if it
 *     should fail for any reason.
