@@ -27,6 +27,10 @@ cells of greater order than the MaxOrder attribute will be degraded
 to that resolution.
 - Tracing the outline of a Moc region (via the surface mesh) has
 hopefully been made more reliable with the addition of backtracking.
+- Added a check for an acos parameter being out of range in internal
+line length calculation in SkyFrame.
+- Box simplification to Polygon in a SkyFrame checks handedness
+without using astGetBounded.
 
 
 Main Changes in V9.2.11
