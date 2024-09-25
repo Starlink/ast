@@ -21,7 +21,10 @@ Main Changes in this Version
 class. If set, it allows unreadable alternate axis descriptions within FITS-WCS
 headers to be ignored. By default, such headers would cause an error to
 be reported.
-
+- A new warning called BadAlt has been added to the FitsChan class. If
+included in the list of active warnings (see attribute "Warnings"), a
+warning will be created if any alternate axes are ignored when reading a
+FITS-WCS header.
 
 Main Changes in V9.2.11
 -----------------------

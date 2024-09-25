@@ -22565,7 +22565,7 @@ occurred in the AST library between versions V9.2.9 and V9.2.10:
 \begin{enumerate}
 
 \item  A bug has been fixed in the astRebinSeq4 wrapper where lbnd and ubnd
-had dimensions ndim_out rather than ndim\_in. Additionally the dimension
+had dimensions ndim\_out rather than ndim\_in. Additionally the dimension
 check error message was corrected to refer to input dimensions. These
 and other recent fixes to astRebinSeq were applied also to astRebin.
 
@@ -22597,6 +22597,10 @@ current version):
 class. If set, it allows unreadable alternate axis descriptions within FITS-WCS
 headers to be ignored. By default, such headers would cause an error to
 be reported.
+\item A new warning called BadAlt has been added to the FitsChan class. If
+included in the list of active warnings (see attribute ``Warnings''), a
+warning will be created if any alternate axes are ignored when reading a
+FITS-WCS header.
 
 
 \end{enumerate}

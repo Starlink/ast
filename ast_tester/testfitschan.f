@@ -4,7 +4,7 @@
       include 'AST_PAR'
       include 'AST_ERR'
 
-      integer status, fs, fc, i, val, iwcfrm, map
+      integer status, fs, fc, i, val, iwcfrm, map, km
       character cards(10)*80, card*80
       logical there
       double precision xin, yin, xout, yout
@@ -348,6 +348,7 @@ c      call ast_setl( fc, 'Clean', .true., status )
 
 *  Read a header with alternate axis descriptions (set 'C' is badly
 *  formed on purpose).
+      call ast_setl( fc, 'Clean', .false., status )
       call ast_emptyfits( fc, status )
 
       if( status .eq. SAI__OK .and.
@@ -390,6 +391,18 @@ c      call ast_setl( fc, 'Clean', .true., status )
          call stopit( 18, 'Wrong number of Frames', status )
       endif
 
+
+      call ast_emptyfits( fc, status )
+      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_set( fc, 'Warnings=BadAlt', status )
+
+      call ast_clear( fc, 'Card', status )
+      fs = ast_read( fc, status )
+
+      km = ast_warnings( fc, status )
+      if( ast_mapsize( km, status ) .ne. 1 ) then
+         call stopit( 19, 'Wrong number of Warnings', status )
+      endif
 
 
 

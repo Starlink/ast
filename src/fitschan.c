@@ -1267,7 +1267,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *     6-JUN-2022 (DSB):
 *        Avoid copying overlapping strings in RoundFString.
 *     25-SEP-2024 (DSB):
-*        Added IgnoreBadAlt attribute.
+*        - Added IgnoreBadAlt attribute.
+*        - Added warning "BadAlt"
 *class--
 */
 
@@ -1375,7 +1376,7 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 #define LATAX              1
 #define NDESC              9
 #define MXCTYPELEN        81
-#define ALLWARNINGS       " distortion noequinox noradesys nomjd-obs nolonpole nolatpole tnx zpx badcel noctype badlat badmat badval badctype badpv badkeyname badkeyvalue "
+#define ALLWARNINGS       " distortion noequinox noradesys nomjd-obs nolonpole nolatpole tnx zpx badcel noctype badlat badmat badval badctype badpv badkeyname badkeyvalue badalt "
 #define NPFIT             10
 #define SPD               86400.0
 #define FL  1.0/298.257  /*  Reference spheroid flattening factor */
@@ -2506,6 +2507,7 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
    AstMapping *mapping;        /* Mapping from pixel to requested Frame */
    AstMapping *tmap;           /* Temporary Mapping pointer */
    AstPermMap *pmap;           /* PermMap pointer to add or remove axes */
+   char buf[60];               /* Buffer for error text */
    double con;                 /* Value to be assigned to missing axes */
    int *inperm;                /* Pointer to input axis permutation array */
    int *outperm;               /* Pointer to output axis permutation array */
@@ -2532,6 +2534,11 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
       astClearStatus;
       if( mapping ) mapping = astAnnul( mapping );
       if( frame ) frame = astAnnul( frame );
+
+/* Adding a warning to the FitsChan and the parent Channel indicating
+   that the alternate axis description has been ignored. */
+      sprintf( buf, "Ignoring unusable FITS-WCS alternate axes label \'%c\'.", s );
+      Warn( this, "badalt", buf, method, class, status );
    }
 
 /* Re-instate the original error reporting condition. */
@@ -42376,6 +42383,12 @@ astMAKE_TEST(FitsChan,Warnings,( this->warnings != NULL ))
 *  Conditions:
 *     The following conditions are currently recognised (all are
 *     case-insensitive):
+*
+*     - "BadAlt": This condition arises when reading a FrameSet from a
+*     non-Native encoded FitsChan if an alternate axis description is
+*     ignored because it cannot be read and attribute IgnoreBadAlt is
+*     non-zero. This condition never arises if IgnoreBadAlt is zero
+*     (instead an error is reported and astRead aborts).
 *
 *     - "BadCel": This condition arises when reading a FrameSet from a
 *     non-Native encoded FitsChan if an unknown celestial co-ordinate
