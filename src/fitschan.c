@@ -1270,6 +1270,7 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        - Added IgnoreBadAlt attribute.
 *        - Added warning "BadAlt"
 *        - Correct access to AltAxes attribute
+*        - Add support for 64 bit integer keyword values
 *class--
 */
 
@@ -1952,6 +1953,7 @@ static int GetFitsCI( AstFitsChan *, const char *, int *, int * );
 static int GetFitsCN( AstFitsChan *, const char *, char **, int * );
 static int GetFitsF( AstFitsChan *, const char *, double *, int * );
 static int GetFitsI( AstFitsChan *, const char *, int *, int * );
+static int GetFitsK( AstFitsChan *, const char *, int64_t *, int * );
 static int GetFitsL( AstFitsChan *, const char *, int *, int * );
 static int GetFitsS( AstFitsChan *, const char *, char **, int * );
 static int GetFull( AstChannel *, int * );
@@ -2053,6 +2055,7 @@ static void SetFitsCN( AstFitsChan *, const char *, const char *, const char *, 
 static void SetFitsCom( AstFitsChan *, const char *, const char *, int, int * );
 static void SetFitsF( AstFitsChan *, const char *, double, const char *, int, int * );
 static void SetFitsI( AstFitsChan *, const char *, int, const char *, int, int * );
+static void SetFitsK( AstFitsChan *, const char *, int64_t, const char *, int, int * );
 static void SetFitsL( AstFitsChan *, const char *, int, const char *, int, int * );
 static void SetFitsS( AstFitsChan *, const char *, const char *, const char *, int, int * );
 static void SetFitsU( AstFitsChan *, const char *, const char *, int, int * );
@@ -7023,6 +7026,7 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
    const char *ostring;     /* String data value */
    double odouble;          /* Double data value */
    int oint;                /* Integer data value */
+   int64_t okint;           /* 64 bit integer data value */
    int ival;                /* Integer value read from string */
    int len;                 /* Length of character string */
    int nc;                  /* No. of characetsr used */
@@ -7082,6 +7086,8 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             *( (char **) buff ) = cnvtype_text;
          } else if( type == AST__INT      ){
             *( (int *) buff ) = (int) odouble;
+         } else if( type == AST__KINT     ){
+            *( (int64_t *) buff ) = (int64_t) odouble;
          } else if( type == AST__LOGICAL  ){
             *( (int *) buff ) = ( odouble == 0.0 ) ? 0 : 1;
          } else if( type == AST__COMPLEXF ){
@@ -7116,6 +7122,12 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
          } else if( type == AST__INT      ){
             if( nc = 0,
                      ( 1 != astSscanf( ostring, "%d %n", (int *) buff, &nc ) )
+                  || (nc < len ) ){
+               ret = 0;
+            }
+         } else if( type == AST__KINT     ){
+            if( nc = 0,
+                     ( 1 != astSscanf( ostring, "%" PRId64 " %n", (int64_t *) buff, &nc ) )
                   || (nc < len ) ){
                ret = 0;
             }
@@ -7180,6 +7192,8 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             *( (char **) buff ) = cnvtype_text;
          } else if( type == AST__INT      ){
             (void) memcpy( buff, odata, osize );
+         } else if( type == AST__KINT     ){
+            *( (int64_t *) buff ) = oint;
          } else if( type == AST__LOGICAL  ){
             *( (int *) buff ) = oint ? 1 : 0;
          } else if( type == AST__COMPLEXF ){
@@ -7187,6 +7201,32 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             ( (double *) buff )[ 1 ] = 0.0;
          } else if( type == AST__COMPLEXI ){
             ( (int *) buff )[ 0 ] = oint;
+            ( (int *) buff )[ 1 ] = 0;
+         } else if( astOK ){
+            ret = 0;
+            astError( AST__INTER, "CnvType: AST internal programming error - "
+                      "FITS data-type no. %d not yet supported.", status, type );
+         }
+
+/* Convert an AST__KINT data value to ... */
+      } else if( otype == AST__KINT     ){
+         okint = *( (int64_t *) odata );
+         if( type == AST__FLOAT ){
+            *( (double *) buff ) = (double) okint;
+         } else if( type == AST__STRING || type == AST__CONTINUE  ){
+            (void) sprintf( cnvtype_text, "%" PRId64, okint );
+            *( (char **) buff ) = cnvtype_text;
+         } else if( type == AST__KINT      ){
+            (void) memcpy( buff, odata, osize );
+         } else if( type == AST__INT     ){
+            *( (int *) buff ) = okint;
+         } else if( type == AST__LOGICAL  ){
+            *( (int *) buff ) = okint ? 1 : 0;
+         } else if( type == AST__COMPLEXF ){
+            ( (double *) buff )[ 0 ] = (double) okint;
+            ( (double *) buff )[ 1 ] = 0.0;
+         } else if( type == AST__COMPLEXI ){
+            ( (int *) buff )[ 0 ] = okint;
             ( (int *) buff )[ 1 ] = 0;
          } else if( astOK ){
             ret = 0;
@@ -7208,6 +7248,8 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             *( (char **) buff ) = cnvtype_text;
          } else if( type == AST__INT      ){
             *( (int *) buff ) = oint;
+         } else if( type == AST__KINT      ){
+            *( (int64_t *) buff ) = oint;
          } else if( type == AST__LOGICAL  ){
             (void) memcpy( buff, odata, osize );
          } else if( type == AST__COMPLEXF ){
@@ -7236,6 +7278,8 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             *( (char **) buff ) = cnvtype_text;
          } else if( type == AST__INT      ){
             *( (int *) buff ) = (int) odouble;
+         } else if( type == AST__KINT      ){
+            *( (int64_t *) buff ) = (int64_t) odouble;
          } else if( type == AST__LOGICAL  ){
             *( (int *) buff ) = ( odouble == 0.0 ) ? 0 : 1;
          } else if( type == AST__COMPLEXF ){
@@ -7260,6 +7304,8 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             *( (char **) buff ) = cnvtype_text;
          } else if( type == AST__INT      ){
             *( (int *) buff ) = oint;
+         } else if( type == AST__KINT      ){
+            *( (int64_t *) buff ) = oint;
          } else if( type == AST__LOGICAL  ){
             *( (int *) buff ) = oint ? 1 : 0;
          } else if( type == AST__COMPLEXF ){
@@ -9506,6 +9552,17 @@ static int EncodeValue( AstFitsChan *this, char *buf, int col, int digits,
             astError( AST__BDFTS, "%s(%s): Cannot encode integer value %d into a "
                       "FITS header card for keyword '%s'.", status, method, astGetClass( this ),
                       *( (int *) data ), name );
+         }
+
+/* 64 bit INTEGER - stored internally in a variable of type "int". Right justified
+   to column 30 in the header card. */
+      } else if( type == AST__KINT ){
+         len = sprintf(  buf, "%*" PRId64, FITSRLCOL - col + 1,
+                         *( (int64_t *) data ) );
+         if( len < 0 || len > AST__FITSCHAN_FITSCARDLEN - col ) {
+            astError( AST__BDFTS, "%s(%s): Cannot encode integer value %" PRId64 " into a "
+                      "FITS header card for keyword '%s'.", status, method, astGetClass( this ),
+                      *( (int64_t *) data ), name );
          }
 
 /* LOGICAL - stored internally in a variable of type "int". Represented by
@@ -14638,6 +14695,7 @@ f     RESULT = AST_GETFITS<X>( THIS, NAME, VALUE, STATUS )
 *     - CI - Complex integer values.
 *     - F  - Floating point values.
 *     - I  - Integer values.
+*     - K  - 64 bit integer values.
 *     - L  - Logical (i.e. boolean) values.
 *     - S  - String values.
 *     - CN - A "CONTINUE" value, these are treated like string values, but
@@ -14655,6 +14713,7 @@ c     - CI - "int *" (a pointer to a 2 element array to hold the real and
 c            imaginary parts of the complex value).
 c     - F  - "double *".
 c     - I  - "int *".
+c     - K  - "int64_t *".
 c     - L  - "int *".
 c     - S  - "char **" (a pointer to a static "char" array is returned at the
 c            location given by the "value" parameter, Note, the stored string
@@ -14667,6 +14726,7 @@ f     - CI - INTEGER(2) (a 2 element array to hold the real and imaginary
 f            parts of the complex value).
 f     - F  - DOUBLE PRECISION.
 f     - I  - INTEGER
+f     - K  - INTEGER*8
 f     - L  - LOGICAL
 f     - S  - CHARACTER
 f     - CN - CHARACTER
@@ -14837,6 +14897,7 @@ MAKE_FGET(CF,double *,AST__COMPLEXF)
 MAKE_FGET(CI,int *,AST__COMPLEXI)
 MAKE_FGET(F,double *,AST__FLOAT)
 MAKE_FGET(I,int *,AST__INT)
+MAKE_FGET(K,int64_t *,AST__KINT)
 MAKE_FGET(L,int *,AST__LOGICAL)
 MAKE_FGET(S,char **,AST__STRING)
 MAKE_FGET(CN,char **,AST__CONTINUE)
@@ -14977,7 +15038,6 @@ static int FitsGetCom( AstFitsChan *this, const char *name,
 
 static int SetFits( AstFitsChan *this, const char *keyname, void *value,
                     int type, const char *comment, int overwrite, int *status ){
-
 /*
 *  Name:
 *     SetFits
@@ -14990,7 +15050,6 @@ static int SetFits( AstFitsChan *this, const char *keyname, void *value,
 
 *  Synopsis:
 *     #include "fitschan.h"
-
 *     int SetFits( AstFitsChan *this, const char *keyname, void *value,
 *                  int type, const char *comment, int overwrite, int *status )
 
@@ -15052,6 +15111,8 @@ static int SetFits( AstFitsChan *this, const char *keyname, void *value,
    int eival;
    int ival;
    int ret;
+   int64_t ekval;
+   int64_t kval;
 
 /* Check the global status, and the supplied pointer. */
    if( !astOK || !value ) return 0;
@@ -15103,6 +15164,7 @@ static int SetFits( AstFitsChan *this, const char *keyname, void *value,
       }
    } else if( type == AST__COMMENT ){
       astSetFitsCom( this, keyname, comment, overwrite );
+
    } else if( type == AST__INT ){
       ival = *( (int *) value );
 
@@ -15113,6 +15175,17 @@ static int SetFits( AstFitsChan *this, const char *keyname, void *value,
          if( eival == ival ) comment = NULL;
       }
       astSetFitsI( this, keyname, ival, comment, overwrite );
+
+   } else if( type == AST__KINT ){
+      kval = *( (int64_t *) value );
+
+/* If the data value has not changed, retain the original comment. */
+      if( overwrite && CnvValue( this, type, 0, &ekval, "SetFits",
+                                 status ) &&
+         CardComm( this, status ) ) {
+         if( ekval == kval ) comment = NULL;
+      }
+      astSetFitsK( this, keyname, kval, comment, overwrite );
    } else if( type == AST__COMPLEXF ){
       if( ( (double *) value )[0] != AST__BAD &&
           ( (double *) value )[1] != AST__BAD ) {
@@ -15196,6 +15269,7 @@ f     The keyword data type is selected by replacing <X> in the routine name
 *     - CI - Complex integer values.
 *     - F  - Floating point values.
 *     - I  - Integer values.
+*     - K  - 64 bit integer values.
 *     - L  - Logical (i.e. boolean) values.
 *     - S  - String values.
 *     - CN - A "CONTINUE" value, these are treated like string values, but
@@ -15210,6 +15284,7 @@ c     - CI - "int *" (a pointer to a 2 element array holding the real and
 c            imaginary parts of the complex value).
 c     - F  - "double".
 c     - I  - "int".
+c     - K  - "int64_t".
 c     - L  - "int".
 c     - S  - "const char *".
 c     - CN - "const char *".
@@ -15220,6 +15295,7 @@ f     - CI - INTEGER(2) (a 2 element array holding the real and imaginary
 f            parts of the complex value).
 f     - F  - DOUBLE PRECISION.
 f     - I  - INTEGER
+f     - K  - INTEGER*8
 f     - L  - LOGICAL
 f     - S  - CHARACTER
 f     - CN - CHARACTER
@@ -15355,6 +15431,7 @@ static void SetFits##code( AstFitsChan *this, const char *name, ctype value, con
 /* Use the above macro to give defintions for the astSetFits<X> method
    for each FITS data type. */
 MAKE_FSET(I,int,AST__INT,(void *)&value)
+MAKE_FSET(K,int64_t,AST__KINT,(void *)&value)
 MAKE_FSET(F,double,AST__FLOAT,(void *)&value)
 MAKE_FSET(S,const char *,AST__STRING,(void *)value)
 MAKE_FSET(CN,const char *,AST__CONTINUE,(void *)value)
@@ -17342,6 +17419,7 @@ static void GetNextData( AstChannel *this_channel, int skip, char **name,
          } else if ( !skip &&
                      ( ( type == AST__STRING ) ||
                        ( type == AST__INT ) ||
+                       ( type == AST__KINT ) ||
                        ( type == AST__FLOAT ) ) &&
                      ( len > 2 ) &&
                      strchr( SEQ_CHARS, keyword[ len - 1 ] ) &&
@@ -17437,6 +17515,13 @@ static void GetNextData( AstChannel *this_channel, int skip, char **name,
    dynamically allocated string. */
             case AST__INT:
                (void) sprintf( buff, "%d", *( (int *) data ) );
+               *val = astString( buff, (int) strlen( buff ) );
+               break;
+
+/* If the value is a 64 bit int, format it and store the result in a
+   dynamically allocated string. */
+            case AST__KINT:
+               (void) sprintf( buff, "%" PRId64, *( (int64_t *) data ) );
                *val = astString( buff, (int) strlen( buff ) );
                break;
 
@@ -17967,6 +18052,7 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    vtab->GetFitsCI = GetFitsCI;
    vtab->GetFitsF = GetFitsF;
    vtab->GetFitsI = GetFitsI;
+   vtab->GetFitsK = GetFitsK;
    vtab->GetFitsL = GetFitsL;
    vtab->TestFits = TestFits;
    vtab->GetFitsS = GetFitsS;
@@ -17977,6 +18063,7 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    vtab->SetFitsCI = SetFitsCI;
    vtab->SetFitsF = SetFitsF;
    vtab->SetFitsI = SetFitsI;
+   vtab->SetFitsK = SetFitsK;
    vtab->SetFitsL = SetFitsL;
    vtab->SetFitsU = SetFitsU;
    vtab->SetFitsS = SetFitsS;
@@ -22792,6 +22879,9 @@ static void NewCard( AstFitsChan *this, const char *name, int type,
          } else if( type == AST__INT ){
             new->size = sizeof( int );
             new->data = astStore( NULL, (void *) data, sizeof( int ) );
+         } else if( type == AST__KINT ){
+            new->size = sizeof( int64_t );
+            new->data = astStore( NULL, (void *) data, sizeof( int64_t ) );
          } else if( type == AST__FLOAT ){
             new->size = sizeof( double );
             new->data = astStore( NULL, (void *) data, sizeof( double ) );
@@ -24702,6 +24792,7 @@ f        The global status.
    double fval;           /* floating point keyword value */
    int cival[2];          /* Complex integer keyword value */
    int ival;              /* Integer keyword value */
+   int64_t kval;          /* 64 bit integer keyword value */
    int len;               /* No. of characters to read from the value string */
    int nc;                /* No. of characters read from value string */
    int type;              /* Keyword data type */
@@ -24761,6 +24852,15 @@ f        The global status.
             astSetFitsI( this, name, ival, comment, overwrite );
          } else {
             astError( AST__BDFTS, "%s(%s): Unable to read an integer FITS "
+                      "keyword value.", status, method, class );
+         }
+
+/* Read and store 64 bit integer values from the value string. */
+      } else if( type == AST__KINT ){
+         if( 1 == astSscanf( value, " %" PRId64 " %n", &kval, &nc ) && nc >= len ){
+            astSetFitsK( this, name, kval, comment, overwrite );
+         } else {
+            astError( AST__BDFTS, "%s(%s): Unable to read a 64 bit integer FITS "
                       "keyword value.", status, method, class );
          }
 
@@ -31288,7 +31388,7 @@ int Split( AstFitsChan *this, const char *card, char **name, char **value,
 
 *  Returned value:
 *     -  An integer identifying the data type of the keyword value. This
-*     will be one of the values AST__UNDEF, AST__COMMENT, AST__INT,
+*     will be one of the values AST__UNDEF, AST__COMMENT, AST__INT, AST__KINT,
 *     AST__STRING, AST__CONTINUE, AST__FLOAT, AST__COMPLEXI or AST__COMPLEXF
 *     defined in fitschan.h.
 
@@ -31319,6 +31419,7 @@ int Split( AstFitsChan *this, const char *card, char **name, char **value,
    int cont;                  /* Is this a continuation card? */
    int i;                     /* Character index */
    int ii, ir;                /* Values read from value string */
+   int64_t kr;                /* Values read from value string */
    int iopt;                  /* Index of option within list */
    int len;                   /* Used length of value string */
    int lq;                    /* Was previous character an escaping quote? */
@@ -31546,11 +31647,17 @@ int Split( AstFitsChan *this, const char *card, char **name, char **value,
                          ( nch >= len ) ) {
                         type = AST__COMPLEXI;
 
-/* If that failed, attempt to read a single integer from the string. */
+/* If that failed, attempt to read a single 64 bit integer from the string. */
                      } else if( nch = 0,
-                         ( 1 == astSscanf( v, " %d%n", &ir, &nch ) ) &&
+                         ( 1 == astSscanf( v, " %" PRId64 "%n", &kr, &nch ) ) &&
                          ( nch >= len ) ) {
-                        type = AST__INT;
+
+/* See if the value is small enough to fit in a 32 bit integer. */
+                        if( kr <= INT_MAX && kr >= INT_MIN ) {
+                           type = AST__INT;
+                        } else {
+                           type = AST__KINT;
+                        }
                      }
 
 /* If there are dots (decimal points) in the value... */
@@ -31653,14 +31760,14 @@ int Split( AstFitsChan *this, const char *card, char **name, char **value,
 /* If the value is deemed to be integer, check that the number of digits
    in the formatted value does not exceed the capacity of an int. This may
    be the case if there are too many digits in the integer for an "int" to
-   hold. In this case, change the data type to float. */
+   hold. In this case, change the data type to 64 bit integer. */
    if( *value && type == AST__INT ) {
       ndig = 0;
       c = *value;
       while( *c ) {
          if( isdigit( *(c++) ) ) ndig++;
       }
-      if( ndig >= int_dig ) type = AST__FLOAT;
+      if( ndig >= int_dig ) type = AST__KINT;
    }
 
 /* If an error occurred, free the returned strings and issue a context message. */
@@ -42216,8 +42323,8 @@ astMAKE_TEST(FitsChan,AltAxes,( this->altaxes != INT_MAX ))
 *  Description:
 *     This attribute gives the data type of the keyword value for the
 *     current card of the FitsChan. It will be one of the following
-*     integer constants: AST__NOTYPE, AST__COMMENT, AST__INT, AST__FLOAT,
-*     AST__STRING, AST__COMPLEXF, AST__COMPLEXI, AST__LOGICAL,
+*     integer constants: AST__NOTYPE, AST__COMMENT, AST__INT, AST__KINT,
+*     AST__FLOAT, AST__STRING, AST__COMPLEXF, AST__COMPLEXI, AST__LOGICAL,
 *     AST__CONTINUE, AST__UNDEF.
 
 *  Applicability:
@@ -42886,6 +42993,10 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
          } else if( cardtype == AST__INT ){
             (void) sprintf( buff, "Dt%d", ncard );
             astWriteInt( channel, buff, 1, 1, *( (int *) data ),
+                         "FITS keyword value" );
+         } else if( cardtype == AST__KINT ){
+            (void) sprintf( buff, "Dt%d", ncard );
+            astWriteInt( channel, buff, 1, 1, *( (int64_t *) data ),
                          "FITS keyword value" );
          } else if( cardtype == AST__LOGICAL ){
             (void) sprintf( buff, "Dt%d", ncard );
@@ -43782,6 +43893,7 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
    int flags;                   /* Keyword flags */
    int free_data;               /* Should data memory be freed? */
    int ival[2];                 /* Integer data values */
+   int kval[2];                 /* 64 bit integer data values */
    int ncard;                   /* No. of FitsCards read so far */
    int type;                    /* Keyword type */
    void *data;                  /* Pointer to keyword data value */
@@ -43994,6 +44106,10 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
                (void) sprintf( buff, "dt%d", ncard );
                ival[ 0 ] = astReadInt( channel, buff, 0 );
                data = (void *) ival;
+            } else if( type == AST__KINT ){
+               (void) sprintf( buff, "dt%d", ncard );
+               kval[ 0 ] = astReadInt64( channel, buff, 0 );
+               data = (void *) kval;
             } else if( type == AST__LOGICAL ){
                (void) sprintf( buff, "dt%d", ncard );
                ival[ 0 ] = astReadInt( channel, buff, 0 );
@@ -44152,6 +44268,12 @@ void astSetFitsI_( AstFitsChan *this, const char *name, int value,
    (**astMEMBER(this,FitsChan,SetFitsI))( this, name, value, comment, overwrite, status );
 }
 
+void astSetFitsK_( AstFitsChan *this, const char *name, int64_t value,
+                   const char *comment, int overwrite, int *status ) {
+   if ( !astOK ) return;
+   (**astMEMBER(this,FitsChan,SetFitsK))( this, name, value, comment, overwrite, status );
+}
+
 void astSetFitsF_( AstFitsChan *this, const char *name, double value,
                        const char *comment, int overwrite, int *status ) {
    if ( !astOK ) return;
@@ -44272,6 +44394,11 @@ int astGetFitsF_( AstFitsChan *this, const char *name, double *value, int *statu
 int astGetFitsI_( AstFitsChan *this, const char *name, int *value, int *status ){
    if( !astOK ) return 0;
    return (**astMEMBER(this,FitsChan,GetFitsI))( this, name, value, status );
+}
+
+int astGetFitsK_( AstFitsChan *this, const char *name, int64_t *value, int *status ){
+   if( !astOK ) return 0;
+   return (**astMEMBER(this,FitsChan,GetFitsK))( this, name, value, status );
 }
 
 int astGetFitsL_( AstFitsChan *this, const char *name, int *value, int *status ){

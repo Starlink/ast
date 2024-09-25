@@ -4,6 +4,7 @@
       include 'AST_PAR'
       include 'AST_ERR'
 
+      integer*8 kval
       integer status, fs, fc, i, val, iwcfrm, map, km
       character cards(10)*80, card*80
       logical there
@@ -50,6 +51,22 @@ c      call ast_watchmemory( 225192 )
          call stopit( 778, ' ', status )
       endif
 
+      call ast_seti( fc, 'Card', 2, status )
+      if( .not. ast_getfitsk( fc, '.', kval, status ) ) then
+         call stopit( 7777, ' ', status )
+      else if( kval .ne. 45 ) then
+         call stopit( 7778, ' ', status )
+      endif
+
+      call ast_seti( fc, 'Card', 1000000000, status )
+      kval = 32147483647
+      call ast_setfitsk( fc, 'KTEST', kval, ' ', .false., status )
+      if( .not. ast_getfitsk( fc, 'KTEST', kval, status ) ) then
+         call stopit( 7779, ' ', status )
+      else if( kval .ne. 32147483647 ) then
+         call stopit( 7780, ' ', status )
+      endif
+
       call ast_seti( fc, 'Card', 5, status )
       if( ast_testfits( fc, '.', there, status ) ) then
          call stopit( 779, ' ', status )
@@ -69,7 +86,7 @@ c      call ast_watchmemory( 225192 )
          call stopit( 784, ' ', status )
       endif
 
-      call ast_seti( fc, 'Card', 10, status )
+      call ast_seti( fc, 'Card', 11, status )
       if( ast_testfits( fc, '.', there, status ) ) then
          call stopit( 785, ' ', status )
       else if( there ) then
@@ -87,12 +104,12 @@ c      call ast_watchmemory( 225192 )
      :                   status )
 
 *  Check it looks like the original header.
-      if( ast_geti( fc, 'NCard', status ) .ne. 9 ) then
+      if( ast_geti( fc, 'NCard', status ) .ne. 10 ) then
          write(*,*) ast_geti( fc, 'NCard', status )
          call stopit( 1000, ' ', status )
       endif
 
-      if( ast_geti( fc, 'Nkey', status ) .ne. 9 ) then
+      if( ast_geti( fc, 'Nkey', status ) .ne. 10 ) then
          write(*,*) ast_geti( fc, 'Nkey', status )
          call stopit( 999, ' ', status )
       endif
@@ -101,7 +118,7 @@ c      call ast_watchmemory( 225192 )
       i = 0
       do while( ast_findfits( fc, '%f', card, .true., status ) )
          i = i + 1
-         if( card .ne. cards( i ) ) then
+         if( i .le. 9 .and. card .ne. cards( i ) ) then
             call stopit( 1001, ' ', status )
          endif
       end do

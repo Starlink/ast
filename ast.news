@@ -25,6 +25,7 @@ be reported.
 included in the list of active warnings (see attribute "Warnings"), a
 warning will be created if any alternate axes are ignored when reading a
 FITS-WCS header.
+- The FitsChan class now supports 64 bit integer keyword values.
 
 Main Changes in V9.2.11
 -----------------------
