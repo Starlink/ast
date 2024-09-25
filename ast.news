@@ -28,10 +28,6 @@ FITS-WCS header.
 - The FitsChan class now supports 64 bit integer keyword values.
 - The Table class now supports 64 bit integer columns.
 - The FitsTable class now supports 64 bit integer columns.
-
-Main Changes in V9.2.11
------------------------
-
 - The MinOrder attribute of the Moc class can be higher than MaxOrder
 to allow small features to be included in a lower-resolution MOC
 when using astAddPixelMask or astAddRegion with a non-MOC region.
@@ -46,6 +42,11 @@ hopefully been made more reliable with the addition of backtracking.
 line length calculation in SkyFrame.
 - Box simplification to Polygon in a SkyFrame checks handedness
 without using astGetBounded.
+
+
+Main Changes in V9.2.11
+-----------------------
+
 - A bug in the flagging of permanent memory blocks when AST is configured
 --with-memdebug has been fixed.
 
