@@ -18,12 +18,12 @@ f+
 \stardocnumber      {210.30}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {6th Jan 2022}
+\stardocdate        {25th Sep 2024}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
                                 in Astronomy}
-\stardoccopyright   {Copyright (C) 2021 East Asian Observatory}
+\stardoccopyright   {Copyright (C) 2024 East Asian Observatory}
 \stardocversion     {V<VERSION_NUMBER>}
 c+
 \stardocmanual      {Programmer's Guide\\(C Version)}
@@ -22521,11 +22521,9 @@ restore the original behaviour, set FitsRounding to 1.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.2.8}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.2.7 and V9.2.8 (the
-current version):
+\subsection{Changes Introduced in V9.2.8}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.7 and V9.2.8:
 
 \begin{enumerate}
 
@@ -22544,6 +22542,62 @@ input arrays is very small.  The fix corrects the way in which the mean
 weight per input pixel is calculated. It may cause some general minor
 changes to the decision about which output pixels pass the ``wlim''
 criterion.
+
+\end{enumerate}
+
+
+\subsection{Changes Introduced in V9.2.9}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.8 and V9.2.9:
+
+\begin{enumerate}
+
+\item A bug has been fixed in fitschan.c that could cause an error when
+compiling using some versions of clang.
+
+\end{enumerate}
+
+
+\subsection{Changes Introduced in V9.2.10}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.9 and V9.2.10:
+
+\begin{enumerate}
+
+\item  A bug has been fixed in the astRebinSeq4 wrapper where lbnd and ubnd
+had dimensions ndim_out rather than ndim\_in. Additionally the dimension
+check error message was corrected to refer to input dimensions. These
+and other recent fixes to astRebinSeq were applied also to astRebin.
+
+\item Some memory allocations in PolyMap were corrected.
+
+\end{enumerate}
+
+
+\subsection{Changes Introduced in V9.2.11}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.10 and V9.2.11:
+
+\begin{enumerate}
+
+\item  A bug in the flagging of permanent memory blocks when AST is configured
+--with-memdebug has been fixed.
+\end{enumerate}
+
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.2.12}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.2.11 and V9.2.12 (the
+current version):
+
+\begin{enumerate}
+
+\item  A new attribute called IgnoreBadAlt has been added to the FitsChan
+class. If set, it allows unreadable alternate axis descriptions within FITS-WCS
+headers to be ignored. By default, such headers would cause an error to
+be reported.
+
 
 \end{enumerate}
 

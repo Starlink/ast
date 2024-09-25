@@ -128,6 +128,7 @@ f     encodings), then write operations using AST_WRITE will
 *     - FitsDigits: Digits of precision for floating-point FITS values
 *     - FitsRounding: Controls rounding of floating-point FITS values
 *     - ForceTab: Force use of the FITS "-TAB" algorithm?
+*     - IgnoreBadAlt: Ignore unreadable alternate axis descriptions?
 *     - Iwc: Add a Frame describing Intermediate World Coords?
 *     - Ncard: Number of FITS header cards in a FitsChan
 *     - Nkey: Number of unique keywords in a FitsChan
@@ -1265,6 +1266,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        - Increase some buffer sizes to avoid compilation warnings.
 *     6-JUN-2022 (DSB):
 *        Avoid copying overlapping strings in RoundFString.
+*     25-SEP-2024 (DSB):
+*        Added IgnoreBadAlt attribute.
 *class--
 */
 
@@ -1812,6 +1815,10 @@ static void ClearForceTab( AstFitsChan *, int * );
 static int GetForceTab( AstFitsChan *, int * );
 static int TestForceTab( AstFitsChan *, int * );
 static void SetForceTab( AstFitsChan *, int, int * );
+static void ClearIgnoreBadAlt( AstFitsChan *, int * );
+static int GetIgnoreBadAlt( AstFitsChan *, int * );
+static int TestIgnoreBadAlt( AstFitsChan *, int * );
+static void SetIgnoreBadAlt( AstFitsChan *, int, int * );
 static void ClearCarLin( AstFitsChan *, int * );
 static int GetCarLin( AstFitsChan *, int * );
 static int TestCarLin( AstFitsChan *, int * );
@@ -1992,7 +1999,7 @@ static int WorldAxes( AstFitsChan *this, AstMapping *, double *, int *, int * );
 static int Write( AstChannel *, AstObject *, int * );
 static void *CardData( AstFitsChan *, size_t *, int * );
 static void AdaptLut( AstMapping *, int, double, double, double, double, double, double **, double **, int *, int * );
-static void AddFrame( AstFitsChan *, AstFrameSet *, int, int, FitsStore *, char, const char *, const char *, int * );
+static void AddFrame( AstFitsChan *, AstFrameSet *, int, int, FitsStore *, int, char, const char *, const char *, int * );
 static void ChangePermSplit( AstMapping *, int * );
 static void CheckZero( char *, double, int, int, int * );
 static void Chpc1( double *, double *, int, int *, int *, int * );
@@ -2432,8 +2439,8 @@ static int AddEncodingFrame( AstFitsChan *this, AstFrameSet *fs, int encoding,
 }
 
 static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
-                      int npix, FitsStore *store, char s, const char *method,
-                      const char *class, int *status ){
+                      int npix, FitsStore *store, int ignorebad, char s,
+                      const char *method, const char *class, int *status ){
 /*
 *  Name:
 *     AddFrame
@@ -2448,8 +2455,8 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
 *  Synopsis:
 *     #include "fitschan.h"
 *     void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
-*                    int npix, FitsStore *store, char s, const char *method,
-*                    const char *class, int *status )
+*                    int npix, FitsStore *store, int ignorebad, char s,
+*                    const char *method, const char *class, int *status )
 
 *  Class Membership:
 *     FitsChan member function.
@@ -2475,6 +2482,11 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
 *     store
 *        The FitsStore containing the required information extracted from
 *        the FitsChan.
+*     ignorebad
+*        If non-zero, return the supplied FrameSet unchanged if no Frame
+*        can be created from the specified axes (no error is reported). If
+*        zero, return a NULL FrameSet pointer if no Frame can be created
+*        from the specified axes and report an error.
 *     s
 *        The co-ordinate version character. A space means the primary
 *        axis descriptions. Otherwise the supplied character should be
@@ -2500,14 +2512,30 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
    int i;                      /* Axis index */
    int nf;                     /* Number of Frames originally in fset */
    int nwcs;                   /* Number of wcs axes */
+   int rep;                    /* Original error reporting flag */
 
 /* Check the inherited status. */
    if( !astOK ) return;
+
+/* Temporarily supress error reporting. */
+   rep = astReporting( 0 );
 
 /* Get a Mapping between pixel coordinates and physical coordinates, using
    the requested axis descriptions. Also returns a Frame describing the
    physical coordinate system. */
    mapping = WcsMapFrm( this, store, s, &frame, method, class, status );
+
+/* If an error occurred reading the axis descriptions, clear it if we
+   are ignoring unreadable axis descriptions and ensure mapping and frame
+   are null. */
+   if( !astOK && ignorebad ) {
+      astClearStatus;
+      if( mapping ) mapping = astAnnul( mapping );
+      if( frame ) frame = astAnnul( frame );
+   }
+
+/* Re-instate the original error reporting condition. */
+   astReporting( rep );
 
 /* Add the Frame into the FrameSet, and annul the mapping and frame. If
    the mapping has more inputs than there are axes in the pixel Frame,
@@ -2553,7 +2581,7 @@ static void AddFrame( AstFitsChan *this, AstFrameSet *fset, int pixel,
 /* Annul temporary resources. */
       mapping = astAnnul( mapping );
    }
-   frame = astAnnul( frame );
+   if( frame ) frame = astAnnul( frame );
 }
 
 static int AddVersion( AstFitsChan *this, AstFrameSet *fs, int ipix, int iwcs,
@@ -6670,6 +6698,11 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* -------- */
    } else if ( !strcmp( attrib, "forcetab" ) ) {
       astClearForceTab( this );
+
+/* IgnoreBadAlt */
+/* ------------ */
+   } else if ( !strcmp( attrib, "ignorebadalt" ) ) {
+      astClearIgnoreBadAlt( this );
 
 /* CarLin */
 /* ------ */
@@ -11301,6 +11334,7 @@ static AstObject *FsetFromStore( AstFitsChan *this, FitsStore *store,
    char buff[ 40 ];   /* Buffer for axis label */
    char s;            /* Co-ordinate version character */
    int i;             /* Pixel axis index */
+   int ignoreBadAlt;  /* Ignore unreadable alternate axes? */
    int physical;      /* Index of primary physical co-ordinate Frame */
    int pixel;         /* Index of pixel Frame in returned FrameSet */
    int use;           /* Has this co-ordinate version been used? */
@@ -11340,11 +11374,16 @@ static AstObject *FsetFromStore( AstFitsChan *this, FitsStore *store,
    into the FrameSet. Only do this if there are some primary axis
    descriptions. */
       if( GetMaxJM( &(store->crpix), ' ', status ) >= 0 ) {
-         AddFrame( this, ret, pixel, store->naxis, store, ' ', method, class, status );
+         AddFrame( this, ret, pixel, store->naxis, store, 0, ' ', method,
+                   class, status );
       }
 
 /* Get the index of the primary physical co-ordinate Frame in the FrameSet. */
       physical = astGetCurrent( ret );
+
+/* See if failure to read a secondary axis frame should be fatal. If not,
+   the secondary axis Frame will simply be ignored. */
+      ignoreBadAlt = astGetIgnoreBadAlt( this );
 
 /* Loop, producing secondary axis Frames for each of the co-ordinate
    versions stored in the FitsStore. */
@@ -11364,7 +11403,8 @@ static AstObject *FsetFromStore( AstFitsChan *this, FitsStore *store,
 
 /* If this co-ordinate version has been used, add a Frame to the returned
    FrameSet holding this co-ordinate version. */
-         if( use ) AddFrame( this, ret, pixel, store->naxis, store, s, method, class, status );
+         if( use ) AddFrame( this, ret, pixel, store->naxis, store,
+                             ignoreBadAlt, s, method, class, status );
       }
 
 /* Ensure the pixel Frame is the Base Frame and the primary physical
@@ -16349,6 +16389,15 @@ const char *GetAttrib( AstObject *this_object, const char *attrib, int *status )
          result = getattrib_buff;
       }
 
+/* IgnoreBadAlt */
+/* ------------ */
+   } else if ( !strcmp( attrib, "ignorebadalt" ) ) {
+      ival = astGetIgnoreBadAlt( this );
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%d", ival );
+         result = getattrib_buff;
+      }
+
 /* CarLin */
 /* ------ */
    } else if ( !strcmp( attrib, "carlin" ) ) {
@@ -17957,6 +18006,10 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    vtab->TestForceTab = TestForceTab;
    vtab->SetForceTab = SetForceTab;
    vtab->GetForceTab = GetForceTab;
+   vtab->ClearIgnoreBadAlt = ClearIgnoreBadAlt;
+   vtab->TestIgnoreBadAlt = TestIgnoreBadAlt;
+   vtab->SetIgnoreBadAlt = SetIgnoreBadAlt;
+   vtab->GetIgnoreBadAlt = GetIgnoreBadAlt;
    vtab->ClearCarLin = ClearCarLin;
    vtab->TestCarLin = TestCarLin;
    vtab->SetCarLin = SetCarLin;
@@ -26515,6 +26568,13 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
         && ( nc >= len ) ) {
       astSetForceTab( this, ival );
 
+/* IgnoreBadAlt */
+/* ------------ */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "ignorebadalt= %d %n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+      astSetIgnoreBadAlt( this, ival );
+
 /* CarLin */
 /* ------ */
    } else if ( nc = 0,
@@ -33122,6 +33182,11 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* --------- */
    } else if ( !strcmp( attrib, "forcetab" ) ) {
       result = astTestForceTab( this );
+
+/* IgnoreBadAlt. */
+/* ------------- */
+   } else if ( !strcmp( attrib, "ignorebadalt" ) ) {
+      result = astTestIgnoreBadAlt( this );
 
 /* CDMatrix. */
 /* --------- */
@@ -41462,6 +41527,46 @@ astMAKE_GET(FitsChan,ForceTab,int,0,(this->forcetab == -INT_MAX ? 0 : this->forc
 astMAKE_SET(FitsChan,ForceTab,int,forcetab,value)
 astMAKE_TEST(FitsChan,ForceTab,( this->forcetab != -INT_MAX ))
 
+/* IgnoreBadAlt */
+/* ============ */
+
+/*
+*att++
+*  Name:
+*     IgnoreBadAlt
+
+*  Purpose:
+*     Ignore unreadable alternate axis descriptions?
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Integer (boolean).
+
+*  Description:
+*     This attribute is a  boolean value which indicates what the astRead
+*     method should do if it encounters a set of alternate FITS-WCS axis
+*     descriptions that cannot be read. This may occur, for instance, if the
+*     alternate axis descriptions use a feature of FITS-WCS that is not
+*     supported by AST or are malformed in some way.
+*
+*     If IgnoreBadAlt is zero (the default), then the astRead method will
+*     report an error and abort, returning a null FrameSet pointer. If
+*     IgnoreBadAlt is non-zero, then the astRead method will simply ignore
+*     the unreadable alternate axis descriptions, returning a FrameSet
+*     containing any other axes read successfully from the FITS-WCS header.
+
+*  Applicability:
+*     FitsChan
+*        All FitsChans have this attribute.
+*att--
+*/
+astMAKE_CLEAR(FitsChan,IgnoreBadAlt,ignorebadalt,-INT_MAX)
+astMAKE_GET(FitsChan,IgnoreBadAlt,int,0,(this->ignorebadalt == -INT_MAX ? 0 : this->ignorebadalt))
+astMAKE_SET(FitsChan,IgnoreBadAlt,int,ignorebadalt,value)
+astMAKE_TEST(FitsChan,IgnoreBadAlt,( this->ignorebadalt != -INT_MAX ))
+
 /* CarLin */
 /* ====== */
 
@@ -42658,6 +42763,12 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    ival = set ? GetForceTab( this, status ) : astGetForceTab( this );
    astWriteInt( channel, "FrcTab", set, 1, ival, ( ival != 0 ? "Force use of -TAB": "Only use -TAB if necessary") );
 
+/* IgnoreBadAlt */
+/* ------------ */
+   set = TestIgnoreBadAlt( this, status );
+   ival = set ? GetIgnoreBadAlt( this, status ) : astGetIgnoreBadAlt( this );
+   astWriteInt( channel, "IgBdAl", set, 1, ival,  ( ival != 0 ? "Skip unreadable alternate axes": "Abort on unreadable alternate axes") );
+
 /* CDMatrix */
 /* -------- */
    set = TestCDMatrix( this, status );
@@ -43531,6 +43642,7 @@ AstFitsChan *astInitFitsChan_( void *mem, size_t size, int init,
       new->defb1950 = -1;
       new->tabok = -INT_MAX;
       new->forcetab = -INT_MAX;
+      new->ignorebadalt = -INT_MAX;
       new->cdmatrix = -1;
       new->carlin = -1;
       new->sipreplace = -1;
@@ -43772,6 +43884,11 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 /* -------- */
       new->forcetab = astReadInt( channel, "frctab", -INT_MAX );
       if ( TestForceTab( new, status ) ) SetForceTab( new, new->forcetab, status );
+
+/* IgnoreBadAlt */
+/* ------------ */
+      new->ignorebadalt = astReadInt( channel, "igbdal", -INT_MAX );
+      if ( TestIgnoreBadAlt( new, status ) ) SetIgnoreBadAlt( new, new->ignorebadalt, status );
 
 /* CDMatrix */
 /* -------- */

@@ -177,6 +177,7 @@ typedef struct AstFitsChan {
    int defb1950;    /* Use FK4 B1950 as defaults? */
    int tabok;       /* Support -TAB algorithm? */
    int forcetab;    /* Force use of -TAB algorithm? */
+   int ignorebadalt;/* Ignore unreadable alterate axis descriptions? */
    int cdmatrix;    /* Use a CD matrix in FITS-WCS Encoding? */
    int polytan;     /* Use distorted TAN convention? */
    int sipok;       /* Use SIP distortion convention? */
@@ -307,6 +308,11 @@ typedef struct AstFitsChanVtab {
    int (* TestForceTab)( AstFitsChan *, int * );
    void (* SetForceTab)( AstFitsChan *, int, int * );
    void (* ClearForceTab)( AstFitsChan *, int * );
+
+   int (* GetIgnoreBadAlt)( AstFitsChan *, int * );
+   int (* TestIgnoreBadAlt)( AstFitsChan *, int * );
+   void (* SetIgnoreBadAlt)( AstFitsChan *, int, int * );
+   void (* ClearIgnoreBadAlt)( AstFitsChan *, int * );
 
    int (* GetCarLin)( AstFitsChan *, int * );
    int (* TestCarLin)( AstFitsChan *, int * );
@@ -541,6 +547,11 @@ void astInitFitsChanGlobals_( AstFitsChanGlobals * );
    int astTestForceTab_( AstFitsChan *, int * );
    void astSetForceTab_( AstFitsChan *, int, int * );
    void astClearForceTab_( AstFitsChan *, int * );
+
+   int astGetIgnoreBadAlt_( AstFitsChan *, int * );
+   int astTestIgnoreBadAlt_( AstFitsChan *, int * );
+   void astSetIgnoreBadAlt_( AstFitsChan *, int, int * );
+   void astClearIgnoreBadAlt_( AstFitsChan *, int * );
 
    int astGetCDMatrix_( AstFitsChan *, int * );
    int astTestCDMatrix_( AstFitsChan *, int * );
@@ -838,6 +849,15 @@ astINVOKE(V,astGetForceTab_(astCheckFitsChan(this),STATUS_PTR))
 astINVOKE(V,astSetForceTab_(astCheckFitsChan(this),frctab,STATUS_PTR))
 #define astTestForceTab(this) \
 astINVOKE(V,astTestForceTab_(astCheckFitsChan(this),STATUS_PTR))
+
+#define astClearIgnoreBadAlt(this) \
+astINVOKE(V,astClearIgnoreBadAlt_(astCheckFitsChan(this),STATUS_PTR))
+#define astGetIgnoreBadAlt(this) \
+astINVOKE(V,astGetIgnoreBadAlt_(astCheckFitsChan(this),STATUS_PTR))
+#define astSetIgnoreBadAlt(this,ignorebadalt) \
+astINVOKE(V,astSetIgnoreBadAlt_(astCheckFitsChan(this),ignorebadalt,STATUS_PTR))
+#define astTestIgnoreBadAlt(this) \
+astINVOKE(V,astTestIgnoreBadAlt_(astCheckFitsChan(this),STATUS_PTR))
 
 #define astClearCDMatrix(this) \
 astINVOKE(V,astClearCDMatrix_(astCheckFitsChan(this),STATUS_PTR))

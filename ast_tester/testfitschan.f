@@ -2,6 +2,7 @@
       implicit none
       include 'SAE_PAR'
       include 'AST_PAR'
+      include 'AST_ERR'
 
       integer status, fs, fc, i, val, iwcfrm, map
       character cards(10)*80, card*80
@@ -345,8 +346,49 @@ c      call ast_setl( fc, 'Clean', .true., status )
       end if
 
 
+*  Read a header with alternate axis descriptions (set 'C' is badly
+*  formed on purpose).
+      call ast_emptyfits( fc, status )
 
+      if( status .eq. SAI__OK .and.
+     :    ast_getl( fc, 'IgnoreBadAlt', status ) ) then
+         call stopit( 14, ' ', status )
+      end if
 
+      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_clear( fc, 'Card', status )
+      call err_begin( status )
+      fs = ast_read( fc, status )
+
+      if( status .ne. AST__BDFTS ) then
+         if( status .ne. SAI__OK ) call err_flush( status )
+         call stopit( 15, ' ', status )
+      else
+         call err_annul( status )
+      end if
+      call err_end( status )
+
+      call ast_setl( fc, 'IgnoreBadAlt', .TRUE., status )
+      if( status .eq. SAI__OK .and.
+     :    .not. ast_getl( fc, 'IgnoreBadAlt', status ) ) then
+         call stopit( 16, ' ', status )
+      end if
+
+      call ast_emptyfits( fc, status )
+      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_clear( fc, 'Card', status )
+      call err_begin( status )
+      fs = ast_read( fc, status )
+
+      if( status .ne. SAI__OK ) then
+         call err_flush( status )
+         call stopit( 17, ' ', status )
+      end if
+      call err_end( status )
+
+      if( ast_geti( fs, 'Nframe', status ) .ne. 4 ) then
+         call stopit( 18, 'Wrong number of Frames', status )
+      endif
 
 
 
