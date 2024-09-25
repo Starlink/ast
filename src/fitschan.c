@@ -1269,6 +1269,7 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *     25-SEP-2024 (DSB):
 *        - Added IgnoreBadAlt attribute.
 *        - Added warning "BadAlt"
+*        - Correct access to AltAxes attribute
 *class--
 */
 
@@ -42137,7 +42138,7 @@ f     to AST_WRITE
 *att--
 */
 astMAKE_CLEAR(FitsChan,AltAxes,altaxes,INT_MAX)
-astMAKE_GET(FitsChan,AltAxes,int,INT_MAX,this->altaxes)
+astMAKE_GET(FitsChan,AltAxes,int,0,(this->altaxes == INT_MAX ? 0 : this->altaxes))
 astMAKE_SET(FitsChan,AltAxes,int,altaxes,value)
 astMAKE_TEST(FitsChan,AltAxes,( this->altaxes != INT_MAX ))
 
