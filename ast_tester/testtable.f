@@ -6,6 +6,7 @@
       include 'SAE_PAR'
 
       integer status, table, table2, dims( 7 ), ival, l, nval
+      integer*8 kvals(2)
       byte bytes(1,2),bval
       real rval
       character cval*30, text(2,2)*10
@@ -276,6 +277,28 @@ c      call ast_watchmemory(483)
       if( ast_hascolumn( table, 'GoGo', status ) ) then
          call stopit( status, 'Table error 37' )
       endif
+
+      dims(1) = 2
+      call ast_addcolumn( table, 'FredK', AST__KINTTYPE, 1, dims,
+     :                    ' ', status )
+
+      kvals(1) = 1
+      kvals(2) = -1
+      call ast_mapput1k( table, 'FredK(1)', 2, kvals, ' ', status )
+      if( ast_mapget1k( table, 'FredK(1)', 2, nval, kvals,
+     :                  status ) ) then
+         if( nval .ne. 2 ) call stopit( status, 'Table error 38' )
+         if( kvals(1) .ne. 1 ) call stopit( status,
+     :                                          'Table error 39' )
+         if( kvals(2) .ne. -1 ) call stopit( status,
+     :                                         'Table error 40' )
+      else
+         call stopit( status, 'Table error 41' )
+      endif
+
+
+
+
 
 
 
