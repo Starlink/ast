@@ -157,6 +157,37 @@ F77_INTEGER_FUNCTION(ast_columnnull)( INTEGER(THIS),
    return RESULT;
 }
 
+F77_INTEGER8_FUNCTION(ast_columnnullk)( INTEGER(THIS),
+                                        CHARACTER(COLUMN),
+                                        LOGICAL(SET),
+                                        INTEGER8(NEWVAL),
+                                        LOGICAL(WASSET),
+                                        LOGICAL(HASNULL),
+                                        INTEGER(STATUS)
+                                        TRAIL(COLUMN) ) {
+   GENPTR_INTEGER(THIS)
+   GENPTR_CHARACTER(COLUMN)
+   GENPTR_LOGICAL(SET)
+   GENPTR_INTEGER8(NEWVAL)
+   GENPTR_LOGICAL(WASSET)
+   GENPTR_LOGICAL(HASNULL)
+   F77_INTEGER8_TYPE(RESULT);
+   int wasset, hasnull;
+   char *column;
+
+   astAt( "AST_COLUMNNULL", NULL, 0 );
+   astWatchSTATUS(
+      column = astString( COLUMN, COLUMN_length );
+      RESULT = astColumnNullK( astI2P( *THIS ), column,
+                               F77_ISTRUE( *SET ) ? 1 : 0, *NEWVAL,
+                               &wasset, &hasnull );
+      *WASSET = wasset ? F77_TRUE : F77_FALSE;
+      *HASNULL = hasnull ? F77_TRUE : F77_FALSE;
+      astFree( column );
+   )
+   return RESULT;
+}
+
 F77_INTEGER_FUNCTION(ast_columnsize)( INTEGER(THIS),
                                       CHARACTER(COLUMN),
                                       INTEGER(STATUS)

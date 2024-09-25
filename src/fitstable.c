@@ -41,13 +41,13 @@ c     following functions may also be applied to all FitsTables:
 f     In addition to those routines applicable to all Tables, the
 f     following routines may also be applied to all FitsTables:
 *
-c     - astColumnNull: Get/set the null value for a column of a FitsTable
+c     - astColumnNullK: Get/set the null value for a column of a FitsTable
 c     - astColumnSize: Get number of bytes needed to hold a full column of data
 c     - astGetColumnData: Retrieve all the data values stored in a column
 c     - astGetTableHeader: Get the FITS headers from a FitsTable
 c     - astPutColumnData: Store data values in a column
 c     - astPutTableHeader: Store FITS headers within a FitsTable
-f     - AST_COLUMNNULL: Get/set the null value for a column of a FitsTable
+f     - AST_COLUMNNULLK: Get/set the null value for a column of a FitsTable
 f     - AST_COLUMNSIZE: Get number of bytes needed to hold a full column of data
 f     - AST_GETCOLUMNDATA: Retrieve all the data values stored in a column
 f     - AST_GETTABLEHEADER: Get the FITS headers from a FitsTable
@@ -84,6 +84,8 @@ f     - AST_PUTTABLEHEADER: Store FITS headers within a FitsTable
 *        Check for Infs as well as NaNs.
 *     24-OCT-2019 (DSB):
 *        Correct docs for astColumnSize.
+*     25-SEP-2024 (DSB):
+*        Add support for 64 bit integer columns.
 *class--
 */
 
@@ -178,6 +180,7 @@ AstFitsTable *astFitsTableId_( void *, const char *, ... );
 static AstFitsChan *GetTableHeader( AstFitsTable *, int * );
 static char *MakeKey( const char *, int, char *, int, int * );
 static int ColumnNull( AstFitsTable *, const char *, int, int, int *, int *, int * );
+static int64_t ColumnNullK( AstFitsTable *, const char *, int, int64_t, int *, int *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static size_t GetObjSize( AstObject *, int * );
 static size_t ColumnSize( AstFitsTable *, const char *, int * );
@@ -237,11 +240,11 @@ static void AddColumn( AstTable *this, const char *name, int type,
 *        The column name. Trailing spaces are ignored (all other spaces
 *        are significant). The supplied string is converted to upper case.
 *     type
-*        The data type associated with the column. One of AST__INTTYPE
-*        (for integer), AST__SINTTYPE (for short int), AST__BYTETYPE (for
-*        unsigned bytes - i.e. unsigned chars), AST__DOUBLETYPE (for double
-*        precision floating point), AST__FLOATTYPE (for single precision
-*        floating point), AST__STRINGTYPE (for character string). Note,
+*        The data type associated with the column. One of AST__INTTYPE (for
+*        integer), AST__KINTTYPE (for int64_t), AST__SINTTYPE (for short int),
+*        AST__BYTETYPE (for unsigned bytes - i.e. unsigned chars), AST__DOUBLETYPE
+*        (for double precision floating point), AST__FLOATTYPE (for single
+*        precision floating point), AST__STRINGTYPE (for character string). Note,
 *        pointers and undefined values cannot be stored in a FitsTable
 *        column.
 *     ndim
@@ -418,6 +421,150 @@ f        SET is .TRUE., the supplied NEWVAL
 *        returned if the named column does not exist, or an error occurs.
 
 *  Notes:
+*     - This method does not support columns with type AST__KINTTYPE (64
+*     bit integers) and its use is therefore deprecated in favour of
+c     astColumnNullK
+f     AST_COLUMNNULLK
+*     which does support AST__KINTTYPE columns.
+*     - The FITS binary table definition allows only integer-valued
+*     columns to have an associated null value. This routine will return
+*     without action if the column is not integer-valued.
+
+*--
+*/
+
+/* Use the internal version that also supports type K. */
+   return ColumnNullK( this, column, set, newval, wasset, hasnull,
+                       status );
+}
+
+static int64_t ColumnNullK( AstFitsTable *this, const char *column, int set,
+                            int64_t newval, int *wasset, int *hasnull, int *status ){
+/*
+*++
+*  Name:
+c     astColumnNullK
+f     AST_COLUMNNULLK
+
+*  Purpose:
+*     Get or set the null value for an integer column of a FITS table,
+*     including 64 bit integers
+
+*  Type:
+*     Public virtual function.
+
+*  Synopsis:
+c     #include "table.h"
+c     int64_t astColumnNullk( AstFitsTable *this, const char *column, int set,
+c                             int64_t newval, int *wasset, int *hasnull )
+f     RESULT = AST_COLUMNNULL( THIS, COLUMN, SET, NEWVAL, WASSET, HASNULL,
+f                              STATUS )
+
+*  Class Membership:
+*     FitsTable method.
+
+*  Description:
+*     This function allows a null value to be stored with a named
+*     integer-valued column in a FitsTable. The supplied null value is
+*     assigned to the TNULLn keyword in the FITS header associated with
+*     the FitsTable. A value in the named column is then considered to be
+*     null if 1) it equals the null value supplied to this function, or
+*     2) no value has yet been stored in the cell.
+*
+*     As well as setting a new null value, this function also returns the
+*     previous null value. If no null value has been set previously, a
+*     default value will be returned. This default will be an integer
+*     value that does not currently occur anywhere within the named column.
+*     If no such value can be found, what happens depends on whether the
+*     column contains any cells in which no values have yet been stored.
+*     If so, an error will be reported. Otherwise (i.e. if there are no
+*     null values in the column), an arbitrary value of zero will be
+*     returned as the function value, and no TNULLn keyword will be
+*     stored in the FITS header.
+*
+*     A flag is returned indicating if the returned null value was set
+*     explicitly by a previous call to this function, or is a default
+*     value.
+*
+*     A second flag is returned indicating if the named column contains
+*     any null values (i.e. values equal to the supplied null value, or
+*     cells to which no value has yet been assigned).
+
+*  Parameters:
+c     this
+f     THIS = INTEGER (Given)
+*        Pointer to the FitsTable.
+c     column
+f     COLUMN = CHARACTER * ( * ) (Given)
+*        The character string holding the name of the column. Trailing
+*        spaces are ignored.
+c     set
+f     SET = LOGICAL (Given)
+c        If non-zero, the value supplied for parameter "newval"
+f        If .TRUE., the value supplied for argument NEWVAL
+*        will be stored as the current null value, replacing any value
+*        set by a previous call to this function.
+c        If zero, the value supplied for parameter "newval"
+f        If .FALSE., the value supplied for argument NEWVAL
+*        is ignored and the current null value is left unchanged.
+c     newval
+f     NEWVAL = INTEGER*8 (Given)
+*        The new null value to use. Ignored if
+c        "set" is zero.
+f        SET is .FALSE.
+*        An error will be reported if the supplied value is outside the
+*        range of values that can be stored in the integer data type
+*        associated with the column.
+c     wasset
+f     WASSET = LOGICAL (Returned)
+c        Pointer to an int that will be returned non-zero
+f        .TRUE. will be returned
+*        if the returned null value was set previously via an
+*        earlier invocation of this function.
+c        Zero
+f        .FALSE.
+*        is returned otherwise. If the named column does not exist, or an
+*        error occurs, a value of
+c        zero is returned.
+f        .FALSE. is returned.
+c     hasnull
+f     HASNULL = LOGICAL (Returned)
+c        Pointer to an int that will be returned non-zero
+f        .TRUE. will be returned
+*        if and only if the named column currently contains any values
+*        equal to the null value on exit (i.e.
+c        "newval" if "set" is non-zero,
+f        NEWVAL if SET is .TRUE.
+*        or the returned function value otherwise), or contains any empty
+*        cells. If the named column does not exist, or an error occurs, a
+*        value of
+c        zero is returned.
+f        .FALSE. is returned.
+c        If a NULL pointer is supplied for "hasnull", no check on the
+c        presence of null values will be performed.
+f     STATUS = INTEGER (Given and Returned)
+f        The global status.
+
+*  Returned Value:
+c     astColumnNull()
+f     AST_COLUMNNULL = INTEGER*8
+*        The null value that was in use on entry to this function. If a
+*        null value has been set by a previous invocation of this
+*        function, it will be returned. Otherwise, if
+c        "set" is non-zero, the supplied "newval"
+f        SET is .TRUE., the supplied NEWVAL
+*        value is returned. Otherwise, a default value is chosen (if
+*        possible) that does not currently occur in the named column. If
+*        all available values are in use in the column, an error is
+*        reported if and only if the column contains any empty cells.
+*        Otherwise, a value of zero is returned. A value of zero is also
+*        returned if the named column does not exist, or an error occurs.
+
+*  Notes:
+c     - Unlike astColumnNull,
+f     - Unlike AST_COLUMNNULL,
+*     this method supports columns with type AST__KINTTYPE (64
+*     bit integers) in addition to other type of integers.
 *     - The FITS binary table definition allows only integer-valued
 *     columns to have an associated null value. This routine will return
 *     without action if the column is not integer-valued.
@@ -429,24 +576,24 @@ f        SET is .TRUE., the supplied NEWVAL
    AstKeyMap *col_km;      /* KeyMap holding named column definition */
    AstKeyMap *cols;        /* KeyMap holding all column definitions */
    char key[ AST__MXCOLKEYLEN + 1 ]; /* Current cell key string */
-   int *cell;              /* Pointer to array of cell values */
    int foundhi;            /* Has an occurrence of "nullhi" been found yet? */
    int foundlo;            /* Has an occurrence of "nulllo" been found yet? */
    int gotresult;          /* Has a usable value been put into "result"? */
    int idim;               /* Index of current axis in each column's value */
    int iel;                /* Index of current element within cell value */
-   int imax;               /* Maximum storable value */
-   int imin;               /* Minimum storable value */
    int irow;               /* Index of current row in table */
    int ndim;               /* Number of axes in each column's value */
    int nel;                /* Total number of values in each cell */
    int nrow;               /* Number of rows in table */
-   int null;               /* The null value on exit */
    int nullfound;          /* Has a null value been found in the column yet? */
-   int nullhi;             /* Higher candidate default null value */
-   int nulllo;             /* Lower candidate default null value */
-   int result;             /* Returned value */
    int type;               /* Column data type */
+   int64_t *cell;          /* Pointer to array of cell values */
+   int64_t imax;           /* Maximum storable value */
+   int64_t imin;           /* Minimum storable value */
+   int64_t null;           /* The null value on exit */
+   int64_t nullhi;         /* Higher candidate default null value */
+   int64_t nulllo;         /* Lower candidate default null value */
+   int64_t result;         /* Returned value */
 
 /* Initialise */
    result = 0;
@@ -456,7 +603,7 @@ f        SET is .TRUE., the supplied NEWVAL
 /* Check the global error status. */
    if ( !astOK ) return result;
 
-/* Store the max and min integer values that can be store din the column
+/* Store the max and min integer values that can be stored in the column
    data type. */
    type = astGetColumnType( this, column );
    if( type == AST__BYTETYPE ) {
@@ -470,6 +617,10 @@ f        SET is .TRUE., the supplied NEWVAL
    } else if( type == AST__INTTYPE ) {
       imin = INT_MIN;
       imax = INT_MAX;
+
+   } else if( type == AST__KINTTYPE ) {
+      imin = INT64_MIN;
+      imax = INT64_MAX;
 
    } else {
       imax = 0;
@@ -488,7 +639,7 @@ f        SET is .TRUE., the supplied NEWVAL
 /* If the column definition already includes a null value, put it into
    "result". Also store the "*wasset" flag that indicates if the returned
    null value is a default value or not. */
-         *wasset = astMapGet0I( col_km, NULLKEY, &result );
+         *wasset = astMapGet0K( col_km, NULLKEY, &result );
 
 /* If a new null value is to be established... */
          if( set ) {
@@ -506,11 +657,11 @@ f        SET is .TRUE., the supplied NEWVAL
 /* Check the supplied value is in range. If so store it in the column
    keymap. Otherwise report an error. */
             if( null >= imin && null <= imax ) {
-               astMapPut0I( col_km, NULLKEY, null, NULL );
+               astMapPut0K( col_km, NULLKEY, null, NULL );
 
             } else if( astOK ) {
                astError( AST__BADNULL, "astColumnNull(%s): Supplied null "
-                         "value (%d) is outside the range of integers "
+                         "value (%" PRId64 ") is outside the range of integers "
                          "that can be stored in column '%s'.", status,
                          astGetClass( this ), newval, column );
             }
@@ -530,8 +681,8 @@ f        SET is .TRUE., the supplied NEWVAL
             nel = astGetColumnLength( this, column );
 
 /* Allocate memory to hold the values in a single cell of the column,
-   stored as ints. */
-            cell = astMalloc( nel*sizeof( int ) );
+   stored as int64_t. */
+            cell = astMalloc( nel*sizeof( int64_t ) );
 
 /* No null values found yet. */
             nullfound = 0;
@@ -555,7 +706,7 @@ f        SET is .TRUE., the supplied NEWVAL
                                status );
 
 /* Attempt to get the values in the cell */
-               if( astMapGet1I( this, key, nel, &nel, cell ) ) {
+               if( astMapGet1K( this, key, nel, &nel, cell ) ) {
 
 /* Get the number of dimensions. */
                   ndim = astGetColumnNdim( this, column );
@@ -722,6 +873,9 @@ f     AST_COLUMNSIZE = INTEGER
    type = astGetColumnType( this, column );
    if( type == AST__INTTYPE ) {
       result = sizeof( int );
+
+   } else if( type == AST__KINTTYPE ) {
+      result = sizeof( int64_t );
 
    } else if(  type == AST__DOUBLETYPE ){
       result = sizeof( double );
@@ -934,7 +1088,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
    int *dims;
    int icol;
    int idim;
-   int ival;
+   int64_t kval;
    int nc;
    int ncol;
    int ndim;
@@ -985,6 +1139,9 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
 
       } else if( code == 'J' ) {
          type = AST__INTTYPE;
+
+      } else if( code == 'K' ) {
+         type = AST__KINTTYPE;
 
       } else if( code == 'D' ) {
          type = AST__DOUBLETYPE;
@@ -1106,8 +1263,8 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
 
 /* Set the null value, if present. */
       sprintf( keyword, "TNULL%d", icol + 1 );
-      if( astGetFitsI( header, keyword, &ival ) ) {
-         (void) astColumnNull( this, name, 1, ival, &wasset, NULL );
+      if( astGetFitsK( header, keyword, &kval ) ) {
+         (void) astColumnNullK( this, name, 1, kval, &wasset, NULL );
       }
 
 /* Free resources. */
@@ -1218,8 +1375,8 @@ c     - The "fnull" and "dnull" parameters
 *     specify the value to be returned for any empty cells within columns
 *     holding floating point values. For columns holding integer values,
 *     the value returned for empty cells is the value returned by the
-c     astColumNull function.
-f     AST_COLUMNNULL functiom.
+c     astColumNullK function.
+f     AST_COLUMNNULLK functiom.
 *     For columns holding string values, the ASCII NULL character is returned
 *     for empty cells.
 *--
@@ -1255,6 +1412,9 @@ f     AST_COLUMNNULL functiom.
    type = astGetColumnType( this, column );
    if( type == AST__INTTYPE ) {
       nb = sizeof( int );
+
+   } else if( type == AST__KINTTYPE ) {
+      nb = sizeof( int64_t );
 
    } else if( type == AST__DOUBLETYPE ){
       nb = sizeof( double );
@@ -1323,6 +1483,9 @@ f     AST_COLUMNNULL functiom.
       if( type == AST__INTTYPE ) {
          ok = astMapGet1I( this, key, nel, &nval, pout );
 
+      } else if( type == AST__KINTTYPE ) {
+         ok = astMapGet1K( this, key, nel, &nval, pout );
+
       } else if(  type == AST__DOUBLETYPE ){
          ok = astMapGet1D( this, key, nel, &nval, pout );
 
@@ -1375,7 +1538,10 @@ f     AST_COLUMNNULL functiom.
 
 /* Copy the appropriate null value into the buffer allocated above. */
                if( type == AST__INTTYPE ) {
-                  *( (int *) pnull ) = astColumnNull( this, column, 0, 0,
+                  *( (int *) pnull ) = astColumnNullK( this, column, 0, 0,
+                                                      &wasset, NULL );
+              } else if( type == AST__KINTTYPE ) {
+                  *( (int64_t *) pnull ) = astColumnNullK( this, column, 0, 0,
                                                       &wasset, NULL );
                } else if(  type == AST__DOUBLETYPE ){
                   *( (double *) pnull ) = dnull;
@@ -1387,10 +1553,10 @@ f     AST_COLUMNNULL functiom.
                   memset( pnull, 0, nb );
 
                } else if(  type == AST__SINTTYPE ){
-                  *( (short int *) pnull ) = astColumnNull( this, column, 0, 0,
+                  *( (short int *) pnull ) = astColumnNullK( this, column, 0, 0,
                                                             &wasset, NULL );
                } else if(  type == AST__BYTETYPE ){
-                  *( (unsigned char *) pnull ) = astColumnNull( this, column, 0, 0,
+                  *( (unsigned char *) pnull ) = astColumnNullK( this, column, 0, 0,
                                                                 &wasset, NULL );
                }
             }
@@ -1611,6 +1777,7 @@ void astInitFitsTableVtab_(  AstFitsTableVtab *vtab, const char *name, int *stat
    vtab->GetTableHeader = GetTableHeader;
    vtab->PutTableHeader = PutTableHeader;
    vtab->ColumnNull = ColumnNull;
+   vtab->ColumnNullK = ColumnNullK;
    vtab->ColumnSize = ColumnSize;
    vtab->GetColumnData = GetColumnData;
    vtab->PutColumnData = PutColumnData;
@@ -1966,6 +2133,9 @@ f        The global status.
    if( type == AST__INTTYPE ) {
       nb = sizeof( int );
 
+   } else if( type == AST__KINTTYPE ) {
+      nb = sizeof( int64_t );
+
    } else if(  type == AST__DOUBLETYPE ){
       nb = sizeof( double );
 
@@ -2021,6 +2191,9 @@ f        The global status.
    data type. Skip floating point values that are entirely NaN. */
       if( type == AST__INTTYPE ) {
          astMapPut1I( this, key, nel, pin, NULL );
+
+      } else if( type == AST__KINTTYPE ) {
+         astMapPut1K( this, key, nel, pin, NULL );
 
       } else if(  type == AST__DOUBLETYPE ){
          for( iel = 0; iel < nel; iel++ ) {
@@ -2180,7 +2353,7 @@ static void UpdateHeader( AstFitsTable *this, const char *method,
    int ncol;
    int ndim;
    int nel;
-   int null;
+   int64_t null;
    int rowsize;
    int set;
    int slen;
@@ -2238,6 +2411,10 @@ static void UpdateHeader( AstFitsTable *this, const char *method,
             code = 'J';
             rowsize += 4*nel;
 
+         } else if( type == AST__KINTTYPE ) {
+            code = 'K';
+            rowsize += 8*nel;
+
          } else if( type == AST__DOUBLETYPE ) {
             code = 'D';
             rowsize += 8*nel;
@@ -2287,11 +2464,11 @@ static void UpdateHeader( AstFitsTable *this, const char *method,
    if the NULL attribute has been set for the column, or if the column
    contains missing (i.e. null) values. */
          if( type == AST__BYTETYPE || type == AST__SINTTYPE ||
-             type == AST__INTTYPE ) {
-            null = astColumnNull( this, name, 0, 0, &set, &hasNull );
+             type == AST__INTTYPE || type == AST__KINTTYPE ) {
+            null = astColumnNullK( this, name, 0, 0, &set, &hasNull );
             if( set || hasNull ) {
                sprintf( keyword, "TNULL%d", icol );
-               astSetFitsI( this->header, keyword, null, NULL, 0 );
+               astSetFitsK( this->header, keyword, null, NULL, 0 );
             }
          }
 
@@ -2978,6 +3155,14 @@ int astColumnNull_( AstFitsTable *this, const char *column, int set,
    if( hasnull ) *hasnull = 0;
    if ( !astOK ) return 0;
    return (**astMEMBER(this,FitsTable,ColumnNull))(this,column,set,newval,wasset,hasnull,status);
+}
+
+int64_t astColumnNullK_( AstFitsTable *this, const char *column, int set,
+                         int64_t newval, int *wasset, int *hasnull, int *status ){
+   *wasset = 0;
+   if( hasnull ) *hasnull = 0;
+   if ( !astOK ) return 0;
+   return (**astMEMBER(this,FitsTable,ColumnNullK))(this,column,set,newval,wasset,hasnull,status);
 }
 
 size_t astColumnSize_( AstFitsTable *this, const char *column, int *status ){

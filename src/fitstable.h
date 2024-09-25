@@ -32,12 +32,12 @@
 *     License as published by the Free Software Foundation, either
 *     version 3 of the License, or (at your option) any later
 *     version.
-*     
+*
 *     This program is distributed in the hope that it will be useful,
 *     but WITHOUT ANY WARRANTY; without even the implied warranty of
 *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *     GNU Lesser General Public License for more details.
-*     
+*
 *     You should have received a copy of the GNU Lesser General
 *     License along with this program.  If not, see
 *     <http://www.gnu.org/licenses/>.
@@ -108,6 +108,7 @@ typedef struct AstFitsTableVtab {
    AstFitsChan *(* GetTableHeader)( AstFitsTable *, int * );
    void (* PutTableHeader)( AstFitsTable *, AstFitsChan *, int * );
    int (* ColumnNull)( AstFitsTable *, const char *, int, int, int *, int *, int * );
+   int64_t (* ColumnNullK)( AstFitsTable *, const char *, int, int64_t, int *, int *, int * );
    size_t (* ColumnSize)( AstFitsTable *, const char *, int * );
    void (* GetColumnData)( AstFitsTable *, const char *, float, double, size_t, void *, int *, int * );
    void (* PutColumnData)( AstFitsTable *, const char *, int, size_t, void *, int * );
@@ -166,6 +167,7 @@ AstFitsTable *astLoadFitsTable_( void *, size_t, AstFitsTableVtab *,
 AstFitsChan *astGetTableHeader_( AstFitsTable *, int * );
 void astPutTableHeader_( AstFitsTable *, AstFitsChan *, int * );
 int astColumnNull_( AstFitsTable *, const char *, int, int, int *, int *, int * );
+int64_t astColumnNullK_( AstFitsTable *, const char *, int, int64_t, int *, int *, int * );
 size_t astColumnSize_( AstFitsTable *, const char *, int * );
 void astGetColumnData_( AstFitsTable *, const char *, float, double, size_t, void *, int *, int * );
 void astPutColumnData_( AstFitsTable *, const char *, int, size_t, void *, int * );
@@ -222,6 +224,8 @@ astINVOKE(O,astGetTableHeader_(astCheckFitsTable(this),STATUS_PTR))
 astINVOKE(V,astPutTableHeader_(astCheckFitsTable(this),astCheckFitsChan(header),STATUS_PTR))
 #define astColumnNull(this,column,set,newval,wasset,hasnull) \
 astINVOKE(V,astColumnNull_(astCheckFitsTable(this),column,set,newval,wasset,hasnull,STATUS_PTR))
+#define astColumnNullK(this,column,set,newval,wasset,hasnull) \
+astINVOKE(V,astColumnNullK_(astCheckFitsTable(this),column,set,newval,wasset,hasnull,STATUS_PTR))
 #define astColumnSize(this,column) \
 astINVOKE(V,astColumnSize_(astCheckFitsTable(this),column,STATUS_PTR))
 #define astGetColumnData(this,column,fnull,dnull,mxsize,coldata,nelem) \

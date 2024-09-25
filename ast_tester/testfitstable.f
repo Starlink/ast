@@ -6,8 +6,9 @@
       include 'SAE_PAR'
       include 'CNF_PAR'
 
+      integer*8 kval, null
       integer status, table, table2, dims( 7 ), header, ival, l, nval,
-     :        icard, colsize, pntr, head, clen, oldnull, null
+     :        icard, colsize, pntr, head, clen, oldnull
       byte bytes(2,3),bval
       logical wasset, hasnull
       real rval
@@ -18,7 +19,7 @@
       data header1 / 'XTENSION= ''BINTABLE''',
      :               'BITPIX  =                    8',
      :               'NAXIS   =                    2',
-     :               'NAXIS1  =                   10',
+     :               'NAXIS1  =                   14',
      :               'NAXIS2  =                    0',
      :               'PCOUNT  =                    0',
      :               'GCOUNT  =                    1',
@@ -27,8 +28,8 @@
      :               'TTYPE1  = ''BYTECOL ''',
      :               'TUNIT1  = ''ADU     ''',
      :               'TDIM1   = ''(2,3)   ''',
-     :               'TFORM2  = ''1J      ''',
-     :               'TTYPE2  = ''INTCOL  ''',
+     :               'TFORM2  = ''1K      ''',
+     :               'TTYPE2  = ''KINTCOL ''',
      :               'TUNIT2  = ''m       ''',
      :               'TFORM3  = ''0A      ''',
      :               'TTYPE3  = ''STRINGCOL''',
@@ -38,7 +39,7 @@
       data header2 / 'XTENSION= ''BINTABLE''',
      :               'BITPIX  =                    8',
      :               'NAXIS   =                    2',
-     :               'NAXIS1  =                   40',
+     :               'NAXIS1  =                   44',
      :               'NAXIS2  =                    3',
      :               'PCOUNT  =                    0',
      :               'GCOUNT  =                    1',
@@ -48,10 +49,10 @@
      :               'TUNIT1  = ''ADU     ''',
      :               'TNULL1  =                  254',
      :               'TDIM1   = ''(2,3)   ''',
-     :               'TFORM2  = ''1J      ''',
-     :               'TTYPE2  = ''INTCOL  ''',
+     :               'TFORM2  = ''1K      ''',
+     :               'TTYPE2  = ''KINTCOL ''',
      :               'TUNIT2  = ''m       ''',
-     :               'TNULL2  =           2147483647',
+     :               'TNULL2  =  9223372036854775807',
      :               'TFORM3  = ''30A     ''',
      :               'TTYPE3  = ''STRINGCOL''',
      :               'TDIM3   = ''(10,3)  ''' /
@@ -96,7 +97,7 @@ c      call ast_watchmemory(483)
       call ast_addcolumn( table, 'BYTECOL', AST__BYTETYPE, 2, dims,
      :                    'ADU', status )
 
-      call ast_addcolumn( table, 'INTCOL', AST__INTTYPE, 0, 0, 'm',
+      call ast_addcolumn( table, 'KINTCOL', AST__KINTTYPE, 0, 0, 'm',
      :                    status )
 
       dims( 1 ) = 3
@@ -147,22 +148,22 @@ c      call ast_watchmemory(483)
       end if
 
 
-      if( ast_geti( table2, 'ColumnLength(intcol)', status )
+      if( ast_geti( table2, 'ColumnLength(kintcol)', status )
      :    .ne. 1 ) then
          call stopit( status, 'FitsTable error 11f' )
       endif
 
-      if( ast_geti( table2, 'ColumnNdim(intcol)', status )
+      if( ast_geti( table2, 'ColumnNdim(kintcol)', status )
      :    .ne. 0 ) then
          call stopit( status, 'FitsTable error 11g' )
       end if
 
-      if( ast_geti( table2, 'ColumnType(intcol)', status )
-     :    .ne. AST__INTTYPE ) then
+      if( ast_geti( table2, 'ColumnType(kintcol)', status )
+     :    .ne. AST__KINTTYPE ) then
          call stopit( status, 'FitsTable error 11h' )
       end if
 
-      if( ast_getc( table2, 'ColumnUnit(intcol)', status )
+      if( ast_getc( table2, 'ColumnUnit(kintcol)', status )
      :    .ne. 'm' ) then
          call stopit( status, 'FitsTable error 11i' )
       end if
@@ -204,11 +205,14 @@ c      call ast_watchmemory(483)
       bytes(2,1) = 1
       bytes(2,2) = 1
       bytes(2,3) = 1
+
       call ast_mapput1b( table, 'BYTECOL(2)', 6, bytes, ' ', status )
 
-      call ast_mapput0i( table, 'INTCOL(2)', 10, ' ', status )
+      kval = 10
+      call ast_mapput0k( table, 'KINTCOL(2)', kval, ' ', status )
 
-      call ast_mapput0i( table, 'INTCOL(3)', -10, ' ', status )
+      kval = -10
+      call ast_mapput0k( table, 'KINTCOL(3)', kval, ' ', status )
 
       text( 1 ) = 'hello'
       text( 2 ) = ' '
@@ -273,7 +277,8 @@ c      call ast_watchmemory(483)
          if( colsize .ne. 18 ) call stopit( status,
      :                                      'FitsTable error 13f' )
 
-         null = ast_columnnull( table, 'BYTECOL', .FALSE., 0,
+         kval = 0
+         null = ast_columnnullk( table, 'BYTECOL', .FALSE., kval,
      :                          wasset, hasnull, status )
          call checkbytes( table, %val( CNF_PVAL( pntr ) ), null,
      :                    status )
@@ -281,7 +286,7 @@ c      call ast_watchmemory(483)
          colsize = 18
          call ast_putcolumndata( table2, 'byteCol', 0, colsize,
      :                           %val( CNF_PVAL( pntr ) ), status )
-         oldnull = ast_columnnull( table2, 'BYTECOL', .TRUE., null,
+         oldnull = ast_columnnullk( table2, 'BYTECOL', .TRUE., null,
      :                             wasset, hasnull, status )
          call ast_getcolumndata( table2, 'BYTECOL', 0.0, 0.0D0, colsize,
      :                           %val( cnf_pval( pntr ) ), colsize,
@@ -294,33 +299,36 @@ c      call ast_watchmemory(483)
          call psx_free( pntr, status )
       end if
 
-      colsize = ast_columnsize( table, 'intcol', status )
-      if( colsize .ne. 12 ) then
+      colsize = ast_columnsize( table, 'kintcol', status )
+      if( colsize .ne. 24 ) then
          call stopit( status, 'FitsTable error 13h' )
       else
          call psx_malloc( colsize, pntr, status )
-         call ast_getcolumndata( table, 'INTCOL', 0.0, 0.0D0, colsize,
+         call ast_getcolumndata( table, 'KINTCOL', 0.0, 0.0D0, colsize,
      :                           %val( cnf_pval( pntr ) ), colsize,
      :                           status )
          if( colsize .ne. 3 ) call stopit( status,
      :                                    'FitsTable error 13i' )
+         kval = 0
          call checkints( table, %val( CNF_PVAL( pntr ) ),
-     :                    ast_columnnull( table, 'INTCOL', .FALSE., 0,
-     :                                   wasset, hasnull, status ),
+     :                    ast_columnnullk( table, 'KINTCOL', .FALSE.,
+     :                                     kval, wasset, hasnull,
+     :                                     status ),
      :                    status )
 
-         colsize = 12
-         call ast_putcolumndata( table2, 'INTCol', 0, colsize,
+         colsize = 24
+         call ast_putcolumndata( table2, 'KINTCol', 0, colsize,
      :                           %val( CNF_PVAL( pntr ) ), status )
 
-         call ast_getcolumndata( table2, 'INTCOL', 0.0, 0.0D0, colsize,
+         call ast_getcolumndata( table2, 'KINTCOL', 0.0, 0.0D0, colsize,
      :                           %val( cnf_pval( pntr ) ), colsize,
      :                           status )
          if( colsize .ne. 3 ) call stopit( status,
      :                                    'FitsTable error 13j' )
+         kval = 0
          call checkints( table2, %val( CNF_PVAL( pntr ) ),
-     :                    ast_columnnull( table2, 'INTCOL', .FALSE., 0,
-     :                                   wasset, hasnull, status ),
+     :                    ast_columnnullk( table2, 'KINTCOL', .FALSE.,
+     :                                  kval, wasset, hasnull, status ),
      :                    status )
 
          call psx_free( pntr, status )
@@ -368,7 +376,7 @@ c      call ast_watchmemory(483)
       call ast_removecolumn( table, 'REALCOL', status )
 
       call ast_mapremove( table, 'BYTECOL(3)', status )
-      call ast_mapremove( table, 'INTCOL(3)', status )
+      call ast_mapremove( table, 'KINTCOL(3)', status )
       call ast_mapremove( table, 'STRINGCOL(3)', status )
 
       if( ast_geti( table, 'Nrow', status ) .ne. 3 ) then
@@ -397,7 +405,8 @@ c      call ast_watchmemory(483)
 
 
 
-      if( ast_columnnull( table, 'BYTECOL', .FALSE., 0, wasset,
+      kval = 0
+      if( ast_columnnullk( table, 'BYTECOL', .FALSE., kval, wasset,
      :                    hasnull, status ) .ne. 254 ) then
          call stopit( status, 'FitsTable error 19' )
       else if( wasset ) then
@@ -423,7 +432,8 @@ c      call ast_watchmemory(483)
       endif
       call ast_annul( header, status )
 
-      if( ast_columnnull( table, 'BYTECOL', .TRUE., 11, wasset,
+      kval = 11
+      if( ast_columnnullk( table, 'BYTECOL', .TRUE., kval, wasset,
      :                    hasnull, status ) .ne. 11 ) then
          call stopit( status, 'FitsTable error 25' )
       else if( wasset ) then
@@ -432,7 +442,8 @@ c      call ast_watchmemory(483)
          call stopit( status, 'FitsTable error 27' )
       end if
 
-      if( ast_columnnull( table, 'BYTECOL', .FALSE., 0, wasset,
+      kval = 0
+      if( ast_columnnullk( table, 'BYTECOL', .FALSE., kval, wasset,
      :                    hasnull, status ) .ne. 11 ) then
          call stopit( status, 'FitsTable error 28' )
       else if( .not. wasset ) then
@@ -501,8 +512,8 @@ c      call ast_activememory( 'testfitstable' )
       subroutine checkints( table, vals, null, status )
       implicit none
       include 'SAE_PAR'
-      integer status, table, null
-      integer vals( * )
+      integer status, table
+      integer*8 vals( * ), null
 
       if( status .ne. sai__ok ) return
 

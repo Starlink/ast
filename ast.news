@@ -27,6 +27,7 @@ warning will be created if any alternate axes are ignored when reading a
 FITS-WCS header.
 - The FitsChan class now supports 64 bit integer keyword values.
 - The Table class now supports 64 bit integer columns.
+- The FitsTable class now supports 64 bit integer columns.
 
 Main Changes in V9.2.11
 -----------------------
