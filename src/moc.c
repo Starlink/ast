@@ -157,6 +157,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *     19-JUL-2024 (GSB)
 *        Added option for MakeCorners to attempt to label isolated corners
 *        and cells so that RegBaseMesh can handle these separately.
+*     3-DEC-2024 (GSB)
+*        Transform points to current frame in RegTrace from the base frame
+*        coordinates returned by astRegBaseMesh (if necessary).
 *class--
 */
 
@@ -8522,8 +8525,12 @@ static int RegTrace( AstRegion *this_region, int n, double *dist, double **ptr,
 */
 
 /* Local Variables; */
+   AstMapping *map;
    AstMoc *this;
    AstPointSet *mesh;
+   AstPointSet *bpset;
+   AstPointSet *cpset;
+   double **bptr;
    double **ptr_mesh;
    double whi;
    double wlo;
@@ -8535,6 +8542,7 @@ static int RegTrace( AstRegion *this_region, int n, double *dist, double **ptr,
    int jhi;
    int jlo;
    int len_mesh;
+   int ncur;
 
 /* Check inherited status. */
    if( ! astOK ) return 0;
@@ -8544,6 +8552,22 @@ static int RegTrace( AstRegion *this_region, int n, double *dist, double **ptr,
 
 /* Check we have some points to find. */
    if( n > 0 ) {
+
+/* Determine whether the current frame is different from the base frame,
+   in which case it will be necessary to transform the points returned
+   by astRegBaseMesh. */
+      map = astGetMapping( this_region->frameset, AST__BASE, AST__CURRENT );
+
+      if( astIsAUnitMap( map ) ) {
+         bpset = NULL;
+         bptr = ptr;
+         ncur = 2;
+
+      } else {
+         bpset = astPointSet( n, 2, " ", status );
+         bptr = astGetPoints( bpset );
+         ncur = astGetNout( map );
+      }
 
 /* Get a mesh of points on the boundary of the Moc. The mesh is sorted into
    increasing Dec (values with equal Dec are sorted into increasing RA).
@@ -8577,34 +8601,50 @@ static int RegTrace( AstRegion *this_region, int n, double *dist, double **ptr,
 
             if( jlo < 0 ) {
                imesh =  (this->meshdist)[ 0 ];
-               ptr[ 0 ][ i ] = ptr_mesh[ 0 ][ imesh ];
-               ptr[ 1 ][ i ] = ptr_mesh[ 1 ][ imesh ];
+               bptr[ 0 ][ i ] = ptr_mesh[ 0 ][ imesh ];
+               bptr[ 1 ][ i ] = ptr_mesh[ 1 ][ imesh ];
 
             } else if( jhi >= len_mesh ) {
                imesh =  (this->meshdist)[ len_mesh - 1 ];
-               ptr[ 0 ][ i ] = ptr_mesh[ 0 ][ imesh ];
-               ptr[ 1 ][ i ] = ptr_mesh[ 1 ][ imesh ];
+               bptr[ 0 ][ i ] = ptr_mesh[ 0 ][ imesh ];
+               bptr[ 1 ][ i ] = ptr_mesh[ 1 ][ imesh ];
 
             } else {
                imesh_hi = (this->meshdist)[ jhi ];
                if( imesh_hi < 0 ) {
-                  ptr[ 0 ][ i ] = AST__BAD;
-                  ptr[ 1 ][ i ] = AST__BAD;
+                  bptr[ 0 ][ i ] = AST__BAD;
+                  bptr[ 1 ][ i ] = AST__BAD;
                } else {
                   imesh_lo = (this->meshdist)[ jlo ];
                   if( imesh_lo < 0 ) imesh_lo = -imesh_lo;
 
-                  ptr[ 0 ][ i ] = wlo*ptr_mesh[ 0 ][ imesh_lo ] +
-                                  whi*ptr_mesh[ 0 ][ imesh_hi ];
-                  ptr[ 1 ][ i ] = wlo*ptr_mesh[ 1 ][ imesh_lo ] +
-                                  whi*ptr_mesh[ 1 ][ imesh_hi ];
+                  bptr[ 0 ][ i ] = wlo*ptr_mesh[ 0 ][ imesh_lo ] +
+                                   whi*ptr_mesh[ 0 ][ imesh_hi ];
+                  bptr[ 1 ][ i ] = wlo*ptr_mesh[ 1 ][ imesh_lo ] +
+                                   whi*ptr_mesh[ 1 ][ imesh_hi ];
                }
             }
+         }
+
+/* Transform the base frame coordinates into the current frame. */
+         if( bpset ) {
+            cpset = astPointSet( n, ncur, " ", status );
+            astSetPoints( cpset, ptr );
+
+            (void) astTransform( map, bpset, 1, cpset );
+
+            cpset = astAnnul( cpset );
          }
       }
 
 /* Free resources. */
       mesh = astAnnul( mesh );
+
+      if( bpset ) {
+         bpset = astAnnul( bpset );
+      }
+
+      map = astAnnul( map );
    }
 
 /* Return the result. */
