@@ -428,6 +428,15 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        RebinSeq<X>: change calculation of mean weight per input pixel so that
 *        it excludes pixels with zero weight. This will only affect the
 *        decision about which output pixels to set bad due to low weight.
+*     10-FEB-2024 (DSB):
+*        The algorithm used by the Rate function to find the interval size
+*        that gives the most consistent gradient adopt spurious large interval
+*        sizes if the Mapping gives constant values for very large
+*        intervals. To avoid this, it now terminates its search when it
+*        find the first minimum in the gradient range within an interval.
+*        This avoids it continuing to check extremely large interval sizes
+*        that may give a very low range of gradients because of numerical
+*        problems.
 *class--
 */
 
@@ -9050,6 +9059,11 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2,
                   minrange = range;
                   iret = itop;
 
+/* If the range starts to increase again, we have found the minimum so
+   leave the loop. */
+               } else if( range > minrange ){
+                  break;
+
 /* If a range of zero is encountered, we only believe it if the previous
    interval also had zero range. Otherwise, it's probably just a numerical
    fluke. If the previous interval also had a range of zero, we can forget
@@ -9088,6 +9102,8 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2,
                if( range < minrange ) {
                   minrange = range;
                   iret = ibot;
+               } else if( range > minrange ){
+                  break;
                } else if( range == 0.0 && y[ iin + 1 ] == 0 ) {
                   iret = ibot;
                   break;
