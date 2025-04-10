@@ -11,7 +11,7 @@
 *     This file is a wrapper that includes all the source files from
 *     the PAL and ERFA libraries.  This is done so that the function
 *     names can be changed from the usual "palXxx" and "eraXxx" forms to
-*     the private "astPalXxx" and "astIauXxx" forms. This renaming is
+*     the private "astPalXxx" and "astEraXxx" forms. This renaming is
 *     performed via the macros defined in the pal2ast.h and erfa2ast.h
 *     include files. This is done in order to prevent clashes with any
 *     external PAL or ERFA libraries with which an application is linked.

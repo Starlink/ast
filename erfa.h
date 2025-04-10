@@ -61,7 +61,7 @@
 #endif
 
 /* If we not using an external ERFA library, rename all ERFA functions so
-   that references to "iauXxx" below get translated to "astIauXxx". */
+   that references to "eraXxx" below get translated to "astEraXxx". */
 #ifndef EXTERNAL_PAL
 #include "erfa2ast.h"
 #endif
