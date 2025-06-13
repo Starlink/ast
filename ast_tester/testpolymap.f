@@ -4,17 +4,24 @@
       include 'AST_PAR'
       include 'PRM_PAR'
 
-      integer status, pm, pm2, i, maxord, nco
+      integer status, pm, pm2, i, maxord, nco, new
       double precision coeff( 16 ), lbnd( 2 ), ubnd( 2 ),
      :                 xin(3), yin(3), xout(3), yout(3), errlim,
      :                 xin2(3), yin2(3), coeff_1d(6), acc,
      :                 coeff2( 24 ), coeff3( 6*4 ), err, maxacc,
-     :                 cofs( 20 )
+     :                 cofs( 20 ), coeffb(6*4)
 
-      data coeff / 1.0, 1.0, 0.0, 0.0,
-     :             2.0, 1.0, 1.0, 0.0,
+      data coeff / 1.0, 1.0, 0.0, 0.0,   ! y1 = 1 + 2.x1
+     :             2.0, 1.0, 1.0, 0.0,   ! y2 = 1 + 3.x2
      :             1.0, 2.0, 0.0, 0.0,
      :             3.0, 2.0, 0.0, 1.0 /
+
+      data coeffb / 1.0, 1.0, 0.0, 0.0,   ! y1 = 1.5 + 2.x1
+     :              0.5, 1.0, 0.0, 0.0,   ! y1 = 1 + 2.5.x1
+     :              2.0, 1.0, 1.0, 0.0,
+     :              1.0, 2.0, 0.0, 0.0,
+     :              3.0, 2.0, 0.0, 1.0,
+     :             -0.5, 2.0, 0.0, 1.0 /
 
       data coeff2 / 1.0, 1.0, 0.0, 0.0,
      :              2.0, 1.0, 1.0, 0.0,
@@ -40,7 +47,7 @@ c     :              -1.0E-9,  2.0, 1.0, 2.0 /
      :              1.0E-4,   2.0, 1.0, 1.0 /
 
 
-      data coeff_1d / 1.0, 1.0, 0.0,
+      data coeff_1d / 1.0, 1.0, 0.0,      ! y1 = 1 + 2.x1
      :                2.0, 1.0, 1.0 /
 
       data lbnd / -10.0D2, -10.0D2 /
@@ -51,7 +58,7 @@ c     :              -1.0E-9,  2.0, 1.0, 2.0 /
       status = sai__ok
       call ast_begin( status )
 
-c      call ast_watchmemory( 131 )
+c      call ast_watchmemory( 325 )
 
       acc = 1.0D-7
       errlim = 1000*acc
@@ -120,6 +127,31 @@ c      call ast_watchmemory( 131 )
       end do
 
 
+      new = ast_simplify( pm, status )
+      if( .not. ast_isawinmap( new, status ) ) then
+         call stopit( 1003, status )
+      end if
+      xin( 1 ) = 1.0d0
+      yin( 1 ) = 2.0d0
+      call ast_tran2( new, 1, xin, yin, .true., xout, yout,
+     :                status )
+      if( xout(1) .ne. 3.0 .or. yout(1) .ne. 7.0 ) then
+         call stopit( 1004, status )
+      end if
+
+      pm = ast_polymap( 2, 2, 6, coeffb, 0, coeffb, ' ', status )
+      new = ast_simplify( pm, status )
+      if( .not. ast_isawinmap( new, status ) ) then
+         call stopit( 1005, status )
+      end if
+      xin( 1 ) = 1.0d0
+      yin( 1 ) = 2.0d0
+      call ast_tran2( new, 1, xin, yin, .true., xout, yout,
+     :                status )
+      if( xout(1) .ne. 3.5 .or. yout(1) .ne. 6.0 ) then
+         call stopit( 1006, status )
+      end if
+
 
 
 
@@ -153,6 +185,15 @@ c      call ast_watchmemory( 131 )
 
 
       pm = ast_polymap( 2, 2, 6, coeff2, 0, coeff2, ' ', status )
+      new = ast_simplify( pm, status )
+      if( .not. ast_isapolymap( new, status ) ) then
+         call stopit( 3002, status );
+      endif
+      if( .not. ast_equal( new, pm, status ) ) then
+         call stopit( 3003, status );
+      endif
+
+
       pm2 = ast_polytran( pm, .FALSE., acc, maxacc, maxord, lbnd,
      :                    ubnd, status )
 
