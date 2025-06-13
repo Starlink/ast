@@ -139,6 +139,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        of the original uninverted PolyMap, or the current forward
 *        transformation of the PolyMap (i.e. taking the "Invert" flag into
 *        account).
+*     20-JUN-2025 (DSB):
+*        Modify MapMerge to 1) check for multiple coefficients that
+*        relate to the same set of input powers and combine them, 2)
+*        check for PolyMaps that represent a simple linear transformation,
+*        optionally with a shift of origin.
 *class--
 */
 
@@ -3058,15 +3063,43 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 */
 
 /* Local Variables: */
+   AstCmpMap *cm;        /* CmpMap implementing whole PolyMap */
+   AstMapping *new;      /* Simplified Mapping */
+   AstMatrixMap *mm;     /* MatrixMap implementing PolyMap linear terms */
    AstPolyMap *pmap0;    /* Nominated PolyMap */
    AstPolyMap *pmap1;    /* Neighbouring PolyMap */
+   AstShiftMap *sm;      /* ShiftMap implementing PolyMap offsets */
+   double **coeff;       /* Pointer to arrays holding all coeff values */
+   double *matrix;       /* Pointer to array of linear terms */
+   double *offsets;      /* Pointer to array of offset terms */
+   double *outcof;       /* Pointer to array of coeff values for current output */
+   int ***power;         /* Pointer to arrays holding all input powers */
+   int **outpow;         /* Pointer to array of input powers for current output */
+   int *ncoeff;          /* Pointer to array of coefficients counts */
+   int *pi;              /* Pointer to array of input powers */
+   int *pj;              /* Pointer to array of input powers */
+   int check_fwd;        /* Check the forward transformation? */
+   int const_term;       /* Is the current term a constant? */
    int i;                /* Index of neighbour */
+   int ic;               /* Index of current coefficient */
+   int iin;              /* Index of current input */
+   int iout;             /* Index of current output */
+   int jc;               /* Index of remaining coefficient */
+   int jin;              /* Index of remaining input */
+   int linear_term;      /* Is the current term a linear term? */
+   int mod;              /* Has any transformation been modified? */
+   int n_in;             /* Number of input coordinates for current transformation */
+   int n_out;            /* Number of output coordinates for current transformation */
+   int nc;               /* Number of coefficients for current output */
    int nin;              /* Number of input coordinates for nominated PolyMap */
+   int nonlinear;        /* Is the PolyMap non-linear? */
    int nout;             /* Number of output coordinates for nominated PolyMap */
    int ok;               /* Are PolyMaps equivalent? */
    int oldinv0;          /* Original Invert value in pmap0 */
    int oldinv1;          /* Original Invert value in pmap1 */
+   int pow;              /* Power of current input in current term */
    int result;           /* Result value to return */
+   int same;             /* Do terms use the same set of input powers? */
 
 /* Initialise. */
    result = -1;
@@ -3077,15 +3110,290 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Save a pointer to the nominated PolyMap. */
    pmap0 = (AstPolyMap *) ( *map_list )[ where ];
 
-/* The only simplification which can currently be performed is to merge a PolyMap
-   with its own inverse. This can only be done in series. Obviously,
+/* First of all, see if the PolyMap can be replaced by a simpler Mapping,
+   without reference to the neighbouring Mappings in the list.           */
+/* ======================================================================*/
+
+/* Get the number of inputs and outputs of the original PolyMap (i.e. as
+   it was constructed, before any change to its Invert attribute). */
+   if( !astGetInvert( pmap0 ) ) {
+      nin = astGetNin( pmap0 );
+      nout = astGetNout( pmap0 );
+   } else {
+      nout = astGetNin( pmap0 );
+      nin = astGetNout( pmap0 );
+   }
+
+/* Make a deep copy of the supplied PolyMap. We will modify this copy
+   rather than the original. */
+   new = astCopy( pmap0 );
+
+/* Combine any coefficients that refer to the same combination of input
+   powers. For instance, if the polynomial supplying a particular output
+   has two or more constant terms, combine them into a single constant
+   term. We check the forward transformation first, then the inverse
+   transformation. */
+   mod = 0;  /* initialise flag to indicate no transformation has yet been modified */
+   for( check_fwd = 0; check_fwd < 2; check_fwd++ ){
+
+/* Get pointers to the necessary data for the forward or inverse
+   transformation, as required. Also note the number of inputs and
+   outputs for the transformation (note the distinction between a
+   uni-directional transformation and a bi-directional Mapping - for
+   instance, the inverse transformation of an non-inverted Mapping has
+   "nout" inputs and "nin" outputs). */
+      if( check_fwd ){
+         ncoeff = ((AstPolyMap *) new)->ncoeff_f;
+         coeff = ((AstPolyMap *) new)->coeff_f;
+         power = ((AstPolyMap *) new)->power_f;
+         n_in = nin;
+         n_out = nout;
+      } else {
+         ncoeff = ((AstPolyMap *) new)->ncoeff_i;
+         coeff = ((AstPolyMap *) new)->coeff_i;
+         power = ((AstPolyMap *) new)->power_i;
+         n_in = nout;
+         n_out = nin;
+      }
+
+/* Check the transformation is defined. */
+      if( ncoeff ){
+
+/* Loop round each transformation output. */
+         for( iout = 0; iout < n_out; iout++ ) {
+
+/* Get the number of coefficients and pointers to the arrays of coefficient
+   values and input powers for this transformation output. */
+            nc = ncoeff[ iout ];
+            outcof = coeff[ iout ];
+            outpow = power[ iout ];
+
+/* Loop round each coefficient used within the polynomial that produces
+   the current output (excluding the last one since we will be comparing
+   the coefficient with the following coefficient - the last coefficient
+   has no following coefficient). Skip zero-valued coefficients. */
+            for( ic = 0; ic < nc - 1; ic++ ) {
+               if( outcof[ ic ] != 0.0 ) {
+
+/* Compare coefficient "ic" with each remaining coefficient. If they use
+   the same input powers we will combine them together. Skip zero-valued
+   coefficients. */
+                  for( jc = ic + 1; jc < nc; jc++ ) {
+                     if( outcof[ jc ] != 0.0 ) {
+
+/* See if coefficients ic and jc use the same set of input powers. */
+                        pi = outpow[ ic ];
+                        pj = outpow[ jc ];
+                        same = 1;
+                        for( iin = 0; iin < n_in; iin++,pi++,pj++ ) {
+                           if( *pi != *pj ) {
+                              same = 0;
+                              break;
+                           }
+                        }
+
+/* If so, increment the value of coefficient ic by the value of
+   coefficient jc, and then set the value of coefficient jc to zero to
+   indicate that it should no longer be used. */
+                        if( same ) {
+                           outcof[ ic ] += outcof[ jc ];
+                           outcof[ jc ] = 0.0;
+                        }
+                     }
+                  }
+               }
+            }
+
+/* Shuffle non-zero value coefficients to the starts of the arrays. */
+            ic = 0;  /* Index of next coefficient to read */
+            jc = 0;  /* Index of next coefficient to write */
+            for( ic = 0; ic < nc; ic++ ) {
+               if( outcof[ ic ] != 0.0 ){
+                  if( ic > jc ) {
+                     outcof[ jc ] = outcof[ ic ];
+                     outcof[ ic ] = 0.0;
+                     (void) astFree( outpow[ jc ] );
+                     outpow[ jc ] = outpow[ ic ];
+                     outpow[ ic ] = NULL;
+                  }
+                  jc++;
+
+               } else {
+                  outpow[ ic ] = astFree( outpow[ ic ] );
+               }
+            }
+
+/* If any zero valued coefficients were found, change the number of
+   coefficients in the transformation and truncate the arrays to remove the
+   trailing zeros. Indicate a transformation has been modified. */
+            if( jc < nc ){
+               ncoeff[ iout ] = jc;
+               coeff[ iout ] = astRealloc( outcof, jc*sizeof(*outcof) );
+               power[ iout ] = astRealloc( outpow, jc*sizeof(*outpow) );
+               mod = 1;
+            }
+         }
+      }
+   }
+
+/* If any transformation was modified, store the new PolyMap in place of
+   the original PolyMap. Otherwise annull the new PolyMap. */
+   if( mod && astOK ){
+      (void) astAnnul( ( *map_list )[ where ] );
+      ( *map_list )[ where ] = new;
+      result = where;
+      pmap0 = (AstPolyMap *) new;
+      new = NULL;
+   } else {
+      new = astAnnul( new );
+   }
+
+
+
+
+/* Now see if the nominated PolyMap is linear. If so, it can be
+   simplified to a combination of ShiftMap and MatrixMap. We only check
+   the original forward transformation since, if the simplificiation is
+   possible, the inversde transformation will be defined automatically by
+   the simpler Mappings (I suppose this could potentially throw away
+   information if the forward and inverse transformations of the PolyMap
+   are not a genuine inverse pair, but I can't immediately see why anyone
+   would define an inverse transformation that was not a genuine inverse of
+   the forward transformation). Also, we require the number of inputs equals
+   the number of outputs. */
+   if( pmap0->ncoeff_f && nout == nin ){
+
+/* Allocate an array to store a vector representing the offset terms in
+   the PolyMap. Use astCalloc so that the array is initialised to hold
+   zeros. */
+      offsets = astCalloc( nout, sizeof(*offsets) );
+
+/* Allocate an array to store a matrix representing the coefficients of
+   the linear terms in the PolyMap. Use astCalloc so that the array is initialised to hold
+   zeros. */
+      matrix = astCalloc( nout, nout*sizeof(*matrix) );
+
+/* Initialise a flag indicating that the PolyMap contains no non-linear
+   terms (i.e. terms that are a multiple of more than one input or have a
+   power greater than one on any input). */
+      nonlinear = 0;
+
+/* Loop round each output of the original forward transformation. */
+      for( iout = 0; iout < nout && !nonlinear; iout++ ){
+
+/* Get pointers to the arrays of coefficient counts, coefficient values and
+   input powers for this output of the original forward transformation. */
+         nc = pmap0->ncoeff_f[ iout ];
+         outcof = pmap0->coeff_f[ iout ];
+         outpow = pmap0->power_f[ iout ];
+
+/* Loop round all non-zero forward polynomial coefficients for the current
+   output. */
+         for ( ic = 0; ic < nc; ic++, outcof++, outpow++ ) {
+            if( *outcof != 0.0 ){
+
+/* Loop round all inputs, looking at the power of each input in the
+   output term to which the current coefficient refers. We set flags
+   indicating if the current term is a constant or linear term. Also,
+   maintain the count of inputs which have a power of one within the
+   current term. */
+               const_term = 1;
+               linear_term = 1;
+               jin = -1;
+               for( iin = 0; iin < nin; iin++ ){
+                  pow = (*outpow)[ iin ];
+
+/* The current coefficient is not assosicated with a constant term if any
+   power is greater than zero. */
+                  if( pow > 0 ) const_term = 0;
+
+/* If the power of the current input used in the current term is greater
+   than one, then the term is not linear. */
+                  if( pow > 1 ) {
+                     linear_term = 0;
+
+/* Otherwise, if the term is still potentially linear, and if we have not yet
+   found an input used in the term, record the current input index. If an
+   input with power one has already been found (as indicated by jin not
+   being -1), then the current term is not linear. */
+                  } else if ( linear_term && pow == 1 ){
+                     if( jin == -1 ){
+                        jin = iin;
+                     } else {
+                        linear_term = 0;
+                     }
+                  }
+               }
+
+/* If this is a constant term, store it in the offset array. Having combined
+   terms with equal powers earlier, we can be sure there is only one (at most)
+   constant terms. */
+               if( const_term ) {
+                  offsets[ iout ] = *outcof;
+
+/* If this is a linear term, store it at the appropriate place in the matrix
+   array. Having combined terms with equal powers earlier, we can be sure
+   there is only one (at most) coefficient for each term in the matrix. */
+               } else if( linear_term ) {
+                  matrix[ jin + iout*nin ] = *outcof;
+
+/* If this term is neither an offset term nor a linear term, the PolyMap
+   is non-linear and so we cannot simplify it. */
+               } else {
+                  nonlinear = 1;
+                  break;
+               }
+            }
+         }
+      }
+
+/* If the PolyMap is not nonlinear, create the ShiftMap and MatrixMap
+   representing the offsets and linear terms in the PolyMap. Combine them
+   in series and then simplify the CmpMap to get the simplest Mapping
+   equivalent to the PolyMap. */
+      if( !nonlinear && astOK ) {
+         sm = astShiftMap( nout, offsets, " ", status );
+         mm = astMatrixMap( nin, nout, 0, matrix, " ", status );
+         cm = astCmpMap( mm, sm, 1, " ", status );
+         new = astSimplify( cm );
+         cm = astAnnul( cm );
+         mm = astAnnul( mm );
+         sm = astAnnul( sm );
+
+/* Annul the PolyMap pointer in the supplied Mapping list and replace it
+   with the simplified CmpMap pointer. The invert_list value for the new
+   Mapping is left unchanged as the new Mapping represents the forward
+   transformation of the original (i.e before any inversion) PolyMap. */
+         (void) astAnnul( ( *map_list )[ where ] );
+         ( *map_list )[ where ] = new;
+         pmap0 = (AstPolyMap *) new;
+
+/* Return the index of the first modified element. */
+         result = where;
+      }
+
+/* Free memory. */
+      offsets = astFree( offsets );
+      matrix = astFree( matrix );
+   }
+
+
+
+
+
+/* Now see if the PolyMap can be merged with neighbouring Mappings in
+   the list.           */
+/* ======================================================================*/
+
+/* The only simplification which can currently be performed here is to merge
+   a PolyMap with its own inverse. This can only be done in series. Obviously,
    there are potentially other simplications which could be performed, but
    time does not currently allow these to be coded. */
    if( series ) {
 
 /* Temporarily set the Invert flag of the nominated PolyMap to the
    required value, first saving the original value so that it can be
-   re-instated later. */
+      re-instated later. */
       oldinv0 = astGetInvert( pmap0 );
       astSetInvert( pmap0, ( *invert_list )[ where ] );
 
@@ -3099,7 +3407,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Continue with the next pass if the neighbour does not exist. */
          if( i < 0 || i >= *nmap ) continue;
 
-/* Continue with the next pass if this neighbour is not a PermMap. */
+/* Continue with the next pass if this neighbour is not a PolyMap. */
          if( ! astIsAPolyMap( ( *map_list )[ i ] ) ) continue;
 
 /* Get a pointer to it. */
