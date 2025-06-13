@@ -160,6 +160,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *     3-DEC-2024 (GSB)
 *        Transform points to current frame in RegTrace from the base frame
 *        coordinates returned by astRegBaseMesh (if necessary).
+*     13-JUN-2025 (DSB):
+*        - Fix memory leak in RegBaseMesh.
+*        - Remove unused variable from RegBaseMesh.
 *class--
 */
 
@@ -7396,7 +7399,6 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    int npoint1;
    int npoint2;
    int order;
-   int start_dist;
    int prev_dist;
    int new_dist;
    int64_t *pnk;
@@ -7677,7 +7679,6 @@ fprintf( fd, "# corner dist ndist\n" );
    perimeter. Loop until we arrive back at the starting corner. */
          old_corner = NULL;
          start = corner;
-         start_dist = dist;
          prev_dist = INT_MAX;
          is_backtrack = 0;
          while( astOK  ) {
@@ -8105,6 +8106,9 @@ fprintf( fd, "%p %d 2\n", cell->tl, dist - 3 );
                (this->meshdist)[ dist ++ ] = cell->bl->icorner;
             }
          }
+
+/* Free the resources used by the curners. */
+         corner = corner_foot;
          while( corner ) {
             prev_corner = corner->prev;
             (void) astFree( corner );
