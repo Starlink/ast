@@ -2541,8 +2541,16 @@ static int *MapSplit0( AstMapping *this_mapping, int nin, const int *in,
       (void) astMapList( this_mapping, this->series, astGetInvert( this ),
                          &nmap, &map_list, &invert_list );
 
+/* If astMapList was unable to decompose the CmpMap (e.g. if astDoNotSimplify
+   returned true) then the parent class may have returned a list containing
+   just a clone of this CmpMap itself.  When this happens we should not
+   proceed because MapSplit1 will call astMapSplit on this object,
+   causing an infinite loop. */
+      if( nmap == 1 && map_list[0] == this_mapping ) {
+         /* (do nothing) */
+
 /* First handle lists of Mapping in series. */
-      if( this->series ) {
+      } else if( this->series ) {
 
 /* Initialise the array of inputs to be split from the next component
    Mapping. */
