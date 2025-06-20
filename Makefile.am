@@ -801,9 +801,12 @@ if !NOFORTRAN
 noinst_PROGRAMS = astbad$(EXEEXT)
 astbad_SOURCES = src/astbad.c src/pointset.h
 AST_PAR: $(srcdir)/ast_par.source astbad$(EXEEXT)
-	sed -e 's/<AST__BAD>/'`./astbad$(EXEEXT) AST__BAD | tr 'E' 'D'`'/' \
-	    -e 's/<AST__NAN>/'`./astbad$(EXEEXT) AST__NAN | tr 'E' 'D'`'/' \
-	    -e 's/<AST__NANR>/'`./astbad$(EXEEXT) AST__NANF | tr 'E' 'D'`'/' \
+	ASTBAD=`./astbad$(EXEEXT) AST__BAD` && \
+	ASTNAN=`./astbad$(EXEEXT) AST__NAN` && \
+	ASTNANF=`./astbad$(EXEEXT) AST__NANF` && \
+	sed -e 's/<AST__BAD>/'`echo $$ASTBAD | tr 'E' 'D'`'/' \
+	    -e 's/<AST__NAN>/'`echo $$ASTNAN | tr 'E' 'D'`'/' \
+	    -e 's/<AST__NANR>/'`echo $$ASTNANF | tr 'E' 'D'`'/' \
 	    $(srcdir)/ast_par.source >$@
 endif
 
