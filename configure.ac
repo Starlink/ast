@@ -136,6 +136,17 @@ AC_PROG_FC
 AC_FC_LIBRARY_LDFLAGS
 fi
 
+#  Prepare a version of STAR_FFLAGS with -I... removed
+#  for use with ast_tester (which supplies these itself).
+star_fflags_test=""
+for flag in $STAR_FFLAGS; do
+   case "$flag" in
+      -I*) ;;
+      *) star_fflags_test="$star_fflags_test $flag" ;;
+   esac
+done
+AC_SUBST( STAR_FFLAGS_TEST, $star_fflags_test )
+
 #   If --with-pic=no is set we should honour that.
 AM_CONDITIONAL(NOPIC, test x$pic_mode = xno)
 
