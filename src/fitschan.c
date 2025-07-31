@@ -133,7 +133,6 @@ f     encodings), then write operations using AST_WRITE will
 *     - Ncard: Number of FITS header cards in a FitsChan
 *     - Nkey: Number of unique keywords in a FitsChan
 *     - PolyTan: Use PVi_m keywords to define distorted TAN projection?
-*     - SipReplace: Replace SIP inverse transformation?
 *     - SipOK: Use Spitzer Space Telescope keywords to define distortion?
 *     - SipReplace: Replace SIP inverse transformation?
 *     - TabOK: Should the FITS "-TAB" algorithm be recognised?
@@ -1271,6 +1270,15 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        - Added warning "BadAlt"
 *        - Correct access to AltAxes attribute
 *        - Add support for 64 bit integer keyword values
+*     30-JUL-2025 (DSB):
+*        Extend the ability of astWrite to create FITS-WCS headers
+*        that include SIP distortion. Previously, it could only be done
+*        if the pixel->sky Mapping in the supplied Mapping included a
+*        PolyMap of exactly the nature defined by the SIP definition paper.
+*        Now, the SIPIntWorld function uses some intelligence to
+*        determine if a PolyMap conforming to the requirements of the SIP
+*        paper can be created from the supplied FrameSet by various
+*        rearrangement of the pixel->sky Mapping in the FrameSet.
 *class--
 */
 
@@ -1887,6 +1895,7 @@ static AstMatrixMap *WcsCDeltMatrix( FitsStore *, char, int, const char *, const
 static AstMatrixMap *WcsPCMatrix( FitsStore *, char, int, const char *, const char *, int * );
 static AstObject *FsetFromStore( AstFitsChan *, FitsStore *, const char *, const char *, int * );
 static AstObject *Read( AstChannel *, int * );
+static AstPolyMap *ScalePolyInputs( AstPolyMap *, double *, int * );
 static AstSkyFrame *WcsSkyFrame( AstFitsChan *, FitsStore *, char, int, char *, int, int, const char *, const char *, int * );
 static AstTimeScaleType TimeSysToAst( AstFitsChan *, const char *, const char *, const char *, int * );
 static AstWinMap *WcsShift( FitsStore *, char, int, const char *, const char *, int * );
@@ -1923,6 +1932,7 @@ static int AIPSFromStore( AstFitsChan *, FitsStore *, const char *, const char *
 static int AIPSPPFromStore( AstFitsChan *, FitsStore *, const char *, const char *, int * );
 static int AddEncodingFrame( AstFitsChan *, AstFrameSet *, int, const char *, const char *, int * );
 static int AddVersion( AstFitsChan *, AstFrameSet *, int, int, FitsStore *, double *, char, int, int, const char *, const char *, int * );
+static int AnalysePoly( AstPolyMap *, AstMapping **, AstMapping **, AstMapping **, int * );
 static int CLASSFromStore( AstFitsChan *, FitsStore *, AstFrameSet *, double *, const char *, const char *, int * );
 static int CardType( AstFitsChan *, int * );
 static int CheckFitsName( AstFitsChan *, const char *, const char *, const char *, int * );
@@ -4093,6 +4103,432 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
 
 /* Return zero or ret depending on whether an error has occurred. */
    return astOK ? ok : 0;
+}
+
+static int AnalysePoly( AstPolyMap *polymap, AstMapping **map1,
+                        AstMapping **map2, AstMapping **map3, int *status ){
+/*
+*  Name:
+*     AnalysePoly
+
+*  Purpose:
+*     Analyse a 2D PolyMap into an initial shift, a polynomial containing
+*     quadratic or higher terms, and a linear scaling.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     int AnalysePoly( AstPolyMap *polymap, AstMapping **map1,
+*                      AstMapping **map2, AstMapping **map3, int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     The supplied 2-dimensional PolyMap is analysed into three Mappings
+*     which when applied in series are equivalent to the supplied PolyMap.
+*     The middle of these three Mappings will be a PolyMap that meets the
+*     requirements of the SIP standard for polynomial distortion in FITS
+*     headers (i.e. no constant or linearterms). The first Mapping will
+*     embody any shift of origin included in the supplied PolyMap and the
+*     third will embody any linear axis scaling or rotation in the supplied
+*     PolyMap.
+*
+*     The SIP convention requires that the polynomial distortion includes
+*     no constant or linear terms, representing simply the additional
+*     distortion to be added onto the basic linear transformation described
+*     by FITS-WCS. In the current context, this is not possible as the
+*     supplied PolyMap represents the full transformation, including the
+*     linear terms.  For this reason, the returned PolyMap will in fact
+*     contain some linear terms - namely, the expression for each
+*     polynomial output will include an unscaled copy of the corresponding
+*     input.
+
+*  Parameters:
+*     polymap
+*        Pointer to the supplied PolyMap to be analysed.
+*     map1
+*        Address at which to return a pointer to the first returned
+*        Mapping, representing any shift of origin in the supplied PolyMap.
+*     map2
+*        Address at which to return a pointer to the second returned
+*        Mapping - a PolyMap representing the distortion terms plus a copy
+*        of each input.
+*     map3
+*        Address at which to return a pointer to the third returned
+*        Mapping, representing any axis rotation or scaling in the supplied
+*        PolyMap.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A non-zero value is returned if the supplied PolyMap was analysed
+*     successfully. Otherwise zero is returned.
+
+*/
+
+/* Local Variables: */
+   AstMapping *tmap;
+   AstPolyMap *pm1;
+   double *coeffs_f;
+   double *coeffs_f_new;
+   double *pv;
+   double *pw;
+   double a;
+   double b;
+   double c;
+   double d;
+   double det;
+   double matrix[ 4 ];
+   double shift[ 2 ];
+   double xo;
+   double yo;
+   int a_ico;
+   int b_ico;
+   int c_ico;
+   int d_ico;
+   int ico;
+   int inverted;
+   int ncoeff_f;
+   int ncoeff_f_new;
+   int nhigh;
+   int ret;
+
+/* Initialise safe returned value in case an error has already ocurred. */
+   ret = 0;
+   *map1 = NULL;
+   *map2 = NULL;
+   *map3 = NULL;
+
+/* Check the inherited status. */
+   if( !astOK ) return ret;
+
+/* If the inverse Ttransformation of the supplied PolyMap is defined by a
+   fixed set of coefficients (rather than being an iterative inverse)
+   then we cannot analyse the PolyMap. It may be possible to analyse it
+   with more work but I've run out of time at the moment. It would
+   require a PolyMap method astMergeMatrix to be written. modelled on
+   astMergeShift but applying a MatrixMap to the PolyMap rather than a
+   ShiftMap. */
+   if( !astGetIterInverse( polymap ) ) return ret;
+
+/* Check that the supplied PolyMap has 2 inputs and 2 outputs. */
+   if( astGetNin( polymap ) != 2 || astGetNout( polymap ) != 2 ){
+      astError( AST__INTER, "AnalysePoly(fitschan): AST internal error; "
+                "the supplied PolyMap is not 2-in, 2-out (internal AST "
+                "programming error).", status );
+      return ret;
+   }
+
+/* Temporarily clear the Invert attribute in the supplied PolyMap so that
+   we know that the forward transformation is defined by a set of coefficients
+   (rather than an iterative inversion). */
+   if( astGetInvert( polymap ) ){
+      astClearInvert( polymap );
+      inverted = 1;
+   } else {
+      inverted = 0;
+   }
+
+/* Use the iteratove inverse transformation of the supplied PolyMap to
+   transform the origin in the output system into the input system. */
+   xo = 0.0;
+   yo = 0.0;
+   astTran2( polymap, 1, &xo, &yo, 0, shift, shift + 1 );
+
+/* The ShiftMap returned as "map1" needs to shift the above input
+   position to (0,0). Since we know that the forward transformation of the
+   supplied PolyMap transforms the input position to (0,0). This means we
+   are guaranteed that the returned PolyMap must transform (0,0) to (0,0) -
+   i.e. have zero constant terms. Create the ShiftMap. */
+   shift[ 0 ] *= -1.0;
+   shift[ 1 ] *= -1.0;
+   *map1 = (AstMapping *) astShiftMap( 2, shift, " ", status );
+
+/* We create an interim PolyMap "pm1" such that the supplied PolyMap is
+   equivalent to the above ShiftMap followed by pm1. That is:
+
+   polymap == *map1 -> pm1
+
+   Therefore
+
+   *map1_inv -> polymap == pm1
+
+   In other words, pm1 is the result of applying the inverse of *map1,
+   followed by the supplied PolyMap. Note, we are only considering the
+   forward transformations at the moment. Create pm1. */
+   astInvert( *map1 );
+   pm1 = astMergeShift( polymap, *map1, 1, 1 );
+   astInvert( *map1 );
+
+/* Get the coefficients of the forward transformation of pm1. */
+   astPolyCoeffs( pm1, 1, 0, NULL, &ncoeff_f );
+   coeffs_f = astMalloc( ncoeff_f*4*sizeof( *coeffs_f ) );
+   if( coeffs_f ) {
+      astPolyCoeffs( pm1, 1, ncoeff_f*4, coeffs_f, &ncoeff_f );
+
+/* Initialise the values of the matrix that represents the scaling and
+   rotation implied by any linear terms in the PolyMap. Assume all
+   elements are zero until a corresponding coefficient value is found.
+   Note, the array returned by astPolyCoeff never includes any zero-valued
+   coefficients. The PolyMap pm1 can be represented as follows:
+
+   y0 = a*x0 + b*x1 + f(x0,x1)
+   y1 = c*x0 + d*x1 + g(x0,x1)
+
+   where (x0,x1) are the inputs, (y0,y1) are the outputs, f(x0,x1) gives the
+   quadratic and higher distortion terms for the first output (y0), g(x0,x1)
+   gives the quadratic and higher distortion terms for the second output (y1),
+   and (a,b,c,d) are the matrix elements found below (we know there are no
+   constant terms in pm1).  */
+      a = 0.0;
+      a_ico = -1; /* The index of the coefficient that stores "a" */
+      b = 0.0;
+      b_ico = -1;
+      c = 0.0;
+      c_ico = -1;
+      d = 0.0;
+      d_ico = -1;
+
+/* Initialise the number of quadratic or higher terms (i.e. the number of
+   coefficients excluding linear terms). */
+      nhigh = 0;
+
+/* Loop round all coefficients noting the coefficients of the linear terms. */
+      pv = coeffs_f;
+      for( ico = 0; ico < ncoeff_f; ico++,pv += 4 ){
+
+/* If the coefficient is used to calculate the first output value... */
+         if( pv[ 1 ] == 1 ){     /* Note, the axis index is 1-based */
+
+/* and it is a simple multiple of the first input... */
+            if( pv[ 2 ] == 1 && pv[ 3 ] == 0 ){
+
+/* record its value and coefficient index. */
+               a = pv[ 0 ];
+               a_ico = ico;
+
+/* If it is a simple multiple of the second input record its value and
+   coefficient index. */
+            } else if( pv[ 2 ] == 0 && pv[ 3 ] == 1 ){
+               b = pv[ 0 ];
+               b_ico = ico;
+
+/* Otherwise it must be quadratic or higher so increment the number of
+   quadratic or higher terms. */
+            } else {
+               nhigh++;
+            }
+
+/* Otherwise it must be used to calculate the second output value. */
+         } else {
+
+/* If it is a simple multiple of the first input, record its value
+   and coefficient index. */
+            if( pv[ 2 ] == 1 && pv[ 3 ] == 0 ){
+               c = pv[ 0 ];
+               c_ico = ico;
+
+/* If it is a simple multiple of the second input record its value and
+   coefficient index. */
+            } else if( pv[ 2 ] == 0 && pv[ 3 ] == 1 ){
+               d = pv[ 0 ];
+               d_ico = ico;
+
+/* Increment the number of quadratic or higher terms. */
+            } else {
+               nhigh++;
+            }
+         }
+      }
+
+/* Get the determinent of the matrix */
+      det = a*d - b*c;
+
+/* See if the supplied PolyMap introduces any axis scaling or rotation.
+   If not, we do not need to make any modifications to the existing
+   PolyMap (pm1) and we can return a UnitMap as the third returned
+   Mapping. */
+      if( a == 1.0 && b == 0.0 && c == 0.0 && d == 1.0 ){
+         *map3 = (AstMapping *) astUnitMap( 2, " ", status );
+         *map2 = astClone( pm1 );
+
+/* If PolyMap pm1 introduces axis scaling or rotation, we need to return
+   a MatrixMap representing the scaling and rotation of the outputs, and
+   then modify the PolyMap coefficients to remove that scaling and rotation
+   of the outputs. */
+      } else if( det != 0.0 ){
+         matrix[ 0 ] = a;
+         matrix[ 1 ] = b;
+         matrix[ 2 ] = c;
+         matrix[ 3 ] = d;
+         *map3 = (AstMapping *) astMatrixMap( 2, 2, 0, matrix, " ",
+                                              status );
+
+/* We now construct the array of coefficient values to use when
+   constructing the returned PolyMap (*map2). The returned PolyMap can be
+   represented as:
+
+   w0 = 1*x0 + f'(x0,x1)
+   w1 = 1*x1 + g'(x0,x1)
+
+   where (x0,x1) are the input values, (w0,w1) are the output values,
+   f'(x0,x1) gives the quadratic and higher distortion terms for the first
+   output (w0), g'(x0,x1) gives the quadratic and higher distortion terms
+   for the second output (w1). In addition:
+
+   f' = ( d*f - b*g )/( a*d - b*c )
+   g' = -( c*f - a*g )/( a*d - b*c )
+
+   where f and g are the equivalents of f' and g' but taken from the
+   PolyMap pm1 (see earlier comment).
+
+   These f and g function include no constant or linear terms. The number
+   of coeffs needed to represent f' will be the sum of the numbers needed to
+   represent f and g (since f' is a linear sum of f and g). This is the
+   total number of quqdratic or higher coeffs in the PolyMap pm1. The
+   number of coeffs needed to represent g' will be the same. So the total
+   number of coeffs for the returned PolyMap will be (2*nhigh + 2) - the
+   extra two are needed to store the unity-valued coefficients for the linear
+   terms in the expressions for (w0,w1) above.
+
+   Allocate the array to pass to the PolyMap constructor. */
+         ncoeff_f_new = 2*nhigh + 2;
+         coeffs_f_new = astMalloc( ncoeff_f_new*4*sizeof( *coeffs_f_new ) );
+         if( astOK ) {
+            pw = coeffs_f_new;
+
+/* Store values in this array describing the coefficients needed to
+   create the first output value (w0). First add the linear term "1*x0". */
+            pw[ 0 ] = 1.0;
+            pw[ 1 ] = 1;  /* Note, the PolyMap constructor uses 1-based */
+            pw[ 2 ] = 1;  /* axis indices */
+            pw[ 3 ] = 0;
+            pw += 4;
+
+/* Next add scaled versions of all the quadratic or higher coefficients
+   in PolyMap pm1 (these define the f' function above). Loop over all
+   coefficients in pm1. */
+            pv = coeffs_f;
+            for( ico = 0; ico < ncoeff_f; ico++,pv += 4 ){
+
+/* Indicate that this coefficient of the new PolyMap refers to its first
+   output. */
+               pw[ 1 ] = 1;    /* A 1-based axis index */
+
+/* Ignore zero coefficients (there shouldn't be any) and the linear terms
+   found earlier. */
+               if( pv[ 0 ] != 0.0 && ico != a_ico && ico != b_ico
+                                  && ico != c_ico && ico != d_ico ){
+
+/* Scale the coefficient appropriately, depending on whether it refers to
+   the first or second output of the original PolyMap. */
+                  if( pv[ 1 ] == 1 ) { /* Part of the f function */
+                     pw[ 0 ] = d*pv[ 0 ] / det;
+                  } else {             /* Part of the g function */
+                     pw[ 0 ] = -b*pv[ 0 ] / det;
+                  }
+
+/* Copy the powers for the input axes from the supplied PolyMap to the
+   new PolyMap. */
+                  pw[ 2 ] = pv[ 2 ];
+                  pw[ 3 ] = pv[ 3 ];
+
+/* Increment the pointer to the next coefficient for the output PolyMap. */
+                  pw += 4;
+               }
+            }
+
+/* In a similar way, store values describing the coefficients needed to
+   create the second output value of the returned PolyMap (w1). First add
+   the linear term "1*x1". */
+            pw[ 0 ] = 1.0;
+            pw[ 1 ] = 2;
+            pw[ 2 ] = 0;
+            pw[ 3 ] = 1;
+            pw += 4;
+
+/* Next add scaled versions of all the quadratic or higher coefficients
+   in the supplied PolyMap (these define the g' function above). Loop over
+   all coefficients in the supplied PolyMap. */
+            pv = coeffs_f;
+            for( ico = 0; ico < ncoeff_f; ico++,pv += 4 ){
+
+/* Indicate that this coefficient of the new PolyMap refers to its second
+   output. */
+               pw[ 1 ] = 2;
+
+/* Ignore zero coefficients (there shouldn't be any) and the linear terms
+   found earlier. */
+               if( pv[ 0 ] != 0.0 && ico != a_ico && ico != b_ico
+                                  && ico != c_ico && ico != d_ico ){
+
+/* Scale the coefficient appropriately, depending on whether it refers to
+   the first or second output of the original PolyMap. */
+                  if( pv[ 1 ] == 1 ) { /* Part of the f function */
+                     pw[ 0 ] = -c*pv[ 0 ] / det;
+                  } else {             /* Part of the g function */
+                     pw[ 0 ] = a*pv[ 0 ] / det;
+                  }
+
+/* Copy the powers for the input axes from the supplied PolyMap to the
+   new PolyMap. */
+                  pw[ 2 ] = pv[ 2 ];
+                  pw[ 3 ] = pv[ 3 ];
+
+/* Increment the pointer to the next coefficient for the output PolyMap. */
+                  pw += 4;
+               }
+            }
+         }
+
+/* Create the returned PolyMap. */
+         tmap = (AstMapping *) astPolyMap( 2, 2, ncoeff_f_new, coeffs_f_new,
+                                           0, NULL, " ", status );
+
+/* Simplify it. This amalgamates coefficients that relate to the same set
+   of input powers. */
+         *map2 = astSimplify( tmap );
+         tmap = astAnnul( tmap );
+
+/* Copy other attribute values from the supplied PolyMap to the returned
+   PolyMap (if set). */
+         if( astTestIterInverse( polymap ) ){
+            astSetIterInverse( *map2, astGetIterInverse( polymap ) );
+         }
+
+         if( astTestNiterInverse( polymap ) ){
+            astSetNiterInverse( *map2, astGetNiterInverse( polymap ) );
+         }
+
+         if( astTestTolInverse( polymap ) ){
+            astSetTolInverse( *map2, astGetTolInverse( polymap ) );
+         }
+
+/* Free resources. */
+         coeffs_f_new = astFree( coeffs_f_new );
+      }
+
+      coeffs_f = astFree( coeffs_f );
+   }
+   pm1 = astAnnul( pm1 );
+
+/* Set the Invert attribute in the supplied PolyMap if it was set on entry. */
+   if( inverted ) astSetInvert( polymap, 1 );
+
+/* Indicate success or annull any returned Mappings. */
+   if( astOK && *map1 && *map2 && *map3 ) {
+      ret = 1;
+   } else {
+      if( *map1 ) *map1 = astAnnul( *map1 );
+      if( *map2 ) *map2 = astAnnul( *map2 );
+      if( *map3 ) *map3 = astAnnul( *map3 );
+   }
+
+/* Return the answer. */
+   return ret;
 }
 
 static char *CardComm( AstFitsChan *this, int *status ){
@@ -26372,6 +26808,186 @@ static int SAOTrans( AstFitsChan *this, AstFitsChan *out, const char *method,
 }
 #undef NC
 
+static AstPolyMap *ScalePolyInputs( AstPolyMap *polymap, double *scales,
+                                    int *status ){
+/*
+*  Name:
+*     ScalePolyInputs
+
+*  Purpose:
+*     Modify a PolyMap by applying a scaling factor to each of its inputs.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     AstPolyMap *ScalePolyInputs( AstPolyMap *polymap, double *scales,
+*                                  int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     This function returns a new PolyMap that is a copy of the supplied
+*     PolyMap except that the coefficients of the new PolyMap are changed
+*     so that the PolyMap applies a specified scaling to each of its inputs
+*     before applying the supplied PolyMap transformation.
+
+*  Parameters:
+*     polymap
+*        Pointer to the supplied PolyMap. If no error occurs, the supplied
+*        pointer is annulled using astAnnul before returning.
+*     scales
+*        Pointer to an array holding the scaling factors to be applied to
+*        each PolyMap input. The length of the array should equal the
+*        number of inputs of the supplied PolyMap.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     If this function completes successfully, a pointer to the newly
+*     created PolyMap is returned and the supplied PolyMap pointer is annulled.
+*     If an error occurs before or during this function, a NULL pointer
+*     is returned and the supplied PolyMap pointer is not annulled.
+
+*/
+
+/* Local Variables: */
+   AstPolyMap *result;
+   double *coeffs_f;
+   double *coeffs_i;
+   double *pv;
+   double *scale;
+   double cof;
+   int ico;
+   int iin;
+   int ncoeff_f;
+   int ncoeff_i;
+   int nin;
+   int nout;
+
+/* Check the global status. */
+   result = NULL;
+   if( !astOK || !polymap ) return NULL;
+
+/* Get the number of inputs and outputs for the Mapping. */
+   nin = astGetNin( polymap );
+   nout = astGetNout( polymap );
+
+/* Check none of the scale factors are zero or bad. */
+   for( iin = 0; iin < nin; iin++ ){
+      if( scales[ iin ] == 0.0 || scales[ iin ] == AST__BAD ) {
+         astError( AST__INTER, "ScalePolyInputs(fitschan): AST internal programming error - "
+                   "Scale factor for input %d is zero or bad.", status, iin );
+         return NULL;
+      }
+   }
+
+/* Get the coefficients of the forward transformation of the supplied
+   PolyMap (if any). */
+   astPolyCoeffs( polymap, 1, 0, NULL, &ncoeff_f );
+   coeffs_f = astMalloc( ncoeff_f*( nin + 2 )*sizeof( *coeffs_f ) );
+   if( coeffs_f ) {
+      astPolyCoeffs( polymap, 1, ncoeff_f*( nin + 2 ), coeffs_f, &ncoeff_f );
+
+/* Loop over all coefficients, maintaining a pointer to the next value in
+   the coeffs array. */
+      pv = coeffs_f;
+      for( ico = 0; ico < ncoeff_f; ico++ ){
+
+/* Get the original coefficient value. */
+         cof = *pv;
+
+/* Loop over all inputs, maintaining pointers to the next coeff value
+   (which is the power to use with the current input) and the next input
+   scale value. */
+         pv += 2;
+         scale = scales;
+         for( iin = 0; iin < nin; iin++,scale++,pv++ ){
+
+/* Raise the input scale value to the appropriate power for the current
+   input, and use it to scale the current coefficient value. */
+            cof *= pow( *scale, *pv );
+         }
+
+/* Store the new coefficient value back in the coeffs array. */
+         pv[ -( 2 + nin ) ] = cof;
+      }
+   }
+
+/* Now get the coefficients of any inverse transformation. */
+   astPolyCoeffs( polymap, 0, 0, NULL, &ncoeff_i );
+   coeffs_i = astMalloc( ncoeff_i*( nout + 2 )*sizeof( *coeffs_i ) );
+   if( coeffs_i ) {
+      astPolyCoeffs( polymap, 0, ncoeff_i*( nout + 2 ), coeffs_i, &ncoeff_i );
+
+/* For the inverse transformation, the supplied scale values simply
+   factor the transformation output values (i.e. the Mapping inputs),
+   so we just scale all the coefficients directly. Loop over all the
+   coefficients. */
+      pv = coeffs_i;
+      for( ico = 0; ico < ncoeff_i; ico++,pv += 2 + nout ){
+
+/* Which Mapping input (i.e. transformation output) does this coefficient
+   refer to). Note, the axis indices returned by astPolyCoeffs are
+   one-based so we need to subtract 1.  */
+         iin = pv[ 1 ] - 1;
+
+/* Scale the coefficient by the reciprocal (i.e. inverse) of the scale
+   factor associated with the Mapping input. */
+         pv[ 0 ] *= 1.0/scale[ iin ];
+      }
+   }
+
+/* If all is ok, create the new PolyMap. */
+   if( astOK ){
+
+/* We want the returned PolyMap to look as much as possible like the
+   supplied PolyMap. So if the supplied PolyMap has been inverted, we
+   create the new one uninverted, and then invert it. */
+      if( astGetInvert( polymap ) ){
+         result = astPolyMap( nout, nin, ncoeff_i, coeffs_i, ncoeff_f,
+                              coeffs_f, " ", status );
+         astInvert( result );
+
+/* Otherwise, create the new PolyMap directly. */
+      } else {
+         result = astPolyMap( nin, nout, ncoeff_f, coeffs_f, ncoeff_i,
+                              coeffs_i, " ", status );
+      }
+
+/* Copy other attribute values from the supplied PolyMap to the returned
+   PolyMap (if set). */
+      if( astTestIterInverse( polymap ) ){
+         astSetIterInverse( result, astGetIterInverse( polymap ) );
+      }
+
+      if( astTestNiterInverse( polymap ) ){
+         astSetNiterInverse( result, astGetNiterInverse( polymap ) );
+      }
+
+      if( astTestTolInverse( polymap ) ){
+         astSetTolInverse( result, astGetTolInverse( polymap ) );
+      }
+
+   }
+
+/* Free resources */
+   coeffs_i = astFree( coeffs_i );
+   coeffs_f = astFree( coeffs_f );
+
+/* If no error has occurred, annull the supplied PolyMap. Otherwise,
+   annul any result and return a  NULL pointer. */
+   if( astOK ) {
+      polymap = astAnnul( polymap );
+   } else if( result ){
+      result = astAnnul( result );
+   }
+
+   return result;
+}
+
 static int SearchCard( AstFitsChan *this, const char *name,
                        const char *method, const char *class, int *status ){
 
@@ -27899,6 +28515,9 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
 
 /* Local Variables: */
    AstMapping **map_list;
+   AstMapping *map1;
+   AstMapping *map2;
+   AstMapping *map3;
    AstMapping *map_upper;
    AstMapping *map_lower;
    AstMapping *result;
@@ -27906,10 +28525,10 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    AstMapping *tmap;
    AstMapping *tmap2;
    AstMapping *tmap1;
-   AstPolyMap *polymap;
    AstPermMap *pm;
-   const char *cval;
+   AstPolyMap *polymap;
    char buf[30];
+   const char *cval;
    double ****item;
    double *coeffs;
    double *pc;
@@ -27917,6 +28536,8 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    double iwcxin;
    double iwcyin;
    double lbnd[ 2 ];
+   double scales[ 2 ];
+   double shift[ 2 ];
    double ubnd[ 2 ];
    double val;
    int *inax1;
@@ -27927,6 +28548,10 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    int *outperm1;
    int *outperm2;
    int *outrem;
+   int aimax;
+   int ajmmax;
+   int bimax;
+   int bjmmax;
    int fwd;
    int i;
    int icoeff;
@@ -27944,10 +28569,8 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    int ok;
    int old_invert;
    int outax[ 2 ];
-   int aimax;
-   int ajmmax;
-   int bimax;
-   int bjmmax;
+   int rotation;
+   int scaling;
 
 /* Initialise */
    result = NULL;
@@ -27977,7 +28600,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
       astInvert( map );
 
 /* Check the Mapping could be split, and that the mapping that generates
-   lonax/latax has exactly two inputs (use the NBout attribute since
+   lonax/latax has exactly two inputs (use the Nout attribute since
    "tmap1" is inverted). Then invert "tmap1" so that it is in the same
    direction as the supplied mapping. */
       if( inax1 && tmap1 && astGetNout( tmap1 ) == 2 ) {
@@ -28053,8 +28676,10 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                       astGetNin( map_upper ) == 2 &&
                       astGetNout( map_upper ) == 2 );
 
-/* Check that the lower Mapping is a shift of origin with no scaling or
-   rotation. */
+/* Check that the lower Mapping is linear and see if it produces any scaling
+   or rotation. */
+               scaling = 0;
+               rotation = 0;
                if( ok ) {
                   lbnd[ 0 ] = 0.0;
                   lbnd[ 1 ] = 0.0;
@@ -28063,14 +28688,68 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                   if( ubnd[ 0 ] == AST__BAD ) ubnd[ 0 ] = 1000.0;
                   if( ubnd[ 1 ] == AST__BAD ) ubnd[ 1 ] = 1000.0;
                   ok = astLinearApprox( map_lower, lbnd, ubnd, tol, fit );
+
                   if( fabs( fit[ 2 ] - 1.0 ) > 1.0E-7  ||
-                      fabs( fit[ 3 ] ) > 1.0E-7 ||
-                      fabs( fit[ 4 ] ) > 1.0E-7 ||
-                      fabs( fit[ 5 ] - 1.0 ) > 1.0E-7  ) ok = 0;
+                      fabs( fit[ 5 ] - 1.0 ) > 1.0E-7  ) scaling = 1;
+
+                  if( fabs( fit[ 3 ] ) > 1.0E-7 ||
+                      fabs( fit[ 4 ] ) > 1.0E-7 ) rotation = 1;
                }
 
-/* Check that the upper Mapping is a linear Mapping with no shift of origin.
-   Retain the fit coefficients for later use. */
+/* If it produces rotation, it cannot be used. */
+               if( rotation ) ok = 0;
+
+/* If it produces scaling, we can still use it if we 1) remove the scaling
+   from the lower Mapping and 2) modify the coefficients of the PolyMap to
+   include the removed scalings. */
+               shift[ 0 ] = fit[ 0 ];
+               shift[ 1 ] = fit[ 1 ];
+               if( scaling && ok ) {
+
+/* Replace the lower Mapping with a Mapping that implements just the shift of
+   origin produced by the original lower Mapping (without any subsequent
+   scaling). Note, the linear fit returned by astLinearApprox applies the
+   scaling first followed by the shift, but we need to apply the shift
+   first (effectively followed by unit scaling). So we need to modify the
+   offset terms in the fit to remove the scaling (the modified PolyMap will
+   then effectively put the scaling back in again). */
+                  shift[ 0 ] /= fit[ 2 ];
+                  shift[ 1 ] /= fit[ 5 ];
+                  (void) astAnnul( map_lower );
+                  map_lower = (AstMapping *) astShiftMap( 2, shift, " ", status );
+
+/* Now create a modified PolyMap that incorporates the scaling of the
+   input axes produced by the original lower Mapping. */
+                  scales[ 0 ] = fit[ 2 ];
+                  scales[ 1 ] = fit[ 5 ];
+                  polymap = ScalePolyInputs( polymap, scales, status );
+               }
+
+/* The SIP paper requires the SIP polynomial to contain no constant or
+   linear terms. So analyse the PolyMap into three Mappings in series:
+   1) a ShiftMap that applies any shift of origin in the PolyMap,
+   2) a PolyMap that contains no constant or linear terms (other than a
+      unit coefficient for the linear term of the corresponding input),
+   3) a MatrixMap that applies any axis scaling.
+   If the analysis is successful, combine the Shiftmap with the current
+   lower mapping and the matrixmap with the current upper mnapping. */
+               if( ok && AnalysePoly( polymap, &map1, &map2, &map3, status ) ){
+                  tmap = (AstMapping *) astCmpMap( map_lower, map1, 1, " ", status );
+                  map_lower = astAnnul( map_lower );
+                  map1 = astAnnul( map1 );
+                  map_lower = tmap;
+
+                  tmap = (AstMapping *) astCmpMap( map3, map_upper, 1, " ", status );
+                  map_upper = astAnnul( map_upper );
+                  map3 = astAnnul( map3 );
+                  map_upper = tmap;
+
+                  polymap = astAnnul( polymap );
+                  polymap = (AstPolyMap *) map2;
+               }
+
+/* Check that the upper Mapping is linear and see if it produces a shift of
+   origin (if so we cannot use it). Retain the fit coefficients for later use. */
                if( ok ) {
                   lbnd[ 0 ] = -ubnd[ 0 ];
                   lbnd[ 1 ] = -ubnd[ 1 ];
@@ -33093,7 +33772,7 @@ static void TabSourceWrap( void (*tabsource)( void  ),
    if ( !astOK ) return;
 
 /* Get an external identifier for the FitsChan. Could use astClone here
-   to avoid this function anulling the supplied pointer, but the F77 wrapper
+   to avoid this function annulling the supplied pointer, but the F77 wrapper
    cannot use the protected version of astClone, so for consistency we do
    not use it here either. */
    this_id = astMakeId( this );
@@ -41865,14 +42544,23 @@ f     AST_READ
 c     astWrite
 f     AST_WRITE
 *     to write a FrameSet to a FITS-WCS encoded header, suitable SIP
-*     keywords will be included in the header if the FrameSet contains a
-*     PolyMap immediately before the MatrixMap that corresponds to the
-*     FITS-WCS PC or CD matrix, but only if the SipOK attribute is non-zero.
-*     If the FrameSet contains a PolyMap but SipOK is zero, then an attempt
-*     will be made to write out the FrameSet without SIP keywords using a
-*     linear approximation to the pixel-to-IWC mapping. If this fails
-*     because the Mapping exceeds the linearity requirement specified by
-*     attribute FitsTol,
+*     keywords will be included in the header if the SipOK attribute is
+*     non-zero and the pixel to sky Mapping can be rearranged to met the
+*     requirements of the documented SIP scheme. The Mapping must contains a
+*     PolyMap at some point before the WcsMap. The Mapping between the PolyMap
+*     and the WcsMap may include a shift of orgin, axis scaling or rotation.
+*     The Mapping before the PolyMap can include a shift of origin and axis
+*     scaling but no rotation. Any axis scaling before the PolyMap or shift
+*     of origin after the PolyMap are subsumed into a modified PolyMap prior
+*     to writing out the headers. Finally any shift of origin or axis scaling
+*     or rotation in the original PolyMap are removed and placed into the
+*     adjoing Mappings (any shift goes into the pre-PolyMap Mapping that
+*     defines CRPIX and any axis scaling or rotation goes into the
+*     post-PolyMap Mapping that defines the CD matrix). If the FrameSet
+*     contains a PolyMap but SipOK is zero, then an attempt will be made
+*     to write out the FrameSet without SIP keywords using a linear
+*     approximation to the pixel-to-IWC mapping. If this fails because the
+*     Mapping exceeds the linearity requirement specified by attribute FitsTol,
 c     astWrite
 f     AST_WRITE
 *     will return zero, indicating that the FrameSet could not be written
