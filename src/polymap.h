@@ -120,6 +120,7 @@
 /* Interface definitions. */
 /* ---------------------- */
 #include "mapping.h"             /* Coordinate mappings (parent class) */
+#include "shiftmap.h"            /* Shift of origin Mappings */
 
 #if defined(astCLASS)            /* Protected */
 #include "pointset.h"            /* Sets of points/coordinates */
@@ -194,6 +195,7 @@ typedef struct AstPolyMapVtab {
    AstClassIdentifier id;
 
 /* Properties (e.g. methods) specific to this class. */
+   AstPolyMap *(* MergeShift)( AstPolyMap *, AstShiftMap *, int, int, int * );
    AstPolyMap *(* PolyTran)( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
    void (* PolyPowers)( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
    void (* PolyCoeffs)( AstPolyMap *, int, int, double *, int *, int *);
@@ -268,8 +270,10 @@ AstPolyMap *astLoadPolyMap_( void *, size_t, AstPolyMapVtab *,
 /* -------------------------------- */
 AstPolyMap *astPolyTran_( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 void astPolyCoeffs_( AstPolyMap *, int, int, double *, int *, int *);
+void astShowPoly_( AstPolyMap *, int * );
 
 # if defined(astCLASS)           /* Protected */
+   AstPolyMap *astMergeShift_( AstPolyMap *, AstShiftMap *, int, int, int * );
    void astPolyPowers_( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
    void astFitPoly1DInit_( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
    void astFitPoly2DInit_( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
@@ -343,8 +347,12 @@ astINVOKE(O,astPolyTran_(astCheckPolyMap(this),forward,acc,maxacc,maxorder,lbnd,
 #define astPolyCoeffs(this,forward,nel,coeffs,ncoeff) \
 astINVOKE(V,astPolyCoeffs_(astCheckPolyMap(this),forward,nel,coeffs,ncoeff,STATUS_PTR))
 
-#if defined(astCLASS)            /* Protected */
+#define astShowPoly(this) \
+astShowPoly_(astCheckPolyMap(this),STATUS_PTR)
 
+#if defined(astCLASS)            /* Protected */
+#define astMergeShift(this,shift,before,force) \
+        astINVOKE(O,astMergeShift_(astCheckPolyMap(this),astCheckShiftMap(shift),before,force,STATUS_PTR))
 #define astPolyPowers(this,work,ncoord,mxpow,ptr,offset,fwd) \
         astINVOKE(V,astPolyPowers_(astCheckPolyMap(this),work,ncoord,mxpow,ptr,point,fwd,STATUS_PTR))
 #define astFitPoly1DInit(this,forward,table,data,scales) \
