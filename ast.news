@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.2.13) of the Starlink AST (astrometry) library is
+   A new release (V9.2.14) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -16,6 +16,27 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- A bug that could cause astMapSplit to enter an infinite loop has been
+  fixed.
+- A memory leak in the Moc class has been fixed.
+- A PolyMap that is equivalent to a simple shift of origin and/or a linear
+  scaling on each axis is now simplified to a combination of equivalent
+  simpler classes..
+- If a PolyMap contains multiple coefficients that relate to the same
+  input axis powers, they are now combined into a single coefficient.
+- Zero-valued coefficients are now ignored by the PolyMap constructor,
+  rather than being stored within the PolyMap.
+- The FitsChan class can now create FITS headers containing SIP
+  distortion keywords from a wider range of FrameSets. A PolyMap must
+  still be present in the FrameSet but it is now allowed to deviate from
+  the strict requirements of the SIP documentation in various ways (but
+  only if it can be transformed into a PolyMap that does meet the
+  requirements).
+
+
+Main Changes in V9.2.13
+-----------------------
 
 - A bug has been fixed in the astRate method of the Mapping class, which
 could cause numerical instability in the algorithm and thus return

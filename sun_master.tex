@@ -12,13 +12,13 @@
 
 % Variable part - replace [xxx] as appropriate.
 c+
-\stardocnumber      {211.30}
+\stardocnumber      {211.31}
 c-
 f+
-\stardocnumber      {210.30}
+\stardocnumber      {210.31}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {25th Sep 2024}
+\stardocdate        {31st Jul 2025}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -22621,11 +22621,9 @@ without using astGetBounded.
 \end{enumerate}
 
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.2.13}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.2.12 and V9.2.13 (the
-current version):
+\subsection{Changes Introduced in V9.2.13}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.12 and V9.2.13:
 
 \begin{enumerate}
 
@@ -22634,6 +22632,37 @@ which could cause numerical instability in the algorithm and thus return
 incorrect values.
 
 \end{enumerate}
+
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.2.14}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.2.13 and V9.2.14 (the
+current version):
+
+\begin{enumerate}
+
+\item A bug that could cause astMapSplit to enter an infinite loop has been
+  fixed.
+\item A memory leak in the Moc class has been fixed.
+\item A PolyMap that is equivalent to a simple shift of origin and/or a linear
+  scaling on each axis is now simplified to a combination of equivalent
+  simpler classes..
+\item If a PolyMap contains multiple coefficients that relate to the same
+  input axis powers, they are now combined into a single coefficient.
+\item Zero-valued coefficients are now ignored by the PolyMap constructor,
+  rather than being stored within the PolyMap.
+\item The FitsChan class can now create FITS headers containing SIP
+  distortion keywords from a wider range of FrameSets. A PolyMap must
+  still be present in the FrameSet but it is now allowed to deviate from
+  the strict requirements of the SIP documentation in various ways (but
+  only in ways that allow it to be transformed into a PolyMap that does
+  meet the requirements).
+\end{enumerate}
+
+
+
+
 
 Programs which are statically linked will need to be re-linked in
 order to take advantage of these new facilities.
