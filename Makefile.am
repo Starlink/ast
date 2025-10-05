@@ -57,6 +57,7 @@ GRP_C_ROUTINES = \
     src/specframe.c \
     src/specmap.c \
     src/sphmap.c \
+    src/splinemap.c \
     src/stc.c \
     src/stccatalogentrylocation.c \
     src/stcobsdatalocation.c \
@@ -131,6 +132,7 @@ F_C_ROUTINES = \
     src/fspecframe.c \
     src/fspecmap.c \
     src/fsphmap.c \
+    src/fsplinemap.c \
     src/fstc.c \
     src/fstccatalogentrylocation.c \
     src/fstcobsdatalocation.c \
@@ -176,6 +178,7 @@ AST_H_FILES = \
           src/dssmap.h \
           src/grismmap.h \
           src/intramap.h \
+          src/splinemap.h \
           src/lutmap.h \
           src/mathmap.h \
           src/matrixmap.h \

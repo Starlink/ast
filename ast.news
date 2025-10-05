@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.2.14) of the Starlink AST (astrometry) library is
+   A new release (V9.3.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -16,6 +16,14 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+- A new subclass of Mapping, a SplineMap, has been added, which
+  represents a 2-in, 2-out Mapping defined by a pair of two-dimensional
+  B-spline surfaces.
+
+
+Main Changes in V9.2.14
+-----------------------
 
 - A bug that could cause astMapSplit to enter an infinite loop has been
   fixed.

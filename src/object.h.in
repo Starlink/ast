@@ -381,6 +381,8 @@
 
 #endif
 
+#define AST__F77API "F77API" /* A string used to indicate a call from the F77 API */
+
 /* Values returned by astThread */
 #define AST__UNLOCKED 1  /* Object is unlocked */
 #define AST__RUNNING 2   /* Object is locked by the running thread */
