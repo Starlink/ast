@@ -71,6 +71,7 @@ goodsource="${srcdir}/yamlchan.c \
             ${srcdir}/region.c \
             ${srcdir}/shiftmap.c \
             ${srcdir}/sphmap.c \
+            ${srcdir}/splinemap.c \
             ${srcdir}/skyaxis.c \
             ${srcdir}/skyframe.c \
             ${srcdir}/slamap.c \

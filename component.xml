@@ -2,7 +2,7 @@
 <!DOCTYPE component SYSTEM "componentinfo.dtd">
 
 <component id="ast" support="S">
-  <version>9.2.14</version>
+  <version>9.3.0</version>
   <path>libext/ast</path>
   <description>WCS library</description>
   <abstract>

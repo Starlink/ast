@@ -18,7 +18,7 @@ f+
 \stardocnumber      {210.31}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {31st Jul 2025}
+\stardocdate        {5th October Jul 2025}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -17920,6 +17920,7 @@ Object             - Base class for all AST Objects
       SlaMap       - Sequence of celestial coordinate conversions
       SpecMap      - Sequence of spectral coordinate conversions
       SphMap       - Map 3-d Cartesian to 2-d spherical coordinates
+      SplineMap    - Map 2-d spherical coordinates using a pair of splines
       SwitchMap    - Encapuslates a set of alternate Mappings
       TimeMap      - Sequence of time coordinate conversions
       TranMap      - Combine fwd. and inv. transformations from two Mappings
@@ -22634,11 +22635,9 @@ incorrect values.
 \end{enumerate}
 
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V9.2.14}
-The following describes the most significant changes which have
-occurred in the AST library between versions V9.2.13 and V9.2.14 (the
-current version):
+\subsection{Changes Introduced in V9.2.14}
+The following describes the most significant changes which
+occurred in the AST library between versions V9.2.13 and V9.2.14:
 
 \begin{enumerate}
 
@@ -22660,9 +22659,19 @@ current version):
   meet the requirements).
 \end{enumerate}
 
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
+Introduced in V9.3.0}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.2.14 and V9.3.0 (the
+current version):
 
+\begin{enumerate}
 
+\item A new subclass of Mapping, a SplineMap, has been added, which
+represents a 2-in, 2-out Mapping defined by a pair of two-dimensional
+B-spline surfaces.
 
+\end{enumerate}
 
 Programs which are statically linked will need to be re-linked in
 order to take advantage of these new facilities.

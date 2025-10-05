@@ -227,7 +227,7 @@ astMAKE_INITGLOBALS(PolyMap)
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(PolyMap,Class_Init)
 #define class_vtab astGLOBAL(PolyMap,Class_Vtab)
-#define getattrib_buff astGLOBAL(LutMap,GetAttrib_Buff)
+#define getattrib_buff astGLOBAL(PolyMap,GetAttrib_Buff)
 
 #include <pthread.h>
 

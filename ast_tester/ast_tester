@@ -77,7 +77,7 @@ if( $1 != "-nd" ) then
 endif
 
 #  Note - testhuge is not included because it takes so long to run.
-foreach prog (testcmpframe testyamlchan testmoc testmocchan testmapping testchebymap testunitnormmap testskyframe testframeset testchannel testpolymap testcmpmap testlutmap testfitstable testtable teststcschan teststc testspecframe testfitschan testswitchmap testrebin testrebinseq testtrangrid testnormmap testtime testrate testflux testratemap testspecflux testxmlchan testregions testkeymap )
+foreach prog (testsplinemap testcmpframe testyamlchan testmoc testmocchan testmapping testchebymap testunitnormmap testskyframe testframeset testchannel testpolymap testcmpmap testlutmap testfitstable testtable teststcschan teststc testspecframe testfitschan testswitchmap testrebin testrebinseq testtrangrid testnormmap testtime testrate testflux testratemap testspecflux testxmlchan testregions testkeymap )
 
 gfortran -fno-second-underscore -w -g -o $prog -g $prog.f $FFLAGS $LDFLAGS -I$AST/include \
      -I$STARLINK_DIR/include -L$AST/lib -L$STARLINK_DIR/lib `ast_link -ems` \
@@ -90,7 +90,7 @@ end
 
 
 
-foreach prog (testresimp testobject testconvert testerror)
+foreach prog (testsplinemap_c testresimp testobject testconvert testerror)
    gcc -o $prog $prog.c -I.. -I../src -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK_DIR/lib \
          -I$STARLINK_DIR/include `ast_link`
 
