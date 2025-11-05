@@ -19,7 +19,8 @@ f     AST_SPLINEMAP
 *     generating the second output coordinate) share the same order and the
 *     same knot positions, but have coefficients that are specified separately.
 *     No extrapolation is performed - input positions that are outside the
-*     area covered by the supplied knots cannot be transformed.
+*     area covered by the supplied knots cannot be transformed (but see
+*     attribute OutUnit).
 *
 *     An iterative method is used to evaluate the inverse transformation based
 *     on the forward transformation (see attributes InvTol and InvNiter). This
@@ -50,6 +51,7 @@ f     AST_SPLINEMAP
 *
 *     - InvNiter: Maximum number of iterations for iterative inverse
 *     - InvTol: Target relative error for iterative inverse
+*     - OutUnit: Determines how out-of-bounds input positions are handled.
 *     - SplineKx: The order of the splines along the input X axis.
 *     - SplineKy: The order of the splines along the input Y axis.
 *     - SplineNx: The number of spline coefficients along the input X axis.
@@ -92,8 +94,9 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *     13-OCT-2025 (DSB):
 *        Original version.
 *     5-NOV-2025 (DSB):
-*        Change CMLIB code to avoid bad values being returned for input
+*        - Change CMLIB code to avoid bad values being returned for input
 *        positions that are on the top edge of the knot bounding box.
+*        - Added attribute OutUnit.
 *class--
 */
 
@@ -195,7 +198,7 @@ AstSplineMap *astSplineMapId_( int, int, int, int, const double[],
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
-static double Db2val( double, double, int, int, const double *, const double *, int, int, int, int, const double *, double *, int * );
+static double Db2val( double, double, double, int, int, const double *, const double *, int, int, int, int, const double *, double *, int * );
 static double Dbvalu( const double *, const double *, int, int, int, double, int, double *, int * );
 static double Rate( AstMapping *, double *, int, int, int * );
 static int Equal( AstObject *, AstObject *, int * );
@@ -228,6 +231,11 @@ static double GetInvTol( AstSplineMap *, int * );
 static int TestInvTol( AstSplineMap *, int * );
 static void ClearInvTol( AstSplineMap *, int * );
 static void SetInvTol( AstSplineMap *, double, int * );
+
+static int GetOutUnit( AstSplineMap *, int * );
+static int TestOutUnit( AstSplineMap *, int * );
+static void ClearOutUnit( AstSplineMap *, int * );
+static void SetOutUnit( AstSplineMap *, int, int * );
 
 
 
@@ -280,14 +288,19 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* Check the attribute name and clear the appropriate attribute. */
 
 /* InvNiter. */
-/* ------------- */
+/* --------- */
    if ( !strcmp( attrib, "invniter" ) ) {
       astClearInvNiter( this );
 
 /* InvTol. */
-/* ----------- */
+/* ------- */
    } else if ( !strcmp( attrib, "invtol" ) ) {
       astClearInvTol( this );
+
+/* OutUnit. */
+/* ------------ */
+   } else if ( !strcmp( attrib, "outunit" ) ) {
+      astClearOutUnit( this );
 
 /* If the name was not recognised, test if it matches any of the
    read-only attributes of this class. If it does, then report an
@@ -307,7 +320,7 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
    }
 }
 
-static double Db2val( double xval, double yval, int idx, int idy,
+static double Db2val( double def, double xval, double yval, int idx, int idy,
                       const double *tx, const double *ty, int nx, int ny,
                       int kx, int ky, const double *bcoef, double *work,
                       int *status ) {
@@ -323,7 +336,7 @@ static double Db2val( double xval, double yval, int idx, int idy,
 
 *  Synopsis:
 *     #include "splinemap.h"
-*     double Db2val( double xval, double yval, int idx, int idy,
+*     double Db2val( double def, double xval, double yval, int idx, int idy,
 *                    const double *tx, const double *ty, int nx, int ny,
 *                    int kx, int ky, const double *bcoef, double *work,
 *                    int *status )
@@ -335,12 +348,11 @@ static double Db2val( double xval, double yval, int idx, int idy,
 *     This function evaluates the B-representation (T,A,N,K) of a 2-dimensional
 *     B-spline at (xval,yval). To evaluate  the  interpolant itself, set idx=idy=0,
 *     to evaluate the first partial  with  respect to x, set idx=1,idy=0, and so on.
-*
-*     AST__BAD is returned if (xval,yval) is out of range. That is, if
-*            xval < tx[ 0 ] or. xval > tx[nx+kx-1] or
-*            yval < ty[ 0 ] or. yval > ty[ny+ky-1]
 
 *  Parameters:
+*     def
+*        The value to return if the supplied (xval,yval) position is outside
+*        the bounding box of the supplied knots.
 *     xval
 *        X coordinate of evaluation point.
 *     yval
@@ -396,7 +408,7 @@ static double Db2val( double xval, double yval, int idx, int idy,
    if( !astOK ) return AST__BAD;
 
    if( xval < tx[0] || xval > tx[nx + kx - 1] ||
-       yval < ty[0] || yval > ty[ny + ky - 1] ) return AST__BAD;
+       yval < ty[0] || yval > ty[ny + ky - 1] ) return def;
 
    iloy = 0;
    inbvx = 0;
@@ -921,7 +933,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    format.  Set "result" to point at the result string. */
 
 /* InvNiter. */
-/* ------------- */
+/* --------- */
    if ( !strcmp( attrib, "invniter" ) ) {
       ival = astGetInvNiter( this );
       if ( astOK ) {
@@ -930,11 +942,20 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
       }
 
 /* InvTol. */
-/* ----------- */
+/* ------- */
    } else if ( !strcmp( attrib, "invtol" ) ) {
       dval = astGetInvTol( this );
       if ( astOK ) {
          (void) sprintf( getattrib_buff, "%.*g", AST__DBL_DIG, dval );
+         result = getattrib_buff;
+      }
+
+/* OutUnit. */
+/* ------------ */
+   } else if ( !strcmp( attrib, "outunit" ) ) {
+      ival = astGetOutUnit( this );
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%d", ival );
          result = getattrib_buff;
       }
 
@@ -1179,6 +1200,11 @@ void astInitSplineMapVtab_(  AstSplineMapVtab *vtab, const char *name, int *stat
    vtab->SetInvTol = SetInvTol;
    vtab->TestInvTol = TestInvTol;
 
+   vtab->ClearOutUnit = ClearOutUnit;
+   vtab->GetOutUnit = GetOutUnit;
+   vtab->SetOutUnit = SetOutUnit;
+   vtab->TestOutUnit = TestOutUnit;
+
    vtab->SplineCoeffs = SplineCoeffs;
    vtab->SplineKnots = SplineKnots;
 
@@ -1276,6 +1302,7 @@ static void IterInverse( AstSplineMap *this, AstPointSet *out,
    int maxiter;
    int nconv;
    int npoint;
+   int outunit;
    int sing;
 
 /* Check inherited status */
@@ -1286,6 +1313,10 @@ static void IterInverse( AstSplineMap *this, AstPointSet *out,
    We want to use the original forward transformation (i.e. the
    transformation defined by the B-splines). */
    fwd = !astGetInvert( this );
+
+/* See how to handle positions that fall outside the bounding box of the
+   knots. */
+   outunit = astGetOutUnit( this );
 
 /* Get the number of points to be transformed. */
    npoint = astGetNpoint( out );
@@ -1360,16 +1391,18 @@ static void IterInverse( AstSplineMap *this, AstPointSet *out,
 
          if( *pu != AST__BAD && *pv != AST__BAD ){
 
-            a = Db2val( *pu, *pv, 0, 0, this->tx, this->ty, this->nx, this->ny,
-                        this->kx, this->ky, this->cu, dwork, status );
+            a = Db2val( outunit?*pu:AST__BAD, *pu, *pv, 0, 0, this->tx, this->ty,
+                        this->nx, this->ny, this->kx, this->ky, this->cu, dwork,
+                        status );
             if( *pu != AST__BAD && a != AST__BAD ){
                *px = 2*(*pu) - a;
             } else {
                *px = *pu;
             }
 
-            a = Db2val( *pu, *pv, 0, 0, this->tx, this->ty, this->nx, this->ny,
-                        this->kx, this->ky, this->cv, dwork, status );
+            a = Db2val( outunit?*pv:AST__BAD, *pu, *pv, 0, 0, this->tx, this->ty,
+                        this->nx, this->ny, this->kx, this->ky, this->cv, dwork,
+                        status );
             if( *pv != AST__BAD && a != AST__BAD ){
                *py = 2*(*pv) - a;
             } else {
@@ -1479,17 +1512,17 @@ static void IterInverse( AstSplineMap *this, AstPointSet *out,
 
    Get the numerical values for the elements of the Jacobian matrix at
    the current input point guess. */
-               mat[ 0 ] = Db2val( *px, *py, 1, 0, this->tx, this->ty, this->nx,
-                                  this->ny, this->kx, this->ky, this->cu,
+               mat[ 0 ] = Db2val( outunit?1.0:AST__BAD, *px, *py, 1, 0, this->tx,
+                                  this->ty, this->nx, this->ny, this->kx, this->ky, this->cu,
                                   dwork, status );
-               mat[ 1 ] = Db2val( *px, *py, 0, 1, this->tx, this->ty, this->nx,
-                                  this->ny, this->kx, this->ky, this->cu,
+               mat[ 1 ] = Db2val( outunit?0.0:AST__BAD, *px, *py, 0, 1, this->tx,
+                                  this->ty, this->nx,this->ny, this->kx, this->ky, this->cu,
                                   dwork, status );
-               mat[ 2 ] = Db2val( *px, *py, 1, 0, this->tx, this->ty, this->nx,
-                                  this->ny, this->kx, this->ky, this->cv,
+               mat[ 2 ] = Db2val( outunit?0.0:AST__BAD, *px, *py, 1, 0, this->tx,
+                                  this->ty, this->nx,this->ny, this->kx, this->ky, this->cv,
                                   dwork, status );
-               mat[ 3 ] = Db2val( *px, *py, 0, 1, this->tx, this->ty, this->nx,
-                                  this->ny, this->kx, this->ky, this->cv,
+               mat[ 3 ] = Db2val( outunit?1.0:AST__BAD, *px, *py, 0, 1, this->tx,
+                                  this->ty, this->nx,this->ny, this->kx, this->ky, this->cv,
                                   dwork, status );
 
 /* Store the offset from the current output position to the required
@@ -1843,6 +1876,7 @@ static double Rate( AstMapping *this_mapping, double *at, int ax1, int ax2, int 
 /* Local Variables: */
    AstSplineMap *this;
    const double *coef;
+   double def;
    double result;
    double work[ 4*MAX_K ];
    int xder;
@@ -1892,8 +1926,14 @@ static double Rate( AstMapping *this_mapping, double *at, int ax1, int ax2, int 
          yder = 1;
       }
 
+      if( astGetOutUnit(this ) ){
+         def = ( ax1 == ax2 ) ? 1.0 : 0.0;
+      } else {
+         def = AST__BAD;
+      }
+
 /* Calculate the rate of change. */
-      result = Db2val( at[ 0 ], at[ 1 ], xder, yder, this->tx, this->ty,
+      result = Db2val( def, at[ 0 ], at[ 1 ], xder, yder, this->tx, this->ty,
                        this->nx, this->ny, this->kx, this->ky, coef, work,
                        status );
    }
@@ -1965,18 +2005,25 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
    has been obtained, use the appropriate method to set it. */
 
 /* InvNiter. */
-/* ------------- */
+/* --------- */
    if ( nc = 0,
         ( 1 == astSscanf( setting, "invniter= %d %n", &ival, &nc ) )
         && ( nc >= len ) ) {
       astSetInvNiter( this, ival );
 
 /* InvTol. */
-/* ----------- */
+/* ------- */
    } else if ( nc = 0,
         ( 1 == astSscanf( setting, "invtol= %lg %n", &dval, &nc ) )
         && ( nc >= len ) ) {
       astSetInvTol( this, dval );
+
+/* OutUnit. */
+/* -------- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "outunit= %d %n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+      astSetOutUnit( this, ival );
 
 /* Define a macro to see if the setting string matches any of the
    read-only attributes of this class. */
@@ -2261,14 +2308,19 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* Check the attribute name and test the appropriate attribute. */
 
 /* InvNiter. */
-/* ------------- */
+/* --------- */
    if ( !strcmp( attrib, "invniter" ) ) {
       result = astTestInvNiter( this );
 
 /* InvTol. */
-/* ----------- */
+/* ------- */
    } else if ( !strcmp( attrib, "invtol" ) ) {
       result = astTestInvTol( this );
+
+/* OutUnit. */
+/* -------- */
+   } else if ( !strcmp( attrib, "outunit" ) ) {
+      result = astTestOutUnit( this );
 
 /* If the name is not recognised, test if it matches any of the
    read-only attributes of this class. If it does, then return
@@ -2354,6 +2406,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    double *yout;                 /* Pointer to next Y output axis value */
    double work[ 4*MAX_K ];       /* Work array */
    int npoint;                   /* Number of points */
+   int outunit;                  /* Value of OutUnit attribute */
    int point;                    /* Loop counter for points */
 
 /* Check the global error status. */
@@ -2370,6 +2423,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* We will now extend the parent astTransform method by performing the
    calculations needed to generate the output coordinate values. */
+
+/* See how to handle positions that fall outside the bounding box of the
+   knots. */
+   outunit = astGetOutUnit( this );
 
 /* Determine the numbers of points from the input PointSet and obtain pointers
    for accessing the input and output coordinate values. */
@@ -2398,10 +2455,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* If the input position is good calculate the output X and Y axis
    values. */
             if( *xin != AST__BAD && *yin != AST__BAD ){
-               *xout =  Db2val( *xin, *yin, 0, 0, map->tx, map->ty, map->nx,
-                                map->ny, map->kx, map->ky, map->cu, work, status );
-               *yout =  Db2val( *xin, *yin, 0, 0, map->tx, map->ty, map->nx,
-                                map->ny, map->kx, map->ky, map->cv, work, status );
+               *xout =  Db2val( outunit?*xin:AST__BAD, *xin, *yin, 0, 0, map->tx, map->ty,
+                                map->nx, map->ny, map->kx, map->ky, map->cu, work, status );
+               *yout =  Db2val( outunit?*yin:AST__BAD, *xin, *yin, 0, 0, map->tx, map->ty,
+                                map->nx, map->ny, map->kx, map->ky, map->cv, work, status );
 
 /* If the input position is bad store bad output values. */
             } else {
@@ -2452,7 +2509,8 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     If the iterative inverse fails to converge to the target relative
 *     error specified by attribute InvTol within the number of iterations
 *     specified by InvNiter, then the value AST__BAD is returned for both
-*     output axis values.
+*     output axis values (the value returned can be changed by setting
+*     the OutUnit attribute).
 *
 *     The default value for InvNiter is 6. See also attribute InvTol.
 
@@ -2506,6 +2564,49 @@ astMAKE_GET(SplineMap,InvTol,double,0.0,( this->invtol == AST__BAD ? 1.0E-6 : th
 astMAKE_SET(SplineMap,InvTol,double,invtol,value)
 astMAKE_TEST(SplineMap,InvTol,( this->invtol != AST__BAD ))
 
+/* OutUnit. */
+/* -------- */
+/*
+*att++
+*  Name:
+*     OutUnit
+
+*  Purpose:
+*     Determines how out-of-bounds input positions are handled.
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Integer (boolean).
+
+*  Description:
+*     This attribute controls the output values returned by the original
+*     forward transformation (i.e. assuming the SplineMap has not been
+*     inverted) when transforming input positions that fall outside the
+*     bounds of the knot positions stored within the SplineMap.
+*
+*     If the OutUnit value is zero (the default), AST__BAD is returned
+*     for both output axes at such points.
+*
+*     If the OutUnit value is non-zero, the forward transformation
+*     behaves like a unit mapping at such points (i.e. the input axis
+*     values are copied to the output axis values).
+
+*  Applicability:
+*     SplineMap
+*        All SplineMaps have this attribute.
+
+*  Notes:
+*     - The setting of this attribute also affects the value returned by
+*     the astRate method.
+
+*att--
+*/
+astMAKE_CLEAR(SplineMap,OutUnit,outunit,-INT_MAX)
+astMAKE_GET(SplineMap,OutUnit,int,0,(this->outunit==-INT_MAX?0:this->outunit))
+astMAKE_SET(SplineMap,OutUnit,int,outunit,(value?1:0))
+astMAKE_TEST(SplineMap,OutUnit,(this->outunit!=-INT_MAX))
 
 /* SplineKx. */
 /* --------- */
@@ -2831,6 +2932,11 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    set = TestInvNiter( this, status );
    ival = set ? GetInvNiter( this, status ) : astGetInvNiter( this );
    astWriteInt( channel, "NiterInv", set, 0, ival, "Max number of iterations for iterative inverse" );
+
+/* How to transform out-of-bounds inputs. */
+   set = TestOutUnit( this, status );
+   ival = set ? GetOutUnit( this, status ) : astGetOutUnit( this );
+   astWriteInt( channel, "OutUnit", set, 0, ival, "How to handle out-of-bounds points" );
 
 /* Target relative error for iterative inverse. */
    set = TestInvTol( this, status );
@@ -3345,6 +3451,7 @@ AstSplineMap *astInitSplineMap_( void *mem, size_t size, int init,
       new->cu = astStore( NULL, cu, nx*ny*sizeof(*cu) );
       new->cv = astStore( NULL, cv, nx*ny*sizeof(*cv) );
       new->invniter = -INT_MAX;
+      new->outunit = -INT_MAX;
       new->invtol = AST__BAD;
 
 /* If an error occurred, clean up by deleting the new SplineMap. */
@@ -3511,6 +3618,10 @@ AstSplineMap *astLoadSplineMap_( void *mem, size_t size,
 /* Max number of iterations for iterative inverse transformation. */
          new->invniter = astReadInt( channel, "niterinv", -INT_MAX );
          if ( TestInvNiter( new, status ) ) SetInvNiter( new, new->invniter, status );
+
+/* How to handle out-of-bounds positions. */
+         new->outunit = astReadInt( channel, "outunit", -INT_MAX );
+         if( TestOutUnit( new, status ) ) SetOutUnit( new, new->outunit, status );
 
 /* Target relative error for iterative inverse transformation. */
          new->invtol = astReadDouble( channel, "tolinv", AST__BAD );

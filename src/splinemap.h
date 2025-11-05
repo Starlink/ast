@@ -172,6 +172,7 @@ typedef struct AstSplineMap {
    double *cu;                   /* Array of coefficients defining U output */
    double *cv;                   /* Array of coefficients defining V output */
    int invniter;                 /* Max number of iterations for iterative inverse */
+   int outunit;                  /* How to handle out-of-bounds inputs */
    double invtol;                /* Target relative error for iterative inverse */
 } AstSplineMap;
 
@@ -193,6 +194,11 @@ typedef struct AstSplineMapVtab {
    int (* TestInvNiter)( AstSplineMap *, int * );
    void (* ClearInvNiter)( AstSplineMap *, int * );
    void (* SetInvNiter)( AstSplineMap *, int, int * );
+
+   int (*GetOutUnit)( AstSplineMap *, int * );
+   int (* TestOutUnit)( AstSplineMap *, int * );
+   void (* ClearOutUnit)( AstSplineMap *, int * );
+   void (* SetOutUnit)( AstSplineMap *, int, int * );
 
    double (*GetInvTol)( AstSplineMap *, int * );
    int (* TestInvTol)( AstSplineMap *, int * );
@@ -270,6 +276,11 @@ void astSplineKnots_( AstSplineMap *, int, int, double *, int *);
    int astTestInvNiter_( AstSplineMap *, int * );
    void astClearInvNiter_( AstSplineMap *, int * );
    void astSetInvNiter_( AstSplineMap *, int, int * );
+
+   int astGetOutUnit_( AstSplineMap *, int * );
+   int astTestOutUnit_( AstSplineMap *, int * );
+   void astClearOutUnit_( AstSplineMap *, int * );
+   void astSetOutUnit_( AstSplineMap *, int, int * );
 
    double astGetInvTol_( AstSplineMap *, int * );
    int astTestInvTol_( AstSplineMap *, int * );
@@ -349,6 +360,15 @@ astINVOKE(V,astSplineKnots_(astCheckSplineMap(this),axis,nel,knots,STATUS_PTR))
         astINVOKE(V,astSetInvNiter_(astCheckSplineMap(this),value,STATUS_PTR))
 #define astTestInvNiter(this) \
         astINVOKE(V,astTestInvNiter_(astCheckSplineMap(this),STATUS_PTR))
+
+#define astClearOutUnit(this) \
+	astINVOKE(V,astClearOutUnit_(astCheckSplineMap(this),STATUS_PTR))
+	#define astGetOutUnit(this) \
+	astINVOKE(V,astGetOutUnit_(astCheckSplineMap(this),STATUS_PTR))
+	#define astSetOutUnit(this,value) \
+	astINVOKE(V,astSetOutUnit_(astCheckSplineMap(this),value,STATUS_PTR))
+	#define astTestOutUnit(this) \
+	astINVOKE(V,astTestOutUnit_(astCheckSplineMap(this),STATUS_PTR))
 
 #define astClearInvTol(this) \
         astINVOKE(V,astClearInvTol_(astCheckSplineMap(this),STATUS_PTR))
