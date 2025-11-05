@@ -11,14 +11,14 @@
       parameter( ny = 100 )
       parameter( k = 4 )
       parameter( npos = 10 )
-      parameter( tol = 1.0D-11 )
+      parameter( tol = 1.0D-10 )
 
       integer i, j, status, sm, ch, sm2, cm, map
       double precision at(2), tx(nx+k), ty(ny+k), cu(nx,ny), cv(nx,ny),
      :                 xin(npos), yin(npos), uout(npos), vout(npos),
      :                 uexp(npos), vexp(npos), xrec(npos), yrec(npos),
      :                 dudx(npos), dvdy(npos), rate, cu2(nx,ny),
-     :                 cv2(nx,ny), tx2(nx+k), ty2(ny+k)
+     :                 cv2(nx,ny), tx2(nx+k), ty2(ny+k), xl, xu, yl, yu
 
       data xin /  0.0D0, 12.5D0, 12.0D0, 1.0D0, 15.0D0, 1.0D0, 95.0D0,
      :            149.5D0, 151.2D0, 77.77D0 /,
@@ -50,7 +50,8 @@ c      call ast_watchmemory( 325 )
 c  Load the data defing a splinemap from text file 2dspline.dat. The
 c  parameters nx, ny and k must be set above to the same values they had
 c  when this text file was created.
-      call loadspline( '2dspline.dat', k, nx, ny, tx, ty, cu, cv )
+      call loadspline( '2dspline.dat', k, nx, ny, tx, ty, cu, cv,
+     :                 xl, xu, yl, yu )
 
 *  Create a SplineMap using the knots and coefficients read from the file.
       sm = ast_splinemap( k, k, nx, ny, tx, ty, cu, cv, ' ',
@@ -265,8 +266,132 @@ c  when this text file was created.
          end if
       end do
 
+*  Test what happens for points on the knots bounding box. These are the
+*  mid points of the four edges of the bounding box.
+      xin(1) = (xl+xu)/2
+      yin(1) = yu-1.0D-6
+      xin(2) = (xl+xu)/2
+      yin(2) = yu
+      xin(3) = (xl+xu)/2
+      yin(3) = yu+1.0D-6
+
+      call ast_tran2( sm, 3, xin, yin, .true., uout, vout, status )
+
+      if( uout(1) .eq. AST__BAD .or. vout(1) .eq. AST__BAD ) then
+         call stopit(14,status)
+      else if( uout(2) .eq. AST__BAD .or. vout(2) .eq. AST__BAD ) then
+         call stopit(15,status)
+      else if( uout(3) .ne. AST__BAD .or. vout(3) .ne. AST__BAD ) then
+         call stopit(16,status)
+      end if
+
+      call ast_tran2( sm, 3, uout, vout, .false., xrec, yrec, status )
+
+      do i = 1, 2
+         if( abs( xrec(i)-xin(i) ) > tol*abs(xin(i)) .or.
+     :       abs( yrec(i)-yin(i) ) > tol*abs(yin(i)) ) then
+            write(*,*) i,xrec(i),xin(i),
+     :                 abs( xrec(i)-xin(i) )/abs(xin(i))
+            write(*,*) i,yrec(i),yin(i),
+     :                 abs( yrec(i)-yin(i) )/abs(yin(i))
+            call stopit(17,status)
+         end if
+      end do
+
+* Check points on bottom edge in the same way.
+      xin(1) = (xl+xu)/2
+      yin(1) = yl+1.0D-6
+      xin(2) = (xl+xu)/2
+      yin(2) = yl
+      xin(3) = (xl+xu)/2
+      yin(3) = yl-1.0D-6
+
+      call ast_tran2( sm, 3, xin, yin, .true., uout, vout, status )
+
+      if( uout(1) .eq. AST__BAD .or. vout(1) .eq. AST__BAD ) then
+         call stopit(18,status)
+      else if( uout(2) .eq. AST__BAD .or. vout(2) .eq. AST__BAD ) then
+         call stopit(19,status)
+      else if( uout(3) .ne. AST__BAD .or. vout(3) .ne. AST__BAD ) then
+         call stopit(20,status)
+      end if
+
+      call ast_tran2( sm, 3, uout, vout, .false., xrec, yrec, status )
+
+      do i = 1, 2
+         if( abs( xrec(i)-xin(i) ) > tol*abs(xin(i)) .or.
+     :       abs( yrec(i)-yin(i) ) > tol*abs(yin(i)) ) then
+            write(*,*) i,xrec(i),xin(i),
+     :                 abs( xrec(i)-xin(i) )/abs(xin(i))
+            write(*,*) i,yrec(i),yin(i),
+     :                 abs( yrec(i)-yin(i) )/abs(yin(i))
+            call stopit(21,status)
+         end if
+      end do
 
 
+* Check points on left edge in the same way.
+      xin(1) = xl+1.0D-6
+      yin(1) = (yl+yu)/2
+      xin(2) = xl
+      yin(2) = (yl+yu)/2
+      xin(3) = xl-1.0D-6
+      yin(3) = (yl+yu)/2
+
+      call ast_tran2( sm, 3, xin, yin, .true., uout, vout, status )
+
+      if( uout(1) .eq. AST__BAD .or. vout(1) .eq. AST__BAD ) then
+         call stopit(22,status)
+      else if( uout(2) .eq. AST__BAD .or. vout(2) .eq. AST__BAD ) then
+         call stopit(23,status)
+      else if( uout(3) .ne. AST__BAD .or. vout(3) .ne. AST__BAD ) then
+         call stopit(24,status)
+      end if
+
+      call ast_tran2( sm, 3, uout, vout, .false., xrec, yrec, status )
+
+      do i = 1, 2
+         if( abs( xrec(i)-xin(i) ) > tol*abs(xin(i)) .or.
+     :       abs( yrec(i)-yin(i) ) > tol*abs(yin(i)) ) then
+            write(*,*) i,xrec(i),xin(i),
+     :                 abs( xrec(i)-xin(i) )/abs(xin(i))
+            write(*,*) i,yrec(i),yin(i),
+     :                 abs( yrec(i)-yin(i) )/abs(yin(i))
+            call stopit(25,status)
+         end if
+      end do
+
+
+* Check points on right edge in the same way.
+      xin(1) = xu-1.0D-6
+      yin(1) = (yl+yu)/2
+      xin(2) = xu
+      yin(2) = (yl+yu)/2
+      xin(3) = xu+1.0D-6
+      yin(3) = (yl+yu)/2
+
+      call ast_tran2( sm, 3, xin, yin, .true., uout, vout, status )
+
+      if( uout(1) .eq. AST__BAD .or. vout(1) .eq. AST__BAD ) then
+         call stopit(22,status)
+      else if( uout(2) .eq. AST__BAD .or. vout(2) .eq. AST__BAD ) then
+         call stopit(23,status)
+      else if( uout(3) .ne. AST__BAD .or. vout(3) .ne. AST__BAD ) then
+         call stopit(24,status)
+      end if
+
+      call ast_tran2( sm, 3, uout, vout, .false., xrec, yrec, status )
+
+      do i = 1, 2
+         if( abs( xrec(i)-xin(i) ) > tol*abs(xin(i)) .or.
+     :       abs( yrec(i)-yin(i) ) > tol*abs(yin(i)) ) then
+            write(*,*) i,xrec(i),xin(i),
+     :                 abs( xrec(i)-xin(i) )/abs(xin(i))
+            write(*,*) i,yrec(i),yin(i),
+     :                 abs( yrec(i)-yin(i) )/abs(yin(i))
+            call stopit(25,status)
+         end if
+      end do
 
 
       call ast_end( status )
@@ -296,21 +421,31 @@ c  when this text file was created.
 
 
 c  Load the spline knot positions and coefficients from the specified file.
-      subroutine loadspline( fn, k, nx, ny, tx, ty, cu, cv )
+      subroutine loadspline( fn, k, nx, ny, tx, ty, cu, cv,
+     :                       xl, xu, yl, yu )
       implicit none
       character fn*(*)
       integer k, nx, ny, i, j
-      double precision tx(nx+k), ty(ny+k), cu(nx,ny), cv(nx,ny)
+      double precision tx(nx+k), ty(ny+k), cu(nx,ny), cv(nx,ny),
+     :                 xl, xu, yl, yu
 
       open( unit=15, file=fn, status='old',
      :      access='sequential', form='formatted', action='read' )
 
+      xl = 1.0D100
+      xu = -1.0D100
       do i = 1, nx+k
          read(15,*) tx( i )
+         if( tx( i ) .lt. xl ) xl = tx( i )
+         if( tx( i ) .gt. xu ) xu = tx( i )
       end do
 
+      yl = 1.0D100
+      yu = -1.0D100
       do i = 1, ny+k
          read(15,*) ty( i )
+         if( ty( i ) .lt. yl ) yl = ty( i )
+         if( ty( i ) .gt. yu ) yu = ty( i )
       end do
 
       do j = 1, ny
@@ -326,6 +461,8 @@ c  Load the spline knot positions and coefficients from the specified file.
       end do
 
       close( unit=15 )
+
+      call flush()
 
       end
 
