@@ -91,6 +91,9 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *  History:
 *     13-OCT-2025 (DSB):
 *        Original version.
+*     5-NOV-2025 (DSB):
+*        Change CMLIB code to avoid bad values being returned for input
+*        positions that are on the top edge of the knot bounding box.
 *class--
 */
 
@@ -399,7 +402,29 @@ static double Db2val( double xval, double yval, int idx, int idy,
    inbvx = 0;
 
    Dintrv( ty, ny + ky, yval, &iloy, &lefty, &mflag );
-   if( mflag != 0 ) return AST__BAD;
+
+/* Following code commented out by DSB in order to ensure good
+   output values for input positions on the upper Y limit
+   if( mflag != 0 ) return AST__BAD; */
+
+
+
+/* ------------------------------------------------------------
+   Following code added by DSB to ensure good output values for
+   input positions on the upper Y limit. */
+   if( mflag != 0 ) {
+      if( yval > ty[ lefty ] ) return AST__BAD;
+
+      while( lefty != ky - 1 ) {
+         lefty--;
+         if( yval != ty[ lefty ] ) break;
+      }
+
+      if( lefty == ky - 1 ) return AST__BAD;
+   }
+/* ------------------------------------------------------------*/
+
+
 
    iw = ky;
    kcol = lefty - ky;
@@ -525,7 +550,9 @@ static double Dbvalu( const double *t, const double *a, int n, int k, int ideriv
          if( x != t[ i ] ) break;
       }
 
-      if( i == k - 1 ) return AST__BAD;
+/* Following line commented out by DSB in order to generate good output values
+   for input positions on the upper Y limit.
+      if( i == k - 1 ) return AST__BAD; */
    }
 
 /* Difference the coefficients ideriv times.
@@ -604,11 +631,11 @@ static void Dintrv( const double *xt, int lxt, double x, int *ilo, int *ileft,
 *     SplineMap member function
 
 *  Description:
-*     This function  computes the largest integer 'ileft' in [1,lxt] such
+*     This function  computes the largest integer 'ileft' in [0,lxt-1] such
 *     that xt[ileft] <= x. Precisely,
 *
 *      if( x < xt[ 0 ] )                 then ileft=1 and mflag=-1
-*      if( xt[ i ] <= x <= xt[ i + 1 ] ) then ileft=i and mflag=0
+*      if( xt[ i ] <= x < xt[ i + 1 ] ) then ileft=i and mflag=0
 *      if( xt[ lxt - 1 ] <= x )          then ileft=lxt-1 and mflag=1
 *
 *     That is, when multiplicities are present in the break point to the
