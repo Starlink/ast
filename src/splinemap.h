@@ -94,7 +94,7 @@
 *        provided for external calls to the AST library.
 
 *  Copyright:
-*     Copyright (C) 2025 tbd
+*     Copyright (C) 2025 David Stuart Berry
 
 *  Licence:
 *     This program is free software: you can redistribute it and/or
