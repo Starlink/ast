@@ -394,6 +394,41 @@ c  when this text file was created.
       end do
 
 
+*  Check the OutUNit attribute.
+      xin(1) = (xl+xu)/2
+      yin(1) = yu-1.0D-2
+      xin(2) = (xl+xu)/2
+      yin(2) = yu
+      xin(3) = (xl+xu)/2
+      yin(3) = yu+1.0D-2
+      call ast_setl( sm, 'OutUnit', .true., status )
+
+      call ast_tran2( sm, 3, xin, yin, .true., uout, vout, status )
+
+      if( uout(1) .eq. AST__BAD .or. vout(1) .eq. AST__BAD ) then
+         call stopit(26,status)
+      else if( uout(2) .eq. AST__BAD .or. vout(2) .eq. AST__BAD ) then
+         call stopit(27,status)
+      else if( uout(3) .ne. xin(3) .or. vout(3) .ne. yin(3) ) then
+         call stopit(28,status)
+      end if
+
+      call ast_tran2( sm, 3, uout, vout, .false., xrec, yrec, status )
+
+      do i = 1, 2
+         if( abs( xrec(i)-xin(i) ) > tol*abs(xin(i)) .or.
+     :       abs( yrec(i)-yin(i) ) > tol*abs(yin(i)) ) then
+            write(*,*) i,xrec(i),xin(i),
+     :                 abs( xrec(i)-xin(i) )/abs(xin(i))
+            write(*,*) i,yrec(i),yin(i),
+     :                 abs( yrec(i)-yin(i) )/abs(yin(i))
+            call stopit(29,status)
+         end if
+      end do
+
+
+
+
       call ast_end( status )
       call ast_activememory( 'testsplinemap' );
       call ast_flushmemory( 1 )
