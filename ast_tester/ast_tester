@@ -90,7 +90,7 @@ end
 
 
 
-foreach prog (testsplinemap_c testresimp testobject testconvert testerror)
+foreach prog (testsplinemap_c testresimp testobject testconvert testerror testunitnorm testaxis testframe)
    gcc -o $prog $prog.c -I.. -I../src -DHAVE_CONFIG_H $LDFLAGS -L$STARLINK_DIR/lib \
          -I$STARLINK_DIR/include `ast_link`
 
