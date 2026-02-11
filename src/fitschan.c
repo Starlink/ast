@@ -1590,10 +1590,11 @@ static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
 
 /* Strings to describe each data type. These should be in the order implied
    by the corresponding macros (eg AST__FLOAT, etc). */
-static const char *type_names[9] = {"comment", "integer", "floating point",
-                                    "string", "complex floating point",
-                                    "complex integer", "logical",
-                                    "continuation string", "undef" };
+static const char *type_names[10] = {"comment", "integer", "floating point",
+                                     "string", "complex floating point",
+                                     "complex integer", "logical",
+                                     "continuation string", "undef",
+                                     "64 bit integer" };
 
 /* Text values used to represent Encoding values externally. */
 static const char *xencod[8] = { NATIVE_STRING, FITSPC_STRING,
