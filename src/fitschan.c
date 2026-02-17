@@ -1590,10 +1590,11 @@ static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
 
 /* Strings to describe each data type. These should be in the order implied
    by the corresponding macros (eg AST__FLOAT, etc). */
-static const char *type_names[9] = {"comment", "integer", "floating point",
-                                    "string", "complex floating point",
-                                    "complex integer", "logical",
-                                    "continuation string", "undef" };
+static const char *type_names[10] = {"comment", "integer", "floating point",
+                                     "string", "complex floating point",
+                                     "complex integer", "logical",
+                                     "continuation string", "undef",
+                                     "64 bit integer" };
 
 /* Text values used to represent Encoding values externally. */
 static const char *xencod[8] = { NATIVE_STRING, FITSPC_STRING,
@@ -26487,8 +26488,13 @@ static void RoundFString( char *text, int width, int fitsrnd, int *status ){
          }
       }
 
-/* Copy the rounded string into the supplied text string, if there is room. */
-      if( astChrLen( ltext ) <= len0 ) strcpy( text, ltext );
+/* Copy the rounded string into the supplied text string, if there is room,
+   correcting for the offset thta was added at the start of this function if
+   there was no rounding. */
+      c = ltext;
+      if( *c == ' ' ) c++;
+      if( astChrLen( c ) <= len0 ) strcpy( text, c );
+
 
 /* Free local resources. */
       ltext = astFree( ltext );
