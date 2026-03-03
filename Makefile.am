@@ -656,7 +656,7 @@ lib_LTLIBRARIES = \
 
 stardocs_DATA = @STAR_LATEX_DOCUMENTATION@
 dist_starnews_DATA = ast.news
-dist_pkgdata_DATA = COPYING COPYING.LESSER COPYING.LIB
+dist_pkgdata_DATA = COPYING
 
 if !NOYAML
 yaml = -DYAML
