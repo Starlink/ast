@@ -438,6 +438,7 @@ static AstMapping *ReadRotateSequence3d( AstKeyMap *, int * );
 static AstMapping *ReadScale( AstKeyMap *, int * );
 static AstMapping *ReadShift( AstKeyMap *, int * );
 static AstMapping *ReadSkyProjection( AstKeyMap *, int * );
+static AstMapping *ReadSphericalCartesian( AstKeyMap *, int * );
 static AstMapping *ReadTransform( AstYamlChan *, AstKeyMap *, int * );
 static AstObject *YamlToAst( AstYamlChan *, AstKeyMap *, int * );
 static AstSkyFrame *ReadCelestialFrame( AstKeyMap *, AstMapping **, int *status );
@@ -557,6 +558,7 @@ MAKE_PROTO(Airy)
 MAKE_PROTO(Gnomonic)
 MAKE_PROTO(Slant_Orthographic)
 MAKE_PROTO(Slant_Zenithal_Perspective)
+MAKE_PROTO(Spherical_Cartesian)
 MAKE_PROTO(Stereographic)
 MAKE_PROTO(Zenithal_Equal_Area)
 MAKE_PROTO(Zenithal_Equidistant)
@@ -4708,6 +4710,8 @@ static int IsA( AstKeyMap *km, const char *class, int *status ) {
             result = IsAFrame( km_class, status );
          } else if( !strcmp( "frame2d", class ) ){
             result = IsAFrame2d( km_class, status );
+         } else if( !strcmp( "spherical_cartesian", class ) ){
+            result = IsASpherical_Cartesian( km_class, status );
          }
 
       } else if( !strncmp( km_class, "asdf/transform/", 15 ) ) {
@@ -4940,20 +4944,21 @@ static int IsA##Class( const char *class, int *status ){ \
    return result; \
 }
 
-MAKE_TEST(Wcs,gwcs,1,0)
-MAKE_TEST(Step,gwcs,1,0)
-MAKE_TEST(Celestial_Frame,gwcs,1,0)
-MAKE_TEST(Frame2d,gwcs,1,0)
-MAKE_TEST(Identity,asdf/transform,1,2)
-MAKE_TEST(Scale,asdf/transform,1,2)
+MAKE_TEST(Wcs,gwcs,1,4)
+MAKE_TEST(Step,gwcs,1,3)
+MAKE_TEST(Celestial_Frame,gwcs,1,2)
+MAKE_TEST(Frame2d,gwcs,1,2)
+MAKE_TEST(Spherical_Cartesian,gwcs,1,3)
+MAKE_TEST(Identity,asdf/transform,1,3)
+MAKE_TEST(Scale,asdf/transform,1,3)
 MAKE_TEST(MultiplyScale,asdf/transform,1,0)
-MAKE_TEST(Remap_Axes,asdf/transform,1,3)
-MAKE_TEST(Shift,asdf/transform,1,2)
-MAKE_TEST(Compose,asdf/transform,1,2)
-MAKE_TEST(Concatenate,asdf/transform,1,2)
-MAKE_TEST(Constant,asdf/transform,1,4)
+MAKE_TEST(Remap_Axes,asdf/transform,1,4)
+MAKE_TEST(Shift,asdf/transform,1,3)
+MAKE_TEST(Compose,asdf/transform,1,3)
+MAKE_TEST(Concatenate,asdf/transform,1,3)
+MAKE_TEST(Constant,asdf/transform,1,5)
 MAKE_TEST(Fix_Inputs,asdf/transform,1,2)
-MAKE_TEST(Affine,asdf/transform,1,3)
+MAKE_TEST(Affine,asdf/transform,1,4)
 MAKE_TEST(Rotate2d,asdf/transform,1,3)
 MAKE_TEST(Rotate_Sequence_3d,asdf/transform,1,3)
 MAKE_TEST(Rotate3d,asdf/transform,1,3)
@@ -4999,7 +5004,7 @@ MAKE_TEST(Icrs,astropy/coordinates/frames,1,1)
 MAKE_TEST(Time,asdf/time,1,1)
 MAKE_TEST(EarthLocation,astropy/coordinates/earthlocation,1,0)
 MAKE_TEST(Quantity,asdf/unit,1,1)
-MAKE_TEST(NDArray,asdf/core,1,0)
+MAKE_TEST(NDArray,asdf/core,1,1)
 #undef MAKE_TEST
 
 
@@ -5102,7 +5107,8 @@ static int IsATransform( const char *class, int *status ){
           IsAOrtho_Polynomial( class, status ) ||
           IsAPlanar2d( class, status ) ||
           IsAPolynomial( class, status ) ||
-          IsASkyProjection( class, status );
+          IsASkyProjection( class, status ) ||
+          IsASpherical_Cartesian( class, status );
 }
 
 static int IsASkyProjection( const char *class, int *status ){
@@ -9510,6 +9516,107 @@ static AstMapping *ReadSkyProjection( AstKeyMap *km, int *status ){
    return result;
 }
 
+static AstMapping *ReadSphericalCartesian( AstKeyMap *km, int *status ){
+/*
+*  Name:
+*     ReadSphericalCartesian
+
+*  Purpose:
+*     Read an AST Mapping from a KeyMap holding a gwcs spherical_cartesian
+*     transform.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     AstMapping *ReadSphericalCartesian( AstKeyMap *km, int *status )
+
+*  Class Membership:
+*     YamlChan member function
+
+*  Description:
+*     This function creates an AST Mapping that implements the
+*     gwcs/spherical_cartesian transform: a conversion between
+*     spherical (lon, lat) in degrees and unit Cartesian (x, y, z).
+*     It uses a SphMap with flanking ZoomMaps to handle the degree/radian
+*     conversion.
+
+*  Parameters:
+*     km
+*        Pointer to the KeyMap.  Its contents must represent an ASDF
+*        gwcs/spherical_cartesian object.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A pointer to the new Mapping.
+*/
+
+/* Local Variables: */
+   AstMapping *result;
+   AstMapping *sm;
+   AstMapping *zm;
+   int spherical_to_cartesian;
+
+/* Initialise */
+   result = NULL;
+
+/* Check inherited status */
+   if( !astOK ) return result;
+
+/* Report an error if the supplied KeyMap does not represent a
+   spherical_cartesian transform. */
+   if( !IsA( km, "spherical_cartesian", status ) ) {
+      astError( AST__BYAML, "astRead(YamlChan): Expected KeyMap to hold "
+                "a gwcs spherical_cartesian but got a %s", status,
+                GetAsdfClass(km,status) );
+
+/* Create the returned Mapping. */
+   } else {
+
+/* Get the transform direction. Default to spherical_to_cartesian.
+   GetChoice returns 0-based index: 0=spherical_to_cartesian, 1=cartesian_to_spherical. */
+      spherical_to_cartesian = ( GetChoice( km, "transform_type",
+                                            "spherical_to_cartesian cartesian_to_spherical",
+                                            1, 0, status ) == 0 );
+
+/* Build a SphMap.  AST's SphMap FORWARD direction converts 3D Cartesian
+   (x,y,z) to 2D spherical (lon,lat) in radians.  The INVERSE converts
+   2D spherical (lon,lat) in radians to 3D Cartesian (x,y,z).
+   We need ZoomMaps to convert between degrees and radians. */
+      sm = (AstMapping *) astSphMap( " ", status );
+
+      if( spherical_to_cartesian ) {
+
+/* (lon,lat) degrees -> radians, then inverted SphMap -> (x,y,z). */
+         astInvert( sm );   /* sm now: (lon,lat) rad -> (x,y,z), Nin=2, Nout=3 */
+         zm = (AstMapping *) astZoomMap( 2, AST__DD2R, " ", status );
+         result = (AstMapping *) astCmpMap( zm, sm, 1, " ", status );
+         zm = astAnnul( zm );
+         sm = astAnnul( sm );
+
+      } else {
+
+/* SphMap forward: (x,y,z) -> (lon,lat) radians, then rad -> deg */
+         zm = (AstMapping *) astZoomMap( 2, AST__DR2D, " ", status );
+         result = (AstMapping *) astCmpMap( sm, zm, 1, " ", status );
+         zm = astAnnul( zm );
+         sm = astAnnul( sm );
+      }
+   }
+
+/* If an error occurred, report the context. */
+   if( !astOK ) {
+      result = astAnnul( result );
+      astError( astStatus, "Error occurred when reading an ASDF "
+                "'spherical_cartesian' object.", status );
+   }
+
+/* Return the Mapping. */
+   return result;
+}
+
 static void ReadStep( AstYamlChan *this, AstKeyMap *km, int report,
                       AstMapping **pmap, AstFrame **frm, AstMapping **map,
                       int *status ){
@@ -9738,6 +9845,8 @@ static AstMapping *ReadTransform( AstYamlChan *this, AstKeyMap *km, int *status 
             result = ReadPlanar2d( km, status );
          } else if( IsAPolynomial( class, status ) ){
             result = ReadPolynomial( this, km, status );
+         } else if( IsASpherical_Cartesian( class, status ) ){
+            result = ReadSphericalCartesian( km, status );
          } else if( astOK ) {
             astError( AST__BYAML, "astRead(YamlChan): The '%s' class of "
                       "ASDF transform is not currently supported by AST.",
@@ -17897,8 +18006,8 @@ f     affects the behaviour of the AST_WRITE routine  when
 *     identity, scale, multiplyscale, remap_axes, shift, compose,
 *     concatenate, constant, fix_inputs, affine, rotate2d,
 *     rotate_sequence_3d, rotate3d, linear1d, ortho_polynomial
-*     (chebyshev only), planar2d, polynomial. In addition, all sky
-*     projections are supported.
+*     (chebyshev only), planar2d, polynomial, spherical_cartesian.
+*     In addition, all sky projections are supported.
 
 *  Notes on Writing ASDF WCS Information:
 *     This class does not currently support the complete ASDF WCS
