@@ -4811,8 +4811,6 @@ static int IsA( AstKeyMap *km, const char *class, int *status ) {
             result = IsASlant_Orthographic( km_class, status );
          } else if( !strcmp( "slant_zenithal_perspective", class ) ){
             result = IsASlant_Zenithal_Perspective( km_class, status );
-         } else if( !strcmp( "spherical_cartesian", class ) ){
-            result = IsASpherical_Cartesian( km_class, status );
          } else if( !strcmp( "stereographic", class ) ){
             result = IsAStereographic( km_class, status );
          } else if( !strcmp( "zenithal_equal_area", class ) ){
@@ -18008,8 +18006,8 @@ f     affects the behaviour of the AST_WRITE routine  when
 *     identity, scale, multiplyscale, remap_axes, shift, compose,
 *     concatenate, constant, fix_inputs, affine, rotate2d,
 *     rotate_sequence_3d, rotate3d, linear1d, ortho_polynomial
-*     (chebyshev only), planar2d, polynomial. In addition, all sky
-*     projections are supported.
+*     (chebyshev only), planar2d, polynomial, spherical_cartesian.
+*     In addition, all sky projections are supported.
 
 *  Notes on Writing ASDF WCS Information:
 *     This class does not currently support the complete ASDF WCS
