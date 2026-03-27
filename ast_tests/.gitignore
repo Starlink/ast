@@ -1,0 +1,6 @@
+# Ignore make check outputs
+*.log
+*.trs
+
+# Ignore test binaries
+ast_test
