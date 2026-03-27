@@ -14,7 +14,12 @@ m4_define([v_maj], m4_esyscmd_s([awk -F. 'NR==1 {print $1}' version.number]))
 m4_define([v_min], m4_esyscmd_s([awk -F. 'NR==1 {print $2}' version.number]))
 m4_define([v_mic], m4_esyscmd_s([awk -F. 'NR==1 {print $3}' version.number]))
 AC_INIT([ast],[project_version],[starlink@jiscmail.ac.uk])
+dnl   Expose individual version components for src/version.h.in substitution.
+AC_SUBST([PACKAGE_VERSION_MAJOR], [v_maj])
+AC_SUBST([PACKAGE_VERSION_MINOR], [v_min])
+AC_SUBST([PACKAGE_VERSION_RELEASE], [v_mic])
 AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([m4])
 
 dnl   Shared library versioning
 m4_define([lt_cur], [m4_eval(v_maj + v_min)])
@@ -26,7 +31,7 @@ AC_SUBST([version_info])
 dnl   Require autoconf-2.50 at least
 AC_PREREQ([2.69])
 dnl   Require Starlink automake
-AM_INIT_AUTOMAKE([1.8.2-starlink subdir-objects])
+AM_INIT_AUTOMAKE([subdir-objects foreign])
 
 dnl   Sanity-check: name a file in the source directory
 AC_CONFIG_SRCDIR([ast_link.in])
@@ -136,6 +141,9 @@ AC_SUBST(FORTRAN, $use_fortran)
 if test "$use_fortran" = "1"; then
 AC_PROG_FC
 AC_FC_LIBRARY_LDFLAGS
+dnl  Automake uses F77/FFLAGS for .f files (Fortran 77 fixed form).
+dnl  Point F77 at the same compiler as FC.
+AC_PROG_F77
 fi
 
 #  Prepare a version of STAR_FFLAGS with -I... removed
@@ -256,6 +264,9 @@ STAR_CNF_F2C_COMPATIBLE
 
 # Determine the type of Fortran character string lengths.
 STAR_CNF_TRAIL_TYPE
+
+# Determine the symbol for the Fortran blank common block.
+STAR_CNF_BLANK_COMMON
 fi
 
 #   Declare the message file.
@@ -308,7 +319,7 @@ STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
 
 AC_CONFIG_HEADERS(config.h)
 
-AC_CONFIG_FILES(Makefile component.xml ast_link ast_link_adam src/object.h)
+AC_CONFIG_FILES(Makefile component.xml ast_link ast_link_adam src/object.h src/version.h)
 if test "$use_fortran" = "1"; then
 AC_CONFIG_FILES(src/f77.h)
 fi
