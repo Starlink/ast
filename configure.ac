@@ -31,10 +31,20 @@ AC_SUBST([version_info])
 dnl   Require autoconf-2.50 at least
 AC_PREREQ([2.69])
 dnl   Require Starlink automake
-AM_INIT_AUTOMAKE([subdir-objects foreign])
+AM_INIT_AUTOMAKE(m4_esyscmd([
+  if command -v starconf >/dev/null 2>&1; then
+    echo "1.8.2-starlink subdir-objects"
+  else
+    echo "foreign subdir-objects"
+  fi
+]))
 
 dnl   Sanity-check: name a file in the source directory
 AC_CONFIG_SRCDIR([ast_link.in])
+
+dnl   Detect starconf: if present we're building inside Starlink infrastructure.
+dnl   Used only to decide whether to generate component.xml.
+AC_PATH_PROG([STARCONF], [starconf], [no])
 
 #   Checks for programs
 AC_PROG_CC
@@ -319,9 +329,13 @@ STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
 
 AC_CONFIG_HEADERS(config.h)
 
-AC_CONFIG_FILES(Makefile component.xml ast_link ast_link_adam ast_tester/Makefile ast_tests/Makefile src/object.h src/version.h)
+AC_CONFIG_FILES(Makefile ast_link ast_link_adam ast_tester/Makefile ast_tests/Makefile src/object.h src/version.h)
 if test "$use_fortran" = "1"; then
 AC_CONFIG_FILES(src/f77.h)
+fi
+
+if test "x$STARCONF" != "xno"; then
+AC_CONFIG_FILES(component.xml)
 fi
 
 AC_CONFIG_FILES([ast_cpp], [chmod +x ast_cpp])
