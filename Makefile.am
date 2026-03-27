@@ -657,6 +657,12 @@ lib_LTLIBRARIES = \
     libast_pgplot.la \
     libast_pgplot3d.la
 
+# These are required to be defined for automake's parsing;
+# If building with the Starlink macros defined these will
+# be replaced with the correct paths used by the Starlink
+# environment; otherwise a sensible system path
+stardocsdir = @stardocsdir@
+starnewsdir = @starnewsdir@
 stardocs_DATA = @STAR_LATEX_DOCUMENTATION@
 dist_starnews_DATA = ast.news
 dist_pkgdata_DATA = COPYING
