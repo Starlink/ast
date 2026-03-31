@@ -75,6 +75,11 @@ AM_FCFLAGS = \
     -fno-range-check \
     -fallow-argument-mismatch
 
+# Automake actually defaults to the f77 compiler interface for bare .f files
+# so we actually need to set AM_FFLAGS ; but keep AM_FCFLAGS as well in case
+# the use of gfortran was forced
+AM_FFLAGS = $(AM_FCFLAGS)
+
 # Libraries for all Fortran tests (standalone stubs).
 FTEST_LDADD = libstar_compat.la @LIBPAL@ @LIBCMINPACK@ \
     $(top_builddir)/libast.la \
