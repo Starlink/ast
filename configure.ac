@@ -43,8 +43,10 @@ dnl   Sanity-check: name a file in the source directory
 AC_CONFIG_SRCDIR([ast_link.in])
 
 dnl   Detect starconf: if present we're building inside Starlink infrastructure.
-dnl   Used only to decide whether to generate component.xml.
+dnl   Used to decide whether to generate component.xml and whether to link
+dnl   Fortran tests against real Starlink libraries vs standalone stubs.
 AC_PATH_PROG([STARCONF], [starconf], [no])
+AM_CONDITIONAL([STARLINK_BUILD], [test "x$STARCONF" != "xno"])
 
 #   Checks for programs
 AC_PROG_CC

@@ -1,6 +1,15 @@
 dnl ============================================================
 dnl Starlink fallback stubs (used when starlink macros not present)
 dnl ============================================================
+dnl
+dnl This file is ONLY used in standalone (no-Starlink) builds.
+dnl It is copied into m4/ by bootstrap.local before autoreconf.
+dnl
+dnl In Starlink builds, starconf.m4 from the Starlink buildsupport
+dnl aclocal directory is used directly (the Starlink aclocal finds it
+dnl automatically via its default search path), and this file is not
+dnl present in m4/.
+dnl ============================================================
 
 PREDIST='#'  # safe default
 AC_SUBST(PREDIST)
