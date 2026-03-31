@@ -11,9 +11,6 @@ dnl automatically via its default search path), and this file is not
 dnl present in m4/.
 dnl ============================================================
 
-PREDIST='#'  # safe default
-AC_SUBST(PREDIST)
-
 m4_ifndef([STAR_DEFAULTS],
 [AC_DEFUN([STAR_DEFAULTS], [
 dnl Provide the minimal substitution variables needed for Makefile.am
@@ -41,6 +38,11 @@ dnl without the real Starlink build infrastructure (starconf).
       AC_SUBST([STAR_DEPENDENCIES_ATTRIBUTES], [""])
       AC_SUBST([STAR_DEPENDENCIES_CHILDREN], [""])
       AC_SUBST([STAR_DOCUMENTATION], [""])
+
+      dnl Predist status initialization, for STAR_PREDIST_SOURCES
+      _star_predist_status=unknown
+      PREDIST='#'  # safe default
+      AC_SUBST(PREDIST)
 ])])
 
 m4_ifndef([STAR_DECLARE_DEPENDENCIES],
@@ -56,7 +58,46 @@ dnl No documentation built in standalone mode.
 
 m4_ifndef([STAR_PREDIST_SOURCES],
 [AC_DEFUN([STAR_PREDIST_SOURCES], [dnl
-dnl no-op fallback
+m4_ifval([$1], [], [AC_FATAL([$0: called with no stamp file])])dnl
+_star_tmp='$1'
+for marker in $_star_tmp
+do
+    if test -f $marker; then
+        _star_predist_marker_present=:
+        AC_MSG_NOTICE([found predist marker file $marker])
+    else
+        _star_predist_marker_present=false
+    fi
+    case $_star_predist_status in
+        unknown)
+            if $_star_predist_marker_present; then
+                # we do want to build sourceset files
+                _star_predist_status=predist
+                PREDIST=
+                AC_MSG_NOTICE([in pre-distribution state])
+            else
+                _star_predist_status=postdist
+                PREDIST='#'
+                AC_MSG_NOTICE([in post-distribution state])
+            fi
+            ;;
+        predist)
+            if $_star_predist_marker_present; then
+                : OK
+            else
+                AC_MSG_WARN([Building predist, but marker file $marker is not present])
+            fi
+            ;;
+        postdist)
+            if $_star_predist_marker_present; then
+                AC_MSG_WARN([In postdistribution state, but predist marker file $marker is present])
+            fi
+            ;;
+        *)
+            AC_MSG_ERROR([impossible predist status $_star_predist_status])
+            ;;
+    esac
+done
 ])])
 
 m4_ifndef([STAR_CHECK_PROGS],
