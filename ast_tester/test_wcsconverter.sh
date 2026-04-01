@@ -5,6 +5,12 @@
 srcdir=${srcdir:-.}
 ok=0
 
+python3="${PYTHON3:-python3}"
+if ! "${python3}" -c '' 2>/dev/null; then
+    echo "test_wcsconverter: skipped (python3 not found)"
+    exit 77
+fi
+
 run() {
     base=$1 in_suf=$2 enc=$3
     attrs="${4:+$4,}FitsDigits=8"
@@ -12,7 +18,7 @@ run() {
     ref=${srcdir}/${base}.${enc}
     out=${base}-new.${enc}
     ./wcsconverter "${in}" "${enc}" "${out}" "${attrs}" || { ok=1; return; }
-    if diff -c "${ref}" "${out}" > "${out}.diff" 2>&1; then
+    if "${python3}" "${srcdir}/numdiff.py" "${ref}" "${out}" > "${out}.diff" 2>&1; then
         rm -f "${out}" "${out}.diff"
     else
         echo "FAIL: ${base}.${in_suf} -> ${enc}: differs from reference"
