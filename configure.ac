@@ -161,7 +161,7 @@ dnl  Probe for optional Fortran flags; not all compilers support them.
 AST_FFLAGS_EXTRA=
 if test -n "$F77"; then
   AC_LANG_PUSH([Fortran 77])
-  for flag in -fallow-argument-mismatch -fno-range-check; do
+  for flag in -fallow-argument-mismatch -fno-range-check -Wno-real-constant-widening; do
     AC_MSG_CHECKING([whether $F77 accepts $flag])
     ast_save_FFLAGS=$FFLAGS
     FFLAGS="$FFLAGS $flag"
