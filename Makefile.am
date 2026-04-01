@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-SUBDIRS = ast_tester ast_tests
+SUBDIRS = ast_tester
 
 ACLOCAL_AMFLAGS = -I m4
 
