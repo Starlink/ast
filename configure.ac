@@ -331,7 +331,7 @@ STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
 
 AC_CONFIG_HEADERS(config.h)
 
-AC_CONFIG_FILES(Makefile ast_link ast_link_adam ast_tester/Makefile ast_tests/Makefile src/object.h)
+AC_CONFIG_FILES(Makefile ast_link ast_link_adam ast_tester/Makefile src/object.h)
 if test "$use_fortran" = "1"; then
 AC_CONFIG_FILES(src/f77.h)
 fi
