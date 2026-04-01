@@ -40,7 +40,8 @@ C_TESTS = \
     testobject \
     testresimp \
     testsplinemap_c \
-    testunitnorm
+    testunitnorm \
+    testyamlchan
 
 TESTS = $(C_TESTS)
 check_PROGRAMS = $(C_TESTS)
@@ -71,6 +72,10 @@ testsplinemap_c_LDADD  = $(CTEST_LDADD)
 
 testunitnorm_SOURCES   = testunitnorm.c
 testunitnorm_LDADD     = $(CTEST_LDADD)
+
+testyamlchan_SOURCES   = testyamlchan.c
+testyamlchan_LDADD     = $(CTEST_LDADD)
+
 
 # ---------------------------------------------------------------------------
 # Fortran tests
@@ -192,7 +197,6 @@ FORTRAN_TESTS = \
     testtrangrid \
     testunitnormmap \
     testxmlchan \
-    testyamlchan \
     testzoommap
 
 TESTS += $(FORTRAN_TESTS)
@@ -302,9 +306,6 @@ testunitnormmap_LDADD  = $(FTEST_LDADD)
 
 testxmlchan_SOURCES    = testxmlchan.f
 testxmlchan_LDADD      = $(FTEST_LDADD)
-
-testyamlchan_SOURCES   = testyamlchan.f
-testyamlchan_LDADD     = $(FTEST_LDADD)
 
 testzoommap_SOURCES    = testzoommap.f
 testzoommap_LDADD      = $(FTEST_LDADD)
