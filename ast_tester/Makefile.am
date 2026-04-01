@@ -22,6 +22,8 @@ if !STARLINK_BUILD
 AM_CPPFLAGS += -I$(srcdir)/star_compat
 endif
 
+AM_TESTS_ENVIRONMENT = srcdir='$(srcdir)'; export srcdir;
+
 CTEST_LDADD = @LIBPAL@ @LIBCMINPACK@ \
     $(top_builddir)/libast.la \
     $(top_builddir)/libast_grf_3.2.la \
@@ -207,7 +209,15 @@ check_PROGRAMS += testhuge
 testhuge_SOURCES = testhuge.f
 testhuge_LDADD   = $(FTEST_LDADD)
 TESTS += testhuge.sh
-EXTRA_DIST = testhuge.sh
+EXTRA_DIST = testhuge.sh test_wcsconverter.sh test_simplify.sh
+
+# Data-driven tests: WCS encoding conversion and Mapping simplification.
+check_PROGRAMS += wcsconverter simplify
+wcsconverter_SOURCES = wcsconverter.f
+wcsconverter_LDADD   = $(FTEST_LDADD)
+simplify_SOURCES     = simplify.f
+simplify_LDADD       = $(FTEST_LDADD)
+TESTS += test_wcsconverter.sh test_simplify.sh
 
 # Source and LDADD declarations for each Fortran test.
 testchannel_SOURCES    = testchannel.f
