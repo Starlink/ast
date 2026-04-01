@@ -198,8 +198,14 @@ FORTRAN_TESTS = \
 TESTS += $(FORTRAN_TESTS)
 check_PROGRAMS += $(FORTRAN_TESTS)
 
-# testhuge is omitted by default because it takes 30-60 minutes to run.
-# Enable it with: make check TEST_HUGE=1
+# testhuge is always compiled but skipped unless TEST_HUGE=1.
+# The wrapper script exits 77 (automake SKIP) when TEST_HUGE is unset.
+check_PROGRAMS += testhuge
+testhuge_SOURCES = testhuge.f
+testhuge_LDADD   = $(FTEST_LDADD)
+TESTS += testhuge.sh
+EXTRA_DIST = testhuge.sh
+
 # Source and LDADD declarations for each Fortran test.
 testchannel_SOURCES    = testchannel.f
 testchannel_LDADD      = $(FTEST_LDADD)
