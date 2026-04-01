@@ -609,12 +609,35 @@ cinclude_HEADERS = src/grf.h src/grf3d.h
 endif
 
 # Following are generated, so should not be distributed.
+if STARLINK_BUILD
+# Starlink's automake handles _MESSAGES; build rules come from STAR_MESSGEN.
 if !NOFORTRAN
 include_MESSAGES = AST_ERR ast_err.h
 nodist_cinclude_HEADERS = ast.h AST_PAR
 else
 include_MESSAGES = ast_err.h
 nodist_cinclude_HEADERS = ast.h
+endif
+else  # standalone
+if !NOFORTRAN
+nodist_cinclude_HEADERS = ast.h AST_PAR
+else
+nodist_cinclude_HEADERS = ast.h
+endif
+endif
+
+# nodist_include_HEADERS is built up below from independent conditions; a base
+# definition is needed so that all '+=' operations are valid in every condition.
+nodist_include_HEADERS =
+
+# In standalone mode, install the generated error-facility headers to includedir.
+# This is analogous to what include_MESSAGES does in Starlink mode.
+if !STARLINK_BUILD
+if !NOFORTRAN
+nodist_include_HEADERS += AST_ERR ast_err.h
+else
+nodist_include_HEADERS += ast_err.h
+endif
 endif
 
 # Also install headers in main include directory for the benefit of
@@ -624,10 +647,10 @@ endif
 if TOPINCLUDE
 if !NOFORTRAN
 include_HEADERS = GRF_PAR src/grf.h src/grf3d.h
-nodist_include_HEADERS = ast.h AST_PAR
+nodist_include_HEADERS += ast.h AST_PAR
 else
 include_HEADERS = src/grf.h src/grf3d.h
-nodist_include_HEADERS = ast.h
+nodist_include_HEADERS += ast.h
 endif
 endif
 
@@ -801,8 +824,14 @@ CLEANFILES = AST_PAR ast.h
 else
 CLEANFILES = ast.h
 endif
+if !STARLINK_BUILD
+CLEANFILES += ast_err.h AST_ERR
+endif
 
 # Special cases start here
+
+# Unconditional base so that '+=' works in all nested conditions below.
+noinst_PROGRAMS =
 
 # The AST_PAR include file is produced by compiling the astbad.c
 # program and editing its output into the ast_par.source file (while
@@ -810,7 +839,7 @@ endif
 # and ast_par.source must be distributed (the generation of the
 # AST__BAD value must be done on the build host) but not installed.
 if !NOFORTRAN
-noinst_PROGRAMS = astbad$(EXEEXT)
+noinst_PROGRAMS += astbad$(EXEEXT)
 astbad_SOURCES = src/astbad.c src/pointset.h
 AST_PAR: $(srcdir)/ast_par.source astbad$(EXEEXT)
 	ASTBAD=`./astbad$(EXEEXT) AST__BAD` && \
@@ -822,12 +851,25 @@ AST_PAR: $(srcdir)/ast_par.source astbad$(EXEEXT)
 	    $(srcdir)/ast_par.source >$@
 endif
 
+# In standalone mode, build messgen from source to generate the error-facility
+# headers (ast_err.h and AST_ERR) from ast_err.msg.  Starlink builds use the
+# installed messgen binary via the STAR_MESSGEN macro instead.
+if !STARLINK_BUILD
+MESSGEN = star_compat/messgen$(EXEEXT)
+noinst_PROGRAMS += star_compat/messgen$(EXEEXT)
+star_compat_messgen_SOURCES = star_compat/messgen.c
+
+ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(MESSGEN)
+	$(MESSGEN) -cF $(srcdir)/ast_err.msg
+endif
+
 # ast_link is generated from ast_link.in; ast_link_adam does not
 # need configuration, and so is not mentioned in AC_CONFIG_FILES within
 # configure.ac, and so is not distributed automatically.
 #
 # makeh is required in order to build ast.h after distribution (see below).
-EXTRA_DIST = $(srcdir)/ast_par.source sun210_figures sun211_figures pal erfa cminpack
+EXTRA_DIST = $(srcdir)/ast_par.source sun210_figures sun211_figures pal erfa cminpack \
+    star_compat
 
 # ast.h depends on the error-facility files.  ast.h _could_ be made
 # before distribution, but since it's generated from other distributed
