@@ -1,5 +1,0 @@
-This directory contains additional tests written in C, as opposed to the
-legacy Fortran 77 tests found in ast_tester/
-
-Both these tests and the Fortran 77 tests (when a Fortran compiler is
-available) can be run by calling `make check`.
