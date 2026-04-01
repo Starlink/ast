@@ -93,7 +93,7 @@ if STARLINK_BUILD  # Starlink mode: use real Starlink libraries
 AM_FCFLAGS = \
     -I$(top_builddir) \
     -I$(builddir) \
-    -fno-range-check
+    $(AST_FFLAGS_EXTRA)
 
 # Cursed: Starlink's patched automake forcibly inserts $(STAR_FCFLAGS) at the
 # beginning of the flag list for $(FC), and likewise $(STAR_LDFLAGS) and
@@ -145,8 +145,7 @@ AM_FCFLAGS = \
     -I$(top_builddir) \
     -I$(srcdir)/star_compat \
     -I$(builddir) \
-    -fno-range-check \
-    -fallow-argument-mismatch
+    $(AST_FFLAGS_EXTRA)
 
 # Automake actually defaults to the f77 compiler interface for bare .f files
 # so we actually need to set AM_FFLAGS ; but keep AM_FCFLAGS as well in case

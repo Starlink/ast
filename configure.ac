@@ -156,6 +156,27 @@ AC_FC_LIBRARY_LDFLAGS
 dnl  Automake uses F77/FFLAGS for .f files (Fortran 77 fixed form).
 dnl  Point F77 at the same compiler as FC.
 AC_PROG_F77
+
+dnl  Probe for optional Fortran flags; not all compilers support them.
+AST_FFLAGS_EXTRA=
+if test -n "$F77"; then
+  AC_LANG_PUSH([Fortran 77])
+  for flag in -fallow-argument-mismatch -fno-range-check; do
+    AC_MSG_CHECKING([whether $F77 accepts $flag])
+    ast_save_FFLAGS=$FFLAGS
+    FFLAGS="$FFLAGS $flag"
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+          program test
+          end
+    ])],
+      [AC_MSG_RESULT([yes])
+       AST_FFLAGS_EXTRA="$AST_FFLAGS_EXTRA $flag"],
+      [AC_MSG_RESULT([no])])
+    FFLAGS=$ast_save_FFLAGS
+  done
+  AC_LANG_POP([Fortran 77])
+fi
+AC_SUBST([AST_FFLAGS_EXTRA])
 fi
 
 #  Prepare a version of STAR_FFLAGS with -I... removed
