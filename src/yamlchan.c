@@ -436,6 +436,7 @@ static AstMapping *ReadAffine( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadCompose( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadConcatenate( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadConstant( AstKeyMap *, int * );
+static AstMapping *ReadDivide( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadFixInputs( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadIdentity( AstKeyMap *, int * );
 static AstMapping *ReadLinear1d( AstKeyMap *, int * );
@@ -540,6 +541,7 @@ MAKE_PROTO(Shift)
 MAKE_PROTO(Compose)
 MAKE_PROTO(Concatenate)
 MAKE_PROTO(Constant)
+MAKE_PROTO(Divide)
 MAKE_PROTO(Fix_Inputs)
 MAKE_PROTO(Affine)
 MAKE_PROTO(Rotate2d)
@@ -5118,6 +5120,7 @@ MAKE_TEST(Shift,asdf/transform,1,3)
 MAKE_TEST(Compose,asdf/transform,1,3)
 MAKE_TEST(Concatenate,asdf/transform,1,3)
 MAKE_TEST(Constant,asdf/transform,1,5)
+MAKE_TEST(Divide,asdf/transform,1,3)
 MAKE_TEST(Fix_Inputs,asdf/transform,1,2)
 MAKE_TEST(Affine,asdf/transform,1,4)
 MAKE_TEST(Rotate2d,asdf/transform,1,3)
@@ -5265,6 +5268,7 @@ static int IsATransform( const char *class, int *status ){
           IsACompose( class, status ) ||
           IsAConcatenate( class, status ) ||
           IsAConstant( class, status ) ||
+          IsADivide( class, status ) ||
           IsAFix_Inputs( class, status ) ||
           IsAAffine( class, status ) ||
           IsARotate2d( class, status ) ||
@@ -7237,6 +7241,196 @@ static AstMapping *ReadConstant( AstKeyMap *km, int *status ){
 /* If an error occurred, report the context. */
    if( !astOK ) {
       astError( astStatus, "Error occurred when reading an ASDF 'constant' "
+                "object.", status );
+   }
+
+/* Return the Mapping. */
+   return result;
+}
+
+static AstMapping *ReadDivide( AstYamlChan *this, AstKeyMap *km, int *status ){
+/*
+*  Name:
+*     ReadDivide
+
+*  Purpose:
+*     Read an AST Mapping from a KeyMap holding an ASDF divide transform.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     AstMapping *ReadDivide( AstYamlChan *this, AstKeyMap *km, int *status )
+
+*  Class Membership:
+*     YamlChan member function
+
+*  Description:
+*     This function creates an AST Mapping from the YAML stored in the
+*     supplied KeyMap.  The ASDF "divide" transform takes two sub-transforms
+*     A and B that share the same inputs, and produces outputs equal to
+*     A(inputs) / B(inputs) element-wise.
+*
+*     Implementation (for nout-dimensional case):
+*        1. ForkMap  (PermMap): nin inputs -> 2*nin outputs (duplicate inputs)
+*        2. CmpMap(A||B): 2*nin inputs -> 2*nout outputs [a0..a_{n-1}, b0..b_{n-1}]
+*        3. IntrlvMap (PermMap): reorder to [a0,b0, a1,b1, ..., a_{n-1},b_{n-1}]
+*        4. DivMap (nout 1-D MathMaps in parallel): [ai,bi] -> [ai/bi] for each i
+*
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     km
+*        Pointer to the KeyMap. Its contents must represent an ASDF divide.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A pointer to the new Mapping.
+*/
+
+/* Local Variables: */
+   AstCmpMap *abmap;
+   AstCmpMap *divmap;
+   AstCmpMap *t1;
+   AstCmpMap *t2;
+   AstKeyMap *map_kms[2];
+   AstMapping *mapa;
+   AstMapping *mapb;
+   AstMapping *mm1d;
+   AstMapping *result;
+   AstPermMap *forkmap;
+   AstPermMap *intrlvmap;
+   int *fork_perm;
+   int *intrlv_perm;
+   int i;
+   int nin;
+   int nfwd;
+   int nout;
+
+/* One-dimensional division MathMap expressions.
+   Forward:  "q=p/r"  maps 2 inputs (p=axis0, r=axis1) -> 1 output q.
+   Inverse:  "p=q", "r=1.0"  maps 1 input q -> 2 outputs (p, r). */
+   static const char *fwd1d[] = { "q=p/r" };
+   static const char *inv1d[] = { "p=q", "r=1.0" };
+
+/* Initialise */
+   result    = NULL;
+   mapa      = NULL;
+   mapb      = NULL;
+   fork_perm  = NULL;
+   intrlv_perm = NULL;
+
+/* Check inherited status */
+   if( !astOK ) return result;
+
+/* Report an error if the supplied KeyMap does not represent an ASDF divide. */
+   if( !IsA( km, "divide", status ) ) {
+      astError( AST__BYAML, "astRead(YamlChan): Expected KeyMap to hold "
+                "an ASDF divide but got a %s", status, GetAsdfClass(km,status) );
+
+/* Build the compound Mapping. */
+   } else {
+
+/* Require exactly two sub-transforms. */
+      if( astMapLength( km, "forward" ) != 2 && astOK ) {
+         astError( AST__BYAML, "astRead(YamlChan): ASDF divide transform "
+                   "must have exactly 2 entries in 'forward' (got %d).",
+                   status, astMapLength( km, "forward" ) );
+      }
+
+/* Read both sub-transforms. */
+      nfwd = 2;
+      Get1A( km, "forward", 0, 2, map_kms, &nfwd, status );
+      mapa = ReadTransform( this, map_kms[0], status );
+      mapb = ReadTransform( this, map_kms[1], status );
+      map_kms[0] = astAnnul( map_kms[0] );
+      map_kms[1] = astAnnul( map_kms[1] );
+
+      if( astOK ) {
+
+/* Determine input/output dimensionality from sub-transform A. */
+         nin  = astGetI( mapa, "Nin" );
+         nout = astGetI( mapa, "Nout" );
+
+/* Build a ForkMap (PermMap) that duplicates the nin inputs into
+   2*nin outputs [x0..x_{nin-1}, x0..x_{nin-1}] so that A and B both
+   receive the full input set when applied in parallel. */
+         fork_perm = astMalloc( 2*nin*sizeof(*fork_perm) );
+         if( astOK ) {
+            for( i = 0; i < nin; i++ ) {
+               fork_perm[i] = i;
+               fork_perm[nin+i] = i;
+            }
+            forkmap = astPermMap( nin, NULL, 2*nin, fork_perm, NULL, " ", status );
+            fork_perm = astFree( fork_perm );
+         } else {
+            forkmap = NULL;
+         }
+
+/* Combine A and B in parallel (CmpMap with series=0).
+   Takes 2*nin inputs, produces 2*nout outputs: [a0..a_{nout-1}, b0..b_{nout-1}]. */
+         abmap = astCmpMap( mapa, mapb, 0, " ", status );
+
+/* Build an interleave PermMap to reorder from
+   [a0, a1, ..., a_{nout-1}, b0, b1, ..., b_{nout-1}]
+   to
+   [a0, b0, a1, b1, ..., a_{nout-1}, b_{nout-1}]
+   so that each consecutive pair (ai, bi) can be processed by a 1-D divider. */
+         intrlv_perm = astMalloc( 2*nout*sizeof(*intrlv_perm) );
+         if( astOK ) {
+            for( i = 0; i < nout; i++ ) {
+               intrlv_perm[2*i] = i;          /* ai is at index i in CmpMap output */
+               intrlv_perm[2*i+1] = i + nout; /* bi is at index i+nout */
+            }
+            intrlvmap = astPermMap( 2*nout, NULL, 2*nout, intrlv_perm, NULL, " ", status );
+            intrlv_perm = astFree( intrlv_perm );
+         } else {
+            intrlvmap = NULL;
+         }
+
+/* Build nout parallel 1-D MathMaps that each compute q=p/r.
+   In MathMap variable naming, first variable seen on RHS is axis 0,
+   second is axis 1, so "q=p/r" maps (p -> axis0, r -> axis1) -> q.
+   For the inverse (1 input -> 2 outputs): "p=q", "r=1.0". */
+         divmap = NULL;
+         for( i = 0; i < nout && astOK; i++ ) {
+            mm1d = (AstMapping *) astMathMap( 2, 1, 1, fwd1d, 2, inv1d,
+                                              "simpfi=0,simpif=0", status );
+            if( divmap == NULL ) {
+               divmap = (AstCmpMap *) mm1d;
+            } else {
+               AstCmpMap *tmp = astCmpMap( (AstMapping *) divmap, mm1d, 0, " ", status );
+               divmap = astAnnul( divmap );
+               mm1d   = astAnnul( mm1d );
+               divmap = tmp;
+            }
+         }
+
+/* Chain everything in series: forkmap -> abmap -> intrlvmap -> divmap. */
+         if( astOK ) {
+            t1 = astCmpMap( (AstMapping *) forkmap, (AstMapping *) abmap, 1, " ", status );
+            t2 = astCmpMap( (AstMapping *) t1, (AstMapping *) intrlvmap, 1, " ", status );
+            result = (AstMapping *) astCmpMap( (AstMapping *) t2, (AstMapping *) divmap, 1, " ", status );
+            t1 = astAnnul( t1 );
+            t2 = astAnnul( t2 );
+         }
+
+/* Annul temporary mappings. */
+         if( forkmap ) forkmap = astAnnul( forkmap );
+         if( abmap ) abmap = astAnnul( abmap );
+         if( intrlvmap ) intrlvmap = astAnnul( intrlvmap );
+         if( divmap ) divmap = astAnnul( divmap );
+      }
+
+      if( mapa ) mapa = astAnnul( mapa );
+      if( mapb ) mapb = astAnnul( mapb );
+   }
+
+/* If an error occurred, report the context. */
+   if( !astOK ) {
+      astError( astStatus, "Error occurred when reading an ASDF 'divide' "
                 "object.", status );
    }
 
@@ -10012,6 +10206,8 @@ static AstMapping *ReadTransform( AstYamlChan *this, AstKeyMap *km, int *status 
             result = ReadConcatenate( this, km, status );
          } else if( IsAConstant( class, status ) ){
             result = ReadConstant( km, status );
+         } else if( IsADivide( class, status ) ){
+            result = ReadDivide( this, km, status );
          } else if( IsAFix_Inputs( class, status ) ){
             result = ReadFixInputs( this, km, status );
          } else if( IsAAffine( class, status ) ){
