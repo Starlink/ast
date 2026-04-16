@@ -476,6 +476,7 @@ static int FindAffine( int, int *, AstMapping **, int *, int * );
 static int FindDivide( int, int *, AstMapping **, int *, int * );
 static int FindRotate3d( int, int *, AstMapping **, int *, int * );
 static int FindSphericalCartesian( int, int *, AstMapping **, int *, int * );
+static void CompactMapList( int *, AstMapping **, int * );
 static int Get0I( AstKeyMap *, const char *, int, int, int * );
 static int Get1A( AstKeyMap *, const char *, int, int, AstKeyMap **, int *, int * );
 static int Get1D( AstKeyMap *, const char *, int, int, double *, int *, int * );
@@ -2301,8 +2302,6 @@ static int FindAffine( int series, int *nmap, AstMapping **map_list,
    double *matrix;
    int form;
    int imap;
-   int jmap;
-   int nmaps;
    int oldinv0;
    int oldinv1;
    int result;
@@ -2382,28 +2381,64 @@ static int FindAffine( int series, int *nmap, AstMapping **map_list,
 
 /* Shuffle the pointers down to fill the gaps left by the nullified
    pointers. */
-   if( result ) {
-      jmap = 0;
-      for( imap = 0; imap < *nmap; imap++ ) {
-         if( map_list[ imap ] ) {
-            map_list[ jmap ] = map_list[ imap ];
-            invert_list[ jmap++ ] = invert_list[ imap ];
-         }
-      }
-
-/* Nullify any remaining slots. */
-      nmaps = jmap;
-      for( ; jmap < *nmap; jmap++ ) {
-         map_list[ jmap ] = NULL;
-         invert_list[ jmap ] = 0;
-      }
-
-/* Return the remaining number of non-NULL Mappings. */
-      *nmap = nmaps;
-   }
+   if( result ) CompactMapList( nmap, map_list, invert_list );
 
 /* Return the Mapping */
    return result;
+}
+
+static void CompactMapList( int *nmap, AstMapping **map_list,
+                            int *invert_list ){
+/*
+*  Name:
+*     CompactMapList
+
+*  Purpose:
+*     Remove nullified slots from a Mapping list.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void CompactMapList( int *nmap, AstMapping **map_list, int *invert_list )
+
+*  Class Membership:
+*     YamlChan member function.
+
+*  Description:
+*     This function shuffles down any non-NULL entries in map_list to
+*     fill gaps left by entries that were nullified (set to NULL) by a
+*     Find... function, then updates *nmap accordingly. Trailing slots
+*     are zeroed.
+
+*  Parameters:
+*     nmap
+*        Address of the number of Mappings in the list, updated on exit.
+*     map_list
+*        Array of Mapping pointers, compacted in place on exit.
+*     invert_list
+*        Array of invert flags, compacted in place on exit.
+*/
+
+/* Local Variables: */
+   int imap;
+   int jmap;
+   int nmaps;
+
+   jmap = 0;
+   for( imap = 0; imap < *nmap; imap++ ) {
+      if( map_list[ imap ] ) {
+         map_list[ jmap ] = map_list[ imap ];
+         invert_list[ jmap++ ] = invert_list[ imap ];
+      }
+   }
+   nmaps = jmap;
+   for( ; jmap < *nmap; jmap++ ) {
+      map_list[ jmap ] = NULL;
+      invert_list[ jmap ] = 0;
+   }
+   *nmap = nmaps;
 }
 
 static int FindRotate3d( int series, int *nmap, AstMapping **map_list,
@@ -2501,8 +2536,6 @@ static int FindRotate3d( int series, int *nmap, AstMapping **map_list,
    AstMapping *tmp;
    double angles[ 3 ];
    int imap;
-   int jmap;
-   int nmaps;
    int oldinv0;
    int oldinv1;
    int oldinv2;
@@ -2592,25 +2625,7 @@ static int FindRotate3d( int series, int *nmap, AstMapping **map_list,
 
 /* Shuffle the pointers down to fill the gaps left by the nullified
    pointers. */
-   if( result ) {
-      jmap = 0;
-      for( imap = 0; imap < *nmap; imap++ ) {
-         if( map_list[ imap ] ) {
-            map_list[ jmap ] = map_list[ imap ];
-            invert_list[ jmap++ ] = invert_list[ imap ];
-         }
-      }
-
-/* Nullify any remaining slots. */
-      nmaps = jmap;
-      for( ; jmap < *nmap; jmap++ ) {
-         map_list[ jmap ] = NULL;
-         invert_list[ jmap ] = 0;
-      }
-
-/* Return the remaining number of non-NULL Mappings. */
-      *nmap = nmaps;
-   }
+   if( result ) CompactMapList( nmap, map_list, invert_list );
 
 /* Return the Mapping */
    return result;
@@ -2675,8 +2690,6 @@ static int FindSphericalCartesian( int series, int *nmap, AstMapping **map_list,
    AstKeyMap *km;
    double zoom;
    int imap;
-   int jmap;
-   int nmaps;
    int oldinv0;
    int oldinv1;
    int result;
@@ -2739,21 +2752,7 @@ static int FindSphericalCartesian( int series, int *nmap, AstMapping **map_list,
    }
 
 /* Compact the list to remove nullified slots. */
-   if( result ) {
-      jmap = 0;
-      for( imap = 0; imap < *nmap; imap++ ) {
-         if( map_list[ imap ] ) {
-            map_list[ jmap ] = map_list[ imap ];
-            invert_list[ jmap++ ] = invert_list[ imap ];
-         }
-      }
-      nmaps = jmap;
-      for( ; jmap < *nmap; jmap++ ) {
-         map_list[ jmap ] = NULL;
-         invert_list[ jmap ] = 0;
-      }
-      *nmap = nmaps;
-   }
+   if( result ) CompactMapList( nmap, map_list, invert_list );
 
    return result;
 }
@@ -2835,9 +2834,7 @@ static int FindDivide( int series, int *nmap, AstMapping **map_list,
    int inv_b;
    int inv_old_a;
    int inv_old_b;
-   int jmap;
    int nin;
-   int nmaps;
    int nout;
    int oldinv[4];
    int result;
@@ -2976,21 +2973,7 @@ static int FindDivide( int series, int *nmap, AstMapping **map_list,
    }
 
 /* Compact the list to remove nullified slots. */
-   if( result ) {
-      jmap = 0;
-      for( imap = 0; imap < *nmap; imap++ ) {
-         if( map_list[ imap ] ) {
-            map_list[ jmap ] = map_list[ imap ];
-            invert_list[ jmap++ ] = invert_list[ imap ];
-         }
-      }
-      nmaps = jmap;
-      for( ; jmap < *nmap; jmap++ ) {
-         map_list[ jmap ] = NULL;
-         invert_list[ jmap ] = 0;
-      }
-      *nmap = nmaps;
-   }
+   if( result ) CompactMapList( nmap, map_list, invert_list );
 
    return result;
 }
@@ -5645,10 +5628,7 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
    AstMapping *new;
    AstMapping **map_list;
    int *invert_list;
-   int changed1;
-   int changed2;
-   int changed3;
-   int changed4;
+   int changed;
    int imap;
    int nmap;
    int old_inv0;
@@ -5710,14 +5690,14 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
    contained in a single element of the list. Each such element will be
    a CmpMap and its proxy pointer will point to a KeyMap containing the
    properties of the equivalent ASDF transform. */
-      changed1 = FindRotate3d( series, &nmap, map_list, invert_list, status );
-      changed2 = FindAffine( series, &nmap, map_list, invert_list, status );
-      changed3 = FindSphericalCartesian( series, &nmap, map_list, invert_list, status );
-      changed4 = FindDivide( series, &nmap, map_list, invert_list, status );
+      changed  = FindRotate3d( series, &nmap, map_list, invert_list, status );
+      changed |= FindAffine( series, &nmap, map_list, invert_list, status );
+      changed |= FindSphericalCartesian( series, &nmap, map_list, invert_list, status );
+      changed |= FindDivide( series, &nmap, map_list, invert_list, status );
 
 /* If the list was changed, the supplied CmpMap either is, or contains,
    one or more sequences that are equivalent to an ASDF transform. */
-      if( changed1 || changed2 || changed3 || changed4 ) {
+      if( changed ) {
 
 /* If the list contains only a single element, it must be a CmpMap that
    is equivalent to an ASDF transform. So write it out. */
