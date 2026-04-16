@@ -2327,6 +2327,7 @@ static int FindAffine( int series, int *nmap, AstMapping **map_list,
 
 /* Create a KeyMap to store the properties of the affine. */
             km = astKeyMap( " ", status );
+            astMapPut0C( km, "PROXY_TYPE", "affine", NULL );
 
 /* Save the currrent values of the Invert flags for the two Mappings. */
             oldinv0 = astGetInvert( map_list[ imap + 0 ] );
@@ -2580,6 +2581,7 @@ static int FindRotate3d( int series, int *nmap, AstMapping **map_list,
                angles[ 1 ] *= AST__DR2D;
                angles[ 2 ] *= AST__DR2D;
                km = astKeyMap( " ", status );
+               astMapPut0C( km, "PROXY_TYPE", "rotate3d", NULL );
                astMapPut1D( km, "ANGLES", 3, angles, NULL );
 
 /* Create CmpMap holding the three Mappings. */
@@ -2730,6 +2732,7 @@ static int FindSphericalCartesian( int series, int *nmap, AstMapping **map_list,
 /* If a matching pair was found, package it as a CmpMap with a proxy KeyMap. */
       if( s2c >= 0 ) {
          km = astKeyMap( " ", status );
+         astMapPut0C( km, "PROXY_TYPE", "spherical_cartesian", NULL );
          astMapPut0I( km, "SPHERICAL_TO_CARTESIAN", s2c, NULL );
 
          oldinv0 = astGetInvert( map_list[ imap ] );
@@ -2928,6 +2931,7 @@ static int FindDivide( int series, int *nmap, AstMapping **map_list,
 
 /* Build the proxy KeyMap. */
       km = astKeyMap( " ", status );
+      astMapPut0C( km, "PROXY_TYPE", "divide", NULL );
       astMapPut0I( km, "IS_DIVIDE", 1, NULL );
       astMapPut0A( km, "DIVIDE_MAPA", mapa_clone, NULL );
       astMapPut0A( km, "DIVIDE_MAPB", mapb_clone, NULL );
@@ -16221,6 +16225,73 @@ static AstKeyMap *WritePolyMap( AstYamlChan *this, AstPolyMap *map,
    return ret;
 }
 
+/* Uniform handler signature for proxy-keyed ASDF write functions.
+   Each handler is responsible for extracting whatever parameters it
+   needs from the proxy KeyMap (km) and calling the appropriate
+   WriteAsdf* function. */
+typedef AstKeyMap *(*ProxyWriter)( AstYamlChan *, AstKeyMap *, AstMapping *,
+                                   AstObject *, const char *, int * );
+
+static AstKeyMap *WriteProxyRotate3d( AstYamlChan *this, AstKeyMap *km,
+                                      AstMapping *map, AstObject *mapinv,
+                                      const char *name, int *status ) {
+   double angles[ 3 ];
+   int nval;
+   AstKeyMap *ret = NULL;
+   if( astMapGet1D( km, "ANGLES", 3, &nval, angles ) ) {
+      ret = WriteAsdfRotate3d( this, angles, mapinv, name, status );
+/* The ASDF Rotate3D transform expects degrees as inputs. But the AST
+   Mappings that adjoin a Rotate3D will use radians. So put a rad->deg
+   conversion before the Rotate3D and a deg->rad conversion after it. */
+      ret = AddR2D( this, &ret, 1, 1, 2, status );
+      ret = AddR2D( this, &ret, 0, 0, 2, status );
+   }
+   return ret;
+}
+
+static AstKeyMap *WriteProxyAffine( AstYamlChan *this, AstKeyMap *km,
+                                    AstMapping *map, AstObject *mapinv,
+                                    const char *name, int *status ) {
+/* Note: affine transforms are restricted to 2D in ASDF. */
+   double shift[ 2 ];
+   double matrix[ 4 ];
+   int nval;
+   AstKeyMap *ret = NULL;
+   if( astMapGet1D( km, "AFFINE_SHIFT", 2, &nval, shift ) &&
+       astMapGet1D( km, "AFFINE_MATRIX", 4, &nval, matrix ) ) {
+      ret = WriteAsdfAffine( this, 2, matrix, shift, mapinv, name, status );
+   }
+   return ret;
+}
+
+static AstKeyMap *WriteProxySphericalCartesian( AstYamlChan *this, AstKeyMap *km,
+                                               AstMapping *map, AstObject *mapinv,
+                                               const char *name, int *status ) {
+   int s2c;
+   AstKeyMap *ret = NULL;
+   if( astMapGet0I( km, "SPHERICAL_TO_CARTESIAN", &s2c ) ) {
+      ret = WriteAsdfSphericalCartesian( this, s2c, mapinv, name, status );
+   }
+   return ret;
+}
+
+static AstKeyMap *WriteProxyDivide( AstYamlChan *this, AstKeyMap *km,
+                                    AstMapping *map, AstObject *mapinv,
+                                    const char *name, int *status ) {
+   AstObject *oa = NULL;
+   AstObject *ob = NULL;
+   AstKeyMap *ret = NULL;
+   astMapGet0A( km, "DIVIDE_MAPA", &oa );
+   astMapGet0A( km, "DIVIDE_MAPB", &ob );
+   if( oa && ob ) {
+      ret = WriteAsdfDivide( this, (AstMapping *) oa, (AstMapping *) ob,
+                             mapinv, name, status );
+   }
+   if( oa ) oa = astAnnul( oa );
+   if( ob ) ob = astAnnul( ob );
+   return ret;
+}
+
 static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *mapinv,
                               const char *name, int *status ) {
 /*
@@ -16242,6 +16313,14 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
 *     This function creates and returns a new KeyMap holding the full ASDF
 *     description of an ASDF transform that is summarised in a KeyMap stored
 *     as the proxy pointer in a supplied Mapping.
+*
+*     Each Find... function (FindRotate3d, FindAffine, etc.) stores a
+*     "PROXY_TYPE" string in the proxy KeyMap identifying which ASDF
+*     transform type was found. WriteProxy looks up that tag in the
+*     proxy_writers dispatch table and calls the corresponding handler.
+*     To add support for a new proxy type, add a Find... function that
+*     stores the appropriate PROXY_TYPE, a WriteProxy* handler, and an
+*     entry in the table below.
 
 *  Parameters:
 *     this
@@ -16256,7 +16335,7 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
 *        the inverse operation of the ASDF transform.  It may be an AST
 *        Mapping or a KeyMap holding a description of an ASDF transform.
 *     name
-*        The string to use as the "name" property of the resultiung ASDF
+*        The string to use as the "name" property of the resulting ASDF
 *        transform. If NULL, the value is derived from the attributes of
 *        "map".
 *     status
@@ -16273,17 +16352,23 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
 *     reason.
 */
 
+/* Dispatch table mapping PROXY_TYPE strings to handler functions. */
+   static const struct {
+      const char *type;
+      ProxyWriter writer;
+   } proxy_writers[] = {
+      { "rotate3d",            WriteProxyRotate3d            },
+      { "affine",              WriteProxyAffine              },
+      { "spherical_cartesian", WriteProxySphericalCartesian  },
+      { "divide",              WriteProxyDivide              },
+   };
+   static const int nwriters = sizeof(proxy_writers)/sizeof(proxy_writers[0]);
+
 /* Local Variables: */
    AstKeyMap *km;
-   AstObject *oa;
-   AstObject *ob;
-   double angles[ 3 ];
-   double shift[ 2 ];
-   double matrix[ 4 ];
-   int dummy;
-   int nval;
-   int s2c;
    AstKeyMap *ret;
+   const char *proxy_type;
+   int i;
    void *proxy;
 
 /* Assume failure. */
@@ -16297,52 +16382,17 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
    if( proxy ) {
       km = (AstKeyMap *) proxy;
 
-/* If the proxy KeyMap contains an entry named "ANGLES", as created by
-   function FindRotate3D, create an equivalent ASDF rotate3d transform. */
-      if( astMapGet1D( km, "ANGLES", 3, &nval, angles ) ) {
-         ret = WriteAsdfRotate3d( this, angles, mapinv,
-                                  GetName( this, name, (AstMapping *) map,
-                                           status ), status );
-
-/* The ASDF Rotate3D transform expects degrees as inputs. But the AST
-   Mappings that adjoin a Rotate3D will use radians. So put a rad->deg
-   conversion before the Rotate3D and a deg->rad conversion after it. */
-         ret = AddR2D( this, &ret, 1, 1, 2, status );
-         ret = AddR2D( this, &ret, 0, 0, 2, status );
-
-/* If the proxy KeyMap contains entries named "AFFINE_SHIFT" and
-   "AFFINE_MATRIX", as created by function FindAffine, create an equivalent
-   ASDF affine transform. Note, affine transforms are restricted to 2D in
-   ASDF. */
-      } else if( astMapGet1D( km, "AFFINE_SHIFT", 2, &nval, shift ) &&
-                 astMapGet1D( km, "AFFINE_MATRIX", 4, &nval, matrix ) ) {
-         ret = WriteAsdfAffine( this, 2, matrix, shift, mapinv,
-                                GetName( this, name, (AstMapping *) map,
-                                         status ), status );
-
-/* If the proxy KeyMap contains a "SPHERICAL_TO_CARTESIAN" entry, as
-   created by FindSphericalCartesian, write an ASDF spherical_cartesian. */
-      } else if( astMapGet0I( km, "SPHERICAL_TO_CARTESIAN", &s2c ) ) {
-         ret = WriteAsdfSphericalCartesian( this, s2c, mapinv,
-                                           GetName( this, name,
-                                                    (AstMapping *) map,
-                                                    status ), status );
-
-/* If the proxy KeyMap contains an "IS_DIVIDE" entry, as created by
-   FindDivide, write an ASDF divide transform. */
-      } else if( astMapGet0I( km, "IS_DIVIDE", &dummy ) ) {
-         oa = NULL;
-         ob = NULL;
-         astMapGet0A( km, "DIVIDE_MAPA", &oa );
-         astMapGet0A( km, "DIVIDE_MAPB", &ob );
-         if( oa && ob ) {
-            ret = WriteAsdfDivide( this, (AstMapping *) oa,
-                                   (AstMapping *) ob, mapinv,
-                                   GetName( this, name, (AstMapping *) map,
-                                            status ), status );
+/* Look up the PROXY_TYPE tag and dispatch to the appropriate handler. */
+      proxy_type = NULL;
+      if( astMapGet0C( km, "PROXY_TYPE", &proxy_type ) ) {
+         const char *resolved_name = GetName( this, name, map, status );
+         for( i = 0; i < nwriters; i++ ) {
+            if( !strcmp( proxy_type, proxy_writers[ i ].type ) ) {
+               ret = proxy_writers[ i ].writer( this, km, map, mapinv,
+                                                resolved_name, status );
+               break;
+            }
          }
-         if( oa ) oa = astAnnul( oa );
-         if( ob ) ob = astAnnul( ob );
       }
 
 /* Annull the KeyMap and reset the proxy pointer to NULL. */
