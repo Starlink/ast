@@ -272,6 +272,7 @@ static int nest_type[ 100 ];
 #include "zoommap.h"             /* Scale Mappings */
 #include "chebymap.h"            /* Chebyshev Mappings */
 #include "fitschan.h"            /* FITS header channels */
+#include "mathmap.h"             /* Mathematical expression Mappings */
 #include "permmap.h"             /* Axis permutation Mappings */
 #include "unit.h"                /* Unit handling */
 #include "erfa.h"                /* SOFA interface */
@@ -427,6 +428,7 @@ static AstKeyMap *WriteTranMap( AstYamlChan *, AstTranMap *, AstObject *, const 
 static AstKeyMap *WriteUnitMap( AstYamlChan *, AstUnitMap *, AstObject *, const char *, int *);
 static AstKeyMap *WriteWcsMap( AstYamlChan *, AstWcsMap *, AstObject *, const char *,  int *);
 static AstKeyMap *WriteWinMap( AstYamlChan *, AstWinMap *, AstObject *, const char *, int *);
+static AstKeyMap *WriteAsdfDivide( AstYamlChan *, AstMapping *, AstMapping *, AstObject *, const char *, int * );
 static AstKeyMap *WriteAsdfSphericalCartesian( AstYamlChan *, int, AstObject *, const char *, int *);
 static AstKeyMap *WriteSphMap( AstYamlChan *, AstSphMap *, AstObject *, const char *, int *);
 static AstKeyMap *WriteZoomMap( AstYamlChan *, AstZoomMap *, AstObject *, const char *,  int *);
@@ -471,6 +473,7 @@ static double Get0D( AstKeyMap *, const char *, int, double, int * );
 static double GetQuantity( AstKeyMap *, const char *, const char *, int, double, int * );
 static double GetTime( AstKeyMap *, const char *, AstFrame *, int * );
 static int FindAffine( int, int *, AstMapping **, int *, int * );
+static int FindDivide( int, int *, AstMapping **, int *, int * );
 static int FindRotate3d( int, int *, AstMapping **, int *, int * );
 static int FindSphericalCartesian( int, int *, AstMapping **, int *, int * );
 static int Get0I( AstKeyMap *, const char *, int, int, int * );
@@ -2755,6 +2758,243 @@ static int FindSphericalCartesian( int series, int *nmap, AstMapping **map_list,
    return result;
 }
 
+static int FindDivide( int series, int *nmap, AstMapping **map_list,
+                       int *invert_list, int *status ){
+/*
+*  Name:
+*     FindDivide
+
+*  Purpose:
+*     Search a list of Mappings for a sequence corresponding to an ASDF
+*     divide transform.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     int FindDivide( int series, int *nmap, AstMapping **map_list,
+*                     int *invert_list, int *status )
+
+*  Class Membership:
+*     YamlChan member function
+
+*  Description:
+*     This function searches the supplied list of Mappings for sequences
+*     that correspond to an ASDF asdf/transform/divide transform. If no
+*     matching sequence is found, 0 is returned and the list is left
+*     unchanged. If one or more matching sequences are found, 1 is returned
+*     and the list is changed so that each whole sequence is contained in a
+*     single element. Each such element is a CmpMap with its proxy pointer
+*     set to a KeyMap with "IS_DIVIDE", "DIVIDE_MAPA" and "DIVIDE_MAPB"
+*     entries.
+*
+*     The divide pattern is a 4-element series chain (as produced by
+*     ReadDivide) consisting of:
+*       1. ForkMap (PermMap): nin inputs -> 2*nin outputs (duplicate inputs)
+*       2. ABMap (parallel CmpMap): 2*nin -> 2*nout (A and B in parallel)
+*       3. IntrlvMap (PermMap): 2*nout -> 2*nout (interleave A and B outputs)
+*       4. DivMap (parallel CmpMap): 2*nout -> nout (nout 2->1 MathMaps)
+
+*  Parameters:
+*     series
+*        If non-zero, the Mappings are applied in series (only series
+*        combinations are checked).
+*     nmap
+*        Address of the number of Mappings in the list, updated on exit.
+*     map_list
+*        Array of Mapping pointers, updated on exit.
+*     invert_list
+*        Array of invert flags, updated on exit.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if a matching sequence was found, zero otherwise.
+
+*/
+
+/* Local Variables: */
+   AstCmpMap *new;
+   AstCmpMap *t1;
+   AstCmpMap *t2;
+   AstKeyMap *km;
+   AstMapping **leaf_list;
+   AstMapping *mapa;
+   AstMapping *mapb;
+   AstMapping *mapa_clone;
+   AstMapping *mapb_clone;
+   AstMapping *ab_map;
+   AstMapping *fork_map;
+   AstMapping *intrlv_map;
+   AstMapping *div_map;
+   AstMathMap *ref;
+   int i;
+   int imap;
+   int inv_a;
+   int inv_b;
+   int inv_old_a;
+   int inv_old_b;
+   int jmap;
+   int nin;
+   int nmaps;
+   int nout;
+   int oldinv[4];
+   int result;
+   int series_ab;
+   int *leaf_inv_list;
+   int nleaf;
+   int ileaf;
+   int all_div;
+
+/* Initialise */
+   result = 0;
+
+/* Check inherited status. Only series combinations make sense. */
+   if( !astOK || !series ) return result;
+
+/* Loop through the Mappings in the list, stopping 3 before the end since
+   we need at least four consecutive Mappings for a match. */
+   for( imap = 0; imap < *nmap - 3; imap++ ) {
+
+/* ForkMap: a PermMap with Nout == 2*Nin, not inverted. */
+      fork_map = map_list[ imap ];
+      if( !astIsAPermMap( fork_map ) ) continue;
+      if( invert_list[ imap ] ) continue;
+      nin = astGetNin( fork_map );
+      if( astGetNout( fork_map ) != 2*nin ) continue;
+
+/* ABMap: a parallel CmpMap with Nin==2*nin. */
+      ab_map = map_list[ imap + 1 ];
+      if( !astIsACmpMap( ab_map ) ) continue;
+      if( ((AstCmpMap *) ab_map)->series ) continue;
+      if( astGetNin( ab_map ) != 2*nin ) continue;
+      nout = astGetNout( ab_map ) / 2;
+      if( astGetNout( ab_map ) != 2*nout ) continue;
+
+/* IntrlvMap: a PermMap with Nin == Nout == 2*nout. */
+      intrlv_map = map_list[ imap + 2 ];
+      if( !astIsAPermMap( intrlv_map ) ) continue;
+      if( astGetNin( intrlv_map ) != 2*nout ) continue;
+      if( astGetNout( intrlv_map ) != 2*nout ) continue;
+
+/* DivMap: nout parallel 2->1 MathMaps (a bare MathMap
+   when nout==1, a parallel CmpMap tree otherwise). */
+      div_map = map_list[ imap + 3 ];
+      if( !astIsACmpMap( div_map ) ) continue;
+      if( ((AstCmpMap *) div_map)->series ) continue;
+      if( astGetNin( div_map ) != 2*nout ) continue;
+      if( astGetNout( div_map ) != nout ) continue;
+
+      static const char *ref_fwd[] = { "q=p/r" };
+      static const char *ref_inv[] = { "p=q", "r=1.0" };
+      ref = (AstMathMap *) astMathMap( 2, 1, 1, ref_fwd, 2, ref_inv,
+                                       "simpfi=0,simpif=0", status );
+
+/* Convert the CmpMap to a flat list and check that each internal mapping
+   matches the reference divison MathMap */
+      nleaf = 0;
+      leaf_list = NULL;
+      leaf_inv_list = NULL;
+      astMapList( div_map, 0, invert_list[ imap + 3 ],
+                  &nleaf, &leaf_list, &leaf_inv_list );
+      all_div = ( nleaf == nout );
+      for( ileaf = 0; ileaf < nleaf; ileaf++ ) {
+         if( all_div )
+            all_div = astIsAMathMap( leaf_list[ ileaf ] ) &&
+                      astEqual( leaf_list[ ileaf ], ref );
+         leaf_list[ ileaf ] = astAnnul( leaf_list[ ileaf ] );
+      }
+      leaf_list = astFree( leaf_list );
+      leaf_inv_list = astFree( leaf_inv_list );
+      if( !all_div ) continue;
+
+/* Pattern matched.  Decompose the ABMap to extract the numerator (A) and
+   denominator (B) sub-transforms. */
+      mapa = NULL;
+      mapb = NULL;
+      astDecompose( ab_map, &mapa, &mapb, &series_ab,
+                    &inv_a, &inv_b );
+
+/* Clone A and B with the correct Invert flags set so that WriteProxy
+   can pass them directly to WriteMapping later. */
+      inv_old_a = astGetInvert( mapa );
+      inv_old_b = astGetInvert( mapb );
+      astSetInvert( mapa, inv_a );
+      astSetInvert( mapb, inv_b );
+      mapa_clone = astClone( mapa );
+      mapb_clone = astClone( mapb );
+      astSetInvert( mapa, inv_old_a );
+      astSetInvert( mapb, inv_old_b );
+      mapa = astAnnul( mapa );
+      mapb = astAnnul( mapb );
+
+/* Build the proxy KeyMap. */
+      km = astKeyMap( " ", status );
+      astMapPut0I( km, "IS_DIVIDE", 1, NULL );
+      astMapPut0A( km, "DIVIDE_MAPA", mapa_clone, NULL );
+      astMapPut0A( km, "DIVIDE_MAPB", mapb_clone, NULL );
+      mapa_clone = astAnnul( mapa_clone );
+      mapb_clone = astAnnul( mapb_clone );
+
+/* Save the original Invert flags, then set them to the required values
+   so that the packed CmpMap records the correct effective direction. */
+      for( i = 0; i < 4; i++ ) {
+         oldinv[ i ] = astGetInvert( map_list[ imap + i ] );
+      }
+      for( i = 0; i < 4; i++ ) {
+         astSetInvert( map_list[ imap + i ], invert_list[ imap + i ] );
+      }
+
+/* Chain the four elements in series into a single CmpMap. */
+      t1 = astCmpMap( fork_map, ab_map, 1, " ", status );
+      t2 = astCmpMap( (AstMapping *) t1, intrlv_map, 1, " ", status );
+      t1 = astAnnul( t1 );
+      new = astCmpMap( (AstMapping *) t2, div_map, 1, " ", status );
+      t2 = astAnnul( t2 );
+
+/* Restore the original Invert flags. */
+      for( i = 0; i < 4; i++ ) {
+         astSetInvert( map_list[ imap + i ], oldinv[ i ] );
+      }
+
+/* Attach the proxy KeyMap to the packed CmpMap. */
+      astSetProxy( new, km );
+
+/* Annul the four individual mapping pointers and replace the first
+   with the packed CmpMap.  Leave the other three as NULL (they will
+   be compacted out below). */
+      for( i = 0; i < 4; i++ ) {
+         map_list[ imap + i ] = astAnnul( map_list[ imap + i ] );
+      }
+      map_list[ imap ] = (AstMapping *) new;
+
+/* Skip over the three now-nullified slots. */
+      imap += 3;
+
+      result = 1;
+   }
+
+/* Compact the list to remove nullified slots. */
+   if( result ) {
+      jmap = 0;
+      for( imap = 0; imap < *nmap; imap++ ) {
+         if( map_list[ imap ] ) {
+            map_list[ jmap ] = map_list[ imap ];
+            invert_list[ jmap++ ] = invert_list[ imap ];
+         }
+      }
+      nmaps = jmap;
+      for( ; jmap < *nmap; jmap++ ) {
+         map_list[ jmap ] = NULL;
+         invert_list[ jmap ] = 0;
+      }
+      *nmap = nmaps;
+   }
+
+   return result;
+}
+
 static const char *FmtDouble( double dval, size_t buflen, char *buf ) {
 /*
 *  Name:
@@ -4898,6 +5138,8 @@ static int IsA( AstKeyMap *km, const char *class, int *status ) {
             result = IsAConcatenate( km_class, status );
          } else if( !strcmp( "constant", class ) ){
             result = IsAConstant( km_class, status );
+         } else if( !strcmp( "divide", class ) ){
+            result = IsADivide( km_class, status );
          } else if( !strcmp( "fix_inputs", class ) ){
             result = IsAFix_Inputs( km_class, status );
          } else if( !strcmp( "affine", class ) ){
@@ -5406,6 +5648,7 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
    int changed1;
    int changed2;
    int changed3;
+   int changed4;
    int imap;
    int nmap;
    int old_inv0;
@@ -5458,8 +5701,8 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
                   &nmap, &map_list, &invert_list );
 
 /* Now search the list for sequences that match an equivalent ASDF
-   transform. Currently, the we check for affine, rotate3d and
-   spherical_cartesian.
+   transform. Currently we check for affine, rotate3d, spherical_cartesian
+   and divide.
 
    If no matching sequence is found, 0 will be returned and the list will be
    left unchanged. If one or more matching sequences are found, 1 will be
@@ -5470,10 +5713,11 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
       changed1 = FindRotate3d( series, &nmap, map_list, invert_list, status );
       changed2 = FindAffine( series, &nmap, map_list, invert_list, status );
       changed3 = FindSphericalCartesian( series, &nmap, map_list, invert_list, status );
+      changed4 = FindDivide( series, &nmap, map_list, invert_list, status );
 
 /* If the list was changed, the supplied CmpMap either is, or contains,
    one or more sequences that are equivalent to an ASDF transform. */
-      if( changed1 || changed2 || changed3 ) {
+      if( changed1 || changed2 || changed3 || changed4 ) {
 
 /* If the list contains only a single element, it must be a CmpMap that
    is equivalent to an ASDF transform. So write it out. */
@@ -15675,7 +15919,6 @@ static AstKeyMap *WritePermMap( AstYamlChan *this, AstPermMap *map,
          }
       }
    }
-
 /* Create an array to hold the indices of the input axes that feed the
    non-constant outputs. */
    nvariable = nout - nfixed;
@@ -16052,9 +16295,12 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
 
 /* Local Variables: */
    AstKeyMap *km;
+   AstObject *oa;
+   AstObject *ob;
    double angles[ 3 ];
    double shift[ 2 ];
    double matrix[ 4 ];
+   int dummy;
    int nval;
    int s2c;
    AstKeyMap *ret;
@@ -16101,6 +16347,22 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
                                            GetName( this, name,
                                                     (AstMapping *) map,
                                                     status ), status );
+
+/* If the proxy KeyMap contains an "IS_DIVIDE" entry, as created by
+   FindDivide, write an ASDF divide transform. */
+      } else if( astMapGet0I( km, "IS_DIVIDE", &dummy ) ) {
+         oa = NULL;
+         ob = NULL;
+         astMapGet0A( km, "DIVIDE_MAPA", &oa );
+         astMapGet0A( km, "DIVIDE_MAPB", &ob );
+         if( oa && ob ) {
+            ret = WriteAsdfDivide( this, (AstMapping *) oa,
+                                   (AstMapping *) ob, mapinv,
+                                   GetName( this, name, (AstMapping *) map,
+                                            status ), status );
+         }
+         if( oa ) oa = astAnnul( oa );
+         if( ob ) ob = astAnnul( ob );
       }
 
 /* Annull the KeyMap and reset the proxy pointer to NULL. */
@@ -17968,6 +18230,109 @@ static void WriteString( AstChannel *this_channel, const char *name, int set,
          this->write_isa = 1;
       }
    }
+}
+
+static AstKeyMap *WriteAsdfDivide( AstYamlChan *this,
+                                   AstMapping *mapa, AstMapping *mapb,
+                                   AstObject *mapinv, const char *name,
+                                   int *status ) {
+/*
+*  Name:
+*     WriteAsdfDivide
+
+*  Purpose:
+*     Write an ASDF asdf/transform/divide object to a KeyMap.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     AstKeyMap *WriteAsdfDivide( AstYamlChan *this,
+*                                 AstMapping *mapa, AstMapping *mapb,
+*                                 AstObject *mapinv, const char *name,
+*                                 int *status )
+
+*  Class Membership:
+*     YamlChan member function
+
+*  Description:
+*     This function creates a KeyMap holding the ASDF properties of an
+*     asdf/transform/divide-1.2.0 transform object.  The divide transform
+*     applies two sub-transforms A and B to the same inputs and divides
+*     A's outputs by B's outputs element-wise.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     mapa
+*        Pointer to the numerator Mapping (A).  Its Invert flag should
+*        already be set to the value required for the forward direction.
+*     mapb
+*        Pointer to the denominator Mapping (B).  Its Invert flag should
+*        already be set to the value required for the forward direction.
+*     mapinv
+*        Optional custom inverse Mapping, or NULL.
+*     name
+*        Optional name string for the transform, or NULL.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A new KeyMap holding the ASDF transform properties, or NULL on error.
+
+*/
+
+/* Local Variables: */
+   AstKeyMap *kma;
+   AstKeyMap *kmb;
+   AstKeyMap *ret;
+   AstObject *fwd[ 2 ];
+   void *old_proxy_a;
+   void *old_proxy_b;
+
+/* Initialise */
+   ret = NULL;
+
+/* Check the global error status. */
+   if( !astOK ) return ret;
+
+/* Create the returned KeyMap with the divide tag. */
+   ret = StartAsdfTransform( this, mapinv, name,
+                             "asdf/transform/divide-1.2.0", status );
+
+/* Serialize the two sub-transforms.  The ASDF divide schema does not
+   require sub-transforms to have inverses, so we temporarily tag each
+   sub-transform with NOINV (if it has no proxy yet) to prevent
+   WritePermMap from auto-generating a custom inverse from an undefined
+   inperm, which would produce invalid YAML. */
+   old_proxy_a = astGetProxy( mapa );
+   old_proxy_b = astGetProxy( mapb );
+   if( !old_proxy_a ) astSetProxy( mapa, NOINV );
+   if( !old_proxy_b ) astSetProxy( mapb, NOINV );
+
+   kma = WriteMapping( this, mapa, NULL, NULL, status );
+   kmb = WriteMapping( this, mapb, NULL, NULL, status );
+
+   if( !old_proxy_a ) astSetProxy( mapa, NULL );
+   if( !old_proxy_b ) astSetProxy( mapb, NULL );
+
+/* Store them as the "forward" array. */
+   if( kma && kmb ) {
+      fwd[ 0 ] = (AstObject *) kma;
+      fwd[ 1 ] = (AstObject *) kmb;
+      astMapPut1A( ret, "forward", 2, fwd, NULL );
+   }
+
+/* Free resources. */
+   if( kma ) kma = astAnnul( kma );
+   if( kmb ) kmb = astAnnul( kmb );
+
+/* Annul the returned object if an error occurred. */
+   if( !astOK ) ret = astAnnul( ret );
+
+/* Return the answer. */
+   return ret;
 }
 
 static AstKeyMap *WriteAsdfSphericalCartesian( AstYamlChan *this,
