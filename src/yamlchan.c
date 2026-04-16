@@ -190,6 +190,16 @@ f     The YamlChan class does not define any new routines beyond those
    Mapping should not be used. */
 #define NOINV ((void *)0x2)
 
+/* Symbolic key used in the ref_maps cache for the 1-D divide MathMap. */
+#define REFMAP_DIVIDE_1D "divide_1d"
+
+/* MathMap expression strings for a 1-D element-wise division.
+   Forward: "q=p/r" maps 2 inputs (p=numerator, r=denominator) -> 1 output.
+   Inverse: "p=q", "r=1.0" maps 1 input -> 2 outputs (result, unit denominator).
+   Both ReadDivide and FindDivide use these constants so they stay in sync. */
+static const char *DIVIDE_1D_FWD[] = { "q=p/r" };
+static const char *DIVIDE_1D_INV[] = { "p=q", "r=1.0" };
+
 /* Report an error saying YAML is not support. */
 #define YAML_ERR(Method) \
    if( astOK ) astError( AST__NOYAML, "%s(YamlChan): AST was " \
@@ -473,10 +483,12 @@ static double Get0D( AstKeyMap *, const char *, int, double, int * );
 static double GetQuantity( AstKeyMap *, const char *, const char *, int, double, int * );
 static double GetTime( AstKeyMap *, const char *, AstFrame *, int * );
 static int FindAffine( int, int *, AstMapping **, int *, int * );
-static int FindDivide( int, int *, AstMapping **, int *, int * );
+static int FindDivide( AstYamlChan *, int, int *, AstMapping **, int *, int * );
 static int FindRotate3d( int, int *, AstMapping **, int *, int * );
 static int FindSphericalCartesian( int, int *, AstMapping **, int *, int * );
 static void CompactMapList( int *, AstMapping **, int * );
+static void Delete( AstObject *, int * );
+static AstMathMap *GetRefMap( AstYamlChan *, const char *, int * );
 static int Get0I( AstKeyMap *, const char *, int, int, int * );
 static int Get1A( AstKeyMap *, const char *, int, int, AstKeyMap **, int *, int * );
 static int Get1D( AstKeyMap *, const char *, int, int, double *, int *, int * );
@@ -935,6 +947,114 @@ static int GetIndent( AstChannel *this, int *status ) {
    return astTestIndent( this ) ? (*parent_getindent)( this, status ) : 2;
 }
 
+static void Delete( AstObject *this_object, int *status ) {
+/*
+*  Name:
+*     Delete
+
+*  Purpose:
+*     Destructor for YamlChan objects.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     void Delete( AstObject *this, int *status )
+
+*  Class Membership:
+*     YamlChan member function (overrides the astDelete protected
+*     method inherited from the Object class).
+
+*  Description:
+*     This function frees AST objects held in YamlChan instance fields
+*     that persist across multiple Read/Write calls.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan to be deleted.
+*     status
+*        Pointer to the inherited status variable.
+*/
+   AstYamlChan *this = (AstYamlChan *) this_object;
+   if( this->ref_maps ) this->ref_maps = astAnnul( this->ref_maps );
+}
+
+static AstMathMap *GetRefMap( AstYamlChan *this, const char *key, int *status ) {
+/*
+*  Name:
+*     GetRefMap
+
+*  Purpose:
+*     Return a cached reference MathMap, constructing it on first use.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     AstMathMap *GetRefMap( AstYamlChan *this, const char *key, int *status )
+
+*  Class Membership:
+*     YamlChan member function.
+
+*  Description:
+*     This function returns a pointer to a named reference MathMap stored
+*     in the YamlChan's ref_maps KeyMap cache.  If the KeyMap does not
+*     yet exist it is created.  If the requested key is not yet present,
+*     the corresponding MathMap is constructed and stored before being
+*     returned.
+*
+*     Currently the only supported key is REFMAP_DIVIDE_1D, which yields
+*     a 2-input, 1-output MathMap implementing "q=p/r".  Additional
+*     reference mappings can be added here as new arithmetic transforms
+*     are supported.
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan owning the cache.
+*     key
+*        Symbolic key identifying the required reference MathMap (e.g.
+*        REFMAP_DIVIDE_1D).
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A pointer to the requested AstMathMap.  The caller must NOT annul
+*     this reference as it is owned by the cache.  Returns NULL on error.
+*/
+
+/* Local Variables: */
+   AstMathMap *ref = NULL;
+   AstObject *obj = NULL;
+
+/* Check inherited status. */
+   if( !astOK ) return NULL;
+
+/* Create the cached KeyMap on first use. */
+   if( !this->ref_maps ) this->ref_maps = astKeyMap( " ", status );
+
+/* Look up the requested key.  If found, return the cached MathMap. */
+   if( astMapGet0A( this->ref_maps, key, &obj ) ) {
+      ref = (AstMathMap *) obj;   /* obj is a new reference; annul it below */
+
+/* Otherwise construct and cache the appropriate MathMap. */
+   } else if( !strcmp( key, REFMAP_DIVIDE_1D ) ) {
+      ref = (AstMathMap *) astMathMap( 2, 1, 1, DIVIDE_1D_FWD, 2, DIVIDE_1D_INV,
+                                       "simpfi=0,simpif=0", status );
+      astMapPut0A( this->ref_maps, key, (AstObject *) ref, NULL );
+
+   } else if( astOK ) {
+      astError( AST__INTER, "GetRefMap(YamlChan): unknown reference map "
+                "key \"%s\"", status, key );
+   }
+
+/* astMapGet0A returned a new reference — annul it so the cache owns the
+   only reference and we return a borrowed pointer. */
+   if( obj )
+      astAnnul( obj );
+
+   return ref;
+}
+
 void astInitYamlChanVtab_(  AstYamlChanVtab *vtab, const char *name, int *status ) {
 /*
 *+
@@ -1047,9 +1167,10 @@ void astInitYamlChanVtab_(  AstYamlChanVtab *vtab, const char *name, int *status
    vtab->SetYamlEncoding = SetYamlEncoding;
    vtab->TestYamlEncoding = TestYamlEncoding;
 
-/* Declare the Dump function for this class. There is no destructor or
+/* Declare the Dump function and destructor for this class.  There is no
    copy constructor. */
    astSetDump( vtab, Dump, "YamlChan", "YAML I/O Channel" );
+   astSetDelete( vtab, Delete );
 
 /* If we have just initialised the vtab for the current class, indicate
    that the vtab is now initialised, and store a pointer to the class
@@ -2760,8 +2881,8 @@ static int FindSphericalCartesian( int series, int *nmap, AstMapping **map_list,
    return result;
 }
 
-static int FindDivide( int series, int *nmap, AstMapping **map_list,
-                       int *invert_list, int *status ){
+static int FindDivide( AstYamlChan *this, int series, int *nmap,
+                       AstMapping **map_list, int *invert_list, int *status ){
 /*
 *  Name:
 *     FindDivide
@@ -2886,10 +3007,12 @@ static int FindDivide( int series, int *nmap, AstMapping **map_list,
       if( astGetNin( div_map ) != 2*nout ) continue;
       if( astGetNout( div_map ) != nout ) continue;
 
-      static const char *ref_fwd[] = { "q=p/r" };
-      static const char *ref_inv[] = { "p=q", "r=1.0" };
-      ref = (AstMathMap *) astMathMap( 2, 1, 1, ref_fwd, 2, ref_inv,
-                                       "simpfi=0,simpif=0", status );
+      ref = GetRefMap( this, REFMAP_DIVIDE_1D, status );
+
+      if ( !ref )
+         astError( AST__INTER, "FindDivide(YamlChan): reference map for "
+                   "REFMAP_DIVIDE_1D not found (internal AST programming "
+                   "error)", status );
 
 /* Convert the CmpMap to a flat list and check that each internal mapping
    matches the reference divison MathMap */
@@ -5697,7 +5820,7 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
       changed  = FindRotate3d( series, &nmap, map_list, invert_list, status );
       changed |= FindAffine( series, &nmap, map_list, invert_list, status );
       changed |= FindSphericalCartesian( series, &nmap, map_list, invert_list, status );
-      changed |= FindDivide( series, &nmap, map_list, invert_list, status );
+      changed |= FindDivide( this, series, &nmap, map_list, invert_list, status );
 
 /* If the list was changed, the supplied CmpMap either is, or contains,
    one or more sequences that are equivalent to an ASDF transform. */
@@ -7537,11 +7660,8 @@ static AstMapping *ReadDivide( AstYamlChan *this, AstKeyMap *km, int *status ){
    int nfwd;
    int nout;
 
-/* One-dimensional division MathMap expressions.
-   Forward:  "q=p/r"  maps 2 inputs (p=axis0, r=axis1) -> 1 output q.
-   Inverse:  "p=q", "r=1.0"  maps 1 input q -> 2 outputs (p, r). */
-   static const char *fwd1d[] = { "q=p/r" };
-   static const char *inv1d[] = { "p=q", "r=1.0" };
+/* Use the file-scope expression constants (DIVIDE_1D_FWD / DIVIDE_1D_INV)
+   so that ReadDivide and FindDivide stay in sync. */
 
 /* Initialise */
    result    = NULL;
@@ -7624,7 +7744,7 @@ static AstMapping *ReadDivide( AstYamlChan *this, AstKeyMap *km, int *status ){
    For the inverse (1 input -> 2 outputs): "p=q", "r=1.0". */
          divmap = NULL;
          for( i = 0; i < nout && astOK; i++ ) {
-            mm1d = (AstMapping *) astMathMap( 2, 1, 1, fwd1d, 2, inv1d,
+            mm1d = (AstMapping *) astMathMap( 2, 1, 1, DIVIDE_1D_FWD, 2, DIVIDE_1D_INV,
                                               "simpfi=0,simpif=0", status );
             if( divmap == NULL ) {
                divmap = (AstCmpMap *) mm1d;
@@ -19719,6 +19839,7 @@ AstYamlChan *astInitYamlChan_( void *mem, size_t size, int init,
       new->preservename = -INT_MAX;
       new->yamlencoding = UNKNOWN_ENCODING;
       new->anchors = NULL;
+      new->ref_maps = NULL;
       new->gotwcs = 0;
       new->defenc = UNKNOWN_ENCODING;
       new->obj = NULL;
@@ -19880,6 +20001,7 @@ AstYamlChan *astLoadYamlChan_( void *mem, size_t size,
 /* Initialise transient values that are not stored in the external
    representation of the YamlChan. */
       new->anchors = NULL;
+      new->ref_maps = NULL;
       new->gotwcs = 0;
       new->defenc = UNKNOWN_ENCODING;
       new->obj = NULL;
