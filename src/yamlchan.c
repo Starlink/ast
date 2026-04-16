@@ -16393,6 +16393,17 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
                break;
             }
          }
+         if( i == nwriters ) {
+            astError( AST__INTER, "WriteProxy(YamlChan): proxy KeyMap has "
+                      "unrecognised PROXY_TYPE \"%s\" -- was it added to the "
+                      "proxy_writers table? (internal AST programming error)",
+                      status, proxy_type );
+         }
+      } else {
+         astError( AST__INTER, "WriteProxy(YamlChan): proxy KeyMap has no "
+                   "PROXY_TYPE entry -- did the Find<Transform> function "
+                   "forget to set it? (internal AST programming error)",
+                   status );
       }
 
 /* Annull the KeyMap and reset the proxy pointer to NULL. */
