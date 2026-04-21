@@ -1286,6 +1286,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In SpecTrans, only attempt to convert CLASS specific keywords
 *        into standard FITS-WCS keywords for the primary axis descriptions
 *        since CLASS does not support alternate axis descriptions.
+*     22-APR-2026 (TIMJ):
+*        Fix memory leak in WATCoeffs when reading TNX headers with
+*        Chebyshev polynomial coefficients.
 *class--
 */
 
@@ -31860,6 +31863,8 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 
 /*  Release the memory used to hold the concatenated WAT keywords. */
             watmem = (char *) astFree( (void *) watmem );
+            cvals = astFree( cvals );
+            mvals = astFree( mvals );
          }
       }
 
@@ -35086,6 +35091,7 @@ static int WATCoeffs( const char *watstr, int iaxis, double **cvals,
    int iword;
    int m;
    int mn;
+   int nw1;
    int nword;
    int order;
    int porder;
@@ -35112,7 +35118,7 @@ static int WATCoeffs( const char *watstr, int iaxis, double **cvals,
    if ( !astOK || !watstr ) return result;
 
 /* Look for cor = "..." and extract the "..." string. */
-   w1 = astChrSplitRE( watstr, "cor *= *\"(.*)\"", &nword, NULL );
+   w1 = astChrSplitRE( watstr, "cor *= *\"(.*)\"", &nw1, NULL );
    if( w1 ) {
 
 /* Split the "..." string into words. */
@@ -35253,10 +35259,18 @@ static int WATCoeffs( const char *watstr, int iaxis, double **cvals,
 
 /* Free coefficients arrays */
             coeff = astFree( coeff );
+         } else {
+            coeff = astFree( coeff );
          }
 
 /* Free resources */
+         for( iword = 0; iword < nword; iword++ ) {
+            w2[ iword ] = astFree( w2[ iword ] );
+         }
          w2 = astFree( w2 );
+      }
+      for( iword = 0; iword < nw1; iword++ ) {
+         w1[ iword ] = astFree( w1[ iword ] );
       }
       w1 = astFree( w1 );
    }
@@ -45198,15 +45212,3 @@ static void ListFC( AstFitsChan *this, const char *ttl ) {
    this->card = cardo;
 }
 */
-
-
-
-
-
-
-
-
-
-
-
-
