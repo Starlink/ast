@@ -36,3 +36,7 @@ tnx_native          | tnx.head                       | tnx.native         | nati
 tsc_native          | tsc.head                       | tsc.native         | native    |                                  | yes
 zpn_native          | zpn.head                       | zpn.native         | native    |                                  | yes
 zpx_native          | zpx.head                       | zpx.native         | native    |                                  | yes
+freq-log_native     | freq-log.head                  | freq-log.native    | native    |                                  | yes
+freq-f2w_native     | freq-f2w.head                  | freq-f2w.native    | native    |                                  | yes
+tan-pv0_native      | tan-pv0.head                   | tan-pv0.native     | native    |                                  | yes
+tnx-cheb_native     | tnx-cheb.head                  | tnx-cheb.native    | native    |                                  | yes
