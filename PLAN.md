@@ -11,7 +11,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 1. Add the existing C tests to the CMake build
 2. Convert Fortran tests to C to eliminate the Fortran/Starlink dependency
 
-## Current status: 106 default tests + 20 conditional (PLplot) + 1 optional huge stress test
+## Current status: 107 default tests + 20 conditional (PLplot) + 1 optional huge stress test
 
 | Phase | Status |
 |-------|--------|
@@ -28,9 +28,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 | Phase 2 Batch 10: Plotter smoke tests | **Complete** (20 tests, conditional on PLplot) |
 | Phase 2 Batch 11: .head native round-trip tests | **Complete** (20 wcsconv tests from .head files) |
 | Phase 2 Batch 12: Grid smoke tests (no PLplot) | **Complete** (21 tests via logging GRF plugin) |
+| Phase 2 Batch 13: Resample / QuadApprox coverage | **Complete** (1 test) |
 | Phase 3: CI integration | **Complete** (tests run via ctest) |
 
-### Test inventory (106 default + 20 conditional PLplot + 1 optional)
+### Test inventory (107 default + 20 conditional PLplot + 1 optional)
 
 **Original test (1):**
 - ast_test — minimal installation check
@@ -60,6 +61,12 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   file using the logging GRF plugin (grf_log.c) which provides a virtual
   viewport with no PLplot dependency. Same .head/.attr/.fattr/.box fixtures
   as Batch 10.
+
+**Coverage gap tests (1 default):**
+- Batch 13: testresample — exercises astResampleD/F/I across 10 interpolation
+  schemes (NEAREST, LINEAR, SINC, SINCSINC, SINCCOS, SINCGAUSS, GAUSS, SOMB,
+  SOMBCOS, BLOCKAVE), plus bad-pixel handling, variance propagation,
+  AST__NOBAD flag, and astQuadApprox.
 
 **Optional manual stress test:**
 - testhuge_c
