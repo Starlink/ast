@@ -40,3 +40,4 @@ freq-log_native     | freq-log.head                  | freq-log.native    | nati
 freq-f2w_native     | freq-f2w.head                  | freq-f2w.native    | native    |                                  | yes
 tan-pv0_native      | tan-pv0.head                   | tan-pv0.native     | native    |                                  | yes
 tnx-cheb_native     | tnx-cheb.head                  | tnx-cheb.native    | native    |                                  | yes
+grism_native        | grism.head                     | grism.native       | native    |                                  | yes
