@@ -52,6 +52,7 @@ int main(){
    }
    return *status == SAI__OK ? 0 : 1;
 
+   return status_value;
 }
 
 
@@ -437,7 +438,7 @@ void test_divide_roundtrip( int *status ){
 
 /* One-dimensional division MathMap (same expressions as ReadDivide uses). */
    static const char *fwd1d[] = { "q=p/r" };
-   static const char *inv1d[] = { "p=q", "r=1.0" };
+   static const char *inv1d[] = { "p", "r" };
 
 /* Fork permutation: 3 inputs -> 6 outputs [x,y,z,x,y,z].
    Note: the public astPermMap interface uses 1-based coordinate indices.

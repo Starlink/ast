@@ -91,16 +91,17 @@ f     The YamlChan class does not define any new routines beyond those
 *        Original version.
 *     5-OCT-2020 (DSB):
 *        Add a NAITVE encoding option (see YamlEncoding attribute).
-*     13-APR-2025 (EMB):
-*        - Adapted to never versions of ASDF transform schemas.
-*        - Added support for the gwcs/spherical_cartesian transform.
 *     8-APR-2026 (TIMJ):
 *        Increase rowname buffer size in ReadPoly to prevent overrun.
+*     13-APR-2026 (EMB):
+*        - Adapt to newer versions of ASDF transform schemas.
+*        - Add support for the gwcs/spherical_cartesian transform.
 *     20-APR-2026 (TIMJ):
 *        Fix buffer overread in LibYamlWriter where astStore copied one
 *        byte past the end of the source buffer.
 *     22-APR-2026 (EMB):
-*        Fix potential stack variable overflow in ReadPolynomial
+*        - Add support for the asdf/transform/divide transform.
+*        - Fix potential stack variable overflow in ReadPolynomial
 *class--
 */
 
@@ -195,10 +196,10 @@ f     The YamlChan class does not define any new routines beyond those
 
 /* MathMap expression strings for a 1-D element-wise division.
    Forward: "q=p/r" maps 2 inputs (p=numerator, r=denominator) -> 1 output.
-   Inverse: "p=q", "r=1.0" maps 1 input -> 2 outputs (result, unit denominator).
+   Inverse: No inverse specified (formally ambiguous).
    Both ReadDivide and FindDivide use these constants so they stay in sync. */
 static const char *DIVIDE_1D_FWD[] = { "q=p/r" };
-static const char *DIVIDE_1D_INV[] = { "p=q", "r=1.0" };
+static const char *DIVIDE_1D_INV[] = { "p", "r" };
 
 /* Report an error saying YAML is not support. */
 #define YAML_ERR(Method) \
@@ -7660,9 +7661,6 @@ static AstMapping *ReadDivide( AstYamlChan *this, AstKeyMap *km, int *status ){
    int nfwd;
    int nout;
 
-/* Use the file-scope expression constants (DIVIDE_1D_FWD / DIVIDE_1D_INV)
-   so that ReadDivide and FindDivide stay in sync. */
-
 /* Initialise */
    result    = NULL;
    mapa      = NULL;
@@ -7740,8 +7738,7 @@ static AstMapping *ReadDivide( AstYamlChan *this, AstKeyMap *km, int *status ){
 
 /* Build nout parallel 1-D MathMaps that each compute q=p/r.
    In MathMap variable naming, first variable seen on RHS is axis 0,
-   second is axis 1, so "q=p/r" maps (p -> axis0, r -> axis1) -> q.
-   For the inverse (1 input -> 2 outputs): "p=q", "r=1.0". */
+   second is axis 1, so "q=p/r" maps (p -> axis0, r -> axis1) -> q. */
          divmap = NULL;
          for( i = 0; i < nout && astOK; i++ ) {
             mm1d = (AstMapping *) astMathMap( 2, 1, 1, DIVIDE_1D_FWD, 2, DIVIDE_1D_INV,
