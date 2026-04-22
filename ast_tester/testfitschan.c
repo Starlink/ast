@@ -1429,6 +1429,161 @@ int main( void ) {
       afc = astAnnul( afc );
    }
 
+/* -----------------------------------------------------------------------
+ * Test FitsChan public API methods that had zero coverage.
+ * Error numbers 300+.
+ * -----------------------------------------------------------------------*/
+   {
+      AstFitsChan *afc = astFitsChan( NULL, NULL, " " );
+      double cf[2];
+      int ci[2];
+      int lval;
+      char *cval;
+
+      /* astSetFitsCM — insert a comment card */
+      astSetFitsCM( afc, "This is a test comment", 0 );
+      if( !astOK )
+         stopit( 300, "SetFitsCM failed", status );
+
+      /* astSetFitsCF — complex float keyword */
+      cf[0] = 1.5;
+      cf[1] = 2.5;
+      astSetFitsCF( afc, "TESTCF", cf, "complex float", 0 );
+      if( !astOK )
+         stopit( 301, "SetFitsCF failed", status );
+
+      /* astGetFitsCF — retrieve complex float */
+      cf[0] = cf[1] = 0.0;
+      astClear( afc, "Card" );
+      astGetFitsCF( afc, "TESTCF", cf );
+      if( !astOK )
+         stopit( 302, "GetFitsCF failed", status );
+      if( fabs( cf[0] - 1.5 ) > 1e-10 || fabs( cf[1] - 2.5 ) > 1e-10 )
+         stopit( 303, "GetFitsCF returned wrong values", status );
+
+      /* astSetFitsCI — complex integer keyword */
+      ci[0] = 10;
+      ci[1] = 20;
+      astSetFitsCI( afc, "TESTCI", ci, "complex int", 0 );
+      if( !astOK )
+         stopit( 304, "SetFitsCI failed", status );
+
+      /* astGetFitsCI — retrieve complex integer */
+      ci[0] = ci[1] = 0;
+      astClear( afc, "Card" );
+      astGetFitsCI( afc, "TESTCI", ci );
+      if( !astOK )
+         stopit( 305, "GetFitsCI failed", status );
+      if( ci[0] != 10 || ci[1] != 20 )
+         stopit( 306, "GetFitsCI returned wrong values", status );
+
+      /* astGetFitsL — logical keyword */
+      astSetFitsL( afc, "TESTL", 1, "logical true", 0 );
+      lval = 0;
+      astClear( afc, "Card" );
+      astGetFitsL( afc, "TESTL", &lval );
+      if( !astOK )
+         stopit( 307, "GetFitsL failed", status );
+      if( !lval )
+         stopit( 308, "GetFitsL returned wrong value", status );
+
+      /* astGetFitsCN — continuation string.
+         Insert a CONTINUE-card sequence manually via astPutFits. */
+      {
+         AstFitsChan *fc2 = astFitsChan( NULL, NULL, " " );
+         astPutFits( fc2, "LONGSTR = 'Part one of a long &'", 0 );
+         astPutFits( fc2, "CONTINUE  'string value'", 0 );
+         cval = NULL;
+         astClear( fc2, "Card" );
+         astGetFitsCN( fc2, "LONGSTR", &cval );
+         if( !astOK )
+            stopit( 309, "GetFitsCN failed", status );
+         if( !cval || strncmp( cval, "Part one", 8 ) )
+            stopit( 310, "GetFitsCN returned wrong value", status );
+         fc2 = astAnnul( fc2 );
+      }
+
+      /* astPutCards — insert multiple 80-char cards as a single string */
+      {
+         AstFitsChan *fc2 = astFitsChan( NULL, NULL, " " );
+         astPutCards( fc2,
+            "SIMPLE  =                    T / Standard FITS                                   "
+            "BITPIX  =                  -32 / Bits per pixel                                  "
+            "NAXIS   =                    0 / No data                                         "
+            "END                                                                             " );
+         if( !astOK )
+            stopit( 311, "PutCards failed", status );
+         if( astGetI( fc2, "Ncard" ) < 3 )
+            stopit( 312, "PutCards wrong card count", status );
+         fc2 = astAnnul( fc2 );
+      }
+
+      /* astShowFits — display cards to stdout (just verify no crash) */
+      astClear( afc, "Card" );
+      astShowFits( afc );
+      if( !astOK )
+         stopit( 313, "ShowFits failed", status );
+
+      /* astWriteFits / astReadFits — write cards to sink, read from source.
+         Use SinkFile/SourceFile for simplicity. */
+      {
+         AstFitsChan *fc2;
+         int ncard_before, ncard_after;
+
+         astSet( afc, "SinkFile=/tmp/ast_testfitschan_write.fits" );
+         ncard_before = astGetI( afc, "Ncard" );
+         astWriteFits( afc );
+         if( !astOK )
+            stopit( 314, "WriteFits failed", status );
+
+         fc2 = astFitsChan( NULL, NULL,
+                            "SourceFile=/tmp/ast_testfitschan_write.fits" );
+         astReadFits( fc2 );
+         if( !astOK )
+            stopit( 315, "ReadFits failed", status );
+         ncard_after = astGetI( fc2, "Ncard" );
+         if( ncard_after < ncard_before )
+            stopit( 316, "ReadFits lost cards", status );
+         fc2 = astAnnul( fc2 );
+      }
+
+      afc = astAnnul( afc );
+   }
+
+/* -----------------------------------------------------------------------
+ * Test FitsChan Dump/Load round-trip via astToString/astFromString.
+ * Error numbers 400+.
+ * -----------------------------------------------------------------------*/
+   {
+      AstFitsChan *afc = astFitsChan( NULL, NULL, " " );
+      AstFitsChan *afc2;
+      char *pickle;
+      int ncard1, ncard2;
+
+      astSetFitsI( afc, "NAXIS", 0, "No data", 0 );
+      astSetFitsF( afc, "CRVAL1", 180.0, "Reference value", 0 );
+      astSetFitsS( afc, "CTYPE1", "RA---TAN", "Projection", 0 );
+      ncard1 = astGetI( afc, "Ncard" );
+
+      pickle = astToString( afc );
+      if( !pickle ) {
+         stopit( 400, "astToString returned NULL", status );
+      } else {
+         afc2 = (AstFitsChan *) astFromString( pickle );
+         if( !afc2 ) {
+            stopit( 401, "astFromString returned NULL", status );
+         } else {
+            ncard2 = astGetI( afc2, "Ncard" );
+            if( ncard2 != ncard1 )
+               stopit( 402, "Round-trip changed card count", status );
+            afc2 = astAnnul( afc2 );
+         }
+         astFree( pickle );
+      }
+
+      afc = astAnnul( afc );
+   }
+
 cleanup:
    astEnd;
 
