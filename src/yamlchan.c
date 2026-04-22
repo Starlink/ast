@@ -19090,7 +19090,7 @@ f     affects the behaviour of the AST_WRITE routine  when
 *     byear, jyear, jd, mjd.
 *     - Only the following transform classes are supported:
 *     identity, scale, multiplyscale, remap_axes, shift, compose,
-*     concatenate, constant, fix_inputs, affine, rotate2d,
+*     concatenate, constant, divide, fix_inputs, affine, rotate2d,
 *     rotate_sequence_3d, rotate3d, linear1d, ortho_polynomial
 *     (chebyshev only), planar2d, polynomial, spherical_cartesian.
 *     In addition, all sky projections are supported.
