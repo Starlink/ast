@@ -1883,12 +1883,11 @@ int main( void ) {
          tfs = (AstFrameSet *) astRead( hfc3c );
          hfc3c = astAnnul( hfc3c );
          if( tfs ) {
-            AstFitsChan *classfc = astFitsChan( NULL, NULL, " " );
-            astSetC( classfc, "Encoding", "FITS-CLASS" );
-            if( astWrite( classfc, tfs ) != 1 )
-               stopit( 612, "Write failed for 3D FITS-CLASS", status );
-            if( !astOK ) astClearStatus;
-            classfc = astAnnul( classfc );
+            rt = roundtrip( tfs, "FITS-CLASS", "", 1e-3, status );
+            if( rt == 0 )
+               stopit( 612, "Write/read failed for 3D FITS-CLASS", status );
+            else if( rt == -1 )
+               stopit( 613, "Coordinates disagree for 3D FITS-CLASS", status );
             tfs = astAnnul( tfs );
          }
       }
