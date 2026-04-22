@@ -51,3 +51,7 @@ vrad-v2f_native     | vrad-v2f.head                  | vrad-v2f.native    | nati
 tan-polytan_native  | tan-polytan.head               | tan-polytan.native | native    |                                  | yes
 sao-tan_native      | sao-tan.head                   | sao-tan.native     | native    |                                  | yes
 fits-pc-alt_native  | fits-pc-alt.head               | fits-pc-alt.native | native    |                                  | yes
+velo-aips_native    | velo-aips.head                 | velo-aips.native   | native    |                                  | yes
+awav-a2f_native     | awav-a2f.head                  | awav-a2f.native    | native    |                                  | yes
+tan-zeropv_native   | tan-zeropv.head                | tan-zeropv.native  | native    |                                  | yes
+cube-reorder_native | cube-reorder.head              | cube-reorder.native| native    |                                  | yes
