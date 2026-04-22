@@ -485,18 +485,22 @@ static void checktab( int *status ) {
       stopit( 1005, " ", status );
 
    /* Check the key name */
-   sval = (char *)astMapKey( tables, 0 );  /* 0-based in C */
-   if( strcmp( sval, "WCS-TAB" ) != 0 ) {
-      printf( "MapKey: [%s]\n", sval );
-      stopit( 1006, " ", status );
+   if( tables && astMapSize( tables ) > 0 ) {
+      sval = (char *)astMapKey( tables, 0 );  /* 0-based in C */
+      if( !sval || strcmp( sval, "WCS-TAB" ) != 0 ) {
+         if( sval ) printf( "MapKey: [%s]\n", sval );
+         stopit( 1006, " ", status );
+      }
    }
 
-   if( !astMapGet0A( tables, "WCS-TAB", &table_obj ) )
-      stopit( 1007, " ", status );
-   else if( !astIsAFitsTable( table_obj ) )
-      stopit( 1004, " ", status );
-   else
-      astAnnul( table_obj );
+   if( tables && astMapHasKey( tables, "WCS-TAB" ) ) {
+      if( !astMapGet0A( tables, "WCS-TAB", &table_obj ) )
+         stopit( 1007, " ", status );
+      else if( !astIsAFitsTable( table_obj ) )
+         stopit( 1004, " ", status );
+      else
+         astAnnul( table_obj );
+   }
 
    /* Check table dimensions */
    {
@@ -572,16 +576,20 @@ static void checktab( int *status ) {
    else if( astMapSize( tables ) != 1 )
       stopit( 1016, " ", status );
 
-   sval = (char *)astMapKey( tables, 0 );
-   if( strcmp( sval, "WCS-TAB" ) != 0 )
-      stopit( 1017, " ", status );
+   if( tables && astMapSize( tables ) > 0 ) {
+      sval = (char *)astMapKey( tables, 0 );
+      if( !sval || strcmp( sval, "WCS-TAB" ) != 0 )
+         stopit( 1017, " ", status );
+   }
 
-   if( !astMapGet0A( tables, "WCS-TAB", &table_obj ) )
-      stopit( 1018, " ", status );
-   else if( !astIsAFitsTable( table_obj ) )
-      stopit( 1019, " ", status );
-   else
-      astAnnul( table_obj );
+   if( tables && astMapHasKey( tables, "WCS-TAB" ) ) {
+      if( !astMapGet0A( tables, "WCS-TAB", &table_obj ) )
+         stopit( 1018, " ", status );
+      else if( !astIsAFitsTable( table_obj ) )
+         stopit( 1019, " ", status );
+      else
+         astAnnul( table_obj );
+   }
 
    {
       AstFitsTable *tbl = NULL;
@@ -854,16 +862,20 @@ static void checktab( int *status ) {
       else if( astMapSize( tablesv ) != 1 )
          stopit( 1046, " ", status );
 
-      sval = (char *)astMapKey( tablesv, 0 );
-      if( strcmp( sval, "WCS-TAB" ) != 0 )
-         stopit( 1047, " ", status );
+      if( tablesv && astMapSize( tablesv ) > 0 ) {
+         sval = (char *)astMapKey( tablesv, 0 );
+         if( !sval || strcmp( sval, "WCS-TAB" ) != 0 )
+            stopit( 1047, " ", status );
+      }
 
-      if( !astMapGet0A( tablesv, "WCS-TAB", &table_objv ) )
-         stopit( 1048, " ", status );
-      else if( !astIsAFitsTable( table_objv ) )
-         stopit( 1049, " ", status );
-      else
-         astAnnul( table_objv );
+      if( tablesv && astMapHasKey( tablesv, "WCS-TAB" ) ) {
+         if( !astMapGet0A( tablesv, "WCS-TAB", &table_objv ) )
+            stopit( 1048, " ", status );
+         else if( !astIsAFitsTable( table_objv ) )
+            stopit( 1049, " ", status );
+         else
+            astAnnul( table_objv );
+      }
 
       {
          AstFitsTable *tblv = NULL;
