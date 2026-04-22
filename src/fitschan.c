@@ -1298,6 +1298,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        VELO-xxx variant.
 *        Add missing Ecliptic case in SkyToFits system mapping so
 *        ecliptic coordinates write ELON/ELAT instead of UNLN/UNLT.
+*        Fix memory leak in CLASSFromStore: freqfrm was never annulled
+*        after being used to create a frequency-to-velocity conversion.
 *class--
 */
 
@@ -6827,6 +6829,7 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
 
 /* Get a Mapping from frequency to velocity. */
          fsconv1 = astConvert( freqfrm, velofrm, "" );
+         freqfrm = astAnnul( freqfrm );
          if( fsconv1 ) {
 
 /* Use this Mapping to convert the spectral crval value from frequency to
