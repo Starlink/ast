@@ -1296,6 +1296,8 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        CardName returns the current card (which has moved on), not
 *        the matched card. Replaced with explicit lookups for each
 *        VELO-xxx variant.
+*        Add missing Ecliptic case in SkyToFits system mapping so
+*        ecliptic coordinates write ELON/ELAT instead of UNLN/UNLT.
 *class--
 */
 
@@ -29727,6 +29729,8 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
       eq = AST__BAD;
       isys = RADEC;
       SetItemC( &(store->radesys), 0, 0, s, "GAPPT", status );
+   } else if( !Ustrcmp( sys, "Ecliptic", status ) ){
+      isys = ECLIP;
    } else if( !Ustrcmp( sys, "Helioecliptic", status ) ){
       eq = AST__BAD;
       isys = HECLIP;
