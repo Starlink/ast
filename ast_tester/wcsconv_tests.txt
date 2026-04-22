@@ -49,3 +49,4 @@ degen-wcsaxes_native| degen-wcsaxes.head             | degen-wcsaxes.native | na
 wave-w2f_native     | wave-w2f.head                  | wave-w2f.native    | native    |                                  | yes
 vrad-v2f_native     | vrad-v2f.head                  | vrad-v2f.native    | native    |                                  | yes
 tan-polytan_native  | tan-polytan.head               | tan-polytan.native | native    |                                  | yes
+sao-tan_native      | sao-tan.head                   | sao-tan.native     | native    |                                  | yes
