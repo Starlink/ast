@@ -1328,6 +1328,107 @@ int main( void ) {
    if( fs ) astAnnul( fs );
    if( km ) astAnnul( km );
 
+/* -----------------------------------------------------------------------
+ * Test Clear/Set/Test for FitsChan-specific attributes.
+ * Error numbers 100+ to avoid collision with existing tests.
+ * AltAxes skipped: the attribute parser treats the leading 'A' as an
+ * axis qualifier, making it impossible to set via astSet/astSetI.
+ * -----------------------------------------------------------------------*/
+   {
+      AstFitsChan *afc = astFitsChan( NULL, NULL, " " );
+      int ia;
+
+      /* Integer attributes: { name, value to set } */
+      static const struct {
+         const char *name;
+         int setval;
+      } int_attrs[] = {
+         { "DefB1950",     1 },
+         { "CarLin",       1 },
+         { "CDMatrix",     1 },
+         { "FitsDigits",  10 },
+         { "FitsRounding", 5 },
+         { "ForceTab",     1 },
+         { "IgnoreBadAlt", 1 },
+         { "Iwc",          1 },
+         { "PolyTan",      1 },
+         { "SipOK",        0 },
+         { "SipReplace",   0 },
+         { "TabOK",        1 },
+      };
+      int n_int_attrs = (int)( sizeof(int_attrs) / sizeof(int_attrs[0]) );
+
+      for( ia = 0; ia < n_int_attrs; ia++ ) {
+         const char *name = int_attrs[ia].name;
+         int setval = int_attrs[ia].setval;
+         int errbase = 100 + ia * 3;
+         char buf[80];
+
+         astSetI( afc, name, setval );
+         if( !astTest( afc, name ) ) {
+            snprintf( buf, sizeof(buf), "%s not set after SetI", name );
+            stopit( errbase, buf, status );
+         }
+         if( astGetI( afc, name ) != setval ) {
+            snprintf( buf, sizeof(buf), "%s value wrong after SetI", name );
+            stopit( errbase + 1, buf, status );
+         }
+         astClear( afc, name );
+         if( astTest( afc, name ) ) {
+            snprintf( buf, sizeof(buf), "%s still set after Clear", name );
+            stopit( errbase + 2, buf, status );
+         }
+      }
+
+      /* FitsTol (the only double attribute) */
+      astSetD( afc, "FitsTol", 0.5 );
+      if( !astTest( afc, "FitsTol" ) )
+         stopit( 200, "FitsTol not set after SetD", status );
+      if( fabs( astGetD( afc, "FitsTol" ) - 0.5 ) > 1e-10 )
+         stopit( 201, "FitsTol value wrong after SetD", status );
+      astClear( afc, "FitsTol" );
+      if( astTest( afc, "FitsTol" ) )
+         stopit( 202, "FitsTol still set after Clear", status );
+
+      /* String attributes: { name, value to set } */
+      {
+         static const struct {
+            const char *name;
+            const char *setval;
+         } str_attrs[] = {
+            { "FitsAxisOrder", "RA DEC FREQ" },
+            { "Warnings",      "BadAlt BadPV" },
+         };
+         int n_str_attrs = (int)( sizeof(str_attrs) / sizeof(str_attrs[0]) );
+
+         for( ia = 0; ia < n_str_attrs; ia++ ) {
+            const char *name = str_attrs[ia].name;
+            const char *setval = str_attrs[ia].setval;
+            int errbase = 210 + ia * 3;
+            char buf[80];
+            const char *got;
+
+            astSetC( afc, name, setval );
+            if( !astTest( afc, name ) ) {
+               snprintf( buf, sizeof(buf), "%s not set after SetC", name );
+               stopit( errbase, buf, status );
+            }
+            got = astGetC( afc, name );
+            if( !got || strcmp( got, setval ) ) {
+               snprintf( buf, sizeof(buf), "%s value wrong after SetC", name );
+               stopit( errbase + 1, buf, status );
+            }
+            astClear( afc, name );
+            if( astTest( afc, name ) ) {
+               snprintf( buf, sizeof(buf), "%s still set after Clear", name );
+               stopit( errbase + 2, buf, status );
+            }
+         }
+      }
+
+      afc = astAnnul( afc );
+   }
+
 cleanup:
    astEnd;
 
