@@ -1847,6 +1847,52 @@ int main( void ) {
          }
       }
 
+      /* --- 3D FITS-CLASS: celestial + spectral in CLASS encoding --- */
+      {
+         AstFitsChan *hfc3c = astFitsChan( NULL, NULL, " " );
+         astPutFits( hfc3c, "SIMPLE  =                    T", 0 );
+         astPutFits( hfc3c, "BITPIX  =                  -32", 0 );
+         astPutFits( hfc3c, "NAXIS   =                    3", 0 );
+         astPutFits( hfc3c, "NAXIS1  =                  100", 0 );
+         astPutFits( hfc3c, "NAXIS2  =                  100", 0 );
+         astPutFits( hfc3c, "NAXIS3  =                  100", 0 );
+         astPutFits( hfc3c, "CTYPE1  = 'RA---TAN'", 0 );
+         astPutFits( hfc3c, "CTYPE2  = 'DEC--TAN'", 0 );
+         astPutFits( hfc3c, "CTYPE3  = 'FREQ'", 0 );
+         astPutFits( hfc3c, "CRVAL1  =              180.000", 0 );
+         astPutFits( hfc3c, "CRVAL2  =               45.000", 0 );
+         astPutFits( hfc3c, "CRVAL3  =          1.4204e+009", 0 );
+         astPutFits( hfc3c, "CRPIX1  =               50.000", 0 );
+         astPutFits( hfc3c, "CRPIX2  =               50.000", 0 );
+         astPutFits( hfc3c, "CRPIX3  =               50.000", 0 );
+         astPutFits( hfc3c, "CDELT1  =              -0.0100", 0 );
+         astPutFits( hfc3c, "CDELT2  =               0.0100", 0 );
+         astPutFits( hfc3c, "CDELT3  =            1.000e+06", 0 );
+         astPutFits( hfc3c, "CUNIT3  = 'Hz'", 0 );
+         astPutFits( hfc3c, "RADESYS = 'FK5'", 0 );
+         astPutFits( hfc3c, "EQUINOX =               2000.0", 0 );
+         astPutFits( hfc3c, "RESTFRQ =          1.4204e+009", 0 );
+         astPutFits( hfc3c, "SPECSYS = 'LSRK'", 0 );
+         astPutFits( hfc3c, "SSYSOBS = 'TOPOCENT'", 0 );
+         astPutFits( hfc3c, "MJD-OBS =   57955.360174621412", 0 );
+         astPutFits( hfc3c, "OBSGEO-X=  -5464586.5949660344", 0 );
+         astPutFits( hfc3c, "OBSGEO-Y=  -2492996.5580556658", 0 );
+         astPutFits( hfc3c, "OBSGEO-Z=   2150654.3760909005", 0 );
+         astPutFits( hfc3c, "END", 0 );
+         astClear( hfc3c, "Card" );
+         tfs = (AstFrameSet *) astRead( hfc3c );
+         hfc3c = astAnnul( hfc3c );
+         if( tfs ) {
+            AstFitsChan *classfc = astFitsChan( NULL, NULL, " " );
+            astSetC( classfc, "Encoding", "FITS-CLASS" );
+            if( astWrite( classfc, tfs ) != 1 )
+               stopit( 612, "Write failed for 3D FITS-CLASS", status );
+            if( !astOK ) astClearStatus;
+            classfc = astAnnul( classfc );
+            tfs = astAnnul( tfs );
+         }
+      }
+
       /* --- Offset SkyFrame (exercises SkySys SkyRef path) --- */
       {
          AstFitsChan *hfc4 = astFitsChan( NULL, NULL, " " );
