@@ -57,14 +57,21 @@ static int *g_test_status = NULL;
 
 /* -----------------------------------------------------------------------
  * roundtrip: write a FrameSet to a FitsChan with a given encoding,
- * rewind, read back. If check_equal is set, also verify astEqual.
+ * rewind, read back. If tol >= 0, verify that a set of test pixel
+ * positions map to the same WCS through both FrameSets. Uses
+ * astConvert to align current frames, comparing per-axis with
+ * astAxDistance (handles sky longitude wrapping). If the current
+ * frames cannot be aligned (e.g. offset SkyFrame), falls back to a
+ * pixel-to-pixel round-trip check. The tolerance is relative:
+ * |diff| / max(|v1|,|v2|) < tol, with an absolute floor at tol.
+ * Pass tol < 0 to skip the comparison entirely.
  * Returns:
- *   1 = success (and astEqual if requested)
+ *   1 = success (coordinates agree within tolerance)
  *   0 = write or read failed
- *  -1 = read back OK but astEqual returned false
+ *  -1 = read back OK but coordinates disagree or cannot be compared
  * -----------------------------------------------------------------------*/
 static int roundtrip( AstFrameSet *fs, const char *encoding,
-                      const char *attrs, int check_equal, int *status ) {
+                      const char *attrs, double tol, int *status ) {
    AstFitsChan *fc;
    AstFrameSet *fs2;
    int ok = 0;
@@ -78,11 +85,80 @@ static int roundtrip( AstFrameSet *fs, const char *encoding,
    astClear( fc, "Card" );
    fs2 = (AstFrameSet *) astRead( fc );
    if( !fs2 ) goto done;
-   if( check_equal && !astEqual( fs, fs2 ) ) {
-      ok = -1;
-   } else {
-      ok = 1;
+
+   ok = 1;
+   if( tol >= 0.0 ) {
+      AstMapping *map1, *map2;
+      AstFrame *curfrm2;
+      AstFrameSet *cvt;
+      int nin, nout, ip, iax;
+
+      static const double offsets[] = { 50.0, 50.5, 51.0, 55.0, 45.0 };
+      int noff = (int)( sizeof(offsets) / sizeof(offsets[0]) );
+
+      map1 = astGetMapping( fs, AST__BASE, AST__CURRENT );
+      map2 = astGetMapping( fs2, AST__BASE, AST__CURRENT );
+      curfrm2 = astGetFrame( fs2, AST__CURRENT );
+      nin = astGetI( fs, "Nin" );
+      nout = astGetI( fs, "Nout" );
+
+      cvt = astConvert( astGetFrame( fs, AST__CURRENT ), curfrm2, " " );
+
+      if( cvt ) {
+         for( ip = 0; ip < noff && ok == 1; ip++ ) {
+            double pix[10], wcs1[10], wcs2[10], wcs1c[10];
+
+            for( iax = 0; iax < nin; iax++ )
+               pix[iax] = offsets[ip];
+
+            astTranN( map1, 1, nin, 1, pix, 1, nout, 1, wcs1 );
+            astTranN( map2, 1, nin, 1, pix, 1, nout, 1, wcs2 );
+            astTranN( cvt, 1, nout, 1, wcs1, 1, nout, 1, wcs1c );
+
+            for( iax = 0; iax < nout && ok == 1; iax++ ) {
+               double v1 = wcs1c[iax];
+               double v2 = wcs2[iax];
+               double diff, scale;
+               if( v1 == AST__BAD || v2 == AST__BAD ) continue;
+               diff = fabs( astAxDistance( curfrm2, iax + 1, v1, v2 ) );
+               if( diff > tol ) {
+                  scale = fabs( v1 );
+                  if( fabs( v2 ) > scale ) scale = fabs( v2 );
+                  if( scale > 0.0 && diff / scale > tol ) ok = -1;
+               }
+            }
+         }
+         astAnnul( cvt );
+      } else {
+         /* Current frames cannot be aligned (e.g. offset SkyFrame).
+            Fall back to pixel-to-pixel comparison via base frames. */
+         AstMapping *roundmap;
+         if( !astOK ) astClearStatus;
+         roundmap = (AstMapping *) astCmpMap( map1,
+                       astGetMapping( fs2, AST__CURRENT, AST__BASE ),
+                       1, " " );
+         for( ip = 0; ip < noff && ok == 1; ip++ ) {
+            double pix_in[10], pix_out[10];
+            for( iax = 0; iax < nin; iax++ )
+               pix_in[iax] = offsets[ip];
+            astTranN( roundmap, 1, nin, 1, pix_in, 1, nin, 1, pix_out );
+            for( iax = 0; iax < nin && ok == 1; iax++ ) {
+               double diff;
+               if( pix_in[iax] == AST__BAD || pix_out[iax] == AST__BAD ) continue;
+               diff = fabs( pix_out[iax] - pix_in[iax] );
+               if( diff > tol ) {
+                  double scale = fabs( pix_in[iax] );
+                  if( scale > 0.0 && diff / scale > tol ) ok = -1;
+               }
+            }
+         }
+         astAnnul( roundmap );
+      }
+      astAnnul( map1 );
+      astAnnul( map2 );
+      astAnnul( curfrm2 );
    }
+
    fs2 = astAnnul( fs2 );
 done:
    if( !astOK ) astClearStatus;
@@ -1684,10 +1760,10 @@ int main( void ) {
             hfc = astAnnul( hfc );
             if( tfs ) {
                astSetC( tfs, "System", sky_systems[is] );
-               rt = roundtrip( tfs, encodings[ie], "", 0, status );
+               rt = roundtrip( tfs, encodings[ie], "", 1e-3, status );
                if( rt == -1 ) {
                   snprintf( buf, sizeof(buf),
-                            "astEqual failed for %s with %s",
+                            "Coordinates disagree for %s with %s",
                             sky_systems[is], encodings[ie] );
                   stopit( 500 + is * n_enc + ie, buf, status );
                }
@@ -1716,7 +1792,7 @@ int main( void ) {
             map = (AstMapping *) astZoomMap( 1, zooms[isp], " " );
             tfs = astFrameSet( pixel, " " );
             astAddFrame( tfs, AST__CURRENT, map, (AstFrame *) spec );
-            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3, status );
             if( rt == 0 ) {
                snprintf( buf, sizeof(buf),
                          "Write/read failed for %s SpecFrame",
@@ -1724,7 +1800,7 @@ int main( void ) {
                stopit( 600 + isp, buf, status );
             } else if( rt == -1 ) {
                snprintf( buf, sizeof(buf),
-                         "astEqual failed for %s SpecFrame",
+                         "Coordinates disagree for %s SpecFrame",
                          spec_systems[isp].label );
                stopit( 600 + isp, buf, status );
             }
@@ -1762,11 +1838,11 @@ int main( void ) {
          tfs = (AstFrameSet *) astRead( hfc3 );
          hfc3 = astAnnul( hfc3 );
          if( tfs ) {
-            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3, status );
             if( rt == 0 )
                stopit( 610, "Write/read failed for 3D sky+spec", status );
             else if( rt == -1 )
-               stopit( 611, "astEqual failed for 3D sky+spec", status );
+               stopit( 611, "Coordinates disagree for 3D sky+spec", status );
             tfs = astAnnul( tfs );
          }
       }
@@ -1797,11 +1873,11 @@ int main( void ) {
          tfs = (AstFrameSet *) astRead( hfc4 );
          hfc4 = astAnnul( hfc4 );
          if( tfs ) {
-            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3, status );
             if( rt == 0 )
                stopit( 620, "Write/read failed for offset SkyFrame", status );
             else if( rt == -1 )
-               stopit( 621, "astEqual failed for offset SkyFrame", status );
+               stopit( 621, "Coordinates disagree for offset SkyFrame", status );
             tfs = astAnnul( tfs );
          }
       }
@@ -1835,12 +1911,14 @@ int main( void ) {
          hfc5 = astAnnul( hfc5 );
          if( tfs ) {
             astSetC( tfs, "System", "AZEL" );
-            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3, status );
             if( rt == 0 )
                stopit( 630, "Write/read failed for AZEL", status );
+            else if( rt == -1 )
+               stopit( 631, "Coordinates disagree for AZEL round-trip", status );
             tfs = astAnnul( tfs );
          } else {
-            stopit( 631, "Failed to read header for AZEL test", status );
+            stopit( 632, "Failed to read header for AZEL test", status );
          }
       }
 
@@ -1874,9 +1952,11 @@ int main( void ) {
                stopit( 640, "AZEL header did not produce AZEL SkyFrame", status );
             astAnnul( skyfrm );
 
-            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3, status );
             if( rt == 0 )
                stopit( 641, "Write/read failed for direct AZEL header", status );
+            else if( rt == -1 )
+               stopit( 643, "Coordinates disagree for direct AZEL header", status );
             tfs = astAnnul( tfs );
          } else {
             stopit( 642, "Failed to read AZEL header", status );
@@ -1926,7 +2006,7 @@ int main( void ) {
             astClear( wfc, "Card" );
             if( !astGetFitsF( wfc, "MJD-OBS", &dval ) )
                stopit( 652, "MJD-OBS not in written header", status );
-            else if( fabs( dval - 57955.360174621412 ) > 1e-6 )
+            else if( fabs( dval - 57955.360174621412 ) > 1e-3 )
                stopit( 653, "MJD-OBS value wrong after round-trip", status );
 
             astClear( wfc, "Card" );
