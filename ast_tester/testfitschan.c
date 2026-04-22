@@ -1733,7 +1733,7 @@ int main( void ) {
       int n_sky = (int)( sizeof(sky_systems) / sizeof(sky_systems[0]) );
 
       static const char *encodings[] = {
-         "FITS-WCS", "FITS-PC", "FITS-IRAF", "FITS-AIPS",
+         "FITS-WCS", "FITS-PC", "FITS-IRAF", "FITS-AIPS", "FITS-AIPS++",
       };
       int n_enc = (int)( sizeof(encodings) / sizeof(encodings[0]) );
       int is, ie;
