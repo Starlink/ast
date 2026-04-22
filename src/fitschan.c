@@ -1289,6 +1289,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *     22-APR-2026 (TIMJ):
 *        Fix memory leak in WATCoeffs when reading TNX headers with
 *        Chebyshev polynomial coefficients.
+*        Fix null pointer dereference in ClassTrans when CardName
+*        returns NULL after the card pointer moves past the end.
+*        The original code used a VELO-%3c wildcard match followed by
+*        CardName to determine which VELO-xxx keyword was found, but
+*        CardName returns the current card (which has moved on), not
+*        the matched card. Replaced with explicit lookups for each
+*        VELO-xxx variant.
 *class--
 */
 
@@ -7026,40 +7033,50 @@ static void ClassTrans( AstFitsChan *this, AstFitsChan *ret, int axlat,
       }
    }
 
-/* Look for a keyword with name "VELO-...". This specifies the radio velocity
-   at the reference channel, in a standard of rest specified by the "..."
-   in the keyword name. If "VELO-..." is not found, look for "VLSR",
-   which is the same as "VELO-LSR". */
-   if( GetValue2( ret, this, "VELO-%3c", AST__FLOAT, (void *) &vref, 0,
-                  method, class, status ) ||
-       GetValue2( ret, this, "VLSR", AST__FLOAT, (void *) &vref, 0,
+/* Look for specific "VELO-..." keywords. The standard of rest is
+   determined by the keyword name. Try each variant explicitly rather
+   than using a wildcard and CardName (which returns the card the
+   pointer has moved to, not the card that matched). */
+   ssyssrc = NULL;
+   if( GetValue2( ret, this, "VELO-HEL", AST__FLOAT, (void *) &vref, 0,
                   method, class, status ) ){
+      ssyssrc = "BARYCENT";
+   } else if( GetValue2( ret, this, "VELO-OBS", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ||
+              GetValue2( ret, this, "VELO-TOP", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ){
+      ssyssrc = "TOPOCENT";
+   } else if( GetValue2( ret, this, "VELO-EAR", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ||
+              GetValue2( ret, this, "VELO-GEO", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ){
+      ssyssrc = "GEOCENTR";
+   } else if( GetValue2( ret, this, "VELO-LSR", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ||
+              GetValue2( ret, this, "VLSR", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ){
+      ssyssrc = "LSRK";
+   } else {
+      Warn( this, "badval", "A FITS-CLASS header was identified (DELTAV "
+            "and VLSR/VELO-xxx present) but no usable velocity reference "
+            "keyword was found. Assuming LSRK.", method, class, status );
+      ssyssrc = "LSRK";
+      vref = 0.0;
+   }
 
 /* Calculate the radio velocity (in the rest frame of the source) corresponding
    to the frequency at the reference channel. */
-      v0 = AST__C*( restfreq - crval )/restfreq;
+   v0 = AST__C*( restfreq - crval )/restfreq;
 
 /* Assume that the source velocity is the difference between this velocity
    and the reference channel velocity given by "VELO-..." */
-      vsource = vref - v0;
+   vsource = vref - v0;
 
-/* Get the keyword name and find the corresponding SSYSSRC keyword value. */
-      keyname = CardName( this, status );
-      if( !strcmp( keyname, "VELO-HEL" ) ) {
-         ssyssrc = "BARYCENT";
-      } else if( !strcmp( keyname, "VELO-OBS" ) || !strcmp( keyname, "VELO-TOP" ) ) {
-         ssyssrc = "TOPOCENT";
-      } else if( !strcmp( keyname, "VELO-EAR" ) || !strcmp( keyname, "VELO-GEO" ) ) {
-         ssyssrc = "GEOCENTR";
-      } else {
-         ssyssrc = "LSRK";
-      }
-      SetValue( ret, "SSYSSRC", (void *) &ssyssrc, AST__STRING, NULL, status );
+   SetValue( ret, "SSYSSRC", (void *) &ssyssrc, AST__STRING, NULL, status );
 
 /* Convert from radio velocity to redshift and store as ZSOURCE */
-      zsource = ( AST__C / (AST__C - vsource) ) - 1.0;
-      SetValue( ret, "ZSOURCE", (void *) &zsource, AST__FLOAT, NULL, status );
-   }
+   zsource = ( AST__C / (AST__C - vsource) ) - 1.0;
+   SetValue( ret, "ZSOURCE", (void *) &zsource, AST__FLOAT, NULL, status );
 }
 
 static void ClearAttrib( AstObject *this_object, const char *attrib, int *status ) {

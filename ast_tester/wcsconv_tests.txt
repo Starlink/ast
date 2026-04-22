@@ -41,3 +41,5 @@ freq-f2w_native     | freq-f2w.head                  | freq-f2w.native    | nati
 tan-pv0_native      | tan-pv0.head                   | tan-pv0.native     | native    |                                  | yes
 tnx-cheb_native     | tnx-cheb.head                  | tnx-cheb.native    | native    |                                  | yes
 grism_native        | grism.head                     | grism.native       | native    |                                  | yes
+class-spec_native   | class-spec.head                | class-spec.native  | native    |                                  | yes
+class-hel_native    | class-spec-hel.head            | class-spec-hel.native | native |                                  | yes
