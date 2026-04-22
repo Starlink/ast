@@ -1644,9 +1644,6 @@ int main( void ) {
       };
       int n_sky = (int)( sizeof(sky_systems) / sizeof(sky_systems[0]) );
 
-      /* AZEL is excluded: it requires observer position and epoch to
-         round-trip, which a simple test header doesn't provide. */
-
       static const char *encodings[] = {
          "FITS-WCS", "FITS-PC", "FITS-IRAF", "FITS-AIPS",
       };
@@ -1794,6 +1791,152 @@ int main( void ) {
             else if( rt == -1 )
                stopit( 621, "astEqual failed for offset SkyFrame", status );
             tfs = astAnnul( tfs );
+         }
+      }
+
+      /* --- AZEL: read a standard header with observer position and epoch,
+             convert to AZEL, then round-trip through FITS-WCS --- */
+      {
+         AstFitsChan *hfc5 = astFitsChan( NULL, NULL, " " );
+         astPutFits( hfc5, "SIMPLE  =                    T", 0 );
+         astPutFits( hfc5, "BITPIX  =                  -32", 0 );
+         astPutFits( hfc5, "NAXIS   =                    2", 0 );
+         astPutFits( hfc5, "NAXIS1  =                  100", 0 );
+         astPutFits( hfc5, "NAXIS2  =                  100", 0 );
+         astPutFits( hfc5, "CTYPE1  = 'RA---TAN'", 0 );
+         astPutFits( hfc5, "CTYPE2  = 'DEC--TAN'", 0 );
+         astPutFits( hfc5, "CRVAL1  =              180.000", 0 );
+         astPutFits( hfc5, "CRVAL2  =               45.000", 0 );
+         astPutFits( hfc5, "CRPIX1  =               50.500", 0 );
+         astPutFits( hfc5, "CRPIX2  =               50.500", 0 );
+         astPutFits( hfc5, "CDELT1  =              -0.0100", 0 );
+         astPutFits( hfc5, "CDELT2  =               0.0100", 0 );
+         astPutFits( hfc5, "RADESYS = 'FK5'", 0 );
+         astPutFits( hfc5, "EQUINOX =               2000.0", 0 );
+         astPutFits( hfc5, "DATE-OBS= '2017-07-21T08:38:39.087'", 0 );
+         astPutFits( hfc5, "OBSGEO-X=  -5464586.5949660344", 0 );
+         astPutFits( hfc5, "OBSGEO-Y=  -2492996.5580556658", 0 );
+         astPutFits( hfc5, "OBSGEO-Z=   2150654.3760909005", 0 );
+         astPutFits( hfc5, "END", 0 );
+         astClear( hfc5, "Card" );
+         tfs = (AstFrameSet *) astRead( hfc5 );
+         hfc5 = astAnnul( hfc5 );
+         if( tfs ) {
+            astSetC( tfs, "System", "AZEL" );
+            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            if( rt == 0 )
+               stopit( 630, "Write/read failed for AZEL", status );
+            tfs = astAnnul( tfs );
+         } else {
+            stopit( 631, "Failed to read header for AZEL test", status );
+         }
+      }
+
+      /* --- AZEL: read an AZ/EL header directly --- */
+      {
+         AstFitsChan *hfc6 = astFitsChan( NULL, NULL, " " );
+         astPutFits( hfc6, "SIMPLE  =                    T", 0 );
+         astPutFits( hfc6, "BITPIX  =                  -32", 0 );
+         astPutFits( hfc6, "NAXIS   =                    2", 0 );
+         astPutFits( hfc6, "NAXIS1  =                  100", 0 );
+         astPutFits( hfc6, "NAXIS2  =                  100", 0 );
+         astPutFits( hfc6, "CTYPE1  = 'AZ---TAN'", 0 );
+         astPutFits( hfc6, "CTYPE2  = 'EL---TAN'", 0 );
+         astPutFits( hfc6, "CRVAL1  =              185.000", 0 );
+         astPutFits( hfc6, "CRVAL2  =               60.000", 0 );
+         astPutFits( hfc6, "CRPIX1  =               50.500", 0 );
+         astPutFits( hfc6, "CRPIX2  =               50.500", 0 );
+         astPutFits( hfc6, "CDELT1  =              -0.0100", 0 );
+         astPutFits( hfc6, "CDELT2  =               0.0100", 0 );
+         astPutFits( hfc6, "DATE-OBS= '2017-07-21T08:38:39.087'", 0 );
+         astPutFits( hfc6, "OBSGEO-X=  -5464586.5949660344", 0 );
+         astPutFits( hfc6, "OBSGEO-Y=  -2492996.5580556658", 0 );
+         astPutFits( hfc6, "OBSGEO-Z=   2150654.3760909005", 0 );
+         astPutFits( hfc6, "END", 0 );
+         astClear( hfc6, "Card" );
+         tfs = (AstFrameSet *) astRead( hfc6 );
+         hfc6 = astAnnul( hfc6 );
+         if( tfs ) {
+            AstFrame *skyfrm = astGetFrame( tfs, AST__CURRENT );
+            if( strcmp( astGetC( skyfrm, "System" ), "AZEL" ) != 0 )
+               stopit( 640, "AZEL header did not produce AZEL SkyFrame", status );
+            astAnnul( skyfrm );
+
+            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            if( rt == 0 )
+               stopit( 641, "Write/read failed for direct AZEL header", status );
+            tfs = astAnnul( tfs );
+         } else {
+            stopit( 642, "Failed to read AZEL header", status );
+         }
+      }
+
+      /* --- DATE-OBS and OBSGEO propagation: verify metadata survives
+             a FITS-WCS round-trip --- */
+      {
+         AstFitsChan *hfc7 = astFitsChan( NULL, NULL, " " );
+         AstFitsChan *wfc;
+         AstFrameSet *tfs7;
+         double dval;
+
+         astPutFits( hfc7, "SIMPLE  =                    T", 0 );
+         astPutFits( hfc7, "BITPIX  =                  -32", 0 );
+         astPutFits( hfc7, "NAXIS   =                    2", 0 );
+         astPutFits( hfc7, "NAXIS1  =                  100", 0 );
+         astPutFits( hfc7, "NAXIS2  =                  100", 0 );
+         astPutFits( hfc7, "CTYPE1  = 'RA---TAN'", 0 );
+         astPutFits( hfc7, "CTYPE2  = 'DEC--TAN'", 0 );
+         astPutFits( hfc7, "CRVAL1  =              180.000", 0 );
+         astPutFits( hfc7, "CRVAL2  =               45.000", 0 );
+         astPutFits( hfc7, "CRPIX1  =               50.500", 0 );
+         astPutFits( hfc7, "CRPIX2  =               50.500", 0 );
+         astPutFits( hfc7, "CDELT1  =              -0.0100", 0 );
+         astPutFits( hfc7, "CDELT2  =               0.0100", 0 );
+         astPutFits( hfc7, "RADESYS = 'FK5'", 0 );
+         astPutFits( hfc7, "EQUINOX =               2000.0", 0 );
+         astPutFits( hfc7, "MJD-OBS =   57955.360174621412", 0 );
+         astPutFits( hfc7, "DATE-OBS= '2017-07-21T08:38:39.087'", 0 );
+         astPutFits( hfc7, "OBSGEO-X=  -5464586.5949660344", 0 );
+         astPutFits( hfc7, "OBSGEO-Y=  -2492996.5580556658", 0 );
+         astPutFits( hfc7, "OBSGEO-Z=   2150654.3760909005", 0 );
+         astPutFits( hfc7, "END", 0 );
+         astClear( hfc7, "Card" );
+         tfs7 = (AstFrameSet *) astRead( hfc7 );
+         hfc7 = astAnnul( hfc7 );
+         if( !tfs7 ) {
+            stopit( 650, "Failed to read header with DATE-OBS/OBSGEO", status );
+         } else {
+            wfc = astFitsChan( NULL, NULL, " " );
+            astSetC( wfc, "Encoding", "FITS-WCS" );
+            if( astWrite( wfc, tfs7 ) != 1 )
+               stopit( 651, "Failed to write header with DATE-OBS/OBSGEO", status );
+
+            astClear( wfc, "Card" );
+            if( !astGetFitsF( wfc, "MJD-OBS", &dval ) )
+               stopit( 652, "MJD-OBS not in written header", status );
+            else if( fabs( dval - 57955.360174621412 ) > 1e-6 )
+               stopit( 653, "MJD-OBS value wrong after round-trip", status );
+
+            astClear( wfc, "Card" );
+            if( !astGetFitsF( wfc, "OBSGEO-X", &dval ) )
+               stopit( 654, "OBSGEO-X not in written header", status );
+            else if( fabs( dval - (-5464586.5949660344) ) > 1.0 )
+               stopit( 655, "OBSGEO-X value wrong after round-trip", status );
+
+            astClear( wfc, "Card" );
+            if( !astGetFitsF( wfc, "OBSGEO-Y", &dval ) )
+               stopit( 656, "OBSGEO-Y not in written header", status );
+            else if( fabs( dval - (-2492996.5580556658) ) > 1.0 )
+               stopit( 657, "OBSGEO-Y value wrong after round-trip", status );
+
+            astClear( wfc, "Card" );
+            if( !astGetFitsF( wfc, "OBSGEO-Z", &dval ) )
+               stopit( 658, "OBSGEO-Z not in written header", status );
+            else if( fabs( dval - 2150654.3760909005 ) > 1.0 )
+               stopit( 659, "OBSGEO-Z value wrong after round-trip", status );
+
+            wfc = astAnnul( wfc );
+            tfs7 = astAnnul( tfs7 );
          }
       }
    }
