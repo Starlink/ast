@@ -45,3 +45,7 @@ class-spec_native   | class-spec.head                | class-spec.native  | nati
 class-hel_native    | class-spec-hel.head            | class-spec-hel.native | native |                                  | yes
 multi-wcs_native    | multi-wcs.head                 | multi-wcs.native   | native    |                                  | yes
 multi-wcs_fits-wcs  | multi-wcs.head                 | multi-wcs.fits-wcs | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+degen-wcsaxes_native| degen-wcsaxes.head             | degen-wcsaxes.native | native  |                                  | yes
+wave-w2f_native     | wave-w2f.head                  | wave-w2f.native    | native    |                                  | yes
+vrad-v2f_native     | vrad-v2f.head                  | vrad-v2f.native    | native    |                                  | yes
+tan-polytan_native  | tan-polytan.head               | tan-polytan.native | native    |                                  | yes
