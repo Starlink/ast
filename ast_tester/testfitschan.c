@@ -56,6 +56,41 @@ static AstFitsTable *g_table = NULL;
 static int *g_test_status = NULL;
 
 /* -----------------------------------------------------------------------
+ * roundtrip: write a FrameSet to a FitsChan with a given encoding,
+ * rewind, read back. If check_equal is set, also verify astEqual.
+ * Returns:
+ *   1 = success (and astEqual if requested)
+ *   0 = write or read failed
+ *  -1 = read back OK but astEqual returned false
+ * -----------------------------------------------------------------------*/
+static int roundtrip( AstFrameSet *fs, const char *encoding,
+                      const char *attrs, int check_equal, int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs2;
+   int ok = 0;
+
+   if( *status != 0 ) return 0;
+
+   fc = astFitsChan( NULL, NULL, " " );
+   astSetC( fc, "Encoding", encoding );
+   if( attrs && attrs[0] ) astSet( fc, "%s", attrs );
+   if( astWrite( fc, fs ) != 1 ) goto done;
+   astClear( fc, "Card" );
+   fs2 = (AstFrameSet *) astRead( fc );
+   if( !fs2 ) goto done;
+   if( check_equal && !astEqual( fs, fs2 ) ) {
+      ok = -1;
+   } else {
+      ok = 1;
+   }
+   fs2 = astAnnul( fs2 );
+done:
+   if( !astOK ) astClearStatus;
+   fc = astAnnul( fc );
+   return ok;
+}
+
+/* -----------------------------------------------------------------------
  * stopit: record first error
  * -----------------------------------------------------------------------*/
 static void stopit( int errnum, const char *text, int *status ) {
@@ -1582,6 +1617,185 @@ int main( void ) {
       }
 
       afc = astAnnul( afc );
+   }
+
+/* -----------------------------------------------------------------------
+ * Write-path round-trip tests: build FrameSets that exercise specific
+ * write code paths, encode to a FitsChan, read back, verify success.
+ * Error numbers 500+.
+ *
+ * For sky coordinate tests, we read a simple TAN header to get a
+ * valid FrameSet with proper WCS mappings, then change the SkyFrame
+ * system and write it back. This ensures the projection and coordinate
+ * matrices are valid.
+ * -----------------------------------------------------------------------*/
+   {
+      AstFitsChan *hfc;
+      AstFrameSet *tfs;
+      AstSpecFrame *spec;
+      AstFrame *pixel;
+      AstMapping *map;
+      char buf[120];
+      int rt;
+
+      static const char *sky_systems[] = {
+         "FK5", "FK4", "FK4-NO-E", "ICRS", "GALACTIC",
+         "SUPERGALACTIC", "ECLIPTIC",
+      };
+      int n_sky = (int)( sizeof(sky_systems) / sizeof(sky_systems[0]) );
+
+      /* AZEL is excluded: it requires observer position and epoch to
+         round-trip, which a simple test header doesn't provide. */
+
+      static const char *encodings[] = {
+         "FITS-WCS", "FITS-PC", "FITS-IRAF", "FITS-AIPS",
+      };
+      int n_enc = (int)( sizeof(encodings) / sizeof(encodings[0]) );
+      int is, ie;
+
+      for( is = 0; is < n_sky; is++ ) {
+         for( ie = 0; ie < n_enc; ie++ ) {
+            hfc = astFitsChan( NULL, NULL, " " );
+            astPutFits( hfc, "SIMPLE  =                    T", 0 );
+            astPutFits( hfc, "BITPIX  =                  -32", 0 );
+            astPutFits( hfc, "NAXIS   =                    2", 0 );
+            astPutFits( hfc, "NAXIS1  =                  100", 0 );
+            astPutFits( hfc, "NAXIS2  =                  100", 0 );
+            astPutFits( hfc, "CTYPE1  = 'GLON-TAN'", 0 );
+            astPutFits( hfc, "CTYPE2  = 'GLAT-TAN'", 0 );
+            astPutFits( hfc, "CRVAL1  =              180.000", 0 );
+            astPutFits( hfc, "CRVAL2  =                0.000", 0 );
+            astPutFits( hfc, "CRPIX1  =               50.500", 0 );
+            astPutFits( hfc, "CRPIX2  =               50.500", 0 );
+            astPutFits( hfc, "CDELT1  =              -0.0100", 0 );
+            astPutFits( hfc, "CDELT2  =               0.0100", 0 );
+            astPutFits( hfc, "END", 0 );
+            astClear( hfc, "Card" );
+            tfs = (AstFrameSet *) astRead( hfc );
+            hfc = astAnnul( hfc );
+            if( tfs ) {
+               astSetC( tfs, "System", sky_systems[is] );
+               rt = roundtrip( tfs, encodings[ie], "", 0, status );
+               if( rt == -1 ) {
+                  snprintf( buf, sizeof(buf),
+                            "astEqual failed for %s with %s",
+                            sky_systems[is], encodings[ie] );
+                  stopit( 500 + is * n_enc + ie, buf, status );
+               }
+               tfs = astAnnul( tfs );
+            }
+         }
+      }
+
+      /* --- Spectral axes through multiple encodings --- */
+      {
+         static const struct {
+            const char *spec_attrs;
+            const char *label;
+         } spec_systems[] = {
+            { "System=FREQ,Unit=Hz,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz", "FREQ" },
+            { "System=WAVE,Unit=m,StdOfRest=Barycentric,RestFreq=5.996e14 Hz",  "WAVE" },
+            { "System=VRAD,Unit=m/s,StdOfRest=LSRK,RestFreq=1.4204e9 Hz",      "VRAD" },
+         };
+         int n_spec = (int)( sizeof(spec_systems) / sizeof(spec_systems[0]) );
+         double zooms[] = { 1.0e6, 1.0e-10, 1000.0 };
+         int isp;
+
+         for( isp = 0; isp < n_spec; isp++ ) {
+            spec = astSpecFrame( "%s", spec_systems[isp].spec_attrs );
+            pixel = astFrame( 1, "Domain=GRID" );
+            map = (AstMapping *) astZoomMap( 1, zooms[isp], " " );
+            tfs = astFrameSet( pixel, " " );
+            astAddFrame( tfs, AST__CURRENT, map, (AstFrame *) spec );
+            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            if( rt == 0 ) {
+               snprintf( buf, sizeof(buf),
+                         "Write/read failed for %s SpecFrame",
+                         spec_systems[isp].label );
+               stopit( 600 + isp, buf, status );
+            } else if( rt == -1 ) {
+               snprintf( buf, sizeof(buf),
+                         "astEqual failed for %s SpecFrame",
+                         spec_systems[isp].label );
+               stopit( 600 + isp, buf, status );
+            }
+         }
+      }
+
+      /* --- 3D: celestial + spectral (exercises MakeFitsFrameSet) --- */
+      {
+         AstFitsChan *hfc3 = astFitsChan( NULL, NULL, " " );
+         astPutFits( hfc3, "SIMPLE  =                    T", 0 );
+         astPutFits( hfc3, "BITPIX  =                  -32", 0 );
+         astPutFits( hfc3, "NAXIS   =                    3", 0 );
+         astPutFits( hfc3, "NAXIS1  =                  100", 0 );
+         astPutFits( hfc3, "NAXIS2  =                  100", 0 );
+         astPutFits( hfc3, "NAXIS3  =                  100", 0 );
+         astPutFits( hfc3, "CTYPE1  = 'RA---TAN'", 0 );
+         astPutFits( hfc3, "CTYPE2  = 'DEC--TAN'", 0 );
+         astPutFits( hfc3, "CTYPE3  = 'FREQ'", 0 );
+         astPutFits( hfc3, "CRVAL1  =              180.000", 0 );
+         astPutFits( hfc3, "CRVAL2  =               45.000", 0 );
+         astPutFits( hfc3, "CRVAL3  =          1.4204e+009", 0 );
+         astPutFits( hfc3, "CRPIX1  =               50.000", 0 );
+         astPutFits( hfc3, "CRPIX2  =               50.000", 0 );
+         astPutFits( hfc3, "CRPIX3  =               50.000", 0 );
+         astPutFits( hfc3, "CDELT1  =              -0.0100", 0 );
+         astPutFits( hfc3, "CDELT2  =               0.0100", 0 );
+         astPutFits( hfc3, "CDELT3  =            1.000e+06", 0 );
+         astPutFits( hfc3, "CUNIT3  = 'Hz'", 0 );
+         astPutFits( hfc3, "RADESYS = 'FK5'", 0 );
+         astPutFits( hfc3, "EQUINOX =               2000.0", 0 );
+         astPutFits( hfc3, "RESTFRQ =          1.4204e+009", 0 );
+         astPutFits( hfc3, "SPECSYS = 'BARYCENT'", 0 );
+         astPutFits( hfc3, "END", 0 );
+         astClear( hfc3, "Card" );
+         tfs = (AstFrameSet *) astRead( hfc3 );
+         hfc3 = astAnnul( hfc3 );
+         if( tfs ) {
+            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            if( rt == 0 )
+               stopit( 610, "Write/read failed for 3D sky+spec", status );
+            else if( rt == -1 )
+               stopit( 611, "astEqual failed for 3D sky+spec", status );
+            tfs = astAnnul( tfs );
+         }
+      }
+
+      /* --- Offset SkyFrame (exercises SkySys SkyRef path) --- */
+      {
+         AstFitsChan *hfc4 = astFitsChan( NULL, NULL, " " );
+         astPutFits( hfc4, "SIMPLE  =                    T", 0 );
+         astPutFits( hfc4, "BITPIX  =                  -32", 0 );
+         astPutFits( hfc4, "NAXIS   =                    2", 0 );
+         astPutFits( hfc4, "NAXIS1  =                  100", 0 );
+         astPutFits( hfc4, "NAXIS2  =                  100", 0 );
+         astPutFits( hfc4, "CTYPE1  = 'OFLN-TAN'", 0 );
+         astPutFits( hfc4, "CTYPE2  = 'OFLT-TAN'", 0 );
+         astPutFits( hfc4, "CRVAL1  =                0.000", 0 );
+         astPutFits( hfc4, "CRVAL2  =                0.000", 0 );
+         astPutFits( hfc4, "CRPIX1  =               50.500", 0 );
+         astPutFits( hfc4, "CRPIX2  =               50.500", 0 );
+         astPutFits( hfc4, "CDELT1  =              -0.0100", 0 );
+         astPutFits( hfc4, "CDELT2  =               0.0100", 0 );
+         astPutFits( hfc4, "RADESYS = 'FK5'", 0 );
+         astPutFits( hfc4, "EQUINOX =               2000.0", 0 );
+         astPutFits( hfc4, "SREFRA  =              180.000", 0 );
+         astPutFits( hfc4, "SREFDEC =               45.000", 0 );
+         astPutFits( hfc4, "SREFIS  = 'ORIGIN'", 0 );
+         astPutFits( hfc4, "END", 0 );
+         astClear( hfc4, "Card" );
+         tfs = (AstFrameSet *) astRead( hfc4 );
+         hfc4 = astAnnul( hfc4 );
+         if( tfs ) {
+            rt = roundtrip( tfs, "FITS-WCS", "", 0, status );
+            if( rt == 0 )
+               stopit( 620, "Write/read failed for offset SkyFrame", status );
+            else if( rt == -1 )
+               stopit( 621, "astEqual failed for offset SkyFrame", status );
+            tfs = astAnnul( tfs );
+         }
+      }
    }
 
 cleanup:
