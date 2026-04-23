@@ -56,3 +56,16 @@ velo-aips_native    | velo-aips.head                 | velo-aips.native   | nati
 awav-a2f_native     | awav-a2f.head                  | awav-a2f.native    | native    |                                  | yes
 tan-zeropv_native   | tan-zeropv.head                | tan-zeropv.native  | native    |                                  | yes
 cube-reorder_native | cube-reorder.head              | cube-reorder.native| native    |                                  | yes
+ncp_native          | ncp.head                       | ncp.native         | native    |                                  | yes
+velo-vel_native     | velo-vel.head                  | velo-vel.native    | native    |                                  | yes
+vopt-wav_native     | vopt-wav.head                  | vopt-wav.native    | native    |                                  | yes
+zopt-frq_native     | zopt-frq.head                  | zopt-frq.native    | native    |                                  | yes
+cname_native        | cname.head                     | cname.native       | native    |                                  | yes
+skyref_native       | skyref.head                    | skyref.native      | native    |                                  | yes
+fits-pc-unit_native | fits-pc-unit.head              | fits-pc-unit.native| native    |                                  | yes
+gls_native          | gls.head                       | gls.native         | native    |                                  | yes
+iraf-longpole_native| iraf-longpole.head             | iraf-longpole.native| native   |                                  | yes
+multi-wcs-spec_native| multi-wcs-spec.head            | multi-wcs-spec.native| native  |                                  | yes
+freq-wav_native     | freq-wav.head                  | freq-wav.native    | native    |                                  | yes
+wavn-frq_native     | wavn-frq.head                  | wavn-frq.native    | native    |                                  | yes
+mercator_native     | mercator.head                  | mercator.native    | native    |                                  | yes
