@@ -43,6 +43,7 @@
 
 #include "ast.h"
 #include "ast_err.h"
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -275,16 +276,22 @@ static void tabsource( AstFitsChan *fc, const char *extnam, int extver,
    if( astOK ) *status = 1;
 }
 
+
 /* -----------------------------------------------------------------------
  * readobj: read an AST object from a file using a Channel
  * -----------------------------------------------------------------------*/
 static AstObject *readobj( const char *file, int *status ) {
    AstChannel *ch;
    AstObject *obj;
-   char opts[256];
+   char opts[PATH_MAX];
    if( *status != 0 ) return NULL;
 
-   snprintf(opts, sizeof(opts), "SourceFile=%s", file);
+   const char *srcdir = getenv("srcdir") ? getenv("srcdir") : ".";
+   if ( snprintf(opts, sizeof(opts), "SourceFile=%s/%s", srcdir, file) < 0 ) {
+      *status = 1;
+      return NULL;
+   }
+
    ch = astChannel( NULL, NULL, "%s", opts );
    obj = astRead( ch );
    astAnnul( ch );
@@ -1282,6 +1289,7 @@ int main( void ) {
    char card[81];
    char *cval;
    double xin, yin, xout, yout;
+   const char *srcdir;
 
    /* Storage for FITS cards */
    char cards[10][81];
@@ -1296,6 +1304,9 @@ int main( void ) {
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
+   /* Set the fixture source directory from the srcdir environment variable
+    * or fall back to "." */
+   srcdir = getenv("srcdir") ? getenv("srcdir") : ".";
 
    /* Create a FitsChan that will write its contents to fred.txt when deleted */
    fc = astFitsChan( NULL, NULL, "SinkFile=./fred.txt" );
@@ -1671,7 +1682,7 @@ int main( void ) {
     * ---------------------------------------------------------------*/
    astEmptyFits( fc );
    astSetI( fc, "SipOK", 0 );
-   astSet( fc, "SourceFile=fixtures/wcsconv/inputs/sip.head" );
+   astSet( fc, "SourceFile=%s/fixtures/wcsconv/inputs/sip.head", srcdir );
    astClear( fc, "Card" );
    fs = (AstFrameSet *)astRead( fc );
    astSet( fc, "Encoding=FITS-WCS" );
@@ -1690,7 +1701,7 @@ int main( void ) {
    if( astOK && astGetI( fc, "IgnoreBadAlt" ) )
       stopit( 14, " ", status );
 
-   astSet( fc, "SourceFile=fixtures/programs/testfitschan/alt.header" );
+   astSet( fc, "SourceFile=%s/fixtures/programs/testfitschan/alt.header", srcdir );
    astClear( fc, "Card" );
    fs = (AstFrameSet *)astRead( fc );
 
@@ -1709,7 +1720,7 @@ int main( void ) {
       stopit( 16, " ", status );
 
    astEmptyFits( fc );
-   astSet( fc, "SourceFile=fixtures/programs/testfitschan/alt.header" );
+   astSet( fc, "SourceFile=%s/fixtures/programs/testfitschan/alt.header", srcdir );
    astClear( fc, "Card" );
    fs = (AstFrameSet *)astRead( fc );
 
@@ -1723,7 +1734,7 @@ int main( void ) {
    if( fs ) astAnnul( fs );
 
    astEmptyFits( fc );
-   astSet( fc, "SourceFile=fixtures/programs/testfitschan/alt.header" );
+   astSet( fc, "SourceFile=%s/fixtures/programs/testfitschan/alt.header", srcdir );
    astSet( fc, "Warnings=BadAlt" );
 
    astClear( fc, "Card" );
