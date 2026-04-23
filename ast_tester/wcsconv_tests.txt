@@ -83,3 +83,7 @@ timesys-tt_native   | timesys-tt.head                | timesys-tt.native  | nati
 skyref-alt_native   | skyref-alt.head                | skyref-alt.native  | native    |                                  | yes
 axref_native        | axref.head                     | axref.native       | native    |                                  | yes
 unknown-cel_native  | unknown-cel.head               | unknown-cel.native | native    |                                  | yes
+projp-pv_native     | projp-pv.head                  | projp-pv.native    | native    |                                  | yes
+cd-old_native       | cd-old.head                    | cd-old.native      | native    |                                  | yes
+fk4-noeq_native     | fk4-noeq.head                  | fk4-noeq.native    | native    |                                  | yes
+unknown-cel2_native | unknown-cel2.head              | unknown-cel2.native| native    |                                  | yes
