@@ -62,11 +62,21 @@ $need_config_h = 0;
 # This is most typically '.', but can be different.
 $srcdir = '.';
 
+# Location of build-tree files (makefile variable $(builddir)).
+# Generated headers (ast_err.h, src/version.h, src/object.h, etc.) live here
+# rather than in $srcdir for out-of-source builds.  Defaults to '.'.
+$builddir = '.';
+
 while ( $ARGV[0] =~ /^-/ ) {
    if ( $ARGV[0] eq '-s' ) {
       shift @ARGV;
       ( $#ARGV >= 0 ) || Usage();
       $srcdir = $ARGV[0];
+      shift @ARGV;
+   } elsif ( $ARGV[0] eq '-b' ) {
+      shift @ARGV;
+      ( $#ARGV >= 0 ) || Usage();
+      $builddir = $ARGV[0];
       shift @ARGV;
    } else {
       Usage();
@@ -245,8 +255,10 @@ unlink "/tmp/ast-$$.h";
 sub protect_copy_file {
    my $file = shift;
 
-   open( INCLUDE, "$srcdir/$file" )
-       || die "Can't open input file " . $srcdir/$file;
+   my $path = "$srcdir/$file";
+   $path = "$builddir/$file" if ( ! -f $path && -f "$builddir/$file" );
+   open( INCLUDE, $path )
+       || die "Can't open input file $path: $!";
 
 #  Inicate we have no deferred text to write out.
    $total = "";
@@ -325,6 +337,6 @@ line: while ( <INCLUDE> ) {
 }
 
 sub Usage {
-   print STDERR "$0 [-s srcdir] file...\n";
+   print STDERR "$0 [-s srcdir] [-b builddir] file...\n";
    exit (1);
 }

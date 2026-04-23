@@ -62,7 +62,7 @@ m4_ifval([$1], [], [AC_FATAL([$0: called with no stamp file])])dnl
 _star_tmp='$1'
 for marker in $_star_tmp
 do
-    if test -f $marker; then
+    if test -f "$srcdir/$marker"; then
         _star_predist_marker_present=:
         AC_MSG_NOTICE([found predist marker file $marker])
     else

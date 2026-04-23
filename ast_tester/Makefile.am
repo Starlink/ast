@@ -15,7 +15,8 @@
 # C tests
 # ---------------------------------------------------------------------------
 
-AM_CPPFLAGS = -DHAVE_CONFIG_H -I$(top_builddir) -I$(top_srcdir)/src \
+AM_CPPFLAGS = -DHAVE_CONFIG_H \
+    -I$(top_builddir) -I$(top_builddir)/src -I$(top_srcdir)/src \
     $(STAR_CPPFLAGS)
 
 if !STARLINK_BUILD
