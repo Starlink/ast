@@ -212,6 +212,25 @@ testhuge_LDADD   = $(FTEST_LDADD)
 TESTS += testhuge.sh
 EXTRA_DIST = testhuge.sh test_wcsconverter.sh test_simplify.sh numdiff.py
 
+# Include all test fixture files also in EXTRA_DIST
+EXTRA_DIST += \
+    2dspline_c.dat \
+    2dspline.dat \
+    alt.header \
+    image_wcs.asdf \
+    lsst_wcs.txt \
+    sip.head \
+    sparse.ast \
+    splittest1.ast \
+    stcchan-test1-doc3.ast \
+    stcchan-test1-doc3-props.ast \
+    tanSipWcs.txt \
+    testmocchan_com \
+    teststc_com \
+    teststc_eg1 teststc_eg2 teststc_eg3 teststc_eg4 teststc_eg5 \
+    teststc_eg6 teststc_eg7 teststc_eg8 teststc_eg9 teststc_eg10 \
+    testxmlchan_com
+
 # Data-driven tests: WCS encoding conversion and Mapping simplification.
 check_PROGRAMS += wcsconverter simplify
 wcsconverter_SOURCES = wcsconverter.f

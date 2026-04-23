@@ -982,8 +982,15 @@ c --------------------------------------------------------------------
       external chsource
       integer iobj, status, ch
       character file*(*)
+      integer len, chr_len
+      character srcdir*255
+      character path*255
 
-      open( 10, status='old', file=file )
+      call getenv( 'srcdir', srcdir )
+      if ( srcdir(1:1) .eq. ' ') srcdir = '.'
+      len = chr_len( srcdir )
+
+      open( 10, status='old', file=srcdir(1:len)//'/'//file )
 
       ch = ast_channel( chsource, AST_NULL, ' ', status )
       iobj = ast_read( ch, status )
