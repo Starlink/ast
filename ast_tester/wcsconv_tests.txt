@@ -103,3 +103,4 @@ projp-nopv0_native  | projp-nopv0.head               | projp-nopv0.native | nati
 projp-pv0only_native| projp-pv0only.head             | projp-pv0only.native| native   |                                  | yes
 restfreq-ghz_native | restfreq-ghz.head              | restfreq-ghz.native| native    |                                  | yes
 pc-sparse_native    | pc-sparse.head                 | pc-sparse.native   | native    |                                  | yes
+restfreq-mhz_native | restfreq-mhz.head              | restfreq-mhz.native| native   |                                  | yes

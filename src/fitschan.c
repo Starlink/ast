@@ -1304,6 +1304,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Fix TidyOffsets to use astIsASkyFrame instead of IsASkyFrame.
 *        The IsASkyFrame macro requires domain=="SKY", preventing
 *        detection of SKY_OFFSETS, SKY_POLE and SKY_ORIGIN domains.
+*     23-APR-2026 (TIMJ):
+*        Fix RESTFREQ GHz/MHz comment detection in SpecTrans. GetValue2
+*        restores the card pointer, so CardComm was reading the wrong
+*        card's comment. Re-find the RESTFREQ card before reading comment.
 *class--
 */
 
@@ -31941,8 +31945,13 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
                      class, status ) ){
 
 /* Look for "MHz" and "GHz" within the comment. If found scale the value
-   into Hz. */
-         comm = CardComm( this, status );
+   into Hz. GetValue2 restores the card pointer, so we need to re-find the
+   RESTFREQ card to access its comment. */
+         astClearCard( this );
+         comm = NULL;
+         if( FindKeyCard( this, keyname, method, class, status ) ) {
+            comm = CardComm( this, status );
+         }
          if( comm ) {
             if( strstr( comm, "GHz" ) ) {
                dval *= 1.0E9;
