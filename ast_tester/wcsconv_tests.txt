@@ -69,3 +69,18 @@ multi-wcs-spec_native| multi-wcs-spec.head            | multi-wcs-spec.native| n
 freq-wav_native     | freq-wav.head                  | freq-wav.native    | native    |                                  | yes
 wavn-frq_native     | wavn-frq.head                  | wavn-frq.native    | native    |                                  | yes
 mercator_native     | mercator.head                  | mercator.native    | native    |                                  | yes
+gappt_native        | gappt.head                     | gappt.native       | native    |                                  | yes
+atf_native          | atf.head                       | atf.native         | native    |                                  | yes
+equinox-bj_native   | equinox-bj.head                | equinox-bj.native  | native    |                                  | yes
+timesys-tdb_native  | timesys-tdb.head               | timesys-tdb.native | native    |                                  | yes
+zero-cdelt_native   | zero-cdelt.head                | zero-cdelt.native  | native    |                                  | yes
+alt-spectral_native | alt-spectral.head              | alt-spectral.native| native    |                                  | yes
+helioecl_native     | helioecl.head                  | helioecl.native    | native    |                                  | yes
+fits-pc-full_native | fits-pc-full.head              | fits-pc-full.native| native    |                                  | yes
+projp_native        | projp.head                     | projp.native       | native    |                                  | yes
+fk5-noeq_native     | fk5-noeq.head                  | fk5-noeq.native    | native    |                                  | yes
+timesys-tt_native   | timesys-tt.head                | timesys-tt.native  | native    |                                  | yes
+skyref-alt_native   | skyref-alt.head                | skyref-alt.native  | native    |                                  | yes
+axref_native        | axref.head                     | axref.native       | native    |                                  | yes
+sfl-latpole_native  | sfl-latpole.head               | sfl-latpole.native | native    |                                  | yes
+unknown-cel_native  | unknown-cel.head               | unknown-cel.native | native    |                                  | yes
