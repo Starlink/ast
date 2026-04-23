@@ -46,8 +46,10 @@ C_TESTS = \
     testunitnorm \
     testyamlchan
 
+# testhuge (C version) is compiled unconditionally; testhuge_f is
+# compiled when !NOFORTRAN.  Both are driven by testhuge.sh.
+check_PROGRAMS = $(C_TESTS) testhuge
 TESTS = $(C_TESTS)
-check_PROGRAMS = $(C_TESTS)
 
 ast_test_SOURCES       = ast_test.c
 ast_test_LDADD         = $(CTEST_LDADD)
@@ -78,6 +80,10 @@ testunitnorm_LDADD     = $(CTEST_LDADD)
 
 testyamlchan_SOURCES   = testyamlchan.c
 testyamlchan_LDADD     = $(CTEST_LDADD)
+
+testhuge_SOURCES       = testhuge.c
+testhuge_CFLAGS        = $(AM_CFLAGS)
+testhuge_LDADD         = $(CTEST_LDADD)
 
 
 # ---------------------------------------------------------------------------
@@ -167,48 +173,46 @@ FTEST_LDADD = libstar_compat.la @LIBPAL@ @LIBCMINPACK@ \
 endif  # STARLINK_BUILD
 
 FORTRAN_TESTS = \
-    testchannel \
-    testchebymap \
-    testcmpframe \
-    testcmpmap \
-    testfitschan \
-    testfitstable \
-    testflux \
-    testframeset \
-    testkeymap \
-    testlutmap \
-    testmapping \
-    testmoc \
-    testmocchan \
-    testnormmap \
-    testpolymap \
-    testrate \
-    testratemap \
-    testrebin \
-    testrebinseq \
-    testregions \
-    testskyframe \
-    testspecflux \
-    testspecframe \
-    testsplinemap \
-    teststc \
-    teststcschan \
-    testswitchmap \
-    testtable \
-    testtime \
-    testtrangrid \
-    testunitnormmap \
-    testxmlchan \
-    testzoommap
+    testchannel_f \
+    testchebymap_f \
+    testcmpframe_f \
+    testcmpmap_f \
+    testfitschan_f \
+    testfitstable_f \
+    testflux_f \
+    testframeset_f \
+    testkeymap_f \
+    testlutmap_f \
+    testmapping_f \
+    testmoc_f \
+    testmocchan_f \
+    testnormmap_f \
+    testpolymap_f \
+    testrate_f \
+    testratemap_f \
+    testrebin_f \
+    testrebinseq_f \
+    testregions_f \
+    testskyframe_f \
+    testspecflux_f \
+    testspecframe_f \
+    testsplinemap_f \
+    teststc_f \
+    teststcschan_f \
+    testswitchmap_f \
+    testtable_f \
+    testtime_f \
+    testtrangrid_f \
+    testunitnormmap_f \
+    testxmlchan_f \
+    testzoommap_f
 
 TESTS += $(FORTRAN_TESTS)
 check_PROGRAMS += $(FORTRAN_TESTS)
 
-# testhuge is always compiled but skipped unless TEST_HUGE=1.
-# The wrapper script exits 77 (automake SKIP) when TEST_HUGE is unset.
-check_PROGRAMS += testhuge
-testhuge_SOURCES = testhuge.f
-testhuge_LDADD   = $(FTEST_LDADD)
+check_PROGRAMS += testhuge_f
+testhuge_f_SOURCES = testhuge.f
+testhuge_f_LDADD   = $(FTEST_LDADD)
 TESTS += testhuge.sh
 EXTRA_DIST = testhuge.sh test_wcsconverter.sh test_simplify.sh numdiff.py
 
@@ -240,103 +244,103 @@ simplify_LDADD       = $(FTEST_LDADD)
 TESTS += test_wcsconverter.sh test_simplify.sh
 
 # Source and LDADD declarations for each Fortran test.
-testchannel_SOURCES    = testchannel.f
-testchannel_LDADD      = $(FTEST_LDADD)
+testchannel_f_SOURCES    = testchannel.f
+testchannel_f_LDADD      = $(FTEST_LDADD)
 
-testchebymap_SOURCES   = testchebymap.f
-testchebymap_LDADD     = $(FTEST_LDADD)
+testchebymap_f_SOURCES   = testchebymap.f
+testchebymap_f_LDADD     = $(FTEST_LDADD)
 
-testcmpframe_SOURCES   = testcmpframe.f
-testcmpframe_LDADD     = $(FTEST_LDADD)
+testcmpframe_f_SOURCES   = testcmpframe.f
+testcmpframe_f_LDADD     = $(FTEST_LDADD)
 
-testcmpmap_SOURCES     = testcmpmap.f
-testcmpmap_LDADD       = $(FTEST_LDADD)
+testcmpmap_f_SOURCES     = testcmpmap.f
+testcmpmap_f_LDADD       = $(FTEST_LDADD)
 
-testfitschan_SOURCES   = testfitschan.f
-testfitschan_LDADD     = $(FTEST_LDADD)
+testfitschan_f_SOURCES   = testfitschan.f
+testfitschan_f_LDADD     = $(FTEST_LDADD)
 
-testfitstable_SOURCES  = testfitstable.f
-testfitstable_LDADD    = $(FTEST_LDADD)
+testfitstable_f_SOURCES  = testfitstable.f
+testfitstable_f_LDADD    = $(FTEST_LDADD)
 
-testflux_SOURCES       = testflux.f
-testflux_LDADD         = $(FTEST_LDADD)
+testflux_f_SOURCES       = testflux.f
+testflux_f_LDADD         = $(FTEST_LDADD)
 
-testframeset_SOURCES   = testframeset.f
-testframeset_LDADD     = $(FTEST_LDADD)
+testframeset_f_SOURCES   = testframeset.f
+testframeset_f_LDADD     = $(FTEST_LDADD)
 
-testkeymap_SOURCES     = testkeymap.f
-testkeymap_LDADD       = $(FTEST_LDADD)
+testkeymap_f_SOURCES     = testkeymap.f
+testkeymap_f_LDADD       = $(FTEST_LDADD)
 
-testlutmap_SOURCES     = testlutmap.f
-testlutmap_LDADD       = $(FTEST_LDADD)
+testlutmap_f_SOURCES     = testlutmap.f
+testlutmap_f_LDADD       = $(FTEST_LDADD)
 
-testmapping_SOURCES    = testmapping.f
-testmapping_LDADD      = $(FTEST_LDADD)
+testmapping_f_SOURCES    = testmapping.f
+testmapping_f_LDADD      = $(FTEST_LDADD)
 
-testmoc_SOURCES        = testmoc.f
-testmoc_LDADD          = $(FTEST_LDADD)
+testmoc_f_SOURCES        = testmoc.f
+testmoc_f_LDADD          = $(FTEST_LDADD)
 
-testmocchan_SOURCES    = testmocchan.f
-testmocchan_LDADD      = $(FTEST_LDADD)
+testmocchan_f_SOURCES    = testmocchan.f
+testmocchan_f_LDADD      = $(FTEST_LDADD)
 
-testnormmap_SOURCES    = testnormmap.f
-testnormmap_LDADD      = $(FTEST_LDADD)
+testnormmap_f_SOURCES    = testnormmap.f
+testnormmap_f_LDADD      = $(FTEST_LDADD)
 
-testpolymap_SOURCES    = testpolymap.f
-testpolymap_LDADD      = $(FTEST_LDADD)
+testpolymap_f_SOURCES    = testpolymap.f
+testpolymap_f_LDADD      = $(FTEST_LDADD)
 
-testrate_SOURCES       = testrate.f
-testrate_LDADD         = $(FTEST_LDADD)
+testrate_f_SOURCES       = testrate.f
+testrate_f_LDADD         = $(FTEST_LDADD)
 
-testratemap_SOURCES    = testratemap.f
-testratemap_LDADD      = $(FTEST_LDADD)
+testratemap_f_SOURCES    = testratemap.f
+testratemap_f_LDADD      = $(FTEST_LDADD)
 
-testrebin_SOURCES      = testrebin.f
-testrebin_LDADD        = $(FTEST_LDADD)
+testrebin_f_SOURCES      = testrebin.f
+testrebin_f_LDADD        = $(FTEST_LDADD)
 
-testrebinseq_SOURCES   = testrebinseq.f
-testrebinseq_LDADD     = $(FTEST_LDADD)
+testrebinseq_f_SOURCES   = testrebinseq.f
+testrebinseq_f_LDADD     = $(FTEST_LDADD)
 
-testregions_SOURCES    = testregions.f
-testregions_LDADD      = $(FTEST_LDADD)
+testregions_f_SOURCES    = testregions.f
+testregions_f_LDADD      = $(FTEST_LDADD)
 
-testskyframe_SOURCES   = testskyframe.f
-testskyframe_LDADD     = $(FTEST_LDADD)
+testskyframe_f_SOURCES   = testskyframe.f
+testskyframe_f_LDADD     = $(FTEST_LDADD)
 
-testspecflux_SOURCES   = testspecflux.f
-testspecflux_LDADD     = $(FTEST_LDADD)
+testspecflux_f_SOURCES   = testspecflux.f
+testspecflux_f_LDADD     = $(FTEST_LDADD)
 
-testspecframe_SOURCES  = testspecframe.f
-testspecframe_LDADD    = $(FTEST_LDADD)
+testspecframe_f_SOURCES  = testspecframe.f
+testspecframe_f_LDADD    = $(FTEST_LDADD)
 
-testsplinemap_SOURCES  = testsplinemap.f
-testsplinemap_LDADD    = $(FTEST_LDADD)
+testsplinemap_f_SOURCES  = testsplinemap.f
+testsplinemap_f_LDADD    = $(FTEST_LDADD)
 
-teststc_SOURCES        = teststc.f
-teststc_LDADD          = $(FTEST_LDADD)
+teststc_f_SOURCES        = teststc.f
+teststc_f_LDADD          = $(FTEST_LDADD)
 
-teststcschan_SOURCES   = teststcschan.f
-teststcschan_LDADD     = $(FTEST_LDADD)
+teststcschan_f_SOURCES   = teststcschan.f
+teststcschan_f_LDADD     = $(FTEST_LDADD)
 
-testswitchmap_SOURCES  = testswitchmap.f
-testswitchmap_LDADD    = $(FTEST_LDADD)
+testswitchmap_f_SOURCES  = testswitchmap.f
+testswitchmap_f_LDADD    = $(FTEST_LDADD)
 
-testtable_SOURCES      = testtable.f
-testtable_LDADD        = $(FTEST_LDADD)
+testtable_f_SOURCES      = testtable.f
+testtable_f_LDADD        = $(FTEST_LDADD)
 
-testtime_SOURCES       = testtime.f
-testtime_LDADD         = $(FTEST_LDADD)
+testtime_f_SOURCES       = testtime.f
+testtime_f_LDADD         = $(FTEST_LDADD)
 
-testtrangrid_SOURCES   = testtrangrid.f
-testtrangrid_LDADD     = $(FTEST_LDADD)
+testtrangrid_f_SOURCES   = testtrangrid.f
+testtrangrid_f_LDADD     = $(FTEST_LDADD)
 
-testunitnormmap_SOURCES = testunitnormmap.f
-testunitnormmap_LDADD  = $(FTEST_LDADD)
+testunitnormmap_f_SOURCES = testunitnormmap.f
+testunitnormmap_f_LDADD  = $(FTEST_LDADD)
 
-testxmlchan_SOURCES    = testxmlchan.f
-testxmlchan_LDADD      = $(FTEST_LDADD)
+testxmlchan_f_SOURCES    = testxmlchan.f
+testxmlchan_f_LDADD      = $(FTEST_LDADD)
 
-testzoommap_SOURCES    = testzoommap.f
-testzoommap_LDADD      = $(FTEST_LDADD)
+testzoommap_f_SOURCES    = testzoommap.f
+testzoommap_f_LDADD      = $(FTEST_LDADD)
 
 endif  # NOFORTRAN
