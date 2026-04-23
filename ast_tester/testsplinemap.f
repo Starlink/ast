@@ -12,6 +12,8 @@
       parameter( k = 4 )
       parameter( npos = 10 )
       parameter( tol = 1.0D-10 )
+      character srcdir*255
+      integer len, chr_len
 
       integer i, j, status, sm, ch, sm2, cm, map
       double precision at(2), tx(nx+k), ty(ny+k), cu(nx,ny), cv(nx,ny),
@@ -50,8 +52,11 @@ c      call ast_watchmemory( 325 )
 c  Load the data defing a splinemap from text file 2dspline.dat. The
 c  parameters nx, ny and k must be set above to the same values they had
 c  when this text file was created.
-      call loadspline( '2dspline.dat', k, nx, ny, tx, ty, cu, cv,
-     :                 xl, xu, yl, yu )
+      call getenv( 'srcdir', srcdir )
+      if ( srcdir(1:1) .eq. ' ') srcdir = '.'
+      len = chr_len( srcdir )
+      call loadspline( srcdir(1:len)//'/2dspline.dat', k, nx, ny,
+     :                 tx, ty, cu, cv, xl, xu, yl, yu )
 
 *  Create a SplineMap using the knots and coefficients read from the file.
       sm = ast_splinemap( k, k, nx, ny, tx, ty, cu, cv, ' ',
