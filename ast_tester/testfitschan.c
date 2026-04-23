@@ -2427,6 +2427,48 @@ int main( void ) {
       efc = astAnnul( efc );
    }
 
+   /* Test all TIMESYS keyword variants (810-829).
+      Each variant is read via a minimal TAN header with MJD-OBS,
+      exercising every branch in TimeSysToAst. */
+   {
+      static const char *timesys_vals[] = {
+         "UT", "IAT", "ET", "TT", "TDT", "TDB", "TCG", "TCB", NULL
+      };
+      int its;
+      for( its = 0; timesys_vals[its]; its++ ) {
+         AstFitsChan *tsfc = astFitsChan( NULL, NULL, " " );
+         char card[81];
+         astPutFits( tsfc, "NAXIS1  = 100", 0 );
+         astPutFits( tsfc, "NAXIS2  = 100", 0 );
+         astPutFits( tsfc, "CTYPE1  = 'RA---TAN'", 0 );
+         astPutFits( tsfc, "CTYPE2  = 'DEC--TAN'", 0 );
+         astPutFits( tsfc, "CRVAL1  = 180.0", 0 );
+         astPutFits( tsfc, "CRVAL2  = 45.0", 0 );
+         astPutFits( tsfc, "CRPIX1  = 50.5", 0 );
+         astPutFits( tsfc, "CRPIX2  = 50.5", 0 );
+         astPutFits( tsfc, "CDELT1  = -0.001", 0 );
+         astPutFits( tsfc, "CDELT2  = 0.001", 0 );
+         astPutFits( tsfc, "RADESYS = 'FK5'", 0 );
+         astPutFits( tsfc, "EQUINOX = 2000.0", 0 );
+         astPutFits( tsfc, "MJD-OBS = 55000.0", 0 );
+         sprintf( card, "TIMESYS = '%-8s'", timesys_vals[its] );
+         astPutFits( tsfc, card, 0 );
+         astClear( tsfc, "Card" );
+         {
+            AstObject *tsobj = astRead( tsfc );
+            if( !tsobj ) {
+               char msg[80];
+               sprintf( msg, "TIMESYS='%s' read failed", timesys_vals[its] );
+               astClearStatus;
+               stopit( 810 + its, msg, status );
+            } else {
+               tsobj = astAnnul( tsobj );
+            }
+         }
+         tsfc = astAnnul( tsfc );
+      }
+   }
+
    /* Ill-conditioned SFL projection: verify no memory leak on failure (800+).
       This header cannot produce a valid WCS because the native pole
       computation fails. astRead returns NULL, but all resources must
