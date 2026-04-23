@@ -221,6 +221,9 @@ f     The WcsMap class does not define any new routines beyond those
 *        Improve merging of WcsMaps and PermMaps.
 *     9-NOV=2018 (DSB):
 *        Add protected LonCheck attribute.
+*     22-APR-2026 (TJ):
+*        Fix memory leak in FreePV when called with error status set.
+*        astGetNin returns 0 on error, preventing PV array cleanup.
 *class--
 */
 
@@ -1646,14 +1649,16 @@ static void FreePV( AstWcsMap *this, int *status ) {
 *
 */
    int i;              /* Axis index */
+   int naxis;           /* Number of axes */
 
-   if( this->np ) this->np = (int *) astFree( (void *) this->np );
    if( this->p ){
-      for( i = 0; i < astGetNin( this ); i++ ){
+      naxis = ( (AstMapping *) this )->nin;
+      for( i = 0; i < naxis; i++ ){
          this->p[ i ]  = (double *) astFree( (void *) this->p[ i ] );
       }
       this->p = (double **) astFree( (void *) this->p );
    }
+   if( this->np ) this->np = (int *) astFree( (void *) this->np );
 
 /* Re-initialize the values stored in the "AstPrjPrm" structure. */
    InitPrjPrm( this, status );

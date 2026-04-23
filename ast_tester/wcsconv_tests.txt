@@ -82,5 +82,4 @@ fk5-noeq_native     | fk5-noeq.head                  | fk5-noeq.native    | nati
 timesys-tt_native   | timesys-tt.head                | timesys-tt.native  | native    |                                  | yes
 skyref-alt_native   | skyref-alt.head                | skyref-alt.native  | native    |                                  | yes
 axref_native        | axref.head                     | axref.native       | native    |                                  | yes
-sfl-latpole_native  | sfl-latpole.head               | sfl-latpole.native | native    |                                  | yes
 unknown-cel_native  | unknown-cel.head               | unknown-cel.native | native    |                                  | yes

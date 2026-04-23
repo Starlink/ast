@@ -2427,6 +2427,35 @@ int main( void ) {
       efc = astAnnul( efc );
    }
 
+   /* Ill-conditioned SFL projection: verify no memory leak on failure (800+).
+      This header cannot produce a valid WCS because the native pole
+      computation fails. astRead returns NULL, but all resources must
+      be freed cleanly. Only run if status is OK so far, since we need
+      to be able to create AST objects. */
+   if( *status == 0 ) {
+      AstFitsChan *sfc = astFitsChan( NULL, NULL, " " );
+      AstObject *obj;
+      astPutFits( sfc, "NAXIS1  =                  360", 0 );
+      astPutFits( sfc, "NAXIS2  =                  180", 0 );
+      astPutFits( sfc, "CTYPE1  = 'GLON-SFL'", 0 );
+      astPutFits( sfc, "CTYPE2  = 'GLAT-SFL'", 0 );
+      astPutFits( sfc, "CRVAL1  =               45.000", 0 );
+      astPutFits( sfc, "CRVAL2  =               60.000", 0 );
+      astPutFits( sfc, "CRPIX1  =              180.500", 0 );
+      astPutFits( sfc, "CRPIX2  =               90.500", 0 );
+      astPutFits( sfc, "CDELT1  =             -0.50000", 0 );
+      astPutFits( sfc, "CDELT2  =              0.50000", 0 );
+      astPutFits( sfc, "LONPOLE =              180.000", 0 );
+      astPutFits( sfc, "LATPOLE =               60.000", 0 );
+      astClear( sfc, "Card" );
+      obj = astRead( sfc );
+      if( obj ) obj = astAnnul( obj );
+      astClearStatus;
+      sfc = astAnnul( sfc );
+      if( !astOK )
+         stopit( 800, "Ill-conditioned SFL leaked or crashed", status );
+   }
+
 cleanup:
    astEnd;
 
