@@ -104,3 +104,9 @@ projp-pv0only_native| projp-pv0only.head             | projp-pv0only.native| nat
 restfreq-ghz_native | restfreq-ghz.head              | restfreq-ghz.native| native    |                                  | yes
 pc-sparse_native    | pc-sparse.head                 | pc-sparse.native   | native    |                                  | yes
 restfreq-mhz_native | restfreq-mhz.head              | restfreq-mhz.native| native   |                                  | yes
+unknown-spec_native | unknown-spec.head              | unknown-spec.native| native    |                                  | yes
+crota-3d_native     | crota-3d.head                  | crota-3d.native    | native    |                                  | yes
+axes-swap_native    | axes-swap.head                 | axes-swap.native   | native    |                                  | yes
+cd-cross_native     | cd-cross.head                  | cd-cross.native    | native    |                                  | yes
+class-noproj_native | class-noproj.head              | class-noproj.native| native    |                                  | yes
+ait-highlatpole_native| ait-highlatpole.head           | ait-highlatpole.native| native  |                                  | yes
