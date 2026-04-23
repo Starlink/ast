@@ -696,6 +696,10 @@ else
 yaml =
 endif
 
+# Ensure generated headers in the build tree (object.h, version.h, f77.h)
+# are found in out-of-source builds.
+AM_CPPFLAGS = -I$(top_builddir)/src -I$(srcdir)/src
+
 if !NOTHREADS
 threadsafe = -DTHREAD_SAFE
 else
@@ -876,7 +880,7 @@ EXTRA_DIST = $(srcdir)/ast_par.source sun210_figures sun211_figures pal erfa cmi
 # files, it's more robust to distribute makeh and make ast.h on the
 # build host.
 ast.h: $(AST_H_FILES) ast_err.h $(srcdir)/makeh config.h
-	@PERL@ $(srcdir)/makeh -s $(srcdir) $(AST_H_FILES) >$@
+	@PERL@ $(srcdir)/makeh -s $(srcdir) -b $(top_builddir) $(AST_H_FILES) >$@
 
 # AST_ERR and ast_err.h are `generated source files', and so must be
 # generated before any other compilations are done.  Note that these
@@ -892,10 +896,16 @@ ast.h: $(AST_H_FILES) ast_err.h $(srcdir)/makeh config.h
 # version.h is included by object.h, and thus indirectly by most modules.
 # It's most straightforward to build it at the beginning.
 if !NOFORTRAN
-BUILT_SOURCES = AST_ERR ast_err.h src/version.h
+BUILT_SOURCES = AST_ERR ast_err.h src/version.h ast.h
 else
-BUILT_SOURCES = ast_err.h src/version.h
+BUILT_SOURCES = ast_err.h src/version.h ast.h
 endif
+
+# Ensure the main library is built before check-recursive descends into
+# ast_tester (which links against it).  Without this, a cold `make check`
+# from a fresh out-of-source build would fail because check only guarantees
+# BUILT_SOURCES are ready before recursing.
+check-recursive: all-am
 
 #  Form a second link to the main object library (static and shared). This
 #  is used when a second pass through the library is needed during linking
@@ -932,11 +942,11 @@ install-exec-hook: libast.la
 @PREDIST@    -e 's,@PERL\@,$(PERL),' \
 @PREDIST@    -e 's,@STARLINK\@,$(STARLINK),'
 
-@PREDIST@src/version.h: src/version.h.in configure.ac
-@PREDIST@	rm -f $@; $(predist_subs) src/version.h.in >$@
-@PREDIST@builddocs: builddocs.in configure.ac
-@PREDIST@	rm -f $@; $(predist_subs) builddocs.in >$@; chmod +x $@
-@PREDIST@addversion: addversion.in configure.ac
+@PREDIST@src/version.h: $(srcdir)/src/version.h.in $(srcdir)/configure.ac
+@PREDIST@	rm -f $@; $(predist_subs) $(srcdir)/src/version.h.in >$@
+@PREDIST@builddocs: $(srcdir)/builddocs.in $(srcdir)/configure.ac
+@PREDIST@	rm -f $@; $(predist_subs) $(srcdir)/builddocs.in >$@; chmod +x $@
+@PREDIST@addversion: $(srcdir)/addversion.in $(srcdir)/configure.ac
 @PREDIST@	rm -f $@; $(predist_subs) addversion.in >$@; chmod +x $@
 
 # Documentation
