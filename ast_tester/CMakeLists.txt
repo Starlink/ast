@@ -107,12 +107,18 @@ function(ast_add_test name)
     add_dependencies(${name} ast_stage_fixtures)
     add_test(NAME ${name} COMMAND ${name} ${T_TEST_ARGS}
              WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+    set(test_env "")
     # AST's memory system intentionally caches freed blocks for reuse,
     # so LeakSanitizer reports false positives. Disable leak detection.
     if(AST_ENABLE_SANITIZERS)
-        set_tests_properties(${name} PROPERTIES
-            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+        list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
     endif()
+
+    list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
+
+    set_tests_properties(${name} PROPERTIES
+        ENVIRONMENT "${test_env}")
 endfunction()
 
 # Read a pipe-delimited text file into a list of encoded records.
@@ -628,7 +634,7 @@ if(PLPLOT_FOUND)
         SOURCES testplotter.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
-        TEST_ARGS "fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.ps"
+        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.ps"
     )
     target_include_directories(testplotter PRIVATE ${PLPLOT_INCLUDE_DIRS})
     target_link_directories(testplotter PRIVATE ${PLPLOT_LIBRARY_DIRS})
@@ -783,11 +789,17 @@ if(AST_BUILD_FORTRAN)
         )
         add_test(NAME ${name}_f COMMAND ${name}_f ${FT_TEST_ARGS}
                  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+        set(test_env "")
         if(AST_ENABLE_SANITIZERS)
-            set_tests_properties(${name}_f PROPERTIES
-                ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+            list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
         endif()
-    endfunction()
+
+        list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
+
+        set_tests_properties(${name}_f PROPERTIES
+            ENVIRONMENT "${test_env}")
+        endfunction()
 
     # Custom target that ensures AST_PAR and AST_ERR exist before any
     # Fortran test is compiled (they are Fortran INCLUDE files).
@@ -835,16 +847,6 @@ if(AST_BUILD_FORTRAN)
         ast_add_fortran_test(${_f_test})
         add_dependencies(${_f_test}_f ast_fortran_includes)
     endforeach()
-
-    # Data files needed by Fortran tests (configure_file calls are idempotent)
-    configure_file(2dspline.dat "${CMAKE_CURRENT_BINARY_DIR}/2dspline.dat" COPYONLY)
-    configure_file(splittest1.ast "${CMAKE_CURRENT_BINARY_DIR}/splittest1.ast" COPYONLY)
-    foreach(_eg RANGE 1 10)
-        configure_file(teststc_eg${_eg} "${CMAKE_CURRENT_BINARY_DIR}/teststc_eg${_eg}" COPYONLY)
-    endforeach()
-    configure_file(sip.head "${CMAKE_CURRENT_BINARY_DIR}/sip.head" COPYONLY)
-    configure_file(alt.header "${CMAKE_CURRENT_BINARY_DIR}/alt.header" COPYONLY)
-    configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
 
     if(AST_ENABLE_HUGE_TEST)
         ast_add_fortran_test(testhuge)

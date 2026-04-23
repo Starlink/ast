@@ -8,6 +8,7 @@
  */
 #include "ast.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 static void stopit( int *status, const char *text ) {
    if( *status != 0 ) return;
@@ -18,9 +19,10 @@ static void stopit( int *status, const char *text ) {
 static AstObject *readobj( const char *file, int *status ) {
    AstChannel *ch;
    AstObject *obj;
+   const char *srcdir = getenv("srcdir") ? getenv("srcdir") : ".";
    if( *status != 0 ) return NULL;
    ch = astChannel( NULL, NULL, " " );
-   astSet( ch, "SourceFile=%s", file );
+   astSet( ch, "SourceFile=%s/%s", srcdir, file );
    obj = astRead( ch );
    astAnnul( ch );
    return obj;
