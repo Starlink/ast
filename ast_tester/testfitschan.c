@@ -2078,6 +2078,355 @@ int main( void ) {
       }
    }
 
+/* -----------------------------------------------------------------------
+ * Test CnvType cross-type conversions and astFitsGetCom.
+ * Error numbers 700+.
+ * Store FITS values as one type, retrieve as every other type.
+ * -----------------------------------------------------------------------*/
+   {
+      AstFitsChan *tfc = astFitsChan( NULL, NULL, " " );
+      double dval, cf[2];
+      int ival, ci[2], lval;
+      int64_t kval;
+      char *sval;
+
+      astSetFitsF( tfc, "SRCFLT", 42.5, "float source", 0 );
+      astSetFitsI( tfc, "SRCINT", 42, "int source", 0 );
+      astSetFitsK( tfc, "SRCKINT", (int64_t)9000000000LL, "kint source", 0 );
+      astSetFitsS( tfc, "SRCSTR", "42", "string source", 0 );
+      astSetFitsL( tfc, "SRCLOG", 1, "logical source", 0 );
+      cf[0] = 3.0; cf[1] = 4.0;
+      astSetFitsCF( tfc, "SRCCF", cf, "complexf source", 0 );
+      ci[0] = 3; ci[1] = 4;
+      astSetFitsCI( tfc, "SRCCI", ci, "complexi source", 0 );
+
+      /* --- FLOAT -> other types (700-709) --- */
+      astClear( tfc, "Card" );
+      if( !astGetFitsI( tfc, "SRCFLT", &ival ) )
+         stopit( 700, "FLOAT->INT conversion failed", status );
+      else if( ival != 42 )
+         stopit( 701, "FLOAT->INT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsK( tfc, "SRCFLT", &kval ) )
+         stopit( 702, "FLOAT->KINT conversion failed", status );
+      else if( kval != 42 )
+         stopit( 702, "FLOAT->KINT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsL( tfc, "SRCFLT", &lval ) )
+         stopit( 703, "FLOAT->LOGICAL conversion failed", status );
+      else if( !lval )
+         stopit( 704, "FLOAT->LOGICAL wrong value (42.5 should be true)", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsS( tfc, "SRCFLT", &sval ) )
+         stopit( 705, "FLOAT->STRING conversion failed", status );
+      else if( !strstr( sval, "42.5" ) )
+         stopit( 705, "FLOAT->STRING wrong value", status );
+
+      astClear( tfc, "Card" );
+      cf[0] = cf[1] = 0.0;
+      if( !astGetFitsCF( tfc, "SRCFLT", cf ) )
+         stopit( 706, "FLOAT->COMPLEXF conversion failed", status );
+      else if( fabs( cf[0] - 42.5 ) > 1e-10 || fabs( cf[1] ) > 1e-10 )
+         stopit( 707, "FLOAT->COMPLEXF wrong value", status );
+
+      astClear( tfc, "Card" );
+      ci[0] = ci[1] = -1;
+      if( !astGetFitsCI( tfc, "SRCFLT", ci ) )
+         stopit( 708, "FLOAT->COMPLEXI conversion failed", status );
+      else if( ci[0] != 42 || ci[1] != 0 )
+         stopit( 709, "FLOAT->COMPLEXI wrong value", status );
+
+      /* --- INT -> other types (710-719) --- */
+      astClear( tfc, "Card" );
+      if( !astGetFitsF( tfc, "SRCINT", &dval ) )
+         stopit( 710, "INT->FLOAT conversion failed", status );
+      else if( fabs( dval - 42.0 ) > 1e-10 )
+         stopit( 711, "INT->FLOAT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsS( tfc, "SRCINT", &sval ) )
+         stopit( 712, "INT->STRING conversion failed", status );
+      else if( strcmp( sval, "42" ) )
+         stopit( 712, "INT->STRING wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsK( tfc, "SRCINT", &kval ) )
+         stopit( 713, "INT->KINT conversion failed", status );
+      else if( kval != 42 )
+         stopit( 714, "INT->KINT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsL( tfc, "SRCINT", &lval ) )
+         stopit( 715, "INT->LOGICAL conversion failed", status );
+      else if( !lval )
+         stopit( 716, "INT->LOGICAL wrong value (42 should be true)", status );
+
+      astClear( tfc, "Card" );
+      cf[0] = cf[1] = 0.0;
+      if( !astGetFitsCF( tfc, "SRCINT", cf ) )
+         stopit( 717, "INT->COMPLEXF conversion failed", status );
+      else if( fabs( cf[0] - 42.0 ) > 1e-10 || fabs( cf[1] ) > 1e-10 )
+         stopit( 718, "INT->COMPLEXF wrong value", status );
+
+      astClear( tfc, "Card" );
+      ci[0] = ci[1] = -1;
+      if( !astGetFitsCI( tfc, "SRCINT", ci ) )
+         stopit( 719, "INT->COMPLEXI conversion failed", status );
+      else if( ci[0] != 42 || ci[1] != 0 )
+         stopit( 719, "INT->COMPLEXI wrong value", status );
+
+      /* --- KINT -> other types (720-729) --- */
+      astClear( tfc, "Card" );
+      if( !astGetFitsF( tfc, "SRCKINT", &dval ) )
+         stopit( 720, "KINT->FLOAT conversion failed", status );
+      else if( fabs( dval - 9.0e9 ) > 1.0 )
+         stopit( 720, "KINT->FLOAT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsS( tfc, "SRCKINT", &sval ) )
+         stopit( 721, "KINT->STRING conversion failed", status );
+      else if( !strstr( sval, "9000000000" ) )
+         stopit( 721, "KINT->STRING wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsI( tfc, "SRCKINT", &ival ) )
+         stopit( 722, "KINT->INT conversion failed", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsL( tfc, "SRCKINT", &lval ) )
+         stopit( 723, "KINT->LOGICAL conversion failed", status );
+      else if( !lval )
+         stopit( 724, "KINT->LOGICAL wrong value", status );
+
+      astClear( tfc, "Card" );
+      cf[0] = cf[1] = 0.0;
+      if( !astGetFitsCF( tfc, "SRCKINT", cf ) )
+         stopit( 725, "KINT->COMPLEXF conversion failed", status );
+      else if( fabs( cf[0] - 9.0e9 ) > 1.0 || fabs( cf[1] ) > 1e-10 )
+         stopit( 725, "KINT->COMPLEXF wrong value", status );
+
+      astClear( tfc, "Card" );
+      ci[0] = ci[1] = -1;
+      if( !astGetFitsCI( tfc, "SRCKINT", ci ) )
+         stopit( 726, "KINT->COMPLEXI conversion failed", status );
+
+      /* --- STRING -> other types (730-739) --- */
+      astClear( tfc, "Card" );
+      if( !astGetFitsF( tfc, "SRCSTR", &dval ) )
+         stopit( 730, "STRING->FLOAT conversion failed", status );
+      else if( fabs( dval - 42.0 ) > 1e-10 )
+         stopit( 731, "STRING->FLOAT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsI( tfc, "SRCSTR", &ival ) )
+         stopit( 732, "STRING->INT conversion failed", status );
+      else if( ival != 42 )
+         stopit( 733, "STRING->INT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsK( tfc, "SRCSTR", &kval ) )
+         stopit( 734, "STRING->KINT conversion failed", status );
+      else if( kval != 42 )
+         stopit( 735, "STRING->KINT wrong value", status );
+
+      astClear( tfc, "Card" );
+      cf[0] = cf[1] = 0.0;
+      if( !astGetFitsCF( tfc, "SRCSTR", cf ) )
+         stopit( 736, "STRING->COMPLEXF conversion failed", status );
+      else if( fabs( cf[0] - 42.0 ) > 1e-10 )
+         stopit( 737, "STRING->COMPLEXF wrong value", status );
+
+      astClear( tfc, "Card" );
+      ci[0] = ci[1] = -1;
+      if( !astGetFitsCI( tfc, "SRCSTR", ci ) )
+         stopit( 738, "STRING->COMPLEXI conversion failed", status );
+      else if( ci[0] != 42 )
+         stopit( 739, "STRING->COMPLEXI wrong value", status );
+
+      /* --- STRING -> LOGICAL edge cases (740-749) --- */
+      {
+         AstFitsChan *lfc = astFitsChan( NULL, NULL, " " );
+
+         astSetFitsS( lfc, "STRT", "T", "true", 0 );
+         astSetFitsS( lfc, "STRY", "Y", "yes", 0 );
+         astSetFitsS( lfc, "STRF", "F", "false", 0 );
+         astSetFitsS( lfc, "STRN", "N", "no", 0 );
+         astSetFitsS( lfc, "STRDOTT", ".TRUE.", "dotted true", 0 );
+         astSetFitsS( lfc, "STRDOTF", ".FALSE.", "dotted false", 0 );
+         astSetFitsS( lfc, "STR1", "1", "numeric true", 0 );
+         astSetFitsS( lfc, "STR0", "0", "numeric false", 0 );
+
+         astClear( lfc, "Card" );
+         if( !astGetFitsL( lfc, "STRT", &lval ) || !lval )
+            stopit( 740, "STRING 'T' -> LOGICAL failed", status );
+
+         astClear( lfc, "Card" );
+         if( !astGetFitsL( lfc, "STRY", &lval ) || !lval )
+            stopit( 741, "STRING 'Y' -> LOGICAL failed", status );
+
+         astClear( lfc, "Card" );
+         if( !astGetFitsL( lfc, "STRF", &lval ) || lval )
+            stopit( 742, "STRING 'F' -> LOGICAL failed", status );
+
+         astClear( lfc, "Card" );
+         if( !astGetFitsL( lfc, "STRN", &lval ) || lval )
+            stopit( 743, "STRING 'N' -> LOGICAL failed", status );
+
+         astClear( lfc, "Card" );
+         if( !astGetFitsL( lfc, "STRDOTT", &lval ) || !lval )
+            stopit( 744, "STRING '.TRUE.' -> LOGICAL failed", status );
+
+         astClear( lfc, "Card" );
+         if( !astGetFitsL( lfc, "STRDOTF", &lval ) || lval )
+            stopit( 745, "STRING '.FALSE.' -> LOGICAL failed", status );
+
+         astClear( lfc, "Card" );
+         if( !astGetFitsL( lfc, "STR1", &lval ) || !lval )
+            stopit( 746, "STRING '1' -> LOGICAL failed", status );
+
+         astClear( lfc, "Card" );
+         if( !astGetFitsL( lfc, "STR0", &lval ) || lval )
+            stopit( 747, "STRING '0' -> LOGICAL failed", status );
+
+         lfc = astAnnul( lfc );
+      }
+
+      /* --- LOGICAL -> other types (750-759) --- */
+      astClear( tfc, "Card" );
+      if( !astGetFitsF( tfc, "SRCLOG", &dval ) )
+         stopit( 750, "LOGICAL->FLOAT conversion failed", status );
+      else if( fabs( dval - 1.0 ) > 1e-10 )
+         stopit( 751, "LOGICAL->FLOAT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsS( tfc, "SRCLOG", &sval ) )
+         stopit( 752, "LOGICAL->STRING conversion failed", status );
+      else if( strcmp( sval, "Y" ) )
+         stopit( 752, "LOGICAL->STRING wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsI( tfc, "SRCLOG", &ival ) )
+         stopit( 753, "LOGICAL->INT conversion failed", status );
+      else if( ival != 1 )
+         stopit( 753, "LOGICAL->INT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsK( tfc, "SRCLOG", &kval ) )
+         stopit( 754, "LOGICAL->KINT conversion failed", status );
+      else if( kval != 1 )
+         stopit( 754, "LOGICAL->KINT wrong value", status );
+
+      astClear( tfc, "Card" );
+      cf[0] = cf[1] = -1.0;
+      if( !astGetFitsCF( tfc, "SRCLOG", cf ) )
+         stopit( 755, "LOGICAL->COMPLEXF conversion failed", status );
+      else if( fabs( cf[0] - 1.0 ) > 1e-10 || fabs( cf[1] ) > 1e-10 )
+         stopit( 756, "LOGICAL->COMPLEXF wrong value", status );
+
+      astClear( tfc, "Card" );
+      ci[0] = ci[1] = -1;
+      if( !astGetFitsCI( tfc, "SRCLOG", ci ) )
+         stopit( 757, "LOGICAL->COMPLEXI conversion failed", status );
+      else if( ci[0] != 1 || ci[1] != 0 )
+         stopit( 758, "LOGICAL->COMPLEXI wrong value", status );
+
+      /* --- COMPLEXF -> other types (760-769) --- */
+      astClear( tfc, "Card" );
+      if( !astGetFitsF( tfc, "SRCCF", &dval ) )
+         stopit( 760, "COMPLEXF->FLOAT conversion failed", status );
+      else if( fabs( dval - 3.0 ) > 1e-10 )
+         stopit( 761, "COMPLEXF->FLOAT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsS( tfc, "SRCCF", &sval ) )
+         stopit( 762, "COMPLEXF->STRING conversion failed", status );
+      else if( !strstr( sval, "3" ) || !strstr( sval, "4" ) )
+         stopit( 762, "COMPLEXF->STRING wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsI( tfc, "SRCCF", &ival ) )
+         stopit( 763, "COMPLEXF->INT conversion failed", status );
+      else if( ival != 3 )
+         stopit( 764, "COMPLEXF->INT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsK( tfc, "SRCCF", &kval ) )
+         stopit( 765, "COMPLEXF->KINT conversion failed", status );
+      else if( kval != 3 )
+         stopit( 765, "COMPLEXF->KINT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsL( tfc, "SRCCF", &lval ) )
+         stopit( 766, "COMPLEXF->LOGICAL conversion failed", status );
+      else if( !lval )
+         stopit( 767, "COMPLEXF->LOGICAL wrong value", status );
+
+      astClear( tfc, "Card" );
+      ci[0] = ci[1] = -1;
+      if( !astGetFitsCI( tfc, "SRCCF", ci ) )
+         stopit( 768, "COMPLEXF->COMPLEXI conversion failed", status );
+      else if( ci[0] != 3 || ci[1] != 4 )
+         stopit( 769, "COMPLEXF->COMPLEXI wrong value", status );
+
+      /* --- COMPLEXI -> other types (770-779) --- */
+      astClear( tfc, "Card" );
+      if( !astGetFitsF( tfc, "SRCCI", &dval ) )
+         stopit( 770, "COMPLEXI->FLOAT conversion failed", status );
+      else if( fabs( dval - 3.0 ) > 1e-10 )
+         stopit( 771, "COMPLEXI->FLOAT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsS( tfc, "SRCCI", &sval ) )
+         stopit( 772, "COMPLEXI->STRING conversion failed", status );
+      else if( !strstr( sval, "3" ) || !strstr( sval, "4" ) )
+         stopit( 772, "COMPLEXI->STRING wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsI( tfc, "SRCCI", &ival ) )
+         stopit( 773, "COMPLEXI->INT conversion failed", status );
+      else if( ival != 3 )
+         stopit( 774, "COMPLEXI->INT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsK( tfc, "SRCCI", &kval ) )
+         stopit( 775, "COMPLEXI->KINT conversion failed", status );
+      else if( kval != 3 )
+         stopit( 775, "COMPLEXI->KINT wrong value", status );
+
+      astClear( tfc, "Card" );
+      if( !astGetFitsL( tfc, "SRCCI", &lval ) )
+         stopit( 776, "COMPLEXI->LOGICAL conversion failed", status );
+      else if( !lval )
+         stopit( 777, "COMPLEXI->LOGICAL wrong value", status );
+
+      astClear( tfc, "Card" );
+      cf[0] = cf[1] = 0.0;
+      if( !astGetFitsCF( tfc, "SRCCI", cf ) )
+         stopit( 778, "COMPLEXI->COMPLEXF conversion failed", status );
+      else if( fabs( cf[0] - 3.0 ) > 1e-10 || fabs( cf[1] - 4.0 ) > 1e-10 )
+         stopit( 779, "COMPLEXI->COMPLEXF wrong value", status );
+
+      tfc = astAnnul( tfc );
+   }
+
+   /* Extra CnvType edge case: LOGICAL(false) -> STRING (790+) */
+   {
+      AstFitsChan *efc = astFitsChan( NULL, NULL, " " );
+      char *sval;
+
+      astSetFitsL( efc, "LOGF", 0, "false", 0 );
+      astClear( efc, "Card" );
+      if( !astGetFitsS( efc, "LOGF", &sval ) )
+         stopit( 790, "LOGICAL(false)->STRING failed", status );
+      else if( strcmp( sval, "N" ) )
+         stopit( 791, "LOGICAL(false)->STRING should be N", status );
+
+      efc = astAnnul( efc );
+   }
+
 cleanup:
    astEnd;
 
