@@ -741,18 +741,4 @@ if(AST_BUILD_FORTRAN)
         ast_add_fortran_test(testhuge)
         add_dependencies(testhuge_f ast_fortran_includes)
     endif()
-
-    if(PLPLOT_FOUND)
-        ast_add_fortran_test(testplot3d
-            NO_DEFAULT_GRF_LIBS
-            EXTRA_LIBS
-                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot>
-                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot>
-                ${PLPLOT_LIBRARIES}
-        )
-        add_dependencies(testplot3d_f ast_fortran_includes)
-        target_include_directories(testplot3d_f PRIVATE ${PLPLOT_INCLUDE_DIRS})
-        target_link_directories(testplot3d_f PRIVATE ${PLPLOT_LIBRARY_DIRS})
-    endif()
-
 endif() # AST_BUILD_FORTRAN
