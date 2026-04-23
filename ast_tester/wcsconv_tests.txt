@@ -89,3 +89,17 @@ fk4-noeq_native     | fk4-noeq.head                  | fk4-noeq.native    | nati
 unknown-cel2_native | unknown-cel2.head              | unknown-cel2.native| native    |                                  | yes
 tidy-offsets_native | tidy-offsets.head              | tidy-offsets.native| native    |                                  | yes
 tidy-pole_native    | tidy-pole.head                 | tidy-pole.native   | native    |                                  | yes
+date-short_native   | date-short.head                | date-short.native  | native    |                                  | yes
+date-frac_native    | date-frac.head                 | date-frac.native   | native    |                                  | yes
+equinox-zero_native | equinox-zero.head              | equinox-zero.native| native    |                                  | yes
+ssysobs_native      | ssysobs.head                   | ssysobs.native     | native    |                                  | yes
+ener-vel_native     | ener-vel.head                  | ener-vel.native    | native    |                                  | yes
+beta-frq_native     | beta-frq.head                  | beta-frq.native    | native    |                                  | yes
+sip-alt_native      | sip-alt.head                   | sip-alt.native     | native    | sipreplace=0                     | yes
+ukirt-dtai_native   | ukirt-dtai.head                | ukirt-dtai.native  | native    |                                  | yes
+rfval_native        | rfval.head                     | rfval.native       | native    |                                  | yes
+vrad-wav_native     | vrad-wav.head                  | vrad-wav.native    | native    |                                  | yes
+projp-nopv0_native  | projp-nopv0.head               | projp-nopv0.native | native    |                                  | yes
+projp-pv0only_native| projp-pv0only.head             | projp-pv0only.native| native   |                                  | yes
+restfreq-ghz_native | restfreq-ghz.head              | restfreq-ghz.native| native    |                                  | yes
+pc-sparse_native    | pc-sparse.head                 | pc-sparse.native   | native    |                                  | yes
