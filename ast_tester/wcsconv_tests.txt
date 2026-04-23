@@ -87,3 +87,5 @@ projp-pv_native     | projp-pv.head                  | projp-pv.native    | nati
 cd-old_native       | cd-old.head                    | cd-old.native      | native    |                                  | yes
 fk4-noeq_native     | fk4-noeq.head                  | fk4-noeq.native    | native    |                                  | yes
 unknown-cel2_native | unknown-cel2.head              | unknown-cel2.native| native    |                                  | yes
+tidy-offsets_native | tidy-offsets.head              | tidy-offsets.native| native    |                                  | yes
+tidy-pole_native    | tidy-pole.head                 | tidy-pole.native   | native    |                                  | yes

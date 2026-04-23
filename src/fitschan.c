@@ -1300,6 +1300,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        ecliptic coordinates write ELON/ELAT instead of UNLN/UNLT.
 *        Fix memory leak in CLASSFromStore: freqfrm was never annulled
 *        after being used to create a frequency-to-velocity conversion.
+*     23-APR-2026 (TIMJ):
+*        Fix TidyOffsets to use astIsASkyFrame instead of IsASkyFrame.
+*        The IsASkyFrame macro requires domain=="SKY", preventing
+*        detection of SKY_OFFSETS, SKY_POLE and SKY_ORIGIN domains.
 *class--
 */
 
@@ -34385,7 +34389,7 @@ static void TidyOffsets( AstFrameSet *fset, int *status ) {
       nax = astGetNaxes( frm );
       for( iax = 0; iax < nax; iax++ ) {
          astPrimaryFrame( frm, iax, &pfrm, &pax );
-         if( IsASkyFrame( pfrm ) ) {
+         if( astIsASkyFrame( pfrm ) ) {
             dom = astGetDomain( pfrm );
             if( dom ) {
                if( !strcmp( dom, "SKY_OFFSETS" ) ){
@@ -34428,7 +34432,7 @@ static void TidyOffsets( AstFrameSet *fset, int *status ) {
          nax = astGetNaxes( frm );
          for( iax = 0; iax < nax; iax++ ) {
             astPrimaryFrame( frm, iax, &pfrm, &pax );
-            if( IsASkyFrame( pfrm ) ) {
+            if( astIsASkyFrame( pfrm ) ) {
                dom = astGetDomain( pfrm );
                if( dom ) {
                   if( !strcmp( dom, "SKY_OFFSETS" ) ){
