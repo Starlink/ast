@@ -613,3 +613,150 @@ if(PLPLOT_FOUND)
     endforeach()
 endif()
 
+
+# ============================================================
+# Fortran tests (AST_BUILD_FORTRAN=ON only)
+# ============================================================
+# These run the original Fortran test programs against the Fortran binding,
+# complementing the C equivalents above.  Each test is suffixed _f to
+# distinguish it from the C version in ctest output.
+if(AST_BUILD_FORTRAN)
+
+    # Minimal C implementations of the Starlink APIs called by the Fortran
+    # tests (EMS error handling, PSX memory, CNF C/Fortran interface, etc.).
+    add_library(ast_star_compat STATIC
+        star_compat/err_standalone.c
+        star_compat/psx_standalone.c
+        star_compat/chr_standalone.c
+        star_compat/cnf_standalone.c
+        star_compat/num_standalone.c
+    )
+    target_include_directories(ast_star_compat PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/star_compat"
+        "${CMAKE_BINARY_DIR}"       # config.h, ast_err.h
+        "${CMAKE_BINARY_DIR}/src"   # f77.h (generated from f77.h.in)
+    )
+    target_compile_definitions(ast_star_compat PRIVATE HAVE_CONFIG_H)
+
+    # Helper: add a Fortran test program and register it with ctest.
+    # Test names get a _f suffix to distinguish from C equivalents.
+    # The Fortran INCLUDE search path covers:
+    #   - star_compat/  : SAE_PAR, SAI_ERR, CNF_PAR, ERR_PAR, etc.
+    #   - CMAKE_BINARY_DIR : generated AST_PAR and AST_ERR
+    function(ast_add_fortran_test name)
+        cmake_parse_arguments(FT "NO_DEFAULT_GRF_LIBS" "" "EXTRA_LIBS;TEST_ARGS" ${ARGN})
+        add_executable(${name}_f ${name}.f)
+        if(AST_FORTRAN_TEST_FLAGS)
+            target_compile_options(${name}_f PRIVATE
+                $<$<COMPILE_LANGUAGE:Fortran>:${AST_FORTRAN_TEST_FLAGS}>
+            )
+        endif()
+        target_include_directories(${name}_f PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/star_compat"
+            "${CMAKE_BINARY_DIR}"   # AST_PAR, AST_ERR
+        )
+        if(FT_NO_DEFAULT_GRF_LIBS)
+            set(_grf_libs
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
+                ${FT_EXTRA_LIBS}
+            )
+        else()
+            set(_grf_libs
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_2.0>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_3.2>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_5.6>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
+                ${FT_EXTRA_LIBS}
+            )
+        endif()
+        target_link_libraries(${name}_f PRIVATE
+            ast
+            ${_grf_libs}
+            ast_star_compat
+            m
+        )
+        add_test(NAME ${name}_f COMMAND ${name}_f ${FT_TEST_ARGS}
+                 WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+        if(AST_ENABLE_SANITIZERS)
+            set_tests_properties(${name}_f PROPERTIES
+                ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+        endif()
+    endfunction()
+
+    # Custom target that ensures AST_PAR and AST_ERR exist before any
+    # Fortran test is compiled (they are Fortran INCLUDE files).
+    # ast_par and ast_codegen are defined in the top-level CMakeLists.txt.
+    add_custom_target(ast_fortran_includes)
+    add_dependencies(ast_fortran_includes ast_par ast_codegen)
+
+    # All 33 unconditional Fortran test programs
+    set(_fortran_tests
+        testzoommap
+        testnormmap
+        testmapping
+        testskyframe
+        testcmpframe
+        testlutmap
+        testratemap
+        testchannel
+        testrate
+        testspecframe
+        testflux
+        testspecflux
+        testcmpmap
+        testpolymap
+        testchebymap
+        testunitnormmap
+        testtrangrid
+        testmoc
+        testfitstable
+        testframeset
+        testswitchmap
+        testtime
+        testkeymap
+        testmocchan
+        testxmlchan
+        testtable
+        teststcschan
+        testregions
+        testrebinseq
+        testrebin
+        teststc
+        testfitschan
+        testsplinemap
+    )
+    foreach(_f_test IN LISTS _fortran_tests)
+        ast_add_fortran_test(${_f_test})
+        add_dependencies(${_f_test}_f ast_fortran_includes)
+    endforeach()
+
+    # Data files needed by Fortran tests (configure_file calls are idempotent)
+    configure_file(2dspline.dat "${CMAKE_CURRENT_BINARY_DIR}/2dspline.dat" COPYONLY)
+    configure_file(splittest1.ast "${CMAKE_CURRENT_BINARY_DIR}/splittest1.ast" COPYONLY)
+    foreach(_eg RANGE 1 10)
+        configure_file(teststc_eg${_eg} "${CMAKE_CURRENT_BINARY_DIR}/teststc_eg${_eg}" COPYONLY)
+    endforeach()
+    configure_file(sip.head "${CMAKE_CURRENT_BINARY_DIR}/sip.head" COPYONLY)
+    configure_file(alt.header "${CMAKE_CURRENT_BINARY_DIR}/alt.header" COPYONLY)
+    configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
+
+    if(AST_ENABLE_HUGE_TEST)
+        ast_add_fortran_test(testhuge)
+        add_dependencies(testhuge_f ast_fortran_includes)
+    endif()
+
+    if(PLPLOT_FOUND)
+        ast_add_fortran_test(testplot3d
+            NO_DEFAULT_GRF_LIBS
+            EXTRA_LIBS
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot>
+                ${PLPLOT_LIBRARIES}
+        )
+        add_dependencies(testplot3d_f ast_fortran_includes)
+        target_include_directories(testplot3d_f PRIVATE ${PLPLOT_INCLUDE_DIRS})
+        target_link_directories(testplot3d_f PRIVATE ${PLPLOT_LIBRARY_DIRS})
+    endif()
+
+endif() # AST_BUILD_FORTRAN
