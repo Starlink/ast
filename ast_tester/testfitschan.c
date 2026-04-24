@@ -71,7 +71,9 @@ static int *g_test_status = NULL;
  *  -1 = read back OK but coordinates disagree or cannot be compared
  * -----------------------------------------------------------------------*/
 static int roundtrip( AstFrameSet *fs, const char *encoding,
-                      const char *attrs, double tol, int *status ) {
+                      const char *attrs, double tol,
+                      const char *expect_key, const char *expect_val,
+                      int *status ) {
    AstFitsChan *fc;
    AstFrameSet *fs2;
    int ok = 0;
@@ -82,6 +84,31 @@ static int roundtrip( AstFrameSet *fs, const char *encoding,
    astSetC( fc, "Encoding", encoding );
    if( attrs && attrs[0] ) astSet( fc, "%s", attrs );
    if( astWrite( fc, fs ) != 1 ) goto done;
+
+   if( expect_key ) {
+      char *got_val;
+      int found = 0;
+
+      if( !strcmp( expect_key, "CTYPE" ) ) {
+         char trykey[9];
+         int iax;
+         for( iax = 1; iax <= 9 && !found; iax++ ) {
+            sprintf( trykey, "CTYPE%d", iax );
+            astClear( fc, "Card" );
+            if( astGetFitsS( fc, trykey, &got_val ) &&
+                !strcmp( got_val, expect_val ) ) found = 1;
+         }
+      } else {
+         astClear( fc, "Card" );
+         if( astGetFitsS( fc, expect_key, &got_val ) &&
+             !strcmp( got_val, expect_val ) ) found = 1;
+      }
+      if( !found ) {
+         ok = -2;
+         goto done;
+      }
+   }
+
    astClear( fc, "Card" );
    fs2 = (AstFrameSet *) astRead( fc );
    if( !fs2 ) goto done;
@@ -1812,9 +1839,14 @@ int main( void ) {
          "FITS-WCS", "FITS-PC", "FITS-IRAF", "FITS-AIPS", "FITS-AIPS++",
       };
       int n_enc = (int)( sizeof(encodings) / sizeof(encodings[0]) );
+      static const char *lon_prefix[] = {
+         "RA--", "RA--", "RA--", "RA--", "GLON", "SLON", "ELON",
+      };
+      char expect_ctype[12];
       int is, ie;
 
       for( is = 0; is < n_sky; is++ ) {
+         snprintf( expect_ctype, sizeof(expect_ctype), "%s-TAN", lon_prefix[is] );
          for( ie = 0; ie < n_enc; ie++ ) {
             hfc = astFitsChan( NULL, NULL, " " );
             astPutFits( hfc, "SIMPLE  =                    T", 0 );
@@ -1836,11 +1868,17 @@ int main( void ) {
             hfc = astAnnul( hfc );
             if( tfs ) {
                astSetC( tfs, "System", sky_systems[is] );
-               rt = roundtrip( tfs, encodings[ie], "", 1e-3, status );
+               rt = roundtrip( tfs, encodings[ie], "", 1e-3,
+                               "CTYPE", expect_ctype, status );
                if( rt == -1 ) {
                   snprintf( buf, sizeof(buf),
                             "Coordinates disagree for %s with %s",
                             sky_systems[is], encodings[ie] );
+                  stopit( 500 + is * n_enc + ie, buf, status );
+               } else if( rt == -2 ) {
+                  snprintf( buf, sizeof(buf),
+                            "Wrong CTYPE1 for %s with %s (expected %s)",
+                            sky_systems[is], encodings[ie], expect_ctype );
                   stopit( 500 + is * n_enc + ie, buf, status );
                }
                tfs = astAnnul( tfs );
@@ -1853,13 +1891,14 @@ int main( void ) {
          static const struct {
             const char *spec_attrs;
             const char *label;
+            const char *expect_ctype;
          } spec_systems[] = {
-            { "System=FREQ,Unit=Hz,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz", "FREQ" },
-            { "System=WAVE,Unit=m,StdOfRest=Barycentric,RestFreq=5.996e14 Hz",  "WAVE" },
-            { "System=VRAD,Unit=m/s,StdOfRest=LSRK,RestFreq=1.4204e9 Hz",      "VRAD" },
-            { "System=VOPT,Unit=m/s,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz","VOPT" },
-            { "System=ZOPT,Unit= ,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz",  "ZOPT" },
-            { "System=BETA,Unit= ,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz",  "BETA" },
+            { "System=FREQ,Unit=Hz,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz", "FREQ", "FREQ" },
+            { "System=WAVE,Unit=m,StdOfRest=Barycentric,RestFreq=5.996e14 Hz",  "WAVE", "WAVE" },
+            { "System=VRAD,Unit=m/s,StdOfRest=LSRK,RestFreq=1.4204e9 Hz",      "VRAD", "VRAD" },
+            { "System=VOPT,Unit=m/s,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz","VOPT", "VOPT" },
+            { "System=ZOPT,Unit= ,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz",  "ZOPT", "ZOPT" },
+            { "System=BETA,Unit= ,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz",  "BETA", "BETA" },
          };
          int n_spec = (int)( sizeof(spec_systems) / sizeof(spec_systems[0]) );
          double zooms[] = { 1.0e6, 1.0e-10, 1000.0, 1000.0, 1.0e-6, 1.0e-6 };
@@ -1871,7 +1910,8 @@ int main( void ) {
             map = (AstMapping *) astZoomMap( 1, zooms[isp], " " );
             tfs = astFrameSet( pixel, " " );
             astAddFrame( tfs, AST__CURRENT, map, (AstFrame *) spec );
-            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3, status );
+            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3,
+                            "CTYPE1", spec_systems[isp].expect_ctype, status );
             if( rt == 0 ) {
                snprintf( buf, sizeof(buf),
                          "Write/read failed for %s SpecFrame",
@@ -1881,6 +1921,11 @@ int main( void ) {
                snprintf( buf, sizeof(buf),
                          "Coordinates disagree for %s SpecFrame",
                          spec_systems[isp].label );
+               stopit( 600 + isp, buf, status );
+            } else if( rt == -2 ) {
+               snprintf( buf, sizeof(buf),
+                         "Wrong CTYPE1 for %s SpecFrame (expected %s)",
+                         spec_systems[isp].label, spec_systems[isp].expect_ctype );
                stopit( 600 + isp, buf, status );
             }
          }
@@ -1903,11 +1948,14 @@ int main( void ) {
          astAddFrame( nltfs, AST__CURRENT, map, (AstFrame *) nlspec );
          astSetC( nltfs, "System", "VOPT" );
 
-         rt = roundtrip( nltfs, "FITS-WCS", "", 1e-3, status );
+         rt = roundtrip( nltfs, "FITS-WCS", "", 1e-3,
+                         "CTYPE1", "VOPT-F2W", status );
          if( rt == 0 )
             stopit( 606, "Write/read failed for non-linear VOPT-F2W", status );
          else if( rt == -1 )
             stopit( 607, "Coordinates disagree for non-linear VOPT-F2W", status );
+         else if( rt == -2 )
+            stopit( 606, "Wrong CTYPE1 for non-linear VOPT-F2W", status );
 
          nltfs = astAnnul( nltfs );
       }
@@ -1927,11 +1975,14 @@ int main( void ) {
          astSetC( nltfs2, "System", "WAVE" );
          astSetC( nltfs2, "Unit(1)", "m" );
 
-         rt = roundtrip( nltfs2, "FITS-WCS", "", 1e-3, status );
+         rt = roundtrip( nltfs2, "FITS-WCS", "", 1e-3,
+                         "CTYPE1", "WAVE-F2W", status );
          if( rt == 0 )
             stopit( 608, "Write/read failed for non-linear WAVE-F2W", status );
          else if( rt == -1 )
             stopit( 609, "Coordinates disagree for non-linear WAVE-F2W", status );
+         else if( rt == -2 )
+            stopit( 608, "Wrong CTYPE1 for non-linear WAVE-F2W", status );
 
          nltfs2 = astAnnul( nltfs2 );
       }
@@ -1951,11 +2002,14 @@ int main( void ) {
          astSetC( nltfs3, "System", "WAVN" );
          astSetC( nltfs3, "Unit(1)", "1/m" );
 
-         rt = roundtrip( nltfs3, "FITS-WCS", "", 1e-3, status );
+         rt = roundtrip( nltfs3, "FITS-WCS", "", 1e-3,
+                         "CTYPE1", "WAVN-W2F", status );
          if( rt == 0 )
             stopit( 650, "Write/read failed for non-linear WAVN-W2F", status );
          else if( rt == -1 )
             stopit( 651, "Coordinates disagree for non-linear WAVN-W2F", status );
+         else if( rt == -2 )
+            stopit( 650, "Wrong CTYPE1 for non-linear WAVN-W2F", status );
 
          nltfs3 = astAnnul( nltfs3 );
       }
@@ -1975,11 +2029,14 @@ int main( void ) {
          astSetC( nltfs4, "System", "AWAV" );
          astSetC( nltfs4, "Unit(1)", "m" );
 
-         rt = roundtrip( nltfs4, "FITS-WCS", "", 1e-3, status );
+         rt = roundtrip( nltfs4, "FITS-WCS", "", 1e-3,
+                         "CTYPE1", "AWAV-F2A", status );
          if( rt == 0 )
             stopit( 652, "Write/read failed for non-linear AWAV-F2A", status );
          else if( rt == -1 )
             stopit( 653, "Coordinates disagree for non-linear AWAV-F2A", status );
+         else if( rt == -2 )
+            stopit( 652, "Wrong CTYPE1 for non-linear AWAV-F2A", status );
 
          nltfs4 = astAnnul( nltfs4 );
       }
@@ -1998,11 +2055,14 @@ int main( void ) {
          astAddFrame( nltfs5, AST__CURRENT, map, (AstFrame *) nlspec5 );
          astSetC( nltfs5, "System", "BETA" );
 
-         rt = roundtrip( nltfs5, "FITS-WCS", "", 1e-3, status );
+         rt = roundtrip( nltfs5, "FITS-WCS", "", 1e-3,
+                         "CTYPE1", "BETA", status );
          if( rt == 0 )
             stopit( 654, "Write/read failed for non-linear BETA-V2V", status );
          else if( rt == -1 )
             stopit( 655, "Coordinates disagree for non-linear BETA-V2V", status );
+         else if( rt == -2 )
+            stopit( 654, "Wrong CTYPE1 for non-linear BETA", status );
 
          nltfs5 = astAnnul( nltfs5 );
       }
@@ -2042,11 +2102,14 @@ int main( void ) {
          hfc5 = astAnnul( hfc5 );
          if( tfs ) {
             astSetC( tfs, "System", "AZEL" );
-            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3, status );
+            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3,
+                            "CTYPE", "AZ---TAN", status );
             if( rt == 0 )
                stopit( 630, "Write/read failed for AZEL", status );
             else if( rt == -1 )
                stopit( 631, "Coordinates disagree for AZEL round-trip", status );
+            else if( rt == -2 )
+               stopit( 633, "AZEL conversion: no CTYPEn is AZ---TAN", status );
             tfs = astAnnul( tfs );
          } else {
             stopit( 632, "Failed to read header for AZEL test", status );
@@ -2083,11 +2146,14 @@ int main( void ) {
                stopit( 640, "AZEL header did not produce AZEL SkyFrame", status );
             astAnnul( skyfrm );
 
-            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3, status );
+            rt = roundtrip( tfs, "FITS-WCS", "", 1e-3,
+                            "CTYPE", "AZ---TAN", status );
             if( rt == 0 )
                stopit( 641, "Write/read failed for direct AZEL header", status );
             else if( rt == -1 )
                stopit( 643, "Coordinates disagree for direct AZEL header", status );
+            else if( rt == -2 )
+               stopit( 644, "Direct AZEL: no CTYPEn is AZ---TAN", status );
             tfs = astAnnul( tfs );
          } else {
             stopit( 642, "Failed to read AZEL header", status );
