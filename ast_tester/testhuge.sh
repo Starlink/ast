@@ -15,7 +15,7 @@ variant="${1:-both}"
 
 run_c() {
     echo "testhuge: running C variant"
-    ./testhuge
+    ./testhuge_c
 }
 
 run_fortran() {
