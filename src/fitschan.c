@@ -1327,6 +1327,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        destructor, and was not deep-copied in the Copy constructor
 *        (leading to use-after-free when copied FitsChan objects were
 *        destroyed).
+*     24-APR-2026 (TIMJ):
+*        Fix LoadFitsChan: FindString search count was 9 but the
+*        type_names array has 10 entries (KINT at index 9). Changed
+*        to 10 so that 64-bit integer keywords survive Dump/Load.
 *class--
 */
 
@@ -44858,7 +44862,7 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
          (void) sprintf( buff, "ty%d", ncard );
          text = astReadString( channel, buff, " " );
          if( strcmp( text, " " ) ) {
-            type = FindString( 9, type_names, text,
+            type = FindString( 10, type_names, text,
                                "a FitsChan keyword data type",
                                "astRead", astGetClass( channel ), status );
          } else {
