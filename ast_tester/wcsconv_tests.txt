@@ -74,6 +74,7 @@ freq-wav_native     | freq-wav.head                  | freq-wav.native    | nati
 wavn-frq_native     | wavn-frq.head                  | wavn-frq.native    | native    |                                  | yes
 mercator_native     | mercator.head                  | mercator.native    | native    |                                  | yes
 gappt_native        | gappt.head                     | gappt.native       | native    |                                  | yes
+gappt_fits-wcs      | gappt.head                     | gappt.fits-wcs     | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 atf_native          | atf.head                       | atf.native         | native    |                                  | yes
 equinox-bj_native   | equinox-bj.head                | equinox-bj.native  | native    |                                  | yes
 timesys-tdb_native  | timesys-tdb.head               | timesys-tdb.native | native    |                                  | yes
