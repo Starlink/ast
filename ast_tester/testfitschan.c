@@ -3646,6 +3646,74 @@ int main( void ) {
          osfs = astAnnul( osfs );
       }
 
+      /* --- 3D SIP: read 3D SIP header (2 celestial + 1 spectral) and
+         write back with SipOK=1 to exercise the >2 axis PermMap handling
+         in SIPIntWorld (error 980-985). --- */
+      {
+         AstFitsChan *sipfc = astFitsChan( NULL, NULL, " " );
+         AstFrameSet *sipfs;
+         char card[81];
+         int found_a_order = 0;
+         int found_freq = 0;
+
+         astSet( sipfc, "SourceFile=sip-3d.head" );
+         astClear( sipfc, "Card" );
+         sipfs = (AstFrameSet *) astRead( sipfc );
+         if( !sipfs ) {
+            stopit( 980, "Failed to read 3D SIP header", status );
+         } else {
+            astEmptyFits( sipfc );
+            astSetI( sipfc, "SipOK", 1 );
+            astSet( sipfc, "Encoding=FITS-WCS" );
+            if( astWrite( sipfc, sipfs ) == 0 )
+               stopit( 981, "Failed to write 3D SIP FrameSet", status );
+
+            astClear( sipfc, "Card" );
+            while( astFindFits( sipfc, "%f", card, 1 ) ) {
+               if( !strncmp( card, "A_ORDER ", 8 ) ) found_a_order = 1;
+               if( !strncmp( card, "CTYPE3", 6 ) &&
+                   strstr( card, "FREQ" ) ) found_freq = 1;
+            }
+            if( !found_a_order )
+               stopit( 982, "3D SIP write did not produce A_ORDER", status );
+            if( !found_freq )
+               stopit( 983, "3D SIP write did not produce FREQ CTYPE3", status );
+            sipfs = astAnnul( sipfs );
+         }
+         sipfc = astAnnul( sipfc );
+      }
+
+      /* --- 3D SIP with swapped DEC/RA axis order: exercises reversed
+         inaxes path in SIPIntWorld (error 984-987). --- */
+      {
+         AstFitsChan *sipfc2 = astFitsChan( NULL, NULL, " " );
+         AstFrameSet *sipfs2;
+         char card[81];
+         int found_a_order = 0;
+
+         astSet( sipfc2, "SourceFile=sip-3d-swap.head" );
+         astClear( sipfc2, "Card" );
+         sipfs2 = (AstFrameSet *) astRead( sipfc2 );
+         if( !sipfs2 ) {
+            stopit( 984, "Failed to read 3D SIP swapped header", status );
+         } else {
+            astEmptyFits( sipfc2 );
+            astSetI( sipfc2, "SipOK", 1 );
+            astSet( sipfc2, "Encoding=FITS-WCS" );
+            if( astWrite( sipfc2, sipfs2 ) == 0 )
+               stopit( 985, "Failed to write 3D SIP swapped FrameSet", status );
+
+            astClear( sipfc2, "Card" );
+            while( astFindFits( sipfc2, "%f", card, 1 ) ) {
+               if( !strncmp( card, "A_ORDER ", 8 ) ) found_a_order = 1;
+            }
+            if( !found_a_order )
+               stopit( 986, "3D SIP swapped write did not produce A_ORDER", status );
+            sipfs2 = astAnnul( sipfs2 );
+         }
+         sipfc2 = astAnnul( sipfc2 );
+      }
+
       astEnd;
    }
 

@@ -14,6 +14,8 @@ dss_ast_fits-wcs    | dss.ast                        | dss.fits-wcs       | fits
 degen1_fits-wcs     | degen1.ast                     | degen1.fits-wcs    | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 sip_fits-wcs        | sip.head                       | sip.fits-wcs       | fits-wcs  | cdmatrix=1,sipreplace=0,FitsDigits=8 |
 sip2_fits-wcs       | sip2.head                      | sip2.fits-wcs      | fits-wcs  | cdmatrix=1,sipreplace=0,FitsDigits=8 |
+sip-3d_fits-wcs     | sip-3d.head                    | sip-3d.fits-wcs    | fits-wcs  | cdmatrix=1,sipreplace=0,SipOK=1,FitsDigits=8 |
+sip-3d-swap_fits-wcs| sip-3d-swap.head               | sip-3d-swap.fits-wcs| fits-wcs | cdmatrix=1,sipreplace=0,SipOK=1,FitsDigits=8 |
 lsst_fits-wcs       | lsst.ast                       | lsst.fits-wcs      | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 longslit_fits-wcs   | longslit.fits-pc               | longslit.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 jan_fits-class_ast  | jan.fits-class                 | jan.ast            | ast       | FitsDigits=8                     |
