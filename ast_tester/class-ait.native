@@ -1,0 +1,107 @@
+                                                                                
+COMMENT AST ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ AST
+COMMENT AST                  WCS information in AST format                   AST
+COMMENT AST                See http://www.starlink.ac.uk/ast/                AST
+COMMENT AST            Beginning of AST data for FrameSet object             AST
+COMMENT AST ................................................................ AST
+BEGAST_A= 'FrameSet'           / Set of inter-related coordinate systems        
+NFRAME_A=                    2 / Number of Frames in FrameSet                   
+BASE_A  =                    1 / Index of base Frame                            
+CURRNT_A=                    2 / Index of current Frame                         
+LNK2_A  =                    1 / Node 2 is derived from node 1                  
+FRM1_A  = '        '           / Frame number 1                                 
+BEGAST_B= 'Frame   '           / Coordinate system description                  
+TITLE_A = 'Pixel Coordinates'  / Title of coordinate system                     
+NAXES_A =                    3 / Number of coordinate axes                      
+DOMAIN_A= 'GRID    '           / Coordinate system domain                       
+AX1_A   = '        '           / Axis number 1                                  
+BEGAST_C= 'Axis    '           / Coordinate axis                                
+LABEL_A = 'Pixel axis 1'       / Axis Label                                     
+ENDAST_A= 'Axis    '           / End of object definition                       
+AX2_A   = '        '           / Axis number 2                                  
+BEGAST_D= 'Axis    '           / Coordinate axis                                
+LABEL_B = 'Pixel axis 2'       / Axis Label                                     
+ENDAST_B= 'Axis    '           / End of object definition                       
+AX3_A   = '        '           / Axis number 3                                  
+BEGAST_E= 'Axis    '           / Coordinate axis                                
+LABEL_C = 'Pixel axis 3'       / Axis Label                                     
+ENDAST_C= 'Axis    '           / End of object definition                       
+ENDAST_D= 'Frame   '           / End of object definition                       
+FRM2_A  = '        '           / Frame number 2                                 
+BEGAST_F= 'CmpFrame'           / Compound coordinate system description         
+IDENT_A = '" "     '           / Permanent Object identification string         
+ISA_A   = 'Object  '           / AST Object                                     
+AXP1_A  =                    3 / Axis 1 permuted to use internal axis 3         
+AXP2_A  =                    1 / Axis 2 permuted to use internal axis 1         
+AXP3_A  =                    2 / Axis 3 permuted to use internal axis 2         
+FRAMEA_A= '        '           / First component Frame                          
+BEGAST_G= 'SkyFrame'           / Description of celestial coordinate system     
+NAXES_B =                    2 / Number of coordinate axes                      
+EPOCH_A =   2002.3794407744936 / Julian epoch of observation                    
+SYSTEM_A= 'FK5     '           / Coordinate system type                         
+AX1_B   = '        '           / Axis number 1                                  
+BEGAST_H= 'SkyAxis '           / Celestial coordinate axis                      
+ENDAST_E= 'SkyAxis '           / End of object definition                       
+AX2_B   = '        '           / Axis number 2                                  
+BEGAST_I= 'SkyAxis '           / Celestial coordinate axis                      
+ENDAST_F= 'SkyAxis '           / End of object definition                       
+ISA_B   = 'Frame   '           / Coordinate system description                  
+PROJ_A  = 'Hammer-Aitoff'      / Description of sky projection                  
+EQNOX_A =               2000.0 / Julian epoch of mean equinox                   
+SREFIS_A= 'Ignored '           / Not rotated (ref. pos. is ignored)             
+SREF1_A =                  0.0 / Ref. pos. RA 0:00:00.0                         
+SREF2_A =                  0.0 / Ref. pos. Dec 0:00:00                          
+ENDAST_G= 'SkyFrame'           / End of object definition                       
+FRAMEB_A= '        '           / Second component Frame                         
+BEGAST_J= 'SpecFrame'          / Description of spectral coordinate system      
+NAXES_C =                    1 / Number of coordinate axes                      
+EPOCH_B =   2002.3794407744936 / Julian epoch of observation                    
+SYSTEM_B= 'FREQ    '           / Coordinate system type                         
+AX1_C   = '        '           / Axis number 1                                  
+BEGAST_K= 'Axis    '           / Coordinate axis                                
+UNIT_A  = 'Hz      '           / Axis units (Hertz)                             
+ENDAST_H= 'Axis    '           / End of object definition                       
+ISA_C   = 'Frame   '           / Coordinate system description                  
+SOR_A   = 'Barycentric'        / Standard of rest                               
+REFRA_A =                  0.0 / Reference RA (rads, FK5 J2000)                 
+REFDEC_A=                  0.0 / Reference Dec (rads, FK5 J2000)                
+RSTFRQ_A=         1420405752.0 / Rest frequency (Hz)                            
+UFREQ_A = 'Hz      '           / Preferred units for frequency                  
+ENDAST_I= 'SpecFrame'          / End of object definition                       
+ENDAST_J= 'CmpFrame'           / End of object definition                       
+MAP2_A  = '        '           / Mapping between nodes 1 and 2                  
+BEGAST_L= 'CmpMap  '           / Compound Mapping                               
+NIN_A   =                    3 / Number of input coordinates                    
+ISSIMP_A=                    1 / Mapping has been simplified                    
+ISA_D   = 'Mapping '           / Mapping between coordinate systems             
+INVB_A  =                    1 / Second Mapping used in inverse direction       
+MAPA_A  = '        '           / First component Mapping                        
+BEGAST_M= 'WinMap  '           / Map one window on to another                   
+NIN_B   =                    3 / Number of input coordinates                    
+ISA_E   = 'Mapping '           / Mapping between coordinate systems             
+SFT1_A  =          907405752.0 / Shift for axis 1                               
+SCL1_A  =            1000000.0 / Scale factor for axis 1                        
+SFT2_A  = 0.0087266462599716477 / Shift for axis 2                              
+SCL2_A  =  -1.7453292519943296E-4 / Scale factor for axis 2                     
+SFT3_A  = -0.0087266462599716477 / Shift for axis 3                             
+SCL3_A  = 0.00017453292519943296 / Scale factor for axis 3                      
+ENDAST_K= 'WinMap  '           / End of object definition                       
+MAPB_A  = '        '           / Second component Mapping                       
+BEGAST_N= 'WcsMap  '           / FITS-WCS sky projection                        
+NIN_C   =                    3 / Number of input coordinates                    
+INVERT_A=                    1 / Mapping inverted                               
+ISA_F   = 'Mapping '           / Mapping between coordinate systems             
+TYPE_A  = 'AIT     '           / Hammer-Aitoff projection                       
+WCSAX1_A=                    2 / Index of celestial longitude axis              
+WCSAX2_A=                    3 / Index of celestial latitude axis               
+ENDAST_L= 'WcsMap  '           / End of object definition                       
+ENDAST_M= 'CmpMap  '           / End of object definition                       
+ENDAST_N= 'FrameSet'           / End of object definition                       
+COMMENT AST ................................................................ AST
+COMMENT AST               End of AST data for FrameSet object                AST
+COMMENT AST ---------------------------------------------------------------- AST
+NAXIS1  =                 1024 / Spectral axis                                  
+NAXIS2  =                  100 / Spatial axis                                   
+NAXIS3  =                  100 / Spatial axis                                   
+MJD-OBS =             52413.59 / MJD of observation                             
+END                                                                             

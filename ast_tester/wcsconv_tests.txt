@@ -61,6 +61,7 @@ velo-vel_native     | velo-vel.head                  | velo-vel.native    | nati
 vopt-wav_native     | vopt-wav.head                  | vopt-wav.native    | native    |                                  | yes
 zopt-frq_native     | zopt-frq.head                  | zopt-frq.native    | native    |                                  | yes
 cname_native        | cname.head                     | cname.native       | native    |                                  | yes
+cname_fits-wcs      | cname.head                     | cname.fits-wcs     | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 skyref_native       | skyref.head                    | skyref.native      | native    |                                  | yes
 fits-pc-unit_native | fits-pc-unit.head              | fits-pc-unit.native| native    |                                  | yes
 gls_native          | gls.head                       | gls.native         | native    |                                  | yes
@@ -97,6 +98,7 @@ ener-vel_native     | ener-vel.head                  | ener-vel.native    | nati
 beta-frq_native     | beta-frq.head                  | beta-frq.native    | native    |                                  | yes
 sip-alt_native      | sip-alt.head                   | sip-alt.native     | native    | sipreplace=0                     | yes
 ukirt-dtai_native   | ukirt-dtai.head                | ukirt-dtai.native  | native    |                                  | yes
+ukirt-dtai_fits-wcs | ukirt-dtai.head                | ukirt-dtai.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8          |
 rfval_native        | rfval.head                     | rfval.native       | native    |                                  | yes
 vrad-wav_native     | vrad-wav.head                  | vrad-wav.native    | native    |                                  | yes
 projp-nopv0_native  | projp-nopv0.head               | projp-nopv0.native | native    |                                  | yes
@@ -128,6 +130,12 @@ vrad-lsrd_fits-aips++| vrad-lsrd.head                | vrad-lsrd.fits-aips++ | f
 class-write_fits-class| class-write.head              | class-write.fits-class | fits-class | FitsDigits=8  |
 class-gal_fits-class| class-gal.head                 | class-gal.fits-class | fits-class | FitsDigits=8    |
 jan_fits-class-rt   | jan.fits-class                 | jan.fits-class-roundtrip | fits-class | FitsDigits=8 |
+class-arc_native    | class-arc.head                 | class-arc.native   | native    |                                  | yes
+class-arc_fits-class| class-arc.head                 | class-arc.fits-class | fits-class | FitsDigits=8  |
+class-ait_native    | class-ait.head                 | class-ait.native   | native    |                                  | yes
+class-ait_fits-class| class-ait.head                 | class-ait.fits-class | fits-class | FitsDigits=8  |
+class-sin_native    | class-sin.head                 | class-sin.native   | native    |                                  | yes
+class-sin_fits-class| class-sin.head                 | class-sin.fits-class | fits-class | FitsDigits=8  |
 ncp_fits-iraf       | ncp.head                       | ncp.fits-iraf      | fits-iraf | FitsDigits=8    |
 fk4-aips_fits-iraf  | fk4-aips.head                  | fk4-aips.fits-iraf | fits-iraf | FitsDigits=8    |
 a20070718_fits-iraf  | a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-iraf | fits-iraf | FitsDigits=8 |
@@ -141,6 +149,8 @@ skyspec3d-class_native| skyspec3d-class.head          | skyspec3d-class.native |
 skyspec3d-class_fits-class| skyspec3d-class.head      | skyspec3d-class.fits-class | fits-class | FitsDigits=8           |
 offset-sky_native   | offset-sky.head                | offset-sky.native  | native    |                                  | yes
 offset-sky_fits-wcs | offset-sky.head                | offset-sky.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8           |
+offset-sky-pole_native   | offset-sky-pole.head      | offset-sky-pole.native  | native |                               | yes
+offset-sky-pole_fits-wcs | offset-sky-pole.head      | offset-sky-pole.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8      |
 azel_native         | azel.head                      | azel.native        | native    |                                  | yes
 azel_fits-wcs       | azel.head                      | azel.fits-wcs      | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 vopt-f2w_native     | vopt-f2w.head                  | vopt-f2w.native    | native    |                                  | yes

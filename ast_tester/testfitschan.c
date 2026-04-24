@@ -2887,6 +2887,345 @@ int main( void ) {
       astEnd;
    }
 
+   /* DUT1/DTAI: read from FITS headers (JCMT convention: DUT1 in days)
+      and verify the values arrive on the Frame in seconds. */
+   if( *status == 0 ) {
+      AstFitsChan *ddfc;
+      AstFrame *ddfrm;
+      AstFrameSet *ddfs;
+      double dut1_got, dtai_got;
+
+      astBegin;
+
+      ddfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( ddfc, "NAXIS1  = 100", 0 );
+      astPutFits( ddfc, "NAXIS2  = 100", 0 );
+      astPutFits( ddfc, "CTYPE1  = 'RA---TAN'", 0 );
+      astPutFits( ddfc, "CTYPE2  = 'DEC--TAN'", 0 );
+      astPutFits( ddfc, "CRVAL1  = 180.0", 0 );
+      astPutFits( ddfc, "CRVAL2  = 45.0", 0 );
+      astPutFits( ddfc, "CRPIX1  = 50.0", 0 );
+      astPutFits( ddfc, "CRPIX2  = 50.0", 0 );
+      astPutFits( ddfc, "CDELT1  = -0.01", 0 );
+      astPutFits( ddfc, "CDELT2  = 0.01", 0 );
+      astPutFits( ddfc, "RADESYS = 'FK5'", 0 );
+      astPutFits( ddfc, "EQUINOX = 2000.0", 0 );
+      astPutFits( ddfc, "DUT1    = 1.42361e-6", 0 );
+      astPutFits( ddfc, "DTAI    = 37.0", 0 );
+      astPutFits( ddfc, "TELESCOP= 'JCMT'", 0 );
+      astPutFits( ddfc, "END", 0 );
+      astClear( ddfc, "Card" );
+      ddfs = (AstFrameSet *)astRead( ddfc );
+      ddfc = astAnnul( ddfc );
+
+      if( ddfs ) {
+         ddfrm = astGetFrame( ddfs, AST__CURRENT );
+         dut1_got = astGetD( ddfrm, "Dut1" );
+         dtai_got = astGetD( ddfrm, "Dtai" );
+         ddfrm = astAnnul( ddfrm );
+
+         if( fabs( dut1_got - 0.123 ) > 0.001 )
+            stopit( 900, "DUT1 read-back value wrong", status );
+         if( fabs( dtai_got - 37.0 ) > 0.01 )
+            stopit( 901, "DTAI read-back value wrong", status );
+
+         ddfs = astAnnul( ddfs );
+      }
+
+      astEnd;
+   }
+
+   /* AddEncodingFrame CLASS paths: test writing to FITS-CLASS with various
+      spectral and sky systems to exercise the normalisation code. */
+   if( *status == 0 ) {
+      AstFitsChan *clfc;
+      AstFrameSet *clfs;
+
+      astBegin;
+
+      /* CLASS with VRAD spectral axis — covers the non-FREQ spectral branch
+         in AddEncodingFrame (line 2440). Uses FK5 which CLASS handles natively. */
+      clfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( clfc, "NAXIS1  = 1024", 0 );
+      astPutFits( clfc, "NAXIS2  = 100", 0 );
+      astPutFits( clfc, "NAXIS3  = 100", 0 );
+      astPutFits( clfc, "CTYPE1  = 'VRAD'", 0 );
+      astPutFits( clfc, "CTYPE2  = 'RA---TAN'", 0 );
+      astPutFits( clfc, "CTYPE3  = 'DEC--TAN'", 0 );
+      astPutFits( clfc, "CRVAL1  = 0.0", 0 );
+      astPutFits( clfc, "CRVAL2  = 180.0", 0 );
+      astPutFits( clfc, "CRVAL3  = 45.0", 0 );
+      astPutFits( clfc, "CRPIX1  = 513.0", 0 );
+      astPutFits( clfc, "CRPIX2  = 50.0", 0 );
+      astPutFits( clfc, "CRPIX3  = 50.0", 0 );
+      astPutFits( clfc, "CDELT1  = 1000.0", 0 );
+      astPutFits( clfc, "CDELT2  = -0.01", 0 );
+      astPutFits( clfc, "CDELT3  = 0.01", 0 );
+      astPutFits( clfc, "CUNIT1  = 'm/s'", 0 );
+      astPutFits( clfc, "RESTFRQ = 1.420405752E9", 0 );
+      astPutFits( clfc, "SPECSYS = 'BARYCENT'", 0 );
+      astPutFits( clfc, "RADESYS = 'FK5'", 0 );
+      astPutFits( clfc, "EQUINOX = 2000.0", 0 );
+      astPutFits( clfc, "MJD-OBS = 52413.59", 0 );
+      astPutFits( clfc, "END", 0 );
+      astClear( clfc, "Card" );
+      clfs = (AstFrameSet *)astRead( clfc );
+      clfc = astAnnul( clfc );
+
+      if( clfs ) {
+         char *cl_ctype;
+         clfc = astFitsChan( NULL, NULL, "Encoding=FITS-CLASS" );
+         if( astWrite( clfc, clfs ) != 1 )
+            stopit( 910, "CLASS VRAD+FK5 write failed", status );
+
+         astClear( clfc, "Card" );
+         if( !astGetFitsS( clfc, "CTYPE1", &cl_ctype ) )
+            stopit( 912, "CLASS VRAD CTYPE1 missing", status );
+         else if( strncmp( cl_ctype, "FREQ", 4 ) )
+            stopit( 913, "CLASS VRAD CTYPE1 not FREQ", status );
+
+         clfc = astAnnul( clfc );
+         clfs = astAnnul( clfs );
+      }
+
+      /* CLASS with FK4 sky system — covers the FK4 equinox branch (2459). */
+      clfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( clfc, "NAXIS1  = 1024", 0 );
+      astPutFits( clfc, "NAXIS2  = 100", 0 );
+      astPutFits( clfc, "NAXIS3  = 100", 0 );
+      astPutFits( clfc, "CTYPE1  = 'FREQ'", 0 );
+      astPutFits( clfc, "CTYPE2  = 'RA---TAN'", 0 );
+      astPutFits( clfc, "CTYPE3  = 'DEC--TAN'", 0 );
+      astPutFits( clfc, "CRVAL1  = 1.420405752E9", 0 );
+      astPutFits( clfc, "CRVAL2  = 180.0", 0 );
+      astPutFits( clfc, "CRVAL3  = 45.0", 0 );
+      astPutFits( clfc, "CRPIX1  = 513.0", 0 );
+      astPutFits( clfc, "CRPIX2  = 50.0", 0 );
+      astPutFits( clfc, "CRPIX3  = 50.0", 0 );
+      astPutFits( clfc, "CDELT1  = 1.0E6", 0 );
+      astPutFits( clfc, "CDELT2  = -0.01", 0 );
+      astPutFits( clfc, "CDELT3  = 0.01", 0 );
+      astPutFits( clfc, "CUNIT1  = 'Hz'", 0 );
+      astPutFits( clfc, "RESTFRQ = 1.420405752E9", 0 );
+      astPutFits( clfc, "SPECSYS = 'BARYCENT'", 0 );
+      astPutFits( clfc, "RADESYS = 'FK4'", 0 );
+      astPutFits( clfc, "EQUINOX = 1950.0", 0 );
+      astPutFits( clfc, "MJD-OBS = 52413.59", 0 );
+      astPutFits( clfc, "END", 0 );
+      astClear( clfc, "Card" );
+      clfs = (AstFrameSet *)astRead( clfc );
+      clfc = astAnnul( clfc );
+
+      if( clfs ) {
+         double cl_equinox;
+         clfc = astFitsChan( NULL, NULL, "Encoding=FITS-CLASS" );
+         if( astWrite( clfc, clfs ) != 1 )
+            stopit( 911, "CLASS FK4 write failed", status );
+
+         astClear( clfc, "Card" );
+         if( !astGetFitsF( clfc, "EQUINOX", &cl_equinox ) )
+            stopit( 914, "CLASS FK4 EQUINOX missing", status );
+         else if( fabs( cl_equinox - 1950.0 ) > 0.1 )
+            stopit( 915, "CLASS FK4 EQUINOX not 1950", status );
+
+         clfc = astAnnul( clfc );
+         clfs = astAnnul( clfs );
+      }
+
+      astEnd;
+   }
+
+   /* MakeFitsFrameSet: 1D SpecFrame with RefRA/RefDec — triggers the
+      code that adds celestial axes to satisfy FITS-WCS paper III. */
+   if( *status == 0 ) {
+      AstSpecFrame *mfspec;
+      AstFrame *mfpix;
+      AstMapping *mfmap;
+      AstFrameSet *mffs;
+      AstFitsChan *mffc;
+
+      astBegin;
+
+      mfspec = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=BARY,"
+                             "RefRA=3:00:00,RefDec=45:00:00", status );
+      astSetD( (AstFrame *)mfspec, "RestFreq", 1.420405752e9 );
+      astSetD( (AstFrame *)mfspec, "Epoch", 52413.59 );
+      mfpix = astFrame( 1, "Domain=GRID", status );
+      mfmap = (AstMapping *)astZoomMap( 1, 1.0e6, " ", status );
+      mffs = astFrameSet( mfpix, " ", status );
+      astAddFrame( mffs, AST__BASE, mfmap, (AstFrame *)mfspec );
+
+      mffc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      astPutFits( mffc, "NAXIS   = 1", 0 );
+      astPutFits( mffc, "NAXIS1  = 1024", 0 );
+      if( astWrite( mffc, mffs ) != 1 )
+         stopit( 920, "1D SpecFrame with RefRA/RefDec write failed", status );
+
+      {
+         char *mf_ctype;
+         int mf_naxis;
+         if( !astGetFitsI( mffc, "WCSAXES", &mf_naxis ) )
+            stopit( 921, "1D SpecFrame WCSAXES missing", status );
+         else if( mf_naxis != 3 )
+            stopit( 922, "1D SpecFrame WCSAXES not 3", status );
+
+         astClear( mffc, "Card" );
+         if( astGetFitsS( mffc, "CTYPE2", &mf_ctype ) ) {
+            if( strncmp( mf_ctype, "RA--", 4 ) )
+               stopit( 923, "1D SpecFrame CTYPE2 not RA", status );
+         }
+      }
+
+      mffc = astAnnul( mffc );
+      mffs = astAnnul( mffs );
+
+      astEnd;
+   }
+
+   /* SkySys CNAME: write a SkyFrame with explicit axis labels.
+      Covers the CNAME/label paths in SkySys (lines 29920-29928). */
+   if( *status == 0 ) {
+      AstFitsChan *cnfc;
+      AstFrameSet *cnfs;
+
+      astBegin;
+
+      cnfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( cnfc, "NAXIS1  = 100", 0 );
+      astPutFits( cnfc, "NAXIS2  = 100", 0 );
+      astPutFits( cnfc, "CTYPE1  = 'RA---TAN'", 0 );
+      astPutFits( cnfc, "CTYPE2  = 'DEC--TAN'", 0 );
+      astPutFits( cnfc, "CRVAL1  = 180.0", 0 );
+      astPutFits( cnfc, "CRVAL2  = 45.0", 0 );
+      astPutFits( cnfc, "CRPIX1  = 50.0", 0 );
+      astPutFits( cnfc, "CRPIX2  = 50.0", 0 );
+      astPutFits( cnfc, "CDELT1  = -0.01", 0 );
+      astPutFits( cnfc, "CDELT2  = 0.01", 0 );
+      astPutFits( cnfc, "RADESYS = 'FK5'", 0 );
+      astPutFits( cnfc, "EQUINOX = 2000.0", 0 );
+      astPutFits( cnfc, "END", 0 );
+      astClear( cnfc, "Card" );
+      cnfs = (AstFrameSet *)astRead( cnfc );
+      cnfc = astAnnul( cnfc );
+
+      if( cnfs ) {
+         astSetC( cnfs, "Label(1)", "My Right Ascension" );
+         astSetC( cnfs, "Label(2)", "My Declination" );
+
+         cnfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         if( astWrite( cnfc, cnfs ) != 1 )
+            stopit( 930, "CNAME write failed", status );
+
+         astClear( cnfc, "Card" );
+         if( astFindFits( cnfc, "CTYPE1", NULL, 0 ) ) {
+            const char *cn_com = astGetC( cnfc, "CardComm" );
+            if( !cn_com || !strstr( cn_com, "My Right Ascension" ) )
+               stopit( 931, "CTYPE1 comment does not contain label", status );
+         }
+         if( astFindFits( cnfc, "CTYPE2", NULL, 0 ) ) {
+            const char *cn_com = astGetC( cnfc, "CardComm" );
+            if( !cn_com || !strstr( cn_com, "My Declination" ) )
+               stopit( 932, "CTYPE2 comment does not contain label", status );
+         }
+
+         cnfc = astAnnul( cnfc );
+         cnfs = astAnnul( cnfs );
+      }
+
+      astEnd;
+   }
+
+   /* SkySys helioecliptic write: covers HLON/HLAT branch (lines 29808-29809). */
+   if( *status == 0 ) {
+      AstFitsChan *hefc;
+      AstFrameSet *hefs;
+
+      astBegin;
+
+      hefc = astFitsChan( NULL, NULL, " " );
+      astPutFits( hefc, "NAXIS1  = 100", 0 );
+      astPutFits( hefc, "NAXIS2  = 100", 0 );
+      astPutFits( hefc, "CTYPE1  = 'HLON-TAN'", 0 );
+      astPutFits( hefc, "CTYPE2  = 'HLAT-TAN'", 0 );
+      astPutFits( hefc, "CRVAL1  = 180.0", 0 );
+      astPutFits( hefc, "CRVAL2  = 45.0", 0 );
+      astPutFits( hefc, "CRPIX1  = 50.0", 0 );
+      astPutFits( hefc, "CRPIX2  = 50.0", 0 );
+      astPutFits( hefc, "CDELT1  = -0.01", 0 );
+      astPutFits( hefc, "CDELT2  = 0.01", 0 );
+      astPutFits( hefc, "MJD-OBS = 52413.59", 0 );
+      astPutFits( hefc, "END", 0 );
+      astClear( hefc, "Card" );
+      hefs = (AstFrameSet *)astRead( hefc );
+      hefc = astAnnul( hefc );
+
+      if( hefs ) {
+         hefc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         if( astWrite( hefc, hefs ) != 1 )
+            stopit( 940, "Helioecliptic write failed", status );
+
+         astClear( hefc, "Card" );
+         {
+            char *he_ctype;
+            if( astGetFitsS( hefc, "CTYPE1", &he_ctype ) ) {
+               if( strncmp( he_ctype, "HLON", 4 ) )
+                  stopit( 941, "Helioecliptic CTYPE1 not HLON", status );
+            }
+         }
+
+         hefc = astAnnul( hefc );
+         hefs = astAnnul( hefs );
+      }
+
+      astEnd;
+   }
+
+   /* Old DATE-OBS format: write a FrameSet with Epoch before 1999,
+      triggering the dd/mm/yy format in WcsFromStore. */
+   if( *status == 0 ) {
+      AstFitsChan *odfc;
+      AstFrameSet *odfs;
+      char *od_val;
+
+      astBegin;
+
+      odfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( odfc, "NAXIS1  = 100", 0 );
+      astPutFits( odfc, "NAXIS2  = 100", 0 );
+      astPutFits( odfc, "CTYPE1  = 'RA---TAN'", 0 );
+      astPutFits( odfc, "CTYPE2  = 'DEC--TAN'", 0 );
+      astPutFits( odfc, "CRVAL1  = 180.0", 0 );
+      astPutFits( odfc, "CRVAL2  = 45.0", 0 );
+      astPutFits( odfc, "CRPIX1  = 50.0", 0 );
+      astPutFits( odfc, "CRPIX2  = 50.0", 0 );
+      astPutFits( odfc, "CDELT1  = -0.01", 0 );
+      astPutFits( odfc, "CDELT2  = 0.01", 0 );
+      astPutFits( odfc, "RADESYS = 'FK5'", 0 );
+      astPutFits( odfc, "EQUINOX = 2000.0", 0 );
+      astPutFits( odfc, "MJD-OBS = 48000.0", 0 );
+      astPutFits( odfc, "END", 0 );
+      astClear( odfc, "Card" );
+      odfs = (AstFrameSet *)astRead( odfc );
+      odfc = astAnnul( odfc );
+
+      if( odfs ) {
+         odfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         if( astWrite( odfc, odfs ) != 1 )
+            stopit( 950, "Old DATE-OBS write failed", status );
+
+         astClear( odfc, "Card" );
+         if( astGetFitsS( odfc, "DATE-OBS", &od_val ) ) {
+            if( od_val[2] != '/' )
+               stopit( 951, "DATE-OBS not in old dd/mm/yy format", status );
+         }
+
+         odfc = astAnnul( odfc );
+         odfs = astAnnul( odfs );
+      }
+
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 
