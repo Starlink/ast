@@ -2244,6 +2244,63 @@ int main( void ) {
          sltfs = astAnnul( sltfs );
       }
 
+      /* --- LOG spectral algorithm: pixel coords related to spectral
+             system by S = Sr.exp(a.p). Build using a MathMap so that
+             log(S) is linear in pixels. --- */
+      {
+         AstSpecFrame *logspec;
+         AstFrame *logpix;
+         AstMapping *logmap;
+         AstFrameSet *logtfs;
+         AstFitsChan *logfc;
+         const char *fexps[1];
+         const char *iexps[1];
+         char *log_ctype;
+
+         fexps[0] = "s = 1.4204e9 * exp( p * 1.0e-4 )";
+         iexps[0] = "p = 1.0e4 * log( s / 1.4204e9 )";
+         logmap = (AstMapping *)astMathMap( 1, 1, 1, fexps, 1, iexps,
+                                            " ", status );
+         logspec = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
+                                 "RestFreq=1.4204e9 Hz", status );
+         logpix = astFrame( 1, "Domain=GRID", status );
+         logtfs = astFrameSet( logpix, " ", status );
+         astAddFrame( logtfs, AST__BASE, logmap, (AstFrame *)logspec );
+
+         logfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astPutFits( logfc, "NAXIS   = 1", 0 );
+         astPutFits( logfc, "NAXIS1  = 1024", 0 );
+         if( astWrite( logfc, logtfs ) != 1 )
+            stopit( 680, "LOG spectral write failed", status );
+
+         astClear( logfc, "Card" );
+         if( !astGetFitsS( logfc, "CTYPE1", &log_ctype ) )
+            stopit( 681, "LOG spectral CTYPE1 missing", status );
+         else if( strcmp( log_ctype, "FREQ-LOG" ) )
+            stopit( 682, "LOG spectral CTYPE1 not FREQ-LOG", status );
+
+         {
+            AstFrameSet *logfs2;
+            double pin[1], pout_orig[1], pout_rt[1];
+
+            astClear( logfc, "Card" );
+            logfs2 = (AstFrameSet *)astRead( logfc );
+            if( logfs2 ) {
+               pin[0] = 512.0;
+               astTranN( logtfs, 1, 1, 1, pin, 1, 1, 1, pout_orig );
+               astTranN( logfs2, 1, 1, 1, pin, 1, 1, 1, pout_rt );
+               if( fabs( pout_orig[0] - pout_rt[0] ) > fabs( 1e-6 * pout_orig[0] ) )
+                  stopit( 683, "LOG spectral round-trip coordinate mismatch", status );
+               logfs2 = astAnnul( logfs2 );
+            } else {
+               stopit( 684, "LOG spectral read-back failed", status );
+            }
+         }
+
+         logfc = astAnnul( logfc );
+         logtfs = astAnnul( logtfs );
+      }
+
       /* --- 3D sky+spec tests moved to wcsconv_tests.txt:
              skyspec3d.head -> fits-wcs/fits-aips/fits-aips++/fits-iraf
              skyspec3d-class.head -> fits-class
