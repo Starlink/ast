@@ -132,3 +132,14 @@ ncp_fits-iraf       | ncp.head                       | ncp.fits-iraf      | fits
 fk4-aips_fits-iraf  | fk4-aips.head                  | fk4-aips.fits-iraf | fits-iraf | FitsDigits=8    |
 a20070718_fits-iraf  | a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-iraf | fits-iraf | FitsDigits=8 |
 sfl-origin_fits-iraf| sfl-origin.head                | sfl-origin.fits-iraf | fits-iraf | FitsDigits=8   |
+skyspec3d_native    | skyspec3d.head                 | skyspec3d.native   | native    |                                  | yes
+skyspec3d_fits-wcs  | skyspec3d.head                 | skyspec3d.fits-wcs | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+skyspec3d_fits-aips | skyspec3d.head                 | skyspec3d.fits-aips | fits-aips | cdmatrix=1,FitsDigits=8          |
+skyspec3d_fits-aips++| skyspec3d.head                | skyspec3d.fits-aips++ | fits-aips++ | cdmatrix=1,FitsDigits=8      |
+skyspec3d_fits-iraf | skyspec3d.head                 | skyspec3d.fits-iraf | fits-iraf | cdmatrix=1,FitsDigits=8          |
+skyspec3d-class_native| skyspec3d-class.head          | skyspec3d-class.native | native |                                  | yes
+skyspec3d-class_fits-class| skyspec3d-class.head      | skyspec3d-class.fits-class | fits-class | FitsDigits=8           |
+offset-sky_native   | offset-sky.head                | offset-sky.native  | native    |                                  | yes
+offset-sky_fits-wcs | offset-sky.head                | offset-sky.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8           |
+azel_native         | azel.head                      | azel.native        | native    |                                  | yes
+azel_fits-wcs       | azel.head                      | azel.fits-wcs      | fits-wcs  | cdmatrix=1,FitsDigits=8          |
