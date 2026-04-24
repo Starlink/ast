@@ -2119,6 +2119,131 @@ int main( void ) {
          nltfs5 = astAnnul( nltfs5 );
       }
 
+      /* --- Non-linear spectral: VELO system with pixel linear in FREQ.
+             Tests the "V" suffix (X=FREQ, S=VELO -> VELO-F2V). --- */
+      {
+         AstSpecFrame *nlspec6;
+         AstFrameSet *nltfs6;
+
+         nlspec6 = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
+                                 "RestFreq=1.4204e9 Hz" );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1.0e6, " " );
+         nltfs6 = astFrameSet( pixel, " " );
+         astAddFrame( nltfs6, AST__CURRENT, map, (AstFrame *) nlspec6 );
+         astSetC( nltfs6, "System", "VELO" );
+         astSetC( nltfs6, "Unit(1)", "m/s" );
+
+         rt = roundtrip( nltfs6, "FITS-WCS", "", 1e-3,
+                         "CTYPE1", "VELO-F2V", status );
+         if( rt == 0 )
+            stopit( 660, "Write/read failed for non-linear VELO-F2V", status );
+         else if( rt == -1 )
+            stopit( 661, "Coordinates disagree for non-linear VELO-F2V", status );
+         else if( rt == -2 )
+            stopit( 660, "Wrong CTYPE1 for non-linear VELO-F2V", status );
+
+         nltfs6 = astAnnul( nltfs6 );
+      }
+
+      /* --- Non-linear spectral: pixel linear in AWAV, System=FREQ.
+             AWAV->FREQ and AWAV->WAVE are both non-linear (air refraction),
+             so the x_sys loop reaches ix=2 (AWAV), giving FREQ-A2F. --- */
+      {
+         AstSpecFrame *nlspec7;
+         AstFrameSet *nltfs7;
+
+         nlspec7 = astSpecFrame( "System=AWAV,Unit=m,StdOfRest=Barycentric,"
+                                 "RestFreq=1.4204e9 Hz" );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1.0e-10, " " );
+         nltfs7 = astFrameSet( pixel, " " );
+         astAddFrame( nltfs7, AST__CURRENT, map, (AstFrame *) nlspec7 );
+         astSetC( nltfs7, "System", "FREQ" );
+         astSetC( nltfs7, "Unit(1)", "Hz" );
+
+         rt = roundtrip( nltfs7, "FITS-WCS", "", 0.1,
+                         "CTYPE1", "FREQ-A2F", status );
+         if( rt == 0 )
+            stopit( 662, "Write/read failed for non-linear FREQ-A2F", status );
+         else if( rt == -1 )
+            stopit( 663, "Coordinates disagree for non-linear FREQ-A2F", status );
+         else if( rt == -2 )
+            stopit( 662, "Wrong CTYPE1 for non-linear FREQ-A2F", status );
+
+         nltfs7 = astAnnul( nltfs7 );
+      }
+
+      /* --- Non-linear spectral: pixel linear in VELO, System=FREQ.
+             VELO->FREQ, VELO->WAVE, VELO->AWAV all non-linear (relativistic
+             Doppler), so x_sys loop reaches ix=3 (VELO), giving FREQ-V2F. --- */
+      {
+         AstSpecFrame *nlspec8;
+         AstFrameSet *nltfs8;
+
+         nlspec8 = astSpecFrame( "System=VELO,Unit=m/s,StdOfRest=Barycentric,"
+                                 "RestFreq=1.4204e9 Hz" );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1000.0, " " );
+         nltfs8 = astFrameSet( pixel, " " );
+         astAddFrame( nltfs8, AST__CURRENT, map, (AstFrame *) nlspec8 );
+         astSetC( nltfs8, "System", "FREQ" );
+         astSetC( nltfs8, "Unit(1)", "Hz" );
+
+         rt = roundtrip( nltfs8, "FITS-WCS", "", 1e-3,
+                         "CTYPE1", "FREQ-V2F", status );
+         if( rt == 0 )
+            stopit( 664, "Write/read failed for non-linear FREQ-V2F", status );
+         else if( rt == -1 )
+            stopit( 665, "Coordinates disagree for non-linear FREQ-V2F", status );
+         else if( rt == -2 )
+            stopit( 664, "Wrong CTYPE1 for non-linear FREQ-V2F", status );
+
+         nltfs8 = astAnnul( nltfs8 );
+      }
+
+      /* --- Spectral axis Label and ObsGeo write paths: set Label and
+             observer position on SpecFrame, verify they appear in output. --- */
+      {
+         AstSpecFrame *slspec;
+         AstFrameSet *sltfs;
+         AstFitsChan *slfc;
+         double obsgx;
+
+         slspec = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
+                                "RestFreq=1.4204e9 Hz" );
+         astSetC( (AstFrame *)slspec, "Label(1)", "Rest Frequency" );
+         astSetD( (AstFrame *)slspec, "ObsLon", -2.713594 );
+         astSetD( (AstFrame *)slspec, "ObsLat", 0.345862 );
+         astSetD( (AstFrame *)slspec, "ObsAlt", 4205.0 );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1.0e6, " " );
+         sltfs = astFrameSet( pixel, " " );
+         astAddFrame( sltfs, AST__CURRENT, map, (AstFrame *) slspec );
+
+         slfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astPutFits( slfc, "NAXIS   = 1", 0 );
+         astPutFits( slfc, "NAXIS1  = 1024", 0 );
+         if( astWrite( slfc, sltfs ) != 1 )
+            stopit( 670, "Spectral Label+ObsGeo write failed", status );
+
+         astClear( slfc, "Card" );
+         if( astFindFits( slfc, "CTYPE1", NULL, 0 ) ) {
+            const char *slcom = astGetC( slfc, "CardComm" );
+            if( !slcom || !strstr( slcom, "Rest Frequency" ) )
+               stopit( 671, "Spectral CTYPE1 comment missing label", status );
+         }
+
+         astClear( slfc, "Card" );
+         if( !astGetFitsF( slfc, "OBSGEO-X", &obsgx ) )
+            stopit( 672, "OBSGEO-X not written", status );
+         else if( fabs( obsgx ) < 1.0 )
+            stopit( 673, "OBSGEO-X value too small", status );
+
+         slfc = astAnnul( slfc );
+         sltfs = astAnnul( sltfs );
+      }
+
       /* --- 3D sky+spec tests moved to wcsconv_tests.txt:
              skyspec3d.head -> fits-wcs/fits-aips/fits-aips++/fits-iraf
              skyspec3d-class.head -> fits-class
