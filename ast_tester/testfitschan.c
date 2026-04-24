@@ -2810,6 +2810,83 @@ int main( void ) {
       astEnd;
    }
 
+   /* FitsAxisOrder: exercise the axis reordering write path (FitOK).
+      Read a 3D header (RA/DEC/FREQ), write with FitsAxisOrder specifying
+      FREQ first, verify CTYPE1 is now FREQ. */
+   if( *status == 0 ) {
+      AstFitsChan *hfao, *wfao;
+      AstFrameSet *fsfao;
+      char *ctfao;
+
+      astBegin;
+
+      hfao = astFitsChan( NULL, NULL, " " );
+      astPutFits( hfao, "NAXIS   = 3", 0 );
+      astPutFits( hfao, "NAXIS1  = 100", 0 );
+      astPutFits( hfao, "NAXIS2  = 100", 0 );
+      astPutFits( hfao, "NAXIS3  = 100", 0 );
+      astPutFits( hfao, "CTYPE1  = 'RA---TAN'", 0 );
+      astPutFits( hfao, "CTYPE2  = 'DEC--TAN'", 0 );
+      astPutFits( hfao, "CTYPE3  = 'FREQ'", 0 );
+      astPutFits( hfao, "CRVAL1  = 180.0", 0 );
+      astPutFits( hfao, "CRVAL2  = 45.0", 0 );
+      astPutFits( hfao, "CRVAL3  = 1.4204e9", 0 );
+      astPutFits( hfao, "CRPIX1  = 50.0", 0 );
+      astPutFits( hfao, "CRPIX2  = 50.0", 0 );
+      astPutFits( hfao, "CRPIX3  = 50.0", 0 );
+      astPutFits( hfao, "CDELT1  = -0.01", 0 );
+      astPutFits( hfao, "CDELT2  = 0.01", 0 );
+      astPutFits( hfao, "CDELT3  = 1e6", 0 );
+      astPutFits( hfao, "CUNIT3  = 'Hz'", 0 );
+      astPutFits( hfao, "RADESYS = 'FK5'", 0 );
+      astPutFits( hfao, "EQUINOX = 2000.0", 0 );
+      astPutFits( hfao, "END", 0 );
+      astClear( hfao, "Card" );
+      fsfao = (AstFrameSet *)astRead( hfao );
+      hfao = astAnnul( hfao );
+
+      if( fsfao ) {
+         wfao = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astSetC( wfao, "FitsAxisOrder", "FREQ RA DEC" );
+         astPutFits( wfao, "NAXIS   = 3", 0 );
+         astPutFits( wfao, "NAXIS1  = 100", 0 );
+         astPutFits( wfao, "NAXIS2  = 100", 0 );
+         astPutFits( wfao, "NAXIS3  = 100", 0 );
+         if( astWrite( wfao, fsfao ) != 1 )
+            stopit( 890, "FitsAxisOrder write failed", status );
+
+         astClear( wfao, "Card" );
+         if( !astGetFitsS( wfao, "CTYPE1", &ctfao ) )
+            stopit( 891, "FitsAxisOrder CTYPE1 missing", status );
+         else if( strncmp( ctfao, "FREQ", 4 ) )
+            stopit( 892, "FitsAxisOrder CTYPE1 is not FREQ", status );
+
+         wfao = astAnnul( wfao );
+         fsfao = astAnnul( fsfao );
+      }
+
+      astEnd;
+   }
+
+   /* PutCards: test bulk card insertion via astPutCards.
+      Cards must be packed at 80 chars each with no delimiters. */
+   if( *status == 0 ) {
+      AstFitsChan *pcfc;
+      const char *bulk =
+         "SIMPLE  =                    T / Standard FITS                                  "
+         "NAXIS   =                    2                                                  "
+         "NAXIS1  =                  100                                                  "
+         "NAXIS2  =                  200                                                  "
+         "END                                                                             ";
+
+      astBegin;
+      pcfc = astFitsChan( NULL, NULL, " " );
+      astPutCards( pcfc, bulk );
+      if( astGetI( pcfc, "Ncard" ) < 4 )
+         stopit( 893, "PutCards did not insert expected cards", status );
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 
