@@ -216,11 +216,15 @@ c      call ast_grid( plot3d, status )
       include 'SAE_PAR'
       include 'AST_PAR'
       character name*(*)
-      integer status, ch
+      integer status, ch, len, chr_len
+      character srcdir*255
       external mysource3
       readtest = AST__NULL
       if( status .ne. sai__ok ) return
-      open( unit=1, file=name, status='old' )
+      call getenv( 'srcdir', srcdir )
+      if ( srcdir(1:1) .eq. ' ' ) srcdir = '.'
+      len = chr_len( srcdir )
+      open( unit=1, file=srcdir(1:len)//'/'//name, status='old' )
       ch = ast_channel( mysource3, ast_null, ' ', status )
       readtest = ast_read( ch, status )
       call ast_annul( ch, status )
