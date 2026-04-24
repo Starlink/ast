@@ -110,3 +110,18 @@ axes-swap_native    | axes-swap.head                 | axes-swap.native   | nati
 cd-cross_native     | cd-cross.head                  | cd-cross.native    | native    |                                  | yes
 class-noproj_native | class-noproj.head              | class-noproj.native| native    |                                  | yes
 ait-highlatpole_native| ait-highlatpole.head           | ait-highlatpole.native| native  |                                  | yes
+timj_fits-aips++    | timj.ast                       | timj.fits-aips++   | fits-aips++| FitsDigits=8                    |
+a20070718_fits-aips  | a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-aips | fits-aips | FitsDigits=8     |
+a20070718_fits-aips++| a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-aips++ | fits-aips++ | FitsDigits=8 |
+freq-ghz-bary_fits-aips| freq-ghz-bary.head             | freq-ghz-bary.fits-aips | fits-aips | FitsDigits=8 |
+freq-ghz-bary_fits-aips++| freq-ghz-bary.head           | freq-ghz-bary.fits-aips++ | fits-aips++ | FitsDigits=8 |
+vopt-geo_fits-aips  | vopt-geo.head                  | vopt-geo.fits-aips | fits-aips | FitsDigits=8    |
+vopt-geo_fits-aips++| vopt-geo.head                  | vopt-geo.fits-aips++ | fits-aips++ | FitsDigits=8 |
+ncp_fits-aips       | ncp.head                       | ncp.fits-aips      | fits-aips | FitsDigits=8    |
+ncp_fits-aips++     | ncp.head                       | ncp.fits-aips++    | fits-aips++| FitsDigits=8   |
+fk4-aips_fits-aips  | fk4-aips.head                  | fk4-aips.fits-aips | fits-aips | FitsDigits=8    |
+fk4-aips_fits-aips++| fk4-aips.head                  | fk4-aips.fits-aips++ | fits-aips++ | FitsDigits=8 |
+sfl-origin_fits-aips| sfl-origin.head                | sfl-origin.fits-aips | fits-aips | FitsDigits=8   |
+sfl-origin_fits-aips++| sfl-origin.head              | sfl-origin.fits-aips++ | fits-aips++ | FitsDigits=8 |
+vrad-lsrd_fits-aips | vrad-lsrd.head                 | vrad-lsrd.fits-aips | fits-aips | FitsDigits=8    |
+vrad-lsrd_fits-aips++| vrad-lsrd.head                | vrad-lsrd.fits-aips++ | fits-aips++ | FitsDigits=8 |
