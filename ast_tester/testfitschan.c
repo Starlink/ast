@@ -1863,6 +1863,73 @@ int main( void ) {
    }
 
 /* -----------------------------------------------------------------------
+ * Second Dump/Load test: exercises card flags (written when cards have
+ * been consumed by astRead), UNDEF keyword round-trip, and default
+ * attribute loading (no Encoding/AltAxes set → default paths in Load).
+ * Error numbers 410+.
+ * -----------------------------------------------------------------------*/
+   {
+      AstFitsChan *bfc, *bfc2;
+      AstObject *bobj;
+      char *bpickle;
+      int bncard1, bncard2;
+
+      bfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( bfc, "NAXIS1  = 100", 0 );
+      astPutFits( bfc, "NAXIS2  = 100", 0 );
+      astPutFits( bfc, "CTYPE1  = 'RA---TAN'", 0 );
+      astPutFits( bfc, "CTYPE2  = 'DEC--TAN'", 0 );
+      astPutFits( bfc, "CRVAL1  = 180.0", 0 );
+      astPutFits( bfc, "CRVAL2  = 45.0", 0 );
+      astPutFits( bfc, "CRPIX1  = 50.0", 0 );
+      astPutFits( bfc, "CRPIX2  = 50.0", 0 );
+      astPutFits( bfc, "CDELT1  = -0.01", 0 );
+      astPutFits( bfc, "CDELT2  = 0.01", 0 );
+      astPutFits( bfc, "RADESYS = 'FK5'", 0 );
+      astPutFits( bfc, "EQUINOX = 2000.0", 0 );
+      astSetFitsU( bfc, "BLANK1", "value not yet known", 0 );
+
+      astClear( bfc, "Card" );
+      bobj = astRead( bfc );
+      if( bobj ) astAnnul( bobj );
+      bncard1 = astGetI( bfc, "Ncard" );
+
+      bpickle = astToString( bfc );
+      if( !bpickle ) {
+         stopit( 410, "Flags dump: astToString returned NULL", status );
+      } else {
+         if( !strstr( bpickle, "Fl" ) )
+            stopit( 411, "Flags dump: no Fl keyword in pickle", status );
+         if( !strstr( bpickle, "undef" ) )
+            stopit( 412, "Flags dump: no undef type in pickle", status );
+
+         bfc2 = (AstFitsChan *) astFromString( bpickle );
+         if( !bfc2 ) {
+            stopit( 413, "Flags dump: astFromString returned NULL", status );
+         } else {
+            bncard2 = astGetI( bfc2, "Ncard" );
+            if( bncard2 != bncard1 )
+               stopit( 414, "Flags dump: round-trip changed card count", status );
+
+            astClear( bfc2, "Card" );
+            if( !astFindFits( bfc2, "BLANK1", NULL, 0 ) )
+               stopit( 415, "Flags dump: UNDEF keyword BLANK1 lost", status );
+            else {
+               int btype = astGetI( bfc2, "CardType" );
+               if( btype != AST__UNDEF )
+                  stopit( 416, "Flags dump: BLANK1 not UNDEF after round-trip",
+                          status );
+            }
+
+            bfc2 = astAnnul( bfc2 );
+         }
+         astFree( bpickle );
+      }
+
+      bfc = astAnnul( bfc );
+   }
+
+/* -----------------------------------------------------------------------
  * Write-path round-trip tests: build FrameSets that exercise specific
  * write code paths, encode to a FitsChan, read back, verify success.
  * Error numbers 500+.
