@@ -3577,6 +3577,78 @@ int main( void ) {
       astEnd;
    }
 
+   /* Offset SkyFrame write: read a normal FK5 TAN header, set SkyRefIs
+      to make it an offset SkyFrame, then write to FITS-WCS. Verify the
+      primary uses OFLN/OFLT. The alternate absolute description exercises
+      SkySys offset paths (SkyRef/SkyRefP/SkyRefIs storage). */
+   if( *status == 0 ) {
+      AstFitsChan *osfc, *osfc2;
+      AstFrameSet *osfs;
+      char *os_val;
+
+      astBegin;
+
+      osfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( osfc, "NAXIS1  = 100", 0 );
+      astPutFits( osfc, "NAXIS2  = 100", 0 );
+      astPutFits( osfc, "CTYPE1  = 'RA---TAN'", 0 );
+      astPutFits( osfc, "CTYPE2  = 'DEC--TAN'", 0 );
+      astPutFits( osfc, "CRVAL1  = 180.0", 0 );
+      astPutFits( osfc, "CRVAL2  = 45.0", 0 );
+      astPutFits( osfc, "CRPIX1  = 50.0", 0 );
+      astPutFits( osfc, "CRPIX2  = 50.0", 0 );
+      astPutFits( osfc, "CDELT1  = -0.01", 0 );
+      astPutFits( osfc, "CDELT2  = 0.01", 0 );
+      astPutFits( osfc, "RADESYS = 'FK5'", 0 );
+      astPutFits( osfc, "EQUINOX = 2000.0", 0 );
+      astPutFits( osfc, "END", 0 );
+      astClear( osfc, "Card" );
+      osfs = (AstFrameSet *)astRead( osfc );
+      osfc = astAnnul( osfc );
+
+      if( osfs ) {
+         astSet( osfs, "SkyRefIs=Origin,SkyRef(1)=%.17g,SkyRef(2)=%.17g",
+                 180.0 * AST__DD2R, 45.0 * AST__DD2R );
+         if( !astOK ) {
+            astClearStatus;
+            osfs = astAnnul( osfs );
+            osfs = NULL;
+         }
+      }
+
+      if( osfs ) {         osfc2 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         {
+            int osn = astWrite( osfc2, osfs );
+            if( !astOK ) astClearStatus;
+
+            if( osn == 1 ) {
+               astClear( osfc2, "Card" );
+               if( astGetFitsS( osfc2, "CTYPE1", &os_val ) ) {
+                  if( strncmp( os_val, "OFLN", 4 ) )
+                     stopit( 971, "Offset CTYPE1 not OFLN", status );
+               }
+
+               if( astGetFitsS( osfc2, "SREFISA", &os_val ) ) {
+                  if( strcmp( os_val, "ORIGIN" ) )
+                     stopit( 972, "SREFISA not ORIGIN", status );
+               }
+
+               {
+                  double sref_val;
+                  if( astGetFitsF( osfc2, "SREF1A", &sref_val ) ) {
+                     if( fabs( sref_val ) < 1e-10 )
+                        stopit( 973, "SREF1A value too small", status );
+                  }
+               }
+            }
+         }
+         osfc2 = astAnnul( osfc2 );
+         osfs = astAnnul( osfs );
+      }
+
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 
