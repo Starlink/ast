@@ -740,6 +740,9 @@ f     - Title: The Plot title drawn using AST_GRID
 *        the item description. astStore was called with a size larger than
 *        the source data, causing memcpy to read past the end of the
 *        string literal.
+*     24-APR-2026 (TIMJ):
+*        Use round() instead of (int)(x+0.5) for logarithmic gap rounding
+*        to avoid platform-dependent results.
 
 *class--
 */
@@ -16601,7 +16604,7 @@ static double GetTicks( AstPlot *this, int axis, double *cen, double **ticks,
 /* Find a "nice" gap size close to the current test gap size. Also find
    the number of minor tick marks to use with the nice gap size. Gaps for
    logarithmic axes are always powers of ten. */
-            log_used_gap = (int) ( log10( test_gap ) + 0.5 );
+            log_used_gap = (int) round( log10( test_gap ) );
             if( log_used_gap == 0.0 ) {
                log_used_gap = ( test_gap > 1.0 ) ? 1.0 : -1.0;
             }
@@ -16688,7 +16691,7 @@ static double GetTicks( AstPlot *this, int axis, double *cen, double **ticks,
             }
 
 /* Find the nearest power of 10 ( do not allow 10**0 (=1.0) to be used). */
-            log_used_gap = (int) ( log10( used_gap ) + 0.5 );
+            log_used_gap = (int) round( log10( used_gap ) );
             if( log_used_gap == 0.0 ) {
               log_used_gap = ( gap > 1.0 ) ? 1.0 : -1.0;
             }

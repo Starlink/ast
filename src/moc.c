@@ -165,6 +165,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        - Remove unused variable from RegBaseMesh.
 *     8-APR-2026 (TIMJ):
 *        Guard against null pointer in error message formatting.
+*     24-APR-2026 (TIMJ):
+*        Use round() instead of (int)(x+0.5) for HEALPix pixel coordinate
+*        rounding to avoid platform-dependent results.
 *class--
 */
 
@@ -5589,8 +5592,8 @@ static void IncorporateCells( AstMoc *this, CellList *clist,
             py = ptr2[ 1 ];
             for( i = 0; i < clist->len[ order ]; i++ ) {
                if( *px != AST__BAD && *py != AST__BAD ) {
-                  *(pn++) = XyToNested( order, (int)( *(px++) + 0.5 ),
-                                               (int)( *(py++) + 0.5 ) );
+                  *(pn++) = XyToNested( order, (int)round( *(px++) ),
+                                               (int)round( *(py++) ) );
                } else if( astOK ) {
                   astError( AST__INTER, "%s(%s): Bad HPX12 grid coord "
                             "element %d order %d (internal programming "
@@ -9576,8 +9579,8 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       for( ipoint = 0; ipoint < npoint; ipoint++ ) {
 
 /* Convert from grid (x,y) to nested index. */
-         inest = XyToNested( order, (int)( *(px++) + 0.5 ),
-                             (int)( *(py++) + 0.5 ) );
+         inest = XyToNested( order, (int)round( *(px++) ),
+                             (int)round( *(py++) ) );
 
 /* Test if this nested index is contained in the Moc. Each pair of
    adjacent values in the "this->range" array are the upper and lower
