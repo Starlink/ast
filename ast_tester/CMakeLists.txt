@@ -471,20 +471,31 @@ if(PLPLOT_FOUND)
     # fails with some of the pdf tests; if the pdfcairo device is not availble
     # then we just mark these tests as expected failures.
 
+    set(_old_includes "${CMAKE_REQUIRED_INCLUDES}")
+    set(_old_libs "${CMAKE_REQUIRED_LIBRARIES}")
+    set(CMAKE_REQUIRED_INCLUDES ${PLPLOT_INCLUDE_DIRS})
+    set(CMAKE_REQUIRED_LIBRARIES ${PLPLOT_LIBRARIES})
     check_c_source_runs("
     #include <string.h>
     #include <plplot.h>
-    #include \"ast.h\"
 
     int main(void) {
-        const char *dev = astPlSetupDevice(\"test.pdf\");
-        if (dev && strcmp(dev, \"pdfcairo\") == 0) {
-            return 0;
-        } else {
-            return 1;
+        const char *menustr[32];
+        const char *devnames[32];
+        const char **pmenustr = menustr;
+        const char **pdevnames = devnames;
+        int idx;
+        int pl_ndev = 32;
+        plgDevs(&pmenustr, &pdevnames, &pl_ndev);
+        for (idx = 0; idx < pl_ndev; idx++) {
+            if (devnames[idx] && strcmp(devnames[idx], \"pdfcairo\") == 0)
+                return 0;
         }
+        return 1;
     }
     " HAVE_PLPLOT_PDFCAIRO)
+    set(CMAKE_REQUIRED_INCLUDES ${_old_includes})
+    set(CMAKE_REQUIRED_LIBRARIES ${_old_libs})
 
     # Plotter tests that are known to fail without pdfcairo
     set(PLOTTER_XFAIL_NO_PDFCAIRO
