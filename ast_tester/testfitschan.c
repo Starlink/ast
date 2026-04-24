@@ -1886,6 +1886,127 @@ int main( void ) {
          }
       }
 
+      /* --- Non-linear spectral algorithm write path (exercises SpectralAxes
+             CTYPE construction for -X2P codes like VOPT-F2W). Build a
+             FrameSet with pixel linear in FREQ, then change System to VOPT.
+             The pixel->VOPT mapping is non-linear, forcing the non-linear
+             algorithm. --- */
+      {
+         AstSpecFrame *nlspec;
+         AstFrameSet *nltfs;
+
+         nlspec = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
+                                "RestFreq=1.4204e9 Hz" );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1.0e6, " " );
+         nltfs = astFrameSet( pixel, " " );
+         astAddFrame( nltfs, AST__CURRENT, map, (AstFrame *) nlspec );
+         astSetC( nltfs, "System", "VOPT" );
+
+         rt = roundtrip( nltfs, "FITS-WCS", "", 1e-3, status );
+         if( rt == 0 )
+            stopit( 606, "Write/read failed for non-linear VOPT-F2W", status );
+         else if( rt == -1 )
+            stopit( 607, "Coordinates disagree for non-linear VOPT-F2W", status );
+
+         nltfs = astAnnul( nltfs );
+      }
+
+      /* --- Non-linear spectral: WAVE system with pixel linear in FREQ.
+             Tests the WAVE-F2W algorithm path. --- */
+      {
+         AstSpecFrame *nlspec2;
+         AstFrameSet *nltfs2;
+
+         nlspec2 = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
+                                 "RestFreq=1.4204e9 Hz" );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1.0e6, " " );
+         nltfs2 = astFrameSet( pixel, " " );
+         astAddFrame( nltfs2, AST__CURRENT, map, (AstFrame *) nlspec2 );
+         astSetC( nltfs2, "System", "WAVE" );
+         astSetC( nltfs2, "Unit(1)", "m" );
+
+         rt = roundtrip( nltfs2, "FITS-WCS", "", 1e-3, status );
+         if( rt == 0 )
+            stopit( 608, "Write/read failed for non-linear WAVE-F2W", status );
+         else if( rt == -1 )
+            stopit( 609, "Coordinates disagree for non-linear WAVE-F2W", status );
+
+         nltfs2 = astAnnul( nltfs2 );
+      }
+
+      /* --- Non-linear spectral: WAVN system with pixel linear in WAVE.
+             Tests the -W2F suffix (X=WAVE, S=WAVN -> WAVN-W2F). --- */
+      {
+         AstSpecFrame *nlspec3;
+         AstFrameSet *nltfs3;
+
+         nlspec3 = astSpecFrame( "System=WAVE,Unit=m,StdOfRest=Barycentric,"
+                                 "RestFreq=1.4204e9 Hz" );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1.0e-10, " " );
+         nltfs3 = astFrameSet( pixel, " " );
+         astAddFrame( nltfs3, AST__CURRENT, map, (AstFrame *) nlspec3 );
+         astSetC( nltfs3, "System", "WAVN" );
+         astSetC( nltfs3, "Unit(1)", "1/m" );
+
+         rt = roundtrip( nltfs3, "FITS-WCS", "", 1e-3, status );
+         if( rt == 0 )
+            stopit( 650, "Write/read failed for non-linear WAVN-W2F", status );
+         else if( rt == -1 )
+            stopit( 651, "Coordinates disagree for non-linear WAVN-W2F", status );
+
+         nltfs3 = astAnnul( nltfs3 );
+      }
+
+      /* --- Non-linear spectral: AWAV system with pixel linear in FREQ.
+             Tests the -F2A suffix (X=FREQ, S=AWAV -> AWAV-F2A). --- */
+      {
+         AstSpecFrame *nlspec4;
+         AstFrameSet *nltfs4;
+
+         nlspec4 = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
+                                 "RestFreq=1.4204e9 Hz" );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1.0e6, " " );
+         nltfs4 = astFrameSet( pixel, " " );
+         astAddFrame( nltfs4, AST__CURRENT, map, (AstFrame *) nlspec4 );
+         astSetC( nltfs4, "System", "AWAV" );
+         astSetC( nltfs4, "Unit(1)", "m" );
+
+         rt = roundtrip( nltfs4, "FITS-WCS", "", 1e-3, status );
+         if( rt == 0 )
+            stopit( 652, "Write/read failed for non-linear AWAV-F2A", status );
+         else if( rt == -1 )
+            stopit( 653, "Coordinates disagree for non-linear AWAV-F2A", status );
+
+         nltfs4 = astAnnul( nltfs4 );
+      }
+
+      /* --- Non-linear spectral: BETA system with pixel linear in VELO.
+             Tests the -V2V suffix (X=VELO, S=BETA -> BETA-V2V). --- */
+      {
+         AstSpecFrame *nlspec5;
+         AstFrameSet *nltfs5;
+
+         nlspec5 = astSpecFrame( "System=VELO,Unit=m/s,StdOfRest=Barycentric,"
+                                 "RestFreq=1.4204e9 Hz" );
+         pixel = astFrame( 1, "Domain=GRID" );
+         map = (AstMapping *) astZoomMap( 1, 1000.0, " " );
+         nltfs5 = astFrameSet( pixel, " " );
+         astAddFrame( nltfs5, AST__CURRENT, map, (AstFrame *) nlspec5 );
+         astSetC( nltfs5, "System", "BETA" );
+
+         rt = roundtrip( nltfs5, "FITS-WCS", "", 1e-3, status );
+         if( rt == 0 )
+            stopit( 654, "Write/read failed for non-linear BETA-V2V", status );
+         else if( rt == -1 )
+            stopit( 655, "Coordinates disagree for non-linear BETA-V2V", status );
+
+         nltfs5 = astAnnul( nltfs5 );
+      }
+
       /* --- 3D sky+spec tests moved to wcsconv_tests.txt:
              skyspec3d.head -> fits-wcs/fits-aips/fits-aips++/fits-iraf
              skyspec3d-class.head -> fits-class
