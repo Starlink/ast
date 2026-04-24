@@ -38,6 +38,7 @@
 *     - File-based channel replaces Fortran OPEN/READ.
 */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -200,7 +201,12 @@ int main( int argc, char **argv ) {
    astAnnul( plot3d );
 
    /* === Test 2: Load a FrameSet and draw a 3D grid === */
-   fset = readTest( "plot3d-test1.ast", &status );
+   const char *srcdir = getenv( "srcdir" );
+   char path[PATH_MAX];
+   if( !srcdir ) srcdir = ".";
+   snprintf( path, sizeof(path), "%s/plot3d-test1.ast", srcdir );
+   fset = readTest( path, &status );
+
    if( fset && status == 0 ) {
       bbox[0] = 0.5;    bbox[1] = 0.5;    bbox[2] = 0.5;
       bbox[3] = 155.5;  bbox[4] = 107.5;  bbox[5] = 1640.5;
