@@ -128,3 +128,7 @@ vrad-lsrd_fits-aips++| vrad-lsrd.head                | vrad-lsrd.fits-aips++ | f
 class-write_fits-class| class-write.head              | class-write.fits-class | fits-class | FitsDigits=8  |
 class-gal_fits-class| class-gal.head                 | class-gal.fits-class | fits-class | FitsDigits=8    |
 jan_fits-class-rt   | jan.fits-class                 | jan.fits-class-roundtrip | fits-class | FitsDigits=8 |
+ncp_fits-iraf       | ncp.head                       | ncp.fits-iraf      | fits-iraf | FitsDigits=8    |
+fk4-aips_fits-iraf  | fk4-aips.head                  | fk4-aips.fits-iraf | fits-iraf | FitsDigits=8    |
+a20070718_fits-iraf  | a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-iraf | fits-iraf | FitsDigits=8 |
+sfl-origin_fits-iraf| sfl-origin.head                | sfl-origin.fits-iraf | fits-iraf | FitsDigits=8   |

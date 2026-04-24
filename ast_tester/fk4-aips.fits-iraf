@@ -1,0 +1,15 @@
+NAXIS1  =                  100 / length of data axis 1                          
+NAXIS2  =                  100 / length of data axis 2                          
+CTYPE1  = 'RA---TAN'           / Celestial longitude                            
+CTYPE2  = 'DEC--TAN'           / Celestial latitude                             
+CRVAL1  =                150.0 / Reference RA (deg)                             
+CRVAL2  =                -30.0 / Reference Dec (deg)                            
+CRPIX1  =                 50.5 / Reference pixel                                
+CRPIX2  =                 50.5 / Reference pixel                                
+EQUINOX =               1950.0 / Equinox (Besselian, < 1984)                    
+MJD-OBS =              40000.0 / MJD of observation (1968)                      
+CD1_1   =           -8.3333E-4 / Transformation matrix element                  
+CD2_2   =           0.00083333 / Transformation matrix element                  
+RADECSYS= 'FK4     '           / Reference frame for RA/DEC values              
+DATE-OBS= '24/05/68'           / Date of observation                            
+END                                                                             

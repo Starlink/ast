@@ -1,0 +1,14 @@
+NAXIS1  =                  512 / length of data axis 1                          
+NAXIS2  =                  512 / length of data axis 2                          
+CTYPE1  = 'RA---NCP'           / NCP projection (converted to SIN)              
+CTYPE2  = 'DEC--NCP'           / NCP projection (converted to SIN)              
+CRVAL1  =                180.0 / Reference RA (deg)                             
+CRVAL2  =                 45.0 / Reference Dec (deg)                            
+CRPIX1  =                256.5 / Reference pixel on axis 1                      
+CRPIX2  =                256.5 / Reference pixel on axis 2                      
+EQUINOX =               2000.0 / Equinox of coordinates                         
+DATE-OBS= '2020-06-15T10:30:00.000' / Date of observation                       
+CD1_1   =            -2.778E-4 / Transformation matrix element                  
+CD2_2   =            0.0002778 / Transformation matrix element                  
+RADECSYS= 'FK5     '           / Reference frame for RA/DEC values              
+END                                                                             
