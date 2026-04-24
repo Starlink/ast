@@ -67,6 +67,8 @@ fits-pc-unit_native | fits-pc-unit.head              | fits-pc-unit.native| nati
 gls_native          | gls.head                       | gls.native         | native    |                                  | yes
 iraf-longpole_native| iraf-longpole.head             | iraf-longpole.native| native   |                                  | yes
 multi-wcs-spec_native| multi-wcs-spec.head            | multi-wcs-spec.native| native  |                                  | yes
+multi-wcs-dup_native| multi-wcs-dup.head              | multi-wcs-dup.native | native  |                                  | yes
+multi-wcs-dup_fits-wcs| multi-wcs-dup.head            | multi-wcs-dup.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8        |
 freq-wav_native     | freq-wav.head                  | freq-wav.native    | native    |                                  | yes
 wavn-frq_native     | wavn-frq.head                  | wavn-frq.native    | native    |                                  | yes
 mercator_native     | mercator.head                  | mercator.native    | native    |                                  | yes
