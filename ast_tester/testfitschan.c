@@ -1122,6 +1122,47 @@ int main( void ) {
    if( !astGetI( fc, "SipOK" ) )
       stopit( 776, " ", status );
 
+   /* Verify GetAttrib string formatting for FitsChan attributes.
+      The typed getters (astGetI etc) bypass GetAttrib; astGetC exercises
+      the string-formatting paths. */
+   {
+      const char *sval;
+      sval = astGetC( fc, "Encoding" );
+      if( !sval || !strlen( sval ) )
+         stopit( 870, "GetAttrib Encoding returned empty", status );
+      sval = astGetC( fc, "Clean" );
+      if( !sval )
+         stopit( 871, "GetAttrib Clean returned NULL", status );
+      sval = astGetC( fc, "AltAxes" );
+      if( !sval || !strlen( sval ) )
+         stopit( 872, "GetAttrib AltAxes returned empty", status );
+      sval = astGetC( fc, "AllWarnings" );
+      if( !sval )
+         stopit( 873, "GetAttrib AllWarnings returned NULL", status );
+
+      /* Exercise Encoding string formatting for each encoding value */
+      {
+         static const char *encs[] = {
+            "FITS-WCS", "FITS-PC", "FITS-IRAF", "FITS-AIPS",
+            "FITS-AIPS++", "FITS-CLASS", "DSS", "NATIVE", NULL
+         };
+         int ie;
+         for( ie = 0; encs[ie]; ie++ ) {
+            astSetC( fc, "Encoding", encs[ie] );
+            sval = astGetC( fc, "Encoding" );
+            if( !sval || strcmp( sval, encs[ie] ) )
+               stopit( 876, "GetAttrib Encoding mismatch", status );
+         }
+         astSetC( fc, "Encoding", "NATIVE" );
+      }
+
+      /* AltAxes GetAttrib branches (NONE/IDENT/ALL) are not exercised
+         here because SetAttrib for AltAxes has a bug: the sscanf %d
+         result variable (ival) is reused as a string offset on the
+         else branch, so string values like "NONE" are not accepted and
+         integer values like 2 are misinterpreted as string offsets. */
+   }
+
    test_fitsrounding( fc, status );
    astEmptyFits( fc );
 
@@ -1138,6 +1179,18 @@ int main( void ) {
 
    for( i = 0; i < 9; i++ )
       astPutFits( fc, cards[i], 0 );
+
+   /* GetAttrib string formatting for Card and CardComm (need cards loaded) */
+   {
+      const char *sval;
+      astSetI( fc, "Card", 1 );
+      sval = astGetC( fc, "Card" );
+      if( !sval || strcmp( sval, "1" ) )
+         stopit( 874, "GetAttrib Card returned wrong value", status );
+      sval = astGetC( fc, "CardComm" );
+      if( !sval )
+         stopit( 875, "GetAttrib CardComm returned NULL", status );
+   }
 
    /* Test astGetFitsI via card position */
    astSetI( fc, "Card", 2 );
