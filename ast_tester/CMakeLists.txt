@@ -121,32 +121,32 @@ ast_add_test(testsplinemap_c)
 
 # --- Conditional tests ---
 # --- Fortran tests converted to C (Batch 1) ---
-ast_add_test(testzoommap)
-ast_add_test(testnormmap)
-ast_add_test(testmapping)
-ast_add_test(testskyframe)
-ast_add_test(testcmpframe)
-ast_add_test(testlutmap)
-ast_add_test(testratemap)
-ast_add_test(testchannel)
+ast_add_test(testzoommap_c    SOURCES testzoommap.c)
+ast_add_test(testnormmap_c    SOURCES testnormmap.c)
+ast_add_test(testmapping_c    SOURCES testmapping.c)
+ast_add_test(testskyframe_c   SOURCES testskyframe.c)
+ast_add_test(testcmpframe_c   SOURCES testcmpframe.c)
+ast_add_test(testlutmap_c     SOURCES testlutmap.c)
+ast_add_test(testratemap_c    SOURCES testratemap.c)
+ast_add_test(testchannel_c    SOURCES testchannel.c)
 
 # --- Fortran tests converted to C (Batch 2) ---
-ast_add_test(testrate)
-ast_add_test(testspecframe)
-ast_add_test(testflux)
-ast_add_test(testspecflux)
-ast_add_test(testcmpmap)
-ast_add_test(testpolymap)
-ast_add_test(testchebymap)
+ast_add_test(testrate_c       SOURCES testrate.c)
+ast_add_test(testspecframe_c  SOURCES testspecframe.c)
+ast_add_test(testflux_c       SOURCES testflux.c)
+ast_add_test(testspecflux_c   SOURCES testspecflux.c)
+ast_add_test(testcmpmap_c     SOURCES testcmpmap.c)
+ast_add_test(testpolymap_c    SOURCES testpolymap.c)
+ast_add_test(testchebymap_c   SOURCES testchebymap.c)
 ast_add_test(testunitnormmap_c SOURCES testunitnormmap.c)
-ast_add_test(testtrangrid)
-ast_add_test(testmoc)
-ast_add_test(testfitstable)
-ast_add_test(testframeset)
-ast_add_test(testswitchmap)
-ast_add_test(testtime)
-ast_add_test(testkeymap)
-ast_add_test(testmocchan)
+ast_add_test(testtrangrid_c   SOURCES testtrangrid.c)
+ast_add_test(testmoc_c        SOURCES testmoc.c)
+ast_add_test(testfitstable_c  SOURCES testfitstable.c)
+ast_add_test(testframeset_c   SOURCES testframeset.c)
+ast_add_test(testswitchmap_c  SOURCES testswitchmap.c)
+ast_add_test(testtime_c       SOURCES testtime.c)
+ast_add_test(testkeymap_c     SOURCES testkeymap.c)
+ast_add_test(testmocchan_c    SOURCES testmocchan.c)
 ast_add_test(testxmlchan_c SOURCES testxmlchan.c)
 ast_add_test(testtable_c SOURCES testtable.c)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
@@ -528,14 +528,15 @@ if(PLPLOT_FOUND)
     target_include_directories(testplotter PRIVATE ${PLPLOT_INCLUDE_DIRS})
     target_link_directories(testplotter PRIVATE ${PLPLOT_LIBRARY_DIRS})
 
-    ast_add_test(testplot3d
+    ast_add_test(testplot3d_c
         SOURCES testplot3d.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
+        SOURCES testplot3d.c
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
         TEST_ARGS "testplot3d.pdf"
     )
-    target_include_directories(testplot3d PRIVATE ${PLPLOT_INCLUDE_DIRS})
-    target_link_directories(testplot3d PRIVATE ${PLPLOT_LIBRARY_DIRS})
+    target_include_directories(testplot3d_c PRIVATE ${PLPLOT_INCLUDE_DIRS})
+    target_link_directories(testplot3d_c PRIVATE ${PLPLOT_LIBRARY_DIRS})
 
     # --- Plotter smoke tests ---
     # Run testplotter on each .head file with its .attr/.fattr/.box

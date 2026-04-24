@@ -37,18 +37,50 @@ CTEST_LDADD = @LIBPAL@ @LIBCMINPACK@ \
 C_TESTS = \
     ast_test \
     testaxis \
+    testchannel_c \
+    testchebymap_c \
+    testcmpframe_c \
+    testcmpmap_c \
     testconvert \
     testerror \
+    testfitschan_c \
+    testfitstable_c \
+    testflux_c \
     testframe \
+    testframeset_c \
+    testkeymap_c \
+    testlutmap_c \
+    testmapping_c \
+    testmoc_c \
+    testmocchan_c \
+    testnormmap_c \
     testobject \
+    testpolymap_c \
+    testrate_c \
+    testratemap_c \
+    testrebin_c \
+    testrebinseq_c \
+    testregions_c \
     testresimp \
+    testskyframe_c \
+    testspecflux_c \
+    testspecframe_c \
     testsplinemap_c \
+    teststc_c \
+    teststcschan_c \
+    testswitchmap_c \
+    testtable_c \
+    testtime_c \
+    testtrangrid_c \
     testunitnorm \
-    testyamlchan
+    testunitnormmap_c \
+    testxmlchan_c \
+    testyamlchan \
+    testzoommap_c
 
 # testhuge (C version) is compiled unconditionally; testhuge_f is
 # compiled when !NOFORTRAN.  Both are driven by testhuge.sh.
-check_PROGRAMS = $(C_TESTS) testhuge
+check_PROGRAMS = $(C_TESTS) testhuge_c
 TESTS = $(C_TESTS)
 
 ast_test_SOURCES       = ast_test.c
@@ -81,9 +113,141 @@ testunitnorm_LDADD     = $(CTEST_LDADD)
 testyamlchan_SOURCES   = testyamlchan.c
 testyamlchan_LDADD     = $(CTEST_LDADD)
 
-testhuge_SOURCES       = testhuge.c
-testhuge_CFLAGS        = $(AM_CFLAGS)
-testhuge_LDADD         = $(CTEST_LDADD)
+# Fortran-converted C tests.  Every one shares its source basename with a
+# .f counterpart, so each needs a per-target _CFLAGS to force automake to
+# use long object names (foo-foo.o) and avoid object-file collisions.
+
+testchannel_c_SOURCES  = testchannel.c
+testchannel_c_CFLAGS   = $(AM_CFLAGS)
+testchannel_c_LDADD    = $(CTEST_LDADD)
+
+testchebymap_c_SOURCES = testchebymap.c
+testchebymap_c_CFLAGS  = $(AM_CFLAGS)
+testchebymap_c_LDADD   = $(CTEST_LDADD)
+
+testcmpframe_c_SOURCES = testcmpframe.c
+testcmpframe_c_CFLAGS  = $(AM_CFLAGS)
+testcmpframe_c_LDADD   = $(CTEST_LDADD)
+
+testcmpmap_c_SOURCES   = testcmpmap.c
+testcmpmap_c_CFLAGS    = $(AM_CFLAGS)
+testcmpmap_c_LDADD     = $(CTEST_LDADD)
+
+testfitschan_c_SOURCES = testfitschan.c
+testfitschan_c_CFLAGS  = $(AM_CFLAGS)
+testfitschan_c_LDADD   = $(CTEST_LDADD)
+
+testfitstable_c_SOURCES = testfitstable.c
+testfitstable_c_CFLAGS  = $(AM_CFLAGS)
+testfitstable_c_LDADD   = $(CTEST_LDADD)
+
+testflux_c_SOURCES     = testflux.c
+testflux_c_CFLAGS      = $(AM_CFLAGS)
+testflux_c_LDADD       = $(CTEST_LDADD)
+
+testframeset_c_SOURCES = testframeset.c
+testframeset_c_CFLAGS  = $(AM_CFLAGS)
+testframeset_c_LDADD   = $(CTEST_LDADD)
+
+testkeymap_c_SOURCES   = testkeymap.c
+testkeymap_c_CFLAGS    = $(AM_CFLAGS)
+testkeymap_c_LDADD     = $(CTEST_LDADD)
+
+testlutmap_c_SOURCES   = testlutmap.c
+testlutmap_c_CFLAGS    = $(AM_CFLAGS)
+testlutmap_c_LDADD     = $(CTEST_LDADD)
+
+testmapping_c_SOURCES  = testmapping.c
+testmapping_c_CFLAGS   = $(AM_CFLAGS)
+testmapping_c_LDADD    = $(CTEST_LDADD)
+
+testmoc_c_SOURCES      = testmoc.c
+testmoc_c_CFLAGS       = $(AM_CFLAGS)
+testmoc_c_LDADD        = $(CTEST_LDADD)
+
+testmocchan_c_SOURCES  = testmocchan.c
+testmocchan_c_CFLAGS   = $(AM_CFLAGS)
+testmocchan_c_LDADD    = $(CTEST_LDADD)
+
+testnormmap_c_SOURCES  = testnormmap.c
+testnormmap_c_CFLAGS   = $(AM_CFLAGS)
+testnormmap_c_LDADD    = $(CTEST_LDADD)
+
+testpolymap_c_SOURCES  = testpolymap.c
+testpolymap_c_CFLAGS   = $(AM_CFLAGS)
+testpolymap_c_LDADD    = $(CTEST_LDADD)
+
+testrate_c_SOURCES     = testrate.c
+testrate_c_CFLAGS      = $(AM_CFLAGS)
+testrate_c_LDADD       = $(CTEST_LDADD)
+
+testratemap_c_SOURCES  = testratemap.c
+testratemap_c_CFLAGS   = $(AM_CFLAGS)
+testratemap_c_LDADD    = $(CTEST_LDADD)
+
+testrebin_c_SOURCES    = testrebin.c
+testrebin_c_CFLAGS     = $(AM_CFLAGS)
+testrebin_c_LDADD      = $(CTEST_LDADD)
+
+testrebinseq_c_SOURCES = testrebinseq.c
+testrebinseq_c_CFLAGS  = $(AM_CFLAGS)
+testrebinseq_c_LDADD   = $(CTEST_LDADD)
+
+testregions_c_SOURCES  = testregions.c
+testregions_c_CFLAGS   = $(AM_CFLAGS)
+testregions_c_LDADD    = $(CTEST_LDADD)
+
+testskyframe_c_SOURCES = testskyframe.c
+testskyframe_c_CFLAGS  = $(AM_CFLAGS)
+testskyframe_c_LDADD   = $(CTEST_LDADD)
+
+testspecflux_c_SOURCES = testspecflux.c
+testspecflux_c_CFLAGS  = $(AM_CFLAGS)
+testspecflux_c_LDADD   = $(CTEST_LDADD)
+
+testspecframe_c_SOURCES = testspecframe.c
+testspecframe_c_CFLAGS  = $(AM_CFLAGS)
+testspecframe_c_LDADD   = $(CTEST_LDADD)
+
+teststc_c_SOURCES      = teststc.c
+teststc_c_CFLAGS       = $(AM_CFLAGS)
+teststc_c_LDADD        = $(CTEST_LDADD)
+
+teststcschan_c_SOURCES = teststcschan.c
+teststcschan_c_CFLAGS  = $(AM_CFLAGS)
+teststcschan_c_LDADD   = $(CTEST_LDADD)
+
+testswitchmap_c_SOURCES = testswitchmap.c
+testswitchmap_c_CFLAGS  = $(AM_CFLAGS)
+testswitchmap_c_LDADD   = $(CTEST_LDADD)
+
+testtable_c_SOURCES    = testtable.c
+testtable_c_CFLAGS     = $(AM_CFLAGS)
+testtable_c_LDADD      = $(CTEST_LDADD)
+
+testtime_c_SOURCES     = testtime.c
+testtime_c_CFLAGS      = $(AM_CFLAGS)
+testtime_c_LDADD       = $(CTEST_LDADD)
+
+testtrangrid_c_SOURCES = testtrangrid.c
+testtrangrid_c_CFLAGS  = $(AM_CFLAGS)
+testtrangrid_c_LDADD   = $(CTEST_LDADD)
+
+testunitnormmap_c_SOURCES = testunitnormmap.c
+testunitnormmap_c_CFLAGS  = $(AM_CFLAGS)
+testunitnormmap_c_LDADD   = $(CTEST_LDADD)
+
+testhuge_c_SOURCES     = testhuge.c
+testhuge_c_CFLAGS      = $(AM_CFLAGS)
+testhuge_c_LDADD       = $(CTEST_LDADD)
+
+testxmlchan_c_SOURCES  = testxmlchan.c
+testxmlchan_c_CFLAGS   = $(AM_CFLAGS)
+testxmlchan_c_LDADD    = $(CTEST_LDADD)
+
+testzoommap_c_SOURCES  = testzoommap.c
+testzoommap_c_CFLAGS   = $(AM_CFLAGS)
+testzoommap_c_LDADD    = $(CTEST_LDADD)
 
 
 # ---------------------------------------------------------------------------
@@ -230,10 +394,10 @@ EXTRA_DIST += \
     stcchan-test1-doc3-props.ast \
     tanSipWcs.txt \
     testmocchan_com \
-    teststc_com \
+    teststcom \
     teststc_eg1 teststc_eg2 teststc_eg3 teststc_eg4 teststc_eg5 \
     teststc_eg6 teststc_eg7 teststc_eg8 teststc_eg9 teststc_eg10 \
-    testxmlchan_com
+    testxmlchanom
 
 # Data-driven tests: WCS encoding conversion and Mapping simplification.
 check_PROGRAMS += wcsconverter simplify
