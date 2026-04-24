@@ -3403,6 +3403,56 @@ int main( void ) {
       astEnd;
    }
 
+   /* FITS-PC write with alternate axes: 1D spectral FrameSet with a
+      second SpecFrame added as an alternate description. The 1x1 PC
+      matrix is identity for both, so the alternate survives FITS-PC. */
+   if( *status == 0 ) {
+      AstSpecFrame *pcspec, *pcspec2;
+      AstFrame *pcpix;
+      AstMapping *pcmap;
+      AstFrameSet *pcfs;
+      AstFitsChan *pcfc;
+      char *pc_val;
+
+      astBegin;
+
+      pcspec = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
+                             "RestFreq=1.4204e9 Hz", status );
+      pcpix = astFrame( 1, "Domain=GRID", status );
+      pcmap = (AstMapping *)astZoomMap( 1, 1.0e6, " ", status );
+      pcfs = astFrameSet( pcpix, " ", status );
+      astAddFrame( pcfs, AST__BASE, pcmap, (AstFrame *)pcspec );
+
+      pcspec2 = astSpecFrame( "System=WAVE,Unit=m,StdOfRest=Barycentric,"
+                              "RestFreq=1.4204e9 Hz", status );
+      pcmap = (AstMapping *)astZoomMap( 1, 1.0e-10, " ", status );
+      astAddFrame( pcfs, AST__BASE, pcmap, (AstFrame *)pcspec2 );
+
+      astSetI( pcfs, "Current", 2 );
+
+      pcfc = astFitsChan( NULL, NULL, "Encoding=FITS-PC" );
+      astPutFits( pcfc, "NAXIS   = 1", 0 );
+      astPutFits( pcfc, "NAXIS1  = 1024", 0 );
+      astSetC( pcfc, "AltAxes", "ALL" );
+      if( astWrite( pcfc, pcfs ) != 1 )
+         stopit( 960, "FITS-PC spectral write failed", status );
+
+      astClear( pcfc, "Card" );
+      if( !astGetFitsS( pcfc, "CTYPE1", &pc_val ) ||
+          strncmp( pc_val, "FREQ", 4 ) )
+         stopit( 961, "FITS-PC CTYPE1 not FREQ", status );
+
+      if( !astGetFitsS( pcfc, "C1YPE1", &pc_val ) )
+         stopit( 962, "FITS-PC C1YPE1 (alternate A) missing", status );
+      else if( strncmp( pc_val, "WAVE", 4 ) )
+         stopit( 963, "FITS-PC C1YPE1 not WAVE", status );
+
+      pcfc = astAnnul( pcfc );
+      pcfs = astAnnul( pcfs );
+
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 

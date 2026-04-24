@@ -78,6 +78,8 @@ zero-cdelt_native   | zero-cdelt.head                | zero-cdelt.native  | nati
 alt-spectral_native | alt-spectral.head              | alt-spectral.native| native    |                                  | yes
 helioecl_native     | helioecl.head                  | helioecl.native    | native    |                                  | yes
 fits-pc-full_native | fits-pc-full.head              | fits-pc-full.native| native    |                                  | yes
+fits-pc-gal_native  | fits-pc-gal.head               | fits-pc-gal.native | native    |                                  | yes
+fits-pc-gal_fits-pc | fits-pc-gal.head               | fits-pc-gal.fits-pc | fits-pc  | FitsDigits=8                     |
 projp_native        | projp.head                     | projp.native       | native    |                                  | yes
 fk5-noeq_native     | fk5-noeq.head                  | fk5-noeq.native    | native    |                                  | yes
 timesys-tt_native   | timesys-tt.head                | timesys-tt.native  | native    |                                  | yes
@@ -145,6 +147,7 @@ skyspec3d_fits-wcs  | skyspec3d.head                 | skyspec3d.fits-wcs | fits
 skyspec3d_fits-aips | skyspec3d.head                 | skyspec3d.fits-aips | fits-aips | cdmatrix=1,FitsDigits=8          |
 skyspec3d_fits-aips++| skyspec3d.head                | skyspec3d.fits-aips++ | fits-aips++ | cdmatrix=1,FitsDigits=8      |
 skyspec3d_fits-iraf | skyspec3d.head                 | skyspec3d.fits-iraf | fits-iraf | cdmatrix=1,FitsDigits=8          |
+skyspec3d_fits-pc   | skyspec3d.head                 | skyspec3d.fits-pc  | fits-pc   | FitsDigits=8                     |
 skyspec3d-class_native| skyspec3d-class.head          | skyspec3d-class.native | native |                                  | yes
 skyspec3d-class_fits-class| skyspec3d-class.head      | skyspec3d-class.fits-class | fits-class | FitsDigits=8           |
 offset-sky_native   | offset-sky.head                | offset-sky.native  | native    |                                  | yes
