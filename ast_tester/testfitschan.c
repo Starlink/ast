@@ -1170,6 +1170,20 @@ int main( void ) {
       if( !sval || strcmp( sval, "ALL" ) )
          stopit( 879, "GetAttrib AltAxes ALL mismatch", status );
       astSet( fc, "AltAxes=NONE" );
+
+      /* Exercise TestAttrib and ClearAttrib for FitsChan attributes */
+      if( !astTest( fc, "Encoding" ) )
+         stopit( 880, "TestAttrib Encoding should be set", status );
+      if( !astTest( fc, "AltAxes" ) )
+         stopit( 881, "TestAttrib AltAxes should be set", status );
+      astSet( fc, "Clean=1" );
+      if( !astTest( fc, "Clean" ) )
+         stopit( 882, "TestAttrib Clean should be set", status );
+      astClear( fc, "Clean" );
+      astClear( fc, "Encoding" );
+      astClear( fc, "AltAxes" );
+      if( astTest( fc, "Card" ) )
+         stopit( 883, "TestAttrib Card should not be set", status );
    }
 
    test_fitsrounding( fc, status );
