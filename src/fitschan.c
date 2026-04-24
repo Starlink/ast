@@ -1317,6 +1317,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        the parsed integer in ival, but ival was then reused as a string
 *        offset making the string comparison branches unreachable. Changed
 *        to use %n%*[^\n]%n pattern matching the Encoding handler.
+*     24-APR-2026 (TIMJ):
+*        Fix NearestPix rounding. The (int)(x+0.5) idiom truncates toward
+*        zero, giving platform-dependent results for values near N.5 (e.g.
+*        512.4999... rounds to 512 or 513 depending on FP representation).
+*        Changed to round() for consistent rounding to nearest integer.
 *class--
 */
 
@@ -23227,7 +23232,7 @@ static double NearestPix( AstMapping *map, double val, int axis, int *status ){
    integer. */
          for( i = 0; i < nin; i++ ) {
             if( ptr1[ i ][ 0 ] != AST__BAD ) {
-               ptr1[ i ][ 0 ] = (int) ( ptr1[ i ][ 0 ] + 0.5 );
+               ptr1[ i ][ 0 ] = round( ptr1[ i ][ 0 ] );
             }
          }
 
