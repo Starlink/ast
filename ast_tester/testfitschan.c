@@ -1778,6 +1778,8 @@ int main( void ) {
 
 /* -----------------------------------------------------------------------
  * Test FitsChan Dump/Load round-trip via astToString/astFromString.
+ * Exercises all keyword data types (FLOAT, STRING, INT, KINT, LOGICAL,
+ * COMPLEXF, COMPLEXI), non-default Encoding and AltAxes attributes.
  * Error numbers 400+.
  * -----------------------------------------------------------------------*/
    {
@@ -1785,10 +1787,25 @@ int main( void ) {
       AstFitsChan *afc2;
       char *pickle;
       int ncard1, ncard2;
+      double cfval[2];
+      int cival[2];
+      int lval;
+      double dval_got;
 
-      astSetFitsI( afc, "NAXIS", 0, "No data", 0 );
-      astSetFitsF( afc, "CRVAL1", 180.0, "Reference value", 0 );
-      astSetFitsS( afc, "CTYPE1", "RA---TAN", "Projection", 0 );
+      astSetFitsI( afc, "TESTI", 42, "integer", 0 );
+      astSetFitsF( afc, "TESTF", 3.14, "float", 0 );
+      astSetFitsS( afc, "TESTS", "hello", "string", 0 );
+      astSetFitsK( afc, "TESTK", (int64_t)123456789012LL, "64-bit int", 0 );
+      astSetFitsL( afc, "TESTL", 1, "logical true", 0 );
+      cfval[0] = 1.5; cfval[1] = 2.5;
+      astSetFitsCF( afc, "TESTCF", cfval, "complex float", 0 );
+      cival[0] = 10; cival[1] = 20;
+      astSetFitsCI( afc, "TESTCI", cival, "complex int", 0 );
+      astSetFitsU( afc, "TESTU", "undefined keyword", 0 );
+
+      astSetC( afc, "Encoding", "FITS-WCS" );
+      astSetC( afc, "AltAxes", "ALL" );
+      astSetC( afc, "FitsAxisOrder", "FREQ RA DEC" );
       ncard1 = astGetI( afc, "Ncard" );
 
       pickle = astToString( afc );
@@ -1802,6 +1819,41 @@ int main( void ) {
             ncard2 = astGetI( afc2, "Ncard" );
             if( ncard2 != ncard1 )
                stopit( 402, "Round-trip changed card count", status );
+
+            {
+               const char *enc = astGetC( afc2, "Encoding" );
+               if( !enc || strcmp( enc, "FITS-WCS" ) )
+                  stopit( 403, "Round-trip lost Encoding", status );
+            }
+            {
+               const char *alt = astGetC( afc2, "AltAxes" );
+               if( !alt || strcmp( alt, "ALL" ) )
+                  stopit( 404, "Round-trip lost AltAxes", status );
+            }
+            {
+               const char *fao = astGetC( afc2, "FitsAxisOrder" );
+               if( !fao || strcmp( fao, "FREQ RA DEC" ) )
+                  stopit( 409, "Round-trip lost FitsAxisOrder", status );
+            }
+
+            astClear( afc2, "Card" );
+            if( !astGetFitsF( afc2, "TESTF", &dval_got ) || fabs( dval_got - 3.14 ) > 1e-10 )
+               stopit( 405, "Round-trip lost TESTF", status );
+
+            if( !astGetFitsL( afc2, "TESTL", &lval ) || lval != 1 )
+               stopit( 406, "Round-trip lost TESTL", status );
+
+            cfval[0] = cfval[1] = 0.0;
+            if( !astGetFitsCF( afc2, "TESTCF", cfval ) ||
+                fabs( cfval[0] - 1.5 ) > 1e-10 ||
+                fabs( cfval[1] - 2.5 ) > 1e-10 )
+               stopit( 407, "Round-trip lost TESTCF", status );
+
+            cival[0] = cival[1] = 0;
+            if( !astGetFitsCI( afc2, "TESTCI", cival ) ||
+                cival[0] != 10 || cival[1] != 20 )
+               stopit( 408, "Round-trip lost TESTCI", status );
+
             afc2 = astAnnul( afc2 );
          }
          astFree( pickle );
