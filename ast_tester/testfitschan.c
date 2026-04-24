@@ -2315,11 +2315,14 @@ int main( void ) {
 
    /* Test all TIMESYS keyword variants (810-829).
       Each variant is read via a minimal TAN header with MJD-OBS,
-      exercising every branch in TimeSysToAst. */
+      exercising every branch in TimeSysToAst. Verify (a) astRead
+      succeeds and (b) the resulting epoch differs between timescales
+      that are physically distinct. */
    {
       static const char *timesys_vals[] = {
          "UT", "IAT", "ET", "TT", "TDT", "TDB", "TCG", "TCB", NULL
       };
+      double epoch_ut = 0.0;
       int its;
       for( its = 0; timesys_vals[its]; its++ ) {
          AstFitsChan *tsfc = astFitsChan( NULL, NULL, " " );
@@ -2341,14 +2344,26 @@ int main( void ) {
          astPutFits( tsfc, card, 0 );
          astClear( tsfc, "Card" );
          {
-            AstObject *tsobj = astRead( tsfc );
-            if( !tsobj ) {
+            AstFrameSet *tsfs = (AstFrameSet *)astRead( tsfc );
+            if( !tsfs ) {
                char msg[80];
                sprintf( msg, "TIMESYS='%s' read failed", timesys_vals[its] );
                astClearStatus;
                stopit( 810 + its, msg, status );
             } else {
-               tsobj = astAnnul( tsobj );
+               double epoch = astGetD( tsfs, "Epoch" );
+               if( its == 0 ) {
+                  epoch_ut = epoch;
+               } else if( !strcmp( timesys_vals[its], "TDB" ) ) {
+                  if( fabs( epoch - epoch_ut ) < 1.0e-8 ) {
+                     stopit( 820, "TIMESYS=TDB epoch same as UT", status );
+                  }
+               } else if( !strcmp( timesys_vals[its], "TCB" ) ) {
+                  if( fabs( epoch - epoch_ut ) < 1.0e-8 ) {
+                     stopit( 821, "TIMESYS=TCB epoch same as UT", status );
+                  }
+               }
+               tsfs = astAnnul( tsfs );
             }
          }
          tsfc = astAnnul( tsfc );
