@@ -1322,6 +1322,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        zero, giving platform-dependent results for values near N.5 (e.g.
 *        512.4999... rounds to 512 or 513 depending on FP representation).
 *        Changed to round() for consistent rounding to nearest integer.
+*     24-APR-2026 (TIMJ):
+*        Fix memory leak: FitsAxisOrder string was not freed in the
+*        destructor, and was not deep-copied in the Copy constructor
+*        (leading to use-after-free when copied FitsChan objects were
+*        destroyed).
 *class--
 */
 
@@ -43434,6 +43439,9 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    out->sink = NULL;
    out->sink_wrap = NULL;
    out->warnings = NULL;
+   out->fitsaxisorder = in->fitsaxisorder ?
+      astStore( NULL, in->fitsaxisorder,
+                strlen( in->fitsaxisorder ) + 1 ) : NULL;
    out->tabsource = NULL;
    out->tabsource_wrap = NULL;
 
@@ -43530,6 +43538,9 @@ static void Delete( AstObject *obj, int *status ) {
 
 /* Remove all cards from the FitsChan. */
    EmptyFits( this, status );
+
+/* Free any memory used to hold the FitsAxisOrder attribute value. */
+   this->fitsaxisorder = astFree( this->fitsaxisorder );
 }
 
 /* Dump function. */
