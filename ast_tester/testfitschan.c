@@ -2498,6 +2498,151 @@ int main( void ) {
          stopit( 800, "Ill-conditioned SFL leaked or crashed", status );
    }
 
+   /* SplitMap: linear sky mapping -> synthetic CAR projection write path.
+      A FrameSet with a purely linear pixel-to-sky mapping (no WcsMap)
+      triggers the CAR fallback in SplitMap (fitschan.c ~32680-32704). */
+   if( *status == 0 ) {
+      AstFrame *gf850;
+      AstSkyFrame *sf850;
+      AstFrameSet *fs850, *fs851;
+      AstFitsChan *fc850;
+      AstWinMap *wm850;
+      char *ctype850;
+      double ina850[] = { 1.0, 1.0 };
+      double inb850[] = { 100.0, 100.0 };
+      double outa850[2], outb850[2];
+      double xin850[1], yin850[1], xout850[2], yout850[2];
+      double xin851[1], yin851[1], xout851[2], yout851[2];
+
+      astBegin;
+
+      outa850[0] = 150.0 * AST__DD2R;
+      outa850[1] = -30.0 * AST__DD2R;
+      outb850[0] = 150.018 * AST__DD2R;
+      outb850[1] = -29.982 * AST__DD2R;
+      wm850 = astWinMap( 2, ina850, inb850, outa850, outb850, " " );
+
+      gf850 = astFrame( 2, "Domain=GRID" );
+      sf850 = astSkyFrame( "System=FK5" );
+      fs850 = astFrameSet( gf850, " " );
+      astAddFrame( fs850, AST__BASE, (AstMapping *)wm850, (AstFrame *)sf850 );
+
+      fc850 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      astPutFits( fc850, "NAXIS   = 2", 0 );
+      astPutFits( fc850, "NAXIS1  = 100", 0 );
+      astPutFits( fc850, "NAXIS2  = 100", 0 );
+
+      if( astWrite( fc850, fs850 ) != 1 )
+         stopit( 850, "Linear sky -> FITS-WCS write failed", status );
+
+      astClear( fc850, "Card" );
+      if( !astGetFitsS( fc850, "CTYPE1", &ctype850 ) )
+         stopit( 854, "Linear sky CTYPE1 missing", status );
+      else if( !strstr( ctype850, "CAR" ) )
+         stopit( 855, "Linear sky CTYPE1 not CAR", status );
+      astClear( fc850, "Card" );
+      if( !astGetFitsS( fc850, "CTYPE2", &ctype850 ) )
+         stopit( 856, "Linear sky CTYPE2 missing", status );
+      else if( !strstr( ctype850, "CAR" ) )
+         stopit( 857, "Linear sky CTYPE2 not CAR", status );
+
+      astClear( fc850, "Card" );
+      fs851 = (AstFrameSet *)astRead( fc850 );
+      if( !fs851 )
+         stopit( 851, "Linear sky -> FITS-WCS read-back failed", status );
+
+      if( fs851 ) {
+         xin850[0] = 50.0;
+         yin850[0] = 50.0;
+         astTran2( fs850, 1, xin850, yin850, 1, xout850, yout850 );
+         xin851[0] = 50.0;
+         yin851[0] = 50.0;
+         astTran2( fs851, 1, xin851, yin851, 1, xout851, yout851 );
+         if( fabs( xout850[0] - xout851[0] ) > 1.0E-6 )
+            stopit( 852, "Linear sky round-trip lon mismatch", status );
+         if( fabs( yout850[0] - yout851[0] ) > 1.0E-6 )
+            stopit( 853, "Linear sky round-trip lat mismatch", status );
+      }
+
+      astEnd;
+   }
+
+   /* SplitMap: constant sky position -> synthetic TAN projection write path.
+      A 3D FrameSet (spectral + sky) where lon/lat are constant triggers
+      the TAN fallback in SplitMap (fitschan.c ~32731-32791). */
+   if( *status == 0 ) {
+      AstFrame *gf860;
+      AstSpecFrame *specf860;
+      AstSkyFrame *sf860;
+      AstFrame *cf860;
+      AstFrameSet *fs860, *fs861;
+      AstFitsChan *fc860;
+      AstPermMap *pm860;
+      AstShiftMap *sm860;
+      AstZoomMap *zm860;
+      AstUnitMap *um860;
+      AstMapping *specmap860, *parmap860, *fullmap860;
+      char *ctype860;
+      double shift860;
+      int outperm860[] = { 1, -1, -2 };
+      int inperm860[] = { 1, 0, 0 };
+      double con860[2];
+      int found_tan;
+
+      astBegin;
+
+      gf860 = astFrame( 3, "Domain=GRID" );
+      specf860 = astSpecFrame( "System=WAVE,Unit=m" );
+      sf860 = astSkyFrame( "System=FK5" );
+      cf860 = (AstFrame *)astCmpFrame( (AstFrame *)specf860, (AstFrame *)sf860, " " );
+
+      con860[0] = 150.0 * AST__DD2R;
+      con860[1] = -30.0 * AST__DD2R;
+      pm860 = astPermMap( 3, inperm860, 3, outperm860, con860, " " );
+
+      shift860 = 5.0e-7;
+      sm860 = astShiftMap( 1, &shift860, " " );
+      zm860 = astZoomMap( 1, 1.0e-10, " " );
+      specmap860 = (AstMapping *)astCmpMap( (AstMapping *)sm860,
+                                            (AstMapping *)zm860, 1, " " );
+
+      um860 = astUnitMap( 2, " " );
+      parmap860 = (AstMapping *)astCmpMap( specmap860, (AstMapping *)um860, 0, " " );
+      fullmap860 = (AstMapping *)astCmpMap( parmap860, (AstMapping *)pm860, 1, " " );
+
+      fs860 = astFrameSet( gf860, " " );
+      astAddFrame( fs860, AST__BASE, fullmap860, cf860 );
+
+      fc860 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      astPutFits( fc860, "NAXIS   = 3", 0 );
+      astPutFits( fc860, "NAXIS1  = 100", 0 );
+      astPutFits( fc860, "NAXIS2  = 1", 0 );
+      astPutFits( fc860, "NAXIS3  = 1", 0 );
+
+      if( astWrite( fc860, fs860 ) != 1 )
+         stopit( 860, "Constant-sky write failed", status );
+
+      found_tan = 0;
+      astClear( fc860, "Card" );
+      if( astGetFitsS( fc860, "CTYPE1", &ctype860 ) && strstr( ctype860, "TAN" ) )
+         found_tan = 1;
+      astClear( fc860, "Card" );
+      if( astGetFitsS( fc860, "CTYPE2", &ctype860 ) && strstr( ctype860, "TAN" ) )
+         found_tan = 1;
+      astClear( fc860, "Card" );
+      if( astGetFitsS( fc860, "CTYPE3", &ctype860 ) && strstr( ctype860, "TAN" ) )
+         found_tan = 1;
+      if( !found_tan )
+         stopit( 862, "Constant-sky CTYPEs do not contain TAN", status );
+
+      astClear( fc860, "Card" );
+      fs861 = (AstFrameSet *)astRead( fc860 );
+      if( !fs861 )
+         stopit( 861, "Constant-sky read-back failed", status );
+
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 
