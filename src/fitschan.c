@@ -1308,6 +1308,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Fix RESTFREQ GHz/MHz comment detection in SpecTrans. GetValue2
 *        restores the card pointer, so CardComm was reading the wrong
 *        card's comment. Re-find the RESTFREQ card before reading comment.
+*     23-APR-2026 (TIMJ):
+*        Fix CLASSFromStore rest frequency check. The rf variable was only
+*        set inside the RADESYS block, leaving it uninitialized for galactic
+*        coordinate systems which have no RADESYS keyword.
 *class--
 */
 
@@ -6645,11 +6649,11 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
             ok = 0;
          }
       }
+   }
 
 /* Check we have a rest frequency */
-      rf = GetItem( &(store->restfrq), 0, 0, s, NULL, method, class, status );
-      if( rf == AST__BAD ) ok = 0;
-   }
+   rf = GetItem( &(store->restfrq), 0, 0, s, NULL, method, class, status );
+   if( rf == AST__BAD ) ok = 0;
 
 /* If the spatial Frame covers more than a single Frame and requires a LONPOLE
    or LATPOLE keyword, it cannot be encoded using FITS-CLASS. However since

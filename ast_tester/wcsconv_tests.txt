@@ -125,3 +125,6 @@ sfl-origin_fits-aips| sfl-origin.head                | sfl-origin.fits-aips | fi
 sfl-origin_fits-aips++| sfl-origin.head              | sfl-origin.fits-aips++ | fits-aips++ | FitsDigits=8 |
 vrad-lsrd_fits-aips | vrad-lsrd.head                 | vrad-lsrd.fits-aips | fits-aips | FitsDigits=8    |
 vrad-lsrd_fits-aips++| vrad-lsrd.head                | vrad-lsrd.fits-aips++ | fits-aips++ | FitsDigits=8 |
+class-write_fits-class| class-write.head              | class-write.fits-class | fits-class | FitsDigits=8  |
+class-gal_fits-class| class-gal.head                 | class-gal.fits-class | fits-class | FitsDigits=8    |
+jan_fits-class-rt   | jan.fits-class                 | jan.fits-class-roundtrip | fits-class | FitsDigits=8 |
