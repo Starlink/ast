@@ -143,3 +143,7 @@ offset-sky_native   | offset-sky.head                | offset-sky.native  | nati
 offset-sky_fits-wcs | offset-sky.head                | offset-sky.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8           |
 azel_native         | azel.head                      | azel.native        | native    |                                  | yes
 azel_fits-wcs       | azel.head                      | azel.fits-wcs      | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+vopt-f2w_native     | vopt-f2w.head                  | vopt-f2w.native    | native    |                                  | yes
+vopt-f2w_fits-wcs   | vopt-f2w.head                  | vopt-f2w.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+wave-f2w_native     | wave-f2w.head                  | wave-f2w.native    | native    |                                  | yes
+wave-f2w_fits-wcs   | wave-f2w.head                  | wave-f2w.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |

@@ -1857,9 +1857,12 @@ int main( void ) {
             { "System=FREQ,Unit=Hz,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz", "FREQ" },
             { "System=WAVE,Unit=m,StdOfRest=Barycentric,RestFreq=5.996e14 Hz",  "WAVE" },
             { "System=VRAD,Unit=m/s,StdOfRest=LSRK,RestFreq=1.4204e9 Hz",      "VRAD" },
+            { "System=VOPT,Unit=m/s,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz","VOPT" },
+            { "System=ZOPT,Unit= ,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz",  "ZOPT" },
+            { "System=BETA,Unit= ,StdOfRest=Barycentric,RestFreq=1.4204e9 Hz",  "BETA" },
          };
          int n_spec = (int)( sizeof(spec_systems) / sizeof(spec_systems[0]) );
-         double zooms[] = { 1.0e6, 1.0e-10, 1000.0 };
+         double zooms[] = { 1.0e6, 1.0e-10, 1000.0, 1000.0, 1.0e-6, 1.0e-6 };
          int isp;
 
          for( isp = 0; isp < n_spec; isp++ ) {
