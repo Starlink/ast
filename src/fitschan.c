@@ -1312,6 +1312,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Fix CLASSFromStore rest frequency check. The rf variable was only
 *        set inside the RADESYS block, leaving it uninitialized for galactic
 *        coordinate systems which have no RADESYS keyword.
+*     23-APR-2026 (TIMJ):
+*        Fix SetAttrib for AltAxes. The sscanf pattern used %d which stored
+*        the parsed integer in ival, but ival was then reused as a string
+*        offset making the string comparison branches unreachable. Changed
+*        to use %n%*[^\n]%n pattern matching the Encoding handler.
 *class--
 */
 
@@ -27280,7 +27285,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* AltAxes. */
 /* -------- */
    } else if ( nc = 0,
-        ( 1 == astSscanf( setting, "altaxes= %d %n", &ival, &nc ) )
+        ( 0 == astSscanf( setting, "altaxes=%n%*[^\n]%n", &ival, &nc ) )
         && ( nc >= len ) ) {
       nc = ChrLen( setting + ival, status );
       if( !Ustrncmp( setting + ival, ALTAXES_NONE_STRING, nc, status ) ){

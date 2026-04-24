@@ -1156,11 +1156,20 @@ int main( void ) {
          astSetC( fc, "Encoding", "NATIVE" );
       }
 
-      /* AltAxes GetAttrib branches (NONE/IDENT/ALL) are not exercised
-         here because SetAttrib for AltAxes has a bug: the sscanf %d
-         result variable (ival) is reused as a string offset on the
-         else branch, so string values like "NONE" are not accepted and
-         integer values like 2 are misinterpreted as string offsets. */
+      /* Exercise AltAxes string formatting for each value */
+      astSet( fc, "AltAxes=NONE" );
+      sval = astGetC( fc, "AltAxes" );
+      if( !sval || strcmp( sval, "NONE" ) )
+         stopit( 877, "GetAttrib AltAxes NONE mismatch", status );
+      astSet( fc, "AltAxes=IDENT" );
+      sval = astGetC( fc, "AltAxes" );
+      if( !sval || strcmp( sval, "IDENT" ) )
+         stopit( 878, "GetAttrib AltAxes IDENT mismatch", status );
+      astSet( fc, "AltAxes=ALL" );
+      sval = astGetC( fc, "AltAxes" );
+      if( !sval || strcmp( sval, "ALL" ) )
+         stopit( 879, "GetAttrib AltAxes ALL mismatch", status );
+      astSet( fc, "AltAxes=NONE" );
    }
 
    test_fitsrounding( fc, status );
