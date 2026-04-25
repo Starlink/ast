@@ -365,6 +365,84 @@ static const BadHeaderTest bad_headers[] = {
      "CD2_2   =                  1.0",
      NULL, 0, NULL, 0, NULL, "FITS-AIPS" },
 
+   /* --- WcsCelestial read-side errors --- */
+
+   /* Zero CDELT on celestial axis → singular diagonal matrix (line 35430).
+      The error is annulled by the WCS read retry logic; AST falls back to
+      a non-celestial interpretation. Verify read succeeds gracefully. */
+   { "error-cdelt-zero",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'RA---TAN'\n"
+     "CTYPE2  = 'DEC--TAN'\n"
+     "CRVAL1  =              180.000\n"
+     "CRVAL2  =               45.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =                  0.0\n"
+     "CDELT2  =               0.0100\n"
+     "RADESYS = 'FK5'\n"
+     "EQUINOX =               2000.0",
+     NULL, 0, NULL, 0, NULL, NULL },
+
+   /* Unknown projection type → error (line 35680). */
+   { "error-unknown-projection",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'RA---XXX'\n"
+     "CTYPE2  = 'DEC--XXX'\n"
+     "CRVAL1  =              180.000\n"
+     "CRVAL2  =               45.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =              -0.0100\n"
+     "CDELT2  =               0.0100",
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
+
+   /* Duplicate longitude axes → error (line 35695). */
+   { "error-duplicate-lon",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'RA---TAN'\n"
+     "CTYPE2  = 'RA---TAN'\n"
+     "CRVAL1  =              180.000\n"
+     "CRVAL2  =              190.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =              -0.0100\n"
+     "CDELT2  =              -0.0100",
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
+
+   /* Mixed celestial systems: RA with GLAT → error (line 35762). */
+   { "error-mixed-celestial",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'RA---TAN'\n"
+     "CTYPE2  = 'GLAT-TAN'\n"
+     "CRVAL1  =              180.000\n"
+     "CRVAL2  =               45.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =              -0.0100\n"
+     "CDELT2  =               0.0100",
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
+
+   /* Mixed projections: TAN longitude with ARC latitude → error (line 35770). */
+   { "error-mixed-projections",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'RA---TAN'\n"
+     "CTYPE2  = 'DEC--ARC'\n"
+     "CRVAL1  =              180.000\n"
+     "CRVAL2  =               45.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =              -0.0100\n"
+     "CDELT2  =               0.0100\n"
+     "RADESYS = 'FK5'\n"
+     "EQUINOX =               2000.0",
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
+
 };
 
 #define NTESTS (sizeof(bad_headers)/sizeof(bad_headers[0]))
