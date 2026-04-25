@@ -18,11 +18,13 @@
 typedef struct {
    const char *name;
    const char *cards;       /* Newline-separated FITS cards (no END needed) */
-   const char *warn_cat;    /* Warnings attribute, or NULL for error test */
-   int expect_error;        /* Expected astStatus, or 0 for warning test */
+   const char *warn_cat;    /* Warnings attribute, or NULL for error/write test */
+   int expect_error;        /* Expected astStatus, or 0 for warning/write test */
    const char *expect_text; /* Substring in warning text, or NULL */
    int skip_read;           /* 1 = check warnings after PutFits, skip astRead */
    const char *attrs;       /* Extra attributes to set before read, or NULL */
+   const char *write_enc;   /* If set: read header, write to this encoding,
+                               verify astWrite returns 0 (encoding rejected) */
 } BadHeaderTest;
 
 /* Minimal valid 2D TAN header used as a base for many tests. */
@@ -66,7 +68,7 @@ static const BadHeaderTest bad_headers[] = {
      "A_1_1   =             1.0E-05\n"
      "B_ORDER =                    2\n"
      "B_1_1   =             1.0E-05",
-     "distortion", 0, "distortion will be ignored", 0, NULL },
+     "distortion", 0, "distortion will be ignored", 0, NULL, NULL },
 
    /* --- distortion-unknown (line 8901) ---
       Unknown distortion suffix -XXX on TAN. */
@@ -83,7 +85,7 @@ static const BadHeaderTest bad_headers[] = {
      "CDELT2  =               0.0100\n"
      "RADESYS = 'FK5'\n"
      "EQUINOX =               2000.0",
-     "distortion", 0, "ignores this distortion", 0, NULL },
+     "distortion", 0, "ignores this distortion", 0, NULL, NULL },
 
    /* --- badpv-tan-allzero (line 13980) ---
       TAN with PV on latitude axis but all zero → simple TAN warning. */
@@ -91,7 +93,7 @@ static const BadHeaderTest bad_headers[] = {
      TAN_BASE "\n"
      "PV2_0   =                  0.0\n"
      "PV2_1   =                  0.0",
-     "badpv", 0, "distortion coefficients", 0, NULL },
+     "badpv", 0, "distortion coefficients", 0, NULL, NULL },
 
    /* --- noctype-missing (line 35625) ---
       2-axis header with CRPIX/CRVAL for 2 axes but CTYPE2 missing entirely.
@@ -107,13 +109,13 @@ static const BadHeaderTest bad_headers[] = {
      "CRPIX2  =               50.000\n"
      "CDELT1  =           1.0E+06\n"
      "CDELT2  =               1.0",
-     "noctype", 0, "not found for one or more", 0, NULL },
+     "noctype", 0, "not found for one or more", 0, NULL, NULL },
 
    /* --- error-sourcefile-missing (line 27910) ---
       SourceFile pointing to a nonexistent file → AST__RDERR error. */
    { "error-sourcefile-missing",
      "DUMMY   = 0",
-     NULL, AST__RDERR, NULL, 0, "SourceFile=nonexistent.head" },
+     NULL, AST__RDERR, NULL, 0, "SourceFile=nonexistent.head", NULL },
 
    /* --- error-lat-without-lon (line 35778) ---
       Latitude axis (DEC--TAN) found without a corresponding longitude axis.
@@ -129,21 +131,21 @@ static const BadHeaderTest bad_headers[] = {
      "CRPIX2  =               50.000\n"
      "CDELT1  =           1.0E+06\n"
      "CDELT2  =               0.0100",
-     NULL, AST__BDFTS, NULL, 0, NULL },
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
 
    /* --- badpv-noncelestial (line 35914) ---
       PV1_5 on longitude axis exceeds mxpar_lon for TAN projection. */
    { "badpv-lonaxis",
      TAN_BASE "\n"
      "PV1_5   =                  1.0",
-     "badpv", 0, "not used by", 0, NULL },
+     "badpv", 0, "not used by", 0, NULL, NULL },
 
    /* --- badkeyvalue-unparseable (line 32548) ---
       A keyword with a value that cannot be parsed as any FITS type. */
    { "badkeyvalue-unparseable",
      TAN_BASE "\n"
      "BADKEY  = not_a_valid_value",
-     "badkeyvalue", 0, "keyword value is illegal", 1, NULL },
+     "badkeyvalue", 0, "keyword value is illegal", 1, NULL, NULL },
 
    /* --- sao-allzero (line 26711) ---
       SAO polynomial TAN with all distortion coefficients zero. */
@@ -186,7 +188,7 @@ static const BadHeaderTest bad_headers[] = {
      "CO2_11  =                  0.0\n"
      "CO2_12  =                  0.0\n"
      "CO2_13  =                  0.0",
-     "badpv", 0, "SAO encoded", 0, NULL },
+     "badpv", 0, "SAO encoded", 0, NULL, NULL },
 
    /* --- tnx-unsupported (line 31913) ---
       TNX header with cross-term type 1 (full cross-terms, unsupported).
@@ -205,7 +207,7 @@ static const BadHeaderTest bad_headers[] = {
      "WAT0_001= 'system=image'\n"
      "WAT1_001= 'wtype=tnx axtype=ra lngcor = \"3. 3. 3. 1. 0. 1. 0. 1. 0. 0. 0. 0. 0.\"'\n"
      "WAT2_001= 'wtype=tnx axtype=dec latcor = \"3. 3. 3. 1. 0. 1. 0. 1. 0. 0. 0. 0. 0.\"'",
-     "tnx", 0, "unsupported IRAF", 0, NULL },
+     "tnx", 0, "unsupported IRAF", 0, NULL, NULL },
 
    /* --- zpx-unsupported (line 41570) ---
       ZPX header with lngcor using surface type 2 (unsupported).
@@ -228,7 +230,33 @@ static const BadHeaderTest bad_headers[] = {
      "WAT1_002= '. 1. -1. 1. 0. 0. 0. 0. 0. 0.\"'\n"
      "WAT2_001= 'wtype=zpx axtype=dec projp1=1.0 latcor = \"2. 3. 3. 2. '\n"
      "WAT2_002= '-1. 1. -1. 1. 0. 0. 0. 0. 0. 0.\"'",
-     "zpx", 0, "unsupported IRAF", 0, NULL },
+     "zpx", 0, "unsupported IRAF", 0, NULL, NULL },
+
+   /* --- AIPS encoding rejection tests ---
+      These headers read fine but cannot be written to FITS-AIPS because
+      they use features that encoding doesn't support. astWrite returns 0. */
+
+   /* AIT at non-origin → AIPS rejects (line 3252) */
+   { "aips-reject-ait-nonorigin",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'RA---AIT'\n"
+     "CTYPE2  = 'DEC--AIT'\n"
+     "CRVAL1  =              180.000\n"
+     "CRVAL2  =               45.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =              -0.0100\n"
+     "CDELT2  =               0.0100\n"
+     "RADESYS = 'FK5'\n"
+     "EQUINOX =               2000.0",
+     NULL, 0, NULL, 0, NULL, "FITS-AIPS" },
+
+   /* Header with non-default LONPOLE → AIPS rejects (line 3299) */
+   { "aips-reject-lonpole",
+     TAN_BASE "\n"
+     "LONPOLE =              150.000",
+     NULL, 0, NULL, 0, NULL, "FITS-AIPS" },
 
 };
 
@@ -337,6 +365,17 @@ static int test_bad_header( const BadHeaderTest *t, int *status ) {
          }
       }
       if( km ) km = astAnnul( km );
+   } else if( t->write_enc && obj ) {
+      /* Read succeeded; now write to specific encoding and verify failure. */
+      AstFitsChan *wfc = astFitsChan( NULL, NULL, " " );
+      astSetC( wfc, "Encoding", t->write_enc );
+      int nw = astWrite( wfc, obj );
+      if( nw != 0 ) {
+         printf( "  %s: astWrite to %s returned %d, expected 0\n",
+                 t->name, t->write_enc, nw );
+         ok = 0;
+      }
+      wfc = astAnnul( wfc );
    }
 
    if( obj ) obj = astAnnul( obj );
