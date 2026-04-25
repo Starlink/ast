@@ -161,6 +161,7 @@ configure_file(sip-3d-swap.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d-swap.head" C
 configure_file(alt.header "${CMAKE_CURRENT_BINARY_DIR}/alt.header" COPYONLY)
 configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
 ast_add_test(testfitschan_c SOURCES testfitschan.c)
+ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
 
 # --- wcsconverter: regression-diff harness ported from wcsconverter.f ---
 add_executable(wcsconverter wcsconverter.c)
