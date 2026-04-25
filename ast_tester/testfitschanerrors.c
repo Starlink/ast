@@ -348,6 +348,23 @@ static const BadHeaderTest bad_headers[] = {
      "EQUINOX =               2000.0",
      NULL, 0, NULL, 0, NULL, "FITS-AIPS++" },
 
+   /* Asymmetric non-celestial CD matrix → AIPS rejects (line 3454),
+      AIPS++ handles via CD matrix. */
+   { "aips-reject-pixel-shear",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'PIXEL'\n"
+     "CTYPE2  = 'PIXEL'\n"
+     "CRVAL1  =                  0.0\n"
+     "CRVAL2  =                  0.0\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CD1_1   =                  1.0\n"
+     "CD1_2   =                  0.1\n"
+     "CD2_1   =                 -0.8\n"
+     "CD2_2   =                  1.0",
+     NULL, 0, NULL, 0, NULL, "FITS-AIPS" },
+
 };
 
 #define NTESTS (sizeof(bad_headers)/sizeof(bad_headers[0]))

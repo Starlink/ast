@@ -1,0 +1,18 @@
+NAXIS1  =                 1024 / Spectral axis                                  
+NAXIS2  =                  100 / Linear axis                                    
+NAXIS3  =                  100 / Linear axis                                    
+CTYPE1  = 'FREQ-HEL'           / Type of co-ordinate on axis 1                  
+CTYPE2  = 'PIXEL   '           / Linear pixel                                   
+CTYPE3  = 'PIXEL   '           / Linear pixel                                   
+CRVAL1  =            1.4204E+9 / [Hz] Reference frequency                       
+CRVAL2  =                  0.0 / Reference pixel value                          
+CRVAL3  =                  0.0 / Reference pixel value                          
+CRPIX1  =                513.0 / Reference pixel axis 1                         
+CRPIX2  =                 50.0 / Reference pixel axis 2                         
+CRPIX3  =                 50.0 / Reference pixel axis 3                         
+CDELT1  =            1000000.0 / [Hz] Frequency step                            
+CDELT2  =                  1.0 / Pixel size                                     
+CDELT3  =                  1.0 / Pixel size                                     
+CUNIT1  = 'HZ      '           / Spectral units                                 
+RESTFREQ=            1.4204E+9 / [Hz] Rest frequency                            
+END                                                                             

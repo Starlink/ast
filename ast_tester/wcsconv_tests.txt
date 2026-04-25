@@ -144,6 +144,13 @@ pixel-2d_fits-aips  | pixel-2d.head                  | pixel-2d.fits-aips | fits
 pixel-2d_fits-aips++| pixel-2d.head                  | pixel-2d.fits-aips++ | fits-aips++ | FitsDigits=8 |
 vrad-lsrd_fits-aips | vrad-lsrd.head                 | vrad-lsrd.fits-aips | fits-aips | FitsDigits=8    |
 vrad-lsrd_fits-aips++| vrad-lsrd.head                | vrad-lsrd.fits-aips++ | fits-aips++ | FitsDigits=8 |
+freq-pixel3d_fits-aips| freq-pixel3d.head            | freq-pixel3d.fits-aips | fits-aips | FitsDigits=8  |
+freq-pixel3d_fits-aips++| freq-pixel3d.head          | freq-pixel3d.fits-aips++ | fits-aips++ | FitsDigits=8 |
+pixel-1d_fits-aips  | pixel-1d.head                  | pixel-1d.fits-aips | fits-aips | FitsDigits=8    |
+pixel-1d_fits-aips++| pixel-1d.head                  | pixel-1d.fits-aips++ | fits-aips++ | FitsDigits=8 |
+pixel-rotated_fits-aips| pixel-rotated.head           | pixel-rotated.fits-aips | fits-aips | FitsDigits=8 |
+pixel-rotated_fits-aips++| pixel-rotated.head         | pixel-rotated.fits-aips++ | fits-aips++ | FitsDigits=8 |
+pixel-shear_fits-aips++| pixel-shear.head             | pixel-shear.fits-aips++ | fits-aips++ | FitsDigits=8 |
 class-write_fits-class| class-write.head              | class-write.fits-class | fits-class | FitsDigits=8  |
 class-gal_fits-class| class-gal.head                 | class-gal.fits-class | fits-class | FitsDigits=8    |
 jan_fits-class-rt   | jan.fits-class                 | jan.fits-class-roundtrip | fits-class | FitsDigits=8 |
