@@ -135,6 +135,13 @@ fk4-aips_fits-aips  | fk4-aips.head                  | fk4-aips.fits-aips | fits
 fk4-aips_fits-aips++| fk4-aips.head                  | fk4-aips.fits-aips++ | fits-aips++ | FitsDigits=8 |
 sfl-origin_fits-aips| sfl-origin.head                | sfl-origin.fits-aips | fits-aips | FitsDigits=8   |
 sfl-origin_fits-aips++| sfl-origin.head              | sfl-origin.fits-aips++ | fits-aips++ | FitsDigits=8 |
+sin-plain_fits-aips | sin-plain.head                 | sin-plain.fits-aips | fits-aips | FitsDigits=8    |
+sin-plain_fits-aips++| sin-plain.head                | sin-plain.fits-aips++ | fits-aips++ | FitsDigits=8 |
+tan-rotated_fits-aips| tan-rotated.head              | tan-rotated.fits-aips | fits-aips | FitsDigits=8   |
+tan-rotated_fits-aips++| tan-rotated.head            | tan-rotated.fits-aips++ | fits-aips++ | FitsDigits=8 |
+tan-cdmatrix_fits-aips++| tan-cdmatrix.head          | tan-cdmatrix.fits-aips++ | fits-aips++ | FitsDigits=8 |
+pixel-2d_fits-aips  | pixel-2d.head                  | pixel-2d.fits-aips | fits-aips | FitsDigits=8    |
+pixel-2d_fits-aips++| pixel-2d.head                  | pixel-2d.fits-aips++ | fits-aips++ | FitsDigits=8 |
 vrad-lsrd_fits-aips | vrad-lsrd.head                 | vrad-lsrd.fits-aips | fits-aips | FitsDigits=8    |
 vrad-lsrd_fits-aips++| vrad-lsrd.head                | vrad-lsrd.fits-aips++ | fits-aips++ | FitsDigits=8 |
 class-write_fits-class| class-write.head              | class-write.fits-class | fits-class | FitsDigits=8  |
