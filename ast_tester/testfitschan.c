@@ -3390,6 +3390,35 @@ int main( void ) {
          c1fc = astAnnul( c1fc );
       }
 
+      /* FITS-PC with 1D SpecFrame + RefRA/RefDec — exercises WCSAXES
+         write path in PCFromStore (line 24533-24534, error 1020-1022). */
+      {
+         AstSpecFrame *p1spec = astSpecFrame(
+            "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
+            "RefRA=3:00:00,RefDec=45:00:00", status );
+         astSetD( (AstFrame *)p1spec, "RestFreq", 1.420405752e9 );
+         astSetD( (AstFrame *)p1spec, "Epoch", 52413.59 );
+         AstFrame *p1pix = astFrame( 1, "Domain=GRID", status );
+         AstMapping *p1map = (AstMapping *)astZoomMap( 1, 1.0e6, " ", status );
+         AstFrameSet *p1fs = astFrameSet( p1pix, " ", status );
+         astAddFrame( p1fs, AST__BASE, p1map, (AstFrame *)p1spec );
+
+         AstFitsChan *p1fc = astFitsChan( NULL, NULL, "Encoding=FITS-PC" );
+         astPutFits( p1fc, "NAXIS   = 1", 0 );
+         astPutFits( p1fc, "NAXIS1  = 1024", 0 );
+         if( astWrite( p1fc, p1fs ) != 1 )
+            stopit( 1020, "FITS-PC 1D SpecFrame write failed", status );
+
+         int pc_wcsaxes;
+         astClear( p1fc, "Card" );
+         if( !astGetFitsI( p1fc, "WCSAXES", &pc_wcsaxes ) )
+            stopit( 1021, "FITS-PC WCSAXES missing", status );
+         else if( pc_wcsaxes != 3 )
+            stopit( 1022, "FITS-PC WCSAXES not 3", status );
+
+         p1fc = astAnnul( p1fc );
+      }
+
       astEnd;
    }
 

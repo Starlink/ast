@@ -86,6 +86,8 @@ helioecl_native     | helioecl.head                  | helioecl.native    | nati
 fits-pc-full_native | fits-pc-full.head              | fits-pc-full.native| native    |                                  | yes
 fits-pc-gal_native  | fits-pc-gal.head               | fits-pc-gal.native | native    |                                  | yes
 fits-pc-gal_fits-pc | fits-pc-gal.head               | fits-pc-gal.fits-pc | fits-pc  | FitsDigits=8                     |
+sfl-pc_fits-pc      | sfl-pc.head                    | sfl-pc.fits-pc     | fits-pc   | FitsDigits=8  |
+zpn_fits-pc         | zpn.head                       | zpn.fits-pc        | fits-pc   | FitsDigits=8  |
 projp_native        | projp.head                     | projp.native       | native    |                                  | yes
 fk5-noeq_native     | fk5-noeq.head                  | fk5-noeq.native    | native    |                                  | yes
 timesys-tt_native   | timesys-tt.head                | timesys-tt.native  | native    |                                  | yes
