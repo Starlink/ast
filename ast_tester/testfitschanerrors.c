@@ -188,6 +188,29 @@ static const BadHeaderTest bad_headers[] = {
      "WAT2_001= 'wtype=tnx axtype=dec latcor = \"3. 3. 3. 1. 0. 1. 0. 1. 0. 0. 0. 0. 0.\"'",
      "tnx", 0, "unsupported IRAF", 0 },
 
+   /* --- zpx-unsupported (line 41570) ---
+      ZPX header with lngcor using surface type 2 (unsupported).
+      SpecTrans converts -ZPX to -ZPN-ZPX, then ZPXMapping parses WAT
+      corrections via WATCoeffs. Surface type 2 sets ok=0.
+      WAT values split across continuation cards due to 80-char limit. */
+   { "zpx-unsupported",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'RA---ZPX'\n"
+     "CTYPE2  = 'DEC--ZPX'\n"
+     "CRVAL1  =                  0.0\n"
+     "CRVAL2  =              -90.000\n"
+     "CRPIX1  =              100.000\n"
+     "CRPIX2  =              100.000\n"
+     "CD1_1   =          -0.06666667\n"
+     "CD2_2   =           0.06666667\n"
+     "WAT0_001= 'system=image'\n"
+     "WAT1_001= 'wtype=zpx axtype=ra projp1=1.0 lngcor = \"2. 3. 3. 2. -1'\n"
+     "WAT1_002= '. 1. -1. 1. 0. 0. 0. 0. 0. 0.\"'\n"
+     "WAT2_001= 'wtype=zpx axtype=dec projp1=1.0 latcor = \"2. 3. 3. 2. '\n"
+     "WAT2_002= '-1. 1. -1. 1. 0. 0. 0. 0. 0. 0.\"'",
+     "zpx", 0, "unsupported IRAF", 0 },
+
 };
 
 #define NTESTS (sizeof(bad_headers)/sizeof(bad_headers[0]))
