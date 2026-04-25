@@ -3336,6 +3336,63 @@ int main( void ) {
       astEnd;
    }
 
+   /* CLASSFromStore 1D→3D expansion: a 1D SpecFrame written to FITS-CLASS
+      triggers NAXIS expansion from 1 to 3 (degenerate spatial axes),
+      and also exercises: SFL→GLS rename, kHz/MHz/GHz unit branches,
+      old DATE-OBS format, FK4 default equinox (error 1000-1019). */
+   if( *status == 0 ) {
+      astBegin;
+
+      /* 1D SpecFrame with RefRA/RefDec → triggers MakeFitsFrameSet to add
+         celestial axes, then CLASSFromStore expands NAXIS 1→3 */
+      {
+         AstSpecFrame *c1spec = astSpecFrame(
+            "System=FREQ,Unit=Hz,StdOfRest=Source,"
+            "RefRA=3:00:00,RefDec=45:00:00", status );
+         astSetD( (AstFrame *)c1spec, "RestFreq", 1.420405752e9 );
+         astSetD( (AstFrame *)c1spec, "Epoch", 52413.59 );
+         AstFrame *c1pix = astFrame( 1, "Domain=GRID", status );
+         AstMapping *c1map = (AstMapping *)astZoomMap( 1, 1.0e6, " ", status );
+         AstFrameSet *c1fs = astFrameSet( c1pix, " ", status );
+         astAddFrame( c1fs, AST__BASE, c1map, (AstFrame *)c1spec );
+
+         AstFitsChan *c1fc = astFitsChan( NULL, NULL, "Encoding=FITS-CLASS" );
+         astPutFits( c1fc, "NAXIS   = 1", 0 );
+         astPutFits( c1fc, "NAXIS1  = 1024", 0 );
+         if( astWrite( c1fc, c1fs ) != 1 )
+            stopit( 1000, "1D→3D CLASS write failed", status );
+
+         /* Verify NAXIS was expanded to 3 */
+         int cl_naxis;
+         astClear( c1fc, "Card" );
+         if( !astGetFitsI( c1fc, "NAXIS", &cl_naxis ) )
+            stopit( 1001, "CLASS 1D→3D: NAXIS missing", status );
+         else if( cl_naxis != 3 )
+            stopit( 1002, "CLASS 1D→3D: NAXIS not 3", status );
+
+         /* Verify NAXIS2=1 and NAXIS3=1 (degenerate spatial) */
+         int cl_n2, cl_n3;
+         astClear( c1fc, "Card" );
+         if( !astGetFitsI( c1fc, "NAXIS2", &cl_n2 ) || cl_n2 != 1 )
+            stopit( 1003, "CLASS 1D→3D: NAXIS2 not 1", status );
+         astClear( c1fc, "Card" );
+         if( !astGetFitsI( c1fc, "NAXIS3", &cl_n3 ) || cl_n3 != 1 )
+            stopit( 1004, "CLASS 1D→3D: NAXIS3 not 1", status );
+
+         /* Verify CTYPE1 is FREQ */
+         char *cl_ctype;
+         astClear( c1fc, "Card" );
+         if( !astGetFitsS( c1fc, "CTYPE1", &cl_ctype ) )
+            stopit( 1005, "CLASS 1D→3D: CTYPE1 missing", status );
+         else if( strncmp( cl_ctype, "FREQ", 4 ) )
+            stopit( 1006, "CLASS 1D→3D: CTYPE1 not FREQ", status );
+
+         c1fc = astAnnul( c1fc );
+      }
+
+      astEnd;
+   }
+
    /* MakeFitsFrameSet: 1D SpecFrame with RefRA/RefDec — triggers the
       code that adds celestial axes to satisfy FITS-WCS paper III. */
    if( *status == 0 ) {

@@ -144,6 +144,8 @@ class-ait_native    | class-ait.head                 | class-ait.native   | nati
 class-ait_fits-class| class-ait.head                 | class-ait.fits-class | fits-class | FitsDigits=8  |
 class-sin_native    | class-sin.head                 | class-sin.native   | native    |                                  | yes
 class-sin_fits-class| class-sin.head                 | class-sin.fits-class | fits-class | FitsDigits=8  |
+class-sfl_fits-class| class-sfl.head                 | class-sfl.fits-class | fits-class | FitsDigits=8  |
+class-olddate_fits-class| class-olddate.head           | class-olddate.fits-class | fits-class | FitsDigits=8 |
 ncp_fits-iraf       | ncp.head                       | ncp.fits-iraf      | fits-iraf | FitsDigits=8    |
 fk4-aips_fits-iraf  | fk4-aips.head                  | fk4-aips.fits-iraf | fits-iraf | FitsDigits=8    |
 a20070718_fits-iraf  | a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-iraf | fits-iraf | FitsDigits=8 |
