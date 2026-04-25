@@ -258,6 +258,96 @@ static const BadHeaderTest bad_headers[] = {
      "LONPOLE =              150.000",
      NULL, 0, NULL, 0, NULL, "FITS-AIPS" },
 
+   /* Unsupported spectral type: WAVE not FREQ/VELO/FELO → AIPS/AIPS++
+      reject (lines 3318, 3822). */
+   { "aips-reject-wave",
+     "NAXIS1  =                 1024\n"
+     "NAXIS2  =                  100\n"
+     "NAXIS3  =                  100\n"
+     "CTYPE1  = 'WAVE'\n"
+     "CTYPE2  = 'RA---TAN'\n"
+     "CTYPE3  = 'DEC--TAN'\n"
+     "CRVAL1  =            5.5E-07\n"
+     "CRVAL2  =              180.000\n"
+     "CRVAL3  =               45.000\n"
+     "CRPIX1  =              513.000\n"
+     "CRPIX2  =               50.000\n"
+     "CRPIX3  =               50.000\n"
+     "CDELT1  =            1.0E-10\n"
+     "CDELT2  =              -0.0100\n"
+     "CDELT3  =               0.0100\n"
+     "CUNIT1  = 'm'\n"
+     "RADESYS = 'FK5'\n"
+     "EQUINOX =               2000.0",
+     NULL, 0, NULL, 0, NULL, "FITS-AIPS" },
+
+   { "aips++-reject-wave",
+     "NAXIS1  =                 1024\n"
+     "NAXIS2  =                  100\n"
+     "NAXIS3  =                  100\n"
+     "CTYPE1  = 'WAVE'\n"
+     "CTYPE2  = 'RA---TAN'\n"
+     "CTYPE3  = 'DEC--TAN'\n"
+     "CRVAL1  =            5.5E-07\n"
+     "CRVAL2  =              180.000\n"
+     "CRVAL3  =               45.000\n"
+     "CRPIX1  =              513.000\n"
+     "CRPIX2  =               50.000\n"
+     "CRPIX3  =               50.000\n"
+     "CDELT1  =            1.0E-10\n"
+     "CDELT2  =              -0.0100\n"
+     "CDELT3  =               0.0100\n"
+     "CUNIT1  = 'm'\n"
+     "RADESYS = 'FK5'\n"
+     "EQUINOX =               2000.0",
+     NULL, 0, NULL, 0, NULL, "FITS-AIPS++" },
+
+   /* Unsupported SPECSYS: TOPOCENT not LSRK/BARYCENT/GEOCENTR → AIPS/AIPS++
+      reject (lines 3337, 3841). */
+   { "aips-reject-topocent",
+     "NAXIS1  =                 1024\n"
+     "NAXIS2  =                  100\n"
+     "NAXIS3  =                  100\n"
+     "CTYPE1  = 'FREQ'\n"
+     "CTYPE2  = 'RA---TAN'\n"
+     "CTYPE3  = 'DEC--TAN'\n"
+     "CRVAL1  =          1.4204E+09\n"
+     "CRVAL2  =              180.000\n"
+     "CRVAL3  =               45.000\n"
+     "CRPIX1  =              513.000\n"
+     "CRPIX2  =               50.000\n"
+     "CRPIX3  =               50.000\n"
+     "CDELT1  =           1.0E+06\n"
+     "CDELT2  =              -0.0100\n"
+     "CDELT3  =               0.0100\n"
+     "CUNIT1  = 'Hz'\n"
+     "SPECSYS = 'TOPOCENT'\n"
+     "RADESYS = 'FK5'\n"
+     "EQUINOX =               2000.0",
+     NULL, 0, NULL, 0, NULL, "FITS-AIPS" },
+
+   { "aips++-reject-topocent",
+     "NAXIS1  =                 1024\n"
+     "NAXIS2  =                  100\n"
+     "NAXIS3  =                  100\n"
+     "CTYPE1  = 'FREQ'\n"
+     "CTYPE2  = 'RA---TAN'\n"
+     "CTYPE3  = 'DEC--TAN'\n"
+     "CRVAL1  =          1.4204E+09\n"
+     "CRVAL2  =              180.000\n"
+     "CRVAL3  =               45.000\n"
+     "CRPIX1  =              513.000\n"
+     "CRPIX2  =               50.000\n"
+     "CRPIX3  =               50.000\n"
+     "CDELT1  =           1.0E+06\n"
+     "CDELT2  =              -0.0100\n"
+     "CDELT3  =               0.0100\n"
+     "CUNIT1  = 'Hz'\n"
+     "SPECSYS = 'TOPOCENT'\n"
+     "RADESYS = 'FK5'\n"
+     "EQUINOX =               2000.0",
+     NULL, 0, NULL, 0, NULL, "FITS-AIPS++" },
+
 };
 
 #define NTESTS (sizeof(bad_headers)/sizeof(bad_headers[0]))
@@ -373,6 +463,16 @@ static int test_bad_header( const BadHeaderTest *t, int *status ) {
       if( nw != 0 ) {
          printf( "  %s: astWrite to %s returned %d, expected 0\n",
                  t->name, t->write_enc, nw );
+         ok = 0;
+      }
+      /* Verify the FrameSet IS writable to FITS-WCS (the data is valid,
+         just not representable in the limited encoding). */
+      astEmptyFits( wfc );
+      astSetC( wfc, "Encoding", "FITS-WCS" );
+      nw = astWrite( wfc, obj );
+      if( nw != 1 ) {
+         printf( "  %s: astWrite to FITS-WCS returned %d, expected 1\n",
+                 t->name, nw );
          ok = 0;
       }
       wfc = astAnnul( wfc );
