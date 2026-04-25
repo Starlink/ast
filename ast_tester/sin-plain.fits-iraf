@@ -1,0 +1,14 @@
+NAXIS1  =                  100 / Spatial axis                                   
+NAXIS2  =                  100 / Spatial axis                                   
+CTYPE1  = 'RA---SIN'           / SIN projection                                 
+CTYPE2  = 'DEC--SIN'           / SIN projection                                 
+CRVAL1  =                180.0 / [deg] Reference RA                             
+CRVAL2  =                 45.0 / [deg] Reference Dec                            
+CRPIX1  =                 50.5 / Reference pixel axis 1                         
+CRPIX2  =                 50.5 / Reference pixel axis 2                         
+EQUINOX =               2000.0 / Equinox                                        
+CD1_1   =                -0.01 / Transformation matrix element                  
+CD2_2   =                 0.01 / Transformation matrix element                  
+RADECSYS= 'FK5     '           / Reference frame for RA/DEC values              
+DATE-OBS= '2000-01-01T11:58:55.816' / Date of observation                       
+END                                                                             

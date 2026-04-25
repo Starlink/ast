@@ -155,6 +155,8 @@ skyspec3d_fits-wcs  | skyspec3d.head                 | skyspec3d.fits-wcs | fits
 skyspec3d_fits-aips | skyspec3d.head                 | skyspec3d.fits-aips | fits-aips | cdmatrix=1,FitsDigits=8          |
 skyspec3d_fits-aips++| skyspec3d.head                | skyspec3d.fits-aips++ | fits-aips++ | cdmatrix=1,FitsDigits=8      |
 skyspec3d_fits-iraf | skyspec3d.head                 | skyspec3d.fits-iraf | fits-iraf | cdmatrix=1,FitsDigits=8          |
+sin-plain_fits-iraf | sin-plain.head                 | sin-plain.fits-iraf | fits-iraf | FitsDigits=8  |
+wave-1d_fits-iraf   | wave-1d.head                   | wave-1d.fits-iraf  | fits-iraf | FitsDigits=8   |
 skyspec3d_fits-pc   | skyspec3d.head                 | skyspec3d.fits-pc  | fits-pc   | FitsDigits=8                     |
 skyspec3d-class_native| skyspec3d-class.head          | skyspec3d-class.native | native |                                  | yes
 skyspec3d-class_fits-class| skyspec3d-class.head      | skyspec3d-class.fits-class | fits-class | FitsDigits=8           |
