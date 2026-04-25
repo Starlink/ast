@@ -1327,6 +1327,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        destructor, and was not deep-copied in the Copy constructor
 *        (leading to use-after-free when copied FitsChan objects were
 *        destroyed).
+*     25-APR-2026 (TIMJ):
+*        Fix memory leak in ZPXMapping: watstr was not freed when
+*        WATCoeffs returned unsupported features (ok=0) and the loop
+*        broke early.
 *     24-APR-2026 (TIMJ):
 *        Fix LoadFitsChan: FindString search count was 9 but the
 *        type_names array has 10 entries (KINT at index 9). Changed
@@ -41533,7 +41537,10 @@ static AstMapping *ZPXMapping( AstFitsChan *this, FitsStore *store, char s,
 
 /* If the current axis of the ZPX projection uses features not supported
    by AST, do not do any more axes. */
-      if( !ok ) break;
+      if( !ok ) {
+         watstr = astFree( watstr );
+         break;
+      }
 
 /* Free the WAT string. */
       watstr = astFree( watstr );
