@@ -22,6 +22,7 @@ typedef struct {
    int expect_error;        /* Expected astStatus, or 0 for warning test */
    const char *expect_text; /* Substring in warning text, or NULL */
    int skip_read;           /* 1 = check warnings after PutFits, skip astRead */
+   const char *attrs;       /* Extra attributes to set before read, or NULL */
 } BadHeaderTest;
 
 /* Minimal valid 2D TAN header used as a base for many tests. */
@@ -65,7 +66,7 @@ static const BadHeaderTest bad_headers[] = {
      "A_1_1   =             1.0E-05\n"
      "B_ORDER =                    2\n"
      "B_1_1   =             1.0E-05",
-     "distortion", 0, "distortion will be ignored", 0 },
+     "distortion", 0, "distortion will be ignored", 0, NULL },
 
    /* --- distortion-unknown (line 8901) ---
       Unknown distortion suffix -XXX on TAN. */
@@ -82,7 +83,7 @@ static const BadHeaderTest bad_headers[] = {
      "CDELT2  =               0.0100\n"
      "RADESYS = 'FK5'\n"
      "EQUINOX =               2000.0",
-     "distortion", 0, "ignores this distortion", 0 },
+     "distortion", 0, "ignores this distortion", 0, NULL },
 
    /* --- badpv-tan-allzero (line 13980) ---
       TAN with PV on latitude axis but all zero → simple TAN warning. */
@@ -90,7 +91,7 @@ static const BadHeaderTest bad_headers[] = {
      TAN_BASE "\n"
      "PV2_0   =                  0.0\n"
      "PV2_1   =                  0.0",
-     "badpv", 0, "distortion coefficients", 0 },
+     "badpv", 0, "distortion coefficients", 0, NULL },
 
    /* --- noctype-missing (line 35625) ---
       2-axis header with CRPIX/CRVAL for 2 axes but CTYPE2 missing entirely.
@@ -106,25 +107,43 @@ static const BadHeaderTest bad_headers[] = {
      "CRPIX2  =               50.000\n"
      "CDELT1  =           1.0E+06\n"
      "CDELT2  =               1.0",
-     "noctype", 0, "not found for one or more", 0 },
+     "noctype", 0, "not found for one or more", 0, NULL },
 
-   /* TODO: badmat-singular (line 37577) and zpx-unsupported (line 41570)
-      need further investigation into what header structure triggers the
-      warning path vs. an error path. */
+   /* --- error-sourcefile-missing (line 27910) ---
+      SourceFile pointing to a nonexistent file → AST__RDERR error. */
+   { "error-sourcefile-missing",
+     "DUMMY   = 0",
+     NULL, AST__RDERR, NULL, 0, "SourceFile=nonexistent.head" },
+
+   /* --- error-lat-without-lon (line 35778) ---
+      Latitude axis (DEC--TAN) found without a corresponding longitude axis.
+      Use a spectral axis in place of RA. */
+   { "error-lat-without-lon",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'FREQ'\n"
+     "CTYPE2  = 'DEC--TAN'\n"
+     "CRVAL1  =          1.4204E+09\n"
+     "CRVAL2  =               45.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =           1.0E+06\n"
+     "CDELT2  =               0.0100",
+     NULL, AST__BDFTS, NULL, 0, NULL },
 
    /* --- badpv-noncelestial (line 35914) ---
       PV1_5 on longitude axis exceeds mxpar_lon for TAN projection. */
    { "badpv-lonaxis",
      TAN_BASE "\n"
      "PV1_5   =                  1.0",
-     "badpv", 0, "not used by", 0 },
+     "badpv", 0, "not used by", 0, NULL },
 
    /* --- badkeyvalue-unparseable (line 32548) ---
       A keyword with a value that cannot be parsed as any FITS type. */
    { "badkeyvalue-unparseable",
      TAN_BASE "\n"
      "BADKEY  = not_a_valid_value",
-     "badkeyvalue", 0, "keyword value is illegal", 1 },
+     "badkeyvalue", 0, "keyword value is illegal", 1, NULL },
 
    /* --- sao-allzero (line 26711) ---
       SAO polynomial TAN with all distortion coefficients zero. */
@@ -167,7 +186,7 @@ static const BadHeaderTest bad_headers[] = {
      "CO2_11  =                  0.0\n"
      "CO2_12  =                  0.0\n"
      "CO2_13  =                  0.0",
-     "badpv", 0, "SAO encoded", 0 },
+     "badpv", 0, "SAO encoded", 0, NULL },
 
    /* --- tnx-unsupported (line 31913) ---
       TNX header with cross-term type 1 (full cross-terms, unsupported).
@@ -186,7 +205,7 @@ static const BadHeaderTest bad_headers[] = {
      "WAT0_001= 'system=image'\n"
      "WAT1_001= 'wtype=tnx axtype=ra lngcor = \"3. 3. 3. 1. 0. 1. 0. 1. 0. 0. 0. 0. 0.\"'\n"
      "WAT2_001= 'wtype=tnx axtype=dec latcor = \"3. 3. 3. 1. 0. 1. 0. 1. 0. 0. 0. 0. 0.\"'",
-     "tnx", 0, "unsupported IRAF", 0 },
+     "tnx", 0, "unsupported IRAF", 0, NULL },
 
    /* --- zpx-unsupported (line 41570) ---
       ZPX header with lngcor using surface type 2 (unsupported).
@@ -209,7 +228,7 @@ static const BadHeaderTest bad_headers[] = {
      "WAT1_002= '. 1. -1. 1. 0. 0. 0. 0. 0. 0.\"'\n"
      "WAT2_001= 'wtype=zpx axtype=dec projp1=1.0 latcor = \"2. 3. 3. 2. '\n"
      "WAT2_002= '-1. 1. -1. 1. 0. 0. 0. 0. 0. 0.\"'",
-     "zpx", 0, "unsupported IRAF", 0 },
+     "zpx", 0, "unsupported IRAF", 0, NULL },
 
 };
 
@@ -243,7 +262,35 @@ static int test_bad_header( const BadHeaderTest *t, int *status ) {
    }
    astPutFits( fc, "END", 0 );
 
+   /* Some errors (badkeyname) fire during astPutFits. Check early. */
+   if( t->expect_error && !astOK ) {
+      if( astStatus != t->expect_error ) {
+         printf( "  %s: expected error %d got %d (during PutFits)\n",
+                 t->name, t->expect_error, astStatus );
+         ok = 0;
+      }
+      astClearStatus;
+      fc = astAnnul( fc );
+      astEnd;
+      return ok;
+   }
+
    astClear( fc, "Card" );
+   if( t->attrs ) astSet( fc, t->attrs );
+
+   /* Some errors fire during astSet (e.g., SourceFile). Check early. */
+   if( t->expect_error && !astOK ) {
+      if( astStatus != t->expect_error ) {
+         printf( "  %s: expected error %d got %d (during attrs)\n",
+                 t->name, t->expect_error, astStatus );
+         ok = 0;
+      }
+      astClearStatus;
+      fc = astAnnul( fc );
+      astEnd;
+      return ok;
+   }
+
    AstObject *obj = NULL;
    if( !t->skip_read ) {
       obj = (AstObject *)astRead( fc );
