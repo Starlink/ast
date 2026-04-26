@@ -1,0 +1,25 @@
+NAXIS1  =                  100 / Spatial axis                                   
+NAXIS2  =                  100 / Spatial axis                                   
+CTYPE1  = 'RA---TAN'           / Right Ascension                                
+CTYPE2  = 'DEC--TAN'           / Declination                                    
+CRVAL1  =                180.0 / [deg] Reference RA                             
+CRVAL2  =                 45.0 / [deg] Reference Dec                            
+CRPIX1  =                 50.0 / Reference pixel axis 1                         
+CRPIX2  =                 50.0 / Reference pixel axis 2                         
+RADESYS = 'FK5     '           / Reference frame                                
+EQUINOX =               2000.0 / Equinox                                        
+WCSAXES =                    2 / Number of WCS axes                             
+CD1_1   =                -0.01 / Transformation matrix element                  
+CD2_2   =                 0.01 / Transformation matrix element                  
+MJD-OBS =            33281.923 / Modified Julian Date of observation            
+DATE-OBS= '31/12/49'           / Date of observation                            
+WCSAXESA=                    2 / Number of WCS axes                             
+CRPIX1A =                 50.0 / Reference pixel on axis 1                      
+CRPIX2A =                 50.0 / Reference pixel on axis 2                      
+CRVAL1A =              101.255 / Value at ref. pixel on axis 1                  
+CRVAL2A =               16.177 / Value at ref. pixel on axis 2                  
+CTYPE1A = 'GLON-TAN'           / Type of co-ordinate on axis 1                  
+CTYPE2A = 'GLAT-TAN'           / Type of co-ordinate on axis 2                  
+CD1_1A  =                -0.01 / Transformation matrix element                  
+CD2_2A  =                 0.01 / Transformation matrix element                  
+END                                                                             

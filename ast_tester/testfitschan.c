@@ -3017,6 +3017,78 @@ int main( void ) {
       bfc = astAnnul( bfc );
    }
 
+   /* SetFits overwrite paths for each type (808-809).
+      PutFits with overwrite=1 exercises the SetFits internal dispatch
+      for KINT, COMPLEXI, COMPLEXF, LOGICAL, UNDEF types.
+      First insert a card, then overwrite with same value (retains comment)
+      and different value (updates comment). */
+   {
+      AstFitsChan *ofc = astFitsChan( NULL, NULL, " " );
+      int64_t kval;
+      double cf[2];
+      int ci[2], lval;
+      char *sval;
+
+      /* KINT: value > INT_MAX triggers AST__KINT in Split */
+      astPutFits( ofc, "KTEST   = 9999999999 / original", 1 );
+      astClear( ofc, "Card" );
+      astPutFits( ofc, "KTEST   = 9999999999 / same value", 1 );
+      astClear( ofc, "Card" );
+      if( !astGetFitsK( ofc, "KTEST", &kval ) || kval != (int64_t)9999999999LL )
+         stopit( 808, "KINT overwrite failed", status );
+
+      /* COMPLEXI: two integers separated by space */
+      astPutFits( ofc, "CITEST  = 10 20 / original ci", 1 );
+      astClear( ofc, "Card" );
+      astPutFits( ofc, "CITEST  = 10 20 / same ci", 1 );
+      astClear( ofc, "Card" );
+      if( !astGetFitsCI( ofc, "CITEST", ci ) || ci[0] != 10 || ci[1] != 20 )
+         stopit( 808, "COMPLEXI overwrite failed", status );
+
+      /* COMPLEXF: two floats with decimal point */
+      astPutFits( ofc, "CFTEST  = 1.5 2.5 / original cf", 1 );
+      astClear( ofc, "Card" );
+      astPutFits( ofc, "CFTEST  = 1.5 2.5 / same cf", 1 );
+      astClear( ofc, "Card" );
+      if( !astGetFitsCF( ofc, "CFTEST", cf ) || fabs(cf[0]-1.5)>1e-10 || fabs(cf[1]-2.5)>1e-10 )
+         stopit( 808, "COMPLEXF overwrite failed", status );
+
+      /* LOGICAL: T or F value */
+      astPutFits( ofc, "LTEST   = T / original logical", 1 );
+      astClear( ofc, "Card" );
+      astPutFits( ofc, "LTEST   = T / same logical", 1 );
+      astClear( ofc, "Card" );
+      if( !astGetFitsL( ofc, "LTEST", &lval ) || !lval )
+         stopit( 808, "LOGICAL overwrite failed", status );
+
+      /* UNDEF: blank value after = */
+      astPutFits( ofc, "UTEST   =   / original undef", 1 );
+      astClear( ofc, "Card" );
+      astPutFits( ofc, "UTEST   =   / same undef", 1 );
+
+      /* CONTINUE: long string continuation */
+      astPutFits( ofc, "CONTINUE  'a long continuation value'", 1 );
+      astClear( ofc, "Card" );
+      astPutFits( ofc, "CONTINUE  'a long continuation value'", 1 );
+      astClear( ofc, "Card" );
+      if( !astGetFitsCN( ofc, "CONTINUE", &sval ) )
+         stopit( 808, "CONTINUE overwrite failed", status );
+
+      /* COMMENT: no value */
+      astPutFits( ofc, "COMMENT   This is a comment", 1 );
+      astClear( ofc, "Card" );
+      astPutFits( ofc, "COMMENT   This is a comment", 1 );
+
+      /* Overwrite with DIFFERENT value to exercise the non-NULL comment path */
+      astClear( ofc, "Card" );
+      astPutFits( ofc, "KTEST   = 8888888888 / changed", 1 );
+      astClear( ofc, "Card" );
+      if( !astGetFitsK( ofc, "KTEST", &kval ) || kval != (int64_t)8888888888LL )
+         stopit( 809, "KINT overwrite with different value failed", status );
+
+      ofc = astAnnul( ofc );
+   }
+
    /* Test all TIMESYS keyword variants (810-829).
       Each variant is read via a minimal TAN header with MJD-OBS,
       exercising every branch in TimeSysToAst. Verify (a) astRead
