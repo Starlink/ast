@@ -863,10 +863,54 @@ int main( void ) {
       astEnd;
    }
 
+   /* -TAB test 4: Missing axis for coordinate array dimension.
+      A 3D coordinate array has dimensions 0 (lookup), 1, 2. Only one
+      FITS-WCS axis maps to dimension 1 (PV1_3=1); dimension 2 has no
+      corresponding axis → AST__BADTAB (line 33631). */
+   {
+      astBegin;
+      AstFitsChan *fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+      const char *cards[] = {
+         "NAXIS   = 1",
+         "NAXIS1  = 100",
+         "CTYPE1  = 'FREQ-TAB'",
+         "CRVAL1  = 0.0",
+         "CRPIX1  = 1.0",
+         "CDELT1  = 1.0",
+         "CUNIT1  = 'Hz'",
+         "PS1_0   = 'WCS-TAB'",
+         "PS1_1   = 'COORDS'",
+         "PV1_3   = 1",
+         NULL
+      };
+      for( int i = 0; cards[i]; i++ ) astPutFits( fc, cards[i], 0 );
+      astPutFits( fc, "END", 0 );
+
+      AstFitsTable *tab = astFitsTable( NULL, " " );
+      int dims3d[] = { 3, 100, 50 };
+      astAddColumn( tab, "COORDS", AST__DOUBLETYPE, 3, dims3d, "Hz" );
+      astPutTable( fc, tab, "WCS-TAB" );
+      tab = astAnnul( tab );
+
+      astClear( fc, "Card" );
+      AstObject *obj = (AstObject *)astRead( fc );
+      if( astOK ) {
+         printf( "FAIL: tab-missing-axis: expected AST__BADTAB but no error\n" );
+         fails++;
+      } else if( astStatus != AST__BADTAB ) {
+         printf( "FAIL: tab-missing-axis: expected AST__BADTAB got %d\n", astStatus );
+         fails++;
+      }
+      astClearStatus;
+      if( obj ) obj = astAnnul( obj );
+      fc = astAnnul( fc );
+      astEnd;
+   }
+
    if( fails ) {
       printf( "%d tests failed\n", fails );
       return 1;
    }
-   printf( "All %zu bad-header + 6 manual tests passed\n", NTESTS );
+   printf( "All %zu bad-header + 7 manual tests passed\n", NTESTS );
    return 0;
 }
