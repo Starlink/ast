@@ -4285,6 +4285,53 @@ int main( void ) {
          astAnnul( cfc );
       }
 
+      /* --- FitsDigits negative: triggers EncodeFloat adaptive width
+         reduction (line 9836). A negative FitsDigits requests that many
+         digits but allows fewer if the field is too wide. --- */
+      {
+         AstFitsChan *dgfc = astFitsChan( NULL, NULL, " " );
+         AstFrameSet *dgfs;
+
+         astPutFits( dgfc, "NAXIS1  = 100", 0 );
+         astPutFits( dgfc, "NAXIS2  = 100", 0 );
+         astPutFits( dgfc, "CTYPE1  = 'RA---TAN'", 0 );
+         astPutFits( dgfc, "CTYPE2  = 'DEC--TAN'", 0 );
+         astPutFits( dgfc, "CRVAL1  = 180.123456789", 0 );
+         astPutFits( dgfc, "CRVAL2  = 45.987654321", 0 );
+         astPutFits( dgfc, "CRPIX1  = 50.0", 0 );
+         astPutFits( dgfc, "CRPIX2  = 50.0", 0 );
+         astPutFits( dgfc, "CDELT1  = -0.01", 0 );
+         astPutFits( dgfc, "CDELT2  = 0.01", 0 );
+         astPutFits( dgfc, "RADESYS = 'FK5'", 0 );
+         astPutFits( dgfc, "EQUINOX = 2000.0", 0 );
+         astPutFits( dgfc, "END", 0 );
+         astClear( dgfc, "Card" );
+         dgfs = (AstFrameSet *)astRead( dgfc );
+         if( dgfs ) {
+            AstFitsChan *wfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+            astSetI( wfc, "FitsDigits", -20 );
+            if( astWrite( wfc, dgfs ) != 1 )
+               stopit( 988, "FitsDigits=-20 write failed", status );
+            else {
+               char dgcard[81];
+               int found_crval = 0;
+               astClear( wfc, "Card" );
+               while( astFindFits( wfc, "%f", dgcard, 1 ) ) {
+                  if( !strncmp( dgcard, "CRVAL1", 6 ) ) {
+                     found_crval = 1;
+                     if( !strstr( dgcard, "180" ) )
+                        stopit( 989, "FitsDigits=-20 CRVAL1 missing value", status );
+                  }
+               }
+               if( !found_crval )
+                  stopit( 989, "FitsDigits=-20 no CRVAL1 found", status );
+            }
+            wfc = astAnnul( wfc );
+            dgfs = astAnnul( dgfs );
+         }
+         dgfc = astAnnul( dgfc );
+      }
+
       /* --- 3D SIP: read 3D SIP header (2 celestial + 1 spectral) and
          write back with SipOK=1 to exercise the >2 axis PermMap handling
          in SIPIntWorld (error 980-985). --- */
