@@ -6,10 +6,10 @@ CRVAL1  =              180.000 / [deg] Reference RA
 CRVAL2  =               45.000 / [deg] Reference Dec
 CRPIX1  =               50.000 / Reference pixel axis 1
 CRPIX2  =               50.000 / Reference pixel axis 2
-CD1_1   =         -0.007071068 / Rotated CD matrix
-CD1_2   =         -0.007071068 / Rotated CD matrix
-CD2_1   =         -0.007071068 / Rotated CD matrix
-CD2_2   =          0.007071068 / Rotated CD matrix
+CD1_1   =         -0.008660254 / 30-deg rotated CD matrix
+CD1_2   =         -0.005000000 / 30-deg rotated CD matrix
+CD2_1   =         -0.005000000 / 30-deg rotated CD matrix
+CD2_2   =          0.008660254 / 30-deg rotated CD matrix
 RADESYS = 'FK5     '          / Reference frame
 EQUINOX =              2000.0  / Equinox
 END
