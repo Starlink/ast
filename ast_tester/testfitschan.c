@@ -55,6 +55,39 @@
 static AstFitsTable *g_table = NULL;
 static int *g_test_status = NULL;
 
+/* Source callback for testing ReadFromSource. Returns FITS cards one at
+   a time from a static array. Uses a static counter to track position. */
+static int g_source_index = 0;
+static const char *g_source_cards[] = {
+   "NAXIS1  =                  100",
+   "NAXIS2  =                  100",
+   "CTYPE1  = 'RA---TAN'",
+   "CTYPE2  = 'DEC--TAN'",
+   "CRVAL1  =              180.000",
+   "CRVAL2  =               45.000",
+   "CRPIX1  =               50.000",
+   "CRPIX2  =               50.000",
+   "CDELT1  =              -0.0100",
+   "CDELT2  =               0.0100",
+   "RADESYS = 'FK5'",
+   "EQUINOX =               2000.0",
+   NULL
+};
+
+static const char *test_source( void ) {
+   const char *card = g_source_cards[ g_source_index ];
+   if( card ) {
+      char *result = astMalloc( 81 );
+      if( result ) {
+         strncpy( result, card, 80 );
+         result[80] = '\0';
+      }
+      g_source_index++;
+      return result;
+   }
+   return NULL;
+}
+
 /* -----------------------------------------------------------------------
  * roundtrip: write a FrameSet to a FitsChan with a given encoding,
  * rewind, read back. If tol >= 0, verify that a set of test pixel
@@ -3087,6 +3120,26 @@ int main( void ) {
          stopit( 809, "KINT overwrite with different value failed", status );
 
       ofc = astAnnul( ofc );
+   }
+
+   /* ReadFromSource: test FitsChan with source callback function (830-832).
+      This exercises the ReadFromSource loop (lines 26060-26099 in fitschan.c)
+      which is otherwise only tested via SourceFile= attribute. */
+   {
+      g_source_index = 0;
+      AstFitsChan *sfc = astFitsChan( test_source, NULL, " " );
+      if( astGetI( sfc, "Ncard" ) < 10 )
+         stopit( 830, "Source callback FitsChan has too few cards", status );
+      astClear( sfc, "Card" );
+      AstFrameSet *sfs = (AstFrameSet *)astRead( sfc );
+      if( !sfs )
+         stopit( 831, "Source callback FitsChan read failed", status );
+      else {
+         if( astGetI( sfs, "Naxes" ) != 2 )
+            stopit( 832, "Source callback FrameSet wrong Naxes", status );
+         sfs = astAnnul( sfs );
+      }
+      sfc = astAnnul( sfc );
    }
 
    /* Test all TIMESYS keyword variants (810-829).
