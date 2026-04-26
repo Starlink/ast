@@ -1092,13 +1092,74 @@ static void checktab( int *status ) {
       astAnnul( fsv );
    }
 
+   /* ------------------------------------------------------------------
+    * Test -TAB with non-unit index: a non-linear pre-LutMap mapping
+    * produces a non-trivial index column (lines 19783-19791).
+    * Grid→MathMap(x^2)→LutMap→Frame produces an index vector that
+    * is the inverse MathMap applied to the LutMap indices — i.e.
+    * sqrt(i) — which is not 1,2,3... so an INDEX column is stored.
+    * ------------------------------------------------------------------*/
+   {
+      AstFrame *nif, *nig;
+      AstMapping *nimm, *nilm, *nicm;
+      AstFrameSet *nifs;
+      AstFitsChan *nifc;
+      AstKeyMap *nitables;
+      double nilut[20];
+      int nii;
+
+      for( nii = 0; nii < 20; nii++ )
+         nilut[nii] = 100.0 + nii * 5.0;
+
+      nig = astFrame( 1, "domain=GRID" );
+      nif = astFrame( 1, "domain=VOLTAGE,unit=V" );
+      nimm = (AstMapping *)astMathMap( 1, 1, 1,
+                                       (const char *[]){"y=x*x"},
+                                       1,
+                                       (const char *[]){"x=sqrt(y)"},
+                                       " " );
+      nilm = (AstMapping *)astLutMap( 20, nilut, 1.0, 1.0, " " );
+      nicm = (AstMapping *)astCmpMap( nimm, nilm, 1, " " );
+      nifs = astFrameSet( nig, " " );
+      astAddFrame( nifs, AST__BASE, nicm, nif );
+
+      nifc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+      astPutFits( nifc, "NAXIS   = 1", 0 );
+      astPutFits( nifc, "NAXIS1  = 20", 0 );
+      if( astWrite( nifc, nifs ) != 1 )
+         stopit( 1067, "TAB non-unit index write failed", status );
+      else {
+         nitables = (AstKeyMap *)astGetTables( nifc );
+         if( nitables ) {
+            AstFitsTable *nitbl = NULL;
+            if( astMapGet0A( nitables, "WCS-TAB", (AstObject **)&nitbl ) ) {
+               int ncol = astGetI( nitbl, "NColumn" );
+               if( ncol < 2 )
+                  stopit( 1068, "TAB non-unit index: expected INDEX column", status );
+               nitbl = astAnnul( nitbl );
+            }
+            nitables = astAnnul( nitables );
+         }
+
+         /* Read back: this exercises the index column read path in
+            TabMapping, using the table already stored in the FitsChan. */
+         {
+            AstFrameSet *nifs2;
+
+            astClear( nifc, "Card" );
+            nifs2 = (AstFrameSet *)astRead( nifc );
+            if( !nifs2 )
+               stopit( 1069, "TAB non-unit index read-back failed", status );
+            else
+               astAnnul( nifs2 );
+         }
+      }
+      nifc = astAnnul( nifc );
+      nifs = astAnnul( nifs );
+   }
+
    astEnd;
 }
-
-
-/* -----------------------------------------------------------------------
- * checktab2: test 2-D TAB encoding with SkyRef
- * -----------------------------------------------------------------------*/
 static void checktab2( int *status ) {
    AstSkyFrame *sf;
    AstFrame *gf;
