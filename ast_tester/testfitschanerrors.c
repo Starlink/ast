@@ -443,6 +443,69 @@ static const BadHeaderTest bad_headers[] = {
      "EQUINOX =               2000.0",
      NULL, AST__BDFTS, NULL, 0, NULL, NULL },
 
+   /* --- Unknown encoding (line 27299) ---
+      Setting Encoding to an unrecognized value → AST__BADAT. */
+   { "error-bad-encoding",
+     "DUMMY   = 0",
+     NULL, AST__BADAT, NULL, 0, "Encoding=BADENC", NULL },
+
+   /* --- Bad AltAxes value (line 27316) ---
+      Setting AltAxes to an unrecognized value → AST__BADAT. */
+   { "error-bad-altaxes",
+     "DUMMY   = 0",
+     NULL, AST__BADAT, NULL, 0, "AltAxes=BADVAL", NULL },
+
+   /* --- Duplicate latitude axes (line 35745) ---
+      Two DEC axes with the same projection → AST__BDFTS. */
+   { "error-duplicate-lat",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'DEC--TAN'\n"
+     "CTYPE2  = 'DEC--TAN'\n"
+     "CRVAL1  =               45.000\n"
+     "CRVAL2  =               55.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =               0.0100\n"
+     "CDELT2  =               0.0100",
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
+
+   /* --- Unknown RADESYS value (line 39106) ---
+      RADESYS with an unrecognized value → AST__BDFTS. */
+   { "error-bad-radesys",
+     TAN_BASE "\n"
+     "RADESYS = 'BADVAL'",
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
+
+   /* --- Set read-only attribute (line 27447) ---
+      Attempting to set Ncard → AST__NOWRT. */
+   { "error-set-readonly",
+     "DUMMY   = 0",
+     NULL, AST__NOWRT, NULL, 0, "Ncard=5", NULL },
+
+   /* --- badkeyname-nonprint (line 5956) ---
+      Keyword name contains a non-printing control character (0x01).
+      This warning fires during astPutFits, not astRead. */
+   { "badkeyname-nonprint",
+     "BAD\x01KEY = 0",
+     "badkeyname", 0, "non-printing", 1, NULL, NULL },
+
+   /* --- Unknown projection on latitude axis (line 35734) ---
+      Valid longitude with unknown latitude projection → AST__BDFTS.
+      Different path from error-unknown-projection which fires on longitude. */
+   { "error-unknown-lat-projection",
+     "NAXIS1  =                  100\n"
+     "NAXIS2  =                  100\n"
+     "CTYPE1  = 'RA---TAN'\n"
+     "CTYPE2  = 'DEC--XXX'\n"
+     "CRVAL1  =              180.000\n"
+     "CRVAL2  =               45.000\n"
+     "CRPIX1  =               50.000\n"
+     "CRPIX2  =               50.000\n"
+     "CDELT1  =              -0.0100\n"
+     "CDELT2  =               0.0100",
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
+
 };
 
 #define NTESTS (sizeof(bad_headers)/sizeof(bad_headers[0]))
@@ -489,7 +552,7 @@ static int test_bad_header( const BadHeaderTest *t, int *status ) {
    }
 
    astClear( fc, "Card" );
-   if( t->attrs ) astSet( fc, t->attrs );
+   if( t->attrs ) astSet( fc, "%s", t->attrs );
 
    /* Some errors fire during astSet (e.g., SourceFile). Check early. */
    if( t->expect_error && !astOK ) {
@@ -579,7 +642,7 @@ static int test_bad_header( const BadHeaderTest *t, int *status ) {
    return ok;
 }
 
-int main() {
+int main( void ) {
    int status = 0;
    int fails = 0;
 
@@ -591,10 +654,63 @@ int main() {
       }
    }
 
+   /* --- Direct tests for attribute errors not fitting the table pattern --- */
+
+   /* Clear read-only attribute Ncard → AST__NOWRT (line 7267). */
+   {
+      astBegin;
+      AstFitsChan *fc = astFitsChan( NULL, NULL, " " );
+      astClear( fc, "Ncard" );
+      if( astOK ) {
+         printf( "FAIL: clear-readonly-ncard: expected AST__NOWRT but no error\n" );
+         fails++;
+      } else if( astStatus != AST__NOWRT ) {
+         printf( "FAIL: clear-readonly-ncard: expected AST__NOWRT got %d\n", astStatus );
+         fails++;
+      }
+      astClearStatus;
+      fc = astAnnul( fc );
+      astEnd;
+   }
+
+   /* Clear read-only attribute AllWarnings → AST__NOWRT (line 7265). */
+   {
+      astBegin;
+      AstFitsChan *fc = astFitsChan( NULL, NULL, " " );
+      astClear( fc, "AllWarnings" );
+      if( astOK ) {
+         printf( "FAIL: clear-readonly-allwarnings: expected AST__NOWRT but no error\n" );
+         fails++;
+      } else if( astStatus != AST__NOWRT ) {
+         printf( "FAIL: clear-readonly-allwarnings: expected AST__NOWRT got %d\n", astStatus );
+         fails++;
+      }
+      astClearStatus;
+      fc = astAnnul( fc );
+      astEnd;
+   }
+
+   /* Unknown warning condition → AST__ATTIN (line 14136). */
+   {
+      astBegin;
+      AstFitsChan *fc = astFitsChan( NULL, NULL, " " );
+      astSetC( fc, "Warnings", "badxyz" );
+      if( astOK ) {
+         printf( "FAIL: unknown-warning-condition: expected AST__ATTIN but no error\n" );
+         fails++;
+      } else if( astStatus != AST__ATTIN ) {
+         printf( "FAIL: unknown-warning-condition: expected AST__ATTIN got %d\n", astStatus );
+         fails++;
+      }
+      astClearStatus;
+      fc = astAnnul( fc );
+      astEnd;
+   }
+
    if( fails ) {
-      printf( "%d of %zu bad-header tests failed\n", fails, NTESTS );
+      printf( "%d tests failed\n", fails );
       return 1;
    }
-   printf( "All %zu bad-header tests passed\n", NTESTS );
+   printf( "All %zu bad-header + 3 attribute tests passed\n", NTESTS );
    return 0;
 }
