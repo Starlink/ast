@@ -4503,6 +4503,29 @@ int main( void ) {
       astEnd;
    }
 
+   /* --- Non-invertable Mapping write: exercises early-return at
+      line 2833 when Mapping has no inverse and TabOK <= 0. Uses a
+      forward-only PolyMap. astWrite should return 0. --- */
+   if( *status == 0 ) {
+      astBegin;
+      AstFrame *nifrm = astFrame( 2, "Domain=PIXEL" );
+      AstFrame *nowfrm = astFrame( 2, " " );
+      double coeff_f[] = { 1.0, 1, 1, 0,
+                           1.0, 2, 0, 1 };
+      AstPolyMap *nopm = astPolyMap( 2, 2, 2, coeff_f, 0, NULL,
+                                     "IterInverse=0" );
+      AstFrameSet *nofs = astFrameSet( nifrm, " " );
+      astAddFrame( nofs, AST__BASE, (AstMapping *)nopm, nowfrm );
+      AstFitsChan *nofc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      astPutFits( nofc, "NAXIS1  = 100", 0 );
+      astPutFits( nofc, "NAXIS2  = 100", 0 );
+      int nw = astWrite( nofc, nofs );
+      if( !astOK ) astClearStatus;
+      if( nw != 0 )
+         stopit( 904, "Non-invertable FrameSet should not write to FITS", status );
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 
