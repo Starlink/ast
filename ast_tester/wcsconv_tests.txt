@@ -191,3 +191,4 @@ galactic-tan_fits-aips++| galactic-tan.head           | galactic-tan.fits-aips++
 galactic-tan_fits-iraf| galactic-tan.head             | galactic-tan.fits-iraf | fits-iraf | FitsDigits=8                  |
 ecliptic-tan_fits-aips| ecliptic-tan.head             | ecliptic-tan.fits-aips | fits-aips | FitsDigits=8                  |
 tan-pv0_fits-wcs    | tan-pv0.head                   | tan-pv0.fits-wcs   | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+date-z_fits-wcs     | date-z.head                    | date-z.fits-wcs    | fits-wcs  | cdmatrix=1,FitsDigits=8          |

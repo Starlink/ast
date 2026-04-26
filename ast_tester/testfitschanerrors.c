@@ -506,6 +506,33 @@ static const BadHeaderTest bad_headers[] = {
      "CDELT2  =               0.0100",
      NULL, AST__BDFTS, NULL, 0, NULL, NULL },
 
+   /* --- TIMESYS=UT warning (line 34567) ---
+      UT in TIMESYS is interpreted as UTC with a warning. */
+   { "badval-timesys-ut",
+     TAN_BASE "\n"
+     "MJD-OBS =            51544.500\n"
+     "TIMESYS = 'UT'",
+     "badval", 0, "UT", 0, NULL, NULL },
+
+   /* --- TIMESYS=ET warning (line 34576) ---
+      ET in TIMESYS is interpreted as TT with a warning. */
+   { "badval-timesys-et",
+     TAN_BASE "\n"
+     "MJD-OBS =            51544.500\n"
+     "TIMESYS = 'ET'",
+     "badval", 0, "ET", 0, NULL, NULL },
+
+   /* --- badpv longitude all-zero (line 14025) ---
+      TAN with non-zero latitude PV but all-zero longitude PV.
+      The longitude PV coefficients are all zero → warning on longitude. */
+   { "badpv-lonaxis-allzero",
+     TAN_BASE "\n"
+     "PV2_1   =                  1.0\n"
+     "PV2_3   =                0.001\n"
+     "PV1_0   =                  0.0\n"
+     "PV1_1   =                  0.0",
+     "badpv", 0, "longitude axis", 0, NULL, NULL },
+
 };
 
 #define NTESTS (sizeof(bad_headers)/sizeof(bad_headers[0]))

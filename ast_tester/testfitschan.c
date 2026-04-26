@@ -1310,6 +1310,28 @@ int main( void ) {
       stopit( 999, " ", status );
    }
 
+   /* TestAttrib for read-only attributes should return 0 (error 998) */
+   if( astTest( fc, "Ncard" ) )
+      stopit( 998, "Test(Ncard) should return 0 for read-only attr", status );
+   if( astTest( fc, "Nkey" ) )
+      stopit( 997, "Test(Nkey) should return 0 for read-only attr", status );
+   if( astTest( fc, "CardType" ) )
+      stopit( 996, "Test(CardType) should return 0 for read-only attr", status );
+   if( astTest( fc, "AllWarnings" ) )
+      stopit( 995, "Test(AllWarnings) should return 0 for read-only attr", status );
+
+   /* GetAttrib parent delegation — ask for an inherited Channel attribute (994) */
+   {
+      const char *cls = astGetC( fc, "Class" );
+      if( !cls || strcmp( cls, "FitsChan" ) )
+         stopit( 994, "GetAttrib(Class) wrong for FitsChan", status );
+      /* Full is a Channel attribute, should delegate to parent */
+      astSetI( fc, "Full", -1 );
+      if( astGetI( fc, "Full" ) != -1 )
+         stopit( 993, "GetAttrib(Full) wrong after SetI", status );
+      astClear( fc, "Full" );
+   }
+
    /* Iterate through cards and compare with originals */
    astClear( fc, "Card" );
    i = 0;
@@ -2887,7 +2909,7 @@ int main( void ) {
       that are physically distinct. */
    {
       static const char *timesys_vals[] = {
-         "UT", "IAT", "ET", "TT", "TDT", "TDB", "TCG", "TCB", NULL
+         "UTC", "UT", "IAT", "ET", "TT", "TDT", "TDB", "TCG", "TCB", NULL
       };
       double epoch_ut = 0.0;
       int its;
