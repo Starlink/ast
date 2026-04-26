@@ -1331,6 +1331,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Fix memory leak in ZPXMapping: watstr was not freed when
 *        WATCoeffs returned unsupported features (ok=0) and the loop
 *        broke early.
+*     25-APR-2026 (TIMJ):
+*        Fix PCFromStore: strlen(cval) was called before NULL check,
+*        and astWcsPrjType(cval+4) read past string end when CTYPE
+*        was shorter than 5 characters. Also fix FindLonLatSpecAxes:
+*        ctype[4] was accessed without checking string length.
 *     24-APR-2026 (TIMJ):
 *        Fix LoadFitsChan: FindString search count was 9 but the
 *        type_names array has 10 entries (KINT at index 9). Changed
@@ -10666,7 +10671,7 @@ static int FindLonLatSpecAxes( FitsStore *store, char s, int *axlon, int *axlat,
 
 /* Otherwise look for celestial axes. Celestial axes must have a "-" as the
    fifth character in CTYPE. */
-         } else if( ctype[4] == '-' ) {
+         } else if( strlen( ctype ) > 4 && ctype[4] == '-' ) {
 
 /* See if this is a longitude axis (e.g. if the first 4 characters of CTYPE
    are "RA--" or "xLON" or "yzLN" ). */
@@ -24670,8 +24675,12 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    ------ */
       for( i = 0; i < naxis; i++ ){
          cval = GetItemC( &(store->ctype), i, 0, s, NULL, method, class, status );
+         if( !cval ) {
+            ok = 0;
+            goto next;
+         }
          nc = strlen( cval );
-         if( !cval || ( nc > 4 && !strcmp( cval + 4, "-TAB" ) ) ) {
+         if( nc > 4 && !strcmp( cval + 4, "-TAB" ) ) {
             ok = 0;
             goto next;
          }
@@ -24698,7 +24707,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
 /* Extract the projection type as specified by the last 4 characters
    in the CTYPE keyword value. This will be AST__WCSBAD for non-celestial
    axes. */
-         prj = astWcsPrjType( cval + 4 );
+         prj = ( nc > 4 ) ? astWcsPrjType( cval + 4 ) : AST__WCSBAD;
 
 /* Change the new SFL projection code to to the older equivalent GLS */
          if( prj == AST__SFL ) {
