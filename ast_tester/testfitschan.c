@@ -4215,6 +4215,76 @@ int main( void ) {
          osfs = astAnnul( osfs );
       }
 
+      /* --- LAMBDA spectral CTYPE: SpecTrans normalizes CUNIT
+         "angstrom" → "Angstrom" (line 32066). --- */
+      {
+         AstFitsChan *lfc = astFitsChan( NULL, NULL, " " );
+         AstFrameSet *lfs;
+
+         astPutFits( lfc, "NAXIS1  = 1024", 0 );
+         astPutFits( lfc, "CTYPE1  = 'WAVE'", 0 );
+         astPutFits( lfc, "CRVAL1  = 5.5e-7", 0 );
+         astPutFits( lfc, "CRPIX1  = 512.0", 0 );
+         astPutFits( lfc, "CDELT1  = 1.0e-10", 0 );
+         astPutFits( lfc, "CUNIT1  = 'angstrom'", 0 );
+         astPutFits( lfc, "END", 0 );
+         astClear( lfc, "Card" );
+         lfs = (AstFrameSet *)astRead( lfc );
+         if( !lfs ) {
+            stopit( 990, "Failed to read WAVE/angstrom spectral header", status );
+         } else {
+            const char *sys = astGetC( lfs, "System" );
+            if( !sys || strcmp( sys, "WAVE" ) )
+               stopit( 990, "WAVE/angstrom: System is not WAVE", status );
+            const char *unit = astGetC( lfs, "Unit(1)" );
+            if( !unit || strcmp( unit, "Angstrom" ) )
+               stopit( 990, "WAVE/angstrom: Unit is not Angstrom", status );
+            astAnnul( lfs );
+         }
+         astAnnul( lfc );
+      }
+
+      /* --- CLASS VELO-EAR: geocentric velocity keyword in CLASS header.
+         Triggers the GEOCENTR path in ClassTrans (line 7098). --- */
+      {
+         AstFitsChan *cfc = astFitsChan( NULL, NULL, " " );
+         AstFrameSet *cfs;
+
+         astPutFits( cfc, "NAXIS1  = 100", 0 );
+         astPutFits( cfc, "NAXIS2  = 100", 0 );
+         astPutFits( cfc, "NAXIS3  = 1024", 0 );
+         astPutFits( cfc, "CTYPE1  = 'RA---GLS'", 0 );
+         astPutFits( cfc, "CTYPE2  = 'DEC--GLS'", 0 );
+         astPutFits( cfc, "CTYPE3  = 'FREQ'", 0 );
+         astPutFits( cfc, "CRVAL1  = 180.0", 0 );
+         astPutFits( cfc, "CRVAL2  = 45.0", 0 );
+         astPutFits( cfc, "CRVAL3  = 0.0", 0 );
+         astPutFits( cfc, "CRPIX1  = 50.0", 0 );
+         astPutFits( cfc, "CRPIX2  = 50.0", 0 );
+         astPutFits( cfc, "CRPIX3  = 512.0", 0 );
+         astPutFits( cfc, "CDELT1  = -0.01", 0 );
+         astPutFits( cfc, "CDELT2  = 0.01", 0 );
+         astPutFits( cfc, "CDELT3  = 1.0E+06", 0 );
+         astPutFits( cfc, "CUNIT3  = 'Hz'", 0 );
+         astPutFits( cfc, "DELTAV  = 1000.0", 0 );
+         astPutFits( cfc, "VELO-EAR= 50000.0", 0 );
+         astPutFits( cfc, "RESTFREQ= 1.4204E+09", 0 );
+         astPutFits( cfc, "RADESYS = 'FK5'", 0 );
+         astPutFits( cfc, "EQUINOX = 2000.0", 0 );
+         astPutFits( cfc, "END", 0 );
+         astClear( cfc, "Card" );
+         cfs = (AstFrameSet *)astRead( cfc );
+         if( !cfs ) {
+            stopit( 991, "Failed to read CLASS VELO-EAR header", status );
+         } else {
+            const char *svrf = astGetC( cfs, "SourceVRF" );
+            if( !svrf || !strstr( svrf, "Geocen" ) )
+               stopit( 991, "CLASS VELO-EAR: SourceVRF not Geocentric", status );
+            astAnnul( cfs );
+         }
+         astAnnul( cfc );
+      }
+
       /* --- 3D SIP: read 3D SIP header (2 celestial + 1 spectral) and
          write back with SipOK=1 to exercise the >2 axis PermMap handling
          in SIPIntWorld (error 980-985). --- */

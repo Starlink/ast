@@ -734,10 +734,139 @@ int main( void ) {
       astEnd;
    }
 
+   /* --- -TAB error tests requiring a tabsource callback --- */
+
+   /* Helpers: minimal -TAB header cards for a 1D spectral axis. */
+#define TAB_BASE_CARDS \
+      "NAXIS   = 1", \
+      "NAXIS1  = 100", \
+      "CTYPE1  = 'FREQ-TAB'", \
+      "CRVAL1  = 0.0", \
+      "CRPIX1  = 1.0", \
+      "CDELT1  = 1.0", \
+      "CUNIT1  = 'Hz'", \
+      "PS1_0   = 'WCS-TAB'", \
+      "PS1_1   = 'COORDS'"
+
+   /* -TAB test 1: Missing column — table exists but column COORDS absent.
+      Triggers line 33550: !astHasColumn(table, coordscol) → AST__BADTAB. */
+   {
+      astBegin;
+      AstFitsChan *fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+      const char *cards[] = { TAB_BASE_CARDS, NULL };
+      for( int i = 0; cards[i]; i++ ) astPutFits( fc, cards[i], 0 );
+      astPutFits( fc, "END", 0 );
+
+      AstFitsTable *tab = astFitsTable( NULL, " " );
+      int dims[] = { 100 };
+      astAddColumn( tab, "WRONG_NAME", AST__DOUBLETYPE, 1, dims, "Hz" );
+      astPutTable( fc, tab, "WCS-TAB" );
+      tab = astAnnul( tab );
+
+      astClear( fc, "Card" );
+      AstObject *obj = (AstObject *)astRead( fc );
+      if( astOK ) {
+         printf( "FAIL: tab-missing-column: expected AST__BADTAB but no error\n" );
+         fails++;
+      } else if( astStatus != AST__BADTAB ) {
+         printf( "FAIL: tab-missing-column: expected AST__BADTAB got %d\n", astStatus );
+         fails++;
+      }
+      astClearStatus;
+      if( obj ) obj = astAnnul( obj );
+      fc = astAnnul( fc );
+      astEnd;
+   }
+
+   /* -TAB test 2: 1D column — table has COORDS but with only 1 dimension.
+      FITS-WCS Paper III requires coordinate arrays to have ≥2 dimensions.
+      Triggers line 33561: mdim == 1 → AST__BADTAB. */
+   {
+      astBegin;
+      AstFitsChan *fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+      const char *cards[] = { TAB_BASE_CARDS, NULL };
+      for( int i = 0; cards[i]; i++ ) astPutFits( fc, cards[i], 0 );
+      astPutFits( fc, "END", 0 );
+
+      AstFitsTable *tab = astFitsTable( NULL, " " );
+      int dims1d[] = { 100 };
+      astAddColumn( tab, "COORDS", AST__DOUBLETYPE, 1, dims1d, "Hz" );
+      astPutTable( fc, tab, "WCS-TAB" );
+      tab = astAnnul( tab );
+
+      astClear( fc, "Card" );
+      AstObject *obj = (AstObject *)astRead( fc );
+      if( astOK ) {
+         printf( "FAIL: tab-1d-column: expected AST__BADTAB but no error\n" );
+         fails++;
+      } else if( astStatus != AST__BADTAB ) {
+         printf( "FAIL: tab-1d-column: expected AST__BADTAB got %d\n", astStatus );
+         fails++;
+      }
+      astClearStatus;
+      if( obj ) obj = astAnnul( obj );
+      fc = astAnnul( fc );
+      astEnd;
+   }
+
+   /* -TAB test 3: Duplicate axis mapping — two FITS-WCS axes both map to
+      dimension 1 of the same coordinate array.
+      Triggers line 33610: marray[maxis] != -1 → AST__BADTAB.
+      Need 2 spectral axes sharing the same table extension and column,
+      both claiming PVi_3=1 (same coord array dimension). */
+   {
+      astBegin;
+      AstFitsChan *fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+      const char *cards2[] = {
+         "NAXIS   = 2",
+         "NAXIS1  = 100",
+         "NAXIS2  = 100",
+         "CTYPE1  = 'FREQ-TAB'",
+         "CTYPE2  = 'FREQ-TAB'",
+         "CRVAL1  = 0.0",
+         "CRVAL2  = 0.0",
+         "CRPIX1  = 1.0",
+         "CRPIX2  = 1.0",
+         "CDELT1  = 1.0",
+         "CDELT2  = 1.0",
+         "CUNIT1  = 'Hz'",
+         "CUNIT2  = 'Hz'",
+         "PS1_0   = 'WCS-TAB'",
+         "PS1_1   = 'COORDS'",
+         "PS2_0   = 'WCS-TAB'",
+         "PS2_1   = 'COORDS'",
+         "PV1_3   = 1",
+         "PV2_3   = 1",
+         NULL
+      };
+      for( int i = 0; cards2[i]; i++ ) astPutFits( fc, cards2[i], 0 );
+      astPutFits( fc, "END", 0 );
+
+      AstFitsTable *tab = astFitsTable( NULL, " " );
+      int dims2d[] = { 2, 100 };
+      astAddColumn( tab, "COORDS", AST__DOUBLETYPE, 2, dims2d, "Hz" );
+      astPutTable( fc, tab, "WCS-TAB" );
+      tab = astAnnul( tab );
+
+      astClear( fc, "Card" );
+      AstObject *obj = (AstObject *)astRead( fc );
+      if( astOK ) {
+         printf( "FAIL: tab-duplicate-axis: expected AST__BADTAB but no error\n" );
+         fails++;
+      } else if( astStatus != AST__BADTAB ) {
+         printf( "FAIL: tab-duplicate-axis: expected AST__BADTAB got %d\n", astStatus );
+         fails++;
+      }
+      astClearStatus;
+      if( obj ) obj = astAnnul( obj );
+      fc = astAnnul( fc );
+      astEnd;
+   }
+
    if( fails ) {
       printf( "%d tests failed\n", fails );
       return 1;
    }
-   printf( "All %zu bad-header + 3 attribute tests passed\n", NTESTS );
+   printf( "All %zu bad-header + 6 manual tests passed\n", NTESTS );
    return 0;
 }
