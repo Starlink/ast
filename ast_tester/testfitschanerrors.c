@@ -533,6 +533,19 @@ static const BadHeaderTest bad_headers[] = {
      "PV1_1   =                  0.0",
      "badpv", 0, "longitude axis", 0, NULL, NULL },
 
+   /* --- error-unknown-spectral-algorithm (line 23596/39614) ---
+      Spectral axis with unknown algorithm code -Z2F → AST__BDFTS.
+      NonLinSpecWcs doesn't recognize 'Z' as a spectral system. */
+   { "error-unknown-spectral-algorithm",
+     "NAXIS1  =                 1024\n"
+     "CTYPE1  = 'WAVE-Z2F'\n"
+     "CRVAL1  =            5.5E-07\n"
+     "CRPIX1  =              512.000\n"
+     "CDELT1  =            1.0E-10\n"
+     "CUNIT1  = 'm'\n"
+     "RESTFRQ =          1.4204E+09",
+     NULL, AST__BDFTS, NULL, 0, NULL, NULL },
+
 };
 
 #define NTESTS (sizeof(bad_headers)/sizeof(bad_headers[0]))
