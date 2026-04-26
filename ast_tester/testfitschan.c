@@ -3173,6 +3173,135 @@ int main( void ) {
       pfs = astAnnul( pfs );
    }
 
+   /* SkySys write paths for various celestial systems (835-839).
+      Read a standard FK5 TAN header, change the SkyFrame System, write
+      back to FITS-WCS, verify the correct CTYPE prefixes appear. */
+   {
+      static const struct {
+         const char *system;
+         const char *expect_lon;
+         int errnum;
+      } sky_tests[] = {
+         { "Galactic",       "GLON", 835 },
+         { "Supergalactic",  "SLON", 836 },
+         { NULL, NULL, 0 }
+      };
+      int it;
+      for( it = 0; sky_tests[it].system; it++ ) {
+         astBegin;
+         AstFitsChan *rfc = astFitsChan( NULL, NULL, " " );
+         astPutFits( rfc, "NAXIS1  =                  100", 0 );
+         astPutFits( rfc, "NAXIS2  =                  100", 0 );
+         astPutFits( rfc, "CTYPE1  = 'RA---TAN'", 0 );
+         astPutFits( rfc, "CTYPE2  = 'DEC--TAN'", 0 );
+         astPutFits( rfc, "CRVAL1  =              180.000", 0 );
+         astPutFits( rfc, "CRVAL2  =               45.000", 0 );
+         astPutFits( rfc, "CRPIX1  =               50.000", 0 );
+         astPutFits( rfc, "CRPIX2  =               50.000", 0 );
+         astPutFits( rfc, "CDELT1  =              -0.0100", 0 );
+         astPutFits( rfc, "CDELT2  =               0.0100", 0 );
+         astPutFits( rfc, "RADESYS = 'FK5'", 0 );
+         astPutFits( rfc, "EQUINOX =               2000.0", 0 );
+         astPutFits( rfc, "END", 0 );
+         astClear( rfc, "Card" );
+         AstFrameSet *rfs = (AstFrameSet *)astRead( rfc );
+         rfc = astAnnul( rfc );
+
+         if( rfs ) {
+            /* Convert the current SkyFrame to the target system */
+            AstSkyFrame *tgt = astSkyFrame( " ", status );
+            astSetC( tgt, "System", sky_tests[it].system );
+            AstFrameSet *cvt = astConvert( astGetFrame( rfs, AST__CURRENT ),
+                                           (AstFrame *)tgt, "" );
+            if( cvt ) {
+               astRemapFrame( rfs, AST__CURRENT,
+                              astGetMapping( cvt, AST__BASE, AST__CURRENT ) );
+               astSetC( rfs, "System", sky_tests[it].system );
+               cvt = astAnnul( cvt );
+            }
+
+            AstFitsChan *wfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+            astPutFits( wfc, "NAXIS1  =                  100", 0 );
+            astPutFits( wfc, "NAXIS2  =                  100", 0 );
+            int nw = astWrite( wfc, rfs );
+            if( nw == 1 ) {
+               astClear( wfc, "Card" );
+               char card[81];
+               int found = 0;
+               while( astFindFits( wfc, "%f", card, 1 ) ) {
+                  if( strstr( card, sky_tests[it].expect_lon ) ) found = 1;
+               }
+               if( !found ) {
+                  char msg[80];
+                  sprintf( msg, "SkySys %s: CTYPE missing %s",
+                           sky_tests[it].system, sky_tests[it].expect_lon );
+                  stopit( sky_tests[it].errnum, msg, status );
+               }
+            }
+            wfc = astAnnul( wfc );
+            rfs = astAnnul( rfs );
+         }
+         astEnd;
+      }
+   }
+
+   /* WcsFromStore alternate version write (840-841).
+      Write a multi-frame FrameSet to FITS-WCS with AltAxes=ALL to
+      exercise the alternate version loop in WcsFromStore. Use FK5 +
+      Galactic to get primary + alternate 'A'. */
+   {
+      AstFitsChan *pfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( pfc, "NAXIS1  =                  100", 0 );
+      astPutFits( pfc, "NAXIS2  =                  100", 0 );
+      astPutFits( pfc, "CTYPE1  = 'RA---TAN'", 0 );
+      astPutFits( pfc, "CTYPE2  = 'DEC--TAN'", 0 );
+      astPutFits( pfc, "CRVAL1  =              180.000", 0 );
+      astPutFits( pfc, "CRVAL2  =               45.000", 0 );
+      astPutFits( pfc, "CRPIX1  =               50.000", 0 );
+      astPutFits( pfc, "CRPIX2  =               50.000", 0 );
+      astPutFits( pfc, "CDELT1  =              -0.0100", 0 );
+      astPutFits( pfc, "CDELT2  =               0.0100", 0 );
+      astPutFits( pfc, "RADESYS = 'FK5'", 0 );
+      astPutFits( pfc, "EQUINOX =               2000.0", 0 );
+      astPutFits( pfc, "END", 0 );
+      astClear( pfc, "Card" );
+      AstFrameSet *pfs = (AstFrameSet *)astRead( pfc );
+      if( pfs ) {
+         AstSkyFrame *gal = astSkyFrame( "System=Galactic", status );
+         AstFrameSet *cvt = astConvert( astGetFrame( pfs, AST__CURRENT ),
+                                        (AstFrame *)gal, "" );
+         if( cvt ) {
+            astAddFrame( pfs, AST__CURRENT, astGetMapping( cvt, AST__BASE,
+                         AST__CURRENT ), (AstFrame *)gal );
+            astSetI( pfs, "Current", 2 );
+            cvt = astAnnul( cvt );
+         }
+
+         AstFitsChan *wfc = astFitsChan( NULL, NULL,
+                                          "Encoding=FITS-WCS,AltAxes=ALL" );
+         astPutFits( wfc, "NAXIS1  =                  100", 0 );
+         astPutFits( wfc, "NAXIS2  =                  100", 0 );
+         int nw = astWrite( wfc, pfs );
+         if( nw != 1 )
+            stopit( 840, "WcsFromStore alt: write failed", status );
+
+         /* Check for alternate version A keywords */
+         astClear( wfc, "Card" );
+         {
+            int found = 0;
+            char card[81];
+            while( astFindFits( wfc, "%f", card, 1 ) ) {
+               if( !strncmp( card, "CTYPE1A", 7 ) ) found = 1;
+            }
+            if( !found )
+               stopit( 841, "WcsFromStore alt: missing CTYPE1A", status );
+         }
+         wfc = astAnnul( wfc );
+         pfs = astAnnul( pfs );
+      }
+      pfc = astAnnul( pfc );
+   }
+
    /* Test all TIMESYS keyword variants (810-829).
       Each variant is read via a minimal TAN header with MJD-OBS,
       exercising every branch in TimeSysToAst. Verify (a) astRead
