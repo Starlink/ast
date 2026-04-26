@@ -186,3 +186,8 @@ vopt-f2w_native     | vopt-f2w.head                  | vopt-f2w.native    | nati
 vopt-f2w_fits-wcs   | vopt-f2w.head                  | vopt-f2w.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 wave-f2w_native     | wave-f2w.head                  | wave-f2w.native    | native    |                                  | yes
 wave-f2w_fits-wcs   | wave-f2w.head                  | wave-f2w.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+galactic-tan_fits-aips| galactic-tan.head             | galactic-tan.fits-aips | fits-aips | FitsDigits=8                  |
+galactic-tan_fits-aips++| galactic-tan.head           | galactic-tan.fits-aips++ | fits-aips++ | FitsDigits=8              |
+galactic-tan_fits-iraf| galactic-tan.head             | galactic-tan.fits-iraf | fits-iraf | FitsDigits=8                  |
+ecliptic-tan_fits-aips| ecliptic-tan.head             | ecliptic-tan.fits-aips | fits-aips | FitsDigits=8                  |
+tan-pv0_fits-wcs    | tan-pv0.head                   | tan-pv0.fits-wcs   | fits-wcs  | cdmatrix=1,FitsDigits=8          |
