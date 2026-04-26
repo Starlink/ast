@@ -1336,6 +1336,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        and astWcsPrjType(cval+4) read past string end when CTYPE
 *        was shorter than 5 characters. Also fix FindLonLatSpecAxes:
 *        ctype[4] was accessed without checking string length.
+*     26-APR-2026 (TIMJ):
+*        Fix TabMapping: add astOK check to permutation loop to prevent
+*        heap-buffer-overflow when marray contains -1 due to a missing
+*        FITS-WCS axis for a coordinate array dimension.
 *     24-APR-2026 (TIMJ):
 *        Fix LoadFitsChan: FindString search count was 9 but the
 *        type_names array has 10 entries (KINT at index 9). Changed
@@ -33708,7 +33712,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
    corresponding to each input of the extended "tmap0" mapping. Also create
    the inverse permutation (i.e. zero-based "tmap0" input indexed by
    zero-based FITS-WCS axis index). */
-                     for( maxis = 1; maxis < mdim; maxis++ ) {
+                     for( maxis = 1; maxis < mdim && astOK; maxis++ ) {
                         permout[ nperm ] = marray[ maxis ];
                         permin[ marray[ maxis ] ] = nperm++;
                      }
