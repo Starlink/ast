@@ -1414,6 +1414,12 @@ int main( void ) {
    if( astTest( fc, "AllWarnings" ) )
       stopit( 995, "Test(AllWarnings) should return 0 for read-only attr", status );
 
+   /* TestAttrib parent delegation — test a Channel attribute (line 34141) */
+   astSetI( fc, "Full", -1 );
+   if( !astTest( fc, "Full" ) )
+      stopit( 992, "Test(Full) should return 1 when set", status );
+   astClear( fc, "Full" );
+
    /* GetAttrib parent delegation — ask for an inherited Channel attribute (994) */
    {
       const char *cls = astGetC( fc, "Class" );
@@ -3777,6 +3783,39 @@ int main( void ) {
          ddfs = astAnnul( ddfs );
       }
 
+      astEnd;
+   }
+
+   /* AIPS++ encoding detection: a header with AIPS spectral CTYPE
+      plus CD matrix should auto-detect as FITS-AIPS++ (line 12580). */
+   if( *status == 0 ) {
+      AstFitsChan *apfc;
+      const char *enc;
+
+      astBegin;
+      apfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( apfc, "NAXIS1  = 100", 0 );
+      astPutFits( apfc, "NAXIS2  = 100", 0 );
+      astPutFits( apfc, "NAXIS3  = 1024", 0 );
+      astPutFits( apfc, "CTYPE1  = 'RA---TAN'", 0 );
+      astPutFits( apfc, "CTYPE2  = 'DEC--TAN'", 0 );
+      astPutFits( apfc, "CTYPE3  = 'FREQ-LSR'", 0 );
+      astPutFits( apfc, "CRVAL1  = 180.0", 0 );
+      astPutFits( apfc, "CRVAL2  = 45.0", 0 );
+      astPutFits( apfc, "CRVAL3  = 1.4204E+09", 0 );
+      astPutFits( apfc, "CRPIX1  = 50.0", 0 );
+      astPutFits( apfc, "CRPIX2  = 50.0", 0 );
+      astPutFits( apfc, "CRPIX3  = 512.0", 0 );
+      astPutFits( apfc, "CD1_1   = -0.01", 0 );
+      astPutFits( apfc, "CD2_2   = 0.01", 0 );
+      astPutFits( apfc, "CD3_3   = 1.0E+06", 0 );
+      astPutFits( apfc, "RADESYS = 'FK5'", 0 );
+      astPutFits( apfc, "EQUINOX = 2000.0", 0 );
+      astPutFits( apfc, "END", 0 );
+      enc = astGetC( apfc, "Encoding" );
+      if( !enc || strcmp( enc, "FITS-AIPS++" ) )
+         stopit( 903, "AIPS++ encoding not auto-detected with CD+FREQ-LSR", status );
+      apfc = astAnnul( apfc );
       astEnd;
    }
 
