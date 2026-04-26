@@ -3142,6 +3142,37 @@ int main( void ) {
       sfc = astAnnul( sfc );
    }
 
+   /* PCFromStore short CTYPE regression (833-834).
+      Writing a FrameSet with generic (non-celestial) Frames to FITS-PC
+      used to read past the end of the CTYPE string in astWcsPrjType
+      because the code assumed CTYPE was always >= 5 characters. */
+   {
+      AstFrame *bf = astFrame( 2, "Domain=GRID" );
+      AstFrame *wf = astFrame( 2, " " );
+      double shift[] = { 10.0, 20.0 };
+      AstMapping *sm = (AstMapping *)astShiftMap( 2, shift, " " );
+      AstFrameSet *pfs = astFrameSet( bf, " " );
+      astAddFrame( pfs, AST__BASE, sm, wf );
+
+      AstFitsChan *wfc = astFitsChan( NULL, NULL, "Encoding=FITS-PC" );
+      astPutFits( wfc, "NAXIS1  =                  100", 0 );
+      astPutFits( wfc, "NAXIS2  =                  100", 0 );
+      int nw = astWrite( wfc, pfs );
+      if( nw != 1 )
+         stopit( 833, "PCFromStore short CTYPE: write failed", status );
+
+      /* Read it back to verify the WCS is usable */
+      astClear( wfc, "Card" );
+      AstFrameSet *rfs = (AstFrameSet *)astRead( wfc );
+      if( !rfs )
+         stopit( 834, "PCFromStore short CTYPE: read-back failed", status );
+      else
+         rfs = astAnnul( rfs );
+
+      wfc = astAnnul( wfc );
+      pfs = astAnnul( pfs );
+   }
+
    /* Test all TIMESYS keyword variants (810-829).
       Each variant is read via a minimal TAN header with MJD-OBS,
       exercising every branch in TimeSysToAst. Verify (a) astRead
