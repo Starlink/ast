@@ -2902,6 +2902,121 @@ int main( void ) {
       efc = astAnnul( efc );
    }
 
+   /* CnvType failure paths: STRING that can't convert to other types (795+).
+      Store a non-numeric string and verify GetFits<X> returns 0.
+      Each failed conversion raises AST__FTCNV which must be cleared. */
+   {
+      AstFitsChan *ffc = astFitsChan( NULL, NULL, " " );
+      double dval, cf[2];
+      int ival, ci[2], lval;
+      int64_t kval;
+
+      astSetFitsS( ffc, "BADNUM", "hello", "not a number", 0 );
+
+      /* STRING "hello" -> FLOAT should fail */
+      astClear( ffc, "Card" );
+      if( astGetFitsF( ffc, "BADNUM", &dval ) )
+         stopit( 795, "STRING(hello)->FLOAT should fail", status );
+      if( !astOK ) astClearStatus;
+
+      /* STRING "hello" -> INT should fail */
+      astClear( ffc, "Card" );
+      if( astGetFitsI( ffc, "BADNUM", &ival ) )
+         stopit( 796, "STRING(hello)->INT should fail", status );
+      if( !astOK ) astClearStatus;
+
+      /* STRING "hello" -> KINT should fail */
+      astClear( ffc, "Card" );
+      if( astGetFitsK( ffc, "BADNUM", &kval ) )
+         stopit( 797, "STRING(hello)->KINT should fail", status );
+      if( !astOK ) astClearStatus;
+
+      /* STRING "hello" -> LOGICAL should fail (not y/n/t/f) */
+      astClear( ffc, "Card" );
+      if( astGetFitsL( ffc, "BADNUM", &lval ) )
+         stopit( 798, "STRING(hello)->LOGICAL should fail", status );
+      if( !astOK ) astClearStatus;
+
+      /* STRING "hello" -> COMPLEXF should fail */
+      astClear( ffc, "Card" );
+      cf[0] = cf[1] = 0.0;
+      if( astGetFitsCF( ffc, "BADNUM", cf ) )
+         stopit( 799, "STRING(hello)->COMPLEXF should fail", status );
+      if( !astOK ) astClearStatus;
+
+      /* STRING "hello" -> COMPLEXI should fail */
+      astClear( ffc, "Card" );
+      ci[0] = ci[1] = 0;
+      if( astGetFitsCI( ffc, "BADNUM", ci ) )
+         stopit( 800, "STRING(hello)->COMPLEXI should fail", status );
+      if( !astOK ) astClearStatus;
+
+      ffc = astAnnul( ffc );
+   }
+
+   /* CnvType: read defined type from undefined keyword (801+).
+      SetFitsU stores an undefined value; GetFitsF etc should fail. */
+   {
+      AstFitsChan *ufc = astFitsChan( NULL, NULL, " " );
+      double dval;
+      int ival;
+
+      astSetFitsU( ufc, "UNDEF1", "undefined keyword", 0 );
+
+      astClear( ufc, "Card" );
+      if( astGetFitsF( ufc, "UNDEF1", &dval ) )
+         stopit( 801, "UNDEF->FLOAT should fail", status );
+      if( !astOK ) astClearStatus;
+
+      astClear( ufc, "Card" );
+      if( astGetFitsI( ufc, "UNDEF1", &ival ) )
+         stopit( 802, "UNDEF->INT should fail", status );
+      if( !astOK ) astClearStatus;
+
+      ufc = astAnnul( ufc );
+   }
+
+   /* CnvType: read non-COMMENT type from COMMENT card (803+).
+      COMMENT cards have no data value; GetFitsF should fail. */
+   {
+      AstFitsChan *cfc = astFitsChan( NULL, NULL, " " );
+      double dval;
+
+      astPutFits( cfc, "COMMENT This is a comment card", 0 );
+      astClear( cfc, "Card" );
+      if( astGetFitsF( cfc, "COMMENT", &dval ) )
+         stopit( 803, "COMMENT->FLOAT should fail", status );
+      if( !astOK ) astClearStatus;
+
+      cfc = astAnnul( cfc );
+   }
+
+   /* CnvType: FLOAT(AST__BAD)->STRING produces BAD_STRING (804). */
+   {
+      AstFitsChan *bfc = astFitsChan( NULL, NULL, " " );
+      char *sval;
+
+      astSetFitsF( bfc, "BADFLT", AST__BAD, "bad float", 0 );
+      astClear( bfc, "Card" );
+      if( !astGetFitsS( bfc, "BADFLT", &sval ) )
+         stopit( 804, "FLOAT(AST__BAD)->STRING failed", status );
+      else if( !sval || strcmp( sval, AST__BAD_STRING ) )
+         stopit( 805, "FLOAT(AST__BAD)->STRING should be <bad>", status );
+
+      /* Reverse: STRING("<bad>")->FLOAT produces AST__BAD */
+      astSetFitsS( bfc, "BADSTR", AST__BAD_STRING, "bad string", 0 );
+      astClear( bfc, "Card" );
+      {
+         double dval2 = 0.0;
+         if( !astGetFitsF( bfc, "BADSTR", &dval2 ) )
+            stopit( 806, "STRING(<bad>)->FLOAT failed", status );
+         else if( dval2 != AST__BAD )
+            stopit( 807, "STRING(<bad>)->FLOAT should be AST__BAD", status );
+      }
+
+      bfc = astAnnul( bfc );
+   }
+
    /* Test all TIMESYS keyword variants (810-829).
       Each variant is read via a minimal TAN header with MJD-OBS,
       exercising every branch in TimeSysToAst. Verify (a) astRead
