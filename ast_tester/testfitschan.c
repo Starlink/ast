@@ -3173,6 +3173,67 @@ int main( void ) {
       pfs = astAnnul( pfs );
    }
 
+   /* SpectralAxes grism write path (842-845).
+      Read a 1D WAVE-GRI header with a large pixel range so the grism
+      non-linearity exceeds IsMapLinear tolerance, then write back.
+      Uses standard grism parameters but NAXIS1=10000. */
+   {
+      astBegin;
+
+      AstFitsChan *rfc = astFitsChan( NULL, NULL, " " );
+      astPutFits( rfc, "NAXIS   =                    1", 0 );
+      astPutFits( rfc, "NAXIS1  =                10000", 0 );
+      astPutFits( rfc, "CTYPE1  = 'WAVE-GRI'", 0 );
+      astPutFits( rfc, "CRVAL1  =            5.000E-07", 0 );
+      astPutFits( rfc, "CRPIX1  =               5000.0", 0 );
+      astPutFits( rfc, "CDELT1  =            1.000E-10", 0 );
+      astPutFits( rfc, "CUNIT1  = 'm'", 0 );
+      astPutFits( rfc, "RESTFRQ =           5.996E+14", 0 );
+      astPutFits( rfc, "SPECSYS = 'BARYCENT'", 0 );
+      astPutFits( rfc, "PV1_0   =            3.000E-06", 0 );
+      astPutFits( rfc, "PV1_1   =                    1", 0 );
+      astPutFits( rfc, "PV1_2   =                  0.0", 0 );
+      astPutFits( rfc, "END", 0 );
+      astClear( rfc, "Card" );
+      AstFrameSet *gfs = (AstFrameSet *)astRead( rfc );
+      if( !astOK ) astClearStatus;
+      rfc = astAnnul( rfc );
+
+      if( gfs ) {
+         AstFitsChan *gfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astPutFits( gfc, "NAXIS   = 1", 0 );
+         astPutFits( gfc, "NAXIS1  = 10000", 0 );
+         int nw = astWrite( gfc, gfs );
+
+         if( nw == 1 ) {
+            astClear( gfc, "Card" );
+            char card[81];
+            int found_gri = 0;
+            while( astFindFits( gfc, "%f", card, 1 ) ) {
+               if( strstr( card, "-GRI" ) || strstr( card, "-GRA" ) ) found_gri = 1;
+            }
+            if( found_gri ) {
+               astClear( gfc, "Card" );
+               AstFrameSet *gfs2 = (AstFrameSet *)astRead( gfc );
+               if( !gfs2 )
+                  stopit( 844, "Grism write: read-back failed", status );
+               else {
+                  double xin = 5000.0, xout1, xout2;
+                  astTran1( gfs, 1, &xin, 1, &xout1 );
+                  astTran1( gfs2, 1, &xin, 1, &xout2 );
+                  if( fabs( xout1 - xout2 ) > 1.0e-6 * fabs( xout1 ) )
+                     stopit( 845, "Grism write: spectral round-trip mismatch", status );
+                  gfs2 = astAnnul( gfs2 );
+               }
+            }
+         }
+
+         gfc = astAnnul( gfc );
+         gfs = astAnnul( gfs );
+      }
+
+      astEnd;
+   }
    /* SkySys write paths for various celestial systems (835-839).
       Read a standard FK5 TAN header, change the SkyFrame System, write
       back to FITS-WCS, verify the correct CTYPE prefixes appear. */
