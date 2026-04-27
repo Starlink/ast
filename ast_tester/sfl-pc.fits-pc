@@ -1,0 +1,11 @@
+NAXIS1  =                  100 / Spatial axis                                   
+NAXIS2  =                  100 / Spatial axis                                   
+CTYPE1  = 'GLON-GLS'           / Type of co-ordinate on axis 1                  
+CTYPE2  = 'GLAT-GLS'           / Type of co-ordinate on axis 2                  
+CRVAL1  =                  0.0 / [deg] Galactic lon at origin                   
+CRVAL2  =                  0.0 / [deg] Galactic lat at origin                   
+CRPIX1  =                 50.5 / Reference pixel axis 1                         
+CRPIX2  =                 50.5 / Reference pixel axis 2                         
+CDELT1  =                -0.01 / [deg] Pixel size                               
+CDELT2  =                 0.01 / [deg] Pixel size                               
+END                                                                             

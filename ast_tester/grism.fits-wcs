@@ -1,0 +1,13 @@
+SIMPLE  =                    T / Fits standard                                  
+BITPIX  =                  -32 / Bits per pixel                                 
+NAXIS   =                    1 / Number of dimensions                           
+NAXIS1  =                  100 / Spectral axis                                  
+CTYPE1  = 'WAVE    '           / Type of co-ordinate on axis 1                  
+CRVAL1  =               5.0E-7 / Reference wavelength (metres)                  
+CRPIX1  =                  0.0 / Reference pixel on axis 1                      
+CDELT1  =              1.0E-10 / Wavelength increment (metres)                  
+CUNIT1  = 'm       '           / Axis units                                     
+SPECSYS = 'BARYCENT'           / Spectral reference frame                       
+VELOSYS =            29327.577 / [m/s] Topo. apparent velocity of rest frame    
+RESTWAV =         4.9998742E-7 / [m] Rest wavelength                            
+END                                                                             

@@ -1,0 +1,320 @@
+                                                                                
+COMMENT AST ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ AST
+COMMENT AST                  WCS information in AST format                   AST
+COMMENT AST                See http://www.starlink.ac.uk/ast/                AST
+COMMENT AST            Beginning of AST data for FrameSet object             AST
+COMMENT AST ................................................................ AST
+BEGAST_A= 'FrameSet'           / Set of inter-related coordinate systems        
+NFRAME_A=                    2 / Number of Frames in FrameSet                   
+BASE_A  =                    1 / Index of base Frame                            
+CURRNT_A=                    2 / Index of current Frame                         
+LNK2_A  =                    1 / Node 2 is derived from node 1                  
+FRM1_A  = '        '           / Frame number 1                                 
+BEGAST_B= 'Frame   '           / Coordinate system description                  
+TITLE_A = 'Pixel Coordinates'  / Title of coordinate system                     
+NAXES_A =                    2 / Number of coordinate axes                      
+DOMAIN_A= 'GRID    '           / Coordinate system domain                       
+AX1_A   = '        '           / Axis number 1                                  
+BEGAST_C= 'Axis    '           / Coordinate axis                                
+LABEL_A = 'Pixel axis 1'       / Axis Label                                     
+ENDAST_A= 'Axis    '           / End of object definition                       
+AX2_A   = '        '           / Axis number 2                                  
+BEGAST_D= 'Axis    '           / Coordinate axis                                
+LABEL_B = 'Pixel axis 2'       / Axis Label                                     
+ENDAST_B= 'Axis    '           / End of object definition                       
+ENDAST_C= 'Frame   '           / End of object definition                       
+FRM2_A  = '        '           / Frame number 2                                 
+BEGAST_E= 'SkyFrame'           / Description of celestial coordinate system     
+IDENT_A = '" "     '           / Permanent Object identification string         
+ISA_A   = 'Object  '           / AST Object                                     
+NAXES_B =                    2 / Number of coordinate axes                      
+EPOCH_A =   1999.7700388236858 / Julian epoch of observation                    
+SYSTEM_A= 'FK5     '           / Coordinate system type                         
+AX1_B   = '        '           / Axis number 1                                  
+BEGAST_F= 'SkyAxis '           / Celestial coordinate axis                      
+ENDAST_D= 'SkyAxis '           / End of object definition                       
+AX2_B   = '        '           / Axis number 2                                  
+BEGAST_G= 'SkyAxis '           / Celestial coordinate axis                      
+ENDAST_E= 'SkyAxis '           / End of object definition                       
+ISA_B   = 'Frame   '           / Coordinate system description                  
+PROJ_A  = 'gnomonic polynomial' / Description of sky projection                 
+EQNOX_A =          1999.800049 / Julian epoch of mean equinox                   
+SREFIS_A= 'Ignored '           / Not rotated (ref. pos. is ignored)             
+SREF1_A =   1.9289545674196613 / Ref. pos. RA 7:22:05.0                         
+SREF2_A =  0.97464158730287331 / Ref. pos. Dec 55:50:34                         
+ENDAST_F= 'SkyFrame'           / End of object definition                       
+MAP2_A  = '        '           / Mapping between nodes 1 and 2                  
+BEGAST_H= 'CmpMap  '           / Compound Mapping                               
+NIN_A   =                    2 / Number of input coordinates                    
+ISSIMP_A=                    1 / Mapping has been simplified                    
+ISA_C   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_A  = '        '           / First component Mapping                        
+BEGAST_I= 'ShiftMap'           / Shift each coordinate axis                     
+NIN_B   =                    2 / Number of input coordinates                    
+ISA_D   = 'Mapping '           / Mapping between coordinate systems             
+SFT1_A  =  -4189.7739008354201 / Shift for axis 1                               
+SFT2_A  =   30.089407240387594 / Shift for axis 2                               
+ENDAST_G= 'ShiftMap'           / End of object definition                       
+MAPB_A  = '        '           / Second component Mapping                       
+BEGAST_J= 'CmpMap  '           / Compound Mapping                               
+NIN_C   =                    2 / Number of input coordinates                    
+ISA_E   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_B  = '        '           / First component Mapping                        
+BEGAST_K= 'MatrixMap'          / Matrix transformation                          
+NIN_D   =                    2 / Number of input coordinates                    
+ISA_F   = 'Mapping '           / Mapping between coordinate systems             
+M0_A    =  -1.3217993590781288E-8 / Forward matrix value                        
+M1_A    =  2.0538511628512855E-6 / Forward matrix value                         
+M2_A    =  -2.0504538532469972E-6 / Forward matrix value                        
+M3_A    =  -2.2031330524074273E-8 / Forward matrix value                        
+IM0_A   =  -5231.0844108293004 / Inverse matrix value                           
+IM1_A   =  -487663.18440980458 / Inverse matrix value                           
+IM2_A   =   486856.53256958403 / Inverse matrix value                           
+IM3_A   =  -3138.4595741787571 / Inverse matrix value                           
+FORM_A  = 'Full    '           / Matrix storage form                            
+ENDAST_H= 'MatrixMap'          / End of object definition                       
+MAPB_B  = '        '           / Second component Mapping                       
+BEGAST_L= 'CmpMap  '           / Compound Mapping                               
+NIN_E   =                    2 / Number of input coordinates                    
+ISA_G   = 'Mapping '           / Mapping between coordinate systems             
+INVA_A  =                    1 / First Mapping used in inverse direction        
+MAPA_C  = '        '           / First component Mapping                        
+BEGAST_M= 'WcsMap  '           / FITS-WCS sky projection                        
+NIN_F   =                    2 / Number of input coordinates                    
+INVERT_A=                    1 / Mapping inverted                               
+ISA_H   = 'Mapping '           / Mapping between coordinate systems             
+TYPE_A  = 'TPN     '           / Gnomonic polynomial projection                 
+PV1_0_A =  -2.9587850407770664 / Projection parameter 0 for axis 1              
+PV1_1_A = -0.33988816323290871 / Projection parameter 1 for axis 1              
+PV1_2_A =   22.675034235680755 / Projection parameter 2 for axis 1              
+PV1_4_A =   2.1934800027093067 / Projection parameter 4 for axis 1              
+PV1_5_A =   5.8032541869832874 / Projection parameter 5 for axis 1              
+PV1_6_A =  -61.206482609855648 / Projection parameter 6 for axis 1              
+PV1_7_A =  -4.0074891363361171 / Projection parameter 7 for axis 1              
+PV1_8_A =   1.9977701280879054 / Projection parameter 8 for axis 1              
+PV1_9_A =  -9.1899841611033004 / Projection parameter 9 for axis 1              
+PV1_10_A=   53.978791637297164 / Projection parameter 10 for axis 1             
+PV2_0_A =   2.4827510547722698 / Projection parameter 0 for axis 2              
+PV2_1_A =  -18.662656596779641 / Projection parameter 1 for axis 2              
+PV2_2_A = -0.41913587536102326 / Projection parameter 2 for axis 2              
+PV2_4_A =   54.017076818643162 / Projection parameter 4 for axis 2              
+PV2_5_A = -0.061486707991025513 / Projection parameter 5 for axis 2             
+PV2_6_A =   1.6123862487079101 / Projection parameter 6 for axis 2              
+PV2_7_A =  -48.360994830692704 / Projection parameter 7 for axis 2              
+PV2_8_A =   3.0552549707384165 / Projection parameter 8 for axis 2              
+PV2_9_A =  -4.5833735026759079 / Projection parameter 9 for axis 2              
+PV2_10_A=  0.13775093888852047 / Projection parameter 10 for axis 2             
+ENDAST_I= 'WcsMap  '           / End of object definition                       
+MAPB_C  = '        '           / Second component Mapping                       
+BEGAST_N= 'CmpMap  '           / Compound Mapping                               
+NIN_G   =                    2 / Number of input coordinates                    
+ISA_I   = 'Mapping '           / Mapping between coordinate systems             
+INVA_B  =                    1 / First Mapping used in inverse direction        
+MAPA_D  = '        '           / First component Mapping                        
+BEGAST_O= 'SphMap  '           / Cartesian to Spherical mapping                 
+NIN_H   =                    3 / Number of input coordinates                    
+NOUT_A  =                    2 / Number of output coordinates                   
+INVERT_B=                    1 / Mapping inverted                               
+ISA_J   = 'Mapping '           / Mapping between coordinate systems             
+UNTRD_A =                    1 / All input vectors have unit length             
+PLRLG_A =                  0.0 / Polar longitude (rad.s)                        
+ENDAST_J= 'SphMap  '           / End of object definition                       
+MAPB_D  = '        '           / Second component Mapping                       
+BEGAST_P= 'CmpMap  '           / Compound Mapping                               
+NIN_I   =                    3 / Number of input coordinates                    
+NOUT_B  =                    2 / Number of output coordinates                   
+ISA_K   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_E  = '        '           / First component Mapping                        
+BEGAST_Q= 'MatrixMap'          / Matrix transformation                          
+NIN_J   =                    3 / Number of input coordinates                    
+ISA_L   = 'Mapping '           / Mapping between coordinate systems             
+M0_B    =  -0.2900803226009156 / Forward matrix value                           
+M1_B    = -0.93654404036604866 / Forward matrix value                           
+M2_B    = -0.19682140862870015 / Forward matrix value                           
+M3_B    =  0.77499085390321043 / Forward matrix value                           
+M4_A    = -0.35054994002971535 / Forward matrix value                           
+M5_A    =  0.52583639652608272 / Forward matrix value                           
+M6_A    = -0.56146467636541608 / Forward matrix value                           
+M7_A    =                  0.0 / Forward matrix value                           
+M8_A    =  0.82750070525279829 / Forward matrix value                           
+IM0_B   =  -0.2900803226009156 / Inverse matrix value                           
+IM1_B   =  0.77499085390321043 / Inverse matrix value                           
+IM2_B   = -0.56146467636541608 / Inverse matrix value                           
+IM3_B   = -0.93654404036604866 / Inverse matrix value                           
+IM4_A   = -0.35054994002971535 / Inverse matrix value                           
+IM5_A   =                  0.0 / Inverse matrix value                           
+IM6_A   = -0.19682140862870015 / Inverse matrix value                           
+IM7_A   =  0.52583639652608272 / Inverse matrix value                           
+IM8_A   =  0.82750070525279829 / Inverse matrix value                           
+FORM_B  = 'Full    '           / Matrix storage form                            
+ENDAST_K= 'MatrixMap'          / End of object definition                       
+MAPB_E  = '        '           / Second component Mapping                       
+BEGAST_R= 'SphMap  '           / Cartesian to Spherical mapping                 
+NIN_K   =                    3 / Number of input coordinates                    
+NOUT_C  =                    2 / Number of output coordinates                   
+ISA_M   = 'Mapping '           / Mapping between coordinate systems             
+UNTRD_B =                    1 / All input vectors have unit length             
+PLRLG_B =   1.9289545674196613 / Polar longitude (rad.s)                        
+ENDAST_L= 'SphMap  '           / End of object definition                       
+ENDAST_M= 'CmpMap  '           / End of object definition                       
+ENDAST_N= 'CmpMap  '           / End of object definition                       
+ENDAST_O= 'CmpMap  '           / End of object definition                       
+ENDAST_P= 'CmpMap  '           / End of object definition                       
+ENDAST_Q= 'CmpMap  '           / End of object definition                       
+ENDAST_R= 'FrameSet'           / End of object definition                       
+COMMENT AST ................................................................ AST
+COMMENT AST               End of AST data for FrameSet object                AST
+COMMENT AST ---------------------------------------------------------------- AST
+SIMPLE  =                    T / Fits standard                                  
+BITPIX  =                   16 / Bits per pixel                                 
+NAXIS   =                    2 / Number of axes                                 
+NAXIS1  =                 2048 / Axis length                                    
+NAXIS2  =                 4096 / Axis length                                    
+EXTEND  =                    F / File may contain extensions                    
+ORIGIN  = 'NOAO-IRAF FITS Image Kernel July 1999' / FITS file originator        
+DATE    = '2001-11-20T16:52:11' / Date FITS file was generated                  
+IRAF-TLM= '16:52:09 (20/11/2001)' / Time of last modification                   
+OBJECT  = 'A576 R  '           / Name of the object observed                    
+NEXTEND =                    8 / Number of extensions                           
+FILENAME= 'obj214r '           / Original host filename                         
+OBSTYPE = 'object  '           / Observation type                               
+EXPTIME =                350.0 / Exposure time (sec)                            
+DARKTIME=              351.888 / Dark time (sec)                                
+PREFLASH=                  0.0 / Preflash time (sec)                            
+RA      = '07:21:44.00       ' / RA of observation (hr)                         
+DEC     = '55:53:16.99       ' / DEC of observation (deg)                       
+                                                                                
+TIMESYS = 'UTC approximate'    / Time system                                    
+TIME-OBS= '12:08:33.0'         / Time of observation start                      
+MJDHDR  =   51460.505914349997 / MJD of header creation                         
+LSTHDR  = '05:52:50.00       ' / LST of header creation                         
+                                                                                
+OBSERVAT= 'KPNO    '           / Observatory                                    
+TELESCOP= 'KPNO 0.9 meter telescope' / Telescope                                
+ZD      =            28.469999 / Zenith distance                                
+AIRMASS =                 1.14 / Airmass                                        
+TELFOCUS=                 4414 / Telescope focus                                
+CORRCTOR= 'KPNO 0.9m Corrector' / Corrector Identification                      
+ADC     = 'none    '           / ADC Identification                             
+                                                                                
+DETECTOR= 'CCDMosaThin1'       / Detector                                       
+DETSIZE = '[1:8176,1:8192]'    / Detector size for DETSEC                       
+NCCDS   =                    8 / Number of CCDs                                 
+NAMPS   =                    8 / Number of Amplifiers                           
+PIXSIZE1=                 15.0 / Pixel size for axis 1 (microns)                
+PIXSIZE2=                 15.0 / Pixel size for axis 2 (microns)                
+PIXSCAL1=                0.423 / Pixel scale for axis 1 (arcsec/pixel)          
+PIXSCAL2=                0.423 / Pixel scale for axis 2 (arcsec/pixel)          
+RAPANGL =                  0.0 / Position angle of RA axis (deg)                
+DECPANGL=                270.0 / Position angle of DEC axis (deg)               
+FILPOS  =                    4 / Filter position                                
+FILTER  = 'R       '           / Filter name(s)                                 
+SHUTSTAT= 'guide             ' / Shutter status                                 
+TV1FOC  =               -0.596 / North TV Camera focus position                 
+TV2FOC  =               -1.623 / South Camera focus position                    
+ENVTEM  =            17.299999 / Ambient temperature (C)                        
+DEWAR   = 'CCDMosaThin1 Dewar' / Dewar identification                           
+DEWTEM1 =          -170.600006 / Dewar temperature (C)                          
+DEWTEM2 =                 -4.7 / Fill Neck temperature (C)                      
+CCDTEM  =                -95.0 / CCD temperature  (C)                           
+                                                                                
+CONTROLR= 'Mosaic Arcon'       / Controller identification                      
+CONSWV  = '2.000  13Feb96     (add mode and group to hdrs)' / Controller softwar
+AMPINTEG=                 3000 / (ns) Double Correlated Sample time             
+READTIME=                13200 / (ns) unbinned pixel read time                  
+ARCONWD = 'Obs Thu Aug 19 10:45:52 1999' / Date waveforms last compiled         
+ARCONWM = 'OverlapXmit EarlyReset SplitShift ' / Waveform mode switches on      
+ARCONGI =                    1 / Gain selection (index into Gain Table)         
+                                                                                
+OBSERVER= 'G.Wegner,M.Hudson'  / Observer(s)                                    
+PROPOSER= '<unknown>'          / Proposer(s)                                    
+PROPOSAL= '<unknown>'          / Proposal title                                 
+PROPID  = '99B-0020'           / Proposal identification                        
+OBSID   = 'kp09m.19991009T120833' / Observation ID                              
+                                                                                
+IMAGESWV= 'mosdca (Aug99), CCDMosaThin1V8.tcl (Aug99)' / Image creation software
+KWDICT  = 'MosaicV1.dic (Sep97)' / Keyword dictionary                           
+                                                                                
+CHECKSUM= '<unknown>'          / Header checksum                                
+DATASUM = '<unknown>'          / Data checksum                                  
+CHECKVER= '<unknown>'          / Checksum version                               
+RECNO   =                    0 / NOAO archive sequence number                   
+IMAGEID =                    5 / Image identification                           
+                                                                                
+TELRA   = '07:21:44.00       ' / RA of observation (hr)                         
+TELDEC  = '55:53:16.99       ' / DEC of observation (deg)                       
+TELEQUIN=          1999.800049 / Equinox of coordinate system                   
+TELRADEC= 'FK5     '           / Default coordinate system                      
+                                                                                
+CCDNAME = 'SITe #7061FBR03-02 (NOAO 02)' / CCD name                             
+AMPNAME = 'SITe #7061FBR03-02 (NOAO 02), upper left (Amp321)' / Amplifier name  
+GAIN    =                  2.3 / gain for amp 321 (e-/ADU)                      
+RDNOISE =                  9.5 / read noise for amp 321 (e-)                    
+SATURATE=                22000 / Maximum good data value (ADU)                  
+CONHWV  = 'ACEB003_AMP21'      / Controller hardware version                    
+ARCONG  =                  2.3 / gain expected for amp 321 (e-/ADU)             
+ARCONRN =                  5.1 / read noise expected for amp 321 (e-)           
+BPM     = 'mscdb$noao/CCDMosaThin1/bpm_im5' / Bad pixel mask                    
+CCDSIZE = '[1:2048,1:4096]'    / CCD size                                       
+CCDSUM  = '1 1     '           / CCD pixel summing                              
+CCDSEC  = '[1:2048,1:4096]'    / CCD section                                    
+AMPSEC  = '[1:2048,4096:1]'    / Amplifier section                              
+DETSEC  = '[1:2048,4097:8192]' / Detector section                               
+                                                                                
+ATM1_1  =                  1.0 / CCD to amplifier transformation                
+ATM2_2  =                 -1.0 / CCD to amplifier transformation                
+ATV1    =                  0.0 / CCD to amplifier transformation                
+ATV2    =               4097.0 / CCD to amplifier transformation                
+DTM1_1  =                  1.0 / CCD to detector transformation                 
+DTM2_2  =                  1.0 / CCD to detector transformation                 
+DTV1    =                  0.0 / CCD to detector transformation                 
+DTV2    =               4096.0 / CCD to detector transformation                 
+                                                                                
+WCSASTRM= 'kp09m.19980909T031418 (Tr 37 V Mosaic) by L. Davis 1998-09-09' / WCS 
+WCSDIM  =                    2 / WCS dimensionality                             
+XTALKCOR= '03-Oct-2000 21:33:16 No crosstalk correction'                        
+TRIM    = 'Oct  3 21:34 Trim is [1:2048,1:4096]'                                
+FIXPIX  = 'Oct  3 21:35 Pixel mask is mscdb$noao/CCDMosaThin1/bpm_im5'          
+OVERSCAN= 'Oct  3 21:34 Overscan is [2063:2112,1:4096], mean 993.5216'          
+ZEROCOR = 'Oct  3 21:35 Zero is Zeromed[im5]'                                   
+FLATCOR = 'Oct  3 21:35 Flat is FlatR.fits[im5], scale 5081.475'                
+CCDMEAN =             255.7904                                                  
+CCDMEANT=            655076137                                                  
+CCDPROC = 'Oct  3 21:35 CCD processing done'                                    
+CHIPNUM =                    5                                                  
+FZEROPT =            22.040344                                                  
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+END                                                                             

@@ -1,0 +1,11 @@
+NAXIS1  =                  360 / length of data axis 1                          
+NAXIS2  =                  180 / length of data axis 2                          
+CTYPE1  = 'GLON-GLS'           / Type of co-ordinate on axis 1                  
+CTYPE2  = 'GLAT-GLS'           / Type of co-ordinate on axis 2                  
+CRVAL1  =                  0.0 / Must be zero for AIPS GLS                      
+CRVAL2  =                  0.0 / Must be zero for AIPS GLS                      
+CRPIX1  =                180.5 / Reference pixel on axis 1                      
+CRPIX2  =                 90.5 / Reference pixel on axis 2                      
+CD1_1   =                -0.01 / Transformation matrix element                  
+CD2_2   =                 0.01 / Transformation matrix element                  
+END                                                                             

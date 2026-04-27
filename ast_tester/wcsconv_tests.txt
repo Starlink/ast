@@ -14,8 +14,11 @@ dss_ast_fits-wcs    | dss.ast                        | dss.fits-wcs       | fits
 degen1_fits-wcs     | degen1.ast                     | degen1.fits-wcs    | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 sip_fits-wcs        | sip.head                       | sip.fits-wcs       | fits-wcs  | cdmatrix=1,sipreplace=0,FitsDigits=8 |
 sip2_fits-wcs       | sip2.head                      | sip2.fits-wcs      | fits-wcs  | cdmatrix=1,sipreplace=0,FitsDigits=8 |
+sip-3d_fits-wcs     | sip-3d.head                    | sip-3d.fits-wcs    | fits-wcs  | cdmatrix=1,sipreplace=0,SipOK=1,FitsDigits=8 |
+sip-3d-swap_fits-wcs| sip-3d-swap.head               | sip-3d-swap.fits-wcs| fits-wcs | cdmatrix=1,sipreplace=0,SipOK=1,FitsDigits=8 |
 lsst_fits-wcs       | lsst.ast                       | lsst.fits-wcs      | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 longslit_fits-wcs   | longslit.fits-pc               | longslit.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+jan_fits-class_ast  | jan.fits-class                 | jan.ast            | ast       | FitsDigits=8                     |
 aitoff_native       | aitoff.head                    | aitoff.native      | native    |                                  | yes
 car1_native         | car1.head                      | car1.native        | native    | carlin=1                         | yes
 car2_native         | car2.head                      | car2.native        | native    | carlin=1                         | yes
@@ -36,3 +39,158 @@ tnx_native          | tnx.head                       | tnx.native         | nati
 tsc_native          | tsc.head                       | tsc.native         | native    |                                  | yes
 zpn_native          | zpn.head                       | zpn.native         | native    |                                  | yes
 zpx_native          | zpx.head                       | zpx.native         | native    |                                  | yes
+freq-log_native     | freq-log.head                  | freq-log.native    | native    |                                  | yes
+freq-f2w_native     | freq-f2w.head                  | freq-f2w.native    | native    |                                  | yes
+tan-pv0_native      | tan-pv0.head                   | tan-pv0.native     | native    |                                  | yes
+tnx-cheb_native     | tnx-cheb.head                  | tnx-cheb.native    | native    |                                  | yes
+grism_native        | grism.head                     | grism.native       | native    |                                  | yes
+grism_fits-wcs      | grism.head                     | grism.fits-wcs     | fits-wcs  | FitsDigits=8                     | yes
+class-spec_native   | class-spec.head                | class-spec.native  | native    |                                  | yes
+class-hel_native    | class-spec-hel.head            | class-spec-hel.native | native |                                  | yes
+multi-wcs_native    | multi-wcs.head                 | multi-wcs.native   | native    |                                  | yes
+multi-wcs_fits-wcs  | multi-wcs.head                 | multi-wcs.fits-wcs | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+degen-wcsaxes_native| degen-wcsaxes.head             | degen-wcsaxes.native | native  |                                  | yes
+wave-w2f_native     | wave-w2f.head                  | wave-w2f.native    | native    |                                  | yes
+vrad-v2f_native     | vrad-v2f.head                  | vrad-v2f.native    | native    |                                  | yes
+tan-polytan_native  | tan-polytan.head               | tan-polytan.native | native    |                                  | yes
+sao-tan_native      | sao-tan.head                   | sao-tan.native     | native    |                                  | yes
+fits-pc-alt_native  | fits-pc-alt.head               | fits-pc-alt.native | native    |                                  | yes
+velo-aips_native    | velo-aips.head                 | velo-aips.native   | native    |                                  | yes
+awav-a2f_native     | awav-a2f.head                  | awav-a2f.native    | native    |                                  | yes
+tan-zeropv_native   | tan-zeropv.head                | tan-zeropv.native  | native    |                                  | yes
+cube-reorder_native | cube-reorder.head              | cube-reorder.native| native    |                                  | yes
+ncp_native          | ncp.head                       | ncp.native         | native    |                                  | yes
+velo-vel_native     | velo-vel.head                  | velo-vel.native    | native    |                                  | yes
+vopt-wav_native     | vopt-wav.head                  | vopt-wav.native    | native    |                                  | yes
+zopt-frq_native     | zopt-frq.head                  | zopt-frq.native    | native    |                                  | yes
+cname_native        | cname.head                     | cname.native       | native    |                                  | yes
+cname_fits-wcs      | cname.head                     | cname.fits-wcs     | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+skyref_native       | skyref.head                    | skyref.native      | native    |                                  | yes
+fits-pc-unit_native | fits-pc-unit.head              | fits-pc-unit.native| native    |                                  | yes
+gls_native          | gls.head                       | gls.native         | native    |                                  | yes
+iraf-longpole_native| iraf-longpole.head             | iraf-longpole.native| native   |                                  | yes
+multi-wcs-spec_native| multi-wcs-spec.head            | multi-wcs-spec.native| native  |                                  | yes
+multi-wcs-dup_native| multi-wcs-dup.head              | multi-wcs-dup.native | native  |                                  | yes
+multi-wcs-dup_fits-wcs| multi-wcs-dup.head            | multi-wcs-dup.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8        |
+freq-wav_native     | freq-wav.head                  | freq-wav.native    | native    |                                  | yes
+wavn-frq_native     | wavn-frq.head                  | wavn-frq.native    | native    |                                  | yes
+mercator_native     | mercator.head                  | mercator.native    | native    |                                  | yes
+gappt_native        | gappt.head                     | gappt.native       | native    |                                  | yes
+gappt_fits-wcs      | gappt.head                     | gappt.fits-wcs     | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+atf_native          | atf.head                       | atf.native         | native    |                                  | yes
+equinox-bj_native   | equinox-bj.head                | equinox-bj.native  | native    |                                  | yes
+timesys-tdb_native  | timesys-tdb.head               | timesys-tdb.native | native    |                                  | yes
+zero-cdelt_native   | zero-cdelt.head                | zero-cdelt.native  | native    |                                  | yes
+alt-spectral_native | alt-spectral.head              | alt-spectral.native| native    |                                  | yes
+helioecl_native     | helioecl.head                  | helioecl.native    | native    |                                  | yes
+fits-pc-full_native | fits-pc-full.head              | fits-pc-full.native| native    |                                  | yes
+fits-pc-gal_native  | fits-pc-gal.head               | fits-pc-gal.native | native    |                                  | yes
+fits-pc-gal_fits-pc | fits-pc-gal.head               | fits-pc-gal.fits-pc | fits-pc  | FitsDigits=8                     |
+sfl-pc_fits-pc      | sfl-pc.head                    | sfl-pc.fits-pc     | fits-pc   | FitsDigits=8  |
+zpn_fits-pc         | zpn.head                       | zpn.fits-pc        | fits-pc   | FitsDigits=8  |
+projp_native        | projp.head                     | projp.native       | native    |                                  | yes
+fk5-noeq_native     | fk5-noeq.head                  | fk5-noeq.native    | native    |                                  | yes
+timesys-tt_native   | timesys-tt.head                | timesys-tt.native  | native    |                                  | yes
+skyref-alt_native   | skyref-alt.head                | skyref-alt.native  | native    |                                  | yes
+axref_native        | axref.head                     | axref.native       | native    |                                  | yes
+unknown-cel_native  | unknown-cel.head               | unknown-cel.native | native    |                                  | yes
+projp-pv_native     | projp-pv.head                  | projp-pv.native    | native    |                                  | yes
+cd-old_native       | cd-old.head                    | cd-old.native      | native    |                                  | yes
+fk4-noeq_native     | fk4-noeq.head                  | fk4-noeq.native    | native    |                                  | yes
+unknown-cel2_native | unknown-cel2.head              | unknown-cel2.native| native    |                                  | yes
+tidy-offsets_native | tidy-offsets.head              | tidy-offsets.native| native    |                                  | yes
+tidy-pole_native    | tidy-pole.head                 | tidy-pole.native   | native    |                                  | yes
+date-short_native   | date-short.head                | date-short.native  | native    |                                  | yes
+date-frac_native    | date-frac.head                 | date-frac.native   | native    |                                  | yes
+equinox-zero_native | equinox-zero.head              | equinox-zero.native| native    |                                  | yes
+ssysobs_native      | ssysobs.head                   | ssysobs.native     | native    |                                  | yes
+ener-vel_native     | ener-vel.head                  | ener-vel.native    | native    |                                  | yes
+beta-frq_native     | beta-frq.head                  | beta-frq.native    | native    |                                  | yes
+sip-alt_native      | sip-alt.head                   | sip-alt.native     | native    | sipreplace=0                     | yes
+ukirt-dtai_native   | ukirt-dtai.head                | ukirt-dtai.native  | native    |                                  | yes
+ukirt-dtai_fits-wcs | ukirt-dtai.head                | ukirt-dtai.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8          |
+rfval_native        | rfval.head                     | rfval.native       | native    |                                  | yes
+vrad-wav_native     | vrad-wav.head                  | vrad-wav.native    | native    |                                  | yes
+projp-nopv0_native  | projp-nopv0.head               | projp-nopv0.native | native    |                                  | yes
+projp-pv0only_native| projp-pv0only.head             | projp-pv0only.native| native   |                                  | yes
+restfreq-ghz_native | restfreq-ghz.head              | restfreq-ghz.native| native    |                                  | yes
+pc-sparse_native    | pc-sparse.head                 | pc-sparse.native   | native    |                                  | yes
+restfreq-mhz_native | restfreq-mhz.head              | restfreq-mhz.native| native   |                                  | yes
+unknown-spec_native | unknown-spec.head              | unknown-spec.native| native    |                                  | yes
+crota-3d_native     | crota-3d.head                  | crota-3d.native    | native    |                                  | yes
+axes-swap_native    | axes-swap.head                 | axes-swap.native   | native    |                                  | yes
+cd-cross_native     | cd-cross.head                  | cd-cross.native    | native    |                                  | yes
+class-noproj_native | class-noproj.head              | class-noproj.native| native    |                                  | yes
+ait-highlatpole_native| ait-highlatpole.head           | ait-highlatpole.native| native  |                                  | yes
+timj_fits-aips++    | timj.ast                       | timj.fits-aips++   | fits-aips++| FitsDigits=8                    |
+a20070718_fits-aips  | a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-aips | fits-aips | FitsDigits=8     |
+a20070718_fits-aips++| a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-aips++ | fits-aips++ | FitsDigits=8 |
+freq-ghz-bary_fits-aips| freq-ghz-bary.head             | freq-ghz-bary.fits-aips | fits-aips | FitsDigits=8 |
+freq-ghz-bary_fits-aips++| freq-ghz-bary.head           | freq-ghz-bary.fits-aips++ | fits-aips++ | FitsDigits=8 |
+vopt-geo_fits-aips  | vopt-geo.head                  | vopt-geo.fits-aips | fits-aips | FitsDigits=8    |
+vopt-geo_fits-aips++| vopt-geo.head                  | vopt-geo.fits-aips++ | fits-aips++ | FitsDigits=8 |
+ncp_fits-aips       | ncp.head                       | ncp.fits-aips      | fits-aips | FitsDigits=8    |
+ncp_fits-aips++     | ncp.head                       | ncp.fits-aips++    | fits-aips++| FitsDigits=8   |
+fk4-aips_fits-aips  | fk4-aips.head                  | fk4-aips.fits-aips | fits-aips | FitsDigits=8    |
+fk4-aips_fits-aips++| fk4-aips.head                  | fk4-aips.fits-aips++ | fits-aips++ | FitsDigits=8 |
+sfl-origin_fits-aips| sfl-origin.head                | sfl-origin.fits-aips | fits-aips | FitsDigits=8   |
+sfl-origin_fits-aips++| sfl-origin.head              | sfl-origin.fits-aips++ | fits-aips++ | FitsDigits=8 |
+sin-plain_fits-aips | sin-plain.head                 | sin-plain.fits-aips | fits-aips | FitsDigits=8    |
+sin-plain_fits-aips++| sin-plain.head                | sin-plain.fits-aips++ | fits-aips++ | FitsDigits=8 |
+tan-rotated_fits-aips| tan-rotated.head              | tan-rotated.fits-aips | fits-aips | FitsDigits=8   |
+tan-rotated_fits-aips++| tan-rotated.head            | tan-rotated.fits-aips++ | fits-aips++ | FitsDigits=8 |
+tan-cdmatrix_fits-aips++| tan-cdmatrix.head          | tan-cdmatrix.fits-aips++ | fits-aips++ | FitsDigits=8 |
+pixel-2d_fits-aips  | pixel-2d.head                  | pixel-2d.fits-aips | fits-aips | FitsDigits=8    |
+pixel-2d_fits-aips++| pixel-2d.head                  | pixel-2d.fits-aips++ | fits-aips++ | FitsDigits=8 |
+vrad-lsrd_fits-aips | vrad-lsrd.head                 | vrad-lsrd.fits-aips | fits-aips | FitsDigits=8    |
+vrad-lsrd_fits-aips++| vrad-lsrd.head                | vrad-lsrd.fits-aips++ | fits-aips++ | FitsDigits=8 |
+freq-pixel3d_fits-aips| freq-pixel3d.head            | freq-pixel3d.fits-aips | fits-aips | FitsDigits=8  |
+freq-pixel3d_fits-aips++| freq-pixel3d.head          | freq-pixel3d.fits-aips++ | fits-aips++ | FitsDigits=8 |
+pixel-1d_fits-aips  | pixel-1d.head                  | pixel-1d.fits-aips | fits-aips | FitsDigits=8    |
+pixel-1d_fits-aips++| pixel-1d.head                  | pixel-1d.fits-aips++ | fits-aips++ | FitsDigits=8 |
+pixel-rotated_fits-aips| pixel-rotated.head           | pixel-rotated.fits-aips | fits-aips | FitsDigits=8 |
+pixel-rotated_fits-aips++| pixel-rotated.head         | pixel-rotated.fits-aips++ | fits-aips++ | FitsDigits=8 |
+pixel-shear_fits-aips++| pixel-shear.head             | pixel-shear.fits-aips++ | fits-aips++ | FitsDigits=8 |
+class-write_fits-class| class-write.head              | class-write.fits-class | fits-class | FitsDigits=8  |
+class-gal_fits-class| class-gal.head                 | class-gal.fits-class | fits-class | FitsDigits=8    |
+jan_fits-class-rt   | jan.fits-class                 | jan.fits-class-roundtrip | fits-class | FitsDigits=8 |
+class-arc_native    | class-arc.head                 | class-arc.native   | native    |                                  | yes
+class-arc_fits-class| class-arc.head                 | class-arc.fits-class | fits-class | FitsDigits=8  |
+class-ait_native    | class-ait.head                 | class-ait.native   | native    |                                  | yes
+class-ait_fits-class| class-ait.head                 | class-ait.fits-class | fits-class | FitsDigits=8  |
+class-sin_native    | class-sin.head                 | class-sin.native   | native    |                                  | yes
+class-sin_fits-class| class-sin.head                 | class-sin.fits-class | fits-class | FitsDigits=8  |
+class-sfl_fits-class| class-sfl.head                 | class-sfl.fits-class | fits-class | FitsDigits=8  |
+class-olddate_fits-class| class-olddate.head           | class-olddate.fits-class | fits-class | FitsDigits=8 |
+ncp_fits-iraf       | ncp.head                       | ncp.fits-iraf      | fits-iraf | FitsDigits=8    |
+fk4-aips_fits-iraf  | fk4-aips.head                  | fk4-aips.fits-iraf | fits-iraf | FitsDigits=8    |
+a20070718_fits-iraf  | a20070718_00010_02_cube.ast     | a20070718_00010_02_cube.fits-iraf | fits-iraf | FitsDigits=8 |
+sfl-origin_fits-iraf| sfl-origin.head                | sfl-origin.fits-iraf | fits-iraf | FitsDigits=8   |
+skyspec3d_native    | skyspec3d.head                 | skyspec3d.native   | native    |                                  | yes
+skyspec3d_fits-wcs  | skyspec3d.head                 | skyspec3d.fits-wcs | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+skyspec3d_fits-aips | skyspec3d.head                 | skyspec3d.fits-aips | fits-aips | cdmatrix=1,FitsDigits=8          |
+skyspec3d_fits-aips++| skyspec3d.head                | skyspec3d.fits-aips++ | fits-aips++ | cdmatrix=1,FitsDigits=8      |
+skyspec3d_fits-iraf | skyspec3d.head                 | skyspec3d.fits-iraf | fits-iraf | cdmatrix=1,FitsDigits=8          |
+sin-plain_fits-iraf | sin-plain.head                 | sin-plain.fits-iraf | fits-iraf | FitsDigits=8  |
+wave-1d_fits-iraf   | wave-1d.head                   | wave-1d.fits-iraf  | fits-iraf | FitsDigits=8   |
+skyspec3d_fits-pc   | skyspec3d.head                 | skyspec3d.fits-pc  | fits-pc   | FitsDigits=8                     |
+skyspec3d-class_native| skyspec3d-class.head          | skyspec3d-class.native | native |                                  | yes
+skyspec3d-class_fits-class| skyspec3d-class.head      | skyspec3d-class.fits-class | fits-class | FitsDigits=8           |
+offset-sky_native   | offset-sky.head                | offset-sky.native  | native    |                                  | yes
+offset-sky_fits-wcs | offset-sky.head                | offset-sky.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8           |
+offset-sky-pole_native   | offset-sky-pole.head      | offset-sky-pole.native  | native |                               | yes
+offset-sky-pole_fits-wcs | offset-sky-pole.head      | offset-sky-pole.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8      |
+azel_native         | azel.head                      | azel.native        | native    |                                  | yes
+azel_fits-wcs       | azel.head                      | azel.fits-wcs      | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+vopt-f2w_native     | vopt-f2w.head                  | vopt-f2w.native    | native    |                                  | yes
+vopt-f2w_fits-wcs   | vopt-f2w.head                  | vopt-f2w.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+wave-f2w_native     | wave-f2w.head                  | wave-f2w.native    | native    |                                  | yes
+wave-f2w_fits-wcs   | wave-f2w.head                  | wave-f2w.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+galactic-tan_fits-aips| galactic-tan.head             | galactic-tan.fits-aips | fits-aips | FitsDigits=8                  |
+galactic-tan_fits-aips++| galactic-tan.head           | galactic-tan.fits-aips++ | fits-aips++ | FitsDigits=8              |
+galactic-tan_fits-iraf| galactic-tan.head             | galactic-tan.fits-iraf | fits-iraf | FitsDigits=8                  |
+ecliptic-tan_fits-aips| ecliptic-tan.head             | ecliptic-tan.fits-aips | fits-aips | FitsDigits=8                  |
+tan-pv0_fits-wcs    | tan-pv0.head                   | tan-pv0.fits-wcs   | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+date-z_fits-wcs     | date-z.head                    | date-z.fits-wcs    | fits-wcs  | cdmatrix=1,FitsDigits=8          |
+fits-pc-altgal_native| fits-pc-altgal.head            | fits-pc-altgal.native | native |                                  | yes
+fits-pc-altgal_fits-wcs| fits-pc-altgal.head          | fits-pc-altgal.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8       |

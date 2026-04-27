@@ -1,0 +1,14 @@
+NAXIS1  =                  100 / Spatial axis                                   
+NAXIS2  =                  100 / Spatial axis                                   
+CTYPE1  = 'RA---TAN'           / Right Ascension                                
+CTYPE2  = 'DEC--TAN'           / Declination                                    
+CRVAL1  =                180.0 / [deg] Reference RA                             
+CRVAL2  =                 45.0 / [deg] Reference Dec                            
+CRPIX1  =                 50.0 / Reference pixel axis 1                         
+CRPIX2  =                 50.0 / Reference pixel axis 2                         
+CDELT1  =                -0.01 / Pixel size                                     
+CDELT2  =                 0.01 / Pixel size                                     
+CROTA2  =                 30.0 / Axis rotation                                  
+EPOCH   =               2000.0 / Epoch of reference equinox                     
+DATE-OBS= '2000-01-01T11:58:55.816' / Date of observation                       
+END                                                                             

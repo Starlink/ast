@@ -1,0 +1,7 @@
+NAXIS1  =                 1024 / Spectral axis                                  
+CTYPE1  = 'WAVE    '           / Wavelength                                     
+CRVAL1  =               5.5E-7 / [m] Reference wavelength                       
+CRPIX1  =                513.0 / Reference pixel                                
+CUNIT1  = 'm       '           / Wavelength units                               
+CD1_1   =              1.0E-10 / Transformation matrix element                  
+END                                                                             

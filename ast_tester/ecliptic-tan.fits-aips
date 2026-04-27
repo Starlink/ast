@@ -1,0 +1,13 @@
+NAXIS1  =                  100 / Spatial axis                                   
+NAXIS2  =                  100 / Spatial axis                                   
+CTYPE1  = 'ELON-TAN'           / Ecliptic longitude                             
+CTYPE2  = 'ELAT-TAN'           / Ecliptic latitude                              
+CRVAL1  =                200.0 / [deg] Reference ecliptic lon                   
+CRVAL2  =                 30.0 / [deg] Reference ecliptic lat                   
+CRPIX1  =                 50.0 / Reference pixel axis 1                         
+CRPIX2  =                 50.0 / Reference pixel axis 2                         
+CDELT1  =                -0.01 / Pixel size                                     
+CDELT2  =                 0.01 / Pixel size                                     
+CROTA2  =                  0.0 / Axis rotation                                  
+EPOCH   =              51544.5 / Epoch of reference equinox                     
+END                                                                             

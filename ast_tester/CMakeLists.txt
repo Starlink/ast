@@ -150,14 +150,18 @@ ast_add_test(teststcschan_c SOURCES teststcschan.c)
 ast_add_test(testregions_c SOURCES testregions.c)
 ast_add_test(testrebinseq_c SOURCES testrebinseq.c)
 ast_add_test(testrebin_c SOURCES testrebin.c)
+ast_add_test(testresample)
 foreach(_eg RANGE 1 10)
     configure_file(teststc_eg${_eg} "${CMAKE_CURRENT_BINARY_DIR}/teststc_eg${_eg}" COPYONLY)
 endforeach()
 ast_add_test(teststc_c SOURCES teststc.c)
 configure_file(sip.head "${CMAKE_CURRENT_BINARY_DIR}/sip.head" COPYONLY)
+configure_file(sip-3d.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d.head" COPYONLY)
+configure_file(sip-3d-swap.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d-swap.head" COPYONLY)
 configure_file(alt.header "${CMAKE_CURRENT_BINARY_DIR}/alt.header" COPYONLY)
 configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
 ast_add_test(testfitschan_c SOURCES testfitschan.c)
+ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
 
 # --- wcsconverter: regression-diff harness ported from wcsconverter.f ---
 add_executable(wcsconverter wcsconverter.c)
@@ -544,3 +548,4 @@ if(PLPLOT_FOUND)
     endforeach()
 
 endif()
+

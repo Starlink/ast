@@ -1,0 +1,18 @@
+NAXIS1  =                  100 / length of data axis 1                          
+NAXIS2  =                  100 / length of data axis 2                          
+CTYPE1  = 'RA---TAN'           / Celestial longitude                            
+CTYPE2  = 'DEC--TAN'           / Celestial latitude                             
+CRVAL1  =                120.0 / Reference RA (deg)                             
+CRVAL2  =                 30.0 / Reference Dec (deg)                            
+CRPIX1  =                 50.5 / Reference pixel on axis 1                      
+CRPIX2  =                 50.5 / Reference pixel on axis 2                      
+RADESYS = 'FK5     '           / Reference frame                                
+EQUINOX =               2000.0 / Equinox of coordinates                         
+MJD-AVG =              58000.5 / Average MJD of observation                     
+DATE-OBS= '2017-09-04T11:59:23.000' / Date of observation                       
+TIMESYS = 'TAI     '           / Time scale                                     
+WCSAXES =                    2 / Number of WCS axes                             
+CD1_1   =            -2.778E-4 / Transformation matrix element                  
+CD2_2   =            0.0002778 / Transformation matrix element                  
+MJD-OBS =              58000.5 / Modified Julian Date of observation            
+END                                                                             

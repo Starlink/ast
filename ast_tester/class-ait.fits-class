@@ -1,0 +1,27 @@
+NAXIS1  =                 1024 / Spectral axis                                  
+NAXIS2  =                  100 / Spatial axis                                   
+NAXIS3  =                  100 / Spatial axis                                   
+CTYPE1  = 'FREQ    '           / Frequency                                      
+CTYPE2  = 'RA---ATF'           / Type of co-ordinate on axis 2                  
+CTYPE3  = 'DEC--ATF'           / Type of co-ordinate on axis 3                  
+CRVAL1  =            67.108592 / Value at ref. pixel on axis 1                  
+CRVAL2  =                  0.0 / Reference RA (deg)                             
+CRVAL3  =                  0.0 / Reference Dec (deg)                            
+CRPIX1  =                513.0 / Reference pixel                                
+CRPIX2  =                 50.0 / Reference pixel                                
+CRPIX3  =                 50.0 / Reference pixel                                
+CDELT1  =            1000000.0 / Pixel size                                     
+CDELT2  =                -0.01 / Pixel size (deg)                               
+CDELT3  =                 0.01 / Pixel size (deg)                               
+EQUINOX =               2000.0 / Equinox                                        
+MJD-OBS =             52413.59 / MJD of observation                             
+DATE-OBS= '2002-05-19T14:09:36.000' / Date of observation                       
+RESTFREQ=         1.4204058E+9 / [Hz] Rest frequency                            
+OBJECT  = '        '                                                            
+LINE    = '        '                                                            
+VELO-LSR=            275.83586 / [m/s] Reference velocity                       
+VLSR    =            275.83586 / [m/s] Reference velocity                       
+DELTAV  =           -211060.95 / [m/s] Velocity resolution                      
+AZIMUTH =             270.0101 / [Deg] Telescope azimuth                        
+ELEVATIO=           0.55084476 / [Deg] Telescope elevation                      
+END                                                                             

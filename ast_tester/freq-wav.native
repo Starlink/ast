@@ -1,0 +1,62 @@
+                                                                                
+COMMENT AST ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ AST
+COMMENT AST                  WCS information in AST format                   AST
+COMMENT AST                See http://www.starlink.ac.uk/ast/                AST
+COMMENT AST            Beginning of AST data for FrameSet object             AST
+COMMENT AST ................................................................ AST
+BEGAST_A= 'FrameSet'           / Set of inter-related coordinate systems        
+NFRAME_A=                    2 / Number of Frames in FrameSet                   
+BASE_A  =                    1 / Index of base Frame                            
+CURRNT_A=                    2 / Index of current Frame                         
+LNK2_A  =                    1 / Node 2 is derived from node 1                  
+FRM1_A  = '        '           / Frame number 1                                 
+BEGAST_B= 'Frame   '           / Coordinate system description                  
+TITLE_A = 'Pixel Coordinates'  / Title of coordinate system                     
+NAXES_A =                    1 / Number of coordinate axes                      
+DOMAIN_A= 'GRID    '           / Coordinate system domain                       
+AX1_A   = '        '           / Axis number 1                                  
+BEGAST_C= 'Axis    '           / Coordinate axis                                
+LABEL_A = 'Pixel axis 1'       / Axis Label                                     
+ENDAST_A= 'Axis    '           / End of object definition                       
+ENDAST_B= 'Frame   '           / End of object definition                       
+FRM2_A  = '        '           / Frame number 2                                 
+BEGAST_D= 'SpecFrame'          / Description of spectral coordinate system      
+IDENT_A = '" "     '           / Permanent Object identification string         
+ISA_A   = 'Object  '           / AST Object                                     
+NAXES_B =                    1 / Number of coordinate axes                      
+SYSTEM_A= 'FREQ    '           / Coordinate system type                         
+AX1_B   = '        '           / Axis number 1                                  
+BEGAST_E= 'Axis    '           / Coordinate axis                                
+UNIT_A  = 'Hz      '           / Axis units (Hertz)                             
+ENDAST_C= 'Axis    '           / End of object definition                       
+ISA_B   = 'Frame   '           / Coordinate system description                  
+SOR_A   = 'Barycentric'        / Standard of rest                               
+RSTFRQ_A=         1420400000.0 / Rest frequency (Hz)                            
+UFREQ_A = 'Hz      '           / Preferred units for frequency                  
+ENDAST_D= 'SpecFrame'          / End of object definition                       
+MAP2_A  = '        '           / Mapping between nodes 1 and 2                  
+BEGAST_F= 'CmpMap  '           / Compound Mapping                               
+NIN_A   =                    1 / Number of input coordinates                    
+ISSIMP_A=                    1 / Mapping has been simplified                    
+ISA_C   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_A  = '        '           / First component Mapping                        
+BEGAST_G= 'WinMap  '           / Map one window on to another                   
+NIN_B   =                    1 / Number of input coordinates                    
+ISA_D   = 'Mapping '           / Mapping between coordinate systems             
+SFT1_A  =  0.21182353613451468 / Shift for axis 1                               
+SCL1_A  =  -1.4859335061434537E-6 / Scale factor for axis 1                     
+ENDAST_E= 'WinMap  '           / End of object definition                       
+MAPB_A  = '        '           / Second component Mapping                       
+BEGAST_H= 'SpecMap '           / Conversion between spectral coordinate systems 
+NIN_C   =                    1 / Number of input coordinates                    
+ISA_E   = 'Mapping '           / Mapping between coordinate systems             
+NSPEC_A =                    1 / Number of conversion steps                     
+SPEC1_A = 'WVTOFR  '           / Convert wavelength (vacuum) to frequency       
+ENDAST_F= 'SpecMap '           / End of object definition                       
+ENDAST_G= 'CmpMap  '           / End of object definition                       
+ENDAST_H= 'FrameSet'           / End of object definition                       
+COMMENT AST ................................................................ AST
+COMMENT AST               End of AST data for FrameSet object                AST
+COMMENT AST ---------------------------------------------------------------- AST
+NAXIS1  =                 1024 / length of data axis 1                          
+END                                                                             

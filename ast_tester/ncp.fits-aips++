@@ -1,0 +1,15 @@
+NAXIS1  =                  512 / length of data axis 1                          
+NAXIS2  =                  512 / length of data axis 2                          
+CTYPE1  = 'RA---SIN'           / Type of co-ordinate on axis 1                  
+CTYPE2  = 'DEC--SIN'           / Type of co-ordinate on axis 2                  
+CRVAL1  =                180.0 / Reference RA (deg)                             
+CRVAL2  =                 45.0 / Reference Dec (deg)                            
+CRPIX1  =                256.5 / Reference pixel on axis 1                      
+CRPIX2  =                256.5 / Reference pixel on axis 2                      
+CDELT1  =            -2.778E-4 / Degrees/pixel                                  
+CDELT2  =            0.0002778 / Degrees/pixel                                  
+DATE-OBS= '2020-06-15T10:30:00.000' / Date of observation                       
+EPOCH   =               2000.0 / Epoch of reference equinox                     
+PROJP1  =                  0.0 / Projection parameter                           
+PROJP2  =                  1.0 / Projection parameter                           
+END                                                                             

@@ -1,0 +1,82 @@
+OBJECT  = 'WB437   '           / Object of interest                             
+STANDARD=                    F / True if the spectral line is a standard        
+OBSNUM  =                   31 / obs number                                     
+NSUBSCAN=                    1 / Sub-scan number                                
+OBSEND  =                    T / True if file is last in current observation    
+UTDATE  =             20061112 / UT Date as integer in yyyymmdd format          
+DATE-OBS= '2006-11-12T07:23:54.956' / Date of observation                       
+CRPIX1  =                  1.0 / Reference pixel on axis 1                      
+CRPIX2  =                  1.0 / Reference pixel on axis 2                      
+CRPIX3  =            7227855.0 / Reference pixel on axis 3                      
+CRVAL1  =             40.73774 / Value at ref. pixel on axis 1                  
+CRVAL2  =             62.93279 / Value at ref. pixel on axis 2                  
+CRVAL3  =       -2.2039871E+11 / Value at ref. pixel on axis 3                  
+CTYPE1  = 'RA---TAN'           / Type of co-ordinate on axis 1                  
+CTYPE2  = 'DEC--TAN'           / Type of co-ordinate on axis 2                  
+CTYPE3  = 'FREQ    '           / Type of co-ordinate on axis 3                  
+CDELT1  =                -0.01 / Pixel size                                     
+CDELT2  =                 0.01 / Pixel size                                     
+CDELT3  =           -30510.253 / Pixel size                                     
+EQUINOX =               2000.0 / Epoch of reference equinox                     
+RESTFREQ=        2.2039868E+11 / [Hz] Rest frequency                            
+IMAGFREQ=          2.12401E+11 / [Hz] Image frequency                           
+LINE    = '        '                                                            
+VELO-LSR=         2.9979241E+8 / [m/s] Reference velocity                       
+VLSR    =         2.9979241E+8 / [m/s] Reference velocity                       
+DELTAV  =           -41.485269 / [m/s] Velocity resolution                      
+AZIMUTH =            336.46081 / [Deg] Telescope azimuth                        
+ELEVATIO=           -13.692929 / [Deg] Telescope elevation                      
+DATE-END= '2006-11-12T08:58:15' / UTC Datetime of end of observation            
+OBSID   = 'acsis_31_20061112T084334' / Unique observation identifier            
+E-TOCLASS,  Error decoding OBSID                                                
+INSTAP  = 'A       '           / Receptor at tracking centre (if any)           
+INSTAP_X=                  0.0 / [arcsec] Aperture X off. rel. to instr cent    
+INSTAP_Y=                  0.0 / [arcsec] Aperture Y off. rel. to instr cent    
+AMSTART =            1.3973637 / Airmass at start of obervation                 
+AMEND   =            1.3846348 / Airmass at end of obervation                   
+AZSTART =            369.43127 / [deg] Azimuth at obs. start - mount sys.       
+AZEND   =            366.90344 / [deg] Azimuth at obs. end - mount sys.         
+ELSTART =            45.707701 / [deg] Elevation at obs. start - mount          
+ASTWARN = '        '                                                            
+ASTWARN = 'The FITS keyword name (''sys.'') contains an illegal character '     
+ASTWARN = '(''.'').'                                                            
+ASTWARN = '        '                                                            
+SYS.                                                                            
+ELEND   =            46.249503 / [deg] Elevation at obs. end - mount sys.       
+HSTSTART= '2006-11-11T22:43:34' / HST at start of observation                   
+HSTEND  = '2006-11-11T22:58:15' / HST at end of observation                     
+LSTSTART= '01:47:01.8620'      / LST at start of observation                    
+LSTEND  = '02:01:45.3333'                                                       
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                

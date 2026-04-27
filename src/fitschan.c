@@ -1286,6 +1286,64 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In SpecTrans, only attempt to convert CLASS specific keywords
 *        into standard FITS-WCS keywords for the primary axis descriptions
 *        since CLASS does not support alternate axis descriptions.
+*     22-APR-2026 (TIMJ):
+*        Fix memory leak in WATCoeffs when reading TNX headers with
+*        Chebyshev polynomial coefficients.
+*        Fix null pointer dereference in ClassTrans when CardName
+*        returns NULL after the card pointer moves past the end.
+*        The original code used a VELO-%3c wildcard match followed by
+*        CardName to determine which VELO-xxx keyword was found, but
+*        CardName returns the current card (which has moved on), not
+*        the matched card. Replaced with explicit lookups for each
+*        VELO-xxx variant.
+*        Add missing Ecliptic case in SkyToFits system mapping so
+*        ecliptic coordinates write ELON/ELAT instead of UNLN/UNLT.
+*        Fix memory leak in CLASSFromStore: freqfrm was never annulled
+*        after being used to create a frequency-to-velocity conversion.
+*     23-APR-2026 (TIMJ):
+*        Fix TidyOffsets to use astIsASkyFrame instead of IsASkyFrame.
+*        The IsASkyFrame macro requires domain=="SKY", preventing
+*        detection of SKY_OFFSETS, SKY_POLE and SKY_ORIGIN domains.
+*     23-APR-2026 (TIMJ):
+*        Fix RESTFREQ GHz/MHz comment detection in SpecTrans. GetValue2
+*        restores the card pointer, so CardComm was reading the wrong
+*        card's comment. Re-find the RESTFREQ card before reading comment.
+*     23-APR-2026 (TIMJ):
+*        Fix CLASSFromStore rest frequency check. The rf variable was only
+*        set inside the RADESYS block, leaving it uninitialized for galactic
+*        coordinate systems which have no RADESYS keyword.
+*     23-APR-2026 (TIMJ):
+*        Fix SetAttrib for AltAxes. The sscanf pattern used %d which stored
+*        the parsed integer in ival, but ival was then reused as a string
+*        offset making the string comparison branches unreachable. Changed
+*        to use %n%*[^\n]%n pattern matching the Encoding handler.
+*     24-APR-2026 (TIMJ):
+*        Fix NearestPix rounding. The (int)(x+0.5) idiom truncates toward
+*        zero, giving platform-dependent results for values near N.5 (e.g.
+*        512.4999... rounds to 512 or 513 depending on FP representation).
+*        Changed to round() for consistent rounding to nearest integer.
+*     24-APR-2026 (TIMJ):
+*        Fix memory leak: FitsAxisOrder string was not freed in the
+*        destructor, and was not deep-copied in the Copy constructor
+*        (leading to use-after-free when copied FitsChan objects were
+*        destroyed).
+*     25-APR-2026 (TIMJ):
+*        Fix memory leak in ZPXMapping: watstr was not freed when
+*        WATCoeffs returned unsupported features (ok=0) and the loop
+*        broke early.
+*     25-APR-2026 (TIMJ):
+*        Fix PCFromStore: strlen(cval) was called before NULL check,
+*        and astWcsPrjType(cval+4) read past string end when CTYPE
+*        was shorter than 5 characters. Also fix FindLonLatSpecAxes:
+*        ctype[4] was accessed without checking string length.
+*     26-APR-2026 (TIMJ):
+*        Fix TabMapping: add astOK check to permutation loop to prevent
+*        heap-buffer-overflow when marray contains -1 due to a missing
+*        FITS-WCS axis for a coordinate array dimension.
+*     24-APR-2026 (TIMJ):
+*        Fix LoadFitsChan: FindString search count was 9 but the
+*        type_names array has 10 entries (KINT at index 9). Changed
+*        to 10 so that 64-bit integer keywords survive Dump/Load.
 *class--
 */
 
@@ -6623,11 +6681,11 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
             ok = 0;
          }
       }
+   }
 
 /* Check we have a rest frequency */
-      rf = GetItem( &(store->restfrq), 0, 0, s, NULL, method, class, status );
-      if( rf == AST__BAD ) ok = 0;
-   }
+   rf = GetItem( &(store->restfrq), 0, 0, s, NULL, method, class, status );
+   if( rf == AST__BAD ) ok = 0;
 
 /* If the spatial Frame covers more than a single Frame and requires a LONPOLE
    or LATPOLE keyword, it cannot be encoded using FITS-CLASS. However since
@@ -6815,6 +6873,7 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
 
 /* Get a Mapping from frequency to velocity. */
          fsconv1 = astConvert( freqfrm, velofrm, "" );
+         freqfrm = astAnnul( freqfrm );
          if( fsconv1 ) {
 
 /* Use this Mapping to convert the spectral crval value from frequency to
@@ -7023,40 +7082,50 @@ static void ClassTrans( AstFitsChan *this, AstFitsChan *ret, int axlat,
       }
    }
 
-/* Look for a keyword with name "VELO-...". This specifies the radio velocity
-   at the reference channel, in a standard of rest specified by the "..."
-   in the keyword name. If "VELO-..." is not found, look for "VLSR",
-   which is the same as "VELO-LSR". */
-   if( GetValue2( ret, this, "VELO-%3c", AST__FLOAT, (void *) &vref, 0,
-                  method, class, status ) ||
-       GetValue2( ret, this, "VLSR", AST__FLOAT, (void *) &vref, 0,
+/* Look for specific "VELO-..." keywords. The standard of rest is
+   determined by the keyword name. Try each variant explicitly rather
+   than using a wildcard and CardName (which returns the card the
+   pointer has moved to, not the card that matched). */
+   ssyssrc = NULL;
+   if( GetValue2( ret, this, "VELO-HEL", AST__FLOAT, (void *) &vref, 0,
                   method, class, status ) ){
+      ssyssrc = "BARYCENT";
+   } else if( GetValue2( ret, this, "VELO-OBS", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ||
+              GetValue2( ret, this, "VELO-TOP", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ){
+      ssyssrc = "TOPOCENT";
+   } else if( GetValue2( ret, this, "VELO-EAR", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ||
+              GetValue2( ret, this, "VELO-GEO", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ){
+      ssyssrc = "GEOCENTR";
+   } else if( GetValue2( ret, this, "VELO-LSR", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ||
+              GetValue2( ret, this, "VLSR", AST__FLOAT, (void *) &vref, 0,
+                         method, class, status ) ){
+      ssyssrc = "LSRK";
+   } else {
+      Warn( this, "badval", "A FITS-CLASS header was identified (DELTAV "
+            "and VLSR/VELO-xxx present) but no usable velocity reference "
+            "keyword was found. Assuming LSRK.", method, class, status );
+      ssyssrc = "LSRK";
+      vref = 0.0;
+   }
 
 /* Calculate the radio velocity (in the rest frame of the source) corresponding
    to the frequency at the reference channel. */
-      v0 = AST__C*( restfreq - crval )/restfreq;
+   v0 = AST__C*( restfreq - crval )/restfreq;
 
 /* Assume that the source velocity is the difference between this velocity
    and the reference channel velocity given by "VELO-..." */
-      vsource = vref - v0;
+   vsource = vref - v0;
 
-/* Get the keyword name and find the corresponding SSYSSRC keyword value. */
-      keyname = CardName( this, status );
-      if( !strcmp( keyname, "VELO-HEL" ) ) {
-         ssyssrc = "BARYCENT";
-      } else if( !strcmp( keyname, "VELO-OBS" ) || !strcmp( keyname, "VELO-TOP" ) ) {
-         ssyssrc = "TOPOCENT";
-      } else if( !strcmp( keyname, "VELO-EAR" ) || !strcmp( keyname, "VELO-GEO" ) ) {
-         ssyssrc = "GEOCENTR";
-      } else {
-         ssyssrc = "LSRK";
-      }
-      SetValue( ret, "SSYSSRC", (void *) &ssyssrc, AST__STRING, NULL, status );
+   SetValue( ret, "SSYSSRC", (void *) &ssyssrc, AST__STRING, NULL, status );
 
 /* Convert from radio velocity to redshift and store as ZSOURCE */
-      zsource = ( AST__C / (AST__C - vsource) ) - 1.0;
-      SetValue( ret, "ZSOURCE", (void *) &zsource, AST__FLOAT, NULL, status );
-   }
+   zsource = ( AST__C / (AST__C - vsource) ) - 1.0;
+   SetValue( ret, "ZSOURCE", (void *) &zsource, AST__FLOAT, NULL, status );
 }
 
 static void ClearAttrib( AstObject *this_object, const char *attrib, int *status ) {
@@ -10606,7 +10675,7 @@ static int FindLonLatSpecAxes( FitsStore *store, char s, int *axlon, int *axlat,
 
 /* Otherwise look for celestial axes. Celestial axes must have a "-" as the
    fifth character in CTYPE. */
-         } else if( ctype[4] == '-' ) {
+         } else if( strlen( ctype ) > 4 && ctype[4] == '-' ) {
 
 /* See if this is a longitude axis (e.g. if the first 4 characters of CTYPE
    are "RA--" or "xLON" or "yzLN" ). */
@@ -23185,7 +23254,7 @@ static double NearestPix( AstMapping *map, double val, int axis, int *status ){
    integer. */
          for( i = 0; i < nin; i++ ) {
             if( ptr1[ i ][ 0 ] != AST__BAD ) {
-               ptr1[ i ][ 0 ] = (int) ( ptr1[ i ][ 0 ] + 0.5 );
+               ptr1[ i ][ 0 ] = round( ptr1[ i ][ 0 ] );
             }
          }
 
@@ -24610,8 +24679,12 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    ------ */
       for( i = 0; i < naxis; i++ ){
          cval = GetItemC( &(store->ctype), i, 0, s, NULL, method, class, status );
+         if( !cval ) {
+            ok = 0;
+            goto next;
+         }
          nc = strlen( cval );
-         if( !cval || ( nc > 4 && !strcmp( cval + 4, "-TAB" ) ) ) {
+         if( nc > 4 && !strcmp( cval + 4, "-TAB" ) ) {
             ok = 0;
             goto next;
          }
@@ -24638,7 +24711,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
 /* Extract the projection type as specified by the last 4 characters
    in the CTYPE keyword value. This will be AST__WCSBAD for non-celestial
    axes. */
-         prj = astWcsPrjType( cval + 4 );
+         prj = ( nc > 4 ) ? astWcsPrjType( cval + 4 ) : AST__WCSBAD;
 
 /* Change the new SFL projection code to to the older equivalent GLS */
          if( prj == AST__SFL ) {
@@ -27243,7 +27316,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* AltAxes. */
 /* -------- */
    } else if ( nc = 0,
-        ( 1 == astSscanf( setting, "altaxes= %d %n", &ival, &nc ) )
+        ( 0 == astSscanf( setting, "altaxes=%n%*[^\n]%n", &ival, &nc ) )
         && ( nc >= len ) ) {
       nc = ChrLen( setting + ival, status );
       if( !Ustrncmp( setting + ival, ALTAXES_NONE_STRING, nc, status ) ){
@@ -29707,6 +29780,8 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
       eq = AST__BAD;
       isys = RADEC;
       SetItemC( &(store->radesys), 0, 0, s, "GAPPT", status );
+   } else if( !Ustrcmp( sys, "Ecliptic", status ) ){
+      isys = ECLIP;
    } else if( !Ustrcmp( sys, "Helioecliptic", status ) ){
       eq = AST__BAD;
       isys = HECLIP;
@@ -31860,6 +31935,8 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 
 /*  Release the memory used to hold the concatenated WAT keywords. */
             watmem = (char *) astFree( (void *) watmem );
+            cvals = astFree( cvals );
+            mvals = astFree( mvals );
          }
       }
 
@@ -31908,8 +31985,13 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
                      class, status ) ){
 
 /* Look for "MHz" and "GHz" within the comment. If found scale the value
-   into Hz. */
-         comm = CardComm( this, status );
+   into Hz. GetValue2 restores the card pointer, so we need to re-find the
+   RESTFREQ card to access its comment. */
+         astClearCard( this );
+         comm = NULL;
+         if( FindKeyCard( this, keyname, method, class, status ) ) {
+            comm = CardComm( this, status );
+         }
          if( comm ) {
             if( strstr( comm, "GHz" ) ) {
                dval *= 1.0E9;
@@ -33630,7 +33712,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
    corresponding to each input of the extended "tmap0" mapping. Also create
    the inverse permutation (i.e. zero-based "tmap0" input indexed by
    zero-based FITS-WCS axis index). */
-                     for( maxis = 1; maxis < mdim; maxis++ ) {
+                     for( maxis = 1; maxis < mdim && astOK; maxis++ ) {
                         permout[ nperm ] = marray[ maxis ];
                         permin[ marray[ maxis ] ] = nperm++;
                      }
@@ -34356,7 +34438,7 @@ static void TidyOffsets( AstFrameSet *fset, int *status ) {
       nax = astGetNaxes( frm );
       for( iax = 0; iax < nax; iax++ ) {
          astPrimaryFrame( frm, iax, &pfrm, &pax );
-         if( IsASkyFrame( pfrm ) ) {
+         if( astIsASkyFrame( pfrm ) ) {
             dom = astGetDomain( pfrm );
             if( dom ) {
                if( !strcmp( dom, "SKY_OFFSETS" ) ){
@@ -34399,7 +34481,7 @@ static void TidyOffsets( AstFrameSet *fset, int *status ) {
          nax = astGetNaxes( frm );
          for( iax = 0; iax < nax; iax++ ) {
             astPrimaryFrame( frm, iax, &pfrm, &pax );
-            if( IsASkyFrame( pfrm ) ) {
+            if( astIsASkyFrame( pfrm ) ) {
                dom = astGetDomain( pfrm );
                if( dom ) {
                   if( !strcmp( dom, "SKY_OFFSETS" ) ){
@@ -35086,6 +35168,7 @@ static int WATCoeffs( const char *watstr, int iaxis, double **cvals,
    int iword;
    int m;
    int mn;
+   int nw1;
    int nword;
    int order;
    int porder;
@@ -35112,7 +35195,7 @@ static int WATCoeffs( const char *watstr, int iaxis, double **cvals,
    if ( !astOK || !watstr ) return result;
 
 /* Look for cor = "..." and extract the "..." string. */
-   w1 = astChrSplitRE( watstr, "cor *= *\"(.*)\"", &nword, NULL );
+   w1 = astChrSplitRE( watstr, "cor *= *\"(.*)\"", &nw1, NULL );
    if( w1 ) {
 
 /* Split the "..." string into words. */
@@ -35253,10 +35336,18 @@ static int WATCoeffs( const char *watstr, int iaxis, double **cvals,
 
 /* Free coefficients arrays */
             coeff = astFree( coeff );
+         } else {
+            coeff = astFree( coeff );
          }
 
 /* Free resources */
+         for( iword = 0; iword < nword; iword++ ) {
+            w2[ iword ] = astFree( w2[ iword ] );
+         }
          w2 = astFree( w2 );
+      }
+      for( iword = 0; iword < nw1; iword++ ) {
+         w1[ iword ] = astFree( w1[ iword ] );
       }
       w1 = astFree( w1 );
    }
@@ -41459,7 +41550,10 @@ static AstMapping *ZPXMapping( AstFitsChan *this, FitsStore *store, char s,
 
 /* If the current axis of the ZPX projection uses features not supported
    by AST, do not do any more axes. */
-      if( !ok ) break;
+      if( !ok ) {
+         watstr = astFree( watstr );
+         break;
+      }
 
 /* Free the WAT string. */
       watstr = astFree( watstr );
@@ -43369,6 +43463,9 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    out->sink = NULL;
    out->sink_wrap = NULL;
    out->warnings = NULL;
+   out->fitsaxisorder = in->fitsaxisorder ?
+      astStore( NULL, in->fitsaxisorder,
+                strlen( in->fitsaxisorder ) + 1 ) : NULL;
    out->tabsource = NULL;
    out->tabsource_wrap = NULL;
 
@@ -43465,6 +43562,9 @@ static void Delete( AstObject *obj, int *status ) {
 
 /* Remove all cards from the FitsChan. */
    EmptyFits( this, status );
+
+/* Free any memory used to hold the FitsAxisOrder attribute value. */
+   this->fitsaxisorder = astFree( this->fitsaxisorder );
 }
 
 /* Dump function. */
@@ -44782,7 +44882,7 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
          (void) sprintf( buff, "ty%d", ncard );
          text = astReadString( channel, buff, " " );
          if( strcmp( text, " " ) ) {
-            type = FindString( 9, type_names, text,
+            type = FindString( 10, type_names, text,
                                "a FitsChan keyword data type",
                                "astRead", astGetClass( channel ), status );
          } else {
@@ -45198,15 +45298,3 @@ static void ListFC( AstFitsChan *this, const char *ttl ) {
    this->card = cardo;
 }
 */
-
-
-
-
-
-
-
-
-
-
-
-

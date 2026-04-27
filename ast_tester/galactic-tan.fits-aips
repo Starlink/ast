@@ -1,0 +1,12 @@
+NAXIS1  =                  100 / Spatial axis                                   
+NAXIS2  =                  100 / Spatial axis                                   
+CTYPE1  = 'GLON-TAN'           / Galactic longitude                             
+CTYPE2  = 'GLAT-TAN'           / Galactic latitude                              
+CRVAL1  =                100.0 / [deg] Reference Galactic lon                   
+CRVAL2  =                 15.0 / [deg] Reference Galactic lat                   
+CRPIX1  =                 50.0 / Reference pixel axis 1                         
+CRPIX2  =                 50.0 / Reference pixel axis 2                         
+CDELT1  =                -0.01 / Pixel size                                     
+CDELT2  =                 0.01 / Pixel size                                     
+CROTA2  =                  0.0 / Axis rotation                                  
+END                                                                             

@@ -1,0 +1,27 @@
+SIMPLE  =                    T / Fits standard                                  
+BITPIX  =                  -32 / Bits per pixel                                 
+NAXIS   =                    3 / Number of dimensions                           
+NAXIS1  =                  100 / length of data axis 1                          
+NAXIS2  =                  100 / length of data axis 2                          
+NAXIS3  =                  100 / Spectral axis                                  
+CTYPE1  = 'RA---TAN'           / Celestial longitude                            
+CTYPE2  = 'DEC--TAN'           / Celestial latitude                             
+CTYPE3  = 'FREQ    '           / Frequency                                      
+CRVAL1  =                180.0 / Reference RA (deg)                             
+CRVAL2  =                 45.0 / Reference Dec (deg)                            
+CRVAL3  =            1.4204E+9 / Reference frequency (Hz)                       
+CRPIX1  =                 50.0 / Reference pixel                                
+CRPIX2  =                 50.0 / Reference pixel                                
+CRPIX3  =                 50.0 / Reference pixel                                
+CUNIT3  = 'Hz      '           / Frequency units                                
+RADESYS = 'FK5     '           / Reference frame                                
+EQUINOX =               2000.0 / Equinox                                        
+RESTFRQ =            1.4204E+9 / [Hz] Rest frequency                            
+SPECSYS = 'BARYCENT'           / Barycentric                                    
+CD1_1   =                -0.01 / Transformation matrix element                  
+CD2_2   =                 0.01 / Transformation matrix element                  
+CD3_3   =            1000000.0 / Transformation matrix element                  
+MJD-OBS =            51544.499 / Modified Julian Date of observation            
+DATE-OBS= '2000-01-01T11:58:55.816' / Date of observation                       
+VELOSYS =           -19195.766 / [m/s] Topo. apparent velocity of rest frame    
+END                                                                             

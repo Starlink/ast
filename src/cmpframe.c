@@ -192,6 +192,9 @@ f     The CmpFrame class does not define any new routines beyond those
 *     8-APR-2026 (TIMJ):
 *        Use snprintf instead of sprintf in SetAttrib to prevent
 *        buffer overruns.
+*     24-APR-2026 (TIMJ):
+*        Use round() instead of (int)(x+0.5) for grid size rounding
+*        to avoid platform-dependent results.
 *class--
 */
 
@@ -2882,11 +2885,11 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
 
 /* Get the target number of points to be used in the grid that covers the
    first Frame. */
-      size1 = (int)( pow( size, (double)nax1/(double)naxes ) + 0.5 );
+      size1 = (int)round( pow( size, (double)nax1/(double)naxes ) );
 
 /* Get the target number of points to be used in the grid that covers the
    second Frame. */
-      size2 = (int)( (double)size/(double)size1 + 0.5 );
+      size2 = (int)round( (double)size/(double)size1 );
 
 /* Get the grids covering the two component Frames, and get the actual sizes
    of the resulting PointSets. */

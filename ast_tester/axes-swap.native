@@ -1,0 +1,247 @@
+                                                                                
+COMMENT AST ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ AST
+COMMENT AST                  WCS information in AST format                   AST
+COMMENT AST                See http://www.starlink.ac.uk/ast/                AST
+COMMENT AST            Beginning of AST data for FrameSet object             AST
+COMMENT AST ................................................................ AST
+BEGAST_A= 'FrameSet'           / Set of inter-related coordinate systems        
+NFRAME_A=                    2 / Number of Frames in FrameSet                   
+BASE_A  =                    1 / Index of base Frame                            
+CURRNT_A=                    2 / Index of current Frame                         
+LNK2_A  =                    1 / Node 2 is derived from node 1                  
+FRM1_A  = '        '           / Frame number 1                                 
+BEGAST_B= 'Frame   '           / Coordinate system description                  
+TITLE_A = 'Pixel Coordinates'  / Title of coordinate system                     
+NAXES_A =                    4 / Number of coordinate axes                      
+DOMAIN_A= 'GRID    '           / Coordinate system domain                       
+AX1_A   = '        '           / Axis number 1                                  
+BEGAST_C= 'Axis    '           / Coordinate axis                                
+LABEL_A = 'Pixel axis 1'       / Axis Label                                     
+ENDAST_A= 'Axis    '           / End of object definition                       
+AX2_A   = '        '           / Axis number 2                                  
+BEGAST_D= 'Axis    '           / Coordinate axis                                
+LABEL_B = 'Pixel axis 2'       / Axis Label                                     
+ENDAST_B= 'Axis    '           / End of object definition                       
+AX3_A   = '        '           / Axis number 3                                  
+BEGAST_E= 'Axis    '           / Coordinate axis                                
+LABEL_C = 'Pixel axis 3'       / Axis Label                                     
+ENDAST_C= 'Axis    '           / End of object definition                       
+AX4_A   = '        '           / Axis number 4                                  
+BEGAST_F= 'Axis    '           / Coordinate axis                                
+LABEL_D = 'Pixel axis 4'       / Axis Label                                     
+ENDAST_D= 'Axis    '           / End of object definition                       
+ENDAST_E= 'Frame   '           / End of object definition                       
+FRM2_A  = '        '           / Frame number 2                                 
+BEGAST_G= 'CmpFrame'           / Compound coordinate system description         
+IDENT_A = '" "     '           / Permanent Object identification string         
+ISA_A   = 'Object  '           / AST Object                                     
+AXP2_A  =                    4 / Axis 2 permuted to use internal axis 4         
+AXP3_A  =                    2 / Axis 3 permuted to use internal axis 2         
+AXP4_A  =                    3 / Axis 4 permuted to use internal axis 3         
+FRAMEA_A= '        '           / First component Frame                          
+BEGAST_H= 'CmpFrame'           / Compound coordinate system description         
+AXP1_A  =                    2 / Axis 1 permuted to use internal axis 2         
+AXP2_B  =                    3 / Axis 2 permuted to use internal axis 3         
+AXP3_B  =                    1 / Axis 3 permuted to use internal axis 1         
+FRAMEA_B= '        '           / First component Frame                          
+BEGAST_I= 'Frame   '           / Coordinate system description                  
+NAXES_B =                    1 / Number of coordinate axes                      
+DOMAIN_B= 'STOKES  '           / Coordinate system domain                       
+ACTUNT_A=                    0 / Unit strings do not affect alignment           
+AX1_B   = '        '           / Axis number 1                                  
+BEGAST_J= 'Axis    '           / Coordinate axis                                
+LABEL_E = 'STOKES  '           / Axis Label                                     
+SYMBOL_A= 'STOKES  '           / Axis symbol                                    
+ENDAST_F= 'Axis    '           / End of object definition                       
+ENDAST_G= 'Frame   '           / End of object definition                       
+FRAMEB_A= '        '           / Second component Frame                         
+BEGAST_K= 'SkyFrame'           / Description of celestial coordinate system     
+NAXES_C =                    2 / Number of coordinate axes                      
+EPOCH_A =               2000.0 / Julian epoch of observation                    
+SYSTEM_A= 'FK5     '           / Coordinate system type                         
+PRM1_A  =                    2 / Axis 1 permuted to use internal axis 2         
+PRM2_A  =                    1 / Axis 2 permuted to use internal axis 1         
+AX1_C   = '        '           / Axis number 1                                  
+BEGAST_L= 'SkyAxis '           / Celestial coordinate axis                      
+ENDAST_H= 'SkyAxis '           / End of object definition                       
+AX2_B   = '        '           / Axis number 2                                  
+BEGAST_M= 'SkyAxis '           / Celestial coordinate axis                      
+ENDAST_I= 'SkyAxis '           / End of object definition                       
+ISA_B   = 'Frame   '           / Coordinate system description                  
+PROJ_A  = 'gnomonic'           / Description of sky projection                  
+EQNOX_A =               2000.0 / Julian epoch of mean equinox                   
+SREFIS_A= 'Ignored '           / Not rotated (ref. pos. is ignored)             
+SREF1_A =   1.4596712133204175 / Ref. pos. RA 5:34:31.9                         
+SREF2_A =  0.38421678153403171 / Ref. pos. Dec 22:00:50                         
+ENDAST_J= 'SkyFrame'           / End of object definition                       
+ENDAST_K= 'CmpFrame'           / End of object definition                       
+FRAMEB_B= '        '           / Second component Frame                         
+BEGAST_N= 'SpecFrame'          / Description of spectral coordinate system      
+NAXES_D =                    1 / Number of coordinate axes                      
+SYSTEM_B= 'WAVE    '           / Coordinate system type                         
+AX1_D   = '        '           / Axis number 1                                  
+BEGAST_O= 'Axis    '           / Coordinate axis                                
+UNIT_A  = 'm       '           / Axis units (metre)                             
+ENDAST_L= 'Axis    '           / End of object definition                       
+ISA_C   = 'Frame   '           / Coordinate system description                  
+REFRA_A =   1.4596712133204175 / Reference RA (rads, FK5 J2000)                 
+REFDEC_A=  0.38421678153403171 / Reference Dec (rads, FK5 J2000)                
+UWAVE_A = 'm       '           / Preferred units for wavelength                 
+ENDAST_M= 'SpecFrame'          / End of object definition                       
+ENDAST_N= 'CmpFrame'           / End of object definition                       
+MAP2_A  = '        '           / Mapping between nodes 1 and 2                  
+BEGAST_P= 'CmpMap  '           / Compound Mapping                               
+NIN_A   =                    4 / Number of input coordinates                    
+ISSIMP_A=                    1 / Mapping has been simplified                    
+ISA_D   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_A  = '        '           / First component Mapping                        
+BEGAST_Q= 'WinMap  '           / Map one window on to another                   
+NIN_B   =                    4 / Number of input coordinates                    
+ISA_E   = 'Mapping '           / Mapping between coordinate systems             
+SFT1_A  =  -2.4485049543303245E-4 / Shift for axis 1                            
+SCL1_A  =  4.8485246620402469E-6 / Scale factor for axis 1                      
+SFT2_A  =             -2.55E-9 / Shift for axis 2                               
+SCL2_A  =              1.0E-10 / Scale factor for axis 2                        
+SFT3_A  = 0.00024485049543303245 / Shift for axis 3                             
+SCL3_A  =  -4.8485246620402469E-6 / Scale factor for axis 3                     
+SFT4_A  =                 -1.0 / Shift for axis 4                               
+ENDAST_O= 'WinMap  '           / End of object definition                       
+MAPB_A  = '        '           / Second component Mapping                       
+BEGAST_R= 'CmpMap  '           / Compound Mapping                               
+NIN_C   =                    4 / Number of input coordinates                    
+ISA_F   = 'Mapping '           / Mapping between coordinate systems             
+INVA_A  =                    1 / First Mapping used in inverse direction        
+MAPA_B  = '        '           / First component Mapping                        
+BEGAST_S= 'WcsMap  '           / FITS-WCS sky projection                        
+NIN_D   =                    4 / Number of input coordinates                    
+INVERT_A=                    1 / Mapping inverted                               
+ISA_G   = 'Mapping '           / Mapping between coordinate systems             
+TYPE_A  = 'TAN     '           / Gnomonic projection                            
+WCSAX1_A=                    3 / Index of celestial longitude axis              
+WCSAX2_A=                    1 / Index of celestial latitude axis               
+ENDAST_P= 'WcsMap  '           / End of object definition                       
+MAPB_B  = '        '           / Second component Mapping                       
+BEGAST_T= 'CmpMap  '           / Compound Mapping                               
+NIN_E   =                    4 / Number of input coordinates                    
+ISA_H   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_C  = '        '           / First component Mapping                        
+BEGAST_U= 'PermMap '           / Coordinate permutation                         
+NIN_F   =                    4 / Number of input coordinates                    
+INVERT_B=                    1 / Mapping inverted                               
+ISA_I   = 'Mapping '           / Mapping between coordinate systems             
+OUT1_A  =                    3 / Output coordinate 1 = input coordinate 3       
+OUT2_A  =                    1 / Output coordinate 2 = input coordinate 1       
+OUT3_A  =                    2 / Output coordinate 3 = input coordinate 2       
+OUT4_A  =                    4 / Output coordinate 4 = input coordinate 4       
+IN1_A   =                    2 / Input coordinate 1 = output coordinate 2       
+IN2_A   =                    3 / Input coordinate 2 = output coordinate 3       
+IN3_A   =                    1 / Input coordinate 3 = output coordinate 1       
+IN4_A   =                    4 / Input coordinate 4 = output coordinate 4       
+ENDAST_Q= 'PermMap '           / End of object definition                       
+MAPB_C  = '        '           / Second component Mapping                       
+BEGAST_V= 'CmpMap  '           / Compound Mapping                               
+NIN_G   =                    4 / Number of input coordinates                    
+ISA_J   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_D  = '        '           / First component Mapping                        
+BEGAST_W= 'CmpMap  '           / Compound Mapping                               
+NIN_H   =                    4 / Number of input coordinates                    
+ISA_K   = 'Mapping '           / Mapping between coordinate systems             
+SERIES_A=                    0 / Component Mappings applied in parallel         
+MAPA_E  = '        '           / First component Mapping                        
+BEGAST_X= 'CmpMap  '           / Compound Mapping                               
+NIN_I   =                    2 / Number of input coordinates                    
+ISSIMP_B=                    1 / Mapping has been simplified                    
+ISA_L   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_F  = '        '           / First component Mapping                        
+BEGAST_Y= 'CmpMap  '           / Compound Mapping                               
+NIN_J   =                    2 / Number of input coordinates                    
+NOUT_A  =                    3 / Number of output coordinates                   
+ISA_M   = 'Mapping '           / Mapping between coordinate systems             
+INVA_B  =                    1 / First Mapping used in inverse direction        
+MAPA_G  = '        '           / First component Mapping                        
+BEGAST_Z= 'SphMap  '           / Cartesian to Spherical mapping                 
+NIN_K   =                    3 / Number of input coordinates                    
+NOUT_B  =                    2 / Number of output coordinates                   
+INVERT_C=                    1 / Mapping inverted                               
+ISA_N   = 'Mapping '           / Mapping between coordinate systems             
+UNTRD_A =                    1 / All input vectors have unit length             
+PLRLG_A =                  0.0 / Polar longitude (rad.s)                        
+ENDAST_R= 'SphMap  '           / End of object definition                       
+MAPB_D  = '        '           / Second component Mapping                       
+BEGASTA_= 'MatrixMap'          / Matrix transformation                          
+NIN_L   =                    3 / Number of input coordinates                    
+ISA_O   = 'Mapping '           / Mapping between coordinate systems             
+M0_A    = 0.041567699551225974 / Forward matrix value                           
+M1_A    = -0.99383195582260775 / Forward matrix value                           
+M2_A    =  0.10281133176760801 / Forward matrix value                           
+M3_A    =   0.3725211486432739 / Forward matrix value                           
+M4_A    =  0.11089654451699636 / Forward matrix value                           
+M5_A    =  0.92137394700940267 / Forward matrix value                           
+M6_A    = -0.92709229323056863 / Forward matrix value                           
+M7_A    =                  0.0 / Forward matrix value                           
+M8_A    =  0.37483313598518092 / Forward matrix value                           
+IM0_A   = 0.041567699551225974 / Inverse matrix value                           
+IM1_A   =   0.3725211486432739 / Inverse matrix value                           
+IM2_A   = -0.92709229323056863 / Inverse matrix value                           
+IM3_A   = -0.99383195582260775 / Inverse matrix value                           
+IM4_A   =  0.11089654451699636 / Inverse matrix value                           
+IM5_A   =                  0.0 / Inverse matrix value                           
+IM6_A   =  0.10281133176760801 / Inverse matrix value                           
+IM7_A   =  0.92137394700940267 / Inverse matrix value                           
+IM8_A   =  0.37483313598518092 / Inverse matrix value                           
+FORM_A  = 'Full    '           / Matrix storage form                            
+ENDAST_S= 'MatrixMap'          / End of object definition                       
+ENDAST_T= 'CmpMap  '           / End of object definition                       
+MAPB_E  = '        '           / Second component Mapping                       
+BEGASTAA= 'SphMap  '           / Cartesian to Spherical mapping                 
+NIN_M   =                    3 / Number of input coordinates                    
+NOUT_C  =                    2 / Number of output coordinates                   
+ISA_P   = 'Mapping '           / Mapping between coordinate systems             
+UNTRD_B =                    1 / All input vectors have unit length             
+PLRLG_B =   1.4596712133204175 / Polar longitude (rad.s)                        
+ENDAST_U= 'SphMap  '           / End of object definition                       
+ENDAST_V= 'CmpMap  '           / End of object definition                       
+MAPB_F  = '        '           / Second component Mapping                       
+BEGASTAB= 'UnitMap '           / Unit (null) Mapping                            
+NIN_N   =                    2 / Number of input coordinates                    
+ISA_Q   = 'Mapping '           / Mapping between coordinate systems             
+ENDAST_W= 'UnitMap '           / End of object definition                       
+ENDAST_X= 'CmpMap  '           / End of object definition                       
+MAPB_G  = '        '           / Second component Mapping                       
+BEGASTAC= 'CmpMap  '           / Compound Mapping                               
+NIN_O   =                    4 / Number of input coordinates                    
+ISA_R   = 'Mapping '           / Mapping between coordinate systems             
+MAPA_H  = '        '           / First component Mapping                        
+BEGASTAD= 'PermMap '           / Coordinate permutation                         
+NIN_P   =                    4 / Number of input coordinates                    
+ISA_S   = 'Mapping '           / Mapping between coordinate systems             
+OUT1_B  =                    2 / Output coordinate 1 = input coordinate 2       
+OUT2_B  =                    3 / Output coordinate 2 = input coordinate 3       
+OUT3_B  =                    1 / Output coordinate 3 = input coordinate 1       
+OUT4_B  =                    4 / Output coordinate 4 = input coordinate 4       
+IN1_B   =                    3 / Input coordinate 1 = output coordinate 3       
+IN2_B   =                    1 / Input coordinate 2 = output coordinate 1       
+IN3_B   =                    2 / Input coordinate 3 = output coordinate 2       
+IN4_B   =                    4 / Input coordinate 4 = output coordinate 4       
+ENDAST_Y= 'PermMap '           / End of object definition                       
+MAPB_H  = '        '           / Second component Mapping                       
+BEGASTAE= 'ShiftMap'           / Shift each coordinate axis                     
+NIN_Q   =                    4 / Number of input coordinates                    
+ISA_T   = 'Mapping '           / Mapping between coordinate systems             
+SFT2_B  =               5.0E-7 / Shift for axis 2                               
+SFT4_B  =                  1.0 / Shift for axis 4                               
+ENDAST_Z= 'ShiftMap'           / End of object definition                       
+ENDASTA_= 'CmpMap  '           / End of object definition                       
+ENDASTAA= 'CmpMap  '           / End of object definition                       
+ENDASTAB= 'CmpMap  '           / End of object definition                       
+ENDASTAC= 'CmpMap  '           / End of object definition                       
+ENDASTAD= 'CmpMap  '           / End of object definition                       
+ENDASTAE= 'FrameSet'           / End of object definition                       
+COMMENT AST ................................................................ AST
+COMMENT AST               End of AST data for FrameSet object                AST
+COMMENT AST ---------------------------------------------------------------- AST
+NAXIS1  =                  100 / Dec axis (swapped)                             
+NAXIS2  =                   50 / Spectral axis                                  
+NAXIS3  =                  100 / RA axis (swapped)                              
+NAXIS4  =                    1 / Stokes axis                                    
+END                                                                             

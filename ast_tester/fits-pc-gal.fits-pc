@@ -1,0 +1,15 @@
+NAXIS1  =                  100 / Spatial axis                                   
+NAXIS2  =                  100 / Spatial axis                                   
+CTYPE1  = 'RA---TAN'           / Celestial longitude                            
+CTYPE2  = 'DEC--TAN'           / Celestial latitude                             
+CRVAL1  =                180.0 / Reference RA (deg)                             
+CRVAL2  =                 45.0 / Reference Dec (deg)                            
+CRPIX1  =                 50.5 / Reference pixel on axis 1                      
+CRPIX2  =                 50.5 / Reference pixel on axis 2                      
+CDELT1  =                -0.01 / Degrees/pixel                                  
+CDELT2  =                 0.01 / Degrees/pixel                                  
+EQUINOX =               2000.0 / Equinox                                        
+RADECSYS= 'FK5     '           / Reference frame for RA/DEC values              
+MJD-OBS =            33281.923 / Modified Julian Date of observation            
+DATE-OBS= '31/12/49'           / Date of observation                            
+END                                                                             

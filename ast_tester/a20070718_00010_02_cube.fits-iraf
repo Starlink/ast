@@ -1,0 +1,16 @@
+CRPIX1  =                 10.0 / Reference pixel on axis 1                      
+CRPIX2  =            10.493878 / Reference pixel on axis 2                      
+CRPIX3  =                  1.0 / Reference pixel on axis 3                      
+CRVAL1  =             281.0675 / Value at ref. pixel on axis 1                  
+CRVAL2  =                 -4.0 / Value at ref. pixel on axis 2                  
+CRVAL3  =           -13.610153 / Value at ref. pixel on axis 3                  
+CTYPE1  = 'RA---TAN'           / Type of co-ordinate on axis 1                  
+CTYPE2  = 'DEC--TAN'           / Type of co-ordinate on axis 2                  
+CTYPE3  = 'VRAD    '           / Type of co-ordinate on axis 3                  
+CD1_1   =        -0.0016666667 / Transformation matrix element                  
+CD2_2   =         0.0016666667 / Transformation matrix element                  
+CD3_3   =          0.049100739 / Transformation matrix element                  
+CUNIT3  = 'km/s    '           / Units for axis 3                               
+RADECSYS= 'FK5     '           / Reference frame for RA/DEC values              
+EQUINOX =               2000.0 / Epoch of reference equinox                     
+DATE-OBS= '2007-07-18T05:52:31.475' / Date of observation                       
