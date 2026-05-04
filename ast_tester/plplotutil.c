@@ -138,6 +138,14 @@ void astPlSetupDevice( const char *output ) {
    const char *ext;
    const char *dev;
 
+   /* Fallback in case output is null: render to null device (always
+    * available) */
+   if ( !output ) {
+      c_plsdev( "null" );
+      return;
+   }
+
+   /* Check for possible interactive outputs (useful for manual testing) */
    if( strcmp(output, "aqt") == 0 || strcmp(output, "xwin") == 0 ||
        strcmp(output, "xcairo") == 0 || strcmp(output, "qtwidget") == 0 ) {
 
@@ -152,12 +160,13 @@ void astPlSetupDevice( const char *output ) {
       }
    }
 
+   /* Choose best output device from filename extension */
    ext = strrchr( output, '.' );
    dev = astPlChooseDeviceForExtension( ext );
 
    if ( !astPlDeviceAvailable( dev ) ) {
       fprintf( stderr, "plplot output device %s for %s files not "
-               "available; falling back on null device\n", ext, output );
+               "available; falling back on null device\n", dev, ext );
       dev = "null";
    }
 
