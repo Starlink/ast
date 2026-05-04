@@ -1,0 +1,9 @@
+Begin MatrixMap
+   Nin = 2
+IsA Mapping
+   M0 = 2
+   M1 = 0
+   M2 = 0
+   M3 = 3
+   Form = "Full"
+End MatrixMap

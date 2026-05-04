@@ -1,0 +1,17 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin ZoomMap
+         Nin = 2
+      IsA Mapping
+         Zoom = 2
+      End ZoomMap
+   MapB =
+      Begin ZoomMap
+         Nin = 2
+      IsA Mapping
+         Zoom = 2
+      End ZoomMap
+End CmpMap

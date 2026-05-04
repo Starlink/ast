@@ -1,0 +1,16 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   MapA =
+      Begin ShiftMap
+         Nin = 2
+      IsA Mapping
+         Sft1 = 5
+         Sft2 = -3
+      End ShiftMap
+   MapB =
+      Begin UnitMap
+         Nin = 2
+      IsA Mapping
+      End UnitMap
+End CmpMap

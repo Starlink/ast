@@ -5,3 +5,17 @@
 brad  | brad.map  | brad.simp  |
 lsst1 | lsst1.map | lsst1.simp |
 rigby | rigby.map | rigby.simp | yes
+
+# Focused rule fixtures.
+unit_series_elision     | unit_series_elision.map     | unit_series_elision.simp     |
+unit_parallel_merge     | unit_parallel_merge.map     | unit_parallel_merge.simp     |
+zoom_series_merge       | zoom_series_merge.map       | zoom_series_merge.simp       |
+zoom_series_cancel      | zoom_series_cancel.map      | zoom_series_cancel.simp      |
+zoom_parallel_to_matrix | zoom_parallel_to_matrix.map | zoom_parallel_to_matrix.simp |
+matrix_unit_to_unit     | matrix_unit_to_unit.map     | matrix_unit_to_unit.simp     |
+matrix_diagonal_to_zoom | matrix_diagonal_to_zoom.map | matrix_diagonal_to_zoom.simp |
+matrix_full_to_diagonal | matrix_full_to_diagonal.map | matrix_full_to_diagonal.simp |
+win_to_shift            | win_to_shift.map            | win_to_shift.simp            |
+win_to_matrix           | win_to_matrix.map           | win_to_matrix.simp           |
+lut_linear_to_win       | lut_linear_to_win.map       | lut_linear_to_win.simp       |
+lut_inverse_cancel      | lut_inverse_cancel.map      | lut_inverse_cancel.simp      |

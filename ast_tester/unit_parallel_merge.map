@@ -1,0 +1,15 @@
+Begin CmpMap
+   Nin = 3
+IsA Mapping
+   Series = 0
+   MapA =
+      Begin UnitMap
+         Nin = 1
+      IsA Mapping
+      End UnitMap
+   MapB =
+      Begin UnitMap
+         Nin = 2
+      IsA Mapping
+      End UnitMap
+End CmpMap

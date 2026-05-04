@@ -1,0 +1,6 @@
+Begin WinMap
+   Nin = 2
+IsA Mapping
+   Sft1 = 5
+   Sft2 = -3
+End WinMap

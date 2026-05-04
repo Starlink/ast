@@ -1,0 +1,9 @@
+Begin MatrixMap
+   Nin = 2
+IsA Mapping
+   M0 = 4
+   M1 = 4
+   IM0 = 0.25
+   IM1 = 0.25
+   Form = "Diagonal"
+End MatrixMap

@@ -1,0 +1,29 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin LutMap
+         Nin = 1
+      IsA Mapping
+         Nlut = 3
+         Start = 0
+         Incr = 1
+         LutInt = 0
+         L1 = 0
+         L2 = 1
+         L3 = 4
+      End LutMap
+   MapB =
+      Begin LutMap
+         Nin = 1
+      IsA Mapping
+         Nlut = 3
+         Start = 0
+         Incr = 1
+         LutInt = 0
+         L1 = 0
+         L2 = 1
+         L3 = 4
+      End LutMap
+End CmpMap

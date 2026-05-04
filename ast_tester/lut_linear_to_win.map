@@ -1,0 +1,11 @@
+Begin LutMap
+   Nin = 1
+IsA Mapping
+   Nlut = 3
+   Start = 0
+   Incr = 1
+   LutInt = 0
+   L1 = 10
+   L2 = 12
+   L3 = 14
+End LutMap
