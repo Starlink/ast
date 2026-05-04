@@ -25,6 +25,7 @@
 #include <string.h>
 #include <plplot.h>
 #include "ast.h"
+#include "plplotutil.h"
 
 int main(int argc, char **argv) {
     int status = 0;
@@ -115,22 +116,7 @@ int main(int argc, char **argv) {
         remove(psfile);
 
         /* Setup PLplot device based on file extension or interactive name */
-        const char *ext = strrchr(psfile, '.');
-        if (strcmp(psfile, "aqt") == 0 || strcmp(psfile, "xwin") == 0 || strcmp(psfile, "xcairo") == 0 || strcmp(psfile, "qtwidget") == 0) {
-            c_plsdev(psfile); /* Interactive window display */
-        } else if (ext && strcmp(ext, ".pdf") == 0) {
-            c_plsdev("pdfcairo");
-            c_plsfnam(psfile);
-        } else if (ext && strcmp(ext, ".svg") == 0) {
-            c_plsdev("svgcairo");
-            c_plsfnam(psfile);
-        } else if (ext && strcmp(ext, ".png") == 0) {
-            c_plsdev("pngcairo");
-            c_plsfnam(psfile);
-        } else {
-            c_plsdev("psc");
-            c_plsfnam(psfile);
-        }
+        (void)astPlSetupDevice( psfile );
 
         /* Initialize PLplot */
         c_plinit();
