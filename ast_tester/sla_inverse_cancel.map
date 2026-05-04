@@ -1,0 +1,18 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   MapA =
+      Begin SlaMap
+         Nin = 2
+      IsA Mapping
+         Nsla = 1
+         Sla1 = "EQGAL"
+      End SlaMap
+   MapB =
+      Begin SlaMap
+         Nin = 2
+      IsA Mapping
+         Nsla = 1
+         Sla1 = "GALEQ"
+      End SlaMap
+End CmpMap

@@ -1,0 +1,24 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   MapA =
+      Begin MatrixMap
+         Nin = 2
+      IsA Mapping
+         M0 = 2
+         M1 = 3
+         IM0 = 0.5
+         IM1 = 0.33333333333333331
+         Form = "Diagonal"
+      End MatrixMap
+   MapB =
+      Begin MatrixMap
+         Nin = 2
+      IsA Mapping
+         M0 = 5
+         M1 = 7
+         IM0 = 0.2
+         IM1 = 0.14285714285714285
+         Form = "Diagonal"
+      End MatrixMap
+End CmpMap

@@ -1,0 +1,20 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   MapA =
+      Begin TimeMap
+         Nin = 1
+      IsA Mapping
+         Ntime = 1
+         Time1 = "TAITOTT"
+         Time1a = 0
+      End TimeMap
+   MapB =
+      Begin TimeMap
+         Nin = 1
+      IsA Mapping
+         Ntime = 1
+         Time1 = "TTTOTAI"
+         Time1a = 0
+      End TimeMap
+End CmpMap

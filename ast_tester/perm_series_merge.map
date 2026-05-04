@@ -1,0 +1,28 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   MapA =
+      Begin PermMap
+         Nin = 2
+         Nout = 3
+      IsA Mapping
+         Out1 = 1
+         Out2 = -1
+         Out3 = 2
+         In1 = 1
+         In2 = 3
+         Nconst = 1
+         Con1 = 9
+      End PermMap
+   MapB =
+      Begin PermMap
+         Nin = 3
+         Nout = 2
+      IsA Mapping
+         Out1 = 3
+         Out2 = 1
+         In1 = 2
+         In2 = 0
+         In3 = 1
+      End PermMap
+End CmpMap

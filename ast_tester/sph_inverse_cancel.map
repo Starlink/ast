@@ -1,0 +1,21 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   InvA = 1
+   MapA =
+      Begin SphMap
+         Nin = 3
+         Nout = 2
+      IsA Mapping
+         UntRd = 1
+         PlrLg = 0
+      End SphMap
+   MapB =
+      Begin SphMap
+         Nin = 3
+         Nout = 2
+      IsA Mapping
+         UntRd = 1
+         PlrLg = 0
+      End SphMap
+End CmpMap

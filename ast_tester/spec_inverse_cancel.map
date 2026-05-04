@@ -1,0 +1,20 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   MapA =
+      Begin SpecMap
+         Nin = 1
+      IsA Mapping
+         Nspec = 1
+         Spec1 = "FRTOVL"
+         Spec1a = 330587960100
+      End SpecMap
+   MapB =
+      Begin SpecMap
+         Nin = 1
+      IsA Mapping
+         Nspec = 1
+         Spec1 = "VLTOFR"
+         Spec1a = 330587960100
+      End SpecMap
+End CmpMap

@@ -1,0 +1,19 @@
+Begin CmpMap
+   Nin = 3
+IsA Mapping
+   Series = 0
+   MapA =
+      Begin PermMap
+         Nin = 2
+      IsA Mapping
+         Out1 = 2
+         Out2 = 1
+         In1 = 2
+         In2 = 1
+      End PermMap
+   MapB =
+      Begin UnitMap
+         Nin = 1
+      IsA Mapping
+      End UnitMap
+End CmpMap

@@ -1,0 +1,17 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   MapA =
+      Begin WinMap
+         Nin = 1
+      IsA Mapping
+         Sft1 = 5
+         Scl1 = 2
+      End WinMap
+   MapB =
+      Begin ZoomMap
+         Nin = 1
+      IsA Mapping
+         Zoom = 3
+      End ZoomMap
+End CmpMap

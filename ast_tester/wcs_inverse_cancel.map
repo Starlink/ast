@@ -1,0 +1,17 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin WcsMap
+         Nin = 2
+      IsA Mapping
+         Type = "TAN"
+      End WcsMap
+   MapB =
+      Begin WcsMap
+         Nin = 2
+      IsA Mapping
+         Type = "TAN"
+      End WcsMap
+End CmpMap

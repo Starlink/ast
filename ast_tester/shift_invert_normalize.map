@@ -1,0 +1,7 @@
+Begin ShiftMap
+   Nin = 2
+   Invert = 1
+IsA Mapping
+   Sft1 = 5
+   Sft2 = -3
+End ShiftMap
