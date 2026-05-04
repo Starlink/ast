@@ -28,10 +28,11 @@
 */
 
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <plplot.h>
+
+#include "ast.h"
 
 
 /* Maximum number of PLplot devices to support; 64 is more than enough */
@@ -56,14 +57,14 @@ static void astPlInitDeviceList( void ) {
    if (devnames[0]) /* Should have at least one entry */
       return;
 
-   menustr = calloc(pl_ndev, sizeof(*menustr));
+   menustr = astMalloc( pl_ndev * sizeof(*menustr) );
 
    if ( !menustr )
       return;
 
    /* Not-well advertised but available API for probing supported devices */
-   plgDevs(&menustr, &devnames, &pl_ndev);
-   free( menustr );
+   plgDevs( &menustr, &devnames, &pl_ndev );
+   astFree( menustr );
 }
 
 
@@ -74,7 +75,7 @@ static int astPlDeviceAvailable( const char *dev ) {
    astPlInitDeviceList();
 
    for (idx = 0; idx < pl_ndev; idx++) {
-      if (strcmp(pl_devnames[idx], dev) == 0)
+      if ( strcmp( pl_devnames[idx], dev ) == 0 )
          return 1;
    }
 
@@ -86,10 +87,10 @@ static int astPlDeviceAvailable( const char *dev ) {
 static const char *astPlChooseDeviceForExtension( const char *ext ) {
    int idx;
 
-   if (!ext)
+   if ( !ext )
       return "psc";
 
-   if (strcmp(ext, ".pdf") == 0) {
+   if ( strcmp( ext, ".pdf" ) == 0 ) {
       const char *candidates[] = {
          "pdfcairo", // best
          "pdf",      // generic but widely supported
@@ -97,34 +98,34 @@ static const char *astPlChooseDeviceForExtension( const char *ext ) {
          NULL
       };
 
-      for (idx = 0; candidates[idx]; idx++) {
-         if (astPlDeviceAvailable( candidates[ idx ] ))
+      for ( idx = 0; candidates[idx]; idx++ ) {
+         if ( astPlDeviceAvailable( candidates[ idx ] ) )
             return candidates[ idx ];
       }
    }
 
-   if (strcmp(ext, ".png") == 0) {
+   if ( strcmp( ext, ".png" ) == 0 ) {
       const char *candidates[] = {
          "pngcairo",
          "png",
          NULL
       };
 
-      for (idx = 0; candidates[idx]; idx++) {
-         if (astPlDeviceAvailable( candidates[ idx ] ))
+      for ( idx = 0; candidates[idx]; idx++ ) {
+         if ( astPlDeviceAvailable( candidates[ idx ] ) )
             return candidates[ idx ];
       }
    }
 
-   if (strcmp(ext, ".svg") == 0) {
+   if ( strcmp( ext, ".svg" ) == 0 ) {
       const char *candidates[] = {
          "svgcairo",
          "svg",
          NULL
       };
 
-      for (idx = 0; candidates[idx]; idx++) {
-         if (astPlDeviceAvailable( candidates[ idx ] ))
+      for ( idx = 0; candidates[idx]; idx++ ) {
+         if ( astPlDeviceAvailable( candidates[ idx ] ) )
             return candidates[ idx ];
       }
    }
@@ -146,10 +147,10 @@ void astPlSetupDevice( const char *output ) {
    }
 
    /* Check for possible interactive outputs (useful for manual testing) */
-   if( strcmp(output, "aqt") == 0 || strcmp(output, "xwin") == 0 ||
-       strcmp(output, "xcairo") == 0 || strcmp(output, "qtwidget") == 0 ) {
+   if( strcmp( output, "aqt" ) == 0 || strcmp( output, "xwin" ) == 0 ||
+       strcmp( output, "xcairo" ) == 0 || strcmp( output, "qtwidget" ) == 0 ) {
 
-      if (astPlDeviceAvailable( output )) {
+      if ( astPlDeviceAvailable( output ) ) {
          c_plsdev( output );
          return;
       } else {
