@@ -1547,58 +1547,13 @@ static void gen_negative_fixtures_2(const char *dir) {
     /* splinemap-06: two SplineMaps same direction — refuses cancel */
     {
         if (!astOK) astClearStatus;
-        double knots[] = {0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0};
-        double coeff[] = {0.0, 0.0, 0.333, 0.333, 0.667, 0.667, 1.0, 1.0};
-        AstCmpMap *cm;
-        /* Create via astFromString since SplineMap constructor is complex */
-        const char *dump =
-            " Begin CmpMap\n"
-            "    Nin = 1\n"
-            " IsA Mapping\n"
-            "    MapA =\n"
-            "       Begin SplineMap\n"
-            "          Nin = 1\n"
-            "       IsA Mapping\n"
-            "          NKnot = 8\n"
-            "          Knot1 = 0\n"
-            "          Knot2 = 0\n"
-            "          Knot3 = 0\n"
-            "          Knot4 = 0\n"
-            "          Knot5 = 1\n"
-            "          Knot6 = 1\n"
-            "          Knot7 = 1\n"
-            "          Knot8 = 1\n"
-            "          NCoeff = 4\n"
-            "          C1 = 0\n"
-            "          C2 = 0.333\n"
-            "          C3 = 0.667\n"
-            "          C4 = 1\n"
-            "       End SplineMap\n"
-            "    MapB =\n"
-            "       Begin SplineMap\n"
-            "          Nin = 1\n"
-            "       IsA Mapping\n"
-            "          NKnot = 8\n"
-            "          Knot1 = 0\n"
-            "          Knot2 = 0\n"
-            "          Knot3 = 0\n"
-            "          Knot4 = 0\n"
-            "          Knot5 = 1\n"
-            "          Knot6 = 1\n"
-            "          Knot7 = 1\n"
-            "          Knot8 = 1\n"
-            "          NCoeff = 4\n"
-            "          C1 = 0\n"
-            "          C2 = 0.333\n"
-            "          C3 = 0.667\n"
-            "          C4 = 1\n"
-            "       End SplineMap\n"
-            " End CmpMap\n";
-        AstObject *obj = astFromString(dump);
-        if (obj) {
-            write_negative_fixture(dir, "neg_spline_same_direction", (AstMapping*)obj);
-            obj = astAnnul(obj);
-        }
+        double tx[] = {0, 1}, ty[] = {0, 1};
+        double cu[] = {1.5}, cv[] = {2.5};
+        AstSplineMap *s1 = astSplineMap(1, 1, 1, 1, tx, ty, cu, cv, "");
+        AstSplineMap *s2 = astSplineMap(1, 1, 1, 1, tx, ty, cu, cv, "");
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_negative_fixture(dir, "neg_spline_same_direction", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
     }
 
     /* normmap-11: NormMap in parallel — no simplification */
@@ -2010,42 +1965,13 @@ static void gen_negative_fixtures_5(const char *dir) {
     /* splinemap-03: SplineMap in parallel — refuses */
     {
         if (!astOK) astClearStatus;
-        const char *dump =
-            " Begin CmpMap\n"
-            "    Nin = 2\n"
-            "    Series = 0\n"
-            " IsA Mapping\n"
-            "    MapA =\n"
-            "       Begin SplineMap\n"
-            "          Nin = 1\n"
-            "       IsA Mapping\n"
-            "          NKnot = 8\n"
-            "          Knot1 = 0\n"
-            "          Knot2 = 0\n"
-            "          Knot3 = 0\n"
-            "          Knot4 = 0\n"
-            "          Knot5 = 1\n"
-            "          Knot6 = 1\n"
-            "          Knot7 = 1\n"
-            "          Knot8 = 1\n"
-            "          NCoeff = 4\n"
-            "          C1 = 0\n"
-            "          C2 = 0.333\n"
-            "          C3 = 0.667\n"
-            "          C4 = 1\n"
-            "       End SplineMap\n"
-            "    MapB =\n"
-            "       Begin ZoomMap\n"
-            "          Nin = 1\n"
-            "       IsA Mapping\n"
-            "          Zoom = 2\n"
-            "       End ZoomMap\n"
-            " End CmpMap\n";
-        AstObject *obj = astFromString(dump);
-        if (obj) {
-            write_negative_fixture(dir, "neg_spline_parallel", (AstMapping*)obj);
-            obj = astAnnul(obj);
-        }
+        double tx[] = {0, 1}, ty[] = {0, 1};
+        double cu[] = {1.5}, cv[] = {2.5};
+        AstSplineMap *sm = astSplineMap(1, 1, 1, 1, tx, ty, cu, cv, "");
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstCmpMap *cm = astCmpMap(sm, zm, 0, "");
+        write_negative_fixture(dir, "neg_spline_parallel", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); zm = astAnnul(zm);
     }
 
     /* lutmap-08: LutMap with non-LutMap neighbour — refuses cancel */
@@ -2110,41 +2036,13 @@ static void gen_negative_fixtures_6(const char *dir) {
     /* splinemap-05: SplineMap with non-SplineMap neighbour */
     {
         if (!astOK) astClearStatus;
-        const char *dump =
-            " Begin CmpMap\n"
-            "    Nin = 1\n"
-            " IsA Mapping\n"
-            "    MapA =\n"
-            "       Begin SplineMap\n"
-            "          Nin = 1\n"
-            "       IsA Mapping\n"
-            "          NKnot = 8\n"
-            "          Knot1 = 0\n"
-            "          Knot2 = 0\n"
-            "          Knot3 = 0\n"
-            "          Knot4 = 0\n"
-            "          Knot5 = 1\n"
-            "          Knot6 = 1\n"
-            "          Knot7 = 1\n"
-            "          Knot8 = 1\n"
-            "          NCoeff = 4\n"
-            "          C1 = 0\n"
-            "          C2 = 0.333\n"
-            "          C3 = 0.667\n"
-            "          C4 = 1\n"
-            "       End SplineMap\n"
-            "    MapB =\n"
-            "       Begin ZoomMap\n"
-            "          Nin = 1\n"
-            "       IsA Mapping\n"
-            "          Zoom = 2\n"
-            "       End ZoomMap\n"
-            " End CmpMap\n";
-        AstObject *obj = astFromString(dump);
-        if (obj) {
-            write_negative_fixture(dir, "neg_spline_nonspline_neighbour", (AstMapping*)obj);
-            obj = astAnnul(obj);
-        }
+        double tx[] = {0, 1}, ty[] = {0, 1};
+        double cu[] = {1.5}, cv[] = {2.5};
+        AstSplineMap *sm = astSplineMap(1, 1, 1, 1, tx, ty, cu, cv, "");
+        AstZoomMap *zm = astZoomMap(2, 2.0, "");
+        AstCmpMap *cm = astCmpMap(sm, zm, 1, "");
+        write_negative_fixture(dir, "neg_spline_nonspline_neighbour", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); zm = astAnnul(zm);
     }
 
     /* matrixmap-16: MatrixMap swap with WinMap refused (neither simplifies) —
