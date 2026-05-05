@@ -199,3 +199,10 @@ neg_time_lone_forward   | simplify_fixtures/neg_time_lone_forward.map   | simpli
 neg_poly_nonpoly_neighbour | simplify_fixtures/neg_poly_nonpoly_neighbour.map | simplify_fixtures/neg_poly_nonpoly_neighbour.map | yes
 neg_spline_nonspline_neighbour | simplify_fixtures/neg_spline_nonspline_neighbour.map | simplify_fixtures/neg_spline_nonspline_neighbour.map | yes
 neg_matrix_swap_refused | simplify_fixtures/neg_matrix_swap_refused.map | simplify_fixtures/neg_matrix_swap_refused.map | yes
+neg_poly_nin_ne_nout    | simplify_fixtures/neg_poly_nin_ne_nout.map    | simplify_fixtures/neg_poly_nin_ne_nout.map    | yes
+neg_tranmap_parallel    | simplify_fixtures/neg_tranmap_parallel.map    | simplify_fixtures/neg_tranmap_parallel.map    | yes
+neg_tranmap_nontranmap_neighbour | simplify_fixtures/neg_tranmap_nontranmap_neighbour.map | simplify_fixtures/neg_tranmap_nontranmap_neighbour.map | yes
+neg_sph_sandwich_wrong_middle | simplify_fixtures/neg_sph_sandwich_wrong_middle.map | simplify_fixtures/neg_sph_sandwich_wrong_middle.map | yes
+neg_sph_sandwich_unequal_diag | simplify_fixtures/neg_sph_sandwich_unequal_diag.map | simplify_fixtures/neg_sph_sandwich_unequal_diag.map | yes
+neg_pcd_nonswappable_between | simplify_fixtures/neg_pcd_nonswappable_between.map | simplify_fixtures/neg_pcd_nonswappable_between.map | yes
+neg_wcs_nonperm_between | simplify_fixtures/neg_wcs_nonperm_between.map | simplify_fixtures/neg_wcs_nonperm_between.map | yes

@@ -2163,6 +2163,117 @@ static void gen_negative_fixtures_6(const char *dir) {
     }
 }
 
+/* ===== Negative fixtures batch 7 ===== */
+
+static void gen_negative_fixtures_7(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Negative fixtures batch 7:\n");
+
+    /* polymap-04: PolyMap with nin != nout — linearization refused.
+       2 inputs, 1 output, linear terms — but nin(2)!=nout(1) blocks linearize. */
+    {
+        if (!astOK) astClearStatus;
+        double coeff_f[] = {3.0, 1, 1, 0,
+                            5.0, 1, 0, 1};
+        AstPolyMap *pm = astPolyMap(2, 1, 2, coeff_f, 0, NULL, "");
+        write_negative_fixture(dir, "neg_poly_nin_ne_nout", (AstMapping*)pm);
+        pm = astAnnul(pm);
+    }
+
+    /* tranmap-05: TranMaps in parallel — refuses adjacent merge */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(1, 0.5, "");
+        AstZoomMap *z3 = astZoomMap(1, 3.0, "");
+        AstZoomMap *z4 = astZoomMap(1, 1.0/3.0, "");
+        AstTranMap *t1 = astTranMap(z1, z2, "");
+        AstTranMap *t2 = astTranMap(z3, z4, "");
+        AstCmpMap *cm = astCmpMap(t1, t2, 0, "");
+        write_negative_fixture(dir, "neg_tranmap_parallel", (AstMapping*)cm);
+        cm = astAnnul(cm); t1 = astAnnul(t1); t2 = astAnnul(t2);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+        z3 = astAnnul(z3); z4 = astAnnul(z4);
+    }
+
+    /* tranmap-08: TranMap where higher neighbour is not a TranMap */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(1, 0.5, "");
+        AstTranMap *tm = astTranMap(z1, z2, "");
+        AstZoomMap *z3 = astZoomMap(1, 5.0, "");
+        AstCmpMap *cm = astCmpMap(tm, z3, 1, "");
+        write_negative_fixture(dir, "neg_tranmap_nontranmap_neighbour", (AstMapping*)cm);
+        cm = astAnnul(cm); tm = astAnnul(tm);
+        z1 = astAnnul(z1); z2 = astAnnul(z2); z3 = astAnnul(z3);
+    }
+
+    /* sphmap-11: SphMap sandwich middle is not ZoomMap/diagonal MatrixMap */
+    {
+        if (!astOK) astClearStatus;
+        double shifts[] = {1.0, 2.0, 3.0};
+        AstSphMap *s1 = astSphMap("UnitRadius=1");
+        astInvert(s1);
+        AstShiftMap *sm = astShiftMap(3, shifts, "");
+        AstSphMap *s2 = astSphMap("UnitRadius=1");
+        AstCmpMap *inner = astCmpMap(sm, s2, 1, "");
+        AstCmpMap *outer = astCmpMap(s1, inner, 1, "");
+        write_negative_fixture(dir, "neg_sph_sandwich_wrong_middle", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        s1 = astAnnul(s1); sm = astAnnul(sm); s2 = astAnnul(s2);
+    }
+
+    /* sphmap-14: SphMap sandwich MatrixMap with unequal magnitude diagonals */
+    {
+        if (!astOK) astClearStatus;
+        double diag[] = {1.0, 2.0, 3.0};
+        AstSphMap *s1 = astSphMap("UnitRadius=1");
+        astInvert(s1);
+        AstMatrixMap *mm = astMatrixMap(3, 3, 1, diag, "");
+        AstSphMap *s2 = astSphMap("UnitRadius=1");
+        AstCmpMap *inner = astCmpMap(mm, s2, 1, "");
+        AstCmpMap *outer = astCmpMap(s1, inner, 1, "");
+        write_negative_fixture(dir, "neg_sph_sandwich_unequal_diag", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        s1 = astAnnul(s1); mm = astAnnul(mm); s2 = astAnnul(s2);
+    }
+
+    /* pcdmap-10: PcdMap intervening mapping not ZoomMap/PermMap — blocks swap */
+    {
+        if (!astOK) astClearStatus;
+        double cen[] = {0.0, 0.0};
+        double shifts[] = {1.0, 2.0};
+        AstPcdMap *p1 = astPcdMap(0.001, cen, "");
+        AstShiftMap *sm = astShiftMap(2, shifts, "");
+        AstPcdMap *p2 = astPcdMap(0.001, cen, "");
+        astInvert(p2);
+        AstCmpMap *inner = astCmpMap(sm, p2, 1, "");
+        AstCmpMap *outer = astCmpMap(p1, inner, 1, "");
+        write_negative_fixture(dir, "neg_pcd_nonswappable_between", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        p1 = astAnnul(p1); sm = astAnnul(sm); p2 = astAnnul(p2);
+    }
+
+    /* wcsmap-11: WcsMap with non-PermMap intervening — blocks swap.
+       Use a MathMap as the non-swappable blocker (non-zero shifts would
+       self-simplify away, and ShiftMap(0,0) becomes UnitMap). */
+    {
+        if (!astOK) astClearStatus;
+        const char *fwd[] = {"y1 = x1", "y2 = x2"};
+        const char *inv[] = {"x1 = y1", "x2 = y2"};
+        AstWcsMap *w1 = astWcsMap(2, AST__TAN, 1, 2, "");
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, "");
+        AstWcsMap *w2 = astWcsMap(2, AST__TAN, 1, 2, "");
+        astInvert(w2);
+        AstCmpMap *inner = astCmpMap(mm, w2, 1, "");
+        AstCmpMap *outer = astCmpMap(w1, inner, 1, "");
+        write_negative_fixture(dir, "neg_wcs_nonperm_between", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        w1 = astAnnul(w1); mm = astAnnul(mm); w2 = astAnnul(w2);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -2211,6 +2322,7 @@ int main(void) {
     gen_negative_fixtures_4(dir);
     gen_negative_fixtures_5(dir);
     gen_negative_fixtures_6(dir);
+    gen_negative_fixtures_7(dir);
 
     astEnd;
 

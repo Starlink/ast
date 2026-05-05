@@ -1,0 +1,36 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvA = 1 	# First Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin SphMap 	# Cartesian to Spherical mapping
+          Nin = 3 	# Number of input coordinates
+          Nout = 2 	# Number of output coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          UntRd = 1 	# All input vectors have unit length
+#         PlrLg = 0 	# Polar longitude (rad.s)
+       End SphMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 3 	# Number of input coordinates
+          Nout = 2 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin ShiftMap 	# Shift each coordinate axis
+                Nin = 3 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = 1 	# Shift for axis 1
+                Sft2 = 2 	# Shift for axis 2
+                Sft3 = 3 	# Shift for axis 3
+             End ShiftMap
+          MapB = 	# Second component Mapping
+             Begin SphMap 	# Cartesian to Spherical mapping
+                Nin = 3 	# Number of input coordinates
+                Nout = 2 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                UntRd = 1 	# All input vectors have unit length
+#               PlrLg = 0 	# Polar longitude (rad.s)
+             End SphMap
+       End CmpMap
+ End CmpMap
