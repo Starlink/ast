@@ -134,3 +134,5 @@ selectormap_inverse_cancel | simplify_fixtures/selectormap_inverse_cancel.map | 
 switchmap_inverse_cancel | simplify_fixtures/switchmap_inverse_cancel.map | simplify_fixtures/switchmap_inverse_cancel.simp |
 pcd_perm_swap_cancel    | simplify_fixtures/pcd_perm_swap_cancel.map    | simplify_fixtures/pcd_perm_swap_cancel.simp    |
 win_cmpmap_parallel_merge | simplify_fixtures/win_cmpmap_parallel_merge.map | simplify_fixtures/win_cmpmap_parallel_merge.simp |
+win_swap_simplifies     | simplify_fixtures/win_swap_simplifies.map     | simplify_fixtures/win_swap_simplifies.simp     |
+win_swap_outer_merge    | simplify_fixtures/win_swap_outer_merge.map    | simplify_fixtures/win_swap_outer_merge.simp    |

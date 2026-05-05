@@ -1018,6 +1018,42 @@ static void gen_pcdmap_extra_fixtures(const char *dir) {
 static void gen_win_extra_cascade_fixtures(const char *dir) {
     printf("WinMap extra cascade fixtures:\n");
 
+    /* winmap-26: Swap accepted because swapped Mapping simplifies.
+       Setup: PermMap(2→3, passes axes 1,2 and adds constant on axis 3)
+       followed by WinMap(3D, a=[0,0,5], b=[1,1,3]).
+       After WinPerm swap: new WinMap(2D, a=[0,0], b=[1,1]) → simplifies to UnitMap. */
+    {
+        int inperm[] = {1, 2};
+        int outperm[] = {1, 2, -1};
+        double consts[] = {5.0};
+        AstPermMap *pm = astPermMap(2, inperm, 3, outperm, consts, "");
+        double ina[] = {0, 0, 0}, inb[] = {1, 1, 1};
+        double outa[] = {0, 0, 5}, outb[] = {1, 1, 8};
+        AstWinMap *wm = astWinMap(3, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(pm, wm, 1, "");
+        write_fixture(dir, "win_swap_simplifies", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); wm = astAnnul(wm);
+    }
+
+    /* winmap-27: Swap accepted because outer neighbours can merge.
+       Setup: [PermMap(swap)] [WinMap(2D)] [PermMap(swap)]
+       WinMap can't merge directly with PermMap. After swap with left PermMap,
+       the resulting PermMap is adjacent to the right PermMap and they merge. */
+    {
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {4, 6};
+        AstPermMap *p1 = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstPermMap *p2 = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstCmpMap *inner = astCmpMap(wm, p2, 1, "");
+        AstCmpMap *outer = astCmpMap(p1, inner, 1, "");
+        write_fixture(dir, "win_swap_outer_merge", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        p1 = astAnnul(p1); wm = astAnnul(wm); p2 = astAnnul(p2);
+    }
+
     /* winmap-14: WinMap merges with neighbouring parallel CmpMap (lower) */
     {
         double ina[] = {0, 0}, inb[] = {1, 1};
