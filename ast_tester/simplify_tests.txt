@@ -217,3 +217,4 @@ neg_time_5arg_mismatch  | simplify_fixtures/neg_time_5arg_mismatch.map  | simpli
 neg_spec_6arg_mismatch  | simplify_fixtures/neg_spec_6arg_mismatch.map  | simplify_fixtures/neg_spec_6arg_mismatch.map  | yes
 neg_sla_4arg_mismatch   | simplify_fixtures/neg_sla_4arg_mismatch.map   | simplify_fixtures/neg_sla_4arg_mismatch.map   | yes
 neg_poly_no_forward     | simplify_fixtures/neg_poly_no_forward.map     | simplify_fixtures/neg_poly_no_forward.map     | yes
+neg_spline_different_coeffs | simplify_fixtures/neg_spline_different_coeffs.map | simplify_fixtures/neg_spline_different_coeffs.map | yes

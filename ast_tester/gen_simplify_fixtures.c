@@ -2326,55 +2326,15 @@ static void gen_negative_fixtures_9(const char *dir) {
     /* splinemap-07: two different SplineMaps in opposite directions — astEqual fails */
     {
         if (!astOK) astClearStatus;
-        const char *dump =
-            " Begin CmpMap\n"
-            "    Nin = 1\n"
-            " IsA Mapping\n"
-            "    MapA =\n"
-            "       Begin SplineMap\n"
-            "          Nin = 1\n"
-            "       IsA Mapping\n"
-            "          NKnot = 8\n"
-            "          Knot1 = 0\n"
-            "          Knot2 = 0\n"
-            "          Knot3 = 0\n"
-            "          Knot4 = 0\n"
-            "          Knot5 = 1\n"
-            "          Knot6 = 1\n"
-            "          Knot7 = 1\n"
-            "          Knot8 = 1\n"
-            "          NCoeff = 4\n"
-            "          C1 = 0\n"
-            "          C2 = 0.333\n"
-            "          C3 = 0.667\n"
-            "          C4 = 1\n"
-            "       End SplineMap\n"
-            "    InvB = 1\n"
-            "    MapB =\n"
-            "       Begin SplineMap\n"
-            "          Nin = 1\n"
-            "       IsA Mapping\n"
-            "          NKnot = 8\n"
-            "          Knot1 = 0\n"
-            "          Knot2 = 0\n"
-            "          Knot3 = 0\n"
-            "          Knot4 = 0\n"
-            "          Knot5 = 1\n"
-            "          Knot6 = 1\n"
-            "          Knot7 = 1\n"
-            "          Knot8 = 1\n"
-            "          NCoeff = 4\n"
-            "          C1 = 0\n"
-            "          C2 = 0.25\n"
-            "          C3 = 0.75\n"
-            "          C4 = 1\n"
-            "       End SplineMap\n"
-            " End CmpMap\n";
-        AstObject *obj = astFromString(dump);
-        if (obj) {
-            write_negative_fixture(dir, "neg_spline_different_coeffs", (AstMapping*)obj);
-            obj = astAnnul(obj);
-        }
+        double tx[] = {0, 1}, ty[] = {0, 1};
+        double cu1[] = {1.5}, cv1[] = {2.5};
+        double cu2[] = {3.0}, cv2[] = {4.0};
+        AstSplineMap *s1 = astSplineMap(1, 1, 1, 1, tx, ty, cu1, cv1, "");
+        AstSplineMap *s2 = astSplineMap(1, 1, 1, 1, tx, ty, cu2, cv2, "");
+        astInvert(s2);
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_negative_fixture(dir, "neg_spline_different_coeffs", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
     }
 }
 

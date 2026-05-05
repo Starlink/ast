@@ -1,23 +1,36 @@
  Begin CmpMap 	# Compound Mapping
-    Nin = 1 	# Number of input coordinates
+    Nin = 2 	# Number of input coordinates
  IsA Mapping 	# Mapping between coordinate systems
     InvB = 1 	# Second Mapping used in inverse direction
     MapA = 	# First component Mapping
        Begin SplineMap 	# Map using a bi-cubic spline
-          Nin = 1 	# Number of input coordinates
+          Nin = 2 	# Number of input coordinates
        IsA Mapping 	# Mapping between coordinate systems
-          KX = 0 	# Polynomial order in X direction
-          KY = 0 	# Polynomial order in Y direction
-          NX = 0 	# No. of coeffs in X direction
-          NY = 0 	# No. of coeffs in Y direction
+          KX = 1 	# Polynomial order in X direction
+          KY = 1 	# Polynomial order in Y direction
+          NX = 1 	# No. of coeffs in X direction
+          NY = 1 	# No. of coeffs in Y direction
+          TX1 = 0 	# Knot 1 x position
+          TX2 = 1 	# Knot 2 x position
+          TY1 = 0 	# Knot 1 y position
+          TY2 = 1 	# Knot 2 y position
+          CU1 = 1.5 	# X coeff 1
+          CV1 = 2.5 	# Y coeff 1
        End SplineMap
     MapB = 	# Second component Mapping
        Begin SplineMap 	# Map using a bi-cubic spline
-          Nin = 1 	# Number of input coordinates
+          Nin = 2 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
        IsA Mapping 	# Mapping between coordinate systems
-          KX = 0 	# Polynomial order in X direction
-          KY = 0 	# Polynomial order in Y direction
-          NX = 0 	# No. of coeffs in X direction
-          NY = 0 	# No. of coeffs in Y direction
+          KX = 1 	# Polynomial order in X direction
+          KY = 1 	# Polynomial order in Y direction
+          NX = 1 	# No. of coeffs in X direction
+          NY = 1 	# No. of coeffs in Y direction
+          TX1 = 0 	# Knot 1 x position
+          TX2 = 1 	# Knot 2 x position
+          TY1 = 0 	# Knot 1 y position
+          TY2 = 1 	# Knot 2 y position
+          CU1 = 3 	# X coeff 1
+          CV1 = 4 	# Y coeff 1
        End SplineMap
  End CmpMap
