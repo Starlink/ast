@@ -1,27 +1,27 @@
-Begin CmpMap
-   Nin = 1
-IsA Mapping
-   InvB = 1
-   MapA =
-      Begin RateMap
-         Nin = 1
-      IsA Mapping
-         Map =
-            Begin ZoomMap
-               Nin = 1
-            IsA Mapping
-               Zoom = 2
-            End ZoomMap
-      End RateMap
-   MapB =
-      Begin RateMap
-         Nin = 1
-      IsA Mapping
-         Map =
-            Begin ZoomMap
-               Nin = 1
-            IsA Mapping
-               Zoom = 2
-            End ZoomMap
-      End RateMap
-End CmpMap
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin RateMap 	# Differential Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Map = 	# Mapping to be differentiated
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 2 	# Zoom factor
+             End ZoomMap
+       End RateMap
+    MapB = 	# Second component Mapping
+       Begin RateMap 	# Differential Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Map = 	# Mapping to be differentiated
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 2 	# Zoom factor
+             End ZoomMap
+       End RateMap
+ End CmpMap

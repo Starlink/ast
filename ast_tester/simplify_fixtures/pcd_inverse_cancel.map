@@ -1,21 +1,21 @@
-Begin CmpMap
-   Nin = 2
-IsA Mapping
-   InvB = 1
-   MapA =
-      Begin PcdMap
-         Nin = 2
-      IsA Mapping
-         PcdCn0 = 1.25
-         PcdCn1 = -0.75
-         Disco = 0.001
-      End PcdMap
-   MapB =
-      Begin PcdMap
-         Nin = 2
-      IsA Mapping
-         PcdCn0 = 1.25
-         PcdCn1 = -0.75
-         Disco = 0.001
-      End PcdMap
-End CmpMap
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin PcdMap 	# Apply pincushion distortion
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          PcdCn0 = 1.25 	# Distortion centre on first axis
+          PcdCn1 = -0.75 	# Distortion centre on second axis
+          Disco = 0.001 	# Distortion coefficient
+       End PcdMap
+    MapB = 	# Second component Mapping
+       Begin PcdMap 	# Apply pincushion distortion
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          PcdCn0 = 1.25 	# Distortion centre on first axis
+          PcdCn1 = -0.75 	# Distortion centre on second axis
+          Disco = 0.001 	# Distortion coefficient
+       End PcdMap
+ End CmpMap

@@ -1,19 +1,19 @@
-Begin CmpMap
-   Nin = 3
-IsA Mapping
-   Series = 0
-   MapA =
-      Begin PermMap
-         Nin = 2
-      IsA Mapping
-         Out1 = 2
-         Out2 = 1
-         In1 = 2
-         In2 = 1
-      End PermMap
-   MapB =
-      Begin UnitMap
-         Nin = 1
-      IsA Mapping
-      End UnitMap
-End CmpMap
+ Begin CmpMap 	# Compound Mapping
+    Nin = 3 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 2 	# Output coordinate 1 = input coordinate 2
+          Out2 = 1 	# Output coordinate 2 = input coordinate 1
+          In1 = 2 	# Input coordinate 1 = output coordinate 2
+          In2 = 1 	# Input coordinate 2 = output coordinate 1
+       End PermMap
+    MapB = 	# Second component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+ End CmpMap

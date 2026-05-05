@@ -1,18 +1,18 @@
-Begin CmpMap
-   Nin = 2
-IsA Mapping
-   MapA =
-      Begin SlaMap
-         Nin = 2
-      IsA Mapping
-         Nsla = 1
-         Sla1 = "EQGAL"
-      End SlaMap
-   MapB =
-      Begin SlaMap
-         Nin = 2
-      IsA Mapping
-         Nsla = 1
-         Sla1 = "GALEQ"
-      End SlaMap
-End CmpMap
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin SlaMap 	# Conversion between sky coordinate systems
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nsla = 1 	# Number of conversion steps
+          Sla1 = "EQGAL" 	# J2000.0 equatorial (FK5) to galactic (IAU 1958)
+       End SlaMap
+    MapB = 	# Second component Mapping
+       Begin SlaMap 	# Conversion between sky coordinate systems
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nsla = 1 	# Number of conversion steps
+          Sla1 = "GALEQ" 	# Galactic (IAU 1958) to J2000.0 equatorial (FK5)
+       End SlaMap
+ End CmpMap

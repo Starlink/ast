@@ -1,16 +1,16 @@
-Begin CmpMap
-   Nin = 2
-IsA Mapping
-   MapA =
-      Begin ShiftMap
-         Nin = 2
-      IsA Mapping
-         Sft1 = 5
-         Sft2 = -3
-      End ShiftMap
-   MapB =
-      Begin UnitMap
-         Nin = 2
-      IsA Mapping
-      End UnitMap
-End CmpMap
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 5 	# Shift for axis 1
+          Sft2 = -3 	# Shift for axis 2
+       End ShiftMap
+    MapB = 	# Second component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+ End CmpMap

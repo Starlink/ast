@@ -1,29 +1,27 @@
-Begin CmpMap
-   Nin = 1
-IsA Mapping
-   InvB = 1
-   MapA =
-      Begin GrismMap
-      IsA Mapping
-         GrmNR = 1.5
-         GrmNRP = -1e-06
-         GrmWR = 5000
-         GrmAlp = 0.1
-         GrmG = 0.0002
-         GrmM = 1
-         GrmEps = 0.02
-         GrmTh = 0.03
-      End GrismMap
-   MapB =
-      Begin GrismMap
-      IsA Mapping
-         GrmNR = 1.5
-         GrmNRP = -1e-06
-         GrmWR = 5000
-         GrmAlp = 0.1
-         GrmG = 0.0002
-         GrmM = -1
-         GrmEps = 0.02
-         GrmTh = 0.03
-      End GrismMap
-End CmpMap
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin GrismMap 	# Map 1-d coordinates using a spectral disperser
+          GrmNR = 1.5 	# Refractive index at the ref. wavelength
+          GrmNRP = -9.9999999999999995e-07 	# Rate of change of refractive index
+          GrmWR = 5000 	# Ref. wavelength
+          GrmAlp = 0.10000000000000001 	# Angle of incidence of incoming light
+          GrmG = 0.00020000000000000001 	# Grating ruling density
+          GrmM = 1 	# The interference order
+          GrmEps = 0.02 	# Angle between grating normal and dispersion plane
+          GrmTh = 0.029999999999999999 	# Angle between detector normal and reference ray
+       End GrismMap
+    MapB = 	# Second component Mapping
+       Begin GrismMap 	# Map 1-d coordinates using a spectral disperser
+          GrmNR = 1.5 	# Refractive index at the ref. wavelength
+          GrmNRP = -9.9999999999999995e-07 	# Rate of change of refractive index
+          GrmWR = 5000 	# Ref. wavelength
+          GrmAlp = 0.10000000000000001 	# Angle of incidence of incoming light
+          GrmG = 0.00020000000000000001 	# Grating ruling density
+          GrmM = -1 	# The interference order
+          GrmEps = 0.02 	# Angle between grating normal and dispersion plane
+          GrmTh = 0.029999999999999999 	# Angle between detector normal and reference ray
+       End GrismMap
+ End CmpMap

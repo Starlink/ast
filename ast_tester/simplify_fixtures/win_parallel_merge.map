@@ -1,18 +1,18 @@
-Begin CmpMap
-   Nin = 2
-IsA Mapping
-   Series = 0
-   MapA =
-      Begin WinMap
-         Nin = 1
-      IsA Mapping
-         Sft1 = 4
-         Scl1 = 2
-      End WinMap
-   MapB =
-      Begin ShiftMap
-         Nin = 1
-      IsA Mapping
-         Sft1 = -3
-      End ShiftMap
-End CmpMap
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 4 	# Shift for axis 1
+          Scl1 = 2 	# Scale factor for axis 1
+       End WinMap
+    MapB = 	# Second component Mapping
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = -3 	# Shift for axis 1
+       End ShiftMap
+ End CmpMap

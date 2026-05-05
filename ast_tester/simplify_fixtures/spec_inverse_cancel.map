@@ -1,20 +1,20 @@
-Begin CmpMap
-   Nin = 1
-IsA Mapping
-   MapA =
-      Begin SpecMap
-         Nin = 1
-      IsA Mapping
-         Nspec = 1
-         Spec1 = "FRTOVL"
-         Spec1a = 330587960100
-      End SpecMap
-   MapB =
-      Begin SpecMap
-         Nin = 1
-      IsA Mapping
-         Nspec = 1
-         Spec1 = "VLTOFR"
-         Spec1a = 330587960100
-      End SpecMap
-End CmpMap
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin SpecMap 	# Conversion between spectral coordinate systems
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nspec = 1 	# Number of conversion steps
+          Spec1 = "FRTOVL" 	# Convert frequency to rel. velocity
+          Spec1a = 330587960100 	# Rest frequency (Hz)
+       End SpecMap
+    MapB = 	# Second component Mapping
+       Begin SpecMap 	# Conversion between spectral coordinate systems
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nspec = 1 	# Number of conversion steps
+          Spec1 = "VLTOFR" 	# Convert rel. velocity to frequency
+          Spec1a = 330587960100 	# Rest frequency (Hz)
+       End SpecMap
+ End CmpMap
