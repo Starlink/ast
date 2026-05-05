@@ -1764,6 +1764,142 @@ static void gen_negative_fixtures_3(const char *dir) {
     }
 }
 
+/* ===== Negative fixtures batch 4 ===== */
+
+static void gen_negative_fixtures_4(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Negative fixtures batch 4:\n");
+
+    /* slamap-21: 2-arg pair with mismatched arguments (AMP+MAP) */
+    {
+        if (!astOK) astClearStatus;
+        double amp_args[] = {51544.0, 2000.0};
+        double map_args[] = {2001.0, 51544.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "AMP", 2, amp_args);
+        astSlaAdd(sm, "MAP", 2, map_args);
+        write_negative_fixture(dir, "neg_sla_2arg_mismatch", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* specmap-14: 2-arg pair with mismatched arguments */
+    {
+        if (!astOK) astClearStatus;
+        double args1[] = {0.5, 1.2, 0.0, 0.0};
+        double args2[] = {0.5, 1.3, 0.0, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "LKF2HL", 2, args1);
+        astSpecAdd(sm, "HLF2LK", 2, args2);
+        write_negative_fixture(dir, "neg_spec_2arg_mismatch", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* specmap-15: 3-arg pair with mismatched arguments */
+    {
+        if (!astOK) astClearStatus;
+        double args1[] = {0.5, 1.2, 51544.0, 0.0, 0.0};
+        double args2[] = {0.5, 1.2, 51545.0, 0.0, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "GEF2HL", 3, args1);
+        astSpecAdd(sm, "HLF2GE", 3, args2);
+        write_negative_fixture(dir, "neg_spec_3arg_mismatch", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* timemap-14: 2-arg swapped pair with mismatched arguments */
+    {
+        if (!astOK) astClearStatus;
+        double args1[] = {0.0, 2400000.5, 0.0};
+        double args2[] = {2400001.0, 0.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "MJDTOJD", 2, args1);
+        astTimeAdd(tm, "JDTOMJD", 2, args2);
+        write_negative_fixture(dir, "neg_time_2arg_mismatch", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* timemap-15: 3-arg pair with mismatched arguments */
+    {
+        if (!astOK) astClearStatus;
+        double args1[] = {-2.5, 1000.0, 1013.0, 0.0};
+        double args2[] = {-2.6, 1000.0, 1013.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "GMSTTOLMST", 3, args1);
+        astTimeAdd(tm, "LMSTTOGMST", 3, args2);
+        write_negative_fixture(dir, "neg_time_3arg_mismatch", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* grismmap-06: two GrismMaps with different attributes */
+    {
+        if (!astOK) astClearStatus;
+        AstGrismMap *g1 = astGrismMap("GrismNR=1.0");
+        AstGrismMap *g2 = astGrismMap("GrismNR=1.5");
+        astInvert(g2);
+        AstCmpMap *cm = astCmpMap(g1, g2, 1, "");
+        write_negative_fixture(dir, "neg_grism_different_attrs", (AstMapping*)cm);
+        cm = astAnnul(cm); g1 = astAnnul(g1); g2 = astAnnul(g2);
+    }
+
+    /* normmap-07: inverse NormMap pair with different Frames */
+    {
+        if (!astOK) astClearStatus;
+        AstSkyFrame *sf1 = astSkyFrame("System=FK5");
+        AstSkyFrame *sf2 = astSkyFrame("System=FK4");
+        AstNormMap *n1 = astNormMap(sf1, "");
+        AstNormMap *n2 = astNormMap(sf2, "");
+        astInvert(n1);
+        AstCmpMap *cm = astCmpMap(n1, n2, 1, "");
+        write_negative_fixture(dir, "neg_normmap_different_frames", (AstMapping*)cm);
+        cm = astAnnul(cm); n1 = astAnnul(n1); n2 = astAnnul(n2);
+        sf1 = astAnnul(sf1); sf2 = astAnnul(sf2);
+    }
+
+    /* unitnormmap-15: two forward UnitNormMaps — same direction refuses */
+    {
+        if (!astOK) astClearStatus;
+        double c1[] = {1.0, 2.0};
+        double c2[] = {3.0, 4.0};
+        AstUnitNormMap *u1 = astUnitNormMap(2, c1, "");
+        AstUnitNormMap *u2 = astUnitNormMap(2, c2, "");
+        AstCmpMap *cm = astCmpMap(u1, u2, 1, "");
+        write_negative_fixture(dir, "neg_unitnormmap_same_direction", (AstMapping*)cm);
+        cm = astAnnul(cm); u1 = astAnnul(u1); u2 = astAnnul(u2);
+    }
+
+    /* unitnormmap-13: forward UnitNormMap + ShiftMap — wrong order refuses */
+    {
+        if (!astOK) astClearStatus;
+        double centre[] = {1.0, 2.0};
+        double shifts[] = {0.5, 0.5};
+        AstUnitNormMap *unm = astUnitNormMap(2, centre, "");
+        AstShiftMap *sm = astShiftMap(2, shifts, "");
+        AstCmpMap *cm = astCmpMap(unm, sm, 1, "");
+        write_negative_fixture(dir, "neg_unitnormmap_fwd_then_shift", (AstMapping*)cm);
+        cm = astAnnul(cm); unm = astAnnul(unm); sm = astAnnul(sm);
+    }
+
+    /* wcsmap-10: two WcsMaps with different projection parameters */
+    {
+        if (!astOK) astClearStatus;
+        AstWcsMap *w1 = astWcsMap(2, AST__TAN, 1, 2, "PV1_1=0.5");
+        AstWcsMap *w2 = astWcsMap(2, AST__TAN, 1, 2, "PV1_1=1.0");
+        astInvert(w2);
+        AstCmpMap *cm = astCmpMap(w1, w2, 1, "");
+        write_negative_fixture(dir, "neg_wcs_different_params", (AstMapping*)cm);
+        cm = astAnnul(cm); w1 = astAnnul(w1); w2 = astAnnul(w2);
+    }
+
+    /* slamap-06: single forward SlaMap with no neighbours — nothing simplifies */
+    {
+        if (!astOK) astClearStatus;
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "EQGAL", 0, NULL);
+        write_negative_fixture(dir, "neg_sla_lone_forward", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -1809,6 +1945,7 @@ int main(void) {
     gen_negative_fixtures(dir);
     gen_negative_fixtures_2(dir);
     gen_negative_fixtures_3(dir);
+    gen_negative_fixtures_4(dir);
 
     astEnd;
 
