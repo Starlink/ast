@@ -2,51 +2,53 @@
 # Fields: name | input | reference | skip_string_compare
 # skip_string_compare: blank = run both string-diff and astequal tests
 #                      yes  = run astequal test only (ulp-level variation)
+
+# Scenario fixtures (integration regressions, stay in ast_tester/).
 brad  | brad.map  | brad.simp  |
 lsst1 | lsst1.map | lsst1.simp |
 rigby | rigby.map | rigby.simp | yes
 
-# Focused rule fixtures.
-unit_series_elision     | unit_series_elision.map     | unit_series_elision.simp     |
-unit_parallel_merge     | unit_parallel_merge.map     | unit_parallel_merge.simp     |
-zoom_series_merge       | zoom_series_merge.map       | zoom_series_merge.simp       |
-zoom_series_cancel      | zoom_series_cancel.map      | zoom_series_cancel.simp      |
-zoom_parallel_to_matrix | zoom_parallel_to_matrix.map | zoom_parallel_to_matrix.simp |
-matrix_unit_to_unit     | matrix_unit_to_unit.map     | matrix_unit_to_unit.simp     |
-matrix_diagonal_to_zoom | matrix_diagonal_to_zoom.map | matrix_diagonal_to_zoom.simp |
-matrix_full_to_diagonal | matrix_full_to_diagonal.map | matrix_full_to_diagonal.simp |
-win_to_shift            | win_to_shift.map            | win_to_shift.simp            |
-win_to_matrix           | win_to_matrix.map           | win_to_matrix.simp           |
-lut_linear_to_win       | lut_linear_to_win.map       | lut_linear_to_win.simp       |
-lut_inverse_cancel      | lut_inverse_cancel.map      | lut_inverse_cancel.simp      |
-shift_invert_normalize  | shift_invert_normalize.map  | shift_invert_normalize.simp  |
-perm_series_merge       | perm_series_merge.map       | perm_series_merge.simp       |
-perm_parallel_merge     | perm_parallel_merge.map     | perm_parallel_merge.simp     |
-matrix_matrix_series_merge | matrix_matrix_series_merge.map | matrix_matrix_series_merge.simp |
-matrix_zoom_series_merge | matrix_zoom_series_merge.map | matrix_zoom_series_merge.simp |
-matrix_perm_series_merge | matrix_perm_series_merge.map | matrix_perm_series_merge.simp |
-win_shift_series_merge  | win_shift_series_merge.map  | win_shift_series_merge.simp  |
-win_zoom_series_merge   | win_zoom_series_merge.map   | win_zoom_series_merge.simp   |
-win_matrix_series_merge | win_matrix_series_merge.map | win_matrix_series_merge.simp |
-win_perm_swap_merge     | win_perm_swap_merge.map     | win_perm_swap_merge.simp     |
-cmpmap_parallel_series_components | cmpmap_parallel_series_components.map | cmpmap_parallel_series_components.simp |
-sph_inverse_cancel      | sph_inverse_cancel.map      | sph_inverse_cancel.simp      |
-wcs_inverse_cancel      | wcs_inverse_cancel.map      | wcs_inverse_cancel.simp      |
-sla_inverse_cancel      | sla_inverse_cancel.map      | sla_inverse_cancel.simp      |
-spec_inverse_cancel     | spec_inverse_cancel.map     | spec_inverse_cancel.simp     |
-time_inverse_cancel     | time_inverse_cancel.map     | time_inverse_cancel.simp     |
-cmpmap_nested_parallel_flatten | cmpmap_nested_parallel_flatten.map | cmpmap_nested_parallel_flatten.simp |
-cmpmap_perm_parallel_swap | cmpmap_perm_parallel_swap.map | cmpmap_perm_parallel_swap.simp |
-win_parallel_merge      | win_parallel_merge.map      | win_parallel_merge.simp      |
-sph_matrix_sandwich     | sph_matrix_sandwich.map     | sph_matrix_sandwich.simp     |
-pcd_zero_to_unit        | pcd_zero_to_unit.map        | pcd_zero_to_unit.simp        |
-pcd_inverse_cancel      | pcd_inverse_cancel.map      | pcd_inverse_cancel.simp      |
-grism_inverse_cancel    | grism_inverse_cancel.map    | grism_inverse_cancel.simp    |
-grism_zoom_merge        | grism_zoom_merge.map        | grism_zoom_merge.simp        |
-poly_duplicate_terms    | poly_duplicate_terms.map    | poly_duplicate_terms.simp    |
-poly_inverse_cancel     | poly_inverse_cancel.map     | poly_inverse_cancel.simp     |
-spline_inverse_cancel   | spline_inverse_cancel.map   | spline_inverse_cancel.simp   |
-math_inverse_cancel     | math_inverse_cancel.map     | math_inverse_cancel.simp     |
-ratemap_inverse_cancel  | ratemap_inverse_cancel.map  | ratemap_inverse_cancel.simp  |
-tranmap_equal_components | tranmap_equal_components.map | tranmap_equal_components.simp |
-intramap_inverse_cancel | intramap_inverse_cancel.map | intramap_inverse_cancel.simp |
+# Focused rule fixtures (in simplify_fixtures/ subdirectory).
+unit_series_elision     | simplify_fixtures/unit_series_elision.map     | simplify_fixtures/unit_series_elision.simp     |
+unit_parallel_merge     | simplify_fixtures/unit_parallel_merge.map     | simplify_fixtures/unit_parallel_merge.simp     |
+zoom_series_merge       | simplify_fixtures/zoom_series_merge.map       | simplify_fixtures/zoom_series_merge.simp       |
+zoom_series_cancel      | simplify_fixtures/zoom_series_cancel.map      | simplify_fixtures/zoom_series_cancel.simp      |
+zoom_parallel_to_matrix | simplify_fixtures/zoom_parallel_to_matrix.map | simplify_fixtures/zoom_parallel_to_matrix.simp |
+matrix_unit_to_unit     | simplify_fixtures/matrix_unit_to_unit.map     | simplify_fixtures/matrix_unit_to_unit.simp     |
+matrix_diagonal_to_zoom | simplify_fixtures/matrix_diagonal_to_zoom.map | simplify_fixtures/matrix_diagonal_to_zoom.simp |
+matrix_full_to_diagonal | simplify_fixtures/matrix_full_to_diagonal.map | simplify_fixtures/matrix_full_to_diagonal.simp |
+matrix_matrix_series_merge | simplify_fixtures/matrix_matrix_series_merge.map | simplify_fixtures/matrix_matrix_series_merge.simp |
+matrix_zoom_series_merge | simplify_fixtures/matrix_zoom_series_merge.map | simplify_fixtures/matrix_zoom_series_merge.simp |
+matrix_perm_series_merge | simplify_fixtures/matrix_perm_series_merge.map | simplify_fixtures/matrix_perm_series_merge.simp |
+win_to_shift            | simplify_fixtures/win_to_shift.map            | simplify_fixtures/win_to_shift.simp            |
+win_to_matrix           | simplify_fixtures/win_to_matrix.map           | simplify_fixtures/win_to_matrix.simp           |
+win_shift_series_merge  | simplify_fixtures/win_shift_series_merge.map  | simplify_fixtures/win_shift_series_merge.simp  |
+win_zoom_series_merge   | simplify_fixtures/win_zoom_series_merge.map   | simplify_fixtures/win_zoom_series_merge.simp   |
+win_matrix_series_merge | simplify_fixtures/win_matrix_series_merge.map | simplify_fixtures/win_matrix_series_merge.simp |
+win_perm_swap_merge     | simplify_fixtures/win_perm_swap_merge.map     | simplify_fixtures/win_perm_swap_merge.simp     |
+win_parallel_merge      | simplify_fixtures/win_parallel_merge.map      | simplify_fixtures/win_parallel_merge.simp      |
+shift_invert_normalize  | simplify_fixtures/shift_invert_normalize.map  | simplify_fixtures/shift_invert_normalize.simp  |
+perm_series_merge       | simplify_fixtures/perm_series_merge.map       | simplify_fixtures/perm_series_merge.simp       |
+perm_parallel_merge     | simplify_fixtures/perm_parallel_merge.map     | simplify_fixtures/perm_parallel_merge.simp     |
+cmpmap_parallel_series_components | simplify_fixtures/cmpmap_parallel_series_components.map | simplify_fixtures/cmpmap_parallel_series_components.simp |
+cmpmap_nested_parallel_flatten | simplify_fixtures/cmpmap_nested_parallel_flatten.map | simplify_fixtures/cmpmap_nested_parallel_flatten.simp |
+cmpmap_perm_parallel_swap | simplify_fixtures/cmpmap_perm_parallel_swap.map | simplify_fixtures/cmpmap_perm_parallel_swap.simp |
+sph_inverse_cancel      | simplify_fixtures/sph_inverse_cancel.map      | simplify_fixtures/sph_inverse_cancel.simp      |
+sph_matrix_sandwich     | simplify_fixtures/sph_matrix_sandwich.map     | simplify_fixtures/sph_matrix_sandwich.simp     |
+wcs_inverse_cancel      | simplify_fixtures/wcs_inverse_cancel.map      | simplify_fixtures/wcs_inverse_cancel.simp      |
+sla_inverse_cancel      | simplify_fixtures/sla_inverse_cancel.map      | simplify_fixtures/sla_inverse_cancel.simp      |
+spec_inverse_cancel     | simplify_fixtures/spec_inverse_cancel.map     | simplify_fixtures/spec_inverse_cancel.simp     |
+time_inverse_cancel     | simplify_fixtures/time_inverse_cancel.map     | simplify_fixtures/time_inverse_cancel.simp     |
+lut_linear_to_win       | simplify_fixtures/lut_linear_to_win.map       | simplify_fixtures/lut_linear_to_win.simp       |
+lut_inverse_cancel      | simplify_fixtures/lut_inverse_cancel.map      | simplify_fixtures/lut_inverse_cancel.simp      |
+pcd_zero_to_unit        | simplify_fixtures/pcd_zero_to_unit.map        | simplify_fixtures/pcd_zero_to_unit.simp        |
+pcd_inverse_cancel      | simplify_fixtures/pcd_inverse_cancel.map      | simplify_fixtures/pcd_inverse_cancel.simp      |
+grism_inverse_cancel    | simplify_fixtures/grism_inverse_cancel.map    | simplify_fixtures/grism_inverse_cancel.simp    |
+grism_zoom_merge        | simplify_fixtures/grism_zoom_merge.map        | simplify_fixtures/grism_zoom_merge.simp        |
+poly_duplicate_terms    | simplify_fixtures/poly_duplicate_terms.map    | simplify_fixtures/poly_duplicate_terms.simp    |
+poly_inverse_cancel     | simplify_fixtures/poly_inverse_cancel.map     | simplify_fixtures/poly_inverse_cancel.simp     |
+spline_inverse_cancel   | simplify_fixtures/spline_inverse_cancel.map   | simplify_fixtures/spline_inverse_cancel.simp   |
+math_inverse_cancel     | simplify_fixtures/math_inverse_cancel.map     | simplify_fixtures/math_inverse_cancel.simp     |
+ratemap_inverse_cancel  | simplify_fixtures/ratemap_inverse_cancel.map  | simplify_fixtures/ratemap_inverse_cancel.simp  |
+tranmap_equal_components | simplify_fixtures/tranmap_equal_components.map | simplify_fixtures/tranmap_equal_components.simp |
+intramap_inverse_cancel | simplify_fixtures/intramap_inverse_cancel.map | simplify_fixtures/intramap_inverse_cancel.simp |
