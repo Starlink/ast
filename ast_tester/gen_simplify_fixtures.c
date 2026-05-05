@@ -1628,6 +1628,142 @@ static void gen_negative_fixtures_2(const char *dir) {
     }
 }
 
+/* ===== Negative fixtures batch 3 ===== */
+
+static void gen_negative_fixtures_3(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Negative fixtures batch 3:\n");
+
+    /* winmap-16: WinMap adjacent to series CmpMap (not parallel) — no merge */
+    {
+        if (!astOK) astClearStatus;
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {4, 6};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstZoomMap *z1 = astZoomMap(2, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, "");
+        AstCmpMap *series = astCmpMap(z1, z2, 1, "");
+        AstCmpMap *cm = astCmpMap(series, wm, 1, "");
+        write_negative_fixture(dir, "neg_win_series_cmpmap_neighbour", (AstMapping*)cm);
+        cm = astAnnul(cm); series = astAnnul(series);
+        wm = astAnnul(wm); z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* winmap-28: WinMap swap refused — neither swapped Mapping simplifies */
+    {
+        if (!astOK) astClearStatus;
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {4, 6};
+        double mat[] = {1.0, 2.0, 3.0, 4.0};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstMatrixMap *mm = astMatrixMap(2, 2, 0, mat, "");
+        AstCmpMap *cm = astCmpMap(wm, mm, 1, "");
+        write_negative_fixture(dir, "neg_win_swap_no_simplify", (AstMapping*)cm);
+        cm = astAnnul(cm); wm = astAnnul(wm); mm = astAnnul(mm);
+    }
+
+    /* matrixmap-10: PermMap not bidirectional — direct merge blocked */
+    {
+        if (!astOK) astClearStatus;
+        double diag[] = {2.0, 3.0};
+        int inperm[] = {1, -1};
+        int outperm[] = {1, -1};
+        double consts[] = {5.0, 7.0};
+        AstMatrixMap *mm = astMatrixMap(2, 2, 1, diag, "");
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, consts, "");
+        AstCmpMap *cm = astCmpMap(mm, pm, 1, "");
+        write_negative_fixture(dir, "neg_matrix_perm_not_bidirectional", (AstMapping*)cm);
+        cm = astAnnul(cm); mm = astAnnul(mm); pm = astAnnul(pm);
+    }
+
+    /* ratemap-09: RateMap where upper neighbour is not a RateMap */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstRateMap *rm = astRateMap(zm, 1, 1, "");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, "");
+        AstCmpMap *cm = astCmpMap(rm, z2, 1, "");
+        write_negative_fixture(dir, "neg_ratemap_nonratemap_neighbour", (AstMapping*)cm);
+        cm = astAnnul(cm); rm = astAnnul(rm); z2 = astAnnul(z2);
+        zm = astAnnul(zm);
+    }
+
+    /* ratemap-08: RateMaps with different encapsulated Mappings */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(2, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, "");
+        AstRateMap *r1 = astRateMap(z1, 1, 1, "");
+        AstRateMap *r2 = astRateMap(z2, 1, 1, "");
+        astInvert(r2);
+        AstCmpMap *cm = astCmpMap(r1, r2, 1, "");
+        write_negative_fixture(dir, "neg_ratemap_different_inner", (AstMapping*)cm);
+        cm = astAnnul(cm); r1 = astAnnul(r1); r2 = astAnnul(r2);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* cmpmap-06: CmpMap neighbour is not a CmpMap — refuses merge */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, "");
+        AstCmpMap *par = astCmpMap(z1, z2, 0, "");
+        const char *fwd[] = {"y1 = x1", "y2 = x2"};
+        const char *inv[] = {"x1 = y1", "x2 = y2"};
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, "");
+        AstCmpMap *cm = astCmpMap(par, mm, 1, "");
+        write_negative_fixture(dir, "neg_cmpmap_neighbour_not_cmpmap", (AstMapping*)cm);
+        cm = astAnnul(cm); par = astAnnul(par); mm = astAnnul(mm);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* sphmap-03: Inverse(SphMap) + SphMap but PolarLong differs */
+    {
+        if (!astOK) astClearStatus;
+        AstSphMap *s1 = astSphMap("PolarLong=0");
+        astInvert(s1);
+        AstSphMap *s2 = astSphMap("PolarLong=3.14159");
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_negative_fixture(dir, "neg_sph_polarlong_mismatch", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
+    }
+
+    /* sphmap-04: SphMap(fwd) + Inverse(SphMap) but UnitRadius not set */
+    {
+        if (!astOK) astClearStatus;
+        AstSphMap *s1 = astSphMap("");
+        AstSphMap *s2 = astSphMap("");
+        astInvert(s2);
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_negative_fixture(dir, "neg_sph_no_unitradius", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
+    }
+
+    /* polymap-10: two different PolyMaps in opposite directions — astEqual fails */
+    {
+        if (!astOK) astClearStatus;
+        double coeff_f1[] = {2.0, 1, 1};
+        double coeff_f2[] = {3.0, 1, 1};
+        AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f1, 0, NULL, "");
+        AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f2, 0, NULL, "");
+        astInvert(p2);
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, "");
+        write_negative_fixture(dir, "neg_poly_different_coeffs", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
+    /* lutmap-07: two LutMaps in parallel — cancellation not attempted */
+    {
+        if (!astOK) astClearStatus;
+        double lut[] = {0.0, 1.0, 4.0, 9.0, 16.0};
+        AstLutMap *l1 = astLutMap(5, lut, 1.0, 1.0, "");
+        AstLutMap *l2 = astLutMap(5, lut, 1.0, 1.0, "");
+        AstCmpMap *cm = astCmpMap(l1, l2, 0, "");
+        write_negative_fixture(dir, "neg_lut_parallel", (AstMapping*)cm);
+        cm = astAnnul(cm); l1 = astAnnul(l1); l2 = astAnnul(l2);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -1672,6 +1808,7 @@ int main(void) {
 
     gen_negative_fixtures(dir);
     gen_negative_fixtures_2(dir);
+    gen_negative_fixtures_3(dir);
 
     astEnd;
 

@@ -1,0 +1,33 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin LutMap 	# Map 1-d coordinates using a lookup table
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nlut = 5 	# Number of lookup table elements
+          Start = 1 	# Input value at first element
+#         Incr = 1 	# Input value increment between elements
+          LutInt = 0 	# Interpolation method
+          L1 = 0 	# Lookup table elements...
+          L2 = 1
+          L3 = 4
+          L4 = 9
+          L5 = 16
+       End LutMap
+    MapB = 	# Second component Mapping
+       Begin LutMap 	# Map 1-d coordinates using a lookup table
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nlut = 5 	# Number of lookup table elements
+          Start = 1 	# Input value at first element
+#         Incr = 1 	# Input value increment between elements
+          LutInt = 0 	# Interpolation method
+          L1 = 0 	# Lookup table elements...
+          L2 = 1
+          L3 = 4
+          L4 = 9
+          L5 = 16
+       End LutMap
+ End CmpMap
