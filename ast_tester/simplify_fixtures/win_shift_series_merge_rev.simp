@@ -1,0 +1,7 @@
+ Begin WinMap 	# Map one window on to another
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Sft1 = 11 	# Shift for axis 1
+    Scl1 = 2 	# Scale factor for axis 1
+ End WinMap
