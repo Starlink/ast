@@ -45,6 +45,7 @@
 #include "ast.h"
 #include "ast_err.h"
 #include "pl3d.h"
+#include "plplotutil.h"
 
 static void stopit( int *status, const char *text ) {
    if( *status != 0 ) return;
@@ -142,28 +143,6 @@ static AstObject *readTest( const char *name, int *status ) {
    return result;
 }
 
-/* Setup PLplot output device based on filename or device name */
-static void setupDevice( const char *output ) {
-   const char *ext;
-
-   if( strcmp(output, "aqt") == 0 || strcmp(output, "xwin") == 0 ||
-       strcmp(output, "xcairo") == 0 || strcmp(output, "qtwidget") == 0 ) {
-      c_plsdev( output );
-   } else {
-      ext = strrchr( output, '.' );
-      if( ext && strcmp(ext, ".pdf") == 0 ) {
-         c_plsdev( "pdfcairo" );
-      } else if( ext && strcmp(ext, ".svg") == 0 ) {
-         c_plsdev( "svgcairo" );
-      } else if( ext && strcmp(ext, ".png") == 0 ) {
-         c_plsdev( "pngcairo" );
-      } else {
-         c_plsdev( "psc" );
-      }
-      c_plsfnam( output );
-   }
-}
-
 
 int main( int argc, char **argv ) {
    int status = 0;
@@ -190,7 +169,7 @@ int main( int argc, char **argv ) {
    }
 
    /* Initialize PLplot */
-   setupDevice( output );
+   (void)astPlSetupDevice( output );
    c_plinit();
 
    /* Set up viewport and window. Use a viewport with small margins to
