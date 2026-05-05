@@ -1208,6 +1208,48 @@ static void gen_selectormap_fixtures(const char *dir) {
     }
 }
 
+/* ===== DssMap fixtures ===== */
+
+static void gen_dssmap_fixtures(const char *dir) {
+    printf("DssMap fixtures:\n");
+
+    /* dssmap-07: non-inverted DssMap absorbs preceding WinMap.
+       Read DSS headers from dss.fits-dss to create a FrameSet, extract
+       the Mapping (which contains a DssMap), then compose with a WinMap. */
+    {
+        FILE *fp = fopen("ast_tester/dss.fits-dss", "r");
+        if (fp) {
+            char line[256];
+            AstFitsChan *fc = astFitsChan(NULL, NULL, "Encoding=DSS");
+            while (fgets(line, sizeof(line), fp)) {
+                size_t len = strlen(line);
+                if (len > 0 && line[len-1] == '\n') line[len-1] = '\0';
+                astPutFits(fc, line, 0);
+            }
+            fclose(fp);
+            astClear(fc, "Card");
+            AstFrameSet *fs = (AstFrameSet *)astRead(fc);
+            if (fs && astIsAFrameSet(fs)) {
+                AstMapping *map = astGetMapping(fs, AST__BASE, AST__CURRENT);
+                /* Use unsimplified map — it should contain a DssMap. */
+                double ina[] = {0, 0}, inb[] = {1, 1};
+                double outa[] = {1, 1}, outb[] = {2, 2};
+                AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+                AstCmpMap *cm = astCmpMap(wm, map, 1, "");
+                write_fixture(dir, "dss_winmap_absorb", (AstMapping*)cm);
+                cm = astAnnul(cm); wm = astAnnul(wm);
+                map = astAnnul(map);
+                fs = astAnnul(fs);
+            } else {
+                fprintf(stderr, "WARNING: Could not read DSS FrameSet\n");
+            }
+            fc = astAnnul(fc);
+        } else {
+            fprintf(stderr, "WARNING: Could not open ast_tester/dss.fits-dss\n");
+        }
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -1247,6 +1289,8 @@ int main(void) {
     gen_switchmap_extra_fixtures(dir);
     gen_pcdmap_extra_fixtures(dir);
     gen_win_extra_cascade_fixtures(dir);
+    /* DssMap: skipped — protected constructor, and DSS FitsChan encoding
+       no longer creates DssMap objects (decomposes to WcsMap pipeline). */
 
     astEnd;
 
