@@ -970,6 +970,71 @@ static void gen_slamap_extra_fixtures(const char *dir) {
     }
 }
 
+/* ===== SwitchMap extra fixtures ===== */
+
+static void gen_switchmap_extra_fixtures(const char *dir) {
+    printf("SwitchMap extra fixtures:\n");
+
+    /* switchmap-01: SwitchMap + Inverse(SwitchMap) cancel to UnitMap */
+    {
+        AstZoomMap *fsel = astZoomMap(1, 1.0, "");
+        AstZoomMap *isel = astZoomMap(1, 1.0, "");
+        AstZoomMap *r1 = astZoomMap(1, 2.0, "");
+        AstMapping *routes[] = {(AstMapping*)r1};
+        AstSwitchMap *s1 = astSwitchMap(fsel, isel, 1, (void**)routes, "");
+        AstSwitchMap *s2 = astSwitchMap(fsel, isel, 1, (void**)routes, "");
+        astInvert(s2);
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_fixture(dir, "switchmap_inverse_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
+        fsel = astAnnul(fsel); isel = astAnnul(isel); r1 = astAnnul(r1);
+    }
+}
+
+/* ===== PcdMap extra fixtures ===== */
+
+static void gen_pcdmap_extra_fixtures(const char *dir) {
+    printf("PcdMap extra fixtures:\n");
+
+    /* pcdmap-05: PcdMap swaps with PermMap(axis swap) to reach inverse */
+    {
+        double pcdcen[] = {0.0, 0.0};
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        AstPcdMap *p1 = astPcdMap(0.001, pcdcen, "");
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstPcdMap *p2 = astPcdMap(0.001, pcdcen, "");
+        astInvert(p2);
+        AstCmpMap *inner = astCmpMap(pm, p2, 1, "");
+        AstCmpMap *outer = astCmpMap(p1, inner, 1, "");
+        write_fixture(dir, "pcd_perm_swap_cancel", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        p1 = astAnnul(p1); pm = astAnnul(pm); p2 = astAnnul(p2);
+    }
+}
+
+/* ===== WinMap extra cascade fixtures ===== */
+
+static void gen_win_extra_cascade_fixtures(const char *dir) {
+    printf("WinMap extra cascade fixtures:\n");
+
+    /* winmap-14: WinMap merges with neighbouring parallel CmpMap (lower) */
+    {
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {3, 5};
+        double shifts[] = {1.0};
+        AstShiftMap *sm1 = astShiftMap(1, shifts, "");
+        double shifts2[] = {2.0};
+        AstShiftMap *sm2 = astShiftMap(1, shifts2, "");
+        AstCmpMap *par = astCmpMap(sm1, sm2, 0, "");
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(par, wm, 1, "");
+        write_fixture(dir, "win_cmpmap_parallel_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); par = astAnnul(par); wm = astAnnul(wm);
+        sm1 = astAnnul(sm1); sm2 = astAnnul(sm2);
+    }
+}
+
 /* ===== SlaMap 4-arg fixtures ===== */
 
 static void gen_slamap_4arg_fixtures(const char *dir) {
@@ -1091,6 +1156,9 @@ int main(void) {
     gen_slamap_4arg_fixtures(dir);
     gen_win_cascade_fixtures(dir);
     gen_selectormap_fixtures(dir);
+    gen_switchmap_extra_fixtures(dir);
+    gen_pcdmap_extra_fixtures(dir);
+    gen_win_extra_cascade_fixtures(dir);
 
     astEnd;
 
