@@ -1,0 +1,25 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 1 	# Shift for axis 1
+       End ShiftMap
+    MapB = 	# Second component Mapping
+       Begin GrismMap 	# Map 1-d coordinates using a spectral disperser
+          Nin = 1 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+#         GrmNR = 1 	# Refractive index at the ref. wavelength
+#         GrmNRP = 0 	# Rate of change of refractive index
+#         GrmWR = 5000 	# Ref. wavelength
+#         GrmAlp = 0 	# Angle of incidence of incoming light
+#         GrmG = 0 	# Grating ruling density
+#         GrmM = 0 	# The interference order
+#         GrmEps = 0 	# Angle between grating normal and dispersion plane
+#         GrmTh = 0 	# Angle between detector normal and reference ray
+       End GrismMap
+ End CmpMap

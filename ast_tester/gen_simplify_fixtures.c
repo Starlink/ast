@@ -2274,6 +2274,84 @@ static void gen_negative_fixtures_7(const char *dir) {
     }
 }
 
+/* ===== Negative fixtures batch 8 ===== */
+
+static void gen_negative_fixtures_8(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Negative fixtures batch 8:\n");
+
+    /* sphmap-06: SphMap in parallel — refuses */
+    {
+        if (!astOK) astClearStatus;
+        AstSphMap *sm = astSphMap("UnitRadius=1");
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstCmpMap *cm = astCmpMap(sm, zm, 0, "");
+        write_negative_fixture(dir, "neg_sph_parallel", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); zm = astAnnul(zm);
+    }
+
+    /* sphmap-13: sandwich MatrixMap not diagonal (full matrix) */
+    {
+        if (!astOK) astClearStatus;
+        double mat[] = {1.0, 0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+        AstSphMap *s1 = astSphMap("UnitRadius=1");
+        astInvert(s1);
+        AstMatrixMap *mm = astMatrixMap(3, 3, 0, mat, "");
+        AstSphMap *s2 = astSphMap("UnitRadius=1");
+        AstCmpMap *inner = astCmpMap(mm, s2, 1, "");
+        AstCmpMap *outer = astCmpMap(s1, inner, 1, "");
+        write_negative_fixture(dir, "neg_sph_sandwich_full_matrix", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        s1 = astAnnul(s1); mm = astAnnul(mm); s2 = astAnnul(s2);
+    }
+
+    /* normmap-08: NormMap followed by non-NormMap — no cancel */
+    {
+        if (!astOK) astClearStatus;
+        AstSkyFrame *sf = astSkyFrame("");
+        AstNormMap *nm = astNormMap(sf, "");
+        AstZoomMap *zm = astZoomMap(2, 2.0, "");
+        AstCmpMap *cm = astCmpMap(nm, zm, 1, "");
+        write_negative_fixture(dir, "neg_normmap_nonnorm_neighbour", (AstMapping*)cm);
+        cm = astAnnul(cm); nm = astAnnul(nm); zm = astAnnul(zm);
+        sf = astAnnul(sf);
+    }
+
+    /* grismmap-11: ZoomMap before forward (non-inverted) GrismMap — wrong config */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstGrismMap *gm = astGrismMap("");
+        AstCmpMap *cm = astCmpMap(zm, gm, 1, "");
+        write_negative_fixture(dir, "neg_grism_zoom_before_fwd", (AstMapping*)cm);
+        cm = astAnnul(cm); zm = astAnnul(zm); gm = astAnnul(gm);
+    }
+
+    /* grismmap-12: non-ZoomMap before inverted GrismMap */
+    {
+        if (!astOK) astClearStatus;
+        double shifts[] = {1.0};
+        AstShiftMap *sm = astShiftMap(1, shifts, "");
+        AstGrismMap *gm = astGrismMap("");
+        astInvert(gm);
+        AstCmpMap *cm = astCmpMap(sm, gm, 1, "");
+        write_negative_fixture(dir, "neg_grism_nonzoom_before_inv", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); gm = astAnnul(gm);
+    }
+
+    /* unitnormmap-16: UnitNormMap with non-mergeable neighbour.
+       UnitNormMap(2) forward: Nin=2, Nout=3. Follow with ZoomMap(3). */
+    {
+        if (!astOK) astClearStatus;
+        double centre[] = {1.0, 2.0};
+        AstUnitNormMap *unm = astUnitNormMap(2, centre, "");
+        AstZoomMap *zm = astZoomMap(3, 2.0, "");
+        AstCmpMap *cm = astCmpMap(unm, zm, 1, "");
+        write_negative_fixture(dir, "neg_unitnormmap_nonmergeable", (AstMapping*)cm);
+        cm = astAnnul(cm); unm = astAnnul(unm); zm = astAnnul(zm);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -2323,6 +2401,7 @@ int main(void) {
     gen_negative_fixtures_5(dir);
     gen_negative_fixtures_6(dir);
     gen_negative_fixtures_7(dir);
+    gen_negative_fixtures_8(dir);
 
     astEnd;
 

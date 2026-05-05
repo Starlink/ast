@@ -1,0 +1,20 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 4 	# Number of input coordinates
+    Nout = 3 	# Number of output coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin SphMap 	# Cartesian to Spherical mapping
+          Nin = 3 	# Number of input coordinates
+          Nout = 2 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          UntRd = 1 	# All input vectors have unit length
+#         PlrLg = 0 	# Polar longitude (rad.s)
+       End SphMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+ End CmpMap
