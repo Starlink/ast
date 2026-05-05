@@ -1338,9 +1338,9 @@ static void gen_negative_fixtures(const char *dir) {
         pm = astAnnul(pm);
     }
 
-    /* polymap-09: two forward PolyMaps in series — same direction refuses cancel */
+    /* polymap-09: two forward non-linear PolyMaps in series — same direction refuses */
     {
-        double coeff_f[] = {2.0, 1, 1};
+        double coeff_f[] = {1.0, 1, 2};
         AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f, 0, NULL, "");
         AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f, 0, NULL, "");
         AstCmpMap *cm = astCmpMap(p1, p2, 1, "");
@@ -1995,15 +1995,15 @@ static void gen_negative_fixtures_5(const char *dir) {
         cm = astAnnul(cm); wm = astAnnul(wm); zm = astAnnul(zm);
     }
 
-    /* polymap-07: two PolyMaps in parallel — refuses cancel */
+    /* polymap-07: two non-linear PolyMaps in parallel — refuses cancel */
     {
         if (!astOK) astClearStatus;
-        double coeff_f[] = {2.0, 1, 1};
+        double coeff_f[] = {1.0, 1, 2};
         AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f, 0, NULL, "");
         AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f, 0, NULL, "");
         astInvert(p2);
         AstCmpMap *cm = astCmpMap(p1, p2, 0, "");
-        write_negative_fixture(dir, "neg_poly_parallel", (AstMapping*)cm);
+        write_negative_fixture(dir, "neg_poly_parallel_nonlinear", (AstMapping*)cm);
         cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
     }
 

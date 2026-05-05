@@ -192,3 +192,5 @@ neg_math_nonmath_neighbour | simplify_fixtures/neg_math_nonmath_neighbour.map | 
 neg_wcs_parallel        | simplify_fixtures/neg_wcs_parallel.map        | simplify_fixtures/neg_wcs_parallel.map        | yes
 neg_spline_parallel     | simplify_fixtures/neg_spline_parallel.map     | simplify_fixtures/neg_spline_parallel.map     | yes
 neg_lut_nonlut_neighbour | simplify_fixtures/neg_lut_nonlut_neighbour.map | simplify_fixtures/neg_lut_nonlut_neighbour.map | yes
+neg_poly_parallel_nonlinear | simplify_fixtures/neg_poly_parallel_nonlinear.map | simplify_fixtures/neg_poly_parallel_nonlinear.map | yes
+neg_poly_same_direction | simplify_fixtures/neg_poly_same_direction.map | simplify_fixtures/neg_poly_same_direction.map | yes
