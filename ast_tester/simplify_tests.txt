@@ -140,3 +140,20 @@ pcd_swap_zoom_simplifies | simplify_fixtures/pcd_swap_zoom_simplifies.map | simp
 spec_merge_no_cancel    | simplify_fixtures/spec_merge_no_cancel.map    | simplify_fixtures/spec_merge_no_cancel.simp    |
 time_merge_no_cancel    | simplify_fixtures/time_merge_no_cancel.map    | simplify_fixtures/time_merge_no_cancel.simp    |
 matrix_swap_win_simplifies | simplify_fixtures/matrix_swap_win_simplifies.map | simplify_fixtures/matrix_swap_win_simplifies.simp |
+
+
+# Negative (guard-rejection) fixtures: same file in both columns, astequal only.
+neg_matrix_diag_unequal | simplify_fixtures/neg_matrix_diag_unequal.map | simplify_fixtures/neg_matrix_diag_unequal.map | yes
+neg_matrix_full_offdiag | simplify_fixtures/neg_matrix_full_offdiag.map | simplify_fixtures/neg_matrix_full_offdiag.map | yes
+neg_matrix_parallel_no_merge | simplify_fixtures/neg_matrix_parallel_no_merge.map | simplify_fixtures/neg_matrix_parallel_no_merge.map | yes
+neg_win_nonmergeable_series | simplify_fixtures/neg_win_nonmergeable_series.map | simplify_fixtures/neg_win_nonmergeable_series.map | yes
+neg_win_nonmergeable_parallel | simplify_fixtures/neg_win_nonmergeable_parallel.map | simplify_fixtures/neg_win_nonmergeable_parallel.map | yes
+neg_poly_nonlinear      | simplify_fixtures/neg_poly_nonlinear.map      | simplify_fixtures/neg_poly_nonlinear.map      | yes
+neg_math_no_simpfi      | simplify_fixtures/neg_math_no_simpfi.map      | simplify_fixtures/neg_math_no_simpfi.map      | yes
+neg_sla_arg_mismatch    | simplify_fixtures/neg_sla_arg_mismatch.map    | simplify_fixtures/neg_sla_arg_mismatch.map    | yes
+neg_spec_arg_mismatch   | simplify_fixtures/neg_spec_arg_mismatch.map   | simplify_fixtures/neg_spec_arg_mismatch.map   | yes
+neg_time_arg_mismatch   | simplify_fixtures/neg_time_arg_mismatch.map   | simplify_fixtures/neg_time_arg_mismatch.map   | yes
+neg_sph_non_sphmap_neighbour | simplify_fixtures/neg_sph_non_sphmap_neighbour.map | simplify_fixtures/neg_sph_non_sphmap_neighbour.map | yes
+neg_grism_same_direction | simplify_fixtures/neg_grism_same_direction.map | simplify_fixtures/neg_grism_same_direction.map | yes
+neg_wcs_same_direction  | simplify_fixtures/neg_wcs_same_direction.map  | simplify_fixtures/neg_wcs_same_direction.map  | yes
+neg_sla_prec_no_common  | simplify_fixtures/neg_sla_prec_no_common.map  | simplify_fixtures/neg_sla_prec_no_common.map  | yes

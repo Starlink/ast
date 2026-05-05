@@ -1250,6 +1250,204 @@ static void gen_dssmap_fixtures(const char *dir) {
     }
 }
 
+/* ===== Negative (guard-rejection) fixtures ===== */
+/* These test that astSimplify does NOT structurally change the input.
+   Only the .map file is generated; the test uses the same file as both
+   input and reference with skip_string_compare=yes (astequal only). */
+
+static void write_negative_fixture(const char *dir, const char *name, AstMapping *map) {
+    char path_map[512];
+    AstChannel *chan;
+    extern int *astGetStatusPtr_( void );
+
+    if (!astOK) astClearStatus;
+
+    snprintf(path_map, sizeof(path_map), "%s/%s.map", dir, name);
+
+    chan = astChannel(NULL, NULL, "SinkFile=%s", path_map);
+    if (astWrite(chan, map) != 1) {
+        fprintf(stderr, "ERROR: astWrite failed for %s.map\n", name);
+    }
+    chan = astAnnul(chan);
+    printf("  %s\n", name);
+}
+
+static void gen_negative_fixtures(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Negative (guard-rejection) fixtures:\n");
+
+    /* matrixmap-04: diagonal MatrixMap with unequal elements — can't become ZoomMap */
+    {
+        double diag[] = {2.0, 3.0};
+        AstMatrixMap *mm = astMatrixMap(2, 2, 1, diag, "");
+        write_negative_fixture(dir, "neg_matrix_diag_unequal", (AstMapping*)mm);
+        mm = astAnnul(mm);
+    }
+
+    /* matrixmap-06: full MatrixMap with non-zero off-diagonal — stays full */
+    {
+        double mat[] = {1.0, 2.0, 3.0, 4.0};
+        AstMatrixMap *mm = astMatrixMap(2, 2, 0, mat, "");
+        write_negative_fixture(dir, "neg_matrix_full_offdiag", (AstMapping*)mm);
+        mm = astAnnul(mm);
+    }
+
+    /* matrixmap-17: full MatrixMap in parallel — no merge attempted */
+    {
+        double mat[] = {1.0, 2.0, 3.0, 4.0};
+        AstMatrixMap *mm = astMatrixMap(2, 2, 0, mat, "");
+        AstZoomMap *zm = astZoomMap(1, 5.0, "");
+        AstCmpMap *cm = astCmpMap(mm, zm, 0, "");
+        write_negative_fixture(dir, "neg_matrix_parallel_no_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); mm = astAnnul(mm); zm = astAnnul(zm);
+    }
+
+    /* winmap-13: WinMap with non-mergeable neighbour in series.
+       Use a MathMap (not directly mergeable with WinMap) with matching dims. */
+    {
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {4, 6};
+        const char *fwd[] = {"y1 = x1", "y2 = x2"};
+        const char *inv[] = {"x1 = y1", "x2 = y2"};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, "");
+        AstCmpMap *cm = astCmpMap(wm, mm, 1, "");
+        write_negative_fixture(dir, "neg_win_nonmergeable_series", (AstMapping*)cm);
+        cm = astAnnul(cm); wm = astAnnul(wm); mm = astAnnul(mm);
+    }
+
+    /* winmap-38: WinMap with non-mergeable neighbour in parallel */
+    {
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {4, 6};
+        double mat[] = {1.0, 2.0, 3.0, 4.0};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstMatrixMap *mm = astMatrixMap(2, 2, 0, mat, "");
+        AstCmpMap *cm = astCmpMap(wm, mm, 0, "");
+        write_negative_fixture(dir, "neg_win_nonmergeable_parallel", (AstMapping*)cm);
+        cm = astAnnul(cm); wm = astAnnul(wm); mm = astAnnul(mm);
+    }
+
+    /* polymap-05: non-linear PolyMap — linearization refused */
+    {
+        double coeff_f[] = {2.0, 1, 2, 0,
+                            3.0, 1, 0, 1};
+        int ncoeff_f = 2;
+        AstPolyMap *pm = astPolyMap(2, 1, ncoeff_f, coeff_f, 0, NULL, "");
+        write_negative_fixture(dir, "neg_poly_nonlinear", (AstMapping*)pm);
+        pm = astAnnul(pm);
+    }
+
+    /* polymap-09: two forward PolyMaps in series — same direction refuses cancel */
+    {
+        double coeff_f[] = {2.0, 1, 1};
+        AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f, 0, NULL, "");
+        AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f, 0, NULL, "");
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, "");
+        write_negative_fixture(dir, "neg_poly_same_direction", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
+    /* mathmap-05: MathMap pair without SimpFI — refuses cancellation */
+    {
+        const char *fwd[] = {"y = x"};
+        const char *inv[] = {"x = y"};
+        AstMathMap *m1 = astMathMap(1, 1, 1, fwd, 1, inv, "SimpFI=0,SimpIF=0");
+        AstMathMap *m2 = astMathMap(1, 1, 1, fwd, 1, inv, "SimpFI=0,SimpIF=0");
+        astInvert(m2);
+        AstCmpMap *cm = astCmpMap(m1, m2, 1, "");
+        write_negative_fixture(dir, "neg_math_no_simpfi", (AstMapping*)cm);
+        cm = astAnnul(cm); m1 = astAnnul(m1); m2 = astAnnul(m2);
+    }
+
+    /* slamap-20: 1-arg pair with mismatched argument — prevents cancel */
+    {
+        double args1[] = {1950.0};
+        double args2[] = {2000.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "ADDET", 1, args1);
+        astSlaAdd(sm, "SUBET", 1, args2);
+        write_negative_fixture(dir, "neg_sla_arg_mismatch", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* specmap-13: 1-arg pair with mismatched argument */
+    {
+        double rf1[] = {1.4e9, 0.0};
+        double rf2[] = {2.0e9, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "FRTOVL", 1, rf1);
+        astSpecAdd(sm, "VLTOFR", 1, rf2);
+        write_negative_fixture(dir, "neg_spec_arg_mismatch", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* timemap-13: 1-arg pair with mismatched argument */
+    {
+        double dut1[] = {0.5, 0.0};
+        double dut2[] = {0.3, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "TAITOTT", 1, dut1);
+        astTimeAdd(tm, "TTTOTAI", 1, dut2);
+        write_negative_fixture(dir, "neg_time_arg_mismatch", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* sphmap-07: SphMap followed by non-SphMap — refuses simplification.
+       SphMap forward is 3in→2out (Cartesian to spherical). Follow with ZoomMap(2). */
+    {
+        if (!astOK) astClearStatus;
+        AstSphMap *sm = astSphMap("UnitRadius=1");
+        AstZoomMap *zm = astZoomMap(2, 2.0, "");
+        AstCmpMap *cm = astCmpMap(sm, zm, 1, "");
+        write_negative_fixture(dir, "neg_sph_non_sphmap_neighbour", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); zm = astAnnul(zm);
+    }
+
+    /* grismmap-08: two GrismMaps same direction — refuses cancel */
+    {
+        if (!astOK) astClearStatus;
+        AstGrismMap *g1 = astGrismMap("");
+        AstGrismMap *g2 = astGrismMap("");
+        AstCmpMap *cm = astCmpMap(g1, g2, 1, "");
+        write_negative_fixture(dir, "neg_grism_same_direction", (AstMapping*)cm);
+        cm = astAnnul(cm); g1 = astAnnul(g1); g2 = astAnnul(g2);
+    }
+
+    /* wcsmap-08: two WcsMaps same direction — refuses cancel */
+    {
+        if (!astOK) astClearStatus;
+        AstWcsMap *w1 = astWcsMap(2, AST__TAN, 1, 2, "");
+        AstWcsMap *w2 = astWcsMap(2, AST__TAN, 1, 2, "");
+        AstCmpMap *cm = astCmpMap(w1, w2, 1, "");
+        write_negative_fixture(dir, "neg_wcs_same_direction", (AstMapping*)cm);
+        cm = astAnnul(cm); w1 = astAnnul(w1); w2 = astAnnul(w2);
+    }
+
+    /* slamap-25: adjacent precession with non-common equinox */
+    {
+        double args1[] = {1950.0, 1975.0};
+        double args2[] = {2000.0, 2025.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "PREC", 2, args1);
+        astSlaAdd(sm, "PREC", 2, args2);
+        write_negative_fixture(dir, "neg_sla_prec_no_common", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* unitnormmap-03: WinMap(non-unit scale) + UnitNormMap — refuses merge */
+    {
+        double centre[] = {1.0, 2.0};
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {0, 0}, outb[] = {2, 3};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstUnitNormMap *unm = astUnitNormMap(2, centre, "");
+        AstCmpMap *cm = astCmpMap(wm, unm, 1, "");
+        write_negative_fixture(dir, "neg_unitnormmap_nonunit_scale", (AstMapping*)cm);
+        cm = astAnnul(cm); wm = astAnnul(wm); unm = astAnnul(unm);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -1291,6 +1489,8 @@ int main(void) {
     gen_win_extra_cascade_fixtures(dir);
     /* DssMap: skipped — protected constructor, and DSS FitsChan encoding
        no longer creates DssMap objects (decomposes to WcsMap pipeline). */
+
+    gen_negative_fixtures(dir);
 
     astEnd;
 

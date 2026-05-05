@@ -1,0 +1,24 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin MathMap 	# Transformation using mathematical functions
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Fwd1 = "y=x" 	# Forward function 1
+          Inv1 = "x=y" 	# Inverse function 1
+          SimpFI = 0 	# Forward-inverse pairs do not simplify
+          SimpIF = 0 	# Inverse-forward pairs do not simplify
+       End MathMap
+    MapB = 	# Second component Mapping
+       Begin MathMap 	# Transformation using mathematical functions
+          Nin = 1 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          Fwd1 = "y=x" 	# Forward function 1
+          Inv1 = "x=y" 	# Inverse function 1
+          SimpFI = 0 	# Forward-inverse pairs do not simplify
+          SimpIF = 0 	# Inverse-forward pairs do not simplify
+       End MathMap
+ End CmpMap
