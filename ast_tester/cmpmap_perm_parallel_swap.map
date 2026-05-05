@@ -1,0 +1,35 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   MapA =
+      Begin PermMap
+         Nin = 2
+      IsA Mapping
+         Out1 = 2
+         Out2 = 1
+         In1 = 2
+         In2 = 1
+      End PermMap
+   MapB =
+      Begin CmpMap
+         Nin = 2
+      IsA Mapping
+         Series = 0
+         MapA =
+            Begin SpecMap
+               Nin = 1
+            IsA Mapping
+               Nspec = 1
+               Spec1 = "FRTOVL"
+               Spec1a = 330587960100
+            End SpecMap
+         MapB =
+            Begin TimeMap
+               Nin = 1
+            IsA Mapping
+               Ntime = 1
+               Time1 = "TAITOTT"
+               Time1a = 0
+            End TimeMap
+      End CmpMap
+End CmpMap

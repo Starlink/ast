@@ -35,3 +35,13 @@ wcs_inverse_cancel      | wcs_inverse_cancel.map      | wcs_inverse_cancel.simp 
 sla_inverse_cancel      | sla_inverse_cancel.map      | sla_inverse_cancel.simp      |
 spec_inverse_cancel     | spec_inverse_cancel.map     | spec_inverse_cancel.simp     |
 time_inverse_cancel     | time_inverse_cancel.map     | time_inverse_cancel.simp     |
+cmpmap_nested_parallel_flatten | cmpmap_nested_parallel_flatten.map | cmpmap_nested_parallel_flatten.simp |
+cmpmap_perm_parallel_swap | cmpmap_perm_parallel_swap.map | cmpmap_perm_parallel_swap.simp |
+win_parallel_merge      | win_parallel_merge.map      | win_parallel_merge.simp      |
+sph_matrix_sandwich     | sph_matrix_sandwich.map     | sph_matrix_sandwich.simp     |
+pcd_zero_to_unit        | pcd_zero_to_unit.map        | pcd_zero_to_unit.simp        |
+pcd_inverse_cancel      | pcd_inverse_cancel.map      | pcd_inverse_cancel.simp      |
+grism_inverse_cancel    | grism_inverse_cancel.map    | grism_inverse_cancel.simp    |
+grism_zoom_merge        | grism_zoom_merge.map        | grism_zoom_merge.simp        |
+poly_duplicate_terms    | poly_duplicate_terms.map    | poly_duplicate_terms.simp    |
+poly_inverse_cancel     | poly_inverse_cancel.map     | poly_inverse_cancel.simp     |

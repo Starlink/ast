@@ -1,0 +1,7 @@
+Begin PcdMap
+   Nin = 2
+IsA Mapping
+   PcdCn0 = 0
+   PcdCn1 = 0
+   Disco = 0
+End PcdMap

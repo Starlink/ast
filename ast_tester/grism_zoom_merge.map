@@ -1,0 +1,22 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   MapA =
+      Begin GrismMap
+      IsA Mapping
+         GrmNR = 1.5
+         GrmNRP = -1e-06
+         GrmWR = 5000
+         GrmAlp = 0.1
+         GrmG = 0.0002
+         GrmM = 1
+         GrmEps = 0.02
+         GrmTh = 0.03
+      End GrismMap
+   MapB =
+      Begin ZoomMap
+         Nin = 1
+      IsA Mapping
+         Zoom = 2
+      End ZoomMap
+End CmpMap

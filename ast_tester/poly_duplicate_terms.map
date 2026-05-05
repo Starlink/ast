@@ -1,0 +1,12 @@
+Begin PolyMap
+   Nin = 1
+IsA Mapping
+   MPF1 = 1
+   NCF1 = 4
+   CF1 = 1
+   CF2 = 2
+   CF3 = 3
+   CF4 = 4
+   PF2 = 1
+   PF4 = 1
+End PolyMap

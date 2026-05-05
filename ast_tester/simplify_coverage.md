@@ -24,9 +24,9 @@ to that rule.
 | Owner | Simplification rule or family | Targeted coverage |
 | --- | --- | --- |
 | Mapping | Single mapping repeatedly delegates to `astMapMerge`; restricted simplify honours `AllowSimplify` | `testresimp.c` |
-| CmpMap | Flattens nested CmpMaps, decomposes series/parallel lists, detects repeated simplification loops | Planned targeted fixtures plus scenario fixtures |
+| CmpMap | Flattens nested CmpMaps, decomposes series/parallel lists, detects repeated simplification loops | `cmpmap_nested_parallel_flatten.map`; scenario fixtures |
 | CmpMap | Merges adjacent CmpMaps by reshaping series/parallel combinations | `cmpmap_parallel_series_components.map` |
-| CmpMap | Swaps compatible PermMap and parallel CmpMap combinations | Planned targeted fixtures |
+| CmpMap | Swaps compatible PermMap and parallel CmpMap combinations | `cmpmap_perm_parallel_swap.map` |
 | UnitMap | Removes UnitMap from series combinations | `unit_series_elision.map` |
 | UnitMap | Merges adjacent UnitMaps in parallel combinations | `unit_parallel_merge.map` |
 | ZoomMap | Merges adjacent ZoomMaps in series | `zoom_series_merge.map` |
@@ -35,7 +35,7 @@ to that rule.
 | ShiftMap | Normalizes inverted ShiftMap and delegates merge logic through WinMap | `shift_invert_normalize.map`; WinMap merge fixtures |
 | WinMap | Converts zero-shift WinMap to diagonal MatrixMap | `win_to_matrix.map` |
 | WinMap | Converts unit-scale WinMap to ShiftMap when no better merge exists | `win_to_shift.map` |
-| WinMap | Merges with WinMap, ZoomMap, ShiftMap, UnitMap, or diagonal MatrixMap in series and parallel | `win_shift_series_merge.map`, `win_zoom_series_merge.map`, `win_matrix_series_merge.map`; additional parallel cases planned |
+| WinMap | Merges with WinMap, ZoomMap, ShiftMap, UnitMap, or diagonal MatrixMap in series and parallel | `win_shift_series_merge.map`, `win_zoom_series_merge.map`, `win_matrix_series_merge.map`, `win_parallel_merge.map`; additional parallel cases planned |
 | WinMap | Swaps with compatible MatrixMap, PermMap, or WcsMap to enable later simplification | `win_perm_swap_merge.map`; MatrixMap/WcsMap swap fixtures planned; `rigby` scenario |
 | MatrixMap | Converts unit MatrixMap to UnitMap | `matrix_unit_to_unit.map` |
 | MatrixMap | Converts equal diagonal MatrixMap to ZoomMap | `matrix_diagonal_to_zoom.map` |
@@ -45,9 +45,9 @@ to that rule.
 | PermMap | Merges adjacent PermMaps/UnitMaps in series and parallel | `perm_series_merge.map`, `perm_parallel_merge.map` |
 | LutMap | Converts linear LUT to WinMap | `lut_linear_to_win.map` |
 | LutMap | Cancels a LutMap with its inverse | `lut_inverse_cancel.map` |
-| PolyMap | Combines duplicate coefficient terms and drops zero terms | `testpolymap.c`; planned serialized fixture |
-| PolyMap | Converts linear polynomial to simpler ShiftMap/MatrixMap/WinMap forms | `testpolymap.c`; planned serialized fixture |
-| PolyMap | Cancels a PolyMap with its inverse | Planned targeted fixture |
+| PolyMap | Combines duplicate coefficient terms and drops zero terms | `poly_duplicate_terms.map`, `testpolymap.c` |
+| PolyMap | Converts linear polynomial to simpler ShiftMap/MatrixMap/WinMap forms | `poly_duplicate_terms.map`, `testpolymap.c` |
+| PolyMap | Cancels a PolyMap with its inverse | `poly_inverse_cancel.map` |
 | NormMap | Cancels with inverse, collapses repeated NormMaps, simplifies basic Frame to UnitMap | `testnormmap.c` |
 | UnitNormMap | Cancels inverse pairs and merges with ShiftMap/WinMap combinations | `testunitnormmap.c` |
 | SwitchMap | Normalizes invert flag and cancels inverse pairs | `testswitchmap.c` |
@@ -55,8 +55,8 @@ to that rule.
 | SlaMap | Collapses adjacent inverse/compatible sky conversions | `sla_inverse_cancel.map`; additional compatible-conversion fixtures planned |
 | SpecMap | Collapses adjacent inverse/compatible spectral conversions | `spec_inverse_cancel.map`; additional compatible-conversion fixtures planned |
 | WcsMap | Cancels inverse projections and swaps with compatible PermMap/WinMap combinations | `wcs_inverse_cancel.map`; swap fixtures planned; WCS scenario tests |
-| SphMap | Cancels spherical/cartesian inverse pairs | `sph_inverse_cancel.map`; rotation sandwich fixture planned |
-| PcdMap, DssMap, GrismMap | Cancels inverse pairs and class-specific adjacent simplifications | Planned targeted fixtures |
+| SphMap | Cancels spherical/cartesian inverse pairs | `sph_inverse_cancel.map`, `sph_matrix_sandwich.map` |
+| PcdMap, DssMap, GrismMap | Cancels inverse pairs and class-specific adjacent simplifications | `pcd_zero_to_unit.map`, `pcd_inverse_cancel.map`, `grism_inverse_cancel.map`, `grism_zoom_merge.map`; DssMap fixture planned |
 | MathMap, IntraMap, RateMap, TranMap | Class-specific inverse-pair and no-op simplifications | Planned C/API tests |
 | SplineMap | Class-specific inverse-pair and no-op simplifications | Planned C/API tests |
 | SelectorMap | Simplifies encapsulated regions and class-specific no-op cases | Planned C/API tests |

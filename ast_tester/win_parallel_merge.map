@@ -1,0 +1,18 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   Series = 0
+   MapA =
+      Begin WinMap
+         Nin = 1
+      IsA Mapping
+         Sft1 = 4
+         Scl1 = 2
+      End WinMap
+   MapB =
+      Begin ShiftMap
+         Nin = 1
+      IsA Mapping
+         Sft1 = -3
+      End ShiftMap
+End CmpMap

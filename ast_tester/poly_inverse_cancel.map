@@ -1,0 +1,27 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin PolyMap
+         Nin = 1
+      IsA Mapping
+         MPF1 = 2
+         NCF1 = 2
+         CF1 = 1
+         CF2 = 0.01
+         PF1 = 1
+         PF2 = 2
+      End PolyMap
+   MapB =
+      Begin PolyMap
+         Nin = 1
+      IsA Mapping
+         MPF1 = 2
+         NCF1 = 2
+         CF1 = 1
+         CF2 = 0.01
+         PF1 = 1
+         PF2 = 2
+      End PolyMap
+End CmpMap

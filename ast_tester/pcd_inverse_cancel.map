@@ -1,0 +1,21 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin PcdMap
+         Nin = 2
+      IsA Mapping
+         PcdCn0 = 1.25
+         PcdCn1 = -0.75
+         Disco = 0.001
+      End PcdMap
+   MapB =
+      Begin PcdMap
+         Nin = 2
+      IsA Mapping
+         PcdCn0 = 1.25
+         PcdCn1 = -0.75
+         Disco = 0.001
+      End PcdMap
+End CmpMap

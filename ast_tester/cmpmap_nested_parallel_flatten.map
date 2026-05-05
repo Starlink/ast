@@ -1,0 +1,29 @@
+Begin CmpMap
+   Nin = 3
+IsA Mapping
+   Series = 0
+   MapA =
+      Begin CmpMap
+         Nin = 2
+      IsA Mapping
+         Series = 0
+         MapA =
+            Begin ZoomMap
+               Nin = 1
+            IsA Mapping
+               Zoom = 2
+            End ZoomMap
+         MapB =
+            Begin ZoomMap
+               Nin = 1
+            IsA Mapping
+               Zoom = 3
+            End ZoomMap
+      End CmpMap
+   MapB =
+      Begin ZoomMap
+         Nin = 1
+      IsA Mapping
+         Zoom = 5
+      End ZoomMap
+End CmpMap
