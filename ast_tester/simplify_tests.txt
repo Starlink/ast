@@ -194,3 +194,8 @@ neg_spline_parallel     | simplify_fixtures/neg_spline_parallel.map     | simpli
 neg_lut_nonlut_neighbour | simplify_fixtures/neg_lut_nonlut_neighbour.map | simplify_fixtures/neg_lut_nonlut_neighbour.map | yes
 neg_poly_parallel_nonlinear | simplify_fixtures/neg_poly_parallel_nonlinear.map | simplify_fixtures/neg_poly_parallel_nonlinear.map | yes
 neg_poly_same_direction | simplify_fixtures/neg_poly_same_direction.map | simplify_fixtures/neg_poly_same_direction.map | yes
+neg_spec_lone_forward   | simplify_fixtures/neg_spec_lone_forward.map   | simplify_fixtures/neg_spec_lone_forward.map   | yes
+neg_time_lone_forward   | simplify_fixtures/neg_time_lone_forward.map   | simplify_fixtures/neg_time_lone_forward.map   | yes
+neg_poly_nonpoly_neighbour | simplify_fixtures/neg_poly_nonpoly_neighbour.map | simplify_fixtures/neg_poly_nonpoly_neighbour.map | yes
+neg_spline_nonspline_neighbour | simplify_fixtures/neg_spline_nonspline_neighbour.map | simplify_fixtures/neg_spline_nonspline_neighbour.map | yes
+neg_matrix_swap_refused | simplify_fixtures/neg_matrix_swap_refused.map | simplify_fixtures/neg_matrix_swap_refused.map | yes

@@ -1,0 +1,19 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin SplineMap 	# Map using a bi-cubic spline
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          KX = 0 	# Polynomial order in X direction
+          KY = 0 	# Polynomial order in Y direction
+          NX = 0 	# No. of coeffs in X direction
+          NY = 0 	# No. of coeffs in Y direction
+       End SplineMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+ End CmpMap

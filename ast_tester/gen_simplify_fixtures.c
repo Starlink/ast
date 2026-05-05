@@ -2060,6 +2060,109 @@ static void gen_negative_fixtures_5(const char *dir) {
     }
 }
 
+/* ===== Negative fixtures batch 6 ===== */
+
+static void gen_negative_fixtures_6(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Negative fixtures batch 6:\n");
+
+    /* specmap-06: lone forward SpecMap — nothing simplifies */
+    {
+        if (!astOK) astClearStatus;
+        double rf[] = {1.4e9, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "FRTOVL", 1, rf);
+        write_negative_fixture(dir, "neg_spec_lone_forward", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* timemap-06: lone forward TimeMap — nothing simplifies */
+    {
+        if (!astOK) astClearStatus;
+        double dut[] = {0.5, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "TAITOTT", 1, dut);
+        write_negative_fixture(dir, "neg_time_lone_forward", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* grismmap-13: GrismMap + ZoomMap(0) — zero zoom prevents merge */
+    {
+        if (!astOK) astClearStatus;
+        AstGrismMap *gm = astGrismMap("");
+        AstZoomMap *zm = astZoomMap(1, 0.0, "");
+        AstCmpMap *cm = astCmpMap(gm, zm, 1, "");
+        write_negative_fixture(dir, "neg_grism_zoom_zero", (AstMapping*)cm);
+        cm = astAnnul(cm); gm = astAnnul(gm); zm = astAnnul(zm);
+    }
+
+    /* polymap-08: PolyMap neighbour is not PolyMap — refuses cancel */
+    {
+        if (!astOK) astClearStatus;
+        double coeff_f[] = {1.0, 1, 2};
+        AstPolyMap *pm = astPolyMap(1, 1, 1, coeff_f, 0, NULL, "");
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstCmpMap *cm = astCmpMap(pm, zm, 1, "");
+        write_negative_fixture(dir, "neg_poly_nonpoly_neighbour", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); zm = astAnnul(zm);
+    }
+
+    /* splinemap-05: SplineMap with non-SplineMap neighbour */
+    {
+        if (!astOK) astClearStatus;
+        const char *dump =
+            " Begin CmpMap\n"
+            "    Nin = 1\n"
+            " IsA Mapping\n"
+            "    MapA =\n"
+            "       Begin SplineMap\n"
+            "          Nin = 1\n"
+            "       IsA Mapping\n"
+            "          NKnot = 8\n"
+            "          Knot1 = 0\n"
+            "          Knot2 = 0\n"
+            "          Knot3 = 0\n"
+            "          Knot4 = 0\n"
+            "          Knot5 = 1\n"
+            "          Knot6 = 1\n"
+            "          Knot7 = 1\n"
+            "          Knot8 = 1\n"
+            "          NCoeff = 4\n"
+            "          C1 = 0\n"
+            "          C2 = 0.333\n"
+            "          C3 = 0.667\n"
+            "          C4 = 1\n"
+            "       End SplineMap\n"
+            "    MapB =\n"
+            "       Begin ZoomMap\n"
+            "          Nin = 1\n"
+            "       IsA Mapping\n"
+            "          Zoom = 2\n"
+            "       End ZoomMap\n"
+            " End CmpMap\n";
+        AstObject *obj = astFromString(dump);
+        if (obj) {
+            write_negative_fixture(dir, "neg_spline_nonspline_neighbour", (AstMapping*)obj);
+            obj = astAnnul(obj);
+        }
+    }
+
+    /* matrixmap-16: MatrixMap swap with WinMap refused (neither simplifies) —
+       already covered by neg_win_swap_no_simplify from the WinMap side.
+       Test from MatrixMap perspective with different structure. */
+    {
+        if (!astOK) astClearStatus;
+        double mat[] = {1.0, 2.0, 3.0, 4.0};
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {3, 5};
+        AstMatrixMap *mm = astMatrixMap(2, 2, 0, mat, "");
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(mm, wm, 1, "");
+        write_negative_fixture(dir, "neg_matrix_swap_refused", (AstMapping*)cm);
+        cm = astAnnul(cm); mm = astAnnul(mm); wm = astAnnul(wm);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -2107,6 +2210,7 @@ int main(void) {
     gen_negative_fixtures_3(dir);
     gen_negative_fixtures_4(dir);
     gen_negative_fixtures_5(dir);
+    gen_negative_fixtures_6(dir);
 
     astEnd;
 
