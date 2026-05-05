@@ -2352,6 +2352,134 @@ static void gen_negative_fixtures_8(const char *dir) {
     }
 }
 
+/* ===== Negative fixtures batch 9 ===== */
+
+static void gen_negative_fixtures_9(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Negative fixtures batch 9:\n");
+
+    /* winmap-04: standalone WinMap with mixed shifts/scales — no self-simplify */
+    {
+        if (!astOK) astClearStatus;
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {4, 6};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        write_negative_fixture(dir, "neg_win_mixed_no_selfsimplify", (AstMapping*)wm);
+        wm = astAnnul(wm);
+    }
+
+    /* ratemap-04: RateMaps in parallel — refuses */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstRateMap *r1 = astRateMap(zm, 1, 1, "");
+        AstRateMap *r2 = astRateMap(zm, 1, 1, "");
+        AstCmpMap *cm = astCmpMap(r1, r2, 0, "");
+        write_negative_fixture(dir, "neg_ratemap_parallel", (AstMapping*)cm);
+        cm = astAnnul(cm); r1 = astAnnul(r1); r2 = astAnnul(r2);
+        zm = astAnnul(zm);
+    }
+
+    /* timemap-16: 5-arg pair with mismatched arguments */
+    {
+        if (!astOK) astClearStatus;
+        double args1[] = {53000.0, 0.5, -2.5, 6378.0, 0.0, 0.0, 0.0};
+        double args2[] = {53000.0, 0.5, -2.6, 6378.0, 0.0, 0.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "TTTOTDB", 5, args1);
+        astTimeAdd(tm, "TDBTOTT", 5, args2);
+        write_negative_fixture(dir, "neg_time_5arg_mismatch", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* specmap-16: 6-arg pair with mismatched arguments */
+    {
+        if (!astOK) astClearStatus;
+        double args1[] = {-2.5, 0.9, 1000.0, 51544.0, 0.5, 1.2, 0.0};
+        double args2[] = {-2.5, 0.9, 1000.0, 51544.0, 0.5, 1.3, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "TPF2HL", 6, args1);
+        astSpecAdd(sm, "HLF2TP", 6, args2);
+        write_negative_fixture(dir, "neg_spec_6arg_mismatch", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-22: 4-arg pair with mismatched arguments (HPCEQ+EQHPC) */
+    {
+        if (!astOK) astClearStatus;
+        double args1[] = {51544.0, 0.5, 1.2, 150.0e6};
+        double args2[] = {51544.0, 0.5, 1.2, 151.0e6};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "HPCEQ", 4, args1);
+        astSlaAdd(sm, "EQHPC", 4, args2);
+        write_negative_fixture(dir, "neg_sla_4arg_mismatch", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* polymap-03: PolyMap with only inverse coefficients — no forward → linearize refused */
+    {
+        if (!astOK) astClearStatus;
+        double coeff_i[] = {1.0, 1, 1};
+        AstPolyMap *pm = astPolyMap(1, 1, 0, NULL, 1, coeff_i, "");
+        write_negative_fixture(dir, "neg_poly_no_forward", (AstMapping*)pm);
+        pm = astAnnul(pm);
+    }
+
+    /* splinemap-07: two different SplineMaps in opposite directions — astEqual fails */
+    {
+        if (!astOK) astClearStatus;
+        const char *dump =
+            " Begin CmpMap\n"
+            "    Nin = 1\n"
+            " IsA Mapping\n"
+            "    MapA =\n"
+            "       Begin SplineMap\n"
+            "          Nin = 1\n"
+            "       IsA Mapping\n"
+            "          NKnot = 8\n"
+            "          Knot1 = 0\n"
+            "          Knot2 = 0\n"
+            "          Knot3 = 0\n"
+            "          Knot4 = 0\n"
+            "          Knot5 = 1\n"
+            "          Knot6 = 1\n"
+            "          Knot7 = 1\n"
+            "          Knot8 = 1\n"
+            "          NCoeff = 4\n"
+            "          C1 = 0\n"
+            "          C2 = 0.333\n"
+            "          C3 = 0.667\n"
+            "          C4 = 1\n"
+            "       End SplineMap\n"
+            "    InvB = 1\n"
+            "    MapB =\n"
+            "       Begin SplineMap\n"
+            "          Nin = 1\n"
+            "       IsA Mapping\n"
+            "          NKnot = 8\n"
+            "          Knot1 = 0\n"
+            "          Knot2 = 0\n"
+            "          Knot3 = 0\n"
+            "          Knot4 = 0\n"
+            "          Knot5 = 1\n"
+            "          Knot6 = 1\n"
+            "          Knot7 = 1\n"
+            "          Knot8 = 1\n"
+            "          NCoeff = 4\n"
+            "          C1 = 0\n"
+            "          C2 = 0.25\n"
+            "          C3 = 0.75\n"
+            "          C4 = 1\n"
+            "       End SplineMap\n"
+            " End CmpMap\n";
+        AstObject *obj = astFromString(dump);
+        if (obj) {
+            write_negative_fixture(dir, "neg_spline_different_coeffs", (AstMapping*)obj);
+            obj = astAnnul(obj);
+        }
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -2402,6 +2530,7 @@ int main(void) {
     gen_negative_fixtures_6(dir);
     gen_negative_fixtures_7(dir);
     gen_negative_fixtures_8(dir);
+    gen_negative_fixtures_9(dir);
 
     astEnd;
 
