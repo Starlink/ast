@@ -139,3 +139,4 @@ win_swap_outer_merge    | simplify_fixtures/win_swap_outer_merge.map    | simpli
 pcd_swap_zoom_simplifies | simplify_fixtures/pcd_swap_zoom_simplifies.map | simplify_fixtures/pcd_swap_zoom_simplifies.simp |
 spec_merge_no_cancel    | simplify_fixtures/spec_merge_no_cancel.map    | simplify_fixtures/spec_merge_no_cancel.simp    |
 time_merge_no_cancel    | simplify_fixtures/time_merge_no_cancel.map    | simplify_fixtures/time_merge_no_cancel.simp    |
+matrix_swap_win_simplifies | simplify_fixtures/matrix_swap_win_simplifies.map | simplify_fixtures/matrix_swap_win_simplifies.simp |

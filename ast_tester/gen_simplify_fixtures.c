@@ -942,6 +942,22 @@ static void gen_matrix_cascade_fixtures(const char *dir) {
         m1 = astAnnul(m1); wm = astAnnul(wm); m2 = astAnnul(m2);
     }
 
+    /* matrixmap-15: Swap with WinMap for local simplification.
+       A full (non-diagonal) MatrixMap can't directly merge with WinMap
+       (MatWin2 requires diagonal). After MatWin swap, the resulting WinMap
+       has all scales=1 (absorbed into MatrixMap) and simplifies to ShiftMap
+       — a class change that triggers the swap acceptance. */
+    {
+        double mat[] = {1.0, 0.0, 1.0, 1.0};
+        AstMatrixMap *mm = astMatrixMap(2, 2, 0, mat, "");
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {4, 6};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(mm, wm, 1, "");
+        write_fixture(dir, "matrix_swap_win_simplifies", (AstMapping*)cm);
+        cm = astAnnul(cm); mm = astAnnul(mm); wm = astAnnul(wm);
+    }
+
     /* matrixmap-14: MatrixMap swaps past PermMap to reach merge target */
     {
         double diag1[] = {2.0, 3.0};
