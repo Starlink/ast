@@ -182,3 +182,13 @@ neg_grism_different_attrs | simplify_fixtures/neg_grism_different_attrs.map | si
 neg_normmap_different_frames | simplify_fixtures/neg_normmap_different_frames.map | simplify_fixtures/neg_normmap_different_frames.map | yes
 neg_wcs_different_params | simplify_fixtures/neg_wcs_different_params.map | simplify_fixtures/neg_wcs_different_params.map | yes
 neg_sla_lone_forward    | simplify_fixtures/neg_sla_lone_forward.map    | simplify_fixtures/neg_sla_lone_forward.map    | yes
+neg_sla_parallel        | simplify_fixtures/neg_sla_parallel.map        | simplify_fixtures/neg_sla_parallel.map        | yes
+neg_spec_parallel       | simplify_fixtures/neg_spec_parallel.map       | simplify_fixtures/neg_spec_parallel.map       | yes
+neg_time_parallel       | simplify_fixtures/neg_time_parallel.map       | simplify_fixtures/neg_time_parallel.map       | yes
+neg_grism_parallel      | simplify_fixtures/neg_grism_parallel.map      | simplify_fixtures/neg_grism_parallel.map      | yes
+neg_grism_inv_then_zoom | simplify_fixtures/neg_grism_inv_then_zoom.map | simplify_fixtures/neg_grism_inv_then_zoom.map | yes
+neg_grism_fwd_then_nonzoom | simplify_fixtures/neg_grism_fwd_then_nonzoom.map | simplify_fixtures/neg_grism_fwd_then_nonzoom.map | yes
+neg_math_nonmath_neighbour | simplify_fixtures/neg_math_nonmath_neighbour.map | simplify_fixtures/neg_math_nonmath_neighbour.map | yes
+neg_wcs_parallel        | simplify_fixtures/neg_wcs_parallel.map        | simplify_fixtures/neg_wcs_parallel.map        | yes
+neg_spline_parallel     | simplify_fixtures/neg_spline_parallel.map     | simplify_fixtures/neg_spline_parallel.map     | yes
+neg_lut_nonlut_neighbour | simplify_fixtures/neg_lut_nonlut_neighbour.map | simplify_fixtures/neg_lut_nonlut_neighbour.map | yes
