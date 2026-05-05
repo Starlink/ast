@@ -112,3 +112,17 @@ normmap_duplicate_elim  | simplify_fixtures/normmap_duplicate_elim.map  | simpli
 unitnormmap_inverse_cancel | simplify_fixtures/unitnormmap_inverse_cancel.map | simplify_fixtures/unitnormmap_inverse_cancel.simp |
 unitnormmap_diff_centre_to_shift | simplify_fixtures/unitnormmap_diff_centre_to_shift.map | simplify_fixtures/unitnormmap_diff_centre_to_shift.simp |
 grism_zoom_inv_merge    | simplify_fixtures/grism_zoom_inv_merge.map    | simplify_fixtures/grism_zoom_inv_merge.simp    |
+wcsmap_bad_to_unit      | simplify_fixtures/wcsmap_bad_to_unit.map      | simplify_fixtures/wcsmap_bad_to_unit.simp      |
+wcsmap_perm_swap_cancel | simplify_fixtures/wcsmap_perm_swap_cancel.map | simplify_fixtures/wcsmap_perm_swap_cancel.simp |
+sph_fwd_inv_unitradius_cancel | simplify_fixtures/sph_fwd_inv_unitradius_cancel.map | simplify_fixtures/sph_fwd_inv_unitradius_cancel.simp |
+sph_zoom_sandwich       | simplify_fixtures/sph_zoom_sandwich.map       | simplify_fixtures/sph_zoom_sandwich.simp       |
+pcd_unit_series_merge   | simplify_fixtures/pcd_unit_series_merge.map   | simplify_fixtures/pcd_unit_series_merge.simp   |
+pcd_zoom_swap_cancel    | simplify_fixtures/pcd_zoom_swap_cancel.map    | simplify_fixtures/pcd_zoom_swap_cancel.simp    |
+switchmap_invert_normalize | simplify_fixtures/switchmap_invert_normalize.map | simplify_fixtures/switchmap_invert_normalize.simp |
+switchmap_internal_simplify | simplify_fixtures/switchmap_internal_simplify.map | simplify_fixtures/switchmap_internal_simplify.simp |
+tranmap_adjacent_merge  | simplify_fixtures/tranmap_adjacent_merge.map  | simplify_fixtures/tranmap_adjacent_merge.simp  |
+matrix_swap_past_win    | simplify_fixtures/matrix_swap_past_win.map    | simplify_fixtures/matrix_swap_past_win.simp    |
+matrix_swap_past_perm   | simplify_fixtures/matrix_swap_past_perm.map   | simplify_fixtures/matrix_swap_past_perm.simp   |
+sla_helioecl_cancel     | simplify_fixtures/sla_helioecl_cancel.map     | simplify_fixtures/sla_helioecl_cancel.simp     |
+sla_ha_cancel           | simplify_fixtures/sla_ha_cancel.map           | simplify_fixtures/sla_ha_cancel.simp           |
+sla_azel_cancel         | simplify_fixtures/sla_azel_cancel.map         | simplify_fixtures/sla_azel_cancel.simp         |

@@ -756,8 +756,219 @@ static void gen_grismmap_fixtures(const char *dir) {
     }
 }
 
-/* ===== XphMap fixtures ===== */
-/* XphMap requires specific order parameter - check if constructor is public */
+/* ===== WcsMap fixtures ===== */
+
+static void gen_wcsmap_fixtures(const char *dir) {
+    printf("WcsMap fixtures:\n");
+
+    /* wcsmap-01: AST__WCSBAD → UnitMap */
+    {
+        AstWcsMap *wm = astWcsMap(2, AST__WCSBAD, 1, 2, "");
+        write_fixture(dir, "wcsmap_bad_to_unit", (AstMapping*)wm);
+        wm = astAnnul(wm);
+    }
+
+    /* wcsmap-03: WcsMap swaps past PermMap to reach inverse merge target */
+    {
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        AstWcsMap *w1 = astWcsMap(2, AST__TAN, 1, 2, "");
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstWcsMap *w2 = astWcsMap(2, AST__TAN, 2, 1, "");
+        astInvert(w2);
+        AstCmpMap *inner = astCmpMap(pm, w2, 1, "");
+        AstCmpMap *outer = astCmpMap(w1, inner, 1, "");
+        write_fixture(dir, "wcsmap_perm_swap_cancel", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        w1 = astAnnul(w1); pm = astAnnul(pm); w2 = astAnnul(w2);
+    }
+}
+
+/* ===== SphMap fixtures ===== */
+
+static void gen_sphmap_fixtures(const char *dir) {
+    printf("SphMap additional fixtures:\n");
+
+    /* sphmap-02: SphMap(UnitRadius=1) + Inverse(SphMap) cancels */
+    {
+        AstSphMap *s1 = astSphMap("UnitRadius=1");
+        AstSphMap *s2 = astSphMap("UnitRadius=1");
+        astInvert(s2);
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_fixture(dir, "sph_fwd_inv_unitradius_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
+    }
+
+    /* sphmap-09: Inv(SphMap) + ZoomMap + SphMap → WinMap (ZoomMap variant) */
+    {
+        AstSphMap *s1 = astSphMap("UnitRadius=1");
+        astInvert(s1);
+        AstZoomMap *zm = astZoomMap(3, -1.0, "");
+        AstSphMap *s2 = astSphMap("UnitRadius=1");
+        AstCmpMap *inner = astCmpMap(zm, s2, 1, "");
+        AstCmpMap *outer = astCmpMap(s1, inner, 1, "");
+        write_fixture(dir, "sph_zoom_sandwich", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        s1 = astAnnul(s1); zm = astAnnul(zm); s2 = astAnnul(s2);
+    }
+}
+
+/* ===== PcdMap fixtures ===== */
+
+static void gen_pcdmap_fixtures(const char *dir) {
+    printf("PcdMap fixtures:\n");
+
+    /* pcdmap-03: PcdMap + UnitMap → UnitMap eliminated */
+    {
+        double pcdcen[] = {100.0, 100.0};
+        AstPcdMap *pm = astPcdMap(0.001, pcdcen, "");
+        AstUnitMap *um = astUnitMap(2, "");
+        AstCmpMap *cm = astCmpMap(pm, um, 1, "");
+        write_fixture(dir, "pcd_unit_series_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); um = astAnnul(um);
+    }
+
+    /* pcdmap-04: PcdMap swaps with ZoomMap to reach inverse PcdMap */
+    {
+        double pcdcen[] = {0.0, 0.0};
+        AstPcdMap *p1 = astPcdMap(0.001, pcdcen, "");
+        AstZoomMap *zm = astZoomMap(2, 1.0, "");
+        AstPcdMap *p2 = astPcdMap(0.001, pcdcen, "");
+        astInvert(p2);
+        AstCmpMap *inner = astCmpMap(zm, p2, 1, "");
+        AstCmpMap *outer = astCmpMap(p1, inner, 1, "");
+        write_fixture(dir, "pcd_zoom_swap_cancel", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        p1 = astAnnul(p1); zm = astAnnul(zm); p2 = astAnnul(p2);
+    }
+}
+
+/* ===== SwitchMap fixtures ===== */
+
+static void gen_switchmap_fixtures(const char *dir) {
+    printf("SwitchMap fixtures:\n");
+
+    /* switchmap-03: inverted SwitchMap normalizes */
+    {
+        AstZoomMap *fsel = astZoomMap(1, 1.0, "");
+        AstZoomMap *isel = astZoomMap(1, 1.0, "");
+        AstZoomMap *r1 = astZoomMap(1, 2.0, "");
+        AstMapping *routes[] = {(AstMapping*)r1};
+        AstSwitchMap *sw = astSwitchMap(fsel, isel, 1, (void**)routes, "");
+        astInvert(sw);
+        write_fixture(dir, "switchmap_invert_normalize", (AstMapping*)sw);
+        sw = astAnnul(sw); fsel = astAnnul(fsel); isel = astAnnul(isel);
+        r1 = astAnnul(r1);
+    }
+
+    /* switchmap-04: SwitchMap internal simplification */
+    {
+        AstZoomMap *fsel = astZoomMap(1, 1.0, "");
+        AstZoomMap *isel = astZoomMap(1, 1.0, "");
+        AstZoomMap *za = astZoomMap(1, 2.0, "");
+        AstZoomMap *zb = astZoomMap(1, 3.0, "");
+        AstCmpMap *route = astCmpMap(za, zb, 1, "");
+        AstMapping *routes[] = {(AstMapping*)route};
+        AstSwitchMap *sw = astSwitchMap(fsel, isel, 1, (void**)routes, "");
+        write_fixture(dir, "switchmap_internal_simplify", (AstMapping*)sw);
+        sw = astAnnul(sw); fsel = astAnnul(fsel); isel = astAnnul(isel);
+        za = astAnnul(za); zb = astAnnul(zb); route = astAnnul(route);
+    }
+}
+
+/* ===== TranMap additional fixtures ===== */
+
+static void gen_tranmap_extra_fixtures(const char *dir) {
+    printf("TranMap extra fixtures:\n");
+
+    /* tranmap-04: adjacent TranMap merge in series */
+    {
+        AstZoomMap *z2 = astZoomMap(1, 2.0, "");
+        AstZoomMap *z05 = astZoomMap(1, 0.5, "");
+        AstZoomMap *z3 = astZoomMap(1, 3.0, "");
+        AstZoomMap *z033 = astZoomMap(1, 1.0/3.0, "");
+        AstTranMap *t1 = astTranMap(z2, z05, "");
+        AstTranMap *t2 = astTranMap(z3, z033, "");
+        AstCmpMap *cm = astCmpMap(t1, t2, 1, "");
+        write_fixture(dir, "tranmap_adjacent_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); t1 = astAnnul(t1); t2 = astAnnul(t2);
+        z2 = astAnnul(z2); z05 = astAnnul(z05);
+        z3 = astAnnul(z3); z033 = astAnnul(z033);
+    }
+}
+
+/* ===== MatrixMap cascade fixtures ===== */
+
+static void gen_matrix_cascade_fixtures(const char *dir) {
+    printf("MatrixMap cascade fixtures:\n");
+
+    /* matrixmap-13: MatrixMap swaps past WinMap to reach merge target */
+    {
+        double diag1[] = {2.0, 3.0};
+        double ina[] = {0, 0}, inb[] = {1, 1}, outa[] = {1, 2}, outb[] = {5, 8};
+        double diag2[] = {4.0, 5.0};
+        AstMatrixMap *m1 = astMatrixMap(2, 2, 1, diag1, "");
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstMatrixMap *m2 = astMatrixMap(2, 2, 1, diag2, "");
+        AstCmpMap *inner = astCmpMap(wm, m2, 1, "");
+        AstCmpMap *outer = astCmpMap(m1, inner, 1, "");
+        write_fixture(dir, "matrix_swap_past_win", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        m1 = astAnnul(m1); wm = astAnnul(wm); m2 = astAnnul(m2);
+    }
+
+    /* matrixmap-14: MatrixMap swaps past PermMap to reach merge target */
+    {
+        double diag1[] = {2.0, 3.0};
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        double diag2[] = {4.0, 5.0};
+        AstMatrixMap *m1 = astMatrixMap(2, 2, 1, diag1, "");
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstMatrixMap *m2 = astMatrixMap(2, 2, 1, diag2, "");
+        AstCmpMap *inner = astCmpMap(pm, m2, 1, "");
+        AstCmpMap *outer = astCmpMap(m1, inner, 1, "");
+        write_fixture(dir, "matrix_swap_past_perm", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        m1 = astAnnul(m1); pm = astAnnul(pm); m2 = astAnnul(m2);
+    }
+}
+
+/* ===== SlaMap remaining fixtures ===== */
+
+static void gen_slamap_extra_fixtures(const char *dir) {
+    printf("SlaMap extra fixtures:\n");
+
+    /* slamap-14: 1-arg helio-ecliptic (EQHE+HEEQ) */
+    {
+        double args[] = {51544.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "EQHE", 1, args);
+        astSlaAdd(sm, "HEEQ", 1, args);
+        write_fixture(dir, "sla_helioecl_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-15: 1-arg HA (R2H+H2R) */
+    {
+        double args[] = {3.5};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "R2H", 1, args);
+        astSlaAdd(sm, "H2R", 1, args);
+        write_fixture(dir, "sla_ha_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-17: 2-arg AzEl (H2E+E2H) */
+    {
+        double args[] = {0.9, 0.001};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "H2E", 2, args);
+        astSlaAdd(sm, "E2H", 2, args);
+        write_fixture(dir, "sla_azel_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+}
 
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
@@ -785,6 +996,13 @@ int main(void) {
     gen_normmap_fixtures(dir);
     gen_unitnormmap_fixtures(dir);
     gen_grismmap_fixtures(dir);
+    gen_wcsmap_fixtures(dir);
+    gen_sphmap_fixtures(dir);
+    gen_pcdmap_fixtures(dir);
+    gen_switchmap_fixtures(dir);
+    gen_tranmap_extra_fixtures(dir);
+    gen_matrix_cascade_fixtures(dir);
+    gen_slamap_extra_fixtures(dir);
 
     astEnd;
 

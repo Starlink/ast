@@ -1,0 +1,9 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 2 	# Number of conversion steps
+    Sla1 = "R2H" 	# RA to Hour Angle
+    Sla1a = 3.5 	# Local apparent sidereal time (radians)
+    Sla2 = "H2R" 	# Hour Angle to RA
+    Sla2a = 3.5 	# Local apparent sidereal time (radians)
+ End SlaMap

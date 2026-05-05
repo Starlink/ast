@@ -1,0 +1,34 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin WcsMap 	# FITS-WCS sky projection
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Type = "TAN" 	# Gnomonic projection
+       End WcsMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          InvB = 1 	# Second Mapping used in inverse direction
+          MapA = 	# First component Mapping
+             Begin PermMap 	# Coordinate permutation
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Out1 = 2 	# Output coordinate 1 = input coordinate 2
+                Out2 = 1 	# Output coordinate 2 = input coordinate 1
+                In1 = 2 	# Input coordinate 1 = output coordinate 2
+                In2 = 1 	# Input coordinate 2 = output coordinate 1
+             End PermMap
+          MapB = 	# Second component Mapping
+             Begin WcsMap 	# FITS-WCS sky projection
+                Nin = 2 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+                Type = "TAN" 	# Gnomonic projection
+                WcsAx1 = 2 	# Index of celestial longitude axis
+                WcsAx2 = 1 	# Index of celestial latitude axis
+             End WcsMap
+       End CmpMap
+ End CmpMap
