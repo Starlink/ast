@@ -1448,6 +1448,186 @@ static void gen_negative_fixtures(const char *dir) {
     }
 }
 
+/* ===== Negative fixtures batch 2 ===== */
+
+static void gen_negative_fixtures_2(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Negative fixtures batch 2:\n");
+
+    /* zoommap-15: ZoomMap can't be absorbed — neighbours not MatrixMap/WinMap/ShiftMap.
+       SphMap(forward) is 3in→2out, so pair with ZoomMap(2) for valid dims. */
+    {
+        if (!astOK) astClearStatus;
+        AstSphMap *sm = astSphMap("UnitRadius=1");
+        AstZoomMap *zm = astZoomMap(2, 2.0, "");
+        AstCmpMap *cm = astCmpMap(sm, zm, 1, "");
+        write_negative_fixture(dir, "neg_zoom_no_absorb", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); zm = astAnnul(zm);
+    }
+
+    /* lutmap-05: non-linear LutMap — WinMap replacement refused */
+    {
+        if (!astOK) astClearStatus;
+        double lut[] = {0.0, 1.0, 4.0, 9.0, 16.0};
+        AstLutMap *lm = astLutMap(5, lut, 1.0, 1.0, "");
+        write_negative_fixture(dir, "neg_lut_nonlinear", (AstMapping*)lm);
+        lm = astAnnul(lm);
+    }
+
+    /* lutmap-09: neighbouring LutMap not inverse-equal (different tables) */
+    {
+        if (!astOK) astClearStatus;
+        double lut1[] = {0.0, 1.0, 4.0, 9.0, 16.0};
+        double lut2[] = {0.0, 2.0, 6.0, 12.0, 20.0};
+        AstLutMap *l1 = astLutMap(5, lut1, 1.0, 1.0, "");
+        AstLutMap *l2 = astLutMap(5, lut2, 1.0, 1.0, "");
+        astInvert(l2);
+        AstCmpMap *cm = astCmpMap(l1, l2, 1, "");
+        write_negative_fixture(dir, "neg_lut_different_tables", (AstMapping*)cm);
+        cm = astAnnul(cm); l1 = astAnnul(l1); l2 = astAnnul(l2);
+    }
+
+    /* pcdmap-08: two PcdMaps in parallel — refuses simplification */
+    {
+        if (!astOK) astClearStatus;
+        double cen[] = {0.0, 0.0};
+        AstPcdMap *p1 = astPcdMap(0.001, cen, "");
+        AstPcdMap *p2 = astPcdMap(0.002, cen, "");
+        AstCmpMap *cm = astCmpMap(p1, p2, 0, "");
+        write_negative_fixture(dir, "neg_pcd_parallel", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
+    /* pcdmap-09: PcdMap + non-PcdMap neighbour in series — refuses merge */
+    {
+        if (!astOK) astClearStatus;
+        double cen[] = {0.0, 0.0};
+        double shifts[] = {1.0, 2.0};
+        AstPcdMap *pm = astPcdMap(0.001, cen, "");
+        AstShiftMap *sm = astShiftMap(2, shifts, "");
+        AstCmpMap *cm = astCmpMap(pm, sm, 1, "");
+        write_negative_fixture(dir, "neg_pcd_nonpcd_neighbour", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); sm = astAnnul(sm);
+    }
+
+    /* cmpmap-04: series CmpMap in parallel list — mode mismatch refuses decomposition */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, "");
+        AstCmpMap *series_inner = astCmpMap(z1, z2, 1, "");
+        AstZoomMap *z3 = astZoomMap(1, 5.0, "");
+        AstCmpMap *par = astCmpMap(series_inner, z3, 0, "");
+        write_negative_fixture(dir, "neg_cmpmap_mode_mismatch", (AstMapping*)par);
+        par = astAnnul(par); series_inner = astAnnul(series_inner);
+        z1 = astAnnul(z1); z2 = astAnnul(z2); z3 = astAnnul(z3);
+    }
+
+    /* wcsmap-07: WcsMap adjacent to different projection type — refuses merge */
+    {
+        if (!astOK) astClearStatus;
+        AstWcsMap *w1 = astWcsMap(2, AST__TAN, 1, 2, "");
+        AstWcsMap *w2 = astWcsMap(2, AST__SIN, 1, 2, "");
+        astInvert(w2);
+        AstCmpMap *cm = astCmpMap(w1, w2, 1, "");
+        write_negative_fixture(dir, "neg_wcs_different_projection", (AstMapping*)cm);
+        cm = astAnnul(cm); w1 = astAnnul(w1); w2 = astAnnul(w2);
+    }
+
+    /* tranmap-07: TranMap with unequal components — not simplified */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, "");
+        AstTranMap *tm = astTranMap(z1, z2, "");
+        write_negative_fixture(dir, "neg_tranmap_unequal_components", (AstMapping*)tm);
+        tm = astAnnul(tm); z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* splinemap-06: two SplineMaps same direction — refuses cancel */
+    {
+        if (!astOK) astClearStatus;
+        double knots[] = {0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0};
+        double coeff[] = {0.0, 0.0, 0.333, 0.333, 0.667, 0.667, 1.0, 1.0};
+        AstCmpMap *cm;
+        /* Create via astFromString since SplineMap constructor is complex */
+        const char *dump =
+            " Begin CmpMap\n"
+            "    Nin = 1\n"
+            " IsA Mapping\n"
+            "    MapA =\n"
+            "       Begin SplineMap\n"
+            "          Nin = 1\n"
+            "       IsA Mapping\n"
+            "          NKnot = 8\n"
+            "          Knot1 = 0\n"
+            "          Knot2 = 0\n"
+            "          Knot3 = 0\n"
+            "          Knot4 = 0\n"
+            "          Knot5 = 1\n"
+            "          Knot6 = 1\n"
+            "          Knot7 = 1\n"
+            "          Knot8 = 1\n"
+            "          NCoeff = 4\n"
+            "          C1 = 0\n"
+            "          C2 = 0.333\n"
+            "          C3 = 0.667\n"
+            "          C4 = 1\n"
+            "       End SplineMap\n"
+            "    MapB =\n"
+            "       Begin SplineMap\n"
+            "          Nin = 1\n"
+            "       IsA Mapping\n"
+            "          NKnot = 8\n"
+            "          Knot1 = 0\n"
+            "          Knot2 = 0\n"
+            "          Knot3 = 0\n"
+            "          Knot4 = 0\n"
+            "          Knot5 = 1\n"
+            "          Knot6 = 1\n"
+            "          Knot7 = 1\n"
+            "          Knot8 = 1\n"
+            "          NCoeff = 4\n"
+            "          C1 = 0\n"
+            "          C2 = 0.333\n"
+            "          C3 = 0.667\n"
+            "          C4 = 1\n"
+            "       End SplineMap\n"
+            " End CmpMap\n";
+        AstObject *obj = astFromString(dump);
+        if (obj) {
+            write_negative_fixture(dir, "neg_spline_same_direction", (AstMapping*)obj);
+            obj = astAnnul(obj);
+        }
+    }
+
+    /* normmap-11: NormMap in parallel — no simplification */
+    {
+        if (!astOK) astClearStatus;
+        AstSkyFrame *sf = astSkyFrame("");
+        AstNormMap *nm = astNormMap(sf, "");
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstCmpMap *cm = astCmpMap(nm, zm, 0, "");
+        write_negative_fixture(dir, "neg_normmap_parallel", (AstMapping*)cm);
+        cm = astAnnul(cm); nm = astAnnul(nm); zm = astAnnul(zm);
+        sf = astAnnul(sf);
+    }
+
+    /* permmap-08: lone canonical PermMap with no mergeable neighbours */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        const char *fwd[] = {"y1 = x1", "y2 = x2"};
+        const char *inv[] = {"x1 = y1", "x2 = y2"};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, "");
+        AstCmpMap *cm = astCmpMap(pm, mm, 1, "");
+        write_negative_fixture(dir, "neg_perm_no_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); mm = astAnnul(mm);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -1491,6 +1671,7 @@ int main(void) {
        no longer creates DssMap objects (decomposes to WcsMap pipeline). */
 
     gen_negative_fixtures(dir);
+    gen_negative_fixtures_2(dir);
 
     astEnd;
 

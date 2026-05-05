@@ -1,0 +1,22 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 2 	# Output coordinate 1 = input coordinate 2
+          Out2 = 1 	# Output coordinate 2 = input coordinate 1
+          In1 = 2 	# Input coordinate 1 = output coordinate 2
+          In2 = 1 	# Input coordinate 2 = output coordinate 1
+       End PermMap
+    MapB = 	# Second component Mapping
+       Begin MathMap 	# Transformation using mathematical functions
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Fwd1 = "y1=x1" 	# Forward function 1
+          Fwd2 = "y2=x2" 	# Forward function 2
+          Inv1 = "x1=y1" 	# Inverse function 1
+          Inv2 = "x2=y2" 	# Inverse function 2
+       End MathMap
+ End CmpMap
