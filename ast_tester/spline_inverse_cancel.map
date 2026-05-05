@@ -1,0 +1,35 @@
+Begin CmpMap
+   Nin = 2
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin SplineMap
+         Nin = 2
+      IsA Mapping
+         KX = 1
+         KY = 1
+         NX = 1
+         NY = 1
+         TX1 = 0
+         TX2 = 1
+         TY1 = 0
+         TY2 = 1
+         CU1 = 1
+         CV1 = 2
+      End SplineMap
+   MapB =
+      Begin SplineMap
+         Nin = 2
+      IsA Mapping
+         KX = 1
+         KY = 1
+         NX = 1
+         NY = 1
+         TX1 = 0
+         TX2 = 1
+         TY1 = 0
+         TY2 = 1
+         CU1 = 1
+         CV1 = 2
+      End SplineMap
+End CmpMap

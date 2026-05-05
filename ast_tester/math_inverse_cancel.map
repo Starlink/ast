@@ -1,0 +1,23 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin MathMap
+         Nin = 1
+      IsA Mapping
+         Fwd1 = "y=x+1"
+         Inv1 = "x=y-1"
+         SimpFI = 1
+         SimpIF = 1
+      End MathMap
+   MapB =
+      Begin MathMap
+         Nin = 1
+      IsA Mapping
+         Fwd1 = "y=x+1"
+         Inv1 = "x=y-1"
+         SimpFI = 1
+         SimpIF = 1
+      End MathMap
+End CmpMap

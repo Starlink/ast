@@ -45,3 +45,8 @@ grism_inverse_cancel    | grism_inverse_cancel.map    | grism_inverse_cancel.sim
 grism_zoom_merge        | grism_zoom_merge.map        | grism_zoom_merge.simp        |
 poly_duplicate_terms    | poly_duplicate_terms.map    | poly_duplicate_terms.simp    |
 poly_inverse_cancel     | poly_inverse_cancel.map     | poly_inverse_cancel.simp     |
+spline_inverse_cancel   | spline_inverse_cancel.map   | spline_inverse_cancel.simp   |
+math_inverse_cancel     | math_inverse_cancel.map     | math_inverse_cancel.simp     |
+ratemap_inverse_cancel  | ratemap_inverse_cancel.map  | ratemap_inverse_cancel.simp  |
+tranmap_equal_components | tranmap_equal_components.map | tranmap_equal_components.simp |
+intramap_inverse_cancel | intramap_inverse_cancel.map | intramap_inverse_cancel.simp |

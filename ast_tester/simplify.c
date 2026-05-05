@@ -30,6 +30,23 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+static void TestIntraTran( AstMapping *mapping, int npoint, int ncoord_in,
+                           const double *ptr_in[], int forward,
+                           int ncoord_out, double *ptr_out[] ) {
+   int icoord;
+   int ipoint;
+
+   (void) mapping;
+   (void) forward;
+
+   for( icoord = 0; icoord < ncoord_out; icoord++ ) {
+      for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+         ptr_out[ icoord ][ ipoint ] = ( icoord < ncoord_in ) ?
+            ptr_in[ icoord ][ ipoint ] : AST__BAD;
+      }
+   }
+}
+
 int main( int argc, char *argv[] ) {
    int status_value = 0;
    int *status = &status_value;
@@ -47,6 +64,10 @@ int main( int argc, char *argv[] ) {
    const char *out_file = argv[2];
 
    astWatch( status );
+   astIntraReg_( "simplifyidentity", 1, 1, TestIntraTran,
+                 AST__SIMPFI | AST__SIMPIF,
+                 "Identity IntraMap for simplify fixtures",
+                 "AST test suite", "starlink-ast", status );
 
    chan = astChannel( NULL, NULL, "SourceFile=%s", in_file );
    object = astRead( chan );

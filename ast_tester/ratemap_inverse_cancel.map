@@ -1,0 +1,27 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin RateMap
+         Nin = 1
+      IsA Mapping
+         Map =
+            Begin ZoomMap
+               Nin = 1
+            IsA Mapping
+               Zoom = 2
+            End ZoomMap
+      End RateMap
+   MapB =
+      Begin RateMap
+         Nin = 1
+      IsA Mapping
+         Map =
+            Begin ZoomMap
+               Nin = 1
+            IsA Mapping
+               Zoom = 2
+            End ZoomMap
+      End RateMap
+End CmpMap

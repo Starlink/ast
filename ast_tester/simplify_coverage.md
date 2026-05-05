@@ -11,11 +11,14 @@ to that rule.
 
 - Prefer focused `.map` / `.simp` fixtures for public `astSimplify` behaviour.
   They are easy to inspect and are already supported by `simplify_tests.txt`.
+- All Mapping classes have native serialization support, so Mapping-class
+  simplification coverage should default to `.map` / `.simp` fixtures. If a
+  fixture is too error-prone to hand-author, use throwaway generator code to
+  produce the native dump and commit the resulting fixture.
 - Use one primary simplification rule per fixture. Add larger scenario
   fixtures only when the rule being tested is a cascade or reordering rule.
-- Use C tests when the expected result is easier to assert by API, requires
-  generated data, or needs numerical transformation checks instead of a stable
-  serialized form.
+- Use C tests only when the assertion itself needs API calls or numerical
+  transformation checks rather than a stable serialized result.
 - Keep historical end-to-end fixtures such as `brad`, `lsst1`, and `rigby` as
   scenario regressions, not as the only proof for individual rules.
 
@@ -57,9 +60,9 @@ to that rule.
 | WcsMap | Cancels inverse projections and swaps with compatible PermMap/WinMap combinations | `wcs_inverse_cancel.map`; swap fixtures planned; WCS scenario tests |
 | SphMap | Cancels spherical/cartesian inverse pairs | `sph_inverse_cancel.map`, `sph_matrix_sandwich.map` |
 | PcdMap, DssMap, GrismMap | Cancels inverse pairs and class-specific adjacent simplifications | `pcd_zero_to_unit.map`, `pcd_inverse_cancel.map`, `grism_inverse_cancel.map`, `grism_zoom_merge.map`; DssMap fixture planned |
-| MathMap, IntraMap, RateMap, TranMap | Class-specific inverse-pair and no-op simplifications | Planned C/API tests |
-| SplineMap | Class-specific inverse-pair and no-op simplifications | Planned C/API tests |
-| SelectorMap | Simplifies encapsulated regions and class-specific no-op cases | Planned C/API tests |
+| MathMap, IntraMap, RateMap, TranMap | Class-specific inverse-pair and no-op simplifications | `math_inverse_cancel.map`, `intramap_inverse_cancel.map`, `ratemap_inverse_cancel.map`, `tranmap_equal_components.map`; additional serialized fixtures planned |
+| SplineMap | Class-specific inverse-pair and no-op simplifications | `spline_inverse_cancel.map` |
+| SelectorMap | Simplifies encapsulated regions and class-specific no-op cases | Planned serialized fixtures |
 | Box, Interval, NullRegion, PointList | Region-as-Mapping `MapMerge` simplifications | Existing region tests; planned targeted fixtures |
 | Region, Circle, Ellipse, Polygon, Prism, CmpRegion, Stc | Region `Simplify` overrides | Existing region/STC tests; separate region coverage matrix recommended |
 

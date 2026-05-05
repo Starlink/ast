@@ -1,0 +1,25 @@
+Begin CmpMap
+   Nin = 1
+IsA Mapping
+   InvB = 1
+   MapA =
+      Begin IntraMap
+         Nin = 1
+      IsA Mapping
+         Fname = "simplifyidentity"
+         Iflag = "fixture"
+         Purp = "Identity IntraMap for simplify fixtures"
+         Auth = "AST test suite"
+         Cntact = "starlink-ast"
+      End IntraMap
+   MapB =
+      Begin IntraMap
+         Nin = 1
+      IsA Mapping
+         Fname = "simplifyidentity"
+         Iflag = "fixture"
+         Purp = "Identity IntraMap for simplify fixtures"
+         Auth = "AST test suite"
+         Cntact = "starlink-ast"
+      End IntraMap
+End CmpMap

@@ -1,0 +1,16 @@
+Begin TranMap
+   Nin = 1
+IsA Mapping
+   MapA =
+      Begin ZoomMap
+         Nin = 1
+      IsA Mapping
+         Zoom = 2
+      End ZoomMap
+   MapB =
+      Begin ZoomMap
+         Nin = 1
+      IsA Mapping
+         Zoom = 2
+      End ZoomMap
+End TranMap
