@@ -1,0 +1,19 @@
+ Begin SpecMap 	# Conversion between spectral coordinate systems
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nspec = 2 	# Number of conversion steps
+    Spec1 = "TPF2HL" 	# Convert from Topocentric to heliocentric frequency
+    Spec1a = -2.5 	# Longitude (positive eastwards, radians)
+    Spec1b = 0.90000000000000002 	# Latitude (geodetic, radians)
+    Spec1c = 1000 	# Altitude (geodetic, metres)
+    Spec1d = 51544 	# UT1 epoch of observaton (Modified Julian Date)
+    Spec1e = 0.5 	# RA of source (FK5 J2000, radians)
+    Spec1f = 1.2 	# DEC of source (FK5 J2000, radians)
+    Spec2 = "HLF2TP" 	# Convert from Heliocentric to topocentric frequency
+    Spec2a = -2.5 	# Longitude (positive eastwards, radians)
+    Spec2b = 0.90000000000000002 	# Latitude (geodetic, radians)
+    Spec2c = 1000 	# Altitude (geodetic, metres)
+    Spec2d = 51544 	# UT1 epoch of observaton (Modified Julian Date)
+    Spec2e = 0.5 	# RA of source (FK5 J2000, radians)
+    Spec2f = 1.2 	# DEC of source (FK5 J2000, radians)
+ End SpecMap

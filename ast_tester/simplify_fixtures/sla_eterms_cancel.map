@@ -1,0 +1,9 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 2 	# Number of conversion steps
+    Sla1 = "ADDET" 	# Add E-terms of aberration
+    Sla1a = 1950 	# Besselian epoch of mean equinox (FK4)
+    Sla2 = "SUBET" 	# Subtract E-terms of aberration
+    Sla2a = 1950 	# Besselian epoch of mean equinox (FK4)
+ End SlaMap

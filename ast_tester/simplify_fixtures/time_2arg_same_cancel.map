@@ -1,0 +1,11 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 2 	# Number of conversion steps
+    Time1 = "TAITOUTC" 	# Convert TAI to UTC
+    Time1a = 53000 	# MJD offset
+    Time1b = 0.5 	# DTAI
+    Time2 = "UTCTOTAI" 	# Convert UTC to TAI
+    Time2a = 53000 	# MJD offset
+    Time2b = 0.5 	# DTAI
+ End TimeMap

@@ -1,0 +1,9 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 1 	# Number of conversion steps
+    Time1 = "TTTOTCG" 	# Convert TT to TCG
+    Time1a = 0.5 	# MJD offset
+    Time1b = -3.0067957149228957e-05 	# TCG offset
+ End TimeMap

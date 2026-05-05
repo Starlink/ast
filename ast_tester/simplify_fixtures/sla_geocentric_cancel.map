@@ -1,0 +1,11 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 2 	# Number of conversion steps
+    Sla1 = "AMP" 	# Geocentric apparent to mean place (FK5)
+    Sla1a = 51544 	# TDB of apparent place (as MJD)
+    Sla1b = 2000 	# Julian epoch of mean equinox (FK5)
+    Sla2 = "MAP" 	# Mean place (FK5) to geocentric apparent
+    Sla2a = 2000 	# Julian epoch of mean equinox (FK5)
+    Sla2b = 51544 	# TDB of apparent place (as MJD)
+ End SlaMap

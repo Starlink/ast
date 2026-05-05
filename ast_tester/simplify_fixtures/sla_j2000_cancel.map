@@ -1,0 +1,7 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 2 	# Number of conversion steps
+    Sla1 = "J2000H" 	# J2000 equatorial (dynamical) to ICRS
+    Sla2 = "HJ2000" 	# ICRS to J2000 equatorial (dynamical)
+ End SlaMap

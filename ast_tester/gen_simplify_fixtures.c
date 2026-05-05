@@ -353,6 +353,412 @@ static void gen_ratemap_fixtures(const char *dir) {
     }
 }
 
+/* ===== SlaMap fixtures ===== */
+
+static void gen_slamap_fixtures(const char *dir) {
+    printf("SlaMap fixtures:\n");
+
+    /* slamap-04: single inverted SlaMap normalizes */
+    {
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "EQGAL", 0, NULL);
+        astInvert(sm);
+        write_fixture(dir, "sla_invert_normalize", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-02: partial cancellation (3 steps, middle pair cancels) */
+    {
+        double beq[] = {1950.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "ADDET", 1, beq);
+        astSlaAdd(sm, "SUBET", 1, beq);
+        astSlaAdd(sm, "EQGAL", 0, NULL);
+        write_fixture(dir, "sla_partial_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-03: multi-map merge without step reduction */
+    {
+        double beq[] = {1950.0};
+        AstSlaMap *s1 = astSlaMap(0, "");
+        astSlaAdd(s1, "ADDET", 1, beq);
+        AstSlaMap *s2 = astSlaMap(0, "");
+        astSlaAdd(s2, "EQGAL", 0, NULL);
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_fixture(dir, "sla_merge_no_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
+    }
+
+    /* slamap-08: 0-arg supergalactic */
+    {
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "GALSUP", 0, NULL);
+        astSlaAdd(sm, "SUPGAL", 0, NULL);
+        write_fixture(dir, "sla_supergalactic_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-09: 0-arg J2000 dynamical */
+    {
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "J2000H", 0, NULL);
+        astSlaAdd(sm, "HJ2000", 0, NULL);
+        write_fixture(dir, "sla_j2000_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-10: 1-arg E-terms */
+    {
+        double beq[] = {1950.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "ADDET", 1, beq);
+        astSlaAdd(sm, "SUBET", 1, beq);
+        write_fixture(dir, "sla_eterms_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-11: 1-arg FK4/FK5 */
+    {
+        double beq[] = {1950.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "FK45Z", 1, beq);
+        astSlaAdd(sm, "FK54Z", 1, beq);
+        write_fixture(dir, "sla_fk45_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-12: 1-arg ICRS/FK5 */
+    {
+        double args[] = {2000.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "HFK5Z", 1, args);
+        astSlaAdd(sm, "FK5HZ", 1, args);
+        write_fixture(dir, "sla_icrs_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-13: 1-arg ecliptic */
+    {
+        double args[] = {2000.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "EQECL", 1, args);
+        astSlaAdd(sm, "ECLEQ", 1, args);
+        write_fixture(dir, "sla_ecliptic_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-16: 2-arg geocentric (cross-matched AMP+MAP) */
+    {
+        double amp_args[] = {51544.0, 2000.0};
+        double map_args[] = {2000.0, 51544.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "AMP", 2, amp_args);
+        astSlaAdd(sm, "MAP", 2, map_args);
+        write_fixture(dir, "sla_geocentric_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-23: redundant precession (start==end) */
+    {
+        double args[] = {2000.0, 2000.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "PREC", 2, args);
+        write_fixture(dir, "sla_prec_redundant", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-24: adjacent precession merge */
+    {
+        double args1[] = {1950.0, 1975.0};
+        double args2[] = {1975.0, 2000.0};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "PREC", 2, args1);
+        astSlaAdd(sm, "PREC", 2, args2);
+        write_fixture(dir, "sla_prec_merge", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+}
+
+/* ===== SpecMap fixtures ===== */
+
+static void gen_specmap_fixtures(const char *dir) {
+    printf("SpecMap fixtures:\n");
+
+    /* specmap-04: single inverted SpecMap normalizes */
+    {
+        double rf[] = {1.4e9, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "FRTOVL", 1, rf);
+        astInvert(sm);
+        write_fixture(dir, "spec_invert_normalize", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* specmap-02: partial cancellation */
+    {
+        double rf[] = {1.4e9, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "FRTOVL", 1, rf);
+        astSpecAdd(sm, "VLTOFR", 1, rf);
+        astSpecAdd(sm, "ENTOFR", 0, NULL);
+        write_fixture(dir, "spec_partial_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* specmap-08: 0-arg unit conversion cancel */
+    {
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "ENTOFR", 0, NULL);
+        astSpecAdd(sm, "FRTOEN", 0, NULL);
+        write_fixture(dir, "spec_unit_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* specmap-10: 2-arg local-standard cancel (szargs=3, pad to be safe) */
+    {
+        double args[] = {0.5, 1.2, 0.0, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "LKF2HL", 2, args);
+        astSpecAdd(sm, "HLF2LK", 2, args);
+        write_fixture(dir, "spec_lsr_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* specmap-11: 3-arg geocentric cancel (szargs=4, pad) */
+    {
+        double args[] = {0.5, 1.2, 51544.0, 0.0, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "GEF2HL", 3, args);
+        astSpecAdd(sm, "HLF2GE", 3, args);
+        write_fixture(dir, "spec_geocentric_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* specmap-12: 6-arg topocentric cancel (szargs=7, pad) */
+    {
+        double args[] = {-2.5, 0.9, 1000.0, 51544.0, 0.5, 1.2, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, "");
+        astSpecAdd(sm, "TPF2HL", 6, args);
+        astSpecAdd(sm, "HLF2TP", 6, args);
+        write_fixture(dir, "spec_topocentric_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+}
+
+/* ===== TimeMap fixtures ===== */
+
+static void gen_timemap_fixtures(const char *dir) {
+    printf("TimeMap fixtures:\n");
+
+    /* timemap-04: single inverted TimeMap normalizes (szargs=2, pad) */
+    {
+        double dut[] = {0.5, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "TAITOTT", 1, dut);
+        astInvert(tm);
+        write_fixture(dir, "time_invert_normalize", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* timemap-02: partial cancellation */
+    {
+        double dut[] = {0.5, 0.0};
+        double dut2[] = {0.5, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "TAITOTT", 1, dut);
+        astTimeAdd(tm, "TTTOTAI", 1, dut);
+        astTimeAdd(tm, "TTTOTCG", 1, dut2);
+        write_fixture(dir, "time_partial_cancel", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* timemap-07: no-op MJDTOMJD step with zero offset (szargs=3, pad) */
+    {
+        double args[] = {0.0, 0.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "MJDTOMJD", 2, args);
+        write_fixture(dir, "time_noop_eliminate", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* timemap-09: 2-arg swapped pair (MJDTOJD + JDTOMJD) (szargs=3) */
+    {
+        double args1[] = {0.0, 2400000.5, 0.0};
+        double args2[] = {2400000.5, 0.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "MJDTOJD", 2, args1);
+        astTimeAdd(tm, "JDTOMJD", 2, args2);
+        write_fixture(dir, "time_2arg_swapped_cancel", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* timemap-10: 2-arg same-order pair (TAITOUTC + UTCTOTAI) (szargs=3) */
+    {
+        double args[] = {53000.0, 0.5, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "TAITOUTC", 2, args);
+        astTimeAdd(tm, "UTCTOTAI", 2, args);
+        write_fixture(dir, "time_2arg_same_cancel", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* timemap-11: 3-arg pair (GMSTTOLMST + LMSTTOGMST) (szargs=3, exact) */
+    {
+        double args[] = {-2.5, 1000.0, 1013.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "GMSTTOLMST", 3, args);
+        astTimeAdd(tm, "LMSTTOGMST", 3, args);
+        write_fixture(dir, "time_3arg_cancel", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* timemap-12: 5-arg pair (TTTOTDB + TDBTOTT) (szargs=7, pad) */
+    {
+        double args[] = {53000.0, 0.5, -2.5, 6378.0, 0.0, 0.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, "");
+        astTimeAdd(tm, "TTTOTDB", 5, args);
+        astTimeAdd(tm, "TDBTOTT", 5, args);
+        write_fixture(dir, "time_5arg_cancel", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+}
+
+/* ===== PermMap fixtures ===== */
+
+static void gen_permmap_fixtures(const char *dir) {
+    printf("PermMap fixtures:\n");
+
+    /* permmap-03: two PermMaps cancel to UnitMap */
+    {
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        AstPermMap *p1 = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstPermMap *p2 = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, "");
+        write_fixture(dir, "perm_cancel_to_unit", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
+    /* permmap-04: single inverted PermMap normalizes */
+    {
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, "");
+        astInvert(pm);
+        write_fixture(dir, "perm_invert_normalize", (AstMapping*)pm);
+        pm = astAnnul(pm);
+    }
+}
+
+/* ===== NormMap fixtures ===== */
+
+static void gen_normmap_fixtures(const char *dir) {
+    printf("NormMap fixtures:\n");
+
+    /* normmap-02: NormMap wrapping basic Frame → UnitMap */
+    {
+        AstFrame *f = astFrame(2, "");
+        AstNormMap *nm = astNormMap(f, "");
+        write_fixture(dir, "normmap_basic_frame_to_unit", (AstMapping*)nm);
+        nm = astAnnul(nm); f = astAnnul(f);
+    }
+
+    /* normmap-03: inverse NormMap pair cancels (SkyFrame) */
+    {
+        AstSkyFrame *sf = astSkyFrame("");
+        AstNormMap *n1 = astNormMap(sf, "");
+        AstNormMap *n2 = astNormMap(sf, "");
+        astInvert(n1);
+        AstCmpMap *cm = astCmpMap(n1, n2, 1, "");
+        write_fixture(dir, "normmap_inverse_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); n1 = astAnnul(n1); n2 = astAnnul(n2);
+        sf = astAnnul(sf);
+    }
+
+    /* normmap-05: duplicate NormMaps (same direction) → extras become UnitMap */
+    {
+        AstSkyFrame *sf = astSkyFrame("");
+        AstNormMap *n1 = astNormMap(sf, "");
+        AstNormMap *n2 = astNormMap(sf, "");
+        AstCmpMap *cm = astCmpMap(n1, n2, 1, "");
+        write_fixture(dir, "normmap_duplicate_elim", (AstMapping*)cm);
+        cm = astAnnul(cm); n1 = astAnnul(n1); n2 = astAnnul(n2);
+        sf = astAnnul(sf);
+    }
+}
+
+/* ===== UnitNormMap fixtures ===== */
+
+static void gen_unitnormmap_fixtures(const char *dir) {
+    printf("UnitNormMap fixtures:\n");
+
+    /* unitnormmap-01: ShiftMap + forward UnitNormMap → adjusted centre */
+    {
+        double centre[] = {1.0, 2.0};
+        double shifts[] = {0.5, 0.5};
+        AstUnitNormMap *unm = astUnitNormMap(2, centre, "");
+        AstShiftMap *sm = astShiftMap(2, shifts, "");
+        AstCmpMap *cm = astCmpMap(sm, unm, 1, "");
+        write_fixture(dir, "unitnormmap_shift_fwd_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); unm = astAnnul(unm);
+    }
+
+    /* unitnormmap-04: inverted UnitNormMap + ShiftMap → adjusted centre */
+    {
+        double centre[] = {1.0, 2.0};
+        double shifts[] = {0.5, 0.5};
+        AstUnitNormMap *unm = astUnitNormMap(2, centre, "");
+        astInvert(unm);
+        AstShiftMap *sm = astShiftMap(2, shifts, "");
+        AstCmpMap *cm = astCmpMap(unm, sm, 1, "");
+        write_fixture(dir, "unitnormmap_inv_shift_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); unm = astAnnul(unm);
+    }
+
+    /* unitnormmap-07: fwd + inv with same centre → UnitMap */
+    {
+        double centre[] = {1.0, 2.0};
+        AstUnitNormMap *u1 = astUnitNormMap(2, centre, "");
+        AstUnitNormMap *u2 = astUnitNormMap(2, centre, "");
+        astInvert(u2);
+        AstCmpMap *cm = astCmpMap(u1, u2, 1, "");
+        write_fixture(dir, "unitnormmap_inverse_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); u1 = astAnnul(u1); u2 = astAnnul(u2);
+    }
+
+    /* unitnormmap-09: fwd + inv with different centres → ShiftMap */
+    {
+        double c1[] = {1.0, 2.0};
+        double c2[] = {3.0, 4.0};
+        AstUnitNormMap *u1 = astUnitNormMap(2, c1, "");
+        AstUnitNormMap *u2 = astUnitNormMap(2, c2, "");
+        astInvert(u2);
+        AstCmpMap *cm = astCmpMap(u1, u2, 1, "");
+        write_fixture(dir, "unitnormmap_diff_centre_to_shift", (AstMapping*)cm);
+        cm = astAnnul(cm); u1 = astAnnul(u1); u2 = astAnnul(u2);
+    }
+}
+
+/* ===== GrismMap fixtures ===== */
+
+static void gen_grismmap_fixtures(const char *dir) {
+    printf("GrismMap fixtures:\n");
+
+    /* grismmap-03: ZoomMap + inverted GrismMap → absorbed */
+    {
+        AstGrismMap *gm = astGrismMap("");
+        astInvert(gm);
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstCmpMap *cm = astCmpMap(zm, gm, 1, "");
+        write_fixture(dir, "grism_zoom_inv_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); gm = astAnnul(gm); zm = astAnnul(zm);
+    }
+}
+
+/* ===== XphMap fixtures ===== */
+/* XphMap requires specific order parameter - check if constructor is public */
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -372,6 +778,13 @@ int main(void) {
     gen_cmpmap_fixtures(dir);
     gen_tranmap_fixtures(dir);
     gen_ratemap_fixtures(dir);
+    gen_slamap_fixtures(dir);
+    gen_specmap_fixtures(dir);
+    gen_timemap_fixtures(dir);
+    gen_permmap_fixtures(dir);
+    gen_normmap_fixtures(dir);
+    gen_unitnormmap_fixtures(dir);
+    gen_grismmap_fixtures(dir);
 
     astEnd;
 
