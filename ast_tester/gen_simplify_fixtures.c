@@ -515,6 +515,18 @@ static void gen_specmap_fixtures(const char *dir) {
         sm = astAnnul(sm);
     }
 
+    /* specmap-03: multi-map merge without step reduction */
+    {
+        double rf[] = {1.4e9, 0.0};
+        AstSpecMap *s1 = astSpecMap(1, 0, "");
+        astSpecAdd(s1, "FRTOVL", 1, rf);
+        AstSpecMap *s2 = astSpecMap(1, 0, "");
+        astSpecAdd(s2, "ENTOFR", 0, NULL);
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_fixture(dir, "spec_merge_no_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
+    }
+
     /* specmap-10: 2-arg local-standard cancel (szargs=3, pad to be safe) */
     {
         double args[] = {0.5, 1.2, 0.0, 0.0};
@@ -571,6 +583,19 @@ static void gen_timemap_fixtures(const char *dir) {
         astTimeAdd(tm, "TTTOTCG", 1, dut2);
         write_fixture(dir, "time_partial_cancel", (AstMapping*)tm);
         tm = astAnnul(tm);
+    }
+
+    /* timemap-03: multi-map merge without step reduction */
+    {
+        double dut[] = {0.5, 0.0};
+        double dut2[] = {0.3, 0.0};
+        AstTimeMap *t1 = astTimeMap(0, "");
+        astTimeAdd(t1, "TAITOTT", 1, dut);
+        AstTimeMap *t2 = astTimeMap(0, "");
+        astTimeAdd(t2, "TTTOTCG", 1, dut2);
+        AstCmpMap *cm = astCmpMap(t1, t2, 1, "");
+        write_fixture(dir, "time_merge_no_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); t1 = astAnnul(t1); t2 = astAnnul(t2);
     }
 
     /* timemap-07: no-op MJDTOMJD step with zero offset (szargs=3, pad) */
@@ -995,6 +1020,17 @@ static void gen_switchmap_extra_fixtures(const char *dir) {
 
 static void gen_pcdmap_extra_fixtures(const char *dir) {
     printf("PcdMap extra fixtures:\n");
+
+    /* pcdmap-06: PcdMap swap without merge target — accepted because
+       ZoomMap(1) simplifies to UnitMap after the swap. */
+    {
+        double pcdcen[] = {0.0, 0.0};
+        AstPcdMap *pm = astPcdMap(0.001, pcdcen, "");
+        AstZoomMap *zm = astZoomMap(2, 1.0, "");
+        AstCmpMap *cm = astCmpMap(pm, zm, 1, "");
+        write_fixture(dir, "pcd_swap_zoom_simplifies", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); zm = astAnnul(zm);
+    }
 
     /* pcdmap-05: PcdMap swaps with PermMap(axis swap) to reach inverse */
     {
