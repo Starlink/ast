@@ -1,0 +1,15 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 2 	# Number of conversion steps
+    Sla1 = "HPREQ" 	# Helioprojective-Radial to J2000.0 equatorial (FK5)
+    Sla1a = 51544 	# Modified Julian Date of observation
+    Sla1b = 0.5 	# Heliocentric-Aries-Ecliptic X value at observer
+    Sla1c = 1.2 	# Heliocentric-Aries-Ecliptic Y value at observer
+    Sla1d = 150000000 	# Heliocentric-Aries-Ecliptic Z value at observer
+    Sla2 = "EQHPR" 	# J2000.0 equatorial (FK5) to Helioprojective-Radial
+    Sla2a = 51544 	# Modified Julian Date of observation
+    Sla2b = 0.5 	# Heliocentric-Aries-Ecliptic X value at observer
+    Sla2c = 1.2 	# Heliocentric-Aries-Ecliptic Y value at observer
+    Sla2d = 150000000 	# Heliocentric-Aries-Ecliptic Z value at observer
+ End SlaMap

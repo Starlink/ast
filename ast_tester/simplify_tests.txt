@@ -126,3 +126,8 @@ matrix_swap_past_perm   | simplify_fixtures/matrix_swap_past_perm.map   | simpli
 sla_helioecl_cancel     | simplify_fixtures/sla_helioecl_cancel.map     | simplify_fixtures/sla_helioecl_cancel.simp     |
 sla_ha_cancel           | simplify_fixtures/sla_ha_cancel.map           | simplify_fixtures/sla_ha_cancel.simp           |
 sla_azel_cancel         | simplify_fixtures/sla_azel_cancel.map         | simplify_fixtures/sla_azel_cancel.simp         |
+sla_hpc_cancel          | simplify_fixtures/sla_hpc_cancel.map          | simplify_fixtures/sla_hpc_cancel.simp          |
+sla_hpr_cancel          | simplify_fixtures/sla_hpr_cancel.map          | simplify_fixtures/sla_hpr_cancel.simp          |
+win_swap_past_matrix    | simplify_fixtures/win_swap_past_matrix.map    | simplify_fixtures/win_swap_past_matrix.simp    |
+win_swap_past_wcsmap    | simplify_fixtures/win_swap_past_wcsmap.map    | simplify_fixtures/win_swap_past_wcsmap.simp    |
+selectormap_inverse_cancel | simplify_fixtures/selectormap_inverse_cancel.map | simplify_fixtures/selectormap_inverse_cancel.simp |

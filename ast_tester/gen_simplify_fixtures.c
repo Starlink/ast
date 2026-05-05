@@ -970,6 +970,91 @@ static void gen_slamap_extra_fixtures(const char *dir) {
     }
 }
 
+/* ===== SlaMap 4-arg fixtures ===== */
+
+static void gen_slamap_4arg_fixtures(const char *dir) {
+    printf("SlaMap 4-arg fixtures:\n");
+
+    /* slamap-18: 4-arg HPC (HPCEQ+EQHPC) */
+    {
+        double args[] = {51544.0, 0.5, 1.2, 150.0e6};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "HPCEQ", 4, args);
+        astSlaAdd(sm, "EQHPC", 4, args);
+        write_fixture(dir, "sla_hpc_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+
+    /* slamap-19: 4-arg HPR (HPREQ+EQHPR) */
+    {
+        double args[] = {51544.0, 0.5, 1.2, 150.0e6};
+        AstSlaMap *sm = astSlaMap(0, "");
+        astSlaAdd(sm, "HPREQ", 4, args);
+        astSlaAdd(sm, "EQHPR", 4, args);
+        write_fixture(dir, "sla_hpr_cancel", (AstMapping*)sm);
+        sm = astAnnul(sm);
+    }
+}
+
+/* ===== WinMap cascade fixtures ===== */
+
+static void gen_win_cascade_fixtures(const char *dir) {
+    printf("WinMap cascade fixtures:\n");
+
+    /* winmap-18: WinMap swaps past MatrixMap to reach merge target */
+    {
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa1[] = {1, 2}, outb1[] = {3, 4};
+        double outa2[] = {5, 6}, outb2[] = {7, 8};
+        double diag[] = {2.0, 3.0};
+        AstWinMap *w1 = astWinMap(2, ina, inb, outa1, outb1, "");
+        AstMatrixMap *mm = astMatrixMap(2, 2, 1, diag, "");
+        AstWinMap *w2 = astWinMap(2, ina, inb, outa2, outb2, "");
+        AstCmpMap *inner = astCmpMap(mm, w2, 1, "");
+        AstCmpMap *outer = astCmpMap(w1, inner, 1, "");
+        write_fixture(dir, "win_swap_past_matrix", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        w1 = astAnnul(w1); mm = astAnnul(mm); w2 = astAnnul(w2);
+    }
+
+    /* winmap-20: WinMap swaps past WcsMap to reach merge target */
+    {
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa1[] = {0, 0}, outb1[] = {1, 1};
+        double outa2[] = {0, 0}, outb2[] = {1, 1};
+        AstWinMap *w1 = astWinMap(2, ina, inb, outa1, outb1, "");
+        AstWcsMap *wcs = astWcsMap(2, AST__TAN, 1, 2, "");
+        AstWinMap *w2 = astWinMap(2, ina, inb, outa2, outb2, "");
+        AstCmpMap *inner = astCmpMap(wcs, w2, 1, "");
+        AstCmpMap *outer = astCmpMap(w1, inner, 1, "");
+        write_fixture(dir, "win_swap_past_wcsmap", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        w1 = astAnnul(w1); wcs = astAnnul(wcs); w2 = astAnnul(w2);
+    }
+}
+
+/* ===== SelectorMap fixtures ===== */
+
+static void gen_selectormap_fixtures(const char *dir) {
+    printf("SelectorMap fixtures:\n");
+
+    /* selectormap-05: SelectorMap + Inverse(SelectorMap) cancel to UnitMap */
+    {
+        AstFrame *f = astFrame(2, "");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 10.0};
+        AstBox *box = astBox(f, 1, lbnd, ubnd, NULL, "");
+        AstMapping *regs[] = {(AstMapping*)box};
+        AstSelectorMap *s1 = astSelectorMap(1, (void**)regs, AST__BAD, "");
+        AstSelectorMap *s2 = astSelectorMap(1, (void**)regs, AST__BAD, "");
+        astInvert(s2);
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, "");
+        write_fixture(dir, "selectormap_inverse_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
+        box = astAnnul(box); f = astAnnul(f);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -1003,6 +1088,9 @@ int main(void) {
     gen_tranmap_extra_fixtures(dir);
     gen_matrix_cascade_fixtures(dir);
     gen_slamap_extra_fixtures(dir);
+    gen_slamap_4arg_fixtures(dir);
+    gen_win_cascade_fixtures(dir);
+    gen_selectormap_fixtures(dir);
 
     astEnd;
 
