@@ -145,7 +145,7 @@ Invert flag normalization.
 | unitmap-01 | unit_invert_clear.map | focused | `+` | Single UnitMap with Invert flag set: flag is cleared | Lone UnitMap with invert_list=1 |
 | unitmap-03 | unit_series_elision.map | focused | `+` | UnitMap removed from series composition | CmpMap(ShiftMap(2), UnitMap(2)), Series=1 |
 | unitmap-04 | unit_parallel_merge.map | focused | `+` | Adjacent UnitMaps in parallel merged into one wider UnitMap | CmpMap(UnitMap(1), UnitMap(2)), Series=0 |
-| unitmap-05 | -- | focused | `- (no fixture)` | Parallel UnitMap with no adjacent UnitMaps but Invert set: flag cleared | Single UnitMap in parallel with invert=1, flanked by non-UnitMaps |
+| unitmap-05 | unit_parallel_invert_clear.map | focused | `+` | Parallel UnitMap with no adjacent UnitMaps but Invert set: flag cleared | Single UnitMap in parallel with invert=1, flanked by non-UnitMaps |
 
 ### Negative branches
 
@@ -315,10 +315,10 @@ simplified arrays), or unchanged.
 | permmap-03 | perm_cancel_to_unit.map | focused | `+` | Composed PermMap reduces to UnitMap (both permutations null, nin==nout) | Two inverse PermMaps in series producing identity |
 | permmap-04 | perm_invert_normalize.map | focused | `+` | Single PermMap with Invert flag normalized (flag cleared, arrays swapped) | Lone PermMap with invert_list=1 |
 | permmap-05 | perm_array_simplify.map | focused | `+` | PermMap simplified: previously-stored array now null after composition | PermMap + UnitMap in series where array becomes identity |
-| permmap-06 | -- | focused | `- (no fixture)` | PermMap simplified: inperm array differs after constant folding | PermMap with constants composed with routing PermMap |
+| permmap-06 | perm_inperm_constant_fold.map | focused | `+` | PermMap simplified: inperm array differs after constant folding | PermMap with constants composed with routing PermMap |
 | permmap-07 | -- | focused | `- (no fixture)` | PermMap simplified: outperm array differs after re-computation | Similar to permmap-06 affecting outperm |
 | permmap-09 | perm_constant_propagation.map | cascade | `+` | Series composition propagates constants through merged PermMap | PermMap with constant outputs + PermMap routing those outputs |
-| permmap-10 | -- | cascade | `- (no fixture)` | Series composition propagates AST__BAD through (negative perm index) | PermMap with out-of-range indices in series |
+| permmap-10 | perm_bad_propagation.map | cascade | `+` | Series composition propagates AST__BAD through (negative perm index) | PermMap with out-of-range indices in series |
 
 ### Negative branches
 

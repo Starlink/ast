@@ -81,7 +81,7 @@ Invert flag normalization.
 | unitmap-02 | — | focused | negative | unitmap.c:508-514 | Single UnitMap with Invert=0: no change needed | Lone UnitMap already canonical |
 | unitmap-03 | unit_series_elision.map | focused | positive | unitmap.c:521-537 | UnitMap removed from series composition | CmpMap(ShiftMap(2), UnitMap(2)), Series=1 |
 | unitmap-04 | unit_parallel_merge.map | focused | positive | unitmap.c:589-618 | Adjacent UnitMaps in parallel merged into one wider UnitMap | CmpMap(UnitMap(1), UnitMap(2)), Series=0 |
-| unitmap-05 | — | focused | positive | unitmap.c:581-585 | Parallel UnitMap with no adjacent UnitMaps but Invert set: flag cleared | Single UnitMap in parallel with invert=1, flanked by non-UnitMaps |
+| unitmap-05 | unit_parallel_invert_clear.map | focused | positive | unitmap.c:581-585 | Parallel UnitMap with no adjacent UnitMaps but Invert set: flag cleared | Single UnitMap in parallel with invert=1, flanked by non-UnitMaps |
 | unitmap-06 | — | focused | negative | unitmap.c:577-581 | Parallel UnitMap with no adjacent UnitMaps and Invert=0: no simplification | Single UnitMap in parallel already canonical |
 
 ## zoommap.c
@@ -209,11 +209,11 @@ simplified arrays), or unchanged.
 | permmap-03 | perm_cancel_to_unit.map | focused | positive | permmap.c:1333,1383-1384 | Composed PermMap reduces to UnitMap (both permutations null, nin==nout) | Two inverse PermMaps in series producing identity |
 | permmap-04 | perm_invert_normalize.map | focused | positive | permmap.c:1345 | Single PermMap with Invert flag normalized (flag cleared, arrays swapped) | Lone PermMap with invert_list=1 |
 | permmap-05 | perm_array_simplify.map | focused | positive | permmap.c:1354-1356 | PermMap simplified: previously-stored array now null after composition | PermMap + UnitMap in series where array becomes identity |
-| permmap-06 | — | focused | positive | permmap.c:1362-1367 | PermMap simplified: inperm array differs after constant folding | PermMap with constants composed with routing PermMap |
+| permmap-06 | perm_inperm_constant_fold.map | focused | positive | permmap.c:1362-1367 | PermMap simplified: inperm array differs after constant folding | PermMap with constants composed with routing PermMap |
 | permmap-07 | — | focused | positive | permmap.c:1371-1376 | PermMap simplified: outperm array differs after re-computation | Similar to permmap-06 affecting outperm |
 | permmap-08 | neg_perm_no_merge.map | focused | negative | permmap.c:1379 | No simplification: single canonical PermMap with no mergeable neighbours | Lone forward PermMap, invert=0 |
 | permmap-09 | perm_constant_propagation.map | cascade | positive | permmap.c:1050-1078 | Series composition propagates constants through merged PermMap | PermMap with constant outputs + PermMap routing those outputs |
-| permmap-10 | — | cascade | positive | permmap.c:1060-1061 | Series composition propagates AST__BAD through (negative perm index) | PermMap with out-of-range indices in series |
+| permmap-10 | perm_bad_propagation.map | cascade | positive | permmap.c:1060-1061 | Series composition propagates AST__BAD through (negative perm index) | PermMap with out-of-range indices in series |
 
 ## lutmap.c
 
