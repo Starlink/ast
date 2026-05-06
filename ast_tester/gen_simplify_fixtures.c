@@ -2357,6 +2357,50 @@ static void gen_cascade_positives_2(const char *dir) {
         ma = astAnnul(ma); mb = astAnnul(mb);
     }
 
+    /* unitmap-05: parallel UnitMap with Invert=1 flanked by non-UnitMaps.
+       The code clears the invert flag since there are no adjacent UnitMaps. */
+    {
+        if (!astOK) astClearStatus;
+        const char *fwd[] = {"y = 2*x"};
+        const char *inv[] = {"x = 0.5*y"};
+        AstMathMap *mm = astMathMap(1, 1, 1, fwd, 1, inv, "");
+        AstUnitMap *um = astUnitMap(1, "");
+        astInvert(um);
+        AstCmpMap *cm = astCmpMap(mm, um, 0, "");
+        write_fixture(dir, "unit_parallel_invert_clear", (AstMapping*)cm);
+        cm = astAnnul(cm); mm = astAnnul(mm); um = astAnnul(um);
+    }
+
+    /* permmap-06: PermMap simplified because inperm array differs after
+       constant folding. Compose a PermMap that has a constant on one inverse
+       axis with a UnitMap — after composition the inperm changes. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {1, -1};
+        int outperm[] = {1, 2};
+        double consts[] = {42.0};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, consts, "");
+        AstUnitMap *um = astUnitMap(2, "");
+        AstCmpMap *cm = astCmpMap(um, pm, 1, "");
+        write_fixture(dir, "perm_inperm_constant_fold", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); um = astAnnul(um);
+    }
+
+    /* permmap-10: Series composition propagates AST__BAD through.
+       First PermMap drops an axis (output undefined), second routes it. */
+    {
+        if (!astOK) astClearStatus;
+        int in1[] = {1, 2};
+        int out1[] = {1, 0};
+        AstPermMap *p1 = astPermMap(2, in1, 2, out1, NULL, "");
+        int in2[] = {1, 2};
+        int out2[] = {2, 1};
+        AstPermMap *p2 = astPermMap(2, in2, 2, out2, NULL, "");
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, "");
+        write_fixture(dir, "perm_bad_propagation", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
     /* cmpmap-03 (where>0): CmpMap decomposition when not first in list.
        MathMap || CmpMap(MathMap||MathMap) || MathMap in parallel.
        Use MathMaps to prevent premature merging of ZoomMaps. */
