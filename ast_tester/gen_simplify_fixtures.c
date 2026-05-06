@@ -2468,6 +2468,21 @@ static void gen_cascade_positives_2(const char *dir) {
         cm = astAnnul(cm); pm = astAnnul(pm); um = astAnnul(um);
     }
 
+    /* permmap-07: PermMap simplified because outperm array differs.
+       Compose PermMap(with constant on forward output) with UnitMap —
+       the outperm changes after re-computation. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {1, 2};
+        int outperm[] = {1, -1};
+        double consts[] = {42.0};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, consts, "");
+        AstUnitMap *um = astUnitMap(2, "");
+        AstCmpMap *cm = astCmpMap(pm, um, 1, "");
+        write_fixture(dir, "perm_outperm_constant_fold", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); um = astAnnul(um);
+    }
+
     /* permmap-10: Series composition propagates AST__BAD through.
        First PermMap drops an axis (output undefined), second routes it. */
     {

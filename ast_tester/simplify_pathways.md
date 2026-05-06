@@ -316,7 +316,7 @@ simplified arrays), or unchanged.
 | permmap-04 | perm_invert_normalize.map | focused | `+` | Single PermMap with Invert flag normalized (flag cleared, arrays swapped) | Lone PermMap with invert_list=1 |
 | permmap-05 | perm_array_simplify.map | focused | `+` | PermMap simplified: previously-stored array now null after composition | PermMap + UnitMap in series where array becomes identity |
 | permmap-06 | perm_inperm_constant_fold.map | focused | `+` | PermMap simplified: inperm array differs after constant folding | PermMap with constants composed with routing PermMap |
-| permmap-07 | -- | focused | `- (no fixture)` | PermMap simplified: outperm array differs after re-computation | Similar to permmap-06 affecting outperm |
+| permmap-07 | perm_outperm_constant_fold.map | focused | `+` | PermMap simplified: outperm array differs after re-computation | Similar to permmap-06 affecting outperm |
 | permmap-09 | perm_constant_propagation.map | cascade | `+` | Series composition propagates constants through merged PermMap | PermMap with constant outputs + PermMap routing those outputs |
 | permmap-10 | perm_bad_propagation.map | cascade | `+` | Series composition propagates AST__BAD through (negative perm index) | PermMap with out-of-range indices in series |
 
