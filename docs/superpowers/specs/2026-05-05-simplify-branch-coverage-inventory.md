@@ -333,7 +333,7 @@ NormMap's MapMerge: (1) simplify encapsulated Frame; (2) basic Frame→UnitMap;
 | normmap-01 | — | focused | positive | normmap.c:626-630 | Encapsulated Frame simplifies → new NormMap with simplified Frame | NormMap wrapping compound Frame that simplifies |
 | normmap-02 | normmap_basic_frame_to_unit.map | focused | positive | normmap.c:635-639 | NormMap encapsulating basic Frame replaced by UnitMap (astNorm is no-op) | NormMap wrapping plain Frame |
 | normmap-03 | normmap_inverse_cancel.map | focused | positive | normmap.c:650-661 | NormMap cancels with inverse lower-neighbour NormMap | NormMap preceded by Inverse(NormMap) with same Frame |
-| normmap-04 | — | focused | positive | normmap.c:666-677 | NormMap cancels with inverse upper-neighbour NormMap | NormMap followed by Inverse(NormMap) with same Frame |
+| normmap-04 | normmap_inverse_cancel_upper.map | focused | positive | normmap.c:666-677 | NormMap cancels with inverse upper-neighbour NormMap | NormMap followed by Inverse(NormMap) with same Frame |
 | normmap-05 | normmap_duplicate_elim.map | focused | positive | normmap.c:697-717 | Duplicate adjacent NormMaps (same Frame, same direction) → duplicates become UnitMaps | Two identical NormMaps in series |
 | normmap-06 | — | focused | negative | normmap.c:650-651 | Lower neighbour NormMap: invert flags not opposite | NormMap preceded by same-direction NormMap with different Frame |
 | normmap-07 | neg_normmap_different_frames.map | focused | negative | normmap.c:660 | Lower inverse NormMap: Frames not equal | NormMap preceded by Inverse(NormMap) with different Frame |

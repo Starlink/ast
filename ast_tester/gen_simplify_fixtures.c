@@ -2399,6 +2399,35 @@ static void gen_cascade_positives_2(const char *dir) {
         ma = astAnnul(ma); mb = astAnnul(mb);
     }
 
+    /* normmap-01: NormMap whose encapsulated Frame simplifies.
+       Use a FrameSet as the Frame — astSimplify on it returns the
+       current Frame (a different pointer), triggering the new-NormMap path. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "");
+        AstSkyFrame *sky = astSkyFrame("");
+        AstFrameSet *fs = astFrameSet(base, "");
+        astAddFrame(fs, AST__BASE, astUnitMap(2, ""), sky);
+        AstNormMap *nm = astNormMap((AstFrame *)fs, "");
+        write_fixture(dir, "normmap_frame_simplifies", (AstMapping*)nm);
+        nm = astAnnul(nm); fs = astAnnul(fs);
+        base = astAnnul(base); sky = astAnnul(sky);
+    }
+
+    /* normmap-04: NormMap cancels with inverse UPPER neighbour.
+       NormMap(forward) + Inverse(NormMap) with same Frame. */
+    {
+        if (!astOK) astClearStatus;
+        AstSkyFrame *sf = astSkyFrame("");
+        AstNormMap *n1 = astNormMap(sf, "");
+        AstNormMap *n2 = astNormMap(sf, "");
+        astInvert(n2);
+        AstCmpMap *cm = astCmpMap(n1, n2, 1, "");
+        write_fixture(dir, "normmap_inverse_cancel_upper", (AstMapping*)cm);
+        cm = astAnnul(cm); n1 = astAnnul(n1); n2 = astAnnul(n2);
+        sf = astAnnul(sf);
+    }
+
     /* unitmap-05: parallel UnitMap with Invert=1 flanked by non-UnitMaps.
        The code clears the invert flag since there are no adjacent UnitMaps. */
     {

@@ -502,7 +502,7 @@ UnitMap; (3) inverse-pair cancellation; (4) duplicate-NormMap elimination.
 | normmap-01 | -- | focused | `- (no fixture)` | Encapsulated Frame simplifies to new NormMap with simplified Frame | NormMap wrapping compound Frame that simplifies |
 | normmap-02 | normmap_basic_frame_to_unit.map | focused | `+` | NormMap encapsulating basic Frame replaced by UnitMap (astNorm is no-op) | NormMap wrapping plain Frame |
 | normmap-03 | normmap_inverse_cancel.map | focused | `+` | NormMap cancels with inverse lower-neighbour NormMap | NormMap preceded by Inverse(NormMap) with same Frame |
-| normmap-04 | -- | focused | `- (no fixture)` | NormMap cancels with inverse upper-neighbour NormMap | NormMap followed by Inverse(NormMap) with same Frame |
+| normmap-04 | normmap_inverse_cancel_upper.map | focused | `+` | NormMap cancels with inverse upper-neighbour NormMap | NormMap followed by Inverse(NormMap) with same Frame |
 | normmap-05 | normmap_duplicate_elim.map | focused | `+` | Duplicate adjacent NormMaps (same Frame, same direction) to UnitMaps | Two identical NormMaps in series |
 
 ### Negative branches
