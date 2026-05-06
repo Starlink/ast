@@ -7,34 +7,50 @@
        IsA Mapping 	# Mapping between coordinate systems
           Series = 0 	# Component Mappings applied in parallel
           MapA = 	# First component Mapping
-             Begin ZoomMap 	# Zoom about the origin
+             Begin MathMap 	# Transformation using mathematical functions
                 Nin = 1 	# Number of input coordinates
              IsA Mapping 	# Mapping between coordinate systems
-                Zoom = 2 	# Zoom factor
-             End ZoomMap
+                Fwd1 = "y=2*x" 	# Forward function 1
+                Inv1 = "x=0.5*y" 	# Inverse function 1
+                SimpFI = 1 	# Forward-inverse pairs may simplify
+                SimpIF = 1 	# Inverse-forward pairs may simplify
+             End MathMap
           MapB = 	# Second component Mapping
-             Begin ShiftMap 	# Shift each coordinate axis
+             Begin MathMap 	# Transformation using mathematical functions
                 Nin = 1 	# Number of input coordinates
              IsA Mapping 	# Mapping between coordinate systems
-                Sft1 = 3 	# Shift for axis 1
-             End ShiftMap
+                Fwd1 = "y=3*x" 	# Forward function 1
+                Inv1 = "x=y/3" 	# Inverse function 1
+                SimpFI = 1 	# Forward-inverse pairs may simplify
+                SimpIF = 1 	# Inverse-forward pairs may simplify
+             End MathMap
        End CmpMap
     MapB = 	# Second component Mapping
        Begin CmpMap 	# Compound Mapping
           Nin = 2 	# Number of input coordinates
        IsA Mapping 	# Mapping between coordinate systems
           Series = 0 	# Component Mappings applied in parallel
+          InvA = 1 	# First Mapping used in inverse direction
+          InvB = 1 	# Second Mapping used in inverse direction
           MapA = 	# First component Mapping
-             Begin ZoomMap 	# Zoom about the origin
+             Begin MathMap 	# Transformation using mathematical functions
                 Nin = 1 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
              IsA Mapping 	# Mapping between coordinate systems
-                Zoom = 0.5 	# Zoom factor
-             End ZoomMap
+                Fwd1 = "y=2*x" 	# Forward function 1
+                Inv1 = "x=0.5*y" 	# Inverse function 1
+                SimpFI = 1 	# Forward-inverse pairs may simplify
+                SimpIF = 1 	# Inverse-forward pairs may simplify
+             End MathMap
           MapB = 	# Second component Mapping
-             Begin ShiftMap 	# Shift each coordinate axis
+             Begin MathMap 	# Transformation using mathematical functions
                 Nin = 1 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
              IsA Mapping 	# Mapping between coordinate systems
-                Sft1 = -3 	# Shift for axis 1
-             End ShiftMap
+                Fwd1 = "y=3*x" 	# Forward function 1
+                Inv1 = "x=y/3" 	# Inverse function 1
+                SimpFI = 1 	# Forward-inverse pairs may simplify
+                SimpIF = 1 	# Inverse-forward pairs may simplify
+             End MathMap
        End CmpMap
  End CmpMap

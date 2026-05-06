@@ -2257,25 +2257,31 @@ static void gen_cascade_positives_2(const char *dir) {
     printf("Cascade positives batch 2:\n");
 
     /* cmpmap-09: two parallel CmpMaps in series, components pair and simplify.
-       CmpMap(ZoomMap(2)||ShiftMap([3])) then CmpMap(ZoomMap(0.5)||ShiftMap([-3]))
-       → the ZoomMaps cancel, the ShiftMaps cancel. */
+       Use MathMaps (non-simplifiable as parallel) so the parallel CmpMaps
+       don't self-simplify before the pairing code runs.
+       CmpMap(MathMap(2x)||MathMap(3x)) then CmpMap(MathMap(x/2)||MathMap(x/3))
+       with SimpFI=1 so the pairs cancel. */
     {
         if (!astOK) astClearStatus;
-        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
-        double s1[] = {3.0};
-        AstShiftMap *sh1 = astShiftMap(1, s1, "");
-        AstCmpMap *par1 = astCmpMap(z1, sh1, 0, "");
+        const char *fwd1[] = {"y = 2*x"};
+        const char *inv1[] = {"x = 0.5*y"};
+        const char *fwd2[] = {"y = 3*x"};
+        const char *inv2[] = {"x = y/3"};
+        AstMathMap *ma1 = astMathMap(1, 1, 1, fwd1, 1, inv1, "SimpFI=1,SimpIF=1");
+        AstMathMap *mb1 = astMathMap(1, 1, 1, fwd2, 1, inv2, "SimpFI=1,SimpIF=1");
+        AstCmpMap *par1 = astCmpMap(ma1, mb1, 0, "");
 
-        AstZoomMap *z2 = astZoomMap(1, 0.5, "");
-        double s2[] = {-3.0};
-        AstShiftMap *sh2 = astShiftMap(1, s2, "");
-        AstCmpMap *par2 = astCmpMap(z2, sh2, 0, "");
+        AstMathMap *ma2 = astMathMap(1, 1, 1, fwd1, 1, inv1, "SimpFI=1,SimpIF=1");
+        AstMathMap *mb2 = astMathMap(1, 1, 1, fwd2, 1, inv2, "SimpFI=1,SimpIF=1");
+        astInvert(ma2);
+        astInvert(mb2);
+        AstCmpMap *par2 = astCmpMap(ma2, mb2, 0, "");
 
         AstCmpMap *cm = astCmpMap(par1, par2, 1, "");
         write_fixture(dir, "cmpmap_parallel_in_series_merge", (AstMapping*)cm);
         cm = astAnnul(cm); par1 = astAnnul(par1); par2 = astAnnul(par2);
-        z1 = astAnnul(z1); sh1 = astAnnul(sh1);
-        z2 = astAnnul(z2); sh2 = astAnnul(sh2);
+        ma1 = astAnnul(ma1); mb1 = astAnnul(mb1);
+        ma2 = astAnnul(ma2); mb2 = astAnnul(mb2);
     }
 
     /* cmpmap-18: PermMap swap with aconstants — first component gets constants.
@@ -2344,26 +2350,26 @@ static void gen_cascade_positives_2(const char *dir) {
     }
 
     /* cmpmap-07 with invert: series CmpMaps in parallel, one inverted.
-       CmpMap(ZoomMap(2),ShiftMap([3])) inverted, combined in parallel
-       with CmpMap(ZoomMap(0.5),ShiftMap([-3])). Tests line 1567-1568. */
+       Use MathMaps so they don't self-simplify before the merge fires.
+       Tests line 1567-1568 (invert1 flag flip). */
     {
         if (!astOK) astClearStatus;
-        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
-        double s1[] = {3.0};
-        AstShiftMap *sh1 = astShiftMap(1, s1, "");
-        AstCmpMap *ser1 = astCmpMap(z1, sh1, 1, "");
+        const char *fwd[] = {"y = 2*x"};
+        const char *inv[] = {"x = 0.5*y"};
+        AstMathMap *m1a = astMathMap(1, 1, 1, fwd, 1, inv, "SimpFI=1,SimpIF=1");
+        AstMathMap *m1b = astMathMap(1, 1, 1, fwd, 1, inv, "SimpFI=1,SimpIF=1");
+        AstCmpMap *ser1 = astCmpMap(m1a, m1b, 1, "");
         astInvert(ser1);
 
-        AstZoomMap *z2 = astZoomMap(1, 2.0, "");
-        double s2[] = {3.0};
-        AstShiftMap *sh2 = astShiftMap(1, s2, "");
-        AstCmpMap *ser2 = astCmpMap(z2, sh2, 1, "");
+        AstMathMap *m2a = astMathMap(1, 1, 1, fwd, 1, inv, "SimpFI=1,SimpIF=1");
+        AstMathMap *m2b = astMathMap(1, 1, 1, fwd, 1, inv, "SimpFI=1,SimpIF=1");
+        AstCmpMap *ser2 = astCmpMap(m2a, m2b, 1, "");
 
         AstCmpMap *par = astCmpMap(ser1, ser2, 0, "");
         write_fixture(dir, "cmpmap_series_in_parallel_inverted", (AstMapping*)par);
         par = astAnnul(par); ser1 = astAnnul(ser1); ser2 = astAnnul(ser2);
-        z1 = astAnnul(z1); sh1 = astAnnul(sh1);
-        z2 = astAnnul(z2); sh2 = astAnnul(sh2);
+        m1a = astAnnul(m1a); m1b = astAnnul(m1b);
+        m2a = astAnnul(m2a); m2b = astAnnul(m2b);
     }
 
     /* winmap-15: WinMap merges with UPPER parallel CmpMap neighbour.
