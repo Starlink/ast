@@ -218,3 +218,8 @@ neg_spec_6arg_mismatch  | simplify_fixtures/neg_spec_6arg_mismatch.map  | simpli
 neg_sla_4arg_mismatch   | simplify_fixtures/neg_sla_4arg_mismatch.map   | simplify_fixtures/neg_sla_4arg_mismatch.map   | yes
 neg_poly_no_forward     | simplify_fixtures/neg_poly_no_forward.map     | simplify_fixtures/neg_poly_no_forward.map     | yes
 neg_spline_different_coeffs | simplify_fixtures/neg_spline_different_coeffs.map | simplify_fixtures/neg_spline_different_coeffs.map | yes
+cmpmap_parallel_in_series_merge | simplify_fixtures/cmpmap_parallel_in_series_merge.map | simplify_fixtures/cmpmap_parallel_in_series_merge.simp |
+cmpmap_perm_swap_aconstants | simplify_fixtures/cmpmap_perm_swap_aconstants.map | simplify_fixtures/cmpmap_perm_swap_aconstants.simp |
+cmpmap_perm_swap_bconstants | simplify_fixtures/cmpmap_perm_swap_bconstants.map | simplify_fixtures/cmpmap_perm_swap_bconstants.simp |
+win_upper_cmpmap_parallel_merge | simplify_fixtures/win_upper_cmpmap_parallel_merge.map | simplify_fixtures/win_upper_cmpmap_parallel_merge.simp |
+perm_constant_propagation | simplify_fixtures/perm_constant_propagation.map | simplify_fixtures/perm_constant_propagation.simp |

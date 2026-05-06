@@ -2250,6 +2250,133 @@ static void gen_negative_fixtures_8(const char *dir) {
     }
 }
 
+/* ===== Positive cascade fixtures batch 2 ===== */
+
+static void gen_cascade_positives_2(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Cascade positives batch 2:\n");
+
+    /* cmpmap-09: two parallel CmpMaps in series, components pair and simplify.
+       CmpMap(ZoomMap(2)||ShiftMap([3])) then CmpMap(ZoomMap(0.5)||ShiftMap([-3]))
+       → the ZoomMaps cancel, the ShiftMaps cancel. */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        double s1[] = {3.0};
+        AstShiftMap *sh1 = astShiftMap(1, s1, "");
+        AstCmpMap *par1 = astCmpMap(z1, sh1, 0, "");
+
+        AstZoomMap *z2 = astZoomMap(1, 0.5, "");
+        double s2[] = {-3.0};
+        AstShiftMap *sh2 = astShiftMap(1, s2, "");
+        AstCmpMap *par2 = astCmpMap(z2, sh2, 0, "");
+
+        AstCmpMap *cm = astCmpMap(par1, par2, 1, "");
+        write_fixture(dir, "cmpmap_parallel_in_series_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); par1 = astAnnul(par1); par2 = astAnnul(par2);
+        z1 = astAnnul(z1); sh1 = astAnnul(sh1);
+        z2 = astAnnul(z2); sh2 = astAnnul(sh2);
+    }
+
+    /* cmpmap-18: PermMap swap with aconstants — first component gets constants.
+       PermMap that feeds constant to axis 1, passes axis 2 through,
+       preceding a parallel CmpMap(ZoomMap(1D) || ZoomMap(1D)). */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {2};
+        int outperm[] = {-1, 1};
+        double consts[] = {99.0};
+        AstPermMap *pm = astPermMap(1, inperm, 2, outperm, consts, "");
+        AstZoomMap *za = astZoomMap(1, 2.0, "");
+        AstZoomMap *zb = astZoomMap(1, 3.0, "");
+        AstCmpMap *par = astCmpMap(za, zb, 0, "");
+        AstCmpMap *cm = astCmpMap(pm, par, 1, "");
+        write_fixture(dir, "cmpmap_perm_swap_aconstants", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); par = astAnnul(par);
+        za = astAnnul(za); zb = astAnnul(zb);
+    }
+
+    /* cmpmap-19: PermMap swap with bconstants — second component gets constants.
+       PermMap passes axis 1 through, feeds constant to axis 2. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {1};
+        int outperm[] = {1, -1};
+        double consts[] = {99.0};
+        AstPermMap *pm = astPermMap(1, inperm, 2, outperm, consts, "");
+        AstZoomMap *za = astZoomMap(1, 2.0, "");
+        AstZoomMap *zb = astZoomMap(1, 3.0, "");
+        AstCmpMap *par = astCmpMap(za, zb, 0, "");
+        AstCmpMap *cm = astCmpMap(pm, par, 1, "");
+        write_fixture(dir, "cmpmap_perm_swap_bconstants", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); par = astAnnul(par);
+        za = astAnnul(za); zb = astAnnul(zb);
+    }
+
+    /* winmap-15: WinMap merges with UPPER parallel CmpMap neighbour.
+       Parallel CmpMap follows the WinMap in the series. */
+    {
+        if (!astOK) astClearStatus;
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {1, 2}, outb[] = {3, 5};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        double shifts1[] = {1.0};
+        double shifts2[] = {2.0};
+        AstShiftMap *sm1 = astShiftMap(1, shifts1, "");
+        AstShiftMap *sm2 = astShiftMap(1, shifts2, "");
+        AstCmpMap *par = astCmpMap(sm1, sm2, 0, "");
+        AstCmpMap *cm = astCmpMap(wm, par, 1, "");
+        write_fixture(dir, "win_upper_cmpmap_parallel_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); wm = astAnnul(wm); par = astAnnul(par);
+        sm1 = astAnnul(sm1); sm2 = astAnnul(sm2);
+    }
+
+    /* permmap-09: constant propagation through series composition.
+       First PermMap has a constant output, second PermMap routes that
+       constant through — the combined PermMap propagates the constant. */
+    {
+        if (!astOK) astClearStatus;
+        int in1[] = {1, -1};
+        int out1[] = {1, 2};
+        double c1[] = {42.0};
+        AstPermMap *p1 = astPermMap(2, in1, 2, out1, c1, "");
+        int in2[] = {2, 1};
+        int out2[] = {2, 1};
+        AstPermMap *p2 = astPermMap(2, in2, 2, out2, NULL, "");
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, "");
+        write_fixture(dir, "perm_constant_propagation", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
+    /* unitnormmap-02: WinMap(unit scale) + forward UnitNormMap → adjusted centre */
+    {
+        if (!astOK) astClearStatus;
+        double centre[] = {1.0, 2.0};
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {0.5, 0.5}, outb[] = {1.5, 1.5};
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstUnitNormMap *unm = astUnitNormMap(2, centre, "");
+        AstCmpMap *cm = astCmpMap(wm, unm, 1, "");
+        write_fixture(dir, "unitnormmap_winmap_fwd_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); wm = astAnnul(wm); unm = astAnnul(unm);
+    }
+
+    /* unitnormmap-05: inverted UnitNormMap + WinMap(unit scale) → adjusted centre.
+       Inverted UnitNormMap(2): Nin=3, Nout=2. WinMap must have Nin=2. */
+    {
+        if (!astOK) astClearStatus;
+        double centre[] = {1.0, 2.0};
+        double ina[] = {0, 0}, inb[] = {1, 1};
+        double outa[] = {0.5, 0.5}, outb[] = {1.5, 1.5};
+        AstUnitNormMap *unm = astUnitNormMap(2, centre, "");
+        astInvert(unm);
+        AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(unm, wm, 1, "");
+        write_fixture(dir, "unitnormmap_inv_winmap_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); unm = astAnnul(unm); wm = astAnnul(wm);
+    }
+}
+
 /* ===== Negative fixtures batch 9 ===== */
 
 static void gen_negative_fixtures_9(const char *dir) {
@@ -2388,6 +2515,7 @@ int main(void) {
     gen_negative_fixtures_6(dir);
     gen_negative_fixtures_7(dir);
     gen_negative_fixtures_8(dir);
+    gen_cascade_positives_2(dir);
     gen_negative_fixtures_9(dir);
 
     astEnd;
