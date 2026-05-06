@@ -1,0 +1,13 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 2 	# Number of conversion steps
+    Time1 = "GMSTTOLMST" 	# Convert GMST to LMST
+    Time1a = -2.5 	# MJD offset
+    Time1b = 1000 	# Observer longitude
+    Time1c = 1013 	# Observer latitude
+    Time2 = "LMSTTOGMST" 	# Convert LMST to GMST
+    Time2a = -2.6000000000000001 	# MJD offset
+    Time2b = 1000 	# Observer longitude
+    Time2c = 1013 	# Observer latitude
+ End TimeMap

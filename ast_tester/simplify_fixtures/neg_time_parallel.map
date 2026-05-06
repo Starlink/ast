@@ -1,0 +1,19 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin TimeMap 	# Conversion between time coordinate systems
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Ntime = 1 	# Number of conversion steps
+          Time1 = "TAITOTT" 	# Convert TAI to TT
+          Time1a = 0.5 	# MJD offset
+       End TimeMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+ End CmpMap

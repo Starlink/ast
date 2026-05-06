@@ -1,0 +1,21 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 2 	# Number of conversion steps
+    Time1 = "TTTOTDB" 	# Convert TT to TDB
+    Time1a = 53000 	# MJD offset
+    Time1b = 0.5 	# Observer longitude
+    Time1c = -2.5 	# Observer latitude
+    Time1d = 6378 	# Observer altitude
+    Time1e = -5121.0504050301515 	# Distance from earth spin axis
+    Time1f = -3799.9547800119039 	# Distance north of equatorial plane
+    Time1g = 0 	# DTAI
+    Time2 = "TDBTOTT" 	# Convert TDB to TT
+    Time2a = 53000 	# MJD offset
+    Time2b = 0.5 	# Observer longitude
+    Time2c = -2.5 	# Observer latitude
+    Time2d = 6378 	# Observer altitude
+    Time2e = -5121.0504050301515 	# Distance from earth spin axis
+    Time2f = -3799.9547800119039 	# Distance north of equatorial plane
+    Time2g = 0 	# DTAI
+ End TimeMap

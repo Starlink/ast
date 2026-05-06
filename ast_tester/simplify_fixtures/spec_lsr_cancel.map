@@ -1,0 +1,11 @@
+ Begin SpecMap 	# Conversion between spectral coordinate systems
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nspec = 2 	# Number of conversion steps
+    Spec1 = "LKF2HL" 	# Convert from LSRK to heliocentric frequency
+    Spec1a = 0.5 	# RA of source (FK5 J2000, radians)
+    Spec1b = 1.2 	# DEC of source (FK5 J2000, radians)
+    Spec2 = "HLF2LK" 	# Convert from Heliocentric to LSRK frequency
+    Spec2a = 0.5 	# RA of source (FK5 J2000, radians)
+    Spec2b = 1.2 	# DEC of source (FK5 J2000, radians)
+ End SpecMap

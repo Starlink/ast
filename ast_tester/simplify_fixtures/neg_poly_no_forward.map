@@ -1,0 +1,8 @@
+ Begin PolyMap 	# Polynomial transformation
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MPI1 = 1 	# Max. power of output 1 in any inverse polynomial
+    NCI1 = 1 	# No. of coeff.s for inverse polynomial 1
+    CI1 = 1 	# Coeff 1 of inverse polynomial 1
+    PI1 = 1 	# Power of o/p 1 for coeff 1 of inv poly 1
+ End PolyMap

@@ -1,0 +1,9 @@
+ Begin UnitNormMap 	# Compute unit vector and norm relative to a centre
+    Nin = 2 	# Number of input coordinates
+    Nout = 3 	# Number of output coordinates
+    IsSimp = 1 	# Mapping has been simplified
+    Invert = 1 	# Mapping inverted
+ IsA Mapping 	# Mapping between coordinate systems
+    Ctr1 = 1.5 	# Centre for axis 1
+    Ctr2 = 2.5 	# Centre for axis 2
+ End UnitNormMap

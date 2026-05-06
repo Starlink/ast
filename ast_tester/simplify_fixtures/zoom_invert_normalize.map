@@ -1,0 +1,6 @@
+ Begin ZoomMap 	# Zoom about the origin
+    Nin = 2 	# Number of input coordinates
+    Invert = 1 	# Mapping inverted
+ IsA Mapping 	# Mapping between coordinate systems
+    Zoom = 2 	# Zoom factor
+ End ZoomMap

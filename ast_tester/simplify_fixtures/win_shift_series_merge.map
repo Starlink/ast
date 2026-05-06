@@ -1,0 +1,17 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 5 	# Shift for axis 1
+          Scl1 = 2 	# Scale factor for axis 1
+       End WinMap
+    MapB = 	# Second component Mapping
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 3 	# Shift for axis 1
+       End ShiftMap
+ End CmpMap

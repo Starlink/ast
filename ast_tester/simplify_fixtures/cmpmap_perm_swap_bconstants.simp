@@ -1,0 +1,35 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Series = 0 	# Component Mappings applied in parallel
+          MapA = 	# First component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+          MapB = 	# Second component Mapping
+             Begin MathMap 	# Transformation using mathematical functions
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Fwd1 = "y=2*x" 	# Forward function 1
+                Inv1 = "x=0.5*y" 	# Inverse function 1
+             End MathMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 2 	# Output coordinate 1 = input coordinate 2
+          Out2 = -2 	# Output coordinate 2 = constant no. 2
+          In1 = -1 	# Input coordinate 1 = constant no. 1
+          In2 = 1 	# Input coordinate 2 = output coordinate 1
+          Nconst = 2 	# Number of constants
+          Con1 = 99 	# Constant number 1
+          Con2 = 297 	# Constant number 2
+       End PermMap
+ End CmpMap

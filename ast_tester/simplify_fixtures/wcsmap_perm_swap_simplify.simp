@@ -1,0 +1,13 @@
+ Begin PermMap 	# Coordinate permutation
+    Nin = 3 	# Number of input coordinates
+    Nout = 1 	# Number of output coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Out1 = 3 	# Output coordinate 1 = input coordinate 3
+    In1 = -1 	# Input coordinate 1 = constant no. 1
+    In2 = -2 	# Input coordinate 2 = constant no. 2
+    In3 = 1 	# Input coordinate 3 = output coordinate 1
+    Nconst = 2 	# Number of constants
+    Con1 = 2.3561944901923448 	# Constant number 1
+    Con2 = 0.9553166181245093 	# Constant number 2
+ End PermMap

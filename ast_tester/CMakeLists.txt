@@ -287,6 +287,18 @@ target_link_libraries(simplify PRIVATE ${TEST_LIBS})
 target_compile_definitions(simplify PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(simplify)
 
+add_executable(normalize_fixture normalize_fixture.c)
+target_include_directories(normalize_fixture PRIVATE ${TEST_INCLUDES})
+target_link_libraries(normalize_fixture PRIVATE ${TEST_LIBS})
+target_compile_definitions(normalize_fixture PRIVATE HAVE_CONFIG_H)
+ast_apply_dev_options(normalize_fixture)
+
+add_executable(gen_simplify_fixtures gen_simplify_fixtures.c)
+target_include_directories(gen_simplify_fixtures PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_simplify_fixtures PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_simplify_fixtures PRIVATE HAVE_CONFIG_H)
+ast_apply_dev_options(gen_simplify_fixtures)
+
 # Helper to register simplify regression tests.
 # Each call copies the input .map and reference .simp files into the build
 # tree and registers two ctest entries:

@@ -1,0 +1,7 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 1 	# Number of conversion steps
+    Sla1 = "EQGAL" 	# J2000.0 equatorial (FK5) to galactic (IAU 1958)
+ End SlaMap

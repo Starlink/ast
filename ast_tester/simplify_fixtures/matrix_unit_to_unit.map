@@ -1,0 +1,5 @@
+ Begin MatrixMap 	# Matrix transformation
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Form = "Unit" 	# Matrix storage form
+ End MatrixMap

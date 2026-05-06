@@ -1,0 +1,9 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 1 	# Number of conversion steps
+    Sla1 = "PREC" 	# Apply IAU 1975 (FK5) precession
+    Sla1a = 1950 	# From Julian epoch
+    Sla1b = 2000 	# To Julian epoch
+ End SlaMap

@@ -1,0 +1,9 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 2 	# Number of conversion steps
+    Time1 = "TAITOTT" 	# Convert TAI to TT
+    Time1a = 0.5 	# MJD offset
+    Time2 = "TTTOTAI" 	# Convert TT to TAI
+    Time2a = 0.29999999999999999 	# MJD offset
+ End TimeMap

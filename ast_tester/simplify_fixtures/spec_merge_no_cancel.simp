@@ -1,0 +1,9 @@
+ Begin SpecMap 	# Conversion between spectral coordinate systems
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Nspec = 2 	# Number of conversion steps
+    Spec1 = "FRTOVL" 	# Convert frequency to rel. velocity
+    Spec1a = 1400000000 	# Rest frequency (Hz)
+    Spec2 = "ENTOFR" 	# Convert energy to frequency
+ End SpecMap

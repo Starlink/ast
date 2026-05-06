@@ -1,0 +1,21 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 4 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin PcdMap 	# Apply pincushion distortion
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          PcdCn0 = 0 	# Distortion centre on first axis
+          PcdCn1 = 0 	# Distortion centre on second axis
+          Disco = 0.001 	# Distortion coefficient
+       End PcdMap
+    MapB = 	# Second component Mapping
+       Begin PcdMap 	# Apply pincushion distortion
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          PcdCn0 = 0 	# Distortion centre on first axis
+          PcdCn1 = 0 	# Distortion centre on second axis
+          Disco = 0.002 	# Distortion coefficient
+       End PcdMap
+ End CmpMap

@@ -1,0 +1,16 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 5 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 3 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 1 	# Zoom factor
+       End ZoomMap
+ End CmpMap

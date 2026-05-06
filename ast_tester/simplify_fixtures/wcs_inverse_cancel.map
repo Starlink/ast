@@ -1,0 +1,17 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin WcsMap 	# FITS-WCS sky projection
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Type = "TAN" 	# Gnomonic projection
+       End WcsMap
+    MapB = 	# Second component Mapping
+       Begin WcsMap 	# FITS-WCS sky projection
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Type = "TAN" 	# Gnomonic projection
+       End WcsMap
+ End CmpMap

@@ -1,0 +1,24 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin LutMap 	# Map 1-d coordinates using a lookup table
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nlut = 5 	# Number of lookup table elements
+          Start = 1 	# Input value at first element
+#         Incr = 1 	# Input value increment between elements
+          LutInt = 0 	# Interpolation method
+          L1 = 0 	# Lookup table elements...
+          L2 = 1
+          L3 = 4
+          L4 = 9
+          L5 = 16
+       End LutMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+ End CmpMap

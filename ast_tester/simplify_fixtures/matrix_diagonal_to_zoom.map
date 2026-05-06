@@ -1,0 +1,9 @@
+ Begin MatrixMap 	# Matrix transformation
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    M0 = 4 	# Forward matrix value
+    M1 = 4 	# Forward matrix value
+    IM0 = 0.25 	# Inverse matrix value
+    IM1 = 0.25 	# Inverse matrix value
+    Form = "Diagonal" 	# Matrix storage form
+ End MatrixMap

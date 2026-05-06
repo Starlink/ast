@@ -1,0 +1,9 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 2 	# Number of conversion steps
+    Sla1 = "FK45Z" 	# FK4 to FK5 J2000.0 (no PM or parallax)
+    Sla1a = 1950 	# Besselian epoch of FK4 coordinates
+    Sla2 = "FK54Z" 	# FK5 J2000.0 to FK4 (no PM or parallax)
+    Sla2a = 1950 	# Besselian epoch of FK4 system
+ End SlaMap

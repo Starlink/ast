@@ -1,0 +1,23 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+    Inv = 0 	# Inverse transformation not defined
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin RateMap 	# Differential Mapping
+          Nin = 1 	# Number of input coordinates
+          Inv = 0 	# Inverse transformation not defined
+       IsA Mapping 	# Mapping between coordinate systems
+          Map = 	# Mapping to be differentiated
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 2 	# Zoom factor
+             End ZoomMap
+       End RateMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 3 	# Zoom factor
+       End ZoomMap
+ End CmpMap

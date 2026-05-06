@@ -1,0 +1,9 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 2 	# Number of conversion steps
+    Sla1 = "HFK5Z" 	# ICRS to J2000.0 FK5 (no PM or parallax)
+    Sla1a = 2000 	# Julian epoch of FK5 coordinates
+    Sla2 = "FK5HZ" 	# J2000.0 FK5 to ICRS (no PM or parallax)
+    Sla2a = 2000 	# Julian epoch of FK5 coordinates
+ End SlaMap

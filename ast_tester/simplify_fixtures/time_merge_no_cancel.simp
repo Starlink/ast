@@ -1,0 +1,11 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 2 	# Number of conversion steps
+    Time1 = "TAITOTT" 	# Convert TAI to TT
+    Time1a = 0.5 	# MJD offset
+    Time2 = "TTTOTCG" 	# Convert TT to TCG
+    Time2a = 0.29999999999999999 	# MJD offset
+    Time2b = -3.0068096535031641e-05 	# TCG offset
+ End TimeMap

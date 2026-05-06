@@ -1,0 +1,16 @@
+ Begin TranMap 	# Compound Transformation Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# Mapping for forward transformation
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+    MapB = 	# Mapping for inverse transformation
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+ End TranMap

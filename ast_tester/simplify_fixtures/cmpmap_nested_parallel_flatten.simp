@@ -1,0 +1,12 @@
+ Begin MatrixMap 	# Matrix transformation
+    Nin = 3 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    M0 = 2 	# Forward matrix value
+    M1 = 3 	# Forward matrix value
+    M2 = 5 	# Forward matrix value
+    IM0 = 0.5 	# Inverse matrix value
+    IM1 = 0.33333333333333331 	# Inverse matrix value
+    IM2 = 0.20000000000000001 	# Inverse matrix value
+    Form = "Diagonal" 	# Matrix storage form
+ End MatrixMap

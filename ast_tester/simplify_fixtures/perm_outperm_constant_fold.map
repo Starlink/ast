@@ -1,0 +1,20 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 1 	# Output coordinate 1 = input coordinate 1
+          Out2 = -1 	# Output coordinate 2 = constant no. 1
+          In1 = 1 	# Input coordinate 1 = output coordinate 1
+          In2 = 2 	# Input coordinate 2 = output coordinate 2
+          Nconst = 1 	# Number of constants
+          Con1 = 42 	# Constant number 1
+       End PermMap
+    MapB = 	# Second component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+ End CmpMap

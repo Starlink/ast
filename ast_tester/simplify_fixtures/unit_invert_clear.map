@@ -1,0 +1,5 @@
+ Begin UnitMap 	# Unit (null) Mapping
+    Nin = 2 	# Number of input coordinates
+    Invert = 1 	# Mapping inverted
+ IsA Mapping 	# Mapping between coordinate systems
+ End UnitMap

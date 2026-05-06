@@ -1,0 +1,17 @@
+ Begin NormMap 	# Normalise axis values
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Frame = 	# Frame defining the normalisation
+       Begin Frame 	# Coordinate system description
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+             End Axis
+       End Frame
+ End NormMap
