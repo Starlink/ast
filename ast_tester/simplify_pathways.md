@@ -499,7 +499,7 @@ UnitMap; (3) inverse-pair cancellation; (4) duplicate-NormMap elimination.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| normmap-01 | -- | focused | `- (no fixture)` | Encapsulated Frame simplifies to new NormMap with simplified Frame | NormMap wrapping compound Frame that simplifies |
+| normmap-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Encapsulated Frame simplifies to new NormMap with simplified Frame | NormMap wrapping compound Frame that simplifies |
 | normmap-02 | normmap_basic_frame_to_unit.map | focused | `+` | NormMap encapsulating basic Frame replaced by UnitMap (astNorm is no-op) | NormMap wrapping plain Frame |
 | normmap-03 | normmap_inverse_cancel.map | focused | `+` | NormMap cancels with inverse lower-neighbour NormMap | NormMap preceded by Inverse(NormMap) with same Frame |
 | normmap-04 | normmap_inverse_cancel_upper.map | focused | `+` | NormMap cancels with inverse upper-neighbour NormMap | NormMap followed by Inverse(NormMap) with same Frame |
@@ -564,7 +564,7 @@ cancellation.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| selectormap-01 | -- | focused | `- (no fixture)` | Internal regions simplify to new SelectorMap with simplified regions | SelectorMap containing simplifiable Regions |
+| selectormap-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Internal regions simplify to new SelectorMap with simplified regions | SelectorMap containing simplifiable Regions |
 | selectormap-05 | selectormap_inverse_cancel.map | focused | `+` | Inverse-pair cancellation to UnitMap | SelectorMap + Inverse(SelectorMap), identical regions |
 
 ### Negative branches
@@ -923,9 +923,9 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| box-01 | -- | focused | `- (requires compound FrameSet)` | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
-| box-03 | -- | cascade | `- (requires compound FrameSet)` | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
-| box-04 | -- | cascade | `- (requires compound FrameSet)` | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
+| box-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
+| box-03 | box_parallel_merge.map | cascade | `+` | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
+| box-04 | box_parallel_merge.map | cascade | `+` | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
 
 #### Negative branches
 
@@ -940,9 +940,9 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| interval-01 | -- | focused | `- (requires compound FrameSet)` | Self-simplification succeeds | Interval with non-trivial FrameSet |
-| interval-03 | -- | cascade | `- (requires compound FrameSet)` | Parallel merge with lower Region | Interval + compatible Region (lower) |
-| interval-04 | -- | cascade | `- (requires compound FrameSet)` | Parallel merge with upper Region | Interval + compatible Region (upper) |
+| interval-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | Interval with non-trivial FrameSet |
+| interval-03 | interval_parallel_merge.map | cascade | `+` | Parallel merge with lower Region | Interval + compatible Region (lower) |
+| interval-04 | interval_parallel_merge.map | cascade | `+` | Parallel merge with upper Region | Interval + compatible Region (upper) |
 
 #### Negative branches
 
@@ -957,9 +957,9 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| nullregion-01 | -- | focused | `- (requires compound FrameSet)` | Self-simplification succeeds | NullRegion with non-trivial FrameSet |
-| nullregion-03 | -- | cascade | `- (requires compound FrameSet)` | Parallel merge with lower Region | NullRegion + compatible Region (lower) |
-| nullregion-04 | -- | cascade | `- (requires compound FrameSet)` | Parallel merge with upper Region | NullRegion + compatible Region (upper) |
+| nullregion-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | NullRegion with non-trivial FrameSet |
+| nullregion-03 | -- | cascade | `- (no structural change)` | Parallel merge with lower Region | NullRegion + compatible Region (lower) |
+| nullregion-04 | -- | cascade | `- (no structural change)` | Parallel merge with upper Region | NullRegion + compatible Region (upper) |
 
 #### Negative branches
 
@@ -974,9 +974,9 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| pointlist-01 | -- | focused | `- (requires compound FrameSet)` | Self-simplification succeeds | PointList with non-trivial FrameSet |
-| pointlist-03 | -- | cascade | `- (requires compound FrameSet)` | Parallel merge with lower Region | PointList + compatible Region (lower) |
-| pointlist-04 | -- | cascade | `- (requires compound FrameSet)` | Parallel merge with upper Region | PointList + compatible Region (upper) |
+| pointlist-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | PointList with non-trivial FrameSet |
+| pointlist-03 | -- | cascade | `- (no structural change)` | Parallel merge with lower Region | PointList + compatible Region (lower) |
+| pointlist-04 | -- | cascade | `- (no structural change)` | Parallel merge with upper Region | PointList + compatible Region (upper) |
 
 #### Negative branches
 

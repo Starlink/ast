@@ -632,8 +632,8 @@ Region via class-specific MergeXxx helper.
 |---|---|---|---|---|---|---|
 | box-01 | — | focused | positive | box.c:1583-1593 | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
 | box-02 | — | focused | negative | box.c:1599,1650-1652 | No self-simplification and series mode | Already-simple Box in series |
-| box-03 | — | cascade | positive | box.c:1603-1609,1624-1648 | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
-| box-04 | — | cascade | positive | box.c:1614-1621,1624-1648 | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
+| box-03 | box_parallel_merge.map | cascade | positive | box.c:1603-1609,1624-1648 | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
+| box-04 | box_parallel_merge.map | cascade | positive | box.c:1614-1621,1624-1648 | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
 | box-05 | — | focused | negative | box.c:1599-1621 | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with incompatible Region |
 
 ### interval.c
@@ -642,8 +642,8 @@ Region via class-specific MergeXxx helper.
 |---|---|---|---|---|---|---|
 | interval-01 | — | focused | positive | interval.c:1149-1159 | Self-simplification succeeds | Interval with non-trivial FrameSet |
 | interval-02 | — | focused | negative | interval.c:1165,1216-1218 | No self-simplification, series mode | Simple Interval in series |
-| interval-03 | — | cascade | positive | interval.c:1169-1175,1190-1213 | Parallel merge with lower Region | Interval + compatible Region (lower) |
-| interval-04 | — | cascade | positive | interval.c:1180-1187,1190-1213 | Parallel merge with upper Region | Interval + compatible Region (upper) |
+| interval-03 | interval_parallel_merge.map | cascade | positive | interval.c:1169-1175,1190-1213 | Parallel merge with lower Region | Interval + compatible Region (lower) |
+| interval-04 | interval_parallel_merge.map | cascade | positive | interval.c:1180-1187,1190-1213 | Parallel merge with upper Region | Interval + compatible Region (upper) |
 | interval-05 | — | focused | negative | interval.c:1165-1187 | Parallel but no compatible Region | Interval + non-Region in parallel |
 
 ### nullregion.c
