@@ -2377,6 +2377,57 @@ static void gen_cascade_positives_2(const char *dir) {
     }
 }
 
+/* ===== Positive cascade fixtures batch 3 ===== */
+
+static void gen_cascade_positives_3(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Cascade positives batch 3:\n");
+
+    /* wcsmap-04: WcsMap + PermMap swap for local simplification.
+       WcsMap(2,TAN,1,2) + PermMap(swap axes). After swap the PermMap
+       should simplify (become redundant with the reordered WcsMap). */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        AstWcsMap *wm = astWcsMap(2, AST__TAN, 1, 2, "");
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstCmpMap *cm = astCmpMap(wm, pm, 1, "");
+        write_fixture(dir, "wcsmap_perm_swap_simplify", (AstMapping*)cm);
+        cm = astAnnul(cm); wm = astAnnul(wm); pm = astAnnul(pm);
+    }
+
+    /* permmap-05: PermMap with redundant outperm simplifies after
+       composition with UnitMap. A 3-axis PermMap that passes axes 1,2
+       through and assigns axis 3 a constant — composed with a UnitMap(3)
+       should merge and potentially simplify the stored arrays. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {1, 2, -1};
+        int outperm[] = {1, 2, 0};
+        double consts[] = {42.0};
+        AstPermMap *pm = astPermMap(3, inperm, 3, outperm, consts, "");
+        AstUnitMap *um = astUnitMap(3, "");
+        AstCmpMap *cm = astCmpMap(pm, um, 1, "");
+        write_fixture(dir, "perm_array_simplify", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); um = astAnnul(um);
+    }
+
+    /* permmap-05 variant: PermMap with explicit identity outperm=[1,2]
+       composed with UnitMap. The composition should detect identity and
+       null out the array. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {2, 1};
+        int outperm[] = {1, 2};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, "");
+        AstUnitMap *um = astUnitMap(2, "");
+        AstCmpMap *cm = astCmpMap(pm, um, 1, "");
+        write_fixture(dir, "perm_identity_array_null", (AstMapping*)cm);
+        cm = astAnnul(cm); pm = astAnnul(pm); um = astAnnul(um);
+    }
+}
+
 /* ===== Negative fixtures batch 9 ===== */
 
 static void gen_negative_fixtures_9(const char *dir) {
@@ -2516,6 +2567,7 @@ int main(void) {
     gen_negative_fixtures_7(dir);
     gen_negative_fixtures_8(dir);
     gen_cascade_positives_2(dir);
+    gen_cascade_positives_3(dir);
     gen_negative_fixtures_9(dir);
 
     astEnd;

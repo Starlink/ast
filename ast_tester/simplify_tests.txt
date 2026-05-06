@@ -223,3 +223,5 @@ cmpmap_perm_swap_aconstants | simplify_fixtures/cmpmap_perm_swap_aconstants.map 
 cmpmap_perm_swap_bconstants | simplify_fixtures/cmpmap_perm_swap_bconstants.map | simplify_fixtures/cmpmap_perm_swap_bconstants.simp |
 win_upper_cmpmap_parallel_merge | simplify_fixtures/win_upper_cmpmap_parallel_merge.map | simplify_fixtures/win_upper_cmpmap_parallel_merge.simp |
 perm_constant_propagation | simplify_fixtures/perm_constant_propagation.map | simplify_fixtures/perm_constant_propagation.simp |
+perm_array_simplify     | simplify_fixtures/perm_array_simplify.map     | simplify_fixtures/perm_array_simplify.simp     |
+perm_identity_array_null | simplify_fixtures/perm_identity_array_null.map | simplify_fixtures/perm_identity_array_null.simp |
