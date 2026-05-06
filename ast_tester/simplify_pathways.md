@@ -236,13 +236,13 @@ with same classes.
 | winmap-27 | win_swap_outer_merge.map | cascade | `+` | Swap accepted because outer neighbours can merge after swap | Three-map series where outer pair merges once WinMap moves |
 | winmap-29 | win_win_parallel_merge.map | focused | `+` | WinMap + WinMap in parallel merged | CmpMap(WinMap, WinMap), Series=0 |
 | winmap-30 | win_zoom_parallel_merge.map | focused | `+` | WinMap + ZoomMap in parallel merged (WinMap first) | CmpMap(WinMap, ZoomMap), Series=0 |
-| winmap-31 | -- | focused | `- (no fixture)` | ZoomMap + WinMap in parallel merged (ZoomMap first) | CmpMap(ZoomMap, WinMap), Series=0 |
+| winmap-31 | win_zoom_parallel_merge_rev.map | focused | `+` | ZoomMap + WinMap in parallel merged (ZoomMap first) | CmpMap(ZoomMap, WinMap), Series=0 |
 | winmap-32 | win_parallel_merge.map | focused | `+` | WinMap + ShiftMap in parallel merged (WinMap first) | CmpMap(WinMap, ShiftMap), Series=0 |
-| winmap-33 | -- | focused | `- (no fixture)` | ShiftMap + WinMap in parallel merged (ShiftMap first) | CmpMap(ShiftMap, WinMap), Series=0 |
+| winmap-33 | win_shift_parallel_merge_rev.map | focused | `+` | ShiftMap + WinMap in parallel merged (ShiftMap first) | CmpMap(ShiftMap, WinMap), Series=0 |
 | winmap-34 | win_diagmatrix_parallel_merge.map | focused | `+` | WinMap + diagonal MatrixMap in parallel merged (WinMap first) | CmpMap(WinMap, DiagMatrixMap), Series=0 |
-| winmap-35 | -- | focused | `- (no fixture)` | Diagonal MatrixMap + WinMap in parallel merged (MatrixMap first) | CmpMap(DiagMatrixMap, WinMap), Series=0 |
+| winmap-35 | win_diagmatrix_parallel_merge_rev.map | focused | `+` | Diagonal MatrixMap + WinMap in parallel merged (MatrixMap first) | CmpMap(DiagMatrixMap, WinMap), Series=0 |
 | winmap-36 | win_unit_parallel_merge.map | focused | `+` | WinMap + UnitMap in parallel merged (WinMap first) | CmpMap(WinMap, UnitMap), Series=0 |
-| winmap-37 | -- | focused | `- (no fixture)` | UnitMap + WinMap in parallel merged (UnitMap first) | CmpMap(UnitMap, WinMap), Series=0 |
+| winmap-37 | win_unit_parallel_merge_rev.map | focused | `+` | UnitMap + WinMap in parallel merged (UnitMap first) | CmpMap(UnitMap, WinMap), Series=0 |
 
 ### Negative branches
 

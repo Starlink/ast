@@ -242,6 +242,48 @@ static void gen_win_fixtures(const char *dir) {
         write_fixture(dir, "win_unit_parallel_merge", (AstMapping*)cm);
         cm = astAnnul(cm); wm = astAnnul(wm); um = astAnnul(um);
     }
+
+    /* winmap-31: ZoomMap + WinMap in parallel (ZoomMap first) */
+    {
+        double ina[] = {0}, inb[] = {1}, outa[] = {3}, outb[] = {5};
+        AstZoomMap *zm = astZoomMap(1, 4.0, "");
+        AstWinMap *wm = astWinMap(1, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(zm, wm, 0, "");
+        write_fixture(dir, "win_zoom_parallel_merge_rev", (AstMapping*)cm);
+        cm = astAnnul(cm); zm = astAnnul(zm); wm = astAnnul(wm);
+    }
+
+    /* winmap-33: ShiftMap + WinMap in parallel (ShiftMap first) */
+    {
+        double ina[] = {0}, inb[] = {1}, outa[] = {3}, outb[] = {5};
+        double shifts[] = {7.0};
+        AstShiftMap *sm = astShiftMap(1, shifts, "");
+        AstWinMap *wm = astWinMap(1, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(sm, wm, 0, "");
+        write_fixture(dir, "win_shift_parallel_merge_rev", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); wm = astAnnul(wm);
+    }
+
+    /* winmap-35: Diagonal MatrixMap + WinMap in parallel (MatrixMap first) */
+    {
+        double ina[] = {0}, inb[] = {1}, outa[] = {3}, outb[] = {5};
+        double diag[] = {7.0};
+        AstMatrixMap *mm = astMatrixMap(1, 1, 1, diag, "");
+        AstWinMap *wm = astWinMap(1, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(mm, wm, 0, "");
+        write_fixture(dir, "win_diagmatrix_parallel_merge_rev", (AstMapping*)cm);
+        cm = astAnnul(cm); mm = astAnnul(mm); wm = astAnnul(wm);
+    }
+
+    /* winmap-37: UnitMap + WinMap in parallel (UnitMap first) */
+    {
+        double ina[] = {0}, inb[] = {1}, outa[] = {3}, outb[] = {5};
+        AstUnitMap *um = astUnitMap(1, "");
+        AstWinMap *wm = astWinMap(1, ina, inb, outa, outb, "");
+        AstCmpMap *cm = astCmpMap(um, wm, 0, "");
+        write_fixture(dir, "win_unit_parallel_merge_rev", (AstMapping*)cm);
+        cm = astAnnul(cm); um = astAnnul(um); wm = astAnnul(wm);
+    }
 }
 
 /* ===== UnitMap fixtures ===== */

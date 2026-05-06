@@ -159,13 +159,13 @@ PermMap/MatrixMap/WcsMap to reach target; (3) parallel merge with same classes.
 | winmap-28 | neg_win_swap_no_simplify.map | cascade | negative | winmap.c:1660-1669 | Swap refused: neither swapped Mapping simplifies and no outer merge | WinMap + MatrixMap where swap produces equivalent complexity |
 | winmap-29 | win_win_parallel_merge.map | focused | positive | winmap.c:1729-1732 | WinMap + WinMap in parallel merged | CmpMap(WinMap, WinMap), Series=0 |
 | winmap-30 | win_zoom_parallel_merge.map | focused | positive | winmap.c:1735-1745 | WinMap + ZoomMap in parallel merged (WinMap first) | CmpMap(WinMap, ZoomMap), Series=0 |
-| winmap-31 | — | focused | positive | winmap.c:1735-1745 | ZoomMap + WinMap in parallel merged (ZoomMap first) | CmpMap(ZoomMap, WinMap), Series=0 |
+| winmap-31 | win_zoom_parallel_merge_rev.map | focused | positive | winmap.c:1735-1745 | ZoomMap + WinMap in parallel merged (ZoomMap first) | CmpMap(ZoomMap, WinMap), Series=0 |
 | winmap-32 | win_parallel_merge.map | focused | positive | winmap.c:1747-1757 | WinMap + ShiftMap in parallel merged (WinMap first) | CmpMap(WinMap, ShiftMap), Series=0 |
-| winmap-33 | — | focused | positive | winmap.c:1747-1757 | ShiftMap + WinMap in parallel merged (ShiftMap first) | CmpMap(ShiftMap, WinMap), Series=0 |
+| winmap-33 | win_shift_parallel_merge_rev.map | focused | positive | winmap.c:1747-1757 | ShiftMap + WinMap in parallel merged (ShiftMap first) | CmpMap(ShiftMap, WinMap), Series=0 |
 | winmap-34 | win_diagmatrix_parallel_merge.map | focused | positive | winmap.c:1760-1770 | WinMap + diagonal MatrixMap in parallel merged (WinMap first) | CmpMap(WinMap, DiagMatrixMap), Series=0 |
-| winmap-35 | — | focused | positive | winmap.c:1760-1770 | Diagonal MatrixMap + WinMap in parallel merged (MatrixMap first) | CmpMap(DiagMatrixMap, WinMap), Series=0 |
+| winmap-35 | win_diagmatrix_parallel_merge_rev.map | focused | positive | winmap.c:1760-1770 | Diagonal MatrixMap + WinMap in parallel merged (MatrixMap first) | CmpMap(DiagMatrixMap, WinMap), Series=0 |
 | winmap-36 | win_unit_parallel_merge.map | focused | positive | winmap.c:1772-1783 | WinMap + UnitMap in parallel merged (WinMap first) | CmpMap(WinMap, UnitMap), Series=0 |
-| winmap-37 | — | focused | positive | winmap.c:1772-1783 | UnitMap + WinMap in parallel merged (UnitMap first) | CmpMap(UnitMap, WinMap), Series=0 |
+| winmap-37 | win_unit_parallel_merge_rev.map | focused | positive | winmap.c:1772-1783 | UnitMap + WinMap in parallel merged (UnitMap first) | CmpMap(UnitMap, WinMap), Series=0 |
 | winmap-38 | neg_win_nonmergeable_parallel.map | focused | negative | winmap.c:1703-1723 | Neither parallel neighbour is a mergeable class | CmpMap(WinMap, FullMatrixMap), Series=0 |
 
 ## matrixmap.c

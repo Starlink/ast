@@ -232,3 +232,7 @@ cmpmap_parallel_series_dim_mismatch | simplify_fixtures/cmpmap_parallel_series_d
 unit_parallel_invert_clear | simplify_fixtures/unit_parallel_invert_clear.map | simplify_fixtures/unit_parallel_invert_clear.simp |
 perm_inperm_constant_fold | simplify_fixtures/perm_inperm_constant_fold.map | simplify_fixtures/perm_inperm_constant_fold.simp |
 perm_bad_propagation    | simplify_fixtures/perm_bad_propagation.map    | simplify_fixtures/perm_bad_propagation.simp    |
+win_zoom_parallel_merge_rev | simplify_fixtures/win_zoom_parallel_merge_rev.map | simplify_fixtures/win_zoom_parallel_merge_rev.simp |
+win_shift_parallel_merge_rev | simplify_fixtures/win_shift_parallel_merge_rev.map | simplify_fixtures/win_shift_parallel_merge_rev.simp |
+win_diagmatrix_parallel_merge_rev | simplify_fixtures/win_diagmatrix_parallel_merge_rev.map | simplify_fixtures/win_diagmatrix_parallel_merge_rev.simp |
+win_unit_parallel_merge_rev | simplify_fixtures/win_unit_parallel_merge_rev.map | simplify_fixtures/win_unit_parallel_merge_rev.simp |
