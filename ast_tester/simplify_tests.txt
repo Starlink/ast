@@ -225,3 +225,4 @@ win_upper_cmpmap_parallel_merge | simplify_fixtures/win_upper_cmpmap_parallel_me
 perm_constant_propagation | simplify_fixtures/perm_constant_propagation.map | simplify_fixtures/perm_constant_propagation.simp |
 perm_array_simplify     | simplify_fixtures/perm_array_simplify.map     | simplify_fixtures/perm_array_simplify.simp     |
 perm_identity_array_null | simplify_fixtures/perm_identity_array_null.map | simplify_fixtures/perm_identity_array_null.simp |
+wcsmap_perm_swap_simplify | simplify_fixtures/wcsmap_perm_swap_simplify.map | simplify_fixtures/wcsmap_perm_swap_simplify.simp |

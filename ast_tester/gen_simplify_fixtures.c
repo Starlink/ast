@@ -2384,16 +2384,17 @@ static void gen_cascade_positives_3(const char *dir) {
     printf("Cascade positives batch 3:\n");
 
     /* wcsmap-04: WcsMap + PermMap swap for local simplification.
-       Use a 3-axis WcsMap(3,TAN,1,2) with a PermMap(3→3) that swaps
-       the two celestial axes. After WcsPerm swap, the new PermMap
-       should just swap the celestial outputs (which may simplify if
-       the new WcsMap already accounts for the swap). */
+       WcsMap(3,TAN,lonax=1,latax=2) has internal lonax=0, latax=1.
+       PermMap(3→1) where inverse assigns constants to both celestial
+       axes (inperm[0]<0,inperm[1]<0). After WcsPerm: the WcsMap
+       becomes a UnitMap (class change triggers swap acceptance). */
     {
         if (!astOK) astClearStatus;
-        int inperm[] = {2, 1, 3};
-        int outperm[] = {2, 1, 3};
+        int inperm[] = {-1, -2, 1};
+        int outperm[] = {3};
+        double consts[] = {0.5, 0.5};
         AstWcsMap *wm = astWcsMap(3, AST__TAN, 1, 2, "");
-        AstPermMap *pm = astPermMap(3, inperm, 3, outperm, NULL, "");
+        AstPermMap *pm = astPermMap(3, inperm, 1, outperm, consts, "");
         AstCmpMap *cm = astCmpMap(wm, pm, 1, "");
         write_fixture(dir, "wcsmap_perm_swap_simplify", (AstMapping*)cm);
         cm = astAnnul(cm); wm = astAnnul(wm); pm = astAnnul(pm);
