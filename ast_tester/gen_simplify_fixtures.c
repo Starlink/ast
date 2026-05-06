@@ -2411,18 +2411,24 @@ static void gen_cascade_positives_2(const char *dir) {
     }
 
     /* normmap-01: NormMap whose encapsulated Frame simplifies.
-       Use a FrameSet as the Frame — astSimplify on it returns the
-       current Frame (a different pointer), triggering the new-NormMap path. */
+       Use a Region-as-Frame with a CmpMap(Zoom,Zoom) FrameSet. */
     {
         if (!astOK) astClearStatus;
-        AstFrame *base = astFrame(2, "");
-        AstSkyFrame *sky = astSkyFrame("");
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=ZOOMED");
+        AstZoomMap *z1 = astZoomMap(2, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, "");
+        AstCmpMap *map = astCmpMap(z1, z2, 1, "");
         AstFrameSet *fs = astFrameSet(base, "");
-        astAddFrame(fs, AST__BASE, astUnitMap(2, ""), sky);
-        AstNormMap *nm = astNormMap((AstFrame *)fs, "");
+        astAddFrame(fs, AST__BASE, map, curr);
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 10.0};
+        AstBox *box = astBox(fs, 1, lbnd, ubnd, NULL, "");
+        AstNormMap *nm = astNormMap((AstFrame *)box, "");
         write_fixture(dir, "normmap_frame_simplifies", (AstMapping*)nm);
-        nm = astAnnul(nm); fs = astAnnul(fs);
-        base = astAnnul(base); sky = astAnnul(sky);
+        nm = astAnnul(nm); box = astAnnul(box); fs = astAnnul(fs);
+        map = astAnnul(map); base = astAnnul(base); curr = astAnnul(curr);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
     }
 
     /* normmap-04: NormMap cancels with inverse UPPER neighbour.
@@ -2754,6 +2760,153 @@ static void gen_negative_fixtures_9(const char *dir) {
     }
 }
 
+/* ===== Region fixtures ===== */
+
+static void gen_region_fixtures(const char *dir) {
+    if (!astOK) astClearStatus;
+    printf("Region fixtures:\n");
+
+    /* box-01: Box self-simplification. Create a Box, then use
+       astMapRegion with CmpMap(Zoom,Zoom) to produce a new Box with
+       an unsimplified internal FrameSet. astSimplify then reduces it. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *f = astFrame(2, "");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 10.0};
+        AstBox *box = astBox(f, 1, lbnd, ubnd, NULL, "");
+        AstZoomMap *z1 = astZoomMap(2, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, "");
+        AstCmpMap *map = astCmpMap(z1, z2, 1, "");
+        AstFrame *f2 = astFrame(2, "Domain=ZOOMED");
+        AstRegion *mapped = astMapRegion(box, map, f2);
+        write_fixture(dir, "box_self_simplify", (AstMapping*)mapped);
+        mapped = astAnnul(mapped); box = astAnnul(box);
+        map = astAnnul(map); f = astAnnul(f); f2 = astAnnul(f2);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* box-03/04: Box parallel merge. Two 1D Boxes in parallel should
+       merge into a 2D Box. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *f1 = astFrame(1, "");
+        double lb1[] = {0.0}, ub1[] = {10.0};
+        AstBox *b1 = astBox(f1, 1, lb1, ub1, NULL, "");
+        AstFrame *f2 = astFrame(1, "");
+        double lb2[] = {-5.0}, ub2[] = {5.0};
+        AstBox *b2 = astBox(f2, 1, lb2, ub2, NULL, "");
+        AstCmpMap *cm = astCmpMap(b1, b2, 0, "");
+        write_fixture(dir, "box_parallel_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); b1 = astAnnul(b1); b2 = astAnnul(b2);
+        f1 = astAnnul(f1); f2 = astAnnul(f2);
+    }
+
+    /* interval-01: Interval self-simplification. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=ZOOMED");
+        AstZoomMap *z1 = astZoomMap(2, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, "");
+        AstCmpMap *map = astCmpMap(z1, z2, 1, "");
+        AstFrameSet *fs = astFrameSet(base, "");
+        astAddFrame(fs, AST__BASE, map, curr);
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 10.0};
+        AstInterval *intv = astInterval(fs, lbnd, ubnd, NULL, "");
+        write_fixture(dir, "interval_self_simplify", (AstMapping*)intv);
+        intv = astAnnul(intv); fs = astAnnul(fs); map = astAnnul(map);
+        base = astAnnul(base); curr = astAnnul(curr);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* interval-03/04: Interval parallel merge. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *f1 = astFrame(1, "");
+        double lb1[] = {0.0}, ub1[] = {10.0};
+        AstInterval *i1 = astInterval(f1, lb1, ub1, NULL, "");
+        AstFrame *f2 = astFrame(1, "");
+        double lb2[] = {-5.0}, ub2[] = {5.0};
+        AstInterval *i2 = astInterval(f2, lb2, ub2, NULL, "");
+        AstCmpMap *cm = astCmpMap(i1, i2, 0, "");
+        write_fixture(dir, "interval_parallel_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); i1 = astAnnul(i1); i2 = astAnnul(i2);
+        f1 = astAnnul(f1); f2 = astAnnul(f2);
+    }
+
+    /* nullregion-01: NullRegion self-simplification. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=ZOOMED");
+        AstZoomMap *z1 = astZoomMap(2, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, "");
+        AstCmpMap *map = astCmpMap(z1, z2, 1, "");
+        AstFrameSet *fs = astFrameSet(base, "");
+        astAddFrame(fs, AST__BASE, map, curr);
+        AstNullRegion *nr = astNullRegion(fs, NULL, "");
+        write_fixture(dir, "nullregion_self_simplify", (AstMapping*)nr);
+        nr = astAnnul(nr); fs = astAnnul(fs); map = astAnnul(map);
+        base = astAnnul(base); curr = astAnnul(curr);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* nullregion-03/04: NullRegion parallel merge. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *f1 = astFrame(1, "");
+        AstNullRegion *n1 = astNullRegion(f1, NULL, "");
+        AstFrame *f2 = astFrame(1, "");
+        double lb[] = {0.0}, ub[] = {10.0};
+        AstBox *b2 = astBox(f2, 1, lb, ub, NULL, "");
+        AstCmpMap *cm = astCmpMap(n1, b2, 0, "");
+        write_fixture(dir, "nullregion_parallel_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); n1 = astAnnul(n1); b2 = astAnnul(b2);
+        f1 = astAnnul(f1); f2 = astAnnul(f2);
+    }
+
+    /* pointlist-01: PointList self-simplification. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=ZOOMED");
+        AstZoomMap *z1 = astZoomMap(2, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, "");
+        AstCmpMap *map = astCmpMap(z1, z2, 1, "");
+        AstFrameSet *fs = astFrameSet(base, "");
+        astAddFrame(fs, AST__BASE, map, curr);
+        double points[] = {1.0, 2.0, 3.0, 4.0};
+        AstPointList *pl = astPointList(fs, 2, 2, 2, points, NULL, "");
+        write_fixture(dir, "pointlist_self_simplify", (AstMapping*)pl);
+        pl = astAnnul(pl); fs = astAnnul(fs); map = astAnnul(map);
+        base = astAnnul(base); curr = astAnnul(curr);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* selectormap-01: SelectorMap with simplifiable Region. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=ZOOMED");
+        AstZoomMap *z1 = astZoomMap(2, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, "");
+        AstCmpMap *map = astCmpMap(z1, z2, 1, "");
+        AstFrameSet *fs = astFrameSet(base, "");
+        astAddFrame(fs, AST__BASE, map, curr);
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 10.0};
+        AstBox *box = astBox(fs, 1, lbnd, ubnd, NULL, "");
+        AstMapping *regs[] = {(AstMapping*)box};
+        AstSelectorMap *sm = astSelectorMap(1, (void**)regs, AST__BAD, "");
+        write_fixture(dir, "selectormap_region_simplify", (AstMapping*)sm);
+        sm = astAnnul(sm); box = astAnnul(box); fs = astAnnul(fs);
+        map = astAnnul(map); base = astAnnul(base); curr = astAnnul(curr);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+}
+
 /* ===== IntraMap fixtures ===== */
 /* Note: IntraMap requires registered functions, skip for now */
 
@@ -2806,6 +2959,7 @@ int main(void) {
     gen_negative_fixtures_8(dir);
     gen_cascade_positives_2(dir);
     gen_cascade_positives_3(dir);
+    gen_region_fixtures(dir);
     gen_negative_fixtures_9(dir);
 
     astEnd;
