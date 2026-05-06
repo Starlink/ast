@@ -2284,6 +2284,33 @@ static void gen_cascade_positives_2(const char *dir) {
         ma2 = astAnnul(ma2); mb2 = astAnnul(mb2);
     }
 
+    /* cmpmap-09 variant: parallel CmpMaps with mismatched component dimensions.
+       CmpMap(MathMap(2D)||MathMap(1D)) in series with
+       CmpMap(MathMap(1D)||MathMap(2D)) — dimension pairing needs accumulation.
+       Uses the subout1 < subin2 / subin2 < subout1 paths (lines 1689-1707). */
+    {
+        if (!astOK) astClearStatus;
+        const char *fwd2[] = {"y1 = 2*x1", "y2 = 3*x2"};
+        const char *inv2[] = {"x1 = 0.5*y1", "x2 = y2/3"};
+        const char *fwd1[] = {"y = 4*x"};
+        const char *inv1[] = {"x = 0.25*y"};
+        AstMathMap *m2d_a = astMathMap(2, 2, 2, fwd2, 2, inv2, "SimpFI=1,SimpIF=1");
+        AstMathMap *m1d_a = astMathMap(1, 1, 1, fwd1, 1, inv1, "SimpFI=1,SimpIF=1");
+        AstCmpMap *par1 = astCmpMap(m2d_a, m1d_a, 0, "");
+
+        AstMathMap *m1d_b = astMathMap(1, 1, 1, fwd1, 1, inv1, "SimpFI=1,SimpIF=1");
+        AstMathMap *m2d_b = astMathMap(2, 2, 2, fwd2, 2, inv2, "SimpFI=1,SimpIF=1");
+        astInvert(m1d_b);
+        astInvert(m2d_b);
+        AstCmpMap *par2 = astCmpMap(m1d_b, m2d_b, 0, "");
+
+        AstCmpMap *cm = astCmpMap(par1, par2, 1, "");
+        write_fixture(dir, "cmpmap_parallel_series_dim_mismatch", (AstMapping*)cm);
+        cm = astAnnul(cm); par1 = astAnnul(par1); par2 = astAnnul(par2);
+        m2d_a = astAnnul(m2d_a); m1d_a = astAnnul(m1d_a);
+        m1d_b = astAnnul(m1d_b); m2d_b = astAnnul(m2d_b);
+    }
+
     /* cmpmap-18: PermMap swap with aconstants — first component gets constants.
        Use MathMaps (non-simplifiable) as CmpMap components so the parallel
        CmpMap doesn't self-simplify before the PermMap swap code runs.
@@ -2331,22 +2358,30 @@ static void gen_cascade_positives_2(const char *dir) {
     }
 
     /* cmpmap-03 (where>0): CmpMap decomposition when not first in list.
-       ZoomMap || CmpMap(Zoom||Zoom) || ZoomMap in parallel — the inner
-       CmpMap decomposes at where=1 (not position 0). */
+       MathMap || CmpMap(MathMap||MathMap) || MathMap in parallel.
+       Use MathMaps to prevent premature merging of ZoomMaps. */
     {
         if (!astOK) astClearStatus;
-        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
-        AstZoomMap *z2 = astZoomMap(1, 3.0, "");
-        AstZoomMap *z3 = astZoomMap(1, 4.0, "");
-        AstCmpMap *inner = astCmpMap(z2, z3, 0, "");
-        AstCmpMap *left = astCmpMap(z1, inner, 0, "");
-        AstZoomMap *z4 = astZoomMap(1, 5.0, "");
-        AstCmpMap *outer = astCmpMap(left, z4, 0, "");
+        const char *f1[] = {"y = 2*x"};
+        const char *i1[] = {"x = 0.5*y"};
+        const char *f2[] = {"y = 3*x"};
+        const char *i2[] = {"x = y/3"};
+        const char *f3[] = {"y = 4*x"};
+        const char *i3[] = {"x = 0.25*y"};
+        const char *f4[] = {"y = 5*x"};
+        const char *i4[] = {"x = 0.2*y"};
+        AstMathMap *m1 = astMathMap(1, 1, 1, f1, 1, i1, "");
+        AstMathMap *m2 = astMathMap(1, 1, 1, f2, 1, i2, "");
+        AstMathMap *m3 = astMathMap(1, 1, 1, f3, 1, i3, "");
+        AstCmpMap *inner = astCmpMap(m2, m3, 0, "");
+        AstCmpMap *left = astCmpMap(m1, inner, 0, "");
+        AstMathMap *m4 = astMathMap(1, 1, 1, f4, 1, i4, "");
+        AstCmpMap *outer = astCmpMap(left, m4, 0, "");
         write_fixture(dir, "cmpmap_decompose_middle", (AstMapping*)outer);
         outer = astAnnul(outer); left = astAnnul(left);
         inner = astAnnul(inner);
-        z1 = astAnnul(z1); z2 = astAnnul(z2);
-        z3 = astAnnul(z3); z4 = astAnnul(z4);
+        m1 = astAnnul(m1); m2 = astAnnul(m2);
+        m3 = astAnnul(m3); m4 = astAnnul(m4);
     }
 
     /* cmpmap-07 with invert: series CmpMaps in parallel, one inverted.
