@@ -226,3 +226,5 @@ perm_constant_propagation | simplify_fixtures/perm_constant_propagation.map | si
 perm_array_simplify     | simplify_fixtures/perm_array_simplify.map     | simplify_fixtures/perm_array_simplify.simp     |
 perm_identity_array_null | simplify_fixtures/perm_identity_array_null.map | simplify_fixtures/perm_identity_array_null.simp |
 wcsmap_perm_swap_simplify | simplify_fixtures/wcsmap_perm_swap_simplify.map | simplify_fixtures/wcsmap_perm_swap_simplify.simp |
+cmpmap_decompose_middle | simplify_fixtures/cmpmap_decompose_middle.map | simplify_fixtures/cmpmap_decompose_middle.simp |
+cmpmap_series_in_parallel_inverted | simplify_fixtures/cmpmap_series_in_parallel_inverted.map | simplify_fixtures/cmpmap_series_in_parallel_inverted.simp |

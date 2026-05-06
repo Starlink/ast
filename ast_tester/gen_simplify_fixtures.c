@@ -2279,38 +2279,91 @@ static void gen_cascade_positives_2(const char *dir) {
     }
 
     /* cmpmap-18: PermMap swap with aconstants — first component gets constants.
-       PermMap that feeds constant to axis 1, passes axis 2 through,
-       preceding a parallel CmpMap(ZoomMap(1D) || ZoomMap(1D)). */
+       Use MathMaps (non-simplifiable) as CmpMap components so the parallel
+       CmpMap doesn't self-simplify before the PermMap swap code runs.
+       Square PermMap(2→2): output 1 = constant, output 2 = input 1. */
     {
         if (!astOK) astClearStatus;
-        int inperm[] = {2};
+        int inperm[] = {2, -1};
         int outperm[] = {-1, 1};
         double consts[] = {99.0};
-        AstPermMap *pm = astPermMap(1, inperm, 2, outperm, consts, "");
-        AstZoomMap *za = astZoomMap(1, 2.0, "");
-        AstZoomMap *zb = astZoomMap(1, 3.0, "");
-        AstCmpMap *par = astCmpMap(za, zb, 0, "");
+        const char *fwda[] = {"y = 2*x"};
+        const char *inva[] = {"x = 0.5*y"};
+        const char *fwdb[] = {"y = 3*x"};
+        const char *invb[] = {"x = y/3"};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, consts, "");
+        AstMathMap *ma = astMathMap(1, 1, 1, fwda, 1, inva, "");
+        AstMathMap *mb = astMathMap(1, 1, 1, fwdb, 1, invb, "");
+        AstCmpMap *par = astCmpMap(ma, mb, 0, "");
         AstCmpMap *cm = astCmpMap(pm, par, 1, "");
         write_fixture(dir, "cmpmap_perm_swap_aconstants", (AstMapping*)cm);
         cm = astAnnul(cm); pm = astAnnul(pm); par = astAnnul(par);
-        za = astAnnul(za); zb = astAnnul(zb);
+        ma = astAnnul(ma); mb = astAnnul(mb);
     }
 
     /* cmpmap-19: PermMap swap with bconstants — second component gets constants.
-       PermMap passes axis 1 through, feeds constant to axis 2. */
+       For canswap: outperm[0]=from input at index npin-nin2a=1 (public: 2),
+       outperm[1]<0 (constant), inperm[1]=from output 0 (public: 1),
+       inperm[0]<0 (constant, avoids bidirectional check failure). */
     {
         if (!astOK) astClearStatus;
-        int inperm[] = {1};
-        int outperm[] = {1, -1};
+        int inperm[] = {-1, 1};
+        int outperm[] = {2, -1};
         double consts[] = {99.0};
-        AstPermMap *pm = astPermMap(1, inperm, 2, outperm, consts, "");
-        AstZoomMap *za = astZoomMap(1, 2.0, "");
-        AstZoomMap *zb = astZoomMap(1, 3.0, "");
-        AstCmpMap *par = astCmpMap(za, zb, 0, "");
+        const char *fwda[] = {"y = 2*x"};
+        const char *inva[] = {"x = 0.5*y"};
+        const char *fwdb[] = {"y = 3*x"};
+        const char *invb[] = {"x = y/3"};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, consts, "");
+        AstMathMap *ma = astMathMap(1, 1, 1, fwda, 1, inva, "");
+        AstMathMap *mb = astMathMap(1, 1, 1, fwdb, 1, invb, "");
+        AstCmpMap *par = astCmpMap(ma, mb, 0, "");
         AstCmpMap *cm = astCmpMap(pm, par, 1, "");
         write_fixture(dir, "cmpmap_perm_swap_bconstants", (AstMapping*)cm);
         cm = astAnnul(cm); pm = astAnnul(pm); par = astAnnul(par);
-        za = astAnnul(za); zb = astAnnul(zb);
+        ma = astAnnul(ma); mb = astAnnul(mb);
+    }
+
+    /* cmpmap-03 (where>0): CmpMap decomposition when not first in list.
+       ZoomMap || CmpMap(Zoom||Zoom) || ZoomMap in parallel — the inner
+       CmpMap decomposes at where=1 (not position 0). */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, "");
+        AstZoomMap *z3 = astZoomMap(1, 4.0, "");
+        AstCmpMap *inner = astCmpMap(z2, z3, 0, "");
+        AstCmpMap *left = astCmpMap(z1, inner, 0, "");
+        AstZoomMap *z4 = astZoomMap(1, 5.0, "");
+        AstCmpMap *outer = astCmpMap(left, z4, 0, "");
+        write_fixture(dir, "cmpmap_decompose_middle", (AstMapping*)outer);
+        outer = astAnnul(outer); left = astAnnul(left);
+        inner = astAnnul(inner);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+        z3 = astAnnul(z3); z4 = astAnnul(z4);
+    }
+
+    /* cmpmap-07 with invert: series CmpMaps in parallel, one inverted.
+       CmpMap(ZoomMap(2),ShiftMap([3])) inverted, combined in parallel
+       with CmpMap(ZoomMap(0.5),ShiftMap([-3])). Tests line 1567-1568. */
+    {
+        if (!astOK) astClearStatus;
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        double s1[] = {3.0};
+        AstShiftMap *sh1 = astShiftMap(1, s1, "");
+        AstCmpMap *ser1 = astCmpMap(z1, sh1, 1, "");
+        astInvert(ser1);
+
+        AstZoomMap *z2 = astZoomMap(1, 2.0, "");
+        double s2[] = {3.0};
+        AstShiftMap *sh2 = astShiftMap(1, s2, "");
+        AstCmpMap *ser2 = astCmpMap(z2, sh2, 1, "");
+
+        AstCmpMap *par = astCmpMap(ser1, ser2, 0, "");
+        write_fixture(dir, "cmpmap_series_in_parallel_inverted", (AstMapping*)par);
+        par = astAnnul(par); ser1 = astAnnul(ser1); ser2 = astAnnul(ser2);
+        z1 = astAnnul(z1); sh1 = astAnnul(sh1);
+        z2 = astAnnul(z2); sh2 = astAnnul(sh2);
     }
 
     /* winmap-15: WinMap merges with UPPER parallel CmpMap neighbour.
