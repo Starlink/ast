@@ -237,3 +237,4 @@ win_shift_parallel_merge_rev | simplify_fixtures/win_shift_parallel_merge_rev.ma
 win_diagmatrix_parallel_merge_rev | simplify_fixtures/win_diagmatrix_parallel_merge_rev.map | simplify_fixtures/win_diagmatrix_parallel_merge_rev.simp |
 win_unit_parallel_merge_rev | simplify_fixtures/win_unit_parallel_merge_rev.map | simplify_fixtures/win_unit_parallel_merge_rev.simp |
 normmap_inverse_cancel_upper | simplify_fixtures/normmap_inverse_cancel_upper.map | simplify_fixtures/normmap_inverse_cancel_upper.simp |
+unitnormmap_inv_fwd_cancel | simplify_fixtures/unitnormmap_inv_fwd_cancel.map | simplify_fixtures/unitnormmap_inv_fwd_cancel.simp |

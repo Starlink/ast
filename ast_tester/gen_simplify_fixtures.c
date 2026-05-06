@@ -794,6 +794,17 @@ static void gen_unitnormmap_fixtures(const char *dir) {
         cm = astAnnul(cm); u1 = astAnnul(u1); u2 = astAnnul(u2);
     }
 
+    /* unitnormmap-08: inv + fwd with same centre → UnitMap */
+    {
+        double centre[] = {1.0, 2.0};
+        AstUnitNormMap *u1 = astUnitNormMap(2, centre, "");
+        AstUnitNormMap *u2 = astUnitNormMap(2, centre, "");
+        astInvert(u1);
+        AstCmpMap *cm = astCmpMap(u1, u2, 1, "");
+        write_fixture(dir, "unitnormmap_inv_fwd_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); u1 = astAnnul(u1); u2 = astAnnul(u2);
+    }
+
     /* unitnormmap-09: fwd + inv with different centres → ShiftMap */
     {
         double c1[] = {1.0, 2.0};

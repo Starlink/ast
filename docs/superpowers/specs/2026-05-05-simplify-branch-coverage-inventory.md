@@ -358,7 +358,7 @@ different→ShiftMap).
 | unitnormmap-05 | unitnormmap_inv_winmap_merge.map | focused | positive | unitnormmap.c:361-380 | Inverse UnitNormMap + WinMap(unit scale) → new inverse UnitNormMap | UnitNormMap(inv) followed by WinMap(scale=1) |
 | unitnormmap-06 | — | focused | negative | unitnormmap.c:375,379 | UnitNormMap(inv) + WinMap(non-unit scale): refused | UnitNormMap(inv) followed by WinMap(scale!=1) |
 | unitnormmap-07 | unitnormmap_inverse_cancel.map | focused | positive | unitnormmap.c:398-401 | Forward + Inverse UnitNormMap with same centre → UnitMap | UnitNormMap(fwd) + Inverse(UnitNormMap), same centre |
-| unitnormmap-08 | — | focused | positive | unitnormmap.c:398-401 | Inverse + Forward UnitNormMap with same centre → UnitMap | Inverse(UnitNormMap) + UnitNormMap(fwd), same centre |
+| unitnormmap-08 | unitnormmap_inv_fwd_cancel.map | focused | positive | unitnormmap.c:398-401 | Inverse + Forward UnitNormMap with same centre → UnitMap | Inverse(UnitNormMap) + UnitNormMap(fwd), same centre |
 | unitnormmap-09 | unitnormmap_diff_centre_to_shift.map | focused | positive | unitnormmap.c:403-415 | Forward + Inverse UnitNormMap with different centres → ShiftMap | UnitNormMap(fwd,c1) + Inverse(UnitNormMap,c2) |
 | unitnormmap-10 | — | focused | negative | unitnormmap.c:403 | Inverse + Forward with different centres: no merge (asymmetric) | Inverse(UnitNormMap,c1) + UnitNormMap(fwd,c2) |
 | unitnormmap-11 | — | focused | negative | unitnormmap.c:307 | ShiftMap + UnitNormMap(inv): refused | ShiftMap followed by Inverse(UnitNormMap) |

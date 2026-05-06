@@ -534,7 +534,7 @@ different to ShiftMap).
 | unitnormmap-04 | unitnormmap_inv_shift_merge.map | focused | `+` | Inverse UnitNormMap + ShiftMap to new inverse UnitNormMap with adjusted centre | UnitNormMap(inv) followed by ShiftMap |
 | unitnormmap-05 | unitnormmap_inv_winmap_merge.map | focused | `+` | Inverse UnitNormMap + WinMap(unit scale) to new inverse UnitNormMap | UnitNormMap(inv) followed by WinMap(scale=1) |
 | unitnormmap-07 | unitnormmap_inverse_cancel.map | focused | `+` | Forward + Inverse UnitNormMap with same centre to UnitMap | UnitNormMap(fwd) + Inverse(UnitNormMap), same centre |
-| unitnormmap-08 | -- | focused | `- (no fixture)` | Inverse + Forward UnitNormMap with same centre to UnitMap | Inverse(UnitNormMap) + UnitNormMap(fwd), same centre |
+| unitnormmap-08 | unitnormmap_inv_fwd_cancel.map | focused | `+` | Inverse + Forward UnitNormMap with same centre to UnitMap | Inverse(UnitNormMap) + UnitNormMap(fwd), same centre |
 | unitnormmap-09 | unitnormmap_diff_centre_to_shift.map | focused | `+` | Forward + Inverse UnitNormMap with different centres to ShiftMap | UnitNormMap(fwd,c1) + Inverse(UnitNormMap,c2) |
 
 ### Negative branches
