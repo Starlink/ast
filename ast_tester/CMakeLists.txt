@@ -299,6 +299,12 @@ target_link_libraries(gen_simplify_fixtures PRIVATE ${TEST_LIBS})
 target_compile_definitions(gen_simplify_fixtures PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(gen_simplify_fixtures)
 
+add_executable(gen_native_fixtures gen_native_fixtures.c)
+target_include_directories(gen_native_fixtures PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_native_fixtures PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_native_fixtures PRIVATE HAVE_CONFIG_H)
+ast_apply_dev_options(gen_native_fixtures)
+
 # Helper to register simplify regression tests.
 # Each call copies the input .map and reference .simp files into the build
 # tree and registers two ctest entries:
