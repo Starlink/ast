@@ -113,7 +113,11 @@ endif
 
 \rm *-new.ps  >& /dev/null
 
-foreach n (*.head)
+foreach n ( aitoff.head car1.head car2.head car3.head car4.head car5.head \
+            car6.head cobe.head hpx.head origin.head polco.head polco2.head \
+            scp.head serpens.head sip.head sip2.head specflux.head \
+            timeplot.head tnx.head tsc.head zpn.head zpx.head)
+
    set bn = `basename $n .head`
 
    set atfile = "${bn}.attr"
