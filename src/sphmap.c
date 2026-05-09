@@ -85,6 +85,9 @@ f     The SphMap class does not define any new routines beyond those
 *        Avoid modifying the attributes of the existing SphMap in
 *        MapMerge, since it may be in use in other contexts. Modify a
 *        copy instead.
+*     8-MAY-20206 (DSB):
+*        Fix bug in MapMerge - UnitMap that replaces back to back SphMaps
+*        was not taking account of the direction of the two SphMaps.
 *class--
 */
 
@@ -718,6 +721,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    int imap1;                    /* Index of first SphMap */
    int imap2;                    /* Index of second SphMap */
    int imap;                     /* Loop counter for Mappings */
+   int nax;                      /* Number of axes for simplified UnitMap */
    int result;                   /* Result value to return */
    int simpler;                  /* Mappings simplified? */
 
@@ -730,6 +734,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Further initialisation. */
    new = NULL;
    simpler = 0;
+   nax = 0;
 
 /* We will only handle the case of SphMaps in series and will consider
    merging the nominated SphMap with the Mapping which follows
@@ -749,6 +754,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    the second in the forward direction. This combination can be
    simplified if the PolarLongitude attributes are equal.. */
          if( ( *invert_list )[ imap1 ] && !( *invert_list )[ imap2 ] ) {
+            nax = 2;
             simpler = astEQUAL( astGetPolarLong( ( *map_list )[ imap1 ] ),
                                 astGetPolarLong( ( *map_list )[ imap2 ] ) );
 
@@ -757,6 +763,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    input vectors to the first SphMap all have unit length (as indicated by
    the UnitRadius attribute). */
          } else if( !( *invert_list )[ imap1 ] && ( *invert_list )[ imap2 ] ) {
+            nax = 3;
             simpler = astGetUnitRadius( ( *map_list )[ imap1 ] );
          }
       }
@@ -764,7 +771,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* If the two SphMaps can be simplified, create a UnitMap to replace
    them. */
       if ( simpler ) {
-         new = (AstMapping *) astUnitMap( 2, "", status );
+         new = (AstMapping *) astUnitMap( nax, "", status );
 
 /* Annul the pointers to the SphMaps. */
          if ( astOK ) {
