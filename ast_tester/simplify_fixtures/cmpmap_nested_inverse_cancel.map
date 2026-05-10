@@ -1,0 +1,45 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin MatrixMap 	# Matrix transformation
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                M0 = 2 	# Forward matrix value
+                M1 = 3 	# Forward matrix value
+                IM0 = 0.5 	# Inverse matrix value
+                IM1 = 0.33333333333333331 	# Inverse matrix value
+                Form = "Diagonal" 	# Matrix storage form
+             End MatrixMap
+          MapB = 	# Second component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+          MapB = 	# Second component Mapping
+             Begin MatrixMap 	# Matrix transformation
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                M0 = 2 	# Forward matrix value
+                M1 = 3 	# Forward matrix value
+                IM0 = 0.5 	# Inverse matrix value
+                IM1 = 0.33333333333333331 	# Inverse matrix value
+                Form = "Diagonal" 	# Matrix storage form
+             End MatrixMap
+       End CmpMap
+ End CmpMap

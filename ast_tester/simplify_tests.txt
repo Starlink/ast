@@ -31,6 +31,7 @@ shift_invert_normalize  | simplify_fixtures/shift_invert_normalize.map  | simpli
 perm_series_merge       | simplify_fixtures/perm_series_merge.map       | simplify_fixtures/perm_series_merge.simp       |
 perm_parallel_merge     | simplify_fixtures/perm_parallel_merge.map     | simplify_fixtures/perm_parallel_merge.simp     |
 cmpmap_parallel_series_components | simplify_fixtures/cmpmap_parallel_series_components.map | simplify_fixtures/cmpmap_parallel_series_components.simp |
+cmpmap_nested_inverse_cancel | simplify_fixtures/cmpmap_nested_inverse_cancel.map | simplify_fixtures/cmpmap_nested_inverse_cancel.simp |
 cmpmap_nested_parallel_flatten | simplify_fixtures/cmpmap_nested_parallel_flatten.map | simplify_fixtures/cmpmap_nested_parallel_flatten.simp |
 cmpmap_perm_parallel_swap | simplify_fixtures/cmpmap_perm_parallel_swap.map | simplify_fixtures/cmpmap_perm_parallel_swap.simp |
 sph_inverse_cancel      | simplify_fixtures/sph_inverse_cancel.map      | simplify_fixtures/sph_inverse_cancel.simp      |
