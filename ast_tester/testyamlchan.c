@@ -19,6 +19,7 @@ static void test_lsst_wcs_roundtrip( int *status );
 static void test_native_encoding_roundtrip( int *status );
 static void test_sphmap_roundtrip( int *status );
 static void test_divide_roundtrip( int *status );
+static void test_rotate_sequence_3d_roundtrip( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -42,6 +43,7 @@ int main(){
    test_native_encoding_roundtrip( status );
    test_sphmap_roundtrip( status );
    test_divide_roundtrip( status );
+   test_rotate_sequence_3d_roundtrip( status );
 
    astEnd;
 
@@ -541,7 +543,6 @@ void test_divide_roundtrip( int *status ){
 }
 
 
-
 /* Compare forward-transform outputs from two mappings over 4 test points.
    The transform is A/B where A=identity, B=project, giving (x/x, y/x, z/x).
    Uses astTranN for a 3-input, 3-output mapping.
@@ -596,7 +597,6 @@ void check_divide_outputs( AstMapping *map, AstMapping *map2, const char *text, 
 }
 
 
-
 void check_sphmap_mappings( AstMapping *map, AstMapping *map2, const char *text, int *status ){
 /* Three test points as unit 3-D Cartesian vectors.
    Layout for astTranN: in[coord * npoint + point], npoint=3, indim=3. */
@@ -625,4 +625,71 @@ void check_sphmap_mappings( AstMapping *map, AstMapping *map2, const char *text,
    }
 
    if( *status != SAI__OK ) printf( "%s\n", text );
+}
+
+
+/* Test rotate_sequence_3d cartesian and null transform: read an ASDF WCS
+   containing a rotate_sequence_3d cartesian transform (90deg rotation about
+   the x-axis) with an explicit 'transform: null' in the last step, then
+   verify the mapping produces the expected numerical output.
+
+   Bugs caught:
+   1. ReadRotateSequence3d did not convert angles from degrees to radians
+      before calling Deuler, so the rotation matrix was completely wrong.
+   2. The GetChoice cartesian/spherical condition was inverted (== 1 instead
+      of == 0), making cartesian rotations enter the spherical rotation path.
+   3. ReadStep failed with a type-mismatch error when the last WCS step
+      carried an explicit 'transform: null' stored as a non-object value. */
+void test_rotate_sequence_3d_roundtrip( int *status ){
+   AstFrameSet *fs;
+   AstMapping *map;
+   AstYamlChan *ch;
+   int i;
+
+/* Three unit-axis test vectors, coord-major for astTranN (npoint=3, nin=3):
+   [x0 x1 x2  y0 y1 y2  z0 z1 z2] */
+   double xin[9] = {
+      1.0, 0.0, 0.0,
+      0.0, 1.0, 0.0,
+      0.0, 0.0, 1.0
+   };
+
+/* Expected: 90 deg rotation about x */
+   double xout_expected[9] = {
+      1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0,
+      0.0, -1.0, 0.0
+   };
+   double xout[9];
+
+   if( *status != SAI__OK )
+      return;
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=rotate_seq3d_cartesian.asdf" );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+   if( !fs ) {
+      stopit( 60, status );
+      return;
+   }
+
+   map = astGetMapping( fs, AST__BASE, AST__CURRENT );
+   astAnnul( fs );
+
+   astTranN( map, 3, 3, 3, xin, 1, 3, 3, xout );
+   astAnnul( map );
+
+   for( i = 0; i < 9; i++ ){
+      if( fabs( xout[i] - xout_expected[i] ) > 1.0E-10 ){
+         if( *status == SAI__OK )
+            printf( "rotate_sequence_3d output[%d]: got %.15g expected %.15g\n",
+                    i, xout[i], xout_expected[i] );
+         stopit( 61 + i, status );
+         break;
+      }
+   }
+
+   if( *status != SAI__OK )
+      printf( "rotate_sequence_3d and null-transform regression test failed\n" );
 }

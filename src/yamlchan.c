@@ -101,7 +101,11 @@ f     The YamlChan class does not define any new routines beyond those
 *        byte past the end of the source buffer.
 *     22-APR-2026 (EMB):
 *        - Add support for the asdf/transform/divide transform.
-*        - Fix potential stack variable overflow in ReadPolynomial
+*        - Fix potential stack variable overflow in ReadPolynomial.
+*     12-MAY-2026 (EMB):
+*        - Fix missing degree to radian conversion in ReadRotateSequence3d.
+*        - Fix handling of rotation_type parameter in ReadRotateSequence3d.
+*        - Fix handling of null transform in the final WCS step.
 *class--
 */
 
@@ -9566,6 +9570,7 @@ static AstMapping *ReadRotateSequence3d( AstKeyMap *km, int *status ){
    const char *axes_order;
    double angles[ MXANG ];
    double matrix[ 9 ];
+   int k;
    int nang;
 
 /* Initialise */
@@ -9585,6 +9590,9 @@ static AstMapping *ReadRotateSequence3d( AstKeyMap *km, int *status ){
 /* Get the list of angles. */
       Get1D( km, "angles", 0, MXANG, angles, &nang, status );
 
+/* Convert angles from degrees to radians (Deuler expects radians). */
+      for( k = 0; k < nang; k++ ) angles[k] *= AST__DD2R;
+
 /* Get the axes about which to rotate. */
       axes_order = Get0C( km, "axes_order", 0, NULL, status );
       if( axes_order && strlen( axes_order) != nang && astOK ){
@@ -9593,7 +9601,7 @@ static AstMapping *ReadRotateSequence3d( AstKeyMap *km, int *status ){
                    axes_order, (int) strlen( axes_order) );
       }
 
-/* Generate the matrix. */
+/* Generate the rotation matrix from the Euler angles. */
       Deuler( axes_order, angles, (double (*)[3]) matrix, status );
 
 /* Create the equivalent MatrixMap. */
@@ -9601,7 +9609,7 @@ static AstMapping *ReadRotateSequence3d( AstKeyMap *km, int *status ){
 
 /* If this is a Cartesian rotation, just return the MatrixMap. */
       if( GetChoice( km, "rotation_type", "cartesian spherical",
-                     1, 0, status ) == 1 ) {
+                     1, 0, status ) == 0 ) {
          result = (AstMapping *) astClone( mm );
 
 /* If this is a SphericalCartesian rotation, use a SphMap to convert from
@@ -9626,14 +9634,13 @@ static AstMapping *ReadRotateSequence3d( AstKeyMap *km, int *status ){
          zm = astAnnul( zm );
          cm = astAnnul( cm );
          cm2 = astAnnul( cm2 );
-         mm = astAnnul( mm );
       }
       mm = astAnnul( mm );
    }
 
 /* If an error occurred, report the context. */
    if( !astOK ) {
-      astError( astStatus, "Error occurred when reading an ASDF 'rotate_sequence3d' "
+      astError( astStatus, "Error occurred when reading an ASDF 'rotate_sequence_3d' "
                 "object.", status );
    }
 
@@ -10405,8 +10412,16 @@ static void ReadStep( AstYamlChan *this, AstKeyMap *km, int report,
 
 /* Get the Mapping from the frame of this step to the frame of the next
    step, reporting an error if not present only if requested. Note the
-   number of axes expected for the frame stored in the step. */
-      subkm = Get0A( km, "transform", !report, NULL, "transform", status );
+   number of axes expected for the frame stored in the step.
+   A YAML null is stored as the string "null" (not an AstObject), so we
+   check the key type and treat non-object entries as an absent transform. */
+      if( astMapHasKey( km, "transform" ) &&
+          astMapType( km, "transform" ) != AST__OBJECTTYPE ) {
+         subkm = NULL;
+      } else {
+         subkm = Get0A( km, "transform", !report, NULL, "transform", status );
+      }
+
       if( subkm ) {
          stepmap = ReadTransform( this, subkm, status );
          subkm = astAnnul( subkm );
