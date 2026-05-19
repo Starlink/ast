@@ -1,0 +1,25 @@
+ Begin ChebyMap 	# Chebyshev polynomial transformation
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MPF1 = 2 	# Max. power of input 1 in any forward polynomial
+    MPF2 = 2 	# Max. power of input 2 in any forward polynomial
+    NCF1 = 3 	# No. of coeff.s for forward polynomial 1
+    NCF2 = 3 	# No. of coeff.s for forward polynomial 2
+    CF1 = 1 	# Coeff 1 of forward polynomial 1
+    CF2 = 0.050000000000000003 	# Coeff 2 of forward polynomial 1
+    CF3 = 0.02 	# Coeff 3 of forward polynomial 1
+    CF4 = 1 	# Coeff 1 of forward polynomial 2
+    CF5 = 0.050000000000000003 	# Coeff 2 of forward polynomial 2
+    CF6 = 0.02 	# Coeff 3 of forward polynomial 2
+    PF1 = 1 	# Power of i/p 1 for coeff 1 of fwd poly 1
+    PF4 = 1 	# Power of i/p 2 for coeff 2 of fwd poly 1
+    PF5 = 2 	# Power of i/p 1 for coeff 3 of fwd poly 1
+    PF8 = 1 	# Power of i/p 2 for coeff 1 of fwd poly 2
+    PF9 = 1 	# Power of i/p 1 for coeff 2 of fwd poly 2
+    PF12 = 2 	# Power of i/p 2 for coeff 3 of fwd poly 2
+ IsA PolyMap 	# Polynomial transformation
+    FSCL1 = 0.5 	# Scale factor on input 1
+    FSCL2 = 0.5 	# Scale factor on input 2
+    FOFF1 = 0 	# Offset on input 1
+    FOFF2 = 0 	# Offset on input 2
+ End ChebyMap
