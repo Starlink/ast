@@ -1,4 +1,5 @@
  Begin GrismMap 	# Map 1-d coordinates using a spectral disperser
+    Nin = 1 	# Number of input coordinates
     IsSimp = 1 	# Mapping has been simplified
  IsA Mapping 	# Mapping between coordinate systems
     GrmNR = 1.5 	# Refractive index at the ref. wavelength
