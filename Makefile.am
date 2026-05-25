@@ -30,7 +30,6 @@ GRP_C_ROUTINES = \
     src/lutmap.c \
     src/mapping.c \
     src/mathmap.c \
-    src/matrixmap.c \
     src/memory.c \
     src/moc.c \
     src/mocchan.c \
@@ -44,7 +43,6 @@ GRP_C_ROUTINES = \
     src/pointlist.c \
     src/pointset.c \
     src/polygon.c \
-    src/polymap.c \
     src/prism.c \
     src/ratemap.c \
     src/region.c \
@@ -56,7 +54,6 @@ GRP_C_ROUTINES = \
     src/specfluxframe.c \
     src/specframe.c \
     src/specmap.c \
-    src/sphmap.c \
     src/splinemap.c \
     src/stc.c \
     src/stccatalogentrylocation.c \
@@ -585,6 +582,29 @@ CMINPACK_FILES = \
     cminpack/lmpar.c \
     cminpack/qrsolv.c
 
+
+# sphmap.c, polymap.c, and matrixmap.c are compiled as noinst convenience
+# libraries so that per-file SIMD flags (from configure --enable-simd) can
+# be applied without affecting the rest of libast.  When SIMD is not enabled,
+# AST_SIMD_FLAGS is empty.
+AST_MAYBE_SIMD_LIBS = libast_sphmap.la libast_polymap.la libast_matrixmap.la
+noinst_LTLIBRARIES = $(AST_MAYBE_SIMD_LIBS)
+
+libast_polymap_la_SOURCES = src/polymap.c
+libast_sphmap_la_SOURCES = src/sphmap.c
+libast_matrixmap_la_SOURCES = src/matrixmap.c
+
+if !NOPIC
+libast_polymap_la_CFLAGS = $(AM_CFLAGS) -prefer-pic $(threadsafe) $(yaml) @AST_SIMD_FLAGS@
+libast_sphmap_la_CFLAGS = $(AM_CFLAGS) -prefer-pic $(threadsafe) $(yaml) @AST_SIMD_FLAGS@
+libast_matrixmap_la_CFLAGS = $(AM_CFLAGS) -prefer-pic $(threadsafe) $(yaml) @AST_SIMD_FLAGS@
+else
+libast_polymap_la_CFLAGS = $(AM_CFLAGS) $(threadsafe) $(yaml) @AST_SIMD_FLAGS@
+libast_sphmap_la_CFLAGS = $(AM_CFLAGS) $(threadsafe) $(yaml) @AST_SIMD_FLAGS@
+libast_matrixmap_la_CFLAGS = $(AM_CFLAGS) $(threadsafe) $(yaml) @AST_SIMD_FLAGS@
+endif
+
+
 bin_SCRIPTS = ast_link
 dist_bin_SCRIPTS = ast_link_adam
 noinst_SCRIPTS = ast_cpp
@@ -712,15 +732,15 @@ libast_la_LDFLAGS = -version-info @version_info@
 # library instead. Do the same for cminpack
 if EXTERNAL_PAL
 if EXTERNAL_CMINPACK
-libast_la_LIBADD =  -lpal -lcminpack
+libast_la_LIBADD =  -lpal -lcminpack $(AST_MAYBE_SIMD_LIBS)
 else
-libast_la_LIBADD = -lpal libast_cminpack.la
+libast_la_LIBADD = -lpal libast_cminpack.la $(AST_MAYBE_SIMD_LIBS)
 endif
 else
 if EXTERNAL_CMINPACK
-libast_la_LIBADD =  libast_pal.la -lcminpack
+libast_la_LIBADD =  libast_pal.la -lcminpack $(AST_MAYBE_SIMD_LIBS)
 else
-libast_la_LIBADD = libast_pal.la libast_cminpack.la
+libast_la_LIBADD = libast_pal.la libast_cminpack.la $(AST_MAYBE_SIMD_LIBS)
 endif
 endif
 

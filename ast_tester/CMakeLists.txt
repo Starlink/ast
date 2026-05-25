@@ -516,7 +516,7 @@ ast_add_test(testgrid
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
 function(add_grid_test)
-    cmake_parse_arguments(P "SKIP_TEXT_COMPARE"
+    cmake_parse_arguments(P "SKIP_TEXT_COMPARE;NO_SIMD"
         "NAME;HEAD;ATTR;FATTR;BOX;REFERENCE"
         ""
         ${ARGN})
@@ -544,6 +544,14 @@ function(add_grid_test)
         set(_ref_arg "-DREF_FILE=fixtures/${P_REFERENCE}")
     endif()
 
+    # NO_SIMD disables SIMD on the WCS SphMaps for this test.  Required when
+    # a few ULP libmvec/scalar math differences shift label pixel positions and
+    # break the text-label comparison against the committed reference.
+    set(_nosimd_arg "")
+    if(P_NO_SIMD)
+        set(_nosimd_arg "-DNO_SIMD=ON")
+    endif()
+
     add_test(NAME grid_${P_NAME}
         COMMAND ${CMAKE_COMMAND}
             -DTESTGRID=$<TARGET_FILE:testgrid>
@@ -553,6 +561,7 @@ function(add_grid_test)
             -DOUT_FILE=grid_${P_NAME}.svg
             "${_ref_arg}"
             "-DBOX=${_box_arg}"
+            "${_nosimd_arg}"
             -P "${CMAKE_SOURCE_DIR}/cmake/run_grid_test.cmake"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
     if(AST_ENABLE_SANITIZERS)
@@ -561,7 +570,7 @@ function(add_grid_test)
     endif()
 endfunction()
 
-ast_read_test_data("${AST_FIXTURE_SOURCE_ROOT}/plot/cases.txt" _grid_tests 7)
+ast_read_test_data("${AST_FIXTURE_SOURCE_ROOT}/plot/cases.txt" _grid_tests 8)
 foreach(_entry IN LISTS _grid_tests)
     string(REPLACE "|" ";" _fields "${_entry}")
     list(GET _fields 0 _name)
@@ -571,6 +580,7 @@ foreach(_entry IN LISTS _grid_tests)
     list(GET _fields 4 _box)
     list(GET _fields 5 _reference)
     list(GET _fields 6 _skip)
+    list(GET _fields 7 _no_simd)
     set(_args "NAME" "${_name}" "HEAD" "${_head}")
     if(NOT _attr STREQUAL "")
         list(APPEND _args "ATTR" "${_attr}")
@@ -586,6 +596,9 @@ foreach(_entry IN LISTS _grid_tests)
     endif()
     if(_skip STREQUAL "yes")
         list(APPEND _args "SKIP_TEXT_COMPARE")
+    endif()
+    if(_no_simd STREQUAL "yes")
+        list(APPEND _args "NO_SIMD")
     endif()
     add_grid_test(${_args})
 endforeach()
@@ -702,7 +715,7 @@ if(PLPLOT_FOUND)
     endfunction()
 
     ast_read_test_data("${AST_FIXTURE_SOURCE_ROOT}/plot/cases.txt"
-                       _plotter_tests 7)
+                       _plotter_tests 8)
     foreach(_entry IN LISTS _plotter_tests)
         string(REPLACE "|" ";" _fields "${_entry}")
         list(GET _fields 0 _name)
