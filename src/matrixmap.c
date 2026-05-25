@@ -192,6 +192,18 @@ f     The MatrixMap class does not define any new routines beyond those
 *        astMtrGet now has option to return the expanded matrix.
 *     14-AUG-2020 (DSB):
 *        Added argument "order" to astMtrEuler.
+*     2-JUN-2026 (EMB):
+*        Refactor: factor out TransformLoopScalar and TransformLoopSIMD from
+*        Transform.  Add TransformLoop vtable slot.  Transform becomes a thin
+*        wrapper.  Add UseSIMD string attribute (default 1 when SIMD available,
+*        0 otherwise) accessible via astSet/astGet.  For a full matrix,
+*        TransformLoopSIMD computes each output coordinate with the point loop
+*        innermost under #pragma omp simd (GCC emits VFMADD), and runs the
+*        AST__BAD fixup pass only when a vectorised scan finds a bad input.
+*        For a diagonal matrix it uses a branchless blend.  Inputs are
+*        processed in chunks sized so that (ncoord_in + ncoord_out)*chunk
+*        doubles fit in L2 cache, which keeps the reused inputs cache-resident
+*        at large N.
 *     19-JUN-2026 (TIMJ):
 *        Fix MapSplit: a kept row could reach the element-copy loop with a
 *        BAD value in one of the selected columns (a BAD element does not
@@ -261,12 +273,17 @@ static const char *Form[3] = { "Full", "Diagonal", "Unit" }; /* Text values
 /* Pointers to parent class methods which are extended by this class. */
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static int *(* parent_mapsplit)( AstMapping *, int, const int *, AstMapping **, int * );
+static const char *(* parent_getattrib)( AstObject *, const char *, int * );
+static int (* parent_testattrib)( AstObject *, const char *, int * );
+static void (* parent_clearattrib)( AstObject *, const char *, int * );
+static void (* parent_setattrib)( AstObject *, const char *, int * );
 
 
 #ifdef THREAD_SAFE
 /* Define how to initialise thread-specific globals. */
 #define GLOBAL_inits \
-   globals->Class_Init = 0;
+   globals->Class_Init = 0; \
+   globals->GetAttrib_Buff[ 0 ] = 0;
 
 /* Create the function that initialises global data for this module. */
 astMAKE_INITGLOBALS(MatrixMap)
@@ -274,6 +291,7 @@ astMAKE_INITGLOBALS(MatrixMap)
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(MatrixMap,Class_Init)
 #define class_vtab astGLOBAL(MatrixMap,Class_Vtab)
+#define getattrib_buff astGLOBAL(MatrixMap,GetAttrib_Buff)
 
 
 #include <pthread.h>
@@ -286,6 +304,7 @@ astMAKE_INITGLOBALS(MatrixMap)
    as static variables. */
 static AstMatrixMapVtab class_vtab;   /* Virtual function table */
 static int class_init = 0;       /* Virtual function table initialised? */
+static char getattrib_buff[ 32 ];
 
 #endif
 
@@ -305,6 +324,16 @@ static AstMatrixMap *MtrMult( AstMatrixMap *, AstMatrixMap *, int * );
 static AstMatrixMap *MtrZoom( AstMatrixMap *, double, int * );
 static AstMatrixMap *MtrRot( AstMatrixMap *, double, const double[], int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
+static void TransformLoopScalar( AstMapping *, int, int, int, int,
+                                 double **, double **, int * );
+#ifdef AST_HAVE_SIMD
+static void TransformLoopSIMD( AstMapping *, int, int, int, int,
+                               double **, double **, int * );
+#endif
+static const char *GetAttrib( AstObject *, const char *, int * );
+static int TestAttrib( AstObject *, const char *, int * );
+static void ClearAttrib( AstObject *, const char *, int * );
+static void SetAttrib( AstObject *, const char *, int * );
 static AstWinMap *MatWin2( AstMatrixMap *, AstWinMap *, int, int, int, int * );
 static double *InvertMatrix( int, int, int, double *, double *, int * );
 static double *MtrGet( AstMatrixMap *, int, int, int *, int * );
@@ -1410,6 +1439,21 @@ void astInitMatrixMapVtab_(  AstMatrixMapVtab *vtab, const char *name, int *stat
 
    parent_transform = mapping->Transform;
    mapping->Transform = Transform;
+
+#ifdef AST_HAVE_SIMD
+   vtab->TransformLoop = TransformLoopSIMD;
+#else
+   vtab->TransformLoop = TransformLoopScalar;
+#endif
+
+   parent_clearattrib = object->ClearAttrib;
+   object->ClearAttrib = ClearAttrib;
+   parent_getattrib = object->GetAttrib;
+   object->GetAttrib = GetAttrib;
+   parent_setattrib = object->SetAttrib;
+   object->SetAttrib = SetAttrib;
+   parent_testattrib = object->TestAttrib;
+   object->TestAttrib = TestAttrib;
 
    parent_mapsplit = mapping->MapSplit;
    mapping->MapSplit = MapSplit;
@@ -5053,6 +5097,382 @@ static int GetTranInverse( AstMapping *this, int *status ) {
 
 }
 
+#ifdef AST_HAVE_SIMD
+static int MatrixChunkSize( int ncoord_in, int ncoord_out ) {
+/* Return the number of points to process per chunk for the FULL MatrixMap
+   SIMD path.  Sizes the chunk so that the input and output sub-arrays for
+   the chunk--(ncoord_in + ncoord_out) * chunk doubles--fit within half
+   the L2 cache.  Uses astCPUCacheSize to detect the L2 size.
+   Clamped to [64, 65536]. */
+   long bytes_per_point;
+   int chunk;
+   bytes_per_point = (long)( ncoord_in + ncoord_out ) * (long)sizeof(double);
+   chunk = (int)( astCPUCacheSize(2) / 2L / bytes_per_point );
+   if( chunk < 64 ) chunk = 64;
+   if( chunk > 65536 ) chunk = 65536;
+   return chunk;
+}
+#endif /* AST_HAVE_SIMD */
+
+static void TransformLoopScalar( AstMapping *this, int forward, int npoint,
+                                 int ncoord_in, int ncoord_out,
+                                 double **ptr_in, double **ptr_out,
+                                 int *status ) {
+/*
+*  Name:
+*     TransformLoopScalar
+
+*  Purpose:
+*     Scalar (non-SIMD) inner loop for MatrixMap Transform.
+
+*  Description:
+*     Implements FULL, DIAGONAL, and UNIT matrix transforms using scalar
+*     loops.  Called directly (non-SIMD build) or as a fallback from
+*     TransformLoopSIMD when UseSIMD=0 or a bad matrix element is found.
+*/
+
+/* Local Variables: */
+   AstMatrixMap *map;            /* Pointer to MatrixMap */
+   double diag_term;             /* Diagonal element value */
+   double *indata;               /* Input data pointer */
+   double *matrix;               /* Matrix element array */
+   double *matrix_element;       /* Current matrix element pointer */
+   double *outdata;              /* Output data pointer */
+   double sum;                   /* Accumulator */
+   double val;                   /* Single input value */
+   int in_coord;                 /* Input coordinate index */
+   int nax;                      /* Min(ncoord_in, ncoord_out) */
+   int out_coord;                /* Output coordinate index */
+   int point;                    /* Point index */
+
+   if( !astOK )
+      return;
+
+   map = (AstMatrixMap *) this;
+   matrix = forward ? map->f_matrix : map->i_matrix;
+
+   if( map->form == FULL ) {
+      for( point = 0; point < npoint; point++ ) {
+         matrix_element = matrix;
+         for( out_coord = 0; out_coord < ncoord_out; out_coord++ ) {
+            sum = 0.0;
+            for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
+               if( ( ptr_in[ in_coord ][ point ] == AST__BAD &&
+                                      (*matrix_element) != 0.0 ) ||
+                   (*matrix_element) == AST__BAD ) {
+                  sum = AST__BAD;
+                  matrix_element += ncoord_in - in_coord;
+                  break;
+               } else {
+                  if( ptr_in[ in_coord ][ point ] != AST__BAD )
+                     sum += ptr_in[ in_coord ][ point ] * (*matrix_element);
+                  matrix_element++;
+               }
+            }
+            ptr_out[ out_coord ][ point ] = sum;
+         }
+      }
+
+   } else {
+      nax = ( ncoord_in < ncoord_out ) ? ncoord_in : ncoord_out;
+
+      if( map->form == UNIT ) {
+         for( out_coord = 0; out_coord < nax; out_coord++ )
+            (void) memcpy( ptr_out[ out_coord ],
+                           (const void *) ptr_in[ out_coord ],
+                           sizeof(double) * (size_t) npoint );
+      } else {
+         for( out_coord = 0; out_coord < nax; out_coord++ ) {
+            diag_term = matrix[ out_coord ];
+            outdata = ptr_out[ out_coord ];
+            indata  = ptr_in[ out_coord ];
+            if( diag_term != AST__BAD ) {
+               for( point = 0; point < npoint; point++ ) {
+                  val = *(indata++);
+                  *(outdata++) = ( val != AST__BAD ) ? diag_term * val : AST__BAD;
+               }
+            } else {
+               for( point = 0; point < npoint; point++ )
+                  *(outdata++) = AST__BAD;
+            }
+         }
+      }
+
+      if( nax < ncoord_out ) {
+         outdata = ptr_out[ nax ];
+         for( point = 0; point < npoint; point++ ) *(outdata++) = 0.0;
+         outdata = ptr_out[ nax ];
+         for( out_coord = nax + 1; out_coord < ncoord_out; out_coord++ )
+            (void) memcpy( ptr_out[ out_coord ], (const void *) outdata,
+                           sizeof(double) * (size_t) npoint );
+      }
+   }
+
+/* Suppress unused-variable warning. */
+   (void) map;
+}
+
+#ifdef AST_HAVE_SIMD
+
+static void TransformLoopSIMD( AstMapping *this, int forward, int npoint,
+                               int ncoord_in, int ncoord_out,
+                               double **ptr_in, double **ptr_out, int *status ) {
+/*
+*  Name:
+*     TransformLoopSIMD
+
+*  Purpose:
+*     SIMD-vectorised inner loop for MatrixMap Transform.
+
+*  Description:
+*     FULL matrix: reorders loops to put points innermost, uses L2-aware
+*     chunking, and emits VFMADD via #pragma omp simd.  Falls back to the
+*     scalar path if any matrix element is AST__BAD or UseSIMD=0.
+*     DIAGONAL matrix: branchless VCMPPD + VBLENDVPD + VMULPD blend.
+*     UNIT matrix: simple memcpy (identical to scalar).
+*/
+
+/* Local Variables: */
+   AstMatrixMap *map;            /* Pointer to MatrixMap */
+   double *matrix;               /* Matrix element array */
+   double *indata;               /* Input data for diagonal path */
+   double *outdata;              /* Output data for diagonal path */
+   double diag_term;             /* Diagonal element */
+   double val;                   /* Single point value (diagonal path) */
+   int chunk_n;                  /* Points in current chunk */
+   int chunk_size;               /* L2-aware chunk size */
+   int chunk_start;              /* First point of current chunk */
+   int has_bad_input;            /* True if any input in chunk is AST__BAD */
+   int has_bad_matrix;           /* True if any matrix element is AST__BAD */
+   int in_coord;                 /* Input coordinate index */
+   int idx;                      /* Loop counter in chunk */
+   int nax;                      /* Min(ncoord_in, ncoord_out) */
+   int ntot;                     /* Total matrix elements */
+   int out_coord;                /* Output coordinate index */
+   int point;                    /* Point index (for fixup pass) */
+   int started;                  /* Output accumulator initialised */
+
+   if( !astOK )
+      return;
+
+   map = (AstMatrixMap *) this;
+
+/* Fall back if UseSIMD disabled. */
+   if( map->use_simd == 0 ) {
+      TransformLoopScalar( this, forward, npoint, ncoord_in, ncoord_out,
+                           ptr_in, ptr_out, status );
+      return;
+   }
+
+   matrix = forward ? map->f_matrix : map->i_matrix;
+
+   if( map->form == FULL ) {
+/* Upfront check for bad matrix elements--fall back to scalar if found. */
+      has_bad_matrix = 0;
+      ntot = ncoord_out * ncoord_in;
+      for( idx = 0; idx < ntot && !has_bad_matrix; idx++ )
+         has_bad_matrix = ( matrix[ idx ] == AST__BAD );
+
+      if( has_bad_matrix ) {
+         TransformLoopScalar( this, forward, npoint, ncoord_in, ncoord_out,
+                              ptr_in, ptr_out, status );
+         return;
+      }
+
+/* Chunked SIMD accumulation. */
+      chunk_size = MatrixChunkSize( ncoord_in, ncoord_out );
+
+      for( chunk_start = 0; chunk_start < npoint; chunk_start += chunk_size ) {
+         chunk_n = npoint - chunk_start;
+         if( chunk_n > chunk_size ) chunk_n = chunk_size;
+
+/* Compute each output coordinate in a single pass over the chunk: the first
+   contributing term initialises the accumulator (avoiding a separate zeroing
+   pass and a read-modify-write), and the rest are fused in. */
+         for( out_coord = 0; out_coord < ncoord_out; out_coord++ ) {
+            double *pout = ptr_out[ out_coord ] + chunk_start;
+            started = 0;
+            for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
+               double m = matrix[ out_coord * ncoord_in + in_coord ];
+
+               if( m == 0.0 )
+                  continue;
+
+               double *pin = ptr_in[ in_coord ] + chunk_start;
+               if( !started ) {
+                  #pragma omp simd
+                  for( idx = 0; idx < chunk_n; idx++ )
+                     pout[ idx ] = m * pin[ idx ];
+                  started = 1;
+               } else {
+                  #pragma omp simd
+                  for( idx = 0; idx < chunk_n; idx++ )
+                     pout[ idx ] += m * pin[ idx ];
+               }
+            }
+            if( !started ) {
+               #pragma omp simd
+               for( idx = 0; idx < chunk_n; idx++ )
+                  pout[ idx ] = 0.0;
+            }
+         }
+
+/* Fixup: propagating AST__BAD for bad inputs is only needed if the chunk
+   actually contains a bad input.  Detect that with a vectorised scan (the
+   inputs are still hot in cache from the accumulation above) and run the
+   scalar propagation only when necessary -- typical data has no bad values. */
+         has_bad_input = 0;
+         for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
+            double *pin = ptr_in[ in_coord ] + chunk_start;
+            int col_bad = 0;
+            #pragma omp simd reduction(|:col_bad)
+            for( idx = 0; idx < chunk_n; idx++ )
+               col_bad |= ( pin[ idx ] == AST__BAD );
+            has_bad_input |= col_bad;
+         }
+
+         if( has_bad_input ) {
+            for( idx = 0; idx < chunk_n; idx++ ) {
+               point = chunk_start + idx;
+               for( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
+                  if( ptr_in[ in_coord ][ point ] == AST__BAD ) {
+                     for( out_coord = 0; out_coord < ncoord_out; out_coord++ )
+                        if( matrix[ out_coord * ncoord_in + in_coord ] != 0.0 )
+                           ptr_out[ out_coord ][ point ] = AST__BAD;
+                  }
+               }
+            }
+         }
+      }
+
+   } else {
+      nax = ( ncoord_in < ncoord_out ) ? ncoord_in : ncoord_out;
+
+      if( map->form == UNIT ) {
+         for( out_coord = 0; out_coord < nax; out_coord++ )
+            (void) memcpy( ptr_out[ out_coord ],
+                           (const void *) ptr_in[ out_coord ],
+                           sizeof(double) * (size_t) npoint );
+      } else {
+         for( out_coord = 0; out_coord < nax; out_coord++ ) {
+            diag_term = matrix[ out_coord ];
+            outdata = ptr_out[ out_coord ];
+            indata  = ptr_in[ out_coord ];
+            if( diag_term != AST__BAD ) {
+/* Branchless VCMPPD + VBLENDVPD + VMULPD blend. */
+               #pragma omp simd
+               for( point = 0; point < npoint; point++ ) {
+                  val = indata[ point ];
+                  outdata[ point ] = ( val != AST__BAD ) ? diag_term * val : AST__BAD;
+               }
+            } else {
+               for( point = 0; point < npoint; point++ )
+                  *(outdata++) = AST__BAD;
+            }
+         }
+      }
+
+      if( nax < ncoord_out ) {
+         outdata = ptr_out[ nax ];
+         for( point = 0; point < npoint; point++ ) *(outdata++) = 0.0;
+         outdata = ptr_out[ nax ];
+         for( out_coord = nax + 1; out_coord < ncoord_out; out_coord++ )
+            (void) memcpy( ptr_out[ out_coord ], (const void *) outdata,
+                           sizeof(double) * (size_t) npoint );
+      }
+   }
+
+/* Suppress unused-variable warning. */
+   (void) map;
+}
+
+#endif /* AST_HAVE_SIMD */
+
+static void ClearAttrib( AstObject *this_object, const char *attrib,
+                          int *status ) {
+   AstMatrixMap *this = (AstMatrixMap *) this_object;
+
+   if ( !astOK )
+      return;
+
+   if ( !strcmp( attrib, "usesimd" ) ) {
+      this->use_simd = -1;
+   } else {
+      (*parent_clearattrib)( this_object, attrib, status );
+   }
+}
+
+static const char *GetAttrib( AstObject *this_object, const char *attrib,
+                               int *status ) {
+   astDECLARE_GLOBALS
+   AstMatrixMap *this = (AstMatrixMap *) this_object;
+   const char *result = NULL;
+   int ival;
+
+   if ( !astOK )
+      return result;
+
+   astGET_GLOBALS(this_object);
+
+   if ( !strcmp( attrib, "usesimd" ) ) {
+#ifdef AST_HAVE_SIMD
+      ival = ( this->use_simd == -1 ) ? 1 : this->use_simd;
+#else
+      ival = ( this->use_simd == -1 ) ? 0 : this->use_simd;
+#endif
+      (void) sprintf( getattrib_buff, "%d", ival );
+      result = getattrib_buff;
+   } else {
+      result = (*parent_getattrib)( this_object, attrib, status );
+   }
+   return result;
+}
+
+static void SetAttrib( AstObject *this_object, const char *setting,
+                        int *status ) {
+   AstMatrixMap *this = (AstMatrixMap *) this_object;
+   int ival;
+   int len;
+   int nc;
+
+   if ( !astOK )
+      return;
+
+   len = (int) strlen( setting );
+
+   if ( nc = 0,
+        ( 1 == astSscanf( setting, "usesimd= %d %n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+#ifndef AST_HAVE_SIMD
+      if( ival ) {
+         astError( AST__ATSER, "astSet(%s): SIMD support was not compiled in "
+                   "(rebuild with AST_ENABLE_SIMD=ON).", status,
+                   astGetClass( this ) );
+      } else {
+         this->use_simd = 0;
+      }
+#else
+      this->use_simd = ival ? 1 : 0;
+#endif
+   } else {
+      (*parent_setattrib)( this_object, setting, status );
+   }
+}
+
+static int TestAttrib( AstObject *this_object, const char *attrib,
+                        int *status ) {
+   AstMatrixMap *this = (AstMatrixMap *) this_object;
+
+   if ( !astOK )
+      return 0;
+
+   if ( !strcmp( attrib, "usesimd" ) ) {
+      return ( this->use_simd != -1 );
+   } else {
+      return (*parent_testattrib)( this_object, attrib, status );
+   }
+}
+
 static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                                int forward, AstPointSet *out, int *status ) {
 /*
@@ -5075,8 +5495,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     method inherited from the Mapping class).
 
 *  Description:
-*     This function takes a MatrixMap and a set of points encapsulated in a
-*     PointSet and transforms the points by multiplying them by the matrix.
+*     Thin wrapper: validates arguments, creates the output PointSet, then
+*     delegates to the TransformLoop vtable slot (TransformLoopSIMD or
+*     TransformLoopScalar depending on compilation flags and the UseSIMD
+*     attribute).
 
 *  Parameters:
 *     this
@@ -5110,179 +5532,37 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 */
 
 /* Local Variables: */
+   AstMatrixMap *map;            /* Pointer to MatrixMap */
+   AstMatrixMapVtab *vtab;       /* Class virtual function table */
    AstPointSet *result;          /* Pointer to output PointSet */
-   AstMatrixMap *map;            /* Pointer to MatrixMap to be applied */
-   double diag_term;             /* Current diagonal element value */
-   double *indata;               /* Pointer to next input data value */
-   double *matrix;               /* Pointer to start of matrix element array */
-   double *matrix_element;       /* Pointer to current matrix element value */
-   double *outdata;              /* Pointer to next output data value */
    double **ptr_in;              /* Pointer to input coordinate data */
    double **ptr_out;             /* Pointer to output coordinate data */
-   double sum;                   /* Partial output value */
-   double val;                   /* Data value */
-   int in_coord;                 /* Index of output coordinate */
-   int nax;                      /* Output axes for which input axes exist */
-   int ncoord_in;                /* Number of coordinates per input point */
-   int ncoord_out;               /* Number of coordinates per output point */
+   int ncoord_in;                /* Number of input coordinates */
+   int ncoord_out;               /* Number of output coordinates */
    int npoint;                   /* Number of points */
-   int out_coord;                /* Index of output coordinate */
-   int point;                    /* Loop counter for points */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
 
-/* Obtain a pointer to the MatrixMap. */
    map = (AstMatrixMap *) this;
 
-/* Apply the parent mapping using the stored pointer to the Transform member
-   function inherited from the parent Mapping class. This function validates
-   all arguments and generates an output PointSet if necessary, but does not
-   actually transform any coordinate values. */
+/* Validate arguments and create the output PointSet. */
    result = (*parent_transform)( this, in, forward, out, status );
 
-/* We will now extend the parent astTransform method by performing the
-   calculations needed to generate the output coordinate values. */
+/* Correct for the Invert flag. */
+   if ( astGetInvert( map ) )
+      forward = !forward;
 
-/* Determine the numbers of points and coordinates per point from the input
-   and output PointSets and obtain pointers for accessing the input and
-   output coordinate values. */
    ncoord_in = astGetNcoord( in );
    ncoord_out = astGetNcoord( result );
    npoint = astGetNpoint( in );
    ptr_in = astGetPoints( in );
    ptr_out = astGetPoints( result );
 
-/* Determine whether to apply the forward or inverse mapping, according to the
-   direction specified and whether the mapping has been inverted. */
-   if ( astGetInvert( map ) ) forward = !forward;
-
-/* Get a pointer to the array holding the required matrix elements, according
-   to the direction of mapping required. */
-   if ( forward ) {
-      matrix = map->f_matrix;
-   } else {
-      matrix = map->i_matrix;
-   }
-
-/* Perform coordinate arithmetic. */
-/* ------------------------------ */
-   if ( astOK ) {
-
-/* First deal with full MatrixMaps in which all matrix elements are stored. */
-      if( map->form == FULL ){
-
-/* Loop to apply the matrix to each point in turn, checking for
-   (and propagating) bad values in the process. The matrix elements are
-   accessed sequentially in row order. The next matrix element to be
-   used is identified by a pointer which is initialised to point to the
-   first element of the matrix prior to processing each point. */
-         for ( point = 0; point < npoint; point++ ) {
-            matrix_element = matrix;
-
-/* Each output co-ordinate value is created by summing the product of the
-   corresponding input co-ordinates and the elements of one row of the
-   matrix. */
-            for ( out_coord = 0; out_coord < ncoord_out; out_coord++ ) {
-               sum = 0.0;
-
-               for ( in_coord = 0; in_coord < ncoord_in; in_coord++ ) {
-
-/*  Check the current input coordinate value and the current matrix element.
-    If the coordinate value is bad, then the output value will also be
-    bad unless the matrix element is zero. That is, a zero matrix element
-    results in the input coordinate value being ignored, even if it is bad.
-    This prevents bad input values being propagated to output axes which
-    are independant of the bad input axis. A bad matrix element always results
-    in the output value being bad. In either of these cases, break out of the
-    loop, remembering to advance the pointer to the next matrix element so
-    that it points to the start of the next row ready for doing the next
-    output coordinate. */
-                  if ( ( ptr_in[ in_coord ][ point ] == AST__BAD &&
-                                         (*matrix_element) != 0.0 ) ||
-                       (*matrix_element) == AST__BAD ) {
-                     sum = AST__BAD;
-                     matrix_element += ncoord_in - in_coord;
-                     break;
-
-/*  If the input coordinate and the current matrix element are both
-    valid, increment the sum by their product, and step to the next matrix
-    element pointer If we arrive here with a bad input value, then the
-    matrix element must be zero, in which case the running sum is left
-    unchanged. */
-                  } else {
-                     if ( ptr_in[ in_coord ][ point ] != AST__BAD ) {
-                        sum += ptr_in[ in_coord ][ point ] * (*matrix_element);
-                     }
-                     matrix_element++;
-                  }
-               }
-
-/*  Store the output coordinate value. */
-               ptr_out[ out_coord ][ point ] = sum;
-
-            }
-
-         }
-
-/* Now deal with unit and diagonal MatrixMaps. */
-      } else {
-
-/* Find the number of output axes for which input data is available. */
-         if( ncoord_in < ncoord_out ){
-            nax = ncoord_in;
-         } else {
-            nax = ncoord_out;
-         }
-
-/* For unit matrices, copy the input axes to the corresponding output axes. */
-         if( map->form == UNIT ){
-            for( out_coord = 0; out_coord < nax; out_coord++ ) {
-               (void) memcpy( ptr_out[ out_coord ],
-                              (const void *) ptr_in[ out_coord ],
-                              sizeof( double )*(size_t)npoint );
-            }
-
-/* For diagonal matrices, scale each input axis using the appropriate
-   diagonal element from the matrix, and store in the output. */
-         } else {
-            for( out_coord = 0; out_coord < nax; out_coord++ ){
-               diag_term = matrix[ out_coord ];
-               outdata = ptr_out[ out_coord ];
-               indata = ptr_in[ out_coord ];
-
-               if( diag_term != AST__BAD ){
-                  for( point = 0; point < npoint; point++ ){
-                     val = *(indata++);
-                     if( val != AST__BAD ){
-                        *(outdata++) = diag_term*val;
-                     } else {
-                        *(outdata++) = AST__BAD;
-                     }
-                  }
-
-               } else {
-                  for( point = 0; point < npoint; point++ ){
-                     *(outdata++) = AST__BAD;
-                  }
-               }
-            }
-         }
-
-/* If there are any remaining output axes, fill the first one with zeros. */
-         if( nax < ncoord_out ){
-            outdata = ptr_out[ nax ];
-            for( point = 0; point < npoint; point++ ) *(outdata++) = 0.0;
-
-/* Copy this axis to any remaining output axes. */
-            outdata = ptr_out[ nax ];
-            for( out_coord = nax + 1; out_coord < ncoord_out; out_coord++ ) {
-               (void) memcpy( ptr_out[ out_coord ], (const void *) outdata,
-                              sizeof( double )*(size_t)npoint );
-            }
-         }
-      }
-   }
+   vtab = (AstMatrixMapVtab *) astVTAB( this );
+   if( astOK )
+      vtab->TransformLoop( this, forward, npoint, ncoord_in, ncoord_out,
+                           ptr_in, ptr_out, status );
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -6068,6 +6348,7 @@ AstMatrixMap *astInitMatrixMap_( void *mem, size_t size, int init,
          new->f_matrix = fmat;
          new->i_matrix = imat;
          new->det = det;
+         new->use_simd = -1;
 
 /* Attempt to compress the MatrixMap into DIAGONAL or UNIT form. */
          CompressMatrix( new, status );
@@ -6282,6 +6563,9 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
             }
          }
       }
+
+/* UseSIMD is a runtime tuning attribute; not persisted. Default at load. */
+      new->use_simd = -1;
 
 /* If an error occurred, clean up by deleting the new MatrixMap. */
       if ( !astOK ) new = astDelete( new );

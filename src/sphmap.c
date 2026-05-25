@@ -88,6 +88,16 @@ f     The SphMap class does not define any new routines beyond those
 *     8-MAY-20206 (DSB):
 *        Fix bug in MapMerge - UnitMap that replaces back to back SphMaps
 *        was not taking account of the direction of the two SphMaps.
+*     2-JUN-2026 (EMB):
+*        Add optional SIMD-vectorised transform path.  Factor the point loop
+*        out of Transform into TransformLoopScalar and TransformLoopSIMD,
+*        selected via a new TransformLoop vtable slot, leaving Transform as a
+*        thin wrapper.  TransformLoopSIMD uses a two-pass approach: inlined
+*        atan2/sqrt (forward) and sin/cos (inverse) under #pragma omp simd so
+*        GCC routes them through libmvec, followed by a scalar fixup pass for
+*        bad values and poles.  Add a UseSIMD attribute (default 1 when SIMD
+*        is available, 0 otherwise) for runtime selection of the scalar path
+*        for testing or correctness purposes.
 *class--
 */
 
@@ -126,6 +136,7 @@ f     The SphMap class does not define any new routines beyond those
 /* C header files. */
 /* --------------- */
 #include <float.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -196,6 +207,12 @@ static int TestPolarLong( AstSphMap *, int * );
 static void ClearPolarLong( AstSphMap *, int * );
 static void SetPolarLong( AstSphMap *, double, int * );
 
+static void TransformLoopScalar( AstMapping *, int, int, int, int,
+                                 double **, double **, int * );
+#ifdef AST_HAVE_SIMD
+static void TransformLoopSIMD( AstMapping *, int, int, int, int,
+                               double **, double **, int * );
+#endif
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
 static int Equal( AstObject *, AstObject *, int * );
@@ -263,6 +280,11 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* --------- */
    } else if ( !strcmp( attrib, "polarlong" ) ) {
       astClearPolarLong( this );
+
+/* UseSIMD */
+/* ------- */
+   } else if ( !strcmp( attrib, "usesimd" ) ) {
+      this->use_simd = -1;
 
 /* If the attribute is still not recognised, pass it on to the parent
    method for further interpretation. */
@@ -456,6 +478,19 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
          result = getattrib_buff;
       }
 
+/* UseSIMD */
+/* ------- */
+   } else if ( !strcmp( attrib, "usesimd" ) ) {
+#ifdef AST_HAVE_SIMD
+      ival = ( this->use_simd == -1 ) ? 1 : this->use_simd;
+#else
+      ival = ( this->use_simd == -1 ) ? 0 : this->use_simd;
+#endif
+      if ( astOK ) {
+         (void) sprintf( getattrib_buff, "%d", ival );
+         result = getattrib_buff;
+      }
+
 /* If the attribute name was not recognised, pass it on to the parent
    method for further interpretation. */
    } else {
@@ -537,6 +572,12 @@ void astInitSphMapVtab_(  AstSphMapVtab *vtab, const char *name, int *status ) {
    vtab->SetPolarLong = SetPolarLong;
    vtab->GetPolarLong = GetPolarLong;
    vtab->TestPolarLong = TestPolarLong;
+
+#ifdef AST_HAVE_SIMD
+   vtab->TransformLoop = TransformLoopSIMD;
+#else
+   vtab->TransformLoop = TransformLoopScalar;
+#endif
 
 /* Save the inherited pointers to methods that will be extended, and
    replace them with pointers to the new member functions. */
@@ -1034,6 +1075,23 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
         && ( nc >= len ) ) {
       astSetPolarLong( this, dval );
 
+/* UseSIMD */
+/* ------- */
+   } else if ( nc = 0,
+        ( 1 == astSscanf( setting, "usesimd= %d %n", &ival, &nc ) )
+        && ( nc >= len ) ) {
+#ifndef AST_HAVE_SIMD
+      if( ival ) {
+         astError( AST__ATSER, "astSet(%s): SIMD support was not compiled in "
+                   "(rebuild with AST_ENABLE_SIMD=ON).", status,
+                   astGetClass( this ) );
+      } else {
+         this->use_simd = 0;
+      }
+#else
+      this->use_simd = ival ? 1 : 0;
+#endif
+
 /* If the attribute is still not recognised, pass it on to the parent
    method for further interpretation. */
    } else {
@@ -1107,6 +1165,11 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
    } else if ( !strcmp( attrib, "polarlong" ) ) {
       result = astTestPolarLong( this );
 
+/* UseSIMD */
+/* ------- */
+   } else if ( !strcmp( attrib, "usesimd" ) ) {
+      result = ( this->use_simd != -1 );
+
 /* If the attribute is still not recognised, pass it on to the parent
    method for further interpretation. */
    } else {
@@ -1116,6 +1179,222 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* Return the result, */
    return result;
 }
+
+static void TransformLoopScalar( AstMapping *this, int forward, int npoint,
+                                 int ncoord_in, int ncoord_out,
+                                 double **ptr_in, double **ptr_out,
+                                 int *status ) {
+/*
+*  Name:
+*     TransformLoopScalar
+
+*  Purpose:
+*     Scalar (non-SIMD) inner loop for SphMap Transform.
+
+*  Description:
+*     Implements the scalar point-by-point evaluation path for forward
+*     (Cartesian->spherical) and inverse (spherical->Cartesian) SphMap
+*     transforms.  Called either directly from Transform (when SIMD is
+*     absent or UseSIMD=0) or as a fallback from TransformLoopSIMD.
+*/
+
+/* Local Variables: */
+   AstSphMap *map;               /* Pointer to SphMap */
+   double *p0;                   /* x / longitude input */
+   double *p1;                   /* y / latitude input */
+   double *p2;                   /* z input (forward only) */
+   double *q0;                   /* longitude / x output */
+   double *q1;                   /* latitude / y output */
+   double *q2;                   /* z output (inverse only) */
+   double mxerr;                 /* Threshold for pole detection */
+   double polarlong;             /* PolarLong attribute value */
+   double v[3];                  /* Single-point work vector */
+   int point;                    /* Per-point loop counter */
+
+   if( !astOK )
+      return;
+
+   map = (AstSphMap *) this;
+
+   if( forward ){
+      polarlong = astGetPolarLong( this );
+      p0 = ptr_in[ 0 ];
+      p1 = ptr_in[ 1 ];
+      p2 = ptr_in[ 2 ];
+      q0 = ptr_out[ 0 ];
+      q1 = ptr_out[ 1 ];
+      for( point = 0; point < npoint; point++ ){
+         if( *p0 != AST__BAD && *p1 != AST__BAD && *p2 != AST__BAD ){
+            v[0] = *p0;
+            v[1] = *p1;
+            v[2] = *p2;
+            mxerr = fabs( 1000.0*v[ 2 ] )*DBL_EPSILON;
+
+            if( fabs( v[ 0 ] ) < mxerr && fabs( v[ 1 ] ) < mxerr ) {
+               if( v[ 2 ] < 0.0 ) {
+                  *(q0++) = polarlong;
+                  *(q1++) = -AST__DPIBY2;
+               } else if( v[ 2 ] > 0.0 ) {
+                  *(q0++) = polarlong;
+                  *(q1++) = AST__DPIBY2;
+               } else {
+                  *(q0++) = AST__BAD;
+                  *(q1++) = AST__BAD;
+               }
+            } else {
+               palDcc2s( v, q0++, q1++ );
+            }
+         } else {
+            *(q0++) = AST__BAD;
+            *(q1++) = AST__BAD;
+         }
+         p0++;
+         p1++;
+         p2++;
+      }
+   } else {
+      q0 = ptr_in[ 0 ];
+      q1 = ptr_in[ 1 ];
+      p0 = ptr_out[ 0 ];
+      p1 = ptr_out[ 1 ];
+      p2 = ptr_out[ 2 ];
+      for( point = 0; point < npoint; point++ ){
+         if( *q0 != AST__BAD && *q1 != AST__BAD ){
+            palDcs2c( *q0, *q1, v );
+            *(p0++) = v[ 0 ];
+            *(p1++) = v[ 1 ];
+            *(p2++) = v[ 2 ];
+         } else {
+            *(p0++) = AST__BAD;
+            *(p1++) = AST__BAD;
+            *(p2++) = AST__BAD;
+         }
+         q0++;
+         q1++;
+      }
+   }
+
+/* Suppress unused parameter warnings. */
+   (void) map;
+   (void) q2;
+   (void) ncoord_in;
+   (void) ncoord_out;
+}
+
+#ifdef AST_HAVE_SIMD
+static void TransformLoopSIMD( AstMapping *this, int forward, int npoint,
+                               int ncoord_in, int ncoord_out,
+                               double **ptr_in, double **ptr_out, int *status ) {
+/*
+*  Name:
+*     TransformLoopSIMD
+
+*  Purpose:
+*     SIMD-vectorised inner loop for SphMap Transform.
+
+*  Description:
+*     Two-pass approach: a #pragma omp simd pass dispatches atan2/sqrt
+*     (forward) or sin/cos (inverse) through libmvec, followed by a scalar
+*     fixup pass for bad values and poles.  Falls back to TransformLoopScalar
+*     for small batches (N < 8) or when UseSIMD is 0.
+*/
+
+/* Local Variables: */
+   double *p0;                   /* x / longitude input */
+   double *p1;                   /* y / latitude input */
+   double *p2;                   /* z input (forward only) */
+   double *q0;                   /* longitude / x output */
+   double *q1;                   /* latitude / y output */
+   double mxerr;                 /* Threshold for pole detection */
+   double polarlong;             /* PolarLong attribute value */
+   int point;                    /* Per-point loop counter */
+
+/* Fall back for small N or when UseSIMD is disabled. */
+   {
+      AstSphMap *map = (AstSphMap *) this;
+      int use_simd = ( map->use_simd == -1 ) ? 1 : map->use_simd;
+      if( npoint < 8 || !use_simd ) {
+         TransformLoopScalar( this, forward, npoint, ncoord_in, ncoord_out,
+                              ptr_in, ptr_out, status );
+         return;
+      }
+   }
+
+   if( forward ){
+      polarlong = astGetPolarLong( this );
+      p0 = ptr_in[ 0 ];
+      p1 = ptr_in[ 1 ];
+      p2 = ptr_in[ 2 ];
+      q0 = ptr_out[ 0 ];
+      q1 = ptr_out[ 1 ];
+
+/* speculative trig on all points via libmvec. */
+      #pragma omp simd
+      for( point = 0; point < npoint; point++ ) {
+         double x = p0[ point ];
+         double y = p1[ point ];
+         double z = p2[ point ];
+         double d2 = x*x + y*y;
+         q0[ point ] = atan2( y, x );
+         q1[ point ] = atan2( z, sqrt( d2 ) );
+      }
+
+/* scalar fixup for bad inputs and poles. */
+      for( point = 0; point < npoint; point++ ) {
+         if( p0[ point ] == AST__BAD || p1[ point ] == AST__BAD ||
+             p2[ point ] == AST__BAD ) {
+            q0[ point ] = AST__BAD;
+            q1[ point ] = AST__BAD;
+         } else {
+            mxerr = fabs( 1000.0*p2[ point ] )*DBL_EPSILON;
+            if( fabs( p0[ point ] ) < mxerr && fabs( p1[ point ] ) < mxerr ) {
+               if( p2[ point ] < 0.0 ) {
+                  q0[ point ] = polarlong;
+                  q1[ point ] = -AST__DPIBY2;
+               } else if( p2[ point ] > 0.0 ) {
+                  q0[ point ] = polarlong;
+                  q1[ point ] = AST__DPIBY2;
+               } else {
+                  q0[ point ] = AST__BAD;
+                  q1[ point ] = AST__BAD;
+               }
+            }
+         }
+      }
+
+   } else {
+      q0 = ptr_in[ 0 ];
+      q1 = ptr_in[ 1 ];
+      p0 = ptr_out[ 0 ];
+      p1 = ptr_out[ 1 ];
+      p2 = ptr_out[ 2 ];
+
+/* speculative sin/cos on all points via libmvec. */
+      #pragma omp simd
+      for( point = 0; point < npoint; point++ ) {
+         double theta = q0[ point ];
+         double phi   = q1[ point ];
+         double cp = cos( phi );
+         p0[ point ] = cos( theta ) * cp;
+         p1[ point ] = sin( theta ) * cp;
+         p2[ point ] = sin( phi );
+      }
+
+/* overwrite bad-input outputs. */
+      for( point = 0; point < npoint; point++ ) {
+         if( q0[ point ] == AST__BAD || q1[ point ] == AST__BAD ) {
+            p0[ point ] = AST__BAD;
+            p1[ point ] = AST__BAD;
+            p2[ point ] = AST__BAD;
+         }
+      }
+   }
+
+/* Suppress unused parameter warnings. */
+   (void) ncoord_in;
+   (void) ncoord_out;
+}
+#endif /* AST_HAVE_SIMD */
 
 static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                                int forward, AstPointSet *out, int *status ) {
@@ -1132,16 +1411,17 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *  Synopsis:
 *     #include "sphmap.h"
 *     AstPointSet *Transform( AstMapping *this, AstPointSet *in,
-*                             int forward, AstPointSet *out, int *status, int *status )
+*                             int forward, AstPointSet *out, int *status )
 
 *  Class Membership:
 *     SphMap member function (over-rides the astTransform protected
 *     method inherited from the Mapping class).
 
 *  Description:
-*     This function takes a SphMap and a set of points encapsulated in a
-*     PointSet and transforms the points from Cartesian coordinates to
-*     spherical coordinates.
+*     Thin wrapper: validates arguments, creates the output PointSet, then
+*     delegates to the TransformLoop vtable slot (TransformLoopSIMD or
+*     TransformLoopScalar depending on compilation flags and the UseSIMD
+*     attribute).
 
 *  Parameters:
 *     this
@@ -1156,8 +1436,6 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *        Pointer to a PointSet which will hold the transformed (output)
 *        coordinate values. A NULL value may also be given, in which case a
 *        new PointSet will be created by this function.
-*     status
-*        Pointer to the inherited status variable.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -1176,133 +1454,34 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* Local Variables: */
    AstPointSet *result;          /* Pointer to output PointSet */
-   AstSphMap *map;               /* Pointer to SphMap to be applied */
+   AstSphMapVtab *vtab;          /* Pointer to class vtable */
    double **ptr_in;              /* Pointer to input coordinate data */
    double **ptr_out;             /* Pointer to output coordinate data */
+   int ncoord_in;                /* Number of input coordinates */
+   int ncoord_out;               /* Number of output coordinates */
    int npoint;                   /* Number of points */
-   int point;                    /* Loop counter for points */
-   double *p0;                   /* Pointer to x axis value */
-   double *p1;                   /* Pointer to y axis value */
-   double *p2;                   /* Pointer to z axis value */
-   double *q0;                   /* Pointer to longitude value */
-   double *q1;                   /* Pointer to latitude value */
-   double mxerr;                 /* Largest value which is effectively zero */
-   double polarlong;             /* Longitude at either pole */
-   double v[3];                  /* Vector for a single point */
 
 /* Check the global error status. */
-   if ( !astOK ) return NULL;
+   if ( !astOK )
+      return NULL;
 
-/* Obtain a pointer to the SphMap. */
-   map = (AstSphMap *) this;
-
-/* Apply the parent mapping using the stored pointer to the Transform member
-   function inherited from the parent Mapping class. This function validates
-   all arguments and generates an output PointSet if necessary, but does not
-   actually transform any coordinate values. */
+/* Validate arguments and create the output PointSet. */
    result = (*parent_transform)( this, in, forward, out, status );
 
-/* We will now extend the parent astTransform method by performing the
-   calculations needed to generate the output coordinate values. */
+/* Correct for the Invert flag. */
+   if ( astGetInvert( this ) ) forward = !forward;
 
-/* Determine the numbers of points and coordinates per point from the input
-   PointSet and obtain pointers for accessing the input and output coordinate
-   values. */
    npoint = astGetNpoint( in );
+   ncoord_in = astGetNcoord( in );
+   ncoord_out = astGetNcoord( result );
    ptr_in = astGetPoints( in );
    ptr_out = astGetPoints( result );
 
-/* Determine whether to apply the forward or inverse mapping, according to the
-   direction specified and whether the mapping has been inverted. */
-   if ( astGetInvert( map ) ) forward = !forward;
+   vtab = (AstSphMapVtab *) astVTAB( this );
 
-/* Perform coordinate arithmetic. */
-/* ------------------------------ */
-   if( astOK ){
-
-/* First deal with forward mappings from Cartesian to Spherical. */
-      if( forward ){
-
-/* Get the longitude to return at either pole. */
-         polarlong = astGetPolarLong( this );
-
-/* Store pointers to the input Cartesian axes. */
-         p0 = ptr_in[ 0 ];
-         p1 = ptr_in[ 1 ];
-         p2 = ptr_in[ 2 ];
-
-/* Store pointers to the output Spherical axes. */
-         q0 = ptr_out[ 0 ];
-         q1 = ptr_out[ 1 ];
-
-/* Apply the mapping to every point. */
-         for( point = 0; point < npoint; point++ ){
-            if( *p0 != AST__BAD && *p1 != AST__BAD && *p2 != AST__BAD ){
-               v[0] = *p0;
-               v[1] = *p1;
-               v[2] = *p2;
-
-/* At either pole, return the longitude equal to PolarLong attribute. */
-               mxerr = fabs( 1000.0*v[ 2 ] )*DBL_EPSILON;
-               if( fabs( v[ 0 ] ) < mxerr && fabs( v[ 1 ] ) < mxerr ) {
-                  if( v[ 2 ] < 0.0 ) {
-                     *(q0++) = polarlong;
-                     *(q1++) = -AST__DPIBY2;
-                  } else if( v[ 2 ] > 0.0 ) {
-                     *(q0++) = polarlong;
-                     *(q1++) = AST__DPIBY2;
-                  } else {
-                     *(q0++) = AST__BAD;
-                     *(q1++) = AST__BAD;
-                  }
-
-/* Otherwise use a SLALIB function to do the conversion (SLALIB always
-   returns zero at either pole which is why we make the above check). */
-               } else {
-                  palDcc2s( v, q0++, q1++ );
-               }
-
-            } else {
-               *(q0++) = AST__BAD;
-               *(q1++) = AST__BAD;
-            }
-            p0++;
-            p1++;
-            p2++;
-         }
-
-/* Now deal with inverse mappings from Spherical to Cartesian. */
-      } else {
-
-/* Store pointers to the input Spherical axes. */
-         q0 = ptr_in[ 0 ];
-         q1 = ptr_in[ 1 ];
-
-/* Store pointers to the output Cartesian axes. */
-         p0 = ptr_out[ 0 ];
-         p1 = ptr_out[ 1 ];
-         p2 = ptr_out[ 2 ];
-
-/* Apply the mapping to every point. */
-         for( point = 0; point < npoint; point++ ){
-            if( *q0 != AST__BAD && *q1 != AST__BAD ){
-               palDcs2c( *q0, *q1, v );
-               *(p0++) = v[ 0 ];
-               *(p1++) = v[ 1 ];
-               *(p2++) = v[ 2 ];
-            } else {
-               *(p0++) = AST__BAD;
-               *(p1++) = AST__BAD;
-               *(p2++) = AST__BAD;
-
-            }
-            q0++;
-            q1++;
-         }
-
-      }
-
-   }
+   if( astOK )
+      vtab->TransformLoop( this, forward, npoint, ncoord_in, ncoord_out,
+                           ptr_in, ptr_out, status );
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -1431,6 +1610,37 @@ astMAKE_CLEAR1(SphMap,PolarLong,polarlong,AST__BAD)
 astMAKE_GET(SphMap,PolarLong,double,0.0,(this->polarlong == AST__BAD ? 0.0 : this->polarlong))
 astMAKE_SET1(SphMap,PolarLong,double,polarlong,value)
 astMAKE_TEST(SphMap,PolarLong,( this->polarlong != AST__BAD ))
+
+/* UseSIMD */
+/* -------- */
+/*
+*att++
+*  Name:
+*     UseSIMD
+
+*  Purpose:
+*     Use SIMD-vectorised transform loop.
+
+*  Type:
+*     Public attribute.
+
+*  Synopsis:
+*     Integer (boolean).
+
+*  Description:
+*     This boolean attribute controls whether the SphMap uses a SIMD-
+*     vectorised transform loop (when compiled with AST_ENABLE_SIMD=ON) or
+*     the scalar fallback.  The default is 1 (enabled) when the library was
+*     built with SIMD support and 0 otherwise.  Setting it to 0 forces the
+*     scalar path, which is useful for correctness testing or to avoid the
+*     1-ULP rounding differences introduced by libmvec vector-math functions.
+*     Setting it to 1 when SIMD support is not compiled in is an error.
+
+*  Applicability:
+*     SphMap
+*        All SphMaps have this attribute.
+*att--
+*/
 
 /* Copy constructor. */
 /* ----------------- */
@@ -1895,6 +2105,7 @@ AstSphMap *astInitSphMap_( void *mem, size_t size, int init,
    input vectors are not all of unit length) to be used. */
       new->unitradius = -1;
       new->polarlong = AST__BAD;
+      new->use_simd = -1;
 
    }
 
@@ -2040,6 +2251,7 @@ AstSphMap *astLoadSphMap_( void *mem, size_t size,
 /* ---------- */
       new->polarlong = astReadDouble( channel, "plrlg", AST__BAD );
       if ( TestPolarLong( new, status ) ) SetPolarLong( new, new->polarlong, status );
+      new->use_simd = -1;
 
    }
 
