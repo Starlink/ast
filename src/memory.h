@@ -246,6 +246,7 @@ char *astChrSub_( const char *, const char *, const char *[], int, int * );
 void astChrTrunc_( char *, int * );
 int astBrackets_( const char *, size_t, size_t, char, char, int, size_t *, size_t *, char **, char **, char **, int * );
 void astFandl_( const char *, size_t, size_t, size_t *, size_t *, int * );
+long astCPUCacheSize_( int level );
 
 #ifdef MEM_PROFILE
 void astStartTimer_( const char *, int, const char *, int * );
@@ -276,6 +277,7 @@ void astEndPM_( int * );
 /* ==================== */
 /* These wrap up the functions defined by this module. */
 
+#define astCPUCacheSize(level) astCPUCacheSize_(level)
 #define astCalloc(nmemb,size) astERROR_INVOKE(astCalloc_(nmemb,size,STATUS_PTR))
 #define astChrMatch(str1,str2) astERROR_INVOKE(astChrMatch_(str1,str2,STATUS_PTR))
 #define astChrMatchN(str1,str2,n) astERROR_INVOKE(astChrMatchN_(str1,str2,n,STATUS_PTR))

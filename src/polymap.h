@@ -166,6 +166,7 @@ typedef struct AstPolyMap {
    double tolinverse;         /* Target relative error for iterative inverse */
    struct AstPolyMap **jacobian;/* PolyMaps defining Jacobian of forward transformation */
    AstMapping *lintrunc;      /* A linear truncation of the PolyMap */
+   int use_simd;              /* Use SIMD-vectorised transform? (-1=unset/default) */
 } AstPolyMap;
 
 /* Virtual function table. */
@@ -216,6 +217,9 @@ typedef struct AstPolyMapVtab {
    int (* TestTolInverse)( AstPolyMap *, int * );
    void (* ClearTolInverse)( AstPolyMap *, int * );
    void (* SetTolInverse)( AstPolyMap *, double, int * );
+
+   void (*TransformLoop)( AstMapping *, int, int, int, int,
+                          double **, double **, int * );
 
 } AstPolyMapVtab;
 
@@ -292,6 +296,7 @@ void astShowPoly_( AstPolyMap *, int * );
    int astTestTolInverse_( AstPolyMap *, int * );
    void astClearTolInverse_( AstPolyMap *, int * );
    void astSetTolInverse_( AstPolyMap *, double, int * );
+
 #endif
 
 
