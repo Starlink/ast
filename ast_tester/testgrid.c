@@ -7,12 +7,19 @@
 *     with no external graphics library dependency.
 *
 *  Usage:
-*     testgrid <fits file> <attr> <fattr> [<outfile>] [<xlo> <ylo> <xhi> <yhi>]
+*     testgrid [--no-simd] <fits file> <attr> <fattr> [<outfile>] [<xlo> <ylo> <xhi> <yhi>]
 *
 *     If <outfile> is "-" or omitted, no output is written (smoke-test
 *     mode).  If a path ending in ".svg" is given, an SVG image is
 *     produced.  Otherwise a GRF call log is written for regression
 *     testing.
+*
+*     --no-simd (or -S) disables SIMD on any SphMap in the WCS mapping
+*     before plotting.  The 1-ULP differences between libmvec vector math
+*     and scalar libm shift a few integer pixel label positions by 1 px,
+*     which makes the SVG output differ from the committed reference for
+*     some projections (e.g. car3).  Disabling SIMD restores bit-for-bit
+*     agreement with the scalar reference.
 *
 *  Description:
 *     Reads a FITS header from <fits file>, builds a FrameSet via
@@ -34,6 +41,39 @@
 #include "ast.h"
 #include "grf_log.h"
 
+/* Recursively walk a (possibly compound) Mapping and set UseSIMD=0 on every
+   component that has a SIMD-vectorised transform (SphMap, PolyMap, MatrixMap),
+   so the whole pipeline matches the scalar reference bit-for-bit.
+
+   Too bad astMapList isn't part of the public API; it might be nice to have
+   for cases like this. */
+static void disableSimd( AstMapping *map ) {
+   AstMapping *map1 = NULL;
+   AstMapping *map2 = NULL;
+   int series, inv1, inv2;
+
+   if( !astOK || map == AST__NULL )
+      return;
+
+   if( astIsASphMap( map ) || astIsAPolyMap( map ) || astIsAMatrixMap( map ) ) {
+      astSet( map, "UseSIMD=0" );
+      return;
+   }
+
+   astDecompose( map, &map1, &map2, &series, &inv1, &inv2 );
+
+   if( map2 != AST__NULL ) {
+      disableSimd( map1 );
+      disableSimd( map2 );
+   }
+
+   if( map1 != AST__NULL )
+      map1 = astAnnul( map1 );
+
+   if( map2 != AST__NULL )
+      map2 = astAnnul( map2 );
+}
+
 int main( int argc, char **argv ) {
    int status = 0;
    AstFitsChan *fc;
@@ -49,8 +89,18 @@ int main( int argc, char **argv ) {
    float delta, asp;
    int naxis1 = 100, naxis2 = 100;
    int arg_offset;
+   int no_simd = 0;
 
    astWatch( &status );
+
+   /* Optional leading --no-simd / -S flag.  Shift argv so the remaining
+      positional argument handling is unchanged. */
+   if( argc > 1 && ( strcmp( argv[1], "--no-simd" ) == 0 ||
+                     strcmp( argv[1], "-S" ) == 0 ) ) {
+      no_simd = 1;
+      argv++;
+      argc--;
+   }
 
    if( argc < 4 ) {
       printf( "Usage: testgrid <fits file> <attrs> <fattrs> "
@@ -148,6 +198,28 @@ int main( int argc, char **argv ) {
       astGrfLogClose();
       if( logfp ) fclose( logfp );
       return 1;
+   }
+
+   /* Optionally disable SIMD on the base->current mapping.  astGetMapping
+      returns a copy of the mapping, so we set UseSIMD=0 on the SIMD-capable
+      components in that copy and rebuild the FrameSet around it; the value is
+      preserved when the Plot subsequently copies the FrameSet. */
+   if( no_simd && astOK ) {
+      AstFrame *bfrm = astGetFrame( fs, AST__BASE );
+      AstFrame *cfrm = astGetFrame( fs, AST__CURRENT );
+      AstMapping *map = astGetMapping( fs, AST__BASE, AST__CURRENT );
+      AstFrameSet *nfs;
+
+      disableSimd( map );
+
+      nfs = astFrameSet( bfrm, " " );
+      astAddFrame( nfs, AST__BASE, map, cfrm );
+      (void) astAnnul( fs );
+      fs = nfs;
+
+      bfrm = astAnnul( bfrm );
+      cfrm = astAnnul( cfrm );
+      map = astAnnul( map );
    }
 
    if( astOK ) {
