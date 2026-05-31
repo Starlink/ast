@@ -242,3 +242,10 @@ unitnormmap_inv_fwd_cancel | simplify_fixtures/unitnormmap_inv_fwd_cancel.map | 
 perm_outperm_constant_fold | simplify_fixtures/perm_outperm_constant_fold.map | simplify_fixtures/perm_outperm_constant_fold.simp |
 box_parallel_merge      | simplify_fixtures/box_parallel_merge.map      | simplify_fixtures/box_parallel_merge.simp      |
 interval_parallel_merge | simplify_fixtures/interval_parallel_merge.map | simplify_fixtures/interval_parallel_merge.simp |
+box_self_simplify       | simplify_fixtures/box_self_simplify.map       | simplify_fixtures/box_self_simplify.simp       |
+interval_self_simplify  | simplify_fixtures/interval_self_simplify.map  | simplify_fixtures/interval_self_simplify.simp  |
+nullregion_self_simplify | simplify_fixtures/nullregion_self_simplify.map | simplify_fixtures/nullregion_self_simplify.simp |
+nullregion_parallel_merge | simplify_fixtures/nullregion_parallel_merge.map | simplify_fixtures/nullregion_parallel_merge.simp |
+pointlist_self_simplify | simplify_fixtures/pointlist_self_simplify.map | simplify_fixtures/pointlist_self_simplify.simp |
+normmap_frame_simplifies | simplify_fixtures/normmap_frame_simplifies.map | simplify_fixtures/normmap_frame_simplifies.simp |
+selectormap_region_simplify | simplify_fixtures/selectormap_region_simplify.map | simplify_fixtures/selectormap_region_simplify.simp |

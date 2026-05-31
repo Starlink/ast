@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void write_negative_fixture(const char *dir, const char *name, AstMapping *map);
+
 static void write_fixture(const char *dir, const char *name, AstMapping *map) {
     char path_map[512], path_simp[512];
     AstChannel *chan;
@@ -391,6 +393,20 @@ static void gen_ratemap_fixtures(const char *dir) {
         AstRateMap *rm = astRateMap(inner, 1, 1, "");
         write_fixture(dir, "ratemap_simplify_interior", (AstMapping*)rm);
         rm = astAnnul(rm); inner = astAnnul(inner);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* ratemap-02: forward RateMap + inverted RateMap (same encapsulated
+       mapping) → cancel via inverse */
+    {
+        AstZoomMap *z1 = astZoomMap(1, 2.0, "");
+        AstZoomMap *z2 = astZoomMap(1, 2.0, "");
+        AstRateMap *r1 = astRateMap(z1, 1, 1, "");
+        AstRateMap *r2 = astRateMap(z2, 1, 1, "");
+        astInvert(r2);
+        AstCmpMap *cm = astCmpMap(r1, r2, 1, "");
+        write_fixture(dir, "ratemap_inverse_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); r1 = astAnnul(r1); r2 = astAnnul(r2);
         z1 = astAnnul(z1); z2 = astAnnul(z2);
     }
 }
@@ -820,6 +836,11 @@ static void gen_unitnormmap_fixtures(const char *dir) {
 
 /* ===== GrismMap fixtures ===== */
 
+#define GRISM_PARAMS \
+    "GrismNR=1.5,GrismNRP=-1e-6,GrismWaveR=5000," \
+    "GrismAlpha=0.1,GrismG=2e-4,GrismM=1," \
+    "GrismEps=0.02,GrismTheta=0.03"
+
 static void gen_grismmap_fixtures(const char *dir) {
     printf("GrismMap fixtures:\n");
 
@@ -831,6 +852,28 @@ static void gen_grismmap_fixtures(const char *dir) {
         AstCmpMap *cm = astCmpMap(zm, gm, 1, "");
         write_fixture(dir, "grism_zoom_inv_merge", (AstMapping*)cm);
         cm = astAnnul(cm); gm = astAnnul(gm); zm = astAnnul(zm);
+    }
+
+    /* grismmap-01: forward GrismMap + ZoomMap → merge into a single GrismMap */
+    {
+        AstGrismMap *gm = astGrismMap(GRISM_PARAMS);
+        AstZoomMap *zm = astZoomMap(1, 2.0, "");
+        AstCmpMap *cm = astCmpMap(gm, zm, 1, "");
+        write_fixture(dir, "grism_zoom_merge", (AstMapping*)cm);
+        cm = astAnnul(cm); gm = astAnnul(gm); zm = astAnnul(zm);
+    }
+
+    /* grismmap-02: forward GrismMap + inverted GrismMap (opposite GrmM) → cancel */
+    {
+        AstGrismMap *g1 = astGrismMap(GRISM_PARAMS);
+        AstGrismMap *g2 = astGrismMap(
+            "GrismNR=1.5,GrismNRP=-1e-6,GrismWaveR=5000,"
+            "GrismAlpha=0.1,GrismG=2e-4,GrismM=-1,"
+            "GrismEps=0.02,GrismTheta=0.03");
+        astInvert(g2);
+        AstCmpMap *cm = astCmpMap(g1, g2, 1, "");
+        write_fixture(dir, "grism_inverse_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); g1 = astAnnul(g1); g2 = astAnnul(g2);
     }
 }
 
@@ -889,6 +932,23 @@ static void gen_sphmap_fixtures(const char *dir) {
         outer = astAnnul(outer); inner = astAnnul(inner);
         s1 = astAnnul(s1); zm = astAnnul(zm); s2 = astAnnul(s2);
     }
+
+    /* sphmap-XX: Inv(SphMap) + (Diagonal MatrixMap + SphMap) → MatrixMap.
+       Tests the SphMap sandwich simplification with an explicit non-unit
+       diagonal matrix in the middle. Setting PolarLong=0 explicitly so
+       the resulting fixture pins PlrLg with a "set" flag. */
+    {
+        AstSphMap *s1 = astSphMap("PolarLong=0");
+        astInvert(s1);
+        double diag[] = {2.0, -2.0, 2.0};
+        AstMatrixMap *mm = astMatrixMap(3, 3, 1, diag, "");
+        AstSphMap *s2 = astSphMap("PolarLong=0");
+        AstCmpMap *inner = astCmpMap(mm, s2, 1, "");
+        AstCmpMap *outer = astCmpMap(s1, inner, 1, "");
+        write_fixture(dir, "sph_matrix_sandwich", (AstMapping*)outer);
+        outer = astAnnul(outer); inner = astAnnul(inner);
+        s1 = astAnnul(s1); mm = astAnnul(mm); s2 = astAnnul(s2);
+    }
 }
 
 /* ===== PcdMap fixtures ===== */
@@ -918,6 +978,79 @@ static void gen_pcdmap_fixtures(const char *dir) {
         write_fixture(dir, "pcd_zoom_swap_cancel", (AstMapping*)outer);
         outer = astAnnul(outer); inner = astAnnul(inner);
         p1 = astAnnul(p1); zm = astAnnul(zm); p2 = astAnnul(p2);
+    }
+}
+
+/* ===== ChebyMap fixtures =====
+ *
+ * ChebyMap inherits from PolyMap and uses PolyMap's MapMerge, so the
+ * simplification behaviour is the PolyMap rule set plus the ChebyMap-
+ * specific dump format (an extra PolyMap "section" between Mapping and
+ * ChebyMap holding the polynomial coefficients, with FSCL/FOFF emitted
+ * as the ChebyMap-level attributes after `IsA PolyMap`).
+ *
+ * These fixtures exercise:
+ *   - chebymap_inverse_cancel:    forward + inverted twin → UnitMap
+ *   - neg_chebymap_standalone:    bare ChebyMap with no neighbour → no simplify
+ *
+ * The negative fixture is the primary diagnostic for byte-exact dumping:
+ * any drift in the inheritance-section layout (Mapping → PolyMap → ChebyMap)
+ * surfaces on the .map round-trip.
+ */
+
+static void gen_chebymap_fixtures(const char *dir) {
+    printf("ChebyMap fixtures:\n");
+
+    /* chebymap-01: forward ChebyMap followed by its inverted twin → cancel.
+     *
+     * Build a 1D ChebyMap with both forward and inverse Chebyshev
+     * coefficients so the inverse direction is usable; pair it with an
+     * identical-then-inverted twin, in series. PolyMap::MapMerge's
+     * inverse-cancellation rule should collapse the pair to a UnitMap. */
+    {
+        double coeff_f[] = {
+            /* y = 0.5 * T1(x) = 0.5 x  (T1(x) = x in Chebyshev basis) */
+            0.5, 1, 1,
+        };
+        double coeff_i[] = {
+            /* x = 2 * T1(y)  (inverse of y = 0.5 x) */
+            2.0, 1, 1,
+        };
+        double lbnd[] = {-1.0};
+        double ubnd[] = { 1.0};
+        AstChebyMap *c1 = astChebyMap(1, 1, 1, coeff_f, 1, coeff_i,
+                                      lbnd, ubnd, lbnd, ubnd, "");
+        AstChebyMap *c2 = astChebyMap(1, 1, 1, coeff_f, 1, coeff_i,
+                                      lbnd, ubnd, lbnd, ubnd, "");
+        astInvert(c2);
+        AstCmpMap *cm = astCmpMap(c1, c2, 1, "");
+        write_fixture(dir, "chebymap_inverse_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); c1 = astAnnul(c1); c2 = astAnnul(c2);
+    }
+
+    /* chebymap-02: standalone non-trivial 2D ChebyMap → no simplification.
+     *
+     * Bounds [-2, 2]^2 (non-default), a small set of forward Chebyshev
+     * coefficients, no inverse polynomial. With no neighbour and no
+     * inverse pair to cancel against, astSimplify leaves it unchanged.
+     * The .map and .simp dumps should be identical. */
+    {
+        double coeff_f[] = {
+            /* (coeff, out_axis, px, py) */
+            1.0,  1, 1, 0,
+            0.05, 1, 0, 1,
+            0.02, 1, 2, 0,
+            1.0,  2, 0, 1,
+            0.05, 2, 1, 0,
+            0.02, 2, 0, 2,
+        };
+        double lbnd[] = {-2.0, -2.0};
+        double ubnd[] = { 2.0,  2.0};
+        AstChebyMap *cm = astChebyMap(2, 2, 6, coeff_f, 0, NULL,
+                                       lbnd, ubnd, NULL, NULL, "");
+        write_negative_fixture(dir, "neg_chebymap_standalone",
+                                (AstMapping*)cm);
+        cm = astAnnul(cm);
     }
 }
 
@@ -2936,6 +3069,7 @@ int main(void) {
     gen_wcsmap_fixtures(dir);
     gen_sphmap_fixtures(dir);
     gen_pcdmap_fixtures(dir);
+    gen_chebymap_fixtures(dir);
     gen_switchmap_fixtures(dir);
     gen_tranmap_extra_fixtures(dir);
     gen_matrix_cascade_fixtures(dir);

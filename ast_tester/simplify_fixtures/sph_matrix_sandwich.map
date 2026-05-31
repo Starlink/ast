@@ -6,12 +6,14 @@
        Begin SphMap 	# Cartesian to Spherical mapping
           Nin = 3 	# Number of input coordinates
           Nout = 2 	# Number of output coordinates
+          Invert = 1 	# Mapping inverted
        IsA Mapping 	# Mapping between coordinate systems
           PlrLg = 0 	# Polar longitude (rad.s)
        End SphMap
     MapB = 	# Second component Mapping
        Begin CmpMap 	# Compound Mapping
           Nin = 3 	# Number of input coordinates
+          Nout = 2 	# Number of output coordinates
        IsA Mapping 	# Mapping between coordinate systems
           MapA = 	# First component Mapping
              Begin MatrixMap 	# Matrix transformation

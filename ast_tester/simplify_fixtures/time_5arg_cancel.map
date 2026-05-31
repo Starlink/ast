@@ -8,7 +8,7 @@
     Time1c = -2.5 	# Observer latitude
     Time1d = 6378 	# Observer altitude
     Time1e = -5121.0504050301515 	# Distance from earth spin axis
-    Time1f = -3799.9547800119039 	# Distance north of equatorial plane
+    Time1f = -3799.9547800119035 	# Distance north of equatorial plane
     Time1g = 0 	# DTAI
     Time2 = "TDBTOTT" 	# Convert TDB to TT
     Time2a = 53000 	# MJD offset
@@ -16,6 +16,6 @@
     Time2c = -2.5 	# Observer latitude
     Time2d = 6378 	# Observer altitude
     Time2e = -5121.0504050301515 	# Distance from earth spin axis
-    Time2f = -3799.9547800119039 	# Distance north of equatorial plane
+    Time2f = -3799.9547800119035 	# Distance north of equatorial plane
     Time2g = 0 	# DTAI
  End TimeMap

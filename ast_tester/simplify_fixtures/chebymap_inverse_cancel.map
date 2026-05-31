@@ -1,0 +1,42 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin ChebyMap 	# Chebyshev polynomial transformation
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MPF1 = 1 	# Max. power of input 1 in any forward polynomial
+          NCF1 = 1 	# No. of coeff.s for forward polynomial 1
+          CF1 = 0.5 	# Coeff 1 of forward polynomial 1
+          PF1 = 1 	# Power of i/p 1 for coeff 1 of fwd poly 1
+          MPI1 = 1 	# Max. power of output 1 in any inverse polynomial
+          NCI1 = 1 	# No. of coeff.s for inverse polynomial 1
+          CI1 = 2 	# Coeff 1 of inverse polynomial 1
+          PI1 = 1 	# Power of o/p 1 for coeff 1 of inv poly 1
+       IsA PolyMap 	# Polynomial transformation
+          FSCL1 = 1 	# Scale factor on input 1
+          FOFF1 = 0 	# Offset on input 1
+          ISCL1 = 1 	# Scale factor on output 1
+          IOFF1 = 0 	# Offset on output 1
+       End ChebyMap
+    MapB = 	# Second component Mapping
+       Begin ChebyMap 	# Chebyshev polynomial transformation
+          Nin = 1 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          MPF1 = 1 	# Max. power of input 1 in any forward polynomial
+          NCF1 = 1 	# No. of coeff.s for forward polynomial 1
+          CF1 = 0.5 	# Coeff 1 of forward polynomial 1
+          PF1 = 1 	# Power of i/p 1 for coeff 1 of fwd poly 1
+          MPI1 = 1 	# Max. power of output 1 in any inverse polynomial
+          NCI1 = 1 	# No. of coeff.s for inverse polynomial 1
+          CI1 = 2 	# Coeff 1 of inverse polynomial 1
+          PI1 = 1 	# Power of o/p 1 for coeff 1 of inv poly 1
+       IsA PolyMap 	# Polynomial transformation
+          FSCL1 = 1 	# Scale factor on input 1
+          FOFF1 = 0 	# Offset on input 1
+          ISCL1 = 1 	# Scale factor on output 1
+          IOFF1 = 0 	# Offset on output 1
+       End ChebyMap
+ End CmpMap
