@@ -20,7 +20,9 @@
 
 #include "ast.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <math.h>
 #include <stdlib.h>
 
@@ -124,12 +126,21 @@ static void puteg( const char *filename, int ifl, int *status ) {
    FILE *fp;
    int nline;
    size_t len;
+   char path[PATH_MAX];
+   const char *srcdir;
 
    if( *status != 0 ) return;
 
-   fp = fopen( filename, "r" );
+   srcdir = getenv("srcdir") ? getenv("srcdir") : ".";
+
+   if (snprintf(path, sizeof(path), "%s/%s", srcdir, filename) < 0) {
+      *status = 1;
+      return;
+   }
+
+   fp = fopen( path, "r" );
    if( !fp ) {
-      printf( "Cannot open file: %s\n", filename );
+      printf( "Cannot open file: %s\n", path );
       stopit( status, "puteg: cannot open file" );
       return;
    }

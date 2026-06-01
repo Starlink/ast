@@ -14,7 +14,12 @@ m4_define([v_maj], m4_esyscmd_s([awk -F. 'NR==1 {print $1}' version.number]))
 m4_define([v_min], m4_esyscmd_s([awk -F. 'NR==1 {print $2}' version.number]))
 m4_define([v_mic], m4_esyscmd_s([awk -F. 'NR==1 {print $3}' version.number]))
 AC_INIT([ast],[project_version],[starlink@jiscmail.ac.uk])
+dnl   Expose individual version components for src/version.h.in substitution.
+AC_SUBST([PACKAGE_VERSION_MAJOR], [v_maj])
+AC_SUBST([PACKAGE_VERSION_MINOR], [v_min])
+AC_SUBST([PACKAGE_VERSION_RELEASE], [v_mic])
 AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([m4])
 
 dnl   Shared library versioning
 m4_define([lt_cur], [m4_eval(v_maj + v_min)])
@@ -26,10 +31,22 @@ AC_SUBST([version_info])
 dnl   Require autoconf-2.50 at least
 AC_PREREQ([2.69])
 dnl   Require Starlink automake
-AM_INIT_AUTOMAKE([1.8.2-starlink subdir-objects])
+AM_INIT_AUTOMAKE(m4_esyscmd([
+  if command -v starconf >/dev/null 2>&1; then
+    echo "1.8.2-starlink subdir-objects"
+  else
+    echo "foreign subdir-objects"
+  fi
+]))
 
 dnl   Sanity-check: name a file in the source directory
 AC_CONFIG_SRCDIR([ast_link.in])
+
+dnl   Detect starconf: if present we're building inside Starlink infrastructure.
+dnl   Used to decide whether to generate component.xml and whether to link
+dnl   Fortran tests against real Starlink libraries vs standalone stubs.
+AC_PATH_PROG([STARCONF], [starconf], [no])
+AM_CONDITIONAL([STARLINK_BUILD], [test "x$STARCONF" != "xno"])
 
 #   Checks for programs
 AC_PROG_CC
@@ -136,6 +153,30 @@ AC_SUBST(FORTRAN, $use_fortran)
 if test "$use_fortran" = "1"; then
 AC_PROG_FC
 AC_FC_LIBRARY_LDFLAGS
+dnl  Automake uses F77/FFLAGS for .f files (Fortran 77 fixed form).
+dnl  Point F77 at the same compiler as FC.
+AC_PROG_F77
+
+dnl  Probe for optional Fortran flags; not all compilers support them.
+AST_FFLAGS_EXTRA=
+if test -n "$F77"; then
+  AC_LANG_PUSH([Fortran 77])
+  for flag in -fallow-argument-mismatch -fno-range-check -Wno-real-constant-widening; do
+    AC_MSG_CHECKING([whether $F77 accepts $flag])
+    ast_save_FFLAGS=$FFLAGS
+    FFLAGS="$FFLAGS $flag"
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+          program test
+          end
+    ])],
+      [AC_MSG_RESULT([yes])
+       AST_FFLAGS_EXTRA="$AST_FFLAGS_EXTRA $flag"],
+      [AC_MSG_RESULT([no])])
+    FFLAGS=$ast_save_FFLAGS
+  done
+  AC_LANG_POP([Fortran 77])
+fi
+AC_SUBST([AST_FFLAGS_EXTRA])
 fi
 
 #  Prepare a version of STAR_FFLAGS with -I... removed
@@ -256,6 +297,9 @@ STAR_CNF_F2C_COMPATIBLE
 
 # Determine the type of Fortran character string lengths.
 STAR_CNF_TRAIL_TYPE
+
+# Determine the symbol for the Fortran blank common block.
+STAR_CNF_BLANK_COMMON
 fi
 
 #   Declare the message file.
@@ -308,9 +352,13 @@ STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
 
 AC_CONFIG_HEADERS(config.h)
 
-AC_CONFIG_FILES(Makefile component.xml ast_link ast_link_adam src/object.h)
+AC_CONFIG_FILES(Makefile ast_link ast_link_adam ast_tester/Makefile src/object.h)
 if test "$use_fortran" = "1"; then
 AC_CONFIG_FILES(src/f77.h)
+fi
+
+if test "x$STARCONF" != "xno"; then
+AC_CONFIG_FILES(component.xml)
 fi
 
 AC_CONFIG_FILES([ast_cpp], [chmod +x ast_cpp])

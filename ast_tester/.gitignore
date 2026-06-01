@@ -13,6 +13,7 @@ wcsconverter
 # Generated test outputs
 lsst_wcs.asdf
 nativetest.yaml
+sm.txt
 sphmap_roundtrip.asdf
 tanSipWcs.asdf
 yamltest.asdf

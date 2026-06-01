@@ -1,4 +1,7 @@
 ## Process this file with automake to produce Makefile.in
+SUBDIRS = ast_tester
+
+ACLOCAL_AMFLAGS = -I m4
 
 # First declare various groups of files.  These were initially extracted
 # from the grp.make file, as constructed by the SDT newdev command
@@ -606,12 +609,35 @@ cinclude_HEADERS = src/grf.h src/grf3d.h
 endif
 
 # Following are generated, so should not be distributed.
+if STARLINK_BUILD
+# Starlink's automake handles _MESSAGES; build rules come from STAR_MESSGEN.
 if !NOFORTRAN
 include_MESSAGES = AST_ERR ast_err.h
 nodist_cinclude_HEADERS = ast.h AST_PAR
 else
 include_MESSAGES = ast_err.h
 nodist_cinclude_HEADERS = ast.h
+endif
+else  # standalone
+if !NOFORTRAN
+nodist_cinclude_HEADERS = ast.h AST_PAR
+else
+nodist_cinclude_HEADERS = ast.h
+endif
+endif
+
+# nodist_include_HEADERS is built up below from independent conditions; a base
+# definition is needed so that all '+=' operations are valid in every condition.
+nodist_include_HEADERS =
+
+# In standalone mode, install the generated error-facility headers to includedir.
+# This is analogous to what include_MESSAGES does in Starlink mode.
+if !STARLINK_BUILD
+if !NOFORTRAN
+nodist_include_HEADERS += AST_ERR ast_err.h
+else
+nodist_include_HEADERS += ast_err.h
+endif
 endif
 
 # Also install headers in main include directory for the benefit of
@@ -621,10 +647,10 @@ endif
 if TOPINCLUDE
 if !NOFORTRAN
 include_HEADERS = GRF_PAR src/grf.h src/grf3d.h
-nodist_include_HEADERS = ast.h AST_PAR
+nodist_include_HEADERS += ast.h AST_PAR
 else
 include_HEADERS = src/grf.h src/grf3d.h
-nodist_include_HEADERS = ast.h
+nodist_include_HEADERS += ast.h
 endif
 endif
 
@@ -654,6 +680,12 @@ lib_LTLIBRARIES = \
     libast_pgplot.la \
     libast_pgplot3d.la
 
+# These are required to be defined for automake's parsing;
+# If building with the Starlink macros defined these will
+# be replaced with the correct paths used by the Starlink
+# environment; otherwise a sensible system path
+stardocsdir = @stardocsdir@
+starnewsdir = @starnewsdir@
 stardocs_DATA = @STAR_LATEX_DOCUMENTATION@
 dist_starnews_DATA = ast.news
 dist_pkgdata_DATA = COPYING
@@ -663,6 +695,10 @@ yaml = -DYAML
 else
 yaml =
 endif
+
+# Ensure generated headers in the build tree (object.h, version.h, f77.h)
+# are found in out-of-source builds.
+AM_CPPFLAGS = -I$(top_builddir)/src -I$(srcdir)/src
 
 if !NOTHREADS
 threadsafe = -DTHREAD_SAFE
@@ -792,8 +828,14 @@ CLEANFILES = AST_PAR ast.h
 else
 CLEANFILES = ast.h
 endif
+if !STARLINK_BUILD
+CLEANFILES += ast_err.h AST_ERR
+endif
 
 # Special cases start here
+
+# Unconditional base so that '+=' works in all nested conditions below.
+noinst_PROGRAMS =
 
 # The AST_PAR include file is produced by compiling the astbad.c
 # program and editing its output into the ast_par.source file (while
@@ -801,7 +843,7 @@ endif
 # and ast_par.source must be distributed (the generation of the
 # AST__BAD value must be done on the build host) but not installed.
 if !NOFORTRAN
-noinst_PROGRAMS = astbad$(EXEEXT)
+noinst_PROGRAMS += astbad$(EXEEXT)
 astbad_SOURCES = src/astbad.c src/pointset.h
 AST_PAR: $(srcdir)/ast_par.source astbad$(EXEEXT)
 	ASTBAD=`./astbad$(EXEEXT) AST__BAD` && \
@@ -813,19 +855,32 @@ AST_PAR: $(srcdir)/ast_par.source astbad$(EXEEXT)
 	    $(srcdir)/ast_par.source >$@
 endif
 
+# In standalone mode, build messgen from source to generate the error-facility
+# headers (ast_err.h and AST_ERR) from ast_err.msg.  Starlink builds use the
+# installed messgen binary via the STAR_MESSGEN macro instead.
+if !STARLINK_BUILD
+MESSGEN = star_compat/messgen$(EXEEXT)
+noinst_PROGRAMS += star_compat/messgen$(EXEEXT)
+star_compat_messgen_SOURCES = star_compat/messgen.c
+
+ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(MESSGEN)
+	$(MESSGEN) -cF $(srcdir)/ast_err.msg
+endif
+
 # ast_link is generated from ast_link.in; ast_link_adam does not
 # need configuration, and so is not mentioned in AC_CONFIG_FILES within
 # configure.ac, and so is not distributed automatically.
 #
 # makeh is required in order to build ast.h after distribution (see below).
-EXTRA_DIST = $(srcdir)/ast_par.source sun210_figures sun211_figures pal erfa cminpack
+EXTRA_DIST = $(srcdir)/ast_par.source sun210_figures sun211_figures pal erfa cminpack \
+    star_compat
 
 # ast.h depends on the error-facility files.  ast.h _could_ be made
 # before distribution, but since it's generated from other distributed
 # files, it's more robust to distribute makeh and make ast.h on the
 # build host.
 ast.h: $(AST_H_FILES) ast_err.h $(srcdir)/makeh config.h
-	@PERL@ $(srcdir)/makeh -s $(srcdir) $(AST_H_FILES) >$@
+	@PERL@ $(srcdir)/makeh -s $(srcdir) -b $(top_builddir) $(AST_H_FILES) >$@
 
 # AST_ERR and ast_err.h are `generated source files', and so must be
 # generated before any other compilations are done.  Note that these
@@ -841,10 +896,16 @@ ast.h: $(AST_H_FILES) ast_err.h $(srcdir)/makeh config.h
 # version.h is included by object.h, and thus indirectly by most modules.
 # It's most straightforward to build it at the beginning.
 if !NOFORTRAN
-BUILT_SOURCES = AST_ERR ast_err.h src/version.h
+BUILT_SOURCES = AST_ERR ast_err.h src/version.h ast.h
 else
-BUILT_SOURCES = ast_err.h src/version.h
+BUILT_SOURCES = ast_err.h src/version.h ast.h
 endif
+
+# Ensure the main library is built before check-recursive descends into
+# ast_tester (which links against it).  Without this, a cold `make check`
+# from a fresh out-of-source build would fail because check only guarantees
+# BUILT_SOURCES are ready before recursing.
+check-recursive: all-am
 
 #  Form a second link to the main object library (static and shared). This
 #  is used when a second pass through the library is needed during linking
@@ -881,11 +942,11 @@ install-exec-hook: libast.la
 @PREDIST@    -e 's,@PERL\@,$(PERL),' \
 @PREDIST@    -e 's,@STARLINK\@,$(STARLINK),'
 
-@PREDIST@src/version.h: src/version.h.in configure.ac
-@PREDIST@	rm -f $@; $(predist_subs) src/version.h.in >$@
-@PREDIST@builddocs: builddocs.in configure.ac
-@PREDIST@	rm -f $@; $(predist_subs) builddocs.in >$@; chmod +x $@
-@PREDIST@addversion: addversion.in configure.ac
+@PREDIST@src/version.h: $(srcdir)/src/version.h.in $(srcdir)/configure.ac
+@PREDIST@	rm -f $@; $(predist_subs) $(srcdir)/src/version.h.in >$@
+@PREDIST@builddocs: $(srcdir)/builddocs.in $(srcdir)/configure.ac
+@PREDIST@	rm -f $@; $(predist_subs) $(srcdir)/builddocs.in >$@; chmod +x $@
+@PREDIST@addversion: $(srcdir)/addversion.in $(srcdir)/configure.ac
 @PREDIST@	rm -f $@; $(predist_subs) addversion.in >$@; chmod +x $@
 
 # Documentation
@@ -899,16 +960,10 @@ sun211_figures: sun210_figures
 
 # Installation check
 
-TESTS = ast_test
-check_PROGRAMS = ast_test
-ast_test_SOURCES = ast_test.c
+noinst_LTLIBRARIES =
 
 test: install
 	cd ast_tester && STARLINK=@STARLINK@ PGPLOT_DIR=@STARLINK@/bin FFLAGS="@STAR_FFLAGS_TEST@" ./ast_tester -nd
-
-#ast_test_LDADD = `ast_link`
-# Expand ast_link to avoid libast_pass2, which causes problems for Solaris
-ast_test_LDADD = @LIBPAL@ @LIBCMINPACK@ libast.la libast_grf_3.2.la libast_grf_5.6.la libast_grf_2.0.la libast_grf3d.la libast_err.la -lm
 
 #  Need to include latex support files in the distribution tar ball so
 #  that the docs can be built from the tex source files. Requires environment
