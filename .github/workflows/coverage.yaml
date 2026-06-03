@@ -26,6 +26,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug
           -DBUILD_SHARED_LIBS=OFF
           -DAST_ENABLE_COVERAGE=ON
+          -DAST_ENABLE_SIMD=ON
           -DAST_C_STANDARD=11
 
       - name: Build

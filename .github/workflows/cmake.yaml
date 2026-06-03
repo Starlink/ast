@@ -16,6 +16,7 @@ jobs:
         shared_libs: [ON, OFF]
         fortran: [OFF]
         sanitizers: [OFF]
+        simd: [OFF]
         include:
           # Add a Fortran build on each platform (shared only)
           - os: ubuntu-latest
@@ -23,22 +24,37 @@ jobs:
             shared_libs: ON
             fortran: ON
             sanitizers: OFF
+            simd: OFF
           - os: macos-latest
             build_type: Release
             shared_libs: ON
             fortran: ON
             sanitizers: OFF
+            simd: OFF
           # Debug builds with sanitizers
           - os: ubuntu-latest
             build_type: Debug
             shared_libs: ON
             fortran: OFF
             sanitizers: ON
+            simd: OFF
           - os: macos-latest
             build_type: Debug
             shared_libs: ON
             fortran: OFF
             sanitizers: ON
+            simd: OFF
+          # SIMD build (Ubuntu + GCC, Release). Exercises AST_ENABLE_SIMD.
+          # The code is compiled for x86-64-v3 (AVX2) with no runtime fallback,
+          # so it needs an AVX2-capable runner; GitHub's hosted x86-64 Linux
+          # runners (AMD EPYC) seem to provide AVX2 in practice; reference:
+          # https://runs-on.com/benchmarks/github-actions-cpu-performance/
+          - os: ubuntu-latest
+            build_type: Release
+            shared_libs: ON
+            fortran: OFF
+            sanitizers: OFF
+            simd: ON
 
     runs-on: ${{ matrix.os }}
 
@@ -62,6 +78,7 @@ jobs:
           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs }}
           -DAST_BUILD_FORTRAN=${{ matrix.fortran }}
           -DAST_ENABLE_SANITIZERS=${{ matrix.sanitizers }}
+          -DAST_ENABLE_SIMD=${{ matrix.simd }}
           -DAST_C_STANDARD=11
 
       - name: Build
