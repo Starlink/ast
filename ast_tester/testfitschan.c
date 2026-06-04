@@ -2449,11 +2449,11 @@ int main( void ) {
          fexps[0] = "s = 1.4204e9 * exp( p * 1.0e-4 )";
          iexps[0] = "p = 1.0e4 * log( s / 1.4204e9 )";
          logmap = (AstMapping *)astMathMap( 1, 1, 1, fexps, 1, iexps,
-                                            " ", status );
+                                            " " );
          logspec = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
-                                 "RestFreq=1.4204e9 Hz", status );
-         logpix = astFrame( 1, "Domain=GRID", status );
-         logtfs = astFrameSet( logpix, " ", status );
+                                 "RestFreq=1.4204e9 Hz" );
+         logpix = astFrame( 1, "Domain=GRID" );
+         logtfs = astFrameSet( logpix, " " );
          astAddFrame( logtfs, AST__BASE, logmap, (AstFrame *)logspec );
 
          logfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
@@ -3337,7 +3337,7 @@ int main( void ) {
 
          if( rfs ) {
             /* Convert the current SkyFrame to the target system */
-            AstSkyFrame *tgt = astSkyFrame( " ", status );
+            AstSkyFrame *tgt = astSkyFrame( " " );
             astSetC( tgt, "System", sky_tests[it].system );
             AstFrameSet *cvt = astConvert( astGetFrame( rfs, AST__CURRENT ),
                                            (AstFrame *)tgt, "" );
@@ -3395,7 +3395,7 @@ int main( void ) {
       astClear( pfc, "Card" );
       AstFrameSet *pfs = (AstFrameSet *)astRead( pfc );
       if( pfs ) {
-         AstSkyFrame *gal = astSkyFrame( "System=Galactic", status );
+         AstSkyFrame *gal = astSkyFrame( "System=Galactic" );
          AstFrameSet *cvt = astConvert( astGetFrame( pfs, AST__CURRENT ),
                                         (AstFrame *)gal, "" );
          if( cvt ) {
@@ -3931,12 +3931,12 @@ int main( void ) {
       {
          AstSpecFrame *c1spec = astSpecFrame(
             "System=FREQ,Unit=Hz,StdOfRest=Source,"
-            "RefRA=3:00:00,RefDec=45:00:00", status );
+            "RefRA=3:00:00,RefDec=45:00:00" );
          astSetD( (AstFrame *)c1spec, "RestFreq", 1.420405752e9 );
          astSetD( (AstFrame *)c1spec, "Epoch", 52413.59 );
-         AstFrame *c1pix = astFrame( 1, "Domain=GRID", status );
-         AstMapping *c1map = (AstMapping *)astZoomMap( 1, 1.0e6, " ", status );
-         AstFrameSet *c1fs = astFrameSet( c1pix, " ", status );
+         AstFrame *c1pix = astFrame( 1, "Domain=GRID" );
+         AstMapping *c1map = (AstMapping *)astZoomMap( 1, 1.0e6, " " );
+         AstFrameSet *c1fs = astFrameSet( c1pix, " " );
          astAddFrame( c1fs, AST__BASE, c1map, (AstFrame *)c1spec );
 
          AstFitsChan *c1fc = astFitsChan( NULL, NULL, "Encoding=FITS-CLASS" );
@@ -3978,12 +3978,12 @@ int main( void ) {
       {
          AstSpecFrame *p1spec = astSpecFrame(
             "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
-            "RefRA=3:00:00,RefDec=45:00:00", status );
+            "RefRA=3:00:00,RefDec=45:00:00" );
          astSetD( (AstFrame *)p1spec, "RestFreq", 1.420405752e9 );
          astSetD( (AstFrame *)p1spec, "Epoch", 52413.59 );
-         AstFrame *p1pix = astFrame( 1, "Domain=GRID", status );
-         AstMapping *p1map = (AstMapping *)astZoomMap( 1, 1.0e6, " ", status );
-         AstFrameSet *p1fs = astFrameSet( p1pix, " ", status );
+         AstFrame *p1pix = astFrame( 1, "Domain=GRID" );
+         AstMapping *p1map = (AstMapping *)astZoomMap( 1, 1.0e6, " " );
+         AstFrameSet *p1fs = astFrameSet( p1pix, " " );
          astAddFrame( p1fs, AST__BASE, p1map, (AstFrame *)p1spec );
 
          AstFitsChan *p1fc = astFitsChan( NULL, NULL, "Encoding=FITS-PC" );
@@ -4017,12 +4017,12 @@ int main( void ) {
       astBegin;
 
       mfspec = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=BARY,"
-                             "RefRA=3:00:00,RefDec=45:00:00", status );
+                             "RefRA=3:00:00,RefDec=45:00:00" );
       astSetD( (AstFrame *)mfspec, "RestFreq", 1.420405752e9 );
       astSetD( (AstFrame *)mfspec, "Epoch", 52413.59 );
-      mfpix = astFrame( 1, "Domain=GRID", status );
-      mfmap = (AstMapping *)astZoomMap( 1, 1.0e6, " ", status );
-      mffs = astFrameSet( mfpix, " ", status );
+      mfpix = astFrame( 1, "Domain=GRID" );
+      mfmap = (AstMapping *)astZoomMap( 1, 1.0e6, " " );
+      mffs = astFrameSet( mfpix, " " );
       astAddFrame( mffs, AST__BASE, mfmap, (AstFrame *)mfspec );
 
       mffc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
@@ -4210,15 +4210,15 @@ int main( void ) {
       astBegin;
 
       pcspec = astSpecFrame( "System=FREQ,Unit=Hz,StdOfRest=Barycentric,"
-                             "RestFreq=1.4204e9 Hz", status );
-      pcpix = astFrame( 1, "Domain=GRID", status );
-      pcmap = (AstMapping *)astZoomMap( 1, 1.0e6, " ", status );
-      pcfs = astFrameSet( pcpix, " ", status );
+                             "RestFreq=1.4204e9 Hz" );
+      pcpix = astFrame( 1, "Domain=GRID" );
+      pcmap = (AstMapping *)astZoomMap( 1, 1.0e6, " " );
+      pcfs = astFrameSet( pcpix, " " );
       astAddFrame( pcfs, AST__BASE, pcmap, (AstFrame *)pcspec );
 
       pcspec2 = astSpecFrame( "System=WAVE,Unit=m,StdOfRest=Barycentric,"
-                              "RestFreq=1.4204e9 Hz", status );
-      pcmap = (AstMapping *)astZoomMap( 1, 1.0e-10, " ", status );
+                              "RestFreq=1.4204e9 Hz" );
+      pcmap = (AstMapping *)astZoomMap( 1, 1.0e-10, " " );
       astAddFrame( pcfs, AST__BASE, pcmap, (AstFrame *)pcspec2 );
 
       astSetI( pcfs, "Current", 2 );
