@@ -39,10 +39,11 @@ option(BUILD_TESTING "Build the test program" ON)
 
 # Pick the C standard libast is built against.  The legacy Starlink build
 # declared C99; C11 is source-compatible (no removed APIs, no keyword
-# collisions) and has the advantage that `DBL_DECIMAL_DIG` is visible on
-# glibc under strict ISO mode, which keeps the number of digits used in
-# AST's serialized output (`AST__DBL_DIG`) consistent across macOS and
-# Linux.  Default stays "99" until the project broadly adopts C11.
+# collisions).  The number of digits used in AST's serialized output
+# (`AST__DBL_DIG`) no longer depends on this choice: under C11 it comes
+# from `DBL_DECIMAL_DIG`, and the C99 fallback (`DBL_DIG + 2`) is defined
+# to equal it for IEEE-754 binary64, so output is identical (17 digits)
+# either way.  Default stays "99" until the project broadly adopts C11.
 set(AST_C_STANDARD "99" CACHE STRING "C standard for libast (99 or 11)")
 set_property(CACHE AST_C_STANDARD PROPERTY STRINGS "99" "11")
 

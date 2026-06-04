@@ -332,6 +332,13 @@
 *        so the helper reports equality for pairs of values of order
 *        DBL_EPSILON (for example, the ulp-scale inverse-matrix residuals
 *        that drift between macOS and Linux math libraries).
+*     4-JUN-2026 (EMB):
+*        Change the AST__DBL_DIG fallback (used when DBL_DECIMAL_DIG is
+*        not exposed, e.g. a C99 build) from DBL_DIG + 3 to DBL_DIG + 2,
+*        so it equals DBL_DECIMAL_DIG for IEEE-754 binary64. Serialised
+*        output is now identical (17 significant digits) whether AST
+*        is built as C99 or C11, which keeps the test fixtures matching
+*        regardless of the compiler's default C standard.
 */
 
 /* Include files. */
@@ -402,12 +409,17 @@
 /* Number of digits to use when formatting double precision floating point
    values. DBL_DIG ensures no loss when round-tripping from text to
    binary to text, but we want no loss when round-tripping from binary to
-   text to binary, so we use DBL_DECIMAL_DIG instead. If this is not
-   avaialable we use DBL_DIG but add on an extra 3 digits. */
+   text to binary, so we use DBL_DECIMAL_DIG instead. DBL_DECIMAL_DIG is
+   only exposed by <float.h> under C11 and later, so when it is not
+   available (e.g. a C99 build) we fall back to DBL_DIG + 2, which equals
+   DBL_DECIMAL_DIG for IEEE-754 binary64. Keeping the two paths equal
+   means the serialised number of digits (and hence the exact text of
+   dumped Objects) is identical regardless of the C standard AST was
+   compiled against. */
 #ifdef DBL_DECIMAL_DIG
   #define AST__DBL_DIG (DBL_DECIMAL_DIG)
 #else
-  #define AST__DBL_DIG (DBL_DIG + 3)
+  #define AST__DBL_DIG (DBL_DIG + 2)
 #endif
 
 #ifdef FLT_DECIMAL_DIG
