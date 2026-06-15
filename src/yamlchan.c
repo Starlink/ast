@@ -106,6 +106,8 @@ f     The YamlChan class does not define any new routines beyond those
 *        - Fix missing degree to radian conversion in ReadRotateSequence3d.
 *        - Fix handling of rotation_type parameter in ReadRotateSequence3d.
 *        - Fix handling of null transform in the final WCS step.
+*     15-JUN-2026 (EMB):
+*        - Add support for reading the gwcs/fitswcs_imaging transform.
 *     1-JUL-2026 (EMB):
 *        Fix a crash and a spurious error that could occur when writing
 *        certain WCS objects to ASDF, caused by mishandling of degree/radian
@@ -471,6 +473,7 @@ static AstMapping *ReadCompose( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadConcatenate( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadConstant( AstKeyMap *, int * );
 static AstMapping *ReadDivide( AstYamlChan *, AstKeyMap *, int * );
+static AstMapping *ReadFitswcsImaging( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadFixInputs( AstYamlChan *, AstKeyMap *, int * );
 static AstMapping *ReadIdentity( AstKeyMap *, int * );
 static AstMapping *ReadLinear1d( AstKeyMap *, int * );
@@ -570,6 +573,7 @@ static void GetNextData( AstChannel *, int, char **, char **, int * );
 MAKE_PROTO(Wcs)
 MAKE_PROTO(Step)
 MAKE_PROTO(Celestial_Frame)
+MAKE_PROTO(Fitswcs_Imaging)
 MAKE_PROTO(Frame2d)
 MAKE_PROTO(Identity)
 MAKE_PROTO(Scale)
@@ -5159,11 +5163,13 @@ static int IsA( AstKeyMap *km, const char *class, int *status ) {
             result = IsAFrame2d( km_class, status );
          } else if( !strcmp( "spherical_cartesian", class ) ){
             result = IsASpherical_Cartesian( km_class, status );
+         } else if( !strcmp( "fitswcs_imaging", class ) ){
+            result = IsAFitswcs_Imaging( km_class, status );
 /* the gwcs/ namespace also defines some transforms that inherit
-   the asdf/transform/transform- so handle that case here; currently the only
-   one supported is also spherical_cartesian */
+   the asdf/transform/transform- so handle that case here. */
          } else if( !strcmp( "transform", class ) ){
-            result = IsASpherical_Cartesian( km_class, status );
+            result = IsASpherical_Cartesian( km_class, status ) ||
+                     IsAFitswcs_Imaging( km_class, status );
          }
 
       } else if( !strncmp( km_class, "asdf/transform/", 15 ) ) {
@@ -5406,6 +5412,7 @@ static int IsA##Class( const char *class, int *status ){ \
 MAKE_TEST(Wcs,gwcs,1,4)
 MAKE_TEST(Step,gwcs,1,3)
 MAKE_TEST(Celestial_Frame,gwcs,1,2)
+MAKE_TEST(Fitswcs_Imaging,gwcs,1,0)
 MAKE_TEST(Frame2d,gwcs,1,2)
 MAKE_TEST(Spherical_Cartesian,gwcs,1,3)
 MAKE_TEST(Identity,asdf/transform,1,4)
@@ -5578,7 +5585,8 @@ static int IsATransform( const char *class, int *status ){
           IsAPlanar2d( class, status ) ||
           IsAPolynomial( class, status ) ||
           IsASkyProjection( class, status ) ||
-          IsASpherical_Cartesian( class, status );
+          IsASpherical_Cartesian( class, status ) ||
+          IsAFitswcs_Imaging( class, status );
 }
 
 static int IsASkyProjection( const char *class, int *status ){
@@ -10285,6 +10293,249 @@ static AstMapping *ReadSphericalCartesian( AstKeyMap *km, int *status ){
    return result;
 }
 
+static AstMapping *ReadFitswcsImaging( AstYamlChan *this, AstKeyMap *km,
+                                       int *status ){
+/*
+*  Name:
+*     ReadFitswcsImaging
+
+*  Purpose:
+*     Read an AST Mapping from a KeyMap holding an ASDF fitswcs_imaging
+*     transform.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     AstMapping *ReadFitswcsImaging( AstYamlChan *this, AstKeyMap *km,
+*                                     int *status )
+
+*  Class Membership:
+*     YamlChan member function
+
+*  Description:
+*     This function creates an AST Mapping from the YAML stored in the
+*     supplied KeyMap, which should hold a GWCS fitswcs_imaging transform.
+*     This packages a FITS-compatible imaging WCS as the series combination
+*     of a shift (-crpix), a linear transformation (the pc matrix), a
+*     per-axis scale (cdelt), a sky projection, and a rotation from native
+*     to celestial spherical coordinates (from crval, with the native
+*     longitude of the celestial pole, currently hard-coded to be 180 degrees,
+*     as is appropriate for the zenithal projections such as gnomonic/TAN).
+*
+*     The forward transformation goes from pixel coordinates to celestial
+*     coordinates (in degrees), matching the gwcs.fitswcs.FITSImagingWCSTransform
+*     model from Python:
+*
+*        Shift(-crpix) | Affine(pc) | Scale(cdelt) | projection
+*                      | RotateNative2Celestial(crval, lonpole=180)
+
+*  Parameters:
+*     this
+*        Pointer to the YamlChan.
+*     km
+*        Pointer to the KeyMap. Its contents must represent an ASDF
+*        fitswcs_imaging transform.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A pointer to the new Mapping.
+
+*  Notes:
+*     - TODO: The native longitude of the celestial pole is currently fixed
+*     at 180 degrees. This is correct for zenithal projections (which includes
+*     the common gnomonic/TAN case), but not for other projection families, for
+*     which GWCS computes a projection-dependent value. Reading such a
+*     transform back into the exact same Mapping is left as a future
+*     enhancement.
+*/
+
+/* Local Variables: */
+   AstKeyMap *subkm;
+   AstMapping *mm3;
+   AstMapping *pcmap;
+   AstMapping *proj;
+   AstMapping *result;
+   AstMapping *rot;
+   AstMapping *scale;
+   AstMapping *shift;
+   AstMapping *sphfwd;
+   AstMapping *sphinv;
+   AstMapping *tmp;
+   AstMapping *zmin;
+   AstMapping *zmout;
+   double *cdelt;
+   double *crpix;
+   double *crval;
+   double *pc;
+   double m[ 9 ];
+   double negcrpix[ 2 ];
+   double phi;
+   double psi;
+   double theta;
+   int dims[ 2 ];
+   int ndim;
+
+/* Initialise */
+   result = NULL;
+   cdelt = NULL;
+   crpix = NULL;
+   crval = NULL;
+   pc = NULL;
+
+/* Check inherited status */
+   if( !astOK )
+      return result;
+
+/* Report an error if the supplied KeyMap does not represent an ASDF
+   fitswcs_imaging transform. */
+   if( !IsA( km, "fitswcs_imaging", status ) ) {
+      astError( AST__BYAML, "astRead(YamlChan): Expected KeyMap to hold "
+                "an ASDF fitswcs_imaging transform but got a %s", status,
+                GetAsdfClass( km, status ) );
+      return result;
+   }
+
+/* Read the four numeric parameters. Each is stored as an ndarray: crpix,
+   crval and cdelt are 1-D arrays of length 2, and pc is a 2x2 matrix.
+   Note: ReadNDArray returns ndim==0 (with the length in dims[0]) for a flat
+   inline numeric array such as the 1-D crpix/crval/cdelt vectors, so only the
+   length is checked for these. */
+   subkm = Get0A( km, "crpix", 0, NULL, NULL, status );
+   crpix = ReadNDArray( this, subkm, 1, &ndim, dims, status );
+   subkm = astAnnul( subkm );
+   if( astOK && dims[ 0 ] != 2 ){
+      astError( AST__BYAML, "astRead(YamlChan): 'crpix' in an ASDF "
+                "fitswcs_imaging transform must be a 1-D array of length 2.",
+                status );
+   }
+
+   subkm = Get0A( km, "crval", 0, NULL, NULL, status );
+   crval = ReadNDArray( this, subkm, 1, &ndim, dims, status );
+   subkm = astAnnul( subkm );
+   if( astOK && dims[ 0 ] != 2 ){
+      astError( AST__BYAML, "astRead(YamlChan): 'crval' in an ASDF "
+                "fitswcs_imaging transform must be a 1-D array of length 2.",
+                status );
+   }
+
+   subkm = Get0A( km, "cdelt", 0, NULL, NULL, status );
+   cdelt = ReadNDArray( this, subkm, 1, &ndim, dims, status );
+   subkm = astAnnul( subkm );
+   if( astOK && dims[ 0 ] != 2 ){
+      astError( AST__BYAML, "astRead(YamlChan): 'cdelt' in an ASDF "
+                "fitswcs_imaging transform must be a 1-D array of length 2.",
+                status );
+   }
+
+   subkm = Get0A( km, "pc", 0, NULL, NULL, status );
+   pc = ReadNDArray( this, subkm, 2, &ndim, dims, status );
+   subkm = astAnnul( subkm );
+   if( astOK && ( ndim != 2 || dims[ 0 ] != 2 || dims[ 1 ] != 2 ) ){
+      astError( AST__BYAML, "astRead(YamlChan): 'pc' in an ASDF "
+                "fitswcs_imaging transform must be a 2x2 matrix.", status );
+   }
+
+/* Shift to subtract crpix from the pixel coordinates. */
+   if( astOK ){
+      negcrpix[ 0 ] = -crpix[ 0 ];
+      negcrpix[ 1 ] = -crpix[ 1 ];
+   }
+
+   shift = (AstMapping *) astShiftMap( 2, negcrpix, " ", status );
+
+/* The pc matrix (a full 2x2 matrix). */
+   pcmap = (AstMapping *) astMatrixMap( 2, 2, 0, pc, " ", status );
+
+/* The per-axis cdelt scale (a diagonal 2x2 matrix). */
+   scale = (AstMapping *) astMatrixMap( 2, 2, 1, cdelt, " ", status );
+
+/* The sky projection. This maps intermediate world coordinates (in degrees)
+   to native spherical coordinates (in degrees). Reuse the general sky
+   projection reader, so any projection class it supports can be used. */
+   subkm = Get0A( km, "projection", 0, NULL, NULL, status );
+   proj = ReadSkyProjection( subkm, status );
+   subkm = astAnnul( subkm );
+
+/* The rotation from native spherical coordinates to celestial coordinates is
+   the GWCS/astropy RotateNative2Celestial model, which is a ZXZ Euler rotation
+   with angles phi = lonpole - pi/2, theta = lat - pi/2 and psi = -(pi/2 + lon),
+   where lon and lat are crval and the native longitude of the celestial pole
+   (lonpole) is 180 degrees. The rotation acts on unit Cartesian vectors,
+   so it is bracketed by degree<->radian ZoomMaps and SphMaps that convert
+   between spherical degrees and Cartesian coordinates (the same pattern used
+   by ReadRotate3d). */
+   if( astOK ){
+      phi = AST__DPIBY2; /* lonpole - pi/2 */
+      theta = ( crval[ 1 ] * AST__DD2R ) - AST__DPIBY2; /* lat - pi/2 */
+      psi = -( AST__DPIBY2 + ( crval[ 0 ] * AST__DD2R ) ); /* -(pi/2 + lon) */
+      palDeuler( "ZXZ", phi, theta, psi, (double (*)[3]) m );
+   }
+
+   zmin = (AstMapping *) astZoomMap( 2, AST__DD2R, " ", status );
+
+/* The default SphMap converts Cartesian to spherical; invert a SphMap to get
+   spherical (radians) to unit Cartesian. */
+   sphinv = (AstMapping *) astSphMap( " ", status );
+   astInvert( sphinv );
+
+   mm3 = (AstMapping *) astMatrixMap( 3, 3, 0, m, " ", status );
+   sphfwd = (AstMapping *) astSphMap( " ", status );
+   zmout = (AstMapping *) astZoomMap( 2, AST__DR2D, " ", status );
+
+   rot = (AstMapping *) astCmpMap( zmin, sphinv, 1, " ", status );
+   tmp = (AstMapping *) astCmpMap( rot, mm3, 1, " ", status );
+   (void) astAnnul( rot );
+   rot = tmp;
+   tmp = (AstMapping *) astCmpMap( rot, sphfwd, 1, " ", status );
+   (void) astAnnul( rot );
+   rot = tmp;
+   tmp = (AstMapping *) astCmpMap( rot, zmout, 1, " ", status );
+   (void) astAnnul( rot );
+   rot = tmp;
+
+   (void) astAnnul( zmin );
+   (void) astAnnul( sphinv );
+   (void) astAnnul( mm3 );
+   (void) astAnnul( sphfwd );
+   (void) astAnnul( zmout );
+
+/* Combine all the steps in series: shift, pc, scale, projection, rotation. */
+   result = (AstMapping *) astCmpMap( shift, pcmap, 1, " ", status );
+   tmp = (AstMapping *) astCmpMap( result, scale, 1, " ", status );
+   (void) astAnnul( result );
+   result = tmp;
+   tmp = (AstMapping *) astCmpMap( result, proj, 1, " ", status );
+   (void) astAnnul( result );
+   result = tmp;
+   tmp = (AstMapping *) astCmpMap( result, rot, 1, " ", status );
+   (void) astAnnul( result );
+   result = tmp;
+
+/* Free resources. */
+   (void) astAnnul( shift );
+   (void) astAnnul( pcmap );
+   (void) astAnnul( scale );
+   (void) astAnnul( proj );
+   (void) astAnnul( rot );
+   crpix = astFree( crpix );
+   crval = astFree( crval );
+   cdelt = astFree( cdelt );
+   pc = astFree( pc );
+
+/* If an error occurred, report the context. */
+   if( !astOK ) {
+      result = astAnnul( result );
+      astError( astStatus, "Error occurred when reading an ASDF "
+                "'fitswcs_imaging' object.", status );
+   }
+
+/* Return the Mapping. */
+   return result;
+}
+
 static void ReadStep( AstYamlChan *this, AstKeyMap *km, int report,
                       int nax_hint, AstMapping **pmap, AstFrame **frm,
                       AstMapping **map, int *status ){
@@ -10534,6 +10785,8 @@ static AstMapping *ReadTransform( AstYamlChan *this, AstKeyMap *km, int *status 
             result = ReadPolynomial( this, km, status );
          } else if( IsASpherical_Cartesian( class, status ) ){
             result = ReadSphericalCartesian( km, status );
+         } else if( IsAFitswcs_Imaging( class, status ) ){
+            result = ReadFitswcsImaging( this, km, status );
          } else if( astOK ) {
             astError( AST__BYAML, "astRead(YamlChan): The '%s' class of "
                       "ASDF transform is not currently supported by AST.",
