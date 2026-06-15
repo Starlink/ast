@@ -38,11 +38,24 @@ static void test_transforms_1d( int *status );
 static void test_transforms_2d( int *status );
 static void test_earthlocation( int *status );
 static void test_yamlchan_dump( int *status );
+static void test_fitswcs_imaging_read( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
    if( a && b ) result = !strcmp( a, b );
    return result;
+}
+
+/* Return the signed difference (a - b) of two angles in radians, reduced to
+   the range (-pi,pi]. Used to compare longitudes that may differ by a
+   multiple of 2*pi (e.g. AST's SphMap returns longitudes in (-pi,pi] while
+   the reference values are normalised to [0,2*pi)). */
+static double angDiff( double a, double b ){
+   double twopi = 2.0*M_PI;
+   double d = a - b;
+   while( d > twopi/2.0 ) d -= twopi;
+   while( d <= -twopi/2.0 ) d += twopi;
+   return d;
 }
 
 int main(){
@@ -69,6 +82,7 @@ int main(){
    test_transforms_2d( status );
    test_earthlocation( status );
    test_yamlchan_dump( status );
+   test_fitswcs_imaging_read( status );
 
    astEnd;
 
@@ -1064,4 +1078,67 @@ void test_yamlchan_dump( int *status ){
 
    astAnnul( ch );
    astAnnul( ch2 );
+}
+
+
+
+/* Test reading a GWCS fitswcs_imaging transform: read the Roman L3 sample
+   WCS (a fitswcs_imaging with a gnomonic/TAN projection) from ASDF, evaluate
+   pixel -> celestial for a set of points, and compare against reference
+   RA/Dec values computed independently with the Python GWCS library.
+
+   Note: the WCS current Frame is an ICRS SkyFrame, so astTran2 returns the
+   sky coordinates in radians; the reference values below are therefore in
+   radians. */
+void test_fitswcs_imaging_read( int *status ){
+   AstYamlChan *ch;
+   AstObject *obj;
+   int i;
+   double xout[ 6 ];
+   double yout[ 6 ];
+   double xin[ 6 ] = { 0.0, 100.0, 2499.5, 1234.5, 4000.0, 4999.0 };
+   double yin[ 6 ] = { 0.0, 4000.0, 2499.5, 678.25, 1000.0, 4999.0 };
+
+/* Reference RA (radians) from the Python GWCS forward transform. */
+   double lonT[ 6 ] = { 4.704472459148153, 4.704519279767015, 4.706098502804541,
+                        4.705277294315075, 4.707086403913128, 4.707729398611457 };
+
+/* Reference Dec (radians) from the Python GWCS forward transform. */
+   double latT[ 6 ] = { 1.1511598141523738, 1.1522259402330988, 1.1518302230206918,
+                        1.151342819228696, 1.1514327418783765, 1.1524996269399377 };
+
+   if( *status != SAI__OK ) return;
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/fitswcs_imaging.asdf",
+           fixture_dir() );
+
+   obj = astRead( ch );
+   if( !obj ) {
+      stopit( 70, status );
+      astAnnul( ch );
+      return;
+   }
+
+   astTran2( obj, 6, xin, yin, 1, xout, yout );
+
+   for( i = 0; i < 6; i++ ){
+      if( fabs( angDiff( xout[ i ], lonT[ i ] ) ) > 1.0E-9 ){
+         if( *status == SAI__OK )
+            printf( "fitswcs_imaging lon[%d]: got %.15g expected %.15g (d=%g)\n",
+                    i, xout[ i ], lonT[ i ], fabs( angDiff( xout[ i ], lonT[ i ] ) ) );
+         stopit( 71 + i, status );
+      } else if( fabs( yout[ i ] - latT[ i ] ) > 1.0E-9 ){
+         if( *status == SAI__OK )
+            printf( "fitswcs_imaging lat[%d]: got %.15g expected %.15g (d=%g)\n",
+                    i, yout[ i ], latT[ i ], fabs( yout[ i ] - latT[ i ] ) );
+         stopit( 77 + i, status );
+      }
+   }
+
+   if( *status != SAI__OK )
+      printf( "Read tests failed for fitswcs_imaging.asdf\n" );
+
+   astAnnul( obj );
+   astAnnul( ch );
 }
