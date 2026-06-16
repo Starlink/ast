@@ -27,27 +27,21 @@ static void TestCheckToString( void ) {
 
    if( !fs ) {
       if( astOK )
-         astError( AST__INTER, "TestCheckToString: astConvert failed.\n" );
+         astError( AST__INTER, "TestCheckToString: astConvert failed.\n" );  /* LCOV_EXCL_LINE */
    } else {
       pickle1 = astToString( fs );
       fs2 = astFromString( pickle1 );
       pickle2 = astToString( fs2 );
 
       if( pickle1 && pickle2 ) {
-         if( strcmp( pickle1, pickle2 ) && astOK ) {
-            astError( AST__INTER, "TestCheckToString: round-tripped strings "
-                      "differ.\n" );
-         }
+         if( strcmp( pickle1, pickle2 ) && astOK )
+            astError( AST__INTER, "TestCheckToString: round-tripped strings differ.\n" );  /* LCOV_EXCL_LINE */
       } else if( astOK ) {
-         astError( AST__INTER,
-                   "TestCheckToString: astToString returned NULL.\n" );
+         astError( AST__INTER, "TestCheckToString: astToString returned NULL.\n" );  /* LCOV_EXCL_LINE */
       }
 
-      if( fs2 && !astEqual( fs, fs2 ) && astOK ) {
-         astError( AST__INTER,
-                   "TestCheckToString: reloaded Object is not equal "
-                   "to the original.\n" );
-      }
+      if( fs2 && !astEqual( fs, fs2 ) && astOK )
+         astError( AST__INTER, "TestCheckToString: reloaded Object is not equal to the original.\n" );  /* LCOV_EXCL_LINE */
    }
 
    pickle1 = astFree( pickle1 );
@@ -72,18 +66,12 @@ static void TestCreatedAt( void ) {
    AstFrame *bf = astFrame( 2, "Domain=SKY" );
 
    astCreatedAt( bf, &routine, &file, &line );
-   if( ( !routine || strcmp( routine, "TestCreatedAt" ) ) && astOK ) {
-      astError( AST__INTER, "TestCreatedAt: routine is '%s'.\n",
-                routine ? routine : "<NULL>" );
-   }
-   if( ( !file || strcmp( baseName( file ), "testobject.c" ) ) && astOK ) {
-      astError( AST__INTER, "TestCreatedAt: file is '%s'.\n",
-                file ? file : "<NULL>" );
-   }
-   if( line != bf_line && astOK ) {
-      astError( AST__INTER, "TestCreatedAt: line is %d, expected %d.\n",
-                line, bf_line );
-   }
+   if( ( !routine || strcmp( routine, "TestCreatedAt" ) ) && astOK )
+      astError( AST__INTER, "TestCreatedAt: routine is '%s'.\n", routine ? routine : "<NULL>" );  /* LCOV_EXCL_LINE */
+   if( ( !file || strcmp( baseName( file ), "testobject.c" ) ) && astOK )
+      astError( AST__INTER, "TestCreatedAt: file is '%s'.\n", file ? file : "<NULL>" );  /* LCOV_EXCL_LINE */
+   if( line != bf_line && astOK )
+      astError( AST__INTER, "TestCreatedAt: line is %d, expected %d.\n", line, bf_line );  /* LCOV_EXCL_LINE */
 
    bf = astAnnul( bf );
 }
@@ -122,53 +110,36 @@ static void TestActiveObjects( void ) {
    km = astActiveObjects( NULL, 0, 1 );
 
    if( !km && astOK ) {
-      astError( AST__INTER, "TestActiveObjects: astActiveObjects returned "
-                "NULL.\n" );
+      astError( AST__INTER, "TestActiveObjects: astActiveObjects returned NULL.\n" );  /* LCOV_EXCL_LINE */
    } else {
       nkey = astMapSize( km );
-      if( nkey != 3 && astOK ) {
-         astError( AST__INTER, "TestActiveObjects: nkey is %d, expected 3.\n",
-                   nkey );
-      }
+      if( nkey != 3 && astOK )
+         astError( AST__INTER, "TestActiveObjects: nkey is %d, expected 3.\n", nkey );  /* LCOV_EXCL_LINE */
 
       astSetC( km, "SortBy", "KeyUp" );
       for( idx = 0; idx < nkey; idx++ ){
          key = astMapKey( km, idx );
          if( idx == 0 ) {
             if( strcmp( key, "Frame" ) && astOK ) {
-               astError( AST__INTER, "TestActiveObjects: key 0 is '%s'.\n",
-                         key );
+               astError( AST__INTER, "TestActiveObjects: key 0 is '%s'.\n", key );  /* LCOV_EXCL_LINE */
             } else if( astMapLength( km, key ) != 1 && astOK ) {
-               astError( AST__INTER, "TestActiveObjects: Frame count is %d.\n",
-                         astMapLength( km, key ) );
-            } else if( ( !astMapGetElemP( km, key, 0, &p ) || ( p != bf ) ) &&
-                       astOK ) {
-               astError( AST__INTER, "TestActiveObjects: Frame pointer "
-                         "mismatch.\n" );
+               astError( AST__INTER, "TestActiveObjects: Frame count is %d.\n", astMapLength( km, key ) );  /* LCOV_EXCL_LINE */
+            } else if( ( !astMapGetElemP( km, key, 0, &p ) || ( p != bf ) ) && astOK ) {
+               astError( AST__INTER, "TestActiveObjects: Frame pointer mismatch.\n" );  /* LCOV_EXCL_LINE */
             } else {
                astCreatedAt( p, &routine, &file, &line );
-               if( ( !routine || strcmp( routine, "TestActiveObjects" ) ) &&
-                   astOK ) {
-                  astError( AST__INTER, "TestActiveObjects: Frame routine is "
-                            "'%s'.\n", routine ? routine : "<NULL>" );
-               }
-               if( ( !file || strcmp( baseName( file ), "testobject.c" ) ) &&
-                   astOK ) {
-                  astError( AST__INTER, "TestActiveObjects: Frame file is "
-                            "'%s'.\n", file ? file : "<NULL>" );
-               }
-               if( line != bf_line && astOK ) {
-                  astError( AST__INTER, "TestActiveObjects: Frame line is %d, "
-                            "expected %d.\n", line, bf_line );
-               }
+               if( ( !routine || strcmp( routine, "TestActiveObjects" ) ) && astOK )
+                  astError( AST__INTER, "TestActiveObjects: Frame routine is '%s'.\n", routine ? routine : "<NULL>" );  /* LCOV_EXCL_LINE */
+               if( ( !file || strcmp( baseName( file ), "testobject.c" ) ) && astOK )
+                  astError( AST__INTER, "TestActiveObjects: Frame file is '%s'.\n", file ? file : "<NULL>" );  /* LCOV_EXCL_LINE */
+               if( line != bf_line && astOK )
+                  astError( AST__INTER, "TestActiveObjects: Frame line is %d, expected %d.\n", line, bf_line );  /* LCOV_EXCL_LINE */
             }
          } else if( idx == 1 ) {
             if( strcmp( key, "FrameSet" ) && astOK ) {
-               astError( AST__INTER, "TestActiveObjects: key 1 is '%s'.\n",
-                         key );
+               astError( AST__INTER, "TestActiveObjects: key 1 is '%s'.\n", key );  /* LCOV_EXCL_LINE */
             } else if( astMapLength( km, key ) != 2 && astOK ) {
-               astError( AST__INTER, "TestActiveObjects: FrameSet count is "
-                         "%d.\n", astMapLength( km, key ) );
+               astError( AST__INTER, "TestActiveObjects: FrameSet count is %d.\n", astMapLength( km, key ) );  /* LCOV_EXCL_LINE */
             } else {
 
 /* The two FrameSets are both active, but their order within the list is
@@ -181,37 +152,22 @@ static void TestActiveObjects( void ) {
                   if( astMapGetElemP( km, key, jdx, &p ) && p == fs2 ) {
                      found = 1;
                      astCreatedAt( p, &routine, &file, &line );
-                     if( ( !routine ||
-                           strcmp( routine, "TestActiveObjects" ) ) && astOK ) {
-                        astError( AST__INTER, "TestActiveObjects: FrameSet "
-                                  "routine is '%s'.\n",
-                                  routine ? routine : "<NULL>" );
-                     }
-                     if( ( !file ||
-                           strcmp( baseName( file ), "testobject.c" ) ) &&
-                         astOK ) {
-                        astError( AST__INTER, "TestActiveObjects: FrameSet "
-                                  "file is '%s'.\n", file ? file : "<NULL>" );
-                     }
-                     if( line != fs2_line && astOK ) {
-                        astError( AST__INTER, "TestActiveObjects: FrameSet "
-                                  "line is %d, expected %d.\n", line,
-                                  fs2_line );
-                     }
+                     if( ( !routine || strcmp( routine, "TestActiveObjects" ) ) && astOK )
+                        astError( AST__INTER, "TestActiveObjects: FrameSet routine is '%s'.\n", routine ? routine : "<NULL>" );  /* LCOV_EXCL_LINE */
+                     if( ( !file || strcmp( baseName( file ), "testobject.c" ) ) && astOK )
+                        astError( AST__INTER, "TestActiveObjects: FrameSet file is '%s'.\n", file ? file : "<NULL>" );  /* LCOV_EXCL_LINE */
+                     if( line != fs2_line && astOK )
+                        astError( AST__INTER, "TestActiveObjects: FrameSet line is %d, expected %d.\n", line, fs2_line );  /* LCOV_EXCL_LINE */
                   }
                }
-               if( !found && astOK ) {
-                  astError( AST__INTER, "TestActiveObjects: fs2 not found "
-                            "among the active FrameSets.\n" );
-               }
+               if( !found && astOK )
+                  astError( AST__INTER, "TestActiveObjects: fs2 not found among the active FrameSets.\n" );  /* LCOV_EXCL_LINE */
             }
          } else {
             if( strcmp( key, "SkyFrame" ) && astOK ) {
-               astError( AST__INTER, "TestActiveObjects: key 2 is '%s'.\n",
-                         key );
+               astError( AST__INTER, "TestActiveObjects: key 2 is '%s'.\n", key );  /* LCOV_EXCL_LINE */
             } else if( astMapLength( km, key ) != 1 && astOK ) {
-               astError( AST__INTER, "TestActiveObjects: SkyFrame count is "
-                         "%d.\n", astMapLength( km, key ) );
+               astError( AST__INTER, "TestActiveObjects: SkyFrame count is %d.\n", astMapLength( km, key ) );  /* LCOV_EXCL_LINE */
             }
          }
       }
