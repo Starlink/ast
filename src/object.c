@@ -242,10 +242,8 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        that it does not report an error if the supplied object handle
 *        is owned by a different thread.
 *     16-JUN-2026 (EMB):
-*        Add the protected astGetKeyMap method, which lazily creates and
-*        returns a borrowed pointer to a KeyMap associated with any Object.
-*        The KeyMap is deep-copied by astCopy, serialised through a Channel
-*        only if it exists and is not empty.
+*        Add the protected astGetKeyMap method, which returns a KeyMap that
+*        may be associated with any Object for storing extra internal data.
 *class--
 */
 
@@ -2358,11 +2356,21 @@ static size_t GetObjSize( AstObject *this, int *status ) {
 *-
 */
 
-/* Check the global error status. */
-   if ( !astOK ) return 0;
+/* Local Variables: */
+   size_t result;                /* Result value to return */
 
-/* Return the object size. */
-   return this->size;
+/* Check the global error status. */
+   if ( !astOK )
+      return 0;
+
+/* Start with the size of the Object structure itself, and then add on the
+   size of any associated KeyMap. */
+   result = this->size;
+   if ( this->keymap )
+      result += astGetObjSize( this->keymap );
+
+/* Return the total size. */
+   return result;
 }
 
 void *astGetProxy_( AstObject *this, int *status ) {
@@ -2434,21 +2442,21 @@ AstKeyMap *astGetKeyMap_( AstObject *this, int *status ) {
 *     additional data within the Object. If the Object does not yet have
 *     an associated KeyMap, a new, empty KeyMap is created.
 *
-*     The returned KeyMap is owned by the Object: it is deep-copied
-*     whenever the Object is copied (using astCopy), it is annulled when
-*     the Object is deleted, and it is written out through a Channel (as
-*     part of the Object's serialisation) only if it is not empty. This
-*     provides a general-purpose scratch area for internal use that survives
-*     copying and serialisation.
+*     The KeyMap is retained by the Object: it is deep-copied whenever the
+*     Object is copied (using astCopy), it is annulled when the Object is
+*     deleted, and it is written out through a Channel (as part of the
+*     Object's serialisation) only if it is not empty. This provides a
+*     general-purpose scratch area for internal use that survives copying
+*     and serialisation.
 
 *  Parameters:
 *     this
 *        Pointer to the Object.
 
 *  Returned Value:
-*     A borrowed pointer to the associated KeyMap, or NULL if an error
-*     occurs. The returned pointer remains owned by the Object and so
-*     should not be annulled by the caller.
+*     A pointer to the associated KeyMap, or NULL if an error occurs. This
+*     is a cloned pointer (a new reference to the KeyMap retained by the
+*     Object) and should be annulled by the caller when no longer needed.
 
 *  Notes:
 *     - This is a protected method, intended for internal use within the
@@ -2465,14 +2473,13 @@ AstKeyMap *astGetKeyMap_( AstObject *this, int *status ) {
       return NULL;
 
 /* If the Object does not yet have an associated KeyMap, create a new
-   empty one. The Object holds the only reference to this KeyMap, so the
-   pointer returned here is "borrowed" and must not be annulled by the
-   caller. */
+   empty one, retained by the Object. */
    if ( !this->keymap )
       this->keymap = astKeyMap( "", status );
 
-/* Return the borrowed pointer. */
-   return this->keymap;
+/* Return a a new reference to the retained KeyMap, which the caller
+   should annul when no longer needed. */
+   return astClone( this->keymap );
 }
 
 int astGetRefCount_( AstObject *this, int *status ) {
@@ -3054,6 +3061,12 @@ static int ManageLock( AstObject *this, int mode, int extra,
 
 /* If the operation failed, return a pointer to the failed object. */
    if( result && fail ) *fail = this;
+
+/* If the operation on "this" succeeded, perform the same operation on any
+   KeyMap associated with the Object (and, in turn, on any Objects stored
+   within that KeyMap). */
+   if( !result && this->keymap )
+      result = astManageLock( this->keymap, mode, extra, fail );
 
 /* Return the status value */
    return result;

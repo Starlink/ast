@@ -128,7 +128,7 @@
 *        astGetIdent
 *           Obtain the value of the Ident attribute for an Object.
 *        astGetKeyMap
-*           Obtain a pointer to the Object's associated KeyMap,
+*           Obtain a (cloned) pointer to the Object's associated KeyMap,
 *           creating an empty KeyMap if it does not yet exist.
 *        astGetNobject
 *           Obtain the value of the Nobject attribute for an Object.
@@ -343,11 +343,11 @@
 *        is built as C99 or C11, which keeps the test fixtures matching
 *        regardless of the compiler's default C standard.
 *     16-JUN-2026 (EMB):
-*        Added the protected astGetKeyMap method, which lazily creates and
-*        returns a borrowed pointer to a KeyMap associated with any Object.
-*        The KeyMap is deep-copied when the Object is copied, annulled when
-*        the Object is deleted, and serialised through a Channel only if it
-*        exists and is not empty.
+*        Added the protected astGetKeyMap method, which returns a KeyMap
+*        that may be associated with any Object as a scratch area for storing
+*        extra internal data.  May be useful to add to the public API later,
+*        though there is a danger there of users building ad-hoc data models
+*        around it; for now it is only intended for internal use.
 */
 
 /* Include files. */
