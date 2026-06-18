@@ -18333,6 +18333,7 @@ f        The global status.
    int naxes;              /* No. of axes in the base or current Frame */
    int oldedge0;           /* Default value for Edge(1) */
    int oldedge1;           /* Default value for Edge(2) */
+   int simd_disabled;      /* Original SIMD disabled flag */
    int useint;             /* Do interior labels give us an advantage? */
 
 /* Check the global error status. */
@@ -18357,6 +18358,14 @@ f        The global status.
 /* Ensure AST functions included graphical escape sequences in any
    returned text strings. */
    escs = astEscapes( 1 );
+
+/* Disable SIMD-vectorised Mapping transformations for the duration of the
+   drawing so that coordinate transformations produce bit-stable results.
+   The adaptive curve-subdivision algorithm is sensitive to the few-ULP
+   differences between the scalar and vectorised maths libraries, which can
+   otherwise cause curves to be over-subdivided. Note the original value of
+   the flag so that it can be re-instated at the end. */
+   simd_disabled = astSIMDState( 1 );
 
 /* Note if attributes which have complex dynamic defaults are set
    initially. */
@@ -18618,6 +18627,9 @@ f        The global status.
 /* Restore the original value of the flag which says whether graphical
    escape sequences should be incldued in any returned text strings. */
    astEscapes( escs );
+
+/* Re-instate the original setting of the "SIMD disabled" flag. */
+   astSIMDState( simd_disabled );
 
 /* Copy the total bounding box to the box which is returned by
    astBoundingBox. */
