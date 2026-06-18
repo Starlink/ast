@@ -6382,8 +6382,9 @@ static void TransformLoopSIMD( AstMapping *this, int forward, int npoint,
 
    map = (AstPolyMap *) this;
 
-/* Fall back if UseSIMD disabled. */
-   if( map->use_simd == 0 ) {
+/* Fall back if UseSIMD disabled for this Mapping, or if SIMD has been
+   disabled globally for this thread. */
+   if( map->use_simd == 0 || astSIMDDisabled() ) {
       TransformLoopScalar( this, forward, npoint, ncoord_in, ncoord_out,
                            ptr_in, ptr_out, status );
       return;

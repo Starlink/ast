@@ -16,7 +16,6 @@
 # Optional:
 #   REF_FILE  : reference SVG file (omit for smoke-only)
 #   BOX       : graphics bounds "xlo ylo xhi yhi" (omit for auto)
-#   NO_SIMD   : if set, pass --no-simd to testgrid (disable SIMD on SphMaps)
 
 foreach(_req IN ITEMS TESTGRID HEAD_FILE ATTR FATTR OUT_FILE)
     if(NOT DEFINED ${_req})
@@ -25,9 +24,6 @@ foreach(_req IN ITEMS TESTGRID HEAD_FILE ATTR FATTR OUT_FILE)
 endforeach()
 
 set(_cmd "${TESTGRID}")
-if(DEFINED NO_SIMD AND NO_SIMD)
-    list(APPEND _cmd "--no-simd")
-endif()
 list(APPEND _cmd "${HEAD_FILE}" "${ATTR}" "${FATTR}" "${OUT_FILE}")
 if(DEFINED BOX AND NOT BOX STREQUAL "")
     separate_arguments(_box UNIX_COMMAND "${BOX}")

@@ -1,27 +1,26 @@
 # Grid and plotter smoke tests -- pipe-delimited
 # Shared by both grid_ (unconditional, logging GRF) and plotter_ (PLplot) tests.
-# Fields: name | head | attr | fattr | box | reference | skip_text_compare | no_simd
+# Fields: name | head | attr | fattr | box | reference | skip_text_compare
 # reference: .svg file for text-label regression diff (grid_ tests only)
 # skip_text_compare: "yes" = smoke-only, no label comparison (half-integer
 #                    degree boundary causes 1-ULP formatting instability)
-# no_simd: "yes" = run testgrid with --no-simd (disable SIMD on supported transforms)
-aitoff   | aitoff.head   | Grid=1,tickall=0,border=1,tol=0.001                                                  |          | 10.0 -10.0 300.0 280.0  | aitoff.svg   |     |
-car1     | car1.head     | numlabgap=0.05                                                                       | carlin=1 | 0 0 2962 562             | car1.svg     |     |
-car2     | car2.head     | numlabgap(2)=0.05,labelling=interior                                                  | carlin=1 | 0 0 2962 562             | car2.svg     |     |
-car3     | car3.head     | grid=1                                                                                |          | 0 0 400 400              | car3.svg     |     | yes
-car4     | car4.head     | format(1)=gd,format(2)=gd,Grid=1,tickall=0,width(axes)=3                              | carlin=1 | 0 0 951 1851             | car4.svg     | yes |
-car5     | car5.head     | border=1                                                                              |          | 0 0 951 1851             | car5.svg     |     |
-car6     | car6.head     | format(1)=ghms,format(2)=gdm,edge(2)=r,tickall=0,grid=1                               |          | 0 0 5401 1741            | car6.svg     |     |
-cobe     | cobe.head     | Grid=0,labelling=exterior,gap(1)=50                                                   |          | 10.0 -10.0 300.0 280.0  | cobe.svg     |     |
-hpx      | hpx.head      | Grid=1,labelling=interior,bottom(1)=0                                                 |          | 0.5 0.5 300.5 200.5     | hpx.svg      |     |
-origin   | origin.head   | Grid=1,labelling=int                                                                  |          | 0 0 500 500              | origin.svg   |     |
-polco    | polco.head    | border=1                                                                              |          | -300 -300 500 500        | polco.svg    |     |
-polco2   | polco2.head   |                                                                                       |          | -300 -300 500 500        | polco2.svg   |     |
-scp      | scp.head      | border=1                                                                              |          | 1.0 1.0 1500.0 1300.0   | scp.svg      |     |
-serpens   | serpens.head  |                                                                                       |          | 0.5 0.5 150.5 120.5     | serpens.svg  |     |
-specflux | specflux.head | system=freq,logplot=1,loggap(1)=100                                                   |          | 1 3 1.0E-8 9            | specflux.svg |     |
-timeplot | timeplot.head | minticklen=0.02,majticklen=0.05,gap(2)=0.1,NumLabGap=0.05,textlabgap=0.1,size=0.9    |          | 0.046 3.0 1.008 3.3     | timeplot.svg |     |
-tnx      | tnx.head      | Grid=1,textlabgap=0.1,border=0                                                       |          | 0.0 0.0 2048.0 4096.0   | tnx.svg      |     |
-tsc      | tsc.head      | border=1                                                                              |          | 1 1 1600 1600            | tsc.svg      |     |
-zpn      | zpn.head      | tol=0.0001                                                                           |          | 1 1 200.0 200.0          | zpn.svg      |     |
-zpx      | zpx.head      | Grid=1,style(grid1)=2,size(textlab2)=2                                                |          |                          | zpx.svg      |     |
+aitoff   | aitoff.head   | Grid=1,tickall=0,border=1,tol=0.001                                                  |          | 10.0 -10.0 300.0 280.0  | aitoff.svg   |
+car1     | car1.head     | numlabgap=0.05                                                                       | carlin=1 | 0 0 2962 562             | car1.svg     |
+car2     | car2.head     | numlabgap(2)=0.05,labelling=interior                                                  | carlin=1 | 0 0 2962 562             | car2.svg     |
+car3     | car3.head     | grid=1                                                                                |          | 0 0 400 400              | car3.svg     |
+car4     | car4.head     | format(1)=gd,format(2)=gd,Grid=1,tickall=0,width(axes)=3                              | carlin=1 | 0 0 951 1851             | car4.svg     | yes
+car5     | car5.head     | border=1                                                                              |          | 0 0 951 1851             | car5.svg     |
+car6     | car6.head     | format(1)=ghms,format(2)=gdm,edge(2)=r,tickall=0,grid=1                               |          | 0 0 5401 1741            | car6.svg     |
+cobe     | cobe.head     | Grid=0,labelling=exterior,gap(1)=50                                                   |          | 10.0 -10.0 300.0 280.0  | cobe.svg     |
+hpx      | hpx.head      | Grid=1,labelling=interior,bottom(1)=0                                                 |          | 0.5 0.5 300.5 200.5     | hpx.svg      |
+origin   | origin.head   | Grid=1,labelling=int                                                                  |          | 0 0 500 500              | origin.svg   |
+polco    | polco.head    | border=1                                                                              |          | -300 -300 500 500        | polco.svg    |
+polco2   | polco2.head   |                                                                                       |          | -300 -300 500 500        | polco2.svg   |
+scp      | scp.head      | border=1                                                                              |          | 1.0 1.0 1500.0 1300.0   | scp.svg      |
+serpens   | serpens.head  |                                                                                       |          | 0.5 0.5 150.5 120.5     | serpens.svg  |
+specflux | specflux.head | system=freq,logplot=1,loggap(1)=100                                                   |          | 1 3 1.0E-8 9            | specflux.svg |
+timeplot | timeplot.head | minticklen=0.02,majticklen=0.05,gap(2)=0.1,NumLabGap=0.05,textlabgap=0.1,size=0.9    |          | 0.046 3.0 1.008 3.3     | timeplot.svg |
+tnx      | tnx.head      | Grid=1,textlabgap=0.1,border=0                                                       |          | 0.0 0.0 2048.0 4096.0   | tnx.svg      |
+tsc      | tsc.head      | border=1                                                                              |          | 1 1 1600 1600            | tsc.svg      |
+zpn      | zpn.head      | tol=0.0001                                                                           |          | 1 1 200.0 200.0          | zpn.svg      |
+zpx      | zpx.head      | Grid=1,style(grid1)=2,size(textlab2)=2                                                |          |                          | zpx.svg      |

@@ -1296,10 +1296,12 @@ static void TransformLoopSIMD( AstMapping *this, int forward, int npoint,
 *     Two-pass approach: a #pragma omp simd pass dispatches atan2/sqrt
 *     (forward) or sin/cos (inverse) through libmvec, followed by a scalar
 *     fixup pass for bad values and poles.  Falls back to TransformLoopScalar
-*     for small batches (N < 8) or when UseSIMD is 0.
+*     for small batches (N < 8), when UseSIMD is 0, or when SIMD has been
+*     disabled globally for this thread.
 */
 
 /* Local Variables: */
+   AstSphMap *map;               /* Pointer to SphMap structure */
    double *p0;                   /* x / longitude input */
    double *p1;                   /* y / latitude input */
    double *p2;                   /* z input (forward only) */
@@ -1308,16 +1310,25 @@ static void TransformLoopSIMD( AstMapping *this, int forward, int npoint,
    double mxerr;                 /* Threshold for pole detection */
    double polarlong;             /* PolarLong attribute value */
    int point;                    /* Per-point loop counter */
+   int use_simd;                 /* Use the SIMD code path? */
+   double x;                     /* Cartesian coordinate values and distance */
+   double y;
+   double z;
+   double d2;
+   double theta;                 /* Spherical coordinate values */
+   double phi;
+   double cosphi;                /* Cosine of phi */
 
-/* Fall back for small N or when UseSIMD is disabled. */
-   {
-      AstSphMap *map = (AstSphMap *) this;
-      int use_simd = ( map->use_simd == -1 ) ? 1 : map->use_simd;
-      if( npoint < 8 || !use_simd ) {
-         TransformLoopScalar( this, forward, npoint, ncoord_in, ncoord_out,
-                              ptr_in, ptr_out, status );
-         return;
-      }
+/* Determine whether the SIMD code path should be used for this Mapping. */
+   map = (AstSphMap *) this;
+   use_simd = ( map->use_simd == -1 ) ? 1 : map->use_simd;
+
+/* Fall back to the scalar path for small batches, when UseSIMD is disabled
+   for this Mapping, or when SIMD has been disabled globally for this thread. */
+   if( npoint < 8 || !use_simd || astSIMDDisabled() ) {
+      TransformLoopScalar( this, forward, npoint, ncoord_in, ncoord_out,
+                           ptr_in, ptr_out, status );
+      return;
    }
 
    if( forward ){
@@ -1331,10 +1342,10 @@ static void TransformLoopSIMD( AstMapping *this, int forward, int npoint,
 /* speculative trig on all points via libmvec. */
       #pragma omp simd
       for( point = 0; point < npoint; point++ ) {
-         double x = p0[ point ];
-         double y = p1[ point ];
-         double z = p2[ point ];
-         double d2 = x*x + y*y;
+         x = p0[ point ];
+         y = p1[ point ];
+         z = p2[ point ];
+         d2 = x*x + y*y;
          q0[ point ] = atan2( y, x );
          q1[ point ] = atan2( z, sqrt( d2 ) );
       }
@@ -1372,11 +1383,11 @@ static void TransformLoopSIMD( AstMapping *this, int forward, int npoint,
 /* speculative sin/cos on all points via libmvec. */
       #pragma omp simd
       for( point = 0; point < npoint; point++ ) {
-         double theta = q0[ point ];
-         double phi   = q1[ point ];
-         double cp = cos( phi );
-         p0[ point ] = cos( theta ) * cp;
-         p1[ point ] = sin( theta ) * cp;
+         theta = q0[ point ];
+         phi = q1[ point ];
+         cosphi = cos( phi );
+         p0[ point ] = cos( theta ) * cosphi;
+         p1[ point ] = sin( theta ) * cosphi;
          p2[ point ] = sin( phi );
       }
 
