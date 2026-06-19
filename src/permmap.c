@@ -96,6 +96,15 @@ f     The PermMap class does not define any new routines beyond those
 *     8-APR-2026 (TIMJ):
 *        Fix astEqual to compare the effective permutation arrays safely when
 *        PermMaps are inverted.
+*     19-JUN-2026 (TIMJ):
+*        Fix astEqual to compare the referenced constant values whenever
+*        both permutation entries are negative. Previously the constant
+*        comparison was inside an "if entries differ" test, so two
+*        PermMaps that both fed an axis from the same constant index were
+*        declared equal without checking the stored constant values - they
+*        could differ (e.g. 5.0 vs 7.0), causing an over-merge in
+*        astSimplify. A NULL constants array is treated as AST__BAD,
+*        matching the forward transformation.
 *class--
 */
 
@@ -263,6 +272,8 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 /* Local Variables: */
    AstPermMap *that;
    AstPermMap *this;
+   double con1;
+   double con2;
    int *that_inp;
    int *that_outp;
    int *this_inp;
@@ -350,21 +361,24 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
             p1 = SAFE_PERMVAL( this_inp, i, this_inp_nel, this_inp_valmax );
             p2 = SAFE_PERMVAL( that_inp, i, that_inp_nel, that_inp_valmax );
 
-/* If the "p" values differ, we may have evidence that the PermMaps are
-   not equivalent. */
-            if( p1 != p2 ) {
-
-/* If either "p" value is zero or positive, then the PermMaps are
-   definitely different since input "i" is fed from differing outputs, or
-   one is fed from an input and the other is fed a constant. */
-               if( p1 >= 0 || p2 >= 0 ) {
+/* If either "p" value is zero or positive, then the input is fed from an
+   output (or, if the values differ, one is fed from an output and the
+   other a constant). The PermMaps differ unless both "p" values are
+   equal. */
+            if( p1 >= 0 || p2 >= 0 ) {
+               if( p1 != p2 ) {
                   result = 0;
                   break;
+               }
 
-/* If both "p" values are negative, then both inputs are fed a constant
-   value. The PermMaps differ if these constants differ. */
-               } else if( this->constant[ -p1 - 1 ] !=
-                          that->constant[ -p2 - 1 ] ) {
+/* Otherwise both inputs are fed a constant value. The PermMaps differ if
+   these constants differ - even when both reference the same constant
+   index, the stored values themselves may differ. A NULL constants array
+   is treated as supplying AST__BAD, matching the forward transformation. */
+            } else {
+               con1 = this->constant ? this->constant[ -p1 - 1 ] : AST__BAD;
+               con2 = that->constant ? that->constant[ -p2 - 1 ] : AST__BAD;
+               if( con1 != con2 ) {
                   result = 0;
                   break;
                }
@@ -379,12 +393,15 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
                p1 = SAFE_PERMVAL( this_outp, i, this_outp_nel, this_outp_valmax );
                p2 = SAFE_PERMVAL( that_outp, i, that_outp_nel, that_outp_valmax );
 
-               if( p1 != p2 ) {
-                  if( p1 >= 0 || p2 >= 0 ) {
+               if( p1 >= 0 || p2 >= 0 ) {
+                  if( p1 != p2 ) {
                      result = 0;
                      break;
-                  } else if( this->constant[ -p1 - 1 ] !=
-                             that->constant[ -p2 - 1 ] ) {
+                  }
+               } else {
+                  con1 = this->constant ? this->constant[ -p1 - 1 ] : AST__BAD;
+                  con2 = that->constant ? that->constant[ -p2 - 1 ] : AST__BAD;
+                  if( con1 != con2 ) {
                      result = 0;
                      break;
                   }
