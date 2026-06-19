@@ -30,4 +30,5 @@ int main( void ) {
    } else {
       printf("Axis tests failed\n");
    }
+   return astOK ? 0 : 1;
 }

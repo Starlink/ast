@@ -157,5 +157,6 @@ int main( void ){
    } else {
       printf("SplineMap (C API) tests failed\n");
    }
+   return astOK ? 0 : 1;
 
 }

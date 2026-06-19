@@ -27,4 +27,5 @@ int main( void ) {
    } else {
       printf("UnitNormaliser tests failed\n");
    }
+   return astOK ? 0 : 1;
 }
