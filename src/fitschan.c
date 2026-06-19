@@ -1350,6 +1350,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        values being formatted with the default number of digits (7) and
 *        then unformatted. Now, the Digits value is temporarily increased
 *        to 20 before formatting these values.
+*     20-JUN-2026 (TIMJ):
+*        Fix DateObs: the fractional seconds field was read with "%d"
+*        into an int, discarding any leading zeros and so losing the
+*        field width. A DATE-OBS of ".087" parsed as 87 and was
+*        reconstructed as 0.87 s rather than 0.087 s. The field width
+*        is now captured with "%n" markers so the fraction is recovered
+*        exactly.
 *class--
 */
 
@@ -8400,6 +8407,8 @@ static double DateObs( const char *dateobs, int *status ) {
    double secs;               /* The total value of the two seconds fields */
    int dd;                    /* The day field from the supplied string */
    int fsc;                   /* The fractional seconds field from the supplied string */
+   int fsc_start;             /* Offset to first digit of fractional seconds field */
+   int fsc_end;               /* Offset to first character after fractional seconds */
    int hr;                    /* The hour field from the supplied string */
    int j;                     /* SLALIB status */
    int len;                   /* The length of the supplied string */
@@ -8407,7 +8416,6 @@ static double DateObs( const char *dateobs, int *status ) {
    int mn;                    /* The minute field from the supplied string */
    int nc;                    /* Number of characters used */
    int ok;                    /* Was the string of a legal format? */
-   int rem;                   /* The least significant digit in fsc */
    int sc;                    /* The whole seconds field from the supplied string */
    int yy;                    /* The year field from the supplied string */
 
@@ -8455,9 +8463,10 @@ static double DateObs( const char *dateobs, int *status ) {
 
 /* Otherwise, check for the new format "ccyy-mm-ddThh:mm:ss.sss" with a
    fractional seconds field but without the trailing Z. */
-   } else if( nc = 0,
-        ( astSscanf( dateobs, " %4d-%2d-%2dT%2d:%2d:%2d.%d %n", &yy, &mm, &dd,
-                  &hr, &mn, &sc, &fsc, &nc ) == 7 ) && ( nc >= len )  ){
+   } else if( nc = 0, fsc_start = 0, fsc_end = 0,
+        ( astSscanf( dateobs, " %4d-%2d-%2dT%2d:%2d:%2d.%n%d%n %n", &yy, &mm, &dd,
+                  &hr, &mn, &sc, &fsc_start, &fsc, &fsc_end, &nc ) == 7 ) &&
+        ( nc >= len )  ){
       ok = 1;
 
 /* Otherwise, check for the new format "ccyy-mm-ddThh:mm:ssZ" without a
@@ -8470,9 +8479,10 @@ static double DateObs( const char *dateobs, int *status ) {
 
 /* Otherwise, check for the new format "ccyy-mm-ddThh:mm:ss.sssZ" with a
    fractional seconds field and the trailing Z. */
-   } else if( nc = 0,
-        ( astSscanf( dateobs, " %4d-%2d-%2dT%2d:%2d:%2d.%dZ %n", &yy, &mm, &dd,
-                  &hr, &mn, &sc, &fsc, &nc ) == 7 ) && ( nc >= len )  ){
+   } else if( nc = 0, fsc_start = 0, fsc_end = 0,
+        ( astSscanf( dateobs, " %4d-%2d-%2dT%2d:%2d:%2d.%n%d%nZ %n", &yy, &mm, &dd,
+                  &hr, &mn, &sc, &fsc_start, &fsc, &fsc_end, &nc ) == 7 ) &&
+        ( nc >= len )  ){
       ok = 1;
    }
 
@@ -8487,12 +8497,13 @@ static double DateObs( const char *dateobs, int *status ) {
       if( j == 0 ) {
 
 /* Obtain a floating point representation of the fractional seconds
-   field. */
+   field. The field width (captured by the "%n" markers bracketing the
+   "%d" in the astSscanf patterns above) is used as the power of ten so
+   that leading zeros are preserved: e.g. ".087" gives fsc=87 over a
+   3-digit field, yielding 0.087 rather than 0.87. */
          secs = 0.0;
-         while ( fsc > 0 ) {
-             rem = ( fsc % 10  );
-             fsc /= 10;
-             secs = 0.1 * ( secs + (double) rem );
+         if( fsc > 0 ) {
+            secs = (double) fsc / pow( 10.0, (double)( fsc_end - fsc_start ) );
          }
 
 /* Add on the whole seconds field. */
