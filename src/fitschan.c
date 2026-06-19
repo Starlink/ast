@@ -1357,6 +1357,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        reconstructed as 0.87 s rather than 0.087 s. The field width
 *        is now captured with "%n" markers so the fraction is recovered
 *        exactly.
+*     19-JUN-2026 (TIMJ):
+*        Fix SIPIntWorld: nout was initialised from astGetNin instead of
+*        astGetNout, so the output count was wrong for non-square
+*        Mappings (Nin != Nout). Downstream per-output logic then indexed
+*        past the real output count.
 *class--
 */
 
@@ -28713,7 +28718,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
 
 /* Get the number of inputs and outputs for the Mapping. */
    nin = astGetNin( map );
-   nout = astGetNin( map );
+   nout = astGetNout( map );
 
 /* Check both transformations are defined in the supplied Mapping. */
    if( astGetTranForward( map ) && astGetTranInverse( map ) ) {
