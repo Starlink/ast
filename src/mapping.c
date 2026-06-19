@@ -446,6 +446,13 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        failed and AST__BAD was returned. The zero-x0 seed now uses the
 *        same small step as the non-zero case and the loop grows it as
 *        needed.
+*     19-JUN-2026 (TIMJ):
+*        Fix Rate: the zero-range "previous interval also zero" checks
+*        indexed the range array by the loop counter (iin) rather than the
+*        store index (itop/ibot). These diverge when an interval is
+*        skipped because FindGradient failed, so the check could read an
+*        array slot that was never written for the current search. Index
+*        by the store index instead.
 *class--
 */
 
@@ -9085,8 +9092,11 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2,
    interval also had zero range. Otherwise, it's probably just a numerical
    fluke. If the previous interval also had a range of zero, we can forget
    the rest of the algorithm since the supplied transformation is linear
-   and we now have its gradient. So leave the loop. */
-               } else if( range == 0.0 && y[ iin - 1 ] == 0 ) {
+   and we now have its gradient. So leave the loop. Index the range array
+   by the store index "itop" (not the loop counter "iin"), since "itop"
+   only advances when a value is actually stored - the two diverge if any
+   interval was skipped because FindGradient failed. */
+               } else if( range == 0.0 && y[ itop - 1 ] == 0 ) {
                   iret = itop;
                   break;
                }
@@ -9121,7 +9131,7 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2,
                   iret = ibot;
                } else if( range > minrange ){
                   break;
-               } else if( range == 0.0 && y[ iin + 1 ] == 0 ) {
+               } else if( range == 0.0 && y[ ibot + 1 ] == 0 ) {
                   iret = ibot;
                   break;
                }
