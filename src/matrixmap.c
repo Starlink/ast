@@ -5204,8 +5204,12 @@ static void TransformLoopScalar( AstMapping *this, int forward, int npoint,
 
       if( nax < ncoord_out ) {
          outdata = ptr_out[ nax ];
-         for( point = 0; point < npoint; point++ ) *(outdata++) = 0.0;
+
+         for( point = 0; point < npoint; point++ )
+            *(outdata++) = 0.0;
+
          outdata = ptr_out[ nax ];
+
          for( out_coord = nax + 1; out_coord < ncoord_out; out_coord++ )
             (void) memcpy( ptr_out[ out_coord ], (const void *) outdata,
                            sizeof(double) * (size_t) npoint );
@@ -5379,8 +5383,12 @@ static void TransformLoopSIMD( AstMapping *this, int forward, int npoint,
 
       if( nax < ncoord_out ) {
          outdata = ptr_out[ nax ];
-         for( point = 0; point < npoint; point++ ) *(outdata++) = 0.0;
+
+         for( point = 0; point < npoint; point++ )
+            *(outdata++) = 0.0;
+
          outdata = ptr_out[ nax ];
+
          for( out_coord = nax + 1; out_coord < ncoord_out; out_coord++ )
             (void) memcpy( ptr_out[ out_coord ], (const void *) outdata,
                            sizeof(double) * (size_t) npoint );
