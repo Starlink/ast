@@ -1362,6 +1362,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        astGetNout, so the output count was wrong for non-square
 *        Mappings (Nin != Nout). Downstream per-output logic then indexed
 *        past the real output count.
+*     19-JUN-2026 (TIMJ):
+*        Fix ScalePolyInputs: the inverse-coefficient loop scaled by
+*        scale[iin], but the "scale" pointer was left one past the end of
+*        the "scales" array by the preceding forward-coefficient loop, so
+*        this read out of bounds when the supplied PolyMap had an explicit
+*        (non-iterative) inverse. Index "scales" directly instead.
 *class--
 */
 
@@ -27070,8 +27076,11 @@ static AstPolyMap *ScalePolyInputs( AstPolyMap *polymap, double *scales,
          iin = pv[ 1 ] - 1;
 
 /* Scale the coefficient by the reciprocal (i.e. inverse) of the scale
-   factor associated with the Mapping input. */
-         pv[ 0 ] *= 1.0/scale[ iin ];
+   factor associated with the Mapping input. Index the "scales" array
+   directly: the "scale" pointer was left pointing one past the end of
+   the array by the forward-coefficient loop above, so "scale[iin]" would
+   read out of bounds. */
+         pv[ 0 ] *= 1.0/scales[ iin ];
       }
    }
 
