@@ -192,6 +192,13 @@ f     The MatrixMap class does not define any new routines beyond those
 *        astMtrGet now has option to return the expanded matrix.
 *     14-AUG-2020 (DSB):
 *        Added argument "order" to astMtrEuler.
+*     19-JUN-2026 (TIMJ):
+*        Fix MapSplit: a kept row could reach the element-copy loop with a
+*        BAD value in one of the selected columns (a BAD element does not
+*        count as a dependency during row classification). The copy loop
+*        only advanced the output pointer for good elements, leaving an
+*        uninitialised slot that the MatrixMap constructor then read. Such
+*        a split is now rejected.
 *class--
 */
 
@@ -2476,13 +2483,22 @@ static int *MapSplit( AstMapping *this_map, int nin, const int *in, AstMapping *
                   nout++;
 
 /* Copy the elements of the current matrix row which correspond to the
-   selected inputs into the new matrix. */
+   selected inputs into the new matrix. A BAD matrix element does not
+   count as a dependency in the classification above, so a kept row may
+   reach here with a BAD entry in one of the selected columns. We cannot
+   cleanly split out such a row (the constructor below reads exactly
+   nin*nout elements, so a skipped slot would leave uninitialised
+   memory), so reject the whole split in that case. */
                   for( i = 0; i < nin; i++ ) {
                     if( astISGOOD( prow[ in[ i ] ] ) ) {
                         *(pmat++) = prow[ in[ i ] ];
                         good = 1;
+                     } else {
+                        ok = 0;
+                        break;
                      }
                   }
+                  if( !ok ) break;
                }
 
 /* If this output depends on a selected input, but also depends on an
