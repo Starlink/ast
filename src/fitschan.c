@@ -1368,6 +1368,15 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        the "scales" array by the preceding forward-coefficient loop, so
 *        this read out of bounds when the supplied PolyMap had an explicit
 *        (non-iterative) inverse. Index "scales" directly instead.
+*     19-JUN-2026 (TIMJ):
+*        Fix CLASSFromStore: cdelt[axspec] is multiplied by specfactor in
+*        place when converting the stored spectral CDELT to Hz, but it was
+*        then multiplied by specfactor a second time when forming the
+*        neighbouring-channel input to the frequency->velocity Mapping.
+*        crval[axspec] is not pre-scaled, so its scaling is correct; only
+*        the cdelt term was doubled. Dormant while AddEncodingFrame forces
+*        the SpecFrame Unit to "Hz" (specfactor == 1), but wrong for any
+*        non-Hz spectral unit.
 *class--
 */
 
@@ -6901,9 +6910,11 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
          if( fsconv1 ) {
 
 /* Use this Mapping to convert the spectral crval value from frequency to
-   velocity. Also convert the value for the neighbouring channel. */
+   velocity. Also convert the value for the neighbouring channel. Note,
+   cdelt[axspec] has already been multiplied by specfactor in place
+   above, so it must not be scaled again here (crval[axspec] has not). */
             aval[ 0 ] = crval[ axspec ]*specfactor;
-            aval[ 1 ] = aval[ 0 ] + cdelt[ axspec ]*specfactor;
+            aval[ 1 ] = aval[ 0 ] + cdelt[ axspec ];
             astTran1( fsconv1, 2, aval, 1, aval );
 
 /* Store the value. Also store it as VLSR since this keyword seems to be
