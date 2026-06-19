@@ -52,7 +52,7 @@ int main(void) {
    printf("%s\n", "Region tests failed");
 }
    astEnd;
-   return 0;
+   return *status ? 1 : 0;
 }
 static void generalChecks( int *status ) {
    AstFrame* frm1 = NULL;
