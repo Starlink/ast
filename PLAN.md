@@ -88,7 +88,30 @@ and `__LINE__` captures instead of hardcoded line numbers.
 
 Fixed `testsplinemap_c.c` to check `fscanf` return values.
 
-Fixed `testthreads.c` to return NULL from `worker()` thread function.
+Fixed `testthreads.c` to return NULL from `worker()` thread function. Later
+reworked so each worker watches its own thread-local status and reports the
+outcome back through the shared struct, replacing the Starlink EMS calls
+(`errStat`/`errAnnul`) that are no-ops in the standalone build and so could
+never detect the expected lock error.
+
+### Exit-status audit
+
+ctest decides pass/fail purely from each program's exit code (no pass/fail
+regex), so a test that always returns 0 reports success even when its own
+checks fail. Eight programs ran off the end of `main()` with no return
+statement (an implicit `return 0` in C99) and so had been silently passing:
+`testerror`, `testobject`, `testaxis`, `testframe`, `testunitnorm`,
+`testsplinemap_c`, `testthreads`, `testyamlchan` (and `testregions`, which
+returned a hardcoded 0). All now `return astOK ? 0 : 1`. Making the status
+real exposed two genuine failures that had been masked:
+
+- **testyamlchan**: its input data files (`imaging_wcs.asdf`, `tanSipWcs.txt`,
+  `lsst_wcs.txt`) existed in the source tree but were never copied into the
+  build directory; added the missing `configure_file` calls. Running the test
+  under AddressSanitizer then exposed two pre-existing buffer overflows in
+  `yamlchan.c`/`memory.c` (stack overrun in `ReadPoly`'s `dimd`/`dimw`, and a
+  `str - 1` underread in `astChrSplit_`), fixed by cherry-picking the upstream
+  fixes from PR #39.
 
 ## Phase 2 conversion approach
 
@@ -131,7 +154,7 @@ Key issues:
 
 - **testfitschan.c**: FITS card padding ignored during assertions to match Fortran string comparison rules. Fixed a `heap-use-after-free` bug in `astStore_` (memory.c) exposed by AddressSanitizer during `astConvert`.
 
-- **testregions.c**: Translated automatically and then fixed up to cast `astTranN` input arrays to `(const double *)`.
+- **testregions.c**: Translated automatically and then fixed up to cast `astTranN` input arrays to `(const double *)`. Several automatic-translation defects were later corrected against `testregions.f`: the per-section "X tests failed" messages were printed unconditionally (the Fortran `if status != OK` guard had been dropped); `checkBox`/`checkCircle`/`checkEllipse` each used the wrong FITS header (a single unrelated block had been copied into all three); `checkdump` compared dump strings with `strcmp` instead of falling back to `astOverlap()==5` as the Fortran does; and four `frm1 = astFrame(...)` statements had been absorbed into `//` comments. The `astGetRegionDisc` check in `checkCmpRegion` uses tolerances relaxed to `1e-7` (from the Fortran's `1e-9`/`1e-8`) because that disc is fitted to a subsampled boundary mesh and so varies at the `~1e-8` level with build/optimisation settings; the Fortran test built against the autoconf AST passes the tight tolerance on the same machine.
 - **testrebinseq.c**: Translated to use `astRebinSeq[I|F|D]` depending on the types of the in/out pointers.
 
 - **testrebin.c**: Collapses 27 Fortran subroutines (9 test groups × 3 type

@@ -36,6 +36,7 @@ int main( void ){
    } else {
       printf("Error tests failed\n");
    }
+   return astOK ? 0 : 1;
 
 }
 

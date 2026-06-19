@@ -129,4 +129,5 @@ int main( void ){
    } else {
       printf("Object tests failed\n");
    }
+   return astOK ? 0 : 1;
 }

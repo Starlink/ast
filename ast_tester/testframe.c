@@ -20,4 +20,5 @@ int main( void ) {
    } else {
       printf("Frame tests failed\n");
    }
+   return astOK ? 0 : 1;
 }

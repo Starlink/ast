@@ -1,7 +1,6 @@
 #include "sae_par.h"
 #include "ast.h"
 #include "ast_err.h"
-#include "mers.h"
 #include <pthread.h>
 
 void *worker( void *ptr );
@@ -9,6 +8,7 @@ void *worker( void *ptr );
 typedef struct MyData {
    AstObject *obj;
    int lock;
+   int status;
 } MyData;
 
 int main( void ){
@@ -17,7 +17,6 @@ int main( void ){
                                    false positive when threads access these */
    int status = SAI__OK;
 
-   errMark();
    astWatch( &status );
 
 
@@ -45,15 +44,14 @@ int main( void ){
       }
    }
 
-/* Retrieve the status value */
-   errStat( &status );
-
-/* Check the appropriate error occurred. */
-   if( status == AST__LCKERR ) {
-      errAnnul( &status );
-   } else {
-      if( status == 0 ) status = 1;
-      errRep( " ", "Error 1", &status );
+/* Both worker threads should have failed with a locking error, because
+   they used the UnitMap without locking it for their own use.  Each thread
+   reports its own status back through the shared structure (this build has
+   no Starlink EMS error stack to carry status between threads). */
+   if( astOK && ( data1.status != AST__LCKERR ||
+                  data2.status != AST__LCKERR ) ) {
+      astError( AST__INTER, "Error 1 (thread status %d and %d)",
+                data1.status, data2.status );
    }
 
 
@@ -81,30 +79,39 @@ int main( void ){
       }
    }
 
-   errStat( &status );
-
-   if( status != SAI__OK ) errRep( " ", "Error 2", &status );
-
-
-
-
-
+/* Both worker threads should have succeeded this time, because they locked
+   the UnitMap before using it. */
+   if( astOK && ( data1.status != SAI__OK || data2.status != SAI__OK ) ) {
+      astError( AST__INTER, "Error 2 (thread status %d and %d)",
+                data1.status, data2.status );
+   }
 
 
 
 
-   errRlse();
+
+
+
+
+
    if( astOK ) {
       printf(" All thread tests passed\n");
    } else {
       printf("Thread tests failed\n");
    }
+   return astOK ? 0 : 1;
 
 }
 
 void *worker( void *ptr ) {
    double xin, xout;
    MyData *data = (MyData *) ptr;
+   int status = SAI__OK;
+
+/* AST maintains a separate status value for each thread.  Watch a
+   thread-local variable here so the outcome of the calls below can be
+   reported back to the main thread through the shared structure. */
+   astWatch( &status );
 
    if( data->lock ) astLock( data->obj, 0 );
 
@@ -112,6 +119,9 @@ void *worker( void *ptr ) {
    astTran1( data->obj, 1, &xin, 1, &xout );
 
    if( data->lock ) astUnlock( data->obj, 1 );
+
+   data->status = status;
+   if( !astOK ) astClearStatus;
    return NULL;
 }
 

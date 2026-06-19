@@ -47,6 +47,7 @@ int main(){
    } else {
       printf( "YamlChan tests failed\n" );
    }
+   return *status == SAI__OK ? 0 : 1;
 
 }
 

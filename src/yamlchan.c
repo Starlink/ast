@@ -99,6 +99,8 @@ f     The YamlChan class does not define any new routines beyond those
 *     20-APR-2026 (TIMJ):
 *        Fix buffer overread in LibYamlWriter where astStore copied one
 *        byte past the end of the source buffer.
+*     22-APR-2026 (EMB):
+*        Fix potential stack variable overflow in ReadPolynomial
 *class--
 */
 
@@ -8278,8 +8280,8 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
    double outa[ 2 ];
    double outb[ 2 ];
    int dims[ 2 ];
-   int dimd;
-   int dimw;
+   int dimd[ 2 ];
+   int dimw[ 2 ];
    int i;
    int irow;
    int j;
@@ -8388,11 +8390,11 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
 
 /* If the supplied KeyMap contains a "domain", read the vectorised domain
    array into a newly allocated memory block. */
-      domain = GetSequence( this, km, "domain", 1, ndim, &ndimd, &dimd, status );
+      domain = GetSequence( this, km, "domain", 1, 2, &ndimd, dimd, status );
 
 /* If the supplied KeyMap contains a "window", read the vectorised window
    array into a newly allocated memory block. */
-      window = GetSequence( this, km, "window", 1, ndim, &ndimw, &dimw, status );
+      window = GetSequence( this, km, "window", 1, 2, &ndimw, dimw, status );
 
 /* If neither exist, just return the basic PolyMap or ChebyMap (the
    ChebyMap assumes a domain of [-1,1] on each axis. */
@@ -8417,10 +8419,10 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
    by the WinMap constructor. Use a domain of [-1,1] on each axis if no
    domain was supplied. */
          if( domain ) {
-            if( dimd != ndim ) {
+            if( ndimd != ndim ) {
                astError( AST__BYAML, "astRead(YamlChan): The domain array "
                          "has wrong length (%d) - should be %d.", status,
-                         dimd, ndim );
+                         ndimd, ndim );
             } else {
                ina[ 0 ] = domain[ 0 ];
                if( ndim == 2 ) ina[ 1 ] = domain[ 2 ];
@@ -8438,10 +8440,10 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
    window), as required by the WinMap constructor. Use a window of [-1,1]
    on each axis if no domain was supplied. */
          if( window ) {
-            if( dimw != ndim ) {
+            if( ndimw != ndim ) {
                astError( AST__BYAML, "astRead(YamlChan): The window array "
                          "has wrong length (%d) - should be %d.", status,
-                         dimw, ndim );
+                         ndimw, ndim );
             } else {
                outa[ 0 ] = window[ 0 ];
                if( ndim == 2 ) outa[ 1 ] = window[ 2 ];
