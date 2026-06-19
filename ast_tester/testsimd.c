@@ -72,6 +72,52 @@ static void check_usesimd( AstMapping *map, int base, int *status ) {
    }
 }
 
+/* Compare a transform result against an expected value, treating AST__BAD as
+   a distinct value that must match exactly. */
+static int approx( double got, double want ) {
+   if( got == AST__BAD || want == AST__BAD ) {
+      return got == want;
+   }
+   return fabs( got - want ) <= 1.0e-10;
+}
+
+/* Build a 2-in/2-out MatrixMap from the given form and matrix, transform the
+   "np" supplied points through it both with SIMD enabled (pass 0) and disabled
+   (pass 1), and check the results against the expected outputs (AST__BAD
+   permitted).  This exercises the matching branches in both TransformLoopSIMD
+   and TransformLoopScalar.  Error codes are offset by "base".
+   If compiled without SIMD support both passes are identical/redundant. */
+static void check_tran2( int form, const double *matrix, int np,
+                         const double *xin, const double *yin,
+                         const double *xexp, const double *yexp,
+                         int base, int *status ) {
+   double xout[ 8 ];
+   double yout[ 8 ];
+   AstMatrixMap *mm;
+   int pass;
+   int i;
+
+   if( !astOK )
+      return;
+
+   for( pass = 0; pass < 2; pass++ ) {
+      mm = astMatrixMap( 2, 2, form, matrix, " " );
+      if( pass == 1 ) {
+         astSetI( mm, "UseSIMD", 0 );
+      }
+      astTran2( mm, np, xin, yin, 1, xout, yout );
+      for( i = 0; i < np; i++ ) {
+         if( !approx( xout[ i ], xexp[ i ] ) ) {
+            stopit( base + 10 * pass + i, status ); /* LCOV_EXCL_LINE */
+         }
+         if( !approx( yout[ i ], yexp[ i ] ) ) {
+            stopit( base + 10 * pass + 100 + i, status ); /* LCOV_EXCL_LINE */
+         }
+      }
+      mm = astAnnul( mm );
+   }
+}
+
 /* A simple linear 2-in/2-out forward transformation: out0 = 2*in0,
    out1 = 3*in1 (no inverse). */
 static void TestPolyMap( int *status ) {
@@ -147,6 +193,89 @@ static void TestMatrixMap( int *status ) {
    }
 }
 
+/* Exercise the FULL, DIAGONAL and UNIT MatrixMap forms together with the
+   AST__BAD-handling and non-square branches of the transform loops, on both
+   the SIMD and scalar paths. */
+static void TestMatrixForms( int *status ) {
+
+/* FULL matrix [[2,1],[0,3]]
+   This covers the zero-element skip and the bad-input propagation: a bad x
+   feeds out0 (coefficient 2) but not out1 (coefficient 0), while a bad y feeds
+   both. */
+   double full[] = { 2.0, 1.0, 0.0, 3.0 };
+   double full_x[] = { 1.0, AST__BAD, 1.0, 3.0 };
+   double full_y[] = { 2.0, 2.0, AST__BAD, -1.0 };
+   double full_x_exp[] = { 4.0, AST__BAD, AST__BAD, 5.0 };
+   double full_y_exp[] = { 6.0, 6.0, AST__BAD, -3.0 };
+
+/* FULL matrix whose second output row is entirely zero, covering the
+   all-zero-row branch (output initialised to 0 with no contributing term). */
+   double zrow[] = { 2.0, 1.0, 0.0, 0.0 };
+   double zrow_x[] = { 1.0, 3.0 };
+   double zrow_y[] = { 2.0, -1.0 };
+   double zrow_x_exp[] = { 4.0, 5.0 };
+   double zrow_y_exp[] = { 0.0, 0.0 };
+
+/* FULL matrix containing a bad element, forcing the SIMD path to fall back to
+   the scalar loop, which propagates AST__BAD through the affected output. */
+   double badm[] = { 2.0, 1.0, AST__BAD, 3.0 };
+   double badm_x[] = { 1.0 };
+   double badm_y[] = { 2.0 };
+   double badm_x_exp[] = { 4.0 };
+   double badm_y_exp[] = { AST__BAD };
+
+/* DIAGONAL matrix with a bad diagonal term: y output is all AST__BAD. */
+   double dbad[] = { 2.0, AST__BAD };
+   double dbad_x[] = { 1.0, 3.0 };
+   double dbad_y[] = { 2.0, -1.0 };
+   double dbad_x_exp[] = { 2.0, 6.0 };
+   double dbad_y_exp[] = { AST__BAD, AST__BAD };
+
+/* UNIT matrix: output is a copy of the input. */
+   double unit_x[] = { 1.0, 3.0 };
+   double unit_y[] = { 2.0, -1.0 };
+
+/* Non-square diagonal (2 inputs, 3 outputs): the extra output row is filled
+   with zeros (the nax < ncoord_out branch). */
+   double diag3[] = { 2.0, 3.0 };
+   double in3[] = { 1.0, 3.0, 2.0, -1.0 };  /* 2 coords x 2 points */
+   double out3[ 6 ];  /* 3 coords x 2 points */
+   AstMatrixMap *mm;
+   int pass;
+
+   if( !astOK )
+      return;
+
+   check_tran2( 0, full, 4, full_x, full_y, full_x_exp, full_y_exp, 2300,
+                status );
+   check_tran2( 0, zrow, 2, zrow_x, zrow_y, zrow_x_exp, zrow_y_exp, 2400,
+                status );
+   check_tran2( 0, badm, 1, badm_x, badm_y, badm_x_exp, badm_y_exp, 2500,
+                status );
+   check_tran2( 1, dbad, 2, dbad_x, dbad_y, dbad_x_exp, dbad_y_exp, 2600,
+                status );
+   check_tran2( 2, NULL, 2, unit_x, unit_y, unit_x, unit_y, 2700, status );
+
+/* Non-square case via astTranN, on both the SIMD and scalar paths. */
+   for( pass = 0; pass < 2; pass++ ) {
+      mm = astMatrixMap( 2, 3, 1, diag3, " " );
+      if( pass == 1 ) {
+         astSetI( mm, "UseSIMD", 0 );
+      }
+      astTranN( mm, 2, 2, 2, in3, 1, 3, 2, out3 );
+      if( !approx( out3[ 0 ], 2.0 ) || !approx( out3[ 1 ], 6.0 ) ) {
+         stopit( 2800 + pass, status ); /* LCOV_EXCL_LINE */
+      }
+      if( !approx( out3[ 2 ], 6.0 ) || !approx( out3[ 3 ], -3.0 ) ) {
+         stopit( 2810 + pass, status ); /* LCOV_EXCL_LINE */
+      }
+      if( !approx( out3[ 4 ], 0.0 ) || !approx( out3[ 5 ], 0.0 ) ) {
+         stopit( 2820 + pass, status ); /* LCOV_EXCL_LINE */
+      }
+      mm = astAnnul( mm );
+   }
+}
+
 /* Forward maps Cartesian (x,y,z) to spherical (longitude, latitude).  Build
    8 points (>= the SIMD batch threshold) from known angles, force the scalar
    path, and check the recovered angles. */
@@ -193,6 +322,7 @@ int main( void ) {
 
    TestPolyMap( status );
    TestMatrixMap( status );
+   TestMatrixForms( status );
    TestSphMap( status );
 
    astEnd;
