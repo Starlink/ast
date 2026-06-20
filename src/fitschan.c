@@ -1344,6 +1344,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Fix LoadFitsChan: FindString search count was 9 but the
 *        type_names array has 10 entries (KINT at index 9). Changed
 *        to 10 so that 64-bit integer keywords survive Dump/Load.
+*     20-JUN-2026 (DSB):
+*        Fix MakeFitsFrameSet. Previously, precision was lost when copying
+*        the new reflon and reflat values into the SpecFrame due to the
+*        values being formatted with the default number of digits (7) and
+*        then unformatted. Now, the Digits value is temporarily increased
+*        to 20 before formatting these values.
 *class--
 */
 
@@ -21183,6 +21189,7 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
    AstSpecFrame *specfrm;  /* Pointer to the SpecFrame within WCS Frame */
    AstWcsMap *map2;        /* Pointer to WcsMap */
    char card[ AST__FITSCHAN_FITSCARDLEN + 1 ]; /* A FITS header card */
+   char digits_attr[ 40 ]; /* Name of Digits attribute for sky axes */
    char equinox_attr[ 40 ];/* Name of Equinox attribute for sky axes */
    char system_attr[ 40 ]; /* Name of System attribute for sky axes */
    const char *eqn;        /* Pointer to original sky Equinox value */
@@ -21193,7 +21200,8 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
    double reflat;          /* Celestial latitude at reference point */
    double reflon;          /* Celestial longitude at reference point */
    int *perm;              /* Pointer to axis permutation array */
-   int iax;                /* Axis inex */
+   int digs[ 2 ];          /* Original value of axis Digits attribute */
+   int iax;                /* Axis index */
    int icurr;              /* Index of original current Frame in returned FrameSet */
    int ilat;               /* Celestial latitude index within WCS Frame */
    int ilon;               /* Celestial longitude index within WCS Frame */
@@ -21479,9 +21487,32 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
    maintain the FrameSet integrity. Use "tfs" rather than "wcsfrm" when
    calling astFormat, as "wcsfrm" is not affected by the above change
    to the current frame of "tfs" (i.e. astAddFrame takes a deep copy of the
-   supplied Frame). */
+   supplied Frame). Also, temporarily set the Digits value of the
+   SkyFrame to a large value (20) so that no precision is lost. */
+
+                     for( iax= 0; iax < 2; iax++ ){
+                        sprintf( digits_attr, "Digits(%d)", ( iax ? ilon : ilat ) + 1 );
+                        if( astTest( tfs, digits_attr ) ){
+                           digs[ iax ] = astGetI( tfs, digits_attr );
+                        } else {
+                           digs[ iax ] = -1;
+                        }
+                        astSetI( tfs, digits_attr, 20 );
+                     }
+
                      astSetC( tfs, "RefRA", astFormat( tfs, ilon, reflon ) );
                      astSetC( tfs, "RefDec", astFormat( tfs, ilat, reflat ) );
+
+/* Reinstate the original Digits value for the longitude and latitude
+   axes if originally set. Otherwise, clear them. */
+                     for( iax = 0; iax < 2; iax++ ){
+                        sprintf( digits_attr, "Digits(%d)", ( iax ? ilon : ilat ) + 1 );
+                        if( digs[ iax ] == -1 ){
+                           astClear( tfs, digits_attr );
+                        } else {
+                           astSetI( tfs, digits_attr, digs[ iax ] );
+                        }
+                     }
 
 /* If succesfull, return a pointer to the FrameSet. */
                      if( astOK ) ret = astClone( tfs );
