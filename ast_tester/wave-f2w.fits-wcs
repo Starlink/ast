@@ -18,6 +18,6 @@ CD1_1   =           0.00014868 / Transformation matrix element
 CD2_2   =           -8.3333E-4 / Transformation matrix element                  
 CD3_3   =           0.00083333 / Transformation matrix element                  
 DATE-OBS= '2002-05-19T14:09:36.000' / Date of observation                       
-VELOSYS =            -17935.73 / [m/s] Topo. apparent velocity of rest frame    
+VELOSYS =           -17935.752 / [m/s] Topo. apparent velocity of rest frame    
 RESTWAV =           0.21106114 / [m] Rest wavelength                            
 END                                                                             
