@@ -288,6 +288,23 @@ int main( void ) {
    if( fabs( dubnd[0] - 1.568 ) > 1.0e-6 ) stopit( 35, status );
    if( fabs( dubnd[1] - 1.9991836 ) > 1.0e-6 ) stopit( 36, status );
 
+   /* astRate at x0=0 for a ChebyMap defined only over [-1,1]. The
+    * derivative is well defined there, but a too-large initial search
+    * interval used to push the sample points outside the domain, making
+    * astRate return AST__BAD at x0=0 (while x0=0.5 worked). f(x)=3*T1(x)
+    * is the linear map f(x)=3x, so the gradient is 3 everywhere. */
+   {
+      double rate_coeffs[] = { 3.0, 1, 1 };
+      double rlbnd = -1.0, rubnd = 1.0;
+      double zero_at[1] = { 0.0 }, half_at[1] = { 0.5 }, rr;
+      AstChebyMap *rcm = astChebyMap( 1, 1, 1, rate_coeffs, 0, NULL,
+                                      &rlbnd, &rubnd, &rlbnd, &rubnd, " " );
+      rr = astRate( (AstMapping *)rcm, half_at, 1, 1 );
+      if( fabs( rr - 3.0 ) > 1.0e-6 ) stopit( 600, status );
+      rr = astRate( (AstMapping *)rcm, zero_at, 1, 1 );
+      if( rr == AST__BAD || fabs( rr - 3.0 ) > 1.0e-6 ) stopit( 601, status );
+   }
+
    astEnd;
    astFlushMemory( 1 );
 

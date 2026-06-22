@@ -88,8 +88,8 @@
                 SrcVRF = "LSRK" 	# Source velocity rest frame
                 UFreq = "Hz" 	# Preferred units for frequency
              IsA SpecFrame 	# Description of spectral coordinate system
-                DSBCen = 220463127593.87817 	# Central frequency (Hz topo)
-                IF = -3999979572.8960571 	# Intermediate frequency (Hz)
+                DSBCen = 220463127594.10757 	# Central frequency (Hz topo)
+                IF = -3999979572.900238 	# Intermediate frequency (Hz)
                 SideBn = "USB" 	# Represents upper sideband
              End DSBSpecFrame
        End CmpFrame

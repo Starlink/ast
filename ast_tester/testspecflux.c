@@ -156,6 +156,28 @@ int main( void ) {
       if( fabs( yin - 1.0 ) > 1.0e-9 ) stopit( status, "Error 29" );
    }
 
+   /* A SpecFluxFrame must compare equal to a separately-constructed but
+      identical SpecFluxFrame, and to a copy of itself. The conversion
+      between them always carries a flux-rescaling RateMap, so this only
+      holds if MakeSFMapping short-circuits to a UnitMap when the
+      components are equal. */
+   {
+      AstSpecFrame *esf = astSpecFrame( "system=freq" );
+      AstFluxFrame *eff = astFluxFrame( AST__BAD, NULL, "system=flxdn" );
+      AstFluxFrame *eff2 = astFluxFrame( AST__BAD, NULL, "system=flxdnw" );
+      AstSpecFluxFrame *ea = astSpecFluxFrame( esf, eff, " " );
+      AstSpecFluxFrame *eb = astSpecFluxFrame( esf, eff, " " );
+      AstSpecFluxFrame *ec = astCopy( ea );
+      AstSpecFluxFrame *ed = astSpecFluxFrame( esf, eff2, " " );
+
+      if( !astEqual( ea, eb ) )
+         stopit( status, "Error 30" );
+      if( !astEqual( ea, ec ) )
+         stopit( status, "Error 31" );
+      if( astEqual( ea, ed ) )
+         stopit( status, "Error 32" );
+   }
+
    astEnd;
 
    if( *status == 0 ) {

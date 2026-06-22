@@ -2651,6 +2651,57 @@ int main( void ) {
             tfs7 = astAnnul( tfs7 );
          }
       }
+
+      /* --- DATE-OBS fractional seconds with a leading zero: supply DATE-OBS
+             alone (no MJD-OBS) so the parsed fractional seconds drive the
+             stored epoch. The fraction ".087" must yield 0.087 s, giving
+             MJD-OBS 57955.36017462; the historical "%d" parser dropped the
+             leading zero and produced 0.87 s (MJD-OBS 57955.36018368). --- */
+      {
+         AstFitsChan *hfc8 = astFitsChan( NULL, NULL, " " );
+         AstFitsChan *wfc;
+         AstFrameSet *tfs8;
+         double dval;
+
+         astPutFits( hfc8, "SIMPLE  =                    T", 0 );
+         astPutFits( hfc8, "BITPIX  =                  -32", 0 );
+         astPutFits( hfc8, "NAXIS   =                    2", 0 );
+         astPutFits( hfc8, "NAXIS1  =                  100", 0 );
+         astPutFits( hfc8, "NAXIS2  =                  100", 0 );
+         astPutFits( hfc8, "CTYPE1  = 'RA---TAN'", 0 );
+         astPutFits( hfc8, "CTYPE2  = 'DEC--TAN'", 0 );
+         astPutFits( hfc8, "CRVAL1  =              180.000", 0 );
+         astPutFits( hfc8, "CRVAL2  =               45.000", 0 );
+         astPutFits( hfc8, "CRPIX1  =               50.500", 0 );
+         astPutFits( hfc8, "CRPIX2  =               50.500", 0 );
+         astPutFits( hfc8, "CDELT1  =              -0.0100", 0 );
+         astPutFits( hfc8, "CDELT2  =               0.0100", 0 );
+         astPutFits( hfc8, "RADESYS = 'FK5'", 0 );
+         astPutFits( hfc8, "EQUINOX =               2000.0", 0 );
+         astPutFits( hfc8, "DATE-OBS= '2017-07-21T08:38:39.087'", 0 );
+         astPutFits( hfc8, "END", 0 );
+         astClear( hfc8, "Card" );
+         tfs8 = (AstFrameSet *) astRead( hfc8 );
+         hfc8 = astAnnul( hfc8 );
+         if( !tfs8 ) {
+            stopit( 660, "Failed to read header with DATE-OBS only", status );
+         } else {
+            wfc = astFitsChan( NULL, NULL, " " );
+            astSetC( wfc, "Encoding", "FITS-WCS" );
+            if( astWrite( wfc, tfs8 ) != 1 )
+               stopit( 661, "Failed to write header with DATE-OBS only", status );
+
+            astClear( wfc, "Card" );
+            if( !astGetFitsF( wfc, "MJD-OBS", &dval ) )
+               stopit( 662, "MJD-OBS not derived from DATE-OBS", status );
+            else if( fabs( dval - 57955.360174621412 ) > 1e-6 )
+               stopit( 663, "DATE-OBS fractional seconds parsed wrongly "
+                       "(leading zero dropped?)", status );
+
+            wfc = astAnnul( wfc );
+            tfs8 = astAnnul( tfs8 );
+         }
+      }
    }
 
 /* -----------------------------------------------------------------------

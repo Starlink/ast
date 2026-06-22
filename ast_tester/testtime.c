@@ -538,6 +538,43 @@ int main( void ) {
          stopit( status, "error 58" );
    }
 
+   /* Test UTC<->TAI round trip across every pre-1972 "rubber second" era.
+    * The piecewise-linear TAI-UTC model has an analytic inverse; a
+    * UTC->TAI->UTC round trip should return to the starting value to near
+    * floating-point precision, and TAI-UTC at the test point should match
+    * the published value for that era. One UTC value is chosen inside each
+    * of the 14 segments so both the forward (UTC->TAI) and inverse
+    * (TAI->UTC) branch for that era are exercised. A units error in the
+    * inverse divisor used to leak ~164 ms (~1.9e-6 d); a wrong intercept
+    * constant in the 1966 inverse branch leaked ~0.1 s at MJD 39500. */
+   {
+      /* UTC MJD inside each era, and the expected TAI-UTC there (seconds). */
+      double era_utc[] = { 40000.0, 39500.0, 39060.0, 38970.0, 38880.0,
+                           38790.0, 38700.0, 38560.0, 38440.0, 38360.0,
+                           38000.0, 37590.0, 37400.0, 37200.0 };
+      double era_dt[]  = { 6.478578, 5.282578, 4.227634, 4.010994, 3.794354,
+                           3.577714, 3.361074, 3.079634, 2.824114, 2.726482,
+                           2.222130, 1.748658, 1.552418, 1.288218 };
+      int nera = (int)( sizeof( era_utc ) / sizeof( era_utc[ 0 ] ) );
+
+      tf1 = astTimeFrame( "system=mjd,timescale=utc" );
+      tf2 = astTimeFrame( "system=mjd,timescale=tai" );
+      fs = astConvert( tf1, tf2, " " );
+      if( !fs ) {
+         stopit( status, "error 59" );
+      } else {
+         for( n = 0; n < nera; n++ ) {
+            xin = era_utc[ n ];
+            astTran1( fs, 1, &xin, 1, &xout );     /* UTC -> TAI */
+            astTran1( fs, 1, &xout, 0, &xout2 );   /* TAI -> UTC */
+            if( fabs( xout2 - era_utc[ n ] ) > 1.0e-9 )
+               stopit( status, "error 60" );
+            if( fabs( ( xout - xin )*86400.0 - era_dt[ n ] ) > 1.0e-5 )
+               stopit( status, "error 61" );
+         }
+      }
+   }
+
    astEnd;
 
    if( *status == 0 ) {

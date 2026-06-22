@@ -67,6 +67,51 @@ int main( void ) {
       stopit( status, "Error 4" );
    }
 
+   /* PermMap equality must take the referenced constant *values* into
+      account, not just the constant *indices*. Two PermMaps that feed an
+      axis from the same constant slot but store different values there
+      must compare unequal. */
+   {
+      int perm1[1] = { -1 };       /* feed axis from constant index 0 */
+      int perm2[1] = { -2 };       /* feed axis from constant index 1 */
+      double con5[1] = { 5.0 };
+      double con7[1] = { 7.0 };
+      double con95[2] = { 9.0, 5.0 };  /* index 1 holds 5.0 */
+      double con57[2] = { 5.0, 7.0 };
+      double con59[2] = { 5.0, 9.0 };
+      AstPermMap *a, *b;
+
+      /* Same index (-1), differing constant values -> unequal. */
+      a = astPermMap( 1, perm1, 1, perm1, con5, " " );
+      b = astPermMap( 1, perm1, 1, perm1, con7, " " );
+      if( astEqual( a, b ) ) stopit( status, "Error 5" );
+      a = astAnnul( a );
+      b = astAnnul( b );
+
+      /* Same index (-1), identical constant values -> equal. */
+      a = astPermMap( 1, perm1, 1, perm1, con5, " " );
+      b = astPermMap( 1, perm1, 1, perm1, con5, " " );
+      if( !astEqual( a, b ) ) stopit( status, "Error 6" );
+      a = astAnnul( a );
+      b = astAnnul( b );
+
+      /* Different indices (-1 vs -2) referencing equal values (both 5.0)
+         -> equal. */
+      a = astPermMap( 1, perm1, 1, perm1, con5,  " " );
+      b = astPermMap( 1, perm2, 1, perm2, con95, " " );
+      if( !astEqual( a, b ) ) stopit( status, "Error 7" );
+      a = astAnnul( a );
+      b = astAnnul( b );
+
+      /* Differing unreferenced surplus constants -> still equal (only the
+         referenced slot, index 0, matters here). */
+      a = astPermMap( 1, perm1, 1, perm1, con57, " " );
+      b = astPermMap( 1, perm1, 1, perm1, con59, " " );
+      if( !astEqual( a, b ) ) stopit( status, "Error 8" );
+      a = astAnnul( a );
+      b = astAnnul( b );
+   }
+
    astEnd;
 
    if( *status == 0 ) {
