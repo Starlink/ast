@@ -134,6 +134,8 @@
 *           Obtain the value of the Nobject attribute for an Object.
 *        astGetRefCount
 *           Obtain the value of the RefCount attribute for an Object.
+*        astHasKeyMap
+*           Does the Object already have an associated KeyMap?
 *        astSetAttrib
 *           Set the value of a specified attribute for an Object.
 *        astSetCopy
@@ -347,7 +349,9 @@
 *        that may be associated with any Object as a scratch area for storing
 *        extra internal data.  May be useful to add to the public API later,
 *        though there is a danger there of users building ad-hoc data models
-*        around it; for now it is only intended for internal use.
+*        around it; for now it is only intended for internal use.  The
+*        companion astHasKeyMap method tests whether an Object already has an
+*        associated KeyMap without creating one.
 */
 
 /* Include files. */
@@ -1803,6 +1807,7 @@ struct AstKeyMap *astGetKeyMap_( AstObject *, int * );
 int astClassCompare_( AstObjectVtab *, AstObjectVtab *, int * );
 int astGetNobject_( const AstObject *, int * );
 int astGetRefCount_( AstObject *, int * );
+int astHasKeyMap_( AstObject *, int * );
 int astTestAttrib_( AstObject *, const char *, int * );
 int astTestID_( AstObject *, int * );
 int astTestIdent_( AstObject *, int * );
@@ -1979,6 +1984,7 @@ astINVOKE(V,astGetAttrib_(astCheckObject(this),attrib,STATUS_PTR))
 #define astGetID(this) astINVOKE(V,astGetID_(astCheckObject(this),STATUS_PTR))
 #define astGetIdent(this) astINVOKE(V,astGetIdent_(astCheckObject(this),STATUS_PTR))
 #define astGetKeyMap(this) astINVOKE(O,astGetKeyMap_(astCheckObject(this),STATUS_PTR))
+#define astHasKeyMap(this) astINVOKE(V,astHasKeyMap_(astCheckObject(this),STATUS_PTR))
 #define astGetNobject(this) astINVOKE(V,astGetNobject_(astCheckObject(this),STATUS_PTR))
 #define astClassCompare(class1,class2) astClassCompare_(class1,class2,STATUS_PTR)
 #define astGetRefCount(this) astINVOKE(V,astGetRefCount_(astCheckObject(this),STATUS_PTR))

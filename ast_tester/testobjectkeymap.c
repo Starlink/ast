@@ -34,6 +34,11 @@ static void TestCreate( int *status ) {
    AstKeyMap *km1;
    AstKeyMap *km2;
 
+/* A new Object has no associated KeyMap, and astHasKeyMap does not create
+   one. */
+   if( astHasKeyMap( frm ) && astOK )
+      astError( AST__INTER, "TestCreate: New Object already has a KeyMap.\n", status );  /* LCOV_EXCL_LINE */
+
 /* A new Object lazily creates an empty KeyMap on the first request. */
    km1 = astGetKeyMap( frm );
    if( !km1 && astOK ) {
@@ -41,6 +46,10 @@ static void TestCreate( int *status ) {
    } else if( astMapSize( km1 ) != 0 && astOK ) {
       astError( AST__INTER, "TestCreate: New KeyMap not empty (size %d).\n", status, astMapSize( km1 ) );  /* LCOV_EXCL_LINE */
    }
+
+/* After astGetKeyMap the Object reports that it has a KeyMap. */
+   if( !astHasKeyMap( frm ) && astOK )
+      astError( AST__INTER, "TestCreate: astHasKeyMap false after astGetKeyMap.\n", status );  /* LCOV_EXCL_LINE */
 
 /* Repeated requests return references to the same KeyMap. Compare with
    astSame rather than the pointer values directly--since this is just testing

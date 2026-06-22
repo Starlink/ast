@@ -244,6 +244,8 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *     16-JUN-2026 (EMB):
 *        Add the protected astGetKeyMap method, which returns a KeyMap that
 *        may be associated with any Object for storing extra internal data.
+*        The companion astHasKeyMap method tests whether an Object already has
+*        an associated KeyMap without creating one.
 *class--
 */
 
@@ -2480,6 +2482,56 @@ AstKeyMap *astGetKeyMap_( AstObject *this, int *status ) {
 /* Return a a new reference to the retained KeyMap, which the caller
    should annul when no longer needed. */
    return astClone( this->keymap );
+}
+
+int astHasKeyMap_( AstObject *this, int *status ) {
+/*
+*+
+*  Name:
+*     astHasKeyMap
+
+*  Purpose:
+*     Does an Object already have an associated KeyMap?
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "object.h"
+*     int astHasKeyMap( AstObject *this )
+
+*  Class Membership:
+*     Object method.
+
+*  Description:
+*     This function reports whether the supplied Object already has an
+*     associated KeyMap (see astGetKeyMap). Unlike astGetKeyMap, it does
+*     not create a new KeyMap if none exists, so it can be used to test for
+*     the presence of stashed data without the side effect of attaching an
+*     empty KeyMap to the Object.
+
+*  Parameters:
+*     this
+*        Pointer to the Object.
+
+*  Returned Value:
+*     A non-zero value if the Object has an associated KeyMap, or zero if it
+*     does not (or if an error occurs).
+
+*  Notes:
+*     - This is a protected method, intended for internal use within the
+*     AST library only.
+*     - Zero will be returned if this function is invoked with the AST error
+*     status set, or if it should fail for any reason.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK )
+      return 0;
+
+/* Report whether the Object has an associated KeyMap. */
+   return ( this->keymap != NULL );
 }
 
 int astGetRefCount_( AstObject *this, int *status ) {
