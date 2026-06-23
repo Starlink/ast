@@ -11,7 +11,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 1. Add the existing C tests to the CMake build
 2. Convert Fortran tests to C to eliminate the Fortran/Starlink dependency
 
-## Current status: 107 default tests + 20 conditional (PLplot) + 1 optional huge stress test
+## Current status: 108 default tests + 20 conditional (PLplot) + 1 optional huge stress test
 
 | Phase | Status |
 |-------|--------|
@@ -29,9 +29,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 | Phase 2 Batch 11: .head native round-trip tests | **Complete** (20 wcsconv tests from .head files) |
 | Phase 2 Batch 12: Grid smoke tests (no PLplot) | **Complete** (21 tests via logging GRF plugin) |
 | Phase 2 Batch 13: Resample / QuadApprox coverage | **Complete** (1 test) |
+| Phase 2 Batch 14: astMask sky-curvature coverage | **Complete** (1 test) |
 | Phase 3: CI integration | **Complete** (tests run via ctest) |
 
-### Test inventory (107 default + 20 conditional PLplot + 1 optional)
+### Test inventory (108 default + 20 conditional PLplot + 1 optional)
 
 **Original test (1):**
 - ast_test — minimal installation check
@@ -62,11 +63,21 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   viewport with no PLplot dependency. Same .head/.attr/.fattr/.box fixtures
   as Batch 10.
 
-**Coverage gap tests (1 default):**
+**Coverage gap tests (2 default):**
 - Batch 13: testresample — exercises astResampleD/F/I across 10 interpolation
   schemes (NEAREST, LINEAR, SINC, SINCSINC, SINCCOS, SINCGAUSS, GAUSS, SOMB,
   SOMBCOS, BLOCKAVE), plus bad-pixel handling, variance propagation,
   AST__NOBAD flag, and astQuadApprox.
+- Batch 14: testregionmasking — verifies how astMask treats the great-circle
+  edges of a Polygon defined in a SkyFrame. Establishes a projection-independent
+  ground truth by classifying each pixel centre directly (map pixel to sky, ask
+  the Polygon via astTran2), then compares against astMask. Confirms that for a
+  CAR projection the default (SimpVertices=1) mask linearises the curved edges
+  (wrong at 467/38036 interior pixels in the test geometry) while SimpVertices=0
+  reproduces the curved boundary exactly; for TAN both agree because gnomonic
+  maps great circles to straight lines. The CAR and TAN GRID<->SKY FrameSets are
+  embedded as native serialised strings (read back with astFromString) so the
+  test does not depend on the FitsChan class.
 
 **Optional manual stress test:**
 - testhuge_c
