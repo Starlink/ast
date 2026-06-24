@@ -1,0 +1,15 @@
+# Codecov configuration.
+#
+# Coverage is uploaded from build-coverage/coverage/lcov.info, which the
+# `coverage-report` CMake target has already restricted to src/*. The ignore
+# list below is defense-in-depth: it keeps test harness code and vendored
+# third-party libraries out of the report even if other coverage data is ever
+# picked up. Test files in particular contain error/abort paths (e.g. stopit())
+# that are never exercised on a passing run and would otherwise drag coverage
+# down for code that is not under test.
+ignore:
+  - "ast_tester"
+  - "wcslib"
+  - "pal"
+  - "erfa"
+  - "cminpack"

@@ -55,6 +55,12 @@ jobs:
         uses: codecov/codecov-action@v6
         with:
           files: build-coverage/coverage/lcov.info
+          # Upload only the curated src/*-only lcov.info. Without this the
+          # action also auto-discovers the raw .gcda files from the test
+          # executables in ast_tester/, pulling test harness code (e.g. the
+          # stopit() error paths that never fire on a passing run) into the
+          # report.
+          disable_search: true
           fail_ci_if_error: true
           verbose: true
           token: ${{ secrets.CODECOV_TOKEN }}

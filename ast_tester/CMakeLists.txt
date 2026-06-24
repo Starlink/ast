@@ -149,6 +149,7 @@ configure_file(stcschan-test1-doc3.ast "${CMAKE_CURRENT_BINARY_DIR}/stcschan-tes
 configure_file(stcschan-test1-doc3-props.ast "${CMAKE_CURRENT_BINARY_DIR}/stcschan-test1-doc3-props.ast" COPYONLY)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
 ast_add_test(testregions_c SOURCES testregions.c)
+ast_add_test(testregionmasking_c SOURCES testregionmasking.c)
 ast_add_test(testrebinseq_c SOURCES testrebinseq.c)
 ast_add_test(testrebin_c SOURCES testrebin.c)
 ast_add_test(testresample)
