@@ -108,6 +108,13 @@ set_target_properties(test_oracle_util PROPERTIES C_STANDARD 11)
 set_tests_properties(test_oracle_util PROPERTIES
     ENVIRONMENT "ORACLE_TEST_ROOT=${CMAKE_CURRENT_SOURCE_DIR}")
 
+add_executable(gen_transform_oracle gen_transform_oracle.c transform_oracle_util.c)
+target_include_directories(gen_transform_oracle PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_transform_oracle PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_transform_oracle PRIVATE HAVE_CONFIG_H)
+set_target_properties(gen_transform_oracle PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(gen_transform_oracle)
+
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)
 
