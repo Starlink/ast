@@ -358,12 +358,16 @@ loosens it.
 Currently `tnx-cheb.head` and `tsc.head` are `off`, for distinct reasons:
 `tnx-cheb` has no inverse at all (its Chebyshev distortion builds a ChebyMap,
 which disables PolyMap's iterative inverse because it cannot represent its own
-Jacobian), so `sky->pixel` is `BAD`; `tsc` has an accurate inverse except at
-the quad-cube cross "gap" corners of a rectangular grid, where one sampled
-pixel round-trips ~982 px away (relative error 0.70) because the reverse
-projection does not flag the gap as invalid.
-Their forward and inverse outputs remain pinned by the golden checks; only the
-round-trip assertion is disabled, pending investigation.
+Jacobian), so `sky->pixel` is `BAD`.
+`tsc` is different: its inverse is correct (round-trips to ~1e-13 for every
+in-projection pixel), but the test image is ~587 deg wide -- wider than the
+quad-cube belt's 360 deg period -- so the mapping is genuinely many-to-one.
+One sampled pixel is an exact 360 deg alias of another, and the inverse
+correctly returns the canonical pixel ~982 px away.
+`astTSCrev` is correct; round-trip is disabled only because the check assumes
+a single-valued inverse, which cannot hold for an image wider than the
+projection period.
+Both fixtures' forward and inverse outputs remain pinned by the golden checks.
 
 ### Skips
 
