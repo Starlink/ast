@@ -102,6 +102,10 @@ ast_add_test(testerror)
 ast_add_test(testobject)
 ast_add_test(testconvert)
 
+# --- Transform output oracle ---
+ast_add_test(test_oracle_util SOURCES test_oracle_util.c transform_oracle_util.c)
+set_target_properties(test_oracle_util PROPERTIES C_STANDARD 11)
+
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)
 
