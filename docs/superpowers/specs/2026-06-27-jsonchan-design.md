@@ -160,6 +160,17 @@ In roughly 30 years there has never been a breaking native format version bump.
 - `$minReadVersion` is cheap forward-compatibility insurance for a hypothetical breaking change, but in practice is expected to remain `1`, because a breaking JSON change would imply a breaking native change that AST has historically never made.
 - The per-class schema files are versioned collectively under the format version (for example `schemas/v1/`), not individually per class.
 
+### Single source of truth
+
+The format version is a property of the AST object model, not of JSON specifically, since native and JSON are just two renderings of the same vocabulary.
+It is therefore defined once as a dedicated AST-global constant (for example `AST__FORMAT_VERSION`), separate from the library version in `version.number`.
+The library version bumps for unrelated reasons (bug fixes and so on), so it is the wrong thing to expose as a format version.
+`JsonChan` derives `$schemaVersion` (and `$minReadVersion`) from this constant.
+
+The mechanism that notices when the version must change is the schema regeneration itself, and it is format-agnostic: the generated schema set is the canonical machine-readable description of the vocabulary.
+CI regenerates the schemas and, if the schema set changed (a new class or a new serialized attribute) while `AST__FORMAT_VERSION` was not bumped, the build fails.
+This enforces the minor bump whenever the object model gains anything serializable, independent of JSON.
+
 ### Version-bump semantics
 
 `$minReadVersion` gates the *grammar* (the envelope shape), not the *vocabulary* (the set of known `$type` values). The two version axes behave as follows:
@@ -199,6 +210,7 @@ Mechanism:
 - Comments become JSON Schema `description` text, so the schemas are self-documenting.
 
 A CI check regenerates the schemas and diffs them against the committed copies to catch drift when classes change.
+The same check enforces the format-version bump: if the regenerated schema set differs from the committed set but `AST__FORMAT_VERSION` was not incremented, the build fails (see "Versioning and compatibility").
 
 Known limitation, stated explicitly rather than hidden: harvesting reliably captures scalar attributes, because `Dump()` calls the scalar `WriteXxx` functions unconditionally (even for unset attributes).
 Conditional or purely structural items (vector lengths, child-object slots that appear only in some configurations) are described by the generic envelope schema and by hand-authored annotations where a class needs them.
@@ -234,6 +246,12 @@ Error-path tests cover malformed JSON, unknown `$type`, and bad-value handling.
 1. JsonChan skeleton and write path: class boilerplate (vtab, `astInitJsonChan`, `astLoadJsonChan`), Fortran interface, build wiring, the shared object-to-KeyMap converter, and KeyMap-to-JSON emission with AST-precision numbers and `null` bad-value handling.
 2. Read path: vendor cJSON, implement JSON-to-KeyMap and the KeyMap-to-object direction, and add the full round-trip and golden-fixture tests.
 3. Schema generator: harvesting channel mode, curated factory list, committed per-class schema files, the generic envelope schema, and the CI drift check.
+
+## Future work (out of scope here)
+
+- Native-format version comment: because the native reader strips comments on input (`channel.c`), an older library would safely ignore a `# AST format version X.Y.Z` line written into native dumps, making it a forward-compatible way to record the format version in native form too. It is deferred because it changes the byte output of every native dump, which collides with the many checkdump/golden tests that compare exact native text, and because it modifies the native `Channel` (a non-goal of this spec) and would want maintainer sign-off. The AST-global `AST__FORMAT_VERSION` constant introduced here is what such a follow-on would reuse.
+- Built-in JSON Schema validation at read time (a `Strict`-style schema-validation mode inside `JsonChan`).
+- Native `YamlChan` encoding, which the shared object/KeyMap converter is designed to enable.
 
 ## Risks and mitigations
 
