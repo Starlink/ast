@@ -18,13 +18,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Pick the sampling range for one axis of one fixture.  FITS-header
-   mappings sample the pixel grid 1..N (approximated by a fixed generous
-   pixel range here, since NAXISn is not exposed on the bare Mapping);
-   native-dump mappings use a fixed symmetric range. */
-static void axis_range( int is_head, double *lo, double *hi ) {
-    if ( is_head ) { *lo = 1.0;     *hi = 2000.0;  }    /* pixel-ish */
-    else           { *lo = -1000.0; *hi =  1000.0; }
+static double **alloc_cols( int ncol, int nrow ) {
+    double **c = malloc( sizeof(double *) * (size_t) ncol );
+    for ( int a = 0; a < ncol; a++ ) c[a] = malloc( sizeof(double) * (size_t) nrow );
+    return c;
+}
+
+static void free_cols( double **c, int ncol ) {
+    if ( !c ) return;
+    for ( int a = 0; a < ncol; a++ ) free( c[a] );
+    free( c );
 }
 
 /* Return 1 if <root>/<relpath> can be opened for reading. */
@@ -52,58 +55,90 @@ static int file_contains( const char *root, const char *relpath,
     return found;
 }
 
-/* Transform npoint points through map in the given direction and write a
-   section to fp.  in_n / out_n are the arities for that direction.  The
-   transform runs first: if it raises an AST error (e.g. a map that cannot
-   evaluate the sampled domain) the status is cleared and no section is
-   written.  Returns 1 if a section was written. */
-static int write_section( FILE *fp, const char *relpath, AstMapping *map,
-                          int forward, int in_n, int out_n, int is_head ) {
-    int np = oracle_sample_axis_count();
-
-    double **in  = malloc( sizeof(double *) * (size_t) in_n );
-    double **out = malloc( sizeof(double *) * (size_t) out_n );
-    double *lo = malloc( sizeof(double) * (size_t) in_n );
-    double *hi = malloc( sizeof(double) * (size_t) in_n );
-    for ( int a = 0; a < in_n;  a++ ) { in[a]  = malloc(sizeof(double)*(size_t)np);
-                                        axis_range(is_head,&lo[a],&hi[a]); }
-    for ( int a = 0; a < out_n; a++ )   out[a] = malloc(sizeof(double)*(size_t)np);
-
-    oracle_sample_points( in_n, lo, hi, np, in );
-    astTranP( map, np, in_n, (const double **) in, forward, out_n, out );
-
-    int wrote = 0;
-    if ( astOK ) {
-        fprintf( fp, "[%s  nin=%d nout=%d dir=%s]\n",
-                 relpath, in_n, out_n, forward ? "forward" : "inverse" );
-        char buf[64];
-        for ( int p = 0; p < np; p++ ) {
-            for ( int a = 0; a < in_n;  a++ ) {
-                oracle_format_double( buf, sizeof buf, in[a][p] );
-                fprintf( fp, "%s%s", a ? " " : "  ", buf );
-            }
-            fprintf( fp, "  " );
-            for ( int a = 0; a < out_n; a++ ) {
-                oracle_format_double( buf, sizeof buf, out[a][p] );
-                fprintf( fp, "%s%s", a ? " " : "", buf );
-            }
-            fprintf( fp, "\n" );
+/* Fill lo[]/hi[] for the naxis input axes of a FITS-header fixture from
+   its NAXISj keywords; axes with no NAXISj (degenerate or extra WCS axes)
+   fall back to a small [1,2] range. */
+static void head_bounds( const char *root, const char *relpath,
+                         int naxis, double *lo, double *hi ) {
+    char path[1024];
+    snprintf( path, sizeof path, "%s/%s", root, relpath );
+    AstFitsChan *fc = astFitsChan( NULL, NULL, " " );
+    FILE *fp = fopen( path, "r" );
+    if ( fp ) {
+        char line[256];
+        while ( fgets( line, (int) sizeof line, fp ) ) {
+            size_t n = strlen( line );
+            while ( n > 0 && ( line[n-1] == '\n' || line[n-1] == '\r' ) )
+                line[--n] = '\0';
+            astPutFits( fc, line, 0 );
         }
-        fprintf( fp, "\n" );
-        wrote = 1;
-    } else {
-        astClearStatus;
-        fprintf( stderr, "skip %s (transform raised an error)\n", relpath );
+        fclose( fp );
     }
-
-    for ( int a = 0; a < in_n;  a++ ) free( in[a] );
-    for ( int a = 0; a < out_n; a++ ) free( out[a] );
-    free( in ); free( out ); free( lo ); free( hi );
-    return wrote;
+    for ( int a = 0; a < naxis; a++ ) {
+        char key[16]; int val = 0;
+        snprintf( key, sizeof key, "NAXIS%d", a + 1 );
+        lo[a] = 1.0;
+        if ( astGetFitsI( fc, key, &val ) && val >= 1 ) hi[a] = (double) val;
+        else hi[a] = 2.0;
+    }
+    fc = astAnnul( fc );
+    if ( !astOK ) astClearStatus;
 }
 
-/* Emit one fixture (forward if defined, else inverse-only). Returns 1 if
-   a section was written. */
+/* Fill lo[]/hi[] for naxis input axes.  FITS headers use their pixel grid
+   (NAXISj); native dumps have no declared domain, so use a fixed symmetric
+   range.  Sampling outside a map's valid domain merely yields AST__BAD,
+   which the golden comparison records and matches faithfully. */
+static void axis_bounds( const char *root, const char *relpath, int is_head,
+                         int naxis, double *lo, double *hi ) {
+    if ( is_head ) {
+        head_bounds( root, relpath, naxis, lo, hi );
+    } else {
+        for ( int a = 0; a < naxis; a++ ) { lo[a] = -1000.0; hi[a] = 1000.0; }
+    }
+}
+
+/* Transform pre-sampled inputs `in` (in_n x np) through map in the given
+   direction and write a section.  The transform runs first: if it raises
+   an AST error the status is cleared and no section is written.  On
+   success `out` (out_n x np) holds the outputs.  Returns 1 if written. */
+static int transform_write( FILE *fp, const char *relpath, AstMapping *map,
+                            int forward, int in_n, int out_n, int np,
+                            double **in, double **out ) {
+    astTranP( map, np, in_n, (const double **) in, forward, out_n, out );
+    if ( !astOK ) {
+        astClearStatus;
+        fprintf( stderr, "skip %s dir=%s (transform raised an error)\n",
+                 relpath, forward ? "forward" : "inverse" );
+        return 0;
+    }
+    fprintf( fp, "[%s  nin=%d nout=%d dir=%s]\n",
+             relpath, in_n, out_n, forward ? "forward" : "inverse" );
+    char buf[64];
+    for ( int p = 0; p < np; p++ ) {
+        for ( int a = 0; a < in_n;  a++ ) {
+            oracle_format_double( buf, sizeof buf, in[a][p] );
+            fprintf( fp, "%s%s", a ? " " : "  ", buf );
+        }
+        fprintf( fp, "  " );
+        for ( int a = 0; a < out_n; a++ ) {
+            oracle_format_double( buf, sizeof buf, out[a][p] );
+            fprintf( fp, "%s%s", a ? " " : "", buf );
+        }
+        fprintf( fp, "\n" );
+    }
+    fprintf( fp, "\n" );
+    return 1;
+}
+
+/* Emit a fixture's golden sections: a forward section (if the forward
+   transform is defined) and an inverse section (if the inverse is
+   defined).  The inverse section's inputs are the forward outputs when a
+   forward exists, so they are genuine output-space coordinates (the
+   inverse's natural domain); otherwise they are sampled directly.  Both
+   are recorded as golden, so neither needs the inputs to be "valid" -- a
+   change in either kernel's output is detected regardless.  Returns the
+   number of sections written. */
 static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
     int wrote = 0;
     /* The simplify fixtures' "simplifyidentity" IntraMap is a private test
@@ -114,14 +149,55 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
     astBegin;
     AstMapping *map = oracle_load_mapping( root, relpath );
     if ( map ) {
-        int nin  = astGetI( map, "Nin" );
-        int nout = astGetI( map, "Nout" );
+        int nin     = astGetI( map, "Nin" );
+        int nout    = astGetI( map, "Nout" );
         int is_head = ( strstr( relpath, ".head" ) != NULL );
-        if ( astGetI( map, "TranForward" ) ) {
-            wrote = write_section( fp, relpath, map, 1, nin, nout, is_head );
-        } else if ( astGetI( map, "TranInverse" ) ) {
-            wrote = write_section( fp, relpath, map, 0, nout, nin, is_head );
+        int np      = oracle_sample_axis_count();
+        int has_fwd = astGetI( map, "TranForward" );
+        int has_inv = astGetI( map, "TranInverse" );
+
+        double **fwd_out = NULL;   /* forward outputs, reused as inverse inputs */
+
+        if ( has_fwd ) {
+            double *lo = malloc( sizeof(double) * (size_t) nin );
+            double *hi = malloc( sizeof(double) * (size_t) nin );
+            axis_bounds( root, relpath, is_head, nin, lo, hi );
+            double **in  = alloc_cols( nin, np );
+            double **out = alloc_cols( nout, np );
+            oracle_sample_points( nin, lo, hi, np, in );
+            if ( transform_write( fp, relpath, map, 1, nin, nout, np, in, out ) ) {
+                wrote++;
+                fwd_out = out;            /* keep for inverse inputs */
+            } else {
+                free_cols( out, nout );
+            }
+            free_cols( in, nin );
+            free( lo ); free( hi );
         }
+
+        if ( has_inv ) {
+            /* inverse takes nout-dim input -> nin-dim output */
+            double **inv_in;
+            int own_inv_in;
+            if ( fwd_out ) { inv_in = fwd_out; own_inv_in = 0; }
+            else {
+                double *lo = malloc( sizeof(double) * (size_t) nout );
+                double *hi = malloc( sizeof(double) * (size_t) nout );
+                axis_bounds( root, relpath, is_head, nout, lo, hi );
+                inv_in = alloc_cols( nout, np );
+                oracle_sample_points( nout, lo, hi, np, inv_in );
+                free( lo ); free( hi );
+                own_inv_in = 1;
+            }
+            double **inv_out = alloc_cols( nin, np );
+            if ( transform_write( fp, relpath, map, 0, nout, nin, np,
+                                  inv_in, inv_out ) )
+                wrote++;
+            free_cols( inv_out, nin );
+            if ( own_inv_in ) free_cols( inv_in, nout );
+        }
+
+        free_cols( fwd_out, nout );
     }
     if ( !astOK ) astClearStatus;
     astEnd;

@@ -87,6 +87,73 @@ static int oracle_read_file( const char *path, Section **out_secs, int *out_n ) 
     return 0;
 }
 
+/* Re-transform a section's recorded inputs with the live mapping into
+   freshly allocated columns the caller frees.  Returns NULL on arity
+   mismatch (a structural change to the fixture). */
+static double **transform_section( AstMapping *map, const Section *s ) {
+    if ( astGetI( map, "Nin" ) != ( s->forward ? s->nin : s->nout ) ) return NULL;
+    if ( astGetI( map, "Nout" ) != ( s->forward ? s->nout : s->nin ) ) return NULL;
+    double **live = alloc_cols( s->nout, s->npoint );
+    astTranP( map, s->npoint, s->nin, (const double **) s->in,
+              s->forward, s->nout, live );
+    return live;
+}
+
+static void free_cols( double **c, int ncol ) {
+    if ( !c ) return;
+    for ( int a = 0; a < ncol; a++ ) free( c[a] );
+    free( c );
+}
+
+/* Compare two equal-shape output sets; report and count mismatches. */
+static int compare_outputs( const char *label, const char *relpath,
+                            double **got, double **ref, int ncol, int npoint,
+                            double rtol, double atol ) {
+    int fails = 0;
+    for ( int p = 0; p < npoint; p++ ) {
+        for ( int a = 0; a < ncol; a++ ) {
+            if ( !oracle_within_tol( got[a][p], ref[a][p], rtol, atol ) ) {
+                double d = fabs( got[a][p] - ref[a][p] );
+                double rel = ref[a][p] != 0.0 ? d / fabs( ref[a][p] ) : d;
+                fprintf( stderr,
+                    "MISMATCH [%s] %s row=%d axis=%d ref=%.17g got=%.17g rel=%.3g\n",
+                    label, relpath, p, a, ref[a][p], got[a][p], rel );
+                fails++;
+            }
+        }
+    }
+    return fails;
+}
+
+/* Equivalence check C, gated on stored agreement.  Compares the live .map
+   and .simp forward outputs, but only at points where the *recorded* .map
+   and .simp golden values already agree (within the equivalence tolerance).
+   Generation-time agreement marks the shared valid domain; points where the
+   two forms legitimately diverge (out-of-domain inputs) are excluded, while
+   a future simplification regression at a previously-agreeing point is still
+   caught. */
+static int compare_equiv( const char *relpath,
+                          double **map_live, double **simp_live,
+                          double **map_ref,  double **simp_ref,
+                          int ncol, int npoint, double rtol, double atol ) {
+    int fails = 0;
+    for ( int p = 0; p < npoint; p++ ) {
+        for ( int a = 0; a < ncol; a++ ) {
+            if ( !oracle_within_tol( map_ref[a][p], simp_ref[a][p], rtol, atol ) )
+                continue;   /* out of shared domain at generation time */
+            if ( !oracle_within_tol( map_live[a][p], simp_live[a][p], rtol, atol ) ) {
+                double d = fabs( map_live[a][p] - simp_live[a][p] );
+                double rel = simp_live[a][p] != 0.0 ? d / fabs( simp_live[a][p] ) : d;
+                fprintf( stderr,
+                    "MISMATCH [equiv] %s row=%d axis=%d map=%.17g simp=%.17g rel=%.3g\n",
+                    relpath, p, a, map_live[a][p], simp_live[a][p], rel );
+                fails++;
+            }
+        }
+    }
+    return fails;
+}
+
 static int selftest( void ) {
     const char *tmp = "/tmp/oracle_selftest.txt";
     FILE *fp = fopen( tmp, "w" );
@@ -107,10 +174,104 @@ static int selftest( void ) {
     return ok ? 0 : 1;
 }
 
+/* Stem of a relpath (path minus final extension). */
+static void path_stem( const char *relpath, char *stem, size_t n ) {
+    const char *ext = strrchr( relpath, '.' );
+    size_t len = ext ? (size_t)( ext - relpath ) : strlen( relpath );
+    snprintf( stem, n, "%.*s", (int) len, relpath );
+}
+
+static int has_ext( const char *relpath, const char *ext ) {
+    const char *dot = strrchr( relpath, '.' );
+    return dot && strcmp( dot, ext ) == 0;
+}
+
 int main( int argc, char *argv[] ) {
     int status_value = 0; int *status = &status_value;
     astWatch( status );
     if ( argc == 2 && strcmp( argv[1], "--selftest" ) == 0 ) return selftest();
-    fprintf( stderr, "checking not yet implemented\n" );
-    return 2;   /* replaced in Task 6 */
+    if ( argc < 3 ) {
+        fprintf( stderr,
+            "Usage: check_transform_oracle <root> <oracle_file>\n" );
+        return 2;
+    }
+    const char *root   = argv[1];
+    const char *oracle = argv[2];
+
+    Section *secs = NULL; int nsec = 0;
+    if ( oracle_read_file( oracle, &secs, &nsec ) ) return 2;
+
+    int total_fail = 0, checked = 0;
+
+    /* One-slot cache of the most recent .map forward section and its live
+       outputs, so check C can compare the matching .simp forward section
+       against it.  The generator emits a stem's .map sections immediately
+       before its .simp sections; only .map forward sections update the
+       cache and only .simp forward sections consume it, so intervening
+       inverse sections do not disturb it. */
+    Section *prev_map = NULL;
+    double **prev_map_live = NULL;
+
+    for ( int i = 0; i < nsec; i++ ) {
+        Section *s = &secs[i];
+        astBegin;
+        AstMapping *map = oracle_load_mapping( root, s->relpath );
+        if ( !map ) {
+            fprintf( stderr, "LOADFAIL %s (fixture missing or unreadable)\n",
+                     s->relpath );
+            total_fail++;
+            astEnd;
+            continue;
+        }
+        double **live = transform_section( map, s );
+        if ( !live ) {
+            fprintf( stderr, "ARITY %s dir=%s (Nin/Nout changed)\n",
+                     s->relpath, s->forward ? "forward" : "inverse" );
+            total_fail++;
+            map = astAnnul( map ); astEnd; continue;
+        }
+
+        /* Golden check: applies uniformly to forward and inverse sections. */
+        char label[32];
+        snprintf( label, sizeof label, "golden-%s",
+                  s->forward ? "fwd" : "inv" );
+        total_fail += compare_outputs( label, s->relpath, live, s->out,
+                                       s->nout, s->npoint,
+                                       ORACLE_DEF_RTOL, ORACLE_DEF_ATOL );
+        checked++;
+
+        /* Equivalence check C: this section is a .simp forward whose stem
+           matches the cached preceding .map forward. */
+        int is_fwd = s->forward;
+        if ( is_fwd && has_ext( s->relpath, ".simp" ) && prev_map &&
+             prev_map->nout == s->nout && prev_map->npoint == s->npoint ) {
+            char stem_s[1024], stem_m[1024];
+            path_stem( s->relpath, stem_s, sizeof stem_s );
+            path_stem( prev_map->relpath, stem_m, sizeof stem_m );
+            if ( strcmp( stem_s, stem_m ) == 0 ) {
+                total_fail += compare_equiv( s->relpath, prev_map_live, live,
+                                             prev_map->out, s->out,
+                                             s->nout, s->npoint,
+                                             ORACLE_DEF_EQUIV_RTOL,
+                                             ORACLE_DEF_EQUIV_ATOL );
+            }
+        }
+
+        /* Refresh the cache on a .map forward section; otherwise free live. */
+        if ( is_fwd && has_ext( s->relpath, ".map" ) ) {
+            free_cols( prev_map_live, prev_map ? prev_map->nout : 0 );
+            prev_map = s;
+            prev_map_live = live;           /* hand ownership to the cache */
+        } else {
+            free_cols( live, s->nout );
+        }
+
+        map = astAnnul( map );
+        astEnd;
+    }
+    free_cols( prev_map_live, prev_map ? prev_map->nout : 0 );
+
+    printf( "check_transform_oracle: %d sections checked, %d mismatch(es)\n",
+            checked, total_fail );
+    return ( total_fail == 0 && astOK ) ? 0 : 1;
 }
