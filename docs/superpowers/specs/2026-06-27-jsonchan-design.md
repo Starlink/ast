@@ -97,8 +97,8 @@ The discriminator is `"$type"`: collision-proof (no AST attribute name begins wi
 
 The top-level (root) object additionally carries, alongside `"$type"`:
 
-- `"$schema"` — reference to the published envelope schema for the format version.
-- `"$schemaVersion"` — the AST-JSON format version the document was written with (semantic version string).
+- `"$schema"` — reference to the published envelope schema for the schema version.
+- `"$schemaVersion"` — the AST schema version the document was written with (semantic version string).
 - `"$minReadVersion"` — the minimum reader version required to interpret the document (integer). A reader whose supported version is lower refuses or warns.
 
 These three fields appear once, at the document root. Nested AST objects carry only `"$type"` and their attributes, so there is no per-node version bloat.
@@ -145,8 +145,11 @@ A `CmpMap` combining a `ZoomMap` and a `WinMap`:
 
 ## Versioning and compatibility
 
-The AST-JSON format carries a single version for the format as a whole, declared once at the document root (`$schemaVersion` plus `$minReadVersion`).
+The versioned thing is the AST object-model schema (the Frame/Mapping vocabulary), not a file format.
+A single schema version for that vocabulary as a whole is declared once at the document root (`$schemaVersion` plus `$minReadVersion`).
 There is deliberately no per-class (`$type`) version field.
+
+Versioning starts at `1.0.0`. There is no attempt to reconstruct an implied historical schema version from the roughly 30 years of git history; the schema is simply declared to be version 1 as of this work.
 
 This mirrors how AST's native format has actually evolved.
 The native format has no version number anywhere; compatibility is purely additive (`channel.c` documents this).
@@ -158,28 +161,29 @@ In roughly 30 years there has never been a breaking native format version bump.
 
 - Per-class evolution is additive. New attributes get defaults on read and are ignored when unknown. The inherited `Channel` `Strict` attribute governs whether unknown keys are silently ignored (default) or raise an error.
 - `$minReadVersion` is cheap forward-compatibility insurance for a hypothetical breaking change, but in practice is expected to remain `1`, because a breaking JSON change would imply a breaking native change that AST has historically never made.
-- The per-class schema files are versioned collectively under the format version (for example `schemas/v1/`), not individually per class.
+- The per-class schema files are versioned collectively under the schema version (for example `schemas/v1/`), not individually per class.
 
 ### Single source of truth
 
-The format version is a property of the AST object model, not of JSON specifically, since native and JSON are just two renderings of the same vocabulary.
-It is therefore defined once as a dedicated AST-global constant (for example `AST__FORMAT_VERSION`), separate from the library version in `version.number`.
-The library version bumps for unrelated reasons (bug fixes and so on), so it is the wrong thing to expose as a format version.
+The schema version is a property of the AST object model, not of JSON specifically, since native and JSON are just two renderings of the same vocabulary.
+It is therefore defined once as a dedicated AST-global constant `AST__SCHEMA_VERSION`, separate from the library version in `version.number`.
+The library version bumps for unrelated reasons (bug fixes and so on), so it is the wrong thing to expose as a schema version.
 `JsonChan` derives `$schemaVersion` (and `$minReadVersion`) from this constant.
 
 The mechanism that notices when the version must change is the schema regeneration itself, and it is format-agnostic: the generated schema set is the canonical machine-readable description of the vocabulary.
-CI regenerates the schemas and, if the schema set changed (a new class or a new serialized attribute) while `AST__FORMAT_VERSION` was not bumped, the build fails.
-This enforces the minor bump whenever the object model gains anything serializable, independent of JSON.
+CI regenerates the schemas and, if the schema set changed while `AST__SCHEMA_VERSION` was not bumped, the build fails.
+To pick the right level of bump, the check distinguishes a *structural* diff (a new class, a new attribute, a changed type) from a *description-only* diff (only `description`/comment text changed): the former requires a minor bump, the latter a patch bump.
+This enforces a version change whenever the object model gains anything serializable, independent of JSON.
 
 ### Version-bump semantics
 
-`$minReadVersion` gates the *grammar* (the envelope shape), not the *vocabulary* (the set of known `$type` values). The two version axes behave as follows:
+The major version is expected to stay at `1` indefinitely, so in practice the version is always `1.x.y`:
 
-- PATCH: editorial change, no change to the wire format.
-- MINOR: additive vocabulary — a new class, or a new attribute on an existing class. `$schemaVersion` minor is incremented; `$minReadVersion` is unchanged.
-- MAJOR: a change to the envelope grammar itself (for example how bad values or nesting are encoded). `$schemaVersion` major and `$minReadVersion` are both incremented. This has never happened for the native format in roughly 30 years and is expected never to.
+- PATCH (`y`): documentation only — a changed attribute `comment`/`description`, with no change to the data vocabulary or structure. `$minReadVersion` unchanged.
+- MINOR (`x`): additive vocabulary or structure — a new Frame/Mapping class, a new attribute on an existing class, or a changed attribute type. `$minReadVersion` unchanged.
+- MAJOR: a change to the envelope grammar itself (for example how bad values or nesting are encoded). `$minReadVersion` is also incremented. This has never happened for the native format in roughly 30 years and is expected never to.
 
-Adding a new Mapping class is therefore a MINOR bump with `$minReadVersion` left at `1`.
+`$minReadVersion` gates the *grammar* (the envelope shape), not the *vocabulary* (the set of known `$type` values or attributes). That is why both new classes and new attributes are minor bumps that leave `$minReadVersion` at `1`.
 The reasoning is important: because the version fields live at the document root, raising `$minReadVersion` for a new class would make an old reader reject the *entire* document even when the new class never appears in it.
 Tying `$minReadVersion` to the grammar instead means an old reader rejects only documents it genuinely cannot parse, and a document that merely *could* contain a new class is still read fine if it does not.
 
@@ -210,7 +214,7 @@ Mechanism:
 - Comments become JSON Schema `description` text, so the schemas are self-documenting.
 
 A CI check regenerates the schemas and diffs them against the committed copies to catch drift when classes change.
-The same check enforces the format-version bump: if the regenerated schema set differs from the committed set but `AST__FORMAT_VERSION` was not incremented, the build fails (see "Versioning and compatibility").
+The same check enforces the format-version bump: if the regenerated schema set differs from the committed set but `AST__SCHEMA_VERSION` was not incremented, the build fails (see "Versioning and compatibility").
 
 Known limitation, stated explicitly rather than hidden: harvesting reliably captures scalar attributes, because `Dump()` calls the scalar `WriteXxx` functions unconditionally (even for unset attributes).
 Conditional or purely structural items (vector lengths, child-object slots that appear only in some configurations) are described by the generic envelope schema and by hand-authored annotations where a class needs them.
@@ -249,7 +253,7 @@ Error-path tests cover malformed JSON, unknown `$type`, and bad-value handling.
 
 ## Future work (out of scope here)
 
-- Native-format version comment: because the native reader strips comments on input (`channel.c`), an older library would safely ignore a `# AST format version X.Y.Z` line written into native dumps, making it a forward-compatible way to record the format version in native form too. It is deferred because it changes the byte output of every native dump, which collides with the many checkdump/golden tests that compare exact native text, and because it modifies the native `Channel` (a non-goal of this spec) and would want maintainer sign-off. The AST-global `AST__FORMAT_VERSION` constant introduced here is what such a follow-on would reuse.
+- Native schema-version comment: because the native reader strips comments on input (`channel.c`), an older library would safely ignore a `# AST schema version X.Y.Z` line written into native dumps, making it a forward-compatible way to record the schema version in native form too. It is deferred because it changes the byte output of every native dump, which collides with the many checkdump/golden tests that compare exact native text, and because it modifies the native `Channel` (a non-goal of this spec) and would want maintainer sign-off. The AST-global `AST__SCHEMA_VERSION` constant introduced here is what such a follow-on would reuse.
 - Built-in JSON Schema validation at read time (a `Strict`-style schema-validation mode inside `JsonChan`).
 - Native `YamlChan` encoding, which the shared object/KeyMap converter is designed to enable.
 
