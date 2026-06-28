@@ -85,14 +85,27 @@ static void head_bounds( const char *root, const char *relpath,
     if ( !astOK ) astClearStatus;
 }
 
+/* Sampling-domain kind for a fixture, chosen from its file extension. */
+enum { DOM_NATIVE, DOM_HEAD, DOM_FRAMESET };
+
+static int path_kind( const char *relpath ) {
+    if ( strstr( relpath, ".head" ) ) return DOM_HEAD;
+    if ( strstr( relpath, ".ast"  ) ) return DOM_FRAMESET;
+    return DOM_NATIVE;
+}
+
 /* Fill lo[]/hi[] for naxis input axes.  FITS headers use their pixel grid
-   (NAXISj); native dumps have no declared domain, so use a fixed symmetric
-   range.  Sampling outside a map's valid domain merely yields AST__BAD,
-   which the golden comparison records and matches faithfully. */
-static void axis_bounds( const char *root, const char *relpath, int is_head,
+   (NAXISj).  FrameSet dumps (.ast) have a GRID base frame but carry no
+   NAXIS, so use a default positive pixel range.  Native dumps have no
+   declared domain, so use a fixed symmetric range.  Sampling outside a
+   map's valid domain merely yields AST__BAD, which the golden comparison
+   records and matches faithfully. */
+static void axis_bounds( const char *root, const char *relpath, int kind,
                          int naxis, double *lo, double *hi ) {
-    if ( is_head ) {
+    if ( kind == DOM_HEAD ) {
         head_bounds( root, relpath, naxis, lo, hi );
+    } else if ( kind == DOM_FRAMESET ) {
+        for ( int a = 0; a < naxis; a++ ) { lo[a] = 1.0; hi[a] = 1000.0; }
     } else {
         for ( int a = 0; a < naxis; a++ ) { lo[a] = -1000.0; hi[a] = 1000.0; }
     }
@@ -151,7 +164,7 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
     if ( map ) {
         int nin     = astGetI( map, "Nin" );
         int nout    = astGetI( map, "Nout" );
-        int is_head = ( strstr( relpath, ".head" ) != NULL );
+        int kind    = path_kind( relpath );
         int np      = oracle_sample_axis_count();
         int has_fwd = astGetI( map, "TranForward" );
         int has_inv = astGetI( map, "TranInverse" );
@@ -161,7 +174,7 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
         if ( has_fwd ) {
             double *lo = malloc( sizeof(double) * (size_t) nin );
             double *hi = malloc( sizeof(double) * (size_t) nin );
-            axis_bounds( root, relpath, is_head, nin, lo, hi );
+            axis_bounds( root, relpath, kind, nin, lo, hi );
             double **in  = alloc_cols( nin, np );
             double **out = alloc_cols( nout, np );
             oracle_sample_points( nin, lo, hi, np, in );
@@ -183,7 +196,7 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
             else {
                 double *lo = malloc( sizeof(double) * (size_t) nout );
                 double *hi = malloc( sizeof(double) * (size_t) nout );
-                axis_bounds( root, relpath, is_head, nout, lo, hi );
+                axis_bounds( root, relpath, kind, nout, lo, hi );
                 inv_in = alloc_cols( nout, np );
                 oracle_sample_points( nout, lo, hi, np, inv_in );
                 free( lo ); free( hi );
@@ -240,14 +253,15 @@ static char **scan_dir( const char *root, const char *subdir,
 int main( int argc, char *argv[] ) {
     int status_value = 0;
     int *status = &status_value;
-    if ( argc < 4 ) {
-        fprintf( stderr,
-            "Usage: gen_transform_oracle <root> <simplify_out> <headers_out>\n" );
+    if ( argc < 5 ) {
+        fprintf( stderr, "Usage: gen_transform_oracle <root> <simplify_out> "
+                         "<headers_out> <framesets_out>\n" );
         return 1;
     }
-    const char *root         = argv[1];
-    const char *simplify_out = argv[2];
-    const char *headers_out  = argv[3];
+    const char *root          = argv[1];
+    const char *simplify_out  = argv[2];
+    const char *headers_out   = argv[3];
+    const char *framesets_out = argv[4];
     astWatch( status );
 
     const char *hdr =
@@ -288,6 +302,20 @@ int main( int argc, char *argv[] ) {
     }
     free( heads );
     fclose( fh );
+
+    /* FrameSet-dump corpus (.ast).  Non-FrameSet .ast dumps (KeyMap, STC,
+       etc.) are not Mappings and are skipped by the loader. */
+    FILE *ff = fopen( framesets_out, "w" );
+    if ( !ff ) { fprintf( stderr, "cannot write %s\n", framesets_out ); return 1; }
+    fputs( hdr, ff );
+    int nast = 0;
+    char **asts = scan_dir( root, "", "", ".ast", &nast );
+    for ( int i = 0; i < nast; i++ ) {
+        nwritten += emit_fixture( ff, root, asts[i] );
+        free( asts[i] );
+    }
+    free( asts );
+    fclose( ff );
 
     printf( "gen_transform_oracle: wrote %d sections\n", nwritten );
     return astOK ? 0 : 1;
