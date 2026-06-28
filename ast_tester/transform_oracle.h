@@ -16,4 +16,9 @@
    AST__BAD matches only AST__BAD; any NaN never matches. */
 int oracle_within_tol( double got, double ref, double rtol, double atol );
 
+double oracle_halton( unsigned index, unsigned base );
+int    oracle_sample_axis_count( void );
+void   oracle_sample_points( int naxis, const double *lo, const double *hi,
+                             int npoint, double **out );
+
 #endif

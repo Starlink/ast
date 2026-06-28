@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "transform_oracle.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 static int failures = 0;
@@ -25,8 +26,42 @@ static void test_within_tol(void) {
     CHECK(oracle_within_tol(NAN, 1.0, 1e9, 1e9) == 0);
 }
 
+static void test_halton(void) {
+    /* Known radical-inverse base-2 values: 1->1/2, 2->1/4, 3->3/4. */
+    CHECK(fabs(oracle_halton(1, 2) - 0.5)  < 1e-15);
+    CHECK(fabs(oracle_halton(2, 2) - 0.25) < 1e-15);
+    CHECK(fabs(oracle_halton(3, 2) - 0.75) < 1e-15);
+    /* base-3: 1->1/3, 2->2/3. */
+    CHECK(fabs(oracle_halton(1, 3) - 1.0/3.0) < 1e-15);
+    CHECK(fabs(oracle_halton(2, 3) - 2.0/3.0) < 1e-15);
+}
+
+static void test_sample_points(void) {
+    int n = oracle_sample_axis_count();
+    CHECK(n >= 8);
+    double lo[2] = {-10.0, -10.0}, hi[2] = {10.0, 10.0};
+    double *col[2];
+    col[0] = malloc(sizeof(double) * (size_t)n);
+    col[1] = malloc(sizeof(double) * (size_t)n);
+    oracle_sample_points(2, lo, hi, n, col);
+    /* every sample inside the closed range */
+    for (int a = 0; a < 2; a++)
+        for (int i = 0; i < n; i++)
+            CHECK(col[a][i] >= lo[a] - 1e-9 && col[a][i] <= hi[a] + 1e-9);
+    /* edge points present: an all-lo and an all-hi row somewhere */
+    int saw_lo = 0, saw_hi = 0;
+    for (int i = 0; i < n; i++) {
+        if (fabs(col[0][i]-lo[0])<1e-12 && fabs(col[1][i]-lo[1])<1e-12) saw_lo = 1;
+        if (fabs(col[0][i]-hi[0])<1e-12 && fabs(col[1][i]-hi[1])<1e-12) saw_hi = 1;
+    }
+    CHECK(saw_lo && saw_hi);
+    free(col[0]); free(col[1]);
+}
+
 int main(void) {
     test_within_tol();
+    test_halton();
+    test_sample_points();
     if (failures) { fprintf(stderr, "%d failure(s)\n", failures); return 1; }
     printf("test_oracle_util: all passed\n");
     return 0;
