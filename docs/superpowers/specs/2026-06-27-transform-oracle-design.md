@@ -333,6 +333,12 @@ whether the inputs are "valid".
   0.01 px error reads as a 1% relative error.
   Points whose forward output is `AST__BAD` (e.g. all-sky projection corners)
   are skipped.
+  The check is *alias-aware*: a recovered pixel that differs from `P` is still
+  accepted if it forward-maps to the same sky as `P`.
+  This handles images wider than the projection period (e.g. a quad-cube image
+  spanning more than 360 deg), where the inverse legitimately returns a
+  different but equivalent preimage; only a recovered pixel that maps to a
+  *different* sky is a real failure.
   Bare `.map` fixtures have no known domain, so round-trip accuracy is not
   asserted for them.
 
@@ -355,19 +361,17 @@ whether the inputs are "valid".
 `transform_oracle_rtrip_overrides.txt` lists per-fixture round-trip
 exceptions: `<relpath> off` disables the check, `<relpath> <rtol> <atol>`
 loosens it.
-Currently `tnx-cheb.head` and `tsc.head` are `off`, for distinct reasons:
-`tnx-cheb` has no inverse at all (its Chebyshev distortion builds a ChebyMap,
-which disables PolyMap's iterative inverse because it cannot represent its own
-Jacobian), so `sky->pixel` is `BAD`.
-`tsc` is different: its inverse is correct (round-trips to ~1e-13 for every
-in-projection pixel), but the test image is ~587 deg wide -- wider than the
-quad-cube belt's 360 deg period -- so the mapping is genuinely many-to-one.
-One sampled pixel is an exact 360 deg alias of another, and the inverse
-correctly returns the canonical pixel ~982 px away.
-`astTSCrev` is correct; round-trip is disabled only because the check assumes
-a single-valued inverse, which cannot hold for an image wider than the
-projection period.
-Both fixtures' forward and inverse outputs remain pinned by the golden checks.
+Currently only `tnx-cheb.head` is `off`: it has no inverse at all (its
+Chebyshev distortion builds a ChebyMap, which disables PolyMap's iterative
+inverse because it cannot represent its own Jacobian), so `sky->pixel` is
+`BAD`.
+Its forward and inverse outputs remain pinned by the golden checks.
+
+`tsc.head` previously needed an override but no longer does: its inverse is
+correct (round-trips to ~1e-13 for every in-projection pixel); its one failing
+pixel was an exact 360 deg alias in an image wider than the quad-cube period,
+which the alias-aware round-trip check now accepts because the recovered pixel
+forward-maps back to the same sky.
 
 ### Skips
 

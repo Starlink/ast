@@ -196,15 +196,49 @@ static int rtrip_tol( const char *relpath, double *rtol, double *atol ) {
    forward section; inv_live are the live outputs of its inverse section
    (i.e. inverse(forward(P))).  Assert those recover the forward inputs P,
    skipping points where the forward output was BAD (e.g. projection corners
-   that have no inverse).  Reports inverse inaccuracy, not just change. */
-static int compare_rtrip( const Section *fwd, double **inv_live,
-                          double rtol, double atol ) {
+   that have no inverse).
+
+   Alias-aware: a recovered pixel that differs from P is still accepted if it
+   forward-maps to the same sky as P.  This happens when an image is wider
+   than the projection period (e.g. a quad-cube image spanning >360 deg),
+   where the inverse legitimately returns a different but equivalent
+   preimage.  Only a recovered pixel that maps to a *different* sky is a real
+   inverse failure. */
+static int compare_rtrip( AstMapping *map, const Section *fwd,
+                          double **inv_live, double rtol, double atol ) {
     int fails = 0;
+
+    /* Forward-transform the recovered pixels so aliased preimages can be
+       detected by comparing their sky against the original forward output. */
+    double **sky2 = alloc_cols( fwd->nout, fwd->npoint );
+    astTranP( map, fwd->npoint, fwd->nin, (const double **) inv_live,
+              1, fwd->nout, sky2 );
+    int have_sky2 = astOK;
+    if ( !astOK ) astClearStatus;
+
     for ( int p = 0; p < fwd->npoint; p++ ) {
         int fbad = 0;
         for ( int b = 0; b < fwd->nout; b++ )
             if ( fwd->out[b][p] == AST__BAD ) { fbad = 1; break; }
         if ( fbad ) continue;                 /* nothing to invert */
+
+        int pixel_ok = 1;
+        for ( int a = 0; a < fwd->nin; a++ )
+            if ( !oracle_within_tol( inv_live[a][p], fwd->in[a][p], rtol, atol ) )
+                { pixel_ok = 0; break; }
+        if ( pixel_ok ) continue;
+
+        /* Different pixel: accept if it forward-maps to the same sky. */
+        if ( have_sky2 ) {
+            int alias = 1;
+            for ( int b = 0; b < fwd->nout; b++ )
+                if ( !oracle_within_tol_wrap( sky2[b][p], fwd->out[b][p],
+                                              ORACLE_DEF_RTOL, ORACLE_DEF_ATOL ) )
+                    { alias = 0; break; }
+            if ( alias ) continue;
+        }
+
+        /* Genuine round-trip failure: report the offending axes. */
         for ( int a = 0; a < fwd->nin; a++ ) {
             if ( !oracle_within_tol( inv_live[a][p], fwd->in[a][p], rtol, atol ) ) {
                 double d = fabs( inv_live[a][p] - fwd->in[a][p] );
@@ -217,6 +251,7 @@ static int compare_rtrip( const Section *fwd, double **inv_live,
             }
         }
     }
+    free_cols( sky2, fwd->nout );
     return fails;
 }
 
@@ -322,7 +357,7 @@ int main( int argc, char *argv[] ) {
              prev_fwd->nin == s->nout && prev_fwd->npoint == s->npoint ) {
             double rtol, atol;
             if ( rtrip_tol( s->relpath, &rtol, &atol ) )
-                total_fail += compare_rtrip( prev_fwd, live, rtol, atol );
+                total_fail += compare_rtrip( map, prev_fwd, live, rtol, atol );
         }
         if ( s->forward ) prev_fwd = s;
 
