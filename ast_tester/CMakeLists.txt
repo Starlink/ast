@@ -115,6 +115,16 @@ target_compile_definitions(gen_transform_oracle PRIVATE HAVE_CONFIG_H)
 set_target_properties(gen_transform_oracle PROPERTIES C_STANDARD 11)
 ast_apply_dev_options(gen_transform_oracle)
 
+add_executable(check_transform_oracle check_transform_oracle.c transform_oracle_util.c)
+target_include_directories(check_transform_oracle PRIVATE ${TEST_INCLUDES})
+target_link_libraries(check_transform_oracle PRIVATE ${TEST_LIBS})
+target_compile_definitions(check_transform_oracle PRIVATE HAVE_CONFIG_H)
+set_target_properties(check_transform_oracle PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(check_transform_oracle)
+
+add_test(NAME transform_oracle_selftest
+         COMMAND check_transform_oracle --selftest)
+
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)
 
