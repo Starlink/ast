@@ -13,6 +13,15 @@
 #define ORACLE_DEF_EQUIV_RTOL  1e-9
 #define ORACLE_DEF_EQUIV_ATOL  1e-9
 
+/* Round-trip accuracy (inverse(forward(P)) vs P) for GRID-domain corpora.
+   The inputs are pixel coordinates, so the criterion is an *absolute*
+   pixel tolerance (a relative bound is meaningless near pixel 1): the
+   inverse must recover the pixel to better than this many pixels.  Loose
+   enough to admit iterative distortion inverses (SIP ~0.01 px), tight
+   enough to flag inverses that do not recover the pixel at all. */
+#define ORACLE_DEF_RTRIP_RTOL  1e-6
+#define ORACLE_DEF_RTRIP_ATOL  5e-2
+
 /* Return 1 if got and ref agree within |got-ref| <= atol + rtol*|ref|.
    AST__BAD matches only AST__BAD; any NaN never matches. */
 int oracle_within_tol( double got, double ref, double rtol, double atol );

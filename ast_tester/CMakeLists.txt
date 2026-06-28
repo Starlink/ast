@@ -124,6 +124,28 @@ ast_apply_dev_options(check_transform_oracle)
 
 add_test(NAME transform_oracle_selftest
          COMMAND check_transform_oracle --selftest)
+set(_oracle_overrides
+    "${CMAKE_CURRENT_SOURCE_DIR}/transform_oracle_rtrip_overrides.txt")
+add_test(NAME transform_oracle_simplify
+         COMMAND check_transform_oracle
+                 "${CMAKE_CURRENT_SOURCE_DIR}"
+                 "${CMAKE_CURRENT_SOURCE_DIR}/simplify_fixtures.oracle"
+                 "${_oracle_overrides}")
+add_test(NAME transform_oracle_headers
+         COMMAND check_transform_oracle
+                 "${CMAKE_CURRENT_SOURCE_DIR}"
+                 "${CMAKE_CURRENT_SOURCE_DIR}/headers.oracle"
+                 "${_oracle_overrides}")
+add_test(NAME transform_oracle_framesets
+         COMMAND check_transform_oracle
+                 "${CMAKE_CURRENT_SOURCE_DIR}"
+                 "${CMAKE_CURRENT_SOURCE_DIR}/framesets.oracle"
+                 "${_oracle_overrides}")
+if(AST_ENABLE_SANITIZERS)
+    set_tests_properties(transform_oracle_simplify transform_oracle_headers
+                         transform_oracle_framesets
+        PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+endif()
 
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)

@@ -154,6 +154,72 @@ static int compare_equiv( const char *relpath,
     return fails;
 }
 
+/* Per-fixture round-trip tolerance overrides, keyed by relpath.
+   "relpath off" disables round-trip; "relpath <rtol> <atol>" loosens it. */
+typedef struct { char relpath[1024]; double rtol, atol; int off; } Override;
+static Override *g_over = NULL;
+static int g_nover = 0;
+
+static void load_overrides( const char *path ) {
+    if ( !path ) return;
+    FILE *fp = fopen( path, "r" );
+    if ( !fp ) return;
+    size_t cap = 16; g_over = malloc( sizeof(Override) * cap );
+    char line[1024];
+    while ( fgets( line, (int) sizeof line, fp ) ) {
+        if ( line[0] == '#' || line[0] == '\n' ) continue;
+        char rel[1024], what[64];
+        if ( sscanf( line, "%1023s %63s", rel, what ) < 2 ) continue;
+        if ( g_nover == (int) cap ) { cap *= 2; g_over = realloc( g_over, sizeof(Override)*cap ); }
+        Override *o = &g_over[g_nover++];
+        snprintf( o->relpath, sizeof o->relpath, "%s", rel );
+        if ( strcmp( what, "off" ) == 0 ) { o->off = 1; o->rtol = o->atol = 0; }
+        else { o->off = 0; o->rtol = ORACLE_DEF_RTRIP_RTOL; o->atol = ORACLE_DEF_RTRIP_ATOL;
+               sscanf( line, "%*s %lf %lf", &o->rtol, &o->atol ); }
+    }
+    fclose( fp );
+}
+
+/* Fill rtol/atol for a fixture's round-trip; return 0 if it is disabled. */
+static int rtrip_tol( const char *relpath, double *rtol, double *atol ) {
+    *rtol = ORACLE_DEF_RTRIP_RTOL; *atol = ORACLE_DEF_RTRIP_ATOL;
+    for ( int i = 0; i < g_nover; i++ ) {
+        if ( strcmp( g_over[i].relpath, relpath ) == 0 ) {
+            if ( g_over[i].off ) return 0;
+            *rtol = g_over[i].rtol; *atol = g_over[i].atol; return 1;
+        }
+    }
+    return 1;
+}
+
+/* Round-trip accuracy check (GRID-domain corpora only).  fwd is a fixture's
+   forward section; inv_live are the live outputs of its inverse section
+   (i.e. inverse(forward(P))).  Assert those recover the forward inputs P,
+   skipping points where the forward output was BAD (e.g. projection corners
+   that have no inverse).  Reports inverse inaccuracy, not just change. */
+static int compare_rtrip( const Section *fwd, double **inv_live,
+                          double rtol, double atol ) {
+    int fails = 0;
+    for ( int p = 0; p < fwd->npoint; p++ ) {
+        int fbad = 0;
+        for ( int b = 0; b < fwd->nout; b++ )
+            if ( fwd->out[b][p] == AST__BAD ) { fbad = 1; break; }
+        if ( fbad ) continue;                 /* nothing to invert */
+        for ( int a = 0; a < fwd->nin; a++ ) {
+            if ( !oracle_within_tol( inv_live[a][p], fwd->in[a][p], rtol, atol ) ) {
+                double d = fabs( inv_live[a][p] - fwd->in[a][p] );
+                double rel = fwd->in[a][p] != 0.0 ? d / fabs( fwd->in[a][p] ) : d;
+                fprintf( stderr,
+                    "MISMATCH [round-trip] %s row=%d axis=%d pixel=%.17g "
+                    "recovered=%.17g rel=%.3g\n",
+                    fwd->relpath, p, a, fwd->in[a][p], inv_live[a][p], rel );
+                fails++;
+            }
+        }
+    }
+    return fails;
+}
+
 static int selftest( void ) {
     const char *tmp = "/tmp/oracle_selftest.txt";
     FILE *fp = fopen( tmp, "w" );
@@ -192,16 +258,22 @@ int main( int argc, char *argv[] ) {
     if ( argc == 2 && strcmp( argv[1], "--selftest" ) == 0 ) return selftest();
     if ( argc < 3 ) {
         fprintf( stderr,
-            "Usage: check_transform_oracle <root> <oracle_file>\n" );
+            "Usage: check_transform_oracle <root> <oracle_file> [<overrides>]\n" );
         return 2;
     }
     const char *root   = argv[1];
     const char *oracle = argv[2];
+    if ( argc >= 4 ) load_overrides( argv[3] );
 
     Section *secs = NULL; int nsec = 0;
     if ( oracle_read_file( oracle, &secs, &nsec ) ) return 2;
 
     int total_fail = 0, checked = 0;
+
+    /* One-slot cache of the most recent forward section, used to pair a
+       fixture's inverse section (emitted immediately after) for the
+       round-trip accuracy check. */
+    Section *prev_fwd = NULL;
 
     /* One-slot cache of the most recent .map forward section and its live
        outputs, so check C can compare the matching .simp forward section
@@ -239,6 +311,20 @@ int main( int argc, char *argv[] ) {
                                        s->nout, s->npoint,
                                        ORACLE_DEF_RTOL, ORACLE_DEF_ATOL );
         checked++;
+
+        /* Round-trip accuracy (GRID-domain corpora): an inverse section
+           paired with the immediately preceding forward section of the same
+           fixture verifies inverse(forward(P)) ~= P. */
+        int grid_domain = has_ext( s->relpath, ".head" ) ||
+                          has_ext( s->relpath, ".ast" );
+        if ( !s->forward && grid_domain && prev_fwd &&
+             strcmp( prev_fwd->relpath, s->relpath ) == 0 &&
+             prev_fwd->nin == s->nout && prev_fwd->npoint == s->npoint ) {
+            double rtol, atol;
+            if ( rtrip_tol( s->relpath, &rtol, &atol ) )
+                total_fail += compare_rtrip( prev_fwd, live, rtol, atol );
+        }
+        if ( s->forward ) prev_fwd = s;
 
         /* Equivalence check C: this section is a .simp forward whose stem
            matches the cached preceding .map forward. */

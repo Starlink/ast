@@ -252,6 +252,39 @@ This test is a manual stress test, not a routine regression test. It can
 consume tens of gigabytes of RAM and may take a very long time to complete.
 It should not normally be combined with sanitizers.
 
+## Transform output oracle
+
+A tolerance-based, architecture-independent regression oracle records the
+current numerical output of AST transforms over three corpora so that future
+work (SIMD kernels, refactors) can be checked for unintended changes.  See
+`docs/superpowers/specs/2026-06-27-transform-oracle-design.md`.
+
+- `gen_transform_oracle` (built, not a test) scans the fixture tree and writes
+  three committed reference files: `simplify_fixtures.oracle` (the
+  `simplify_fixtures/*.map` and `*.simp` native dumps), `headers.oracle` (the
+  `*.head` FITS headers) and `framesets.oracle` (the `*.ast` FrameSet dumps).
+- `check_transform_oracle` (the ctest gate) reads an oracle file as its sole
+  manifest, reloads each named fixture, re-transforms the recorded inputs and
+  compares within tolerance.  Four ctests: `transform_oracle_selftest` (parser),
+  `transform_oracle_simplify`, `transform_oracle_headers`,
+  `transform_oracle_framesets`.  `test_oracle_util` unit-tests the helpers.
+- Checks: golden forward and golden inverse (every fixture; the inverse
+  section's inputs are the forward outputs); `.map`/`.simp` equivalence gated on
+  stored agreement; and, for the GRID-domain corpora, round-trip accuracy
+  (`inverse(forward(P)) ~= P`) to an absolute pixel tolerance.
+- `transform_oracle_rtrip_overrides.txt` records per-fixture round-trip
+  exceptions (currently `tsc.head` and `tnx-cheb.head`, whose inverses do not
+  recover the pixel and are flagged for investigation).
+
+Regenerate after an intentional transform change and commit the diff:
+
+```
+cmake --build build --target gen_transform_oracle
+./build/ast_tester/gen_transform_oracle ast_tester \
+    ast_tester/simplify_fixtures.oracle ast_tester/headers.oracle \
+    ast_tester/framesets.oracle
+```
+
 ## Verification
 
 ```
