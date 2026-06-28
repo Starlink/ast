@@ -7,13 +7,14 @@
 
 #define ORACLE_BAD_TOKEN "BAD"
 
-/* Golden comparison tolerance.  Set to absorb cross-compiler and
-   cross-architecture floating-point differences (observed up to ~2e-12 for
-   transcendental-heavy WCS inverses between two toolchains on one machine,
-   and larger across ARM/x86 libm) while still flagging real algorithmic
-   change, which is orders of magnitude larger (>= ~1e-6 relative). */
-#define ORACLE_DEF_RTOL        1e-9
-#define ORACLE_DEF_ATOL        1e-9
+/* Golden comparison tolerance.  Set to absorb cross-architecture
+   floating-point differences while still flagging real algorithmic change
+   (orders of magnitude larger, >= ~1e-6 relative).  ARM vs x86 `libm`
+   differences reach ~5e-9 for transcendental inverses sampled near a
+   singularity (e.g. a relativistic spectral inverse at beta ~ 1), well
+   above the ~2e-12 seen merely across compilers on one machine. */
+#define ORACLE_DEF_RTOL        1e-7
+#define ORACLE_DEF_ATOL        1e-7
 #define ORACLE_DEF_EQUIV_RTOL  1e-9
 #define ORACLE_DEF_EQUIV_ATOL  1e-9
 
@@ -29,6 +30,12 @@
 /* Return 1 if got and ref agree within |got-ref| <= atol + rtol*|ref|.
    AST__BAD matches only AST__BAD; any NaN never matches. */
 int oracle_within_tol( double got, double ref, double rtol, double atol );
+
+/* As oracle_within_tol, but also matches angles (radians) that are equal
+   modulo 2*pi -- a longitude may emerge as 0 vs 2*pi or +pi vs -pi across
+   architectures or normalization conventions.  Use for angle-bearing
+   outputs (golden, equivalence); not for pixel comparisons (round-trip). */
+int oracle_within_tol_wrap( double got, double ref, double rtol, double atol );
 
 double oracle_halton( unsigned index, unsigned base );
 int    oracle_sample_axis_count( void );

@@ -112,7 +112,7 @@ static int compare_outputs( const char *label, const char *relpath,
     int fails = 0;
     for ( int p = 0; p < npoint; p++ ) {
         for ( int a = 0; a < ncol; a++ ) {
-            if ( !oracle_within_tol( got[a][p], ref[a][p], rtol, atol ) ) {
+            if ( !oracle_within_tol_wrap( got[a][p], ref[a][p], rtol, atol ) ) {
                 double d = fabs( got[a][p] - ref[a][p] );
                 double rel = ref[a][p] != 0.0 ? d / fabs( ref[a][p] ) : d;
                 fprintf( stderr,
@@ -139,9 +139,9 @@ static int compare_equiv( const char *relpath,
     int fails = 0;
     for ( int p = 0; p < npoint; p++ ) {
         for ( int a = 0; a < ncol; a++ ) {
-            if ( !oracle_within_tol( map_ref[a][p], simp_ref[a][p], rtol, atol ) )
+            if ( !oracle_within_tol_wrap( map_ref[a][p], simp_ref[a][p], rtol, atol ) )
                 continue;   /* out of shared domain at generation time */
-            if ( !oracle_within_tol( map_live[a][p], simp_live[a][p], rtol, atol ) ) {
+            if ( !oracle_within_tol_wrap( map_live[a][p], simp_live[a][p], rtol, atol ) ) {
                 double d = fabs( map_live[a][p] - simp_live[a][p] );
                 double rel = simp_live[a][p] != 0.0 ? d / fabs( simp_live[a][p] ) : d;
                 fprintf( stderr,

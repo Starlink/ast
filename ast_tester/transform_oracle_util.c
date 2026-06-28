@@ -20,6 +20,17 @@ int oracle_within_tol( double got, double ref, double rtol, double atol ) {
     return fabs( got - ref ) <= atol + rtol * fabs( ref );
 }
 
+int oracle_within_tol_wrap( double got, double ref, double rtol, double atol ) {
+    if ( oracle_within_tol( got, ref, rtol, atol ) ) return 1;
+    if ( got == AST__BAD || ref == AST__BAD ) return 0;
+    if ( isnan( got ) || isnan( ref ) ) return 0;
+    /* Angles in radians are periodic: a longitude can emerge as 0 vs 2*pi
+       or +pi vs -pi across architectures.  Accept a difference of one full
+       turn. */
+    double twopi = 2.0 * acos( -1.0 );
+    return fabs( fabs( got - ref ) - twopi ) <= atol + rtol * fabs( ref );
+}
+
 /* Number of sampled points per fixture (tunable). */
 #define ORACLE_NPOINT 24
 

@@ -27,6 +27,35 @@ static void test_within_tol(void) {
     CHECK(oracle_within_tol(NAN, 1.0, 1e9, 1e9) == 0);
 }
 
+static void test_within_tol_wrap(void) {
+    double twopi = 2.0 * acos(-1.0);
+    /* plain matches still match */
+    CHECK(oracle_within_tol_wrap(1.0, 1.0, ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
+    /* longitude emitted as 2*pi vs 0 -> same angle */
+    CHECK(oracle_within_tol_wrap(twopi, 0.0, ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
+    CHECK(oracle_within_tol_wrap(0.0, twopi, ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
+    /* +pi vs -pi -> same angle (differ by 2*pi) */
+    CHECK(oracle_within_tol_wrap(acos(-1.0), -acos(-1.0), ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
+    /* a genuine difference (not near a multiple of 2*pi) is still rejected */
+    CHECK(oracle_within_tol_wrap(1.0, 2.0, ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 0);
+    /* BAD vs finite never matches via wrap */
+    CHECK(oracle_within_tol_wrap(AST__BAD, 0.0, ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 0);
+
+    /* Exact cross-architecture (arm64 ref vs x86-64 got) pairs observed in
+       CI; the golden comparison must accept all of them. */
+    /* longitude 2*pi (arm) vs ~0 (x86) */
+    CHECK(oracle_within_tol_wrap(5.0999352672935785e-17, 6.2831853071795862,
+                                 ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
+    CHECK(oracle_within_tol_wrap(1.9478449064398693e-20, 6.2831853071795862,
+                                 ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
+    /* +pi (x86) vs -pi (arm) */
+    CHECK(oracle_within_tol_wrap(3.1415926535897931, -3.1415926535897931,
+                                 ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
+    /* relativistic spectral inverse near beta=1: 1.0 (x86) vs 1.0000000047 (arm) */
+    CHECK(oracle_within_tol_wrap(1.0, 1.0000000047018207,
+                                 ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
+}
+
 static void test_halton(void) {
     /* Known radical-inverse base-2 values: 1->1/2, 2->1/4, 3->3/4. */
     CHECK(fabs(oracle_halton(1, 2) - 0.5)  < 1e-15);
@@ -88,6 +117,7 @@ static void test_load_mapping(void) {
 
 int main(void) {
     test_within_tol();
+    test_within_tol_wrap();
     test_halton();
     test_sample_points();
     test_format_parse();

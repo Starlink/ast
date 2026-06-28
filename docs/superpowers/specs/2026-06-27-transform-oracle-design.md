@@ -378,18 +378,25 @@ fixtures that extrapolate out of range).
 
 ### Tolerances (final, this machine)
 
-- Golden forward/inverse: `rtol = atol = 1e-9`.
-  Golden is exact on recompute on the same build, but comparing across
-  toolchains is not: an oracle generated with one compiler and checked with
-  another differed by up to ~2e-12 (relative) for transcendental-heavy WCS
-  inverses on a single machine.
-  `1e-9` absorbs that and the larger differences expected across ARM/x86
-  `libm`, while still catching real algorithmic change (orders of magnitude
-  larger, `>= ~1e-6`).
-- Equivalence: `rtol = atol = 1e-9`.
+- Golden forward/inverse: `rtol = atol = 1e-7`.
+  Golden compares the live output against the committed reference, which may
+  have been generated on a different architecture.  Cross-architecture
+  `libm` differences are far larger than the ~2e-12 seen merely across
+  compilers on one machine: ARM vs x86 CI showed ~5e-9 for a relativistic
+  spectral inverse sampled near its `beta ~ 1` singularity.  `1e-7` absorbs
+  that while still catching real algorithmic change (`>= ~1e-6`).
+- Equivalence: `rtol = atol = 1e-9` (a same-build comparison of two live
+  transforms, so not subject to cross-architecture drift).
 - Round-trip accuracy: absolute `0.05` px (`rtol = 1e-6`).
 
-These pass the full corpus on arm64 under both the conda (RelWithDebInfo) and
-homebrew (Debug + ASan/UBSan) toolchains; the cross-toolchain agreement is the
-proxy that sized the golden tolerance.  Cross-architecture (x86-64)
-confirmation remains future work, but the margin is set for it.
+**Angular periodicity.**  Golden and equivalence comparisons are
+*wrap-aware*: two values that differ by 2*pi (one full turn) are treated as
+equal, because a longitude in radians can emerge as 0 vs 2*pi or +pi vs -pi
+across architectures or normalization conventions.  Round-trip comparison is
+*not* wrap-aware -- it compares pixel coordinates, which are not periodic.
+
+These pass the full corpus on arm64 (conda RelWithDebInfo and homebrew Debug +
+ASan/UBSan) and on x86-64 (GitHub Actions).  The cross-architecture CI run is
+what sized the golden tolerance and motivated the wrap-aware comparison; the
+exact arm64-vs-x86 pairs it surfaced are pinned as unit tests in
+`test_oracle_util.c`.
