@@ -160,6 +160,27 @@ In roughly 30 years there has never been a breaking native format version bump.
 - `$minReadVersion` is cheap forward-compatibility insurance for a hypothetical breaking change, but in practice is expected to remain `1`, because a breaking JSON change would imply a breaking native change that AST has historically never made.
 - The per-class schema files are versioned collectively under the format version (for example `schemas/v1/`), not individually per class.
 
+### Version-bump semantics
+
+`$minReadVersion` gates the *grammar* (the envelope shape), not the *vocabulary* (the set of known `$type` values). The two version axes behave as follows:
+
+- PATCH: editorial change, no change to the wire format.
+- MINOR: additive vocabulary — a new class, or a new attribute on an existing class. `$schemaVersion` minor is incremented; `$minReadVersion` is unchanged.
+- MAJOR: a change to the envelope grammar itself (for example how bad values or nesting are encoded). `$schemaVersion` major and `$minReadVersion` are both incremented. This has never happened for the native format in roughly 30 years and is expected never to.
+
+Adding a new Mapping class is therefore a MINOR bump with `$minReadVersion` left at `1`.
+The reasoning is important: because the version fields live at the document root, raising `$minReadVersion` for a new class would make an old reader reject the *entire* document even when the new class never appears in it.
+Tying `$minReadVersion` to the grammar instead means an old reader rejects only documents it genuinely cannot parse, and a document that merely *could* contain a new class is still read fine if it does not.
+
+### Unknown class versus unknown attribute
+
+These two cases are deliberately handled differently, mirroring native:
+
+- Unknown attribute (a key inside a known `$type`): ignored by default, or an error when `Strict` is set. This is the additive-evolution path; a default is substituted for any missing attribute.
+- Unknown `$type` (a whole class the reader has no loader for): always an error, regardless of `Strict`. There is no object to construct, so there is no meaningful "ignore and continue". This matches native exactly, where `astGetLoader` reports an error for an unrecognized class. The failure is local to documents that actually use the new class.
+
+No serialization, native or JSON, can make an old reader construct an object from a class whose code it does not have; the new library is required to read new-class content.
+
 ## Vendored cJSON
 
 cJSON is vendored under `src/cjson/`, following the existing pattern for `wcslib`, `pal`, `erfa`, and `cminpack`.
