@@ -16,10 +16,11 @@ The work also publishes a per-class JSON Schema set so the format is self-docume
 - A published, generated JSON Schema (draft 2020-12) per AST class, kept in sync with the code.
 - Maximum reuse of existing AST infrastructure (`KeyMap`, the `Channel` callback contract, vendored-dependency pattern).
 - Code factored so that a future *native* `YamlChan` encoding can reuse the same object/KeyMap core.
+- A `JsonEncoding` attribute (defaulting to NATIVE) so that foreign JSON encodings can be added later without an API change, mirroring `XmlChan.XmlFormat` and `YamlChan.YamlEncoding`.
 
 ## Non-goals
 
-- Interoperability with a foreign community schema (e.g. ASDF/gwcs). That is `YamlChan`'s existing job and is out of scope here.
+- *Implementing* a foreign JSON encoding (translating to or from a community JSON schema such as OME-NGFF coordinate transforms, RFC 5). Only the NATIVE encoding is implemented here. The `JsonEncoding` switch that would select such an encoding is in scope (so foreign encodings can be added later without an API change), but no foreign encoding is built. Foreign *YAML* (ASDF/gwcs) remains `YamlChan`'s job.
 - Changing or refactoring the native `Channel` text format or the per-class `Dump`/`Load` functions.
 - Implementing the native `YamlChan` encoding itself (only enabling it structurally).
 - JSON Schema validation performed *inside* AST at read time. The schemas are an external deliverable; runtime validation is a possible later phase.
@@ -222,7 +223,8 @@ The schemas are therefore best-effort derived from the code, with targeted manua
 
 ## Attributes and error handling
 
-- Attributes: reuse the inherited `Channel` attributes (`Indent`, `Full`, `Comment`, `SinkFile`, `SourceFile`, and `Strict`). No new encoding attribute is needed, because JSON carries only the native semantics. The inherited `Strict` attribute governs unknown-key tolerance on read (ignore by default, error when set), exactly as for the native `Channel`. A built-in schema-validation toggle is a possible later phase, not part of v1.
+- Attributes: reuse the inherited `Channel` attributes (`Indent`, `Full`, `Comment`, `SinkFile`, `SourceFile`, and `Strict`). The inherited `Strict` attribute governs unknown-key tolerance on read (ignore by default, error when set), exactly as for the native `Channel`. A built-in schema-validation toggle is a possible later phase, not part of v1.
+- One new attribute, `JsonEncoding`, mirroring `XmlChan.XmlFormat` and `YamlChan.YamlEncoding`. It selects the external JSON representation. The only value implemented here is `NATIVE` (the default), which is the lossless 1:1 encoding this spec describes. The attribute exists so that foreign encodings (for example OME-NGFF coordinate transforms, RFC 5) can be added later as additional values, each with its own translation code path, without changing the class API. Its machinery follows the established pattern exactly: an internal enum (`UNKNOWN_ENCODING = -1`, `NATIVE_ENCODING = 0`, future values from `1`), `Get`/`Set`/`Clear`/`Test` vtab methods and public macros, string parsing in `SetAttrib`, and a default of `NATIVE`. Selecting an unimplemented encoding reports an error.
 - Error handling: standard AST `astOK` plus `astError` with `AST__` status codes. New status codes are added to `ast_err.msg` for malformed JSON input and for an unrecognized or missing `$type`.
 
 ## Testing
@@ -256,6 +258,7 @@ Error-path tests cover malformed JSON, unknown `$type`, and bad-value handling.
 - Native schema-version comment: because the native reader strips comments on input (`channel.c`), an older library would safely ignore a `# AST schema version X.Y.Z` line written into native dumps, making it a forward-compatible way to record the schema version in native form too. It is deferred because it changes the byte output of every native dump, which collides with the many checkdump/golden tests that compare exact native text, and because it modifies the native `Channel` (a non-goal of this spec) and would want maintainer sign-off. The AST-global `AST__SCHEMA_VERSION` constant introduced here is what such a follow-on would reuse.
 - Built-in JSON Schema validation at read time (a `Strict`-style schema-validation mode inside `JsonChan`).
 - Native `YamlChan` encoding, which the shared object/KeyMap converter is designed to enable.
+- Foreign JSON encodings selected via `JsonEncoding`, for example translating AST Mappings/Frames to and from OME-NGFF coordinate transforms (RFC 5). These are translation (subset, lossy) encodings analogous to `YamlChan`'s ASDF support; the `JsonEncoding` attribute introduced here is the extension point they would plug into.
 
 ## Risks and mitigations
 

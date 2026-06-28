@@ -60,15 +60,17 @@ Produce a minimal but complete `Channel` subclass (C + Fortran) that compiles in
   - `int astIsAJsonChan( AstJsonChan *this )` — class predicate.
   - `AstJsonChan *astInitJsonChan_( void *mem, size_t size, int init, AstJsonChanVtab *vtab, const char *name, const char *(* source)( void ), char *(* source_wrap)( const char *(*)( void ), int * ), void (* sink)( const char * ), void (* sink_wrap)( void (*)( const char * ), const char *, int * ), int * )` — initialiser (signature mirrors `astInitYamlChan_`).
   - `AstJsonChan *astLoadJsonChan_( void *mem, size_t size, AstJsonChanVtab *vtab, const char *name, AstChannel *channel, int * )` — loader.
-  - Struct `AstJsonChan` and vtab `AstJsonChanVtab` (mirroring the YamlChan structs, minus YAML-specific members).
+  - Struct `AstJsonChan` and vtab `AstJsonChanVtab` (mirroring the YamlChan structs, minus YAML-specific members, keeping `jsonencoding`/`defenc`).
+  - `int astGetJsonEncoding( AstJsonChan * )`, `void astSetJsonEncoding( AstJsonChan *, int )`, `void astClearJsonEncoding( AstJsonChan * )`, `int astTestJsonEncoding( AstJsonChan * )` — encoding attribute accessors. Enum: `UNKNOWN_ENCODING = -1`, `NATIVE_ENCODING = 0`.
   - Header guard symbol `JSONCHAN_INCLUDED`.
 
 - [ ] **Step 1: Template the header from yamlchan.h**
 
 Copy `src/yamlchan.h` to `src/jsonchan.h`. Then apply these exact transformations:
-- Replace every `YamlChan` → `JsonChan`, `YAMLCHAN` → `JSONCHAN`, `yamlchan` → `jsonchan`, `Yaml` → `Json`.
-- Delete the `#include "keymap.h"` line is **kept** (we need KeyMap); delete the `#if defined( YAML ) #include <yaml.h> #endif` block.
-- Delete any YAML/ASDF-specific attribute declarations and accessors (`VerboseRead`, `PreserveName`, `YamlEncoding` and their `astGet*/astSet*/astClear*/astTest*` prototypes and vtab slots). The Phase-1 JsonChan adds no new attributes; it relies only on inherited `Channel` attributes.
+- Replace every `YamlChan` → `JsonChan`, `YAMLCHAN` → `JSONCHAN`, `yamlchan` → `jsonchan`, `Yaml` → `Json`. Note this turns `YamlEncoding` → `JsonEncoding` automatically — that is intended (see next bullet).
+- Keep the `#include "keymap.h"` line (we need KeyMap); delete the `#if defined( YAML ) #include <yaml.h> #endif` block.
+- **Keep and rename** the `YamlEncoding` attribute machinery as `JsonEncoding`: the `int jsonencoding;` and `int defenc;` struct members, the `Get/Set/Clear/Test JsonEncoding` vtab slots and public macros (`astGetJsonEncoding`/`astSetJsonEncoding`/`astClearJsonEncoding`/`astTestJsonEncoding`). This is the extension point for future foreign JSON encodings.
+- Delete the other YAML-specific attribute declarations (`VerboseRead`, `PreserveName`) and their accessors/vtab slots; JsonChan does not need them.
 - Update the prologue: Purpose "Define the interface to the JsonChan class", Description mentions JSON, add a `History:` entry dated today with author and "Original version."
 - After the `#endif` guard but inside the protected (`astCLASS`) section is not needed; instead, add near the top of the public macro section:
 
@@ -83,8 +85,17 @@ Copy `src/yamlchan.h` to `src/jsonchan.h`. Then apply these exact transformation
 Copy `src/yamlchan.c` to `src/jsonchan.c`. Apply the same name substitutions as Step 1. Then reduce it to a compiling skeleton:
 - Delete all YAML/ASDF-specific code: every `ReadYAML*`, `WriteAsdf*`, `ReadValues`, `ReadNative`, `IsAsdf*`, `StartAsdf*`, `AddR2D`, the `#include <yaml.h>` and any `#if defined(YAML)` blocks, and the YAML-specific attribute machinery (`VerboseRead`/`PreserveName`/`YamlEncoding`).
 - Keep and rename the structural boilerplate: includes, `astMAKE_*` for the class, `astInitJsonChanVtab`, `astInitJsonChan_`, `astLoadJsonChan_`, `astJsonChan_` (the C constructor body), the `Delete`/`Copy`/`Dump` for the class itself, and the global vtab handling.
+- Keep and rename the `JsonEncoding` attribute machinery: the `ClearJsonEncoding`/`GetJsonEncoding`/`SetJsonEncoding`/`TestJsonEncoding` static functions, their vtab assignments in `astInitJsonChanVtab`, the `"jsonencoding"` handling in `SetAttrib`/`GetAttrib`/`ClearAttrib`/`TestAttrib`, the `astSscanf( setting, "jsonencoding=...")` parse, the external text-value table, and the `this->defenc = UNKNOWN_ENCODING;` initialiser. Redefine the encoding enum at the top of the file as:
+
+```c
+#define UNKNOWN_ENCODING  -1
+#define NATIVE_ENCODING    0
+/* Future foreign encodings (e.g. NGFF) take values 1, 2, ... */
+```
+
+Set the default encoding to `NATIVE_ENCODING` (the `GetJsonEncoding`/`defenc` logic should resolve to NATIVE when unset). In `SetJsonEncoding`/the string parser, accept the text `"NATIVE"`; reject any other value with `astError( AST__BDJSN, ... )` for now (foreign encodings are not implemented in Phase 1). Remove the ASDF text/enum handling.
 - For the overridable `Write`/`Read` methods: in this task, do **not** override them yet — leave the parent `Channel` implementations in place (i.e. the vtab does not reassign `WriteBegin`/`WriteDouble`/etc.). This makes the skeleton compile and construct without serialization behaviour.
-- Update the prologue Purpose ("I/O Channel that uses JSON to represent Objects"), Description, and add today's `History:` entry.
+- Update the prologue Purpose ("I/O Channel that uses JSON to represent Objects"), Description (mention the `JsonEncoding` attribute and that only NATIVE is currently supported), and add today's `History:` entry.
 
 - [ ] **Step 3: Template the Fortran interface**
 
@@ -163,9 +174,14 @@ int main( void ) {
    if ( !astOK ) { printf( "astJsonChan failed\n" ); return 1; }
    if ( !astIsAJsonChan( chan ) ) { printf( "not a JsonChan\n" ); return 1; }
 
-   char buf[ 50 ];
-   astGetC( chan, "Class" ); /* smoke: attribute access works */
-   (void) buf;
+   /* JsonEncoding defaults to NATIVE and round-trips as a string. */
+   if ( strcmp( astGetC( chan, "JsonEncoding" ), "NATIVE" ) != 0 ) {
+      printf( "default encoding not NATIVE\n" ); return 1;
+   }
+   /* Selecting an unimplemented encoding must report an error. */
+   astSetC( chan, "JsonEncoding", "NGFF" );
+   if ( astOK ) { printf( "unimplemented encoding did not error\n" ); return 1; }
+   astClearStatus;   /* recover so astEnd is clean */
 
    astEnd;
 
@@ -202,6 +218,8 @@ git commit -m "feat(jsonchan): add JsonChan class skeleton that builds and const
 ## Task 2: Write a flat scalar object to JSON
 
 Override the scalar `WriteXxx` callbacks to accumulate into an `AstKeyMap`, and on `WriteEnd` of the outermost object emit the KeyMap as JSON text through the sink. Handle `WriteBegin` (sets `$type`), `WriteInt`, `WriteInt64`, `WriteDouble`, `WriteString`, and `WriteEnd`.
+
+This is the NATIVE-encoding write path. Since `SetJsonEncoding` (Task 1) rejects any non-NATIVE value, the encoding is always NATIVE here. Structure `WriteEnd` so the emit step is reached via a `if ( astGetJsonEncoding( this ) == NATIVE_ENCODING )` branch, leaving an obvious place for a future foreign encoding (e.g. NGFF) to plug in its own emitter.
 
 **Files:**
 - Modify: `src/jsonchan.c`
