@@ -166,6 +166,18 @@ The only blind spot of round-trip alone, a compensating change to both forward
 and inverse, is closed because the forward output is independently pinned by its
 golden reference.
 
+Round-trip accuracy must not be assumed uniform.
+Some mappings have an inherently inexact inverse.
+PolyMap, for example, computes its inverse iteratively, so its round-trip error
+is bounded by convergence rather than by ULP-scale noise.
+The round-trip tolerance is therefore worked out per fixture during
+implementation, not set as a single tight blanket value, and not papered over
+with a single very loose one.
+A grossly failing round-trip is treated as a signal to investigate, either a real
+bug or too few inverse iterations, rather than something to hide behind a wide
+tolerance.
+Cases that turn out to be legitimately inexact are revisited individually.
+
 ## Checks
 
 For each `.map`/`.simp` stem pair, three independent checks run.
@@ -271,3 +283,6 @@ as starting points:
 - The base sampling range for native-dump mappings and the clustering criterion
   and attempt cap for adaptive broadening.
 - The final tolerance values, tuned from the observed corpus spread.
+- Per-fixture round-trip tolerances for mappings with inherently inexact
+  inverses, and investigation of any inverse that round-trips grossly out of
+  range.
