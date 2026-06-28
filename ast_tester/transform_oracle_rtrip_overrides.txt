@@ -12,10 +12,21 @@
 # still pin every fixture's forward and inverse outputs regardless of the
 # entries here; this only governs the inverse-accuracy assertion.
 
-# KNOWN-INACCURATE INVERSE -- INVESTIGATE.
-# These projections' inverses do not recover the pixel: tsc is off by ~0.7
-# px and tnx-cheb fails outright (recovers BAD / pixels off by >>1).  Their
-# forward and inverse outputs are still pinned by the golden checks; the
-# round-trip assertion is disabled here pending investigation of the inverse.
-tsc.head        off
+# KNOWN ROUND-TRIP FAILURES -- INVESTIGATE.  Both fixtures' forward and
+# inverse outputs are still pinned by the golden checks; only the round-trip
+# accuracy assertion is disabled here.
+#
+# tnx-cheb.head: the TNX Chebyshev distortion builds a ChebyMap, which
+#   disables PolyMap's iterative inverse (it cannot represent its own
+#   Jacobian -- the derivative of a 1st-kind Chebyshev T_n is a 2nd-kind
+#   U_(n-1), which ChebyMap's storage does not support; see src/chebymap.c).
+#   So sky->pixel returns BAD for the whole fixture (no inverse exists).
+#
+# tsc.head: the quad-cube reverse projection does not flag the "gap" corners
+#   of a rectangular pixel grid as invalid.  One sampled pixel (1400.125,
+#   889.33) lies in a gap: pixel->sky returns a finite but non-invertible
+#   sky position, and sky->pixel maps it to the canonical face pixel ~982 px
+#   away (relative error 0.70).  The reverse projection (astTSCrev) should
+#   return BAD there.
 tnx-cheb.head   off
+tsc.head        off

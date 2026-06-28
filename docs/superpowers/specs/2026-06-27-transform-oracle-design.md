@@ -355,10 +355,15 @@ whether the inputs are "valid".
 `transform_oracle_rtrip_overrides.txt` lists per-fixture round-trip
 exceptions: `<relpath> off` disables the check, `<relpath> <rtol> <atol>`
 loosens it.
-Currently `tsc.head` and `tnx-cheb.head` are `off`: their inverses do not
-recover the pixel (`tsc` by ~0.7 px, `tnx-cheb` outright), flagged for
-investigation.
-Their forward and inverse outputs remain pinned by the golden checks.
+Currently `tnx-cheb.head` and `tsc.head` are `off`, for distinct reasons:
+`tnx-cheb` has no inverse at all (its Chebyshev distortion builds a ChebyMap,
+which disables PolyMap's iterative inverse because it cannot represent its own
+Jacobian), so `sky->pixel` is `BAD`; `tsc` has an accurate inverse except at
+the quad-cube cross "gap" corners of a rectangular grid, where one sampled
+pixel round-trips ~982 px away (relative error 0.70) because the reverse
+projection does not flag the gap as invalid.
+Their forward and inverse outputs remain pinned by the golden checks; only the
+round-trip assertion is disabled, pending investigation.
 
 ### Skips
 
