@@ -12,25 +12,26 @@
 # still pin every fixture's forward and inverse outputs regardless of the
 # entries here; this only governs the inverse-accuracy assertion.
 
-# KNOWN ROUND-TRIP FAILURES -- INVESTIGATE.  Both fixtures' forward and
-# inverse outputs are still pinned by the golden checks; only the round-trip
-# accuracy assertion is disabled here.
-#
-# tnx-cheb.head: the TNX Chebyshev distortion builds a ChebyMap, which
-#   disables PolyMap's iterative inverse (it cannot represent its own
-#   Jacobian -- the derivative of a 1st-kind Chebyshev T_n is a 2nd-kind
-#   U_(n-1), which ChebyMap's storage does not support; see src/chebymap.c).
-#   So sky->pixel returns BAD for the whole fixture (no inverse exists).
-#
+# KNOWN ROUND-TRIP FAILURES -- INVESTIGATE.  In both cases the golden checks
+# still pin the fixture's forward and inverse outputs; only the round-trip
+# accuracy assertion is disabled.  Each entry is documented immediately above
+# its directive.
+
+# tnx-cheb.head: the TNX Chebyshev distortion builds a ChebyMap, which disables
+#   PolyMap's iterative inverse (it cannot represent its own Jacobian -- the
+#   derivative of a 1st-kind Chebyshev T_n is a 2nd-kind U_(n-1), which
+#   ChebyMap's storage does not support; see src/chebymap.c).  So sky->pixel
+#   returns BAD for the whole fixture (no inverse exists).
+tnx-cheb.head   off
+
 # tsc.head: NOT an inverse defect -- the TSC inverse is accurate (round-trips
 #   to ~1e-13) for every in-projection pixel.  This image is ~587 deg wide
 #   (1600 px x 0.367 deg/px), wider than the quad-cube equatorial belt's
 #   360 deg period, so it is genuinely many-to-one: one sampled pixel
 #   (1400.125, 889.33) is a 360 deg alias of pixel 418.31 (xf differ by
-#   exactly 8 face-units).  inverse(forward(P)) correctly returns the
-#   canonical pixel, ~982 px from the aliased original.  astTSCrev is correct;
-#   there is nothing to fix.  Round-trip is disabled here only because the
-#   check assumes a single-valued inverse, which cannot hold for an image
-#   wider than the projection period.
-tnx-cheb.head   off
+#   exactly 8 face-units).  inverse(forward(P)) correctly returns the canonical
+#   pixel, ~982 px from the aliased original.  astTSCrev is correct; there is
+#   nothing to fix.  Round-trip is disabled here only because the check assumes
+#   a single-valued inverse, which cannot hold for an image wider than the
+#   projection period.
 tsc.head        off
