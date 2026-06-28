@@ -105,6 +105,15 @@ static void free_cols( double **c, int ncol ) {
     free( c );
 }
 
+static void free_sections( Section *secs, int nsec ) {
+    if ( !secs ) return;
+    for ( int i = 0; i < nsec; i++ ) {
+        free_cols( secs[i].in,  secs[i].nin );
+        free_cols( secs[i].out, secs[i].nout );
+    }
+    free( secs );
+}
+
 /* Compare two equal-shape output sets; report and count mismatches. */
 static int compare_outputs( const char *label, const char *relpath,
                             double **got, double **ref, int ncol, int npoint,
@@ -271,6 +280,7 @@ static int selftest( void ) {
                s[0].nout == 1 && s[0].forward == 1 && s[0].npoint == 2 &&
                s[0].in[0][0] == 1 && s[0].in[1][1] == 5 &&
                s[0].out[0][0] == 3 && s[0].out[0][1] == AST__BAD );
+    free_sections( s, n );
     printf( "selftest: %s\n", ok ? "ok" : "FAIL" );
     return ok ? 0 : 1;
 }
@@ -391,6 +401,7 @@ int main( int argc, char *argv[] ) {
         astEnd;
     }
     free_cols( prev_map_live, prev_map ? prev_map->nout : 0 );
+    free_sections( secs, nsec );
 
     printf( "check_transform_oracle: %d sections checked, %d mismatch(es)\n",
             checked, total_fail );
