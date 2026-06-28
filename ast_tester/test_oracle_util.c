@@ -3,6 +3,7 @@
 #include "transform_oracle.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 static int failures = 0;
@@ -58,10 +59,39 @@ static void test_sample_points(void) {
     free(col[0]); free(col[1]);
 }
 
+static void test_format_parse(void) {
+    char buf[64];
+    int ok = 0;
+    oracle_format_double(buf, sizeof buf, AST__BAD);
+    CHECK(strcmp(buf, "BAD") == 0);
+    double back = oracle_parse_double("BAD", &ok);
+    CHECK(ok && back == AST__BAD);
+    /* round-trip a representative double exactly via %.17g */
+    double v = 1.0/3.0;
+    oracle_format_double(buf, sizeof buf, v);
+    back = oracle_parse_double(buf, &ok);
+    CHECK(ok && back == v);
+    oracle_parse_double("not_a_number", &ok);
+    CHECK(ok == 0);
+}
+
+static void test_load_mapping(void) {
+    const char *root = getenv("ORACLE_TEST_ROOT");
+    if (!root) { fprintf(stderr, "skip test_load_mapping (no ORACLE_TEST_ROOT)\n"); return; }
+    AstMapping *m1 = oracle_load_mapping(root, "simplify_fixtures/matrix_diagonal_to_zoom.map");
+    CHECK(m1 != NULL);
+    if (m1) { CHECK(astGetI(m1, "Nin") == 2); m1 = astAnnul(m1); }
+    AstMapping *m2 = oracle_load_mapping(root, "cobe.head");
+    CHECK(m2 != NULL);
+    if (m2) { CHECK(astGetI(m2, "Nin") == 2); m2 = astAnnul(m2); }
+}
+
 int main(void) {
     test_within_tol();
     test_halton();
     test_sample_points();
+    test_format_parse();
+    test_load_mapping();
     if (failures) { fprintf(stderr, "%d failure(s)\n", failures); return 1; }
     printf("test_oracle_util: all passed\n");
     return 0;

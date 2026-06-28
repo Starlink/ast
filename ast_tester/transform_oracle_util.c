@@ -8,6 +8,9 @@
 #include "transform_oracle.h"
 #include <math.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 int oracle_within_tol( double got, double ref, double rtol, double atol ) {
     int got_bad = ( got == AST__BAD );
@@ -57,4 +60,63 @@ void oracle_sample_points( int naxis, const double *lo, const double *hi,
             out[a][i] = lo[a] + u * ( hi[a] - lo[a] );
         }
     }
+}
+
+void oracle_format_double( char *buf, size_t buflen, double v ) {
+    if ( v == AST__BAD ) { snprintf( buf, buflen, "%s", ORACLE_BAD_TOKEN ); }
+    else                 { snprintf( buf, buflen, "%.17g", v ); }
+}
+
+double oracle_parse_double( const char *tok, int *ok ) {
+    if ( strcmp( tok, ORACLE_BAD_TOKEN ) == 0 ) { *ok = 1; return AST__BAD; }
+    char *end = NULL;
+    double v = strtod( tok, &end );
+    *ok = ( end != tok && *end == '\0' );
+    return v;
+}
+
+AstMapping *oracle_load_mapping( const char *root, const char *relpath ) {
+    char path[1024];
+    snprintf( path, sizeof path, "%s/%s", root, relpath );
+
+    const char *dot = strrchr( relpath, '.' );
+    int is_head = ( dot && strcmp( dot, ".head" ) == 0 );
+
+    AstMapping *result = NULL;
+
+    if ( is_head ) {
+        AstFitsChan *fc = astFitsChan( NULL, NULL, " " );
+        FILE *fp = fopen( path, "r" );
+        if ( fp ) {
+            char line[256];
+            while ( fgets( line, (int) sizeof line, fp ) ) {
+                size_t n = strlen( line );
+                while ( n > 0 && ( line[n-1] == '\n' || line[n-1] == '\r' ) )
+                    line[--n] = '\0';
+                astPutFits( fc, line, 0 );
+            }
+            fclose( fp );
+            astClear( fc, "Card" );
+            AstObject *obj = astRead( fc );
+            if ( obj ) {
+                if ( astIsAFrameSet( obj ) ) {
+                    result = astGetMapping( (AstFrameSet *) obj,
+                                            AST__BASE, AST__CURRENT );
+                }
+                obj = astAnnul( obj );
+            }
+        }
+        fc = astAnnul( fc );
+    } else {
+        AstChannel *chan = astChannel( NULL, NULL, "SourceFile=%s", path );
+        AstObject *obj = astRead( chan );
+        chan = astAnnul( chan );
+        if ( obj ) {
+            if ( astIsAMapping( obj ) ) result = (AstMapping *) obj;
+            else obj = astAnnul( obj );
+        }
+    }
+
+    if ( !astOK ) astClearStatus;   /* a bad/unsupported fixture is not fatal */
+    return result;
 }
