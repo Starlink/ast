@@ -286,3 +286,101 @@ as starting points:
 - Per-fixture round-trip tolerances for mappings with inherently inexact
   inverses, and investigation of any inverse that round-trips grossly out of
   range.
+
+## Implementation amendments (2026-06-28)
+
+Implementation surfaced that round-trip and equivalence checks over arbitrary
+sampled inputs fail pervasively for legitimate domain reasons (out-of-range
+inputs, coordinate normalization wrapping, region masking).
+The design below was refined during execution so that every check is robust
+to unknown domains.
+The original sections above are retained for context; where they differ, this
+section governs.
+
+### Corpus: three files, not two
+
+A third corpus was added: `ast_tester/*.ast` FrameSet dumps, written to
+`framesets.oracle`.
+A FrameSet is itself a Mapping (base GRID frame to current frame), so it is
+loaded with `astChannel`/`astRead` and transformed directly; non-FrameSet
+`.ast` dumps (KeyMap, STC) are not Mappings and are skipped by the loader.
+The three files are `simplify_fixtures.oracle`, `headers.oracle` and
+`framesets.oracle`.
+
+### Checks
+
+The golden forward check is unchanged and is the domain-agnostic core: it
+records the output for fixed inputs and detects any change, regardless of
+whether the inputs are "valid".
+
+- **Golden inverse** replaces the original round-trip-of-everything idea.
+  For every fixture whose inverse is defined, an inverse section is recorded
+  whose inputs are the forward outputs (genuine output-space coordinates) and
+  whose outputs are `inverse(forward(P))`.
+  This pins the inverse kernel domain-agnostically; it does not assert pixel
+  recovery.
+- **Equivalence (check C)** is gated on stored agreement: the live `.map` and
+  `.simp` forward outputs are compared only at points where the recorded
+  golden values already agree (within the equivalence tolerance).
+  Generation-time agreement marks the shared valid domain; out-of-domain
+  divergence is excluded while a future simplification regression at a
+  previously-agreeing point is still caught.
+- **Round-trip accuracy** is applied only to the GRID-domain corpora
+  (`.head`, `.ast`), where the input domain (the pixel grid) is known and the
+  inverse is expected to recover the pixel.
+  It asserts `inverse(forward(P)) ~= P` using an *absolute pixel* tolerance
+  (default `0.05` px): a relative bound is meaningless near pixel 1, where a
+  0.01 px error reads as a 1% relative error.
+  Points whose forward output is `AST__BAD` (e.g. all-sky projection corners)
+  are skipped.
+  Bare `.map` fixtures have no known domain, so round-trip accuracy is not
+  asserted for them.
+
+### Sampling
+
+- FITS headers sample each input axis over `[1, NAXISj]`, reading `NAXISj`
+  from the header.
+  The mapping's actual `Nin` is the axis count (not the `NAXIS` keyword), so
+  `WCSAXES > NAXIS` and degenerate axes are handled; axes with no matching
+  `NAXISj` fall back to a small `[1, 2]` range.
+- `.ast` FrameSets carry no `NAXIS`, so their GRID axes use a default positive
+  pixel range `[1, 1000]`.
+- Native dumps use a fixed symmetric range `[-1000, 1000]`.
+- Adaptive broadening was not implemented; ranges are fixed (a deterministic,
+  machine-independent choice).
+  Off-domain points simply record `AST__BAD`, which golden handles.
+
+### Round-trip overrides
+
+`transform_oracle_rtrip_overrides.txt` lists per-fixture round-trip
+exceptions: `<relpath> off` disables the check, `<relpath> <rtol> <atol>`
+loosens it.
+Currently `tsc.head` and `tnx-cheb.head` are `off`: their inverses do not
+recover the pixel (`tsc` by ~0.7 px, `tnx-cheb` outright), flagged for
+investigation.
+Their forward and inverse outputs remain pinned by the golden checks.
+
+### Skips
+
+Fixtures whose dump contains an `IntraMap` (the unregistered
+`simplifyidentity` test extension) are skipped, as are sections whose
+transform raises an AST error on the sampled domain (e.g. two SplineMap
+fixtures that extrapolate out of range).
+
+### Tolerances (final, this machine)
+
+- Golden forward/inverse: `rtol = atol = 1e-9`.
+  Golden is exact on recompute on the same build, but comparing across
+  toolchains is not: an oracle generated with one compiler and checked with
+  another differed by up to ~2e-12 (relative) for transcendental-heavy WCS
+  inverses on a single machine.
+  `1e-9` absorbs that and the larger differences expected across ARM/x86
+  `libm`, while still catching real algorithmic change (orders of magnitude
+  larger, `>= ~1e-6`).
+- Equivalence: `rtol = atol = 1e-9`.
+- Round-trip accuracy: absolute `0.05` px (`rtol = 1e-6`).
+
+These pass the full corpus on arm64 under both the conda (RelWithDebInfo) and
+homebrew (Debug + ASan/UBSan) toolchains; the cross-toolchain agreement is the
+proxy that sized the golden tolerance.  Cross-architecture (x86-64)
+confirmation remains future work, but the margin is set for it.

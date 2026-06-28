@@ -7,9 +7,13 @@
 
 #define ORACLE_BAD_TOKEN "BAD"
 
-/* Default comparison tolerances (tuned in the tolerance-tuning task). */
-#define ORACLE_DEF_RTOL        1e-12
-#define ORACLE_DEF_ATOL        1e-12
+/* Golden comparison tolerance.  Set to absorb cross-compiler and
+   cross-architecture floating-point differences (observed up to ~2e-12 for
+   transcendental-heavy WCS inverses between two toolchains on one machine,
+   and larger across ARM/x86 libm) while still flagging real algorithmic
+   change, which is orders of magnitude larger (>= ~1e-6 relative). */
+#define ORACLE_DEF_RTOL        1e-9
+#define ORACLE_DEF_ATOL        1e-9
 #define ORACLE_DEF_EQUIV_RTOL  1e-9
 #define ORACLE_DEF_EQUIV_ATOL  1e-9
 
