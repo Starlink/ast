@@ -27,9 +27,10 @@ FILTER = (r"src/(mapping|box|cmpmap|dssmap|grismmap|interval|intramap|lutmap|"
           r"polymap|prism|ratemap|selectormap|shiftmap|slamap|specmap|sphmap|"
           r"splinemap|switchmap|timemap|tranmap|unitmap|unitnormmap|wcsmap|"
           r"winmap|xphmap|zoommap)\.c$")
-CANDS = sorted(glob.glob("/tmp/cands/cand_*.map"))
-TARGET = {tuple(k) for k in json.load(open("/tmp/target294.json"))}
-MATRIX = "/tmp/matrix.jsonl"
+CANDS = sorted(glob.glob(os.environ.get("CANDS_GLOB", "/tmp/cands/cand_*.map")))
+TARGET = {tuple(k) for k in json.load(
+    open(os.environ.get("TARGET_FILE", "/tmp/target294.json")))}
+MATRIX = os.environ.get("MATRIX_FILE", "/tmp/matrix.jsonl")
 TMPJSON = "/tmp/_cand_cov.json"
 
 

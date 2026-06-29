@@ -18,15 +18,15 @@ rows except the Status column. See `README.md`.
 | `src/cmpmap.c:599` | 0 | CombineMaps | absolute-only | open |
 | `src/cmpmap.c:616` | 1 | CombineMaps | absolute-only | open |
 | `src/cmpmap.c:621` | 0 | CombineMaps | absolute-only | open |
-| `src/cmpmap.c:626` | 1 | CombineMaps | differential | open |
+| `src/cmpmap.c:626` | 1 | CombineMaps | differential | wontfix:via astDecompose path, not astSimplify |
 | `src/cmpmap.c:658` | 2 | CombineMaps | absolute-only | open |
 | `src/cmpmap.c:671` | 0 | CombineMaps | absolute-only | open |
 | `src/cmpmap.c:744` | 0 | Decompose | absolute-only | open |
-| `src/cmpmap.c:750` | 0 | Decompose | differential | open |
+| `src/cmpmap.c:750` | 0 | Decompose | differential | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
 | `src/cmpmap.c:751` | 0 | Decompose | absolute-only | open |
-| `src/cmpmap.c:751` | 1 | Decompose | differential | open |
+| `src/cmpmap.c:751` | 1 | Decompose | differential | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
 | `src/cmpmap.c:755` | 0 | Decompose | absolute-only | open |
-| `src/cmpmap.c:755` | 1 | Decompose | differential | open |
+| `src/cmpmap.c:755` | 1 | Decompose | differential | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
 | `src/cmpmap.c:756` | 0 | Decompose | absolute-only | open |
 | `src/cmpmap.c:756` | 1 | Decompose | absolute-only | open |
 | `src/cmpmap.c:757` | 0 | Decompose | absolute-only | open |
@@ -36,13 +36,13 @@ rows except the Status column. See `README.md`.
 | `src/cmpmap.c:759` | 0 | Decompose | absolute-only | open |
 | `src/cmpmap.c:759` | 1 | Decompose | absolute-only | open |
 | `src/cmpmap.c:764` | 0 | Decompose | absolute-only | open |
-| `src/cmpmap.c:764` | 1 | Decompose | differential | open |
+| `src/cmpmap.c:764` | 1 | Decompose | differential | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
 | `src/cmpmap.c:765` | 0 | Decompose | absolute-only | open |
-| `src/cmpmap.c:765` | 1 | Decompose | differential | open |
+| `src/cmpmap.c:765` | 1 | Decompose | differential | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
 | `src/cmpmap.c:766` | 0 | Decompose | absolute-only | open |
-| `src/cmpmap.c:766` | 1 | Decompose | differential | open |
+| `src/cmpmap.c:766` | 1 | Decompose | differential | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
 | `src/cmpmap.c:767` | 0 | Decompose | absolute-only | open |
-| `src/cmpmap.c:767` | 1 | Decompose | differential | open |
+| `src/cmpmap.c:767` | 1 | Decompose | differential | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
 | `src/cmpmap.c:772` | 0 | Decompose | absolute-only | open |
 | `src/cmpmap.c:776` | 0 | Decompose | absolute-only | open |
 | `src/cmpmap.c:777` | 0 | Decompose | absolute-only | open |
@@ -232,18 +232,18 @@ rows except the Status column. See `README.md`.
 | `src/mapping.c:7670` | 1 | MapList | absolute-only | open |
 | `src/mapping.c:16832` | 0 | Simplify | absolute-only | open |
 | `src/mapping.c:16837` | 1 | Simplify | absolute-only | open |
-| `src/mapping.c:16837` | 3 | Simplify | differential | open |
-| `src/mapping.c:16838` | 0 | Simplify | differential | open |
+| `src/mapping.c:16837` | 3 | Simplify | differential | wontfix:restricted-simplify internal flag, not via public astSimplify |
+| `src/mapping.c:16838` | 0 | Simplify | differential | wontfix:restricted-simplify internal flag, not via public astSimplify |
 | `src/mapping.c:16838` | 1 | Simplify | absolute-only | open |
-| `src/mapping.c:16838` | 2 | Simplify | differential | open |
+| `src/mapping.c:16838` | 2 | Simplify | differential | wontfix:restricted-simplify internal flag, not via public astSimplify |
 | `src/mapping.c:16838` | 3 | Simplify | absolute-only | open |
 | `src/mapping.c:16853` | 0 | Simplify | absolute-only | open |
 | `src/mapping.c:16858` | 1 | Simplify | absolute-only | open |
 | `src/mapping.c:16858` | 2 | Simplify | absolute-only | open |
 | `src/mapping.c:16858` | 4 | Simplify | absolute-only | open |
-| `src/mapping.c:16865` | 1 | Simplify | differential | open |
+| `src/mapping.c:16865` | 1 | Simplify | differential | wontfix:restricted-simplify internal flag, not via public astSimplify |
 | `src/mapping.c:16873` | 0 | Simplify | absolute-only | open |
-| `src/mapping.c:16874` | 2 | Simplify | differential | open |
+| `src/mapping.c:16874` | 2 | Simplify | differential | wontfix:restricted-simplify internal flag, not via public astSimplify |
 | `src/mapping.c:16890` | 0 | Simplify | absolute-only | open |
 | `src/mapping.c:16909` | 1 | Simplify | absolute-only | open |
 | `src/mathmap.c:4018` | 0 | MapMerge | absolute-only | open |
@@ -275,17 +275,17 @@ rows except the Status column. See `README.md`.
 | `src/matrixmap.c:1943` | 5 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:1944` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:1994` | 1 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2006` | 1 | MapMerge | differential | open |
+| `src/matrixmap.c:2006` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2035` | 0 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2099` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2135` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2135` | 2 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2136` | 0 | MapMerge | differential | open |
+| `src/matrixmap.c:2136` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2137` | 1 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2143` | 0 | MapMerge | differential | open |
-| `src/matrixmap.c:2143` | 2 | MapMerge | differential | open |
+| `src/matrixmap.c:2143` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
+| `src/matrixmap.c:2143` | 2 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2143` | 3 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2154` | 1 | MapMerge | differential | open |
+| `src/matrixmap.c:2154` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2154` | 2 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2154` | 3 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2155` | 0 | MapMerge | absolute-only | open |
@@ -293,10 +293,10 @@ rows except the Status column. See `README.md`.
 | `src/matrixmap.c:2155` | 3 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2159` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2176` | 0 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2181` | 1 | MapMerge | differential | open |
+| `src/matrixmap.c:2181` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2181` | 2 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2191` | 0 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2191` | 1 | MapMerge | differential | open |
+| `src/matrixmap.c:2191` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2242` | 0 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2251` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2251` | 2 | MapMerge | absolute-only | open |
@@ -455,7 +455,7 @@ rows except the Status column. See `README.md`.
 | `src/polymap.c:3578` | 0 | MapMerge | absolute-only | open |
 | `src/polymap.c:3711` | 2 | MapMerge | absolute-only | open |
 | `src/polymap.c:3763` | 0 | MapMerge | absolute-only | open |
-| `src/polymap.c:3789` | 1 | MapMerge | differential | open |
+| `src/polymap.c:3789` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/polymap.c:3824` | 3 | MapMerge | absolute-only | open |
 | `src/polymap.c:3901` | 0 | MapMerge | absolute-only | open |
 | `src/polymap.c:3914` | 0 | MapMerge | absolute-only | open |
@@ -604,7 +604,7 @@ rows except the Status column. See `README.md`.
 | `src/slamap.c:3002` | 2 | MapMerge | absolute-only | open |
 | `src/slamap.c:3002` | 3 | MapMerge | absolute-only | open |
 | `src/slamap.c:3002` | 4 | MapMerge | absolute-only | open |
-| `src/slamap.c:3019` | 3 | MapMerge | differential | open |
+| `src/slamap.c:3019` | 3 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/slamap.c:3026` | 3 | MapMerge | absolute-only | open |
 | `src/slamap.c:3026` | 4 | MapMerge | absolute-only | open |
 | `src/slamap.c:3026` | 6 | MapMerge | absolute-only | open |
@@ -693,17 +693,17 @@ rows except the Status column. See `README.md`.
 | `src/specmap.c:2290` | 1 | MapMerge | absolute-only | open |
 | `src/specmap.c:2290` | 4 | MapMerge | absolute-only | open |
 | `src/specmap.c:2330` | 1 | MapMerge | absolute-only | open |
-| `src/specmap.c:2398` | 0 | MapMerge | differential | open |
+| `src/specmap.c:2398` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/specmap.c:2398` | 3 | MapMerge | absolute-only | open |
-| `src/specmap.c:2400` | 0 | MapMerge | differential | open |
+| `src/specmap.c:2400` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/specmap.c:2400` | 3 | MapMerge | absolute-only | open |
-| `src/specmap.c:2401` | 0 | MapMerge | differential | open |
+| `src/specmap.c:2401` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/specmap.c:2401` | 3 | MapMerge | absolute-only | open |
 | `src/specmap.c:2405` | 2 | MapMerge | absolute-only | open |
 | `src/specmap.c:2405` | 4 | MapMerge | absolute-only | open |
 | `src/specmap.c:2405` | 5 | MapMerge | absolute-only | open |
 | `src/specmap.c:2405` | 10 | MapMerge | absolute-only | open |
-| `src/specmap.c:2406` | 3 | MapMerge | differential | open |
+| `src/specmap.c:2406` | 3 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/specmap.c:2406` | 4 | MapMerge | absolute-only | open |
 | `src/specmap.c:2406` | 7 | MapMerge | absolute-only | open |
 | `src/specmap.c:2406` | 8 | MapMerge | absolute-only | open |
@@ -770,9 +770,9 @@ rows except the Status column. See `README.md`.
 | `src/specmap.c:2412` | 9 | MapMerge | absolute-only | open |
 | `src/specmap.c:2412` | 10 | MapMerge | absolute-only | open |
 | `src/specmap.c:2412` | 11 | MapMerge | absolute-only | open |
-| `src/specmap.c:2465` | 0 | MapMerge | differential | open |
+| `src/specmap.c:2465` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/specmap.c:2465` | 2 | MapMerge | absolute-only | open |
-| `src/specmap.c:2466` | 0 | MapMerge | differential | open |
+| `src/specmap.c:2466` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/specmap.c:2466` | 2 | MapMerge | absolute-only | open |
 | `src/specmap.c:2471` | 6 | MapMerge | absolute-only | open |
 | `src/specmap.c:2471` | 8 | MapMerge | absolute-only | open |
@@ -1119,14 +1119,14 @@ rows except the Status column. See `README.md`.
 | `src/unitmap.c:504` | 0 | MapMerge | absolute-only | open |
 | `src/unitmap.c:520` | 0 | MapMerge | absolute-only | open |
 | `src/unitmap.c:555` | 1 | MapMerge | absolute-only | open |
-| `src/unitmap.c:555` | 3 | MapMerge | differential | open |
+| `src/unitmap.c:555` | 3 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/unitmap.c:567` | 1 | MapMerge | absolute-only | open |
 | `src/unitmap.c:575` | 0 | MapMerge | absolute-only | open |
 | `src/unitmap.c:591` | 1 | MapMerge | absolute-only | open |
 | `src/unitnormmap.c:813` | 0 | MapMerge | absolute-only | open |
 | `src/unitnormmap.c:815` | 1 | MapMerge | absolute-only | open |
 | `src/unitnormmap.c:822` | 0 | MapMerge | absolute-only | open |
-| `src/unitnormmap.c:834` | 0 | MapMerge | differential | open |
+| `src/unitnormmap.c:834` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/unitnormmap.c:838` | 1 | MapMerge | absolute-only | open |
 | `src/unitnormmap.c:852` | 0 | MapMerge | absolute-only | open |
 | `src/wcsmap.c:3074` | 0 | MapMerge | absolute-only | open |
