@@ -420,7 +420,7 @@ TranMap's MapMerge: (1) invert normalization (swap+invert components);
 | tranmap-06 | — | focused | negative | tranmap.c:865-866 | Equal-component check skipped: components lack bidirectional transforms | TranMap(OneWayFwd, OneWayInv) |
 | tranmap-07 | neg_tranmap_unequal_components.map | focused | negative | tranmap.c:881 | CmpMap(fwd,inv(inv)) doesn't simplify to UnitMap: components not equal | TranMap(ShiftMap(1), ShiftMap(2)) |
 | tranmap-08 | neg_tranmap_nontranmap_neighbour.map | focused | negative | tranmap.c:905-906 | Higher neighbour is not a TranMap | CmpMap(TranMap, ZoomMap), Series=1 |
-| tranmap-09 | — | focused | negative | tranmap.c:959 | Neither fwd nor inv series combination simplified | CmpMap(TranMap(A,B), TranMap(C,D)) with irreducible legs |
+| tranmap-09 | neg_tranmap_adjacent_no_merge.map | focused | negative | tranmap.c:959 | Neither fwd nor inv series combination simplified | CmpMap(TranMap(A,B), TranMap(C,D)) with irreducible legs |
 
 ## timemap.c
 

@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _159 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 30  
-**Open absolute-only gaps:** 1014
+**Open absolute-only gaps:** 1011
 
 ## Open gaps
 
@@ -971,10 +971,7 @@ _159 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/tranmap.c:884` | 1 | MapMerge | absolute-only | open |
 | `src/tranmap.c:926` | 0 | MapMerge | absolute-only | open |
 | `src/tranmap.c:938` | 0 | MapMerge | absolute-only | open |
-| `src/tranmap.c:959` | 0 | MapMerge | absolute-only | open |
-| `src/tranmap.c:959` | 2 | MapMerge | absolute-only | open |
 | `src/tranmap.c:959` | 3 | MapMerge | absolute-only | open |
-| `src/tranmap.c:981` | 0 | MapMerge | absolute-only | open |
 | `src/tranmap.c:989` | 0 | MapMerge | absolute-only | open |
 | `src/tranmap.c:1352` | 0 | RemoveRegions | absolute-only | open |
 | `src/tranmap.c:1352` | 1 | RemoveRegions | absolute-only | open |
