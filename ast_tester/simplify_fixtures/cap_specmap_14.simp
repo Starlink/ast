@@ -1,0 +1,7 @@
+ Begin MathMap 	# Transformation using mathematical functions
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Fwd1 = "y=1/(x*x)" 	# Forward function 1
+    Inv1 = "x=1/sqrt(y)" 	# Inverse function 1
+ End MathMap

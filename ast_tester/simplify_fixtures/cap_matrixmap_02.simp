@@ -1,0 +1,26 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin MatrixMap 	# Matrix transformation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          M0 = 1 	# Forward matrix value
+          M1 = 0.10000000000000001 	# Forward matrix value
+          M2 = -0.80000000000000004 	# Forward matrix value
+          M3 = 1 	# Forward matrix value
+          IM0 = 0.92592592592592593 	# Inverse matrix value
+          IM1 = -0.092592592592592587 	# Inverse matrix value
+          IM2 = 0.7407407407407407 	# Inverse matrix value
+          IM3 = 0.92592592592592582 	# Inverse matrix value
+          Form = "Full" 	# Matrix storage form
+       End MatrixMap
+    MapB = 	# Second component Mapping
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = -1.1000000000000014 	# Shift for axis 1
+          Sft2 = -0.20000000000000284 	# Shift for axis 2
+       End ShiftMap
+ End CmpMap

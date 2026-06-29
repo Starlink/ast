@@ -1,0 +1,58 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 1000000 	# Zoom factor
+             End ZoomMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 1 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin SpecMap 	# Conversion between spectral coordinate systems
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Nspec = 2 	# Number of conversion steps
+                      Spec1 = "FRTOVL" 	# Convert frequency to rel. velocity
+                      Spec1a = 1420400000 	# Rest frequency (Hz)
+                      Spec2 = "VLTOVO" 	# Convert relativistic to optical velocity
+                   End SpecMap
+                MapB = 	# Second component Mapping
+                   Begin ZoomMap 	# Zoom about the origin
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Zoom = 0.001 	# Zoom factor
+                   End ZoomMap
+             End CmpMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 1000 	# Zoom factor
+             End ZoomMap
+          MapB = 	# Second component Mapping
+             Begin SpecMap 	# Conversion between spectral coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Nspec = 2 	# Number of conversion steps
+                Spec1 = "VOTOVL" 	# Convert optical to rel. velocity
+                Spec2 = "VLTOFR" 	# Convert rel. velocity to frequency
+                Spec2a = 1420400000 	# Rest frequency (Hz)
+             End SpecMap
+       End CmpMap
+ End CmpMap

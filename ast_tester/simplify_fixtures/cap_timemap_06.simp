@@ -1,0 +1,15 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 2 	# Number of conversion steps
+    Time1 = "JEPTOMJD" 	# Convert Julian epoch to MJD
+    Time1a = 2005 	# Julian epoch offset
+    Time1b = 53370.75 	# MJD offset
+    Time1c = 678955.5 	# Combined forward offset
+    Time1d = -1858.8788501026695 	# Combined inverse offset
+    Time2 = "MJDTOMJD" 	# Convert MJD between offsets
+    Time2a = 53370.75 	# Input MJD offset
+    Time2b = 0 	# Output MJD offset
+    Time2c = 53370.75 	# Combined offset
+ End TimeMap

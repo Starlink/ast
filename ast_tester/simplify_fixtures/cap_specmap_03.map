@@ -1,0 +1,34 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 3 	# Number of input coordinates
+    Nout = 1 	# Number of output coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 3 	# Number of input coordinates
+          Nout = 1 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 1 	# Output coordinate 1 = input coordinate 1
+          In1 = 1 	# Input coordinate 1 = output coordinate 1
+          In2 = -1 	# Input coordinate 2 is "bad"
+          In3 = -1 	# Input coordinate 3 is "bad"
+       End PermMap
+    MapB = 	# Second component Mapping
+       Begin SpecMap 	# Conversion between spectral coordinate systems
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nspec = 6 	# Number of conversion steps
+          Spec1 = "VRTOVL" 	# Convert radio to rel. velocity
+          Spec2 = "VLTOFR" 	# Convert rel. velocity to frequency
+          Spec2a = 1420405752 	# Rest frequency (Hz)
+          Spec3 = "BYF2HL" 	# Convert from Barycentric to heliocentric frequency
+          Spec3a = 52413.590742883775 	# UT1 epoch of observaton (Modified Julian Date)
+          Spec3b = 3.1415926535897931 	# RA of source (FK5 J2000, radians)
+          Spec3c = 0.78539816339744828 	# DEC of source (FK5 J2000, radians)
+          Spec4 = "HLF2LK" 	# Convert from Heliocentric to LSRK frequency
+          Spec4a = 3.1415926535897931 	# RA of source (FK5 J2000, radians)
+          Spec4b = 0.78539816339744828 	# DEC of source (FK5 J2000, radians)
+          Spec5 = "FRTOVL" 	# Convert frequency to rel. velocity
+          Spec5a = 1420405752 	# Rest frequency (Hz)
+          Spec6 = "VLTOVR" 	# Convert relativistic to radio velocity
+       End SpecMap
+ End CmpMap

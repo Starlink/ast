@@ -1,0 +1,84 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 3 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 3 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 0.00029088820866572201 	# Shift for axis 1
+          Scl1 = -2.9088820866572201e-05 	# Scale factor for axis 1
+          Sft2 = -0.00030525452453568163 	# Shift for axis 2
+          Scl2 = 2.9088820866572201e-05 	# Scale factor for axis 2
+          Sft3 = 372689488787.06067 	# Shift for axis 3
+          Scl3 = -61037.210815429986 	# Scale factor for axis 3
+       End WinMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 3 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 3 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Series = 0 	# Component Mappings applied in parallel
+                InvA = 1 	# First Mapping used in inverse direction
+                MapA = 	# First component Mapping
+                   Begin WcsMap 	# FITS-WCS sky projection
+                      Nin = 2 	# Number of input coordinates
+                      Invert = 1 	# Mapping inverted
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Type = "TAN" 	# Gnomonic projection
+                   End WcsMap
+                MapB = 	# Second component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 1 	# Number of input coordinates
+                      IsSimp = 1 	# Mapping has been simplified
+                   IsA Mapping 	# Mapping between coordinate systems
+                      MapA = 	# First component Mapping
+                         Begin SpecMap 	# Conversion between spectral coordinate systems
+                            Nin = 1 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Nspec = 4 	# Number of conversion steps
+                            Spec1 = "LKF2HL" 	# Convert from LSRK to heliocentric frequency
+                            Spec1a = 4.9055389995003802 	# RA of source (FK5 J2000, radians)
+                            Spec1b = -0.069813170079773196 	# DEC of source (FK5 J2000, radians)
+                            Spec1c = 1.0000544114673284 	# Frequency correction factor
+                            Spec2 = "HLF2LK" 	# Convert from Heliocentric to LSRK frequency
+                            Spec2a = -1.3776320118304248 	# RA of source (FK5 J2000, radians)
+                            Spec2b = -0.069813170079773196 	# DEC of source (FK5 J2000, radians)
+                            Spec2c = 0.99994559163770247 	# Frequency correction factor
+                            Spec3 = "FRTOVL" 	# Convert frequency to rel. velocity
+                            Spec3a = 372672509000 	# Rest frequency (Hz)
+                            Spec4 = "VLTOVR" 	# Convert relativistic to radio velocity
+                         End SpecMap
+                      MapB = 	# Second component Mapping
+                         Begin ZoomMap 	# Zoom about the origin
+                            Nin = 1 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Zoom = 0.001 	# Zoom factor
+                         End ZoomMap
+                   End CmpMap
+             End CmpMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 3 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin WcsMap 	# FITS-WCS sky projection
+                      Nin = 3 	# Number of input coordinates
+                      Invert = 1 	# Mapping inverted
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Type = "TAN" 	# Gnomonic projection
+                   End WcsMap
+                MapB = 	# Second component Mapping
+                   Begin WinMap 	# Map one window on to another
+                      Nin = 3 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Scl1 = 57.295779513082323 	# Scale factor for axis 1
+                      Scl2 = 57.295779513082323 	# Scale factor for axis 2
+                      Sft3 = 13.610152711803124 	# Shift for axis 3
+                   End WinMap
+             End CmpMap
+       End CmpMap
+ End CmpMap

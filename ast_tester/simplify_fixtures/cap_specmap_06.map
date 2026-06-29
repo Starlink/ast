@@ -1,0 +1,57 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin SpecMap 	# Conversion between spectral coordinate systems
+                Nin = 1 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+                Nspec = 2 	# Number of conversion steps
+                Spec1 = "USF2HL" 	# Convert from user-defined to heliocentric frequency
+                Spec1a = 70700.964446898157 	# Velocity offset (m/s)
+                Spec1b = -1.3776320118304248 	# RA of source (FK5 J2000, radians)
+                Spec1c = -0.069813170079773265 	# DEC of source (FK5 J2000, radians)
+                Spec1d = 0.99976419476969891 	# Frequency correction factor
+                Spec2 = "HLF2TP" 	# Convert from Heliocentric to topocentric frequency
+                Spec2a = -2.7136330730009099 	# Longitude (positive eastwards, radians)
+                Spec2b = 0.34602606900014399 	# Latitude (geodetic, radians)
+                Spec2c = 0 	# Altitude (geodetic, metres)
+                Spec2d = 54299.245563183307 	# UT1 epoch of observaton (Modified Julian Date)
+                Spec2e = -1.3776320118304248 	# RA of source (FK5 J2000, radians)
+                Spec2f = -0.069813170079773265 	# DEC of source (FK5 J2000, radians)
+                Spec2g = 0.99997927106231288 	# Frequency correction factor
+             End SpecMap
+          MapB = 	# Second component Mapping
+             Begin WinMap 	# Map one window on to another
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = 734651605175.04712 	# Shift for axis 1
+                Scl1 = -1 	# Scale factor for axis 1
+             End WinMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin SpecMap 	# Conversion between spectral coordinate systems
+          Nin = 1 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          Nspec = 2 	# Number of conversion steps
+          Spec1 = "USF2HL" 	# Convert from user-defined to heliocentric frequency
+          Spec1a = 70700.964446898157 	# Velocity offset (m/s)
+          Spec1b = -1.3776320118304248 	# RA of source (FK5 J2000, radians)
+          Spec1c = -0.069813170079773265 	# DEC of source (FK5 J2000, radians)
+          Spec1d = 0.99976419476969891 	# Frequency correction factor
+          Spec2 = "HLF2TP" 	# Convert from Heliocentric to topocentric frequency
+          Spec2a = -2.7136330730009099 	# Longitude (positive eastwards, radians)
+          Spec2b = 0.34602606900014399 	# Latitude (geodetic, radians)
+          Spec2c = 0 	# Altitude (geodetic, metres)
+          Spec2d = 54299.245563183307 	# UT1 epoch of observaton (Modified Julian Date)
+          Spec2e = -1.3776320118304248 	# RA of source (FK5 J2000, radians)
+          Spec2f = -0.069813170079773265 	# DEC of source (FK5 J2000, radians)
+          Spec2g = 0.99997927106231288 	# Frequency correction factor
+       End SpecMap
+ End CmpMap

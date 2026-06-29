@@ -1,0 +1,288 @@
+ Begin Prism 	# Region extrusion into higher dimensions
+#   Title = "5-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 5 	# Number of coordinate axes
+#   Domain = "TIME-SKY-SPECTRUM-REDSHIFT" 	# Coordinate system domain
+#   Epoch = 1995.9986310746458 	# Julian epoch of observation
+#   Lbl1 = "Modified Julian Date offset from 1996-01-01 " 	# Label for axis 1
+#   Lbl2 = "Right ascension" 	# Label for axis 2
+#   Lbl3 = "Declination" 	# Label for axis 3
+#   Lbl4 = "Frequency" 	# Label for axis 4
+#   Lbl5 = "Optical velocity" 	# Label for axis 5
+#   System = "Compound" 	# Coordinate system type
+#   Uni1 = "d" 	# Units for axis 1 (day)
+#   Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#   Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#   Uni4 = "MHz" 	# Units for axis 4
+#   Uni5 = "km/s" 	# Units for axis 5
+#   Dir2 = 0 	# Plot axis 2 in reverse direction
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    Frm = 	# Coordinate system
+       Begin CmpFrame 	# Compound coordinate system description
+#         Title = "5-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 5 	# Number of coordinate axes
+#         Domain = "TIME-SKY-SPECTRUM-REDSHIFT" 	# Coordinate system domain
+#         Lbl1 = "Modified Julian Date offset from 1996-01-01 " 	# Label for axis 1
+#         Lbl2 = "Right ascension" 	# Label for axis 2
+#         Lbl3 = "Declination" 	# Label for axis 3
+#         Lbl4 = "Frequency" 	# Label for axis 4
+#         Lbl5 = "Optical velocity" 	# Label for axis 5
+#         Uni1 = "d" 	# Units for axis 1 (day)
+#         Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#         Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#         Uni4 = "MHz" 	# Units for axis 4
+#         Uni5 = "km/s" 	# Units for axis 5
+#         Dir2 = 0 	# Plot axis 2 in reverse direction
+       IsA Frame 	# Coordinate system description
+          FrameA = 	# First component Frame
+             Begin CmpFrame 	# Compound coordinate system description
+                FrameA = 	# First component Frame
+                   Begin CmpFrame 	# Compound coordinate system description
+                      FrameA = 	# First component Frame
+                         Begin TimeFrame 	# Description of time coordinate system
+                            Naxes = 1 	# Number of coordinate axes
+                            Epoch = 1995.9986310746458 	# Julian epoch of observation
+                            Ax1 = 	# Axis number 1
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                         IsA Frame 	# Coordinate system description
+                            TmScl = "TT" 	# Time scale
+                            TmOrg = 50083 	# Time offset
+                         End TimeFrame
+                      FrameB = 	# Second component Frame
+                         Begin SkyFrame 	# Description of celestial coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+                            Epoch = 1995.9986310746458 	# Julian epoch of observation
+                            System = "ICRS" 	# Coordinate system type
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+                         End SkyFrame
+                   End CmpFrame
+                FrameB = 	# Second component Frame
+                   Begin SpecFrame 	# Description of spectral coordinate system
+                      Naxes = 1 	# Number of coordinate axes
+                      Epoch = 1995.9986310746458 	# Julian epoch of observation
+                      System = "FREQ" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                            Unit = "MHz" 	# Axis units
+                         End Axis
+                   IsA Frame 	# Coordinate system description
+                      SoR = "Barycentric" 	# Standard of rest
+                      UFreq = "MHz" 	# Preferred units for frequency
+                   End SpecFrame
+             End CmpFrame
+          FrameB = 	# Second component Frame
+             Begin SpecFrame 	# Description of spectral coordinate system
+                Naxes = 1 	# Number of coordinate axes
+                Domain = "REDSHIFT" 	# Coordinate system domain
+                Epoch = 1995.9986310746458 	# Julian epoch of observation
+                System = "VOPT" 	# Coordinate system type
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                      Unit = "km/s" 	# Axis units
+                   End Axis
+             IsA Frame 	# Coordinate system description
+                SoR = "Barycentric" 	# Standard of rest
+                UVopt = "km/s" 	# Preferred units for optical velocity
+             End SpecFrame
+       End CmpFrame
+    RegAxes = 5 	# Number of axes spanned by the Region
+ IsA Region 	# An area within a coordinate system
+    RegionA = 	# First component Region
+       Begin PointList 	# Collection of points
+#         Title = "3-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 3 	# Number of coordinate axes
+#         Domain = "TIME-SKY" 	# Coordinate system domain
+#         Epoch = 1995.9986310746458 	# Julian epoch of observation
+#         Lbl1 = "Modified Julian Date offset from 1996-01-01 " 	# Label for axis 1
+#         Lbl2 = "Right ascension" 	# Label for axis 2
+#         Lbl3 = "Declination" 	# Label for axis 3
+#         System = "Compound" 	# Coordinate system type
+#         Uni1 = "d" 	# Units for axis 1 (day)
+#         Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#         Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#         Dir2 = 0 	# Plot axis 2 in reverse direction
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin CmpFrame 	# Compound coordinate system description
+#               Title = "3-d compound coordinate system" 	# Title of coordinate system
+#               Naxes = 3 	# Number of coordinate axes
+#               Domain = "TIME-SKY" 	# Coordinate system domain
+#               Lbl1 = "Modified Julian Date offset from 1996-01-01 " 	# Label for axis 1
+#               Lbl2 = "Right ascension" 	# Label for axis 2
+#               Lbl3 = "Declination" 	# Label for axis 3
+#               Uni1 = "d" 	# Units for axis 1 (day)
+#               Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#               Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#               Dir2 = 0 	# Plot axis 2 in reverse direction
+             IsA Frame 	# Coordinate system description
+                FrameA = 	# First component Frame
+                   Begin TimeFrame 	# Description of time coordinate system
+                      Naxes = 1 	# Number of coordinate axes
+                      Epoch = 1995.9986310746458 	# Julian epoch of observation
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                   IsA Frame 	# Coordinate system description
+                      TmScl = "TT" 	# Time scale
+                      TmOrg = 50083 	# Time offset
+                   End TimeFrame
+                FrameB = 	# Second component Frame
+                   Begin SkyFrame 	# Description of celestial coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+                      Epoch = 1995.9986310746458 	# Julian epoch of observation
+                      System = "ICRS" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                      Ax2 = 	# Axis number 2
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                   IsA Frame 	# Coordinate system description
+                   End SkyFrame
+             End CmpFrame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 1 	# Number of points
+                Ncoord = 3 	# Number of coordinates per point
+                X1 = 731 	# Coordinate values...
+                X2 = 3.12413936106985
+                X3 = -0.2007128639793479
+             End PointSet
+          Unc = 	# Region defining positional uncertainties.
+             Begin Box 	# Axis intervals
+#               Title = "3-d compound coordinate system" 	# Title of coordinate system
+#               Naxes = 3 	# Number of coordinate axes
+#               Domain = "TIME-SKY" 	# Coordinate system domain
+#               Epoch = 1995.9986310746458 	# Julian epoch of observation
+#               Lbl1 = "Modified Julian Date offset from 1996-01-01 " 	# Label for axis 1
+#               Lbl2 = "Right ascension" 	# Label for axis 2
+#               Lbl3 = "Declination" 	# Label for axis 3
+#               System = "Compound" 	# Coordinate system type
+#               Uni1 = "d" 	# Units for axis 1 (day)
+#               Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#               Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#               Dir2 = 0 	# Plot axis 2 in reverse direction
+             IsA Frame 	# Coordinate system description
+                Adapt = 1 	# Region adapts to coord sys changes
+                Frm = 	# Coordinate system
+                   Begin CmpFrame 	# Compound coordinate system description
+#                     Title = "3-d compound coordinate system" 	# Title of coordinate system
+#                     Naxes = 3 	# Number of coordinate axes
+#                     Domain = "TIME-SKY" 	# Coordinate system domain
+#                     Lbl1 = "Modified Julian Date offset from 1996-01-01 " 	# Label for axis 1
+#                     Lbl2 = "Right ascension" 	# Label for axis 2
+#                     Lbl3 = "Declination" 	# Label for axis 3
+#                     Uni1 = "d" 	# Units for axis 1 (day)
+#                     Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#                     Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#                     Dir2 = 0 	# Plot axis 2 in reverse direction
+                   IsA Frame 	# Coordinate system description
+                      FrameA = 	# First component Frame
+                         Begin TimeFrame 	# Description of time coordinate system
+                            Naxes = 1 	# Number of coordinate axes
+                            Epoch = 1995.9986310746458 	# Julian epoch of observation
+                            Ax1 = 	# Axis number 1
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                         IsA Frame 	# Coordinate system description
+                            TmScl = "TT" 	# Time scale
+                            TmOrg = 50083 	# Time offset
+                         End TimeFrame
+                      FrameB = 	# Second component Frame
+                         Begin SkyFrame 	# Description of celestial coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+                            Epoch = 1995.9986310746458 	# Julian epoch of observation
+                            System = "ICRS" 	# Coordinate system type
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+                         End SkyFrame
+                   End CmpFrame
+                Points = 	# Points defining the shape
+                   Begin PointSet 	# Container for a set of points
+                      Npoint = 2 	# Number of points
+                      Ncoord = 3 	# Number of coordinates per point
+                      X1 = 731 	# Coordinate values...
+                      X2 = 3.12413936106985
+                      X3 = -0.2007128639793479
+                      X4 = 731.00001388888893
+                      X5 = 3.1241551949160478
+                      X6 = -0.20069734795308758
+                   End PointSet
+             IsA Region 	# An area within a coordinate system
+             End Box
+       IsA Region 	# An area within a coordinate system
+       End PointList
+    RegionB = 	# Second component Region
+       Begin PointList 	# Collection of points
+#         Title = "2-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "SPECTRUM-REDSHIFT" 	# Coordinate system domain
+#         Epoch = 1995.9986310746458 	# Julian epoch of observation
+#         Lbl1 = "Frequency" 	# Label for axis 1
+#         Lbl2 = "Optical velocity" 	# Label for axis 2
+#         System = "Compound" 	# Coordinate system type
+#         Uni1 = "MHz" 	# Units for axis 1
+#         Uni2 = "km/s" 	# Units for axis 2
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin CmpFrame 	# Compound coordinate system description
+#               Title = "2-d compound coordinate system" 	# Title of coordinate system
+#               Naxes = 2 	# Number of coordinate axes
+#               Domain = "SPECTRUM-REDSHIFT" 	# Coordinate system domain
+#               Lbl1 = "Frequency" 	# Label for axis 1
+#               Lbl2 = "Optical velocity" 	# Label for axis 2
+#               Uni1 = "MHz" 	# Units for axis 1
+#               Uni2 = "km/s" 	# Units for axis 2
+             IsA Frame 	# Coordinate system description
+                FrameA = 	# First component Frame
+                   Begin SpecFrame 	# Description of spectral coordinate system
+                      Naxes = 1 	# Number of coordinate axes
+                      Epoch = 1995.9986310746458 	# Julian epoch of observation
+                      System = "FREQ" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                            Unit = "MHz" 	# Axis units
+                         End Axis
+                   IsA Frame 	# Coordinate system description
+                      SoR = "Barycentric" 	# Standard of rest
+                      UFreq = "MHz" 	# Preferred units for frequency
+                   End SpecFrame
+                FrameB = 	# Second component Frame
+                   Begin SpecFrame 	# Description of spectral coordinate system
+                      Naxes = 1 	# Number of coordinate axes
+                      Domain = "REDSHIFT" 	# Coordinate system domain
+                      Epoch = 1995.9986310746458 	# Julian epoch of observation
+                      System = "VOPT" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                            Unit = "km/s" 	# Axis units
+                         End Axis
+                   IsA Frame 	# Coordinate system description
+                      SoR = "Barycentric" 	# Standard of rest
+                      UVopt = "km/s" 	# Preferred units for optical velocity
+                   End SpecFrame
+             End CmpFrame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 1 	# Number of points
+                Ncoord = 2 	# Number of coordinates per point
+                X1 = 1420.4000000000001 	# Coordinate values...
+                X2 = 300
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End PointList
+ End Prism

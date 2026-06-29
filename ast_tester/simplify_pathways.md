@@ -1392,3 +1392,13 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | zoommap-13 | Absorbed into next WinMap |
 | zoommap-14 | Absorbed into next ShiftMap |
 | zoommap-15 | Cannot absorb: no compatible neighbour |
+
+## Captured differential-coverage fixtures
+
+In addition to the hand-authored rule fixtures catalogued above, the
+`cap_*` fixtures are real Mappings captured from the wider AST test suite as
+it drives `astSimplify`, then replayed as self-contained fixtures to close
+coverage that previously depended on running those other tests. Because each
+capture exercises several branches at once, they are catalogued separately in
+`ast_tester/coverage/captured_fixtures.md` (with the capture method in
+`ast_tester/coverage/README.md`) rather than as per-branch rows here.

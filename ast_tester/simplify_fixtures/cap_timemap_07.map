@@ -1,0 +1,23 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin TimeMap 	# Conversion between time coordinate systems
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          Ntime = 1 	# Number of conversion steps
+          Time1 = "TAITOUTC" 	# Convert TAI to UTC
+          Time1a = 0 	# MJD offset
+       End TimeMap
+    MapB = 	# Second component Mapping
+       Begin TimeMap 	# Conversion between time coordinate systems
+          Nin = 1 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          Ntime = 1 	# Number of conversion steps
+          Time1 = "TAITOUTC" 	# Convert TAI to UTC
+          Time1a = 0 	# MJD offset
+       End TimeMap
+ End CmpMap

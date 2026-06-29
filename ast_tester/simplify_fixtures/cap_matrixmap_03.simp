@@ -1,0 +1,129 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = -50.5 	# Shift for axis 1
+          Sft2 = -50.5 	# Shift for axis 2
+       End ShiftMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin MatrixMap 	# Matrix transformation
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                M0 = 0.0001512025864974749 	# Forward matrix value
+                M1 = 8.7175224776385403e-05 	# Forward matrix value
+                M2 = -8.7175224774978434e-05 	# Forward matrix value
+                M3 = 0.00015120258649991522 	# Forward matrix value
+                IM0 = 4963.6881110150398 	# Inverse matrix value
+                IM1 = -2861.7938146041606 	# Inverse matrix value
+                IM2 = 2861.7938145579724 	# Inverse matrix value
+                IM3 = 4963.6881109349288 	# Inverse matrix value
+                Form = "Full" 	# Matrix storage form
+             End MatrixMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                InvA = 1 	# First Mapping used in inverse direction
+                MapA = 	# First component Mapping
+                   Begin WcsMap 	# FITS-WCS sky projection
+                      Nin = 2 	# Number of input coordinates
+                      Invert = 1 	# Mapping inverted
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Type = "TAN" 	# Gnomonic projection
+                      WcsAx1 = 2 	# Index of celestial longitude axis
+                      WcsAx2 = 1 	# Index of celestial latitude axis
+                   End WcsMap
+                MapB = 	# Second component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 2 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      MapA = 	# First component Mapping
+                         Begin PermMap 	# Coordinate permutation
+                            Nin = 2 	# Number of input coordinates
+                            Invert = 1 	# Mapping inverted
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Out1 = 2 	# Output coordinate 1 = input coordinate 2
+                            Out2 = 1 	# Output coordinate 2 = input coordinate 1
+                            In1 = 2 	# Input coordinate 1 = output coordinate 2
+                            In2 = 1 	# Input coordinate 2 = output coordinate 1
+                         End PermMap
+                      MapB = 	# Second component Mapping
+                         Begin CmpMap 	# Compound Mapping
+                            Nin = 2 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            InvA = 1 	# First Mapping used in inverse direction
+                            MapA = 	# First component Mapping
+                               Begin SphMap 	# Cartesian to Spherical mapping
+                                  Nin = 3 	# Number of input coordinates
+                                  Nout = 2 	# Number of output coordinates
+                                  Invert = 1 	# Mapping inverted
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  UntRd = 1 	# All input vectors have unit length
+                                  PlrLg = 0 	# Polar longitude (rad.s)
+                               End SphMap
+                            MapB = 	# Second component Mapping
+                               Begin CmpMap 	# Compound Mapping
+                                  Nin = 3 	# Number of input coordinates
+                                  Nout = 2 	# Number of output coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  MapA = 	# First component Mapping
+                                     Begin MatrixMap 	# Matrix transformation
+                                        Nin = 3 	# Number of input coordinates
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        M0 = 0.0053190238159188507 	# Forward matrix value
+                                        M1 = -0.99847903615090305 	# Forward matrix value
+                                        M2 = 0.054875516879655244 	# Forward matrix value
+                                        M3 = 0.096330018020316405 	# Forward matrix value
+                                        M4 = 0.055132697804149214 	# Forward matrix value
+                                        M5 = 0.99382136888932004 	# Forward matrix value
+                                        M6 = -0.99533523780375188 	# Forward matrix value
+                                        M7 = 0 	# Forward matrix value
+                                        M8 = 0.096476755677980766 	# Forward matrix value
+                                        IM0 = 0.0053190238159188507 	# Inverse matrix value
+                                        IM1 = 0.096330018020316405 	# Inverse matrix value
+                                        IM2 = -0.99533523780375188 	# Inverse matrix value
+                                        IM3 = -0.99847903615090305 	# Inverse matrix value
+                                        IM4 = 0.055132697804149214 	# Inverse matrix value
+                                        IM5 = 0 	# Inverse matrix value
+                                        IM6 = 0.054875516879655244 	# Inverse matrix value
+                                        IM7 = 0.99382136888932004 	# Inverse matrix value
+                                        IM8 = 0.096476755677980766 	# Inverse matrix value
+                                        Form = "Full" 	# Matrix storage form
+                                     End MatrixMap
+                                  MapB = 	# Second component Mapping
+                                     Begin CmpMap 	# Compound Mapping
+                                        Nin = 3 	# Number of input coordinates
+                                        Nout = 2 	# Number of output coordinates
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        MapA = 	# First component Mapping
+                                           Begin SphMap 	# Cartesian to Spherical mapping
+                                              Nin = 3 	# Number of input coordinates
+                                              Nout = 2 	# Number of output coordinates
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              UntRd = 1 	# All input vectors have unit length
+                                              PlrLg = 1.5156356603608767 	# Polar longitude (rad.s)
+                                           End SphMap
+                                        MapB = 	# Second component Mapping
+                                           Begin PermMap 	# Coordinate permutation
+                                              Nin = 2 	# Number of input coordinates
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              Out1 = 2 	# Output coordinate 1 = input coordinate 2
+                                              Out2 = 1 	# Output coordinate 2 = input coordinate 1
+                                              In1 = 2 	# Input coordinate 1 = output coordinate 2
+                                              In2 = 1 	# Input coordinate 2 = output coordinate 1
+                                           End PermMap
+                                     End CmpMap
+                               End CmpMap
+                         End CmpMap
+                   End CmpMap
+             End CmpMap
+       End CmpMap
+ End CmpMap

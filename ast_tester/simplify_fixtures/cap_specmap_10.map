@@ -1,0 +1,41 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          InvA = 1 	# First Mapping used in inverse direction
+          MapA = 	# First component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 1 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin ZoomMap 	# Zoom about the origin
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Zoom = 999999999.99999988 	# Zoom factor
+                   End ZoomMap
+                MapB = 	# Second component Mapping
+                   Begin SpecMap 	# Conversion between spectral coordinate systems
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Nspec = 1 	# Number of conversion steps
+                      Spec1 = "FRTOAW" 	# Convert frequency to wavelength (air)
+                   End SpecMap
+             End CmpMap
+          MapB = 	# Second component Mapping
+             Begin ShiftMap 	# Shift each coordinate axis
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = -0.5 	# Shift for axis 1
+             End ShiftMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = -1.1988250304000001 	# Zoom factor
+       End ZoomMap
+ End CmpMap

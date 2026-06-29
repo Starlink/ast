@@ -1,0 +1,316 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvA = 1 	# First Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 1000000 	# Zoom factor
+             End ZoomMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin SpecMap 	# Conversion between spectral coordinate systems
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Nspec = 1 	# Number of conversion steps
+                      Spec1 = "FRTOWV" 	# Convert frequency to wavelength (vacuum)
+                   End SpecMap
+                MapB = 	# Second component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      InvA = 1 	# First Mapping used in inverse direction
+                      MapA = 	# First component Mapping
+                         Begin LutMap 	# Map 1-d coordinates using a lookup table
+                            Nin = 1 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Nlut = 100 	# Number of lookup table elements
+                            Start = -49 	# Input value at first element
+#                           Incr = 1 	# Input value increment between elements
+                            LutInt = 0 	# Interpolation method
+                            L1 = 1 	# Lookup table elements...
+                            L2 = 0.25
+                            L3 = 0.1111111111111111
+                            L4 = 0.0625
+                            L5 = 0.040000000000000001
+                            L6 = 0.027777777777777776
+                            L7 = 0.020408163265306121
+                            L8 = 0.015625
+                            L9 = 0.012345679012345678
+                            L10 = 0.01
+                            L11 = 0.0082644628099173556
+                            L12 = 0.0069444444444444441
+                            L13 = 0.0059171597633136093
+                            L14 = 0.0051020408163265302
+                            L15 = 0.0044444444444444444
+                            L16 = 0.00390625
+                            L17 = 0.0034602076124567475
+                            L18 = 0.0030864197530864196
+                            L19 = 0.0027700831024930748
+                            L20 = 0.0025000000000000001
+                            L21 = 0.0022675736961451248
+                            L22 = 0.0020661157024793389
+                            L23 = 0.001890359168241966
+                            L24 = 0.001736111111111111
+                            L25 = 0.0016000000000000001
+                            L26 = 0.0014792899408284023
+                            L27 = 0.0013717421124828531
+                            L28 = 0.0012755102040816326
+                            L29 = 0.0011890606420927466
+                            L30 = 0.0011111111111111111
+                            L31 = 0.0010405827263267431
+                            L32 = 0.0009765625
+                            L33 = 0.00091827364554637281
+                            L34 = 0.00086505190311418688
+                            L35 = 0.00081632653061224493
+                            L36 = 0.0007716049382716049
+                            L37 = 0.00073046018991964939
+                            L38 = 0.0006925207756232687
+                            L39 = 0.00065746219592373442
+                            L40 = 0.00062500000000000001
+                            L41 = 0.00059488399762046404
+                            L42 = 0.00056689342403628119
+                            L43 = 0.00054083288263926451
+                            L44 = 0.00051652892561983473
+                            L45 = 0.00049382716049382717
+                            L46 = 0.00047258979206049151
+                            L47 = 0.0004526935264825713
+                            L48 = 0.00043402777777777775
+                            L49 = 0.00041649312786339027
+                            L50 = 0.00040000000000000002
+                            L51 = 0.00038446751249519417
+                            L52 = 0.00036982248520710058
+                            L53 = 0.000355998576005696
+                            L54 = 0.00034293552812071328
+                            L55 = 0.00033057851239669424
+                            L56 = 0.00031887755102040814
+                            L57 = 0.00030778701138811941
+                            L58 = 0.00029726516052318666
+                            L59 = 0.00028727377190462512
+                            L60 = 0.00027777777777777778
+                            L61 = 0.00026874496103198063
+                            L62 = 0.00026014568158168577
+                            L63 = 0.00025195263290501388
+                            L64 = 0.000244140625
+                            L65 = 0.00023668639053254438
+                            L66 = 0.0002295684113865932
+                            L67 = 0.00022276676319893073
+                            L68 = 0.00021626297577854672
+                            L69 = 0.00021003990758244065
+                            L70 = 0.00020408163265306123
+                            L71 = 0.00019837333862328903
+                            L72 = 0.00019290123456790122
+                            L73 = 0.00018765246762994934
+                            L74 = 0.00018261504747991235
+                            L75 = 0.00017777777777777779
+                            L76 = 0.00017313019390581717
+                            L77 = 0.00016866250632484398
+                            L78 = 0.0001643655489809336
+                            L79 = 0.0001602307322544464
+                            L80 = 0.00015625
+                            L81 = 0.00015241579027587258
+                            L82 = 0.00014872099940511601
+                            L83 = 0.00014515894904920887
+                            L84 = 0.0001417233560090703
+                            L85 = 0.00013840830449826991
+                            L86 = 0.00013520822065981613
+                            L87 = 0.00013211784912141631
+                            L88 = 0.00012913223140495868
+                            L89 = 0.00012624668602449185
+                            L90 = 0.00012345679012345679
+                            L91 = 0.00012075836251660427
+                            L92 = 0.00011814744801512288
+                            L93 = 0.00011562030292519366
+                            L94 = 0.00011317338162064282
+                            L95 = 0.00011080332409972299
+                            L96 = 0.00010850694444444444
+                            L97 = 0.00010628122010840685
+                            L98 = 0.00010412328196584757
+                            L99 = 0.00010203040506070809
+                            L100 = 0.0001
+                         End LutMap
+                      MapB = 	# Second component Mapping
+                         Begin ShiftMap 	# Shift each coordinate axis
+                            Nin = 1 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Sft1 = 50 	# Shift for axis 1
+                         End ShiftMap
+                   End CmpMap
+             End CmpMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin UnitMap 	# Unit (null) Mapping
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                   End UnitMap
+                MapB = 	# Second component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 1 	# Number of input coordinates
+                      IsSimp = 1 	# Mapping has been simplified
+                   IsA Mapping 	# Mapping between coordinate systems
+                      MapA = 	# First component Mapping
+                         Begin ZoomMap 	# Zoom about the origin
+                            Nin = 1 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Zoom = 1000000 	# Zoom factor
+                         End ZoomMap
+                      MapB = 	# Second component Mapping
+                         Begin CmpMap 	# Compound Mapping
+                            Nin = 1 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            MapA = 	# First component Mapping
+                               Begin SpecMap 	# Conversion between spectral coordinate systems
+                                  Nin = 1 	# Number of input coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  Nspec = 1 	# Number of conversion steps
+                                  Spec1 = "FRTOWV" 	# Convert frequency to wavelength (vacuum)
+                               End SpecMap
+                            MapB = 	# Second component Mapping
+                               Begin CmpMap 	# Compound Mapping
+                                  Nin = 1 	# Number of input coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  InvA = 1 	# First Mapping used in inverse direction
+                                  MapA = 	# First component Mapping
+                                     Begin LutMap 	# Map 1-d coordinates using a lookup table
+                                        Nin = 1 	# Number of input coordinates
+                                        Invert = 1 	# Mapping inverted
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        Nlut = 100 	# Number of lookup table elements
+                                        Start = -49 	# Input value at first element
+#                                       Incr = 1 	# Input value increment between elements
+                                        LutInt = 0 	# Interpolation method
+                                        L1 = 1 	# Lookup table elements...
+                                        L2 = 0.25
+                                        L3 = 0.1111111111111111
+                                        L4 = 0.0625
+                                        L5 = 0.040000000000000001
+                                        L6 = 0.027777777777777776
+                                        L7 = 0.020408163265306121
+                                        L8 = 0.015625
+                                        L9 = 0.012345679012345678
+                                        L10 = 0.01
+                                        L11 = 0.0082644628099173556
+                                        L12 = 0.0069444444444444441
+                                        L13 = 0.0059171597633136093
+                                        L14 = 0.0051020408163265302
+                                        L15 = 0.0044444444444444444
+                                        L16 = 0.00390625
+                                        L17 = 0.0034602076124567475
+                                        L18 = 0.0030864197530864196
+                                        L19 = 0.0027700831024930748
+                                        L20 = 0.0025000000000000001
+                                        L21 = 0.0022675736961451248
+                                        L22 = 0.0020661157024793389
+                                        L23 = 0.001890359168241966
+                                        L24 = 0.001736111111111111
+                                        L25 = 0.0016000000000000001
+                                        L26 = 0.0014792899408284023
+                                        L27 = 0.0013717421124828531
+                                        L28 = 0.0012755102040816326
+                                        L29 = 0.0011890606420927466
+                                        L30 = 0.0011111111111111111
+                                        L31 = 0.0010405827263267431
+                                        L32 = 0.0009765625
+                                        L33 = 0.00091827364554637281
+                                        L34 = 0.00086505190311418688
+                                        L35 = 0.00081632653061224493
+                                        L36 = 0.0007716049382716049
+                                        L37 = 0.00073046018991964939
+                                        L38 = 0.0006925207756232687
+                                        L39 = 0.00065746219592373442
+                                        L40 = 0.00062500000000000001
+                                        L41 = 0.00059488399762046404
+                                        L42 = 0.00056689342403628119
+                                        L43 = 0.00054083288263926451
+                                        L44 = 0.00051652892561983473
+                                        L45 = 0.00049382716049382717
+                                        L46 = 0.00047258979206049151
+                                        L47 = 0.0004526935264825713
+                                        L48 = 0.00043402777777777775
+                                        L49 = 0.00041649312786339027
+                                        L50 = 0.00040000000000000002
+                                        L51 = 0.00038446751249519417
+                                        L52 = 0.00036982248520710058
+                                        L53 = 0.000355998576005696
+                                        L54 = 0.00034293552812071328
+                                        L55 = 0.00033057851239669424
+                                        L56 = 0.00031887755102040814
+                                        L57 = 0.00030778701138811941
+                                        L58 = 0.00029726516052318666
+                                        L59 = 0.00028727377190462512
+                                        L60 = 0.00027777777777777778
+                                        L61 = 0.00026874496103198063
+                                        L62 = 0.00026014568158168577
+                                        L63 = 0.00025195263290501388
+                                        L64 = 0.000244140625
+                                        L65 = 0.00023668639053254438
+                                        L66 = 0.0002295684113865932
+                                        L67 = 0.00022276676319893073
+                                        L68 = 0.00021626297577854672
+                                        L69 = 0.00021003990758244065
+                                        L70 = 0.00020408163265306123
+                                        L71 = 0.00019837333862328903
+                                        L72 = 0.00019290123456790122
+                                        L73 = 0.00018765246762994934
+                                        L74 = 0.00018261504747991235
+                                        L75 = 0.00017777777777777779
+                                        L76 = 0.00017313019390581717
+                                        L77 = 0.00016866250632484398
+                                        L78 = 0.0001643655489809336
+                                        L79 = 0.0001602307322544464
+                                        L80 = 0.00015625
+                                        L81 = 0.00015241579027587258
+                                        L82 = 0.00014872099940511601
+                                        L83 = 0.00014515894904920887
+                                        L84 = 0.0001417233560090703
+                                        L85 = 0.00013840830449826991
+                                        L86 = 0.00013520822065981613
+                                        L87 = 0.00013211784912141631
+                                        L88 = 0.00012913223140495868
+                                        L89 = 0.00012624668602449185
+                                        L90 = 0.00012345679012345679
+                                        L91 = 0.00012075836251660427
+                                        L92 = 0.00011814744801512288
+                                        L93 = 0.00011562030292519366
+                                        L94 = 0.00011317338162064282
+                                        L95 = 0.00011080332409972299
+                                        L96 = 0.00010850694444444444
+                                        L97 = 0.00010628122010840685
+                                        L98 = 0.00010412328196584757
+                                        L99 = 0.00010203040506070809
+                                        L100 = 0.0001
+                                     End LutMap
+                                  MapB = 	# Second component Mapping
+                                     Begin ShiftMap 	# Shift each coordinate axis
+                                        Nin = 1 	# Number of input coordinates
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        Sft1 = 50 	# Shift for axis 1
+                                     End ShiftMap
+                               End CmpMap
+                         End CmpMap
+                   End CmpMap
+             End CmpMap
+          MapB = 	# Second component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+       End CmpMap
+ End CmpMap

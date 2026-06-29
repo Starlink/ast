@@ -1,0 +1,44 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 1e-10 	# Zoom factor
+             End ZoomMap
+          MapB = 	# Second component Mapping
+             Begin SpecMap 	# Conversion between spectral coordinate systems
+                Nin = 1 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                Nspec = 2 	# Number of conversion steps
+                Spec1 = "WVTOFR" 	# Convert wavelength (vacuum) to frequency
+                Spec2 = "FRTOWN" 	# Convert frequency to wave number
+             End SpecMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin SpecMap 	# Conversion between spectral coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Nspec = 1 	# Number of conversion steps
+                Spec1 = "WNTOFR" 	# Convert wave number to frequency
+             End SpecMap
+          MapB = 	# Second component Mapping
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 1.0000000000000001e-09 	# Zoom factor
+             End ZoomMap
+       End CmpMap
+ End CmpMap

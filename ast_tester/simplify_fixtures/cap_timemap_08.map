@@ -1,0 +1,41 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+          MapB = 	# Second component Mapping
+             Begin TimeMap 	# Conversion between time coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Ntime = 4 	# Number of conversion steps
+                Time1 = "TAITOTT" 	# Convert TAI to TT
+                Time1a = 51382.666666666664 	# MJD offset
+                Time2 = "TTTOTDB" 	# Convert TT to TDB
+                Time2a = 51382.666666666664 	# MJD offset
+                Time2b = 0 	# Observer longitude
+                Time2c = 0 	# Observer latitude
+                Time2d = 0 	# Observer altitude
+                Time2e = 6378.1369999999997 	# Distance from earth spin axis
+                Time2f = 0 	# Distance north of equatorial plane
+                Time3 = "TDBTOTCB" 	# Convert TDB to TCB
+                Time3a = 51382.666666666664 	# MJD offset
+                Time3b = 0.00012774290758939077 	# TCB offset
+                Time4 = "MJDTOMJD" 	# Convert MJD between offsets
+                Time4a = 51382.666666666664 	# Input MJD offset
+                Time4b = 51352.667166448482 	# Output MJD offset
+                Time4c = 29.99950021818222 	# Combined offset
+             End TimeMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+ End CmpMap

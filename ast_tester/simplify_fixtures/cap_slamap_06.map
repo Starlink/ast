@@ -1,0 +1,23 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+    MapB = 	# Second component Mapping
+       Begin SlaMap 	# Conversion between sky coordinate systems
+          Nin = 2 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          Nsla = 2 	# Number of conversion steps
+          Sla1 = "HFK5Z" 	# ICRS to J2000.0 FK5 (no PM or parallax)
+          Sla1a = 2002.3794407744936 	# Julian epoch of FK5 coordinates
+          Sla2 = "PREC" 	# Apply IAU 1975 (FK5) precession
+          Sla2a = 2000 	# From Julian epoch
+          Sla2b = 1949.9997904422999 	# To Julian epoch
+       End SlaMap
+ End CmpMap

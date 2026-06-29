@@ -1,0 +1,54 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          InvA = 1 	# First Mapping used in inverse direction
+          MapA = 	# First component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 1 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin ZoomMap 	# Zoom about the origin
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Zoom = 999999999.99999988 	# Zoom factor
+                   End ZoomMap
+                MapB = 	# Second component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      MapA = 	# First component Mapping
+                         Begin SpecMap 	# Conversion between spectral coordinate systems
+                            Nin = 1 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Nspec = 2 	# Number of conversion steps
+                            Spec1 = "FRTOVL" 	# Convert frequency to rel. velocity
+                            Spec1a = 1420400000 	# Rest frequency (Hz)
+                            Spec2 = "VLTOVO" 	# Convert relativistic to optical velocity
+                         End SpecMap
+                      MapB = 	# Second component Mapping
+                         Begin ZoomMap 	# Zoom about the origin
+                            Nin = 1 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Zoom = 0.001 	# Zoom factor
+                         End ZoomMap
+                   End CmpMap
+             End CmpMap
+          MapB = 	# Second component Mapping
+             Begin ShiftMap 	# Shift each coordinate axis
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = -0.49999999999999994 	# Shift for axis 1
+             End ShiftMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = -1703300.8260312104 	# Zoom factor
+       End ZoomMap
+ End CmpMap

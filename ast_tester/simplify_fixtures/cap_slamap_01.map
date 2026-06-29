@@ -1,0 +1,29 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+    MapB = 	# Second component Mapping
+       Begin SlaMap 	# Conversion between sky coordinate systems
+          Nin = 2 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          Nsla = 5 	# Number of conversion steps
+          Sla1 = "HFK5Z" 	# ICRS to J2000.0 FK5 (no PM or parallax)
+          Sla1a = 2002.3794407744936 	# Julian epoch of FK5 coordinates
+          Sla2 = "FK54Z" 	# FK5 J2000.0 to FK4 (no PM or parallax)
+          Sla2a = 2002.3807691107049 	# Besselian epoch of FK4 system
+          Sla3 = "SUBET" 	# Subtract E-terms of aberration
+          Sla3a = 1950 	# Besselian epoch of mean equinox (FK4)
+          Sla4 = "PREBN" 	# Apply Bessel-Newcomb (FK4) precession
+          Sla4a = 1950 	# From Besselian epoch
+          Sla4b = 2000.0012775136652 	# To Besselian epoch
+          Sla5 = "ADDET" 	# Add E-terms of aberration
+          Sla5a = 2000.0012775136652 	# Besselian epoch of mean equinox (FK4)
+       End SlaMap
+ End CmpMap

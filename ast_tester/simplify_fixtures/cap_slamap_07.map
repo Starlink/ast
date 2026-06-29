@@ -1,0 +1,394 @@
+ Begin CmpRegion 	# Combination of two Regions
+#   Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "SKY" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Right ascension" 	# Label for axis 1
+#   Lbl2 = "Declination" 	# Label for axis 2
+#   System = "FK5" 	# Coordinate system type
+#   Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#   Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#   Dir1 = 0 	# Plot axis 1 in reverse direction
+#   Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#   Top2 = 1.5707963267948966 	# Highest legal axis value
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    Frm = 	# Coordinate system
+       Begin SkyFrame 	# Description of celestial coordinate system
+#         Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+#         Domain = "SKY" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Right ascension" 	# Label for axis 1
+#         Lbl2 = "Declination" 	# Label for axis 2
+          System = "FK5" 	# Coordinate system type
+#         Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#         Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+#         Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#         Top2 = 1.5707963267948966 	# Highest legal axis value
+          Ax1 = 	# Axis number 1
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+          Ax2 = 	# Axis number 2
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+       IsA Frame 	# Coordinate system description
+#         SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+#         Eqnox = 2000 	# Julian epoch of mean equinox
+       End SkyFrame
+    RegAxes = 2 	# Number of axes spanned by the Region
+ IsA Region 	# An area within a coordinate system
+    Operator = 2 	# Regions combined using Boolean OR
+    RegionA = 	# First component Region
+       Begin CmpRegion 	# Combination of two Regions
+#         Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "SKY" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Right ascension" 	# Label for axis 1
+#         Lbl2 = "Declination" 	# Label for axis 2
+#         System = "FK5" 	# Coordinate system type
+#         Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#         Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+#         Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#         Top2 = 1.5707963267948966 	# Highest legal axis value
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          RegAxes = 2 	# Number of axes spanned by the Region
+       IsA Region 	# An area within a coordinate system
+          Operator = 1 	# Regions combined using Boolean AND
+          RegionA = 	# First component Region
+             Begin Box 	# Axis intervals
+#               Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#               Naxes = 2 	# Number of coordinate axes
+#               Domain = "SKY" 	# Coordinate system domain
+#               Epoch = 2000 	# Julian epoch of observation
+#               Lbl1 = "Right ascension" 	# Label for axis 1
+#               Lbl2 = "Declination" 	# Label for axis 2
+#               System = "FK5" 	# Coordinate system type
+#               Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#               Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#               Dir1 = 0 	# Plot axis 1 in reverse direction
+#               Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#               Top2 = 1.5707963267948966 	# Highest legal axis value
+             IsA Frame 	# Coordinate system description
+                Negate = 1 	# Region negated
+                Adapt = 1 	# Region adapts to coord sys changes
+                Frm = 	# Coordinate system
+                   Begin SkyFrame 	# Description of celestial coordinate system
+#                     Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+#                     Domain = "SKY" 	# Coordinate system domain
+#                     Epoch = 2000 	# Julian epoch of observation
+#                     Lbl1 = "Right ascension" 	# Label for axis 1
+#                     Lbl2 = "Declination" 	# Label for axis 2
+                      System = "FK5" 	# Coordinate system type
+#                     Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#                     Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#                     Dir1 = 0 	# Plot axis 1 in reverse direction
+#                     Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#                     Top2 = 1.5707963267948966 	# Highest legal axis value
+                      Ax1 = 	# Axis number 1
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                      Ax2 = 	# Axis number 2
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                   IsA Frame 	# Coordinate system description
+#                     SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+#                     Eqnox = 2000 	# Julian epoch of mean equinox
+                   End SkyFrame
+                Points = 	# Points defining the shape
+                   Begin PointSet 	# Container for a set of points
+                      Npoint = 2 	# Number of points
+                      Ncoord = 2 	# Number of coordinates per point
+                      X1 = 0 	# Coordinate values...
+                      X2 = 0
+                      X3 = 0.0001
+                      X4 = 0.0001
+                   End PointSet
+             IsA Region 	# An area within a coordinate system
+             End Box
+          RegionB = 	# Second component Region
+             Begin Circle 	# Circular or spherical region
+#               Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#               Naxes = 2 	# Number of coordinate axes
+#               Domain = "SKY" 	# Coordinate system domain
+#               Epoch = 2000 	# Julian epoch of observation
+#               Lbl1 = "Right ascension" 	# Label for axis 1
+#               Lbl2 = "Declination" 	# Label for axis 2
+#               System = "FK5" 	# Coordinate system type
+#               Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#               Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#               Dir1 = 0 	# Plot axis 1 in reverse direction
+#               Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#               Top2 = 1.5707963267948966 	# Highest legal axis value
+             IsA Frame 	# Coordinate system description
+                Negate = 1 	# Region negated
+                Adapt = 1 	# Region adapts to coord sys changes
+                FrmSet = 	# Original & current coordinate systems
+                   Begin FrameSet 	# Set of inter-related coordinate systems
+#                     Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#                     Naxes = 2 	# Number of coordinate axes
+#                     Domain = "SKY" 	# Coordinate system domain
+#                     Epoch = 2000 	# Julian epoch of observation
+#                     Lbl1 = "Right ascension" 	# Label for axis 1
+#                     Lbl2 = "Declination" 	# Label for axis 2
+#                     System = "FK5" 	# Coordinate system type
+#                     Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#                     Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#                     Dir1 = 0 	# Plot axis 1 in reverse direction
+#                     Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#                     Top2 = 1.5707963267948966 	# Highest legal axis value
+                   IsA Frame 	# Coordinate system description
+                      Nframe = 2 	# Number of Frames in FrameSet
+#                     Base = 1 	# Index of base Frame
+                      Currnt = 2 	# Index of current Frame
+                      Lnk2 = 1 	# Node 2 is derived from node 1
+                      Frm1 = 	# Frame number 1
+                         Begin SkyFrame 	# Description of celestial coordinate system
+#                           Title = "IAU (1958) galactic coordinates" 	# Title of coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+#                           Domain = "SKY" 	# Coordinate system domain
+#                           Epoch = 2000 	# Julian epoch of observation
+#                           Lbl1 = "Galactic longitude" 	# Label for axis 1
+#                           Lbl2 = "Galactic latitude" 	# Label for axis 2
+                            System = "GALACTIC" 	# Coordinate system type
+#                           Uni1 = "degrees" 	# Units for axis 1
+#                           Uni2 = "degrees" 	# Units for axis 2
+#                           Dir1 = 0 	# Plot axis 1 in reverse direction
+#                           Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#                           Top2 = 1.5707963267948966 	# Highest legal axis value
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+#                           SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+                         End SkyFrame
+                      Frm2 = 	# Frame number 2
+                         Begin SkyFrame 	# Description of celestial coordinate system
+#                           Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+#                           Domain = "SKY" 	# Coordinate system domain
+#                           Epoch = 2000 	# Julian epoch of observation
+#                           Lbl1 = "Right ascension" 	# Label for axis 1
+#                           Lbl2 = "Declination" 	# Label for axis 2
+                            System = "FK5" 	# Coordinate system type
+#                           Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#                           Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#                           Dir1 = 0 	# Plot axis 1 in reverse direction
+#                           Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#                           Top2 = 1.5707963267948966 	# Highest legal axis value
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+#                           SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+#                           Eqnox = 2000 	# Julian epoch of mean equinox
+                         End SkyFrame
+                      Map2 = 	# Mapping between nodes 1 and 2
+                         Begin SlaMap 	# Conversion between sky coordinate systems
+                            Nin = 2 	# Number of input coordinates
+                            IsSimp = 1 	# Mapping has been simplified
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Nsla = 1 	# Number of conversion steps
+                            Sla1 = "GALEQ" 	# Galactic (IAU 1958) to J2000.0 equatorial (FK5)
+                         End SlaMap
+                   End FrameSet
+                Points = 	# Points defining the shape
+                   Begin PointSet 	# Container for a set of points
+                      Npoint = 2 	# Number of points
+                      Ncoord = 2 	# Number of coordinates per point
+                      X1 = 1.68166715892457 	# Coordinate values...
+                      X2 = -1.0504365074719999
+                      X3 = 1.6814025477719401
+                      X4 = -1.0504884000346699
+                   End PointSet
+             IsA Region 	# An area within a coordinate system
+             End Circle
+       End CmpRegion
+    RegionB = 	# Second component Region
+       Begin CmpRegion 	# Combination of two Regions
+#         Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "SKY" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Right ascension" 	# Label for axis 1
+#         Lbl2 = "Declination" 	# Label for axis 2
+#         System = "FK5" 	# Coordinate system type
+#         Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#         Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+#         Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#         Top2 = 1.5707963267948966 	# Highest legal axis value
+       IsA Frame 	# Coordinate system description
+          Negate = 1 	# Region negated
+          Adapt = 1 	# Region adapts to coord sys changes
+          RegAxes = 2 	# Number of axes spanned by the Region
+       IsA Region 	# An area within a coordinate system
+          Operator = 1 	# Regions combined using Boolean AND
+          RegionA = 	# First component Region
+             Begin Box 	# Axis intervals
+#               Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#               Naxes = 2 	# Number of coordinate axes
+#               Domain = "SKY" 	# Coordinate system domain
+#               Epoch = 2000 	# Julian epoch of observation
+#               Lbl1 = "Right ascension" 	# Label for axis 1
+#               Lbl2 = "Declination" 	# Label for axis 2
+#               System = "FK5" 	# Coordinate system type
+#               Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#               Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#               Dir1 = 0 	# Plot axis 1 in reverse direction
+#               Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#               Top2 = 1.5707963267948966 	# Highest legal axis value
+             IsA Frame 	# Coordinate system description
+                Negate = 1 	# Region negated
+                Adapt = 1 	# Region adapts to coord sys changes
+                Frm = 	# Coordinate system
+                   Begin SkyFrame 	# Description of celestial coordinate system
+#                     Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+#                     Domain = "SKY" 	# Coordinate system domain
+#                     Epoch = 2000 	# Julian epoch of observation
+#                     Lbl1 = "Right ascension" 	# Label for axis 1
+#                     Lbl2 = "Declination" 	# Label for axis 2
+                      System = "FK5" 	# Coordinate system type
+#                     Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#                     Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#                     Dir1 = 0 	# Plot axis 1 in reverse direction
+#                     Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#                     Top2 = 1.5707963267948966 	# Highest legal axis value
+                      Ax1 = 	# Axis number 1
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                      Ax2 = 	# Axis number 2
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                   IsA Frame 	# Coordinate system description
+#                     SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+#                     Eqnox = 2000 	# Julian epoch of mean equinox
+                   End SkyFrame
+                Points = 	# Points defining the shape
+                   Begin PointSet 	# Container for a set of points
+                      Npoint = 2 	# Number of points
+                      Ncoord = 2 	# Number of coordinates per point
+                      X1 = 0 	# Coordinate values...
+                      X2 = 0
+                      X3 = 0.0001
+                      X4 = 0.0001
+                   End PointSet
+             IsA Region 	# An area within a coordinate system
+             End Box
+          RegionB = 	# Second component Region
+             Begin Circle 	# Circular or spherical region
+#               Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#               Naxes = 2 	# Number of coordinate axes
+#               Domain = "SKY" 	# Coordinate system domain
+#               Epoch = 2000 	# Julian epoch of observation
+#               Lbl1 = "Right ascension" 	# Label for axis 1
+#               Lbl2 = "Declination" 	# Label for axis 2
+#               System = "FK5" 	# Coordinate system type
+#               Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#               Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#               Dir1 = 0 	# Plot axis 1 in reverse direction
+#               Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#               Top2 = 1.5707963267948966 	# Highest legal axis value
+             IsA Frame 	# Coordinate system description
+                Negate = 1 	# Region negated
+                Adapt = 1 	# Region adapts to coord sys changes
+                FrmSet = 	# Original & current coordinate systems
+                   Begin FrameSet 	# Set of inter-related coordinate systems
+#                     Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+#                     Naxes = 2 	# Number of coordinate axes
+#                     Domain = "SKY" 	# Coordinate system domain
+#                     Epoch = 2000 	# Julian epoch of observation
+#                     Lbl1 = "Right ascension" 	# Label for axis 1
+#                     Lbl2 = "Declination" 	# Label for axis 2
+#                     System = "FK5" 	# Coordinate system type
+#                     Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#                     Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#                     Dir1 = 0 	# Plot axis 1 in reverse direction
+#                     Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#                     Top2 = 1.5707963267948966 	# Highest legal axis value
+                   IsA Frame 	# Coordinate system description
+                      Nframe = 2 	# Number of Frames in FrameSet
+#                     Base = 1 	# Index of base Frame
+                      Currnt = 2 	# Index of current Frame
+                      Lnk2 = 1 	# Node 2 is derived from node 1
+                      Frm1 = 	# Frame number 1
+                         Begin SkyFrame 	# Description of celestial coordinate system
+#                           Title = "IAU (1958) galactic coordinates" 	# Title of coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+#                           Domain = "SKY" 	# Coordinate system domain
+#                           Epoch = 2000 	# Julian epoch of observation
+#                           Lbl1 = "Galactic longitude" 	# Label for axis 1
+#                           Lbl2 = "Galactic latitude" 	# Label for axis 2
+                            System = "GALACTIC" 	# Coordinate system type
+#                           Uni1 = "degrees" 	# Units for axis 1
+#                           Uni2 = "degrees" 	# Units for axis 2
+#                           Dir1 = 0 	# Plot axis 1 in reverse direction
+#                           Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#                           Top2 = 1.5707963267948966 	# Highest legal axis value
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+#                           SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+                         End SkyFrame
+                      Frm2 = 	# Frame number 2
+                         Begin SkyFrame 	# Description of celestial coordinate system
+#                           Title = "FK5 equatorial coordinates; mean equinox J2000.0" 	# Title of coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+#                           Domain = "SKY" 	# Coordinate system domain
+#                           Epoch = 2000 	# Julian epoch of observation
+#                           Lbl1 = "Right ascension" 	# Label for axis 1
+#                           Lbl2 = "Declination" 	# Label for axis 2
+                            System = "FK5" 	# Coordinate system type
+#                           Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#                           Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#                           Dir1 = 0 	# Plot axis 1 in reverse direction
+#                           Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#                           Top2 = 1.5707963267948966 	# Highest legal axis value
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+#                           SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+#                           Eqnox = 2000 	# Julian epoch of mean equinox
+                         End SkyFrame
+                      Map2 = 	# Mapping between nodes 1 and 2
+                         Begin SlaMap 	# Conversion between sky coordinate systems
+                            Nin = 2 	# Number of input coordinates
+                            IsSimp = 1 	# Mapping has been simplified
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Nsla = 1 	# Number of conversion steps
+                            Sla1 = "GALEQ" 	# Galactic (IAU 1958) to J2000.0 equatorial (FK5)
+                         End SlaMap
+                   End FrameSet
+                Points = 	# Points defining the shape
+                   Begin PointSet 	# Container for a set of points
+                      Npoint = 2 	# Number of points
+                      Ncoord = 2 	# Number of coordinates per point
+                      X1 = 1.68166715892457 	# Coordinate values...
+                      X2 = -1.0504365074719999
+                      X3 = 1.6814025477719401
+                      X4 = -1.0504884000346699
+                   End PointSet
+             IsA Region 	# An area within a coordinate system
+             End Circle
+       End CmpRegion
+ End CmpRegion

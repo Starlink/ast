@@ -1,0 +1,19 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 6 	# Number of conversion steps
+    Sla1 = "PREBN" 	# Apply Bessel-Newcomb (FK4) precession
+    Sla1a = 1920 	# From Besselian epoch
+    Sla1b = 1950 	# To Besselian epoch
+    Sla2 = "ADDET" 	# Add E-terms of aberration
+    Sla2a = 1950 	# Besselian epoch of mean equinox (FK4)
+    Sla3 = "FK45Z" 	# FK4 to FK5 J2000.0 (no PM or parallax)
+    Sla3a = 1958 	# Besselian epoch of FK4 coordinates
+    Sla4 = "FK5HZ" 	# J2000.0 FK5 to ICRS (no PM or parallax)
+    Sla4a = 1957.9996195737112 	# Julian epoch of FK5 coordinates
+    Sla5 = "HFK5Z" 	# ICRS to J2000.0 FK5 (no PM or parallax)
+    Sla5a = 2000 	# Julian epoch of FK5 coordinates
+    Sla6 = "EQECL" 	# Equatorial J2000.0 (FK5) to ecliptic (IAU 1980)
+    Sla6a = 51909.75 	# TDB of mean ecliptic (as MJD)
+ End SlaMap
