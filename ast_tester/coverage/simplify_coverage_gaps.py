@@ -13,8 +13,13 @@ import json
 import os
 import re
 
-ALLOWLIST = {"MapMerge", "MapList", "Simplify", "RemoveRegions",
-             "CombineMaps", "Decompose", "WinMat", "MatWin", "MatWin2"}
+# Functions in the astSimplify call graph. NOT included: Decompose and
+# RemoveRegions -- those are reached only through the separate public APIs
+# astDecompose and astRemoveRegions (e.g. from FitsChan/FrameSet/Region code),
+# never from astSimplify, so a simplify fixture cannot exercise them. They are
+# distinct efforts, out of scope for the simplify self-containment goal.
+ALLOWLIST = {"MapMerge", "MapList", "Simplify", "CombineMaps",
+             "WinMat", "MatWin", "MatWin2"}
 
 # Region classes whose `Simplify` override performs geometric
 # self-simplification rather than Mapping-pipeline merging. That is a separate

@@ -40,6 +40,21 @@ scope for the merge-engine self-containment goal — they need a different,
 geometry-based fixture methodology — and are recorded only as a known
 backlog for a possible future effort.
 
+## Scope
+
+The ledger covers only functions in the `astSimplify` call graph
+(`MapMerge`, `MapList`, the orchestration `Simplify`, `CombineMaps`, and the
+`WinMat`/`MatWin`/`MatWin2` helpers). Deliberately excluded:
+
+- **`Decompose` / `RemoveRegions`** — reached only through the separate public
+  APIs `astDecompose` / `astRemoveRegions` (from FitsChan/FrameSet/Region
+  code), never from `astSimplify`. A simplify fixture cannot exercise them.
+- **Region geometric `Simplify`** (box/interval/prism/...) — tracked in the
+  Deferred section; needs a geometry-based methodology.
+
+These are distinct efforts; covering them would not make the *simplify*
+fixtures more self-contained.
+
 ## Capture method (how the `cap_*` fixtures were produced)
 
 The `cap_*` fixtures in `../simplify_fixtures/` (catalogued in
