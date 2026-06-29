@@ -192,6 +192,7 @@ diagonal MatrixMap (different factors).
 | zoommap-04 | -- | focused | `- (no fixture)` | Single forward ZoomMap with no adjacent ZoomMaps: nothing to accumulate | Lone forward ZoomMap in series (falls through to absorb) |
 | zoommap-08 | -- | focused | `- (no fixture)` | Single ZoomMap in parallel with no adjacent ZoomMaps: no simplification | Lone ZoomMap in parallel |
 | zoommap-15 | neg_zoom_no_absorb.map | focused | `+` | ZoomMap cannot be absorbed: neither neighbour is MatrixMap/WinMap/ShiftMap | CmpMap(SphMap, ZoomMap, MathMap), Series=1 |
+| zoommap-16 | neg_zoom_lower_nonzoom.map | focused | `-` | Backward neighbour search stops at a non-ZoomMap/UnitMap lower neighbour; no merge | CmpMap(PermMap, ZoomMap), Series=1 |
 
 ---
 
@@ -1392,6 +1393,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | zoommap-13 | Absorbed into next WinMap |
 | zoommap-14 | Absorbed into next ShiftMap |
 | zoommap-15 | Cannot absorb: no compatible neighbour |
+| zoommap-16 | Backward neighbour search stops at non-zoom lower neighbour |
 
 ## Captured differential-coverage fixtures
 

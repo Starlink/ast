@@ -326,3 +326,4 @@ cap_zoommap_01           | simplify_fixtures/cap_zoommap_01.map | simplify_fixtu
 cap_zoommap_02           | simplify_fixtures/cap_zoommap_02.map | simplify_fixtures/cap_zoommap_02.simp |
 cap_zoommap_03           | simplify_fixtures/cap_zoommap_03.map | simplify_fixtures/cap_zoommap_03.simp |
 cap_zoommap_04           | simplify_fixtures/cap_zoommap_04.map | simplify_fixtures/cap_zoommap_04.simp |
+neg_zoom_lower_nonzoom   | simplify_fixtures/neg_zoom_lower_nonzoom.map | simplify_fixtures/neg_zoom_lower_nonzoom.map | yes

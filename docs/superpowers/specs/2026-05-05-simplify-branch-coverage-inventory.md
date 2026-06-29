@@ -113,6 +113,7 @@ MatrixMap (different factors).
 | zoommap-13 | zoom_absorb_next_win.map | focused | positive | zoommap.c:1083-1094 | ZoomMap absorbed into next WinMap (scales only) | CmpMap(ZoomMap, WinMap), Series=1 |
 | zoommap-14 | zoom_absorb_next_shift.map | focused | positive | zoommap.c:1098-1121 | ZoomMap absorbed into next ShiftMap → WinMap | CmpMap(ZoomMap, ShiftMap), Series=1 |
 | zoommap-15 | neg_zoom_no_absorb.map | focused | negative | zoommap.c:989-1155 | ZoomMap cannot be absorbed: neither neighbour is MatrixMap/WinMap/ShiftMap | CmpMap(SphMap, ZoomMap, MathMap), Series=1 |
+| zoommap-16 | neg_zoom_lower_nonzoom.map | focused | negative | zoommap.c:747-766 | Backward neighbour search: lower neighbour is not a ZoomMap/UnitMap, so it stops with no merge | ZoomMap nominated at index>0 with a non-zoom lower neighbour, e.g. CmpMap(PermMap, ZoomMap) Series=1 |
 
 ## shiftmap.c
 
