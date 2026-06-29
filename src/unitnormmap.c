@@ -80,6 +80,10 @@ f     The UnitNormMap class does not define any new routines beyond those
 *        the Copy function, etc.
 *     6-MAY-2026 (TJ):
 *        Added Equal method to allow astEqual comparisons.
+*     29-JUN-2026 (TJ):
+*        Fix heap buffer over-read in Equal: the centre array has one
+*        element per uninverted axis (min of Nin and Nout), so comparing
+*        two inverted UnitNormMaps must not loop up to the inverted Nin.
 *class--
 */
 
@@ -218,6 +222,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    AstUnitNormMap *that;
    AstUnitNormMap *this;
    int i;
+   int nc;
    int nin;
    int result;
 
@@ -241,9 +246,15 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
          nin = astGetNin( this );
          if( nin == astGetNin( that ) ) {
 
+/* The centre array holds one element per axis of the uninverted Mapping,
+   i.e. the smaller of Nin and Nout. Using Nin directly would over-run the
+   array for an inverted UnitNormMap (where Nin is the larger N+1 value). */
+            nc = astGetNout( this );
+            if( nin < nc ) nc = nin;
+
 /* Compare centre arrays element-by-element. */
             result = 1;
-            for( i = 0; i < nin; i++ ) {
+            for( i = 0; i < nc; i++ ) {
                if( !astEQUAL( this->centre[ i ], that->centre[ i ] ) ) {
                   result = 0;
                   break;
