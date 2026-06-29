@@ -329,3 +329,8 @@ cap_zoommap_04           | simplify_fixtures/cap_zoommap_04.map | simplify_fixtu
 neg_zoom_lower_nonzoom   | simplify_fixtures/neg_zoom_lower_nonzoom.map | simplify_fixtures/neg_zoom_lower_nonzoom.map | yes
 neg_tranmap_adjacent_no_merge | simplify_fixtures/neg_tranmap_adjacent_no_merge.map | simplify_fixtures/neg_tranmap_adjacent_no_merge.map | yes
 neg_lut_constant         | simplify_fixtures/neg_lut_constant.map | simplify_fixtures/neg_lut_constant.map | yes
+neg_unit_lone                | simplify_fixtures/neg_unit_lone.map | simplify_fixtures/neg_unit_lone.map | yes
+neg_zoom_lone                | simplify_fixtures/neg_zoom_lone.map | simplify_fixtures/neg_zoom_lone.map | yes
+neg_math_lone                | simplify_fixtures/neg_math_lone.map | simplify_fixtures/neg_math_lone.map | yes
+neg_matrix_singular_diag     | simplify_fixtures/neg_matrix_singular_diag.map | simplify_fixtures/neg_matrix_singular_diag.map | yes
+neg_win_mixed_scale_shift    | simplify_fixtures/neg_win_mixed_scale_shift.map | simplify_fixtures/neg_win_mixed_scale_shift.map | yes

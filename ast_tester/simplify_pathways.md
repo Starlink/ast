@@ -155,7 +155,7 @@ Invert flag normalization.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| unitmap-02 | -- | focused | `- (no fixture)` | Single UnitMap with Invert=0: no change needed | Lone UnitMap already canonical |
+| unitmap-02 | neg_unit_lone.map | focused | `- (no fixture)` | Single UnitMap with Invert=0: no change needed | Lone UnitMap already canonical |
 | unitmap-06 | -- | focused | `- (no fixture)` | Parallel UnitMap with no adjacent UnitMaps and Invert=0: no simplification | Single UnitMap in parallel already canonical |
 
 ---
@@ -189,7 +189,7 @@ diagonal MatrixMap (different factors).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| zoommap-04 | -- | focused | `- (no fixture)` | Single forward ZoomMap with no adjacent ZoomMaps: nothing to accumulate | Lone forward ZoomMap in series (falls through to absorb) |
+| zoommap-04 | neg_zoom_lone.map | focused | `- (no fixture)` | Single forward ZoomMap with no adjacent ZoomMaps: nothing to accumulate | Lone forward ZoomMap in series (falls through to absorb) |
 | zoommap-08 | -- | focused | `- (no fixture)` | Single ZoomMap in parallel with no adjacent ZoomMaps: no simplification | Lone ZoomMap in parallel |
 | zoommap-15 | neg_zoom_no_absorb.map | focused | `+` | ZoomMap cannot be absorbed: neither neighbour is MatrixMap/WinMap/ShiftMap | CmpMap(SphMap, ZoomMap, MathMap), Series=1 |
 | zoommap-16 | neg_zoom_lower_nonzoom.map | focused | `-` | Backward neighbour search stops at a non-ZoomMap/UnitMap lower neighbour; no merge | CmpMap(PermMap, ZoomMap), Series=1 |
@@ -253,8 +253,8 @@ with same classes.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| winmap-03 | -- | focused | `- (no fixture)` | Not all shifts are zero: MatrixMap replacement refused | WinMap with mixed shifts |
-| winmap-04 | -- | focused | `- (no fixture)` | Not all scales are 1: ShiftMap replacement refused | WinMap with mixed scales, alone |
+| winmap-03 | neg_win_mixed_scale_shift.map | focused | `- (no fixture)` | Not all shifts are zero: MatrixMap replacement refused | WinMap with mixed shifts |
+| winmap-04 | neg_win_mixed_scale_shift.map | focused | `- (no fixture)` | Not all scales are 1: ShiftMap replacement refused | WinMap with mixed scales, alone |
 | winmap-13 | neg_win_nonmergeable_series.map | focused | `+` | Neither neighbour is a directly-mergeable class | CmpMap(WinMap, FullMatrixMap), Series=1 |
 | winmap-16 | -- | cascade | `- (no fixture)` | CmpMap neighbour is series (not parallel): no merge | CmpMap(series CmpMap, WinMap), Series=1 |
 | winmap-17 | -- | cascade | `- (no fixture)` | Parallel CmpMap split doesn't simplify: refused | Parallel CmpMap with non-simplifiable components next to WinMap |
@@ -295,7 +295,7 @@ WinMap/PermMap toward merge target or for local simplification.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| matrixmap-02 | -- | focused | `- (no fixture)` | Diagonal MatrixMap with NULL i_matrix (singular) cannot become ZoomMap | MatrixMap(diag, singular) |
+| matrixmap-02 | neg_matrix_singular_diag.map | focused | `- (no fixture)` | Diagonal MatrixMap with NULL i_matrix (singular) cannot become ZoomMap | MatrixMap(diag, singular) |
 | matrixmap-04 | neg_matrix_diag_unequal.map | focused | `+` | Diagonal MatrixMap with unequal elements cannot become ZoomMap | MatrixMap(diag, [2,3]) with non-mergeable neighbours |
 | matrixmap-06 | neg_matrix_full_offdiag.map | focused | `+` | Full MatrixMap with non-zero off-diagonal cannot self-simplify | MatrixMap(full, [1,2,3,4]) alone |
 | matrixmap-10 | neg_matrix_perm_not_bidirectional.map | focused | `+` | Adjacent PermMap has inconsistent fwd/inv axes: merge blocked | CmpMap(MatrixMap, PermMap[non-bidirectional]), Series=1 |
@@ -404,7 +404,7 @@ pair cancels to UnitMap.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | mathmap-02 | -- | focused | `- (no fixture)` | Parallel mode: refuses | MathMaps in parallel |
-| mathmap-03 | -- | focused | `- (no fixture)` | No following Mapping (last in list) | Single MathMap |
+| mathmap-03 | neg_math_lone.map | focused | `- (no fixture)` | No following Mapping (last in list) | Single MathMap |
 | mathmap-04 | neg_math_nonmath_neighbour.map | focused | `+` | Neighbour is not a MathMap | CmpMap(MathMap, ZoomMap), Series=1 |
 | mathmap-05 | neg_math_no_simpfi.map | focused | `+` | SimpFI/SimpIF not set: simplification refused | CmpMap(MathMap[SimpFI=0], Inverse(MathMap)), Series=1 |
 | mathmap-06 | -- | focused | `- (no fixture)` | Dimension mismatch: nin(first) != nout(second) | MathMaps of different dimensionality |

@@ -82,7 +82,7 @@ Invert flag normalization.
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
 | unitmap-01 | unit_invert_clear.map | focused | positive | unitmap.c:508-514 | Single UnitMap with Invert flag set: flag is cleared | Lone UnitMap with invert_list=1 |
-| unitmap-02 | — | focused | negative | unitmap.c:508-514 | Single UnitMap with Invert=0: no change needed | Lone UnitMap already canonical |
+| unitmap-02 | neg_unit_lone.map | focused | negative | unitmap.c:508-514 | Single UnitMap with Invert=0: no change needed | Lone UnitMap already canonical |
 | unitmap-03 | unit_series_elision.map | focused | positive | unitmap.c:521-537 | UnitMap removed from series composition | CmpMap(ShiftMap(2), UnitMap(2)), Series=1 |
 | unitmap-04 | unit_parallel_merge.map | focused | positive | unitmap.c:589-618 | Adjacent UnitMaps in parallel merged into one wider UnitMap | CmpMap(UnitMap(1), UnitMap(2)), Series=0 |
 | unitmap-05 | unit_parallel_invert_clear.map | focused | positive | unitmap.c:581-585 | Parallel UnitMap with no adjacent UnitMaps but Invert set: flag cleared | Single UnitMap in parallel with invert=1, flanked by non-UnitMaps |
@@ -101,7 +101,7 @@ MatrixMap (different factors).
 | zoommap-01 | zoom_series_merge.map | focused | positive | zoommap.c:806-817 | Adjacent series ZoomMaps multiplied into single ZoomMap | CmpMap(ZoomMap(2), ZoomMap(3)), Series=1 |
 | zoommap-02 | zoom_series_cancel.map | focused | positive | zoommap.c:799-815 | Adjacent ZoomMaps with product=1 collapse to UnitMap | CmpMap(ZoomMap(2), ZoomMap(2,Invert=1)), Series=1 |
 | zoommap-03 | zoom_invert_normalize.map | focused | positive | zoommap.c:806-817 | Single inverted ZoomMap normalized to forward-only (1/zoom) | ZoomMap with invert_list=1, no adjacent ZoomMaps |
-| zoommap-04 | — | focused | negative | zoommap.c:806-809 | Single forward ZoomMap with no adjacent ZoomMaps: nothing to accumulate | Lone forward ZoomMap in series (falls through to absorb) |
+| zoommap-04 | neg_zoom_lone.map | focused | negative | zoommap.c:806-809 | Single forward ZoomMap with no adjacent ZoomMaps: nothing to accumulate | Lone forward ZoomMap in series (falls through to absorb) |
 | zoommap-05 | zoom_parallel_all_unit.map | focused | positive | zoommap.c:916-930 | All parallel ZoomMaps/UnitMaps have factor 1 → UnitMap | CmpMap(UnitMap(2), ZoomMap(1,Nin=3)), Series=0 |
 | zoommap-06 | zoom_parallel_same_factor.map | focused | positive | zoommap.c:912-932 | All parallel ZoomMaps have same non-unity factor → single ZoomMap | CmpMap(ZoomMap(2,Nin=1), ZoomMap(2,Nin=2)), Series=0 |
 | zoommap-07 | zoom_parallel_to_matrix.map | focused | positive | zoommap.c:937-938 | Parallel ZoomMaps with different factors → diagonal MatrixMap | CmpMap(ZoomMap(2,Nin=1), ZoomMap(3,Nin=1)), Series=0 |
@@ -136,8 +136,8 @@ PermMap/MatrixMap/WcsMap to reach target; (3) parallel merge with same classes.
 |---|---|---|---|---|---|---|
 | winmap-01 | win_to_matrix.map | focused | positive | winmap.c:1086-1123 | WinMap with all shift=0 replaced by diagonal MatrixMap | Standalone WinMap with Scl only |
 | winmap-02 | win_to_shift.map | focused | positive | winmap.c:1819-1857 | WinMap with all scale=1 replaced by ShiftMap | Standalone WinMap with Sft only |
-| winmap-03 | — | focused | negative | winmap.c:1088-1092 | Not all shifts are zero: MatrixMap replacement refused | WinMap with mixed shifts |
-| winmap-04 | — | focused | negative | winmap.c:1821-1825 | Not all scales are 1: ShiftMap replacement refused (and nothing else simplified) | WinMap with mixed scales, alone |
+| winmap-03 | neg_win_mixed_scale_shift.map | focused | negative | winmap.c:1088-1092 | Not all shifts are zero: MatrixMap replacement refused | WinMap with mixed shifts |
+| winmap-04 | neg_win_mixed_scale_shift.map | focused | negative | winmap.c:1821-1825 | Not all scales are 1: ShiftMap replacement refused (and nothing else simplified) | WinMap with mixed scales, alone |
 | winmap-05 | win_win_series_merge.map | focused | positive | winmap.c:1190-1194 | WinMap + WinMap in series merged | CmpMap(WinMap, WinMap), Series=1 |
 | winmap-06 | win_zoom_series_merge.map | focused | positive | winmap.c:1196-1206 | WinMap + ZoomMap in series merged (WinMap first) | CmpMap(WinMap, ZoomMap), Series=1 |
 | winmap-07 | win_zoom_series_merge_rev.map | focused | positive | winmap.c:1196-1206 | ZoomMap + WinMap in series merged (ZoomMap first) | CmpMap(ZoomMap, WinMap), Series=1 |
@@ -183,7 +183,7 @@ WinMap/PermMap toward merge target or for local simplification.
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
 | matrixmap-01 | matrix_unit_to_unit.map | focused | positive | matrixmap.c:1854-1855 | Unit-form square MatrixMap replaced by UnitMap | MatrixMap(Form="Unit", Nin=Nout) |
-| matrixmap-02 | — | focused | negative | matrixmap.c:1860-1862 | Diagonal MatrixMap with NULL i_matrix (singular) cannot become ZoomMap | MatrixMap(diag, singular) |
+| matrixmap-02 | neg_matrix_singular_diag.map | focused | negative | matrixmap.c:1860-1862 | Diagonal MatrixMap with NULL i_matrix (singular) cannot become ZoomMap | MatrixMap(diag, singular) |
 | matrixmap-03 | matrix_diagonal_to_zoom.map | focused | positive | matrixmap.c:1873-1881 | Diagonal MatrixMap with equal elements replaced by ZoomMap | MatrixMap(diag, [4,4]) |
 | matrixmap-04 | neg_matrix_diag_unequal.map | focused | negative | matrixmap.c:1865-1868 | Diagonal MatrixMap with unequal elements cannot become ZoomMap | MatrixMap(diag, [2,3]) with non-mergeable neighbours |
 | matrixmap-05 | matrix_full_to_diagonal.map | focused | positive | matrixmap.c:1887-1904 | Full MatrixMap with zero off-diagonals replaced by Diagonal | MatrixMap(full, [2,0,0,3]) |
@@ -266,7 +266,7 @@ pair cancels to UnitMap.
 |---|---|---|---|---|---|---|
 | mathmap-01 | math_inverse_cancel.map | focused | positive | mathmap.c:4132-4159 | Two MathMaps with matching fwd/inv text cancel to UnitMap | CmpMap(MathMap[SimpFI=1], Inverse(MathMap[SimpIF=1])), Series=1 |
 | mathmap-02 | — | focused | negative | mathmap.c:4033 | Parallel mode: refuses | MathMaps in parallel |
-| mathmap-03 | — | focused | negative | mathmap.c:4041 | No following Mapping (last in list) | Single MathMap |
+| mathmap-03 | neg_math_lone.map | focused | negative | mathmap.c:4041 | No following Mapping (last in list) | Single MathMap |
 | mathmap-04 | neg_math_nonmath_neighbour.map | focused | negative | mathmap.c:4047-4051 | Neighbour is not a MathMap | CmpMap(MathMap, ZoomMap), Series=1 |
 | mathmap-05 | neg_math_no_simpfi.map | focused | negative | mathmap.c:4064-4067 | SimpFI/SimpIF not set: simplification refused | CmpMap(MathMap[SimpFI=0], Inverse(MathMap)), Series=1 |
 | mathmap-06 | — | focused | negative | mathmap.c:4082 | Dimension mismatch: nin(first) != nout(second) | MathMaps of different dimensionality |
