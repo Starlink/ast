@@ -55,6 +55,45 @@ def _cov(file, fname, branch_counts):
                        "functions": [{"name": fname, "lineno": min(branch_counts)}]}]}
 
 
+def _cov_lines(file, fname, branch_counts):
+    lines = [{"line_number": l, "function_name": fname, "count": sum(c) or 0,
+              "branches": [{"count": x} for x in c]}
+             for l, c in branch_counts.items()]
+    return {"files": [{"file": file, "lines": lines,
+                       "functions": [{"name": fname, "lineno": 1}]}]}
+
+
+class StatusGuardFilterTest(unittest.TestCase):
+    def setUp(self):
+        # Fake source (index i == line i+1): line 2 pure astOK guard,
+        # line 3 compound guard, line 4 real logic.
+        g._src_cache["src/winmap.c"] = [
+            "static int MapMerge(", "   if ( !astOK ) return result;",
+            "   while ( astOK && ( imap1 - 1 ) >= 0 ) {", "   do_real_merge();"]
+
+    def tearDown(self):
+        g._src_cache.clear()
+
+    def test_pure_guard_filtered_others_kept(self):
+        bc = {2: [0, 5], 3: [5, 0], 4: [0, 5]}
+        simp = g.load_coverage_obj(_cov_lines("src/winmap.c", "MapMerge", bc))
+        full = g.load_coverage_obj(_cov_lines("src/winmap.c", "MapMerge",
+                                              {2: [5, 5], 3: [5, 5], 4: [5, 5]}))
+        gaps = g.classify_gaps(simp, full, {"MapMerge"}, {"winmap.c"})
+        lines_hit = {gp[1] for gp in gaps}
+        self.assertNotIn(2, lines_hit)   # pure astOK guard -> filtered
+        self.assertIn(3, lines_hit)      # compound (astOK && real) -> kept
+        self.assertIn(4, lines_hit)      # real logic -> kept
+
+    def test_filter_can_be_disabled(self):
+        bc = {2: [0, 5]}
+        simp = g.load_coverage_obj(_cov_lines("src/winmap.c", "MapMerge", bc))
+        full = g.load_coverage_obj(_cov_lines("src/winmap.c", "MapMerge", {2: [5, 5]}))
+        gaps = g.classify_gaps(simp, full, {"MapMerge"}, {"winmap.c"},
+                               filter_guards=False)
+        self.assertIn(2, {gp[1] for gp in gaps})
+
+
 class RegionSimplifyTest(unittest.TestCase):
     def test_region_simplify_excluded_from_main(self):
         simp = g.load_coverage_obj(_cov("src/interval.c", "Simplify", {100: [0]}))

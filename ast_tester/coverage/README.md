@@ -23,6 +23,13 @@ toolchain); override with the `GCOV` environment variable if needed.
 - **absolute-only** — branch covered by nothing. Investigate: author a fixture
   if reachable, else set Status to `unreachable:<reason>`.
 
+Branches on a **pure `astOK` status guard** (`if ( !astOK ) ...`,
+`if ( astOK ) {`, `while ( astOK )`) are filtered out: their uncovered
+direction is the error path, which never fires in a passing run, so it is
+non-actionable noise. The header reports how many were filtered. Compound
+conditions like `while ( astOK && cond )` are kept, since they carry real
+logic.
+
 The **Status** column is the only field you edit by hand:
 `open` | `fixture=<name>` | `unreachable:<reason>` | `wontfix:<reason>`.
 Regeneration preserves your Status notes by `(file, function, line, branch)`.
