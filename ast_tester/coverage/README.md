@@ -26,3 +26,9 @@ toolchain); override with the `GCOV` environment variable if needed.
 The **Status** column is the only field you edit by hand:
 `open` | `fixture=<name>` | `unreachable:<reason>` | `wontfix:<reason>`.
 Regeneration preserves your Status notes by `(file, function, line, branch)`.
+
+The **Deferred** section at the foot lists Region geometric `Simplify`
+branches (Box/Interval/Prism/etc. self-simplification). These are out of
+scope for the merge-engine self-containment goal — they need a different,
+geometry-based fixture methodology — and are recorded only as a known
+backlog for a possible future effort.
