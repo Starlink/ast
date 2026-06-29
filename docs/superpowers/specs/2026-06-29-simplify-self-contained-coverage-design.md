@@ -61,8 +61,12 @@ negative-fixture convention.
 
 Import keeps the contributor's filenames (the `wcsconv_*`, `spec_*`, `sla_*`,
 `dssmap_*` names are already descriptive and ease cross-referencing).
-Each imported fixture gains an `# AST_FIXTURE` header, an inventory row, and a
-`simplify_pathways.md` row, exactly like any other rule fixture.
+Each imported fixture is registered exactly like any other rule fixture: a row
+in `simplify_tests.txt`, a row in the inventory, and a row in
+`simplify_pathways.md`.
+The fixture files themselves carry no in-band header — none of the existing
+248 fixtures do; traceability lives in the inventory, keyed by fixture
+filename.
 
 The baseline coverage measurement (below) is taken **after** these 13 are
 imported.
@@ -189,10 +193,9 @@ Each phase ends in a committable state; the effort can stop after any commit.
 ### P0 — Import the 13 fixtures (once)
 
 Copy the 13 `.map` files (and the 12 `.simp` files) into
-`ast_tester/simplify_fixtures/`, add `# AST_FIXTURE` headers, wire rows into
-`simplify_tests.txt` (positives as `.map`/`.simp`; `neg_box_asymmetric_2d` as a
-`.map`-in-both-columns negative), and add inventory + `simplify_pathways.md`
-rows.
+`ast_tester/simplify_fixtures/`, wire rows into `simplify_tests.txt` (positives
+as `.map`/`.simp`; `neg_box_asymmetric_2d` as a `.map`-in-both-columns
+negative), and add inventory + `simplify_pathways.md` rows.
 Verify each imported fixture passes both the string-diff and astequal tests;
 any with ulp-level float variation get `skip_string_compare=yes` (the existing
 `rigby` precedent).
@@ -226,10 +229,11 @@ every regeneration.
 
 ## Integration with existing artifacts
 
-- Every new and imported fixture follows the established convention:
-  `# AST_FIXTURE id=… polarity=…` header, an inventory row in
-  `docs/superpowers/specs/2026-05-05-simplify-branch-coverage-inventory.md`,
-  and a row in `ast_tester/simplify_pathways.md`.
+- Every new and imported fixture follows the established convention: a row in
+  the inventory
+  (`docs/superpowers/specs/2026-05-05-simplify-branch-coverage-inventory.md`)
+  and a row in `ast_tester/simplify_pathways.md`. Fixture files carry no
+  in-band header; traceability is by filename through the inventory.
 - New fixtures are registered in `ast_tester/simplify_tests.txt`; CMake reads
   that file and registers the `simplify_<name>` and `simplify_<name>_astequal`
   tests automatically.
