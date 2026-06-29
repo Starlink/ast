@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 870
+**Open absolute-only gaps:** 858
 
 ## Open gaps
 
@@ -230,15 +230,9 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pcdmap.c:1487` | 0 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1538` | 1 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1547` | 3 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1568` | 1 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1569` | 0 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1569` | 1 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1573` | 0 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1573` | 1 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1573` | 2 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1573` | 3 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1579` | 0 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1579` | 1 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1579` | 2 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1579` | 3 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1590` | 0 | MapMerge | absolute-only | open |
@@ -251,16 +245,10 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pcdmap.c:1616` | 2 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1626` | 0 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1626` | 1 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1642` | 2 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1645` | 0 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1649` | 3 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1654` | 2 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1674` | 0 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1676` | 0 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1676` | 1 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1685` | 0 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1685` | 2 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1685` | 3 | MapMerge | absolute-only | open |
 | `src/permmap.c:935` | 2 | MapMerge | absolute-only | open |
 | `src/permmap.c:1118` | 0 | MapMerge | absolute-only | open |
 | `src/permmap.c:1119` | 0 | MapMerge | absolute-only | open |
@@ -910,13 +898,7 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 
 | Location | Branch | Function | Status |
 | --- | --- | --- | --- |
-| `src/cmpmap.c:750` | 0 | Decompose | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
-| `src/cmpmap.c:751` | 1 | Decompose | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
-| `src/cmpmap.c:755` | 1 | Decompose | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
-| `src/cmpmap.c:764` | 1 | Decompose | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
-| `src/cmpmap.c:765` | 1 | Decompose | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
-| `src/cmpmap.c:766` | 1 | Decompose | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
-| `src/cmpmap.c:767` | 1 | Decompose | wontfix:via astDecompose (FitsChan astWrite/region/frame), not astSimplify |
+| _none_ |  |  |  |
 
 ## Deferred: Region geometric Simplify (out of scope)
 

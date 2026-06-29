@@ -334,3 +334,4 @@ neg_zoom_lone                | simplify_fixtures/neg_zoom_lone.map | simplify_fi
 neg_math_lone                | simplify_fixtures/neg_math_lone.map | simplify_fixtures/neg_math_lone.map | yes
 neg_matrix_singular_diag     | simplify_fixtures/neg_matrix_singular_diag.map | simplify_fixtures/neg_matrix_singular_diag.map | yes
 neg_win_mixed_scale_shift    | simplify_fixtures/neg_win_mixed_scale_shift.map | simplify_fixtures/neg_win_mixed_scale_shift.map | yes
+neg_pcd_zoom_no_target   | simplify_fixtures/neg_pcd_zoom_no_target.map | simplify_fixtures/neg_pcd_zoom_no_target.map | yes

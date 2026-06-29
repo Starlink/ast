@@ -835,12 +835,13 @@ PcdMap's MapMerge: (1) Disco=0 to UnitMap; (2) inverse-pair cancellation;
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| pcdmap-07 | -- | cascade | `- (no fixture)` | Speculative swap refused: neither simplifies | PcdMap + ZoomMap(2) with no target |
+| pcdmap-07 | neg_pcd_zoom_no_target.map | cascade | `-` | Speculative swap refused: neither simplifies | PcdMap + ZoomMap(2) with no target |
 | pcdmap-08 | neg_pcd_parallel.map | focused | `+` | Parallel mode: refused | PcdMaps in parallel |
 | pcdmap-09 | neg_pcd_nonpcd_neighbour.map | focused | `+` | Neighbour not PcdMap/UnitMap/inverse-PcdMap | PcdMap + ShiftMap in series |
 | pcdmap-10 | neg_pcd_nonswappable_between.map | cascade | `+` | Intervening Mapping not ZoomMap or PermMap: swap blocked | PcdMap + ShiftMap + Inverse(PcdMap) |
 | pcdmap-11 | -- | cascade | `- (no fixture)` | Non-swappable class blocks search | PcdMap + MatrixMap + Inverse(PcdMap) |
 | pcdmap-12 | -- | focused | `- (no fixture)` | CanSwap false: PermMap doesn't simply swap axes | PcdMap + PermMap(identity) |
+| pcdmap-13 | neg_pcd_zoom_no_target.map | cascade | `-` | Backward (swaplo) swap search: swappable lower ZoomMap but no merge target below | CmpMap(ZoomMap, PcdMap), Series=1 |
 
 ---
 
@@ -1145,6 +1146,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | pcdmap-05 | Swaps with PermMap toward target |
 | pcdmap-06 | Swap simplifies one Mapping |
 | pcdmap-07 | Speculative swap refused |
+| pcdmap-13 | Backward swap search, no merge target below |
 | pcdmap-08 | Parallel mode refused |
 | pcdmap-09 | Neighbour not PcdMap/UnitMap |
 | pcdmap-10 | Intervening not ZoomMap/PermMap |

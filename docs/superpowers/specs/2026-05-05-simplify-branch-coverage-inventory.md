@@ -571,12 +571,13 @@ PcdMap's MapMerge: (1) Disco=0→UnitMap; (2) inverse-pair cancellation;
 | pcdmap-04 | pcd_zoom_swap_cancel.map | cascade | positive | pcdmap.c:1605-1637 | PcdMap swaps with ZoomMap toward merge target | PcdMap + ZoomMap + Inverse(PcdMap) |
 | pcdmap-05 | pcd_perm_swap_cancel.map | cascade | positive | pcdmap.c:1605-1637 | PcdMap swaps with axis-swapping PermMap toward merge target | PcdMap + PermMap(swap) + Inverse(PcdMap) |
 | pcdmap-06 | pcd_swap_zoom_simplifies.map | cascade | positive | pcdmap.c:1642-1713 | Swap without target if it simplifies one Mapping | PcdMap + ZoomMap(1) where ZoomMap→UnitMap after swap |
-| pcdmap-07 | — | cascade | negative | pcdmap.c:1685-1689 | Speculative swap refused: neither simplifies | PcdMap + ZoomMap(2) with no target |
+| pcdmap-07 | neg_pcd_zoom_no_target.map | cascade | negative | pcdmap.c:1685-1689 | Speculative swap refused: neither simplifies | PcdMap + ZoomMap(2) with no target |
 | pcdmap-08 | neg_pcd_parallel.map | focused | negative | pcdmap.c:1432 | Parallel mode: refused | PcdMaps in parallel |
 | pcdmap-09 | neg_pcd_nonpcd_neighbour.map | focused | negative | pcdmap.c:1438-1456 | Neighbour not PcdMap/UnitMap/inverse-PcdMap | PcdMap + ShiftMap in series |
 | pcdmap-10 | neg_pcd_nonswappable_between.map | cascade | negative | pcdmap.c:1530-1553 | Intervening Mapping not ZoomMap or PermMap: swap blocked | PcdMap + ShiftMap + Inverse(PcdMap) |
 | pcdmap-11 | — | cascade | negative | pcdmap.c:1547-1550 | Non-swappable class blocks search | PcdMap + MatrixMap + Inverse(PcdMap) |
 | pcdmap-12 | — | focused | negative | pcdmap.c:1514-1522 | CanSwap false: PermMap doesn't simply swap axes | PcdMap + PermMap(identity) |
+| pcdmap-13 | neg_pcd_zoom_no_target.map | cascade | negative | pcdmap.c:1558-1586 | Backward (swaplo) swap search: lower neighbour is a swappable ZoomMap but no merge target found below it | CmpMap(ZoomMap, PcdMap), Series=1 |
 
 ## dssmap.c
 
