@@ -42,7 +42,13 @@ int    oracle_sample_axis_count( void );
 void   oracle_sample_points( int naxis, const double *lo, const double *hi,
                              int npoint, double **out );
 
-AstMapping *oracle_load_mapping( const char *root, const char *relpath );
+/* Load the mapping for a fixture.  When the fixture is a FrameSet (.head via
+   FitsChan, or a .ast FrameSet dump), the base and current Frames are
+   returned via out_base/out_cur (each NULL-able; the caller astAnnuls any it
+   requested).  For a bare Mapping they are set to NULL.  The base/current
+   frames let the checker decide which output axes are angular. */
+AstMapping *oracle_load_mapping( const char *root, const char *relpath,
+                                 AstFrame **out_base, AstFrame **out_cur );
 void   oracle_format_double( char *buf, size_t buflen, double v );
 double oracle_parse_double( const char *tok, int *ok );
 

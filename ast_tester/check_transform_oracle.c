@@ -30,6 +30,8 @@ static double **alloc_cols( int ncol, int nrow ) {
     return c;
 }
 
+static void free_sections( Section *secs, int nsec );
+
 static int oracle_read_file( const char *path, Section **out_secs, int *out_n ) {
     FILE *fp = fopen( path, "r" );
     if ( !fp ) { fprintf( stderr, "cannot open oracle %s\n", path ); return 1; }
@@ -80,7 +82,19 @@ static int oracle_read_file( const char *path, Section **out_secs, int *out_n ) 
             else if ( col < cur->nin + cur->nout ) cur->out[col - cur->nin][row] = v;
             col++;
         }
-        if ( ok && col == cur->nin + cur->nout ) { row++; cur->npoint = row; }
+        /* A malformed data row (unparseable token or wrong column count) is a
+           corrupt/truncated oracle, not something to skip silently: fail so
+           the gate cannot pass on reduced coverage. */
+        if ( !ok || col != cur->nin + cur->nout ) {
+            fprintf( stderr,
+                "%s: malformed data row in section [%s] (row %d: got %d of "
+                "%d columns)\n", path, cur->relpath, row, col,
+                cur->nin + cur->nout );
+            fclose( fp );
+            free_sections( secs, (int) n );
+            return 1;
+        }
+        row++; cur->npoint = row;
     }
     fclose( fp );
     *out_secs = secs; *out_n = (int) n;
@@ -114,14 +128,47 @@ static void free_sections( Section *secs, int nsec ) {
     free( secs );
 }
 
-/* Compare two equal-shape output sets; report and count mismatches. */
+/* Is output axis `axis` of `frame` cyclic with period 2*pi?  Tested
+   generically via astNorm: a point and the same point shifted by 2*pi on
+   that axis normalize to the same value iff the axis wraps (e.g. a SkyFrame
+   longitude).  Latitude reflects rather than wraps, and basic frames
+   (GRID pixels, SpecFrame) are not cyclic, so their pixel/linear axes are
+   compared without wrap -- which is what catches a genuine 2*pi drift in a
+   non-angular output. */
+static int axis_is_cyclic( AstFrame *frame, int axis ) {
+    if ( !frame ) return 0;
+    int naxes = astGetI( frame, "Naxes" );
+    if ( !astOK || axis >= naxes ) { astClearStatus; return 0; }
+    double twopi = 2.0 * acos( -1.0 );
+    double *p = malloc( sizeof(double) * (size_t) naxes );
+    double *q = malloc( sizeof(double) * (size_t) naxes );
+    for ( int i = 0; i < naxes; i++ ) { p[i] = 0.1; q[i] = 0.1; }
+    q[axis] += twopi;
+    astNorm( frame, p );
+    astNorm( frame, q );
+    int cyclic = astOK && fabs( p[axis] - q[axis] ) < 1e-6;
+    if ( !astOK ) astClearStatus;
+    free( p ); free( q );
+    return cyclic;
+}
+
+/* Match one output value: wrap-aware (2*pi periodic) only on axes flagged
+   angular, plain otherwise. */
+static int axis_match( double got, double ref, double rtol, double atol,
+                       int angular ) {
+    return angular ? oracle_within_tol_wrap( got, ref, rtol, atol )
+                   : oracle_within_tol( got, ref, rtol, atol );
+}
+
+/* Compare two equal-shape output sets; report and count mismatches.
+   is_ang[a] != 0 marks output axis a as angular (wrap-aware comparison). */
 static int compare_outputs( const char *label, const char *relpath,
                             double **got, double **ref, int ncol, int npoint,
-                            double rtol, double atol ) {
+                            double rtol, double atol, const int *is_ang ) {
     int fails = 0;
     for ( int p = 0; p < npoint; p++ ) {
         for ( int a = 0; a < ncol; a++ ) {
-            if ( !oracle_within_tol_wrap( got[a][p], ref[a][p], rtol, atol ) ) {
+            if ( !axis_match( got[a][p], ref[a][p], rtol, atol, is_ang[a] ) ) {
                 double d = fabs( got[a][p] - ref[a][p] );
                 double rel = ref[a][p] != 0.0 ? d / fabs( ref[a][p] ) : d;
                 fprintf( stderr,
@@ -144,13 +191,14 @@ static int compare_outputs( const char *label, const char *relpath,
 static int compare_equiv( const char *relpath,
                           double **map_live, double **simp_live,
                           double **map_ref,  double **simp_ref,
-                          int ncol, int npoint, double rtol, double atol ) {
+                          int ncol, int npoint, double rtol, double atol,
+                          const int *is_ang ) {
     int fails = 0;
     for ( int p = 0; p < npoint; p++ ) {
         for ( int a = 0; a < ncol; a++ ) {
-            if ( !oracle_within_tol_wrap( map_ref[a][p], simp_ref[a][p], rtol, atol ) )
+            if ( !axis_match( map_ref[a][p], simp_ref[a][p], rtol, atol, is_ang[a] ) )
                 continue;   /* out of shared domain at generation time */
-            if ( !oracle_within_tol_wrap( map_live[a][p], simp_live[a][p], rtol, atol ) ) {
+            if ( !axis_match( map_live[a][p], simp_live[a][p], rtol, atol, is_ang[a] ) ) {
                 double d = fabs( map_live[a][p] - simp_live[a][p] );
                 double rel = simp_live[a][p] != 0.0 ? d / fabs( simp_live[a][p] ) : d;
                 fprintf( stderr,
@@ -332,7 +380,8 @@ int main( int argc, char *argv[] ) {
     for ( int i = 0; i < nsec; i++ ) {
         Section *s = &secs[i];
         astBegin;
-        AstMapping *map = oracle_load_mapping( root, s->relpath );
+        AstFrame *base = NULL, *cur = NULL;
+        AstMapping *map = oracle_load_mapping( root, s->relpath, &base, &cur );
         if ( !map ) {
             fprintf( stderr, "LOADFAIL %s (fixture missing or unreadable)\n",
                      s->relpath );
@@ -348,13 +397,23 @@ int main( int argc, char *argv[] ) {
             map = astAnnul( map ); astEnd; continue;
         }
 
+        /* Which output axes are angular?  The output frame for this direction
+           is the current frame (forward) or base frame (inverse) of a
+           FrameSet fixture.  A bare Mapping has no frame, so fall back to
+           treating every axis as angular (these are coordinate mappings with
+           no pixel axes to protect). */
+        AstFrame *outfr = s->forward ? cur : base;
+        int *is_ang = malloc( sizeof(int) * (size_t) s->nout );
+        for ( int a = 0; a < s->nout; a++ )
+            is_ang[a] = outfr ? axis_is_cyclic( outfr, a ) : 1;
+
         /* Golden check: applies uniformly to forward and inverse sections. */
         char label[32];
         snprintf( label, sizeof label, "golden-%s",
                   s->forward ? "fwd" : "inv" );
         total_fail += compare_outputs( label, s->relpath, live, s->out,
                                        s->nout, s->npoint,
-                                       ORACLE_DEF_RTOL, ORACLE_DEF_ATOL );
+                                       ORACLE_DEF_RTOL, ORACLE_DEF_ATOL, is_ang );
         checked++;
 
         /* Round-trip accuracy (GRID-domain corpora): an inverse section
@@ -384,9 +443,13 @@ int main( int argc, char *argv[] ) {
                                              prev_map->out, s->out,
                                              s->nout, s->npoint,
                                              ORACLE_DEF_EQUIV_RTOL,
-                                             ORACLE_DEF_EQUIV_ATOL );
+                                             ORACLE_DEF_EQUIV_ATOL, is_ang );
             }
         }
+
+        free( is_ang );
+        if ( base ) base = astAnnul( base );
+        if ( cur )  cur  = astAnnul( cur );
 
         /* Refresh the cache on a .map forward section; otherwise free live. */
         if ( is_fwd && has_ext( s->relpath, ".map" ) ) {

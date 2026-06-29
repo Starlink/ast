@@ -160,7 +160,7 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
     if ( file_contains( root, relpath, "IntraMap" ) ) return 0;
 
     astBegin;
-    AstMapping *map = oracle_load_mapping( root, relpath );
+    AstMapping *map = oracle_load_mapping( root, relpath, NULL, NULL );
     if ( map ) {
         int nin     = astGetI( map, "Nin" );
         int nout    = astGetI( map, "Nout" );

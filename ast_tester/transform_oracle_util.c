@@ -86,7 +86,8 @@ double oracle_parse_double( const char *tok, int *ok ) {
     return v;
 }
 
-AstMapping *oracle_load_mapping( const char *root, const char *relpath ) {
+AstMapping *oracle_load_mapping( const char *root, const char *relpath,
+                                 AstFrame **out_base, AstFrame **out_cur ) {
     char path[1024];
     snprintf( path, sizeof path, "%s/%s", root, relpath );
 
@@ -94,6 +95,8 @@ AstMapping *oracle_load_mapping( const char *root, const char *relpath ) {
     int is_head = ( dot && strcmp( dot, ".head" ) == 0 );
 
     AstMapping *result = NULL;
+    if ( out_base ) *out_base = NULL;
+    if ( out_cur )  *out_cur  = NULL;
 
     if ( is_head ) {
         AstFitsChan *fc = astFitsChan( NULL, NULL, " " );
@@ -111,8 +114,10 @@ AstMapping *oracle_load_mapping( const char *root, const char *relpath ) {
             AstObject *obj = astRead( fc );
             if ( obj ) {
                 if ( astIsAFrameSet( obj ) ) {
-                    result = astGetMapping( (AstFrameSet *) obj,
-                                            AST__BASE, AST__CURRENT );
+                    AstFrameSet *fs = (AstFrameSet *) obj;
+                    result = astGetMapping( fs, AST__BASE, AST__CURRENT );
+                    if ( out_base ) *out_base = astGetFrame( fs, AST__BASE );
+                    if ( out_cur )  *out_cur  = astGetFrame( fs, AST__CURRENT );
                 }
                 obj = astAnnul( obj );
             }
@@ -123,8 +128,16 @@ AstMapping *oracle_load_mapping( const char *root, const char *relpath ) {
         AstObject *obj = astRead( chan );
         chan = astAnnul( chan );
         if ( obj ) {
-            if ( astIsAMapping( obj ) ) result = (AstMapping *) obj;
-            else obj = astAnnul( obj );
+            if ( astIsAFrameSet( obj ) ) {
+                AstFrameSet *fs = (AstFrameSet *) obj;
+                result = (AstMapping *) obj;
+                if ( out_base ) *out_base = astGetFrame( fs, AST__BASE );
+                if ( out_cur )  *out_cur  = astGetFrame( fs, AST__CURRENT );
+            } else if ( astIsAMapping( obj ) ) {
+                result = (AstMapping *) obj;
+            } else {
+                obj = astAnnul( obj );
+            }
         }
     }
 

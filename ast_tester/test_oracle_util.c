@@ -107,12 +107,18 @@ static void test_format_parse(void) {
 static void test_load_mapping(void) {
     const char *root = getenv("ORACLE_TEST_ROOT");
     if (!root) { fprintf(stderr, "skip test_load_mapping (no ORACLE_TEST_ROOT)\n"); return; }
-    AstMapping *m1 = oracle_load_mapping(root, "simplify_fixtures/matrix_diagonal_to_zoom.map");
+    AstMapping *m1 = oracle_load_mapping(root, "simplify_fixtures/matrix_diagonal_to_zoom.map", NULL, NULL);
     CHECK(m1 != NULL);
     if (m1) { CHECK(astGetI(m1, "Nin") == 2); m1 = astAnnul(m1); }
-    AstMapping *m2 = oracle_load_mapping(root, "cobe.head");
+    AstFrame *base = NULL, *cur = NULL;
+    AstMapping *m2 = oracle_load_mapping(root, "cobe.head", &base, &cur);
     CHECK(m2 != NULL);
+    /* cobe.head is a sky FrameSet: base GRID, current SkyFrame. */
+    CHECK(base != NULL && cur != NULL);
+    if (cur) CHECK(astIsASkyFrame(cur));
     if (m2) { CHECK(astGetI(m2, "Nin") == 2); m2 = astAnnul(m2); }
+    if (base) base = astAnnul(base);
+    if (cur) cur = astAnnul(cur);
 }
 
 int main(void) {

@@ -393,11 +393,19 @@ fixtures that extrapolate out of range).
   transforms, so not subject to cross-architecture drift).
 - Round-trip accuracy: absolute `0.05` px (`rtol = 1e-6`).
 
-**Angular periodicity.**  Golden and equivalence comparisons are
-*wrap-aware*: two values that differ by 2*pi (one full turn) are treated as
-equal, because a longitude in radians can emerge as 0 vs 2*pi or +pi vs -pi
-across architectures or normalization conventions.  Round-trip comparison is
-*not* wrap-aware -- it compares pixel coordinates, which are not periodic.
+**Angular periodicity.**  Golden and equivalence comparisons are wrap-aware
+*only on angular axes*: a value differing by 2*pi (one full turn) is treated
+as equal, because a longitude in radians can emerge as 0 vs 2*pi or +pi vs -pi
+across architectures.  Which output axes are angular is determined from the
+fixture's output Frame (current frame for a forward section, base frame for an
+inverse section): an axis is cyclic iff shifting it by 2*pi and normalizing
+with `astNorm` returns the original value -- true for a SkyFrame longitude,
+false for pixel (GRID), spectral, and other linear axes.  This is what lets the
+inverse `.head`/`.ast` sections, whose outputs are pixels, catch a genuine
+2*pi drift instead of silently accepting it.  A bare Mapping (`.map`/`.simp`)
+has no Frame; those are coordinate-to-coordinate mappings with no pixel axes to
+protect, so every axis is treated as angular.  Round-trip comparison is never
+wrap-aware -- it compares pixel coordinates, which are not periodic.
 
 These pass the full corpus on arm64 (conda RelWithDebInfo and homebrew Debug +
 ASan/UBSan) and on x86-64 (GitHub Actions).  The cross-architecture CI run is

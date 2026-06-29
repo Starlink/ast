@@ -105,7 +105,9 @@ ast_add_test(testconvert)
 # --- Transform output oracle ---
 ast_add_test(test_oracle_util SOURCES test_oracle_util.c transform_oracle_util.c)
 set_target_properties(test_oracle_util PROPERTIES C_STANDARD 11)
-set_tests_properties(test_oracle_util PROPERTIES
+# Append so we keep the ASAN_OPTIONS=detect_leaks=0 that ast_add_test sets
+# under sanitizer builds, rather than replacing it.
+set_property(TEST test_oracle_util APPEND PROPERTY
     ENVIRONMENT "ORACLE_TEST_ROOT=${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(gen_transform_oracle gen_transform_oracle.c transform_oracle_util.c)
