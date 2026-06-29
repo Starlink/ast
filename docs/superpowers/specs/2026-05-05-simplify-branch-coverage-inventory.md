@@ -68,6 +68,10 @@ parallel CmpMap by restructuring permutation arrays.
 | cmpmap-17 | cmpmap_perm_parallel_swap.map | focused | positive | cmpmap.c:1918-2066 | PermMap and parallel CmpMap swapped (no constants), producing reordered CmpMap + new PermMap | PermMap swapping two contiguous blocks feeding a parallel CmpMap |
 | cmpmap-18 | cmpmap_perm_swap_aconstants.map | focused | positive | cmpmap.c:1955-1957 | PermMap swap with aconstants: first component gets all-constant outputs | PermMap with first block all constants before parallel CmpMap |
 | cmpmap-19 | cmpmap_perm_swap_bconstants.map | focused | positive | cmpmap.c:1958-1960 | PermMap swap with bconstants: second component gets all-constant outputs | PermMap with second block all constants before parallel CmpMap |
+| cmpmap-20 | reconstruct_right_assoc.map | cascade | positive | cmpmap.c:1205-2125 | Right-nested CmpMap chain reassociated so neighbouring components can merge | Right-associative CmpMap chain of WcsMap/ZoomMap/UnitMap/WcsMap |
+| cmpmap-21 | series_parallel_absorb.map | cascade | positive | cmpmap.c:1205-2125 | UnitMap absorbed from nested series/parallel CmpMap, collapsing to WcsMap+ShiftMap | Nested CmpMap containing WcsMap, UnitMap and ShiftMap |
+| cmpmap-22 | spec_cel_invert.map | scenario | positive | cmpmap.c:1205-2125 | Large celestial FITS-WCS pipeline collapses via repeated merge to CmpMap(WinMap, WcsMap) | Multi-class FITS-WCS conversion pipeline (>3 components) |
+| cmpmap-23 | wcsconv_gappt_iwc_residue.map | scenario | positive | cmpmap.c:1205-2125 | GAPPT/IWC conversion residue: large pipeline reassociated and partly merged | Multi-class FITS-WCS conversion pipeline (>3 components) |
 
 ## unitmap.c
 
@@ -440,6 +444,7 @@ argument count (0,1,2,3,5-arg), eliminate no-op steps.
 | timemap-14 | — | focused | negative | timemap.c:2289-2298 | 2-arg swapped pair with mismatched arguments | MJDTOJD + JDTOMJD with different offsets |
 | timemap-15 | neg_time_3arg_mismatch.map | focused | negative | timemap.c:2311-2321 | 3-arg pair with mismatched arguments | GMSTTOLMST + LMSTTOGMST with different lon |
 | timemap-16 | neg_time_5arg_mismatch.map | focused | negative | timemap.c:2324-2336 | 5-arg pair with mismatched arguments | TTTOTDB + TDBTOTT with one arg different |
+| timemap-17 | time_run_identity.map | cascade | positive | timemap.c:2380-2397 | Run of three TimeMaps whose combined steps cancel to a UnitMap | Three adjacent TimeMaps forming an identity conversion |
 
 ## slamap.c
 
@@ -474,6 +479,8 @@ precession.
 | slamap-23 | sla_prec_redundant.map | focused | positive | slamap.c:2908-2911 | Redundant precession: PREC/PREBN with start==end eliminated | PREC(2000,2000) |
 | slamap-24 | sla_prec_merge.map | focused | positive | slamap.c:2929-2936 | Adjacent precession merge: PREC(a,b)+PREC(b,c) → PREC(a,c) | Adjacent PREC steps with common equinox |
 | slamap-25 | neg_sla_prec_no_common.map | focused | negative | slamap.c:2929-2931 | Adjacent precession: non-common equinox prevents merge | PREC(1950,1975) + PREC(2000,2025) |
+| slamap-26 | sla_run_identity.map | cascade | positive | slamap.c:3120-3137 | Run of three SlaMaps whose combined steps cancel to a UnitMap | Three adjacent SlaMaps forming an identity conversion |
+| slamap-27 | sla_run_partial.map | cascade | positive | slamap.c:3141-3147 | Run of three SlaMaps partially cancels to a single SlaMap | Three adjacent SlaMaps, a subset of steps cancel |
 
 ## specmap.c
 
@@ -498,6 +505,8 @@ argument count (0,1,2,3,6-arg).
 | specmap-14 | neg_spec_2arg_mismatch.map | focused | negative | specmap.c:2472-2481 | 2-arg pair: mismatched arguments | Steps with different RA/dec |
 | specmap-15 | neg_spec_3arg_mismatch.map | focused | negative | specmap.c:2484-2494 | 3-arg pair: mismatched arguments | Steps with different epoch |
 | specmap-16 | neg_spec_6arg_mismatch.map | focused | negative | specmap.c:2498-2512 | 6-arg pair: mismatched arguments | Steps with one arg different |
+| specmap-17 | spec_run4_identity.map | scenario | positive | specmap.c:2557-2574 | Run of four SpecMaps whose combined steps cancel to a UnitMap | Four adjacent SpecMaps forming an identity conversion |
+| specmap-18 | spec_run_inverted_mid.map | cascade | positive | specmap.c:2557-2574 | Run of three SpecMaps with an inverted middle step partially cancels to one SpecMap | Three adjacent SpecMaps, middle one inverted |
 
 ## wcsmap.c
 
@@ -578,12 +587,12 @@ parameters (CNPIX, XPIXELSZ, YPIXELSZ) within its FitsChan. Has many guards
 |---|---|---|---|---|---|---|
 | dssmap-01 | — | focused | negative | dssmap.c:1007 | Parallel mode: refused | DssMap in parallel |
 | dssmap-02 | — | focused | negative | dssmap.c:1015 | No adjacent mapping at expected index | DssMap alone or at boundary |
-| dssmap-03 | — | focused | negative | dssmap.c:1016 | Adjacent mapping is not a WinMap | DssMap + ZoomMap in series |
+| dssmap-03 | dssmap_zoom_no_merge.map | focused | negative | dssmap.c:1016 | Adjacent mapping is not a WinMap | DssMap + ZoomMap in series |
 | dssmap-04 | — | focused | negative | dssmap.c:1027-1029 | WinMap scale/shift unusable (AST__BAD or zero scale) | WinMap with zero scale preceding DssMap |
 | dssmap-05 | — | focused | negative | dssmap.c:1058-1059 | Computed CNPIX values non-integer beyond tolerance | WinMap producing fractional CNPIX |
 | dssmap-06 | — | focused | negative | dssmap.c:1068-1096 | Required FITS keywords missing from DssMap FitsChan | DssMap with incomplete FitsChan |
-| dssmap-07 | — | focused | positive | dssmap.c:1042-1046,1100-1123 | Non-inverted DssMap absorbs preceding WinMap | WinMap + DssMap(Invert=0) with valid integer CNPIX |
-| dssmap-08 | — | focused | positive | dssmap.c:1048-1053,1100-1123 | Inverted DssMap absorbs following WinMap | DssMap(Invert=1) + WinMap with valid integer CNPIX |
+| dssmap-07 | dssmap_winmap_absorb.map | focused | positive | dssmap.c:1042-1046,1100-1123 | Non-inverted DssMap absorbs preceding WinMap | WinMap + DssMap(Invert=0) with valid integer CNPIX |
+| dssmap-08 | dssmap_inv_winmap_absorb.map | focused | positive | dssmap.c:1048-1053,1100-1123 | Inverted DssMap absorbs following WinMap | DssMap(Invert=1) + WinMap with valid integer CNPIX |
 
 ## grismmap.c
 
@@ -635,6 +644,7 @@ Region via class-specific MergeXxx helper.
 | box-03 | box_parallel_merge.map | cascade | positive | box.c:1603-1609,1624-1648 | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
 | box-04 | box_parallel_merge.map | cascade | positive | box.c:1614-1621,1624-1648 | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
 | box-05 | — | focused | negative | box.c:1599-1621 | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with incompatible Region |
+| box-06 | neg_box_asymmetric_2d.map | focused | negative | box.c:1583-1652 | Standalone 2-D Box with asymmetric axis intervals does not self-simplify | Lone Box, differing intervals per axis, no neighbour |
 
 ### interval.c
 

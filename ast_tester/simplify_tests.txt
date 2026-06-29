@@ -249,3 +249,18 @@ nullregion_parallel_merge | simplify_fixtures/nullregion_parallel_merge.map | si
 pointlist_self_simplify | simplify_fixtures/pointlist_self_simplify.map | simplify_fixtures/pointlist_self_simplify.simp |
 normmap_frame_simplifies | simplify_fixtures/normmap_frame_simplifies.map | simplify_fixtures/normmap_frame_simplifies.simp |
 selectormap_region_simplify | simplify_fixtures/selectormap_region_simplify.map | simplify_fixtures/selectormap_region_simplify.simp |
+
+# Imported contributed fixtures (2026-06-29).
+dssmap_inv_winmap_absorb  | simplify_fixtures/dssmap_inv_winmap_absorb.map  | simplify_fixtures/dssmap_inv_winmap_absorb.simp  |
+dssmap_winmap_absorb      | simplify_fixtures/dssmap_winmap_absorb.map      | simplify_fixtures/dssmap_winmap_absorb.simp      |
+dssmap_zoom_no_merge      | simplify_fixtures/dssmap_zoom_no_merge.map      | simplify_fixtures/dssmap_zoom_no_merge.simp      |
+neg_box_asymmetric_2d     | simplify_fixtures/neg_box_asymmetric_2d.map     | simplify_fixtures/neg_box_asymmetric_2d.map      | yes
+reconstruct_right_assoc   | simplify_fixtures/reconstruct_right_assoc.map   | simplify_fixtures/reconstruct_right_assoc.simp   |
+series_parallel_absorb    | simplify_fixtures/series_parallel_absorb.map    | simplify_fixtures/series_parallel_absorb.simp    |
+sla_run_identity          | simplify_fixtures/sla_run_identity.map          | simplify_fixtures/sla_run_identity.simp          |
+sla_run_partial           | simplify_fixtures/sla_run_partial.map           | simplify_fixtures/sla_run_partial.simp           |
+spec_cel_invert           | simplify_fixtures/spec_cel_invert.map           | simplify_fixtures/spec_cel_invert.simp           |
+spec_run_inverted_mid     | simplify_fixtures/spec_run_inverted_mid.map     | simplify_fixtures/spec_run_inverted_mid.simp     |
+spec_run4_identity        | simplify_fixtures/spec_run4_identity.map        | simplify_fixtures/spec_run4_identity.simp        |
+time_run_identity         | simplify_fixtures/time_run_identity.map         | simplify_fixtures/time_run_identity.simp         |
+wcsconv_gappt_iwc_residue | simplify_fixtures/wcsconv_gappt_iwc_residue.map | simplify_fixtures/wcsconv_gappt_iwc_residue.simp |

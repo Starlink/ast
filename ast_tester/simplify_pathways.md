@@ -112,6 +112,10 @@ permutation arrays.
 | cmpmap-17 | cmpmap_perm_parallel_swap.map | focused | `+` | PermMap and parallel CmpMap swapped (no constants), producing reordered CmpMap + new PermMap | PermMap swapping two contiguous blocks feeding a parallel CmpMap |
 | cmpmap-18 | cmpmap_perm_swap_aconstants.map | focused | `+` | PermMap swap with aconstants: first component gets all-constant outputs | PermMap with first block all constants before parallel CmpMap |
 | cmpmap-19 | cmpmap_perm_swap_bconstants.map | focused | `+` | PermMap swap with bconstants: second component gets all-constant outputs | PermMap with second block all constants before parallel CmpMap |
+| cmpmap-20 | reconstruct_right_assoc.map | cascade | `+` | Right-nested CmpMap chain reassociated so neighbouring components can merge | Right-associative CmpMap chain of WcsMap/ZoomMap/UnitMap/WcsMap |
+| cmpmap-21 | series_parallel_absorb.map | cascade | `+` | UnitMap absorbed from nested series/parallel CmpMap, collapsing to WcsMap+ShiftMap | Nested CmpMap containing WcsMap, UnitMap and ShiftMap |
+| cmpmap-22 | spec_cel_invert.map | scenario | `+` | Large celestial FITS-WCS pipeline collapses via repeated merge to CmpMap(WinMap, WcsMap) | Multi-class FITS-WCS conversion pipeline (>3 components) |
+| cmpmap-23 | wcsconv_gappt_iwc_residue.map | scenario | `+` | GAPPT/IWC conversion residue: large pipeline reassociated and partly merged | Multi-class FITS-WCS conversion pipeline (>3 components) |
 
 ### Negative branches
 
@@ -648,6 +652,7 @@ argument count (0,1,2,3,5-arg), eliminate no-op steps.
 | timemap-10 | time_2arg_same_cancel.map | focused | `+` | 2-arg pair cancellation (same order: TAITOUTC+UTCTOTAI) | Adjacent 2-arg steps with same-order args |
 | timemap-11 | time_3arg_cancel.map | focused | `+` | 3-arg pair cancellation (GMSTTOLMST+LMSTTOGMST) | Adjacent 3-arg steps with matching args |
 | timemap-12 | time_5arg_cancel.map | focused | `+` | 5-arg pair cancellation (TTTOTDB+TDBTOTT) | Adjacent 5-arg steps with matching args |
+| timemap-17 | time_run_identity.map | cascade | `+` | Run of three TimeMaps whose combined steps cancel to a UnitMap | Three adjacent TimeMaps forming an identity conversion |
 
 ### Negative branches
 
@@ -691,6 +696,8 @@ precession.
 | slamap-19 | sla_hpr_cancel.map | focused | `+` | 4-arg pair: helioprojective-Radial (HPREQ+EQHPR) | Adjacent HPR steps |
 | slamap-23 | sla_prec_redundant.map | focused | `+` | Redundant precession: PREC/PREBN with start==end eliminated | PREC(2000,2000) |
 | slamap-24 | sla_prec_merge.map | focused | `+` | Adjacent precession merge: PREC(a,b)+PREC(b,c) to PREC(a,c) | Adjacent PREC steps with common equinox |
+| slamap-26 | sla_run_identity.map | cascade | `+` | Run of three SlaMaps whose combined steps cancel to a UnitMap | Three adjacent SlaMaps forming an identity conversion |
+| slamap-27 | sla_run_partial.map | cascade | `+` | Run of three SlaMaps partially cancels to a single SlaMap | Three adjacent SlaMaps, a subset of steps cancel |
 
 ### Negative branches
 
@@ -723,6 +730,8 @@ argument count (0,1,2,3,6-arg).
 | specmap-10 | spec_lsr_cancel.map | focused | `+` | 2-arg pair: local-standard (LKF2HL+HLF2LK) | Adjacent 2-arg steps, matching args |
 | specmap-11 | spec_geocentric_cancel.map | focused | `+` | 3-arg pair: geocentric/barycentric (GEF2HL+HLF2GE) | Adjacent 3-arg steps |
 | specmap-12 | spec_topocentric_cancel.map | focused | `+` | 6-arg pair: topocentric (TPF2HL+HLF2TP) | Adjacent 6-arg steps |
+| specmap-17 | spec_run4_identity.map | scenario | `+` | Run of four SpecMaps whose combined steps cancel to a UnitMap | Four adjacent SpecMaps forming an identity conversion |
+| specmap-18 | spec_run_inverted_mid.map | cascade | `+` | Run of three SpecMaps with an inverted middle step partially cancels to one SpecMap | Three adjacent SpecMaps, middle one inverted |
 
 ### Negative branches
 
@@ -844,8 +853,8 @@ parameters (CNPIX, XPIXELSZ, YPIXELSZ) within its FitsChan. Has many guards
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| dssmap-07 | -- | focused | `- (infeasible: protected constructor)` | Non-inverted DssMap absorbs preceding WinMap | WinMap + DssMap(Invert=0) with valid integer CNPIX |
-| dssmap-08 | -- | focused | `- (infeasible: protected constructor)` | Inverted DssMap absorbs following WinMap | DssMap(Invert=1) + WinMap with valid integer CNPIX |
+| dssmap-07 | dssmap_winmap_absorb.map | focused | `+` | Non-inverted DssMap absorbs preceding WinMap | WinMap + DssMap(Invert=0) with valid integer CNPIX |
+| dssmap-08 | dssmap_inv_winmap_absorb.map | focused | `+` | Inverted DssMap absorbs following WinMap | DssMap(Invert=1) + WinMap with valid integer CNPIX |
 
 ### Negative branches
 
@@ -853,7 +862,7 @@ parameters (CNPIX, XPIXELSZ, YPIXELSZ) within its FitsChan. Has many guards
 |---|---|---|---|---|---|
 | dssmap-01 | -- | focused | `- (infeasible: protected constructor)` | Parallel mode: refused | DssMap in parallel |
 | dssmap-02 | -- | focused | `- (infeasible: protected constructor)` | No adjacent mapping at expected index | DssMap alone or at boundary |
-| dssmap-03 | -- | focused | `- (infeasible: protected constructor)` | Adjacent mapping is not a WinMap | DssMap + ZoomMap in series |
+| dssmap-03 | dssmap_zoom_no_merge.map | focused | `-` | Adjacent mapping is not a WinMap | DssMap + ZoomMap in series |
 | dssmap-04 | -- | focused | `- (infeasible: protected constructor)` | WinMap scale/shift unusable (AST__BAD or zero scale) | WinMap with zero scale preceding DssMap |
 | dssmap-05 | -- | focused | `- (infeasible: protected constructor)` | Computed CNPIX values non-integer beyond tolerance | WinMap producing fractional CNPIX |
 | dssmap-06 | -- | focused | `- (infeasible: protected constructor)` | Required FITS keywords missing from DssMap FitsChan | DssMap with incomplete FitsChan |
@@ -933,6 +942,7 @@ Region via class-specific MergeXxx helper.
 |---|---|---|---|---|---|
 | box-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification and series mode | Already-simple Box in series |
 | box-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with incompatible Region |
+| box-06 | neg_box_asymmetric_2d.map | focused | `-` | Standalone 2-D Box with asymmetric axis intervals does not self-simplify | Lone Box, differing intervals per axis, no neighbour |
 
 ### interval.c
 
@@ -1014,6 +1024,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | box-03 | Parallel merge with lower Region via MergeBox |
 | box-04 | Parallel merge with upper Region via MergeBox |
 | box-05 | Parallel but no compatible Region neighbour |
+| box-06 | Standalone asymmetric 2-D Box does not self-simplify |
 | cmpmap-01 | CmpMap self-simplifies via astSimplify |
 | cmpmap-02 | CmpMap does not self-simplify |
 | cmpmap-03 | CmpMap decomposed when mode matches list mode |
@@ -1033,6 +1044,10 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | cmpmap-17 | PermMap and parallel CmpMap swapped (no constants) |
 | cmpmap-18 | PermMap swap with aconstants |
 | cmpmap-19 | PermMap swap with bconstants |
+| cmpmap-20 | Right-associative CmpMap chain reassociated |
+| cmpmap-21 | UnitMap absorbed from nested CmpMap |
+| cmpmap-22 | Large celestial FITS-WCS pipeline collapses |
+| cmpmap-23 | GAPPT/IWC conversion residue reassociated |
 | dssmap-01 | Parallel mode refused |
 | dssmap-02 | No adjacent mapping at expected index |
 | dssmap-03 | Adjacent mapping not a WinMap |
@@ -1206,6 +1221,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | slamap-23 | Redundant precession eliminated |
 | slamap-24 | Adjacent precession merged |
 | slamap-25 | Precession: non-common equinox |
+| slamap-26 | Run of three SlaMaps cancels to UnitMap |
+| slamap-27 | Run of three SlaMaps partially cancels |
 | specmap-01 | Full cancellation to UnitMap |
 | specmap-02 | Partial cancellation |
 | specmap-03 | Adjacent SpecMaps merged without reduction |
@@ -1222,6 +1239,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | specmap-14 | 2-arg: mismatched arguments |
 | specmap-15 | 3-arg: mismatched arguments |
 | specmap-16 | 6-arg: mismatched arguments |
+| specmap-17 | Run of four SpecMaps cancels to UnitMap |
+| specmap-18 | Run of three SpecMaps partially cancels |
 | sphmap-01 | Inverse+Forward with matching PolarLong cancels |
 | sphmap-02 | Forward(UnitRadius)+Inverse cancels |
 | sphmap-03 | PolarLong values differ |
@@ -1269,6 +1288,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | timemap-14 | 2-arg swapped: mismatched arguments |
 | timemap-15 | 3-arg: mismatched arguments |
 | timemap-16 | 5-arg: mismatched arguments |
+| timemap-17 | Run of three TimeMaps cancels to UnitMap |
 | tranmap-01 | Inverted TranMap normalized |
 | tranmap-02 | Components individually simplified |
 | tranmap-03 | Equal components to single Mapping |
