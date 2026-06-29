@@ -28,18 +28,27 @@ INSCOPE = {
 
 
 def load_coverage_obj(obj):
-    """Turn a parsed gcovr JSON object into a CovData dict."""
+    """Turn a parsed gcovr JSON object into a CovData dict.
+
+    ``linefunc`` records gcovr's authoritative per-line ``function_name``
+    when present; ``functions`` is the per-file function table used as a
+    fallback to attribute a line to its enclosing function.
+    """
     branches = {}
     functions = {}
+    linefunc = {}
     for f in obj.get("files", []):
         path = f["file"]
         functions[path] = sorted(
             (fn["lineno"], fn["name"]) for fn in f.get("functions", []))
         for ln in f.get("lines", []):
             line = ln["line_number"]
+            fname = ln.get("function_name")
+            if fname:
+                linefunc[(path, line)] = fname
             for idx, br in enumerate(ln.get("branches", [])):
                 branches[(path, line, idx)] = br.get("count", 0)
-    return {"branches": branches, "functions": functions}
+    return {"branches": branches, "functions": functions, "linefunc": linefunc}
 
 
 def load_coverage(path):
@@ -58,11 +67,12 @@ def function_for(file, line, functions):
 
 def classify_gaps(simp, full, allowlist=ALLOWLIST, inscope=INSCOPE):
     gaps = []
+    linefunc = full.get("linefunc", {})
     for key, full_count in full["branches"].items():
         file, line, idx = key
         if os.path.basename(file) not in inscope:
             continue
-        fn = function_for(file, line, full["functions"])
+        fn = linefunc.get((file, line)) or function_for(file, line, full["functions"])
         if fn not in allowlist:
             continue
         simp_count = simp["branches"].get(key, 0)
