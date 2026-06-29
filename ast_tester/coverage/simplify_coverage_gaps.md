@@ -193,9 +193,9 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/matrixmap.c:2181` | 2 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2191` | 0 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2191` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
-| `src/matrixmap.c:2242` | 0 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2251` | 1 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2251` | 2 | MapMerge | absolute-only | open |
+| `src/matrixmap.c:2242` | 0 | MapMerge | absolute-only | wontfix:speculative-swap success pre-empted by direct merge path; no astSimplify input reproduces it |
+| `src/matrixmap.c:2251` | 1 | MapMerge | absolute-only | wontfix:speculative-swap success pre-empted by direct merge path; no astSimplify input reproduces it |
+| `src/matrixmap.c:2251` | 2 | MapMerge | absolute-only | wontfix:speculative-swap success pre-empted by direct merge path; no astSimplify input reproduces it |
 | `src/matrixmap.c:3345` | 0 | MatWin2 | absolute-only | open |
 | `src/matrixmap.c:3375` | 0 | MatWin2 | absolute-only | open |
 | `src/matrixmap.c:3420` | 0 | MatWin2 | absolute-only | open |
