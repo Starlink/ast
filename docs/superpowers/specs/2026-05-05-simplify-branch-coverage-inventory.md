@@ -232,7 +232,7 @@ WinMap; (2) inverse pair cancellation to UnitMap.
 | lutmap-03 | lut_inverse_cancel.map | focused | positive | lutmap.c:1178-1183,1209-1230 | LutMap cancels with equal upper-neighbour in opposite direction → UnitMap | CmpMap(LutMap, Inverse(LutMap)), Series=1 |
 | lutmap-04 | lut_inverse_cancel.map | focused | positive | lutmap.c:1186-1190,1209-1230 | LutMap cancels with equal lower-neighbour in opposite direction → UnitMap | CmpMap(Inverse(LutMap), LutMap), Series=1 |
 | lutmap-05 | neg_lut_nonlinear.map | focused | negative | lutmap.c:1139 | LutMap is not linear: WinMap replacement refused | LutMap with non-linear table |
-| lutmap-06 | — | focused | negative | lutmap.c:1150 | LutMap is linear but constant (b1==b2): WinMap impossible | LutMap([5,5,5,...]) |
+| lutmap-06 | neg_lut_constant.map | focused | negative | lutmap.c:1150 | LutMap is linear but constant (b1==b2): WinMap impossible | LutMap([5,5,5,...]) |
 | lutmap-07 | neg_lut_parallel.map | focused | negative | lutmap.c:1174 | Not in series: cancellation skipped | Two LutMaps in parallel |
 | lutmap-08 | neg_lut_nonlut_neighbour.map | focused | negative | lutmap.c:1178-1193 | Neither neighbour is a LutMap | CmpMap(LutMap, ZoomMap), Series=1 |
 | lutmap-09 | neg_lut_different_tables.map | focused | negative | lutmap.c:1209 | Neighbouring LutMap not inverse-equal (different tables) | Two different LutMaps in opposite directions |

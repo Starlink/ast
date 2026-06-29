@@ -352,7 +352,7 @@ WinMap; (2) inverse pair cancellation to UnitMap.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | lutmap-05 | neg_lut_nonlinear.map | focused | `+` | LutMap is not linear: WinMap replacement refused | LutMap with non-linear table |
-| lutmap-06 | -- | focused | `- (no fixture)` | LutMap is linear but constant (b1==b2): WinMap impossible | LutMap([5,5,5,...]) |
+| lutmap-06 | neg_lut_constant.map | focused | `-` | LutMap is linear but constant (b1==b2): WinMap impossible | LutMap([5,5,5,...]) |
 | lutmap-07 | neg_lut_parallel.map | focused | `+` | Not in series: cancellation skipped | Two LutMaps in parallel |
 | lutmap-08 | neg_lut_nonlut_neighbour.map | focused | `+` | Neither neighbour is a LutMap | CmpMap(LutMap, ZoomMap), Series=1 |
 | lutmap-09 | neg_lut_different_tables.map | focused | `+` | Neighbouring LutMap not inverse-equal (different tables) | Two different LutMaps in opposite directions |
