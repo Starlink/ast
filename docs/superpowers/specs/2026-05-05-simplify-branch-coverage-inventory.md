@@ -663,11 +663,11 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
-| nullregion-01 | — | focused | positive | nullregion.c:496-506 | Self-simplification succeeds | NullRegion with non-trivial FrameSet |
-| nullregion-02 | — | focused | negative | nullregion.c:512,563-565 | No self-simplification, series mode | Simple NullRegion in series |
-| nullregion-03 | — | cascade | positive | nullregion.c:516-523,537-560 | Parallel merge with lower Region | NullRegion + compatible Region (lower) |
-| nullregion-04 | — | cascade | positive | nullregion.c:527-533,537-560 | Parallel merge with upper Region | NullRegion + compatible Region (upper) |
-| nullregion-05 | — | focused | negative | nullregion.c:512-534 | Parallel but no compatible Region | NullRegion + non-Region in parallel |
+| nullregion-01 | unreachable | focused | positive | nullregion.c:496-506 | Self-simplification succeeds | NullRegion with non-trivial FrameSet — unreachable: a NullRegion's `astSimplify` returns the same pointer (no base/current remapping to collapse), so the self-simplify branch never fires from MapMerge; absolute-only, uncovered by the full suite too |
+| nullregion-02 | neg_nullregion_series.map | focused | negative | nullregion.c:512,563-565 | No self-simplification, series mode | Simple NullRegion in series |
+| nullregion-03 | unreachable | cascade | positive | nullregion.c:516-523,537-560 | Parallel merge with lower Region | NullRegion + compatible Region (lower) — unreachable: MergeNullRegion is symmetric, so for any mergeable pair the upper-merge of the preceding element fires first and consumes this one; the lower branch is dead (absolute-only, uncovered by the full suite too) |
+| nullregion-04 | nullregion_parallel_merge_pair.map | cascade | positive | nullregion.c:527-533,537-560 | Parallel merge with upper Region | Two compatible NullRegions in parallel (same Closed/Negated, no uncertainty) — collapse to one combined NullRegion on a CmpFrame |
+| nullregion-05 | neg_nullregion_parallel_nonregion.map | focused | negative | nullregion.c:512-534 | Parallel but no compatible Region | NullRegion + non-Region in parallel |
 
 ### pointlist.c
 

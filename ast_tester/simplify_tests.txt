@@ -360,3 +360,6 @@ xph_inverse_cancel       | simplify_fixtures/xph_inverse_cancel.map | simplify_f
 neg_xph_parallel             | simplify_fixtures/neg_xph_parallel.map | simplify_fixtures/neg_xph_parallel.map | yes
 neg_xph_nonxph_neighbour     | simplify_fixtures/neg_xph_nonxph_neighbour.map | simplify_fixtures/neg_xph_nonxph_neighbour.map | yes
 neg_xph_not_opposite         | simplify_fixtures/neg_xph_not_opposite.map | simplify_fixtures/neg_xph_not_opposite.map | yes
+nullregion_parallel_merge_pair | simplify_fixtures/nullregion_parallel_merge_pair.map | simplify_fixtures/nullregion_parallel_merge_pair.simp |
+neg_nullregion_series        | simplify_fixtures/neg_nullregion_series.map | simplify_fixtures/neg_nullregion_series.map | yes
+neg_nullregion_parallel_nonregion | simplify_fixtures/neg_nullregion_parallel_nonregion.map | simplify_fixtures/neg_nullregion_parallel_nonregion.map | yes

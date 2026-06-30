@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 828
+**Open absolute-only gaps:** 823
 
 ## Open gaps
 
@@ -190,16 +190,11 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/normmap.c:687` | 0 | MapMerge | absolute-only | open |
 | `src/normmap.c:707` | 1 | MapMerge | absolute-only | open |
 | `src/nullregion.c:496` | 0 | MapMerge | absolute-only | open |
-| `src/nullregion.c:512` | 0 | MapMerge | absolute-only | open |
 | `src/nullregion.c:516` | 1 | MapMerge | absolute-only | open |
 | `src/nullregion.c:519` | 0 | MapMerge | absolute-only | open |
 | `src/nullregion.c:519` | 1 | MapMerge | absolute-only | open |
 | `src/nullregion.c:527` | 1 | MapMerge | absolute-only | open |
-| `src/nullregion.c:527` | 2 | MapMerge | absolute-only | open |
-| `src/nullregion.c:530` | 0 | MapMerge | absolute-only | open |
-| `src/nullregion.c:537` | 1 | MapMerge | absolute-only | open |
 | `src/nullregion.c:548` | 0 | MapMerge | absolute-only | open |
-| `src/nullregion.c:548` | 1 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1410` | 0 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1410` | 2 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1410` | 3 | MapMerge | absolute-only | open |

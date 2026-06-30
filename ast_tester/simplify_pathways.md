@@ -970,16 +970,16 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| nullregion-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | NullRegion with non-trivial FrameSet |
-| nullregion-03 | -- | cascade | `- (no structural change)` | Parallel merge with lower Region | NullRegion + compatible Region (lower) |
-| nullregion-04 | -- | cascade | `- (no structural change)` | Parallel merge with upper Region | NullRegion + compatible Region (upper) |
+| nullregion-01 | -- | focused | `- (unreachable: astSimplify returns same pointer)` | Self-simplification succeeds | NullRegion with non-trivial FrameSet |
+| nullregion-03 | -- | cascade | `- (unreachable: symmetric upper-merge preempts)` | Parallel merge with lower Region | NullRegion + compatible Region (lower) |
+| nullregion-04 | nullregion_parallel_merge_pair.map | cascade | covered | Parallel merge with upper Region | Two compatible NullRegions in parallel collapse to one |
 
 #### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| nullregion-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification, series mode | Simple NullRegion in series |
-| nullregion-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no compatible Region | NullRegion + non-Region in parallel |
+| nullregion-02 | neg_nullregion_series.map | focused | covered | No self-simplification, series mode | Simple NullRegion in series |
+| nullregion-05 | neg_nullregion_parallel_nonregion.map | focused | covered | Parallel but no compatible Region | NullRegion + non-Region in parallel |
 
 ### pointlist.c
 
