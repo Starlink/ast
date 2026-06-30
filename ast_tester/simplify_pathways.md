@@ -627,7 +627,7 @@ Mapping); (4) adjacent TranMap series merge.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | tranmap-05 | neg_tranmap_parallel.map | focused | `+` | Parallel mode: adjacent merge skipped | TranMaps in parallel |
-| tranmap-06 | -- | focused | `- (no fixture)` | Equal-component check skipped: components lack bidirectional transforms | TranMap(OneWayFwd, OneWayInv) |
+| tranmap-06 | neg_tranmap_oneway.map | focused | `-` | Equal-component check skipped: components lack bidirectional transforms | TranMap(OneWayFwd, OneWayInv) |
 | tranmap-07 | neg_tranmap_unequal_components.map | focused | `+` | CmpMap(fwd,inv(inv)) doesn't simplify to UnitMap: components not equal | TranMap(ShiftMap(1), ShiftMap(2)) |
 | tranmap-08 | neg_tranmap_nontranmap_neighbour.map | focused | `+` | Higher neighbour is not a TranMap | CmpMap(TranMap, ZoomMap), Series=1 |
 | tranmap-09 | neg_tranmap_adjacent_no_merge.map | focused | `-` | Neither fwd nor inv series combination simplified | CmpMap(TranMap(A,B), TranMap(C,D)) with irreducible legs |

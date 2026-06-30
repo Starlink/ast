@@ -1,0 +1,20 @@
+ Begin TranMap 	# Compound Transformation Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# Mapping for forward transformation
+       Begin MathMap 	# Transformation using mathematical functions
+          Nin = 1 	# Number of input coordinates
+          Inv = 0 	# Inverse transformation not defined
+       IsA Mapping 	# Mapping between coordinate systems
+          Fwd1 = "y=x+1" 	# Forward function 1
+          Inv1 = "x" 	# Inverse function 1
+       End MathMap
+    MapB = 	# Mapping for inverse transformation
+       Begin MathMap 	# Transformation using mathematical functions
+          Nin = 1 	# Number of input coordinates
+          Fwd = 0 	# Forward transformation not defined
+       IsA Mapping 	# Mapping between coordinate systems
+          Fwd1 = "y" 	# Forward function 1
+          Inv1 = "x=y-1" 	# Inverse function 1
+       End MathMap
+ End TranMap

@@ -417,7 +417,7 @@ TranMap's MapMerge: (1) invert normalization (swap+invert components);
 | tranmap-03 | tranmap_equal_components.map | focused | positive | tranmap.c:865-886 | Both components bidirectional and equal → single component Mapping | TranMap(ZoomMap[2], ZoomMap[2]) |
 | tranmap-04 | tranmap_adjacent_merge.map | cascade | positive | tranmap.c:902-1001 | Two adjacent TranMaps in series merge by combining fwd/inv legs | CmpMap(TranMap(A,B), TranMap(C,D)), Series=1 |
 | tranmap-05 | neg_tranmap_parallel.map | focused | negative | tranmap.c:902 | Parallel mode: adjacent merge skipped | TranMaps in parallel |
-| tranmap-06 | — | focused | negative | tranmap.c:865-866 | Equal-component check skipped: components lack bidirectional transforms | TranMap(OneWayFwd, OneWayInv) |
+| tranmap-06 | neg_tranmap_oneway.map | focused | negative | tranmap.c:865-866 | Equal-component check skipped: components lack bidirectional transforms | TranMap(OneWayFwd, OneWayInv) |
 | tranmap-07 | neg_tranmap_unequal_components.map | focused | negative | tranmap.c:881 | CmpMap(fwd,inv(inv)) doesn't simplify to UnitMap: components not equal | TranMap(ShiftMap(1), ShiftMap(2)) |
 | tranmap-08 | neg_tranmap_nontranmap_neighbour.map | focused | negative | tranmap.c:905-906 | Higher neighbour is not a TranMap | CmpMap(TranMap, ZoomMap), Series=1 |
 | tranmap-09 | neg_tranmap_adjacent_no_merge.map | focused | negative | tranmap.c:959 | Neither fwd nor inv series combination simplified | CmpMap(TranMap(A,B), TranMap(C,D)) with irreducible legs |
