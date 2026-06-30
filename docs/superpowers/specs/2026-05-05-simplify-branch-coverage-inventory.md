@@ -308,7 +308,7 @@ and opposite direction, with AST__SIMPFI/SIMPIF permission.
 | intramap-04 | neg_intra_nonintra_neighbour.map | focused | negative | intramap.c:1525 | Following Mapping is not IntraMap | CmpMap(IntraMap, ZoomMap), Series=1 |
 | intramap-05 | neg_intra_diff_func.map | focused | negative | intramap.c:1532 | Different transformation functions (ifun differs) | IntraMaps with different registered functions |
 | intramap-06 | neg_intra_diff_flag.map | focused | negative | intramap.c:1533-1534 | IntraFlag strings differ | Same function but different flags |
-| intramap-07 | — | focused | negative | intramap.c:1562 | Dimension mismatch | Asymmetric IntraMaps |
+| intramap-07 | — (unreachable) | focused | negative | intramap.c:1562 | Dimension mismatch (nin1 != nout2). Unreachable: reached only after the same-function/same-IntraFlag guard (1532), so both IntraMaps share one registered function with identical nin/nout. Any such pair that is dimensionally valid in a series CmpMap preserves the through-dimension (nin1 == nout2 for every invert-flag combination), so the mismatch branch cannot fire. Defensive check. | Asymmetric IntraMaps |
 | intramap-08 | neg_intra_same_direction.map | focused | negative | intramap.c:1567-1575 | Same direction (both forward or both inverse) | Two forward IntraMaps in series |
 | intramap-09 | neg_intra_no_simpfi.map | focused | negative | intramap.c:1568 | SIMPFI flag not set on forward-then-inverse pair | IntraMaps without SIMPFI permission |
 | intramap-10 | neg_intra_no_simpif.map | focused | negative | intramap.c:1574 | SIMPIF flag not set on inverse-then-forward pair | IntraMaps without SIMPIF permission |

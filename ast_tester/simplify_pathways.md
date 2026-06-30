@@ -464,7 +464,7 @@ and opposite direction, with AST__SIMPFI/SIMPIF permission.
 | intramap-04 | neg_intra_nonintra_neighbour.map | focused | `- (infeasible: protected constructor)` | Following Mapping is not IntraMap | CmpMap(IntraMap, ZoomMap), Series=1 |
 | intramap-05 | neg_intra_diff_func.map | focused | `- (infeasible: protected constructor)` | Different transformation functions (ifun differs) | IntraMaps with different registered functions |
 | intramap-06 | neg_intra_diff_flag.map | focused | `- (infeasible: protected constructor)` | IntraFlag strings differ | Same function but different flags |
-| intramap-07 | -- | focused | `- (infeasible: protected constructor)` | Dimension mismatch | Asymmetric IntraMaps |
+| intramap-07 | -- | focused | `- (unreachable: same-function pair always preserves dimension)` | Dimension mismatch | Asymmetric IntraMaps |
 | intramap-08 | neg_intra_same_direction.map | focused | `- (infeasible: protected constructor)` | Same direction (both forward or both inverse) | Two forward IntraMaps in series |
 | intramap-09 | neg_intra_no_simpfi.map | focused | `- (infeasible: protected constructor)` | SIMPFI flag not set on forward-then-inverse pair | IntraMaps without SIMPFI permission |
 | intramap-10 | neg_intra_no_simpif.map | focused | `- (infeasible: protected constructor)` | SIMPIF flag not set on inverse-then-forward pair | IntraMaps without SIMPIF permission |
