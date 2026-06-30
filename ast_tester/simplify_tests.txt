@@ -363,3 +363,11 @@ neg_xph_not_opposite         | simplify_fixtures/neg_xph_not_opposite.map | simp
 nullregion_parallel_merge_pair | simplify_fixtures/nullregion_parallel_merge_pair.map | simplify_fixtures/nullregion_parallel_merge_pair.simp |
 neg_nullregion_series        | simplify_fixtures/neg_nullregion_series.map | simplify_fixtures/neg_nullregion_series.map | yes
 neg_nullregion_parallel_nonregion | simplify_fixtures/neg_nullregion_parallel_nonregion.map | simplify_fixtures/neg_nullregion_parallel_nonregion.map | yes
+pointlist_parallel_merge_pair      | simplify_fixtures/pointlist_parallel_merge_pair.map | simplify_fixtures/pointlist_parallel_merge_pair.simp |
+interval_self_simplify_cmp         | simplify_fixtures/interval_self_simplify_cmp.map | simplify_fixtures/interval_self_simplify_cmp.simp |
+neg_pointlist_series               | simplify_fixtures/neg_pointlist_series.map | simplify_fixtures/neg_pointlist_series.map | yes
+neg_pointlist_parallel_nonregion   | simplify_fixtures/neg_pointlist_parallel_nonregion.map | simplify_fixtures/neg_pointlist_parallel_nonregion.map | yes
+neg_box_series                     | simplify_fixtures/neg_box_series.map | simplify_fixtures/neg_box_series.map | yes
+neg_box_parallel_nonregion         | simplify_fixtures/neg_box_parallel_nonregion.map | simplify_fixtures/neg_box_parallel_nonregion.map | yes
+neg_interval_series                | simplify_fixtures/neg_interval_series.map | simplify_fixtures/neg_interval_series.map | yes
+neg_interval_parallel_nonregion    | simplify_fixtures/neg_interval_parallel_nonregion.map | simplify_fixtures/neg_interval_parallel_nonregion.map | yes

@@ -642,22 +642,22 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
-| box-01 | — | focused | positive | box.c:1583-1593 | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
-| box-02 | — | focused | negative | box.c:1599,1650-1652 | No self-simplification and series mode | Already-simple Box in series |
+| box-01 | unreachable | focused | positive | box.c:1583-1593 | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet — unreachable: a simple Box's `astSimplify` returns the same pointer, so the MapMerge self-simplify branch never fires; the different-pointer case needs a remapped base/current FrameSet, which is deferred Region-geometry territory. Absolute-only |
+| box-02 | neg_box_series.map | focused | negative | box.c:1599,1650-1652 | No self-simplification and series mode | Two simple Boxes in series |
 | box-03 | box_parallel_merge.map | cascade | positive | box.c:1603-1609,1624-1648 | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
 | box-04 | box_parallel_merge.map | cascade | positive | box.c:1614-1621,1624-1648 | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
-| box-05 | — | focused | negative | box.c:1599-1621 | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with incompatible Region |
+| box-05 | neg_box_parallel_nonregion.map | focused | negative | box.c:1599-1621 | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with a ZoomMap (non-Region) |
 | box-06 | neg_box_asymmetric_2d.map | focused | negative | box.c:1583-1652 | Standalone 2-D Box with asymmetric axis intervals does not self-simplify | Lone Box, differing intervals per axis, no neighbour |
 
 ### interval.c
 
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
-| interval-01 | — | focused | positive | interval.c:1149-1159 | Self-simplification succeeds | Interval with non-trivial FrameSet |
-| interval-02 | — | focused | negative | interval.c:1165,1216-1218 | No self-simplification, series mode | Simple Interval in series |
+| interval-01 | interval_self_simplify_cmp.map | focused | positive | interval.c:1149-1159 | Self-simplification succeeds | Interval with two finite bounds (simplifies to a Box) in series with a UnitMap; MapMerge calls astSimplify on the Interval and gets a different pointer |
+| interval-02 | neg_interval_series.map | focused | negative | interval.c:1165,1216-1218 | No self-simplification, series mode | Two half-infinite Intervals (stay Intervals) in series |
 | interval-03 | interval_parallel_merge.map | cascade | positive | interval.c:1169-1175,1190-1213 | Parallel merge with lower Region | Interval + compatible Region (lower) |
 | interval-04 | interval_parallel_merge.map | cascade | positive | interval.c:1180-1187,1190-1213 | Parallel merge with upper Region | Interval + compatible Region (upper) |
-| interval-05 | — | focused | negative | interval.c:1165-1187 | Parallel but no compatible Region | Interval + non-Region in parallel |
+| interval-05 | neg_interval_parallel_nonregion.map | focused | negative | interval.c:1165-1187 | Parallel but no compatible Region | Half-infinite Interval + ZoomMap (non-Region) in parallel |
 
 ### nullregion.c
 
@@ -673,8 +673,8 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
-| pointlist-01 | — | focused | positive | pointlist.c:1130-1140 | Self-simplification succeeds | PointList with non-trivial FrameSet |
-| pointlist-02 | — | focused | negative | pointlist.c:1146,1197-1199 | No self-simplification, series mode | Simple PointList in series |
-| pointlist-03 | — | cascade | positive | pointlist.c:1150-1156,1171-1194 | Parallel merge with lower Region | PointList + compatible Region (lower) |
-| pointlist-04 | — | cascade | positive | pointlist.c:1161-1167,1171-1194 | Parallel merge with upper Region | PointList + compatible Region (upper) |
-| pointlist-05 | — | focused | negative | pointlist.c:1146-1168 | Parallel but no compatible Region | PointList + non-Region in parallel |
+| pointlist-01 | unreachable | focused | positive | pointlist.c:1130-1140 | Self-simplification succeeds | PointList with non-trivial FrameSet — unreachable: a simple PointList's `astSimplify` returns the same pointer, so the MapMerge self-simplify branch never fires; the different-pointer case needs a remapped base/current FrameSet (deferred Region-geometry). Absolute-only |
+| pointlist-02 | neg_pointlist_series.map | focused | negative | pointlist.c:1146,1197-1199 | No self-simplification, series mode | Two single-point PointLists in series |
+| pointlist-03 | unreachable | cascade | positive | pointlist.c:1150-1156,1171-1194 | Parallel merge with lower Region | PointList + compatible Region (lower) — unreachable: MergePointList is symmetric, so for any mergeable pair the upper-merge of the preceding element fires first and consumes this one; the lower branch is dead (absolute-only) |
+| pointlist-04 | pointlist_parallel_merge_pair.map | cascade | positive | pointlist.c:1161-1167,1171-1194 | Parallel merge with upper Region | Two single-point PointLists (ListSize 1, same Closed/Negated) in parallel — collapse to one combined PointList on a CmpFrame |
+| pointlist-05 | neg_pointlist_parallel_nonregion.map | focused | negative | pointlist.c:1146-1168 | Parallel but no compatible Region | PointList + ZoomMap (non-Region) in parallel |

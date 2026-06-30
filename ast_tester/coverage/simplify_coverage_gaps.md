@@ -6,16 +6,14 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 823
+**Open absolute-only gaps:** 817
 
 ## Open gaps
 
 | Location | Branch | Function | Class | Status |
 | --- | --- | --- | --- | --- |
 | `src/box.c:1583` | 0 | MapMerge | absolute-only | open |
-| `src/box.c:1599` | 0 | MapMerge | absolute-only | open |
 | `src/box.c:1606` | 0 | MapMerge | absolute-only | open |
-| `src/box.c:1617` | 0 | MapMerge | absolute-only | open |
 | `src/cmpmap.c:616` | 1 | CombineMaps | absolute-only | open |
 | `src/cmpmap.c:621` | 0 | CombineMaps | absolute-only | open |
 | `src/cmpmap.c:626` | 1 | CombineMaps | differential | wontfix:via astDecompose path, not astSimplify |
@@ -96,9 +94,7 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/dssmap.c:1100` | 0 | MapMerge | absolute-only | open |
 | `src/dssmap.c:1138` | 1 | MapMerge | absolute-only | open |
 | `src/grismmap.c:1244` | 0 | MapMerge | absolute-only | open |
-| `src/interval.c:1165` | 0 | MapMerge | absolute-only | open |
 | `src/interval.c:1172` | 0 | MapMerge | absolute-only | open |
-| `src/interval.c:1183` | 0 | MapMerge | absolute-only | open |
 | `src/intramap.c:1504` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1504` | 3 | MapMerge | absolute-only | open |
 | `src/intramap.c:1504` | 4 | MapMerge | absolute-only | open |
@@ -267,10 +263,8 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/permmap.c:1277` | 0 | MapMerge | absolute-only | open |
 | `src/permmap.c:1277` | 1 | MapMerge | absolute-only | open |
 | `src/pointlist.c:1130` | 0 | MapMerge | absolute-only | open |
-| `src/pointlist.c:1146` | 0 | MapMerge | absolute-only | open |
 | `src/pointlist.c:1153` | 0 | MapMerge | absolute-only | open |
 | `src/pointlist.c:1161` | 1 | MapMerge | absolute-only | open |
-| `src/pointlist.c:1164` | 0 | MapMerge | absolute-only | open |
 | `src/polymap.c:3711` | 2 | MapMerge | absolute-only | open |
 | `src/polymap.c:3763` | 0 | MapMerge | absolute-only | open |
 | `src/polymap.c:3789` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |

@@ -935,7 +935,7 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| box-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
+| box-01 | -- | focused | `- (unreachable: astSimplify returns same pointer)` | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
 | box-03 | box_parallel_merge.map | cascade | `+` | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
 | box-04 | box_parallel_merge.map | cascade | `+` | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
 
@@ -943,8 +943,8 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| box-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification and series mode | Already-simple Box in series |
-| box-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with incompatible Region |
+| box-02 | neg_box_series.map | focused | covered | No self-simplification and series mode | Two simple Boxes in series |
+| box-05 | neg_box_parallel_nonregion.map | focused | covered | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with a ZoomMap |
 | box-06 | neg_box_asymmetric_2d.map | focused | `-` | Standalone 2-D Box with asymmetric axis intervals does not self-simplify | Lone Box, differing intervals per axis, no neighbour |
 
 ### interval.c
@@ -953,7 +953,7 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| interval-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | Interval with non-trivial FrameSet |
+| interval-01 | interval_self_simplify_cmp.map | focused | covered | Self-simplification succeeds | Finite-bound Interval (simplifies to Box) in series with a UnitMap |
 | interval-03 | interval_parallel_merge.map | cascade | `+` | Parallel merge with lower Region | Interval + compatible Region (lower) |
 | interval-04 | interval_parallel_merge.map | cascade | `+` | Parallel merge with upper Region | Interval + compatible Region (upper) |
 
@@ -961,8 +961,8 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| interval-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification, series mode | Simple Interval in series |
-| interval-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no compatible Region | Interval + non-Region in parallel |
+| interval-02 | neg_interval_series.map | focused | covered | No self-simplification, series mode | Two half-infinite Intervals in series |
+| interval-05 | neg_interval_parallel_nonregion.map | focused | covered | Parallel but no compatible Region | Half-infinite Interval + ZoomMap in parallel |
 
 ### nullregion.c
 
@@ -987,16 +987,16 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| pointlist-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | PointList with non-trivial FrameSet |
-| pointlist-03 | -- | cascade | `- (no structural change)` | Parallel merge with lower Region | PointList + compatible Region (lower) |
-| pointlist-04 | -- | cascade | `- (no structural change)` | Parallel merge with upper Region | PointList + compatible Region (upper) |
+| pointlist-01 | -- | focused | `- (unreachable: astSimplify returns same pointer)` | Self-simplification succeeds | PointList with non-trivial FrameSet |
+| pointlist-03 | -- | cascade | `- (unreachable: symmetric upper-merge preempts)` | Parallel merge with lower Region | PointList + compatible Region (lower) |
+| pointlist-04 | pointlist_parallel_merge_pair.map | cascade | covered | Parallel merge with upper Region | Two single-point PointLists in parallel collapse to one |
 
 #### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| pointlist-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification, series mode | Simple PointList in series |
-| pointlist-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no compatible Region | PointList + non-Region in parallel |
+| pointlist-02 | neg_pointlist_series.map | focused | covered | No self-simplification, series mode | Two single-point PointLists in series |
+| pointlist-05 | neg_pointlist_parallel_nonregion.map | focused | covered | Parallel but no compatible Region | PointList + ZoomMap in parallel |
 
 ---
 
