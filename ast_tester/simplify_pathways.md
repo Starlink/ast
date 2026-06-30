@@ -521,6 +521,7 @@ UnitMap; (3) inverse-pair cancellation; (4) duplicate-NormMap elimination.
 | normmap-10 | neg_normmap_diff_frame.map | focused | `-` | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
 | normmap-11 | neg_normmap_parallel.map | focused | `+` | Parallel mode: no simplification beyond Frame-level | NormMap in parallel |
 | normmap-12 | neg_normmap_parallel_sky.map | focused | `-` | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
+| normmap-13 | normmap_frame_simplifies.map | scenario | `-` | Lone NormMap(Box): all guards fall through, no simplification (does not reach the frame-simplify branch; redundant with normmap-11/12) | Lone NormMap(Box) |
 
 ---
 
@@ -1134,6 +1135,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | normmap-10 | Same-direction NormMap: Frames differ |
 | normmap-11 | Parallel mode: no simplification |
 | normmap-12 | Non-basic Frame, parallel, no simplification |
+| normmap-13 | Lone NormMap(Box): all guards fall through (redundant) |
 | nullregion-01 | NullRegion self-simplification succeeds |
 | nullregion-02 | No self-simplification, series mode |
 | nullregion-03 | Parallel merge with lower Region |

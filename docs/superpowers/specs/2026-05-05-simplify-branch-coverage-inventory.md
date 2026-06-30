@@ -347,6 +347,7 @@ NormMap's MapMerge: (1) simplify encapsulated Frame; (2) basic Frame→UnitMap;
 | normmap-10 | neg_normmap_diff_frame.map | focused | negative | normmap.c:703,707 | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
 | normmap-11 | neg_normmap_parallel.map | focused | negative | normmap.c:644 | Parallel mode: no simplification beyond Frame-level | NormMap in parallel |
 | normmap-12 | neg_normmap_parallel_sky.map | focused | negative | normmap.c:626+635+644 | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
+| normmap-13 | normmap_frame_simplifies.map | scenario | negative | normmap.c:626,635,644 | Pre-existing fixture: lone NormMap wrapping a Box (a Region used as a Frame). All NormMap guards fall through (the encapsulated Frame does not self-simplify here, is not a basic Frame, and there is no series neighbour), so no simplification occurs. Despite its name it does NOT reach the frame-simplify branch (626-630, see normmap-01) and covers no unique line in the simplify pathway (fully redundant with normmap-11/12). | Lone NormMap(Box) |
 
 ## unitnormmap.c
 
