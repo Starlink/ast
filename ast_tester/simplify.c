@@ -68,6 +68,16 @@ int main( int argc, char *argv[] ) {
                  AST__SIMPFI | AST__SIMPIF,
                  "Identity IntraMap for simplify fixtures",
                  "AST test suite", "starlink-ast", status );
+   astIntraReg_( "simplifyidentity2", 1, 1, TestIntraTran,
+                 AST__SIMPFI | AST__SIMPIF,
+                 "Second identity IntraMap for simplify fixtures",
+                 "AST test suite", "starlink-ast", status );
+   astIntraReg_( "nosimpfi", 1, 1, TestIntraTran, AST__SIMPIF,
+                 "IntraMap without SIMPFI for simplify fixtures",
+                 "AST test suite", "starlink-ast", status );
+   astIntraReg_( "nosimpif", 1, 1, TestIntraTran, AST__SIMPFI,
+                 "IntraMap without SIMPIF for simplify fixtures",
+                 "AST test suite", "starlink-ast", status );
 
    chan = astChannel( NULL, NULL, "SourceFile=%s", in_file );
    object = astRead( chan );

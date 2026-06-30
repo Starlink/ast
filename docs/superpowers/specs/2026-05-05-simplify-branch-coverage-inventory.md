@@ -306,12 +306,12 @@ and opposite direction, with AST__SIMPFI/SIMPIF permission.
 | intramap-02 | intra_invfwd_cancel.map | focused | positive | intramap.c:1573-1574 | Inverse + Forward IntraMap with SIMPIF cancels to UnitMap | CmpMap(Inverse(IntraMap), IntraMap), Series=1, SIMPIF set |
 | intramap-03 | neg_intra_parallel.map | focused | negative | intramap.c:1514 | Not in series or no following Mapping | IntraMaps in parallel |
 | intramap-04 | neg_intra_nonintra_neighbour.map | focused | negative | intramap.c:1525 | Following Mapping is not IntraMap | CmpMap(IntraMap, ZoomMap), Series=1 |
-| intramap-05 | — | focused | negative | intramap.c:1532 | Different transformation functions (ifun differs) | IntraMaps with different registered functions |
+| intramap-05 | neg_intra_diff_func.map | focused | negative | intramap.c:1532 | Different transformation functions (ifun differs) | IntraMaps with different registered functions |
 | intramap-06 | neg_intra_diff_flag.map | focused | negative | intramap.c:1533-1534 | IntraFlag strings differ | Same function but different flags |
 | intramap-07 | — | focused | negative | intramap.c:1562 | Dimension mismatch | Asymmetric IntraMaps |
 | intramap-08 | neg_intra_same_direction.map | focused | negative | intramap.c:1567-1575 | Same direction (both forward or both inverse) | Two forward IntraMaps in series |
-| intramap-09 | — | focused | negative | intramap.c:1568 | SIMPFI flag not set on forward-then-inverse pair | IntraMaps without SIMPFI permission |
-| intramap-10 | — | focused | negative | intramap.c:1574 | SIMPIF flag not set on inverse-then-forward pair | IntraMaps without SIMPIF permission |
+| intramap-09 | neg_intra_no_simpfi.map | focused | negative | intramap.c:1568 | SIMPFI flag not set on forward-then-inverse pair | IntraMaps without SIMPFI permission |
+| intramap-10 | neg_intra_no_simpif.map | focused | negative | intramap.c:1574 | SIMPIF flag not set on inverse-then-forward pair | IntraMaps without SIMPIF permission |
 
 ## splinemap.c
 

@@ -353,3 +353,6 @@ neg_intra_parallel             | simplify_fixtures/neg_intra_parallel.map | simp
 neg_intra_nonintra_neighbour   | simplify_fixtures/neg_intra_nonintra_neighbour.map | simplify_fixtures/neg_intra_nonintra_neighbour.map | yes
 neg_intra_diff_flag            | simplify_fixtures/neg_intra_diff_flag.map | simplify_fixtures/neg_intra_diff_flag.map | yes
 neg_intra_same_direction       | simplify_fixtures/neg_intra_same_direction.map | simplify_fixtures/neg_intra_same_direction.map | yes
+neg_intra_diff_func          | simplify_fixtures/neg_intra_diff_func.map | simplify_fixtures/neg_intra_diff_func.map | yes
+neg_intra_no_simpfi          | simplify_fixtures/neg_intra_no_simpfi.map | simplify_fixtures/neg_intra_no_simpfi.map | yes
+neg_intra_no_simpif          | simplify_fixtures/neg_intra_no_simpif.map | simplify_fixtures/neg_intra_no_simpif.map | yes

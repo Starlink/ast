@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 834
+**Open absolute-only gaps:** 831
 
 ## Open gaps
 
@@ -108,11 +108,8 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/intramap.c:1504` | 8 | MapMerge | absolute-only | open |
 | `src/intramap.c:1504` | 9 | MapMerge | absolute-only | open |
 | `src/intramap.c:1525` | 1 | MapMerge | absolute-only | open |
-| `src/intramap.c:1532` | 0 | MapMerge | absolute-only | open |
 | `src/intramap.c:1542` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1545` | 0 | MapMerge | absolute-only | open |
-| `src/intramap.c:1552` | 0 | MapMerge | absolute-only | open |
-| `src/intramap.c:1553` | 0 | MapMerge | absolute-only | open |
 | `src/intramap.c:1553` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1562` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1562` | 2 | MapMerge | absolute-only | open |
