@@ -359,22 +359,22 @@ different→ShiftMap).
 |---|---|---|---|---|---|---|
 | unitnormmap-01 | unitnormmap_shift_fwd_merge.map | focused | positive | unitnormmap.c:306-322 | ShiftMap + forward UnitNormMap → new UnitNormMap with adjusted centre | ShiftMap followed by UnitNormMap(fwd) |
 | unitnormmap-02 | unitnormmap_winmap_fwd_merge.map | focused | positive | unitnormmap.c:323-343 | WinMap(unit scale) + forward UnitNormMap → new UnitNormMap with adjusted centre | WinMap(scale=1) followed by UnitNormMap(fwd) |
-| unitnormmap-03 | neg_unitnormmap_nonunit_scale.map | focused | negative | unitnormmap.c:338,341 | WinMap(non-unit scale) + UnitNormMap: refused | WinMap(scale!=1) followed by UnitNormMap(fwd) |
+| unitnormmap-03 | unreachable | focused | negative | unitnormmap.c:338,341 | WinMap(non-unit scale) + UnitNormMap: refused | WinMap(scale!=1) followed by UnitNormMap(fwd) — unreachable: a non-unit-scale WinMap self-simplifies to a ZoomMap before the UnitNormMap MapMerge runs, so the non-unit refusal check (the `EQUAL(b,1)` ok=0 path) is never reached via astSimplify |
 | unitnormmap-04 | unitnormmap_inv_shift_merge.map | focused | positive | unitnormmap.c:344-360 | Inverse UnitNormMap + ShiftMap → new inverse UnitNormMap with adjusted centre | UnitNormMap(inv) followed by ShiftMap |
 | unitnormmap-05 | unitnormmap_inv_winmap_merge.map | focused | positive | unitnormmap.c:361-380 | Inverse UnitNormMap + WinMap(unit scale) → new inverse UnitNormMap | UnitNormMap(inv) followed by WinMap(scale=1) |
-| unitnormmap-06 | — | focused | negative | unitnormmap.c:375,379 | UnitNormMap(inv) + WinMap(non-unit scale): refused | UnitNormMap(inv) followed by WinMap(scale!=1) |
+| unitnormmap-06 | unreachable | focused | negative | unitnormmap.c:375,379 | UnitNormMap(inv) + WinMap(non-unit scale): refused | UnitNormMap(inv) followed by WinMap(scale!=1) — unreachable: a non-unit-scale WinMap self-simplifies to a ZoomMap before the UnitNormMap MapMerge runs, so the non-unit refusal check is never reached via astSimplify |
 | unitnormmap-07 | unitnormmap_inverse_cancel.map | focused | positive | unitnormmap.c:398-401 | Forward + Inverse UnitNormMap with same centre → UnitMap | UnitNormMap(fwd) + Inverse(UnitNormMap), same centre |
 | unitnormmap-08 | unitnormmap_inv_fwd_cancel.map | focused | positive | unitnormmap.c:398-401 | Inverse + Forward UnitNormMap with same centre → UnitMap | Inverse(UnitNormMap) + UnitNormMap(fwd), same centre |
 | unitnormmap-09 | unitnormmap_diff_centre_to_shift.map | focused | positive | unitnormmap.c:403-415 | Forward + Inverse UnitNormMap with different centres → ShiftMap | UnitNormMap(fwd,c1) + Inverse(UnitNormMap,c2) |
-| unitnormmap-10 | — | focused | negative | unitnormmap.c:403 | Inverse + Forward with different centres: no merge (asymmetric) | Inverse(UnitNormMap,c1) + UnitNormMap(fwd,c2) |
-| unitnormmap-11 | — | focused | negative | unitnormmap.c:307 | ShiftMap + UnitNormMap(inv): refused | ShiftMap followed by Inverse(UnitNormMap) |
-| unitnormmap-12 | — | focused | negative | unitnormmap.c:324 | WinMap + UnitNormMap(inv): refused | WinMap followed by Inverse(UnitNormMap) |
-| unitnormmap-13 | — | focused | negative | unitnormmap.c:345 | UnitNormMap(fwd) + ShiftMap: refused | Forward UnitNormMap followed by ShiftMap |
-| unitnormmap-14 | — | focused | negative | unitnormmap.c:362 | UnitNormMap(fwd) + WinMap: refused | Forward UnitNormMap followed by WinMap |
-| unitnormmap-15 | — | focused | negative | unitnormmap.c:383 | Two UnitNormMaps in same direction: refused | Two forward UnitNormMaps in series |
+| unitnormmap-10 | neg_unitnormmap_inv_fwd_diffcentre.map | focused | negative | unitnormmap.c:403 | Inverse + Forward with different centres: no merge (asymmetric) | Inverse(UnitNormMap,c1) + UnitNormMap(fwd,c2) |
+| unitnormmap-11 | neg_unitnormmap_shift_inv.map | focused | negative | unitnormmap.c:307 | ShiftMap + UnitNormMap(inv): refused | ShiftMap followed by Inverse(UnitNormMap) |
+| unitnormmap-12 | unitnormmap_winmap_inv_refused.map | focused | positive | unitnormmap.c:324 | WinMap + UnitNormMap(inv): merge refused (the pure-shift WinMap then simplifies to a ShiftMap, so the map changes) | WinMap followed by Inverse(UnitNormMap) |
+| unitnormmap-13 | neg_unitnormmap_fwd_shift.map | focused | negative | unitnormmap.c:345 | UnitNormMap(fwd) + ShiftMap: refused | Forward UnitNormMap followed by ShiftMap |
+| unitnormmap-14 | unitnormmap_fwd_winmap_refused.map | focused | positive | unitnormmap.c:362 | UnitNormMap(fwd) + WinMap: merge refused (the pure-shift WinMap then simplifies to a ShiftMap, so the map changes) | Forward UnitNormMap followed by WinMap |
+| unitnormmap-15 | neg_unitnormmap_same_dir.map | focused | negative | unitnormmap.c:383 | Two UnitNormMaps in same direction: refused | Two forward UnitNormMaps in series |
 | unitnormmap-16 | neg_unitnormmap_nonmergeable.map | focused | negative | unitnormmap.c:302 | Neighbour is not ShiftMap/WinMap/UnitNormMap: refused | UnitNormMap with non-mergeable neighbour |
-| unitnormmap-17 | — | focused | negative | unitnormmap.c:791-795 | Parallel mode: never simplifies | UnitNormMap in parallel |
-| unitnormmap-18 | — | focused | negative | unitnormmap.c:763 | No neighbour pair produces valid merge | UnitNormMap flanked by non-mergeable classes |
+| unitnormmap-17 | neg_unitnormmap_parallel.map | focused | negative | unitnormmap.c:791-795 | Parallel mode: never simplifies | UnitNormMap in parallel with a ZoomMap |
+| unitnormmap-18 | neg_unitnormmap_flanked.map | focused | negative | unitnormmap.c:763 | No neighbour pair produces valid merge | UnitNormMap flanked by ZoomMaps (non-mergeable) on both sides |
 
 ## selectormap.c
 

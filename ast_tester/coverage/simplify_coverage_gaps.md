@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 22  
-**Open absolute-only gaps:** 790
+**Open absolute-only gaps:** 788
 
 ## Open gaps
 
@@ -764,9 +764,7 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/unitmap.c:555` | 1 | MapMerge | absolute-only | open |
 | `src/unitmap.c:555` | 3 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/unitmap.c:567` | 1 | MapMerge | absolute-only | open |
-| `src/unitnormmap.c:826` | 1 | MapMerge | absolute-only | open |
-| `src/unitnormmap.c:833` | 0 | MapMerge | absolute-only | open |
-| `src/unitnormmap.c:863` | 0 | MapMerge | absolute-only | open |
+| `src/unitnormmap.c:833` | 0 | MapMerge | absolute-only | unreachable:MAX(where-1,0)>0 needs the UNM processed at list index >=2 with a live mergeable neighbour, but the neighbour MapMerge always preempts (merges the pair first) |
 | `src/wcsmap.c:3234` | 0 | MapMerge | absolute-only | open |
 | `src/wcsmap.c:3236` | 1 | MapMerge | absolute-only | open |
 | `src/wcsmap.c:3236` | 3 | MapMerge | absolute-only | open |

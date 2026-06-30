@@ -391,3 +391,12 @@ unitnormmap_winmap_fwd_merge         | simplify_fixtures/unitnormmap_winmap_fwd_
 unitnormmap_inv_shift_merge          | simplify_fixtures/unitnormmap_inv_shift_merge.map | simplify_fixtures/unitnormmap_inv_shift_merge.simp |
 unitnormmap_inv_winmap_merge         | simplify_fixtures/unitnormmap_inv_winmap_merge.map | simplify_fixtures/unitnormmap_inv_winmap_merge.simp |
 neg_unitnormmap_nonmergeable         | simplify_fixtures/neg_unitnormmap_nonmergeable.map | simplify_fixtures/neg_unitnormmap_nonmergeable.map | yes
+neg_unitnormmap_inv_fwd_diffcentre       | simplify_fixtures/neg_unitnormmap_inv_fwd_diffcentre.map | simplify_fixtures/neg_unitnormmap_inv_fwd_diffcentre.map | yes
+neg_unitnormmap_shift_inv                | simplify_fixtures/neg_unitnormmap_shift_inv.map | simplify_fixtures/neg_unitnormmap_shift_inv.map | yes
+neg_unitnormmap_fwd_shift                | simplify_fixtures/neg_unitnormmap_fwd_shift.map | simplify_fixtures/neg_unitnormmap_fwd_shift.map | yes
+neg_unitnormmap_same_dir                 | simplify_fixtures/neg_unitnormmap_same_dir.map | simplify_fixtures/neg_unitnormmap_same_dir.map | yes
+neg_unitnormmap_parallel                 | simplify_fixtures/neg_unitnormmap_parallel.map | simplify_fixtures/neg_unitnormmap_parallel.map | yes
+neg_unitnormmap_flanked                  | simplify_fixtures/neg_unitnormmap_flanked.map | simplify_fixtures/neg_unitnormmap_flanked.map | yes
+unitnormmap_winmap_inv_refused           | simplify_fixtures/unitnormmap_winmap_inv_refused.map | simplify_fixtures/unitnormmap_winmap_inv_refused.simp |
+unitnormmap_fwd_winmap_refused           | simplify_fixtures/unitnormmap_fwd_winmap_refused.map | simplify_fixtures/unitnormmap_fwd_winmap_refused.simp |
+unitnormmap_shift_merge_tail             | simplify_fixtures/unitnormmap_shift_merge_tail.map | simplify_fixtures/unitnormmap_shift_merge_tail.simp |

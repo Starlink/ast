@@ -1,0 +1,20 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    Nout = 4 	# Number of output coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin UnitNormMap 	# Compute unit vector and norm relative to a centre
+          Nin = 2 	# Number of input coordinates
+          Nout = 3 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Ctr2 = 1 	# Centre for axis 2
+       End UnitNormMap
+    MapB = 	# Second component Mapping
+       Begin UnitNormMap 	# Compute unit vector and norm relative to a centre
+          Nin = 3 	# Number of input coordinates
+          Nout = 4 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Ctr2 = 1 	# Centre for axis 2
+          Ctr3 = 2 	# Centre for axis 3
+       End UnitNormMap
+ End CmpMap
