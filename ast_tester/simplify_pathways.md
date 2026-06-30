@@ -122,7 +122,7 @@ permutation arrays.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | cmpmap-02 | -- | focused | `- (requires deep internal nesting)` | CmpMap does not simplify on its own (astSimplify returns same pointer unchanged) | CmpMap with irreducible components |
-| cmpmap-04 | neg_cmpmap_mode_mismatch.map | focused | `+` | Guard rejects decomposition: CmpMap mode does not match list mode | Series CmpMap in a parallel list |
+| cmpmap-04 | covered (incidental) | focused | covered | Guard rejects decomposition: CmpMap mode does not match list mode | Already exercised by the simplify suite |
 | cmpmap-05 | cmpmap_solo_after_unit.map | focused | `-` | Guard rejects merging: only one mapping in list (nmap <= 1) | Series CmpMap(UnitMap, parallel CmpMap); UnitMap elided leaves the parallel CmpMap alone |
 | cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | `- (requires deep internal nesting)` | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-08 | -- | focused | `- (no fixture)` | Guard: re-arranged parallel CmpMaps do not simplify | Two series CmpMaps in parallel whose rearranged pairings remain irreducible |
@@ -383,7 +383,7 @@ cancellation.
 | polymap-07 | neg_poly_parallel_nonlinear.map | focused | `+` | Inverse-cancel refused: combination is parallel | Two PolyMaps in parallel |
 | polymap-08 | neg_poly_nonpoly_neighbour.map | focused | `+` | Inverse-cancel refused: neighbour is not PolyMap | CmpMap(PolyMap, ZoomMap), Series=1 |
 | polymap-09 | neg_poly_same_direction.map | focused | `+` | Inverse-cancel refused: neighbour has same invert direction | Two forward PolyMaps in series |
-| polymap-10 | neg_poly_different_coeffs.map | focused | `+` | Inverse-cancel refused: astEqual fails (different coefficients) | Two different PolyMaps in opposite directions |
+| polymap-10 | -- | focused | `- (open: PolyMaps self-simplify before the cancel check)` | Inverse-cancel refused: astEqual fails (different coefficients) | Two different PolyMaps in opposite directions |
 
 ---
 
@@ -547,7 +547,7 @@ different to ShiftMap).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| unitnormmap-03 | neg_unitnormmap_nonunit_scale.map | focused | `+` | WinMap(non-unit scale) + UnitNormMap: refused | WinMap(scale!=1) followed by UnitNormMap(fwd) |
+| unitnormmap-03 | -- | focused | `- (unreachable: non-unit WinMap self-simplifies to a ZoomMap before the UNM merge)` | WinMap(non-unit scale) + UnitNormMap: refused | WinMap(scale!=1) followed by UnitNormMap(fwd) |
 | unitnormmap-06 | -- | focused | `- (no fixture)` | UnitNormMap(inv) + WinMap(non-unit scale): refused | UnitNormMap(inv) followed by WinMap(scale!=1) |
 | unitnormmap-10 | -- | focused | `- (no fixture)` | Inverse + Forward with different centres: no merge (asymmetric) | Inverse(UnitNormMap,c1) + UnitNormMap(fwd,c2) |
 | unitnormmap-11 | -- | focused | `- (no fixture)` | ShiftMap + UnitNormMap(inv): refused | ShiftMap followed by Inverse(UnitNormMap) |

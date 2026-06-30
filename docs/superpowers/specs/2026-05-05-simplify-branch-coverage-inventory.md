@@ -52,7 +52,7 @@ parallel CmpMap by restructuring permutation arrays.
 | cmpmap-01 | cmpmap_self_simplify.map | focused | positive | cmpmap.c:1456-1467 | CmpMap simplifies on its own (astSimplify returns a different/simpler mapping) | CmpMap whose internal components simplify when composed |
 | cmpmap-02 | — | focused | negative | cmpmap.c:1456-1471 | CmpMap does not simplify on its own (astSimplify returns same pointer unchanged) | CmpMap with irreducible components |
 | cmpmap-03 | cmpmap_nested_parallel_flatten.map | focused | positive | cmpmap.c:1477-1524 | CmpMap decomposed into components when combination mode matches list mode | Series CmpMap in a series list, or parallel CmpMap in a parallel list |
-| cmpmap-04 | neg_cmpmap_mode_mismatch.map | focused | negative | cmpmap.c:1477-1478 | Guard rejects decomposition: CmpMap mode does not match list mode | Series CmpMap in a parallel list |
+| cmpmap-04 | covered (incidental) | focused | negative | cmpmap.c:1477-1478 | Guard rejects decomposition: CmpMap mode does not match list mode | Already exercised by the simplify suite (cmpmap.c:1477-1478 not in the open ledger); a dedicated fixture is redundant |
 | cmpmap-05 | cmpmap_solo_after_unit.map | focused | negative | cmpmap.c:1534-1535 | Guard rejects merging: only one mapping in list (nmap <= 1) | Series CmpMap(UnitMap, parallel CmpMap); UnitMap elided leaves the parallel CmpMap alone |
 | cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | negative | cmpmap.c:1551 | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-07 | cmpmap_parallel_series_components.map | focused | positive | cmpmap.c:1582-1622 | Two series CmpMaps in parallel list restructured into parallel-then-series and at least one simplifies | Two series CmpMaps combined in parallel with simplifiable pairings |
@@ -254,7 +254,7 @@ cancellation.
 | polymap-07 | neg_poly_parallel_nonlinear.map | focused | negative | polymap.c:3863 | Inverse-cancel refused: combination is parallel | Two PolyMaps in parallel |
 | polymap-08 | neg_poly_nonpoly_neighbour.map | focused | negative | polymap.c:3881 | Inverse-cancel refused: neighbour is not PolyMap | CmpMap(PolyMap, ZoomMap), Series=1 |
 | polymap-09 | neg_poly_same_direction.map | focused | negative | polymap.c:3887 | Inverse-cancel refused: neighbour has same invert direction | Two forward PolyMaps in series |
-| polymap-10 | neg_poly_different_coeffs.map | focused | negative | polymap.c:3901 | Inverse-cancel refused: astEqual fails (different coefficients) | Two different PolyMaps in opposite directions |
+| polymap-10 | — | focused | negative | polymap.c:3901 | Inverse-cancel refused: astEqual fails (different coefficients) | Two different PolyMaps in opposite directions — target still open; an earlier hand-authored fixture was removed because the PolyMaps self-simplify before reaching the inverse-cancel astEqual check, so it never hit polymap.c:3901 |
 
 ## mathmap.c
 
