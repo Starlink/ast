@@ -335,7 +335,7 @@ NormMap's MapMerge: (1) simplify encapsulated Frame; (2) basic Frame→UnitMap;
 
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
-| normmap-01 | — | focused | positive | normmap.c:626-630 | Encapsulated Frame simplifies → new NormMap with simplified Frame | NormMap wrapping compound Frame that simplifies |
+| normmap-01 | — (unreachable via fixture) | focused | positive | normmap.c:626-630 | Encapsulated Frame simplifies → new NormMap with simplified Frame. Reachable in-process (NormMap(FrameSet with a UnitMap-joined redundant frame) does rebuild) but NOT via a serialized fixture: the encapsulated Frame is effectively pre-simplified by the time the NormMap dump is loaded, so astSimplify(map->frame) returns the same pointer and the branch is skipped. Same "API pre-simplifies" pattern as box-01/interval-01. | NormMap wrapping compound Frame that simplifies |
 | normmap-02 | normmap_basic_frame_to_unit.map | focused | positive | normmap.c:635-639 | NormMap encapsulating basic Frame replaced by UnitMap (astNorm is no-op) | NormMap wrapping plain Frame |
 | normmap-03 | normmap_inverse_cancel.map | focused | positive | normmap.c:650-661 | NormMap cancels with inverse lower-neighbour NormMap | NormMap preceded by Inverse(NormMap) with same Frame |
 | normmap-04 | normmap_inverse_cancel_upper.map | focused | positive | normmap.c:666-677 | NormMap cancels with inverse upper-neighbour NormMap | NormMap followed by Inverse(NormMap) with same Frame |
