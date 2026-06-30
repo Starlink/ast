@@ -5,7 +5,7 @@ rows except the Status column. See `README.md`.
 
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
-**Open differential gaps:** 22  
+**Open differential gaps:** 21  
 **Open absolute-only gaps:** 787
 
 ## Open gaps
@@ -267,7 +267,6 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pointlist.c:1161` | 1 | MapMerge | absolute-only | open |
 | `src/polymap.c:3711` | 2 | MapMerge | absolute-only | open |
 | `src/polymap.c:3763` | 0 | MapMerge | absolute-only | open |
-| `src/polymap.c:3789` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/polymap.c:3824` | 3 | MapMerge | absolute-only | open |
 | `src/polymap.c:3901` | 0 | MapMerge | absolute-only | open |
 | `src/polymap.c:3914` | 0 | MapMerge | absolute-only | open |
