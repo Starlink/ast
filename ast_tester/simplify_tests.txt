@@ -345,3 +345,6 @@ neg_tranmap_oneway       | simplify_fixtures/neg_tranmap_oneway.map | simplify_f
 neg_math_inv_text_mismatch | simplify_fixtures/neg_math_inv_text_mismatch.map | simplify_fixtures/neg_math_inv_text_mismatch.map | yes
 pcd_search_blocked       | simplify_fixtures/pcd_search_blocked.map | simplify_fixtures/pcd_search_blocked.simp | yes
 cmpmap_solo_after_unit   | simplify_fixtures/cmpmap_solo_after_unit.map | simplify_fixtures/cmpmap_solo_after_unit.simp | yes
+neg_normmap_diff_frame         | simplify_fixtures/neg_normmap_diff_frame.map | simplify_fixtures/neg_normmap_diff_frame.map | yes
+neg_normmap_inv_diff_frame     | simplify_fixtures/neg_normmap_inv_diff_frame.map | simplify_fixtures/neg_normmap_inv_diff_frame.map | yes
+neg_normmap_parallel_sky       | simplify_fixtures/neg_normmap_parallel_sky.map | simplify_fixtures/neg_normmap_parallel_sky.map | yes

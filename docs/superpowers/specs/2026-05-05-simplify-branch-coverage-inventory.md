@@ -340,13 +340,13 @@ NormMap's MapMerge: (1) simplify encapsulated Frame; (2) basic Frame→UnitMap;
 | normmap-03 | normmap_inverse_cancel.map | focused | positive | normmap.c:650-661 | NormMap cancels with inverse lower-neighbour NormMap | NormMap preceded by Inverse(NormMap) with same Frame |
 | normmap-04 | normmap_inverse_cancel_upper.map | focused | positive | normmap.c:666-677 | NormMap cancels with inverse upper-neighbour NormMap | NormMap followed by Inverse(NormMap) with same Frame |
 | normmap-05 | normmap_duplicate_elim.map | focused | positive | normmap.c:697-717 | Duplicate adjacent NormMaps (same Frame, same direction) → duplicates become UnitMaps | Two identical NormMaps in series |
-| normmap-06 | — | focused | negative | normmap.c:650-651 | Lower neighbour NormMap: invert flags not opposite | NormMap preceded by same-direction NormMap with different Frame |
+| normmap-06 | neg_normmap_diff_frame.map | focused | negative | normmap.c:650-651 | Lower neighbour NormMap: invert flags not opposite | NormMap preceded by same-direction NormMap with different Frame |
 | normmap-07 | neg_normmap_different_frames.map | focused | negative | normmap.c:660 | Lower inverse NormMap: Frames not equal | NormMap preceded by Inverse(NormMap) with different Frame |
 | normmap-08 | neg_normmap_nonnorm_neighbour.map | focused | negative | normmap.c:666-667 | Upper neighbour is not a NormMap | NormMap followed by non-NormMap |
-| normmap-09 | — | focused | negative | normmap.c:674 | Upper inverse NormMap: Frames differ | NormMap followed by Inverse(NormMap) with different Frame |
-| normmap-10 | — | focused | negative | normmap.c:703,707 | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
+| normmap-09 | neg_normmap_inv_diff_frame.map | focused | negative | normmap.c:674 | Upper inverse NormMap: Frames differ | NormMap followed by Inverse(NormMap) with different Frame |
+| normmap-10 | neg_normmap_diff_frame.map | focused | negative | normmap.c:703,707 | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
 | normmap-11 | neg_normmap_parallel.map | focused | negative | normmap.c:644 | Parallel mode: no simplification beyond Frame-level | NormMap in parallel |
-| normmap-12 | — | focused | negative | normmap.c:626+635+644 | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
+| normmap-12 | neg_normmap_parallel_sky.map | focused | negative | normmap.c:626+635+644 | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
 
 ## unitnormmap.c
 

@@ -514,13 +514,13 @@ UnitMap; (3) inverse-pair cancellation; (4) duplicate-NormMap elimination.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| normmap-06 | -- | focused | `- (no fixture)` | Lower neighbour NormMap: invert flags not opposite | NormMap preceded by same-direction NormMap with different Frame |
+| normmap-06 | neg_normmap_diff_frame.map | focused | `-` | Lower neighbour NormMap: invert flags not opposite | NormMap preceded by same-direction NormMap with different Frame |
 | normmap-07 | neg_normmap_different_frames.map | focused | `+` | Lower inverse NormMap: Frames not equal | NormMap preceded by Inverse(NormMap) with different Frame |
 | normmap-08 | neg_normmap_nonnorm_neighbour.map | focused | `+` | Upper neighbour is not a NormMap | NormMap followed by non-NormMap |
-| normmap-09 | -- | focused | `- (no fixture)` | Upper inverse NormMap: Frames differ | NormMap followed by Inverse(NormMap) with different Frame |
-| normmap-10 | -- | focused | `- (no fixture)` | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
+| normmap-09 | neg_normmap_inv_diff_frame.map | focused | `-` | Upper inverse NormMap: Frames differ | NormMap followed by Inverse(NormMap) with different Frame |
+| normmap-10 | neg_normmap_diff_frame.map | focused | `-` | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
 | normmap-11 | neg_normmap_parallel.map | focused | `+` | Parallel mode: no simplification beyond Frame-level | NormMap in parallel |
-| normmap-12 | -- | focused | `- (no fixture)` | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
+| normmap-12 | neg_normmap_parallel_sky.map | focused | `-` | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
 
 ---
 
