@@ -53,7 +53,7 @@ parallel CmpMap by restructuring permutation arrays.
 | cmpmap-02 | — | focused | negative | cmpmap.c:1456-1471 | CmpMap does not simplify on its own (astSimplify returns same pointer unchanged) | CmpMap with irreducible components |
 | cmpmap-03 | cmpmap_nested_parallel_flatten.map | focused | positive | cmpmap.c:1477-1524 | CmpMap decomposed into components when combination mode matches list mode | Series CmpMap in a series list, or parallel CmpMap in a parallel list |
 | cmpmap-04 | neg_cmpmap_mode_mismatch.map | focused | negative | cmpmap.c:1477-1478 | Guard rejects decomposition: CmpMap mode does not match list mode | Series CmpMap in a parallel list |
-| cmpmap-05 | — | focused | negative | cmpmap.c:1534-1535 | Guard rejects merging: only one mapping in list (nmap <= 1) | Mapping list containing only the CmpMap |
+| cmpmap-05 | cmpmap_solo_after_unit.map | focused | negative | cmpmap.c:1534-1535 | Guard rejects merging: only one mapping in list (nmap <= 1) | Series CmpMap(UnitMap, parallel CmpMap); UnitMap elided leaves the parallel CmpMap alone |
 | cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | negative | cmpmap.c:1551 | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-07 | cmpmap_parallel_series_components.map | focused | positive | cmpmap.c:1582-1622 | Two series CmpMaps in parallel list restructured into parallel-then-series and at least one simplifies | Two series CmpMaps combined in parallel with simplifiable pairings |
 | cmpmap-08 | — | focused | negative | cmpmap.c:1610-1611 | Guard: re-arranged parallel CmpMaps do not simplify | Two series CmpMaps in parallel whose rearranged pairings remain irreducible |

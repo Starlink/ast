@@ -123,7 +123,7 @@ permutation arrays.
 |---|---|---|---|---|---|
 | cmpmap-02 | -- | focused | `- (requires deep internal nesting)` | CmpMap does not simplify on its own (astSimplify returns same pointer unchanged) | CmpMap with irreducible components |
 | cmpmap-04 | neg_cmpmap_mode_mismatch.map | focused | `+` | Guard rejects decomposition: CmpMap mode does not match list mode | Series CmpMap in a parallel list |
-| cmpmap-05 | neg_cmpmap_lone_parallel.map | focused | `- (requires deep internal nesting)` | Guard rejects merging: only one mapping in list (nmap <= 1) | Mapping list containing only the CmpMap |
+| cmpmap-05 | cmpmap_solo_after_unit.map | focused | `-` | Guard rejects merging: only one mapping in list (nmap <= 1) | Series CmpMap(UnitMap, parallel CmpMap); UnitMap elided leaves the parallel CmpMap alone |
 | cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | `- (requires deep internal nesting)` | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-08 | -- | focused | `- (no fixture)` | Guard: re-arranged parallel CmpMaps do not simplify | Two series CmpMaps in parallel whose rearranged pairings remain irreducible |
 | cmpmap-10 | -- | cascade | `- (no fixture)` | Guard: two CmpMaps are not both parallel, or list is not series | Two adjacent CmpMaps where at least one is series |
