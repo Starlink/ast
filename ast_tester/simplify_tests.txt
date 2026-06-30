@@ -400,3 +400,4 @@ neg_unitnormmap_flanked                  | simplify_fixtures/neg_unitnormmap_fla
 unitnormmap_winmap_inv_refused           | simplify_fixtures/unitnormmap_winmap_inv_refused.map | simplify_fixtures/unitnormmap_winmap_inv_refused.simp |
 unitnormmap_fwd_winmap_refused           | simplify_fixtures/unitnormmap_fwd_winmap_refused.map | simplify_fixtures/unitnormmap_fwd_winmap_refused.simp |
 unitnormmap_shift_merge_tail             | simplify_fixtures/unitnormmap_shift_merge_tail.map | simplify_fixtures/unitnormmap_shift_merge_tail.simp |
+winmap_swap_to_zoom          | simplify_fixtures/winmap_swap_to_zoom.map | simplify_fixtures/winmap_swap_to_zoom.simp |

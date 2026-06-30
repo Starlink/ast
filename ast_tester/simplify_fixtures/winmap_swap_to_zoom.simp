@@ -1,0 +1,28 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin MatrixMap 	# Matrix transformation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          M0 = 1 	# Forward matrix value
+          M1 = 1 	# Forward matrix value
+          M2 = 0 	# Forward matrix value
+          M3 = 1 	# Forward matrix value
+          IM0 = 1 	# Inverse matrix value
+          IM1 = -1 	# Inverse matrix value
+          IM2 = 0 	# Inverse matrix value
+          IM3 = 1 	# Inverse matrix value
+          Form = "Full" 	# Matrix storage form
+       End MatrixMap
+    MapB = 	# Second component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 2 	# Shift for axis 1
+          Scl1 = 2 	# Scale factor for axis 1
+          Sft2 = 1 	# Shift for axis 2
+          Scl2 = 2 	# Scale factor for axis 2
+       End WinMap
+ End CmpMap

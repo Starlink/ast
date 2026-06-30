@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 22  
-**Open absolute-only gaps:** 788
+**Open absolute-only gaps:** 787
 
 ## Open gaps
 
@@ -776,13 +776,12 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/wcsmap.c:3254` | 3 | MapMerge | absolute-only | open |
 | `src/wcsmap.c:3307` | 1 | MapMerge | absolute-only | open |
 | `src/wcsmap.c:3307` | 2 | MapMerge | absolute-only | open |
-| `src/winmap.c:1089` | 0 | MapMerge | absolute-only | open |
-| `src/winmap.c:1089` | 2 | MapMerge | absolute-only | open |
-| `src/winmap.c:1089` | 3 | MapMerge | absolute-only | open |
-| `src/winmap.c:1089` | 6 | MapMerge | absolute-only | open |
+| `src/winmap.c:1089` | 0 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
+| `src/winmap.c:1089` | 2 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
+| `src/winmap.c:1089` | 3 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
+| `src/winmap.c:1089` | 6 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
 | `src/winmap.c:1303` | 1 | MapMerge | absolute-only | open |
 | `src/winmap.c:1303` | 2 | MapMerge | absolute-only | open |
-| `src/winmap.c:1456` | 1 | MapMerge | absolute-only | open |
 | `src/winmap.c:1495` | 3 | MapMerge | absolute-only | open |
 | `src/winmap.c:1496` | 1 | MapMerge | absolute-only | open |
 | `src/winmap.c:1498` | 1 | MapMerge | absolute-only | open |
@@ -799,11 +798,11 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/winmap.c:1705` | 1 | MapMerge | absolute-only | open |
 | `src/winmap.c:1748` | 1 | MapMerge | absolute-only | open |
 | `src/winmap.c:1761` | 1 | MapMerge | absolute-only | open |
-| `src/winmap.c:1822` | 0 | MapMerge | absolute-only | open |
-| `src/winmap.c:1822` | 2 | MapMerge | absolute-only | open |
-| `src/winmap.c:1822` | 3 | MapMerge | absolute-only | open |
-| `src/winmap.c:1822` | 6 | MapMerge | absolute-only | open |
-| `src/winmap.c:1822` | 9 | MapMerge | absolute-only | open |
+| `src/winmap.c:1822` | 0 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
+| `src/winmap.c:1822` | 2 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
+| `src/winmap.c:1822` | 3 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
+| `src/winmap.c:1822` | 6 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
+| `src/winmap.c:1822` | 9 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
 | `src/xphmap.c:532` | 1 | MapMerge | absolute-only | open |
 | `src/xphmap.c:540` | 1 | MapMerge | absolute-only | open |
 | `src/xphmap.c:559` | 0 | MapMerge | absolute-only | open |
