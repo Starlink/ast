@@ -575,7 +575,7 @@ PcdMap's MapMerge: (1) Disco=0→UnitMap; (2) inverse-pair cancellation;
 | pcdmap-08 | neg_pcd_parallel.map | focused | negative | pcdmap.c:1432 | Parallel mode: refused | PcdMaps in parallel |
 | pcdmap-09 | neg_pcd_nonpcd_neighbour.map | focused | negative | pcdmap.c:1438-1456 | Neighbour not PcdMap/UnitMap/inverse-PcdMap | PcdMap + ShiftMap in series |
 | pcdmap-10 | neg_pcd_nonswappable_between.map | cascade | negative | pcdmap.c:1530-1553 | Intervening Mapping not ZoomMap or PermMap: swap blocked | PcdMap + ShiftMap + Inverse(PcdMap) |
-| pcdmap-11 | — | cascade | negative | pcdmap.c:1547-1550 | Non-swappable class blocks search | PcdMap + MatrixMap + Inverse(PcdMap) |
+| pcdmap-11 | pcd_search_blocked.map | cascade | negative | pcdmap.c:1547-1550 | Non-swappable class blocks the forward swap search | PcdMap + ZoomMap + MatrixMap (Zoom swappable, Matrix blocks) |
 | pcdmap-12 | — | focused | negative | pcdmap.c:1514-1522 | CanSwap false: PermMap doesn't simply swap axes | PcdMap + PermMap(identity) |
 | pcdmap-13 | neg_pcd_zoom_no_target.map | cascade | negative | pcdmap.c:1558-1586 | Backward (swaplo) swap search: lower neighbour is a swappable ZoomMap but no merge target found below it | CmpMap(ZoomMap, PcdMap), Series=1 |
 

@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 852
+**Open absolute-only gaps:** 851
 
 ## Open gaps
 
@@ -228,7 +228,6 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pcdmap.c:1438` | 5 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1487` | 0 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1538` | 1 | MapMerge | absolute-only | open |
-| `src/pcdmap.c:1547` | 3 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1573` | 1 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1573` | 2 | MapMerge | absolute-only | open |
 | `src/pcdmap.c:1579` | 0 | MapMerge | absolute-only | open |
