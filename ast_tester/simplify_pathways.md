@@ -433,14 +433,14 @@ neighbours for inverse pair cancellation.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | ratemap-04 | neg_ratemap_parallel.map | focused | `+` | Not in series: skipped | RateMaps in parallel |
-| ratemap-05 | -- | focused | `- (no fixture)` | Lower neighbour not a RateMap | CmpMap(ZoomMap, RateMap), Series=1 |
-| ratemap-06 | -- | focused | `- (no fixture)` | Lower neighbour same invert flag | Two forward RateMaps in series |
-| ratemap-07 | -- | focused | `- (no fixture)` | Lower neighbour different iin/iout indices | RateMaps with different axis indices |
+| ratemap-05 | neg_ratemap_lower_nonrate.map | focused | `-` | Lower neighbour not a RateMap | CmpMap(ZoomMap, RateMap), Series=1 |
+| ratemap-06 | neg_ratemap_same_invert.map | focused | `-` | Lower neighbour same invert flag | Two forward RateMaps in series |
+| ratemap-07 | neg_ratemap_diff_indices.map | focused | `-` | Lower neighbour different iin/iout indices | RateMaps with different axis indices |
 | ratemap-08 | neg_ratemap_different_inner.map | focused | `+` | Lower neighbour non-equal encapsulated Mapping | RateMaps wrapping different Mappings |
 | ratemap-09 | neg_ratemap_nonratemap_neighbour.map | focused | `+` | Upper neighbour not a RateMap | CmpMap(RateMap, ZoomMap), Series=1 |
-| ratemap-10 | -- | focused | `- (no fixture)` | Upper neighbour same invert flag | Two forward RateMaps |
-| ratemap-11 | -- | focused | `- (no fixture)` | Upper neighbour different iin/iout | Different axis RateMaps |
-| ratemap-12 | -- | focused | `- (no fixture)` | Upper neighbour non-equal encapsulated Mapping | Different inner Mappings |
+| ratemap-10 | neg_ratemap_same_invert.map | focused | `-` | Upper neighbour same invert flag | Two forward RateMaps |
+| ratemap-11 | neg_ratemap_diff_indices.map | focused | `-` | Upper neighbour different iin/iout | Different axis RateMaps |
+| ratemap-12 | neg_ratemap_diff_inner.map | focused | `-` | Upper neighbour non-equal encapsulated Mapping | Different inner Mappings |
 
 ---
 

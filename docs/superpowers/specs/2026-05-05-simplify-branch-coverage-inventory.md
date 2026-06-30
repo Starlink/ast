@@ -286,14 +286,14 @@ neighbours for inverse pair cancellation.
 | ratemap-02 | ratemap_inverse_cancel.map | focused | positive | ratemap.c:736-761 | RateMap cancels with equal lower-neighbour in opposite direction | CmpMap(Inverse(RateMap), RateMap), Series=1 |
 | ratemap-03 | ratemap_inverse_cancel.map | focused | positive | ratemap.c:766-789 | RateMap cancels with equal upper-neighbour in opposite direction | CmpMap(RateMap, Inverse(RateMap)), Series=1 |
 | ratemap-04 | neg_ratemap_parallel.map | focused | negative | ratemap.c:730 | Not in series: skipped | RateMaps in parallel |
-| ratemap-05 | — | focused | negative | ratemap.c:736 | Lower neighbour not a RateMap | CmpMap(ZoomMap, RateMap), Series=1 |
-| ratemap-06 | — | focused | negative | ratemap.c:739 | Lower neighbour same invert flag | Two forward RateMaps in series |
-| ratemap-07 | — | focused | negative | ratemap.c:744-745 | Lower neighbour different iin/iout indices | RateMaps with different axis indices |
+| ratemap-05 | neg_ratemap_lower_nonrate.map | focused | negative | ratemap.c:736 | Lower neighbour not a RateMap | CmpMap(ZoomMap, RateMap), Series=1 |
+| ratemap-06 | neg_ratemap_same_invert.map | focused | negative | ratemap.c:739 | Lower neighbour same invert flag | Two forward RateMaps in series |
+| ratemap-07 | neg_ratemap_diff_indices.map | focused | negative | ratemap.c:744-745 | Lower neighbour different iin/iout indices | RateMaps with different axis indices |
 | ratemap-08 | neg_ratemap_different_inner.map | focused | negative | ratemap.c:755 | Lower neighbour non-equal encapsulated Mapping | RateMaps wrapping different Mappings |
 | ratemap-09 | neg_ratemap_nonratemap_neighbour.map | focused | negative | ratemap.c:767 | Upper neighbour not a RateMap | CmpMap(RateMap, ZoomMap), Series=1 |
-| ratemap-10 | — | focused | negative | ratemap.c:769 | Upper neighbour same invert flag | Two forward RateMaps |
-| ratemap-11 | — | focused | negative | ratemap.c:772-773 | Upper neighbour different iin/iout | Different axis RateMaps |
-| ratemap-12 | — | focused | negative | ratemap.c:781 | Upper neighbour non-equal encapsulated Mapping | Different inner Mappings |
+| ratemap-10 | neg_ratemap_same_invert.map | focused | negative | ratemap.c:769 | Upper neighbour same invert flag | Two forward RateMaps |
+| ratemap-11 | neg_ratemap_diff_indices.map | focused | negative | ratemap.c:772-773 | Upper neighbour different iin/iout | Different axis RateMaps |
+| ratemap-12 | neg_ratemap_diff_inner.map | focused | negative | ratemap.c:781 | Upper neighbour non-equal encapsulated Mapping | Different inner Mappings |
 
 ## intramap.c
 
