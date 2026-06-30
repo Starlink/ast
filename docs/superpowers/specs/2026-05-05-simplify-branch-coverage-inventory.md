@@ -54,7 +54,7 @@ parallel CmpMap by restructuring permutation arrays.
 | cmpmap-03 | cmpmap_nested_parallel_flatten.map | focused | positive | cmpmap.c:1477-1524 | CmpMap decomposed into components when combination mode matches list mode | Series CmpMap in a series list, or parallel CmpMap in a parallel list |
 | cmpmap-04 | neg_cmpmap_mode_mismatch.map | focused | negative | cmpmap.c:1477-1478 | Guard rejects decomposition: CmpMap mode does not match list mode | Series CmpMap in a parallel list |
 | cmpmap-05 | — | focused | negative | cmpmap.c:1534-1535 | Guard rejects merging: only one mapping in list (nmap <= 1) | Mapping list containing only the CmpMap |
-| cmpmap-06 | — | focused | negative | cmpmap.c:1551 | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
+| cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | negative | cmpmap.c:1551 | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-07 | cmpmap_parallel_series_components.map | focused | positive | cmpmap.c:1582-1622 | Two series CmpMaps in parallel list restructured into parallel-then-series and at least one simplifies | Two series CmpMaps combined in parallel with simplifiable pairings |
 | cmpmap-08 | — | focused | negative | cmpmap.c:1610-1611 | Guard: re-arranged parallel CmpMaps do not simplify | Two series CmpMaps in parallel whose rearranged pairings remain irreducible |
 | cmpmap-09 | cmpmap_parallel_in_series_merge.map | focused | positive | cmpmap.c:1629-1780 | Two parallel CmpMaps in series list paired by dimension, at least one pair simplifies | Two parallel CmpMaps in series with simplifiable component pairs |
@@ -105,7 +105,7 @@ MatrixMap (different factors).
 | zoommap-05 | zoom_parallel_all_unit.map | focused | positive | zoommap.c:916-930 | All parallel ZoomMaps/UnitMaps have factor 1 → UnitMap | CmpMap(UnitMap(2), ZoomMap(1,Nin=3)), Series=0 |
 | zoommap-06 | zoom_parallel_same_factor.map | focused | positive | zoommap.c:912-932 | All parallel ZoomMaps have same non-unity factor → single ZoomMap | CmpMap(ZoomMap(2,Nin=1), ZoomMap(2,Nin=2)), Series=0 |
 | zoommap-07 | zoom_parallel_to_matrix.map | focused | positive | zoommap.c:937-938 | Parallel ZoomMaps with different factors → diagonal MatrixMap | CmpMap(ZoomMap(2,Nin=1), ZoomMap(3,Nin=1)), Series=0 |
-| zoommap-08 | — | focused | negative | zoommap.c:923-926 | Single ZoomMap in parallel with no adjacent ZoomMaps: no simplification | Lone ZoomMap in parallel |
+| zoommap-08 | neg_zoom_parallel_lone.map | focused | negative | zoommap.c:923-926 | Single ZoomMap in parallel with no adjacent ZoomMaps: no simplification | Lone ZoomMap in parallel |
 | zoommap-09 | zoom_absorb_prev_matrix.map | focused | positive | zoommap.c:1001-1011 | ZoomMap absorbed into previous MatrixMap (elements scaled) | CmpMap(MatrixMap, ZoomMap), Series=1 |
 | zoommap-10 | zoom_absorb_prev_win.map | focused | positive | zoommap.c:1016-1028 | ZoomMap absorbed into previous WinMap (shifts and scales multiplied) | CmpMap(WinMap, ZoomMap), Series=1 |
 | zoommap-11 | zoom_absorb_prev_shift.map | focused | positive | zoommap.c:1033-1057 | ZoomMap absorbed into previous ShiftMap → WinMap | CmpMap(ShiftMap, ZoomMap), Series=1 |

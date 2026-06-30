@@ -123,8 +123,8 @@ permutation arrays.
 |---|---|---|---|---|---|
 | cmpmap-02 | -- | focused | `- (requires deep internal nesting)` | CmpMap does not simplify on its own (astSimplify returns same pointer unchanged) | CmpMap with irreducible components |
 | cmpmap-04 | neg_cmpmap_mode_mismatch.map | focused | `+` | Guard rejects decomposition: CmpMap mode does not match list mode | Series CmpMap in a parallel list |
-| cmpmap-05 | -- | focused | `- (requires deep internal nesting)` | Guard rejects merging: only one mapping in list (nmap <= 1) | Mapping list containing only the CmpMap |
-| cmpmap-06 | -- | focused | `- (requires deep internal nesting)` | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
+| cmpmap-05 | neg_cmpmap_lone_parallel.map | focused | `- (requires deep internal nesting)` | Guard rejects merging: only one mapping in list (nmap <= 1) | Mapping list containing only the CmpMap |
+| cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | `- (requires deep internal nesting)` | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-08 | -- | focused | `- (no fixture)` | Guard: re-arranged parallel CmpMaps do not simplify | Two series CmpMaps in parallel whose rearranged pairings remain irreducible |
 | cmpmap-10 | -- | cascade | `- (no fixture)` | Guard: two CmpMaps are not both parallel, or list is not series | Two adjacent CmpMaps where at least one is series |
 | cmpmap-11 | -- | cascade | `- (no fixture)` | Parallel-in-series pairing produces no simplification | Two parallel CmpMaps in series with all irreducible sub-mappings |
@@ -190,7 +190,7 @@ diagonal MatrixMap (different factors).
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | zoommap-04 | neg_zoom_lone.map | focused | `- (no fixture)` | Single forward ZoomMap with no adjacent ZoomMaps: nothing to accumulate | Lone forward ZoomMap in series (falls through to absorb) |
-| zoommap-08 | -- | focused | `- (no fixture)` | Single ZoomMap in parallel with no adjacent ZoomMaps: no simplification | Lone ZoomMap in parallel |
+| zoommap-08 | neg_zoom_parallel_lone.map | focused | `-` | Single ZoomMap in parallel with no adjacent ZoomMaps: no simplification | Lone ZoomMap in parallel |
 | zoommap-15 | neg_zoom_no_absorb.map | focused | `+` | ZoomMap cannot be absorbed: neither neighbour is MatrixMap/WinMap/ShiftMap | CmpMap(SphMap, ZoomMap, MathMap), Series=1 |
 | zoommap-16 | neg_zoom_lower_nonzoom.map | focused | `-` | Backward neighbour search stops at a non-ZoomMap/UnitMap lower neighbour; no merge | CmpMap(PermMap, ZoomMap), Series=1 |
 

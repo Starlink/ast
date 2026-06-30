@@ -339,3 +339,5 @@ neg_ratemap_lower_nonrate    | simplify_fixtures/neg_ratemap_lower_nonrate.map |
 neg_ratemap_same_invert      | simplify_fixtures/neg_ratemap_same_invert.map | simplify_fixtures/neg_ratemap_same_invert.map | yes
 neg_ratemap_diff_indices     | simplify_fixtures/neg_ratemap_diff_indices.map | simplify_fixtures/neg_ratemap_diff_indices.map | yes
 neg_ratemap_diff_inner       | simplify_fixtures/neg_ratemap_diff_inner.map | simplify_fixtures/neg_ratemap_diff_inner.map | yes
+neg_zoom_parallel_lone           | simplify_fixtures/neg_zoom_parallel_lone.map | simplify_fixtures/neg_zoom_parallel_lone.map | yes
+neg_cmpmap_neighbour_nonexcmpmap | simplify_fixtures/neg_cmpmap_neighbour_nonexcmpmap.map | simplify_fixtures/neg_cmpmap_neighbour_nonexcmpmap.map | yes
