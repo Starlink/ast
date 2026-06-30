@@ -411,7 +411,7 @@ pair cancels to UnitMap.
 | mathmap-07 | -- | focused | `- (no fixture)` | Forward function count mismatch | MathMaps with different output counts |
 | mathmap-08 | -- | focused | `- (no fixture)` | Forward function text of first != inverse text of second | Different MathMaps with SimpFI set |
 | mathmap-09 | -- | focused | `- (no fixture)` | Inverse function count mismatch | MathMaps whose inv/fwd counts differ |
-| mathmap-10 | -- | focused | `- (no fixture)` | Inverse function text of first != forward text of second | MathMaps whose inv(first) != fwd(second) |
+| mathmap-10 | neg_math_inv_text_mismatch.map | focused | `-` | Inverse function text of first != forward text of second | MathMaps whose inv(first) != fwd(second) |
 
 ---
 

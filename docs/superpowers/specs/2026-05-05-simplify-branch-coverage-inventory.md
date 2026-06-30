@@ -273,7 +273,7 @@ pair cancels to UnitMap.
 | mathmap-07 | — | focused | negative | mathmap.c:4095 | Forward function count mismatch | MathMaps with different output counts |
 | mathmap-08 | — | focused | negative | mathmap.c:4107-4110 | Forward function text of first != inverse text of second | Different MathMaps with SimpFI set |
 | mathmap-09 | — | focused | negative | mathmap.c:4119 | Inverse function count mismatch | MathMaps whose inv/fwd counts differ |
-| mathmap-10 | — | focused | negative | mathmap.c:4124-4127 | Inverse function text of first != forward text of second | MathMaps whose inv(first) != fwd(second) |
+| mathmap-10 | neg_math_inv_text_mismatch.map | focused | negative | mathmap.c:4124-4127 | Inverse function text of first != forward text of second | MathMaps whose inv(first) != fwd(second) |
 
 ## ratemap.c
 

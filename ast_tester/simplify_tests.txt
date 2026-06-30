@@ -342,3 +342,4 @@ neg_ratemap_diff_inner       | simplify_fixtures/neg_ratemap_diff_inner.map | si
 neg_zoom_parallel_lone           | simplify_fixtures/neg_zoom_parallel_lone.map | simplify_fixtures/neg_zoom_parallel_lone.map | yes
 neg_cmpmap_neighbour_nonexcmpmap | simplify_fixtures/neg_cmpmap_neighbour_nonexcmpmap.map | simplify_fixtures/neg_cmpmap_neighbour_nonexcmpmap.map | yes
 neg_tranmap_oneway       | simplify_fixtures/neg_tranmap_oneway.map | simplify_fixtures/neg_tranmap_oneway.map | yes
+neg_math_inv_text_mismatch | simplify_fixtures/neg_math_inv_text_mismatch.map | simplify_fixtures/neg_math_inv_text_mismatch.map | yes
