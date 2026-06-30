@@ -386,3 +386,8 @@ switchmap_invonly_simplify         | simplify_fixtures/switchmap_invonly_simplif
 switchmap_inv_invonly              | simplify_fixtures/switchmap_inv_invonly.map | simplify_fixtures/switchmap_inv_invonly.map | yes
 switchmap_inv_fwdonly              | simplify_fixtures/switchmap_inv_fwdonly.map | simplify_fixtures/switchmap_inv_fwdonly.map | yes
 neg_switchmap_series_lower         | simplify_fixtures/neg_switchmap_series_lower.map | simplify_fixtures/neg_switchmap_series_lower.map | yes
+unitnormmap_shift_fwd_merge          | simplify_fixtures/unitnormmap_shift_fwd_merge.map | simplify_fixtures/unitnormmap_shift_fwd_merge.simp |
+unitnormmap_winmap_fwd_merge         | simplify_fixtures/unitnormmap_winmap_fwd_merge.map | simplify_fixtures/unitnormmap_winmap_fwd_merge.simp |
+unitnormmap_inv_shift_merge          | simplify_fixtures/unitnormmap_inv_shift_merge.map | simplify_fixtures/unitnormmap_inv_shift_merge.simp |
+unitnormmap_inv_winmap_merge         | simplify_fixtures/unitnormmap_inv_winmap_merge.map | simplify_fixtures/unitnormmap_inv_winmap_merge.simp |
+neg_unitnormmap_nonmergeable         | simplify_fixtures/neg_unitnormmap_nonmergeable.map | simplify_fixtures/neg_unitnormmap_nonmergeable.map | yes

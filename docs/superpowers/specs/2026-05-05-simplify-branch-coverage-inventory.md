@@ -372,7 +372,7 @@ different→ShiftMap).
 | unitnormmap-13 | — | focused | negative | unitnormmap.c:345 | UnitNormMap(fwd) + ShiftMap: refused | Forward UnitNormMap followed by ShiftMap |
 | unitnormmap-14 | — | focused | negative | unitnormmap.c:362 | UnitNormMap(fwd) + WinMap: refused | Forward UnitNormMap followed by WinMap |
 | unitnormmap-15 | — | focused | negative | unitnormmap.c:383 | Two UnitNormMaps in same direction: refused | Two forward UnitNormMaps in series |
-| unitnormmap-16 | — | focused | negative | unitnormmap.c:302 | Neighbour is not ShiftMap/WinMap/UnitNormMap: refused | UnitNormMap with non-mergeable neighbour |
+| unitnormmap-16 | neg_unitnormmap_nonmergeable.map | focused | negative | unitnormmap.c:302 | Neighbour is not ShiftMap/WinMap/UnitNormMap: refused | UnitNormMap with non-mergeable neighbour |
 | unitnormmap-17 | — | focused | negative | unitnormmap.c:791-795 | Parallel mode: never simplifies | UnitNormMap in parallel |
 | unitnormmap-18 | — | focused | negative | unitnormmap.c:763 | No neighbour pair produces valid merge | UnitNormMap flanked by non-mergeable classes |
 
