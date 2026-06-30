@@ -356,3 +356,7 @@ neg_intra_same_direction       | simplify_fixtures/neg_intra_same_direction.map 
 neg_intra_diff_func          | simplify_fixtures/neg_intra_diff_func.map | simplify_fixtures/neg_intra_diff_func.map | yes
 neg_intra_no_simpfi          | simplify_fixtures/neg_intra_no_simpfi.map | simplify_fixtures/neg_intra_no_simpfi.map | yes
 neg_intra_no_simpif          | simplify_fixtures/neg_intra_no_simpif.map | simplify_fixtures/neg_intra_no_simpif.map | yes
+xph_inverse_cancel       | simplify_fixtures/xph_inverse_cancel.map | simplify_fixtures/xph_inverse_cancel.simp | yes
+neg_xph_parallel             | simplify_fixtures/neg_xph_parallel.map | simplify_fixtures/neg_xph_parallel.map | yes
+neg_xph_nonxph_neighbour     | simplify_fixtures/neg_xph_nonxph_neighbour.map | simplify_fixtures/neg_xph_nonxph_neighbour.map | yes
+neg_xph_not_opposite         | simplify_fixtures/neg_xph_not_opposite.map | simplify_fixtures/neg_xph_not_opposite.map | yes

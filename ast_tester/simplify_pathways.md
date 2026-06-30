@@ -911,15 +911,15 @@ direction via astEqual).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| xphmap-04 | -- | focused | `- (infeasible: protected constructor)` | Inverse-pair cancellation to UnitMap | XphMap + Inverse(XphMap), same order |
+| xphmap-04 | xph_inverse_cancel.map | focused | `-` | Inverse-pair cancellation to UnitMap | XphMap + Inverse(XphMap), same order |
 
 ### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| xphmap-01 | -- | focused | `- (infeasible: protected constructor)` | Parallel mode: refused | XphMap in parallel |
-| xphmap-02 | -- | focused | `- (infeasible: protected constructor)` | No adjacent XphMap found | XphMap flanked by non-XphMaps |
-| xphmap-03 | -- | focused | `- (infeasible: protected constructor)` | Adjacent XphMap not equal-and-opposite | XphMaps with different order or same direction |
+| xphmap-01 | neg_xph_parallel.map | focused | `-` | Parallel mode: refused | XphMap in parallel |
+| xphmap-02 | neg_xph_nonxph_neighbour.map | focused | `-` | No adjacent XphMap found | XphMap flanked by non-XphMaps |
+| xphmap-03 | neg_xph_not_opposite.map | focused | `-` | Adjacent XphMap not equal-and-opposite | XphMaps with different order or same direction |
 
 ---
 

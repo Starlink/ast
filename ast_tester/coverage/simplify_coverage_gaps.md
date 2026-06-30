@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 831
+**Open absolute-only gaps:** 828
 
 ## Open gaps
 
@@ -845,12 +845,9 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/winmap.c:1822` | 3 | MapMerge | absolute-only | open |
 | `src/winmap.c:1822` | 6 | MapMerge | absolute-only | open |
 | `src/winmap.c:1822` | 9 | MapMerge | absolute-only | open |
-| `src/xphmap.c:524` | 0 | MapMerge | absolute-only | open |
 | `src/xphmap.c:532` | 1 | MapMerge | absolute-only | open |
 | `src/xphmap.c:540` | 1 | MapMerge | absolute-only | open |
-| `src/xphmap.c:540` | 3 | MapMerge | absolute-only | open |
 | `src/xphmap.c:559` | 0 | MapMerge | absolute-only | open |
-| `src/xphmap.c:567` | 0 | MapMerge | absolute-only | open |
 | `src/zoommap.c:747` | 0 | MapMerge | absolute-only | open |
 | `src/zoommap.c:756` | 0 | MapMerge | absolute-only | open |
 | `src/zoommap.c:765` | 0 | MapMerge | absolute-only | open |

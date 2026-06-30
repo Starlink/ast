@@ -625,10 +625,10 @@ direction via astEqual).
 
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
-| xphmap-01 | — | focused | negative | xphmap.c:524 | Parallel mode: refused | XphMap in parallel |
-| xphmap-02 | — | focused | negative | xphmap.c:530-544 | No adjacent XphMap found | XphMap flanked by non-XphMaps |
-| xphmap-03 | — | focused | negative | xphmap.c:559 | Adjacent XphMap not equal-and-opposite | XphMaps with different order or same direction |
-| xphmap-04 | — | focused | positive | xphmap.c:567-596 | Inverse-pair cancellation → UnitMap | XphMap + Inverse(XphMap), same order |
+| xphmap-01 | neg_xph_parallel.map | focused | negative | xphmap.c:524 | Parallel mode: refused | XphMap in parallel |
+| xphmap-02 | neg_xph_nonxph_neighbour.map | focused | negative | xphmap.c:530-544 | No adjacent XphMap found | XphMap flanked by non-XphMaps |
+| xphmap-03 | neg_xph_not_opposite.map | focused | negative | xphmap.c:559 | Adjacent XphMap not equal-and-opposite | XphMaps with different order or same direction |
+| xphmap-04 | xph_inverse_cancel.map | focused | positive | xphmap.c:567-596 | Inverse-pair cancellation → UnitMap | XphMap + Inverse(XphMap), same order |
 
 ---
 
