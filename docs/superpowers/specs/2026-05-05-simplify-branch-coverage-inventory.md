@@ -383,12 +383,12 @@ cancellation.
 
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
-| selectormap-01 | — | focused | positive | selectormap.c:698-714 | Internal regions simplify → new SelectorMap with simplified regions | SelectorMap containing simplifiable Regions |
-| selectormap-02 | — | focused | negative | selectormap.c:700-704,727 | No region simplification and no adjacent SelectorMap | SelectorMap with already-simple regions, alone |
-| selectormap-03 | — | focused | negative | selectormap.c:731-744 | No adjacent SelectorMap found in series | SelectorMap flanked by non-SelectorMaps |
-| selectormap-04 | — | focused | negative | selectormap.c:751-755 | Adjacent SelectorMap not equal-and-opposite | Two SelectorMaps with different regions |
-| selectormap-05 | selectormap_inverse_cancel.map | focused | positive | selectormap.c:758-779 | Inverse-pair cancellation → UnitMap | SelectorMap + Inverse(SelectorMap), identical regions |
-| selectormap-06 | — | focused | negative | selectormap.c:727 | Parallel mode: Phase 2 skipped | SelectorMap in parallel |
+| selectormap-01 | selectormap_region_simplify_real.map | focused | positive | selectormap.c:698-714 | Internal regions simplify → new SelectorMap with simplified regions | SelectorMap containing a finite-bound Interval (simplifies to a Box) |
+| selectormap-02 | neg_selectormap_series_lower.map | focused | negative | selectormap.c:700-704,727 | No region simplification and no adjacent SelectorMap (lower-neighbour search) | SelectorMap as upper element, ZoomMap lower neighbour |
+| selectormap-03 | neg_selectormap_series_upper.map | focused | negative | selectormap.c:731-744 | No adjacent SelectorMap found in series | SelectorMap with a ZoomMap upper neighbour |
+| selectormap-04 | neg_selectormap_not_equal.map | focused | negative | selectormap.c:751-755 | Adjacent SelectorMap not equal-and-opposite | Two SelectorMaps with different region bounds in series |
+| selectormap-05 | selectormap_inverse_cancel.map, selectormap_inverse_cancel_tail.map | focused | positive | selectormap.c:758-779 | Inverse-pair cancellation → UnitMap | SelectorMap + Inverse(SelectorMap), identical regions; the `_tail` variant adds a trailing ZoomMap so the post-cancel shuffle-down loop (767) runs |
+| selectormap-06 | neg_selectormap_parallel.map | focused | negative | selectormap.c:727 | Parallel mode: Phase 2 skipped | SelectorMap in parallel with a ZoomMap |
 
 ## switchmap.c
 

@@ -570,17 +570,17 @@ cancellation.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| selectormap-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Internal regions simplify to new SelectorMap with simplified regions | SelectorMap containing simplifiable Regions |
-| selectormap-05 | selectormap_inverse_cancel.map | focused | `+` | Inverse-pair cancellation to UnitMap | SelectorMap + Inverse(SelectorMap), identical regions |
+| selectormap-01 | selectormap_region_simplify_real.map | focused | `+` | Internal regions simplify to new SelectorMap with simplified regions | SelectorMap containing a finite-bound Interval (simplifies to a Box) |
+| selectormap-05 | selectormap_inverse_cancel.map, selectormap_inverse_cancel_tail.map | focused | `+` | Inverse-pair cancellation to UnitMap | SelectorMap + Inverse(SelectorMap), identical regions; `_tail` adds a trailing ZoomMap for the shuffle-down loop |
 
 ### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| selectormap-02 | -- | focused | `- (no fixture)` | No region simplification and no adjacent SelectorMap | SelectorMap with already-simple regions, alone |
-| selectormap-03 | -- | focused | `- (no fixture)` | No adjacent SelectorMap found in series | SelectorMap flanked by non-SelectorMaps |
-| selectormap-04 | -- | focused | `- (no fixture)` | Adjacent SelectorMap not equal-and-opposite | Two SelectorMaps with different regions |
-| selectormap-06 | -- | focused | `- (no fixture)` | Parallel mode: Phase 2 skipped | SelectorMap in parallel |
+| selectormap-02 | neg_selectormap_series_lower.map | focused | covered | No region simplification and no adjacent SelectorMap (lower-neighbour search) | SelectorMap as upper element, ZoomMap lower neighbour |
+| selectormap-03 | neg_selectormap_series_upper.map | focused | covered | No adjacent SelectorMap found in series | SelectorMap with a ZoomMap upper neighbour |
+| selectormap-04 | neg_selectormap_not_equal.map | focused | covered | Adjacent SelectorMap not equal-and-opposite | Two SelectorMaps with different region bounds in series |
+| selectormap-06 | neg_selectormap_parallel.map | focused | covered | Parallel mode: Phase 2 skipped | SelectorMap in parallel with a ZoomMap |
 
 ---
 

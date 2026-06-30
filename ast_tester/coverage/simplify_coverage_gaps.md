@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 817
+**Open absolute-only gaps:** 807
 
 ## Open gaps
 
@@ -279,18 +279,8 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/ratemap.c:772` | 2 | MapMerge | absolute-only | open |
 | `src/ratemap.c:781` | 1 | MapMerge | absolute-only | open |
 | `src/ratemap.c:799` | 0 | MapMerge | absolute-only | open |
-| `src/selectormap.c:703` | 1 | MapMerge | absolute-only | open |
-| `src/selectormap.c:708` | 1 | MapMerge | absolute-only | open |
-| `src/selectormap.c:717` | 0 | MapMerge | absolute-only | open |
-| `src/selectormap.c:727` | 1 | MapMerge | absolute-only | open |
-| `src/selectormap.c:727` | 2 | MapMerge | absolute-only | open |
-| `src/selectormap.c:731` | 3 | MapMerge | absolute-only | open |
-| `src/selectormap.c:738` | 0 | MapMerge | absolute-only | open |
-| `src/selectormap.c:738` | 2 | MapMerge | absolute-only | open |
-| `src/selectormap.c:738` | 3 | MapMerge | absolute-only | open |
-| `src/selectormap.c:753` | 0 | MapMerge | absolute-only | open |
-| `src/selectormap.c:758` | 0 | MapMerge | absolute-only | open |
-| `src/selectormap.c:767` | 0 | MapMerge | absolute-only | open |
+| `src/selectormap.c:717` | 0 | MapMerge | absolute-only | unreachable:OOM guard (sreg==NULL only on malloc failure) |
+| `src/selectormap.c:753` | 0 | MapMerge | absolute-only | wontfix:gcov call-edge artifact on astEqual() line |
 | `src/shiftmap.c:717` | 1 | MapMerge | absolute-only | open |
 | `src/shiftmap.c:721` | 3 | MapMerge | absolute-only | open |
 | `src/shiftmap.c:722` | 0 | MapMerge | absolute-only | open |

@@ -1,0 +1,107 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    Fwd = 0 	# Forward transformation not defined
+    Inv = 0 	# Inverse transformation not defined
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+          Fwd = 0 	# Forward transformation not defined
+          Inv = 0 	# Inverse transformation not defined
+       IsA Mapping 	# Mapping between coordinate systems
+          InvB = 1 	# Second Mapping used in inverse direction
+          MapA = 	# First component Mapping
+             Begin SelectorMap 	# Region identification Mapping
+                Nin = 2 	# Number of input coordinates
+                Nout = 1 	# Number of output coordinates
+                Inv = 0 	# Inverse transformation not defined
+             IsA Mapping 	# Mapping between coordinate systems
+                Reg1 = 	# Region of input space
+                   Begin Box 	# Axis intervals
+#                     Title = "2-d coordinate system" 	# Title of coordinate system
+#                     Naxes = 2 	# Number of coordinate axes
+#                     Domain = "A" 	# Coordinate system domain
+#                     Epoch = 2000 	# Julian epoch of observation
+#                     Lbl1 = "Axis 1" 	# Label for axis 1
+#                     Lbl2 = "Axis 2" 	# Label for axis 2
+#                     System = "Cartesian" 	# Coordinate system type
+                   IsA Frame 	# Coordinate system description
+                      Adapt = 1 	# Region adapts to coord sys changes
+                      Frm = 	# Coordinate system
+                         Begin Frame 	# Coordinate system description
+#                           Title = "2-d coordinate system" 	# Title of coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+                            Domain = "A" 	# Coordinate system domain
+#                           Lbl1 = "Axis 1" 	# Label for axis 1
+#                           Lbl2 = "Axis 2" 	# Label for axis 2
+                            Ax1 = 	# Axis number 1
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                            Ax2 = 	# Axis number 2
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                         End Frame
+                      Points = 	# Points defining the shape
+                         Begin PointSet 	# Container for a set of points
+                            Npoint = 2 	# Number of points
+                            Ncoord = 2 	# Number of coordinates per point
+                            X1 = 0 	# Coordinate values...
+                            X2 = 0
+                            X3 = 1
+                            X4 = 1
+                         End PointSet
+                   IsA Region 	# An area within a coordinate system
+                   End Box
+             End SelectorMap
+          MapB = 	# Second component Mapping
+             Begin SelectorMap 	# Region identification Mapping
+                Nin = 2 	# Number of input coordinates
+                Nout = 1 	# Number of output coordinates
+                Invert = 1 	# Mapping inverted
+                Inv = 0 	# Inverse transformation not defined
+             IsA Mapping 	# Mapping between coordinate systems
+                Reg1 = 	# Region of input space
+                   Begin Box 	# Axis intervals
+#                     Title = "2-d coordinate system" 	# Title of coordinate system
+#                     Naxes = 2 	# Number of coordinate axes
+#                     Domain = "A" 	# Coordinate system domain
+#                     Epoch = 2000 	# Julian epoch of observation
+#                     Lbl1 = "Axis 1" 	# Label for axis 1
+#                     Lbl2 = "Axis 2" 	# Label for axis 2
+#                     System = "Cartesian" 	# Coordinate system type
+                   IsA Frame 	# Coordinate system description
+                      Adapt = 1 	# Region adapts to coord sys changes
+                      Frm = 	# Coordinate system
+                         Begin Frame 	# Coordinate system description
+#                           Title = "2-d coordinate system" 	# Title of coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+                            Domain = "A" 	# Coordinate system domain
+#                           Lbl1 = "Axis 1" 	# Label for axis 1
+#                           Lbl2 = "Axis 2" 	# Label for axis 2
+                            Ax1 = 	# Axis number 1
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                            Ax2 = 	# Axis number 2
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                         End Frame
+                      Points = 	# Points defining the shape
+                         Begin PointSet 	# Container for a set of points
+                            Npoint = 2 	# Number of points
+                            Ncoord = 2 	# Number of coordinates per point
+                            X1 = 0 	# Coordinate values...
+                            X2 = 0
+                            X3 = 1
+                            X4 = 1
+                         End PointSet
+                   IsA Region 	# An area within a coordinate system
+                   End Box
+             End SelectorMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 3 	# Zoom factor
+       End ZoomMap
+ End CmpMap

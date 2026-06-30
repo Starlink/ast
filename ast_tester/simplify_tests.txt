@@ -371,3 +371,9 @@ neg_box_series                     | simplify_fixtures/neg_box_series.map | simp
 neg_box_parallel_nonregion         | simplify_fixtures/neg_box_parallel_nonregion.map | simplify_fixtures/neg_box_parallel_nonregion.map | yes
 neg_interval_series                | simplify_fixtures/neg_interval_series.map | simplify_fixtures/neg_interval_series.map | yes
 neg_interval_parallel_nonregion    | simplify_fixtures/neg_interval_parallel_nonregion.map | simplify_fixtures/neg_interval_parallel_nonregion.map | yes
+selectormap_region_simplify_real     | simplify_fixtures/selectormap_region_simplify_real.map | simplify_fixtures/selectormap_region_simplify_real.simp |
+neg_selectormap_series_upper         | simplify_fixtures/neg_selectormap_series_upper.map | simplify_fixtures/neg_selectormap_series_upper.map | yes
+neg_selectormap_series_lower         | simplify_fixtures/neg_selectormap_series_lower.map | simplify_fixtures/neg_selectormap_series_lower.map | yes
+neg_selectormap_not_equal            | simplify_fixtures/neg_selectormap_not_equal.map | simplify_fixtures/neg_selectormap_not_equal.map | yes
+neg_selectormap_parallel             | simplify_fixtures/neg_selectormap_parallel.map | simplify_fixtures/neg_selectormap_parallel.map | yes
+selectormap_inverse_cancel_tail      | simplify_fixtures/selectormap_inverse_cancel_tail.map | simplify_fixtures/selectormap_inverse_cancel_tail.simp |
