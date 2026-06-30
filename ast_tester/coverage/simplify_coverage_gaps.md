@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 849
+**Open absolute-only gaps:** 834
 
 ## Open gaps
 
@@ -107,31 +107,16 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/intramap.c:1504` | 7 | MapMerge | absolute-only | open |
 | `src/intramap.c:1504` | 8 | MapMerge | absolute-only | open |
 | `src/intramap.c:1504` | 9 | MapMerge | absolute-only | open |
-| `src/intramap.c:1514` | 1 | MapMerge | absolute-only | open |
-| `src/intramap.c:1514` | 2 | MapMerge | absolute-only | open |
 | `src/intramap.c:1525` | 1 | MapMerge | absolute-only | open |
-| `src/intramap.c:1525` | 3 | MapMerge | absolute-only | open |
 | `src/intramap.c:1532` | 0 | MapMerge | absolute-only | open |
-| `src/intramap.c:1532` | 2 | MapMerge | absolute-only | open |
-| `src/intramap.c:1533` | 1 | MapMerge | absolute-only | open |
-| `src/intramap.c:1534` | 1 | MapMerge | absolute-only | open |
-| `src/intramap.c:1541` | 0 | MapMerge | absolute-only | open |
-| `src/intramap.c:1542` | 0 | MapMerge | absolute-only | open |
 | `src/intramap.c:1542` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1545` | 0 | MapMerge | absolute-only | open |
 | `src/intramap.c:1552` | 0 | MapMerge | absolute-only | open |
 | `src/intramap.c:1553` | 0 | MapMerge | absolute-only | open |
 | `src/intramap.c:1553` | 1 | MapMerge | absolute-only | open |
-| `src/intramap.c:1556` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1562` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1562` | 2 | MapMerge | absolute-only | open |
-| `src/intramap.c:1567` | 1 | MapMerge | absolute-only | open |
-| `src/intramap.c:1567` | 2 | MapMerge | absolute-only | open |
-| `src/intramap.c:1573` | 0 | MapMerge | absolute-only | open |
-| `src/intramap.c:1573` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1573` | 2 | MapMerge | absolute-only | open |
-| `src/intramap.c:1573` | 3 | MapMerge | absolute-only | open |
-| `src/intramap.c:1582` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1597` | 0 | MapMerge | absolute-only | open |
 | `src/lutmap.c:1204` | 0 | MapMerge | absolute-only | open |
 | `src/mapping.c:16837` | 1 | Simplify | absolute-only | open |

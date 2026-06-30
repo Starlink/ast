@@ -454,18 +454,18 @@ and opposite direction, with AST__SIMPFI/SIMPIF permission.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | intramap-01 | intramap_inverse_cancel.map | focused | `+` | Forward + Inverse IntraMap with SIMPFI cancels to UnitMap | CmpMap(IntraMap, Inverse(IntraMap)), Series=1, SIMPFI set |
-| intramap-02 | -- | focused | `- (infeasible: protected constructor)` | Inverse + Forward IntraMap with SIMPIF cancels to UnitMap | CmpMap(Inverse(IntraMap), IntraMap), Series=1, SIMPIF set |
+| intramap-02 | intra_invfwd_cancel.map | focused | `- (infeasible: protected constructor)` | Inverse + Forward IntraMap with SIMPIF cancels to UnitMap | CmpMap(Inverse(IntraMap), IntraMap), Series=1, SIMPIF set |
 
 ### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| intramap-03 | -- | focused | `- (infeasible: protected constructor)` | Not in series or no following Mapping | IntraMaps in parallel |
-| intramap-04 | -- | focused | `- (infeasible: protected constructor)` | Following Mapping is not IntraMap | CmpMap(IntraMap, ZoomMap), Series=1 |
+| intramap-03 | neg_intra_parallel.map | focused | `- (infeasible: protected constructor)` | Not in series or no following Mapping | IntraMaps in parallel |
+| intramap-04 | neg_intra_nonintra_neighbour.map | focused | `- (infeasible: protected constructor)` | Following Mapping is not IntraMap | CmpMap(IntraMap, ZoomMap), Series=1 |
 | intramap-05 | -- | focused | `- (infeasible: protected constructor)` | Different transformation functions (ifun differs) | IntraMaps with different registered functions |
-| intramap-06 | -- | focused | `- (infeasible: protected constructor)` | IntraFlag strings differ | Same function but different flags |
+| intramap-06 | neg_intra_diff_flag.map | focused | `- (infeasible: protected constructor)` | IntraFlag strings differ | Same function but different flags |
 | intramap-07 | -- | focused | `- (infeasible: protected constructor)` | Dimension mismatch | Asymmetric IntraMaps |
-| intramap-08 | -- | focused | `- (infeasible: protected constructor)` | Same direction (both forward or both inverse) | Two forward IntraMaps in series |
+| intramap-08 | neg_intra_same_direction.map | focused | `- (infeasible: protected constructor)` | Same direction (both forward or both inverse) | Two forward IntraMaps in series |
 | intramap-09 | -- | focused | `- (infeasible: protected constructor)` | SIMPFI flag not set on forward-then-inverse pair | IntraMaps without SIMPFI permission |
 | intramap-10 | -- | focused | `- (infeasible: protected constructor)` | SIMPIF flag not set on inverse-then-forward pair | IntraMaps without SIMPIF permission |
 
