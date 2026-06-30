@@ -382,3 +382,7 @@ neg_switchmap_series             | simplify_fixtures/neg_switchmap_series.map | 
 neg_switchmap_parallel           | simplify_fixtures/neg_switchmap_parallel.map | simplify_fixtures/neg_switchmap_parallel.map | yes
 switchmap_inverse_cancel_tail      | simplify_fixtures/switchmap_inverse_cancel_tail.map | simplify_fixtures/switchmap_inverse_cancel_tail.simp |
 switchmap_fwdonly_simplify         | simplify_fixtures/switchmap_fwdonly_simplify.map | simplify_fixtures/switchmap_fwdonly_simplify.simp |
+switchmap_invonly_simplify         | simplify_fixtures/switchmap_invonly_simplify.map | simplify_fixtures/switchmap_invonly_simplify.simp |
+switchmap_inv_invonly              | simplify_fixtures/switchmap_inv_invonly.map | simplify_fixtures/switchmap_inv_invonly.map | yes
+switchmap_inv_fwdonly              | simplify_fixtures/switchmap_inv_fwdonly.map | simplify_fixtures/switchmap_inv_fwdonly.map | yes
+neg_switchmap_series_lower         | simplify_fixtures/neg_switchmap_series_lower.map | simplify_fixtures/neg_switchmap_series_lower.map | yes
