@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _130 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 23  
-**Open absolute-only gaps:** 807
+**Open absolute-only gaps:** 797
 
 ## Open gaps
 
@@ -642,24 +642,14 @@ _130 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/splinemap.c:1787` | 0 | MapMerge | absolute-only | open |
 | `src/splinemap.c:1800` | 0 | MapMerge | absolute-only | open |
 | `src/switchmap.c:970` | 1 | MapMerge | absolute-only | open |
-| `src/switchmap.c:977` | 1 | MapMerge | absolute-only | open |
-| `src/switchmap.c:995` | 0 | MapMerge | absolute-only | open |
-| `src/switchmap.c:999` | 2 | MapMerge | absolute-only | open |
-| `src/switchmap.c:1006` | 0 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1006` | 2 | MapMerge | absolute-only | open |
-| `src/switchmap.c:1006` | 3 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1021` | 1 | MapMerge | absolute-only | open |
-| `src/switchmap.c:1026` | 1 | MapMerge | absolute-only | open |
-| `src/switchmap.c:1035` | 0 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1064` | 1 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1065` | 1 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1080` | 0 | MapMerge | absolute-only | open |
-| `src/switchmap.c:1081` | 0 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1102` | 0 | MapMerge | absolute-only | open |
-| `src/switchmap.c:1103` | 0 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1104` | 0 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1112` | 0 | MapMerge | absolute-only | open |
-| `src/switchmap.c:1113` | 0 | MapMerge | absolute-only | open |
 | `src/switchmap.c:1114` | 0 | MapMerge | absolute-only | open |
 | `src/timemap.c:2114` | 2 | MapMerge | absolute-only | open |
 | `src/timemap.c:2126` | 1 | MapMerge | absolute-only | open |

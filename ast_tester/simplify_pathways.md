@@ -602,9 +602,9 @@ selectors/routes.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| switchmap-02 | -- | focused | `- (no fixture)` | Adjacent SwitchMap not equal-and-opposite | Two SwitchMaps with different routes |
-| switchmap-05 | -- | focused | `- (no fixture)` | Series: no adjacent match, non-inverted, internals don't simplify | Lone simple SwitchMap in series |
-| switchmap-06 | -- | focused | `- (no fixture)` | Parallel: same as above | Lone simple SwitchMap in parallel |
+| switchmap-02 | neg_switchmap_not_equal.map | focused | covered | Adjacent SwitchMap not equal-and-opposite | Two SwitchMaps with different route-map zoom factors in series |
+| switchmap-05 | neg_switchmap_series.map | focused | covered | Series: no adjacent match, non-inverted, internals don't simplify | SwitchMap in series with a ZoomMap |
+| switchmap-06 | neg_switchmap_parallel.map | focused | covered | Parallel: same as above | SwitchMap in parallel with a ZoomMap |
 
 ---
 

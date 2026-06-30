@@ -398,12 +398,12 @@ selectors/routes.
 
 | ID | Fixture | Type | Polarity | Lines | Description | Trigger |
 |---|---|---|---|---|---|---|
-| switchmap-01 | switchmap_inverse_cancel.map | focused | positive | switchmap.c:1026-1048 | Inverse-pair cancellation → UnitMap | SwitchMap + Inverse(SwitchMap), identical selectors/routes |
-| switchmap-02 | — | focused | negative | switchmap.c:999-1013,1021 | Adjacent SwitchMap not equal-and-opposite | Two SwitchMaps with different routes |
+| switchmap-01 | switchmap_inverse_cancel.map, switchmap_inverse_cancel_tail.map | focused | positive | switchmap.c:1026-1048 | Inverse-pair cancellation → UnitMap | SwitchMap + Inverse(SwitchMap), identical selectors/routes; the `_tail` variant adds a trailing ZoomMap so the post-cancel shuffle-down loop (1035) runs |
+| switchmap-02 | neg_switchmap_not_equal.map | focused | negative | switchmap.c:999-1013,1021 | Adjacent SwitchMap not equal-and-opposite | Two SwitchMaps with different route-map zoom factors in series |
 | switchmap-03 | switchmap_invert_normalize.map | focused | positive | switchmap.c:1063-1075 | Inverted SwitchMap normalized to non-inverted equivalent | SwitchMap with Invert=1 |
-| switchmap-04 | switchmap_internal_simplify.map | focused | positive | switchmap.c:1079-1098 | Internal selectors/routes simplify → new SwitchMap | SwitchMap with simplifiable route maps |
-| switchmap-05 | — | focused | negative | switchmap.c:995,1055,1079-1089 | Series: no adjacent match, non-inverted, internals don't simplify | Lone simple SwitchMap in series |
-| switchmap-06 | — | focused | negative | switchmap.c:995,1055,1079-1089 | Parallel: same as above | Lone simple SwitchMap in parallel |
+| switchmap-04 | switchmap_internal_simplify.map, switchmap_fwdonly_simplify.map | focused | positive | switchmap.c:1079-1098 | Internal selectors/routes simplify → new SwitchMap | SwitchMap with simplifiable route maps; the `_fwdonly` variant has a NULL inverse selector, exercising the NULL-ismap branch directions |
+| switchmap-05 | neg_switchmap_series.map | focused | negative | switchmap.c:995,1055,1079-1089 | Series: no adjacent match, non-inverted, internals don't simplify | SwitchMap (non-unit ZoomMap selectors/route) in series with a ZoomMap |
+| switchmap-06 | neg_switchmap_parallel.map | focused | negative | switchmap.c:995,1055,1079-1089 | Parallel: same as above | SwitchMap in parallel with a ZoomMap |
 
 ## tranmap.c
 

@@ -377,3 +377,8 @@ neg_selectormap_series_lower         | simplify_fixtures/neg_selectormap_series_
 neg_selectormap_not_equal            | simplify_fixtures/neg_selectormap_not_equal.map | simplify_fixtures/neg_selectormap_not_equal.map | yes
 neg_selectormap_parallel             | simplify_fixtures/neg_selectormap_parallel.map | simplify_fixtures/neg_selectormap_parallel.map | yes
 selectormap_inverse_cancel_tail      | simplify_fixtures/selectormap_inverse_cancel_tail.map | simplify_fixtures/selectormap_inverse_cancel_tail.simp |
+neg_switchmap_not_equal          | simplify_fixtures/neg_switchmap_not_equal.map | simplify_fixtures/neg_switchmap_not_equal.map | yes
+neg_switchmap_series             | simplify_fixtures/neg_switchmap_series.map | simplify_fixtures/neg_switchmap_series.map | yes
+neg_switchmap_parallel           | simplify_fixtures/neg_switchmap_parallel.map | simplify_fixtures/neg_switchmap_parallel.map | yes
+switchmap_inverse_cancel_tail      | simplify_fixtures/switchmap_inverse_cancel_tail.map | simplify_fixtures/switchmap_inverse_cancel_tail.simp |
+switchmap_fwdonly_simplify         | simplify_fixtures/switchmap_fwdonly_simplify.map | simplify_fixtures/switchmap_fwdonly_simplify.simp |
