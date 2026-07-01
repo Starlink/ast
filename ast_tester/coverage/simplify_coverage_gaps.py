@@ -21,16 +21,20 @@ import re
 #
 # The list covers both the per-class MapMerge/MapList/Simplify methods and the
 # static merge/swap helper functions they call: the region-pair mergers
-# (MergeBox/MergeInterval/MergeNullRegion/MergePointList), the PolyMap+ShiftMap
-# mergers (MergeShift/MergeShifts), the UnitNormMap merger (MakeMergedMap,
-# GetMappingType), the WinMap/MatrixMap swap executors (WinMat/MatWin/MatWin2/
-# WinPerm/WinWcs) and the swap/merge feasibility helpers (CanSwap/CanMerge/
-# PermGet). Without the helpers the ledger only saw the MapMerge method bodies
-# and undercounted the merge engine.
+# (MergeBox/MergeInterval/MergeNullRegion/MergePointList), the UnitNormMap
+# merger (MakeMergedMap, GetMappingType), the WinMap/MatrixMap swap executors
+# (WinMat/MatWin/MatWin2/WinPerm/WinWcs) and the swap/merge feasibility helpers
+# (CanSwap/CanMerge/PermGet). Without the helpers the ledger only saw the
+# MapMerge method bodies and undercounted the merge engine.
+#
+# NOT included: PolyMap's MergeShift/MergeShifts. Despite the name, they are
+# reached only via the protected astMergeShift method, whose sole caller is
+# fitschan.c (FITS-WCS construction) -- never astSimplify. Like Decompose /
+# RemoveRegions, a simplify fixture cannot exercise them.
 ALLOWLIST = {"MapMerge", "MapList", "Simplify", "CombineMaps",
              "WinMat", "MatWin", "MatWin2", "WinPerm", "WinWcs",
              "MergeBox", "MergeInterval", "MergeNullRegion", "MergePointList",
-             "MergeShift", "MergeShifts", "MakeMergedMap", "GetMappingType",
+             "MakeMergedMap", "GetMappingType",
              "CanSwap", "CanMerge", "PermGet"}
 
 # Region classes whose `Simplify` override performs geometric
