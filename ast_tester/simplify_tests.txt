@@ -432,3 +432,6 @@ slamap_pair_cancel             | simplify_fixtures/slamap_pair_cancel.map | simp
 timemap_pair_cancel            | simplify_fixtures/timemap_pair_cancel.map | simplify_fixtures/timemap_pair_cancel.simp |
 pcd_inverse_cancel_tail        | simplify_fixtures/pcd_inverse_cancel_tail.map | simplify_fixtures/pcd_inverse_cancel_tail.simp |
 nullregion_merge_tail          | simplify_fixtures/nullregion_merge_tail.map | simplify_fixtures/nullregion_merge_tail.simp |
+grism_inverse_cancel_tail      | simplify_fixtures/grism_inverse_cancel_tail.map | simplify_fixtures/grism_inverse_cancel_tail.simp |
+intra_invfwd_cancel_tail       | simplify_fixtures/intra_invfwd_cancel_tail.map | simplify_fixtures/intra_invfwd_cancel_tail.simp |
+tranmap_merge_tail             | simplify_fixtures/tranmap_merge_tail.map | simplify_fixtures/tranmap_merge_tail.simp |

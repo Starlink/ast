@@ -1,0 +1,35 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          InvA = 1 	# First Mapping used in inverse direction
+          MapA = 	# First component Mapping
+             Begin IntraMap 	# Map points using a private transformation function
+                Nin = 1 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+                Fname = "simplifyidentity" 	# Name of transformation function
+                Purp = "id" 	# Purpose of function
+                Auth = "test" 	# Author's name
+                Cntact = "starlink-ast" 	# Contact address
+             End IntraMap
+          MapB = 	# Second component Mapping
+             Begin IntraMap 	# Map points using a private transformation function
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Fname = "simplifyidentity" 	# Name of transformation function
+                Purp = "id" 	# Purpose of function
+                Auth = "test" 	# Author's name
+                Cntact = "starlink-ast" 	# Contact address
+             End IntraMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 3 	# Zoom factor
+       End ZoomMap
+ End CmpMap

@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _182 defensive branches (pure astOK guards and `astError` error-reporting sites) filtered out as non-actionable noise._
 
 **Open differential gaps:** 33  
-**Open absolute-only gaps:** 648
+**Open absolute-only gaps:** 645
 
 ## Open gaps
 
@@ -175,7 +175,6 @@ _182 defensive branches (pure astOK guards and `astError` error-reporting sites)
 | `src/grismmap.c:555` | 1 | CanMerge | absolute-only | open |
 | `src/grismmap.c:555` | 2 | CanMerge | absolute-only | open |
 | `src/grismmap.c:563` | 4 | CanMerge | absolute-only | open |
-| `src/grismmap.c:1244` | 0 | MapMerge | absolute-only | open |
 | `src/interval.c:1172` | 0 | MapMerge | absolute-only | open |
 | `src/interval.c:1320` | 1 | MergeInterval | absolute-only | open |
 | `src/interval.c:1320` | 2 | MergeInterval | absolute-only | open |
@@ -248,7 +247,6 @@ _182 defensive branches (pure astOK guards and `astError` error-reporting sites)
 | `src/intramap.c:1562` | 1 | MapMerge | absolute-only | open |
 | `src/intramap.c:1562` | 2 | MapMerge | absolute-only | open |
 | `src/intramap.c:1573` | 2 | MapMerge | absolute-only | open |
-| `src/intramap.c:1597` | 0 | MapMerge | absolute-only | open |
 | `src/lutmap.c:1204` | 0 | MapMerge | absolute-only | open |
 | `src/mapping.c:16837` | 1 | Simplify | absolute-only | open |
 | `src/mapping.c:16837` | 3 | Simplify | differential | wontfix:restricted-simplify internal flag, not via public astSimplify |
@@ -550,7 +548,6 @@ _182 defensive branches (pure astOK guards and `astError` error-reporting sites)
 | `src/tranmap.c:926` | 0 | MapMerge | absolute-only | open |
 | `src/tranmap.c:938` | 0 | MapMerge | absolute-only | open |
 | `src/tranmap.c:959` | 3 | MapMerge | absolute-only | open |
-| `src/tranmap.c:989` | 0 | MapMerge | absolute-only | open |
 | `src/unitmap.c:520` | 0 | MapMerge | absolute-only | open |
 | `src/unitmap.c:555` | 1 | MapMerge | absolute-only | open |
 | `src/unitmap.c:555` | 3 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
