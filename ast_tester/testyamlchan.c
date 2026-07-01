@@ -247,8 +247,10 @@ void test_sphmap_roundtrip( int *status ){
    AstFrame *frm2d;
    AstFrameSet *sphfs;
    AstObject *sphfs2;
+   AstObject *sphfs3;
    AstMapping *sphmap;
    AstMapping *sphmap2;
+   AstMapping *sphmap3;
 
    if( *status != SAI__OK ) return;
 
@@ -275,10 +277,28 @@ void test_sphmap_roundtrip( int *status ){
 
    check_sphmap_mappings( sphmap, sphmap2, "SphMap round-trip test failed", status );
 
+/* Write the object recovered from ASDF back out and read it again. This
+   exercises the path where a spherical_cartesian read from ASDF (a SphMap
+   flanked by unit ZoomMaps) is re-serialised. */
+   astClear( ch, "SourceFile" );
+   astSet( ch, "SinkFile=sphmap_roundtrip2.asdf" );
+   if( astWrite( ch, sphfs2 ) != 1 ) stopit( 33, status );
+
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=sphmap_roundtrip2.asdf" );
+   sphfs3 = astRead( ch );
+   if( !sphfs3 ) stopit( 34, status );
+
+   sphmap3 = astGetMapping( (AstFrameSet *) sphfs3, AST__BASE, AST__CURRENT );
+   check_sphmap_mappings( sphmap, sphmap3, "SphMap re-serialisation test failed",
+                          status );
+
    astAnnul( sphmap );
    astAnnul( sphmap2 );
+   astAnnul( sphmap3 );
    astAnnul( sphfs );
    astAnnul( sphfs2 );
+   astAnnul( sphfs3 );
    astAnnul( ch );
 }
 

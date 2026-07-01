@@ -106,6 +106,10 @@ f     The YamlChan class does not define any new routines beyond those
 *        - Fix missing degree to radian conversion in ReadRotateSequence3d.
 *        - Fix handling of rotation_type parameter in ReadRotateSequence3d.
 *        - Fix handling of null transform in the final WCS step.
+*     1-JUL-2026 (EMB):
+*        Fix a crash and a spurious error that could occur when writing
+*        certain WCS objects to ASDF, caused by mishandling of degree/radian
+*        unit conversions when simplifying the transform chain.
 *class--
 */
 
@@ -490,7 +494,6 @@ static double GetTime( AstKeyMap *, const char *, AstFrame *, int * );
 static int FindAffine( int, int *, AstMapping **, int *, int * );
 static int FindDivide( AstYamlChan *, int, int *, AstMapping **, int *, int * );
 static int FindRotate3d( int, int *, AstMapping **, int *, int * );
-static int FindSphericalCartesian( int, int *, AstMapping **, int *, int * );
 static void CompactMapList( int *, AstMapping **, int * );
 static void CopyProxyKeyMap( AstMapping *, AstKeyMap *, int * );
 static void Delete( AstObject *, int * );
@@ -2802,134 +2805,6 @@ static int FindRotate3d( int series, int *nmap, AstMapping **map_list,
    if( result ) CompactMapList( nmap, map_list, invert_list );
 
 /* Return the Mapping */
-   return result;
-}
-
-static int FindSphericalCartesian( int series, int *nmap, AstMapping **map_list,
-                                   int *invert_list, int *status ){
-/*
-*  Name:
-*     FindSphericalCartesian
-
-*  Purpose:
-*     Search a list of Mappings for a sequence corresponding to an ASDF
-*     gwcs/spherical_cartesian transform.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "yamlchan.h"
-*     int FindSphericalCartesian( int series, int *nmap, AstMapping **map_list,
-*                                 int *invert_list, int *status )
-
-*  Class Membership:
-*     YamlChan member function
-
-*  Description:
-*     This function searches the supplied list of Mappings for sequences
-*     that correspond to a gwcs/spherical_cartesian. If no matching
-*     sequence is found, 0 is returned and the list is left unchanged.
-*     If one or more matching sequences are found, 1 is returned and the
-*     list is changed so that each whole sequence is contained in a single
-*     element. Each such element is a CmpMap with its proxy pointer set
-*     to a KeyMap with a "SPHERICAL_TO_CARTESIAN" integer entry.
-*
-*     Two patterns are recognised:
-*     - spherical_to_cartesian: ZoomMap(Nin=2, Zoom=DD2R, not inverted)
-*       followed by SphMap (inverted).
-*     - cartesian_to_spherical: SphMap (not inverted) followed by
-*       ZoomMap(Nout=2, Zoom=DR2D, not inverted).
-
-*  Parameters:
-*     series
-*        If non-zero, the Mappings are applied in series (only series
-*        combinations are checked).
-*     nmap
-*        Address of the number of Mappings in the list, updated on exit.
-*     map_list
-*        Array of Mapping pointers, updated on exit.
-*     invert_list
-*        Array of invert flags, updated on exit.
-*     status
-*        Pointer to the inherited status variable.
-
-*  Returned Value:
-*     Non-zero if a matching sequence was found, zero otherwise.
-
-*/
-
-/* Local Variables: */
-   AstCmpMap *new;
-   AstKeyMap *km;
-   double zoom;
-   int imap;
-   int oldinv0;
-   int oldinv1;
-   int result;
-   int s2c;
-
-/* Initialise */
-   result = 0;
-
-/* Check inherited status. Only series combinations make sense. */
-   if( !astOK || !series ) return result;
-
-/* Loop through the Mappings in the list, stopping before the last since
-   we need at least two Mappings for a match. */
-   for( imap = 0; imap < *nmap - 1; imap++ ) {
-      s2c = -1;
-
-/* Check for spherical_to_cartesian: ZoomMap(Nin=2, Zoom~DD2R, !inv)
-   followed by SphMap(inv). */
-      if( astIsAZoomMap( map_list[ imap ] ) && !invert_list[ imap ] &&
-          astIsASphMap( map_list[ imap + 1 ] ) && invert_list[ imap + 1 ] ) {
-         zoom = astGetZoom( map_list[ imap ] );
-         if( astGetNin( map_list[ imap ] ) == 2 &&
-             fabs( zoom - AST__DD2R ) < 1.0E-12 ) {
-            s2c = 1;
-         }
-
-/* Check for cartesian_to_spherical: SphMap(!inv) followed by
-   ZoomMap(Nout=2, Zoom~DR2D, !inv). */
-      } else if( astIsASphMap( map_list[ imap ] ) && !invert_list[ imap ] &&
-                 astIsAZoomMap( map_list[ imap + 1 ] ) && !invert_list[ imap + 1 ] ) {
-         zoom = astGetZoom( map_list[ imap + 1 ] );
-         if( astGetNout( map_list[ imap + 1 ] ) == 2 &&
-             fabs( zoom - AST__DR2D ) < 1.0E-8 ) {
-            s2c = 0;
-         }
-      }
-
-/* If a matching pair was found, package it as a CmpMap with a proxy KeyMap. */
-      if( s2c >= 0 ) {
-         km = astKeyMap( " ", status );
-         astMapPut0C( km, "PROXY_TYPE", "spherical_cartesian", NULL );
-         astMapPut0I( km, "SPHERICAL_TO_CARTESIAN", s2c, NULL );
-
-         oldinv0 = astGetInvert( map_list[ imap ] );
-         oldinv1 = astGetInvert( map_list[ imap + 1 ] );
-         astSetInvert( map_list[ imap ], invert_list[ imap ] );
-         astSetInvert( map_list[ imap + 1 ], invert_list[ imap + 1 ] );
-         new = astCmpMap( map_list[ imap ], map_list[ imap + 1 ], 1, " ", status );
-         astSetInvert( map_list[ imap ], oldinv0 );
-         astSetInvert( map_list[ imap + 1 ], oldinv1 );
-
-         CopyProxyKeyMap( (AstMapping *) new, km, status );
-         km = astAnnul( km );
-
-         map_list[ imap ] = astAnnul( map_list[ imap ] );
-         map_list[ imap + 1 ] = astAnnul( map_list[ imap + 1 ] );
-         map_list[ imap ] = (AstMapping *) new;
-
-         imap++;
-         result = 1;
-      }
-   }
-
-/* Compact the list to remove nullified slots. */
-   if( result ) CompactMapList( nmap, map_list, invert_list );
-
    return result;
 }
 
@@ -5850,8 +5725,7 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
                   &nmap, &map_list, &invert_list );
 
 /* Now search the list for sequences that match an equivalent ASDF
-   transform. Currently we check for affine, rotate3d, spherical_cartesian
-   and divide.
+   transform. Currently we check for affine, rotate3d and divide.
 
    If no matching sequence is found, 0 will be returned and the list will be
    left unchanged. If one or more matching sequences are found, 1 will be
@@ -5861,7 +5735,6 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
    properties of the equivalent ASDF transform. */
       changed  = FindRotate3d( series, &nmap, map_list, invert_list, status );
       changed |= FindAffine( series, &nmap, map_list, invert_list, status );
-      changed |= FindSphericalCartesian( series, &nmap, map_list, invert_list, status );
       changed |= FindDivide( this, series, &nmap, map_list, invert_list, status );
 
 /* If the list was changed, the supplied CmpMap either is, or contains,
@@ -11972,7 +11845,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
@@ -12022,6 +11895,12 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
                ret = 1;           /* Some simplification has taken place */
                fillgaps = 1;      /* Shuffle down to fill vacated slots */
                nr2d_removed += 2; /* Increment no. of removed conversions */
+
+/* The current transform has been removed, so it must not be treated as the
+   "preceding" transform on the next pass (otherwise a third adjacent
+   conversion would try to cancel against this now-NULL slot). Mark it
+   neutral. */
+               r2d = 0;
             }
 
 /* Likewise, if the current transform is used to convert from degrees
@@ -12034,6 +11913,10 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
                ret = 1;
                fillgaps = 1;
                nr2d_removed += 2;
+
+/* As above, mark this removed transform neutral so it is not used as the
+   preceding transform on the next pass. */
+               r2d = 0;
             }
          }
 
@@ -12050,7 +11933,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
@@ -12125,7 +12008,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
@@ -16451,17 +16334,6 @@ static AstKeyMap *WriteProxyAffine( AstYamlChan *this, AstKeyMap *km,
    return ret;
 }
 
-static AstKeyMap *WriteProxySphericalCartesian( AstYamlChan *this, AstKeyMap *km,
-                                               AstMapping *map, AstObject *mapinv,
-                                               const char *name, int *status ) {
-   int s2c;
-   AstKeyMap *ret = NULL;
-   if( astMapGet0I( km, "SPHERICAL_TO_CARTESIAN", &s2c ) ) {
-      ret = WriteAsdfSphericalCartesian( this, s2c, mapinv, name, status );
-   }
-   return ret;
-}
-
 static AstKeyMap *WriteProxyDivide( AstYamlChan *this, AstKeyMap *km,
                                     AstMapping *map, AstObject *mapinv,
                                     const char *name, int *status ) {
@@ -16545,10 +16417,9 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
       const char *type;
       ProxyWriter writer;
    } proxy_writers[] = {
-      { "rotate3d",            WriteProxyRotate3d            },
-      { "affine",              WriteProxyAffine              },
-      { "spherical_cartesian", WriteProxySphericalCartesian  },
-      { "divide",              WriteProxyDivide              },
+      { "rotate3d", WriteProxyRotate3d },
+      { "affine",   WriteProxyAffine   },
+      { "divide",   WriteProxyDivide   },
    };
    static const int nwriters = sizeof(proxy_writers)/sizeof(proxy_writers[0]);
 
