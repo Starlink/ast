@@ -423,3 +423,4 @@ neg_pcd_diff_disco         | simplify_fixtures/neg_pcd_diff_disco.map | simplify
 neg_pcd_diff_centre        | simplify_fixtures/neg_pcd_diff_centre.map | simplify_fixtures/neg_pcd_diff_centre.map | yes
 neg_pcd_same_invert        | simplify_fixtures/neg_pcd_same_invert.map | simplify_fixtures/neg_pcd_same_invert.map | yes
 neg_pcd_perm_nonswap       | simplify_fixtures/neg_pcd_perm_nonswap.map | simplify_fixtures/neg_pcd_perm_nonswap.map | yes
+sph_matrix_sandwich_negz       | simplify_fixtures/sph_matrix_sandwich_negz.map | simplify_fixtures/sph_matrix_sandwich_negz.simp |
