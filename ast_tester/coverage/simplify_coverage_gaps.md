@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _197 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 40  
-**Open absolute-only gaps:** 1088
+**Open absolute-only gaps:** 1084
 
 ## Open gaps
 
@@ -1030,12 +1030,11 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/unitnormmap.c:477` | 6 | MakeMergedMap | absolute-only | open |
 | `src/unitnormmap.c:477` | 9 | MakeMergedMap | absolute-only | open |
 | `src/unitnormmap.c:833` | 0 | MapMerge | absolute-only | unreachable:MAX(where-1,0)>0 needs the UNM processed at list index >=2 with a live mergeable neighbour, but the neighbour MapMerge always preempts (merges the pair first) |
-| `src/wcsmap.c:876` | 2 | CanMerge | absolute-only | open |
 | `src/wcsmap.c:896` | 1 | CanMerge | absolute-only | open |
-| `src/wcsmap.c:904` | 0 | CanMerge | differential | open |
-| `src/wcsmap.c:904` | 2 | CanMerge | differential | open |
-| `src/wcsmap.c:904` | 3 | CanMerge | absolute-only | open |
-| `src/wcsmap.c:904` | 6 | CanMerge | absolute-only | open |
+| `src/wcsmap.c:904` | 0 | CanMerge | differential | wontfix:EQUAL macro float-tolerance sub-branch (astGetPV comparison; relative/absolute path only taken in specific magnitude regimes) |
+| `src/wcsmap.c:904` | 2 | CanMerge | differential | wontfix:EQUAL macro float-tolerance sub-branch (astGetPV comparison; relative/absolute path only taken in specific magnitude regimes) |
+| `src/wcsmap.c:904` | 3 | CanMerge | absolute-only | wontfix:EQUAL macro float-tolerance sub-branch (astGetPV comparison; relative/absolute path only taken in specific magnitude regimes) |
+| `src/wcsmap.c:904` | 6 | CanMerge | absolute-only | wontfix:EQUAL macro float-tolerance sub-branch (astGetPV comparison; relative/absolute path only taken in specific magnitude regimes) |
 | `src/wcsmap.c:1057` | 2 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1068` | 2 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1086` | 3 | CanSwap | absolute-only | open |
@@ -1043,15 +1042,12 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/wcsmap.c:1088` | 3 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1088` | 4 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1089` | 1 | CanSwap | absolute-only | open |
-| `src/wcsmap.c:1095` | 0 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1095` | 2 | CanSwap | absolute-only | open |
-| `src/wcsmap.c:1095` | 3 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1097` | 1 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1097` | 3 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1097` | 4 | CanSwap | absolute-only | open |
 | `src/wcsmap.c:1098` | 1 | CanSwap | differential | open |
 | `src/wcsmap.c:1144` | 1 | CanSwap | absolute-only | open |
-| `src/wcsmap.c:3234` | 0 | MapMerge | absolute-only | open |
 | `src/wcsmap.c:3236` | 1 | MapMerge | absolute-only | open |
 | `src/wcsmap.c:3236` | 3 | MapMerge | absolute-only | open |
 | `src/wcsmap.c:3253` | 1 | MapMerge | absolute-only | open |

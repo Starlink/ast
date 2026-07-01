@@ -417,3 +417,5 @@ neg_winmap_perm_nonbidir         | simplify_fixtures/neg_winmap_perm_nonbidir.ma
 matrix_perm_const_swap           | simplify_fixtures/matrix_perm_const_swap.map | simplify_fixtures/matrix_perm_const_swap.simp |
 neg_wcsmap_perm_nonbidir           | simplify_fixtures/neg_wcsmap_perm_nonbidir.map | simplify_fixtures/neg_wcsmap_perm_nonbidir.map | yes
 neg_wcsmap_perm_disconnect         | simplify_fixtures/neg_wcsmap_perm_disconnect.map | simplify_fixtures/neg_wcsmap_perm_disconnect.map | yes
+neg_wcsmap_perm_disconnect_lower       | simplify_fixtures/neg_wcsmap_perm_disconnect_lower.map | simplify_fixtures/neg_wcsmap_perm_disconnect_lower.map | yes
+neg_wcsmap_pv_mismatch                 | simplify_fixtures/neg_wcsmap_pv_mismatch.map | simplify_fixtures/neg_wcsmap_pv_mismatch.map | yes
