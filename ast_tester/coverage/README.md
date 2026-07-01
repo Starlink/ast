@@ -23,22 +23,28 @@ toolchain); override with the `GCOV` environment variable if needed.
 - **absolute-only** — branch covered by nothing. Investigate: author a fixture
   if reachable, else set Status to `unreachable:<reason>`.
 
-Branches on a **pure `astOK` status guard** (`if ( !astOK ) ...`,
-`if ( astOK ) {`, `while ( astOK )`) are filtered out: their uncovered
-direction is the error path, which never fires in a passing run, so it is
-non-actionable noise. The header reports how many were filtered. Compound
-conditions like `while ( astOK && cond )` are kept, since they carry real
-logic.
+**Defensive-code branches** are filtered out as non-actionable noise: a
+**pure `astOK` status guard** (`if ( !astOK ) ...`, `if ( astOK ) {`,
+`while ( astOK )`) whose uncovered direction is the error path that never
+fires in a passing run, and any line with an **`astError(` call** (an
+error-reporting site, only reached once an error has occurred). The header
+reports how many were filtered. Compound conditions like
+`while ( astOK && cond )` are kept, since they carry real logic.
 
 The **Status** column is the only field you edit by hand:
 `open` | `fixture=<name>` | `unreachable:<reason>` | `wontfix:<reason>`.
 Regeneration preserves your Status notes by `(file, function, line, branch)`.
 
-The **Deferred** section at the foot lists Region geometric `Simplify`
-branches (Box/Interval/Prism/etc. self-simplification). These are out of
-scope for the merge-engine self-containment goal — they need a different,
-geometry-based fixture methodology — and are recorded only as a known
-backlog for a possible future effort.
+Two **Deferred** sections at the foot record known backlogs kept out of the
+main open count:
+
+- **Region geometric `Simplify`** (Box/Interval/Prism/... self-simplification)
+  — needs a geometry-based fixture methodology.
+- **WCS-conversion merge** — MapMerge of SlaMap/SpecMap/TimeMap, which cancel
+  adjacent conversions by type. These are reachable by hand-authored Mapping
+  fixtures, but only across a large matrix of conversion-type pairs, and in
+  practice arise from `astMapMerge` during FITS-WCS construction. Recorded as
+  a distinct future sub-campaign.
 
 ## Scope
 
