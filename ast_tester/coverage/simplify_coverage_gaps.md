@@ -704,7 +704,7 @@ Tracked here as a known backlog; a separate effort with a
 different (geometric) fixture methodology — not part of the
 merge-engine self-containment goal.
 
-**Deferred branches:** 178 (49 differential)
+**Deferred branches:** 163 (48 differential)
 
 | Location | Branch | Function | Class |
 | --- | --- | --- | --- |
@@ -752,14 +752,9 @@ merge-engine self-containment goal.
 | `src/box.c:3907` | 0 | Simplify | absolute-only |
 | `src/box.c:3921` | 2 | Simplify | absolute-only |
 | `src/box.c:3927` | 0 | Simplify | absolute-only |
-| `src/box.c:3932` | 0 | Simplify | absolute-only |
 | `src/box.c:3946` | 0 | Simplify | absolute-only |
-| `src/box.c:3948` | 0 | Simplify | absolute-only |
 | `src/box.c:3978` | 0 | Simplify | absolute-only |
-| `src/box.c:3988` | 1 | Simplify | absolute-only |
 | `src/box.c:3991` | 0 | Simplify | absolute-only |
-| `src/box.c:3996` | 1 | Simplify | absolute-only |
-| `src/box.c:4007` | 0 | Simplify | absolute-only |
 | `src/box.c:4014` | 0 | Simplify | differential |
 | `src/box.c:4038` | 1 | Simplify | differential |
 | `src/box.c:4051` | 0 | Simplify | absolute-only |
@@ -777,24 +772,18 @@ merge-engine self-containment goal.
 | `src/interval.c:3281` | 0 | Simplify | absolute-only |
 | `src/interval.c:3284` | 1 | Simplify | absolute-only |
 | `src/interval.c:3285` | 1 | Simplify | differential |
-| `src/interval.c:3286` | 1 | Simplify | differential |
 | `src/interval.c:3289` | 1 | Simplify | absolute-only |
-| `src/interval.c:3290` | 1 | Simplify | absolute-only |
 | `src/interval.c:3291` | 1 | Simplify | absolute-only |
-| `src/interval.c:3303` | 1 | Simplify | absolute-only |
 | `src/interval.c:3304` | 0 | Simplify | differential |
 | `src/interval.c:3306` | 1 | Simplify | absolute-only |
 | `src/interval.c:3309` | 0 | Simplify | absolute-only |
 | `src/interval.c:3311` | 1 | Simplify | absolute-only |
 | `src/interval.c:3317` | 0 | Simplify | absolute-only |
-| `src/interval.c:3317` | 1 | Simplify | absolute-only |
 | `src/interval.c:3318` | 0 | Simplify | absolute-only |
 | `src/interval.c:3318` | 1 | Simplify | absolute-only |
 | `src/interval.c:3319` | 0 | Simplify | absolute-only |
 | `src/interval.c:3319` | 1 | Simplify | absolute-only |
-| `src/interval.c:3321` | 0 | Simplify | absolute-only |
 | `src/interval.c:3321` | 1 | Simplify | absolute-only |
-| `src/interval.c:3322` | 0 | Simplify | absolute-only |
 | `src/interval.c:3322` | 1 | Simplify | absolute-only |
 | `src/interval.c:3327` | 3 | Simplify | absolute-only |
 | `src/interval.c:3330` | 0 | Simplify | absolute-only |
@@ -804,13 +793,9 @@ merge-engine self-containment goal.
 | `src/interval.c:3330` | 9 | Simplify | absolute-only |
 | `src/interval.c:3331` | 0 | Simplify | absolute-only |
 | `src/interval.c:3331` | 1 | Simplify | absolute-only |
-| `src/interval.c:3337` | 1 | Simplify | absolute-only |
-| `src/interval.c:3339` | 0 | Simplify | absolute-only |
 | `src/interval.c:3349` | 0 | Simplify | absolute-only |
 | `src/interval.c:3352` | 0 | Simplify | differential |
-| `src/interval.c:3358` | 0 | Simplify | absolute-only |
 | `src/interval.c:3358` | 2 | Simplify | absolute-only |
-| `src/interval.c:3358` | 3 | Simplify | absolute-only |
 | `src/interval.c:3365` | 0 | Simplify | absolute-only |
 | `src/interval.c:3367` | 0 | Simplify | absolute-only |
 | `src/interval.c:3367` | 1 | Simplify | absolute-only |
