@@ -419,3 +419,6 @@ neg_wcsmap_perm_nonbidir           | simplify_fixtures/neg_wcsmap_perm_nonbidir.
 neg_wcsmap_perm_disconnect         | simplify_fixtures/neg_wcsmap_perm_disconnect.map | simplify_fixtures/neg_wcsmap_perm_disconnect.map | yes
 neg_wcsmap_perm_disconnect_lower       | simplify_fixtures/neg_wcsmap_perm_disconnect_lower.map | simplify_fixtures/neg_wcsmap_perm_disconnect_lower.map | yes
 neg_wcsmap_pv_mismatch                 | simplify_fixtures/neg_wcsmap_pv_mismatch.map | simplify_fixtures/neg_wcsmap_pv_mismatch.map | yes
+neg_pcd_diff_disco         | simplify_fixtures/neg_pcd_diff_disco.map | simplify_fixtures/neg_pcd_diff_disco.map | yes
+neg_pcd_diff_centre        | simplify_fixtures/neg_pcd_diff_centre.map | simplify_fixtures/neg_pcd_diff_centre.map | yes
+neg_pcd_same_invert        | simplify_fixtures/neg_pcd_same_invert.map | simplify_fixtures/neg_pcd_same_invert.map | yes

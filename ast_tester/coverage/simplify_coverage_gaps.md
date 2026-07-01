@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _197 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 40  
-**Open absolute-only gaps:** 1084
+**Open absolute-only gaps:** 1079
 
 ## Open gaps
 
@@ -368,15 +368,11 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pcdmap.c:700` | 0 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:700` | 2 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:700` | 3 | CanMerge | absolute-only | open |
-| `src/pcdmap.c:700` | 4 | CanMerge | absolute-only | open |
-| `src/pcdmap.c:700` | 5 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:700` | 6 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:700` | 9 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:703` | 0 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:703` | 2 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:703` | 3 | CanMerge | absolute-only | open |
-| `src/pcdmap.c:703` | 4 | CanMerge | absolute-only | open |
-| `src/pcdmap.c:703` | 5 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:703` | 6 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:706` | 0 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:706` | 2 | CanMerge | absolute-only | open |
@@ -384,7 +380,6 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pcdmap.c:706` | 4 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:706` | 5 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:706` | 6 | CanMerge | absolute-only | open |
-| `src/pcdmap.c:709` | 0 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:726` | 0 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:833` | 1 | CanSwap | absolute-only | open |
 | `src/pcdmap.c:833` | 2 | CanSwap | absolute-only | open |
