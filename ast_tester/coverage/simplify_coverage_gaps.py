@@ -18,8 +18,20 @@ import re
 # astDecompose and astRemoveRegions (e.g. from FitsChan/FrameSet/Region code),
 # never from astSimplify, so a simplify fixture cannot exercise them. They are
 # distinct efforts, out of scope for the simplify self-containment goal.
+#
+# The list covers both the per-class MapMerge/MapList/Simplify methods and the
+# static merge/swap helper functions they call: the region-pair mergers
+# (MergeBox/MergeInterval/MergeNullRegion/MergePointList), the PolyMap+ShiftMap
+# mergers (MergeShift/MergeShifts), the UnitNormMap merger (MakeMergedMap,
+# GetMappingType), the WinMap/MatrixMap swap executors (WinMat/MatWin/MatWin2/
+# WinPerm/WinWcs) and the swap/merge feasibility helpers (CanSwap/CanMerge/
+# PermGet). Without the helpers the ledger only saw the MapMerge method bodies
+# and undercounted the merge engine.
 ALLOWLIST = {"MapMerge", "MapList", "Simplify", "CombineMaps",
-             "WinMat", "MatWin", "MatWin2"}
+             "WinMat", "MatWin", "MatWin2", "WinPerm", "WinWcs",
+             "MergeBox", "MergeInterval", "MergeNullRegion", "MergePointList",
+             "MergeShift", "MergeShifts", "MakeMergedMap", "GetMappingType",
+             "CanSwap", "CanMerge", "PermGet"}
 
 # Region classes whose `Simplify` override performs geometric
 # self-simplification rather than Mapping-pipeline merging. That is a separate

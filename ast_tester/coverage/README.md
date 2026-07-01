@@ -42,9 +42,14 @@ backlog for a possible future effort.
 
 ## Scope
 
-The ledger covers only functions in the `astSimplify` call graph
-(`MapMerge`, `MapList`, the orchestration `Simplify`, `CombineMaps`, and the
-`WinMat`/`MatWin`/`MatWin2` helpers). Deliberately excluded:
+The ledger covers functions in the `astSimplify` call graph: the per-class
+`MapMerge`/`MapList`/`Simplify` methods, the orchestration `CombineMaps`, and
+the static merge/swap helper functions those methods call — the region-pair
+mergers (`MergeBox`/`MergeInterval`/`MergeNullRegion`/`MergePointList`), the
+PolyMap+ShiftMap mergers (`MergeShift`/`MergeShifts`), the UnitNormMap merger
+(`MakeMergedMap`/`GetMappingType`), the WinMap/MatrixMap swap executors
+(`WinMat`/`MatWin`/`MatWin2`/`WinPerm`/`WinWcs`) and the swap/merge
+feasibility helpers (`CanSwap`/`CanMerge`/`PermGet`). Deliberately excluded:
 
 - **`Decompose` / `RemoveRegions`** — reached only through the separate public
   APIs `astDecompose` / `astRemoveRegions` (from FitsChan/FrameSet/Region
