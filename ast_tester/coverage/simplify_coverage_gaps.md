@@ -5,8 +5,8 @@ rows except the Status column. See `README.md`.
 
 _198 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
-**Open differential gaps:** 60  
-**Open absolute-only gaps:** 1118
+**Open differential gaps:** 58  
+**Open absolute-only gaps:** 1113
 
 ## Open gaps
 
@@ -43,8 +43,6 @@ _198 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/box.c:1927` | 1 | MergeBox | differential | open |
 | `src/box.c:1927` | 3 | MergeBox | differential | open |
 | `src/box.c:1935` | 0 | MergeBox | differential | open |
-| `src/box.c:1955` | 0 | MergeBox | absolute-only | open |
-| `src/box.c:1961` | 0 | MergeBox | absolute-only | open |
 | `src/box.c:1995` | 0 | MergeBox | absolute-only | open |
 | `src/box.c:1995` | 2 | MergeBox | absolute-only | open |
 | `src/box.c:1995` | 3 | MergeBox | absolute-only | open |
@@ -214,9 +212,6 @@ _198 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/interval.c:1426` | 1 | MergeInterval | differential | open |
 | `src/interval.c:1426` | 3 | MergeInterval | absolute-only | open |
 | `src/interval.c:1426` | 4 | MergeInterval | absolute-only | open |
-| `src/interval.c:1434` | 0 | MergeInterval | absolute-only | open |
-| `src/interval.c:1436` | 0 | MergeInterval | absolute-only | open |
-| `src/interval.c:1436` | 1 | MergeInterval | absolute-only | open |
 | `src/interval.c:1458` | 0 | MergeInterval | absolute-only | open |
 | `src/interval.c:1458` | 1 | MergeInterval | differential | open |
 | `src/interval.c:1458` | 2 | MergeInterval | absolute-only | open |
@@ -244,10 +239,8 @@ _198 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/interval.c:1516` | 0 | MergeInterval | absolute-only | open |
 | `src/interval.c:1516` | 1 | MergeInterval | absolute-only | open |
 | `src/interval.c:1539` | 0 | MergeInterval | differential | open |
-| `src/interval.c:1549` | 1 | MergeInterval | differential | open |
 | `src/interval.c:1549` | 2 | MergeInterval | absolute-only | open |
 | `src/interval.c:1566` | 1 | MergeInterval | absolute-only | open |
-| `src/interval.c:1605` | 3 | MergeInterval | differential | open |
 | `src/interval.c:1616` | 1 | MergeInterval | absolute-only | open |
 | `src/interval.c:1616` | 2 | MergeInterval | absolute-only | open |
 | `src/interval.c:1637` | 0 | MergeInterval | absolute-only | open |

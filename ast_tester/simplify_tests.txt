@@ -403,3 +403,6 @@ unitnormmap_shift_merge_tail             | simplify_fixtures/unitnormmap_shift_m
 winmap_swap_to_zoom          | simplify_fixtures/winmap_swap_to_zoom.map | simplify_fixtures/winmap_swap_to_zoom.simp |
 chebymap_inverse_cancel            | simplify_fixtures/chebymap_inverse_cancel.map | simplify_fixtures/chebymap_inverse_cancel.simp |
 neg_chebymap_standalone            | simplify_fixtures/neg_chebymap_standalone.map | simplify_fixtures/neg_chebymap_standalone.map | yes
+interval_nullregion_merge          | simplify_fixtures/interval_nullregion_merge.map | simplify_fixtures/interval_nullregion_merge.simp |
+interval_pointlist_merge           | simplify_fixtures/interval_pointlist_merge.map | simplify_fixtures/interval_pointlist_merge.simp |
+interval_unc_fillfactor_merge      | simplify_fixtures/interval_unc_fillfactor_merge.map | simplify_fixtures/interval_unc_fillfactor_merge.simp |
