@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _197 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 40  
-**Open absolute-only gaps:** 1079
+**Open absolute-only gaps:** 1076
 
 ## Open gaps
 
@@ -383,7 +383,6 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pcdmap.c:726` | 0 | CanMerge | absolute-only | open |
 | `src/pcdmap.c:833` | 1 | CanSwap | absolute-only | open |
 | `src/pcdmap.c:833` | 2 | CanSwap | absolute-only | open |
-| `src/pcdmap.c:841` | 1 | CanSwap | absolute-only | open |
 | `src/pcdmap.c:841` | 3 | CanSwap | absolute-only | open |
 | `src/pcdmap.c:842` | 0 | CanSwap | absolute-only | open |
 | `src/pcdmap.c:859` | 0 | CanSwap | absolute-only | open |
@@ -422,9 +421,7 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pcdmap.c:1796` | 5 | PermGet | absolute-only | open |
 | `src/pcdmap.c:1796` | 6 | PermGet | absolute-only | open |
 | `src/pcdmap.c:1833` | 0 | PermGet | absolute-only | open |
-| `src/pcdmap.c:1853` | 0 | PermGet | absolute-only | open |
 | `src/pcdmap.c:1877` | 0 | PermGet | absolute-only | open |
-| `src/pcdmap.c:1885` | 0 | PermGet | absolute-only | open |
 | `src/permmap.c:935` | 2 | MapMerge | absolute-only | open |
 | `src/permmap.c:1118` | 0 | MapMerge | absolute-only | open |
 | `src/permmap.c:1119` | 0 | MapMerge | absolute-only | open |

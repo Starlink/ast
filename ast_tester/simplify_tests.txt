@@ -422,3 +422,4 @@ neg_wcsmap_pv_mismatch                 | simplify_fixtures/neg_wcsmap_pv_mismatc
 neg_pcd_diff_disco         | simplify_fixtures/neg_pcd_diff_disco.map | simplify_fixtures/neg_pcd_diff_disco.map | yes
 neg_pcd_diff_centre        | simplify_fixtures/neg_pcd_diff_centre.map | simplify_fixtures/neg_pcd_diff_centre.map | yes
 neg_pcd_same_invert        | simplify_fixtures/neg_pcd_same_invert.map | simplify_fixtures/neg_pcd_same_invert.map | yes
+neg_pcd_perm_nonswap       | simplify_fixtures/neg_pcd_perm_nonswap.map | simplify_fixtures/neg_pcd_perm_nonswap.map | yes
