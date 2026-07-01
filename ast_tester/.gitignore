@@ -11,6 +11,7 @@ wcsconverter
 !test*.sh
 
 # Generated test outputs
+divide_roundtrip.asdf
 lsst_wcs.asdf
 nativetest.yaml
 sphmap_roundtrip.asdf
