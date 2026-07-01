@@ -1,0 +1,41 @@
+ Begin SpecMap 	# Conversion between spectral coordinate systems
+    Nin = 1 	# Number of input coordinates
+    Invert = 1 	# Mapping inverted
+ IsA Mapping 	# Mapping between coordinate systems
+    Nspec = 15 	# Number of conversion steps
+    Spec1 = "FRTOVL" 	# Convert frequency to rel. velocity
+    Spec1a = 2000 	# Rest frequency (Hz)
+    Spec2 = "ENTOFR" 	# Convert energy to frequency
+    Spec3 = "WNTOFR" 	# Convert wave number to frequency
+    Spec4 = "WVTOFR" 	# Convert wavelength (vacuum) to frequency
+    Spec5 = "AWTOFR" 	# Convert wavelength (air) to frequency
+    Spec6 = "VRTOVL" 	# Convert radio to rel. velocity
+    Spec7 = "VOTOVL" 	# Convert optical to rel. velocity
+    Spec8 = "ZOTOVL" 	# Convert redshift to rel. velocity
+    Spec9 = "BTTOVL" 	# Convert beta factor to rel. velocity
+    Spec10 = "TPF2HL" 	# Convert from Topocentric to heliocentric frequency
+    Spec10a = 2000 	# Longitude (positive eastwards, radians)
+    Spec10b = 2000 	# Latitude (geodetic, radians)
+    Spec10c = 2000 	# Altitude (geodetic, metres)
+    Spec10d = 2000 	# UT1 epoch of observaton (Modified Julian Date)
+    Spec10e = 2000 	# RA of source (FK5 J2000, radians)
+    Spec10f = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec11 = "USF2HL" 	# Convert from user-defined to heliocentric frequency
+    Spec11a = 2000 	# Velocity offset (m/s)
+    Spec11b = 2000 	# RA of source (FK5 J2000, radians)
+    Spec11c = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec12 = "GEF2HL" 	# Convert from Geocentric to heliocentric frequency
+    Spec12a = 2000 	# UT1 epoch of observaton (Modified Julian Date)
+    Spec12b = 2000 	# RA of source (FK5 J2000, radians)
+    Spec12c = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec13 = "BYF2HL" 	# Convert from Barycentric to heliocentric frequency
+    Spec13a = 2000 	# UT1 epoch of observaton (Modified Julian Date)
+    Spec13b = 2000 	# RA of source (FK5 J2000, radians)
+    Spec13c = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec14 = "LKF2HL" 	# Convert from LSRK to heliocentric frequency
+    Spec14a = 2000 	# RA of source (FK5 J2000, radians)
+    Spec14b = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec15 = "LDF2HL" 	# Convert from LSRD to heliocentric frequency
+    Spec15a = 2000 	# RA of source (FK5 J2000, radians)
+    Spec15b = 2000 	# DEC of source (FK5 J2000, radians)
+ End SpecMap

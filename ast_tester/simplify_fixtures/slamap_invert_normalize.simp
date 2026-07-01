@@ -1,0 +1,26 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 10 	# Number of conversion steps
+    Sla1 = "EQHE" 	# Equatorial to helio-ecliptic
+    Sla1a = 2000 	# Modified Julian Date of observation
+    Sla2 = "H2R" 	# Hour Angle to RA
+    Sla2a = 2000 	# Local apparent sidereal time (radians)
+    Sla3 = "E2H" 	# Equatorial to horizon
+    Sla3a = 2000 	# Geodetic latitude of observer
+    Sla3b = 2000 	# Magnitude of diurnal aberration vector
+    Sla4 = "SUPGAL" 	# Supergalactic to galactic (IAU 1958)
+    Sla5 = "EQGAL" 	# J2000.0 equatorial (FK5) to galactic (IAU 1958)
+    Sla6 = "EQECL" 	# Equatorial J2000.0 (FK5) to ecliptic (IAU 1980)
+    Sla6a = 2000 	# TDB of mean ecliptic (as MJD)
+    Sla7 = "SUBET" 	# Subtract E-terms of aberration
+    Sla7a = 2000 	# Besselian epoch of mean equinox (FK4)
+    Sla8 = "MAP" 	# Mean place (FK5) to geocentric apparent
+    Sla8a = 2000 	# Julian epoch of mean equinox (FK5)
+    Sla8b = 2000 	# TDB of apparent place (as MJD)
+    Sla9 = "HFK5Z" 	# ICRS to J2000.0 FK5 (no PM or parallax)
+    Sla9a = 2000 	# Julian epoch of FK5 coordinates
+    Sla10 = "FK45Z" 	# FK4 to FK5 J2000.0 (no PM or parallax)
+    Sla10a = 2000 	# Besselian epoch of FK4 coordinates
+ End SlaMap

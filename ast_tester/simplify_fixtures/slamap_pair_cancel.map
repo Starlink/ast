@@ -1,0 +1,45 @@
+ Begin SlaMap 	# Conversion between sky coordinate systems
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nsla = 20 	# Number of conversion steps
+    Sla1 = "FK54Z" 	# FK5 J2000.0 to FK4 (no PM or parallax)
+    Sla1a = 2000 	# Besselian epoch of FK4 system
+    Sla2 = "FK45Z" 	# FK4 to FK5 J2000.0 (no PM or parallax)
+    Sla2a = 2000 	# Besselian epoch of FK4 coordinates
+    Sla3 = "FK5HZ" 	# J2000.0 FK5 to ICRS (no PM or parallax)
+    Sla3a = 2000 	# Julian epoch of FK5 coordinates
+    Sla4 = "HFK5Z" 	# ICRS to J2000.0 FK5 (no PM or parallax)
+    Sla4a = 2000 	# Julian epoch of FK5 coordinates
+    Sla5 = "AMP" 	# Geocentric apparent to mean place (FK5)
+    Sla5a = 2000 	# TDB of apparent place (as MJD)
+    Sla5b = 2000 	# Julian epoch of mean equinox (FK5)
+    Sla6 = "MAP" 	# Mean place (FK5) to geocentric apparent
+    Sla6a = 2000 	# Julian epoch of mean equinox (FK5)
+    Sla6b = 2000 	# TDB of apparent place (as MJD)
+    Sla7 = "ADDET" 	# Add E-terms of aberration
+    Sla7a = 2000 	# Besselian epoch of mean equinox (FK4)
+    Sla8 = "SUBET" 	# Subtract E-terms of aberration
+    Sla8a = 2000 	# Besselian epoch of mean equinox (FK4)
+    Sla9 = "ECLEQ" 	# Ecliptic (IAU 1980) to J2000.0 equatorial (FK5)
+    Sla9a = 2000 	# TDB of mean ecliptic (as MJD)
+    Sla10 = "EQECL" 	# Equatorial J2000.0 (FK5) to ecliptic (IAU 1980)
+    Sla10a = 2000 	# TDB of mean ecliptic (as MJD)
+    Sla11 = "GALEQ" 	# Galactic (IAU 1958) to J2000.0 equatorial (FK5)
+    Sla12 = "EQGAL" 	# J2000.0 equatorial (FK5) to galactic (IAU 1958)
+    Sla13 = "GALSUP" 	# Galactic (IAU 1958) to supergalactic
+    Sla14 = "SUPGAL" 	# Supergalactic to galactic (IAU 1958)
+    Sla15 = "H2E" 	# Horizon to equatorial
+    Sla15a = 2000 	# Geodetic latitude of observer
+    Sla15b = 2000 	# Magnitude of diurnal aberration vector
+    Sla16 = "E2H" 	# Equatorial to horizon
+    Sla16a = 2000 	# Geodetic latitude of observer
+    Sla16b = 2000 	# Magnitude of diurnal aberration vector
+    Sla17 = "R2H" 	# RA to Hour Angle
+    Sla17a = 2000 	# Local apparent sidereal time (radians)
+    Sla18 = "H2R" 	# Hour Angle to RA
+    Sla18a = 2000 	# Local apparent sidereal time (radians)
+    Sla19 = "HEEQ" 	# Helio-ecliptic to equatorial
+    Sla19a = 2000 	# Modified Julian Date of observation
+    Sla20 = "EQHE" 	# Equatorial to helio-ecliptic
+    Sla20a = 2000 	# Modified Julian Date of observation
+ End SlaMap

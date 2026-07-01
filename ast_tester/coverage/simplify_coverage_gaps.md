@@ -901,7 +901,7 @@ conversion-type pairs, and in practice arise from `astMapMerge`
 during FITS-WCS construction. Tracked as a distinct deferred
 sub-campaign rather than counted in the main ledger.
 
-**Deferred branches:** 432 (7 differential)
+**Deferred branches:** 390 (2 differential)
 
 | Location | Branch | Function | Class |
 | --- | --- | --- | --- |
@@ -909,24 +909,18 @@ sub-campaign rather than counted in the main ledger.
 | `src/slamap.c:2718` | 1 | MapMerge | absolute-only |
 | `src/slamap.c:2727` | 1 | MapMerge | absolute-only |
 | `src/slamap.c:2820` | 3 | MapMerge | absolute-only |
-| `src/slamap.c:2826` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:2826` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:2827` | 1 | MapMerge | absolute-only |
-| `src/slamap.c:2828` | 1 | MapMerge | absolute-only |
-| `src/slamap.c:2838` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:2838` | 3 | MapMerge | absolute-only |
-| `src/slamap.c:2853` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:2853` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:2858` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:2858` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:2863` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:2863` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:2868` | 0 | MapMerge | absolute-only |
-| `src/slamap.c:2868` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:2873` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:2873` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:2878` | 0 | MapMerge | absolute-only |
-| `src/slamap.c:2878` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:2908` | 2 | MapMerge | absolute-only |
 | `src/slamap.c:2908` | 4 | MapMerge | absolute-only |
 | `src/slamap.c:2910` | 0 | MapMerge | absolute-only |
@@ -966,14 +960,14 @@ sub-campaign rather than counted in the main ledger.
 | `src/slamap.c:2981` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:2981` | 1 | MapMerge | absolute-only |
 | `src/slamap.c:2981` | 5 | MapMerge | absolute-only |
+| `src/slamap.c:2989` | 2 | MapMerge | absolute-only |
 | `src/slamap.c:2989` | 6 | MapMerge | absolute-only |
 | `src/slamap.c:2991` | 1 | MapMerge | absolute-only |
 | `src/slamap.c:2991` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:2991` | 5 | MapMerge | absolute-only |
-| `src/slamap.c:2998` | 3 | MapMerge | absolute-only |
+| `src/slamap.c:2998` | 2 | MapMerge | absolute-only |
 | `src/slamap.c:2998` | 4 | MapMerge | absolute-only |
 | `src/slamap.c:2998` | 6 | MapMerge | absolute-only |
-| `src/slamap.c:2999` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:3000` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:3000` | 1 | MapMerge | absolute-only |
 | `src/slamap.c:3000` | 2 | MapMerge | absolute-only |
@@ -985,7 +979,7 @@ sub-campaign rather than counted in the main ledger.
 | `src/slamap.c:3002` | 1 | MapMerge | absolute-only |
 | `src/slamap.c:3002` | 2 | MapMerge | absolute-only |
 | `src/slamap.c:3002` | 3 | MapMerge | absolute-only |
-| `src/slamap.c:3002` | 4 | MapMerge | absolute-only |
+| `src/slamap.c:3011` | 2 | MapMerge | differential |
 | `src/slamap.c:3019` | 3 | MapMerge | differential |
 | `src/slamap.c:3026` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:3026` | 4 | MapMerge | absolute-only |
@@ -1045,10 +1039,8 @@ sub-campaign rather than counted in the main ledger.
 | `src/slamap.c:3049` | 2 | MapMerge | absolute-only |
 | `src/slamap.c:3049` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:3049` | 5 | MapMerge | absolute-only |
-| `src/slamap.c:3056` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:3056` | 4 | MapMerge | absolute-only |
 | `src/slamap.c:3056` | 6 | MapMerge | absolute-only |
-| `src/slamap.c:3057` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:3058` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:3058` | 1 | MapMerge | absolute-only |
 | `src/slamap.c:3058` | 2 | MapMerge | absolute-only |
@@ -1056,9 +1048,9 @@ sub-campaign rather than counted in the main ledger.
 | `src/slamap.c:3058` | 5 | MapMerge | absolute-only |
 | `src/slamap.c:3065` | 3 | MapMerge | absolute-only |
 | `src/slamap.c:3066` | 0 | MapMerge | absolute-only |
+| `src/slamap.c:3072` | 2 | MapMerge | absolute-only |
 | `src/slamap.c:3072` | 4 | MapMerge | absolute-only |
 | `src/slamap.c:3072` | 6 | MapMerge | absolute-only |
-| `src/slamap.c:3073` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:3074` | 0 | MapMerge | absolute-only |
 | `src/slamap.c:3074` | 1 | MapMerge | absolute-only |
 | `src/slamap.c:3074` | 2 | MapMerge | absolute-only |
@@ -1070,26 +1062,20 @@ sub-campaign rather than counted in the main ledger.
 | `src/specmap.c:2280` | 4 | MapMerge | absolute-only |
 | `src/specmap.c:2290` | 1 | MapMerge | absolute-only |
 | `src/specmap.c:2290` | 4 | MapMerge | absolute-only |
-| `src/specmap.c:2398` | 0 | MapMerge | differential |
 | `src/specmap.c:2398` | 3 | MapMerge | absolute-only |
-| `src/specmap.c:2400` | 0 | MapMerge | differential |
 | `src/specmap.c:2400` | 3 | MapMerge | absolute-only |
-| `src/specmap.c:2401` | 0 | MapMerge | differential |
 | `src/specmap.c:2401` | 3 | MapMerge | absolute-only |
 | `src/specmap.c:2405` | 2 | MapMerge | absolute-only |
 | `src/specmap.c:2405` | 4 | MapMerge | absolute-only |
 | `src/specmap.c:2405` | 5 | MapMerge | absolute-only |
 | `src/specmap.c:2405` | 10 | MapMerge | absolute-only |
-| `src/specmap.c:2406` | 3 | MapMerge | differential |
 | `src/specmap.c:2406` | 4 | MapMerge | absolute-only |
 | `src/specmap.c:2406` | 7 | MapMerge | absolute-only |
 | `src/specmap.c:2406` | 8 | MapMerge | absolute-only |
 | `src/specmap.c:2406` | 9 | MapMerge | absolute-only |
 | `src/specmap.c:2406` | 10 | MapMerge | absolute-only |
 | `src/specmap.c:2406` | 11 | MapMerge | absolute-only |
-| `src/specmap.c:2407` | 0 | MapMerge | absolute-only |
 | `src/specmap.c:2407` | 2 | MapMerge | absolute-only |
-| `src/specmap.c:2407` | 3 | MapMerge | absolute-only |
 | `src/specmap.c:2407` | 4 | MapMerge | absolute-only |
 | `src/specmap.c:2407` | 5 | MapMerge | absolute-only |
 | `src/specmap.c:2407` | 7 | MapMerge | absolute-only |
@@ -1097,9 +1083,7 @@ sub-campaign rather than counted in the main ledger.
 | `src/specmap.c:2407` | 9 | MapMerge | absolute-only |
 | `src/specmap.c:2407` | 10 | MapMerge | absolute-only |
 | `src/specmap.c:2407` | 11 | MapMerge | absolute-only |
-| `src/specmap.c:2408` | 0 | MapMerge | absolute-only |
 | `src/specmap.c:2408` | 2 | MapMerge | absolute-only |
-| `src/specmap.c:2408` | 3 | MapMerge | absolute-only |
 | `src/specmap.c:2408` | 4 | MapMerge | absolute-only |
 | `src/specmap.c:2408` | 5 | MapMerge | absolute-only |
 | `src/specmap.c:2408` | 7 | MapMerge | absolute-only |
@@ -1107,9 +1091,7 @@ sub-campaign rather than counted in the main ledger.
 | `src/specmap.c:2408` | 9 | MapMerge | absolute-only |
 | `src/specmap.c:2408` | 10 | MapMerge | absolute-only |
 | `src/specmap.c:2408` | 11 | MapMerge | absolute-only |
-| `src/specmap.c:2409` | 0 | MapMerge | absolute-only |
 | `src/specmap.c:2409` | 2 | MapMerge | absolute-only |
-| `src/specmap.c:2409` | 3 | MapMerge | absolute-only |
 | `src/specmap.c:2409` | 4 | MapMerge | absolute-only |
 | `src/specmap.c:2409` | 5 | MapMerge | absolute-only |
 | `src/specmap.c:2409` | 7 | MapMerge | absolute-only |
@@ -1117,9 +1099,7 @@ sub-campaign rather than counted in the main ledger.
 | `src/specmap.c:2409` | 9 | MapMerge | absolute-only |
 | `src/specmap.c:2409` | 10 | MapMerge | absolute-only |
 | `src/specmap.c:2409` | 11 | MapMerge | absolute-only |
-| `src/specmap.c:2410` | 0 | MapMerge | absolute-only |
 | `src/specmap.c:2410` | 2 | MapMerge | absolute-only |
-| `src/specmap.c:2410` | 3 | MapMerge | absolute-only |
 | `src/specmap.c:2410` | 4 | MapMerge | absolute-only |
 | `src/specmap.c:2410` | 5 | MapMerge | absolute-only |
 | `src/specmap.c:2410` | 7 | MapMerge | absolute-only |
@@ -1147,10 +1127,6 @@ sub-campaign rather than counted in the main ledger.
 | `src/specmap.c:2412` | 9 | MapMerge | absolute-only |
 | `src/specmap.c:2412` | 10 | MapMerge | absolute-only |
 | `src/specmap.c:2412` | 11 | MapMerge | absolute-only |
-| `src/specmap.c:2465` | 0 | MapMerge | differential |
-| `src/specmap.c:2465` | 2 | MapMerge | absolute-only |
-| `src/specmap.c:2466` | 0 | MapMerge | differential |
-| `src/specmap.c:2466` | 2 | MapMerge | absolute-only |
 | `src/specmap.c:2471` | 6 | MapMerge | absolute-only |
 | `src/specmap.c:2471` | 8 | MapMerge | absolute-only |
 | `src/specmap.c:2472` | 0 | MapMerge | absolute-only |
@@ -1158,8 +1134,6 @@ sub-campaign rather than counted in the main ledger.
 | `src/specmap.c:2472` | 5 | MapMerge | absolute-only |
 | `src/specmap.c:2478` | 6 | MapMerge | absolute-only |
 | `src/specmap.c:2478` | 8 | MapMerge | absolute-only |
-| `src/specmap.c:2479` | 0 | MapMerge | absolute-only |
-| `src/specmap.c:2479` | 2 | MapMerge | absolute-only |
 | `src/specmap.c:2480` | 0 | MapMerge | absolute-only |
 | `src/specmap.c:2480` | 2 | MapMerge | absolute-only |
 | `src/specmap.c:2481` | 0 | MapMerge | absolute-only |
@@ -1172,11 +1146,8 @@ sub-campaign rather than counted in the main ledger.
 | `src/specmap.c:2484` | 0 | MapMerge | absolute-only |
 | `src/specmap.c:2484` | 1 | MapMerge | absolute-only |
 | `src/specmap.c:2484` | 5 | MapMerge | absolute-only |
-| `src/specmap.c:2490` | 4 | MapMerge | absolute-only |
 | `src/specmap.c:2490` | 6 | MapMerge | absolute-only |
 | `src/specmap.c:2490` | 8 | MapMerge | absolute-only |
-| `src/specmap.c:2491` | 2 | MapMerge | absolute-only |
-| `src/specmap.c:2492` | 2 | MapMerge | absolute-only |
 | `src/specmap.c:2493` | 0 | MapMerge | absolute-only |
 | `src/specmap.c:2493` | 1 | MapMerge | absolute-only |
 | `src/specmap.c:2493` | 2 | MapMerge | absolute-only |
@@ -1233,17 +1204,11 @@ sub-campaign rather than counted in the main ledger.
 | `src/timemap.c:2126` | 1 | MapMerge | absolute-only |
 | `src/timemap.c:2135` | 1 | MapMerge | absolute-only |
 | `src/timemap.c:2221` | 3 | MapMerge | absolute-only |
-| `src/timemap.c:2222` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2222` | 3 | MapMerge | absolute-only |
-| `src/timemap.c:2223` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2223` | 3 | MapMerge | absolute-only |
-| `src/timemap.c:2224` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2224` | 3 | MapMerge | absolute-only |
-| `src/timemap.c:2225` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2225` | 3 | MapMerge | absolute-only |
-| `src/timemap.c:2226` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2226` | 3 | MapMerge | absolute-only |
-| `src/timemap.c:2227` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2227` | 3 | MapMerge | absolute-only |
 | `src/timemap.c:2228` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2228` | 3 | MapMerge | absolute-only |
@@ -1255,10 +1220,7 @@ sub-campaign rather than counted in the main ledger.
 | `src/timemap.c:2235` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2235` | 3 | MapMerge | absolute-only |
 | `src/timemap.c:2288` | 8 | MapMerge | absolute-only |
-| `src/timemap.c:2290` | 0 | MapMerge | absolute-only |
-| `src/timemap.c:2290` | 2 | MapMerge | absolute-only |
 | `src/timemap.c:2291` | 0 | MapMerge | absolute-only |
-| `src/timemap.c:2291` | 2 | MapMerge | absolute-only |
 | `src/timemap.c:2293` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2293` | 2 | MapMerge | absolute-only |
 | `src/timemap.c:2294` | 1 | MapMerge | absolute-only |
@@ -1292,8 +1254,6 @@ sub-campaign rather than counted in the main ledger.
 | `src/timemap.c:2317` | 5 | MapMerge | absolute-only |
 | `src/timemap.c:2323` | 6 | MapMerge | absolute-only |
 | `src/timemap.c:2323` | 8 | MapMerge | absolute-only |
-| `src/timemap.c:2324` | 2 | MapMerge | absolute-only |
-| `src/timemap.c:2325` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2326` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2326` | 1 | MapMerge | absolute-only |
 | `src/timemap.c:2326` | 5 | MapMerge | absolute-only |
@@ -1303,14 +1263,12 @@ sub-campaign rather than counted in the main ledger.
 | `src/timemap.c:2328` | 1 | MapMerge | absolute-only |
 | `src/timemap.c:2328` | 2 | MapMerge | absolute-only |
 | `src/timemap.c:2328` | 3 | MapMerge | absolute-only |
-| `src/timemap.c:2328` | 5 | MapMerge | absolute-only |
 | `src/timemap.c:2329` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2329` | 2 | MapMerge | absolute-only |
 | `src/timemap.c:2330` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2330` | 1 | MapMerge | absolute-only |
 | `src/timemap.c:2330` | 2 | MapMerge | absolute-only |
 | `src/timemap.c:2330` | 3 | MapMerge | absolute-only |
-| `src/timemap.c:2330` | 5 | MapMerge | absolute-only |
 | `src/timemap.c:2336` | 8 | MapMerge | absolute-only |
 | `src/timemap.c:2337` | 0 | MapMerge | absolute-only |
 | `src/timemap.c:2337` | 1 | MapMerge | absolute-only |

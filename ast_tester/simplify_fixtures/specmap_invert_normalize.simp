@@ -1,0 +1,41 @@
+ Begin SpecMap 	# Conversion between spectral coordinate systems
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Nspec = 15 	# Number of conversion steps
+    Spec1 = "HLF2LD" 	# Convert from Heliocentric to LSRD frequency
+    Spec1a = 2000 	# RA of source (FK5 J2000, radians)
+    Spec1b = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec2 = "HLF2LK" 	# Convert from Heliocentric to LSRK frequency
+    Spec2a = 2000 	# RA of source (FK5 J2000, radians)
+    Spec2b = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec3 = "HLF2BY" 	# Convert from Heliocentric to barycentric frequency
+    Spec3a = 2000 	# UT1 epoch of observaton (Modified Julian Date)
+    Spec3b = 2000 	# RA of source (FK5 J2000, radians)
+    Spec3c = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec4 = "HLF2GE" 	# Convert from Heliocentric to geocentric frequency
+    Spec4a = 2000 	# UT1 epoch of observaton (Modified Julian Date)
+    Spec4b = 2000 	# RA of source (FK5 J2000, radians)
+    Spec4c = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec5 = "HLF2US" 	# Convert from heliocentric to user-defined frequency
+    Spec5a = 2000 	# Velocity offset (m/s)
+    Spec5b = 2000 	# RA of source (FK5 J2000, radians)
+    Spec5c = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec6 = "HLF2TP" 	# Convert from Heliocentric to topocentric frequency
+    Spec6a = 2000 	# Longitude (positive eastwards, radians)
+    Spec6b = 2000 	# Latitude (geodetic, radians)
+    Spec6c = 2000 	# Altitude (geodetic, metres)
+    Spec6d = 2000 	# UT1 epoch of observaton (Modified Julian Date)
+    Spec6e = 2000 	# RA of source (FK5 J2000, radians)
+    Spec6f = 2000 	# DEC of source (FK5 J2000, radians)
+    Spec7 = "VLTOBT" 	# Convert rel. velocity to beta factor
+    Spec8 = "VLTOZO" 	# Convert rel. velocity to redshift
+    Spec9 = "VLTOVO" 	# Convert relativistic to optical velocity
+    Spec10 = "VLTOVR" 	# Convert relativistic to radio velocity
+    Spec11 = "FRTOAW" 	# Convert frequency to wavelength (air)
+    Spec12 = "FRTOWV" 	# Convert frequency to wavelength (vacuum)
+    Spec13 = "FRTOWN" 	# Convert frequency to wave number
+    Spec14 = "FRTOEN" 	# Convert frequency to energy
+    Spec15 = "VLTOFR" 	# Convert rel. velocity to frequency
+    Spec15a = 2000 	# Rest frequency (Hz)
+ End SpecMap
