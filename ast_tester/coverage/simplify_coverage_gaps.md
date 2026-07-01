@@ -5,8 +5,8 @@ rows except the Status column. See `README.md`.
 
 _197 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
-**Open differential gaps:** 51  
-**Open absolute-only gaps:** 1091
+**Open differential gaps:** 43  
+**Open absolute-only gaps:** 1090
 
 ## Open gaps
 
@@ -280,15 +280,10 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/matrixmap.c:482` | 2 | CanSwap | absolute-only | open |
 | `src/matrixmap.c:493` | 2 | CanSwap | absolute-only | open |
 | `src/matrixmap.c:510` | 1 | CanSwap | absolute-only | open |
-| `src/matrixmap.c:517` | 0 | CanSwap | differential | open |
-| `src/matrixmap.c:517` | 2 | CanSwap | differential | open |
 | `src/matrixmap.c:520` | 2 | CanSwap | absolute-only | open |
-| `src/matrixmap.c:525` | 0 | CanSwap | differential | open |
-| `src/matrixmap.c:535` | 3 | CanSwap | differential | open |
 | `src/matrixmap.c:537` | 1 | CanSwap | absolute-only | open |
 | `src/matrixmap.c:547` | 2 | CanSwap | absolute-only | open |
 | `src/matrixmap.c:552` | 1 | CanSwap | absolute-only | open |
-| `src/matrixmap.c:567` | 0 | CanSwap | differential | open |
 | `src/matrixmap.c:584` | 0 | CanSwap | absolute-only | open |
 | `src/matrixmap.c:1861` | 2 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:1867` | 3 | MapMerge | absolute-only | open |
@@ -305,13 +300,9 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/matrixmap.c:1944` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:1994` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2006` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
-| `src/matrixmap.c:2099` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2135` | 1 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2135` | 2 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2136` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2137` | 1 | MapMerge | absolute-only | open |
-| `src/matrixmap.c:2143` | 0 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
-| `src/matrixmap.c:2143` | 2 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2143` | 3 | MapMerge | absolute-only | open |
 | `src/matrixmap.c:2154` | 1 | MapMerge | differential | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 | `src/matrixmap.c:2154` | 2 | MapMerge | absolute-only | open |
@@ -1159,7 +1150,9 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 
 | Location | Branch | Function | Status |
 | --- | --- | --- | --- |
-| _none_ |  |  |  |
+| `src/matrixmap.c:2136` | 0 | MapMerge | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
+| `src/matrixmap.c:2143` | 0 | MapMerge | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
+| `src/matrixmap.c:2143` | 2 | MapMerge | wontfix:via astMapMerge during WCS construction; no captured astSimplify input reproduces it |
 
 ## Deferred: Region geometric Simplify (out of scope)
 

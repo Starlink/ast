@@ -414,3 +414,4 @@ nullregion_unc_fillfactor_merge      | simplify_fixtures/nullregion_unc_fillfact
 pointlist_unc_fillfactor_merge       | simplify_fixtures/pointlist_unc_fillfactor_merge.map | simplify_fixtures/pointlist_unc_fillfactor_merge.simp |
 winmap_perm_swap_to_zoom         | simplify_fixtures/winmap_perm_swap_to_zoom.map | simplify_fixtures/winmap_perm_swap_to_zoom.simp |
 neg_winmap_perm_nonbidir         | simplify_fixtures/neg_winmap_perm_nonbidir.map | simplify_fixtures/neg_winmap_perm_nonbidir.simp |
+matrix_perm_const_swap           | simplify_fixtures/matrix_perm_const_swap.map | simplify_fixtures/matrix_perm_const_swap.simp |
