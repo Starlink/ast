@@ -492,6 +492,7 @@ static int FindDivide( AstYamlChan *, int, int *, AstMapping **, int *, int * );
 static int FindRotate3d( int, int *, AstMapping **, int *, int * );
 static int FindSphericalCartesian( int, int *, AstMapping **, int *, int * );
 static void CompactMapList( int *, AstMapping **, int * );
+static void CopyProxyKeyMap( AstMapping *, AstKeyMap *, int * );
 static void Delete( AstObject *, int * );
 static AstMathMap *GetRefMap( AstYamlChan *, const char *, int * );
 static int Get0I( AstKeyMap *, const char *, int, int, int * );
@@ -2336,6 +2337,51 @@ static void ExpandAsdf( AstYamlChan *this, AstKeyMap *km,
    }
 }
 
+static void CopyProxyKeyMap( AstMapping *map, AstKeyMap *km, int *status ){
+/*
+*  Name:
+*     CopyProxyKeyMap
+
+*  Purpose:
+*     Store a summary of an equivalent ASDF transform in a Mapping.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "yamlchan.h"
+*     void CopyProxyKeyMap( AstMapping *map, AstKeyMap *km, int *status )
+
+*  Description:
+*     This function copies the contents of the supplied KeyMap, which holds
+*     a "PROXY_TYPE" summary of an equivalent ASDF transform, into the KeyMap
+*     associated with the supplied Mapping. The various WriteProxy... functions
+*     look for such a summary when deciding how to write the Mapping out as an
+*     ASDF transform.
+
+*  Parameters:
+*     map
+*        Pointer to the Mapping in which the summary is to be stored.
+*     km
+*        Pointer to the KeyMap holding the summary. The caller retains
+*        ownership of this pointer.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   AstKeyMap *ikm;
+
+/* Check the global error status. */
+   if( !astOK )
+      return;
+
+/* Copy the summary into the Mapping's associated KeyMap. */
+   ikm = astGetKeyMap( map );
+   astMapCopy( ikm, km );
+   ikm = astAnnul( ikm );
+}
+
 static int FindAffine( int series, int *nmap, AstMapping **map_list,
                        int *invert_list, int *status ){
 /*
@@ -2488,9 +2534,9 @@ static int FindAffine( int series, int *nmap, AstMapping **map_list,
             map_list[ imap ] = astAnnul( map_list[ imap ] );
             map_list[ imap + 1 ] = astAnnul( map_list[ imap + 1 ] );
 
-/* Store the KeyMap as the proxy pointer in the new CmpMap. Note the
-   KeyMap pointer is not cloned, so we must not annull it in this function. */
-            astSetProxy( new, km );
+/* Store a summary of the affine in the new CmpMap's associated KeyMap. */
+            CopyProxyKeyMap( (AstMapping *) new, km, status );
+            km = astAnnul( km );
 
 /* Store the new CmpMap pointer in place of the first Note, we do not use
    astClone here, we must not then annull "new" in this */
@@ -2729,9 +2775,9 @@ static int FindRotate3d( int series, int *nmap, AstMapping **map_list,
                map_list[ imap + 1 ] = astAnnul( map_list[ imap + 1 ] );
                map_list[ imap + 2 ] = astAnnul( map_list[ imap + 2 ] );
 
-/* Store the KeyMap as the proxy pointer in the new CmpMap. Note the
-   KeyMap pointer is not clone, so we must not annull it in this function. */
-               astSetProxy( new, km );
+/* Store a summary of the rotate3d in the new CmpMap's associated KeyMap. */
+               CopyProxyKeyMap( (AstMapping *) new, km, status );
+               km = astAnnul( km );
 
 /* Store the new CmpMap pointer in place of the first Note, we do not use
    astClone here, we must not then annull "new" in this */
@@ -2869,7 +2915,8 @@ static int FindSphericalCartesian( int series, int *nmap, AstMapping **map_list,
          astSetInvert( map_list[ imap ], oldinv0 );
          astSetInvert( map_list[ imap + 1 ], oldinv1 );
 
-         astSetProxy( new, km );
+         CopyProxyKeyMap( (AstMapping *) new, km, status );
+         km = astAnnul( km );
 
          map_list[ imap ] = astAnnul( map_list[ imap ] );
          map_list[ imap + 1 ] = astAnnul( map_list[ imap + 1 ] );
@@ -2913,9 +2960,8 @@ static int FindDivide( AstYamlChan *this, int series, int *nmap,
 *     matching sequence is found, 0 is returned and the list is left
 *     unchanged. If one or more matching sequences are found, 1 is returned
 *     and the list is changed so that each whole sequence is contained in a
-*     single element. Each such element is a CmpMap with its proxy pointer
-*     set to a KeyMap with "IS_DIVIDE", "DIVIDE_MAPA" and "DIVIDE_MAPB"
-*     entries.
+*     single element. Each such element is a CmpMap whose associated KeyMap
+*     holds "PROXY_TYPE", "DIVIDE_MAPA" and "DIVIDE_MAPB" entries.
 *
 *     The divide pattern is a 4-element series chain (as produced by
 *     ReadDivide) consisting of:
@@ -3060,7 +3106,6 @@ static int FindDivide( AstYamlChan *this, int series, int *nmap,
 /* Build the proxy KeyMap. */
       km = astKeyMap( " ", status );
       astMapPut0C( km, "PROXY_TYPE", "divide", NULL );
-      astMapPut0I( km, "IS_DIVIDE", 1, NULL );
       astMapPut0A( km, "DIVIDE_MAPA", mapa_clone, NULL );
       astMapPut0A( km, "DIVIDE_MAPB", mapb_clone, NULL );
       mapa_clone = astAnnul( mapa_clone );
@@ -3087,8 +3132,9 @@ static int FindDivide( AstYamlChan *this, int series, int *nmap,
          astSetInvert( map_list[ imap + i ], oldinv[ i ] );
       }
 
-/* Attach the proxy KeyMap to the packed CmpMap. */
-      astSetProxy( new, km );
+/* Store a summary of the divide in the packed CmpMap's associated KeyMap. */
+      CopyProxyKeyMap( (AstMapping *) new, km, status );
+      km = astAnnul( km );
 
 /* Annul the four individual mapping pointers and replace the first
    with the packed CmpMap.  Leave the other three as NULL (they will
@@ -5766,7 +5812,6 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
    int old_inv0;
    int old_inv1;
    int series;
-   void *proxy;
 
 /* Initialise returned values. */
    ret = NULL;
@@ -5782,22 +5827,14 @@ static AstKeyMap *IsAsdfTransform( AstYamlChan *this, AstCmpMap *map,
    to a single ASDF transform, return immediately. The "proxy" pointer
    provided by the AstObject class is subverted here to provide an
    indication of whether the CmpMap has been checked. If the proxy pointer
-   associated with the supplied CmpMap is NULL (the default), then it has
-   not previously been checked. If the proxy pointer is equal to the value
-   of macro NOTASDF, then it has been checked and found not to be equivalent
-   to an ASDF transform. If the proxy pointer has any other value, the
-   CmpMap has been checked and has been found to be equivalent to an ASDF
-   transform. The proxy pointer value will then be a pointer to a KeyMap
-   holding the properties of the equivalent ASDF transform. */
-   proxy = astGetProxy( map );
-   if( proxy == NOTASDF ) {
+   is equal to the value of macro NOTASDF, then it has been checked and
+   found not to be equivalent to an ASDF transform. Note, a CmpMap that is
+   equivalent to an ASDF transform is flagged differently, by storing a
+   summary of the transform in its associated KeyMap (see CopyProxyKeyMap);
+   such CmpMaps are written out by WriteMapping before they reach this
+   function. */
+   if( astGetProxy( map ) == NOTASDF ) {
       return ret;
-
-/* If the supplied CmpMap has already been checked and is equivalent
-   to a single ASDF transform, write out the equivalent ASDF transform
-   and return. This annulls the KeyMap pointer. */
-   } else if( proxy ){
-      ret = WriteProxy( this, (AstMapping *) map, mapinv, name, status );
 
 /* If the supplied CmpMap has not been checked, we check it now. */
    } else {
@@ -15785,52 +15822,70 @@ static AstKeyMap *WriteMapping( AstYamlChan *this, AstMapping *map,
 */
 
 /* Local Variables: */
+   AstKeyMap *km;
    AstKeyMap *ret;
 
 /* Initialise */
    ret = NULL;
 
 /* Check the global error status. */
-   if ( !astOK ) return ret;
+   if ( !astOK )
+      return ret;
 
-/* Currently, only the following classes of AST Mapping can be converted to
+/* If the Mapping carries a summary of an equivalent ASDF transform in its
+   associated KeyMap, because it was created by reading such a transform
+   (e.g. ReadAffine) or by the structural matching performed by
+   IsAsdfTransform (e.g. FindAffine), write that transform out directly,
+   skipping any further structural analysis. */
+   if( astHasKeyMap( map ) ) {
+      km = astGetKeyMap( map );
+      if( astMapHasKey( km, "PROXY_TYPE" ) ) {
+         ret = WriteProxy( this, map, mapinv, name, status );
+      }
+      km = astAnnul( km );
+   }
+
+/* Otherwise, only the following classes of AST Mapping can be converted to
    ASDF Yaml. */
-   if( astIsACmpMap( map ) ) {
-      ret = WriteCmpMap( this, (AstCmpMap *) map, mapinv, name, status );
+   if( !ret ) {
+      if( astIsACmpMap( map ) ) {
+         ret = WriteCmpMap( this, (AstCmpMap *) map, mapinv, name, status );
 
-   } else if( astIsATranMap( map ) ) {
-      ret = WriteTranMap( this, (AstTranMap *) map, mapinv, name, status );
+      } else if( astIsATranMap( map ) ) {
+         ret = WriteTranMap( this, (AstTranMap *) map, mapinv, name, status );
 
-   } else if( astIsAUnitMap( map ) ) {
-      ret = WriteUnitMap( this, (AstUnitMap *) map, mapinv, name, status );
+      } else if( astIsAUnitMap( map ) ) {
+         ret = WriteUnitMap( this, (AstUnitMap *) map, mapinv, name, status );
 
-   } else if( astIsAZoomMap( map ) ) {
-      ret = WriteZoomMap( this, (AstZoomMap *) map, mapinv, name, status );
+      } else if( astIsAZoomMap( map ) ) {
+         ret = WriteZoomMap( this, (AstZoomMap *) map, mapinv, name, status );
 
-   } else if( astIsAShiftMap( map ) ) {
-      ret = WriteShiftMap( this, (AstShiftMap *) map, mapinv, name, status );
+      } else if( astIsAShiftMap( map ) ) {
+         ret = WriteShiftMap( this, (AstShiftMap *) map, mapinv, name, status );
 
-   } else if( astIsAWinMap( map ) ) {
-      ret = WriteWinMap( this, (AstWinMap *) map, mapinv, name, status );
+      } else if( astIsAWinMap( map ) ) {
+         ret = WriteWinMap( this, (AstWinMap *) map, mapinv, name, status );
 
-   } else if( astIsAMatrixMap( map ) ) {
-      ret = WriteMatrixMap( this, (AstMatrixMap *) map, mapinv, name, status );
+      } else if( astIsAMatrixMap( map ) ) {
+         ret = WriteMatrixMap( this, (AstMatrixMap *) map, mapinv, name, status );
 
-   } else if( astIsAPermMap( map ) ) {
-      ret = WritePermMap( this, (AstPermMap *) map, mapinv, name, status );
+      } else if( astIsAPermMap( map ) ) {
+         ret = WritePermMap( this, (AstPermMap *) map, mapinv, name, status );
 
-   } else if( astIsAPolyMap( map ) ) {
-      ret = WritePolyMap( this, (AstPolyMap *) map, mapinv, name, status );
+      } else if( astIsAPolyMap( map ) ) {
+         ret = WritePolyMap( this, (AstPolyMap *) map, mapinv, name, status );
 
-   } else if( astIsAWcsMap( map ) ) {
-      ret = WriteWcsMap( this, (AstWcsMap *) map, mapinv, name, status );
+      } else if( astIsAWcsMap( map ) ) {
+         ret = WriteWcsMap( this, (AstWcsMap *) map, mapinv, name, status );
 
-   } else if( astIsASphMap( map ) ) {
-      ret = WriteSphMap( this, (AstSphMap *) map, mapinv, name, status );
+      } else if( astIsASphMap( map ) ) {
+         ret = WriteSphMap( this, (AstSphMap *) map, mapinv, name, status );
+      }
    }
 
 /* Annul the returned object if an error occurred. */
-   if( !astOK ) ret = astAnnul( ret );
+   if( !astOK )
+      ret = astAnnul( ret );
 
 /* Return the answer. */
    return ret;
@@ -16443,24 +16498,25 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
 
 *  Description:
 *     This function creates and returns a new KeyMap holding the full ASDF
-*     description of an ASDF transform that is summarised in a KeyMap stored
-*     as the proxy pointer in a supplied Mapping.
+*     description of an ASDF transform that is summarised in the KeyMap
+*     associated with a supplied Mapping.
 *
-*     Each Find... function (FindRotate3d, FindAffine, etc.) stores a
-*     "PROXY_TYPE" string in the proxy KeyMap identifying which ASDF
-*     transform type was found. WriteProxy looks up that tag in the
-*     proxy_writers dispatch table and calls the corresponding handler.
-*     To add support for a new proxy type, add a Find... function that
-*     stores the appropriate PROXY_TYPE, a WriteProxy* handler, and an
-*     entry in the table below.
+*     The summary holds a "PROXY_TYPE" string identifying which ASDF
+*     transform type the Mapping is equivalent to. It is stored either by
+*     the Read... functions when reading such a transform (e.g. ReadAffine)
+*     or by the Find... functions when matching the structure of a hand-built
+*     Mapping (e.g. FindAffine). WriteProxy looks up that tag in the
+*     proxy_writers dispatch table and calls the corresponding handler. To
+*     add support for a new proxy type, store the appropriate PROXY_TYPE, add
+*     a WriteProxy* handler, and add an entry in the table below.
 
 *  Parameters:
 *     this
 *        Pointer to the YamlChan.
 *     map
-*        Pointer to a Mapping that has a proxy KeyMap holding a summary
-*        of the ASDF transform to write out. The KeyMap is deleted and
-*        the proxy pointer reset by this function.
+*        Pointer to a Mapping whose associated KeyMap holds a summary of the
+*        ASDF transform to write out. The summary is left unchanged so that
+*        the Mapping can be written out again if required.
 *     mapinv
 *        Pointer to an optional custom inverse mapping. The forward
 *        transformation of the supplied mapping (if any) is used to define
@@ -16475,8 +16531,8 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
 
 *  Returned Value:
 *     A new KeyMap containing the full ASDF description of the transform
-*     summarised in the proxy KeyMap of the supplied Mapping, or NULL if
-*     there is no proxy.
+*     summarised in the associated KeyMap of the supplied Mapping, or NULL
+*     if the Mapping has no such summary.
 
 *  Notes:
 *     - A NULL pointer will be returned if this function is invoked
@@ -16501,7 +16557,6 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
    AstKeyMap *ret;
    const char *proxy_type;
    int i;
-   void *proxy;
 
 /* Assume failure. */
    ret = NULL;
@@ -16509,38 +16564,36 @@ static AstKeyMap *WriteProxy( AstYamlChan *this, AstMapping *map, AstObject *map
 /* Check the global error status. */
    if ( !astOK ) return ret;
 
-/* Get the proxy KeyMap. */
-   proxy = astGetProxy( map );
-   if( proxy ) {
-      km = (AstKeyMap *) proxy;
+/* If the Mapping has no associated KeyMap, there is no summary to write. */
+   if( !astHasKeyMap( map ) )
+      return ret;
+
+/* Get the Mapping's associated KeyMap, which should hold a summary of an
+   equivalent ASDF transform. */
+   km = astGetKeyMap( map );
 
 /* Look up the PROXY_TYPE tag and dispatch to the appropriate handler. */
-      proxy_type = NULL;
-      if( astMapGet0C( km, "PROXY_TYPE", &proxy_type ) ) {
-         const char *resolved_name = GetName( this, name, map, status );
-         for( i = 0; i < nwriters; i++ ) {
-            if( !strcmp( proxy_type, proxy_writers[ i ].type ) ) {
-               ret = proxy_writers[ i ].writer( this, km, map, mapinv,
-                                                resolved_name, status );
-               break;
-            }
+   proxy_type = NULL;
+   if( astMapGet0C( km, "PROXY_TYPE", &proxy_type ) ) {
+      const char *resolved_name = GetName( this, name, map, status );
+      for( i = 0; i < nwriters; i++ ) {
+         if( !strcmp( proxy_type, proxy_writers[ i ].type ) ) {
+            ret = proxy_writers[ i ].writer( this, km, map, mapinv,
+                                             resolved_name, status );
+            break;
          }
-         if( i == nwriters ) {
-            astError( AST__INTER, "WriteProxy(YamlChan): proxy KeyMap has "
-                      "unrecognised PROXY_TYPE \"%s\" -- was it added to the "
-                      "proxy_writers table? (internal AST programming error)",
-                      status, proxy_type );
-         }
-      } else {
-         astError( AST__INTER, "WriteProxy(YamlChan): proxy KeyMap has no "
-                   "PROXY_TYPE entry -- did the Find<Transform> function "
-                   "forget to set it? (internal AST programming error)",
-                   status );
       }
-
-/* Annull the KeyMap and reset the proxy pointer to NULL. */
-      astSetProxy( map, astAnnul( km ) );
+      if( i == nwriters ) {
+         astError( AST__INTER, "WriteProxy(YamlChan): KeyMap has "
+                   "unrecognised PROXY_TYPE \"%s\" -- was it added to the "
+                   "proxy_writers table? (internal AST programming error)",
+                   status, proxy_type );
+      }
    }
+
+/* Annul our reference to the KeyMap. The summary is retained by the Mapping
+   so it can be written out again if required. */
+   km = astAnnul( km );
 
 /* Return the answer. */
    return ret;
