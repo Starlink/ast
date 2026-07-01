@@ -704,7 +704,7 @@ Tracked here as a known backlog; a separate effort with a
 different (geometric) fixture methodology — not part of the
 merge-engine self-containment goal.
 
-**Deferred branches:** 163 (48 differential)
+**Deferred branches:** 162 (47 differential)
 
 | Location | Branch | Function | Class |
 | --- | --- | --- | --- |
@@ -763,7 +763,6 @@ merge-engine self-containment goal.
 | `src/interval.c:3209` | 0 | Simplify | absolute-only |
 | `src/interval.c:3231` | 0 | Simplify | absolute-only |
 | `src/interval.c:3241` | 0 | Simplify | differential |
-| `src/interval.c:3244` | 0 | Simplify | differential |
 | `src/interval.c:3254` | 1 | Simplify | absolute-only |
 | `src/interval.c:3257` | 0 | Simplify | absolute-only |
 | `src/interval.c:3257` | 1 | Simplify | absolute-only |

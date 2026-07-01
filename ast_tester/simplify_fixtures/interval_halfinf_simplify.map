@@ -1,0 +1,75 @@
+ Begin Interval 	# Axis intervals
+#   Title = "2-d coordinate system" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "B" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+#   System = "Cartesian" 	# Coordinate system type
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    FrmSet = 	# Original & current coordinate systems
+       Begin FrameSet 	# Set of inter-related coordinate systems
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "B" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+       IsA Frame 	# Coordinate system description
+          Nframe = 2 	# Number of Frames in FrameSet
+#         Base = 1 	# Index of base Frame
+          Currnt = 2 	# Index of current Frame
+          Lnk2 = 1 	# Node 2 is derived from node 1
+          Frm1 = 	# Frame number 1
+             Begin Frame 	# Coordinate system description
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+                Domain = "A" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Frm2 = 	# Frame number 2
+             Begin Frame 	# Coordinate system description
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+                Domain = "B" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Map2 = 	# Mapping between nodes 1 and 2
+             Begin MatrixMap 	# Matrix transformation
+                Nin = 2 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                M0 = 1 	# Forward matrix value
+                M1 = 1 	# Forward matrix value
+                M2 = 0 	# Forward matrix value
+                M3 = 1 	# Forward matrix value
+                IM0 = 1 	# Inverse matrix value
+                IM1 = -1 	# Inverse matrix value
+                IM2 = 0 	# Inverse matrix value
+                IM3 = 1 	# Inverse matrix value
+                Form = "Full" 	# Matrix storage form
+             End MatrixMap
+       End FrameSet
+    Points = 	# Points defining the shape
+       Begin PointSet 	# Container for a set of points
+          Npoint = 2 	# Number of points
+          Ncoord = 2 	# Number of coordinates per point
+          X2 = -3 	# Coordinate values...
+          X3 = 5
+       End PointSet
+ IsA Region 	# An area within a coordinate system
+ End Interval
