@@ -426,7 +426,7 @@ neg_pcd_perm_nonswap       | simplify_fixtures/neg_pcd_perm_nonswap.map | simpli
 sph_matrix_sandwich_negz       | simplify_fixtures/sph_matrix_sandwich_negz.map | simplify_fixtures/sph_matrix_sandwich_negz.simp |
 specmap_invert_normalize       | simplify_fixtures/specmap_invert_normalize.map | simplify_fixtures/specmap_invert_normalize.simp |
 slamap_invert_normalize        | simplify_fixtures/slamap_invert_normalize.map | simplify_fixtures/slamap_invert_normalize.simp |
-timemap_invert_normalize       | simplify_fixtures/timemap_invert_normalize.map | simplify_fixtures/timemap_invert_normalize.simp |
+timemap_invert_normalize       | simplify_fixtures/timemap_invert_normalize.map | simplify_fixtures/timemap_invert_normalize.simp | yes
 specmap_pair_cancel            | simplify_fixtures/specmap_pair_cancel.map | simplify_fixtures/specmap_pair_cancel.simp |
 slamap_pair_cancel             | simplify_fixtures/slamap_pair_cancel.map | simplify_fixtures/slamap_pair_cancel.simp |
 timemap_pair_cancel            | simplify_fixtures/timemap_pair_cancel.map | simplify_fixtures/timemap_pair_cancel.simp |
