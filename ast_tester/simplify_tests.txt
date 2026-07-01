@@ -430,3 +430,5 @@ timemap_invert_normalize       | simplify_fixtures/timemap_invert_normalize.map 
 specmap_pair_cancel            | simplify_fixtures/specmap_pair_cancel.map | simplify_fixtures/specmap_pair_cancel.simp |
 slamap_pair_cancel             | simplify_fixtures/slamap_pair_cancel.map | simplify_fixtures/slamap_pair_cancel.simp |
 timemap_pair_cancel            | simplify_fixtures/timemap_pair_cancel.map | simplify_fixtures/timemap_pair_cancel.simp |
+pcd_inverse_cancel_tail        | simplify_fixtures/pcd_inverse_cancel_tail.map | simplify_fixtures/pcd_inverse_cancel_tail.simp |
+nullregion_merge_tail          | simplify_fixtures/nullregion_merge_tail.map | simplify_fixtures/nullregion_merge_tail.simp |
