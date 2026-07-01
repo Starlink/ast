@@ -7562,6 +7562,7 @@ static AstMapping *ReadDivide( AstYamlChan *this, AstKeyMap *km, int *status ){
    AstCmpMap *t1;
    AstCmpMap *t2;
    AstKeyMap *map_kms[2];
+   AstKeyMap *pkm;
    AstMapping *mapa;
    AstMapping *mapb;
    AstMapping *mm1d;
@@ -7681,6 +7682,18 @@ static AstMapping *ReadDivide( AstYamlChan *this, AstKeyMap *km, int *status ){
          if( abmap ) abmap = astAnnul( abmap );
          if( intrlvmap ) intrlvmap = astAnnul( intrlvmap );
          if( divmap ) divmap = astAnnul( divmap );
+      }
+
+/* Store a summary of the equivalent ASDF divide in the KeyMap associated
+   with the returned Mapping. On write-back this lets WriteMapping emit the
+   divide directly (via WriteProxyDivide) without re-running the structural
+   matching in FindDivide. */
+      if( result ){
+         pkm = astGetKeyMap( result );
+         astMapPut0C( pkm, "PROXY_TYPE", "divide", NULL );
+         astMapPut0A( pkm, "DIVIDE_MAPA", mapa, NULL );
+         astMapPut0A( pkm, "DIVIDE_MAPB", mapb, NULL );
+         pkm = astAnnul( pkm );
       }
 
       if( mapa ) mapa = astAnnul( mapa );

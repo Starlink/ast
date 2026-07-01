@@ -451,7 +451,9 @@ void test_divide_roundtrip( int *status ){
    AstMapping *divide_mapping;
    AstMapping *divmap1;
    AstMapping *divmap2;
+   AstMapping *divmap3;
    AstObject *divfs2;
+   AstObject *divfs3;
    AstPermMap *forkmap;
    AstPermMap *intrlvmap;
    AstPermMap *mapa;
@@ -556,10 +558,30 @@ void test_divide_roundtrip( int *status ){
    check_divide_outputs( divmap1, divmap2,
                          "Divide round-trip test failed", status );
 
+/* Write the object recovered from ASDF back out and read it again. The first
+   write above exercised the structural FindDivide path (the hand-built divide
+   had no summary); this second write exercises the KeyMap fast-path, since
+   ReadDivide attaches a "divide" summary to the Mapping it returns and
+   WriteMapping writes it directly via WriteProxyDivide. */
+   astClear( ch, "SourceFile" );
+   astSet( ch, "SinkFile=divide_roundtrip2.asdf" );
+   if( astWrite( ch, divfs2 ) != 1 ) stopit( 58, status );
+
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=divide_roundtrip2.asdf" );
+   divfs3 = astRead( ch );
+   if( !divfs3 ) stopit( 59, status );
+
+   divmap3 = astGetMapping( (AstFrameSet *) divfs3, AST__BASE, AST__CURRENT );
+   check_divide_outputs( divmap1, divmap3,
+                         "Divide re-serialisation test failed", status );
+
    astAnnul( divmap1 );
    astAnnul( divmap2 );
+   astAnnul( divmap3 );
    astAnnul( divfs );
    astAnnul( divfs2 );
+   astAnnul( divfs3 );
    astAnnul( ch );
 }
 
