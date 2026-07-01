@@ -6,7 +6,7 @@ rows except the Status column. See `README.md`.
 _197 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
 **Open differential gaps:** 57  
-**Open absolute-only gaps:** 1100
+**Open absolute-only gaps:** 1094
 
 ## Open gaps
 
@@ -360,16 +360,11 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/nullregion.c:657` | 1 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:673` | 2 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:680` | 0 | MergeNullRegion | absolute-only | open |
-| `src/nullregion.c:688` | 0 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:688` | 2 | MergeNullRegion | absolute-only | open |
-| `src/nullregion.c:688` | 3 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:695` | 0 | MergeNullRegion | absolute-only | open |
-| `src/nullregion.c:695` | 1 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:705` | 0 | MergeNullRegion | absolute-only | open |
-| `src/nullregion.c:705` | 1 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:719` | 1 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:731` | 1 | MergeNullRegion | absolute-only | open |
-| `src/nullregion.c:744` | 1 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:744` | 2 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:755` | 1 | MergeNullRegion | absolute-only | open |
 | `src/nullregion.c:755` | 2 | MergeNullRegion | absolute-only | open |
@@ -506,7 +501,6 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/pointlist.c:1392` | 0 | MergePointList | absolute-only | open |
 | `src/pointlist.c:1406` | 1 | MergePointList | absolute-only | open |
 | `src/pointlist.c:1418` | 1 | MergePointList | absolute-only | open |
-| `src/pointlist.c:1431` | 1 | MergePointList | absolute-only | open |
 | `src/pointlist.c:1431` | 2 | MergePointList | absolute-only | open |
 | `src/pointlist.c:1442` | 1 | MergePointList | absolute-only | open |
 | `src/pointlist.c:1442` | 2 | MergePointList | absolute-only | open |

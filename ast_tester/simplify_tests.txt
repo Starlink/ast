@@ -410,3 +410,5 @@ box_pointlist_merge              | simplify_fixtures/box_pointlist_merge.map | s
 box_nullregion_merge             | simplify_fixtures/box_nullregion_merge.map | simplify_fixtures/box_nullregion_merge.simp |
 box_unc_fillfactor_merge         | simplify_fixtures/box_unc_fillfactor_merge.map | simplify_fixtures/box_unc_fillfactor_merge.simp |
 neg_box_unc_mismatch             | simplify_fixtures/neg_box_unc_mismatch.map | simplify_fixtures/neg_box_unc_mismatch.map | yes
+nullregion_unc_fillfactor_merge      | simplify_fixtures/nullregion_unc_fillfactor_merge.map | simplify_fixtures/nullregion_unc_fillfactor_merge.simp |
+pointlist_unc_fillfactor_merge       | simplify_fixtures/pointlist_unc_fillfactor_merge.map | simplify_fixtures/pointlist_unc_fillfactor_merge.simp |
