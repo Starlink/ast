@@ -5,8 +5,8 @@ rows except the Status column. See `README.md`.
 
 _197 defensive astOK-guard error-direction branches filtered out as non-actionable noise._
 
-**Open differential gaps:** 57  
-**Open absolute-only gaps:** 1094
+**Open differential gaps:** 51  
+**Open absolute-only gaps:** 1091
 
 ## Open gaps
 
@@ -1087,11 +1087,7 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/wcsmap.c:3682` | 0 | PermGet | absolute-only | open |
 | `src/winmap.c:377` | 0 | CanSwap | absolute-only | open |
 | `src/winmap.c:400` | 2 | CanSwap | absolute-only | open |
-| `src/winmap.c:401` | 1 | CanSwap | differential | open |
-| `src/winmap.c:411` | 1 | CanSwap | differential | open |
 | `src/winmap.c:411` | 2 | CanSwap | absolute-only | open |
-| `src/winmap.c:412` | 1 | CanSwap | differential | open |
-| `src/winmap.c:421` | 0 | CanSwap | differential | open |
 | `src/winmap.c:443` | 0 | CanSwap | absolute-only | open |
 | `src/winmap.c:1089` | 0 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
 | `src/winmap.c:1089` | 2 | MapMerge | absolute-only | wontfix:astEQUAL macro float-tolerance sub-branch (relative/absolute path only taken in specific magnitude regimes; not distinct WinMap logic) |
@@ -1129,10 +1125,7 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/winmap.c:2069` | 6 | PermGet | absolute-only | open |
 | `src/winmap.c:2106` | 0 | PermGet | absolute-only | open |
 | `src/winmap.c:2150` | 0 | PermGet | absolute-only | open |
-| `src/winmap.c:2158` | 0 | PermGet | differential | open |
 | `src/winmap.c:3095` | 2 | WinPerm | absolute-only | open |
-| `src/winmap.c:3118` | 1 | WinPerm | absolute-only | open |
-| `src/winmap.c:3123` | 0 | WinPerm | absolute-only | open |
 | `src/winmap.c:3123` | 1 | WinPerm | absolute-only | open |
 | `src/winmap.c:3125` | 0 | WinPerm | absolute-only | open |
 | `src/winmap.c:3125` | 1 | WinPerm | absolute-only | open |
@@ -1140,9 +1133,7 @@ _197 defensive astOK-guard error-direction branches filtered out as non-actionab
 | `src/winmap.c:3125` | 3 | WinPerm | absolute-only | open |
 | `src/winmap.c:3125` | 4 | WinPerm | absolute-only | open |
 | `src/winmap.c:3125` | 5 | WinPerm | absolute-only | open |
-| `src/winmap.c:3158` | 1 | WinPerm | differential | open |
 | `src/winmap.c:3158` | 2 | WinPerm | absolute-only | open |
-| `src/winmap.c:3186` | 0 | WinPerm | absolute-only | open |
 | `src/winmap.c:3188` | 1 | WinPerm | absolute-only | open |
 | `src/winmap.c:3188` | 2 | WinPerm | absolute-only | open |
 | `src/xphmap.c:532` | 1 | MapMerge | absolute-only | open |
