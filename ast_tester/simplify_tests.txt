@@ -406,3 +406,7 @@ neg_chebymap_standalone            | simplify_fixtures/neg_chebymap_standalone.m
 interval_nullregion_merge          | simplify_fixtures/interval_nullregion_merge.map | simplify_fixtures/interval_nullregion_merge.simp |
 interval_pointlist_merge           | simplify_fixtures/interval_pointlist_merge.map | simplify_fixtures/interval_pointlist_merge.simp |
 interval_unc_fillfactor_merge      | simplify_fixtures/interval_unc_fillfactor_merge.map | simplify_fixtures/interval_unc_fillfactor_merge.simp |
+box_pointlist_merge              | simplify_fixtures/box_pointlist_merge.map | simplify_fixtures/box_pointlist_merge.simp |
+box_nullregion_merge             | simplify_fixtures/box_nullregion_merge.map | simplify_fixtures/box_nullregion_merge.simp |
+box_unc_fillfactor_merge         | simplify_fixtures/box_unc_fillfactor_merge.map | simplify_fixtures/box_unc_fillfactor_merge.simp |
+neg_box_unc_mismatch             | simplify_fixtures/neg_box_unc_mismatch.map | simplify_fixtures/neg_box_unc_mismatch.map | yes
