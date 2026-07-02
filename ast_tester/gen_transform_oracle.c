@@ -127,16 +127,20 @@ static int transform_write( FILE *fp, const char *relpath, AstMapping *map,
     }
     fprintf( fp, "[%s  nin=%d nout=%d dir=%s]\n",
              relpath, in_n, out_n, forward ? "forward" : "inverse" );
+    /* Right-align every value in a field wide enough for the largest %.17g
+       rendering (e.g. "-1.7976931348623157e+308") so the columns of a
+       section line up for human readers. */
+    enum { COLW = 24 };
     char buf[64];
     for ( int p = 0; p < np; p++ ) {
         for ( int a = 0; a < in_n;  a++ ) {
             oracle_format_double( buf, sizeof buf, in[a][p] );
-            fprintf( fp, "%s%s", a ? " " : "  ", buf );
+            fprintf( fp, "%s%*s", a ? " " : "  ", COLW, buf );
         }
         fprintf( fp, "  " );
         for ( int a = 0; a < out_n; a++ ) {
             oracle_format_double( buf, sizeof buf, out[a][p] );
-            fprintf( fp, "%s%s", a ? " " : "", buf );
+            fprintf( fp, "%s%*s", a ? " " : "", COLW, buf );
         }
         fprintf( fp, "\n" );
     }
