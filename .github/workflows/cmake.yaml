@@ -16,7 +16,21 @@ jobs:
         shared_libs: [ON, OFF]
         fortran: [OFF]
         sanitizers: [OFF]
+        c_flags: ['']
         include:
+          # x86-64-v3 (Haswell+, 2013: AVX2/FMA) build.  Baseline x86-64
+          # has no FMA instruction, so compilers round a*b+c twice, while
+          # arm64 (and v3) contract to a fused multiply-add by default.
+          # This job makes contraction-driven differences in the transform
+          # oracle show up as baseline-vs-v3 on the same OS/libm, rather
+          # than only as ubuntu-vs-macos where libm differences are also
+          # in play.  See ast_tester/gen_transform_oracle.c.
+          - os: ubuntu-latest
+            build_type: Release
+            shared_libs: ON
+            fortran: OFF
+            sanitizers: OFF
+            c_flags: '-march=x86-64-v3'
           # Add a Fortran build on each platform (shared only)
           - os: ubuntu-latest
             build_type: Release
@@ -63,6 +77,7 @@ jobs:
           -DAST_BUILD_FORTRAN=${{ matrix.fortran }}
           -DAST_ENABLE_SANITIZERS=${{ matrix.sanitizers }}
           -DAST_C_STANDARD=11
+          "-DCMAKE_C_FLAGS=${{ matrix.c_flags }}"
 
       - name: Build
         run: cmake --build build --parallel
