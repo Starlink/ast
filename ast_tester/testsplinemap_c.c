@@ -152,6 +152,30 @@ int main( void ){
    }
 
 
+/* An order-1 (piecewise-constant) spline has no first derivative in its
+   B-spline representation, so the Jacobian used by the iterative inverse
+   is singular everywhere.  The inverse transformation must report this by
+   returning AST__BAD for every point, without raising an AST error. */
+   if( astOK ) {
+      double tx1[2] = { 0.0, 1.0 };
+      double ty1[2] = { 0.0, 1.0 };
+      double cu1[1] = { 1.5 };
+      double cv1[1] = { 2.5 };
+      double uin1[1] = { 0.5 };
+      double vin1[1] = { 0.5 };
+      double xrec1[1], yrec1[1];
+
+      AstSplineMap *sm1 = astSplineMap( 1, 1, 1, 1, tx1, ty1, cu1, cv1, " " );
+      astTran2( sm1, 1, uin1, vin1, 0, xrec1, yrec1 );
+      if( !astOK ) {
+         printf( "Error 9: order-1 inverse raised an AST error\n" );
+      } else if( xrec1[ 0 ] != AST__BAD || yrec1[ 0 ] != AST__BAD ) {
+         astError( AST__INTER, "Error 10: order-1 inverse gave (%.20g,%.20g), "
+                   "expected AST__BAD", xrec1[ 0 ], yrec1[ 0 ] );
+      }
+      sm1 = astAnnul( sm1 );
+   }
+
    if( astOK ) {
       printf(" All SplineMap (C API) tests passed\n");
    } else {
