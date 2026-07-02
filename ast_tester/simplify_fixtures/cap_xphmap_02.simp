@@ -1,0 +1,65 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = -3.1415926535897931 	# Shift for axis 1
+       End ShiftMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin WcsMap 	# FITS-WCS sky projection
+                Nin = 2 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+                Type = "HPX" 	# HEALPix projection
+                LonChk = 0 	# Do not check returned lon values
+                PV1_3 = 180 	# Projection parameter 3 for axis 1
+             End WcsMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin ShiftMap 	# Shift each coordinate axis
+                      Nin = 2 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Sft1 = 3.9331267401387842 	# Shift for axis 1
+                      Sft2 = -1.0061396160665481e-16 	# Shift for axis 2
+                   End ShiftMap
+                MapB = 	# Second component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 2 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      InvB = 1 	# Second Mapping used in inverse direction
+                      MapA = 	# First component Mapping
+                         Begin MatrixMap 	# Matrix transformation
+                            Nin = 2 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            M0 = 81.487330863050417 	# Forward matrix value
+                            M1 = -81.487330863050417 	# Forward matrix value
+                            M2 = 81.487330863050417 	# Forward matrix value
+                            M3 = 81.487330863050417 	# Forward matrix value
+                            IM0 = 0.0061359231515425647 	# Inverse matrix value
+                            IM1 = 0.0061359231515425647 	# Inverse matrix value
+                            IM2 = -0.0061359231515425647 	# Inverse matrix value
+                            IM3 = 0.0061359231515425647 	# Inverse matrix value
+                            Form = "Full" 	# Matrix storage form
+                         End MatrixMap
+                      MapB = 	# Second component Mapping
+                         Begin XphMap 	# HPX variant mapping
+                            Nin = 2 	# Number of input coordinates
+                            Invert = 1 	# Mapping inverted
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Order = 7 	# HEALPix order
+                            Type = "XPHS" 	# XPH projection centred on south pole
+                         End XphMap
+                   End CmpMap
+             End CmpMap
+       End CmpMap
+ End CmpMap

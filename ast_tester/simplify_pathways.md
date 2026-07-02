@@ -112,15 +112,19 @@ permutation arrays.
 | cmpmap-17 | cmpmap_perm_parallel_swap.map | focused | `+` | PermMap and parallel CmpMap swapped (no constants), producing reordered CmpMap + new PermMap | PermMap swapping two contiguous blocks feeding a parallel CmpMap |
 | cmpmap-18 | cmpmap_perm_swap_aconstants.map | focused | `+` | PermMap swap with aconstants: first component gets all-constant outputs | PermMap with first block all constants before parallel CmpMap |
 | cmpmap-19 | cmpmap_perm_swap_bconstants.map | focused | `+` | PermMap swap with bconstants: second component gets all-constant outputs | PermMap with second block all constants before parallel CmpMap |
+| cmpmap-20 | reconstruct_right_assoc.map | cascade | `+` | Right-nested CmpMap chain reassociated so neighbouring components can merge | Right-associative CmpMap chain of WcsMap/ZoomMap/UnitMap/WcsMap |
+| cmpmap-21 | series_parallel_absorb.map | cascade | `+` | UnitMap absorbed from nested series/parallel CmpMap, collapsing to WcsMap+ShiftMap | Nested CmpMap containing WcsMap, UnitMap and ShiftMap |
+| cmpmap-22 | spec_cel_invert.map | scenario | `+` | Large celestial FITS-WCS pipeline collapses via repeated merge to CmpMap(WinMap, WcsMap) | Multi-class FITS-WCS conversion pipeline (>3 components) |
+| cmpmap-23 | wcsconv_gappt_iwc_residue.map | scenario | `+` | GAPPT/IWC conversion residue: large pipeline reassociated and partly merged | Multi-class FITS-WCS conversion pipeline (>3 components) |
 
 ### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | cmpmap-02 | -- | focused | `- (requires deep internal nesting)` | CmpMap does not simplify on its own (astSimplify returns same pointer unchanged) | CmpMap with irreducible components |
-| cmpmap-04 | neg_cmpmap_mode_mismatch.map | focused | `+` | Guard rejects decomposition: CmpMap mode does not match list mode | Series CmpMap in a parallel list |
-| cmpmap-05 | -- | focused | `- (requires deep internal nesting)` | Guard rejects merging: only one mapping in list (nmap <= 1) | Mapping list containing only the CmpMap |
-| cmpmap-06 | -- | focused | `- (requires deep internal nesting)` | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
+| cmpmap-04 | covered (incidental) | focused | covered | Guard rejects decomposition: CmpMap mode does not match list mode | Already exercised by the simplify suite |
+| cmpmap-05 | cmpmap_solo_after_unit.map | focused | `-` | Guard rejects merging: only one mapping in list (nmap <= 1) | Series CmpMap(UnitMap, parallel CmpMap); UnitMap elided leaves the parallel CmpMap alone |
+| cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | `- (requires deep internal nesting)` | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-08 | -- | focused | `- (no fixture)` | Guard: re-arranged parallel CmpMaps do not simplify | Two series CmpMaps in parallel whose rearranged pairings remain irreducible |
 | cmpmap-10 | -- | cascade | `- (no fixture)` | Guard: two CmpMaps are not both parallel, or list is not series | Two adjacent CmpMaps where at least one is series |
 | cmpmap-11 | -- | cascade | `- (no fixture)` | Parallel-in-series pairing produces no simplification | Two parallel CmpMaps in series with all irreducible sub-mappings |
@@ -151,7 +155,7 @@ Invert flag normalization.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| unitmap-02 | -- | focused | `- (no fixture)` | Single UnitMap with Invert=0: no change needed | Lone UnitMap already canonical |
+| unitmap-02 | neg_unit_lone.map | focused | `- (no fixture)` | Single UnitMap with Invert=0: no change needed | Lone UnitMap already canonical |
 | unitmap-06 | -- | focused | `- (no fixture)` | Parallel UnitMap with no adjacent UnitMaps and Invert=0: no simplification | Single UnitMap in parallel already canonical |
 
 ---
@@ -185,9 +189,10 @@ diagonal MatrixMap (different factors).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| zoommap-04 | -- | focused | `- (no fixture)` | Single forward ZoomMap with no adjacent ZoomMaps: nothing to accumulate | Lone forward ZoomMap in series (falls through to absorb) |
-| zoommap-08 | -- | focused | `- (no fixture)` | Single ZoomMap in parallel with no adjacent ZoomMaps: no simplification | Lone ZoomMap in parallel |
+| zoommap-04 | neg_zoom_lone.map | focused | `- (no fixture)` | Single forward ZoomMap with no adjacent ZoomMaps: nothing to accumulate | Lone forward ZoomMap in series (falls through to absorb) |
+| zoommap-08 | neg_zoom_parallel_lone.map | focused | `-` | Single ZoomMap in parallel with no adjacent ZoomMaps: no simplification | Lone ZoomMap in parallel |
 | zoommap-15 | neg_zoom_no_absorb.map | focused | `+` | ZoomMap cannot be absorbed: neither neighbour is MatrixMap/WinMap/ShiftMap | CmpMap(SphMap, ZoomMap, MathMap), Series=1 |
+| zoommap-16 | neg_zoom_lower_nonzoom.map | focused | `-` | Backward neighbour search stops at a non-ZoomMap/UnitMap lower neighbour; no merge | CmpMap(PermMap, ZoomMap), Series=1 |
 
 ---
 
@@ -248,8 +253,8 @@ with same classes.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| winmap-03 | -- | focused | `- (no fixture)` | Not all shifts are zero: MatrixMap replacement refused | WinMap with mixed shifts |
-| winmap-04 | -- | focused | `- (no fixture)` | Not all scales are 1: ShiftMap replacement refused | WinMap with mixed scales, alone |
+| winmap-03 | neg_win_mixed_scale_shift.map | focused | `- (no fixture)` | Not all shifts are zero: MatrixMap replacement refused | WinMap with mixed shifts |
+| winmap-04 | neg_win_mixed_scale_shift.map | focused | `- (no fixture)` | Not all scales are 1: ShiftMap replacement refused | WinMap with mixed scales, alone |
 | winmap-13 | neg_win_nonmergeable_series.map | focused | `+` | Neither neighbour is a directly-mergeable class | CmpMap(WinMap, FullMatrixMap), Series=1 |
 | winmap-16 | -- | cascade | `- (no fixture)` | CmpMap neighbour is series (not parallel): no merge | CmpMap(series CmpMap, WinMap), Series=1 |
 | winmap-17 | -- | cascade | `- (no fixture)` | Parallel CmpMap split doesn't simplify: refused | Parallel CmpMap with non-simplifiable components next to WinMap |
@@ -290,7 +295,7 @@ WinMap/PermMap toward merge target or for local simplification.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| matrixmap-02 | -- | focused | `- (no fixture)` | Diagonal MatrixMap with NULL i_matrix (singular) cannot become ZoomMap | MatrixMap(diag, singular) |
+| matrixmap-02 | neg_matrix_singular_diag.map | focused | `- (no fixture)` | Diagonal MatrixMap with NULL i_matrix (singular) cannot become ZoomMap | MatrixMap(diag, singular) |
 | matrixmap-04 | neg_matrix_diag_unequal.map | focused | `+` | Diagonal MatrixMap with unequal elements cannot become ZoomMap | MatrixMap(diag, [2,3]) with non-mergeable neighbours |
 | matrixmap-06 | neg_matrix_full_offdiag.map | focused | `+` | Full MatrixMap with non-zero off-diagonal cannot self-simplify | MatrixMap(full, [1,2,3,4]) alone |
 | matrixmap-10 | neg_matrix_perm_not_bidirectional.map | focused | `+` | Adjacent PermMap has inconsistent fwd/inv axes: merge blocked | CmpMap(MatrixMap, PermMap[non-bidirectional]), Series=1 |
@@ -347,7 +352,7 @@ WinMap; (2) inverse pair cancellation to UnitMap.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | lutmap-05 | neg_lut_nonlinear.map | focused | `+` | LutMap is not linear: WinMap replacement refused | LutMap with non-linear table |
-| lutmap-06 | -- | focused | `- (no fixture)` | LutMap is linear but constant (b1==b2): WinMap impossible | LutMap([5,5,5,...]) |
+| lutmap-06 | neg_lut_constant.map | focused | `-` | LutMap is linear but constant (b1==b2): WinMap impossible | LutMap([5,5,5,...]) |
 | lutmap-07 | neg_lut_parallel.map | focused | `+` | Not in series: cancellation skipped | Two LutMaps in parallel |
 | lutmap-08 | neg_lut_nonlut_neighbour.map | focused | `+` | Neither neighbour is a LutMap | CmpMap(LutMap, ZoomMap), Series=1 |
 | lutmap-09 | neg_lut_different_tables.map | focused | `+` | Neighbouring LutMap not inverse-equal (different tables) | Two different LutMaps in opposite directions |
@@ -378,7 +383,7 @@ cancellation.
 | polymap-07 | neg_poly_parallel_nonlinear.map | focused | `+` | Inverse-cancel refused: combination is parallel | Two PolyMaps in parallel |
 | polymap-08 | neg_poly_nonpoly_neighbour.map | focused | `+` | Inverse-cancel refused: neighbour is not PolyMap | CmpMap(PolyMap, ZoomMap), Series=1 |
 | polymap-09 | neg_poly_same_direction.map | focused | `+` | Inverse-cancel refused: neighbour has same invert direction | Two forward PolyMaps in series |
-| polymap-10 | neg_poly_different_coeffs.map | focused | `+` | Inverse-cancel refused: astEqual fails (different coefficients) | Two different PolyMaps in opposite directions |
+| polymap-10 | -- | focused | `- (open: PolyMaps self-simplify before the cancel check)` | Inverse-cancel refused: astEqual fails (different coefficients) | Two different PolyMaps in opposite directions |
 
 ---
 
@@ -399,14 +404,14 @@ pair cancels to UnitMap.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | mathmap-02 | -- | focused | `- (no fixture)` | Parallel mode: refuses | MathMaps in parallel |
-| mathmap-03 | -- | focused | `- (no fixture)` | No following Mapping (last in list) | Single MathMap |
+| mathmap-03 | neg_math_lone.map | focused | `- (no fixture)` | No following Mapping (last in list) | Single MathMap |
 | mathmap-04 | neg_math_nonmath_neighbour.map | focused | `+` | Neighbour is not a MathMap | CmpMap(MathMap, ZoomMap), Series=1 |
 | mathmap-05 | neg_math_no_simpfi.map | focused | `+` | SimpFI/SimpIF not set: simplification refused | CmpMap(MathMap[SimpFI=0], Inverse(MathMap)), Series=1 |
 | mathmap-06 | -- | focused | `- (no fixture)` | Dimension mismatch: nin(first) != nout(second) | MathMaps of different dimensionality |
 | mathmap-07 | -- | focused | `- (no fixture)` | Forward function count mismatch | MathMaps with different output counts |
 | mathmap-08 | -- | focused | `- (no fixture)` | Forward function text of first != inverse text of second | Different MathMaps with SimpFI set |
 | mathmap-09 | -- | focused | `- (no fixture)` | Inverse function count mismatch | MathMaps whose inv/fwd counts differ |
-| mathmap-10 | -- | focused | `- (no fixture)` | Inverse function text of first != forward text of second | MathMaps whose inv(first) != fwd(second) |
+| mathmap-10 | neg_math_inv_text_mismatch.map | focused | `-` | Inverse function text of first != forward text of second | MathMaps whose inv(first) != fwd(second) |
 
 ---
 
@@ -428,14 +433,14 @@ neighbours for inverse pair cancellation.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | ratemap-04 | neg_ratemap_parallel.map | focused | `+` | Not in series: skipped | RateMaps in parallel |
-| ratemap-05 | -- | focused | `- (no fixture)` | Lower neighbour not a RateMap | CmpMap(ZoomMap, RateMap), Series=1 |
-| ratemap-06 | -- | focused | `- (no fixture)` | Lower neighbour same invert flag | Two forward RateMaps in series |
-| ratemap-07 | -- | focused | `- (no fixture)` | Lower neighbour different iin/iout indices | RateMaps with different axis indices |
+| ratemap-05 | neg_ratemap_lower_nonrate.map | focused | `-` | Lower neighbour not a RateMap | CmpMap(ZoomMap, RateMap), Series=1 |
+| ratemap-06 | neg_ratemap_same_invert.map | focused | `-` | Lower neighbour same invert flag | Two forward RateMaps in series |
+| ratemap-07 | neg_ratemap_diff_indices.map | focused | `-` | Lower neighbour different iin/iout indices | RateMaps with different axis indices |
 | ratemap-08 | neg_ratemap_different_inner.map | focused | `+` | Lower neighbour non-equal encapsulated Mapping | RateMaps wrapping different Mappings |
 | ratemap-09 | neg_ratemap_nonratemap_neighbour.map | focused | `+` | Upper neighbour not a RateMap | CmpMap(RateMap, ZoomMap), Series=1 |
-| ratemap-10 | -- | focused | `- (no fixture)` | Upper neighbour same invert flag | Two forward RateMaps |
-| ratemap-11 | -- | focused | `- (no fixture)` | Upper neighbour different iin/iout | Different axis RateMaps |
-| ratemap-12 | -- | focused | `- (no fixture)` | Upper neighbour non-equal encapsulated Mapping | Different inner Mappings |
+| ratemap-10 | neg_ratemap_same_invert.map | focused | `-` | Upper neighbour same invert flag | Two forward RateMaps |
+| ratemap-11 | neg_ratemap_diff_indices.map | focused | `-` | Upper neighbour different iin/iout | Different axis RateMaps |
+| ratemap-12 | neg_ratemap_diff_inner.map | focused | `-` | Upper neighbour non-equal encapsulated Mapping | Different inner Mappings |
 
 ---
 
@@ -449,20 +454,20 @@ and opposite direction, with AST__SIMPFI/SIMPIF permission.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | intramap-01 | intramap_inverse_cancel.map | focused | `+` | Forward + Inverse IntraMap with SIMPFI cancels to UnitMap | CmpMap(IntraMap, Inverse(IntraMap)), Series=1, SIMPFI set |
-| intramap-02 | -- | focused | `- (infeasible: protected constructor)` | Inverse + Forward IntraMap with SIMPIF cancels to UnitMap | CmpMap(Inverse(IntraMap), IntraMap), Series=1, SIMPIF set |
+| intramap-02 | intra_invfwd_cancel.map | focused | `- (infeasible: protected constructor)` | Inverse + Forward IntraMap with SIMPIF cancels to UnitMap | CmpMap(Inverse(IntraMap), IntraMap), Series=1, SIMPIF set |
 
 ### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| intramap-03 | -- | focused | `- (infeasible: protected constructor)` | Not in series or no following Mapping | IntraMaps in parallel |
-| intramap-04 | -- | focused | `- (infeasible: protected constructor)` | Following Mapping is not IntraMap | CmpMap(IntraMap, ZoomMap), Series=1 |
-| intramap-05 | -- | focused | `- (infeasible: protected constructor)` | Different transformation functions (ifun differs) | IntraMaps with different registered functions |
-| intramap-06 | -- | focused | `- (infeasible: protected constructor)` | IntraFlag strings differ | Same function but different flags |
-| intramap-07 | -- | focused | `- (infeasible: protected constructor)` | Dimension mismatch | Asymmetric IntraMaps |
-| intramap-08 | -- | focused | `- (infeasible: protected constructor)` | Same direction (both forward or both inverse) | Two forward IntraMaps in series |
-| intramap-09 | -- | focused | `- (infeasible: protected constructor)` | SIMPFI flag not set on forward-then-inverse pair | IntraMaps without SIMPFI permission |
-| intramap-10 | -- | focused | `- (infeasible: protected constructor)` | SIMPIF flag not set on inverse-then-forward pair | IntraMaps without SIMPIF permission |
+| intramap-03 | neg_intra_parallel.map | focused | `- (infeasible: protected constructor)` | Not in series or no following Mapping | IntraMaps in parallel |
+| intramap-04 | neg_intra_nonintra_neighbour.map | focused | `- (infeasible: protected constructor)` | Following Mapping is not IntraMap | CmpMap(IntraMap, ZoomMap), Series=1 |
+| intramap-05 | neg_intra_diff_func.map | focused | `- (infeasible: protected constructor)` | Different transformation functions (ifun differs) | IntraMaps with different registered functions |
+| intramap-06 | neg_intra_diff_flag.map | focused | `- (infeasible: protected constructor)` | IntraFlag strings differ | Same function but different flags |
+| intramap-07 | -- | focused | `- (unreachable: same-function pair always preserves dimension)` | Dimension mismatch | Asymmetric IntraMaps |
+| intramap-08 | neg_intra_same_direction.map | focused | `- (infeasible: protected constructor)` | Same direction (both forward or both inverse) | Two forward IntraMaps in series |
+| intramap-09 | neg_intra_no_simpfi.map | focused | `- (infeasible: protected constructor)` | SIMPFI flag not set on forward-then-inverse pair | IntraMaps without SIMPFI permission |
+| intramap-10 | neg_intra_no_simpif.map | focused | `- (infeasible: protected constructor)` | SIMPIF flag not set on inverse-then-forward pair | IntraMaps without SIMPIF permission |
 
 ---
 
@@ -509,13 +514,14 @@ UnitMap; (3) inverse-pair cancellation; (4) duplicate-NormMap elimination.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| normmap-06 | -- | focused | `- (no fixture)` | Lower neighbour NormMap: invert flags not opposite | NormMap preceded by same-direction NormMap with different Frame |
+| normmap-06 | neg_normmap_diff_frame.map | focused | `-` | Lower neighbour NormMap: invert flags not opposite | NormMap preceded by same-direction NormMap with different Frame |
 | normmap-07 | neg_normmap_different_frames.map | focused | `+` | Lower inverse NormMap: Frames not equal | NormMap preceded by Inverse(NormMap) with different Frame |
 | normmap-08 | neg_normmap_nonnorm_neighbour.map | focused | `+` | Upper neighbour is not a NormMap | NormMap followed by non-NormMap |
-| normmap-09 | -- | focused | `- (no fixture)` | Upper inverse NormMap: Frames differ | NormMap followed by Inverse(NormMap) with different Frame |
-| normmap-10 | -- | focused | `- (no fixture)` | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
+| normmap-09 | neg_normmap_inv_diff_frame.map | focused | `-` | Upper inverse NormMap: Frames differ | NormMap followed by Inverse(NormMap) with different Frame |
+| normmap-10 | neg_normmap_diff_frame.map | focused | `-` | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
 | normmap-11 | neg_normmap_parallel.map | focused | `+` | Parallel mode: no simplification beyond Frame-level | NormMap in parallel |
-| normmap-12 | -- | focused | `- (no fixture)` | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
+| normmap-12 | neg_normmap_parallel_sky.map | focused | `-` | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
+| normmap-13 | normmap_frame_simplifies.map | scenario | `-` | Lone NormMap(Box): all guards fall through, no simplification (does not reach the frame-simplify branch; redundant with normmap-11/12) | Lone NormMap(Box) |
 
 ---
 
@@ -541,7 +547,7 @@ different to ShiftMap).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| unitnormmap-03 | neg_unitnormmap_nonunit_scale.map | focused | `+` | WinMap(non-unit scale) + UnitNormMap: refused | WinMap(scale!=1) followed by UnitNormMap(fwd) |
+| unitnormmap-03 | -- | focused | `- (unreachable: non-unit WinMap self-simplifies to a ZoomMap before the UNM merge)` | WinMap(non-unit scale) + UnitNormMap: refused | WinMap(scale!=1) followed by UnitNormMap(fwd) |
 | unitnormmap-06 | -- | focused | `- (no fixture)` | UnitNormMap(inv) + WinMap(non-unit scale): refused | UnitNormMap(inv) followed by WinMap(scale!=1) |
 | unitnormmap-10 | -- | focused | `- (no fixture)` | Inverse + Forward with different centres: no merge (asymmetric) | Inverse(UnitNormMap,c1) + UnitNormMap(fwd,c2) |
 | unitnormmap-11 | -- | focused | `- (no fixture)` | ShiftMap + UnitNormMap(inv): refused | ShiftMap followed by Inverse(UnitNormMap) |
@@ -564,17 +570,17 @@ cancellation.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| selectormap-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Internal regions simplify to new SelectorMap with simplified regions | SelectorMap containing simplifiable Regions |
-| selectormap-05 | selectormap_inverse_cancel.map | focused | `+` | Inverse-pair cancellation to UnitMap | SelectorMap + Inverse(SelectorMap), identical regions |
+| selectormap-01 | selectormap_region_simplify_real.map | focused | `+` | Internal regions simplify to new SelectorMap with simplified regions | SelectorMap containing a finite-bound Interval (simplifies to a Box) |
+| selectormap-05 | selectormap_inverse_cancel.map, selectormap_inverse_cancel_tail.map | focused | `+` | Inverse-pair cancellation to UnitMap | SelectorMap + Inverse(SelectorMap), identical regions; `_tail` adds a trailing ZoomMap for the shuffle-down loop |
 
 ### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| selectormap-02 | -- | focused | `- (no fixture)` | No region simplification and no adjacent SelectorMap | SelectorMap with already-simple regions, alone |
-| selectormap-03 | -- | focused | `- (no fixture)` | No adjacent SelectorMap found in series | SelectorMap flanked by non-SelectorMaps |
-| selectormap-04 | -- | focused | `- (no fixture)` | Adjacent SelectorMap not equal-and-opposite | Two SelectorMaps with different regions |
-| selectormap-06 | -- | focused | `- (no fixture)` | Parallel mode: Phase 2 skipped | SelectorMap in parallel |
+| selectormap-02 | neg_selectormap_series_lower.map | focused | covered | No region simplification and no adjacent SelectorMap (lower-neighbour search) | SelectorMap as upper element, ZoomMap lower neighbour |
+| selectormap-03 | neg_selectormap_series_upper.map | focused | covered | No adjacent SelectorMap found in series | SelectorMap with a ZoomMap upper neighbour |
+| selectormap-04 | neg_selectormap_not_equal.map | focused | covered | Adjacent SelectorMap not equal-and-opposite | Two SelectorMaps with different region bounds in series |
+| selectormap-06 | neg_selectormap_parallel.map | focused | covered | Parallel mode: Phase 2 skipped | SelectorMap in parallel with a ZoomMap |
 
 ---
 
@@ -596,9 +602,9 @@ selectors/routes.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| switchmap-02 | -- | focused | `- (no fixture)` | Adjacent SwitchMap not equal-and-opposite | Two SwitchMaps with different routes |
-| switchmap-05 | -- | focused | `- (no fixture)` | Series: no adjacent match, non-inverted, internals don't simplify | Lone simple SwitchMap in series |
-| switchmap-06 | -- | focused | `- (no fixture)` | Parallel: same as above | Lone simple SwitchMap in parallel |
+| switchmap-02 | neg_switchmap_not_equal.map | focused | covered | Adjacent SwitchMap not equal-and-opposite | Two SwitchMaps with different route-map zoom factors in series |
+| switchmap-05 | neg_switchmap_series.map | focused | covered | Series: no adjacent match, non-inverted, internals don't simplify | SwitchMap in series with a ZoomMap |
+| switchmap-06 | neg_switchmap_parallel.map | focused | covered | Parallel: same as above | SwitchMap in parallel with a ZoomMap |
 
 ---
 
@@ -622,10 +628,10 @@ Mapping); (4) adjacent TranMap series merge.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | tranmap-05 | neg_tranmap_parallel.map | focused | `+` | Parallel mode: adjacent merge skipped | TranMaps in parallel |
-| tranmap-06 | -- | focused | `- (no fixture)` | Equal-component check skipped: components lack bidirectional transforms | TranMap(OneWayFwd, OneWayInv) |
+| tranmap-06 | neg_tranmap_oneway.map | focused | `-` | Equal-component check skipped: components lack bidirectional transforms | TranMap(OneWayFwd, OneWayInv) |
 | tranmap-07 | neg_tranmap_unequal_components.map | focused | `+` | CmpMap(fwd,inv(inv)) doesn't simplify to UnitMap: components not equal | TranMap(ShiftMap(1), ShiftMap(2)) |
 | tranmap-08 | neg_tranmap_nontranmap_neighbour.map | focused | `+` | Higher neighbour is not a TranMap | CmpMap(TranMap, ZoomMap), Series=1 |
-| tranmap-09 | -- | focused | `- (no fixture)` | Neither fwd nor inv series combination simplified | CmpMap(TranMap(A,B), TranMap(C,D)) with irreducible legs |
+| tranmap-09 | neg_tranmap_adjacent_no_merge.map | focused | `-` | Neither fwd nor inv series combination simplified | CmpMap(TranMap(A,B), TranMap(C,D)) with irreducible legs |
 
 ---
 
@@ -648,6 +654,7 @@ argument count (0,1,2,3,5-arg), eliminate no-op steps.
 | timemap-10 | time_2arg_same_cancel.map | focused | `+` | 2-arg pair cancellation (same order: TAITOUTC+UTCTOTAI) | Adjacent 2-arg steps with same-order args |
 | timemap-11 | time_3arg_cancel.map | focused | `+` | 3-arg pair cancellation (GMSTTOLMST+LMSTTOGMST) | Adjacent 3-arg steps with matching args |
 | timemap-12 | time_5arg_cancel.map | focused | `+` | 5-arg pair cancellation (TTTOTDB+TDBTOTT) | Adjacent 5-arg steps with matching args |
+| timemap-17 | time_run_identity.map | cascade | `+` | Run of three TimeMaps whose combined steps cancel to a UnitMap | Three adjacent TimeMaps forming an identity conversion |
 
 ### Negative branches
 
@@ -691,6 +698,8 @@ precession.
 | slamap-19 | sla_hpr_cancel.map | focused | `+` | 4-arg pair: helioprojective-Radial (HPREQ+EQHPR) | Adjacent HPR steps |
 | slamap-23 | sla_prec_redundant.map | focused | `+` | Redundant precession: PREC/PREBN with start==end eliminated | PREC(2000,2000) |
 | slamap-24 | sla_prec_merge.map | focused | `+` | Adjacent precession merge: PREC(a,b)+PREC(b,c) to PREC(a,c) | Adjacent PREC steps with common equinox |
+| slamap-26 | sla_run_identity.map | cascade | `+` | Run of three SlaMaps whose combined steps cancel to a UnitMap | Three adjacent SlaMaps forming an identity conversion |
+| slamap-27 | sla_run_partial.map | cascade | `+` | Run of three SlaMaps partially cancels to a single SlaMap | Three adjacent SlaMaps, a subset of steps cancel |
 
 ### Negative branches
 
@@ -723,6 +732,8 @@ argument count (0,1,2,3,6-arg).
 | specmap-10 | spec_lsr_cancel.map | focused | `+` | 2-arg pair: local-standard (LKF2HL+HLF2LK) | Adjacent 2-arg steps, matching args |
 | specmap-11 | spec_geocentric_cancel.map | focused | `+` | 3-arg pair: geocentric/barycentric (GEF2HL+HLF2GE) | Adjacent 3-arg steps |
 | specmap-12 | spec_topocentric_cancel.map | focused | `+` | 6-arg pair: topocentric (TPF2HL+HLF2TP) | Adjacent 6-arg steps |
+| specmap-17 | spec_run4_identity.map | scenario | `+` | Run of four SpecMaps whose combined steps cancel to a UnitMap | Four adjacent SpecMaps forming an identity conversion |
+| specmap-18 | spec_run_inverted_mid.map | cascade | `+` | Run of three SpecMaps with an inverted middle step partially cancels to one SpecMap | Three adjacent SpecMaps, middle one inverted |
 
 ### Negative branches
 
@@ -825,12 +836,13 @@ PcdMap's MapMerge: (1) Disco=0 to UnitMap; (2) inverse-pair cancellation;
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| pcdmap-07 | -- | cascade | `- (no fixture)` | Speculative swap refused: neither simplifies | PcdMap + ZoomMap(2) with no target |
+| pcdmap-07 | neg_pcd_zoom_no_target.map | cascade | `-` | Speculative swap refused: neither simplifies | PcdMap + ZoomMap(2) with no target |
 | pcdmap-08 | neg_pcd_parallel.map | focused | `+` | Parallel mode: refused | PcdMaps in parallel |
 | pcdmap-09 | neg_pcd_nonpcd_neighbour.map | focused | `+` | Neighbour not PcdMap/UnitMap/inverse-PcdMap | PcdMap + ShiftMap in series |
 | pcdmap-10 | neg_pcd_nonswappable_between.map | cascade | `+` | Intervening Mapping not ZoomMap or PermMap: swap blocked | PcdMap + ShiftMap + Inverse(PcdMap) |
-| pcdmap-11 | -- | cascade | `- (no fixture)` | Non-swappable class blocks search | PcdMap + MatrixMap + Inverse(PcdMap) |
+| pcdmap-11 | pcd_search_blocked.map | cascade | `-` | Non-swappable class blocks the forward swap search | PcdMap + ZoomMap + MatrixMap (Zoom swappable, Matrix blocks) |
 | pcdmap-12 | -- | focused | `- (no fixture)` | CanSwap false: PermMap doesn't simply swap axes | PcdMap + PermMap(identity) |
+| pcdmap-13 | neg_pcd_zoom_no_target.map | cascade | `-` | Backward (swaplo) swap search: swappable lower ZoomMap but no merge target below | CmpMap(ZoomMap, PcdMap), Series=1 |
 
 ---
 
@@ -844,8 +856,8 @@ parameters (CNPIX, XPIXELSZ, YPIXELSZ) within its FitsChan. Has many guards
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| dssmap-07 | -- | focused | `- (infeasible: protected constructor)` | Non-inverted DssMap absorbs preceding WinMap | WinMap + DssMap(Invert=0) with valid integer CNPIX |
-| dssmap-08 | -- | focused | `- (infeasible: protected constructor)` | Inverted DssMap absorbs following WinMap | DssMap(Invert=1) + WinMap with valid integer CNPIX |
+| dssmap-07 | dssmap_winmap_absorb.map | focused | `+` | Non-inverted DssMap absorbs preceding WinMap | WinMap + DssMap(Invert=0) with valid integer CNPIX |
+| dssmap-08 | dssmap_inv_winmap_absorb.map | focused | `+` | Inverted DssMap absorbs following WinMap | DssMap(Invert=1) + WinMap with valid integer CNPIX |
 
 ### Negative branches
 
@@ -853,7 +865,7 @@ parameters (CNPIX, XPIXELSZ, YPIXELSZ) within its FitsChan. Has many guards
 |---|---|---|---|---|---|
 | dssmap-01 | -- | focused | `- (infeasible: protected constructor)` | Parallel mode: refused | DssMap in parallel |
 | dssmap-02 | -- | focused | `- (infeasible: protected constructor)` | No adjacent mapping at expected index | DssMap alone or at boundary |
-| dssmap-03 | -- | focused | `- (infeasible: protected constructor)` | Adjacent mapping is not a WinMap | DssMap + ZoomMap in series |
+| dssmap-03 | dssmap_zoom_no_merge.map | focused | `-` | Adjacent mapping is not a WinMap | DssMap + ZoomMap in series |
 | dssmap-04 | -- | focused | `- (infeasible: protected constructor)` | WinMap scale/shift unusable (AST__BAD or zero scale) | WinMap with zero scale preceding DssMap |
 | dssmap-05 | -- | focused | `- (infeasible: protected constructor)` | Computed CNPIX values non-integer beyond tolerance | WinMap producing fractional CNPIX |
 | dssmap-06 | -- | focused | `- (infeasible: protected constructor)` | Required FITS keywords missing from DssMap FitsChan | DssMap with incomplete FitsChan |
@@ -899,15 +911,15 @@ direction via astEqual).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| xphmap-04 | -- | focused | `- (infeasible: protected constructor)` | Inverse-pair cancellation to UnitMap | XphMap + Inverse(XphMap), same order |
+| xphmap-04 | xph_inverse_cancel.map | focused | `-` | Inverse-pair cancellation to UnitMap | XphMap + Inverse(XphMap), same order |
 
 ### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| xphmap-01 | -- | focused | `- (infeasible: protected constructor)` | Parallel mode: refused | XphMap in parallel |
-| xphmap-02 | -- | focused | `- (infeasible: protected constructor)` | No adjacent XphMap found | XphMap flanked by non-XphMaps |
-| xphmap-03 | -- | focused | `- (infeasible: protected constructor)` | Adjacent XphMap not equal-and-opposite | XphMaps with different order or same direction |
+| xphmap-01 | neg_xph_parallel.map | focused | `-` | Parallel mode: refused | XphMap in parallel |
+| xphmap-02 | neg_xph_nonxph_neighbour.map | focused | `-` | No adjacent XphMap found | XphMap flanked by non-XphMaps |
+| xphmap-03 | neg_xph_not_opposite.map | focused | `-` | Adjacent XphMap not equal-and-opposite | XphMaps with different order or same direction |
 
 ---
 
@@ -923,7 +935,7 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| box-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
+| box-01 | -- | focused | `- (unreachable: astSimplify returns same pointer)` | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
 | box-03 | box_parallel_merge.map | cascade | `+` | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
 | box-04 | box_parallel_merge.map | cascade | `+` | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
 
@@ -931,8 +943,9 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| box-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification and series mode | Already-simple Box in series |
-| box-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with incompatible Region |
+| box-02 | neg_box_series.map | focused | covered | No self-simplification and series mode | Two simple Boxes in series |
+| box-05 | neg_box_parallel_nonregion.map | focused | covered | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with a ZoomMap |
+| box-06 | neg_box_asymmetric_2d.map | focused | `-` | Standalone 2-D Box with asymmetric axis intervals does not self-simplify | Lone Box, differing intervals per axis, no neighbour |
 
 ### interval.c
 
@@ -940,7 +953,7 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| interval-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | Interval with non-trivial FrameSet |
+| interval-01 | interval_self_simplify_cmp.map | focused | covered | Self-simplification succeeds | Finite-bound Interval (simplifies to Box) in series with a UnitMap |
 | interval-03 | interval_parallel_merge.map | cascade | `+` | Parallel merge with lower Region | Interval + compatible Region (lower) |
 | interval-04 | interval_parallel_merge.map | cascade | `+` | Parallel merge with upper Region | Interval + compatible Region (upper) |
 
@@ -948,8 +961,8 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| interval-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification, series mode | Simple Interval in series |
-| interval-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no compatible Region | Interval + non-Region in parallel |
+| interval-02 | neg_interval_series.map | focused | covered | No self-simplification, series mode | Two half-infinite Intervals in series |
+| interval-05 | neg_interval_parallel_nonregion.map | focused | covered | Parallel but no compatible Region | Half-infinite Interval + ZoomMap in parallel |
 
 ### nullregion.c
 
@@ -957,16 +970,16 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| nullregion-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | NullRegion with non-trivial FrameSet |
-| nullregion-03 | -- | cascade | `- (no structural change)` | Parallel merge with lower Region | NullRegion + compatible Region (lower) |
-| nullregion-04 | -- | cascade | `- (no structural change)` | Parallel merge with upper Region | NullRegion + compatible Region (upper) |
+| nullregion-01 | -- | focused | `- (unreachable: astSimplify returns same pointer)` | Self-simplification succeeds | NullRegion with non-trivial FrameSet |
+| nullregion-03 | -- | cascade | `- (unreachable: symmetric upper-merge preempts)` | Parallel merge with lower Region | NullRegion + compatible Region (lower) |
+| nullregion-04 | nullregion_parallel_merge_pair.map | cascade | covered | Parallel merge with upper Region | Two compatible NullRegions in parallel collapse to one |
 
 #### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| nullregion-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification, series mode | Simple NullRegion in series |
-| nullregion-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no compatible Region | NullRegion + non-Region in parallel |
+| nullregion-02 | neg_nullregion_series.map | focused | covered | No self-simplification, series mode | Simple NullRegion in series |
+| nullregion-05 | neg_nullregion_parallel_nonregion.map | focused | covered | Parallel but no compatible Region | NullRegion + non-Region in parallel |
 
 ### pointlist.c
 
@@ -974,16 +987,16 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| pointlist-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Self-simplification succeeds | PointList with non-trivial FrameSet |
-| pointlist-03 | -- | cascade | `- (no structural change)` | Parallel merge with lower Region | PointList + compatible Region (lower) |
-| pointlist-04 | -- | cascade | `- (no structural change)` | Parallel merge with upper Region | PointList + compatible Region (upper) |
+| pointlist-01 | -- | focused | `- (unreachable: astSimplify returns same pointer)` | Self-simplification succeeds | PointList with non-trivial FrameSet |
+| pointlist-03 | -- | cascade | `- (unreachable: symmetric upper-merge preempts)` | Parallel merge with lower Region | PointList + compatible Region (lower) |
+| pointlist-04 | pointlist_parallel_merge_pair.map | cascade | covered | Parallel merge with upper Region | Two single-point PointLists in parallel collapse to one |
 
 #### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| pointlist-02 | -- | focused | `- (requires compound FrameSet)` | No self-simplification, series mode | Simple PointList in series |
-| pointlist-05 | -- | focused | `- (requires compound FrameSet)` | Parallel but no compatible Region | PointList + non-Region in parallel |
+| pointlist-02 | neg_pointlist_series.map | focused | covered | No self-simplification, series mode | Two single-point PointLists in series |
+| pointlist-05 | neg_pointlist_parallel_nonregion.map | focused | covered | Parallel but no compatible Region | PointList + ZoomMap in parallel |
 
 ---
 
@@ -1014,6 +1027,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | box-03 | Parallel merge with lower Region via MergeBox |
 | box-04 | Parallel merge with upper Region via MergeBox |
 | box-05 | Parallel but no compatible Region neighbour |
+| box-06 | Standalone asymmetric 2-D Box does not self-simplify |
 | cmpmap-01 | CmpMap self-simplifies via astSimplify |
 | cmpmap-02 | CmpMap does not self-simplify |
 | cmpmap-03 | CmpMap decomposed when mode matches list mode |
@@ -1033,6 +1047,10 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | cmpmap-17 | PermMap and parallel CmpMap swapped (no constants) |
 | cmpmap-18 | PermMap swap with aconstants |
 | cmpmap-19 | PermMap swap with bconstants |
+| cmpmap-20 | Right-associative CmpMap chain reassociated |
+| cmpmap-21 | UnitMap absorbed from nested CmpMap |
+| cmpmap-22 | Large celestial FITS-WCS pipeline collapses |
+| cmpmap-23 | GAPPT/IWC conversion residue reassociated |
 | dssmap-01 | Parallel mode refused |
 | dssmap-02 | No adjacent mapping at expected index |
 | dssmap-03 | Adjacent mapping not a WinMap |
@@ -1117,6 +1135,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | normmap-10 | Same-direction NormMap: Frames differ |
 | normmap-11 | Parallel mode: no simplification |
 | normmap-12 | Non-basic Frame, parallel, no simplification |
+| normmap-13 | Lone NormMap(Box): all guards fall through (redundant) |
 | nullregion-01 | NullRegion self-simplification succeeds |
 | nullregion-02 | No self-simplification, series mode |
 | nullregion-03 | Parallel merge with lower Region |
@@ -1129,6 +1148,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | pcdmap-05 | Swaps with PermMap toward target |
 | pcdmap-06 | Swap simplifies one Mapping |
 | pcdmap-07 | Speculative swap refused |
+| pcdmap-13 | Backward swap search, no merge target below |
 | pcdmap-08 | Parallel mode refused |
 | pcdmap-09 | Neighbour not PcdMap/UnitMap |
 | pcdmap-10 | Intervening not ZoomMap/PermMap |
@@ -1206,6 +1226,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | slamap-23 | Redundant precession eliminated |
 | slamap-24 | Adjacent precession merged |
 | slamap-25 | Precession: non-common equinox |
+| slamap-26 | Run of three SlaMaps cancels to UnitMap |
+| slamap-27 | Run of three SlaMaps partially cancels |
 | specmap-01 | Full cancellation to UnitMap |
 | specmap-02 | Partial cancellation |
 | specmap-03 | Adjacent SpecMaps merged without reduction |
@@ -1222,6 +1244,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | specmap-14 | 2-arg: mismatched arguments |
 | specmap-15 | 3-arg: mismatched arguments |
 | specmap-16 | 6-arg: mismatched arguments |
+| specmap-17 | Run of four SpecMaps cancels to UnitMap |
+| specmap-18 | Run of three SpecMaps partially cancels |
 | sphmap-01 | Inverse+Forward with matching PolarLong cancels |
 | sphmap-02 | Forward(UnitRadius)+Inverse cancels |
 | sphmap-03 | PolarLong values differ |
@@ -1269,6 +1293,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | timemap-14 | 2-arg swapped: mismatched arguments |
 | timemap-15 | 3-arg: mismatched arguments |
 | timemap-16 | 5-arg: mismatched arguments |
+| timemap-17 | Run of three TimeMaps cancels to UnitMap |
 | tranmap-01 | Inverted TranMap normalized |
 | tranmap-02 | Components individually simplified |
 | tranmap-03 | Equal components to single Mapping |
@@ -1372,3 +1397,14 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | zoommap-13 | Absorbed into next WinMap |
 | zoommap-14 | Absorbed into next ShiftMap |
 | zoommap-15 | Cannot absorb: no compatible neighbour |
+| zoommap-16 | Backward neighbour search stops at non-zoom lower neighbour |
+
+## Captured differential-coverage fixtures
+
+In addition to the hand-authored rule fixtures catalogued above, the
+`cap_*` fixtures are real Mappings captured from the wider AST test suite as
+it drives `astSimplify`, then replayed as self-contained fixtures to close
+coverage that previously depended on running those other tests. Because each
+capture exercises several branches at once, they are catalogued separately in
+`ast_tester/coverage/captured_fixtures.md` (with the capture method in
+`ast_tester/coverage/README.md`) rather than as per-branch rows here.

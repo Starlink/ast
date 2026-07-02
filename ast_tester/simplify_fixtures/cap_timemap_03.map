@@ -1,0 +1,41 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+          MapB = 	# Second component Mapping
+             Begin TimeMap 	# Conversion between time coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Ntime = 7 	# Number of conversion steps
+                Time1 = "GMSTTOUT" 	# Convert GMST to UT
+                Time1a = 0 	# MJD offset
+                Time2 = "UTTOUTC" 	# Convert UT1 to UTC
+                Time2a = 0 	# DUT1
+                Time3 = "UTCTOTAI" 	# Convert UTC to TAI
+                Time3a = 0 	# MJD offset
+                Time4 = "TAITOUTC" 	# Convert TAI to UTC
+                Time4a = 0 	# MJD offset
+                Time5 = "UTCTOUT" 	# Convert UTC to UT1
+                Time5a = 0 	# DUT1
+                Time6 = "UTTOGMST" 	# Convert UT to GMST
+                Time6a = 0 	# MJD offset
+                Time7 = "GMSTTOLMST" 	# Convert GMST to LMST
+                Time7a = 0 	# MJD offset
+                Time7b = -1.5707963267948966 	# Observer longitude
+                Time7c = 0 	# Observer latitude
+             End TimeMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+ End CmpMap

@@ -1,0 +1,35 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          InvA = 1 	# First Mapping used in inverse direction
+          MapA = 	# First component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 2 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+          MapB = 	# Second component Mapping
+             Begin SlaMap 	# Conversion between sky coordinate systems
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Nsla = 4 	# Number of conversion steps
+                Sla1 = "ECLEQ" 	# Ecliptic (IAU 1980) to J2000.0 equatorial (FK5)
+                Sla1a = 51909.75 	# TDB of mean ecliptic (as MJD)
+                Sla2 = "FK5HZ" 	# J2000.0 FK5 to ICRS (no PM or parallax)
+                Sla2a = 2000 	# Julian epoch of FK5 coordinates
+                Sla3 = "HFK5Z" 	# ICRS to J2000.0 FK5 (no PM or parallax)
+                Sla3a = 1957.9996195737112 	# Julian epoch of FK5 coordinates
+                Sla4 = "EQECL" 	# Equatorial J2000.0 (FK5) to ecliptic (IAU 1980)
+                Sla4a = 51909.75 	# TDB of mean ecliptic (as MJD)
+             End SlaMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+ End CmpMap

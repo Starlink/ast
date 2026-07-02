@@ -1,0 +1,19 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin WcsMap 	# FITS-WCS sky projection
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Type = "TAN" 	# Gnomonic projection
+       End WcsMap
+    MapB = 	# Second component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 0 	# Output coordinate 1 is "bad"
+          Out2 = 1 	# Output coordinate 2 = input coordinate 1
+          In1 = 1 	# Input coordinate 1 = output coordinate 1
+          In2 = 0 	# Input coordinate 2 is "bad"
+       End PermMap
+ End CmpMap

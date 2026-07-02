@@ -918,11 +918,12 @@ if(BUILD_TESTING)
                         --capture
                         --directory "${CMAKE_BINARY_DIR}"
                         --output-file "${AST_COVERAGE_FULL_INFO}"
+                        --ignore-errors negative
                         --rc branch_coverage=1
                     COMMAND ${LCOV_EXECUTABLE}
                         --extract "${AST_COVERAGE_FULL_INFO}" "${CMAKE_SOURCE_DIR}/src/*"
                         --output-file "${AST_COVERAGE_INFO}"
-                        --ignore-errors unused
+                        --ignore-errors unused,negative
                         --rc branch_coverage=1
                     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
                     COMMENT "Running tests and generating LCOV report in ${AST_COVERAGE_DIR}"

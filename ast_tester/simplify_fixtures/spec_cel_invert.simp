@@ -1,0 +1,26 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 3 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 3 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 907405752 	# Shift for axis 1
+          Scl1 = 1000000 	# Scale factor for axis 1
+          Sft2 = 0.0087266462599716477 	# Shift for axis 2
+          Scl2 = -0.00017453292519943296 	# Scale factor for axis 2
+          Sft3 = -0.0087266462599716477 	# Shift for axis 3
+          Scl3 = 0.00017453292519943296 	# Scale factor for axis 3
+       End WinMap
+    MapB = 	# Second component Mapping
+       Begin WcsMap 	# FITS-WCS sky projection
+          Nin = 3 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          Type = "AIT" 	# Hammer-Aitoff projection
+          WcsAx1 = 2 	# Index of celestial longitude axis
+          WcsAx2 = 3 	# Index of celestial latitude axis
+       End WcsMap
+ End CmpMap

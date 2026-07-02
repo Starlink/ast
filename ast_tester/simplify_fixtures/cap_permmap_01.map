@@ -1,0 +1,178 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 3 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 3 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin NormMap 	# Normalise axis values
+                Nin = 3 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Frame = 	# Frame defining the normalisation
+                   Begin CmpFrame 	# Compound coordinate system description
+#                     Title = "3-d compound coordinate system" 	# Title of coordinate system
+#                     Naxes = 3 	# Number of coordinate axes
+#                     Domain = "SPECTRUM-SKY" 	# Coordinate system domain
+#                     Lbl1 = "Wavelength" 	# Label for axis 1
+#                     Lbl2 = "Right ascension" 	# Label for axis 2
+#                     Lbl3 = "Declination" 	# Label for axis 3
+#                     Uni1 = "Angstrom" 	# Units for axis 1
+#                     Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#                     Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#                     Dir2 = 0 	# Plot axis 2 in reverse direction
+                   IsA Frame 	# Coordinate system description
+                      Axp1 = 3 	# Axis 1 permuted to use internal axis 3
+                      Axp2 = 1 	# Axis 2 permuted to use internal axis 1
+                      Axp3 = 2 	# Axis 3 permuted to use internal axis 2
+                      FrameA = 	# First component Frame
+                         Begin SpecFrame 	# Description of spectral coordinate system
+                            Naxes = 1 	# Number of coordinate axes
+                            Ax1 = 	# Axis number 1
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                         IsA Frame 	# Coordinate system description
+                         End SpecFrame
+                      FrameB = 	# Second component Frame
+                         Begin SkyFrame 	# Description of celestial coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+                         End SkyFrame
+                   End CmpFrame
+             End NormMap
+          MapB = 	# Second component Mapping
+             Begin NormMap 	# Normalise axis values
+                Nin = 3 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Frame = 	# Frame defining the normalisation
+                   Begin CmpFrame 	# Compound coordinate system description
+#                     Title = "3-d compound coordinate system" 	# Title of coordinate system
+#                     Naxes = 3 	# Number of coordinate axes
+#                     Domain = "SPECTRUM-SKY" 	# Coordinate system domain
+#                     Lbl1 = "Wavelength" 	# Label for axis 1
+#                     Lbl2 = "Right ascension" 	# Label for axis 2
+#                     Lbl3 = "Declination" 	# Label for axis 3
+#                     Uni1 = "Angstrom" 	# Units for axis 1
+#                     Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#                     Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#                     Dir2 = 0 	# Plot axis 2 in reverse direction
+                   IsA Frame 	# Coordinate system description
+                      Axp1 = 3 	# Axis 1 permuted to use internal axis 3
+                      Axp2 = 1 	# Axis 2 permuted to use internal axis 1
+                      Axp3 = 2 	# Axis 3 permuted to use internal axis 2
+                      FrameA = 	# First component Frame
+                         Begin SpecFrame 	# Description of spectral coordinate system
+                            Naxes = 1 	# Number of coordinate axes
+                            Ax1 = 	# Axis number 1
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                         IsA Frame 	# Coordinate system description
+                         End SpecFrame
+                      FrameB = 	# Second component Frame
+                         Begin SkyFrame 	# Description of celestial coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+                         End SkyFrame
+                   End CmpFrame
+             End NormMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 3 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin NormMap 	# Normalise axis values
+                Nin = 3 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Frame = 	# Frame defining the normalisation
+                   Begin CmpFrame 	# Compound coordinate system description
+#                     Title = "3-d compound coordinate system" 	# Title of coordinate system
+#                     Naxes = 3 	# Number of coordinate axes
+#                     Domain = "SPECTRUM-SKY" 	# Coordinate system domain
+#                     Lbl1 = "Wavelength" 	# Label for axis 1
+#                     Lbl2 = "Right ascension" 	# Label for axis 2
+#                     Lbl3 = "Declination" 	# Label for axis 3
+#                     Uni1 = "Angstrom" 	# Units for axis 1
+#                     Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#                     Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#                     Dir2 = 0 	# Plot axis 2 in reverse direction
+                   IsA Frame 	# Coordinate system description
+                      Axp1 = 3 	# Axis 1 permuted to use internal axis 3
+                      Axp2 = 1 	# Axis 2 permuted to use internal axis 1
+                      Axp3 = 2 	# Axis 3 permuted to use internal axis 2
+                      FrameA = 	# First component Frame
+                         Begin SpecFrame 	# Description of spectral coordinate system
+                            Naxes = 1 	# Number of coordinate axes
+                            Ax1 = 	# Axis number 1
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                         IsA Frame 	# Coordinate system description
+                         End SpecFrame
+                      FrameB = 	# Second component Frame
+                         Begin SkyFrame 	# Description of celestial coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+                         End SkyFrame
+                   End CmpFrame
+             End NormMap
+          MapB = 	# Second component Mapping
+             Begin NormMap 	# Normalise axis values
+                Nin = 3 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Frame = 	# Frame defining the normalisation
+                   Begin CmpFrame 	# Compound coordinate system description
+#                     Title = "3-d compound coordinate system" 	# Title of coordinate system
+#                     Naxes = 3 	# Number of coordinate axes
+#                     Domain = "SPECTRUM-SKY" 	# Coordinate system domain
+#                     Lbl1 = "Wavelength" 	# Label for axis 1
+#                     Lbl2 = "Right ascension" 	# Label for axis 2
+#                     Lbl3 = "Declination" 	# Label for axis 3
+#                     Uni1 = "Angstrom" 	# Units for axis 1
+#                     Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#                     Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#                     Dir2 = 0 	# Plot axis 2 in reverse direction
+                   IsA Frame 	# Coordinate system description
+                      Axp1 = 3 	# Axis 1 permuted to use internal axis 3
+                      Axp2 = 1 	# Axis 2 permuted to use internal axis 1
+                      Axp3 = 2 	# Axis 3 permuted to use internal axis 2
+                      FrameA = 	# First component Frame
+                         Begin SpecFrame 	# Description of spectral coordinate system
+                            Naxes = 1 	# Number of coordinate axes
+                            Ax1 = 	# Axis number 1
+                               Begin Axis 	# Coordinate axis
+                               End Axis
+                         IsA Frame 	# Coordinate system description
+                         End SpecFrame
+                      FrameB = 	# Second component Frame
+                         Begin SkyFrame 	# Description of celestial coordinate system
+                            Naxes = 2 	# Number of coordinate axes
+                            Ax1 = 	# Axis number 1
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                            Ax2 = 	# Axis number 2
+                               Begin SkyAxis 	# Celestial coordinate axis
+                               End SkyAxis
+                         IsA Frame 	# Coordinate system description
+                         End SkyFrame
+                   End CmpFrame
+             End NormMap
+       End CmpMap
+ End CmpMap

@@ -1,0 +1,30 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Series = 0 	# Component Mappings applied in parallel
+          MapA = 	# First component Mapping
+             Begin MathMap 	# Transformation using mathematical functions
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Fwd1 = "y=x+1" 	# Forward function 1
+                Inv1 = "x=y-1" 	# Inverse function 1
+             End MathMap
+          MapB = 	# Second component Mapping
+             Begin MathMap 	# Transformation using mathematical functions
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Fwd1 = "y=x+2" 	# Forward function 1
+                Inv1 = "x=y-2" 	# Inverse function 1
+             End MathMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 3 	# Zoom factor
+       End ZoomMap
+ End CmpMap

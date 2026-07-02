@@ -1,0 +1,40 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin Box 	# Axis intervals
+#         Title = "1-d coordinate system" 	# Title of coordinate system
+#         Naxes = 1 	# Number of coordinate axes
+#         Domain = "A" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         System = "Cartesian" 	# Coordinate system type
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin Frame 	# Coordinate system description
+#               Title = "1-d coordinate system" 	# Title of coordinate system
+                Naxes = 1 	# Number of coordinate axes
+                Domain = "A" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 2 	# Number of points
+                Ncoord = 1 	# Number of coordinates per point
+                X1 = 0 	# Coordinate values...
+                X2 = 1
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End Box
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+ End CmpMap

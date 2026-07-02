@@ -1,0 +1,17 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin XphMap 	# HPX variant mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Order = 1 	# HEALPix order
+          Type = "XPHN" 	# XPH projection centred on north pole
+       End XphMap
+    MapB = 	# Second component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 3 	# Zoom factor
+       End ZoomMap
+ End CmpMap

@@ -1,0 +1,17 @@
+ Begin SwitchMap 	# Alternate regionalised Mapping
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+    Fwd = 0 	# Forward transformation not defined
+ IsA Mapping 	# Mapping between coordinate systems
+    ISMap = 	# Inverse selector Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+    RMap1 = 	# Route Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+ End SwitchMap

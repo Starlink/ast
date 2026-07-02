@@ -1,0 +1,56 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 1 	# Output coordinate 1 = input coordinate 1
+          In1 = 1 	# Input coordinate 1 = output coordinate 1
+       End PermMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          InvA = 1 	# First Mapping used in inverse direction
+          InvB = 1 	# Second Mapping used in inverse direction
+          MapA = 	# First component Mapping
+             Begin LutMap 	# Map 1-d coordinates using a lookup table
+                Nin = 1 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+                Nlut = 20 	# Number of lookup table elements
+                Start = 1 	# Input value at first element
+#               Incr = 1 	# Input value increment between elements
+                LutInt = 0 	# Interpolation method
+                L1 = 100 	# Lookup table elements...
+                L2 = 105
+                L3 = 110
+                L4 = 115
+                L5 = 120
+                L6 = 125
+                L7 = 130
+                L8 = 135
+                L9 = 140
+                L10 = 145
+                L11 = 150
+                L12 = 155
+                L13 = 160
+                L14 = 165
+                L15 = 170
+                L16 = 175
+                L17 = 180
+                L18 = 185
+                L19 = 190
+                L20 = 195
+             End LutMap
+          MapB = 	# Second component Mapping
+             Begin MathMap 	# Transformation using mathematical functions
+                Nin = 1 	# Number of input coordinates
+                Invert = 1 	# Mapping inverted
+             IsA Mapping 	# Mapping between coordinate systems
+                Fwd1 = "y=x*x" 	# Forward function 1
+                Inv1 = "x=sqrt(y)" 	# Inverse function 1
+             End MathMap
+       End CmpMap
+ End CmpMap

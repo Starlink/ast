@@ -67,4 +67,8 @@ src/.dirstamp
 src/f77.h
 src/object.h
 src/version.h
+/build-cov/
+/ast_tester/coverage/simplify.json
+/ast_tester/coverage/full.json
+/ast_tester/coverage/__pycache__/
 

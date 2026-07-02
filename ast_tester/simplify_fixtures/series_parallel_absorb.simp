@@ -1,0 +1,20 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 3 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Series = 0 	# Component Mappings applied in parallel
+    MapA = 	# First component Mapping
+       Begin WcsMap 	# FITS-WCS sky projection
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          Type = "TAN" 	# Gnomonic projection
+       End WcsMap
+    MapB = 	# Second component Mapping
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 7.5 	# Shift for axis 1
+       End ShiftMap
+ End CmpMap

@@ -1,0 +1,344 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+          Nout = 3 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 2 	# Output coordinate 1 = input coordinate 2
+          Out2 = 1 	# Output coordinate 2 = input coordinate 1
+          Out3 = 1 	# Output coordinate 3 = input coordinate 1
+          In1 = 3 	# Input coordinate 1 = output coordinate 3
+          In2 = 1 	# Input coordinate 2 = output coordinate 1
+       End PermMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 3 	# Number of input coordinates
+          Nout = 2 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin MatrixMap 	# Matrix transformation
+                Nin = 3 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                M0 = 1.0000000000000002e-26 	# Forward matrix value
+                M1 = 999999999.99999988 	# Forward matrix value
+                M2 = 1 	# Forward matrix value
+                IM0 = 9.9999999999999988e+25 	# Inverse matrix value
+                IM1 = 1.0000000000000001e-09 	# Inverse matrix value
+                IM2 = 1 	# Inverse matrix value
+                Form = "Diagonal" 	# Matrix storage form
+             End MatrixMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 3 	# Number of input coordinates
+                Nout = 2 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 3 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Series = 0 	# Component Mappings applied in parallel
+                      MapA = 	# First component Mapping
+                         Begin CmpMap 	# Compound Mapping
+                            Nin = 2 	# Number of input coordinates
+                            IsSimp = 1 	# Mapping has been simplified
+                         IsA Mapping 	# Mapping between coordinate systems
+                            MapA = 	# First component Mapping
+                               Begin TranMap 	# Compound Transformation Mapping
+                                  Nin = 2 	# Number of input coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  MapA = 	# Mapping for forward transformation
+                                     Begin CmpMap 	# Compound Mapping
+                                        Nin = 2 	# Number of input coordinates
+                                        Inv = 0 	# Inverse transformation not defined
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        MapA = 	# First component Mapping
+                                           Begin PermMap 	# Coordinate permutation
+                                              Nin = 2 	# Number of input coordinates
+                                              Nout = 3 	# Number of output coordinates
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                                              Out2 = 2 	# Output coordinate 2 = input coordinate 2
+                                              Out3 = 2 	# Output coordinate 3 = input coordinate 2
+                                              In1 = 1 	# Input coordinate 1 = output coordinate 1
+                                              In2 = 3 	# Input coordinate 2 = output coordinate 3
+                                           End PermMap
+                                        MapB = 	# Second component Mapping
+                                           Begin CmpMap 	# Compound Mapping
+                                              Nin = 3 	# Number of input coordinates
+                                              Nout = 2 	# Number of output coordinates
+                                              Inv = 0 	# Inverse transformation not defined
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              Series = 0 	# Component Mappings applied in parallel
+                                              MapA = 	# First component Mapping
+                                                 Begin CmpMap 	# Compound Mapping
+                                                    Nin = 2 	# Number of input coordinates
+                                                    Nout = 1 	# Number of output coordinates
+                                                    Inv = 0 	# Inverse transformation not defined
+                                                 IsA Mapping 	# Mapping between coordinate systems
+                                                    MapA = 	# First component Mapping
+                                                       Begin CmpMap 	# Compound Mapping
+                                                          Nin = 2 	# Number of input coordinates
+                                                          IsSimp = 1 	# Mapping has been simplified
+                                                          Inv = 0 	# Inverse transformation not defined
+                                                       IsA Mapping 	# Mapping between coordinate systems
+                                                          Series = 0 	# Component Mappings applied in parallel
+                                                          MapA = 	# First component Mapping
+                                                             Begin UnitMap 	# Unit (null) Mapping
+                                                                Nin = 1 	# Number of input coordinates
+                                                             IsA Mapping 	# Mapping between coordinate systems
+                                                             End UnitMap
+                                                          MapB = 	# Second component Mapping
+                                                             Begin RateMap 	# Differential Mapping
+                                                                Nin = 1 	# Number of input coordinates
+                                                                Inv = 0 	# Inverse transformation not defined
+                                                             IsA Mapping 	# Mapping between coordinate systems
+                                                                Map = 	# Mapping to be differentiated
+                                                                   Begin CmpMap 	# Compound Mapping
+                                                                      Nin = 1 	# Number of input coordinates
+                                                                   IsA Mapping 	# Mapping between coordinate systems
+                                                                      MapA = 	# First component Mapping
+                                                                         Begin SpecMap 	# Conversion between spectral coordinate systems
+                                                                            Nin = 1 	# Number of input coordinates
+                                                                         IsA Mapping 	# Mapping between coordinate systems
+                                                                            Nspec = 1 	# Number of conversion steps
+                                                                            Spec1 = "FRTOWV" 	# Convert frequency to wavelength (vacuum)
+                                                                         End SpecMap
+                                                                      MapB = 	# Second component Mapping
+                                                                         Begin ZoomMap 	# Zoom about the origin
+                                                                            Nin = 1 	# Number of input coordinates
+                                                                         IsA Mapping 	# Mapping between coordinate systems
+                                                                            Zoom = 10000000000 	# Zoom factor
+                                                                         End ZoomMap
+                                                                   End CmpMap
+                                                             End RateMap
+                                                       End CmpMap
+                                                    MapB = 	# Second component Mapping
+                                                       Begin MathMap 	# Transformation using mathematical functions
+                                                          Nin = 2 	# Number of input coordinates
+                                                          Nout = 1 	# Number of output coordinates
+                                                          Inv = 0 	# Inverse transformation not defined
+                                                       IsA Mapping 	# Mapping between coordinate systems
+                                                          Fwd1 = "out=in0/abs(in1)" 	# Forward function 1
+                                                          Inv1 = "in0" 	# Inverse function 1
+                                                          Inv2 = "in1" 	# Inverse function 2
+                                                       End MathMap
+                                                 End CmpMap
+                                              MapB = 	# Second component Mapping
+                                                 Begin CmpMap 	# Compound Mapping
+                                                    Nin = 1 	# Number of input coordinates
+                                                    IsSimp = 1 	# Mapping has been simplified
+                                                 IsA Mapping 	# Mapping between coordinate systems
+                                                    MapA = 	# First component Mapping
+                                                       Begin SpecMap 	# Conversion between spectral coordinate systems
+                                                          Nin = 1 	# Number of input coordinates
+                                                       IsA Mapping 	# Mapping between coordinate systems
+                                                          Nspec = 1 	# Number of conversion steps
+                                                          Spec1 = "FRTOWV" 	# Convert frequency to wavelength (vacuum)
+                                                       End SpecMap
+                                                    MapB = 	# Second component Mapping
+                                                       Begin ZoomMap 	# Zoom about the origin
+                                                          Nin = 1 	# Number of input coordinates
+                                                       IsA Mapping 	# Mapping between coordinate systems
+                                                          Zoom = 10000000000 	# Zoom factor
+                                                       End ZoomMap
+                                                 End CmpMap
+                                           End CmpMap
+                                     End CmpMap
+                                  MapB = 	# Mapping for inverse transformation
+                                     Begin CmpMap 	# Compound Mapping
+                                        Nin = 2 	# Number of input coordinates
+                                        Fwd = 0 	# Forward transformation not defined
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        MapA = 	# First component Mapping
+                                           Begin CmpMap 	# Compound Mapping
+                                              Nin = 2 	# Number of input coordinates
+                                              Nout = 3 	# Number of output coordinates
+                                              IsSimp = 1 	# Mapping has been simplified
+                                              Fwd = 0 	# Forward transformation not defined
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              Series = 0 	# Component Mappings applied in parallel
+                                              MapA = 	# First component Mapping
+                                                 Begin CmpMap 	# Compound Mapping
+                                                    Nin = 1 	# Number of input coordinates
+                                                    Nout = 2 	# Number of output coordinates
+                                                    IsSimp = 1 	# Mapping has been simplified
+                                                    Fwd = 0 	# Forward transformation not defined
+                                                 IsA Mapping 	# Mapping between coordinate systems
+                                                    InvA = 1 	# First Mapping used in inverse direction
+                                                    MapA = 	# First component Mapping
+                                                       Begin MathMap 	# Transformation using mathematical functions
+                                                          Nin = 2 	# Number of input coordinates
+                                                          Nout = 1 	# Number of output coordinates
+                                                          Inv = 0 	# Inverse transformation not defined
+                                                       IsA Mapping 	# Mapping between coordinate systems
+                                                          Fwd1 = "out=in0*abs(in1)" 	# Forward function 1
+                                                          Inv1 = "in0" 	# Inverse function 1
+                                                          Inv2 = "in1" 	# Inverse function 2
+                                                       End MathMap
+                                                    MapB = 	# Second component Mapping
+                                                       Begin CmpMap 	# Compound Mapping
+                                                          Nin = 2 	# Number of input coordinates
+                                                          IsSimp = 1 	# Mapping has been simplified
+                                                          Fwd = 0 	# Forward transformation not defined
+                                                       IsA Mapping 	# Mapping between coordinate systems
+                                                          Series = 0 	# Component Mappings applied in parallel
+                                                          InvB = 1 	# Second Mapping used in inverse direction
+                                                          MapA = 	# First component Mapping
+                                                             Begin UnitMap 	# Unit (null) Mapping
+                                                                Nin = 1 	# Number of input coordinates
+                                                             IsA Mapping 	# Mapping between coordinate systems
+                                                             End UnitMap
+                                                          MapB = 	# Second component Mapping
+                                                             Begin RateMap 	# Differential Mapping
+                                                                Nin = 1 	# Number of input coordinates
+                                                                Inv = 0 	# Inverse transformation not defined
+                                                             IsA Mapping 	# Mapping between coordinate systems
+                                                                Map = 	# Mapping to be differentiated
+                                                                   Begin CmpMap 	# Compound Mapping
+                                                                      Nin = 1 	# Number of input coordinates
+                                                                      Invert = 1 	# Mapping inverted
+                                                                   IsA Mapping 	# Mapping between coordinate systems
+                                                                      MapA = 	# First component Mapping
+                                                                         Begin SpecMap 	# Conversion between spectral coordinate systems
+                                                                            Nin = 1 	# Number of input coordinates
+                                                                         IsA Mapping 	# Mapping between coordinate systems
+                                                                            Nspec = 1 	# Number of conversion steps
+                                                                            Spec1 = "FRTOWV" 	# Convert frequency to wavelength (vacuum)
+                                                                         End SpecMap
+                                                                      MapB = 	# Second component Mapping
+                                                                         Begin ZoomMap 	# Zoom about the origin
+                                                                            Nin = 1 	# Number of input coordinates
+                                                                         IsA Mapping 	# Mapping between coordinate systems
+                                                                            Zoom = 10000000000 	# Zoom factor
+                                                                         End ZoomMap
+                                                                   End CmpMap
+                                                             End RateMap
+                                                       End CmpMap
+                                                 End CmpMap
+                                              MapB = 	# Second component Mapping
+                                                 Begin UnitMap 	# Unit (null) Mapping
+                                                    Nin = 1 	# Number of input coordinates
+                                                 IsA Mapping 	# Mapping between coordinate systems
+                                                 End UnitMap
+                                           End CmpMap
+                                        MapB = 	# Second component Mapping
+                                           Begin CmpMap 	# Compound Mapping
+                                              Nin = 3 	# Number of input coordinates
+                                              Nout = 2 	# Number of output coordinates
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              MapA = 	# First component Mapping
+                                                 Begin PermMap 	# Coordinate permutation
+                                                    Nin = 3 	# Number of input coordinates
+                                                    Nout = 2 	# Number of output coordinates
+                                                 IsA Mapping 	# Mapping between coordinate systems
+                                                    Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                                                    Out2 = 3 	# Output coordinate 2 = input coordinate 3
+                                                    In1 = 1 	# Input coordinate 1 = output coordinate 1
+                                                    In2 = 2 	# Input coordinate 2 = output coordinate 2
+                                                    In3 = 2 	# Input coordinate 3 = output coordinate 2
+                                                 End PermMap
+                                              MapB = 	# Second component Mapping
+                                                 Begin CmpMap 	# Compound Mapping
+                                                    Nin = 2 	# Number of input coordinates
+                                                 IsA Mapping 	# Mapping between coordinate systems
+                                                    Series = 0 	# Component Mappings applied in parallel
+                                                    MapA = 	# First component Mapping
+                                                       Begin UnitMap 	# Unit (null) Mapping
+                                                          Nin = 1 	# Number of input coordinates
+                                                       IsA Mapping 	# Mapping between coordinate systems
+                                                       End UnitMap
+                                                    MapB = 	# Second component Mapping
+                                                       Begin CmpMap 	# Compound Mapping
+                                                          Nin = 1 	# Number of input coordinates
+                                                          Invert = 1 	# Mapping inverted
+                                                       IsA Mapping 	# Mapping between coordinate systems
+                                                          MapA = 	# First component Mapping
+                                                             Begin SpecMap 	# Conversion between spectral coordinate systems
+                                                                Nin = 1 	# Number of input coordinates
+                                                             IsA Mapping 	# Mapping between coordinate systems
+                                                                Nspec = 1 	# Number of conversion steps
+                                                                Spec1 = "FRTOWV" 	# Convert frequency to wavelength (vacuum)
+                                                             End SpecMap
+                                                          MapB = 	# Second component Mapping
+                                                             Begin ZoomMap 	# Zoom about the origin
+                                                                Nin = 1 	# Number of input coordinates
+                                                             IsA Mapping 	# Mapping between coordinate systems
+                                                                Zoom = 10000000000 	# Zoom factor
+                                                             End ZoomMap
+                                                       End CmpMap
+                                                 End CmpMap
+                                           End CmpMap
+                                     End CmpMap
+                               End TranMap
+                            MapB = 	# Second component Mapping
+                               Begin CmpMap 	# Compound Mapping
+                                  Nin = 2 	# Number of input coordinates
+                                  IsSimp = 1 	# Mapping has been simplified
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  Series = 0 	# Component Mappings applied in parallel
+                                  InvA = 1 	# First Mapping used in inverse direction
+                                  MapA = 	# First component Mapping
+                                     Begin MathMap 	# Transformation using mathematical functions
+                                        Nin = 1 	# Number of input coordinates
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        Fwd1 = "output_units=0.099999999999999992*exp(2.3025850929940459*input_units)" 	# Forward function 1
+                                        Inv1 = "input_units=log10(10*output_units)" 	# Inverse function 1
+                                        SimpFI = 1 	# Forward-inverse pairs may simplify
+                                        SimpIF = 1 	# Inverse-forward pairs may simplify
+                                     End MathMap
+                                  MapB = 	# Second component Mapping
+                                     Begin CmpMap 	# Compound Mapping
+                                        Nin = 1 	# Number of input coordinates
+                                        IsSimp = 1 	# Mapping has been simplified
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        MapA = 	# First component Mapping
+                                           Begin ZoomMap 	# Zoom about the origin
+                                              Nin = 1 	# Number of input coordinates
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              Zoom = 1e-10 	# Zoom factor
+                                           End ZoomMap
+                                        MapB = 	# Second component Mapping
+                                           Begin CmpMap 	# Compound Mapping
+                                              Nin = 1 	# Number of input coordinates
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              MapA = 	# First component Mapping
+                                                 Begin SpecMap 	# Conversion between spectral coordinate systems
+                                                    Nin = 1 	# Number of input coordinates
+                                                 IsA Mapping 	# Mapping between coordinate systems
+                                                    Nspec = 1 	# Number of conversion steps
+                                                    Spec1 = "WVTOFR" 	# Convert wavelength (vacuum) to frequency
+                                                 End SpecMap
+                                              MapB = 	# Second component Mapping
+                                                 Begin ZoomMap 	# Zoom about the origin
+                                                    Nin = 1 	# Number of input coordinates
+                                                 IsA Mapping 	# Mapping between coordinate systems
+                                                    Zoom = 1.0000000000000001e-09 	# Zoom factor
+                                                 End ZoomMap
+                                           End CmpMap
+                                     End CmpMap
+                               End CmpMap
+                         End CmpMap
+                      MapB = 	# Second component Mapping
+                         Begin UnitMap 	# Unit (null) Mapping
+                            Nin = 1 	# Number of input coordinates
+                            IsSimp = 1 	# Mapping has been simplified
+                         IsA Mapping 	# Mapping between coordinate systems
+                         End UnitMap
+                   End CmpMap
+                MapB = 	# Second component Mapping
+                   Begin PermMap 	# Coordinate permutation
+                      Nin = 3 	# Number of input coordinates
+                      Nout = 2 	# Number of output coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Out1 = 3 	# Output coordinate 1 = input coordinate 3
+                      Out2 = 1 	# Output coordinate 2 = input coordinate 1
+                      In1 = 2 	# Input coordinate 1 = output coordinate 2
+                      In2 = 1 	# Input coordinate 2 = output coordinate 1
+                      In3 = 1 	# Input coordinate 3 = output coordinate 1
+                   End PermMap
+             End CmpMap
+       End CmpMap
+ End CmpMap

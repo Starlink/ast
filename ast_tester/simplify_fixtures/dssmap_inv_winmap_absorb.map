@@ -1,0 +1,71 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvA = 1 	# First Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin DssMap 	# DSS plate fit mapping
+          Nin = 2 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          PltRA = 2.8272374655684112 	# Plate centre RA (radians)
+          PltDec = -1.0518122540502668 	# Plate centre Dec (radians)
+          PltScl = 67.200000000000003 	# Plate scale (arcsec/mm)
+          CNPix1 = 4200 	# X Pixel offset (pixels)
+          CNPix2 = 4200 	# Y Pixel offset (pixels)
+          XPixSz = 25.263000000000002 	# X Pixel size (microns)
+          YPixSz = 25.263000000000002 	# Y Pixel size (microns)
+          PPO1 = 0 	# Orientation coefficients
+          PPO2 = 0 	# Orientation coefficients
+          PPO3 = 105990.5119 	# Orientation coefficients
+          PPO4 = 0 	# Orientation coefficients
+          PPO5 = 0 	# Orientation coefficients
+          PPO6 = 105990.5119 	# Orientation coefficients
+          AMDX1 = 67.152600000000007 	# Plate solution X coefficients
+          AMDX2 = 0.0051200000000000004 	# Plate solution X coefficients
+          AMDX3 = -288.40899999999999 	# Plate solution X coefficients
+          AMDX4 = -8.8400000000000001e-06 	# Plate solution X coefficients
+          AMDX5 = -2.9300000000000001e-05 	# Plate solution X coefficients
+          AMDX6 = 3.9099999999999998e-06 	# Plate solution X coefficients
+          AMDX7 = -4.16e-06 	# Plate solution X coefficients
+          AMDX8 = -9.7500000000000005e-10 	# Plate solution X coefficients
+          AMDX9 = 3.2600000000000001e-10 	# Plate solution X coefficients
+          AMDX10 = 7.78e-10 	# Plate solution X coefficients
+          AMDX11 = 2.0700000000000001e-10 	# Plate solution X coefficients
+          AMDX12 = 5.5500000000000001e-09 	# Plate solution X coefficients
+          AMDX13 = 1.4899999999999999e-12 	# Plate solution X coefficients
+          AMDX14 = 0 	# Plate solution X coefficients
+          AMDX15 = 0 	# Plate solution X coefficients
+          AMDX16 = 0 	# Plate solution X coefficients
+          AMDX17 = 0 	# Plate solution X coefficients
+          AMDX18 = 0 	# Plate solution X coefficients
+          AMDX19 = 0 	# Plate solution X coefficients
+          AMDY1 = 67.154200000000003 	# Plate solution Y coefficients
+          AMDY2 = -0.0038300000000000001 	# Plate solution Y coefficients
+          AMDY3 = 191.56200000000001 	# Plate solution Y coefficients
+          AMDY4 = -2.12e-05 	# Plate solution Y coefficients
+          AMDY5 = -2.9200000000000002e-05 	# Plate solution Y coefficients
+          AMDY6 = -9.4399999999999994e-06 	# Plate solution Y coefficients
+          AMDY7 = -4.1400000000000002e-06 	# Plate solution Y coefficients
+          AMDY8 = 6.6699999999999997e-10 	# Plate solution Y coefficients
+          AMDY9 = 6.9399999999999998e-10 	# Plate solution Y coefficients
+          AMDY10 = -2.0800000000000001e-10 	# Plate solution Y coefficients
+          AMDY11 = -1.2e-09 	# Plate solution Y coefficients
+          AMDY12 = 5.5599999999999998e-09 	# Plate solution Y coefficients
+          AMDY13 = 1.5000000000000001e-12 	# Plate solution Y coefficients
+          AMDY14 = 0 	# Plate solution Y coefficients
+          AMDY15 = 0 	# Plate solution Y coefficients
+          AMDY16 = 0 	# Plate solution Y coefficients
+          AMDY17 = 0 	# Plate solution Y coefficients
+          AMDY18 = 0 	# Plate solution Y coefficients
+          AMDY19 = 0 	# Plate solution Y coefficients
+       End DssMap
+    MapB = 	# Second component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = -0.5 	# Shift for axis 1
+          Scl1 = 2 	# Scale factor for axis 1
+          Sft2 = -0.5 	# Shift for axis 2
+          Scl2 = 2 	# Scale factor for axis 2
+       End WinMap
+ End CmpMap

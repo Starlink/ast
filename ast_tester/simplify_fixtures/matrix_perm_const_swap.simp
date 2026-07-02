@@ -1,0 +1,26 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 0 	# Output coordinate 1 is "bad"
+          Out2 = -1 	# Output coordinate 2 = constant no. 1
+          In1 = 0 	# Input coordinate 1 is "bad"
+          In2 = -1 	# Input coordinate 2 = constant no. 1
+          Nconst = 1 	# Number of constants
+          Con1 = 5 	# Constant number 1
+       End PermMap
+    MapB = 	# Second component Mapping
+       Begin MatrixMap 	# Matrix transformation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          M0 = 8 	# Forward matrix value
+          M1 = 12 	# Forward matrix value
+          IM0 = 0.125 	# Inverse matrix value
+          IM1 = 0.083333333333333329 	# Inverse matrix value
+          Form = "Diagonal" 	# Matrix storage form
+       End MatrixMap
+ End CmpMap

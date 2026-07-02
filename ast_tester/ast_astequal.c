@@ -56,6 +56,24 @@ static AstObject *read_file( const char *path, const char *encoding,
    return obj;
 }
 
+/* Identity transformation used by the IntraMaps in the simplify fixtures.
+   ast_astequal must register the same intra-map functions as simplify.c so
+   that it can read fixture files that contain IntraMaps. */
+static void TestIntraTran( AstMapping *mapping, int npoint, int ncoord_in,
+                           const double *ptr_in[], int forward,
+                           int ncoord_out, double *ptr_out[] ) {
+   int icoord;
+   int ipoint;
+   (void) mapping;
+   (void) forward;
+   for( icoord = 0; icoord < ncoord_out; icoord++ ) {
+      for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+         ptr_out[ icoord ][ ipoint ] = ( icoord < ncoord_in ) ?
+            ptr_in[ icoord ][ ipoint ] : AST__BAD;
+      }
+   }
+}
+
 int main( int argc, char *argv[] ) {
    int status_value = 0;
    int *status = &status_value;
@@ -74,6 +92,21 @@ int main( int argc, char *argv[] ) {
 
    astWatch( status );
    astTune( "ObjectCaching", 1 );
+
+   astIntraReg_( "simplifyidentity", 1, 1, TestIntraTran,
+                 AST__SIMPFI | AST__SIMPIF,
+                 "Identity IntraMap for simplify fixtures",
+                 "AST test suite", "starlink-ast", status );
+   astIntraReg_( "simplifyidentity2", 1, 1, TestIntraTran,
+                 AST__SIMPFI | AST__SIMPIF,
+                 "Second identity IntraMap for simplify fixtures",
+                 "AST test suite", "starlink-ast", status );
+   astIntraReg_( "nosimpfi", 1, 1, TestIntraTran, AST__SIMPIF,
+                 "IntraMap without SIMPFI for simplify fixtures",
+                 "AST test suite", "starlink-ast", status );
+   astIntraReg_( "nosimpif", 1, 1, TestIntraTran, AST__SIMPFI,
+                 "IntraMap without SIMPIF for simplify fixtures",
+                 "AST test suite", "starlink-ast", status );
 
    AstObject *a = read_file( fa, enc, attrs );
    AstObject *b = read_file( fb, enc, attrs );

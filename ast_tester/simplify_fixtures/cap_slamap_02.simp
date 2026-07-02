@@ -1,0 +1,202 @@
+ Begin Prism 	# Region extrusion into higher dimensions
+#   Title = "4-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 4 	# Number of coordinate axes
+#   Domain = "SKY-TIME-SPECTRUM" 	# Coordinate system domain
+#   Epoch = 2005 	# Julian epoch of observation
+#   Lbl1 = "Galactic longitude" 	# Label for axis 1
+#   Lbl2 = "Galactic latitude" 	# Label for axis 2
+#   Lbl3 = "Modified Julian Date offset from 1999-07-23 16:00:00" 	# Label for axis 3
+#   Lbl4 = "Energy" 	# Label for axis 4
+#   System = "Compound" 	# Coordinate system type
+#   Uni1 = "degrees" 	# Units for axis 1
+#   Uni2 = "degrees" 	# Units for axis 2
+#   Uni3 = "d" 	# Units for axis 3 (day)
+#   Uni4 = "keV" 	# Units for axis 4
+#   Dir1 = 0 	# Plot axis 1 in reverse direction
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    Frm = 	# Coordinate system
+       Begin CmpFrame 	# Compound coordinate system description
+          Ident = "ICRS-TT-CXO" 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "4-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 4 	# Number of coordinate axes
+#         Domain = "SKY-TIME-SPECTRUM" 	# Coordinate system domain
+          Epoch = 2005 	# Julian epoch of observation
+#         Lbl1 = "Galactic longitude" 	# Label for axis 1
+#         Lbl2 = "Galactic latitude" 	# Label for axis 2
+#         Lbl3 = "Modified Julian Date offset from 1999-07-23 16:00:00" 	# Label for axis 3
+#         Lbl4 = "Energy" 	# Label for axis 4
+#         Uni1 = "degrees" 	# Units for axis 1
+#         Uni2 = "degrees" 	# Units for axis 2
+#         Uni3 = "d" 	# Units for axis 3 (day)
+#         Uni4 = "keV" 	# Units for axis 4
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+       IsA Frame 	# Coordinate system description
+          FrameA = 	# First component Frame
+             Begin CmpFrame 	# Compound coordinate system description
+                Epoch = 2005 	# Julian epoch of observation
+             IsA Frame 	# Coordinate system description
+                FrameA = 	# First component Frame
+                   Begin SkyFrame 	# Description of celestial coordinate system
+                      Title = "Space" 	# Title of coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+                      Epoch = 2005 	# Julian epoch of observation
+                      System = "GALACTIC" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                      Ax2 = 	# Axis number 2
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                   IsA Frame 	# Coordinate system description
+                   End SkyFrame
+                FrameB = 	# Second component Frame
+                   Begin TimeFrame 	# Description of time coordinate system
+                      Title = "Time" 	# Title of coordinate system
+                      Naxes = 1 	# Number of coordinate axes
+                      Epoch = 2005 	# Julian epoch of observation
+                      System = "MJD" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                            Unit = "d" 	# Axis units (day)
+                         End Axis
+                   IsA Frame 	# Coordinate system description
+                      TmScl = "TT" 	# Time scale
+                      TmOrg = 51382.666666666664 	# Time offset
+                   End TimeFrame
+             End CmpFrame
+          FrameB = 	# Second component Frame
+             Begin SpecFrame 	# Description of spectral coordinate system
+                Naxes = 1 	# Number of coordinate axes
+                Epoch = 2005 	# Julian epoch of observation
+                System = "ENER" 	# Coordinate system type
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                      Unit = "keV" 	# Axis units
+                   End Axis
+             IsA Frame 	# Coordinate system description
+                SoR = "Topocentric" 	# Standard of rest
+                UEner = "keV" 	# Preferred units for energy
+             End SpecFrame
+       End CmpFrame
+    RegAxes = 4 	# Number of axes spanned by the Region
+ IsA Region 	# An area within a coordinate system
+    RegionA = 	# First component Region
+       Begin Polygon 	# Polygonal region
+#         Title = "Space" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "SKY" 	# Coordinate system domain
+#         Epoch = 2005 	# Julian epoch of observation
+#         Lbl1 = "Galactic longitude" 	# Label for axis 1
+#         Lbl2 = "Galactic latitude" 	# Label for axis 2
+#         System = "GALACTIC" 	# Coordinate system type
+#         Uni1 = "degrees" 	# Units for axis 1
+#         Uni2 = "degrees" 	# Units for axis 2
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+#         Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#         Top2 = 1.5707963267948966 	# Highest legal axis value
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin SkyFrame 	# Description of celestial coordinate system
+                Title = "Space" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+#               Domain = "SKY" 	# Coordinate system domain
+                Epoch = 2005 	# Julian epoch of observation
+#               Lbl1 = "Galactic longitude" 	# Label for axis 1
+#               Lbl2 = "Galactic latitude" 	# Label for axis 2
+                System = "GALACTIC" 	# Coordinate system type
+#               Uni1 = "degrees" 	# Units for axis 1
+#               Uni2 = "degrees" 	# Units for axis 2
+#               Dir1 = 0 	# Plot axis 1 in reverse direction
+#               Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#               Top2 = 1.5707963267948966 	# Highest legal axis value
+                Ax1 = 	# Axis number 1
+                   Begin SkyAxis 	# Celestial coordinate axis
+                   End SkyAxis
+                Ax2 = 	# Axis number 2
+                   Begin SkyAxis 	# Celestial coordinate axis
+                   End SkyAxis
+             IsA Frame 	# Coordinate system description
+#               SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+             End SkyFrame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 4 	# Number of points
+                Ncoord = 2 	# Number of coordinates per point
+                X1 = 1.6814092225287831 	# Coordinate values...
+                X2 = -1.050487166350196
+                X3 = 1.6814053371435878
+                X4 = -1.0504916130715096
+                X5 = 1.6813963926564035
+                X6 = -1.0504896814411844
+                X7 = 1.681400278097916
+                X8 = -1.0504852347348614
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+          Order = 1 	# Polygon uses STC vertex order convention
+       End Polygon
+    RegionB = 	# Second component Region
+       Begin Box 	# Axis intervals
+#         Title = "2-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "TIME-SPECTRUM" 	# Coordinate system domain
+#         Epoch = 2005 	# Julian epoch of observation
+#         Lbl1 = "Modified Julian Date offset from 1999-07-23 16:00:00" 	# Label for axis 1
+#         Lbl2 = "Energy" 	# Label for axis 2
+#         System = "Compound" 	# Coordinate system type
+#         Uni1 = "d" 	# Units for axis 1 (day)
+#         Uni2 = "keV" 	# Units for axis 2
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin CmpFrame 	# Compound coordinate system description
+#               Title = "2-d compound coordinate system" 	# Title of coordinate system
+#               Naxes = 2 	# Number of coordinate axes
+#               Domain = "TIME-SPECTRUM" 	# Coordinate system domain
+#               Lbl1 = "Modified Julian Date offset from 1999-07-23 16:00:00" 	# Label for axis 1
+#               Lbl2 = "Energy" 	# Label for axis 2
+#               Uni1 = "d" 	# Units for axis 1 (day)
+#               Uni2 = "keV" 	# Units for axis 2
+             IsA Frame 	# Coordinate system description
+                FrameA = 	# First component Frame
+                   Begin TimeFrame 	# Description of time coordinate system
+                      Title = "Time" 	# Title of coordinate system
+                      Naxes = 1 	# Number of coordinate axes
+                      Epoch = 2005 	# Julian epoch of observation
+                      System = "MJD" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                            Unit = "d" 	# Axis units (day)
+                         End Axis
+                   IsA Frame 	# Coordinate system description
+                      TmScl = "TT" 	# Time scale
+                      TmOrg = 51382.666666666664 	# Time offset
+                   End TimeFrame
+                FrameB = 	# Second component Frame
+                   Begin SpecFrame 	# Description of spectral coordinate system
+                      Naxes = 1 	# Number of coordinate axes
+                      Epoch = 2005 	# Julian epoch of observation
+                      System = "ENER" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                            Unit = "keV" 	# Axis units
+                         End Axis
+                   IsA Frame 	# Coordinate system description
+                      SoR = "Topocentric" 	# Standard of rest
+                      UEner = "keV" 	# Preferred units for energy
+                   End SpecFrame
+             End CmpFrame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 2 	# Number of points
+                Ncoord = 2 	# Number of coordinates per point
+                X1 = 0 	# Coordinate values...
+                X2 = 5.0600000000000467
+                X3 = 5.7870370371833693e-10
+                X4 = 5.1100000000000199
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End Box
+ End Prism

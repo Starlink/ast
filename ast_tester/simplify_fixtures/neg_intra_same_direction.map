@@ -1,0 +1,24 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin IntraMap 	# Map points using a private transformation function
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Fname = "simplifyidentity" 	# Name of transformation function
+          Iflag = "x" 	# IntraMap identification string
+          Purp = "Identity IntraMap for simplify fixtures" 	# Purpose of function
+          Auth = "AST test suite" 	# Author's name
+          Cntact = "starlink-ast" 	# Contact address
+       End IntraMap
+    MapB = 	# Second component Mapping
+       Begin IntraMap 	# Map points using a private transformation function
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Fname = "simplifyidentity" 	# Name of transformation function
+          Iflag = "x" 	# IntraMap identification string
+          Purp = "Identity IntraMap for simplify fixtures" 	# Purpose of function
+          Auth = "AST test suite" 	# Author's name
+          Cntact = "starlink-ast" 	# Contact address
+       End IntraMap
+ End CmpMap

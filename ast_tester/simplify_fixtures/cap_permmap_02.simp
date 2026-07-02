@@ -1,0 +1,11 @@
+ Begin PermMap 	# Coordinate permutation
+    Nin = 2 	# Number of input coordinates
+    Nout = 3 	# Number of output coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    Out1 = 0 	# Output coordinate 1 is "bad"
+    Out2 = 1 	# Output coordinate 2 = input coordinate 1
+    Out3 = 2 	# Output coordinate 3 = input coordinate 2
+    In1 = 2 	# Input coordinate 1 = output coordinate 2
+    In2 = 3 	# Input coordinate 2 = output coordinate 3
+ End PermMap

@@ -1,0 +1,20 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin SpecMap 	# Conversion between spectral coordinate systems
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nspec = 2 	# Number of conversion steps
+          Spec1 = "WNTOFR" 	# Convert wave number to frequency
+          Spec2 = "FRTOWV" 	# Convert frequency to wavelength (vacuum)
+       End SpecMap
+    MapB = 	# Second component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 19999999.85173136 	# Shift for axis 1
+          Scl1 = -399999997034627.06 	# Scale factor for axis 1
+       End WinMap
+ End CmpMap

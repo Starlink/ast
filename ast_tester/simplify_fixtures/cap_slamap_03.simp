@@ -1,0 +1,28 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin SlaMap 	# Conversion between sky coordinate systems
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Nsla = 6 	# Number of conversion steps
+          Sla1 = "SUPGAL" 	# Supergalactic to galactic (IAU 1958)
+          Sla2 = "GALEQ" 	# Galactic (IAU 1958) to J2000.0 equatorial (FK5)
+          Sla3 = "FK5HZ" 	# J2000.0 FK5 to ICRS (no PM or parallax)
+          Sla3a = 2000 	# Julian epoch of FK5 coordinates
+          Sla4 = "HFK5Z" 	# ICRS to J2000.0 FK5 (no PM or parallax)
+          Sla4a = 1949.9997904422999 	# Julian epoch of FK5 coordinates
+          Sla5 = "EQGAL" 	# J2000.0 equatorial (FK5) to galactic (IAU 1958)
+          Sla6 = "GALSUP" 	# Galactic (IAU 1958) to supergalactic
+       End SlaMap
+    MapB = 	# Second component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = 2 	# Output coordinate 1 = input coordinate 2
+          Out2 = 1 	# Output coordinate 2 = input coordinate 1
+          In1 = 2 	# Input coordinate 1 = output coordinate 2
+          In2 = 1 	# Input coordinate 2 = output coordinate 1
+       End PermMap
+ End CmpMap

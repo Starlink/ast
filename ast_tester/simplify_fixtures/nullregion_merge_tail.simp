@@ -1,0 +1,51 @@
+ Begin NullRegion 	# Boundless region
+#   Title = "3-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 3 	# Number of coordinate axes
+#   Domain = "A-B-C" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+#   Lbl3 = "Axis 3" 	# Label for axis 3
+#   System = "Compound" 	# Coordinate system type
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    Frm = 	# Coordinate system
+       Begin CmpFrame 	# Compound coordinate system description
+#         Title = "3-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 3 	# Number of coordinate axes
+#         Domain = "A-B-C" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+#         Lbl3 = "Axis 3" 	# Label for axis 3
+       IsA Frame 	# Coordinate system description
+          FrameA = 	# First component Frame
+             Begin CmpFrame 	# Compound coordinate system description
+                FrameA = 	# First component Frame
+                   Begin Frame 	# Coordinate system description
+                      Naxes = 1 	# Number of coordinate axes
+                      Domain = "A" 	# Coordinate system domain
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                   End Frame
+                FrameB = 	# Second component Frame
+                   Begin Frame 	# Coordinate system description
+                      Naxes = 1 	# Number of coordinate axes
+                      Domain = "B" 	# Coordinate system domain
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                   End Frame
+             End CmpFrame
+          FrameB = 	# Second component Frame
+             Begin Frame 	# Coordinate system description
+                Naxes = 1 	# Number of coordinate axes
+                Domain = "C" 	# Coordinate system domain
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+       End CmpFrame
+    RegAxes = 3 	# Number of axes spanned by the Region
+ IsA Region 	# An area within a coordinate system
+ End NullRegion

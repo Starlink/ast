@@ -1,0 +1,23 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin PcdMap 	# Apply pincushion distortion
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          PcdCn0 = 0 	# Distortion centre on first axis
+          PcdCn1 = 0 	# Distortion centre on second axis
+          Disco = 0.001 	# Distortion coefficient
+       End PcdMap
+    MapB = 	# Second component Mapping
+       Begin MatrixMap 	# Matrix transformation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          M0 = 10 	# Forward matrix value
+          M1 = 15 	# Forward matrix value
+          IM0 = 0.10000000000000001 	# Inverse matrix value
+          IM1 = 0.066666666666666666 	# Inverse matrix value
+          Form = "Diagonal" 	# Matrix storage form
+       End MatrixMap
+ End CmpMap

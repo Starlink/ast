@@ -1,0 +1,34 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+    Invert = 1 	# Mapping inverted
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 8 	# Number of conversion steps
+    Time1 = "TTTOTDB" 	# Convert TT to TDB
+    Time1a = 2000 	# MJD offset
+    Time1b = 2000 	# Observer longitude
+    Time1c = 2000 	# Observer latitude
+    Time1d = 2000 	# Observer altitude
+    Time1e = -2351.2574500151868 	# Distance from earth spin axis
+    Time1f = 5911.2026796991031 	# Distance north of equatorial plane
+    Time1g = 2000 	# DTAI
+    Time2 = "TDBTOTCB" 	# Convert TDB to TCB
+    Time2a = 2000 	# MJD offset
+    Time2b = -0.0006379451009045511 	# TCB offset
+    Time3 = "TTTOTCG" 	# Convert TT to TCG
+    Time3a = 2000 	# MJD offset
+    Time3b = -2.8674447586935658e-05 	# TCG offset
+    Time4 = "TAITOTT" 	# Convert TAI to TT
+    Time4a = 2000 	# MJD offset
+    Time5 = "UTTOGMST" 	# Convert UT to GMST
+    Time5a = 2000 	# MJD offset
+    Time6 = "GMSTTOLMST" 	# Convert GMST to LMST
+    Time6a = 2000 	# MJD offset
+    Time6b = 2000 	# Observer longitude
+    Time6c = 2000 	# Observer latitude
+    Time7 = "LASTTOLMST" 	# Convert LAST to LMST
+    Time7a = 2000 	# MJD offset
+    Time7b = 2000 	# Observer longitude
+    Time7c = 2000 	# Observer latitude
+    Time8 = "UTTOUTC" 	# Convert UT1 to UTC
+    Time8a = 2000 	# DUT1
+ End TimeMap

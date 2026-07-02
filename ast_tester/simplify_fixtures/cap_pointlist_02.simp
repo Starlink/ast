@@ -1,0 +1,96 @@
+ Begin PointList 	# Collection of points
+#   Title = "4-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 4 	# Number of coordinate axes
+#   Domain = "SKY-TIME-SPECTRUM" 	# Coordinate system domain
+#   Epoch = 2004.5362079498975 	# Julian epoch of observation
+#   Lbl1 = "Right ascension" 	# Label for axis 1
+#   Lbl2 = "Declination" 	# Label for axis 2
+#   Lbl3 = "Modified Julian Date offset from 2004-07-15 08:23:56" 	# Label for axis 3
+#   Lbl4 = "Wavelength" 	# Label for axis 4
+#   System = "Compound" 	# Coordinate system type
+#   Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#   Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#   Uni3 = "s" 	# Units for axis 3 (second)
+#   Uni4 = "Angstrom" 	# Units for axis 4
+#   Dir1 = 0 	# Plot axis 1 in reverse direction
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    Frm = 	# Coordinate system
+       Begin CmpFrame 	# Compound coordinate system description
+          Ident = "ICRS-TT-WAVELENGTH-TOPO" 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "4-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 4 	# Number of coordinate axes
+#         Domain = "SKY-TIME-SPECTRUM" 	# Coordinate system domain
+          Epoch = 2004.5362079498975 	# Julian epoch of observation
+#         Lbl1 = "Right ascension" 	# Label for axis 1
+#         Lbl2 = "Declination" 	# Label for axis 2
+#         Lbl3 = "Modified Julian Date offset from 2004-07-15 08:23:56" 	# Label for axis 3
+#         Lbl4 = "Wavelength" 	# Label for axis 4
+#         Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#         Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#         Uni3 = "s" 	# Units for axis 3 (second)
+#         Uni4 = "Angstrom" 	# Units for axis 4
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+       IsA Frame 	# Coordinate system description
+          FrameA = 	# First component Frame
+             Begin CmpFrame 	# Compound coordinate system description
+                Epoch = 2004.5362079498975 	# Julian epoch of observation
+             IsA Frame 	# Coordinate system description
+                FrameA = 	# First component Frame
+                   Begin SkyFrame 	# Description of celestial coordinate system
+                      Title = "Equatorial" 	# Title of coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+                      Epoch = 2004.5362079498975 	# Julian epoch of observation
+                      System = "ICRS" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                      Ax2 = 	# Axis number 2
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                   IsA Frame 	# Coordinate system description
+                   End SkyFrame
+                FrameB = 	# Second component Frame
+                   Begin TimeFrame 	# Description of time coordinate system
+                      Title = "Time" 	# Title of coordinate system
+                      Naxes = 1 	# Number of coordinate axes
+                      Epoch = 2004.5362079498975 	# Julian epoch of observation
+                      System = "MJD" 	# Coordinate system type
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                            Unit = "s" 	# Axis units (second)
+                         End Axis
+                   IsA Frame 	# Coordinate system description
+                      TmScl = "TT" 	# Time scale
+                      TmOrg = 53201.349953703699 	# Time offset
+                   End TimeFrame
+             End CmpFrame
+          FrameB = 	# Second component Frame
+             Begin SpecFrame 	# Description of spectral coordinate system
+                Title = "Wavelength" 	# Title of coordinate system
+                Naxes = 1 	# Number of coordinate axes
+                Epoch = 2004.5362079498975 	# Julian epoch of observation
+                System = "WAVE" 	# Coordinate system type
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                      Unit = "Angstrom" 	# Axis units
+                   End Axis
+             IsA Frame 	# Coordinate system description
+                SoR = "Topocentric" 	# Standard of rest
+                RefRA = 2.5985894194015962 	# Reference RA (rads, FK5 J2000)
+                RefDec = 1.2054166296097384 	# Reference Dec (rads, FK5 J2000)
+                UWave = "Angstrom" 	# Preferred units for wavelength
+             End SpecFrame
+       End CmpFrame
+    Points = 	# Points defining the shape
+       Begin PointSet 	# Container for a set of points
+          Npoint = 1 	# Number of points
+          Ncoord = 4 	# Number of coordinates per point
+          X1 = 2.5985894819007465 	# Coordinate values...
+          X2 = 1.2054167093447146
+          X3 = 0
+          X4 = 4600
+       End PointSet
+ IsA Region 	# An area within a coordinate system
+ End PointList

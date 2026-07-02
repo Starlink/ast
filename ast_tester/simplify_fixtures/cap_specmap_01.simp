@@ -1,0 +1,64 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = -0.00037037036963738501 	# Shift for axis 1
+          Scl2 = 1.6021773299999999e-16 	# Scale factor for axis 2
+       End WinMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Series = 0 	# Component Mappings applied in parallel
+          MapA = 	# First component Mapping
+             Begin TimeMap 	# Conversion between time coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Ntime = 2 	# Number of conversion steps
+                Time1 = "MJDTOMJD" 	# Convert MJD between offsets
+                Time1a = 51382.667037037034 	# Input MJD offset
+                Time1b = 51444.666666666664 	# Output MJD offset
+                Time1c = -61.999629629630363 	# Combined offset
+                Time2 = "TAITOUTC" 	# Convert TAI to UTC
+                Time2a = 51444.666666666664 	# MJD offset
+             End TimeMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 1 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin SpecMap 	# Conversion between spectral coordinate systems
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Nspec = 4 	# Number of conversion steps
+                      Spec1 = "ENTOFR" 	# Convert energy to frequency
+                      Spec2 = "TPF2HL" 	# Convert from Topocentric to heliocentric frequency
+                      Spec2a = 0 	# Longitude (positive eastwards, radians)
+                      Spec2b = 0 	# Latitude (geodetic, radians)
+                      Spec2c = 0 	# Altitude (geodetic, metres)
+                      Spec2d = 51382.667039161119 	# UT1 epoch of observaton (Modified Julian Date)
+                      Spec2e = 0 	# RA of source (FK5 J2000, radians)
+                      Spec2f = 0 	# DEC of source (FK5 J2000, radians)
+                      Spec3 = "HLF2TP" 	# Convert from Heliocentric to topocentric frequency
+                      Spec3a = 0 	# Longitude (positive eastwards, radians)
+                      Spec3b = 0 	# Latitude (geodetic, radians)
+                      Spec3c = 0 	# Altitude (geodetic, metres)
+                      Spec3d = 51444.667409518363 	# UT1 epoch of observaton (Modified Julian Date)
+                      Spec3e = 0 	# RA of source (FK5 J2000, radians)
+                      Spec3f = 0 	# DEC of source (FK5 J2000, radians)
+                      Spec4 = "FRTOEN" 	# Convert frequency to energy
+                   End SpecMap
+                MapB = 	# Second component Mapping
+                   Begin ZoomMap 	# Zoom about the origin
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Zoom = 6241506363094028 	# Zoom factor
+                   End ZoomMap
+             End CmpMap
+       End CmpMap
+ End CmpMap

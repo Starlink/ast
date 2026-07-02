@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+"""Diff two gcovr JSON coverage files into a simplify-pathway gap ledger.
+
+Stdlib only. Reads gcovr 8.x JSON (the ``--json`` format): each file has
+``lines`` (with ``line_number``, ``count``, ``branches:[{count}]``) and
+``functions`` (with ``name``, ``lineno``). Classifies each uncovered branch
+in a target function as ``differential`` (hit by the full suite but not by
+simplify-only) or ``absolute-only`` (hit by neither).
+"""
+import argparse
+import bisect
+import json
+import os
+import re
+
+# Functions in the astSimplify call graph. NOT included: Decompose and
+# RemoveRegions -- those are reached only through the separate public APIs
+# astDecompose and astRemoveRegions (e.g. from FitsChan/FrameSet/Region code),
+# never from astSimplify, so a simplify fixture cannot exercise them. They are
+# distinct efforts, out of scope for the simplify self-containment goal.
+#
+# The list covers both the per-class MapMerge/MapList/Simplify methods and the
+# static merge/swap helper functions they call: the region-pair mergers
+# (MergeBox/MergeInterval/MergeNullRegion/MergePointList), the UnitNormMap
+# merger (MakeMergedMap, GetMappingType), the WinMap/MatrixMap swap executors
+# (WinMat/MatWin/MatWin2/WinPerm/WinWcs) and the swap/merge feasibility helpers
+# (CanSwap/CanMerge/PermGet). Without the helpers the ledger only saw the
+# MapMerge method bodies and undercounted the merge engine.
+#
+# NOT included: PolyMap's MergeShift/MergeShifts. Despite the name, they are
+# reached only via the protected astMergeShift method, whose sole caller is
+# fitschan.c (FITS-WCS construction) -- never astSimplify. Like Decompose /
+# RemoveRegions, a simplify fixture cannot exercise them.
+ALLOWLIST = {"MapMerge", "MapList", "Simplify", "CombineMaps",
+             "WinMat", "MatWin", "MatWin2", "WinPerm", "WinWcs",
+             "MergeBox", "MergeInterval", "MergeNullRegion", "MergePointList",
+             "MakeMergedMap", "GetMappingType",
+             "CanSwap", "CanMerge", "PermGet"}
+
+# Region classes whose `Simplify` override performs geometric
+# self-simplification rather than Mapping-pipeline merging. That is a separate
+# effort with a different fixture methodology, so it is recorded as a deferred
+# backlog rather than counted in the main merge-engine ledger. Their MapMerge
+# (Region-as-Mapping) branches remain in scope.
+REGION_SIMPLIFY_FILES = {"box.c", "interval.c", "prism.c",
+                         "pointlist.c", "nullregion.c"}
+
+# WCS-conversion classes. Their MapMerge cancels adjacent conversions
+# (SpecMap/TimeMap by cvttype, SlaMap by conversion code). They ARE reachable
+# by hand-authored Mapping fixtures, but only across a large matrix of
+# conversion-type pairs (spectral/temporal/celestial systems), and in practice
+# they arise from astMapMerge during FITS-WCS construction rather than
+# standalone astSimplify. Recorded as a deferred sub-campaign of its own rather
+# than counted in the main merge-engine ledger.
+WCS_MERGE_FILES = {"slamap.c", "specmap.c", "timemap.c"}
+
+INSCOPE = {
+    "mapping.c", "box.c", "cmpmap.c", "dssmap.c", "grismmap.c", "interval.c",
+    "intramap.c", "lutmap.c", "mathmap.c", "matrixmap.c", "normmap.c",
+    "nullregion.c", "pcdmap.c", "permmap.c", "pointlist.c", "polymap.c",
+    "prism.c", "ratemap.c", "selectormap.c", "shiftmap.c", "slamap.c",
+    "specmap.c", "sphmap.c", "splinemap.c", "switchmap.c", "timemap.c",
+    "tranmap.c", "unitmap.c", "unitnormmap.c", "wcsmap.c", "winmap.c",
+    "xphmap.c", "zoommap.c",
+}
+
+
+def load_coverage_obj(obj):
+    """Turn a parsed gcovr JSON object into a CovData dict.
+
+    ``linefunc`` records gcovr's authoritative per-line ``function_name``
+    when present; ``functions`` is the per-file function table used as a
+    fallback to attribute a line to its enclosing function.
+    """
+    branches = {}
+    functions = {}
+    linefunc = {}
+    for f in obj.get("files", []):
+        path = f["file"]
+        functions[path] = sorted(
+            (fn["lineno"], fn["name"]) for fn in f.get("functions", []))
+        for ln in f.get("lines", []):
+            line = ln["line_number"]
+            fname = ln.get("function_name")
+            if fname:
+                linefunc[(path, line)] = fname
+            for idx, br in enumerate(ln.get("branches", [])):
+                branches[(path, line, idx)] = br.get("count", 0)
+    return {"branches": branches, "functions": functions, "linefunc": linefunc}
+
+
+def load_coverage(path):
+    with open(path) as fh:
+        return load_coverage_obj(json.load(fh))
+
+
+# Defensive-code branches are filtered out as non-actionable noise:
+#   * a "pure" status guard -- a line whose whole condition is just astOK,
+#     e.g. `if ( !astOK ) return;` or `if ( astOK ) {`; its uncovered branch is
+#     the error direction, which never fires in a passing run. Compound
+#     conditions such as `while ( astOK && cond )` are NOT matched -- they
+#     carry real logic.
+#   * an error-reporting site -- a line containing an `astError(` call; that
+#     branch is only taken when an error has already occurred.
+_GUARD = re.compile(r"^\s*(?:if|while)\s*\(\s*!?\s*astOK\s*\)")
+_ERRCALL = re.compile(r"\bastError\s*\(")
+_src_cache = {}
+
+
+def _srclines(file):
+    lines = _src_cache.get(file)
+    if lines is None:
+        try:
+            with open(file) as fh:
+                lines = fh.read().split("\n")
+        except OSError:
+            lines = []
+        _src_cache[file] = lines
+    return lines
+
+
+def _is_status_guard(file, line):
+    lines = _srclines(file)
+    if not (0 < line <= len(lines)):
+        return False
+    s = lines[line - 1]
+    return bool(_GUARD.match(s)) or bool(_ERRCALL.search(s))
+
+
+def function_for(file, line, functions):
+    table = functions.get(file, [])
+    linenos = [t[0] for t in table]
+    pos = bisect.bisect_right(linenos, line) - 1
+    if pos < 0:
+        return None
+    return table[pos][1]
+
+
+def classify_gaps(simp, full, allowlist=ALLOWLIST, inscope=INSCOPE,
+                  filter_guards=True):
+    gaps = []
+    linefunc = full.get("linefunc", {})
+    for key, full_count in full["branches"].items():
+        file, line, idx = key
+        if os.path.basename(file) not in inscope:
+            continue
+        fn = linefunc.get((file, line)) or function_for(file, line, full["functions"])
+        if fn not in allowlist:
+            continue
+        if fn == "Simplify" and os.path.basename(file) in REGION_SIMPLIFY_FILES:
+            continue  # geometric self-simplify; tracked in the deferred list
+        if os.path.basename(file) in WCS_MERGE_FILES:
+            continue  # WCS-conversion merge; tracked in the deferred list
+        if filter_guards and _is_status_guard(file, line):
+            continue  # defensive astOK guard / error-reporting path
+        simp_count = simp["branches"].get(key, 0)
+        if simp_count > 0:
+            continue  # already self-covered
+        cls = "differential" if full_count > 0 else "absolute-only"
+        gaps.append((file, line, idx, fn, cls))
+    gaps.sort()
+    return gaps
+
+
+def region_simplify_gaps(simp, full):
+    """Deferred backlog: uncovered branches in Region geometric `Simplify`."""
+    gaps = []
+    linefunc = full.get("linefunc", {})
+    for key, full_count in full["branches"].items():
+        file, line, idx = key
+        if os.path.basename(file) not in REGION_SIMPLIFY_FILES:
+            continue
+        fn = linefunc.get((file, line)) or function_for(file, line, full["functions"])
+        if fn != "Simplify":
+            continue
+        if simp["branches"].get(key, 0) > 0:
+            continue
+        cls = "differential" if full_count > 0 else "absolute-only"
+        gaps.append((file, line, idx, fn, cls))
+    gaps.sort()
+    return gaps
+
+
+def wcs_merge_gaps(simp, full):
+    """Deferred backlog: uncovered merge-engine branches in the WCS-conversion
+    classes (SlaMap/SpecMap/TimeMap). Reachable only across a large matrix of
+    conversion-type pairs; a separate hand-authored-fixture sub-campaign."""
+    gaps = []
+    linefunc = full.get("linefunc", {})
+    for key, full_count in full["branches"].items():
+        file, line, idx = key
+        if os.path.basename(file) not in WCS_MERGE_FILES:
+            continue
+        fn = linefunc.get((file, line)) or function_for(file, line, full["functions"])
+        if fn not in ALLOWLIST:
+            continue
+        if _is_status_guard(file, line):
+            continue
+        if simp["branches"].get(key, 0) > 0:
+            continue
+        cls = "differential" if full_count > 0 else "absolute-only"
+        gaps.append((file, line, idx, fn, cls))
+    gaps.sort()
+    return gaps
+
+
+_ROW = re.compile(
+    r"\|\s*`([^:]+):(\d+)`\s*\|\s*(\d+)\s*\|\s*(\w+)\s*\|\s*[\w-]+\s*\|\s*([^|]*?)\s*\|")
+
+
+def parse_prior(md_text):
+    prior = {}
+    for m in _ROW.finditer(md_text):
+        file, line, idx, fn, status = m.groups()
+        status = status.strip()
+        if status and status != "open":
+            prior[(file, fn, int(line), int(idx))] = status
+    return prior
+
+
+def render_ledger(gaps, prior, full, simp, deferred=(), n_guards=0,
+                  wcs_deferred=()):
+    lines = ["# `astSimplify` Self-Contained Coverage Gap Ledger", "",
+             "Regenerated by `run_simplify_coverage.sh`. Do not hand-edit",
+             "rows except the Status column. See `README.md`.", "",
+             f"_{n_guards} defensive branches (pure astOK guards and "
+             "`astError` error-reporting sites) filtered out as "
+             "non-actionable noise._", ""]
+    open_rows, closed_rows = [], []
+    live_keys = set()
+    for file, line, idx, fn, cls in gaps:
+        key = (file, fn, line, idx)
+        live_keys.add(key)
+        status = prior.get(key, "open")
+        open_rows.append(
+            f"| `{file}:{line}` | {idx} | {fn} | {cls} | {status} |")
+    # Closed: anything previously annotated that is no longer a gap. Exclude
+    # keys that merely moved into a deferred section (they are not resolved).
+    deferred_keys = {(f, fn, ln, idx)
+                     for f, ln, idx, fn, _ in list(deferred) + list(wcs_deferred)}
+    for (file, fn, line, idx), status in sorted(prior.items()):
+        if (file, fn, line, idx) not in live_keys \
+                and (file, fn, line, idx) not in deferred_keys:
+            closed_rows.append(
+                f"| `{file}:{line}` | {idx} | {fn} | {status} |")
+    diff_n = sum(1 for r in open_rows if " differential " in r)
+    abs_n = sum(1 for r in open_rows if " absolute-only " in r)
+    lines += [f"**Open differential gaps:** {diff_n}  ",
+              f"**Open absolute-only gaps:** {abs_n}", "",
+              "## Open gaps", "",
+              "| Location | Branch | Function | Class | Status |",
+              "| --- | --- | --- | --- | --- |"]
+    lines += open_rows or ["| _none_ |  |  |  |  |"]
+    lines += ["", "## Closed", "",
+              "| Location | Branch | Function | Status |",
+              "| --- | --- | --- | --- |"]
+    lines += closed_rows or ["| _none_ |  |  |  |"]
+    def_diff = sum(1 for gp in deferred if gp[4] == "differential")
+    lines += ["", "## Deferred: Region geometric Simplify (out of scope)", "",
+              "Self-simplification of Region geometry (Box/Interval/Prism/etc.).",
+              "Tracked here as a known backlog; a separate effort with a",
+              "different (geometric) fixture methodology — not part of the",
+              "merge-engine self-containment goal.", "",
+              f"**Deferred branches:** {len(deferred)} ({def_diff} differential)", "",
+              "| Location | Branch | Function | Class |",
+              "| --- | --- | --- | --- |"]
+    lines += [f"| `{file}:{line}` | {idx} | {fn} | {cls} |"
+              for file, line, idx, fn, cls in deferred] or ["| _none_ |  |  |  |"]
+    wdef_diff = sum(1 for gp in wcs_deferred if gp[4] == "differential")
+    lines += ["", "## Deferred: WCS-conversion merge (separate sub-campaign)", "",
+              "MapMerge of the WCS-conversion classes (SlaMap/SpecMap/TimeMap),",
+              "which cancel adjacent conversions by type. These ARE reachable by",
+              "hand-authored Mapping fixtures, but only across a large matrix of",
+              "conversion-type pairs, and in practice arise from `astMapMerge`",
+              "during FITS-WCS construction. Tracked as a distinct deferred",
+              "sub-campaign rather than counted in the main ledger.", "",
+              f"**Deferred branches:** {len(wcs_deferred)} "
+              f"({wdef_diff} differential)", "",
+              "| Location | Branch | Function | Class |",
+              "| --- | --- | --- | --- |"]
+    lines += [f"| `{file}:{line}` | {idx} | {fn} | {cls} |"
+              for file, line, idx, fn, cls in wcs_deferred] or ["| _none_ |  |  |  |"]
+    return "\n".join(lines) + "\n"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--simplify", required=True)
+    ap.add_argument("--full", required=True)
+    ap.add_argument("--ledger", required=True)
+    args = ap.parse_args()
+    simp = load_coverage(args.simplify)
+    full = load_coverage(args.full)
+    gaps = classify_gaps(simp, full)
+    n_guards = len(classify_gaps(simp, full, filter_guards=False)) - len(gaps)
+    deferred = region_simplify_gaps(simp, full)
+    wcs_deferred = wcs_merge_gaps(simp, full)
+    prior = {}
+    if os.path.exists(args.ledger):
+        with open(args.ledger) as fh:
+            prior = parse_prior(fh.read())
+    with open(args.ledger, "w") as fh:
+        fh.write(render_ledger(gaps, prior, full, simp, deferred, n_guards,
+                               wcs_deferred))
+    diff_n = sum(1 for gp in gaps if gp[4] == "differential")
+    print(f"Wrote {args.ledger}: {len(gaps)} open gaps "
+          f"({diff_n} differential); {len(deferred)} deferred region-Simplify; "
+          f"{len(wcs_deferred)} deferred WCS-conversion merge; "
+          f"{n_guards} defensive branches filtered.")
+
+
+if __name__ == "__main__":
+    main()

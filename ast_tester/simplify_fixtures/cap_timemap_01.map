@@ -1,0 +1,46 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+          MapB = 	# Second component Mapping
+             Begin TimeMap 	# Conversion between time coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Ntime = 5 	# Number of conversion steps
+                Time1 = "TCBTOTDB" 	# Convert TCB to TDB
+                Time1a = 0 	# MJD offset
+                Time1b = -0.00066895549625895108 	# TCB offset
+                Time2 = "TDBTOTT" 	# Convert TDB to TT
+                Time2a = 0 	# MJD offset
+                Time2b = 0 	# Observer longitude
+                Time2c = 0 	# Observer latitude
+                Time2d = 0 	# Observer altitude
+                Time2e = 6378.1369999999997 	# Distance from earth spin axis
+                Time2f = 0 	# Distance north of equatorial plane
+                Time3 = "TTTOTAI" 	# Convert TT to TAI
+                Time3a = 0 	# MJD offset
+                Time4 = "TAITOTT" 	# Convert TAI to TT
+                Time4a = 0 	# MJD offset
+                Time5 = "TTTOTDB" 	# Convert TT to TDB
+                Time5a = 0 	# MJD offset
+                Time5b = 0 	# Observer longitude
+                Time5c = 0 	# Observer latitude
+                Time5d = 0 	# Observer altitude
+                Time5e = 6378.1369999999997 	# Distance from earth spin axis
+                Time5f = 0 	# Distance north of equatorial plane
+             End TimeMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+ End CmpMap
