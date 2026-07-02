@@ -79,6 +79,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   embedded as native serialised strings (read back with astFromString) so the
   test does not depend on the FitsChan class.
 
+**New C-only regression tests (no Fortran original):**
+- testslamap — SlaMap transform with an undefined (AST__BAD) conversion
+  argument must return AST__BAD outputs rather than NaN.
+
 **Optional manual stress test:**
 - testhuge_c
 

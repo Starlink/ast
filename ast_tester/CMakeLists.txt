@@ -212,6 +212,9 @@ configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
 ast_add_test(testfitschan_c SOURCES testfitschan.c)
 ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
 
+# --- New C-only regression tests (no Fortran original) ---
+ast_add_test(testslamap)
+
 # --- wcsconverter: regression-diff harness ported from wcsconverter.f ---
 add_executable(wcsconverter wcsconverter.c)
 target_include_directories(wcsconverter PRIVATE ${TEST_INCLUDES})
