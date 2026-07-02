@@ -5,7 +5,7 @@
  * file is the sole manifest; this program does no corpus scanning.
  *
  * Usage:
- *   check_transform_oracle <root> <oracle_file> [<rtrip_overrides>]
+ *   check_transform_oracle <root> <oracle_file> [<overrides>]
  *   check_transform_oracle --selftest
  */
 #include "ast.h"
@@ -211,9 +211,20 @@ static int compare_equiv( const char *relpath,
     return fails;
 }
 
-/* Per-fixture round-trip tolerance overrides, keyed by relpath.
-   "relpath off" disables round-trip; "relpath <rtol> <atol>" loosens it. */
-typedef struct { char relpath[1024]; double rtol, atol; int off; } Override;
+/* Per-fixture check overrides, keyed by relpath.  Round-trip lines:
+   "relpath off" disables round-trip, "relpath <rtol> <atol>" loosens it.
+   Golden lines: "relpath golden off" / "relpath golden-fwd off" /
+   "relpath golden-inv off" skip the golden comparison for the named
+   direction(s).  A fixture may have both a round-trip and a golden line;
+   the two kinds are looked up independently. */
+typedef struct {
+    char relpath[1024];
+    int rtrip;                  /* round-trip entry?  else golden entry */
+    double rtol, atol;          /* round-trip: loosened tolerances */
+    int off;                    /* round-trip: check disabled */
+    int golden_fwd_off;         /* golden: skip forward sections */
+    int golden_inv_off;         /* golden: skip inverse sections */
+} Override;
 static Override *g_over = NULL;
 static int g_nover = 0;
 
@@ -229,10 +240,19 @@ static void load_overrides( const char *path ) {
         if ( sscanf( line, "%1023s %63s", rel, what ) < 2 ) continue;
         if ( g_nover == (int) cap ) { cap *= 2; g_over = realloc( g_over, sizeof(Override)*cap ); }
         Override *o = &g_over[g_nover++];
+        memset( o, 0, sizeof *o );
         snprintf( o->relpath, sizeof o->relpath, "%s", rel );
-        if ( strcmp( what, "off" ) == 0 ) { o->off = 1; o->rtol = o->atol = 0; }
-        else { o->off = 0; o->rtol = ORACLE_DEF_RTRIP_RTOL; o->atol = ORACLE_DEF_RTRIP_ATOL;
-               sscanf( line, "%*s %lf %lf", &o->rtol, &o->atol ); }
+        if ( strncmp( what, "golden", 6 ) == 0 ) {
+            o->golden_fwd_off = ( strcmp( what, "golden" ) == 0 ||
+                                  strcmp( what, "golden-fwd" ) == 0 );
+            o->golden_inv_off = ( strcmp( what, "golden" ) == 0 ||
+                                  strcmp( what, "golden-inv" ) == 0 );
+        } else {
+            o->rtrip = 1;
+            if ( strcmp( what, "off" ) == 0 ) { o->off = 1; }
+            else { o->rtol = ORACLE_DEF_RTRIP_RTOL; o->atol = ORACLE_DEF_RTRIP_ATOL;
+                   sscanf( line, "%*s %lf %lf", &o->rtol, &o->atol ); }
+        }
     }
     fclose( fp );
 }
@@ -241,12 +261,23 @@ static void load_overrides( const char *path ) {
 static int rtrip_tol( const char *relpath, double *rtol, double *atol ) {
     *rtol = ORACLE_DEF_RTRIP_RTOL; *atol = ORACLE_DEF_RTRIP_ATOL;
     for ( int i = 0; i < g_nover; i++ ) {
-        if ( strcmp( g_over[i].relpath, relpath ) == 0 ) {
+        if ( g_over[i].rtrip && strcmp( g_over[i].relpath, relpath ) == 0 ) {
             if ( g_over[i].off ) return 0;
             *rtol = g_over[i].rtol; *atol = g_over[i].atol; return 1;
         }
     }
     return 1;
+}
+
+/* Is the golden comparison disabled for this fixture and direction? */
+static int golden_off( const char *relpath, int forward ) {
+    for ( int i = 0; i < g_nover; i++ ) {
+        if ( !g_over[i].rtrip && strcmp( g_over[i].relpath, relpath ) == 0 ) {
+            return forward ? g_over[i].golden_fwd_off
+                           : g_over[i].golden_inv_off;
+        }
+    }
+    return 0;
 }
 
 /* Round-trip accuracy check (GRID-domain corpora only).  fwd is a fixture's
@@ -329,6 +360,29 @@ static int selftest( void ) {
                s[0].in[0][0] == 1 && s[0].in[1][1] == 5 &&
                s[0].out[0][0] == 3 && s[0].out[0][1] == AST__BAD );
     free_sections( s, n );
+
+    /* Overrides parsing and lookup: round-trip lines and golden lines are
+       independent even for the same fixture. */
+    const char *tmpov = "/tmp/oracle_selftest_overrides.txt";
+    fp = fopen( tmpov, "w" );
+    fputs( "# comment\n"
+           "rtoff.head off\n"
+           "loose.head 2e-3 4e-2\n"
+           "noisy.map golden-inv off\n"
+           "both.map golden off\n"
+           "fwdonly.map golden-fwd off\n", fp );
+    fclose( fp );
+    load_overrides( tmpov );
+    double rtol, atol;
+    ok = ok && !rtrip_tol( "rtoff.head", &rtol, &atol );
+    ok = ok && rtrip_tol( "loose.head", &rtol, &atol ) &&
+         rtol == 2e-3 && atol == 4e-2;
+    ok = ok && rtrip_tol( "noisy.map", &rtol, &atol );   /* golden line only */
+    ok = ok && !golden_off( "rtoff.head", 1 ) && !golden_off( "rtoff.head", 0 );
+    ok = ok && !golden_off( "noisy.map", 1 ) && golden_off( "noisy.map", 0 );
+    ok = ok && golden_off( "both.map", 1 ) && golden_off( "both.map", 0 );
+    ok = ok && golden_off( "fwdonly.map", 1 ) && !golden_off( "fwdonly.map", 0 );
+
     printf( "selftest: %s\n", ok ? "ok" : "FAIL" );
     return ok ? 0 : 1;
 }
@@ -407,14 +461,25 @@ int main( int argc, char *argv[] ) {
         for ( int a = 0; a < s->nout; a++ )
             is_ang[a] = outfr ? axis_is_cyclic( outfr, a ) : 1;
 
-        /* Golden check: applies uniformly to forward and inverse sections. */
+        /* Golden check: applies uniformly to forward and inverse sections,
+           unless disabled for this fixture/direction by the overrides file
+           (used for sections whose recorded values sit on a mathematical
+           singularity and are not architecture-stable).  The section's live
+           outputs are still computed and still feed the round-trip and
+           equivalence checks below. */
         char label[32];
         snprintf( label, sizeof label, "golden-%s",
                   s->forward ? "fwd" : "inv" );
-        total_fail += compare_outputs( label, s->relpath, live, s->out,
-                                       s->nout, s->npoint,
-                                       ORACLE_DEF_RTOL, ORACLE_DEF_ATOL, is_ang );
-        checked++;
+        if ( golden_off( s->relpath, s->forward ) ) {
+            fprintf( stderr, "SKIP [%s] %s (overrides file)\n",
+                     label, s->relpath );
+        } else {
+            total_fail += compare_outputs( label, s->relpath, live, s->out,
+                                           s->nout, s->npoint,
+                                           ORACLE_DEF_RTOL, ORACLE_DEF_ATOL,
+                                           is_ang );
+            checked++;
+        }
 
         /* Round-trip accuracy (GRID-domain corpora): an inverse section
            paired with the immediately preceding forward section of the same

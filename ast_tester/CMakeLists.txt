@@ -127,7 +127,7 @@ ast_apply_dev_options(check_transform_oracle)
 add_test(NAME transform_oracle_selftest
          COMMAND check_transform_oracle --selftest)
 set(_oracle_overrides
-    "${CMAKE_CURRENT_SOURCE_DIR}/transform_oracle_rtrip_overrides.txt")
+    "${CMAKE_CURRENT_SOURCE_DIR}/transform_oracle_overrides.txt")
 add_test(NAME transform_oracle_simplify
          COMMAND check_transform_oracle
                  "${CMAKE_CURRENT_SOURCE_DIR}"

@@ -231,10 +231,15 @@ Three knobs, with the values that implementation settled on
   admit iterative distortion inverses (SIP ~0.01 px).
 
 The defaults are recorded (informationally) in the oracle file header.
-The golden and equivalence tolerances are compile-time constants; only the
-round-trip check is adjustable, via a per-fixture overrides file
-(`transform_oracle_rtrip_overrides.txt`) that can loosen or disable the
-assertion for fixtures whose inverses are known not to recover the pixel.
+The golden and equivalence tolerances are compile-time constants.
+Per-fixture adjustment goes through an overrides file
+(`transform_oracle_overrides.txt`): round-trip lines can loosen or disable
+that assertion for fixtures whose inverses are known not to recover the
+pixel, and `golden[-fwd|-inv] off` lines skip the golden comparison for
+sections whose recorded values sit on a mathematical singularity and are
+not architecture-stable (e.g. a unit vector whose direction is the rounding
+noise of a residual that another architecture computes as exactly zero,
+where the output flips between AST__BAD and an arbitrary direction).
 
 ## Programs
 
@@ -367,16 +372,24 @@ whether the inputs are "valid".
   machine-independent choice).
   Off-domain points simply record `AST__BAD`, which golden handles.
 
-### Round-trip overrides
+### Per-fixture overrides
 
-`transform_oracle_rtrip_overrides.txt` lists per-fixture round-trip
-exceptions: `<relpath> off` disables the check, `<relpath> <rtol> <atol>`
-loosens it.
-Currently only `tnx-cheb.head` is `off`: it has no inverse at all (its
+`transform_oracle_overrides.txt` lists per-fixture exceptions.
+Round-trip lines: `<relpath> off` disables the check, `<relpath> <rtol>
+<atol>` loosens it.
+Golden lines: `<relpath> golden off` (or `golden-fwd` / `golden-inv`) skip
+the golden comparison for the named direction(s), for sections whose
+recorded values are not architecture-stable.
+Currently `tnx-cheb.head` round-trip is `off`: it has no inverse at all (its
 Chebyshev distortion builds a ChebyMap, which disables PolyMap's iterative
 inverse because it cannot represent its own Jacobian), so `sky->pixel` is
 `BAD`.
 Its forward and inverse outputs remain pinned by the golden checks.
+And `neg_unitnormmap_inv_fwd_diffcentre.map` is `golden-inv off`: its
+inverse chain reconstructs the first UnitNormMap's centre exactly at the
+sampled zero point, and whether the residual is exactly zero (`AST__BAD`
+output) or ~1e-16 of rounding noise (an arbitrary unit-vector direction)
+differs between architectures.
 
 `tsc.head` previously needed an override but no longer does: its inverse is
 correct (round-trips to ~1e-13 for every in-projection pixel); its one failing
