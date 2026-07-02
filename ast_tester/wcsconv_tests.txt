@@ -18,7 +18,14 @@ sip-3d_fits-wcs     | sip-3d.head                    | sip-3d.fits-wcs    | fits
 sip-3d-swap_fits-wcs| sip-3d-swap.head               | sip-3d-swap.fits-wcs| fits-wcs | cdmatrix=1,sipreplace=0,SipOK=1,FitsDigits=8 |
 lsst_fits-wcs       | lsst.ast                       | lsst.fits-wcs      | fits-wcs  | cdmatrix=1,FitsDigits=8          |
 longslit_fits-wcs   | longslit.fits-pc               | longslit.fits-wcs  | fits-wcs  | cdmatrix=1,FitsDigits=8          |
-jan_fits-class_ast  | jan.fits-class                 | jan.ast            | ast       | FitsDigits=8                     |
+# jan_fits-class_ast: the SrcVel derivation (source velocity from CLASS
+# frequency keywords) amplifies a 1-ulp intermediate difference through
+# cancellation to ~1e-10 relative, and which intermediates get that ulp
+# depends on the compiler's FMA contraction choices: GCC with
+# -march=x86-64-v3 serializes -79989.315688614341 where unfused x86 and
+# fused arm64 clang both give ...607065.  Byte-diff is therefore not a
+# reliable gate for this fixture; the astequal test still pins semantics.
+jan_fits-class_ast  | jan.fits-class                 | jan.ast            | ast       | FitsDigits=8                     | yes
 aitoff_native       | aitoff.head                    | aitoff.native      | native    |                                  | yes
 car1_native         | car1.head                      | car1.native        | native    | carlin=1                         | yes
 car2_native         | car2.head                      | car2.native        | native    | carlin=1                         | yes
