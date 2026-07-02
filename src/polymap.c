@@ -151,6 +151,12 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *     28-JUL-2025 (DSB):
 *        - Add protected virtual method astMergeShift.
 *        - Add public static method astShowPoly.
+*     2-JUL-2026 (TIMJ):
+*        The default for IterInverse is now zero if the PolyMap has
+*        unequal numbers of inputs and outputs, since an iterative
+*        inverse cannot be used in that case.  Previously such a PolyMap
+*        reported TranInverse as non-zero by default and then reported an
+*        error when the inverse transformation was used.
 *class--
 */
 
@@ -6255,7 +6261,8 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     candidate input positions until an output position is found which
 *     is close to the required output position. By default, an iterative
 *     inverse is provided if, and only if, no inverse polynomial was supplied
-*     when the PolyMap was constructed.
+*     when the PolyMap was constructed and the PolyMap has equal numbers of
+*     inputs and outputs (an iterative inverse cannot be used otherwise).
 *
 *     Note, the term "inverse transformation" here refers to the inverse
 *     transformation of the original PolyMap, ignoring any subsequent
@@ -6309,7 +6316,9 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 */
 astMAKE_CLEAR(PolyMap,IterInverse,iterinverse,-INT_MAX)
 astMAKE_GET(PolyMap,IterInverse,int,0,( ( this->iterinverse == -INT_MAX ) ?
-                                          (this->ncoeff_i == 0) : this->iterinverse ))
+                                          ( this->ncoeff_i == 0 &&
+                                            astGetNin( this ) == astGetNout( this ) ) :
+                                          this->iterinverse ))
 astMAKE_SET(PolyMap,IterInverse,int,iterinverse,
   (((astGetNin(this)==astGetNout(this))||!value)?((value?1:0)):(astError(AST__ATTIN,"astSetIterInverse(%s):"
   "Cannot use an iterative inverse because the %s has unequal numbers of "

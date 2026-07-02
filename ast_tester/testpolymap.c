@@ -55,6 +55,9 @@ int main( void ) {
    double coeff_1d[] = { 1.0, 1, 0,
                          2.0, 1, 1 };
 
+   double coeff_2in1out[] = { 2.0, 1, 2, 0,
+                              3.0, 1, 0, 1 };
+
    errlim = 1000 * acc;
 
    astWatch( status );
@@ -192,6 +195,15 @@ int main( void ) {
    if( !astGetL( pm, "TranForward" ) ) stopit( 8013, status );
    if( !astGetL( pm, "IterInverse" ) ) stopit( 8014, status );
    if( !astGetL( pm, "TranInverse" ) ) stopit( 8015, status );
+
+   /* A PolyMap with unequal Nin and Nout cannot use an iterative inverse,
+      so IterInverse must default to zero for a forward-only 2-in 1-out
+      PolyMap, and the map must not claim to define an inverse
+      transformation. */
+   pm2 = astPolyMap( 2, 1, 2, coeff_2in1out, 0, NULL, " " );
+   if( astGetL( pm2, "IterInverse" ) ) stopit( 8016, status );
+   if( astGetL( pm2, "TranInverse" ) ) stopit( 8017, status );
+   if( !astGetL( pm2, "TranForward" ) ) stopit( 8018, status );
 
    astEnd;
    astFlushMemory( 1 );
