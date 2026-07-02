@@ -4400,7 +4400,7 @@ static double GetQuantity( AstKeyMap *km, const char *name, const char *unit,
 *        KeyMap entry to use.
 *     unit
 *        A string describing the units in which the Quantity value is to
-*        be returned. An error is reported if the QUantity cannot be
+*        be returned. An error is reported if the Quantity cannot be
 *        converted to these units. No conversion occurrs if this is NULL.
 *     usedef
 *        Return the supplied default value without error if the name is

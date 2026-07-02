@@ -2,6 +2,7 @@
 #include "mers.h"
 #include "sae_par.h"
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -20,6 +21,9 @@ static void test_native_encoding_roundtrip( int *status );
 static void test_sphmap_roundtrip( int *status );
 static void test_divide_roundtrip( int *status );
 static void test_rotate_sequence_3d_roundtrip( int *status );
+static void test_affine_roundtrip( int *status );
+static void test_time_equinox( int *status );
+static void test_quantity_affine( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -44,6 +48,9 @@ int main(){
    test_sphmap_roundtrip( status );
    test_divide_roundtrip( status );
    test_rotate_sequence_3d_roundtrip( status );
+   test_affine_roundtrip( status );
+   test_time_equinox( status );
+   test_quantity_affine( status );
 
    astEnd;
 
@@ -735,4 +742,139 @@ void test_rotate_sequence_3d_roundtrip( int *status ){
 
    if( *status != SAI__OK )
       printf( "rotate_sequence_3d and null-transform regression test failed\n" );
+}
+
+
+
+/* Test affine round-trip: build a FrameSet whose mapping is a 2-D MatrixMap
+   followed by a 2-D ShiftMap (the pattern FindAffine recognises), write it to
+   ASDF as an affine transform, read it back and verify the recovered mapping
+   gives the same numerical results. Exercises FindAffine, WriteProxyAffine,
+   WriteAsdfAffine and ReadAffine. */
+void test_affine_roundtrip( int *status ){
+   AstYamlChan *ch;
+   AstFrame *frm_in;
+   AstFrame *frm_out;
+   AstFrameSet *affs;
+   AstObject *affs2;
+   AstMatrixMap *mm;
+   AstShiftMap *sm;
+   AstMapping *affine;
+   double matrix[4] = { 0.6, -0.8, 0.8, 0.6 };
+   double shift[2] = { 100.0, -50.0 };
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+/* MatrixMap (a rotation, so it will not collapse to a diagonal WinMap)
+   followed in series by a ShiftMap. */
+   mm = astMatrixMap( 2, 2, 0, matrix, " " );
+   sm = astShiftMap( 2, shift, " " );
+   affine = (AstMapping *) astCmpMap( mm, sm, 1, " " );
+   astAnnul( mm );
+   astAnnul( sm );
+
+   frm_in = astFrame( 2, "Domain=PIXEL" );
+   frm_out = astFrame( 2, "Domain=WORLD" );
+   affs = astFrameSet( frm_in, " " );
+   astAddFrame( affs, AST__BASE, affine, frm_out );
+   astAnnul( frm_in );
+   astAnnul( frm_out );
+   astAnnul( affine );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=affine_roundtrip.asdf" );
+
+   if( astWrite( ch, affs ) != 1 )
+      stopit( 70, status ); /* LCOV_EXCL_LINE */
+
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=affine_roundtrip.asdf" );
+   affs2 = astRead( ch );
+
+   if( !affs2 )
+      stopit( 71, status ); /* LCOV_EXCL_LINE */
+
+   check_equal_transforms( (AstObject *) affs, affs2,
+                           "Affine round-trip test failed", status );
+
+   astAnnul( affs );
+   astAnnul( affs2 );
+   astAnnul( ch );
+}
+
+
+
+/* Read an ASDF WCS whose current frame is an FK5 celestial frame carrying an
+   equinox stored as an ASDF time object. Exercises GetTime and the FK5
+   celestial-frame reading path. */
+void test_time_equinox( int *status ){
+   AstYamlChan *ch;
+   AstFrameSet *fs;
+   AstFrame *sf;
+   const char *eqn;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=time_equinox.asdf" );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+
+   if( !fs ) {
+      stopit( 80, status ); return; /* LCOV_EXCL_LINE */
+   }
+
+   sf = astGetFrame( fs, AST__CURRENT );
+
+   if( !chrMatch( astGetC( sf, "System" ), "FK5" ) )
+      stopit( 81, status ); /* LCOV_EXCL_LINE */
+
+/* The equinox came from a time object with value J2010, which AST formats as
+   a Julian epoch (2009.999...;  after the timescale conversion).
+   TODO: See if this can be fixed. */
+   eqn = astGetC( sf, "Equinox" );
+   if( ( !eqn || fabs( atof( eqn ) - 2010.0 ) > 0.01 ) && *status == SAI__OK ) {
+      printf( "Equinox = %s\n", eqn ? eqn : "(null)" ); /* LCOV_EXCL_LINE */
+      stopit( 82, status ); /* LCOV_EXCL_LINE */
+   }
+
+   astAnnul( sf );
+   astAnnul( fs );
+}
+
+
+
+/* Read an ASDF WCS whose transform is an affine with matrix and translation
+   stored as unit/quantity objects. Exercises GetQuantityV and the quantity
+   branch of ReadAffine, and verifies the values were read correctly. */
+void test_quantity_affine( int *status ){
+   AstYamlChan *ch;
+   AstFrameSet *fs;
+   double xin[1] = { 1.0 };
+   double yin[1] = { 0.0 };
+   double xout[1];
+   double yout[1];
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=quantity.asdf" );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+
+   if( !fs ) {
+      stopit( 85, status ); return; /* LCOV_EXCL_LINE */
+   }
+
+/* matrix = [[0.6,-0.8],[0.8,0.6]], translation = [100,-50], so
+   (1,0) -> (100.6, -49.2). */
+   astTran2( fs, 1, xin, yin, 1, xout, yout );
+
+   if( ( fabs( xout[0] - 100.6 ) > 1.0E-9 || fabs( yout[0] + 49.2 ) > 1.0E-9 )
+       && *status == SAI__OK ) {
+      printf( "affine quantity out = (%g,%g), expected (100.6,-49.2)\n", xout[0], yout[0] ); /* LCOV_EXCL_LINE */
+      stopit( 86, status ); /* LCOV_EXCL_LINE */
+   }
+
+   astAnnul( fs );
 }

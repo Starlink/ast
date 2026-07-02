@@ -440,6 +440,8 @@ if(HAVE_YAML)
     configure_file(tanSipWcs.txt "${CMAKE_CURRENT_BINARY_DIR}/tanSipWcs.txt" COPYONLY)
     configure_file(lsst_wcs.txt "${CMAKE_CURRENT_BINARY_DIR}/lsst_wcs.txt" COPYONLY)
     configure_file(rotate_seq3d_cartesian.asdf "${CMAKE_CURRENT_BINARY_DIR}/rotate_seq3d_cartesian.asdf" COPYONLY)
+    configure_file(time_equinox.asdf "${CMAKE_CURRENT_BINARY_DIR}/time_equinox.asdf" COPYONLY)
+    configure_file(quantity.asdf "${CMAKE_CURRENT_BINARY_DIR}/quantity.asdf" COPYONLY)
     ast_add_test(testyamlchan)
 endif()
 
