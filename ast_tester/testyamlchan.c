@@ -23,7 +23,9 @@ static void test_divide_roundtrip( int *status );
 static void test_rotate_sequence_3d_roundtrip( int *status );
 static void test_affine_roundtrip( int *status );
 static void test_time_equinox( int *status );
-static void test_quantity_affine( int *status );
+static void test_quantity( int *status );
+static void test_transforms_1d( int *status );
+static void test_transforms_2d( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -50,7 +52,9 @@ int main(){
    test_rotate_sequence_3d_roundtrip( status );
    test_affine_roundtrip( status );
    test_time_equinox( status );
-   test_quantity_affine( status );
+   test_quantity( status );
+   test_transforms_1d( status );
+   test_transforms_2d( status );
 
    astEnd;
 
@@ -845,9 +849,11 @@ void test_time_equinox( int *status ){
 
 
 /* Read an ASDF WCS whose transform is an affine with matrix and translation
-   stored as unit/quantity objects. Exercises GetQuantityV and the quantity
-   branch of ReadAffine, and verifies the values were read correctly. */
-void test_quantity_affine( int *status ){
+   stored as array unit/quantity objects, followed by a rotate2d whose angle
+   is a scalar unit/quantity. Exercises GetQuantityV (the affine arrays), the
+   scalar GetQuantity path (the rotation angle), ReadAffine and ReadRotate2d,
+   and verifies the values were read correctly. */
+void test_quantity( int *status ){
    AstYamlChan *ch;
    AstFrameSet *fs;
    double xin[1] = { 1.0 };
@@ -866,14 +872,84 @@ void test_quantity_affine( int *status ){
       stopit( 85, status ); return; /* LCOV_EXCL_LINE */
    }
 
-/* matrix = [[0.6,-0.8],[0.8,0.6]], translation = [100,-50], so
-   (1,0) -> (100.6, -49.2). */
+/* matrix = [[0.6, -0.8],[0.8, 0.6]], translation = [100, -50], so the affine
+   maps (1, 0) -> (100.6, -49.2); the following 90-degree rotation maps
+   (x,y) -> (-y,x). */
    astTran2( fs, 1, xin, yin, 1, xout, yout );
 
-   if( ( fabs( xout[0] - 100.6 ) > 1.0E-9 || fabs( yout[0] + 49.2 ) > 1.0E-9 )
+   if( ( fabs( xout[0] - 49.2 ) > 1.0E-9 || fabs( yout[0] - 100.6 ) > 1.0E-9 )
        && *status == SAI__OK ) {
-      printf( "affine quantity out = (%g,%g), expected (100.6,-49.2)\n", xout[0], yout[0] ); /* LCOV_EXCL_LINE */
+      printf( "quantity out = (%g,%g), expected (49.2,100.6)\n", xout[0], yout[0] ); /* LCOV_EXCL_LINE */
       stopit( 86, status ); /* LCOV_EXCL_LINE */
+   }
+
+   astAnnul( fs );
+}
+
+
+
+/* Read an ASDF WCS whose transform is a 1-D compose Const1D | Linear1D |
+   Multiply. Exercises ReadConstant, ReadLinear1d and ReadMultiplyScale.
+   Const1D outputs 2.5 for any input, Linear1D gives 2*2.5+1 = 6, and Multiply
+   gives 6*3 = 18. */
+void test_transforms_1d( int *status ){
+   AstYamlChan *ch;
+   AstFrameSet *fs;
+   double xin[1] = { 7.0 };
+   double xout[1];
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=transforms_1d.asdf" );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+
+   if( !fs ) {
+      stopit( 90, status ); return; /* LCOV_EXCL_LINE */
+   }
+
+   astTran1( fs, 1, xin, 1, xout );
+   if( fabs( xout[0] - 18.0 ) > 1.0E-9 && *status == SAI__OK ) {
+      printf( "transforms_1d out = %g, expected 18\n", xout[0] ); /* LCOV_EXCL_LINE */
+      stopit( 91, status ); /* LCOV_EXCL_LINE */
+   }
+
+   astAnnul( fs );
+}
+
+
+
+/* Read an ASDF WCS whose transform is fix_inputs(Rotation2D(30), {0:1.5})
+   followed by Planar2D. Exercises ReadFixInputs, ReadRotate2d and ReadPlanar2d.
+   For input x, the rotation acts on (1.5, x); Planar2D then forms
+   a + 2*b + 3 from the rotated (a,b). */
+void test_transforms_2d( int *status ){
+   AstYamlChan *ch;
+   AstFrameSet *fs;
+   double c = cos( 30.0*AST__DD2R );
+   double s = sin( 30.0*AST__DD2R );
+   double a = 1.5*c - 1.0*s;
+   double b = 1.5*s + 1.0*c;
+   double expected = a + 2.0*b + 3.0;
+   double xin[1] = { 1.0 };
+   double xout[1];
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=transforms_2d.asdf" );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+
+   if( !fs ) {
+      stopit( 92, status ); return; /* LCOV_EXCL_LINE */
+   }
+
+   astTran1( fs, 1, xin, 1, xout );
+   if( fabs( xout[0] - expected ) > 1.0E-8 && *status == SAI__OK ) {
+      printf( "transforms_2d out = %g, expected %g\n", xout[0], expected ); /* LCOV_EXCL_LINE */
+      stopit( 93, status ); /* LCOV_EXCL_LINE */
    }
 
    astAnnul( fs );

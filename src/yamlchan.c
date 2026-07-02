@@ -110,6 +110,9 @@ f     The YamlChan class does not define any new routines beyond those
 *        Fix a crash and a spurious error that could occur when writing
 *        certain WCS objects to ASDF, caused by mishandling of degree/radian
 *        unit conversions when simplifying the transform chain.
+*     2-JUL-2026 (EMB):
+*        Fix reading of the ASDF linear1d transform, which used the wrong
+*        property name and constructed an incorrect Mapping.
 *class--
 */
 
@@ -8235,7 +8238,7 @@ static AstMapping *ReadLinear1d( AstKeyMap *km, int *status ){
    AstMapping *result;
    double ina;
    double inb;
-   double offset;
+   double intercept;
    double outa;
    double outb;
    double slope;
@@ -8254,9 +8257,9 @@ static AstMapping *ReadLinear1d( AstKeyMap *km, int *status ){
 /* Create the returned Mapping. */
    } else {
 
-/* Get the slope and offset. Report an error if the slope is zero. */
+/* Get the slope and intercept. Report an error if the slope is zero. */
       slope = Get0D( km, "slope", 0, AST__BAD, status );
-      offset = Get0D( km, "offset", 0, AST__BAD, status );
+      intercept = Get0D( km, "intercept", 0, AST__BAD, status );
       if( slope == 0.0 ) {
          if( astOK ) {
             astError( AST__BYAML, "astRead(YamlChan): Supplied ASDF "
@@ -8264,12 +8267,14 @@ static AstMapping *ReadLinear1d( AstKeyMap *km, int *status ){
                       status );
          }
 
-/* Ortherwise, create a corresponding winmap. */
+/* Otherwise, create a corresponding WinMap. The linear1d transform is
+   y = slope*x + intercept, so map the window [0,1] on the input onto the
+   window [intercept, slope+intercept] on the output. */
       } else {
          ina = 0.0;
-         outa = offset;
-         inb = offset/slope;
-         outa = 2*offset;
+         inb = 1.0;
+         outa = intercept;
+         outb = slope + intercept;
          result = (AstMapping *) astWinMap( 1, &ina, &inb, &outa, &outb,
                                             " ", status );
       }
