@@ -7,14 +7,22 @@
 
 #define ORACLE_BAD_TOKEN "BAD"
 
-/* Golden comparison tolerance.  Set to absorb cross-architecture
-   floating-point differences while still flagging real algorithmic change
-   (orders of magnitude larger, >= ~1e-6 relative).  ARM vs x86 `libm`
-   differences reach ~5e-9 for transcendental inverses sampled near a
-   singularity (e.g. a relativistic spectral inverse at beta ~ 1), well
-   above the ~2e-12 seen merely across compilers on one machine. */
+/* Golden comparison tolerance: live outputs vs the recorded oracle values.
+   Set to absorb cross-architecture floating-point differences while still
+   flagging real algorithmic change (orders of magnitude larger, >= ~1e-6
+   relative).  ARM vs x86 `libm` differences reach ~5e-9 for transcendental
+   inverses sampled near a singularity (e.g. a relativistic spectral
+   inverse at beta ~ 1), well above the ~2e-12 seen merely across compilers
+   on one machine. */
 #define ORACLE_DEF_RTOL        1e-7
 #define ORACLE_DEF_ATOL        1e-7
+
+/* Equivalence tolerance: a live .map transform vs its live .simp partner
+   (check C).  Tighter than the golden tolerance because both sides are
+   computed in the same run on the same machine, so there is no
+   cross-architecture spread to absorb; the bound only has to cover the
+   accumulated-rounding difference between a compound mapping chain and
+   its collapsed simplification. */
 #define ORACLE_DEF_EQUIV_RTOL  1e-9
 #define ORACLE_DEF_EQUIV_ATOL  1e-9
 

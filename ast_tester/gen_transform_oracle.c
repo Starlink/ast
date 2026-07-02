@@ -264,9 +264,17 @@ int main( int argc, char *argv[] ) {
     const char *framesets_out = argv[4];
     astWatch( status );
 
-    const char *hdr =
+    /* The tolerance line is informational (the checker takes its tolerances
+       from the transform_oracle.h macros); format it from those same macros
+       so it cannot drift from what the checker actually applies. */
+    char hdr[256];
+    snprintf( hdr, sizeof hdr,
         "# transform oracle - regenerate with gen_transform_oracle\n"
-        "# tol: rtol=1e-12 atol=1e-12  equiv_rtol=1e-9 equiv_atol=1e-9\n\n";
+        "# tol: rtol=%g atol=%g  equiv_rtol=%g equiv_atol=%g"
+        "  rtrip_rtol=%g rtrip_atol=%g\n\n",
+        ORACLE_DEF_RTOL, ORACLE_DEF_ATOL,
+        ORACLE_DEF_EQUIV_RTOL, ORACLE_DEF_EQUIV_ATOL,
+        ORACLE_DEF_RTRIP_RTOL, ORACLE_DEF_RTRIP_ATOL );
 
     /* Native-dump corpus: .map and .simp interleaved by stem so paired
        sections sit together in the file. */

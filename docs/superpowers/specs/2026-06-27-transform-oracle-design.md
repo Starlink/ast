@@ -207,23 +207,34 @@ the round-trip assertion apply to them.
 Comparison uses a combined relative and absolute bound:
 `|got - ref| <= atol + rtol * |ref|`.
 
-Three knobs:
+Three knobs, with the values that implementation settled on
+(defined in `transform_oracle.h`):
 
-- Golden checks (A and B) and round-trip: starting defaults `rtol = 1e-12`,
-  `atol = 1e-12`.
-- Equivalence check (C): looser starting defaults `equiv_rtol = 1e-9`,
-  `equiv_atol = 1e-9`.
-  Check C compares two genuinely different arithmetic sequences, a compound chain
-  versus one collapsed operation, which can legitimately differ by more than a
-  few ULP from accumulated rounding, so it needs a looser bound than the
-  same-path golden checks.
+- Golden checks (A and B): `rtol = 1e-7`, `atol = 1e-7`.
+  The design anticipated `1e-12` here, but golden checks compare live outputs
+  against values that may have been recorded on a different architecture, and
+  ARM vs x86 `libm` differences reach ~5e-9 for transcendental inverses sampled
+  near a singularity, so the bound was widened to keep one checked-in oracle
+  valid everywhere while still flagging real algorithmic change (orders of
+  magnitude larger).
+- Equivalence check (C): `equiv_rtol = 1e-9`, `equiv_atol = 1e-9`.
+  Check C compares two genuinely different arithmetic sequences, a compound
+  chain versus one collapsed operation, which can legitimately differ by more
+  than a few ULP from accumulated rounding.
+  The design expected this to be the looser bound, but both sides of check C
+  are computed in the same run on the same machine, so it needs no
+  cross-architecture headroom and ends up *tighter* than the golden checks.
+- Round-trip (inverse(forward(P)) vs P): `rtrip_rtol = 1e-6`,
+  `rtrip_atol = 5e-2`.
+  The inputs are pixel coordinates, so this is dominated by the absolute term:
+  the inverse must recover the pixel to a twentieth of a pixel, loose enough to
+  admit iterative distortion inverses (SIP ~0.01 px).
 
-Defaults are recorded in the oracle file header and are overridable via command
-line or environment variable.
-Final values are an implementation deliverable, chosen from the actual spread of
-outputs observed across the corpus, ideally cross-checked on both ARM and x86 so
-that the gate passes with comfortable margin everywhere while still failing on
-real algorithmic changes.
+The defaults are recorded (informationally) in the oracle file header.
+The golden and equivalence tolerances are compile-time constants; only the
+round-trip check is adjustable, via a per-fixture overrides file
+(`transform_oracle_rtrip_overrides.txt`) that can loosen or disable the
+assertion for fixtures whose inverses are known not to recover the pixel.
 
 ## Programs
 
