@@ -9,6 +9,39 @@
  * <root> is the ast_tester source directory.  This program is the only
  * component that scans the filesystem; the checker is driven entirely by
  * the files written here.
+ *
+ * PLATFORM SENSITIVITY OF THE RECORDED VALUES
+ *
+ * The oracle files record whatever the generating platform computes, and
+ * two effects make that platform-dependent:
+ *
+ * 1. Fused multiply-add contraction.  Compilers may contract a*b + c into
+ *    a single fused instruction that skips rounding the product.  Arm64
+ *    has FMA in its base ISA and compilers contract by default; baseline
+ *    x86-64 has no FMA instruction, so the same expression rounds twice
+ *    (an x86 build with -march=haswell or later behaves like arm64, so
+ *    this is an instruction-set property, not an architecture split).
+ *    The difference is normally ~1 ulp and vanishes inside the golden
+ *    tolerance, but at a mathematical singularity it changes the answer
+ *    in kind: e.g. UnitNormMap's inverse computes in*norm + centre, and
+ *    for a fixture whose inverse chain reconstructs another UnitNormMap's
+ *    centre, separate rounding lands on the centre exactly (forward
+ *    output AST__BAD) while FMA preserves a ~1e-16 residual whose
+ *    direction is pure rounding noise (forward output an arbitrary unit
+ *    vector).  No tolerance can bridge BAD vs a value, so such rows can
+ *    never be recorded stably.  Per-fixture "golden off" lines in the
+ *    overrides file (see transform_oracle_overrides.txt) are the escape
+ *    hatch, unless the build forces consistent floating point math
+ *    everywhere (-ffp-contract=off for libast AND these test programs
+ *    - the Halton sampling below contracts too), which would pin every
+ *    pure-arithmetic value bit-for-bit across platforms at the cost of
+ *    diverging from builds without the flag.
+ *
+ * 2. libm differences.  Transcendental functions (sin, cos, atan2, ...)
+ *    are not correctly-rounded and differ between C libraries (glibc vs
+ *    Apple libm) by up to ~5e-9 relative near singular points.  This is
+ *    why the golden tolerance is 1e-7 rather than a few ulp; see
+ *    transform_oracle.h.  No compiler flag removes this class.
  */
 #include "ast.h"
 #include "transform_oracle.h"
