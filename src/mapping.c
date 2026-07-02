@@ -572,7 +572,8 @@ static int (* parent_equal)( AstObject *, AstObject *, int * );
    globals->Class_Init = 0; \
    globals->GetAttrib_Buff[ 0 ] = 0; \
    globals->Unsimplified_Mapping = NULL; \
-   globals->Rate_Disabled = 0;
+   globals->Rate_Disabled = 0; \
+   globals->SIMD_Disabled = 0;
 
 
 /* Create the function that initialises global data for this module. */
@@ -584,6 +585,7 @@ astMAKE_INITGLOBALS(Mapping)
 #define getattrib_buff astGLOBAL(Mapping,GetAttrib_Buff)
 #define unsimplified_mapping astGLOBAL(Mapping,Unsimplified_Mapping)
 #define rate_disabled astGLOBAL(Mapping,Rate_Disabled)
+#define simd_disabled astGLOBAL(Mapping,SIMD_Disabled)
 #define ratefun_pset1_cache astGLOBAL(Mapping,RateFun_Pset1_Cache)
 #define ratefun_pset2_cache astGLOBAL(Mapping,RateFun_Pset2_Cache)
 #define ratefun_next_slot astGLOBAL(Mapping,RateFun_Next_Slot)
@@ -607,6 +609,11 @@ static AstMapping *unsimplified_mapping = NULL;
    significant. If astRate is disabled then it always returns a constant
    value of 1.0. */
 static int rate_disabled = 0;
+
+/* A flag which indicates if SIMD-vectorised Mapping transformations should
+   be disabled in the current thread, forcing the use of the scalar code
+   paths instead. */
+static int simd_disabled = 0;
 
 /* static values used in function "RateFun". */
 static AstPointSet *ratefun_pset1_cache[ RATEFUN_MAX_CACHE ];
@@ -1186,6 +1193,93 @@ int astRateState_( int disabled, int *status ) {
    result = rate_disabled;
    rate_disabled = disabled;
    return result;
+}
+
+int astSIMDState_( int disabled, int *status ) {
+/*
+*+
+*  Name:
+*     astSIMDState
+
+*  Purpose:
+*     Control whether SIMD-vectorised Mapping transformations are disabled.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     int astSIMDState( int disabled )
+
+*  Class Membership:
+*     Mapping member function
+
+*  Description:
+*     This function sets a thread-specific flag which, when non-zero, causes
+*     all SIMD-vectorised Mapping transformations to fall back to their
+*     equivalent scalar code paths. This is used by the Plot class to ensure
+*     that coordinate transformations produce bit-stable results while
+*     drawing, since the adaptive curve-subdivision algorithm is sensitive to
+*     the few-ULP differences between the scalar and vectorised maths
+*     libraries.
+*
+*     It should be called with "disabled" non-zero prior to performing an
+*     operation that requires scalar transformations, and then called again
+*     at the end with the value returned by the first call, in order to
+*     re-instate the original state of the flag.
+
+*  Parameters:
+*     disabled
+*        The new value for the SIMD disabled flag.
+
+*  Returned Value:
+*     The original value of the SIMD disabled flag.
+
+*-
+*/
+   astDECLARE_GLOBALS
+   int result;
+   astGET_GLOBALS(NULL);
+
+   result = simd_disabled;
+   simd_disabled = disabled;
+   return result;
+}
+
+int astSIMDDisabled_( int *status ) {
+/*
+*+
+*  Name:
+*     astSIMDDisabled
+
+*  Purpose:
+*     Determine whether SIMD-vectorised Mapping transformations are disabled.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     int astSIMDDisabled( void )
+
+*  Class Membership:
+*     Mapping member function
+
+*  Description:
+*     This function returns the current value of the thread-specific flag
+*     which controls whether SIMD-vectorised Mapping transformations are
+*     disabled (see astSIMDState). It is intended to be called from within
+*     the SIMD code paths of Mapping sub-classes so that they can fall back
+*     to their scalar equivalents when the flag is set.
+
+*  Returned Value:
+*     Non-zero if SIMD transformations are currently disabled in this thread.
+
+*-
+*/
+   astDECLARE_GLOBALS
+   astGET_GLOBALS(NULL);
+   return simd_disabled;
 }
 
 static int Equal( AstObject *this_object, AstObject *that_object, int *status ) {
