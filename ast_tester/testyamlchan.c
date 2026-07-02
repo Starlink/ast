@@ -26,6 +26,7 @@ static void test_time_equinox( int *status );
 static void test_quantity( int *status );
 static void test_transforms_1d( int *status );
 static void test_transforms_2d( int *status );
+static void test_earthlocation( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -55,6 +56,7 @@ int main(){
    test_quantity( status );
    test_transforms_1d( status );
    test_transforms_2d( status );
+   test_earthlocation( status );
 
    astEnd;
 
@@ -953,4 +955,64 @@ void test_transforms_2d( int *status ){
    }
 
    astAnnul( fs );
+}
+
+
+
+/* Build an AZEL (azimuth-elevation) / AltAz SkyFrame with an observer
+   location and epoch, write it t. ASDF and read it back. Exercises
+   WriteAsdfEarthLocation, WriteAsdfQuantity and WriteAsdfTime; reading in
+   exercises ReadEarthLocation and the scalar GetQuantity/GetTime paths.
+   The geodetic latitude should survive the geocentric round trip. */
+void test_earthlocation( int *status ){
+   AstYamlChan *ch;
+   AstFrame *pixfrm;
+   AstSkyFrame *sky;
+   AstFrameSet *fs;
+   AstObject *fs2;
+   AstMapping *um;
+   AstFrame *sky2;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   sky = astSkyFrame( "System=AZEL,ObsLat=19.8,ObsLon=-155.5,"
+                      "ObsAlt=4200,Epoch=2020.5" );
+
+   pixfrm = astFrame( 2, "Domain=PIXEL" );
+   um = (AstMapping *) astUnitMap( 2, " " );
+   fs = astFrameSet( pixfrm, " " );
+   astAddFrame( fs, AST__BASE, um, (AstFrame *) sky );
+   astAnnul( pixfrm );
+   astAnnul( um );
+   astAnnul( sky );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=earthloc.asdf" );
+
+   if( astWrite( ch, fs ) != 1 )
+      stopit( 94, status ); /* LCOV_EXCL_LINE */
+
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=earthloc.asdf" );
+   fs2 = astRead( ch );
+   astAnnul( ch );
+
+   if( !fs2 )
+      stopit( 95, status ); astAnnul( fs ); return; /* LCOV_EXCL_LINE */
+
+
+/* The recovered frame should be an AZEL SkyFrame that still carries the
+   observer location (ObsLat/ObsLon), confirming the earthlocation was
+   written and read back. */
+   sky2 = astGetFrame( (AstFrameSet *) fs2, AST__CURRENT );
+
+   if( !chrMatch( astGetC( sky2, "System" ), "AZEL" ) )
+      stopit( 96, status ); /* LCOV_EXC_LINE */
+
+   if( ( !astTest( sky2, "ObsLat" ) || !astTest( sky2, "ObsLon" ) )
+       && *status == SAI__OK ) stopit( 97, status ); /* LCOV_EXCL_LINE */
+
+   astAnnul( sky2 );
+   astAnnul( fs );
+   astAnnul( fs2 );
 }

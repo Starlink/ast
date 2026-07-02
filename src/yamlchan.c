@@ -111,8 +111,11 @@ f     The YamlChan class does not define any new routines beyond those
 *        certain WCS objects to ASDF, caused by mishandling of degree/radian
 *        unit conversions when simplifying the transform chain.
 *     2-JUL-2026 (EMB):
-*        Fix reading of the ASDF linear1d transform, which used the wrong
+*        - Fix reading of the ASDF linear1d transform, which used the wrong
 *        property name and constructed an incorrect Mapping.
+*        - Fix reading and writing of observer earth locations, which failed
+*        to recognise the earthlocation class and wrote scalar quantities in a
+*        form that could not be read back.
 *class--
 */
 
@@ -5280,7 +5283,7 @@ static int IsA( AstKeyMap *km, const char *class, int *status ) {
             result = IsANDArray( km_class, status );
          }
 
-      } else if( !strncmp( km_class, "astropy/coordinates/earthlocation/", 34 ) ) {
+      } else if( !strncmp( km_class, "astropy/coordinates/earthlocation-", 34 ) ) {
          if( !strcmp( "earthlocation", class ) ){
             result = IsAEarthLocation( km_class, status );
          }
@@ -14840,9 +14843,14 @@ static AstKeyMap *WriteAsdfQuantity( AstYamlChan *this, int ndim, const int *dim
 /* Create the returned KeyMap and store the appropriate ASDF tag. */
    ret = StartAsdfKeyMap( this, 0, "asdf/unit/quantity-1.1.0", status );
 
-/* Write out the ND-array. */
-   km = WriteAsdfNdArray( this, ndim, dims, vals, status );
-   ret = StoreKeyMap( this, "value", ret, &km, status );
+/* Write out the value. ndim=0 is written as a scalar value;
+   an array is written as an ndarray. */
+   if( ndim == 0 ) {
+      Store0D( this, "value", ret, vals[ 0 ], status );
+   } else {
+      km = WriteAsdfNdArray( this, ndim, dims, vals, status );
+      ret = StoreKeyMap( this, "value", ret, &km, status );
+   }
 
 /* Write out the units. */
    Store0C( this, "unit", 0, ret, units, NULL, status );
