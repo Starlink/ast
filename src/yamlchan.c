@@ -116,6 +116,9 @@ f     The YamlChan class does not define any new routines beyond those
 *        - Fix reading and writing of observer earth locations, which failed
 *        to recognise the earthlocation class and wrote scalar quantities in a
 *        form that could not be read back.
+*        - Fix serialisation of a YamlChan object itself: it was missing from
+*        the AST object loader and had an out-of-bounds array access when
+*        dumping a channel that uses the NATIVE encoding.
 *     8-AUG-2026 (TIMJ):
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
@@ -345,7 +348,7 @@ static AstObject *(* parent_read)( AstChannel *, int * );
 
 /* Text values used to represent YamlEncoding values externally. These
    should be in the order defined by the associated constants above. */
-static const char *xencod[1] = { ASDF_STRING };
+static const char *xencod[] = { ASDF_STRING, NATIVE_STRING };
 
 /* Address of this static variable is used as a unique identifier for
    member of this class. */
