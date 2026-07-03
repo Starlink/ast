@@ -168,19 +168,50 @@ AM_CONDITIONAL(NOTHREADS, test x$use_pthreads = x0)
 AC_SUBST(THREADS, $use_pthreads)
 
 #  Conditional defining whether we build with YAML support.
+#  Accepts: auto (default), yaml, fyaml, yes (=auto), no.
 AC_ARG_WITH([yaml],
-            [ --without-yaml   Build package without YAML support],
-        if test "$withval" = "yes"; then
-           use_yaml="1"
-        else
-           use_yaml="0"
-        fi,
-        use_yaml="1")
-if test "$use_yaml" = "1"; then
-AC_CHECK_LIB([yaml], [yaml_parser_initialize], ,[use_yaml="0"])
+            AS_HELP_STRING([--with-yaml[=BACKEND]],
+                           [YAML backend: auto (default), yaml, or fyaml; --without-yaml disables]),
+        case "$withval" in
+           yes|auto) yaml_backend="auto" ;;
+           yaml)     yaml_backend="yaml" ;;
+           fyaml)    yaml_backend="fyaml" ;;
+           no)       yaml_backend="no" ;;
+           *) AC_MSG_ERROR([Unknown --with-yaml value: $withval]) ;;
+        esac,
+        yaml_backend="auto")
+
+use_yaml="0"
+use_fyaml="0"
+
+if test "$yaml_backend" != "no"; then
+   if test "$yaml_backend" = "auto" || test "$yaml_backend" = "yaml"; then
+      AC_CHECK_LIB([yaml], [yaml_parser_initialize], [use_yaml="1"], [use_yaml="0"])
+      if test "$use_yaml" = "0" && test "$yaml_backend" = "yaml"; then
+         AC_MSG_ERROR([libyaml requested but not found])
+      fi
+   fi
+   if test "$use_yaml" = "0"; then
+      if test "$yaml_backend" = "auto" || test "$yaml_backend" = "fyaml"; then
+         AC_CHECK_LIB([fyaml], [fy_parser_create],
+            [AC_CHECK_HEADER([libfyaml.h], [use_fyaml="1"])],
+            [use_fyaml="0"])
+         if test "$use_fyaml" = "0" && test "$yaml_backend" = "fyaml"; then
+            AC_MSG_ERROR([libfyaml requested but not found])
+         fi
+      fi
+   fi
 fi
-AM_CONDITIONAL(NOYAML, test x$use_yaml = x0)
+
+if test "$use_yaml" = "1"; then
+   AC_DEFINE([YAML_BACKEND], ["libyaml"], [Name of the YAML backend library])
+elif test "$use_fyaml" = "1"; then
+   AC_DEFINE([YAML_BACKEND], ["libfyaml"], [Name of the YAML backend library])
+fi
+
+AM_CONDITIONAL(NOYAML, test x$use_yaml = x0 && test x$use_fyaml = x0)
 AC_SUBST(YAML, $use_yaml)
+AC_SUBST(FYAML, $use_fyaml)
 
 # See which variadic function API to use
 AC_CHECK_HEADERS(stdarg.h varargs.h, break)
