@@ -27,6 +27,7 @@ static void test_quantity( int *status );
 static void test_transforms_1d( int *status );
 static void test_transforms_2d( int *status );
 static void test_earthlocation( int *status );
+static void test_yamlchan_dump( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -57,6 +58,7 @@ int main(){
    test_transforms_1d( status );
    test_transforms_2d( status );
    test_earthlocation( status );
+   test_yamlchan_dump( status );
 
    astEnd;
 
@@ -1015,4 +1017,36 @@ void test_earthlocation( int *status ){
    astAnnul( sky2 );
    astAnnul( fs );
    astAnnul( fs2 );
+}
+
+
+
+/* Dump a YamlChan (with its attributes set to non-default values) to a string
+   using the native AST serialisation and read it back, checking the
+   attributes survive. Exercises the YamlChan Dump and astLoadYamlChan
+   routines. */
+void test_yamlchan_dump( int *status ){
+   AstYamlChan *ch;
+   AstObject *ch2;
+   char *dump;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, "YamlEncoding=NATIVE" );
+
+   dump = astToString( ch );
+   ch2 = astFromString( dump );
+   dump = astFree( dump );
+
+   if( !ch2 )
+      stopit( 100, status ); astAnnul( ch ); return; /* LCOV_EXCL_LINE */
+
+   if( !astIsAYamlChan( ch2 ) )
+      stopit( 101, status ); /* LCOV_EXCL_LINE */
+
+   if( !chrMatch( astGetC( ch2, "YamlEncoding" ), "NATIVE" ) )
+      stopit( 102, status ); /* LCOV_EXCL_LINE */
+
+   astAnnul( ch );
+   astAnnul( ch2 );
 }
