@@ -67,8 +67,8 @@
 #include <stddef.h>
 #endif
 
-#if defined( YAML )
-#include <yaml.h>
+#if defined( YAML ) || defined( FYAML )
+#include "yaml_backend.h"
 #endif
 
 
@@ -111,9 +111,9 @@ typedef struct AstYamlChan {
    AstKeyMap *obj;        /* KeyMap holding the NATIVE object being read */
    int index;             /* Index of next item to read from "obj" */
 
-#if defined( YAML )
-   yaml_emitter_t emitter_data; /* The body of a yaml emitter */
-   yaml_emitter_t *emitter;     /* Pointer to the above yaml emitter */
+#if defined( YAML ) || defined( FYAML )
+   AstYamlEmitter emitter_data; /* The body of a yaml emitter */
+   AstYamlEmitter *emitter;     /* Pointer to the above yaml emitter */
 #endif
 
 } AstYamlChan;
