@@ -102,6 +102,53 @@ ast_add_test(testerror)
 ast_add_test(testobject)
 ast_add_test(testconvert)
 
+# --- Transform output oracle ---
+ast_add_test(test_oracle_util SOURCES test_oracle_util.c transform_oracle_util.c)
+set_target_properties(test_oracle_util PROPERTIES C_STANDARD 11)
+# Append so we keep the ASAN_OPTIONS=detect_leaks=0 that ast_add_test sets
+# under sanitizer builds, rather than replacing it.
+set_property(TEST test_oracle_util APPEND PROPERTY
+    ENVIRONMENT "ORACLE_TEST_ROOT=${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(gen_transform_oracle gen_transform_oracle.c transform_oracle_util.c)
+target_include_directories(gen_transform_oracle PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_transform_oracle PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_transform_oracle PRIVATE HAVE_CONFIG_H)
+set_target_properties(gen_transform_oracle PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(gen_transform_oracle)
+
+add_executable(check_transform_oracle check_transform_oracle.c transform_oracle_util.c)
+target_include_directories(check_transform_oracle PRIVATE ${TEST_INCLUDES})
+target_link_libraries(check_transform_oracle PRIVATE ${TEST_LIBS})
+target_compile_definitions(check_transform_oracle PRIVATE HAVE_CONFIG_H)
+set_target_properties(check_transform_oracle PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(check_transform_oracle)
+
+add_test(NAME transform_oracle_selftest
+         COMMAND check_transform_oracle --selftest)
+set(_oracle_overrides
+    "${CMAKE_CURRENT_SOURCE_DIR}/transform_oracle_overrides.txt")
+add_test(NAME transform_oracle_simplify
+         COMMAND check_transform_oracle
+                 "${CMAKE_CURRENT_SOURCE_DIR}"
+                 "${CMAKE_CURRENT_SOURCE_DIR}/simplify_fixtures.oracle"
+                 "${_oracle_overrides}")
+add_test(NAME transform_oracle_headers
+         COMMAND check_transform_oracle
+                 "${CMAKE_CURRENT_SOURCE_DIR}"
+                 "${CMAKE_CURRENT_SOURCE_DIR}/headers.oracle"
+                 "${_oracle_overrides}")
+add_test(NAME transform_oracle_framesets
+         COMMAND check_transform_oracle
+                 "${CMAKE_CURRENT_SOURCE_DIR}"
+                 "${CMAKE_CURRENT_SOURCE_DIR}/framesets.oracle"
+                 "${_oracle_overrides}")
+if(AST_ENABLE_SANITIZERS)
+    set_tests_properties(transform_oracle_simplify transform_oracle_headers
+                         transform_oracle_framesets
+        PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+endif()
+
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)
 
@@ -164,6 +211,9 @@ configure_file(alt.header "${CMAKE_CURRENT_BINARY_DIR}/alt.header" COPYONLY)
 configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
 ast_add_test(testfitschan_c SOURCES testfitschan.c)
 ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
+
+# --- New C-only regression tests (no Fortran original) ---
+ast_add_test(testslamap)
 
 # --- wcsconverter: regression-diff harness ported from wcsconverter.f ---
 add_executable(wcsconverter wcsconverter.c)
