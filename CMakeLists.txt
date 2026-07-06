@@ -921,7 +921,9 @@ if(BUILD_TESTING)
                         --ignore-errors negative
                         --rc branch_coverage=1
                     COMMAND ${LCOV_EXECUTABLE}
-                        --extract "${AST_COVERAGE_FULL_INFO}" "${CMAKE_SOURCE_DIR}/src/*"
+                        --extract "${AST_COVERAGE_FULL_INFO}"
+                            "${CMAKE_SOURCE_DIR}/src/*"
+                            "${CMAKE_SOURCE_DIR}/ast_tester/*"
                         --output-file "${AST_COVERAGE_INFO}"
                         --ignore-errors unused,negative
                         --rc branch_coverage=1

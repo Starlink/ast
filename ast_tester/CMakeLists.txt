@@ -156,6 +156,7 @@ ast_add_test(testresimp INTERNAL_HEADERS)
 ast_add_test(testaxis)
 ast_add_test(testframe)
 ast_add_test(testunitnorm)
+ast_add_test(testobjectkeymap)
 
 # --- Tests needing data files ---
 configure_file(2dspline_c.dat "${CMAKE_CURRENT_BINARY_DIR}/2dspline_c.dat" COPYONLY)
