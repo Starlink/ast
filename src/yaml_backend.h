@@ -429,6 +429,7 @@ typedef struct {
    size_t line_buf_cap;
    const char *tag_handle;
    const char *tag_prefix;
+   char *pending_root_tag;
 } AstYamlEmitter;
 
 /* Flat event struct.  For libfyaml the underlying struct fy_event * is
@@ -489,6 +490,24 @@ static int _astFyamlWriteAdapter( struct fy_emitter *emit,
                                  emitter->line_buf,
                                  emitter->line_buf_len - 1 ) )
             return -1;
+
+         /* In libfyaml 0.8, the document-start event requires a lookahead
+            before being processed, so the emitter's stored document state
+            (emit->fyds internally) is NULL when the root node event is created.
+            astYamlEmitMappingStart works around this by emitting the root
+            mapping without a tag and storing the root tag in pending_root_tag.
+            Inject it here, right after the "---" line is flushed, to match
+            what libfyaml 0.9+ emits correctly. */
+         if( emitter->pending_root_tag &&
+             emitter->line_buf_len - 1 == 3 &&
+             memcmp( emitter->line_buf, "---", 3 ) == 0 ) {
+            if( !emitter->write_cb( emitter->write_data,
+                                    (unsigned char *) emitter->pending_root_tag,
+                                    strlen( emitter->pending_root_tag ) ) )
+               return -1;
+            free( emitter->pending_root_tag );
+            emitter->pending_root_tag = NULL;
+         }
          emitter->line_buf_len = 0;
       }
 
@@ -705,6 +724,8 @@ static inline void astYamlEmitterDelete( AstYamlEmitter *emitter ) {
    emitter->line_buf = NULL;
    emitter->line_buf_len = 0;
    emitter->line_buf_cap = 0;
+   free( emitter->pending_root_tag );
+   emitter->pending_root_tag = NULL;
 }
 
 static inline void astYamlEmitterSetOutput( AstYamlEmitter *emitter,
@@ -863,11 +884,10 @@ static inline int astYamlEmitDocumentEnd( AstYamlEmitter *emitter,
    return fy_emit_event( emitter->fye, fye ) == 0;
 }
 
-/* libfyaml 0.8.1 rejects bare URIs in tag_scan; newer versions accept them.
-   Both accept the verbatim YAML form "!<URI>".  If a tag handle/prefix has
-   been declared for the document (stored in the emitter), tags matching that
-   prefix are shortened to handle+suffix form (e.g. "!core/asdf-1.1.0").
-   Otherwise the tag is wrapped as "!<URI>". */
+/* If a tag handle/prefix has been declared for the document (stored in the
+   emitter), tags matching that prefix are shortened to handle+suffix form
+   (e.g. "!core/asdf-1.1.0").  Otherwise the tag is wrapped in the YAML
+   verbatim form "!<URI>" which libfyaml accepts in all versions. */
 static inline const char *_astFyamlWrapTag( const char *tag,
                                             const AstYamlEmitter *emitter,
                                             char buf[], size_t bufsz ) {
@@ -896,8 +916,8 @@ static inline const char *_astFyamlWrapTag( const char *tag,
 
    tag_len = strlen( tag );
 
-   if( tag_len + 4 > bufsz )  /* strlen("tag:") = 4 */
-      return tag; /* safety: shouldn't happen in practice */
+   if( tag_len + 4 > bufsz )
+      return tag;
 
    buf[0] = '!';
    buf[1] = '<';
@@ -943,15 +963,46 @@ static inline int astYamlEmitMappingStart( AstYamlEmitter *emitter,
                                            AstYamlStyle style ) {
    struct fy_event *fye;
    char tag_buf[1024];
+   const char *wrapped_tag;
    (void) implicit; /* not used */
 
    if( !emitter->fye ) {
       return 0;
    }
 
+   wrapped_tag = _astFyamlWrapTag( tag, emitter, tag_buf, sizeof(tag_buf) );
+
+   /* In libfyaml 0.8, FYET_DOCUMENT_START requires a lookahead event before
+      being dequeued; unfortunately this causes it to fail updating the
+      document state to include known tag handles.
+      A subsequente fy_emit_event_create (as here) validates the tag handle
+      against known tag handles processed from the document start event, but
+      since it's not processed yet, this fails with "invalid tag (lookup tag
+      directive)".  This is a bug.  In 0.9+ the document-start is processed
+      immediately, and the bug does not occur.
+
+      Detect the 0.8 case via fy_emitter_get_document_state returning NULL
+      (this is the case if the document start event was not immediately
+      dequeued).
+
+      Work around it by emitting a tagless mapping-start (which forces the
+      queued document-start through, setting emit->fyds), and storing the
+      intended root tag in pending_root_tag so _astFyamlWriteAdapter can
+      inject it right after the "---" line. */
+   if( tag && fy_emitter_get_document_state( emitter->fye ) == NULL ) {
+      emitter->pending_root_tag = wrapped_tag ? strdup( wrapped_tag ) : NULL;
+      fye = fy_emit_event_create( emitter->fye, FYET_MAPPING_START,
+                                  _astFyamlToNodeStyle( style ), anchor, NULL );
+      if( !fye ) {
+         free( emitter->pending_root_tag );
+         emitter->pending_root_tag = NULL;
+         return 0;
+      }
+      return fy_emit_event( emitter->fye, fye ) == 0;
+   }
+
    fye = fy_emit_event_create( emitter->fye, FYET_MAPPING_START,
-      _astFyamlToNodeStyle( style ),
-      anchor, _astFyamlWrapTag( tag, emitter, tag_buf, sizeof(tag_buf) ) );
+      _astFyamlToNodeStyle( style ), anchor, wrapped_tag );
 
    if( !fye ) {
       return 0;
