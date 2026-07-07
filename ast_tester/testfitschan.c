@@ -4505,7 +4505,7 @@ int main( void ) {
          int found_a_order = 0;
          int found_freq = 0;
 
-         astSet( sipfc, "SourceFile=sip-3d.head" );
+         astSet( sipfc, "SourceFile=%s/sip-3d.head", srcdir );
          astClear( sipfc, "Card" );
          sipfs = (AstFrameSet *) astRead( sipfc );
          if( !sipfs ) {
@@ -4540,7 +4540,7 @@ int main( void ) {
          char card[81];
          int found_a_order = 0;
 
-         astSet( sipfc2, "SourceFile=sip-3d-swap.head" );
+         astSet( sipfc2, "SourceFile=%s/sip-3d-swap.head", srcdir );
          astClear( sipfc2, "Card" );
          sipfs2 = (AstFrameSet *) astRead( sipfc2 );
          if( !sipfs2 ) {

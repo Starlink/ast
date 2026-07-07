@@ -1,6 +1,8 @@
 #include "ast.h"
 #include "ast_err.h"
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #define nx 150
@@ -117,9 +119,17 @@ int main( void ){
    method, but the Fortran API assumes they are ordered according to the
    CMLIB method. That's why we need both a C and a Fortran tester for
    SplineMap. */
-   FILE *in = fopen( "2dspline_c.dat", "r" );
+/* The fixture data file lives in the source directory, which the test
+   harness points at via the 'srcdir' environment variable (falling back to
+   the current directory for a plain in-source run). */
+   const char *srcdir = getenv( "srcdir" );
+   char fname[ PATH_MAX ];
+   FILE *in;
+   if( !srcdir || !*srcdir ) srcdir = ".";
+   snprintf( fname, sizeof( fname ), "%s/2dspline_c.dat", srcdir );
+   in = fopen( fname, "r" );
    if( !in ){
-      astError( AST__INTER, "Could not open file '2dspline_c.dat'" );
+      astError( AST__INTER, "Could not open file '%s'", fname );
    } else {
 
       read_values( in, nx + k, tx, "tx" );
