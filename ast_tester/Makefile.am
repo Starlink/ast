@@ -115,7 +115,14 @@ testyamlchan_LDADD     = $(CTEST_LDADD)
 
 # Fortran-converted C tests.  Every one shares its source basename with a
 # .f counterpart, so each needs a per-target _CFLAGS to force automake to
-# use long object names (foo-foo.o) and avoid object-file collisions.
+# use long object names (foo_c-foo.o) and avoid object-file collisions.
+#
+# NOTE: renaming only the C objects is not enough.  The .f targets below use
+# a matching per-target _FFLAGS so their objects are named foo_f-foo.o too.
+# Without it a .f target would use the short object name foo.o, which has no
+# explicit rule; make then resolves it via suffix rules, and because
+# .SUFFIXES lists .c before .f it compiles foo.c, silently building the
+# Fortran test from the C source. Lovely foot-gun! :(
 
 testchannel_c_SOURCES  = testchannel.c
 testchannel_c_CFLAGS   = $(AM_CFLAGS)
@@ -280,6 +287,13 @@ AM_FCFLAGS = \
 .f.o:
 	$(AM_V_FC)$(FC) $(AM_FCFLAGS) $(FCFLAGS) $(STAR_FCFLAGS) -c -o $@ $<
 
+# Each Fortran test target sets a per-target _FFLAGS (see below) to force a
+# unique object name (foo_f-foo.o) and avoid the .c/.f basename collision that
+# otherwise makes make compile foo.o from foo.c.  Those per-target rules use
+# the F77 interface and bypass the .f.o override above, so STAR_FCFLAGS (the
+# Starlink include paths) must be carried in AM_FFLAGS here.
+AM_FFLAGS = $(AM_FCFLAGS) $(STAR_FCFLAGS)
+
 # Libraries for all Fortran tests (real Starlink libs).
 # We link the locally-built AST .la files directly (not via ast_link, which
 # targets an installed AST).  The Starlink support libraries mirror what the
@@ -377,6 +391,7 @@ check_PROGRAMS += $(FORTRAN_TESTS)
 check_PROGRAMS += testhuge_f
 testhuge_f_SOURCES = testhuge.f
 testhuge_f_LDADD   = $(FTEST_LDADD)
+testhuge_f_FFLAGS  = $(AM_FFLAGS)
 TESTS += testhuge.sh
 EXTRA_DIST = testhuge.sh test_wcsconverter.sh test_simplify.sh numdiff.py
 
@@ -403,108 +418,143 @@ EXTRA_DIST += \
 check_PROGRAMS += wcsconverter simplify
 wcsconverter_SOURCES = wcsconverter.f
 wcsconverter_LDADD   = $(FTEST_LDADD)
+wcsconverter_FFLAGS  = $(AM_FFLAGS)
 simplify_SOURCES     = simplify.f
 simplify_LDADD       = $(FTEST_LDADD)
+simplify_FFLAGS      = $(AM_FFLAGS)
 TESTS += test_wcsconverter.sh test_simplify.sh
 
 # Source and LDADD declarations for each Fortran test.
 testchannel_f_SOURCES    = testchannel.f
 testchannel_f_LDADD      = $(FTEST_LDADD)
+testchannel_f_FFLAGS     = $(AM_FFLAGS)
 
 testchebymap_f_SOURCES   = testchebymap.f
 testchebymap_f_LDADD     = $(FTEST_LDADD)
+testchebymap_f_FFLAGS    = $(AM_FFLAGS)
 
 testcmpframe_f_SOURCES   = testcmpframe.f
 testcmpframe_f_LDADD     = $(FTEST_LDADD)
+testcmpframe_f_FFLAGS    = $(AM_FFLAGS)
 
 testcmpmap_f_SOURCES     = testcmpmap.f
 testcmpmap_f_LDADD       = $(FTEST_LDADD)
+testcmpmap_f_FFLAGS      = $(AM_FFLAGS)
 
 testfitschan_f_SOURCES   = testfitschan.f
 testfitschan_f_LDADD     = $(FTEST_LDADD)
+testfitschan_f_FFLAGS    = $(AM_FFLAGS)
 
 testfitstable_f_SOURCES  = testfitstable.f
 testfitstable_f_LDADD    = $(FTEST_LDADD)
+testfitstable_f_FFLAGS   = $(AM_FFLAGS)
 
 testflux_f_SOURCES       = testflux.f
 testflux_f_LDADD         = $(FTEST_LDADD)
+testflux_f_FFLAGS        = $(AM_FFLAGS)
 
 testframeset_f_SOURCES   = testframeset.f
 testframeset_f_LDADD     = $(FTEST_LDADD)
+testframeset_f_FFLAGS    = $(AM_FFLAGS)
 
 testkeymap_f_SOURCES     = testkeymap.f
 testkeymap_f_LDADD       = $(FTEST_LDADD)
+testkeymap_f_FFLAGS      = $(AM_FFLAGS)
 
 testlutmap_f_SOURCES     = testlutmap.f
 testlutmap_f_LDADD       = $(FTEST_LDADD)
+testlutmap_f_FFLAGS      = $(AM_FFLAGS)
 
 testmapping_f_SOURCES    = testmapping.f
 testmapping_f_LDADD      = $(FTEST_LDADD)
+testmapping_f_FFLAGS     = $(AM_FFLAGS)
 
 testmoc_f_SOURCES        = testmoc.f
 testmoc_f_LDADD          = $(FTEST_LDADD)
+testmoc_f_FFLAGS         = $(AM_FFLAGS)
 
 testmocchan_f_SOURCES    = testmocchan.f
 testmocchan_f_LDADD      = $(FTEST_LDADD)
+testmocchan_f_FFLAGS     = $(AM_FFLAGS)
 
 testnormmap_f_SOURCES    = testnormmap.f
 testnormmap_f_LDADD      = $(FTEST_LDADD)
+testnormmap_f_FFLAGS     = $(AM_FFLAGS)
 
 testpolymap_f_SOURCES    = testpolymap.f
 testpolymap_f_LDADD      = $(FTEST_LDADD)
+testpolymap_f_FFLAGS     = $(AM_FFLAGS)
 
 testrate_f_SOURCES       = testrate.f
 testrate_f_LDADD         = $(FTEST_LDADD)
+testrate_f_FFLAGS        = $(AM_FFLAGS)
 
 testratemap_f_SOURCES    = testratemap.f
 testratemap_f_LDADD      = $(FTEST_LDADD)
+testratemap_f_FFLAGS     = $(AM_FFLAGS)
 
 testrebin_f_SOURCES      = testrebin.f
 testrebin_f_LDADD        = $(FTEST_LDADD)
+testrebin_f_FFLAGS       = $(AM_FFLAGS)
 
 testrebinseq_f_SOURCES   = testrebinseq.f
 testrebinseq_f_LDADD     = $(FTEST_LDADD)
+testrebinseq_f_FFLAGS    = $(AM_FFLAGS)
 
 testregions_f_SOURCES    = testregions.f
 testregions_f_LDADD      = $(FTEST_LDADD)
+testregions_f_FFLAGS     = $(AM_FFLAGS)
 
 testskyframe_f_SOURCES   = testskyframe.f
 testskyframe_f_LDADD     = $(FTEST_LDADD)
+testskyframe_f_FFLAGS    = $(AM_FFLAGS)
 
 testspecflux_f_SOURCES   = testspecflux.f
 testspecflux_f_LDADD     = $(FTEST_LDADD)
+testspecflux_f_FFLAGS    = $(AM_FFLAGS)
 
 testspecframe_f_SOURCES  = testspecframe.f
 testspecframe_f_LDADD    = $(FTEST_LDADD)
+testspecframe_f_FFLAGS   = $(AM_FFLAGS)
 
 testsplinemap_f_SOURCES  = testsplinemap.f
 testsplinemap_f_LDADD    = $(FTEST_LDADD)
+testsplinemap_f_FFLAGS   = $(AM_FFLAGS)
 
 teststc_f_SOURCES        = teststc.f
 teststc_f_LDADD          = $(FTEST_LDADD)
+teststc_f_FFLAGS         = $(AM_FFLAGS)
 
 teststcschan_f_SOURCES   = teststcschan.f
 teststcschan_f_LDADD     = $(FTEST_LDADD)
+teststcschan_f_FFLAGS    = $(AM_FFLAGS)
 
 testswitchmap_f_SOURCES  = testswitchmap.f
 testswitchmap_f_LDADD    = $(FTEST_LDADD)
+testswitchmap_f_FFLAGS   = $(AM_FFLAGS)
 
 testtable_f_SOURCES      = testtable.f
 testtable_f_LDADD        = $(FTEST_LDADD)
+testtable_f_FFLAGS       = $(AM_FFLAGS)
 
 testtime_f_SOURCES       = testtime.f
 testtime_f_LDADD         = $(FTEST_LDADD)
+testtime_f_FFLAGS        = $(AM_FFLAGS)
 
 testtrangrid_f_SOURCES   = testtrangrid.f
 testtrangrid_f_LDADD     = $(FTEST_LDADD)
+testtrangrid_f_FFLAGS    = $(AM_FFLAGS)
 
 testunitnormmap_f_SOURCES = testunitnormmap.f
 testunitnormmap_f_LDADD  = $(FTEST_LDADD)
+testunitnormmap_f_FFLAGS = $(AM_FFLAGS)
 
 testxmlchan_f_SOURCES    = testxmlchan.f
 testxmlchan_f_LDADD      = $(FTEST_LDADD)
+testxmlchan_f_FFLAGS     = $(AM_FFLAGS)
 
 testzoommap_f_SOURCES    = testzoommap.f
 testzoommap_f_LDADD      = $(FTEST_LDADD)
+testzoommap_f_FFLAGS     = $(AM_FFLAGS)
 
 endif  # NOFORTRAN
