@@ -1890,14 +1890,14 @@ int main( void ) {
          AstFitsChan *fc2;
          int ncard_before, ncard_after;
 
-         astSet( afc, "SinkFile=/tmp/ast_testfitschan_write.fits" );
+         astSet( afc, "SinkFile=testfitschan_write.fits" );
          ncard_before = astGetI( afc, "Ncard" );
          astWriteFits( afc );
          if( !astOK )
             stopit( 314, "WriteFits failed", status );
 
          fc2 = astFitsChan( NULL, NULL,
-                            "SourceFile=/tmp/ast_testfitschan_write.fits" );
+                            "SourceFile=testfitschan_write.fits" );
          astReadFits( fc2 );
          if( !astOK )
             stopit( 315, "ReadFits failed", status );
