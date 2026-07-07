@@ -837,16 +837,12 @@ static inline int astYamlEmitDocumentStart( AstYamlEmitter *emitter,
                                             const char *tag_handle,
                                             const char *tag_prefix ) {
    struct fy_event *fye;
-   const struct fy_version *vers = NULL;
+   const struct fy_version *vers = fy_version_make( 1, 1 );
    const struct fy_tag *tags_arr[2] = { NULL, NULL };
    struct fy_tag tag_def;
 
    if( !emitter->fye ) {
       return 0;
-   }
-
-   if( with_version ) {
-      vers = fy_version_make( 1, 1 );
    }
 
    if( with_tags && tag_handle && tag_prefix ) {
@@ -858,7 +854,8 @@ static inline int astYamlEmitDocumentStart( AstYamlEmitter *emitter,
    }
 
    fye = fy_emit_event_create( emitter->fye, FYET_DOCUMENT_START,
-                               0, vers, with_tags ? tags_arr : NULL );
+                               0, with_version ? vers : NULL,
+                               with_tags ? tags_arr : NULL );
    if( !fye ) {
       return 0;
    }
