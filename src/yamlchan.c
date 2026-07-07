@@ -1256,9 +1256,11 @@ static AstObject *Read( AstChannel *this_channel, int *status ) {
 
 /* Initialize the YAML parser. */
    if( !astYamlParserInitialize( &parser ) ){
+      /* LCOV_EXCL_START */
       astError( AST__LYAML, "astRead(%s): Failed to initialize " YAML_BACKEND
                 " parser", status, astGetClass( this ) );
       AstYamlParserError( &parser, status );
+      /* LCOV_EXCL_STOP */
 
 /* Register the source function with the parser. */
    } else {
@@ -6076,7 +6078,7 @@ static AstMapping *IsPolyMap( AstMapping *map, int *status ){
    return result;
 }
 
-static void AstYamlEmitterError( AstYamlEmitter *emitter, int *status ){
+static void AstYamlEmitterError( AstYamlEmitter *emitter, int *status ){ /* LCOV_EXCL_START */
 /*
 *  Name:
 *     AstYamlEmitterError
@@ -6109,7 +6111,7 @@ static void AstYamlEmitterError( AstYamlEmitter *emitter, int *status ){
       astError( *status, YAML_BACKEND " emitter: %s", status,
                 astYamlEmitterGetError( emitter ) );
    }
-}
+} /* LCOV_EXCL_STOP */
 
 static void AstYamlParserError( AstYamlParser *parser, int *status ){
 /*
@@ -11032,9 +11034,11 @@ static AstKeyMap *ReadValues( AstYamlChan *this, AstYamlParser *parser, int *sta
 
 /* Get the next yaml event. */
       if( !astYamlParserParse( parser, &event )) {
+         /* LCOV_EXCL_START */
          astError( AST__LYAML, "astRead(%s): " YAML_BACKEND " parse error:",
                    status, astGetClass( this ) );
          AstYamlParserError( parser, status );
+         /* LCOV_EXCL_STOP */
 
 /* State zero: look for the "stream start" event. */
       } else if( state == 0 ) {
@@ -11560,9 +11564,11 @@ static void ReadYAMLItem( AstYamlChan *this, AstYamlParser *parser,
 
 /* Get the next event from the parser. */
    if( !astYamlParserParse( parser, &event ) ) {
+      /* LCOV_EXCL_START */
       astError( AST__LYAML, "astRead(%s): " YAML_BACKEND " parse error:",
                 status, astGetClass( this ) );
       AstYamlParserError( parser, status );
+      /* LCOV_EXCL_STOP */
 
 /* Read data indicated by the event into the KeyMap. */
    } else {
@@ -11630,9 +11636,11 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, AstYamlParser *parser, int
 
 /* Read the next event. */
       if( !astYamlParserParse( parser, &event ) ) {
+         /* LCOV_EXCL_START */
          astError( AST__LYAML, "astRead(%s): " YAML_BACKEND " parse error:",
                    status, astGetClass( this ) );
          AstYamlParserError( parser, status );
+         /* LCOV_EXCL_STOP */
 
 /* Read the id for the next item */
       } else if( event.type == YAML_SCALAR_EVENT ) {
@@ -12571,9 +12579,11 @@ static void StartYamlDoc( AstYamlChan *this, AstYamlEmitter *emitter,
 
 /* Initialise the YAML emitter. */
    if( !astYamlEmitterInitialize( emitter ) ){
+      /* LCOV_EXCL_START */
       astError( AST__LYAML, "astWrite(%s): Failed to initialize " YAML_BACKEND
                 " emitter", status, astGetClass( this ) );
       AstYamlEmitterError( emitter, status );
+      /* LCOV_EXCL_STOP */
 
 /* If OK, register the sink function with the emitter and set the indent
    increment. */
