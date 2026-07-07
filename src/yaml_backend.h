@@ -416,7 +416,9 @@ typedef struct {
 /* Emitter handle: wraps struct fy_emitter; the fy_emitter is created
    lazily at the first emit call so that indent can be set beforehand.
    line_buf accumulates partial output fragments between newlines so that
-   AstYamlWriter always receives complete newline-terminated lines. */
+   AstYamlWriter always receives complete newline-terminated lines.
+   tag_handle/tag_prefix are set at document-start time and used to shorten
+   matching tag URIs to the declared handle form (e.g. "!core/..."). */
 typedef struct {
    struct fy_emitter *fye;
    AstYamlWriteCb write_cb;
@@ -425,6 +427,8 @@ typedef struct {
    unsigned char *line_buf;
    size_t line_buf_len;
    size_t line_buf_cap;
+   const char *tag_handle;
+   const char *tag_prefix;
 } AstYamlEmitter;
 
 /* Flat event struct.  For libfyaml the underlying struct fy_event * is
@@ -806,26 +810,34 @@ static inline int astYamlEmitStreamEnd( AstYamlEmitter *emitter ) {
    return fy_emit_event( emitter->fye, fye ) == 0;
 }
 
-/* NOTE: tag directives (tag_handle/tag_prefix) are not forwarded to
-   libfyaml; libfyaml uses fully-expanded tags internally and we always
-   pass fully-qualified tag URIs from yamlchan.c anyway. */
 static inline int astYamlEmitDocumentStart( AstYamlEmitter *emitter,
                                             int with_version,
                                             int with_tags,
                                             const char *tag_handle,
                                             const char *tag_prefix ) {
    struct fy_event *fye;
-   (void) with_version; /* not used */
-   (void) with_tags; /* not used */
-   (void) tag_handle; /* not used */
-   (void) tag_prefix; /* not used */
+   const struct fy_version *vers = NULL;
+   const struct fy_tag *tags_arr[2] = { NULL, NULL };
+   struct fy_tag tag_def;
 
    if( !emitter->fye ) {
       return 0;
    }
 
+   if( with_version ) {
+      vers = fy_version_make( 1, 1 );
+   }
+
+   if( with_tags && tag_handle && tag_prefix ) {
+      tag_def.handle = tag_handle;
+      tag_def.prefix = tag_prefix;
+      tags_arr[0] = &tag_def;
+      emitter->tag_handle = tag_handle;
+      emitter->tag_prefix = tag_prefix;
+   }
+
    fye = fy_emit_event_create( emitter->fye, FYET_DOCUMENT_START,
-                               0, NULL, NULL );
+                               0, vers, with_tags ? tags_arr : NULL );
    if( !fye ) {
       return 0;
    }
@@ -851,6 +863,49 @@ static inline int astYamlEmitDocumentEnd( AstYamlEmitter *emitter,
    return fy_emit_event( emitter->fye, fye ) == 0;
 }
 
+/* libfyaml 0.8.1 rejects bare URIs in tag_scan; newer versions accept them.
+   Both accept the verbatim YAML form "!<URI>".  If a tag handle/prefix has
+   been declared for the document (stored in the emitter), tags matching that
+   prefix are shortened to handle+suffix form (e.g. "!core/asdf-1.1.0").
+   Otherwise the tag is wrapped as "!<URI>". */
+static inline const char *_astFyamlWrapTag( const char *tag,
+                                            const AstYamlEmitter *emitter,
+                                            char buf[], size_t bufsz ) {
+   size_t tag_len;
+   size_t prefix_len;
+   size_t handle_len;
+   size_t suffix_len;
+   const char *suffix;
+
+   if( !tag || tag[0] == '!' )
+      return tag;
+
+   if( emitter->tag_handle && emitter->tag_prefix ) {
+      prefix_len = strlen( emitter->tag_prefix );
+      if( strncmp( tag, emitter->tag_prefix, prefix_len ) == 0 ) {
+         suffix = tag + prefix_len;
+         suffix_len = strlen( suffix );
+         handle_len = strlen( emitter->tag_handle );
+         if( handle_len + suffix_len + 1 <= bufsz ) {
+            memcpy( buf, emitter->tag_handle, handle_len );
+            memcpy( buf + handle_len, suffix, suffix_len + 1 );
+            return buf;
+         }
+      }
+   }
+
+   tag_len = strlen( tag );
+
+   if( tag_len + 4 > bufsz )  /* strlen("tag:") = 4 */
+      return tag; /* safety: shouldn't happen in practice */
+
+   buf[0] = '!';
+   buf[1] = '<';
+   memcpy( buf + 2, tag, tag_len );
+   buf[tag_len + 2] = '>'; buf[tag_len + 3] = '\0';
+   return buf;
+}
+
 static inline int astYamlEmitScalar( AstYamlEmitter *emitter,
                                      const char *anchor,
                                      const char *tag, const char *value,
@@ -858,6 +913,7 @@ static inline int astYamlEmitScalar( AstYamlEmitter *emitter,
                                      int plain_implicit, int quoted_implicit,
                                      AstYamlStyle style ) {
    struct fy_event *fye;
+   char tag_buf[1024];
    (void) plain_implicit; /* not used */
    (void) quoted_implicit; /* not used */
 
@@ -872,7 +928,7 @@ static inline int astYamlEmitScalar( AstYamlEmitter *emitter,
    fye = fy_emit_event_create( emitter->fye, FYET_SCALAR,
       _astFyamlToScalarStyle( style ),
       value, len,
-      anchor, tag );
+      anchor, _astFyamlWrapTag( tag, emitter, tag_buf, sizeof(tag_buf) ) );
 
    if( !fye ) {
       return 0;
@@ -886,6 +942,7 @@ static inline int astYamlEmitMappingStart( AstYamlEmitter *emitter,
                                            const char *tag, int implicit,
                                            AstYamlStyle style ) {
    struct fy_event *fye;
+   char tag_buf[1024];
    (void) implicit; /* not used */
 
    if( !emitter->fye ) {
@@ -894,7 +951,7 @@ static inline int astYamlEmitMappingStart( AstYamlEmitter *emitter,
 
    fye = fy_emit_event_create( emitter->fye, FYET_MAPPING_START,
       _astFyamlToNodeStyle( style ),
-      anchor, tag );
+      anchor, _astFyamlWrapTag( tag, emitter, tag_buf, sizeof(tag_buf) ) );
 
    if( !fye ) {
       return 0;
@@ -924,6 +981,7 @@ static inline int astYamlEmitSequenceStart( AstYamlEmitter *emitter,
                                             const char *tag, int implicit,
                                             AstYamlStyle style ) {
    struct fy_event *fye;
+   char tag_buf[1024];
    (void) implicit; /* not used */
 
    if( !emitter->fye ) {
@@ -932,7 +990,7 @@ static inline int astYamlEmitSequenceStart( AstYamlEmitter *emitter,
 
    fye = fy_emit_event_create( emitter->fye, FYET_SEQUENCE_START,
       _astFyamlToNodeStyle( style ),
-      anchor, tag );
+      anchor, _astFyamlWrapTag( tag, emitter, tag_buf, sizeof(tag_buf) ) );
 
    if( !fye ) {
       return 0;
