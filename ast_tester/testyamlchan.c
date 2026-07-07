@@ -32,6 +32,7 @@ static void check_sphmap_mappings( AstMapping *map, AstMapping *map2, const char
 static void check_divide_outputs( AstMapping *map, AstMapping *map2, const char *text, int *status );
 
 static void test_yamlencoding_attribute( int *status );
+static void test_asdf_header( int *status );
 static void test_imaging_wcs_roundtrip( int *status );
 static void test_tansip_wcs_roundtrip( int *status );
 static void test_lsst_wcs_roundtrip( int *status );
@@ -53,6 +54,7 @@ int main(){
 
 #ifdef YAML_BACKEND
    test_yamlencoding_attribute( status );
+   test_asdf_header( status );
    test_imaging_wcs_roundtrip( status );
    test_tansip_wcs_roundtrip( status );
    test_lsst_wcs_roundtrip( status );
@@ -123,6 +125,87 @@ void test_yamlencoding_attribute( int *status ){
    if( !chrMatch(astGetC( ch, "YAMLENCODING" ),"ASDF") ) stopit( -6, status );
 
    astAnnul( ch );
+}
+
+
+
+/* Test that the ASDF output file begins with the required directives in the
+   correct order, and that the root tag uses the declared "!" handle shorthand
+   rather than the full verbatim form.  Both %YAML 1.1 and %TAG directives are
+   required by the ASDF standard and must appear before the "---" marker. */
+void test_asdf_header( int *status ){
+   AstObject *obj;
+   AstYamlChan *ch;
+   FILE *f;
+   char buf[256];
+   int i;
+
+/* libfyaml's streaming emitter unfortunately always puts the document-start
+   marker and the root tag on separate lines; libyaml puts them on one line.
+   As far as YAML is concerned this is only a cosmetic difference though. */
+#if defined(YAML)
+   static const char *expected[] = {
+      "#ASDF 1.0.0\n",
+      "%YAML 1.1\n",
+      "%TAG ! tag:stsci.edu:asdf/\n",
+      "--- !core/asdf-1.1.0\n",
+   };
+#elif defined(FYAML)
+   static const char *expected[] = {
+      "#ASDF 1.0.0\n",
+      "%YAML 1.1\n",
+      "%TAG ! tag:stsci.edu:asdf/\n",
+      "---\n",
+      "!core/asdf-1.1.0\n",
+   };
+#endif
+
+   if( *status != SAI__OK )
+      return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=imaging_wcs.asdf,SinkFile=asdf_header_test.asdf" );
+   obj = astRead( ch );
+
+   if( !obj ) {
+      stopit( 70, status ); /* LCOV_EXCL_LINE */
+      astAnnul( ch ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   if( astWrite( ch, obj ) != 1 )
+      stopit( 71, status ); /* LCOV_EXCL_LINE */
+
+   astAnnul( obj );
+   astAnnul( ch );
+
+   if( *status != SAI__OK ) {
+      remove( "asdf_header_test.asdf" ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   f = fopen( "asdf_header_test.asdf", "r" );
+   if( !f ) {
+      stopit( 72, status ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   for( i = 0; i < (int)(sizeof(expected)/sizeof(expected[0])); i++ ) {
+      if( !fgets( buf, sizeof(buf), f ) ) {
+         stopit( 73, status ); /* LCOV_EXCL_LINE */
+         break; /* LCOV_EXCL_LINE */
+      }
+      if( strcmp( buf, expected[i] ) != 0 ) {
+         printf( "  ASDF header line %d mismatch:\n"  /* LCOV_EXCL_LINE */
+                 "    expected: %s" /* LCOV_EXCL_LINE */
+                 "    got:      %s", i + 1, expected[i], buf ); /* LCOV_EXCL_LINE */
+         stopit( 74, status ); /* LCOV_EXCL_LINE */
+         break; /* LCOV_EXCL_LINE */
+      }
+   }
+
+   fclose( f );
+   remove( "asdf_header_test.asdf" );
 }
 
 
