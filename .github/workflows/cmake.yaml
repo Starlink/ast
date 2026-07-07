@@ -26,6 +26,7 @@ jobs:
         shared_libs: [ON, OFF]
         fortran: [OFF]
         sanitizers: [OFF]
+        yaml_backend: [yaml, fyaml]
         c_flags: ['']
         include:
           # x86-64-v3 (Haswell+, 2013: AVX2/FMA) build.  Baseline x86-64
@@ -47,6 +48,7 @@ jobs:
             shared_libs: ON
             fortran: ON
             sanitizers: OFF
+            yaml_backend: yaml
           - os: macos-latest
             build_type: Release
             shared_libs: ON
@@ -88,6 +90,19 @@ jobs:
             fortran: OFF
             sanitizers: OFF
             pthreads: OFF
+          # Debug builds with libfyaml
+          - os: ubuntu-latest
+            build_type: Debug
+            shared_libs: ON
+            fortran: OFF
+            sanitizers: OFF
+            yaml_backend: fyaml
+          - os: macos-latest
+            build_type: Debug
+            shared_libs: ON
+            fortran: OFF
+            sanitizers: OFF
+            yaml_backend: fyaml
 
     runs-on: ${{ matrix.os }}
 
@@ -106,11 +121,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libyaml-dev gfortran libplplot-dev plplot-driver-cairo
+          sudo apt-get install -y libyaml-dev libfyaml-dev gfortran libplplot-dev plplot-driver-cairo
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install libyaml gcc plplot
+        run: brew install libyaml libfyaml gcc plplot
 
       - name: Configure
         run: >
@@ -120,6 +135,7 @@ jobs:
           -DAST_BUILD_FORTRAN=${{ matrix.fortran }}
           -DAST_ENABLE_SANITIZERS=${{ matrix.sanitizers }}
           -DAST_WITH_PTHREADS=${{ matrix.pthreads || 'ON' }}
+          -DAST_YAML_BACKEND=${{ matrix.yaml_backend || 'yaml' }}
           -DAST_C_STANDARD=11
           "-DCMAKE_C_FLAGS=${{ matrix.c_flags }}"
 
