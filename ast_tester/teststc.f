@@ -1714,14 +1714,20 @@ c      end if
 
       integer status, ifl
       character file*(*)
-      integer len, chr_len
+      integer len, chr_len, getenv_status
       character srcdir*255
       character path*255
 
       if( status .ne. sai__ok ) return
 
-      call getenv( 'srcdir', srcdir )
-      if ( srcdir(1:1) .eq. ' ') srcdir = '.'
+      getenv_status = sai__ok
+      call err_mark
+      call psx_getenv( 'srcdir', srcdir, getenv_status )
+      if ( getenv_status .ne. sai__ok ) then
+         call err_annul( getenv_status )
+         srcdir = '.'
+      end if
+      call err_rlse
       len = chr_len( srcdir )
 
       open( 10, status='old', file=srcdir(1:len)//'/'//file )

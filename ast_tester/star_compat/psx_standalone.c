@@ -110,7 +110,7 @@ F77_SUBROUTINE(psx_malloc)( INTEGER(size), POINTER(pntr), INTEGER(status) ) {
  * Hidden trailing arg: type_len (size_t).
  */
 F77_SUBROUTINE(psx_calloc)( INTEGER(n), CHARACTER(type),
-                             POINTER(pntr), INTEGER(status) TRAIL(type) ) {
+                            POINTER(pntr), INTEGER(status) TRAIL(type) ) {
     void *p;
     size_t esize;
     int idx;
@@ -132,7 +132,7 @@ F77_SUBROUTINE(psx_calloc)( INTEGER(n), CHARACTER(type),
  * Fortran: CALL PSX_CALLOC8( N, TYPE, PNTR, STATUS )
  */
 F77_SUBROUTINE(psx_calloc8)( int64_t *n, CHARACTER(type),
-                              POINTER(pntr), INTEGER(status) TRAIL(type) ) {
+                             POINTER(pntr), INTEGER(status) TRAIL(type) ) {
     void *p;
     size_t esize;
     int idx;
@@ -161,5 +161,60 @@ F77_SUBROUTINE(psx_free)( POINTER(pntr), INTEGER(status) ) {
         if ( p ) free( p );
         psx_ptrtab_free( *pntr );
         *pntr = 0;
+    }
+}
+
+/*
+ * psx_getenv_ -- Portable Fortran wrapper around the C getenv() function.
+ * Fortran: CALL PSX_GETENV( NAME, TRANS, STATUS )
+ *
+ * NAME is imported from the (blank-padded) Fortran string, and the environment
+ * variable's value is exported blank-padded into TRANS.  If the variable is
+ * unset, TRANS is blanked and STATUS is set to an error, mirroring the real
+ * PSX_GETENV (which reports PSX__NOENV); the value is truncated, and STATUS
+ * flagged, if it will not fit in TRANS.
+ *
+ * Hidden trailing CHARACTER length args come at the end in declaration order
+ * (see chr_standalone.c for the convention).
+ */
+F77_SUBROUTINE(psx_getenv)( CHARACTER(name), CHARACTER(trans),
+                            INTEGER(status) TRAIL(name) TRAIL(trans) ) {
+    char cname[256];
+    const char *val;
+    size_t nlen;
+    size_t vlen;
+    size_t idx;
+
+    if ( *status != SAI__OK )
+        return;
+
+/* Import NAME: drop trailing blanks and NUL-terminate. */
+    nlen = (size_t)name_length;
+
+    while ( nlen > 0 && name[ nlen - 1 ] == ' ' )
+        nlen--;
+
+    if ( nlen > sizeof( cname ) - 1 )
+        nlen = sizeof( cname ) - 1;
+
+    memcpy( cname, name, nlen );
+    cname[ nlen ] = '\0';
+
+    val = getenv( cname );
+
+    if ( val ) {
+/* Export the value, blank-padded, flagging truncation. */
+        vlen = strlen( val );
+        for ( idx = 0; idx < (size_t)trans_length; idx++ )
+            trans[ idx ] = ( idx < vlen ) ? val[ idx ] : ' ';
+
+        if ( vlen > (size_t)trans_length )
+            *status = SAI__ERROR;
+    } else {
+/* No translation: blank the result and report an error. */
+        for ( idx = 0; idx < (size_t)trans_length; idx++ )
+            trans[ idx ] = ' ';
+
+        *status = SAI__ERROR;
     }
 }
