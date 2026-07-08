@@ -6,7 +6,7 @@
 
       integer*8 kval
       integer status, fs, fc, i, val, iwcfrm, map, km
-      integer len, chr_len
+      integer len, chr_len, getenv_status
       character cards(10)*80, card*80
       character srcdir*255
       logical there
@@ -15,10 +15,17 @@
       status = sai__ok
 
 *  Fixture data files live in the source directory, which the test harness
-*  points at via the 'srcdir' environment variable (falling back to the
-*  current directory for a plain in-source run).
-      call getenv( 'srcdir', srcdir )
-      if ( srcdir(1:1) .eq. ' ') srcdir = '.'
+*  points at via the 'srcdir' environment variable.  PSX_GETENV reports an
+*  error if it is unset, so fallback to the current directory on failure
+*  (e.g. a plain in-source run).
+      getenv_status = sai__ok
+      call err_mark
+      call psx_getenv( 'srcdir', srcdir, getenv_status )
+      if ( getenv_status .ne. sai__ok ) then
+         call err_annul( getenv_status )
+         srcdir = '.'
+      end if
+      call err_rlse
       len = chr_len( srcdir )
 
 
@@ -995,12 +1002,18 @@ c --------------------------------------------------------------------
       external chsource
       integer iobj, status, ch
       character file*(*)
-      integer len, chr_len
+      integer len, chr_len, getenv_status
       character srcdir*255
       character path*255
 
-      call getenv( 'srcdir', srcdir )
-      if ( srcdir(1:1) .eq. ' ') srcdir = '.'
+      getenv_status = sai__ok
+      call err_mark
+      call psx_getenv( 'srcdir', srcdir, getenv_status )
+      if ( getenv_status .ne. sai__ok ) then
+         call err_annul( getenv_status )
+         srcdir = '.'
+      end if
+      call err_rlse
       len = chr_len( srcdir )
 
       open( 10, status='old', file=srcdir(1:len)//'/'//file )
