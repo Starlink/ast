@@ -1,4 +1,4 @@
-name: Build
+name: GNU Autotools Build and Test
 
 on:
   push:
