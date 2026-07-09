@@ -9,6 +9,7 @@ wcsconverter
 !test*.c
 !test*.f
 !test*.sh
+!test*.tap
 
 # Generated test outputs
 divide_roundtrip.asdf
