@@ -115,6 +115,8 @@ function(ast_add_test name)
         list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
     endif()
 
+    # Tests locate their input fixture files relative to $srcdir, so point it
+    # at the source directory where those fixtures live.
     list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
 
     set_tests_properties(${name} PROPERTIES
@@ -796,6 +798,8 @@ if(AST_BUILD_FORTRAN)
             list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
         endif()
 
+        # Tests locate their input fixture files relative to $srcdir, so point
+        # it at the source directory where those fixtures live.
         list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
 
         set_tests_properties(${name}_f PROPERTIES
