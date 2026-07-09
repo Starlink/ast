@@ -80,3 +80,6 @@ jobs:
         if: failure()
         run: |
           tail -n +1 ast_tester/*.log
+
+      - name: Distcheck
+        run: make distcheck ${{ github.event.inputs.make_flags }}
