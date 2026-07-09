@@ -4,4 +4,22 @@
 #ifndef MERS_DEFINED
 #define MERS_DEFINED
 #include "sae_par.h"
+
+static inline void errMark( void ) {}
+static inline void errRlse( void ) {}
+
+static inline void errStat( int *status ) {
+   *status = astOK ? 0 : 1;
+}
+
+static inline void errAnnul( int *status ) {
+   astClearStatus;
+   *status = 0;
+}
+
+static inline void errRep( const char *token, const char *text, int *status ) {
+   (void)token;
+   (void)text;
+   (void)status;
+}
 #endif

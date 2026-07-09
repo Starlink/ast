@@ -419,6 +419,36 @@ EXTRA_DIST = testhuge.sh \
     test_wcsconverter.tap test_simplify.tap test_grid.tap \
     wcsconv_tests.txt simplify_tests.txt grid_tests.txt
 
+# Distribute files needed for the CMake build
+# This includes tests (and associated fixtures) that have not yet been ported
+# to the automake tests (but should be in a follow-up)
+EXTRA_DIST += \
+    CMakeLists.txt \
+    check_transform_oracle.c \
+    framesets.oracle \
+    gen_simplify_fixtures.c \
+    gen_transform_oracle.c \
+    headers.oracle \
+    normalize_fixture.c \
+    offset-sref.head \
+    plot3d-test1.ast \
+    plplotutil.c \
+    plplotutil.h \
+    simplify_fixtures.oracle \
+    specflux.ast \
+    test_oracle_util.c \
+    testfitschanerrors.c \
+    testobjectkeymap.c \
+    testplot3d.c \
+    testplotter.c \
+    testregionmasking.c \
+    testresample.c \
+    testslamap.c \
+    testthreads.c \
+    transform_oracle.h \
+    transform_oracle_overrides.txt \
+    transform_oracle_util.c
+
 # Test fixture data files, grouped by the test that consumes them.  These are
 # distributed so the tests can locate them (via the srcdir environment
 # variable) when run from an unpacked release tarball.
