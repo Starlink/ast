@@ -21,8 +21,7 @@ set(TEST_INCLUDES
     "${CMAKE_CURRENT_SOURCE_DIR}/../wcslib"   # wcslib headers
     "${CMAKE_BINARY_DIR}"                     # generated ast.h, ast_err.h, config.h
     "${CMAKE_BINARY_DIR}/src"                 # generated version.h, object.h
-    "${CMAKE_SOURCE_DIR}/cmake"               # sae_par.h stub
-    "${CMAKE_SOURCE_DIR}/cmake/star"          # mers.h stub
+    "${CMAKE_CURRENT_SOURCE_DIR}/star_compat" # Starlink compatibility stubs
 )
 
 # Common link libraries for all tests.
