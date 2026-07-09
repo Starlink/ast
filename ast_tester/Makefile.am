@@ -23,6 +23,20 @@ if !STARLINK_BUILD
 AM_CPPFLAGS += -I$(srcdir)/star_compat
 endif
 
+# star_compat/ C headers + Fortran INCLUDE files needed to build the tests
+# from a dist tarball (the .c stubs ship via libstar_compat_la_SOURCES).
+noinst_HEADERS = \
+    star_compat/CNF_PAR \
+    star_compat/ERR_PAR \
+    star_compat/NUM_DEC \
+    star_compat/NUM_DEF \
+    star_compat/PRM_PAR \
+    star_compat/SAE_PAR \
+    star_compat/SAI_ERR \
+    star_compat/mers.h \
+    star_compat/sae_par.h \
+    star_compat/sai_err.h
+
 AM_TESTS_ENVIRONMENT = srcdir='$(srcdir)'; export srcdir;
 
 CTEST_LDADD = @LIBPAL@ @LIBCMINPACK@ \
@@ -395,24 +409,77 @@ testhuge_f_FFLAGS  = $(AM_FFLAGS)
 TESTS += testhuge.sh
 EXTRA_DIST = testhuge.sh test_wcsconverter.sh test_simplify.sh numdiff.py
 
-# Include all test fixture files also in EXTRA_DIST
+# Test fixture data files, grouped by the test that consumes them.  These are
+# distributed so the tests can locate them (via the srcdir environment
+# variable) when run from an unpacked release tarball.
+
+# testfitschan (C and Fortran)
 EXTRA_DIST += \
-    2dspline_c.dat \
-    2dspline.dat \
     alt.header \
-    image_wcs.asdf \
-    lsst_wcs.txt \
     sip.head \
-    sparse.ast \
-    splittest1.ast \
-    stcchan-test1-doc3.ast \
-    stcchan-test1-doc3-props.ast \
+    sip-3d.head \
+    sip-3d-swap.head \
+    sparse.ast
+
+# testyamlchan
+EXTRA_DIST += \
+    imaging_wcs.asdf \
+    lsst_wcs.txt \
     tanSipWcs.txt \
+    rotate_seq3d_cartesian.asdf
+
+# testsplinemap
+EXTRA_DIST += \
+    2dspline.dat \
+    2dspline_c.dat
+
+# teststc / teststcschan / testmocchan / testxmlchan
+EXTRA_DIST += \
+    splittest1.ast \
+    stcschan-test1-doc3.ast \
+    stcschan-test1-doc3-props.ast \
     testmocchan_com \
-    teststcom \
+    testxmlchan_com \
+    teststc_com \
     teststc_eg1 teststc_eg2 teststc_eg3 teststc_eg4 teststc_eg5 \
-    teststc_eg6 teststc_eg7 teststc_eg8 teststc_eg9 teststc_eg10 \
-    testxmlchanom
+    teststc_eg6 teststc_eg7 teststc_eg8 teststc_eg9 teststc_eg10
+
+# test_wcsconverter.sh (input FrameSets and reference encodings)
+EXTRA_DIST += \
+    timj.ast timj.fits-wcs timj.fits-iraf timj.fits-aips timj.fits-pc \
+    timj.native \
+    a20070718_00010_02_cube.ast a20070718_00010_02_cube.fits-wcs \
+    dss.ast dss.dss dss.fits-dss dss.fits-wcs \
+    degen1.ast degen1.fits-wcs \
+    sip.fits-wcs \
+    sip2.head sip2.fits-wcs \
+    lsst.ast lsst.fits-wcs \
+    longslit.fits-pc longslit.fits-wcs
+
+# test_simplify.sh (input Mappings and reference simplifications)
+EXTRA_DIST += \
+    brad.map brad.simp \
+    lsst1.map lsst1.simp \
+    rigby.map rigby.simp
+
+# Output files written by the tests during "make check".  Listed here so that
+# "make clean"/"make distclean" removes them; otherwise distcheck's
+# distcleancheck reports them as files left in the build tree.
+CLEANFILES = \
+    divide_roundtrip.asdf \
+    draw3d.txt \
+    fred.tmp \
+    fred.txt \
+    fred2.txt \
+    lsst_wcs.asdf \
+    nativetest.yaml \
+    sm.txt \
+    sm2.txt \
+    sphmap_roundtrip.asdf \
+    tanSipWcs.asdf \
+    testdmp \
+    testfitschan_write.fits \
+    yamltest.asdf
 
 # Data-driven tests: WCS encoding conversion and Mapping simplification.
 check_PROGRAMS += wcsconverter simplify

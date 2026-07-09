@@ -159,15 +159,21 @@ endif
 
 # Header files which contribute to the "ast.h" file, organised to correspond
 # with the class hierarchy.
-AST_H_FILES = \
+AST_H_FILES_HEAD = \
     src/xml.h \
     wcslib/wcstrig.h \
     wcslib/proj.h \
     src/memory.h \
     src/error.h \
     src/globals.h \
-    src/unit.h \
-    ast_err.h \
+    src/unit.h
+
+# ast_err.h belongs here (between src/unit.h and src/version.h) in the ast.h
+# assembly order, but it is generated from ast_err.msg and must not be
+# distributed.  It is therefore omitted from the distributable AST_H_FILES
+# list and spliced into the makeh command line at this position by the ast.h
+# rule below.
+AST_H_FILES_TAIL = \
     src/version.h \
     src/object.h \
        src/keymap.h \
@@ -239,6 +245,11 @@ AST_H_FILES = \
           src/stcschan.h \
           src/xmlchan.h
 
+# The full set of distributable class headers that contribute to ast.h.  The
+# generated ast_err.h is not part of this list (see above); it is injected in
+# the correct position by the ast.h rule when invoking makeh.
+AST_H_FILES = $(AST_H_FILES_HEAD) $(AST_H_FILES_TAIL)
+
 # All the (C) include files required to build the library.
 GRP_C_INCLUDE_FILES = \
     $(AST_H_FILES) \
@@ -266,12 +277,11 @@ if !NOFORTRAN
 F_C_INCLUDE_FILES = \
     src/c2f77.h
 
-# The following list should include AST_PAR, but that must not be
-# distributed, and so it is listed separately in
+# This list should also include AST_PAR and AST_ERR, but those are generated
+# and must not be distributed, so they are listed separately in
 # nodist_libast_la_SOURCES below.
 GRP_F_INCLUDE_FILES = \
-    GRF_PAR \
-    AST_ERR
+    GRF_PAR
 
 else
 F_C_INCLUDE_FILES =
@@ -738,8 +748,7 @@ libast_la_SOURCES = \
     $(GRP_C_INCLUDE_FILES) \
     $(F_C_INCLUDE_FILES) \
     $(GRP_F_INCLUDE_FILES) \
-    $(WCSLIB_FILES) \
-    ast_err.h
+    $(WCSLIB_FILES)
 libast_la_LDFLAGS = -version-info @version_info@
 
 # Ensure libast links against libraries containing functions used within
@@ -767,9 +776,13 @@ endif
 if !NOFORTRAN
 nodist_libast_la_SOURCES = \
     ast.h \
-    AST_PAR
+    ast_err.h \
+    AST_PAR \
+    AST_ERR
 else
-nodist_libast_la_SOURCES = ast.h
+nodist_libast_la_SOURCES = \
+    ast.h \
+    ast_err.h
 endif
 
 #  The default error reporting module.
@@ -867,20 +880,25 @@ ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(MESSGEN)
 	$(MESSGEN) -cF $(srcdir)/ast_err.msg
 endif
 
-# ast_link is generated from ast_link.in; ast_link_adam does not
-# need configuration, and so is not mentioned in AC_CONFIG_FILES within
-# configure.ac, and so is not distributed automatically.
+# Extra files and directories that should be included in the source dist
+# but may not be directly listed as build target dependencies.
 #
-# makeh is required in order to build ast.h after distribution (see below).
-EXTRA_DIST = $(srcdir)/ast_par.source sun210_figures sun211_figures pal erfa cminpack \
-    star_compat
+# cminpack/ is an object-output dir in a VPATH build, so don't dist it as a
+# whole directory (that ships the built objects too); just extra_dist its
+# non-source files.
+EXTRA_DIST = $(srcdir)/ast_par.source $(srcdir)/ast_err.msg \
+    sun210_figures sun211_figures pal erfa \
+    $(srcdir)/cminpack/CopyrightMINPACK.txt \
+    $(srcdir)/cminpack/README.md \
+    $(srcdir)/star_compat/starlink_compat.m4
 
 # ast.h depends on the error-facility files.  ast.h _could_ be made
 # before distribution, but since it's generated from other distributed
 # files, it's more robust to distribute makeh and make ast.h on the
 # build host.
-ast.h: $(AST_H_FILES) ast_err.h $(srcdir)/makeh config.h
-	@PERL@ $(srcdir)/makeh -s $(srcdir) -b $(top_builddir) $(AST_H_FILES) >$@
+ast.h: $(AST_H_FILES_HEAD) ast_err.h $(AST_H_FILES_TAIL) $(srcdir)/makeh config.h
+	@PERL@ $(srcdir)/makeh -s $(srcdir) -b $(top_builddir) \
+	    $(AST_H_FILES_HEAD) ast_err.h $(AST_H_FILES_TAIL) >$@
 
 # AST_ERR and ast_err.h are `generated source files', and so must be
 # generated before any other compilations are done.  Note that these
@@ -930,6 +948,11 @@ install-exec-hook: libast.la
 	   sed -e 's/libast\./libast_pass2\./g' libast.la > libast_pass2.la; \
 	fi
 
+# Remove the second-link libast_pass2.* files and links created by
+# install-exec-hook.
+uninstall-hook:
+	rm -f $(DESTDIR)$(libdir)/libast_pass2.*
+
 # Make pre-distribution files.  These are files which are required for
 # building the distribution, but are not themselves distributed.
 # The source files here should be mentioned in STAR_PREDIST_SOURCES in
@@ -969,7 +992,9 @@ test: install
 #  that the docs can be built from the tex source files. Requires environment
 #  variable STARLATEXSUPPORT to be deined. Is there a better way to do this?
 dist-hook:
-	cp -p $(STARLATEXSUPPORT)/starlink.cls $(distdir)/
-	cp -p $(STARLATEXSUPPORT)/starabbrev.sty $(distdir)/
-	cp -p $(STARLATEXSUPPORT)/starstyle.sty $(distdir)/
-	cp -p $(STARLATEXSUPPORT)/sst.sty $(distdir)/
+	if test x"$(STARLATEXSUPPORT)" != "x"; then \
+	    cp -p $(STARLATEXSUPPORT)/starlink.cls $(distdir)/; \
+	    cp -p $(STARLATEXSUPPORT)/starabbrev.sty $(distdir)/; \
+	    cp -p $(STARLATEXSUPPORT)/starstyle.sty $(distdir)/; \
+	    cp -p $(STARLATEXSUPPORT)/sst.sty $(distdir)/; \
+	fi
