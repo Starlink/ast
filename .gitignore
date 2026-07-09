@@ -26,7 +26,10 @@ aclocal.m4
 ast_err.h
 ast_test.log
 autom4te.cache/
-build-aux/
+build-aux/*
+# tap-driver.sh is vendored (automake's --add-missing does not provide it), so
+# keep it tracked even though the rest of build-aux is autoreconf-generated.
+!build-aux/tap-driver.sh
 cminpack/.deps/
 cminpack/.dirstamp
 componentinfo.dtd
