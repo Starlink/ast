@@ -3,7 +3,7 @@
 #
 # Required cache variables (supplied via -D):
 #   WCSCONVERTER : absolute path to the wcsconverter executable
-#   IN_FILE      : input file (resolved against CWD, i.e. the test working directory)
+#   IN_FILE      : path to the input file
 #   REF_FILE     : reference file to diff against
 #   OUT_FILE     : output file to produce (deleted first by wcsconverter)
 #   ENCODING     : encoding name, e.g. fits-wcs, native, ast, dss, ...

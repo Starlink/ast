@@ -118,8 +118,22 @@ c      call ast_activememory( 'testcmpmap' )
       external chsource
       integer iobj, status, ch
       character file*(*)
+      integer len, chr_len, getenv_status
+      character srcdir*255
+      character path*255
 
-      open( 10, status='old', file=file )
+      getenv_status = sai__ok
+      call err_mark
+      call psx_getenv( 'srcdir', srcdir, getenv_status )
+      if ( getenv_status .ne. sai__ok ) then
+         call err_annul( getenv_status )
+         srcdir = '.'
+      end if
+      call err_rlse
+
+      len = chr_len( srcdir )
+
+      open( 10, status='old', file=srcdir(1:len)//'/'//file )
 
       ch = ast_channel( chsource, AST_NULL, ' ', status )
       iobj = ast_read( ch, status )

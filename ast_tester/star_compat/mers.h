@@ -1,13 +1,9 @@
-/*
- *  Minimal stub for the Starlink MERS (message/error reporting) header.
- *  Provides no-op implementations of the EMS functions used by the
- *  AST test suite, sufficient for tests that don't rely on full error
- *  context stacking.
- */
-#ifndef MERS_H_INCLUDED
-#define MERS_H_INCLUDED
-
-#include "ast.h"
+/* Minimal mers.h stub for standalone (non-Starlink) builds.
+   No mers functions are called by AST tests; this stub satisfies the
+   #include without pulling in Starlink EMS/MSG headers. */
+#ifndef MERS_DEFINED
+#define MERS_DEFINED
+#include "sae_par.h"
 
 static inline void errMark( void ) {}
 static inline void errRlse( void ) {}
@@ -26,5 +22,4 @@ static inline void errRep( const char *token, const char *text, int *status ) {
    (void)text;
    (void)status;
 }
-
 #endif

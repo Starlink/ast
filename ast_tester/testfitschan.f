@@ -6,11 +6,27 @@
 
       integer*8 kval
       integer status, fs, fc, i, val, iwcfrm, map, km
+      integer len, chr_len, getenv_status
       character cards(10)*80, card*80
+      character srcdir*255
       logical there
       double precision xin, yin, xout, yout
 
       status = sai__ok
+
+*  Fixture data files live in the source directory, which the test harness
+*  points at via the 'srcdir' environment variable.  PSX_GETENV reports an
+*  error if it is unset, so fallback to the current directory on failure
+*  (e.g. a plain in-source run).
+      getenv_status = sai__ok
+      call err_mark
+      call psx_getenv( 'srcdir', srcdir, getenv_status )
+      if ( getenv_status .ne. sai__ok ) then
+         call err_annul( getenv_status )
+         srcdir = '.'
+      end if
+      call err_rlse
+      len = chr_len( srcdir )
 
 
 c      call ast_watchmemory( 225192 )
@@ -351,7 +367,8 @@ c      call ast_setl( fc, 'Clean', .true., status )
 *  because the SIP header is non-linear.
       call ast_emptyfits( fc, status )
       call ast_seti( fc, 'SipOK', 0, status )
-      call ast_set( fc, 'SourceFile=sip.head', status )
+      call ast_set( fc, 'SourceFile='//srcdir(1:len)//
+     :              '/sip.head', status )
       call ast_clear( fc, 'Card', status )
       fs = ast_read( fc, status )
       call ast_set( fc, 'Encoding=FITS-WCS', status )
@@ -373,7 +390,8 @@ c      call ast_setl( fc, 'Clean', .true., status )
          call stopit( 14, ' ', status )
       end if
 
-      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_set( fc, 'SourceFile='//srcdir(1:len)//
+     :              '/alt.header', status )
       call ast_clear( fc, 'Card', status )
       call err_begin( status )
       fs = ast_read( fc, status )
@@ -393,7 +411,8 @@ c      call ast_setl( fc, 'Clean', .true., status )
       end if
 
       call ast_emptyfits( fc, status )
-      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_set( fc, 'SourceFile='//srcdir(1:len)//
+     :              '/alt.header', status )
       call ast_clear( fc, 'Card', status )
       call err_begin( status )
       fs = ast_read( fc, status )
@@ -410,7 +429,8 @@ c      call ast_setl( fc, 'Clean', .true., status )
 
 
       call ast_emptyfits( fc, status )
-      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_set( fc, 'SourceFile='//srcdir(1:len)//
+     :              '/alt.header', status )
       call ast_set( fc, 'Warnings=BadAlt', status )
 
       call ast_clear( fc, 'Card', status )
@@ -982,8 +1002,21 @@ c --------------------------------------------------------------------
       external chsource
       integer iobj, status, ch
       character file*(*)
+      integer len, chr_len, getenv_status
+      character srcdir*255
+      character path*255
 
-      open( 10, status='old', file=file )
+      getenv_status = sai__ok
+      call err_mark
+      call psx_getenv( 'srcdir', srcdir, getenv_status )
+      if ( getenv_status .ne. sai__ok ) then
+         call err_annul( getenv_status )
+         srcdir = '.'
+      end if
+      call err_rlse
+      len = chr_len( srcdir )
+
+      open( 10, status='old', file=srcdir(1:len)//'/'//file )
 
       ch = ast_channel( chsource, AST_NULL, ' ', status )
       iobj = ast_read( ch, status )

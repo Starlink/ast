@@ -11,8 +11,12 @@ include(CheckCSourceRuns)
 # $LDFLAGS, and the --disable-new-dtags flag forces RPATH which is
 # searched before LD_LIBRARY_PATH).  Prepending -rpath for the build
 # directory puts it first in the RPATH list.
-set(CMAKE_EXE_LINKER_FLAGS
-    "-Wl,-rpath,${CMAKE_BINARY_DIR} ${CMAKE_EXE_LINKER_FLAGS}")
+#
+# This is an ELF RPATH-precedence workaround and only applies to GNU ld.
+if(NOT APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS
+        "-Wl,-rpath,${CMAKE_BINARY_DIR} ${CMAKE_EXE_LINKER_FLAGS}")
+endif()
 
 # Common include directories for all tests
 set(TEST_INCLUDES
@@ -21,8 +25,7 @@ set(TEST_INCLUDES
     "${CMAKE_CURRENT_SOURCE_DIR}/../wcslib"   # wcslib headers
     "${CMAKE_BINARY_DIR}"                     # generated ast.h, ast_err.h, config.h
     "${CMAKE_BINARY_DIR}/src"                 # generated version.h, object.h
-    "${CMAKE_SOURCE_DIR}/cmake"               # sae_par.h stub
-    "${CMAKE_SOURCE_DIR}/cmake/star"          # mers.h stub
+    "${CMAKE_CURRENT_SOURCE_DIR}/star_compat" # Starlink compatibility stubs
 )
 
 # Common link libraries for all tests.
@@ -61,12 +64,20 @@ function(ast_add_test name)
     ast_apply_dev_options(${name})
     add_test(NAME ${name} COMMAND ${name} ${T_TEST_ARGS}
              WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+    set(test_env "")
     # AST's memory system intentionally caches freed blocks for reuse,
     # so LeakSanitizer reports false positives. Disable leak detection.
     if(AST_ENABLE_SANITIZERS)
-        set_tests_properties(${name} PROPERTIES
-            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+        list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
     endif()
+
+    # Tests locate their input fixture files relative to $srcdir, so point it
+    # at the source directory where those fixtures live.
+    list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
+
+    set_tests_properties(${name} PROPERTIES
+        ENVIRONMENT "${test_env}")
 endfunction()
 
 # Read a pipe-delimited text file into a list of encoded records.
@@ -159,57 +170,45 @@ ast_add_test(testunitnorm)
 ast_add_test(testobjectkeymap)
 
 # --- Tests needing data files ---
-configure_file(2dspline_c.dat "${CMAKE_CURRENT_BINARY_DIR}/2dspline_c.dat" COPYONLY)
 ast_add_test(testsplinemap_c)
 
 # --- Conditional tests ---
 # --- Fortran tests converted to C (Batch 1) ---
-ast_add_test(testzoommap)
-ast_add_test(testnormmap)
-ast_add_test(testmapping)
-ast_add_test(testskyframe)
-ast_add_test(testcmpframe)
-ast_add_test(testlutmap)
-ast_add_test(testratemap)
-ast_add_test(testchannel)
+ast_add_test(testzoommap_c    SOURCES testzoommap.c)
+ast_add_test(testnormmap_c    SOURCES testnormmap.c)
+ast_add_test(testmapping_c    SOURCES testmapping.c)
+ast_add_test(testskyframe_c   SOURCES testskyframe.c)
+ast_add_test(testcmpframe_c   SOURCES testcmpframe.c)
+ast_add_test(testlutmap_c     SOURCES testlutmap.c)
+ast_add_test(testratemap_c    SOURCES testratemap.c)
+ast_add_test(testchannel_c    SOURCES testchannel.c)
 
 # --- Fortran tests converted to C (Batch 2) ---
-ast_add_test(testrate)
-ast_add_test(testspecframe)
-ast_add_test(testflux)
-ast_add_test(testspecflux)
-configure_file(splittest1.ast "${CMAKE_CURRENT_BINARY_DIR}/splittest1.ast" COPYONLY)
-ast_add_test(testcmpmap)
-ast_add_test(testpolymap)
-ast_add_test(testchebymap)
+ast_add_test(testrate_c       SOURCES testrate.c)
+ast_add_test(testspecframe_c  SOURCES testspecframe.c)
+ast_add_test(testflux_c       SOURCES testflux.c)
+ast_add_test(testspecflux_c   SOURCES testspecflux.c)
+ast_add_test(testcmpmap_c     SOURCES testcmpmap.c)
+ast_add_test(testpolymap_c    SOURCES testpolymap.c)
+ast_add_test(testchebymap_c   SOURCES testchebymap.c)
 ast_add_test(testunitnormmap_c SOURCES testunitnormmap.c)
-ast_add_test(testtrangrid)
-ast_add_test(testmoc)
-ast_add_test(testfitstable)
-ast_add_test(testframeset)
-ast_add_test(testswitchmap)
-ast_add_test(testtime)
-ast_add_test(testkeymap)
-ast_add_test(testmocchan)
+ast_add_test(testtrangrid_c   SOURCES testtrangrid.c)
+ast_add_test(testmoc_c        SOURCES testmoc.c)
+ast_add_test(testfitstable_c  SOURCES testfitstable.c)
+ast_add_test(testframeset_c   SOURCES testframeset.c)
+ast_add_test(testswitchmap_c  SOURCES testswitchmap.c)
+ast_add_test(testtime_c       SOURCES testtime.c)
+ast_add_test(testkeymap_c     SOURCES testkeymap.c)
+ast_add_test(testmocchan_c    SOURCES testmocchan.c)
 ast_add_test(testxmlchan_c SOURCES testxmlchan.c)
 ast_add_test(testtable_c SOURCES testtable.c)
-configure_file(stcschan-test1-doc3.ast "${CMAKE_CURRENT_BINARY_DIR}/stcschan-test1-doc3.ast" COPYONLY)
-configure_file(stcschan-test1-doc3-props.ast "${CMAKE_CURRENT_BINARY_DIR}/stcschan-test1-doc3-props.ast" COPYONLY)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
 ast_add_test(testregions_c SOURCES testregions.c)
 ast_add_test(testregionmasking_c SOURCES testregionmasking.c)
 ast_add_test(testrebinseq_c SOURCES testrebinseq.c)
 ast_add_test(testrebin_c SOURCES testrebin.c)
 ast_add_test(testresample)
-foreach(_eg RANGE 1 10)
-    configure_file(teststc_eg${_eg} "${CMAKE_CURRENT_BINARY_DIR}/teststc_eg${_eg}" COPYONLY)
-endforeach()
 ast_add_test(teststc_c SOURCES teststc.c)
-configure_file(sip.head "${CMAKE_CURRENT_BINARY_DIR}/sip.head" COPYONLY)
-configure_file(sip-3d.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d.head" COPYONLY)
-configure_file(sip-3d-swap.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d-swap.head" COPYONLY)
-configure_file(alt.header "${CMAKE_CURRENT_BINARY_DIR}/alt.header" COPYONLY)
-configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
 ast_add_test(testfitschan_c SOURCES testfitschan.c)
 ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
 
@@ -266,17 +265,13 @@ function(add_wcsconv_test)
     if(NOT DEFINED W_ATTRS)
         set(W_ATTRS "")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${W_INPUT}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${W_INPUT}" COPYONLY)
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${W_REFERENCE}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${W_REFERENCE}" COPYONLY)
 
     if(NOT W_SKIP_STRING_COMPARE)
         add_test(NAME wcsconv_${W_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DWCSCONVERTER=$<TARGET_FILE:wcsconverter>
-                -DIN_FILE=${W_INPUT}
-                -DREF_FILE=${W_REFERENCE}
+                -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${W_INPUT}
+                -DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${W_REFERENCE}
                 -DOUT_FILE=${W_NAME}.out
                 -DENCODING=${W_ENCODING}
                 -DATTRS=${W_ATTRS}
@@ -292,8 +287,8 @@ function(add_wcsconv_test)
         COMMAND ${CMAKE_COMMAND}
             -DWCSCONVERTER=$<TARGET_FILE:wcsconverter>
             -DAST_ASTEQUAL=$<TARGET_FILE:ast_astequal>
-            -DIN_FILE=${W_INPUT}
-            -DREF_FILE=${W_REFERENCE}
+            -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${W_INPUT}
+            -DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${W_REFERENCE}
             -DOUT_FILE=${W_NAME}.astequal.out
             -DENCODING=${W_ENCODING}
             -DATTRS=${W_ATTRS}
@@ -376,17 +371,12 @@ function(add_simplify_test)
         message(FATAL_ERROR
             "add_simplify_test: NAME, INPUT, REFERENCE all required")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${S_INPUT}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${S_INPUT}" COPYONLY)
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${S_REFERENCE}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${S_REFERENCE}" COPYONLY)
-
     if(NOT S_SKIP_STRING_COMPARE)
         add_test(NAME simplify_${S_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DSIMPLIFY=$<TARGET_FILE:simplify>
-                -DIN_FILE=${S_INPUT}
-                -DREF_FILE=${S_REFERENCE}
+                -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${S_INPUT}
+                -DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${S_REFERENCE}
                 -DOUT_FILE=${S_NAME}.out
                 -P "${CMAKE_SOURCE_DIR}/cmake/run_simplify_test.cmake"
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -400,8 +390,8 @@ function(add_simplify_test)
         COMMAND ${CMAKE_COMMAND}
             -DSIMPLIFY=$<TARGET_FILE:simplify>
             -DAST_ASTEQUAL=$<TARGET_FILE:ast_astequal>
-            -DIN_FILE=${S_INPUT}
-            -DREF_FILE=${S_REFERENCE}
+            -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${S_INPUT}
+            -DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${S_REFERENCE}
             -DOUT_FILE=${S_NAME}.astequal.out
             -P "${CMAKE_SOURCE_DIR}/cmake/run_simplify_astequal_test.cmake"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -434,12 +424,6 @@ endif()
 
 # --- Conditional tests ---
 if(HAVE_YAML)
-    # Input data files read by the round-trip tests (the .asdf/.yaml files
-    # written by the test are created in the working directory at run time).
-    configure_file(imaging_wcs.asdf "${CMAKE_CURRENT_BINARY_DIR}/imaging_wcs.asdf" COPYONLY)
-    configure_file(tanSipWcs.txt "${CMAKE_CURRENT_BINARY_DIR}/tanSipWcs.txt" COPYONLY)
-    configure_file(lsst_wcs.txt "${CMAKE_CURRENT_BINARY_DIR}/lsst_wcs.txt" COPYONLY)
-    configure_file(rotate_seq3d_cartesian.asdf "${CMAKE_CURRENT_BINARY_DIR}/rotate_seq3d_cartesian.asdf" COPYONLY)
     ast_add_test(testyamlchan)
 endif()
 
@@ -450,12 +434,11 @@ endif()
 # --- Grid smoke tests (no PLplot dependency) ---
 # Uses the logging GRF module (grf_log.c) to exercise astGrid on each
 # .head file without requiring any external graphics library.
-configure_file(lsst.fits-wcs "${CMAKE_CURRENT_BINARY_DIR}/lsst.fits-wcs" COPYONLY)
 ast_add_test(testgrid
     NO_DEFAULT_GRF_LIBS
     EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log>
                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
-    TEST_ARGS "lsst.fits-wcs" " " " "
+    TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/lsst.fits-wcs" " " " "
 )
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
@@ -474,9 +457,6 @@ function(add_grid_test)
     if(NOT DEFINED P_FATTR)
         set(P_FATTR " ")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${P_HEAD}" COPYONLY)
-
     set(_box_arg "")
     if(DEFINED P_BOX)
         set(_box_arg "${P_BOX}")
@@ -484,15 +464,13 @@ function(add_grid_test)
 
     set(_ref_arg "")
     if(P_REFERENCE AND NOT P_SKIP_TEXT_COMPARE)
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_REFERENCE}"
-                       "${CMAKE_CURRENT_BINARY_DIR}/${P_REFERENCE}" COPYONLY)
-        set(_ref_arg "-DREF_FILE=${P_REFERENCE}")
+        set(_ref_arg "-DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${P_REFERENCE}")
     endif()
 
     add_test(NAME grid_${P_NAME}
         COMMAND ${CMAKE_COMMAND}
             -DTESTGRID=$<TARGET_FILE:testgrid>
-            -DHEAD_FILE=${P_HEAD}
+            -DHEAD_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}
             "-DATTR=${P_ATTR}"
             "-DFATTR=${P_FATTR}"
             -DOUT_FILE=grid_${P_NAME}.svg
@@ -575,25 +553,24 @@ if(PLPLOT_FOUND)
         timeplot
     )
 
-    configure_file(lsst.fits-wcs "${CMAKE_CURRENT_BINARY_DIR}/lsst.fits-wcs" COPYONLY)
     ast_add_test(testplotter
         SOURCES testplotter.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
-        TEST_ARGS "lsst.fits-wcs" " " " " "testplotter.ps"
+        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/lsst.fits-wcs" " " " " "testplotter.ps"
     )
     target_include_directories(testplotter PRIVATE ${PLPLOT_INCLUDE_DIRS})
     target_link_directories(testplotter PRIVATE ${PLPLOT_LIBRARY_DIRS})
 
-    configure_file(plot3d-test1.ast "${CMAKE_CURRENT_BINARY_DIR}/plot3d-test1.ast" COPYONLY)
-    ast_add_test(testplot3d
+    ast_add_test(testplot3d_c
         SOURCES testplot3d.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
+        SOURCES testplot3d.c
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
         TEST_ARGS "testplot3d.pdf"
     )
-    target_include_directories(testplot3d PRIVATE ${PLPLOT_INCLUDE_DIRS})
-    target_link_directories(testplot3d PRIVATE ${PLPLOT_LIBRARY_DIRS})
+    target_include_directories(testplot3d_c PRIVATE ${PLPLOT_INCLUDE_DIRS})
+    target_link_directories(testplot3d_c PRIVATE ${PLPLOT_LIBRARY_DIRS})
 
     # --- Plotter smoke tests ---
     # Run testplotter on each .head file with its .attr/.fattr/.box
@@ -614,9 +591,6 @@ if(PLPLOT_FOUND)
         if(NOT DEFINED P_FATTR)
             set(P_FATTR " ")
         endif()
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}"
-                       "${CMAKE_CURRENT_BINARY_DIR}/${P_HEAD}" COPYONLY)
-
         set(_box_arg "")
         if(DEFINED P_BOX)
             set(_box_arg "${P_BOX}")
@@ -625,7 +599,7 @@ if(PLPLOT_FOUND)
         add_test(NAME plotter_${P_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DTESTPLOTTER=$<TARGET_FILE:testplotter>
-                -DHEAD_FILE=${P_HEAD}
+                -DHEAD_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}
                 "-DATTR=${P_ATTR}"
                 "-DFATTR=${P_FATTR}"
                 -DOUT_FILE=plotter_${P_NAME}.pdf
@@ -671,3 +645,134 @@ if(PLPLOT_FOUND)
     endforeach()
 endif()
 
+
+# ============================================================
+# Fortran tests (AST_BUILD_FORTRAN=ON only)
+# ============================================================
+# These run the original Fortran test programs against the Fortran binding,
+# complementing the C equivalents above.  Each test is suffixed _f to
+# distinguish it from the C version in ctest output.
+if(AST_BUILD_FORTRAN)
+
+    # Minimal C implementations of the Starlink APIs called by the Fortran
+    # tests (EMS error handling, PSX memory, CNF C/Fortran interface, etc.).
+    add_library(ast_star_compat STATIC
+        star_compat/err_standalone.c
+        star_compat/psx_standalone.c
+        star_compat/chr_standalone.c
+        star_compat/cnf_standalone.c
+        star_compat/num_standalone.c
+    )
+    target_include_directories(ast_star_compat PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/star_compat"
+        "${CMAKE_BINARY_DIR}"       # config.h, ast_err.h
+        "${CMAKE_BINARY_DIR}/src"   # f77.h (generated from f77.h.in)
+    )
+    target_compile_definitions(ast_star_compat PRIVATE HAVE_CONFIG_H)
+
+    # Helper: add a Fortran test program and register it with ctest.
+    # Test names get a _f suffix to distinguish from C equivalents.
+    # The Fortran INCLUDE search path covers:
+    #   - star_compat/  : SAE_PAR, SAI_ERR, CNF_PAR, ERR_PAR, etc.
+    #   - CMAKE_BINARY_DIR : generated AST_PAR and AST_ERR
+    function(ast_add_fortran_test name)
+        cmake_parse_arguments(FT "NO_DEFAULT_GRF_LIBS" "" "EXTRA_LIBS;TEST_ARGS" ${ARGN})
+        add_executable(${name}_f ${name}.f)
+        if(AST_FORTRAN_TEST_FLAGS)
+            target_compile_options(${name}_f PRIVATE
+                $<$<COMPILE_LANGUAGE:Fortran>:${AST_FORTRAN_TEST_FLAGS}>
+            )
+        endif()
+        target_include_directories(${name}_f PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/star_compat"
+            "${CMAKE_BINARY_DIR}"   # AST_PAR, AST_ERR
+        )
+        if(FT_NO_DEFAULT_GRF_LIBS)
+            set(_grf_libs
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
+                ${FT_EXTRA_LIBS}
+            )
+        else()
+            set(_grf_libs
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_2.0>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_3.2>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_5.6>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
+                ${FT_EXTRA_LIBS}
+            )
+        endif()
+        target_link_libraries(${name}_f PRIVATE
+            ast
+            ${_grf_libs}
+            ast_star_compat
+            m
+        )
+        add_test(NAME ${name}_f COMMAND ${name}_f ${FT_TEST_ARGS}
+                 WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+        set(test_env "")
+        if(AST_ENABLE_SANITIZERS)
+            list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
+        endif()
+
+        # Tests locate their input fixture files relative to $srcdir, so point
+        # it at the source directory where those fixtures live.
+        list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
+
+        set_tests_properties(${name}_f PROPERTIES
+            ENVIRONMENT "${test_env}")
+        endfunction()
+
+    # Custom target that ensures AST_PAR and AST_ERR exist before any
+    # Fortran test is compiled (they are Fortran INCLUDE files).
+    # ast_par and ast_codegen are defined in the top-level CMakeLists.txt.
+    add_custom_target(ast_fortran_includes)
+    add_dependencies(ast_fortran_includes ast_par ast_codegen)
+
+    # All 33 unconditional Fortran test programs
+    set(_fortran_tests
+        testzoommap
+        testnormmap
+        testmapping
+        testskyframe
+        testcmpframe
+        testlutmap
+        testratemap
+        testchannel
+        testrate
+        testspecframe
+        testflux
+        testspecflux
+        testcmpmap
+        testpolymap
+        testchebymap
+        testunitnormmap
+        testtrangrid
+        testmoc
+        testfitstable
+        testframeset
+        testswitchmap
+        testtime
+        testkeymap
+        testmocchan
+        testxmlchan
+        testtable
+        teststcschan
+        testregions
+        testrebinseq
+        testrebin
+        teststc
+        testfitschan
+        testsplinemap
+    )
+    foreach(_f_test IN LISTS _fortran_tests)
+        ast_add_fortran_test(${_f_test})
+        add_dependencies(${_f_test}_f ast_fortran_includes)
+    endforeach()
+
+    if(AST_ENABLE_HUGE_TEST)
+        ast_add_fortran_test(testhuge)
+        add_dependencies(testhuge_f ast_fortran_includes)
+    endif()
+endif() # AST_BUILD_FORTRAN

@@ -14,7 +14,12 @@ m4_define([v_maj], m4_esyscmd_s([awk -F. 'NR==1 {print $1}' version.number]))
 m4_define([v_min], m4_esyscmd_s([awk -F. 'NR==1 {print $2}' version.number]))
 m4_define([v_mic], m4_esyscmd_s([awk -F. 'NR==1 {print $3}' version.number]))
 AC_INIT([ast],[project_version],[starlink@jiscmail.ac.uk])
+dnl   Expose individual version components for src/version.h.in substitution.
+AC_SUBST([PACKAGE_VERSION_MAJOR], [v_maj])
+AC_SUBST([PACKAGE_VERSION_MINOR], [v_min])
+AC_SUBST([PACKAGE_VERSION_RELEASE], [v_mic])
 AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([m4])
 
 dnl   Shared library versioning
 m4_define([lt_cur], [m4_eval(v_maj + v_min)])
@@ -26,10 +31,22 @@ AC_SUBST([version_info])
 dnl   Require autoconf-2.50 at least
 AC_PREREQ([2.69])
 dnl   Require Starlink automake
-AM_INIT_AUTOMAKE([1.8.2-starlink subdir-objects])
+AM_INIT_AUTOMAKE(m4_esyscmd([
+  if command -v starconf >/dev/null 2>&1; then
+    echo "1.8.2-starlink subdir-objects"
+  else
+    echo "foreign subdir-objects"
+  fi
+]))
 
 dnl   Sanity-check: name a file in the source directory
 AC_CONFIG_SRCDIR([ast_link.in])
+
+dnl   Detect starconf: if present we're building inside Starlink infrastructure.
+dnl   Used to decide whether to generate component.xml and whether to link
+dnl   Fortran tests against real Starlink libraries vs standalone stubs.
+AC_PATH_PROG([STARCONF], [starconf], [no])
+AM_CONDITIONAL([STARLINK_BUILD], [test "x$STARCONF" != "xno"])
 
 #   Checks for programs
 AC_PROG_CC
@@ -136,6 +153,30 @@ AC_SUBST(FORTRAN, $use_fortran)
 if test "$use_fortran" = "1"; then
 AC_PROG_FC
 AC_FC_LIBRARY_LDFLAGS
+dnl  Automake uses F77/FFLAGS for .f files (Fortran 77 fixed form).
+dnl  Point F77 at the same compiler as FC.
+AC_PROG_F77
+
+dnl  Probe for optional Fortran flags; not all compilers support them.
+AST_FFLAGS_EXTRA=
+if test -n "$F77"; then
+  AC_LANG_PUSH([Fortran 77])
+  for flag in -fallow-argument-mismatch -fno-range-check -Wno-real-constant-widening; do
+    AC_MSG_CHECKING([whether $F77 accepts $flag])
+    ast_save_FFLAGS=$FFLAGS
+    FFLAGS="$FFLAGS $flag"
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+          program test
+          end
+    ])],
+      [AC_MSG_RESULT([yes])
+       AST_FFLAGS_EXTRA="$AST_FFLAGS_EXTRA $flag"],
+      [AC_MSG_RESULT([no])])
+    FFLAGS=$ast_save_FFLAGS
+  done
+  AC_LANG_POP([Fortran 77])
+fi
+AC_SUBST([AST_FFLAGS_EXTRA])
 fi
 
 #  Prepare a version of STAR_FFLAGS with -I... removed
@@ -167,17 +208,70 @@ fi
 AM_CONDITIONAL(NOTHREADS, test x$use_pthreads = x0)
 AC_SUBST(THREADS, $use_pthreads)
 
-#  Conditional defining whether we build with YAML support.
+#  Conditional defining whether we build with YAML support. libyaml is
+#  looked for on the compiler's default search paths, unless it is told
+#  where to look: either --with-yaml=DIR, for an installation with the
+#  usual DIR/include and DIR/lib layout, or the YAML_CFLAGS and YAML_LIBS
+#  variables, for anything more awkward.
+AC_ARG_VAR([YAML_CFLAGS], [C compiler flags for libyaml, e.g. -I/opt/foo/include])
+AC_ARG_VAR([YAML_LIBS], [linker flags for libyaml, e.g. -L/opt/foo/lib -lyaml])
 AC_ARG_WITH([yaml],
-            [ --without-yaml   Build package without YAML support],
-        if test "$withval" = "yes"; then
-           use_yaml="1"
-        else
-           use_yaml="0"
-        fi,
-        use_yaml="1")
+            [AS_HELP_STRING([--with-yaml@<:@=DIR@:>@],
+                            [Build package with YAML support, taking libyaml
+                             from DIR/include and DIR/lib if DIR is given
+                             @<:@default=yes@:>@])],
+        [yaml_explicit="1"],
+        [with_yaml="yes"; yaml_explicit="0"])
+
+#  Setting either variable by hand is as much a request for YAML support as
+#  --with-yaml is, so treat it the same when the search comes up empty.
+if test -n "$YAML_CFLAGS" || test -n "$YAML_LIBS"; then
+    yaml_explicit="1"
+fi
+
+use_yaml="1"
+case $with_yaml in
+    no)
+        use_yaml="0" ;;
+    yes) ;;
+    *)
+        test -z "$YAML_CFLAGS" && YAML_CFLAGS="-I$with_yaml/include"
+        test -z "$YAML_LIBS" && YAML_LIBS="-L$with_yaml/lib -lyaml" ;;
+esac
+
 if test "$use_yaml" = "1"; then
-AC_CHECK_LIB([yaml], [yaml_parser_initialize], ,[use_yaml="0"])
+    test -z "$YAML_LIBS" && YAML_LIBS="-lyaml"
+
+#  Both the header and the library have to be usable with these flags in
+#  place, so probe with them applied. They are left applied afterwards on
+#  success, since the whole package is then built against libyaml.
+    yaml_save_CPPFLAGS="$CPPFLAGS"
+    yaml_save_LIBS="$LIBS"
+    CPPFLAGS="$CPPFLAGS $YAML_CFLAGS"
+    LIBS="$YAML_LIBS $LIBS"
+
+    AC_CHECK_HEADER([yaml.h], [], [use_yaml="0"])
+    if test "$use_yaml" = "1"; then
+        AC_MSG_CHECKING([for yaml_parser_initialize in libyaml])
+        AC_LINK_IFELSE([AC_LANG_CALL([], [yaml_parser_initialize])],
+                       [AC_MSG_RESULT([yes])],
+                       [AC_MSG_RESULT([no]); use_yaml="0"])
+    fi
+
+    if test "$use_yaml" = "0"; then
+        CPPFLAGS="$yaml_save_CPPFLAGS"
+        LIBS="$yaml_save_LIBS"
+        YAML_CFLAGS=""
+        YAML_LIBS=""
+
+#  Having been told explicitly to build with libyaml, quietly building
+#  without it is never what the user wanted.
+        if test "$yaml_explicit" = "1"; then
+            AC_MSG_ERROR([libyaml could not be found, but YAML support was
+requested via --with-yaml, YAML_CFLAGS or YAML_LIBS. Use --without-yaml to
+build without YAML support.])
+        fi
+    fi
 fi
 AM_CONDITIONAL(NOYAML, test x$use_yaml = x0)
 AC_SUBST(YAML, $use_yaml)
@@ -256,6 +350,9 @@ STAR_CNF_F2C_COMPATIBLE
 
 # Determine the type of Fortran character string lengths.
 STAR_CNF_TRAIL_TYPE
+
+# Determine the symbol for the Fortran blank common block.
+STAR_CNF_BLANK_COMMON
 fi
 
 #   Declare the message file.
@@ -308,9 +405,13 @@ STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
 
 AC_CONFIG_HEADERS(config.h)
 
-AC_CONFIG_FILES(Makefile component.xml ast_link ast_link_adam src/object.h)
+AC_CONFIG_FILES(Makefile ast_link ast_link_adam ast_tester/Makefile src/object.h)
 if test "$use_fortran" = "1"; then
 AC_CONFIG_FILES(src/f77.h)
+fi
+
+if test "x$STARCONF" != "xno"; then
+AC_CONFIG_FILES(component.xml)
 fi
 
 AC_CONFIG_FILES([ast_cpp], [chmod +x ast_cpp])

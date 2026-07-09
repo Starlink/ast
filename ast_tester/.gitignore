@@ -9,11 +9,13 @@ wcsconverter
 !test*.c
 !test*.f
 !test*.sh
+!test*.tap
 
 # Generated test outputs
 divide_roundtrip.asdf
 lsst_wcs.asdf
 nativetest.yaml
+sm.txt
 sphmap_roundtrip.asdf
 tanSipWcs.asdf
 yamltest.asdf

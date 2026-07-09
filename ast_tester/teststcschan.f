@@ -699,12 +699,25 @@ c      call ast_flushmemory( 1 )
       include 'SAE_PAR'
       include 'AST_PAR'
       integer obj, status, channel
+      integer len, chr_len, getenv_status
       character file*(*)
+      character srcdir*255
+      character path*255
       external rsource
 
       if( status .ne. sai__ok ) return
 
-      open( 10, file=file, status='old' )
+      getenv_status = sai__ok
+      call err_mark
+      call psx_getenv( 'srcdir', srcdir, getenv_status )
+      if ( getenv_status .ne. sai__ok ) then
+         call err_annul( getenv_status )
+         srcdir = '.'
+      end if
+      call err_rlse
+      len = chr_len( srcdir )
+
+      open( 10, status='old', file=srcdir(1:len)//'/'//file )
       channel = ast_channel( rsource, ast_null, ' ', status )
       obj = ast_read( channel, status )
       call ast_annul( channel, status )

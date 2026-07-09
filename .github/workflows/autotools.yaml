@@ -1,0 +1,96 @@
+name: GNU Autotools Build and Test
+
+on:
+  push:
+    branches: [master]
+    tags: '*'
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      make_flags:
+        description: Extra flags to pass to make
+        required: false
+
+jobs:
+  build-and-test:
+    name: Build and run `make check`
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            cc: clang
+            f77: flang
+          - os: ubuntu-latest
+            cc: gcc
+            f77: gfortran
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            libtool \
+            build-essential \
+            libyaml-dev
+
+          if [ "${{ matrix.cc }}" = "clang" ]; then
+            sudo apt-get install -y clang
+          fi
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install \
+            autoconf \
+            automake \
+            libtool \
+            libyaml \
+            flang
+
+      - name: Setup ccache action
+        uses: Chocobo1/setup-ccache-action@v1.5.1
+
+      - name: Bootstrap autotools
+        run: ./bootstrap.local
+
+      # Homebrew installs outside the compiler's default search paths, so
+      # libyaml has to be pointed at explicitly
+      - name: Configure (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./configure CC=${{ matrix.cc }} F77=${{ matrix.f77 }} \
+            --with-yaml="$(brew --prefix libyaml)"
+
+      - name: Configure (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          ./configure CC=${{ matrix.cc }} F77=${{ matrix.f77 }}
+
+      # If make fails re-run with V=1 so we can inspect
+      - name: Build
+        run: |
+          make ${{ github.event.inputs.make_flags }} || \
+          make ${{ github.event.inputs.make_flags }} V=1
+
+      - name: Check
+        run: make check ${{ github.event.inputs.make_flags }}
+
+      - name: Output test logs on failure
+        if: failure()
+        run: |
+          tail -n +1 ast_tester/*.log
+
+      - name: Distcheck
+        run: make distcheck ${{ github.event.inputs.make_flags }}

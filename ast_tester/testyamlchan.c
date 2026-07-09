@@ -2,8 +2,19 @@
 #include "mers.h"
 #include "sae_par.h"
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
+
+/* Return the directory holding the read-only test fixture files.
+
+   The fixture data file lives in the source directory, which the test
+   harness points at via the 'srcdir' environment variable (falling back to
+   the current directory for a plain in-source run). */
+static const char *fixture_dir( void ){
+   const char *dir = getenv( "srcdir" );
+   return ( dir && *dir ) ? dir : ".";
+}
 
 static void stopit( int i, int *status );
 static void check_imaging_wcs( AstObject *obj, const char *text, int *status );
@@ -107,7 +118,8 @@ void test_imaging_wcs_roundtrip( int *status ){
    if( *status != SAI__OK ) return;
 
    ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=imaging_wcs.asdf,SinkFile=yamltest.asdf" );
+   astSet( ch, "SourceFile=%s/imaging_wcs.asdf,SinkFile=yamltest.asdf",
+           fixture_dir() );
 
    obj = astRead( ch );
    check_imaging_wcs( obj, "Read tests failed for imaging_wcs.asdf", status );
@@ -142,7 +154,7 @@ void test_tansip_wcs_roundtrip( int *status ){
    ch  = astYamlChan( NULL, NULL, " " );
    ch2 = astChannel( NULL, NULL, " " );
 
-   astSet( ch2, "SourceFile=tanSipWcs.txt" );
+   astSet( ch2, "SourceFile=%s/tanSipWcs.txt", fixture_dir() );
    obj = astRead( ch2 );
    check_tansip_wcs( obj, "Read tests failed for tanSipWcs.txt", status );
 
@@ -175,7 +187,7 @@ void test_lsst_wcs_roundtrip( int *status ){
    ch  = astYamlChan( NULL, NULL, " " );
    ch2 = astChannel( NULL, NULL, " " );
 
-   astSet( ch2, "SourceFile=lsst_wcs.txt" );
+   astSet( ch2, "SourceFile=%s/lsst_wcs.txt", fixture_dir() );
    obj = astRead( ch2 );
 
    astSet( ch, "SinkFile=lsst_wcs.asdf" );
@@ -207,7 +219,7 @@ void test_native_encoding_roundtrip( int *status ){
    if( *status != SAI__OK ) return;
 
    ch2 = astChannel( NULL, NULL, " " );
-   astSet( ch2, "SourceFile=lsst_wcs.txt" );
+   astSet( ch2, "SourceFile=%s/lsst_wcs.txt", fixture_dir() );
    obj = astRead( ch2 );
    astAnnul( ch2 );
 
@@ -667,7 +679,7 @@ void test_rotate_sequence_3d_roundtrip( int *status ){
       return;
 
    ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=rotate_seq3d_cartesian.asdf" );
+   astSet( ch, "SourceFile=%s/rotate_seq3d_cartesian.asdf", fixture_dir() );
    fs = (AstFrameSet *) astRead( ch );
    astAnnul( ch );
    if( !fs ) {
