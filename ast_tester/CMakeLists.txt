@@ -69,6 +69,8 @@ function(ast_add_test name)
         list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
     endif()
 
+    # Tests locate their input fixture files relative to $srcdir, so point it
+    # at the source directory where those fixtures live.
     list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
 
     set_tests_properties(${name} PROPERTIES
@@ -203,15 +205,7 @@ ast_add_test(testregionmasking_c SOURCES testregionmasking.c)
 ast_add_test(testrebinseq_c SOURCES testrebinseq.c)
 ast_add_test(testrebin_c SOURCES testrebin.c)
 ast_add_test(testresample)
-foreach(_eg RANGE 1 10)
-    configure_file(teststc_eg${_eg} "${CMAKE_CURRENT_BINARY_DIR}/teststc_eg${_eg}" COPYONLY)
-endforeach()
 ast_add_test(teststc_c SOURCES teststc.c)
-configure_file(sip.head "${CMAKE_CURRENT_BINARY_DIR}/sip.head" COPYONLY)
-configure_file(sip-3d.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d.head" COPYONLY)
-configure_file(sip-3d-swap.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d-swap.head" COPYONLY)
-configure_file(alt.header "${CMAKE_CURRENT_BINARY_DIR}/alt.header" COPYONLY)
-configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
 ast_add_test(testfitschan_c SOURCES testfitschan.c)
 ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
 
@@ -436,12 +430,6 @@ endif()
 
 # --- Conditional tests ---
 if(HAVE_YAML)
-    # Input data files read by the round-trip tests (the .asdf/.yaml files
-    # written by the test are created in the working directory at run time).
-    configure_file(imaging_wcs.asdf "${CMAKE_CURRENT_BINARY_DIR}/imaging_wcs.asdf" COPYONLY)
-    configure_file(tanSipWcs.txt "${CMAKE_CURRENT_BINARY_DIR}/tanSipWcs.txt" COPYONLY)
-    configure_file(lsst_wcs.txt "${CMAKE_CURRENT_BINARY_DIR}/lsst_wcs.txt" COPYONLY)
-    configure_file(rotate_seq3d_cartesian.asdf "${CMAKE_CURRENT_BINARY_DIR}/rotate_seq3d_cartesian.asdf" COPYONLY)
     ast_add_test(testyamlchan)
 endif()
 
@@ -743,6 +731,8 @@ if(AST_BUILD_FORTRAN)
             list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
         endif()
 
+        # Tests locate their input fixture files relative to $srcdir, so point
+        # it at the source directory where those fixtures live.
         list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
 
         set_tests_properties(${name}_f PROPERTIES
