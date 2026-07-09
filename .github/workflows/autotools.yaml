@@ -65,7 +65,16 @@ jobs:
       - name: Bootstrap autotools
         run: ./bootstrap.local
 
-      - name: Configure
+      # Homebrew installs outside the compiler's default search paths, so
+      # libyaml has to be pointed at explicitly
+      - name: Configure (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./configure CC=${{ matrix.cc }} F77=${{ matrix.f77 }} \
+            --with-yaml="$(brew --prefix libyaml)"
+
+      - name: Configure (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
           ./configure CC=${{ matrix.cc }} F77=${{ matrix.f77 }}
 
