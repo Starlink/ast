@@ -466,13 +466,13 @@ EXTRA_DIST += \
 # the fields containing test inputs and reference files to be distributed.
 # The sed is just to trim leading and trailing whitespace.
 dist-hook:
-	@( $(AWK) -F'|' '/^[ \t]*#/ || /^[ \t]*$$/ {next} {print $$2; print $$3}' \
+	@( $(AWK) -F'|' '/^[[:blank:]]*#/ || /^[[:blank:]]*$$/ {next} {print $$2; print $$3}' \
 	       "$(srcdir)/wcsconv_tests.txt"; \
-	   $(AWK) -F'|' '/^[ \t]*#/ || /^[ \t]*$$/ {next} {print $$2; print $$3}' \
+	   $(AWK) -F'|' '/^[[:blank:]]*#/ || /^[[:blank:]]*$$/ {next} {print $$2; print $$3}' \
 	       "$(srcdir)/simplify_tests.txt"; \
-	   $(AWK) -F'|' '/^[ \t]*#/ || /^[ \t]*$$/ {next} {print $$2; print $$6}' \
+	   $(AWK) -F'|' '/^[[:blank:]]*#/ || /^[[:blank:]]*$$/ {next} {print $$2; print $$6}' \
 	       "$(srcdir)/grid_tests.txt" ) \
-	| sed 's/^[ \t]*//; s/[ \t]*$$//' | sort -u | while read rel; do \
+	| sed 's/^[[:blank:]]*//; s/[[:blank:]]*$$//' | sort -u | while read rel; do \
 	    test -n "$$rel" || continue; \
 	    dest="$(distdir)/$$rel"; \
 	    test -f "$$dest" && continue; \
