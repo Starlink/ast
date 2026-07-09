@@ -11,8 +11,12 @@ include(CheckCSourceRuns)
 # $LDFLAGS, and the --disable-new-dtags flag forces RPATH which is
 # searched before LD_LIBRARY_PATH).  Prepending -rpath for the build
 # directory puts it first in the RPATH list.
-set(CMAKE_EXE_LINKER_FLAGS
-    "-Wl,-rpath,${CMAKE_BINARY_DIR} ${CMAKE_EXE_LINKER_FLAGS}")
+#
+# This is an ELF RPATH-precedence workaround and only applies to GNU ld.
+if(NOT APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS
+        "-Wl,-rpath,${CMAKE_BINARY_DIR} ${CMAKE_EXE_LINKER_FLAGS}")
+endif()
 
 # Common include directories for all tests
 set(TEST_INCLUDES
