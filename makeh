@@ -51,6 +51,10 @@
 #        paths. So now each "#include" statement uses a relative path, and the
 #        appropriate parent directory is specified using the "-I" option when
 #        running the C pre-processor within the ast_cpp script.
+#     09-JUL-2026 (EMB):
+#        Force removal of temp directory.  In certain build scenarios (e.g.
+#        "make distcheck") some generated files may default to read-only
+#        permissions, necessitating the "-f" flag to "rm".
 #-
 
 ( $#ARGV >= 0 ) || Usage();
@@ -134,7 +138,7 @@ foreach $file ( @ARGV ) {
 close( CC ) || die "C preprocessor (cpp) error";
 
 #  Remove the temporary directory and the files it contains.
-print( stderr `rm -r $tmpdir` );
+print( stderr `rm -rf $tmpdir` );
 
 #  Write the output preamble.
 print(

@@ -29,11 +29,18 @@ for f in "${SRCDIR}"/*.h; do
     [ -f "$f" ] && ln -sf "$f" "${STAGEDIR}/"
 done
 
+copy_gen_header() {
+    if [ -f "${BUILDDIR}/$1" ]; then
+        rm -f "${STAGEDIR}/$1"
+        cp "${BUILDDIR}/$1" "${STAGEDIR}/$1"
+    fi
+}
+
 # Overlay generated headers (these take precedence)
-[ -f "${BUILDDIR}/ast_err.h" ] && cp "${BUILDDIR}/ast_err.h" "${STAGEDIR}/ast_err.h"
-[ -f "${BUILDDIR}/src/version.h" ] && cp "${BUILDDIR}/src/version.h" "${STAGEDIR}/src/version.h"
-[ -f "${BUILDDIR}/src/object.h" ] && cp "${BUILDDIR}/src/object.h" "${STAGEDIR}/src/object.h"
-[ -f "${BUILDDIR}/config.h" ] && cp "${BUILDDIR}/config.h" "${STAGEDIR}/config.h"
+copy_gen_header ast_err.h
+copy_gen_header config.h
+copy_gen_header src/version.h
+copy_gen_header src/object.h
 
 # Create ast_cpp script in the staging directory
 cat > "${STAGEDIR}/ast_cpp" << ASTCPP

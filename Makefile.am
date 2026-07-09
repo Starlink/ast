@@ -899,13 +899,31 @@ EXTRA_DIST = $(srcdir)/ast_par.source $(srcdir)/ast_err.msg \
     $(srcdir)/cminpack/README.md \
     $(srcdir)/star_compat/starlink_compat.m4
 
-# `make distcheck` reconfigures a throw-away build from scratch, so re-pass the
-# compilers and libyaml location this build was configured with.
-AM_DISTCHECK_CONFIGURE_FLAGS = \
-    CC='$(CC)' \
-    F77='$(F77)' \
-    YAML_CFLAGS='$(YAML_CFLAGS)' \
-    YAML_LIBS='$(YAML_LIBS)'
+# Distribute files required by CMake build
+EXTRA_DIST += \
+    CMakeLists.txt \
+    cmake/ast.pc.in \
+    cmake/astConfig.cmake.in \
+    cmake/config.h.cmake.in \
+    cmake/gen_ast_h.sh \
+    cmake/gen_ast_par.cmake \
+    cmake/run_grid_test.cmake \
+    cmake/run_plotter_test.cmake \
+    cmake/run_simplify_astequal_test.cmake \
+    cmake/run_simplify_test.cmake \
+    cmake/run_wcsconverter_astequal_test.cmake \
+    cmake/run_wcsconverter_test.cmake \
+    cmake/version.h.cmake.in \
+    version.number
+
+# The autotools build doesn't detect plplot yet, so the plplot grf
+# backend is never built here (but it is built by CMake); for now ensure
+# the sources for it are included; likewise ast_test.c
+EXTRA_DIST += \
+    ast_test.c \
+    src/grf_plplot.c \
+    src/grf3d_plplot.c \
+    src/pl3d.h
 
 # ast.h depends on the error-facility files.  ast.h _could_ be made
 # before distribution, but since it's generated from other distributed
@@ -1003,6 +1021,7 @@ noinst_LTLIBRARIES =
 test: install
 	cd ast_tester && STARLINK=@STARLINK@ PGPLOT_DIR=@STARLINK@/bin FFLAGS="@STAR_FFLAGS_TEST@" ./ast_tester -nd
 
+
 #  Need to include latex support files in the distribution tar ball so
 #  that the docs can be built from the tex source files. Requires environment
 #  variable STARLATEXSUPPORT to be deined. Is there a better way to do this?
@@ -1013,3 +1032,28 @@ dist-hook:
 	    cp -p $(STARLATEXSUPPORT)/starstyle.sty $(distdir)/; \
 	    cp -p $(STARLATEXSUPPORT)/sst.sty $(distdir)/; \
 	fi
+
+# `make distcheck` reconfigures a throw-away build from scratch, so re-pass the
+# compilers and libyaml location this build was configured with.
+AM_DISTCHECK_CONFIGURE_FLAGS = \
+    CC='$(CC)' \
+    F77='$(F77)' \
+    YAML_CFLAGS='$(YAML_CFLAGS)' \
+    YAML_LIBS='$(YAML_LIBS)'
+
+# Try building and running tests with cmake to ensure the cmake build works
+# from the distribution tarball
+.PHONY: distcheck-make
+distcheck-cmake:
+	@echo "=== Running CMake build inside distcheck ==="
+	rm -rf $(distdir)/_build/cmake
+	mkdir $(distdir)/_build/cmake
+	cd $(distdir)/_build/cmake && \
+            cmake ../.. \
+                -DCMAKE_BUILD_TYPE=Release \
+                $(CMAKE_EXTRA_FLAGS) && \
+            $(MAKE) && \
+            $(MAKE) test
+
+distcheck-hook:
+	$(MAKE) distcheck-cmake
