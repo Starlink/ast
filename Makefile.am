@@ -899,6 +899,14 @@ EXTRA_DIST = $(srcdir)/ast_par.source $(srcdir)/ast_err.msg \
     $(srcdir)/cminpack/README.md \
     $(srcdir)/star_compat/starlink_compat.m4
 
+# `make distcheck` reconfigures a throw-away build from scratch, so re-pass the
+# compilers and libyaml location this build was configured with.
+AM_DISTCHECK_CONFIGURE_FLAGS = \
+    CC='$(CC)' \
+    F77='$(F77)' \
+    YAML_CFLAGS='$(YAML_CFLAGS)' \
+    YAML_LIBS='$(YAML_LIBS)'
+
 # ast.h depends on the error-facility files.  ast.h _could_ be made
 # before distribution, but since it's generated from other distributed
 # files, it's more robust to distribute makeh and make ast.h on the
