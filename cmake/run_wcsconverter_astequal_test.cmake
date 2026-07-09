@@ -5,7 +5,7 @@
 # Required cache variables (supplied via -D):
 #   WCSCONVERTER  : absolute path to the wcsconverter executable
 #   AST_ASTEQUAL  : absolute path to the ast_astequal executable
-#   IN_FILE       : input file (resolved against CWD)
+#   IN_FILE       : path to the input file
 #   REF_FILE      : reference file to astEqual against
 #   OUT_FILE      : output file to produce
 #   ENCODING      : encoding name, e.g. fits-wcs, native, ast, dss, ...

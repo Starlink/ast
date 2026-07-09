@@ -262,17 +262,13 @@ function(add_wcsconv_test)
     if(NOT DEFINED W_ATTRS)
         set(W_ATTRS "")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${W_INPUT}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${W_INPUT}" COPYONLY)
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${W_REFERENCE}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${W_REFERENCE}" COPYONLY)
 
     if(NOT W_SKIP_STRING_COMPARE)
         add_test(NAME wcsconv_${W_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DWCSCONVERTER=$<TARGET_FILE:wcsconverter>
-                -DIN_FILE=${W_INPUT}
-                -DREF_FILE=${W_REFERENCE}
+                -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${W_INPUT}
+                -DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${W_REFERENCE}
                 -DOUT_FILE=${W_NAME}.out
                 -DENCODING=${W_ENCODING}
                 -DATTRS=${W_ATTRS}
@@ -288,8 +284,8 @@ function(add_wcsconv_test)
         COMMAND ${CMAKE_COMMAND}
             -DWCSCONVERTER=$<TARGET_FILE:wcsconverter>
             -DAST_ASTEQUAL=$<TARGET_FILE:ast_astequal>
-            -DIN_FILE=${W_INPUT}
-            -DREF_FILE=${W_REFERENCE}
+            -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${W_INPUT}
+            -DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${W_REFERENCE}
             -DOUT_FILE=${W_NAME}.astequal.out
             -DENCODING=${W_ENCODING}
             -DATTRS=${W_ATTRS}
@@ -372,17 +368,12 @@ function(add_simplify_test)
         message(FATAL_ERROR
             "add_simplify_test: NAME, INPUT, REFERENCE all required")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${S_INPUT}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${S_INPUT}" COPYONLY)
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${S_REFERENCE}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${S_REFERENCE}" COPYONLY)
-
     if(NOT S_SKIP_STRING_COMPARE)
         add_test(NAME simplify_${S_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DSIMPLIFY=$<TARGET_FILE:simplify>
-                -DIN_FILE=${S_INPUT}
-                -DREF_FILE=${S_REFERENCE}
+                -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${S_INPUT}
+                -DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${S_REFERENCE}
                 -DOUT_FILE=${S_NAME}.out
                 -P "${CMAKE_SOURCE_DIR}/cmake/run_simplify_test.cmake"
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -396,8 +387,8 @@ function(add_simplify_test)
         COMMAND ${CMAKE_COMMAND}
             -DSIMPLIFY=$<TARGET_FILE:simplify>
             -DAST_ASTEQUAL=$<TARGET_FILE:ast_astequal>
-            -DIN_FILE=${S_INPUT}
-            -DREF_FILE=${S_REFERENCE}
+            -DIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${S_INPUT}
+            -DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${S_REFERENCE}
             -DOUT_FILE=${S_NAME}.astequal.out
             -P "${CMAKE_SOURCE_DIR}/cmake/run_simplify_astequal_test.cmake"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -444,7 +435,7 @@ ast_add_test(testgrid
     NO_DEFAULT_GRF_LIBS
     EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log>
                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
-    TEST_ARGS "lsst.fits-wcs" " " " "
+    TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/lsst.fits-wcs" " " " "
 )
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
@@ -463,9 +454,6 @@ function(add_grid_test)
     if(NOT DEFINED P_FATTR)
         set(P_FATTR " ")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${P_HEAD}" COPYONLY)
-
     set(_box_arg "")
     if(DEFINED P_BOX)
         set(_box_arg "${P_BOX}")
@@ -473,15 +461,13 @@ function(add_grid_test)
 
     set(_ref_arg "")
     if(P_REFERENCE AND NOT P_SKIP_TEXT_COMPARE)
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_REFERENCE}"
-                       "${CMAKE_CURRENT_BINARY_DIR}/${P_REFERENCE}" COPYONLY)
-        set(_ref_arg "-DREF_FILE=${P_REFERENCE}")
+        set(_ref_arg "-DREF_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${P_REFERENCE}")
     endif()
 
     add_test(NAME grid_${P_NAME}
         COMMAND ${CMAKE_COMMAND}
             -DTESTGRID=$<TARGET_FILE:testgrid>
-            -DHEAD_FILE=${P_HEAD}
+            -DHEAD_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}
             "-DATTR=${P_ATTR}"
             "-DFATTR=${P_FATTR}"
             -DOUT_FILE=grid_${P_NAME}.svg
@@ -564,7 +550,6 @@ if(PLPLOT_FOUND)
         timeplot
     )
 
-    configure_file(lsst.fits-wcs "${CMAKE_CURRENT_BINARY_DIR}/lsst.fits-wcs" COPYONLY)
     ast_add_test(testplotter
         SOURCES testplotter.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
@@ -603,9 +588,6 @@ if(PLPLOT_FOUND)
         if(NOT DEFINED P_FATTR)
             set(P_FATTR " ")
         endif()
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}"
-                       "${CMAKE_CURRENT_BINARY_DIR}/${P_HEAD}" COPYONLY)
-
         set(_box_arg "")
         if(DEFINED P_BOX)
             set(_box_arg "${P_BOX}")
@@ -614,7 +596,7 @@ if(PLPLOT_FOUND)
         add_test(NAME plotter_${P_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DTESTPLOTTER=$<TARGET_FILE:testplotter>
-                -DHEAD_FILE=${P_HEAD}
+                -DHEAD_FILE=${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}
                 "-DATTR=${P_ATTR}"
                 "-DFATTR=${P_FATTR}"
                 -DOUT_FILE=plotter_${P_NAME}.pdf

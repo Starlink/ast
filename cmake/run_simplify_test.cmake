@@ -4,7 +4,7 @@
 #
 # Required cache variables (supplied via -D):
 #   SIMPLIFY  : absolute path to the simplify executable
-#   IN_FILE   : input .map file (resolved against CWD)
+#   IN_FILE   : path to the input .map file
 #   REF_FILE  : reference .simp file to diff against
 #   OUT_FILE  : output file to produce
 
