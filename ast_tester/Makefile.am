@@ -39,6 +39,14 @@ noinst_HEADERS = \
 
 AM_TESTS_ENVIRONMENT = srcdir='$(srcdir)'; export srcdir;
 
+# The data-driven tests (test_*.tap) emit TAP so automake reports one result
+# per case listed in their .txt data files.  Run them through automake's TAP
+# driver; other tests keep the default (exit-status) driver.
+TEST_EXTENSIONS = .tap
+TAP_LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) \
+    $(top_srcdir)/build-aux/tap-driver.sh
+TAP_LOG_COMPILER = $(SHELL)
+
 CTEST_LDADD = @LIBPAL@ @LIBCMINPACK@ \
     $(top_builddir)/libast.la \
     $(top_builddir)/libast_grf_3.2.la \
@@ -407,7 +415,9 @@ testhuge_f_SOURCES = testhuge.f
 testhuge_f_LDADD   = $(FTEST_LDADD)
 testhuge_f_FFLAGS  = $(AM_FFLAGS)
 TESTS += testhuge.sh
-EXTRA_DIST = testhuge.sh test_wcsconverter.sh test_simplify.sh numdiff.py
+EXTRA_DIST = testhuge.sh \
+    test_wcsconverter.tap test_simplify.tap test_grid.tap \
+    wcsconv_tests.txt simplify_tests.txt grid_tests.txt
 
 # Test fixture data files, grouped by the test that consumes them.  These are
 # distributed so the tests can locate them (via the srcdir environment
@@ -444,23 +454,31 @@ EXTRA_DIST += \
     teststc_eg1 teststc_eg2 teststc_eg3 teststc_eg4 teststc_eg5 \
     teststc_eg6 teststc_eg7 teststc_eg8 teststc_eg9 teststc_eg10
 
-# test_wcsconverter.sh (input FrameSets and reference encodings)
-EXTRA_DIST += \
-    timj.ast timj.fits-wcs timj.fits-iraf timj.fits-aips timj.fits-pc \
-    timj.native \
-    a20070718_00010_02_cube.ast a20070718_00010_02_cube.fits-wcs \
-    dss.ast dss.dss dss.fits-dss dss.fits-wcs \
-    degen1.ast degen1.fits-wcs \
-    sip.fits-wcs \
-    sip2.head sip2.fits-wcs \
-    lsst.ast lsst.fits-wcs \
-    longslit.fits-pc longslit.fits-wcs
-
-# test_simplify.sh (input Mappings and reference simplifications)
-EXTRA_DIST += \
-    brad.map brad.simp \
-    lsst1.map lsst1.simp \
-    rigby.map rigby.simp
+# The fixture files consumed by the data-driven .tap tests (wcsconverter,
+# simplify, grid) are not listed in EXTRA_DIST.  They number in the hundreds
+# and their lists live in wcsconv_tests.txt / simplify_tests.txt /
+# grid_tests.txt, which the tests read at run time.  To keep the distributed
+# set exactly in sync with those lists, this dist-hook parses the .txt files
+# (input/reference columns) and copies each referenced fixture into the
+# tarball.  Files already distributed via EXTRA_DIST are left untouched.
+#
+# These awk scripts skip blank lines/comments and split on |, then print
+# the fields containing test inputs and reference files to be distributed.
+# The sed is just to trim leading and trailing whitespace.
+dist-hook:
+	@( $(AWK) -F'|' '/^[ \t]*#/ || /^[ \t]*$$/ {next} {print $$2; print $$3}' \
+	       "$(srcdir)/wcsconv_tests.txt"; \
+	   $(AWK) -F'|' '/^[ \t]*#/ || /^[ \t]*$$/ {next} {print $$2; print $$3}' \
+	       "$(srcdir)/simplify_tests.txt"; \
+	   $(AWK) -F'|' '/^[ \t]*#/ || /^[ \t]*$$/ {next} {print $$2; print $$6}' \
+	       "$(srcdir)/grid_tests.txt" ) \
+	| sed 's/^[ \t]*//; s/[ \t]*$$//' | sort -u | while read rel; do \
+	    test -n "$$rel" || continue; \
+	    dest="$(distdir)/$$rel"; \
+	    test -f "$$dest" && continue; \
+	    $(MKDIR_P) "`dirname \"$$dest\"`"; \
+	    cp -p "$(srcdir)/$$rel" "$$dest"; \
+	done
 
 # Output files written by the tests during "make check".  Listed here so that
 # "make clean"/"make distclean" removes them; otherwise distcheck's
@@ -481,15 +499,35 @@ CLEANFILES = \
     testfitschan_write.fits \
     yamltest.asdf
 
-# Data-driven tests: WCS encoding conversion and Mapping simplification.
-check_PROGRAMS += wcsconverter simplify
-wcsconverter_SOURCES = wcsconverter.f
-wcsconverter_LDADD   = $(FTEST_LDADD)
-wcsconverter_FFLAGS  = $(AM_FFLAGS)
-simplify_SOURCES     = simplify.f
-simplify_LDADD       = $(FTEST_LDADD)
-simplify_FFLAGS      = $(AM_FFLAGS)
-TESTS += test_wcsconverter.sh test_simplify.sh
+# Data-driven tests: WCS encoding conversion, Mapping simplification and
+# astGrid.  Each .tap test reads its list of cases from the corresponding
+# .txt data file (shared with the CMake suite) and emits TAP, so automake
+# reports one result per case.
+check_PROGRAMS += wcsconverter simplify ast_astequal testgrid
+# Use the C harnesses (wcsconverter.c/simplify.c/ast_astequal.c), matching the
+# CMake suite: they are complete ports of the older wcsconverter.f/simplify.f
+# and, unlike the Fortran versions, register the IntraMap transforms needed by
+# some simplify fixtures.
+# ast_astequal performs the semantic (astEqual) comparison used alongside the
+# string diff by the .tap tests.
+wcsconverter_SOURCES = wcsconverter.c
+wcsconverter_LDADD   = $(CTEST_LDADD)
+simplify_SOURCES     = simplify.c
+simplify_LDADD       = $(CTEST_LDADD)
+ast_astequal_SOURCES = ast_astequal.c
+ast_astequal_LDADD   = $(CTEST_LDADD)
+
+# testgrid exercises astGrid using the logging GRF module (libast_grf_log),
+# which replaces the null grf_2.0/3.2/5.6 modules used by the other tests.
+testgrid_SOURCES = testgrid.c
+testgrid_LDADD = @LIBPAL@ @LIBCMINPACK@ \
+    $(top_builddir)/libast.la \
+    $(top_builddir)/libast_grf_log.la \
+    $(top_builddir)/libast_grf3d.la \
+    $(top_builddir)/libast_err.la \
+    -lm
+
+TESTS += test_wcsconverter.tap test_simplify.tap test_grid.tap
 
 # Source and LDADD declarations for each Fortran test.
 testchannel_f_SOURCES    = testchannel.f
