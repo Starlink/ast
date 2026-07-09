@@ -15,11 +15,11 @@ srcdir=${srcdir:-.}
 data=${srcdir}/wcsconv_tests.txt
 
 trim() {
-    printf '%s' "$1" | sed 's/^[ \t]*//; s/[ \t]*$//'
+    printf '%s' "$1" | sed 's/^[[:blank:]]*//; s/[[:blank:]]*$//'
 }
 
 # TAP plan: the number of data (non-blank, non-comment) lines.
-echo "1..$(grep -cvE '^[ \t]*(#|$)' "$data")"
+echo "1..$(grep -cvE '^[[:blank:]]*(#|$)' "$data")"
 
 idx=0
 while IFS='|' read -r name input reference encoding attrs skip rest; do
