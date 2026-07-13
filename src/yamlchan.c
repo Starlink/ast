@@ -152,6 +152,8 @@ f     The YamlChan class does not define any new routines beyond those
          AstYamlEmitterError( (emitter_), (status_) ); \
       } \
    } while( 0 )
+#else
+#define EMIT_CHECK(this_, emitter_, status_, call)
 #endif
 
 /* YAML tag prefix for astropy objects. */
