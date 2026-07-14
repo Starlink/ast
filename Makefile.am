@@ -658,11 +658,9 @@ stardocs_DATA = @STAR_LATEX_DOCUMENTATION@
 dist_starnews_DATA = ast.news
 dist_pkgdata_DATA = COPYING
 
-if !NOYAML
-yaml = -DYAML
-else
-yaml =
-endif
+# -DYAML or -DFYAML (or empty), depending on which backend AST_CHECK_YAML
+# selected; this is the macro yaml_backend.h switches on.
+yaml = @AST_YAML_DEFINE@
 
 if !NOTHREADS
 threadsafe = -DTHREAD_SAFE
