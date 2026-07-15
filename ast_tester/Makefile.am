@@ -545,6 +545,10 @@ EXTRA_DIST += \
     teststc_com \
     testxmlchan_com
 
+# Misc extra files included in the distribution
+EXTRA_DIST += \
+    libfyaml.supp
+
 # Output files written by the tests during "make check".  Listed here so that
 # "make clean"/"make distclean" removes them; otherwise distcheck's
 # distcleancheck reports them as files left in the build tree.
