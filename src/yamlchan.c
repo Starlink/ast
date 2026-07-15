@@ -109,6 +109,8 @@ f     The YamlChan class does not define any new routines beyond those
 *     3-JUL-2026 (EMB):
 *        Refactor YAML backend access through yaml_backend.h abstraction
 *        layer to support both libyaml and libfyaml.
+*     15-JUL-2026 (EMB):
+*        Fixed memory leak in GetRefMap.
 *class--
 */
 
@@ -1011,14 +1013,15 @@ static AstMathMap *GetRefMap( AstYamlChan *this, const char *key, int *status ) 
    } else if( !strcmp( key, REFMAP_DIVIDE_1D ) ) {
       ref = (AstMathMap *) astMathMap( 2, 1, 1, DIVIDE_1D_FWD, 2, DIVIDE_1D_INV,
                                        "simpfi=0,simpif=0", status );
-      astMapPut0A( this->ref_maps, key, (AstObject *) ref, NULL );
+      obj = (AstObject *) ref;
+      astMapPut0A( this->ref_maps, key, obj, NULL );
 
    } else if( astOK ) {
       astError( AST__INTER, "GetRefMap(YamlChan): unknown reference map "
                 "key \"%s\"", status, key );
    }
 
-/* astMapGet0A returned a new reference — annul it so the cache owns the
+/* astMapGet0A returned a new reference; annul it so the cache owns the
    only reference and we return a borrowed pointer. */
    if( obj )
       astAnnul( obj );
