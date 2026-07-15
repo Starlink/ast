@@ -394,11 +394,10 @@ static inline int astYamlEmitSequenceEnd( AstYamlEmitter *emitter ) {
 
 #define YAML_STR_TAG "tag:yaml.org,2002:str"
 
-/* Parser handle: wraps struct fy_parser plus a buffered input copy
-   that must outlive the parser (fy_parser_set_string does not copy). */
+/* Parser handle: wraps struct fy_parser.  libfyaml pulls input on demand
+   through _astFyamlReadAdapter, which forwards to AST's read callback. */
 typedef struct {
    struct fy_parser *fyp;
-   char *buf;
    AstYamlReadCb read_cb;
    void *read_data;
    char *errmsg;
@@ -594,44 +593,28 @@ static inline void astYamlParserDelete( AstYamlParser *parser ) {
    parser->errmsg = NULL;
 }
 
-/* astYamlParserSetInput: register a read callback.
-   Because libfyaml's set-string API requires the buffer to remain valid
-   for the lifetime of the parser (this allows it zero-copy reads, though
-   we mostly use the copying *0 variants to get null-terminated strings),
-   we buffer the entire input here. */
+/* Adapt AST's read callback to libfyaml's streaming input callback: return
+   the number of bytes read, 0 at end of input, or -1 on error. */
+static ssize_t _astFyamlReadAdapter( void *user, void *buf, size_t count ) {
+   AstYamlParser *parser = (AstYamlParser *) user;
+   size_t nread = 0;
+   if( !parser->read_cb( parser->read_data, (unsigned char *) buf, count,
+                         &nread ) ) {
+      return -1;
+   }
+   return (ssize_t) nread;
+}
+
+/* astYamlParserSetInput: point the parser at AST's read callback.  libfyaml
+   pulls the input incrementally through _astFyamlReadAdapter, so there is no
+   need to buffer the whole input up front. */
 static inline void astYamlParserSetInput( AstYamlParser *parser,
                                           AstYamlReadCb cb,
                                           void *data ) {
-   unsigned char tmp[ 4096 ];
-   size_t nread;
-   size_t buf_len = 0;
-   size_t buf_cap = 0;
-   char *new_buf;
    struct fy_parse_cfg cfg;
 
    parser->read_cb = cb;
    parser->read_data = data;
-
-   while( 1 ) {
-      nread = 0;
-      if( !cb( data, tmp, sizeof( tmp ), &nread ) || nread == 0 ) {
-         break;
-      }
-
-      if( buf_len + nread > buf_cap ) {
-         buf_cap = buf_cap * 2 + nread + 1;
-         new_buf = realloc( parser->buf, buf_cap );
-
-         if( !new_buf ) {
-            return;
-         }
-
-         parser->buf = new_buf;
-      }
-
-      memcpy( parser->buf + buf_len, tmp, nread );
-      buf_len += nread;
-   }
 
    memset( &cfg, 0, sizeof( cfg ) );
    parser->fyp = fy_parser_create( &cfg );
@@ -642,9 +625,7 @@ static inline void astYamlParserSetInput( AstYamlParser *parser,
          fy_diag_set_collect_errors( diag, true );
          fy_diag_unref( diag );
       }
-      if( buf_len > 0 ) {
-         fy_parser_set_string( parser->fyp, parser->buf, buf_len );
-      }
+      fy_parser_set_input_callback( parser->fyp, parser, _astFyamlReadAdapter );
    }
 }
 
