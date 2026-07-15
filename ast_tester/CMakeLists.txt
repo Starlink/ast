@@ -445,6 +445,12 @@ if(HAVE_YAML)
 elseif(HAVE_FYAML)
     target_compile_definitions(testyamlchan PRIVATE FYAML "YAML_BACKEND=\"libfyaml\"")
 endif()
+# The libfyaml backend has a known upstream leak (in versions <0.9 on tagged events;
+# libfyaml.supp suppresses just that, so genuine leaks still surface.
+if(AST_ENABLE_SANITIZERS)
+    set_tests_properties(testyamlchan PROPERTIES ENVIRONMENT
+        "ASAN_OPTIONS=detect_leaks=1;LSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/libfyaml.supp")
+endif()
 
 if(HAVE_PTHREADS)
     ast_add_test(testthreads EXTRA_LIBS Threads::Threads)
