@@ -640,7 +640,9 @@ void test_divide_roundtrip( int *status ){
    astClear( ch, "SinkFile" );
    astSet( ch, "SourceFile=divide_roundtrip.asdf" );
    divfs2 = astRead( ch );
-   if( !divfs2 ) stopit( 41, status );
+
+   if( !divfs2 )
+      stopit( 41, status ); /* LCOV_EXCL_LINE */
 
 /* Compare the mappings numerically. */
    divmap1 = astGetMapping( divfs, AST__BASE, AST__CURRENT );
