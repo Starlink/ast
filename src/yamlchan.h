@@ -110,6 +110,9 @@ typedef struct AstYamlChan {
    int write_isa;         /* Is the next "isA" really needed? */
    AstKeyMap *obj;        /* KeyMap holding the NATIVE object being read */
    int index;             /* Index of next item to read from "obj" */
+   char *readbuf;         /* Buffer holding the current input line plus newline */
+   size_t readlen;        /* Number of bytes of the current line in readbuf */
+   size_t readoff;        /* Number of bytes of readbuf already handed out */
 
 #if defined( YAML ) || defined( FYAML )
    AstYamlEmitter emitter_data; /* The body of a yaml emitter */
