@@ -11398,6 +11398,7 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, AstYamlParser *parser, int
 
 /* End the Mapping */
       } else if( event.type == YAML_MAPPING_END_EVENT ) {
+         astYamlEventDelete( &event );
          break;
 
 /* Unexpected events. */
@@ -11529,6 +11530,7 @@ static void ReadYAMLSequence( AstYamlChan *this, AstKeyMap *km, const char *id,
 
 /* End the Sequence */
       } else if( event.type == YAML_SEQUENCE_END_EVENT ) {
+         astYamlEventDelete( &event );
          break;
 
 /* Read the next sequence value and store it in the staging post KeyMap. */
