@@ -40,7 +40,6 @@
 *     astYamlParserSetInput     Register I/O read callback.
 *     astYamlParserParse        Parse one event into an AstYamlEvent.
 *     astYamlParserGetError     Primary error message and 0-based line/col.
-*     astYamlParserGetContext   Context description and 0-based line/col (or NULL).
 *     astYamlEventDelete        Release event resources.
 *     astYamlEmitterInitialize  Initialise emitter.
 *     astYamlEmitterDelete      Release emitter resources.
@@ -153,9 +152,7 @@ static inline void astYamlParserDelete( AstYamlParser *p ) {
    the location is not available.
    astYamlParserGetError returns a heap-allocated string that combines
    problem and (when present) context; the string is owned by the parser
-   and freed on the next call or when the parser is deleted.
-   astYamlParserGetContext always returns NULL for libyaml because context
-   is already folded into the combined message. */
+   and freed on the next call or when the parser is deleted. */
 static inline const char *astYamlParserGetError( AstYamlParser *p,
                                                  int *line, int *col ) {
    const char *problem = p->yp.problem ? p->yp.problem : "unknown error";
@@ -176,13 +173,6 @@ static inline const char *astYamlParserGetError( AstYamlParser *p,
       }
    }
    return problem;
-}
-static inline const char *astYamlParserGetContext( AstYamlParser *p,
-                                                    int *line, int *col ) {
-   (void) p;
-   *line = -1;
-   *col  = -1;
-   return NULL;
 }
 
 /* Event delete: operate on the embedded yaml_event_t. */
@@ -557,13 +547,6 @@ static inline const char *astYamlParserGetError( AstYamlParser *p,
       p->errmsg = msg;
 
    return msg ? msg : "unknown error";
-}
-
-static inline const char *astYamlParserGetContext( AstYamlParser *p,
-                                                    int *line, int *col ) {
-   (void) p;
-   *line = -1; *col = -1;
-   return NULL;
 }
 
 static inline const char *astYamlEmitterGetError( AstYamlEmitter *e ) {
