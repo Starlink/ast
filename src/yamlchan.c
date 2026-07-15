@@ -950,6 +950,7 @@ static void Delete( AstObject *this_object, int *status ) {
 */
    AstYamlChan *this = (AstYamlChan *) this_object;
    if( this->ref_maps ) this->ref_maps = astAnnul( this->ref_maps );
+   this->readbuf = astFree( this->readbuf );
 }
 
 static AstMathMap *GetRefMap( AstYamlChan *this, const char *key, int *status ) {
@@ -1233,8 +1234,12 @@ static AstObject *Read( AstChannel *this_channel, int *status ) {
       AstYamlParserError( &parser, status );
       /* LCOV_EXCL_STOP */
 
-/* Register the source function with the parser. */
+/* Register the source function with the parser. Start with an empty line
+   buffer so the first read fetches a fresh line (any remainder left by an
+   earlier, possibly aborted, read is discarded). */
    } else {
+      this->readlen = 0;
+      this->readoff = 0;
       astYamlParserSetInput( &parser, AstYamlReader, this );
 
 /* Read the YAML object from the external source, parse it, and
@@ -6217,7 +6222,7 @@ static int AstYamlReader( void *data, unsigned char *buffer, size_t size,
 *     AstYamlReader
 
 *  Purpose:
-*     Called by libyaml to read a line of text from the source.
+*     Called by the YAML parser to read text from the source.
 
 *  Type:
 *     Private function.
@@ -6231,8 +6236,12 @@ static int AstYamlReader( void *data, unsigned char *buffer, size_t size,
 *     YamlChan member function.
 
 *  Description:
-*     This function is called by libyaml to read a line of text from the
-*     source.
+*     This function is called by the active YAML backend (libyaml or
+*     libfyaml) to read text from the source. It returns up to "size"
+*     bytes per call, reading complete lines from the parent Channel class
+*     and handing each one out in as many chunks as the parser requests.
+*     This lets it feed parsers that ask for arbitrarily small amounts of
+*     input, without requiring a whole line to fit in the supplied buffer.
 
 *  Parameters:
 *     data
@@ -6254,65 +6263,75 @@ static int AstYamlReader( void *data, unsigned char *buffer, size_t size,
    AstYamlChan * this;
    char *text;
    int *status;
-   int result;
+   size_t navail;
+   size_t nchunk;
 
 /* Initialise */
-   result = 0;
    *size_read = 0;
-   buffer[ 0 ] = 0;
 
 /* Get the AST status pointer */
    status = astGetStatusPtr;
 
 /* Check the status is good. */
-   if( !astOK ) return result;
+   if( !astOK ) return 0;
 
 /* Get a pointer to the YamlChan */
    this = (AstYamlChan *) data;
 
+/* If the current line has been completely handed out, fetch the next line
+   from the source. */
+   if( this->readoff >= this->readlen ) {
+
 /* Invoke the source function from the parent Channel class until we get
-   a non-blank line of text. . */
-   text = astGetNextText( this );
-   while( astOK && text && strlen( text ) == 0 ) {
-      text = astFree( text );
+   a non-blank line of text. */
       text = astGetNextText( this );
-   }
-
-/* If successful... */
-   if( astOK ) {
-      result = 1;
-
-/* If there is any text to return... */
-      if( text ) {
-
-/* Check the text will fit in the supplied buffer. Report an error if
-   not. Allow room for a newline character to ba appended to the end. */
-         *size_read = strlen( text ) + 1;
-         if( *size_read > size ) {
-            result = 0;
-            *size_read = 0;
-            buffer[ 0 ] = 0;
-            astError( AST__TRUNC, "astRead(yamlchan): Input text is too "
-                      "long for the " YAML_BACKEND " buffer:", status );
-            astError( AST__TRUNC, "'%.50s'", status, text );
-
-/* If so, copy the text into the buffer. */
-         } else {
-            memcpy( buffer, text, *size_read );
-
-/* Append a newline character (stripped by astGetNextText but required by
-   libyaml). */
-            buffer[ *size_read - 1 ] = '\n';
-         }
+      while( astOK && text && strlen( text ) == 0 ) {
+         text = astFree( text );
+         text = astGetNextText( this );
       }
+
+/* On error, abandon the read. */
+      if( !astOK ) {
+         text = astFree( text );
+         return 0;
+      }
+
+/* A NULL pointer marks the end of the input. Leave "size_read" holding
+   zero, which signals EOF to the parser. */
+      if( !text )
+         return 1;
+
+/* Copy the line into the YamlChan's line buffer, appending the newline
+   that astGetNextText strips off (both YAML backends expect newline
+   terminated lines). The buffer grows as needed and is reused between
+   lines. */
+      navail = strlen( text );
+      this->readbuf = astGrow( this->readbuf, navail + 1, sizeof( char ) );
+      if( astOK ) {
+         memcpy( this->readbuf, text, navail );
+         this->readbuf[ navail ] = '\n';
+         this->readlen = navail + 1;
+         this->readoff = 0;
+      }
+      text = astFree( text );
+
+      if( !astOK )
+         return 0;
    }
 
-   text = astFree( text );
+/* Hand out as much of the current line as will fit in the supplied buffer,
+   remembering how much is left for the next call. */
+   navail = this->readlen - this->readoff;
+   nchunk = ( size < navail ) ? size : navail;
+   memcpy( buffer, this->readbuf + this->readoff, nchunk );
+   this->readoff += nchunk;
+   *size_read = nchunk;
 
 /* If required echo the yaml as it is read. */
-   if( astGetVerboseRead(this) ) printf( "%.*s", (int) *size_read, buffer );
+   if( astGetVerboseRead( this ) )
+      printf( "%.*s", (int) nchunk, buffer );
 
-   return result;
+   return 1;
 }
 
 static int AstYamlWriter( void *data, unsigned char *buffer,
@@ -19817,6 +19836,9 @@ AstYamlChan *astInitYamlChan_( void *mem, size_t size, int init,
       new->gotwcs = 0;
       new->defenc = UNKNOWN_ENCODING;
       new->obj = NULL;
+      new->readbuf = NULL;
+      new->readlen = 0;
+      new->readoff = 0;
 
 /* If an error occurred, clean up by deleting the new object. */
       if ( !astOK ) new = astDelete( new );
@@ -19979,6 +20001,9 @@ AstYamlChan *astLoadYamlChan_( void *mem, size_t size,
       new->gotwcs = 0;
       new->defenc = UNKNOWN_ENCODING;
       new->obj = NULL;
+      new->readbuf = NULL;
+      new->readlen = 0;
+      new->readoff = 0;
    }
 
 /* If an error occurred, clean up by deleting the new YamlChan. */
