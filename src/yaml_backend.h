@@ -157,7 +157,7 @@ static inline void astYamlParserDelete( AstYamlParser *p ) {
    astYamlParserGetContext always returns NULL for libyaml because context
    is already folded into the combined message. */
 static inline const char *astYamlParserGetError( AstYamlParser *p,
-                                                  int *line, int *col ) {
+                                                 int *line, int *col ) {
    const char *problem = p->yp.problem ? p->yp.problem : "unknown error";
    const char *context = p->yp.context;
    char *msg;
@@ -411,6 +411,7 @@ typedef struct {
    char *buf;
    AstYamlReadCb read_cb;
    void *read_data;
+   char *errmsg;
 } AstYamlParser;
 
 /* Emitter handle: wraps struct fy_emitter; the fy_emitter is created
@@ -430,6 +431,7 @@ typedef struct {
    const char *tag_handle;
    const char *tag_prefix;
    char *pending_root_tag;
+   char *errmsg;
 } AstYamlEmitter;
 
 /* Flat event struct.  For libfyaml the underlying struct fy_event * is
@@ -521,40 +523,76 @@ static int _astFyamlWriteAdapter( struct fy_emitter *emit,
    Line and column come from the first collected error; line is -1 when
    not available.  Context is always NULL (libfyaml has no equivalent). */
 static inline const char *astYamlParserGetError( AstYamlParser *p,
-                                                  int *line, int *col ) {
+                                                 int *line, int *col ) {
    struct fy_diag *diag;
    struct fy_diag_error *err;
    void *iter = NULL;
+   char *msg = NULL;
    *line = -1; *col = -1;
-   if( !p->fyp ) return "libfyaml parser not initialised";
+
+   if( !p->fyp )
+      return "libfyaml parser not initialised";
+
    diag = fy_parser_get_diag( p->fyp );
-   if( !diag ) return "unknown error";
+
+   free( p->errmsg );
+
+   if( !diag )
+      return "unknown error";
+
    err = fy_diag_errors_iterate( diag, &iter );
-   fy_diag_unref( diag );
-   if( !err || !err->msg ) return "unknown error";
-   /* fy_diag stores line/column 1-based; subtract 1 to match libyaml's
-      0-based convention (callers add 1 back for display). */
-   *line = err->line - 1;
-   *col  = err->column - 1;
-   return err->msg;
+
+   if( err ) {
+      /* fy_diag stores line/column 1-based; subtract 1 to match libyaml's
+         0-based convention (callers add 1 back for display). */
+      *line = err->line - 1;
+      *col  = err->column - 1;
+      if ( err->msg )
+         msg = strdup( err->msg );
+   }
+
+   fy_diag_destroy( diag );
+
+   if ( msg )
+      p->errmsg = msg;
+
+   return msg ? msg : "unknown error";
 }
+
 static inline const char *astYamlParserGetContext( AstYamlParser *p,
                                                     int *line, int *col ) {
    (void) p;
    *line = -1; *col = -1;
    return NULL;
 }
+
 static inline const char *astYamlEmitterGetError( AstYamlEmitter *e ) {
    struct fy_diag *diag;
    struct fy_diag_error *err;
    void *iter = NULL;
-   if( !e->fye ) return "libfyaml emitter not initialised";
+   char *msg = NULL;
+
+   if( !e->fye )
+      return "libfyaml emitter not initialised";
+
    diag = fy_emitter_get_diag( e->fye );
-   if( !diag ) return "unknown error";
+
+   if( !diag )
+      return "unknown error";
+
+   free( e->errmsg );
+
    err = fy_diag_errors_iterate( diag, &iter );
-   fy_diag_unref( diag );
-   if( !err || !err->msg ) return "unknown error";
-   return err->msg;
+
+   if( err && err->msg )
+      msg = strdup( err->msg );
+
+   fy_diag_destroy( diag );
+
+   if( msg )
+      e->errmsg = msg;
+
+   return msg ? msg : "unknown error";
 }
 
 /* Parser lifecycle. */
@@ -569,8 +607,8 @@ static inline void astYamlParserDelete( AstYamlParser *parser ) {
       fy_parser_destroy( parser->fyp );
       parser->fyp = NULL;
    }
-   free( parser->buf );
-   parser->buf = NULL;
+   free( parser->errmsg );
+   parser->errmsg = NULL;
 }
 
 /* astYamlParserSetInput: register a read callback.
@@ -726,6 +764,8 @@ static inline void astYamlEmitterDelete( AstYamlEmitter *emitter ) {
    emitter->line_buf_cap = 0;
    free( emitter->pending_root_tag );
    emitter->pending_root_tag = NULL;
+   free( emitter->errmsg );
+   emitter->errmsg = NULL;
 }
 
 static inline void astYamlEmitterSetOutput( AstYamlEmitter *emitter,
