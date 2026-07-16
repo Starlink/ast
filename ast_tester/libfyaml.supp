@@ -1,0 +1,13 @@
+# LeakSanitizer suppressions for the libfyaml YAML backend.
+#
+# libfyaml<0.9 leaks the malloc'd buffer backing a tag token whenever an emitted
+# event carries a tag. See the analysis in
+#   https://github.com/Starlink/ast/pull/67#issuecomment-4970509982
+# Fixed upstream in
+#   https://github.com/pantoniou/libfyaml/commit/115365e1600b2c11d7cb94d59ca72586a990cdae
+#
+# The system library is stripped of its internal symbols, so the deepest named
+# frame is the exported fy_emit_event_vcreate(). Matching on it is reasonably
+# safe: AST's own allocations never pass through libfyaml's event creation,
+# so this cannot hide a genuine AST leak.
+leak:fy_emit_event_vcreate

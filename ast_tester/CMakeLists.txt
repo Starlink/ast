@@ -433,14 +433,26 @@ if(AST_ENABLE_HUGE_TEST)
 endif()
 
 # --- Conditional tests ---
+# testyamlchan is always built; it skips YAML tests at runtime when no backend
+# is compiled in, so that the test suite still runs clean without YAML support.
+foreach(_f imaging_wcs.asdf rotate_seq3d_cartesian.asdf tanSipWcs.txt lsst_wcs.txt)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${_f}"
+                   "${CMAKE_CURRENT_BINARY_DIR}/${_f}" COPYONLY)
+endforeach()
+ast_add_test(testyamlchan)
 if(HAVE_YAML)
-    # Input data files read by the round-trip tests (the .asdf/.yaml files
-    # written by the test are created in the working directory at run time).
-    configure_file(imaging_wcs.asdf "${CMAKE_CURRENT_BINARY_DIR}/imaging_wcs.asdf" COPYONLY)
-    configure_file(tanSipWcs.txt "${CMAKE_CURRENT_BINARY_DIR}/tanSipWcs.txt" COPYONLY)
-    configure_file(lsst_wcs.txt "${CMAKE_CURRENT_BINARY_DIR}/lsst_wcs.txt" COPYONLY)
-    configure_file(rotate_seq3d_cartesian.asdf "${CMAKE_CURRENT_BINARY_DIR}/rotate_seq3d_cartesian.asdf" COPYONLY)
-    ast_add_test(testyamlchan)
+    target_compile_definitions(testyamlchan PRIVATE YAML "YAML_BACKEND=\"libyaml\"")
+elseif(HAVE_FYAML)
+    target_compile_definitions(testyamlchan PRIVATE FYAML "YAML_BACKEND=\"libfyaml\"")
+endif()
+# Run testyamlchan with LeakSanitizer enabled (overriding the suite-wide
+# detect_leaks=0) so real leaks in the YAML read/write path are caught. The
+# libfyaml backend has a known upstream leak on tagged events (in versions
+# <0.9); libfyaml.supp suppresses just that, so genuine leaks still surface.
+# LeakSanitizer only works on Linux.
+if(AST_ENABLE_SANITIZERS AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set_tests_properties(testyamlchan PROPERTIES ENVIRONMENT
+        "ASAN_OPTIONS=detect_leaks=1;LSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/libfyaml.supp")
 endif()
 
 if(HAVE_PTHREADS)

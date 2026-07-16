@@ -97,7 +97,7 @@ f     The YamlChan class does not define any new routines beyond those
 *        - Adapt to newer versions of ASDF transform schemas.
 *        - Add support for the gwcs/spherical_cartesian transform.
 *     20-APR-2026 (TIMJ):
-*        Fix buffer overread in LibYamlWriter where astStore copied one
+*        Fix buffer overread in AstYamlWriter where astStore copied one
 *        byte past the end of the source buffer.
 *     22-APR-2026 (EMB):
 *        - Add support for the asdf/transform/divide transform.
@@ -106,6 +106,11 @@ f     The YamlChan class does not define any new routines beyond those
 *        - Fix missing degree to radian conversion in ReadRotateSequence3d.
 *        - Fix handling of rotation_type parameter in ReadRotateSequence3d.
 *        - Fix handling of null transform in the final WCS step.
+*     3-JUL-2026 (EMB):
+*        Refactor YAML backend access through yaml_backend.h abstraction
+*        layer to support both libyaml and libfyaml.
+*     15-JUL-2026 (EMB):
+*        Fixed memory leak in GetRefMap.
 *class--
 */
 
@@ -136,6 +141,22 @@ f     The YamlChan class does not define any new routines beyond those
 
 /* YAML tag prefix for all gWCS objects */
 #define GWCS_TAG STSCI_TAG"gwcs/"
+
+/* Check the result of an astYamlEmit* call and report an error if it
+   failed. YAML_BACKEND is defined by the build system when a YAML backend
+   is compiled in. */
+#if defined( YAML_BACKEND )
+#define EMIT_CHECK(this_, emitter_, status_, call) \
+   do { \
+      if( !(call) ) { \
+         astError( AST__LYAML, "astWrite(%s): Failed to emit YAML " \
+                   "event.", (status_), astGetClass( this_ ) ); \
+         AstYamlEmitterError( (emitter_), (status_) ); \
+      } \
+   } while( 0 )
+#else
+#define EMIT_CHECK(this_, emitter_, status_, call)
+#endif
 
 /* YAML tag prefix for astropy objects. */
 #define ASTROPY_TAG "tag:astropy.org:"
@@ -211,52 +232,6 @@ static const char *DIVIDE_1D_INV[] = { "p", "r" };
                          "configured without YAML support.", status, \
                          Method );
 
-/* Emit a YAML event and report an error if it fails. */
-#if defined( YAML )
-static int TraceOutput = 0;
-static int nest_depth = 0;
-static int nest_type[ 100 ];
-#define EMIT \
-   if( TraceOutput && astOK ) { \
-      for( int kk = 0; kk < nest_depth; kk++ ) printf(" "); \
-      printf("Emitting %s ", YamlEventType(event) ); \
-      if( event.type == YAML_SCALAR_EVENT ) { \
-         printf("('%s') ", (char *) event.data.scalar.value ); \
-      } else if( event.type == YAML_SEQUENCE_START_EVENT ) { \
-         nest_type[ nest_depth++ ] = 1; \
-         if( event.data.sequence_start.tag ) \
-            printf("(%s) ", (char *) event.data.sequence_start.tag ); \
-      } else if( event.type == YAML_MAPPING_START_EVENT ) { \
-         nest_type[ nest_depth++ ] = 0; \
-         if( event.data.mapping_start.tag ) \
-            printf("(%s) ", (char *) event.data.mapping_start.tag ); \
-      } else if( event.type == YAML_SEQUENCE_END_EVENT ) { \
-         if( nest_depth == 0 ) { \
-            astError( AST__INTER, "astWrite(YamlChan): yaml nesting " \
-                      "error (too many _END_ events).", status ); \
-         } else if( nest_type[ --nest_depth ] != 1 ) { \
-            astError( AST__INTER, "astWrite(YamlChan): yaml nesting " \
-                      "error (SEQUENCE_END where MAPPING_END expected).",  \
-                      status ); \
-         } \
-      } else if( event.type == YAML_MAPPING_END_EVENT ) { \
-         if( nest_depth == 0 ) { \
-            astError( AST__INTER, "astWrite(YamlChan): yaml nesting " \
-                      "error (too many _END_ events).", status ); \
-         } else if( nest_type[ --nest_depth ] != 0 ) { \
-            astError( AST__INTER, "astWrite(YamlChan): yaml nesting " \
-                      "error (MAPPING_END where SEQUENCE_END expected).",  \
-                      status ); \
-         } \
-      } \
-      printf("\n"); \
-   } \
-   if( !yaml_emitter_emit( emitter, &event ) ){ \
-      astError( AST__LYAML, "astWrite(%s): Failed to emit libyaml " \
-                "%s", status, astGetClass( this ), YamlEventType(event) ); \
-      LibYamlEmitterError( emitter, status ); \
-   }
-#endif
 
 /* Include files. */
 /* ============== */
@@ -308,14 +283,7 @@ static int nest_type[ 100 ];
 #include <stdint.h>
 #include <inttypes.h>
 
-/* Include the libyaml header if it is available. Otherwise, define
-   local stubs for the selected definitions in yaml.h */
-#if defined( YAML )
-#include <yaml.h>
-#else
-typedef int yaml_parser_t;
-typedef int yaml_event_t;
-#endif
+#include "yaml_backend.h"
 
 /* Module Variables. */
 /* ================= */
@@ -353,7 +321,7 @@ astMAKE_INITGLOBALS(YamlChan)
 #define getattrib_buff astGLOBAL(YamlChan,GetAttrib_Buff)
 #define class_init astGLOBAL(YamlChan,Class_Init)
 #define class_vtab astGLOBAL(YamlChan,Class_Vtab)
-#if defined( YAML )
+#if defined( YAML_BACKEND )
 #define lines_written astGLOBAL(YamlChan,Lines_Written)
 #endif
 
@@ -369,7 +337,7 @@ static int class_init = 0;       /* Virtual function table initialised? */
 /* Buffer returned by GetAttrib. */
 static char getattrib_buff[ GETATTRIB_BUFF_LEN + 1 ];
 
-#if defined( YAML )
+#if defined( YAML_BACKEND )
 
 /* Number of lines written to the output. */
 static int lines_written = 0;
@@ -398,7 +366,7 @@ AstYamlChan *astYamlChanId_( const char *(* source)( void ),
 
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
-#if defined( YAML )
+#if defined( YAML_BACKEND )
 
 static AstFrame *ReadFrame( AstKeyMap *, int, AstMapping **, int *status );
 static AstFrameSet *ReadWcs( AstYamlChan *, AstKeyMap *, int * );
@@ -406,8 +374,8 @@ static AstObject *ReadNative( AstYamlChan *, AstKeyMap *, int * );
 static AstKeyMap *AddR2D( AstYamlChan *, AstKeyMap **, int, int, int, int * );
 static AstKeyMap *Get0A( AstKeyMap *, const char *, int, AstKeyMap *, const char *, int * );
 static AstKeyMap *IsAsdfTransform( AstYamlChan *, AstCmpMap *, AstObject *, const char *, AstCmpMap **, int * );
-static AstKeyMap *ReadValues( AstYamlChan *, yaml_parser_t *, int * );
-static AstKeyMap *ReadYAMLMapping( AstYamlChan *, yaml_parser_t *, int * );
+static AstKeyMap *ReadValues( AstYamlChan *, AstYamlParser *, int * );
+static AstKeyMap *ReadYAMLMapping( AstYamlChan *, AstYamlParser *, int * );
 static AstKeyMap *StartAsdfKeyMap( AstYamlChan *, int, const char *, int * );
 static AstKeyMap *StartAsdfTransform( AstYamlChan *, AstObject *, const char *, const char *, int * );
 static AstKeyMap *StoreKeyMap( AstYamlChan *, const char *, AstKeyMap *, AstKeyMap **, int * );
@@ -479,7 +447,7 @@ static const char *Get0C( AstKeyMap *, const char *, int, const char *, int * );
 static const char *GetAsdfClass( AstKeyMap *, int * );
 static const char *GetNativeClass( AstKeyMap *, int * );
 static const char *GetName( AstYamlChan *, const char *, AstMapping *, int * );
-static const char *YamlEventType( yaml_event_t );
+static const char *YamlEventType( int );
 static double *GetQuantityV( AstYamlChan *, AstKeyMap *, const char *, const char *, int, int, int *, int *,  int * );
 static double *GetSequence( AstYamlChan *, AstKeyMap *, const char *, int, int, int *, int *, int *status );
 static double *ReadNDArray( AstYamlChan *, AstKeyMap *, int, int *, int *, int * );
@@ -500,27 +468,27 @@ static int Get1D( AstKeyMap *, const char *, int, int, double *, int *, int * );
 static int Get1I( AstKeyMap *, const char *, int, int, int *, int *, int * );
 static int GetChoice( AstKeyMap *, const char *, const char *, int, int, int * );
 static int IsA( AstKeyMap *, const char *, int * );
-static int LibYamlReader( void *, yaml_char_t *, size_t, size_t * );
-static int LibYamlWriter( void *, yaml_char_t *, long unsigned int );
+static int AstYamlReader( void *, unsigned char *, size_t, size_t * );
+static int AstYamlWriter( void *, unsigned char *, size_t );
 static int ReadBaseFrame( AstKeyMap *, AstSkyFrame *, int * );
 static int SimplifyAsdf( AstYamlChan *, AstKeyMap **, int *);
 static int Use( AstYamlChan *, int, int, int * );
 static void Deuler( const char *, double *, double[3][3], int * );
 static void ExpandAsdf( AstYamlChan *, AstKeyMap *, int, int *, AstKeyMap ***, int * );
 static void GetUCD( int, const char **, const char ** );
-static void LibYamlEmitterError( yaml_emitter_t *, int * );
-static void LibYamlParserError( yaml_parser_t *, int * );
+static void AstYamlEmitterError( AstYamlEmitter *, int * );
+static void AstYamlParserError( AstYamlParser *, int * );
 static void PutIntoKeyMap( AstKeyMap *, const char *, int, void *, int * );
 static void ReadEarthLocation( AstKeyMap *, AstFrame *, int * );
 static void ReadStep( AstYamlChan *, AstKeyMap *, int, int, AstMapping **, AstFrame **, AstMapping **, int * );
 static void ReadYAMLAlias( AstYamlChan *, AstKeyMap *, const char *, const char *, int * );
-static void ReadYAMLEvent( AstYamlChan *, yaml_parser_t *, yaml_event_t *, AstKeyMap *, const char *, int * );
-static void ReadYAMLItem( AstYamlChan *, yaml_parser_t *, AstKeyMap *, const char *, int * );
-static void ReadYAMLSequence( AstYamlChan *, AstKeyMap *, const char *, yaml_parser_t *, int * );
+static void ReadYAMLEvent( AstYamlChan *, AstYamlParser *, AstYamlEvent *, AstKeyMap *, const char *, int * );
+static void ReadYAMLItem( AstYamlChan *, AstYamlParser *, AstKeyMap *, const char *, int * );
+static void ReadYAMLSequence( AstYamlChan *, AstKeyMap *, const char *, AstYamlParser *, int * );
 static void SetNotAsdf( AstCmpMap *, int * );
-static void EndYamlDoc( AstYamlChan *, yaml_emitter_t *, int * );
-static void StartYamlDoc( AstYamlChan *, yaml_emitter_t *, int * );
-static void StartYamlMapping( AstYamlChan *, const char *, const char *, yaml_emitter_t *, int * );
+static void EndYamlDoc( AstYamlChan *, AstYamlEmitter *, int * );
+static void StartYamlDoc( AstYamlChan *, AstYamlEmitter *, int * );
+static void StartYamlMapping( AstYamlChan *, const char *, const char *, AstYamlEmitter *, int * );
 static void Store0C( AstYamlChan *, const char *, int, AstKeyMap *, const char *, const char *, int * );
 static void Store0D( AstYamlChan *, const char *, AstKeyMap *, double, int * );
 static void Store0I( AstYamlChan *, const char *, AstKeyMap *, int, int * );
@@ -528,16 +496,16 @@ static void Store1C( AstYamlChan *, const char *, int, AstKeyMap *, int, const c
 static void Store1D( AstYamlChan *, const char *, AstKeyMap *, int, const double *, int * );
 static void Store1I( AstYamlChan *, const char *, AstKeyMap *, int, const int *, int * );
 static void StoreAnchor( AstYamlChan *, const char *, AstKeyMap *, const char *, int * );
-static void StoreYaml0C( AstYamlChan *, const char *, int, yaml_emitter_t *, int, const char *, const char *, int * );
-static void StoreYaml0D( AstYamlChan *, const char *, yaml_emitter_t *, int, double, int * );
-static void StoreYaml0I( AstYamlChan *, const char *, yaml_emitter_t *, int, int, int * );
-static void StoreYaml0K( AstYamlChan *, const char *, yaml_emitter_t *, int, int64_t, int * );
-static void StoreYaml1C( AstYamlChan *, const char *, int, yaml_emitter_t *, int, const char *[], const char *, int * );
-static void StoreYaml1D( AstYamlChan *, const char *, yaml_emitter_t *, int, const double *, int * );
-static void StoreYaml1I( AstYamlChan *, const char *, yaml_emitter_t *, int, const int *, int * );
+static void StoreYaml0C( AstYamlChan *, const char *, int, AstYamlEmitter *, int, const char *, const char *, int * );
+static void StoreYaml0D( AstYamlChan *, const char *, AstYamlEmitter *, int, double, int * );
+static void StoreYaml0I( AstYamlChan *, const char *, AstYamlEmitter *, int, int, int * );
+static void StoreYaml0K( AstYamlChan *, const char *, AstYamlEmitter *, int, int64_t, int * );
+static void StoreYaml1C( AstYamlChan *, const char *, int, AstYamlEmitter *, int, const char *[], const char *, int * );
+static void StoreYaml1D( AstYamlChan *, const char *, AstYamlEmitter *, int, const double *, int * );
+static void StoreYaml1I( AstYamlChan *, const char *, AstYamlEmitter *, int, const int *, int * );
 static void WriteValues( AstYamlChan *, const char *key, AstKeyMap *, int * );
-static void WriteYamlEntry( AstYamlChan *, AstKeyMap *, const char *, const char *, const char *, yaml_emitter_t *, int * );
-static void WriteYamlObject( AstYamlChan *, const char *, AstKeyMap *, yaml_emitter_t *, int * );
+static void WriteYamlEntry( AstYamlChan *, AstKeyMap *, const char *, const char *, const char *, AstYamlEmitter *, int * );
+static void WriteYamlObject( AstYamlChan *, const char *, AstKeyMap *, AstYamlEmitter *, int * );
 static void WriteBegin( AstChannel *, const char *, const char *, int * );
 static void WriteDouble( AstChannel *, const char *, int, int, double, const char *, int * );
 static void WriteEnd( AstChannel *, const char *, int * );
@@ -982,6 +950,7 @@ static void Delete( AstObject *this_object, int *status ) {
 */
    AstYamlChan *this = (AstYamlChan *) this_object;
    if( this->ref_maps ) this->ref_maps = astAnnul( this->ref_maps );
+   this->readbuf = astFree( this->readbuf );
 }
 
 static AstMathMap *GetRefMap( AstYamlChan *this, const char *key, int *status ) {
@@ -1045,14 +1014,15 @@ static AstMathMap *GetRefMap( AstYamlChan *this, const char *key, int *status ) 
    } else if( !strcmp( key, REFMAP_DIVIDE_1D ) ) {
       ref = (AstMathMap *) astMathMap( 2, 1, 1, DIVIDE_1D_FWD, 2, DIVIDE_1D_INV,
                                        "simpfi=0,simpif=0", status );
-      astMapPut0A( this->ref_maps, key, (AstObject *) ref, NULL );
+      obj = (AstObject *) ref;
+      astMapPut0A( this->ref_maps, key, obj, NULL );
 
    } else if( astOK ) {
       astError( AST__INTER, "GetRefMap(YamlChan): unknown reference map "
                 "key \"%s\"", status, key );
    }
 
-/* astMapGet0A returned a new reference — annul it so the cache owns the
+/* astMapGet0A returned a new reference; annul it so the cache owns the
    only reference and we return a borrowed pointer. */
    if( obj )
       astAnnul( obj );
@@ -1139,7 +1109,7 @@ void astInitYamlChanVtab_(  AstYamlChanVtab *vtab, const char *name, int *status
    parent_read = channel->Read;
    channel->Read = Read;
 
-#if defined( YAML )
+#if defined( YAML_BACKEND )
    channel->GetNextData = GetNextData;
    channel->WriteBegin = WriteBegin;
    channel->WriteIsA = WriteIsA;
@@ -1219,15 +1189,15 @@ static AstObject *Read( AstChannel *this_channel, int *status ) {
 */
 
 
-/* Check libyaml is available. */
-#if !defined( YAML )
+/* Check that a YAML backend is available. */
+#if !defined( YAML_BACKEND )
    YAML_ERR("Read")
    return NULL;
 #else
 
 /* Local Variables: */
    AstObject *new;
-   yaml_parser_t parser;
+   AstYamlParser parser;
    AstYamlChan *this;
    AstKeyMap *values;
 
@@ -1256,15 +1226,21 @@ static AstObject *Read( AstChannel *this_channel, int *status ) {
 /* Indicate we have not yet determined the default yaml encoding. */
    this->defenc = UNKNOWN_ENCODING;
 
-/* Initialize a libyaml parser */
-   if( !yaml_parser_initialize( &parser ) ){
-      astError( AST__LYAML, "astRead(%s): Failed to initialize libyaml "
-                "parser", status, astGetClass( this ) );
-      LibYamlParserError( &parser, status );
+/* Initialize the YAML parser. */
+   if( !astYamlParserInitialize( &parser ) ){
+      /* LCOV_EXCL_START */
+      astError( AST__LYAML, "astRead(%s): Failed to initialize " YAML_BACKEND
+                " parser", status, astGetClass( this ) );
+      AstYamlParserError( &parser, status );
+      /* LCOV_EXCL_STOP */
 
-/* Register the source function with the parser. */
+/* Register the source function with the parser. Start with an empty line
+   buffer so the first read fetches a fresh line (any remainder left by an
+   earlier, possibly aborted, read is discarded). */
    } else {
-      yaml_parser_set_input( &parser, LibYamlReader, this );
+      this->readlen = 0;
+      this->readoff = 0;
+      astYamlParserSetInput( &parser, AstYamlReader, this );
 
 /* Read the YAML object from the external source, parse it, and
    create a KeyMap containing the parsed values. This will set the
@@ -1273,7 +1249,7 @@ static AstObject *Read( AstChannel *this_channel, int *status ) {
       values = ReadValues( this, &parser, status );
 
 /* Delete the parser. */
-      yaml_parser_delete( &parser );
+      astYamlParserDelete( &parser );
    }
 
 /* Create an AST object from the KeyMap. */
@@ -1824,8 +1800,8 @@ static int Write( AstChannel *this_channel, AstObject *obj, int *status ) {
 *     reason.
 */
 
-/* Check libyaml is available. */
-#if !defined( YAML )
+/* Check that a YAML backend is available. */
+#if !defined( YAML_BACKEND )
    YAML_ERR("Write")
    return 0;
 #else
@@ -1836,8 +1812,7 @@ static int Write( AstChannel *this_channel, AstObject *obj, int *status ) {
    const char *key;
    int enc;
    int ret;
-   yaml_emitter_t *emitter;
-   yaml_event_t event;
+   AstYamlEmitter *emitter;
 
 /* Initialise. */
    ret = 0;
@@ -1873,8 +1848,7 @@ static int Write( AstChannel *this_channel, AstObject *obj, int *status ) {
       ret = 1;
 
 /* End the anonymous yaml mapping. */
-      yaml_mapping_end_event_initialize( &event );
-      EMIT
+      EMIT_CHECK(this, emitter, status, astYamlEmitMappingEnd( emitter ));
 
 /* End the yaml document and delete the libyaml emitter. */
       EndYamlDoc( this, emitter, status );
@@ -1932,9 +1906,9 @@ static int Write( AstChannel *this_channel, AstObject *obj, int *status ) {
 #endif
 }
 
-/* Member functions that are only available if libyaml is available. */
-/* ================================================================= */
-#if defined( YAML )
+/* Member functions that are only available if a YAML backend is available. */
+/* ========================================================================= */
+#if defined( YAML_BACKEND )
 
 static AstKeyMap *AddR2D( AstYamlChan *this, AstKeyMap **km, int r2d,
                           int before, int nax, int *status ){
@@ -2135,7 +2109,7 @@ static void Deuler( const char *order, double *angles, double rmat[3][3],
    }
 }
 
-static void EndYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
+static void EndYamlDoc( AstYamlChan *this, AstYamlEmitter *emitter,
                         int *status ) {
 /*
 *  Name:
@@ -2149,7 +2123,7 @@ static void EndYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
 
 *  Synopsis:
 *     #include "Yamlchan.h"
-*     void EndYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
+*     void EndYamlDoc( AstYamlChan *this, AstYamlEmitter *emitter,
 *                      int *status )
 
 *  Description:
@@ -2164,23 +2138,18 @@ static void EndYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
 *        Pointer to the inherited status variable.
 */
 
-/* Local Variables: */
-   yaml_event_t event;
-
 /* Create and emit the DOCUMENT-END event. */
    if( astOK ) {
-      yaml_document_end_event_initialize( &event, 0 );
-      EMIT
+      EMIT_CHECK(this, emitter, status, astYamlEmitDocumentEnd( emitter, 0 ));
    }
 
 /* Create and emit the STREAM-END event. */
    if( astOK ) {
-      yaml_stream_end_event_initialize( &event );
-      EMIT
+      EMIT_CHECK(this, emitter, status, astYamlEmitStreamEnd( emitter ));
    }
 
 /* Delete the emitter. */
-   yaml_emitter_delete( emitter );
+   astYamlEmitterDelete( emitter );
 
 /* Nullify the emitter pointer in the YamlChan structure. */
    this->emitter = NULL;
@@ -6167,100 +6136,112 @@ static AstMapping *IsPolyMap( AstMapping *map, int *status ){
    return result;
 }
 
-static void LibYamlEmitterError( yaml_emitter_t *emitter, int *status ){
+static void AstYamlEmitterError( AstYamlEmitter *emitter, int *status ){ /* LCOV_EXCL_START */
 /*
 *  Name:
-*     LibYamlEmitterError
+*     AstYamlEmitterError
 
 *  Purpose:
-*     Emit AST error messages describing the most recent libyaml error.
+*     Emit AST error messages describing the most recent YAML emitter error.
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     void LibYamlEmitterError( yaml_emitter_t *emitter, int *status )
+*     void AstYamlEmitterError( AstYamlEmitter *emitter, int *status )
 
 *  Class Membership:
 *     YamlChan member function.
 
 *  Description:
-*     This function reports a set of error messages (using astError) that
-*     describe the most recent libyaml error.
+*     This function reports an error message (using astError) that
+*     describes the most recent YAML backend emitter error.
 
 *  Parameters:
 *     emitter
-*        Pointer to the libyaml emitter.
+*        Pointer to the YAML emitter.
 *     status
 *        Pointer to the global status
 
 */
    if( emitter ) {
-      astError( *status, "libyaml says '%s'", status, emitter->problem );
+      astError( *status, YAML_BACKEND " emitter: %s", status,
+                astYamlEmitterGetError( emitter ) );
    }
-}
+} /* LCOV_EXCL_STOP */
 
-static void LibYamlParserError( yaml_parser_t *parser, int *status ){
+static void AstYamlParserError( AstYamlParser *parser, int *status ){
 /*
 *  Name:
-*     LibYamlParserError
+*     AstYamlParserError
 
 *  Purpose:
-*     Emit AST error messages describing the most recent libyaml error.
+*     Emit AST error messages describing the most recent YAML parser error.
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     void LibYamlParserError( yaml_parser_t *parser, int *status )
+*     void AstYamlParserError( AstYamlParser *parser, int *status )
 
 *  Class Membership:
 *     YamlChan member function.
 
 *  Description:
-*     This function reports a set of error messages (using astError) that
-*     describe the most recent libyaml error.
+*     This function reports an error message (using astError) that
+*     describes the most recent YAML backend parser error.  The message
+*     includes a line and column number when the backend provides one.
 
 *  Parameters:
 *     parser
-*        Pointer to the libyaml parser.
+*        Pointer to the YAML parser.
 *     status
 *        Pointer to the global status
 
 */
 
    if( parser ) {
-      astError( *status, "libyaml says '%s'", status, parser->problem );
-      astError( *status, "near: '%s'", status, parser->context );
+      int line, col;
+      const char *msg = astYamlParserGetError( parser, &line, &col );
+      if( line >= 0 ) {
+         astError( *status, YAML_BACKEND " parser: %s at line %d, column %d",
+                   status, msg, line + 1, col + 1 );
+      } else {
+         astError( *status, YAML_BACKEND " parser: %s", status, msg );
+      }
    }
 
 }
 
-static int LibYamlReader( void *data, yaml_char_t *buffer, size_t size,
+static int AstYamlReader( void *data, unsigned char *buffer, size_t size,
                           size_t *size_read ){
 /*
 *  Name:
-*     LibYamlReader
+*     AstYamlReader
 
 *  Purpose:
-*     Called by libyaml to read a line of text from the source.
+*     Called by the YAML parser to read text from the source.
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     int LibYamlReader( void *data, yaml_char_t *buffer, size_t size,
+*     int AstYamlReader( void *data, unsigned char *buffer, size_t size,
                          size_t *size_read )
 
 *  Class Membership:
 *     YamlChan member function.
 
 *  Description:
-*     This function is called by libyaml to read a line of text from the
-*     source.
+*     This function is called by the active YAML backend (libyaml or
+*     libfyaml) to read text from the source. It returns up to "size"
+*     bytes per call, reading complete lines from the parent Channel class
+*     and handing each one out in as many chunks as the parser requests.
+*     This lets it feed parsers that ask for arbitrarily small amounts of
+*     input, without requiring a whole line to fit in the supplied buffer.
 
 *  Parameters:
 *     data
@@ -6282,72 +6263,82 @@ static int LibYamlReader( void *data, yaml_char_t *buffer, size_t size,
    AstYamlChan * this;
    char *text;
    int *status;
-   int result;
+   size_t navail;
+   size_t nchunk;
 
 /* Initialise */
-   result = 0;
    *size_read = 0;
-   buffer[ 0 ] = 0;
 
 /* Get the AST status pointer */
    status = astGetStatusPtr;
 
 /* Check the status is good. */
-   if( !astOK ) return result;
+   if( !astOK ) return 0;
 
 /* Get a pointer to the YamlChan */
    this = (AstYamlChan *) data;
 
+/* If the current line has been completely handed out, fetch the next line
+   from the source. */
+   if( this->readoff >= this->readlen ) {
+
 /* Invoke the source function from the parent Channel class until we get
-   a non-blank line of text. . */
-   text = astGetNextText( this );
-   while( astOK && text && strlen( text ) == 0 ) {
-      text = astFree( text );
+   a non-blank line of text. */
       text = astGetNextText( this );
-   }
-
-/* If successful... */
-   if( astOK ) {
-      result = 1;
-
-/* If there is any text to return... */
-      if( text ) {
-
-/* Check the text will fit in the supplied buffer. Report an error if
-   not. Allow room for a newline character to ba appended to the end. */
-         *size_read = strlen( text ) + 1;
-         if( *size_read > size ) {
-            result = 0;
-            *size_read = 0;
-            buffer[ 0 ] = 0;
-            astError( AST__TRUNC, "astRead(yamlchan): Input text is too "
-                      "long for the libyaml buffer:", status );
-            astError( AST__TRUNC, "'%.50s'", status, text );
-
-/* If so, copy the text into the buffer. */
-         } else {
-            memcpy( buffer, text, *size_read );
-
-/* Append a newline character (stripped by astGetNextText but required by
-   libyaml). */
-            buffer[ *size_read - 1 ] = '\n';
-         }
+      while( astOK && text && strlen( text ) == 0 ) {
+         text = astFree( text );
+         text = astGetNextText( this );
       }
+
+/* On error, abandon the read. */
+      if( !astOK ) {
+         text = astFree( text );
+         return 0;
+      }
+
+/* A NULL pointer marks the end of the input. Leave "size_read" holding
+   zero, which signals EOF to the parser. */
+      if( !text )
+         return 1;
+
+/* Copy the line into the YamlChan's line buffer, appending the newline
+   that astGetNextText strips off (both YAML backends expect newline
+   terminated lines). The buffer grows as needed and is reused between
+   lines. */
+      navail = strlen( text );
+      this->readbuf = astGrow( this->readbuf, navail + 1, sizeof( char ) );
+      if( astOK ) {
+         memcpy( this->readbuf, text, navail );
+         this->readbuf[ navail ] = '\n';
+         this->readlen = navail + 1;
+         this->readoff = 0;
+      }
+      text = astFree( text );
+
+      if( !astOK )
+         return 0;
    }
 
-   text = astFree( text );
+/* Hand out as much of the current line as will fit in the supplied buffer,
+   remembering how much is left for the next call. */
+   navail = this->readlen - this->readoff;
+   nchunk = ( size < navail ) ? size : navail;
+   memcpy( buffer, this->readbuf + this->readoff, nchunk );
+   this->readoff += nchunk;
+   *size_read = nchunk;
 
 /* If required echo the yaml as it is read. */
-   if( astGetVerboseRead(this) ) printf( "%.*s", (int) *size_read, buffer );
+   if( astGetVerboseRead( this ) )
+      printf( "%.*s", (int) nchunk, buffer );
 
-   return result;
+   return 1;
 }
 
-static int LibYamlWriter( void *data, yaml_char_t *buffer,
-                          long unsigned int size ){
+static int AstYamlWriter( void *data, unsigned char *buffer,
+                          size_t size ){
 /*
 *  Name:
-*     LibYamlWriter
+*     AstYamlWriter
 
 *  Purpose:
 *     Called by libyaml to write a line of text to the sink.
@@ -6357,8 +6348,8 @@ static int LibYamlWriter( void *data, yaml_char_t *buffer,
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     int LibYamlWriter( void *data, yaml_char_t *buffer,
-*                        long unsigned int size )
+*     int AstYamlWriter( void *data, unsigned char *buffer,
+*                        size_t size )
 
 *  Class Membership:
 *     YamlChan member function.
@@ -10741,7 +10732,7 @@ static AstMapping *ReadTransform( AstYamlChan *this, AstKeyMap *km, int *status 
    return result;
 }
 
-static AstKeyMap *ReadValues( AstYamlChan *this, yaml_parser_t *parser, int *status ) {
+static AstKeyMap *ReadValues( AstYamlChan *this, AstYamlParser *parser, int *status ) {
 /*
 *  Name:
 *     ReadValues
@@ -10754,7 +10745,7 @@ static AstKeyMap *ReadValues( AstYamlChan *this, yaml_parser_t *parser, int *sta
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     AstKeyMap *ReadValues( AstYamlChan *this, yaml_parser_t *parser, int *status )
+*     AstKeyMap *ReadValues( AstYamlChan *this, AstYamlParser *parser, int *status )
 
 *  Class Membership:
 *     YamlChan member function
@@ -10779,7 +10770,7 @@ static AstKeyMap *ReadValues( AstYamlChan *this, yaml_parser_t *parser, int *sta
 
 /* Local Variables: */
    AstKeyMap *result;
-   yaml_event_t  event;
+   AstYamlEvent  event;
    int state;
 
 /* Initialise */
@@ -10796,11 +10787,12 @@ static AstKeyMap *ReadValues( AstYamlChan *this, yaml_parser_t *parser, int *sta
    while( astOK && !this->gotwcs ) {
 
 /* Get the next yaml event. */
-      if( !yaml_parser_parse( parser, &event )) {
-         astError( AST__LYAML, "astRead(%s): Error %d occurred calling "
-                   "libyaml function '%s':", status, astGetClass( this),
-                   parser->error, "yaml_parser_parse" );
-         LibYamlParserError( parser, status );
+      if( !astYamlParserParse( parser, &event )) {
+         /* LCOV_EXCL_START */
+         astError( AST__LYAML, "astRead(%s): " YAML_BACKEND " parse error:",
+                   status, astGetClass( this ) );
+         AstYamlParserError( parser, status );
+         /* LCOV_EXCL_STOP */
 
 /* State zero: look for the "stream start" event. */
       } else if( state == 0 ) {
@@ -10853,7 +10845,7 @@ static AstKeyMap *ReadValues( AstYamlChan *this, yaml_parser_t *parser, int *sta
 
 /* Once the stream-end has happened, we have nothing more to do so
    delete the event and break out of the loop. */
-         yaml_event_delete( &event );
+         astYamlEventDelete( &event );
          break;
 
 /* Should never happen. */
@@ -10864,7 +10856,7 @@ static AstKeyMap *ReadValues( AstYamlChan *this, yaml_parser_t *parser, int *sta
       }
 
 /* Delete th event before getting the next event. */
-      yaml_event_delete( &event );
+      astYamlEventDelete( &event );
    }
 
 /* Sanity check. */
@@ -11119,8 +11111,8 @@ static void ReadYAMLAlias( AstYamlChan *this, AstKeyMap *km, const char *id,
    }
 }
 
-static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
-                           yaml_event_t *event, AstKeyMap *km, const char *id,
+static void ReadYAMLEvent( AstYamlChan *this, AstYamlParser *parser,
+                           AstYamlEvent *event, AstKeyMap *km, const char *id,
                            int *status ){
 /*
 *  Name:
@@ -11134,8 +11126,8 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
-*                         yaml_event_t *event, AstKeyMap *km, const char *id,
+*     void ReadYAMLEvent( AstYamlChan *this, AstYamlParser *parser,
+*                         AstYamlEvent *event, AstKeyMap *km, const char *id,
 *                         int *status )
 
 *  Class Membership:
@@ -11179,10 +11171,10 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
 
 /* New item is a Mapping... */
    if( event->type == YAML_MAPPING_START_EVENT ) {
-      anchor = (char *) event->data.mapping_start.anchor;
+      anchor = (char *) event->anchor;
 
 /* Get the YAML class of the object stored in the YAML Mapping. */
-      class = (char *) event->data.mapping_start.tag;
+      class = (char *) event->tag;
       if( class ) {
          class = astStore( NULL, class, strlen( class ) + 1 );
 
@@ -11226,8 +11218,8 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
 
 /* New item is a scalar... */
    } else if( event->type == YAML_SCALAR_EVENT ) {
-      anchor = (char *) event->data.scalar.anchor;
-      text = (char *) event->data.scalar.value;
+      anchor = (char *) event->anchor;
+      text = (char *) event->value;
       dval = astChr2Double( text );
       if( dval != AST__BAD ) {
          if( strstr( text, "." ) ){
@@ -11255,7 +11247,7 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
 
 /* New item is a sequence... */
    } else if( event->type == YAML_SEQUENCE_START_EVENT ) {
-      anchor = (char *) event->data.sequence_start.anchor;
+      anchor = (char *) event->anchor;
 
 /* Read the sequence values into the KeyMap. This consumes subsequent events
    up to and including the "sequence end" event corresponding to the
@@ -11265,13 +11257,13 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
 /* New item is an alias (i.e. a reference to a previously defined anchor). */
    } else if( event->type == YAML_ALIAS_EVENT ) {
       anchor = NULL;
-      ReadYAMLAlias( this, km, id, (char *) event->data.alias.anchor, status );
+      ReadYAMLAlias( this, km, id, (char *) event->anchor, status );
 
 /* Report an error for any unsupported YAML event types. */
    } else {
       astError( AST__YAML, "astRead(%s): Cannot interpret the "
                 "supplied YAML text: Unexpected item of type '%s'.", status,
-                astGetClass(this),  YamlEventType( *event )  );
+                astGetClass(this), YamlEventType( event->type ) );
    }
 
 /* If the event had an associated anchor, associate the anchor with the
@@ -11279,7 +11271,7 @@ static void ReadYAMLEvent( AstYamlChan *this, yaml_parser_t *parser,
    StoreAnchor( this, (char *) anchor, km, id, status );
 }
 
-static void ReadYAMLItem( AstYamlChan *this, yaml_parser_t *parser,
+static void ReadYAMLItem( AstYamlChan *this, AstYamlParser *parser,
                           AstKeyMap *km, const char *id, int *status ){
 /*
 *  Name:
@@ -11293,7 +11285,7 @@ static void ReadYAMLItem( AstYamlChan *this, yaml_parser_t *parser,
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     void ReadYAMLItem( AstYamlChan *this, yaml_parser_t *parser,
+*     void ReadYAMLItem( AstYamlChan *this, AstYamlParser *parser,
 *                        AstKeyMap *km, const char *id, int *status )
 
 *  Class Membership:
@@ -11319,17 +11311,18 @@ static void ReadYAMLItem( AstYamlChan *this, yaml_parser_t *parser,
 */
 
 /* Local Variables: */
-   yaml_event_t  event;
+   AstYamlEvent  event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
 /* Get the next event from the parser. */
-   if( !yaml_parser_parse( parser, &event ) ) {
-      astError( AST__LYAML, "astRead(%s): Error %d occurred calling "
-                "libyaml function '%s':", status, astGetClass( this),
-                parser->error, "yaml_parser_parse" );
-      LibYamlParserError( parser, status );
+   if( !astYamlParserParse( parser, &event ) ) {
+      /* LCOV_EXCL_START */
+      astError( AST__LYAML, "astRead(%s): " YAML_BACKEND " parse error:",
+                status, astGetClass( this ) );
+      AstYamlParserError( parser, status );
+      /* LCOV_EXCL_STOP */
 
 /* Read data indicated by the event into the KeyMap. */
    } else {
@@ -11337,10 +11330,10 @@ static void ReadYAMLItem( AstYamlChan *this, yaml_parser_t *parser,
    }
 
 /* Delete the event. */
-   yaml_event_delete( &event );
+   astYamlEventDelete( &event );
 }
 
-static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int *status ){
+static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, AstYamlParser *parser, int *status ){
 /*
 *  Name:
 *     ReadYAMLMapping
@@ -11353,7 +11346,7 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int *status )
+*     AstKeyMap *ReadYAMLMapping( AstYamlChan *this, AstYamlParser *parser, int *status )
 
 *  Class Membership:
 *     YamlChan member function
@@ -11378,7 +11371,7 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int
 /* Local Variables: */
    AstKeyMap *result;
    char *id;
-   yaml_event_t  event;
+   AstYamlEvent  event;
 
 /* Initialise */
    result = NULL;
@@ -11396,15 +11389,16 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int
    while( astOK && !this->gotwcs ) {
 
 /* Read the next event. */
-      if( !yaml_parser_parse( parser, &event ) ) {
-         astError( AST__LYAML, "astRead(%s): Error %d occurred calling "
-                   "libyaml function '%s':", status, astGetClass( this),
-                   parser->error, "yaml_parser_parse" );
-         LibYamlParserError( parser, status );
+      if( !astYamlParserParse( parser, &event ) ) {
+         /* LCOV_EXCL_START */
+         astError( AST__LYAML, "astRead(%s): " YAML_BACKEND " parse error:",
+                   status, astGetClass( this ) );
+         AstYamlParserError( parser, status );
+         /* LCOV_EXCL_STOP */
 
 /* Read the id for the next item */
       } else if( event.type == YAML_SCALAR_EVENT ) {
-         id = (char *) event.data.scalar.value;
+         id = (char *) event.value;
          if( !id ) {
             astError( AST__YAML, "astRead(%s): Cannot interpret the "
                       "supplied YAML text:  blank scalar name encountered.",
@@ -11419,6 +11413,7 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int
 
 /* End the Mapping */
       } else if( event.type == YAML_MAPPING_END_EVENT ) {
+         astYamlEventDelete( &event );
          break;
 
 /* Unexpected events. */
@@ -11429,7 +11424,7 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int
       }
 
 /* Delete the event before getting the next one from the parser. */
-      yaml_event_delete( &event );
+      astYamlEventDelete( &event );
    }
 
 /* Remove the entry used to track the previously added key (see
@@ -11444,7 +11439,7 @@ static AstKeyMap *ReadYAMLMapping( AstYamlChan *this, yaml_parser_t *parser, int
 }
 
 static void ReadYAMLSequence( AstYamlChan *this, AstKeyMap *km, const char *id,
-                              yaml_parser_t *parser, int *status ) {
+                              AstYamlParser *parser, int *status ) {
 /*
 *  Name:
 *     ReadYAMLSequence
@@ -11458,7 +11453,7 @@ static void ReadYAMLSequence( AstYamlChan *this, AstKeyMap *km, const char *id,
 *  Synopsis:
 *     #include "yamlchan.h"
 *     void ReadYAMLSequence( AstYamlChan *this, AstKeyMap *km, const char *id,
-*                            yaml_parser_t *parser, int *status )
+*                            AstYamlParser *parser, int *status )
 
 *  Class Membership:
 *     YamlChan member function
@@ -11520,7 +11515,7 @@ static void ReadYAMLSequence( AstYamlChan *this, AstKeyMap *km, const char *id,
    int ival;
    int nval;
    int type;
-   yaml_event_t  event;
+   AstYamlEvent  event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -11543,14 +11538,14 @@ static void ReadYAMLSequence( AstYamlChan *this, AstKeyMap *km, const char *id,
    while( astOK ) {
 
 /* Read the next event. */
-      if( !yaml_parser_parse( parser, &event ) ) {
-         astError( AST__LYAML, "astRead(%s): Error %d occurred calling "
-                   "libyaml function '%s':", status, astGetClass( this),
-                   parser->error, "yaml_parser_parse" );
-         LibYamlParserError( parser, status );
+      if( !astYamlParserParse( parser, &event ) ) {
+         astError( AST__LYAML, "astRead(%s): " YAML_BACKEND " parse error:",
+                   status, astGetClass( this ) );
+         AstYamlParserError( parser, status );
 
 /* End the Sequence */
       } else if( event.type == YAML_SEQUENCE_END_EVENT ) {
+         astYamlEventDelete( &event );
          break;
 
 /* Read the next sequence value and store it in the staging post KeyMap. */
@@ -11603,7 +11598,7 @@ static void ReadYAMLSequence( AstYamlChan *this, AstKeyMap *km, const char *id,
       }
 
 /* Delete the event before getting the next one from the parser. */
-      yaml_event_delete( &event );
+      astYamlEventDelete( &event );
    }
 
 /* If an entry with the supplied id already exists in the supplied
@@ -12291,7 +12286,7 @@ static AstKeyMap *StartAsdfTransform( AstYamlChan *this, AstObject *mapinv,
    return ret;
 }
 
-static void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
+static void StartYamlDoc( AstYamlChan *this, AstYamlEmitter *emitter,
                           int *status ) {
 /*
 *  Name:
@@ -12305,7 +12300,7 @@ static void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
 
 *  Synopsis:
 *     #include "Yamlchan.h"
-*     void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
+*     void StartYamlDoc( AstYamlChan *this, AstYamlEmitter *emitter,
 *                        int *status )
 
 *  Description:
@@ -12323,43 +12318,42 @@ static void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
 
 /* Local Variables: */
    int enc;
-   yaml_event_t event;
-   yaml_tag_directive_t tag;
-   yaml_version_directive_t yaml_version = { 1, 1 };
+   const char *tag_prefix;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Initialise the libyaml emitter. */
-   if( !yaml_emitter_initialize( emitter ) ){
-      astError( AST__LYAML, "astWrite(%s): Failed to initialize libyaml "
-                "emitter", status, astGetClass( this ) );
-      LibYamlEmitterError( emitter, status );
+/* Initialise the YAML emitter. */
+   if( !astYamlEmitterInitialize( emitter ) ){
+      /* LCOV_EXCL_START */
+      astError( AST__LYAML, "astWrite(%s): Failed to initialize " YAML_BACKEND
+                " emitter", status, astGetClass( this ) );
+      AstYamlEmitterError( emitter, status );
+      /* LCOV_EXCL_STOP */
 
-/* If OK, register the sink function with the emitter, set the indent
-   increment and select Unix-style line breaks. */
+/* If OK, register the sink function with the emitter and set the indent
+   increment. */
    } else {
-      yaml_emitter_set_output( emitter, LibYamlWriter, this );
-      yaml_emitter_set_indent( emitter, astGetIndent( this ) );
-      yaml_emitter_set_break( emitter, YAML_LN_BREAK );
+      astYamlEmitterSetOutput( emitter, AstYamlWriter, this );
+      astYamlEmitterSetIndent( emitter, astGetIndent( this ) );
    }
 
 /* Create and emit the STREAM-START event. */
    if( astOK ) {
-      yaml_stream_start_event_initialize( &event, YAML_UTF8_ENCODING );
-      EMIT
+      EMIT_CHECK(this, emitter, status, astYamlEmitStreamStart( emitter ));
    }
 
-/* Write the comment required by ASDF (libyaml cannot emit comments so we
-   need to format and write the line directly using our sink function). */
-   tag.handle = (yaml_char_t *) "!";
+/* Write the comment required by ASDF (the YAML backend cannot emit comments
+   so we need to format and write the line directly using our sink function).
+   Also determine the tag prefix for the DOCUMENT-START event. */
    enc = astGetYamlEncoding( this );
+   tag_prefix = NULL;
    if( enc == ASDF_ENCODING ) {
-      LibYamlWriter( this, (yaml_char_t *) ASDF_HEADER, strlen(ASDF_HEADER) );
-      tag.prefix = (yaml_char_t *) ASDF_TAG;
+      AstYamlWriter( this, (unsigned char *) ASDF_HEADER, strlen(ASDF_HEADER) );
+      tag_prefix = ASDF_TAG;
 
    } else if( enc == NATIVE_ENCODING ) {
-      tag.prefix = (yaml_char_t *) AST_TAG;
+      tag_prefix = AST_TAG;
 
    } else if( astOK ) {
       astError( AST__INTER, "astWrite(YamlChan): Unsupported encoding (%d) "
@@ -12368,9 +12362,8 @@ static void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
 
 /* Create and emit the DOCUMENT-START event. */
    if( astOK ) {
-      yaml_document_start_event_initialize( &event, &yaml_version, &tag,
-                                            &tag + 1, 0 );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitDocumentStart( emitter, 1, 1, "!", tag_prefix ));
    }
 
 /* Store the emitter pointer in the YamlChan structure so that the
@@ -12379,7 +12372,7 @@ static void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
 }
 
 static void StartYamlMapping( AstYamlChan *this, const char *key, const char *tag,
-                              yaml_emitter_t *emitter, int *status ) {
+                              AstYamlEmitter *emitter, int *status ) {
 /*
 *  Name:
 *     StartYamlMapping
@@ -12393,7 +12386,7 @@ static void StartYamlMapping( AstYamlChan *this, const char *key, const char *ta
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StartYamlMapping( AstYamlChan *this, const char *key, const char *tag,
-*                            yaml_emitter_t *emitter, int *status )
+*                            AstYamlEmitter *emitter, int *status )
 
 *  Description:
 *     This function emits yaml events describing a new yaml mapping.
@@ -12419,17 +12412,16 @@ static void StartYamlMapping( AstYamlChan *this, const char *key, const char *ta
 /* Local Variables: */
    const char *fulltag;
    int nc;
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
 /* Emit a scalar string holding the supplied key (if any). */
    if( key ) {
-      yaml_scalar_event_initialize( &event, NULL, (yaml_char_t *) YAML_STR_TAG,
-                                    (yaml_char_t *) key, strlen(key), 1, 0,
-                                    YAML_PLAIN_SCALAR_STYLE);
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, YAML_STR_TAG,
+                                    key, strlen(key), 1, 0,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* Construct the full tag unless a full tag was supplied. */
@@ -12449,9 +12441,9 @@ static void StartYamlMapping( AstYamlChan *this, const char *key, const char *ta
 
 /* Emit the start mapping event. */
    if( astOK ) {
-      yaml_mapping_start_event_initialize( &event, NULL, (yaml_char_t *) fulltag,
-                                           (tag==NULL), YAML_BLOCK_MAPPING_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitMappingStart( emitter, NULL, fulltag,
+                                          (tag==NULL), AST_YAML_STYLE_BLOCK ));
    }
 
 /* Free resources. */
@@ -12459,7 +12451,7 @@ static void StartYamlMapping( AstYamlChan *this, const char *key, const char *ta
 }
 
 static void StartYamlSequence( AstYamlChan *this, const char *key, const char *tag,
-                               yaml_emitter_t *emitter, int *status ) {
+                               AstYamlEmitter *emitter, int *status ) {
 /*
 *  Name:
 *     StartYamlSequence
@@ -12473,7 +12465,7 @@ static void StartYamlSequence( AstYamlChan *this, const char *key, const char *t
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StartYamlSequence( AstYamlChan *this, const char *key, const char *tag,
-*                             yaml_emitter_t *emitter, int *status )
+*                             AstYamlEmitter *emitter, int *status )
 
 *  Description:
 *     This function emits yaml events describing a new yaml sequence.
@@ -12497,17 +12489,16 @@ static void StartYamlSequence( AstYamlChan *this, const char *key, const char *t
 /* Local Variables: */
    const char *fulltag;
    int nc;
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
 /* Emit a scalar string holding the supplied key. */
    if( key ) {
-      yaml_scalar_event_initialize( &event, NULL, (yaml_char_t *) YAML_STR_TAG,
-                                    (yaml_char_t *) key, strlen(key), 1, 0,
-                                    YAML_PLAIN_SCALAR_STYLE);
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, YAML_STR_TAG,
+                                    key, strlen(key), 1, 0,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* Construct the full tag unless a full tag was supplied. */
@@ -12519,9 +12510,9 @@ static void StartYamlSequence( AstYamlChan *this, const char *key, const char *t
 
 /* Emit the start sequence event. */
    if( astOK ) {
-      yaml_sequence_start_event_initialize( &event, NULL, (yaml_char_t *) fulltag,
-                                            (tag==NULL), YAML_BLOCK_SEQUENCE_STYLE );
-      EMIT;
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitSequenceStart( emitter, NULL, fulltag,
+                                           (tag==NULL), AST_YAML_STYLE_BLOCK ));
    }
 
 /* Free resources. */
@@ -12612,7 +12603,7 @@ static void Store0C( AstYamlChan *this, const char *key, int quote,
 }
 
 static void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
-                         yaml_emitter_t *emitter, int set,
+                         AstYamlEmitter *emitter, int set,
                          const char *value, const char *tag, int *status ){
 /*
 *  Name:
@@ -12627,7 +12618,7 @@ static void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
-*                       yaml_emitter_t *emitter, int set, const char *value,
+*                       AstYamlEmitter *emitter, int set, const char *value,
 *                       const char *tag, int *status )
 
 *  Description:
@@ -12660,18 +12651,17 @@ static void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
 /* Local Variables: */
    const char *fulltag;
    int nc;
-   yaml_event_t event;
-   yaml_scalar_style_t style;
+   AstYamlStyle style;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Libyaml does not support writing comments, so for the moment all we
-   can do is return without action if "set" is zero. */
+/* The YAML backend does not support writing comments, so for the moment
+   all we can do is return without action if "set" is zero. */
    if( !set ) return;
 
 /* Choose the style for the scalar values. */
-   style = quote ? YAML_SINGLE_QUOTED_SCALAR_STYLE : YAML_PLAIN_SCALAR_STYLE;
+   style = quote ? AST_YAML_STYLE_SINGLE_QUOTED : AST_YAML_STYLE_PLAIN;
 
 /* Construct the full tag unless a full tag was supplied. */
    if( tag && strncmp( tag, "tag:", 4 ) ) {
@@ -12681,16 +12671,17 @@ static void StoreYaml0C( AstYamlChan *this, const char *key, int quote,
    }
 
 /* Emit a scalar string holding the supplied key. */
-   yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
-                                 strlen(key), 1, 0, YAML_PLAIN_SCALAR_STYLE);
-   EMIT
+   EMIT_CHECK(this, emitter, status,
+              astYamlEmitScalar( emitter, NULL, NULL,
+                                 key, strlen(key), 1, 0,
+                                 AST_YAML_STYLE_PLAIN ));
 
 /* Emit a scalar string holding the value. */
    if( astOK ) {
-      yaml_scalar_event_initialize( &event, NULL, (yaml_char_t *) fulltag,
-                                    (yaml_char_t *) value, strlen(value),
-                                    (tag==NULL), (tag==NULL), style );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, fulltag,
+                                    value, strlen(value),
+                                    (tag==NULL), (tag==NULL), style ));
    }
 
 /* Free resources. */
@@ -13010,7 +13001,7 @@ static void Store1I( AstYamlChan *this, const char *key,
 }
 
 static void StoreYaml0D( AstYamlChan *this, const char *key,
-                         yaml_emitter_t *emitter, int set, double value,
+                         AstYamlEmitter *emitter, int set, double value,
                          int *status ){
 /*
 *  Name:
@@ -13025,7 +13016,7 @@ static void StoreYaml0D( AstYamlChan *this, const char *key,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml0D( AstYamlChan *this, const char *key,
-*                       yaml_emitter_t *emitter, int set, double value,
+*                       AstYamlEmitter *emitter, int set, double value,
 *                       int *status )
 
 *  Description:
@@ -13050,33 +13041,34 @@ static void StoreYaml0D( AstYamlChan *this, const char *key,
 
 /* Local Variables: */
    char buff[ 100 ];
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Libyaml does not support writing comments, so for the moment all we
-   can do is return without action if "set" is zero. */
+/* The YAML backend does not support writing comments, so for the moment
+   all we can do is return without action if "set" is zero. */
    if( !set ) return;
 
 /* Emit a scalar string holding the supplied key, if any. */
    if( key ) {
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
-                                    strlen(key), 1, 1, YAML_PLAIN_SCALAR_STYLE);
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    key, strlen(key), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* Format and store the value as a YAML scalar. */
    if( astOK ) {
       FmtDouble( value, sizeof(buff), buff );
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) buff,
-                                    strlen(buff), 1, 1, YAML_PLAIN_SCALAR_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    buff, strlen(buff), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 }
 
 static void StoreYaml0I( AstYamlChan *this, const char *key,
-                         yaml_emitter_t *emitter, int set, int value,
+                         AstYamlEmitter *emitter, int set, int value,
                          int *status ){
 /*
 *  Name:
@@ -13091,7 +13083,7 @@ static void StoreYaml0I( AstYamlChan *this, const char *key,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml0I( AstYamlChan *this, const char *key,
-*                       yaml_emitter_t *emitter, int set, int value,
+*                       AstYamlEmitter *emitter, int set, int value,
 *                       int *status )
 
 *  Description:
@@ -13116,36 +13108,34 @@ static void StoreYaml0I( AstYamlChan *this, const char *key,
 
 /* Local Variables: */
    char buff[ 100 ];
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Libyaml does not support writing comments, so for the moment all we
-   can do is return without action if "set" is zero. */
+/* The YAML backend does not support writing comments, so for the moment
+   all we can do is return without action if "set" is zero. */
    if( !set ) return;
 
 /* Emit a scalar string holding the supplied key, if any. */
    if( key ) {
-
-/* If the value is a default, turn the whole line into a comment by
-   pre-pending "#" to the key name. */
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
-                                    strlen(key), 1, 1, YAML_PLAIN_SCALAR_STYLE);
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    key, strlen(key), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* Format and store the value as a YAML scalar. */
    if( astOK ) {
       (void) sprintf( buff, "%d", value );
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) buff,
-                                    strlen(buff), 1, 1, YAML_PLAIN_SCALAR_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    buff, strlen(buff), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 }
 
 static void StoreYaml0K( AstYamlChan *this, const char *key,
-                         yaml_emitter_t *emitter, int set, int64_t value,
+                         AstYamlEmitter *emitter, int set, int64_t value,
                          int *status ){
 /*
 *  Name:
@@ -13160,7 +13150,7 @@ static void StoreYaml0K( AstYamlChan *this, const char *key,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml0K( AstYamlChan *this, const char *key,
-*                       yaml_emitter_t *emitter, int set, int64_t value,
+*                       AstYamlEmitter *emitter, int set, int64_t value,
 *                       int *status )
 
 *  Description:
@@ -13185,33 +13175,34 @@ static void StoreYaml0K( AstYamlChan *this, const char *key,
 
 /* Local Variables: */
    char buff[ 100 ];
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Libyaml does not support writing comments, so for the moment all we
-   can do is return without action if "set" is zero. */
+/* The YAML backend does not support writing comments, so for the moment
+   all we can do is return without action if "set" is zero. */
    if( !set ) return;
 
 /* Emit a scalar string holding the supplied key, if any. */
    if( key ) {
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
-                                    strlen(key), 1, 1, YAML_PLAIN_SCALAR_STYLE);
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    key, strlen(key), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* Format and store the value as a YAML scalar. */
    if( astOK ) {
       (void) sprintf( buff, "%" PRId64, value );
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) buff,
-                                    strlen(buff), 1, 1, YAML_PLAIN_SCALAR_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    buff, strlen(buff), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 }
 
 static void StoreYaml1C( AstYamlChan *this, const char *key, int quote,
-                         yaml_emitter_t *emitter, int nval, const char *values[],
+                         AstYamlEmitter *emitter, int nval, const char *values[],
                          const char *tag, int *status ){
 /*
 *  Name:
@@ -13226,7 +13217,7 @@ static void StoreYaml1C( AstYamlChan *this, const char *key, int quote,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml1C( AstYamlChan *this, const char *key, int quote,
-*                       yaml_emitter_t *emitter, int nval, const char *values[],
+*                       AstYamlEmitter *emitter, int nval, const char *values[],
 *                       const char *tag, int *status )
 
 *  Description:
@@ -13260,25 +13251,25 @@ static void StoreYaml1C( AstYamlChan *this, const char *key, int quote,
    const char **pv;
    int ival;
    int nc;
-   yaml_event_t event;
-   yaml_scalar_style_t style;
+   AstYamlStyle style;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
 /* Choose the style for the scalar values. */
-   style = quote ? YAML_SINGLE_QUOTED_SCALAR_STYLE : YAML_PLAIN_SCALAR_STYLE;
+   style = quote ? AST_YAML_STYLE_SINGLE_QUOTED : AST_YAML_STYLE_PLAIN;
 
 /* Emit a scalar string holding the supplied key. */
-   yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
-                                 strlen(key), 1, 1, YAML_PLAIN_SCALAR_STYLE);
-   EMIT
+   EMIT_CHECK(this, emitter, status,
+              astYamlEmitScalar( emitter, NULL, NULL,
+                                 key, strlen(key), 1, 1,
+                                 AST_YAML_STYLE_PLAIN ));
 
 /* Start a YAML sequence. */
    if( astOK ) {
-      yaml_sequence_start_event_initialize( &event, NULL, NULL, 1,
-                                            YAML_FLOW_SEQUENCE_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitSequenceStart( emitter, NULL, NULL, 1,
+                                           AST_YAML_STYLE_FLOW ));
    }
 
 /* Construct the full tag unless a full tag was supplied. */
@@ -13291,22 +13282,21 @@ static void StoreYaml1C( AstYamlChan *this, const char *key, int quote,
 /* Emit a scalar string holding each value. */
    pv = values;
    for( ival = 0; ival < nval && astOK; ival++,pv++ ) {
-      yaml_scalar_event_initialize( &event, NULL, (yaml_char_t *) fulltag,
-                                    (yaml_char_t *) *pv, strlen(*pv),
-                                    (tag==NULL), (tag==NULL), style );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, fulltag,
+                                    *pv, strlen(*pv),
+                                    (tag==NULL), (tag==NULL), style ));
    }
 
 /* End the YAML sequence. */
-   yaml_sequence_end_event_initialize( &event );
-   EMIT
+   EMIT_CHECK(this, emitter, status, astYamlEmitSequenceEnd( emitter ));
 
 /* Free the dynamically allocated string holding the full tag. */
    if( tag != fulltag ) fulltag = astFree( (void *) fulltag );
 }
 
 static void StoreYaml1D( AstYamlChan *this, const char *key,
-                         yaml_emitter_t *emitter, int nval,
+                         AstYamlEmitter *emitter, int nval,
                          const double *values, int *status ){
 /*
 *  Name:
@@ -13321,7 +13311,7 @@ static void StoreYaml1D( AstYamlChan *this, const char *key,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml1D( AstYamlChan *this, const char *key,
-*                       yaml_emitter_t *emitter, int nval,
+*                       AstYamlEmitter *emitter, int nval,
 *                       const double *values, int *status )
 
 *  Description:
@@ -13347,41 +13337,41 @@ static void StoreYaml1D( AstYamlChan *this, const char *key,
    char buff[ 100 ];
    const double *pv;
    int ival;
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
 /* Emit a scalar string holding the supplied key, if any. */
    if( key ) {
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
-                                    strlen(key), 1, 1, YAML_PLAIN_SCALAR_STYLE);
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    key, strlen(key), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* Start a YAML sequence. */
    if( astOK ) {
-      yaml_sequence_start_event_initialize( &event, NULL, NULL, 1,
-                                            YAML_FLOW_SEQUENCE_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitSequenceStart( emitter, NULL, NULL, 1,
+                                           AST_YAML_STYLE_FLOW ));
    }
 
 /* Emit a scalar string holding each value. */
    pv = values;
    for( ival = 0; ival < nval && astOK; ival++,pv++ ) {
       FmtDouble( *pv, sizeof(buff), buff );
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) buff,
-                                    strlen(buff), 1, 1, YAML_PLAIN_SCALAR_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    buff, strlen(buff), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* End the YAML sequence. */
-   yaml_sequence_end_event_initialize( &event );
-   EMIT
+   EMIT_CHECK(this, emitter, status, astYamlEmitSequenceEnd( emitter ));
 }
 
 static void StoreYaml1I( AstYamlChan *this, const char *key,
-                         yaml_emitter_t *emitter, int nval,
+                         AstYamlEmitter *emitter, int nval,
                          const int *values, int *status ){
 /*
 *  Name:
@@ -13396,7 +13386,7 @@ static void StoreYaml1I( AstYamlChan *this, const char *key,
 *  Synopsis:
 *     #include "Yamlchan.h"
 *     void StoreYaml1I( AstYamlChan *this, const char *key,
-*                       yaml_emitter_t *emitter, int nval,
+*                       AstYamlEmitter *emitter, int nval,
 *                       const int *values, int *status )
 
 *  Description:
@@ -13422,37 +13412,37 @@ static void StoreYaml1I( AstYamlChan *this, const char *key,
    char buff[ 100 ];
    const int *pv;
    int ival;
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
 /* Emit a scalar string holding the supplied key, if any. */
    if( key ) {
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) key,
-                                    strlen(key), 1, 1, YAML_PLAIN_SCALAR_STYLE);
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    key, strlen(key), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* Start a YAML sequence. */
    if( astOK ) {
-      yaml_sequence_start_event_initialize( &event, NULL, NULL, 1,
-                                            YAML_FLOW_SEQUENCE_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitSequenceStart( emitter, NULL, NULL, 1,
+                                           AST_YAML_STYLE_FLOW ));
    }
 
 /* Emit a scalar string holding each value. */
    pv = values;
    for( ival = 0; ival < nval && astOK; ival++,pv++ ) {
       (void) sprintf( buff, "%d", *pv );
-      yaml_scalar_event_initialize( &event, NULL, NULL, (yaml_char_t *) buff,
-                                    strlen(buff), 1, 1, YAML_PLAIN_SCALAR_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitScalar( emitter, NULL, NULL,
+                                    buff, strlen(buff), 1, 1,
+                                    AST_YAML_STYLE_PLAIN ));
    }
 
 /* End the YAML sequence. */
-   yaml_sequence_end_event_initialize( &event );
-   EMIT
+   EMIT_CHECK(this, emitter, status, astYamlEmitSequenceEnd( emitter ));
 }
 
 static AstKeyMap *StoreKeyMap( AstYamlChan *this, const char *key,
@@ -16851,22 +16841,21 @@ static void WriteValues( AstYamlChan *this, const char *key, AstKeyMap *obj,
 */
 
 /* Local Variables: */
-   yaml_emitter_t emitter_data;
-   yaml_emitter_t *emitter = &emitter_data;
-   yaml_event_t event;
+   AstYamlEmitter emitter_data;
+   AstYamlEmitter *emitter = &emitter_data;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Initialize a libyaml emitter. */
+/* Initialize the YAML emitter and start the document. */
    StartYamlDoc( this, emitter, status );
 
 /* Create and emit the start of the root node - a mapping of type
    given by macro ROOT_TAG. */
    if( astOK ) {
-      yaml_mapping_start_event_initialize( &event, NULL, (yaml_char_t *) ROOT_TAG,
-                                           0, YAML_BLOCK_MAPPING_STYLE );
-      EMIT
+      EMIT_CHECK(this, emitter, status,
+                 astYamlEmitMappingStart( emitter, NULL, ROOT_TAG,
+                                          0, AST_YAML_STYLE_BLOCK ));
    }
 
 /* Write out the top-level object stored in the KeyMap. */
@@ -16874,8 +16863,7 @@ static void WriteValues( AstYamlChan *this, const char *key, AstKeyMap *obj,
 
 /* Create and emit the end of the root node. */
    if( astOK ) {
-      yaml_mapping_end_event_initialize( &event );
-      EMIT
+      EMIT_CHECK(this, emitter, status, astYamlEmitMappingEnd( emitter ));
    }
 
 /* End the document and delete the emitter */
@@ -17306,7 +17294,7 @@ static AstKeyMap *WriteWinMap( AstYamlChan *this, AstWinMap *map, AstObject *map
 }
 
 static void WriteYamlObject( AstYamlChan *this, const char *key, AstKeyMap *obj,
-                             yaml_emitter_t *emitter, int *status ) {
+                             AstYamlEmitter *emitter, int *status ) {
 /*
 *  Name:
 *     WriteYamlObject
@@ -17320,7 +17308,7 @@ static void WriteYamlObject( AstYamlChan *this, const char *key, AstKeyMap *obj,
 *  Synopsis:
 *     #include "yamlchan.h"
 *     void WriteYamlObject( AstYamlChan *this, const char *key, AstKeyMap *obj,
-*                           yaml_emitter_t *emitter,  int *status )
+*                           AstYamlEmitter *emitter,  int *status )
 
 *  Class Membership:
 *     YamlChan member function
@@ -17390,7 +17378,6 @@ static void WriteYamlObject( AstYamlChan *this, const char *key, AstKeyMap *obj,
    int ientry;
    int isseq;
    int nentry;
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -17428,20 +17415,19 @@ static void WriteYamlObject( AstYamlChan *this, const char *key, AstKeyMap *obj,
       }
    }
 
-/* Create and emit the end of the yaml sequence or mapping. */
+/* Emit the end of the yaml sequence or mapping. */
    if( astOK ) {
       if( isseq ){
-         yaml_sequence_end_event_initialize( &event );
+         EMIT_CHECK(this, emitter, status, astYamlEmitSequenceEnd( emitter ));
       } else {
-         yaml_mapping_end_event_initialize( &event );
+         EMIT_CHECK(this, emitter, status, astYamlEmitMappingEnd( emitter ));
       }
-      EMIT
    }
 }
 
 static void WriteYamlEntry( AstYamlChan *this, AstKeyMap *km, const char *kmkey,
                             const char *base, const char *yamlkey,
-                            yaml_emitter_t *emitter, int *status ){
+                            AstYamlEmitter *emitter, int *status ){
 /*
 *  Name:
 *     WriteYamlEntry
@@ -17457,7 +17443,7 @@ static void WriteYamlEntry( AstYamlChan *this, AstKeyMap *km, const char *kmkey,
 *     #include "Yamlchan.h"
 *     void WriteYamlEntry( AstYamlChan *this, AstKeyMap *km, const char *kmkey,
 *                          const char *base, const char *yamlkey,
-*                          yaml_emitter_t *emitter, int *status )
+*                          AstYamlEmitter *emitter, int *status )
 
 *  Description:
 *     This function writes out a single entry in a KeyMap, using the
@@ -17502,7 +17488,6 @@ static void WriteYamlEntry( AstYamlChan *this, AstKeyMap *km, const char *kmkey,
    int quote;
    int type;
    size_t clen;
-   yaml_event_t event;
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -17590,10 +17575,9 @@ static void WriteYamlEntry( AstYamlChan *this, AstKeyMap *km, const char *kmkey,
          }
          ovals = astFree( ovals );
 
-/* Create and emit the end of the yaml sequence. */
+/* Emit the end of the yaml sequence. */
          if( astOK ) {
-            yaml_sequence_end_event_initialize( &event );
-            EMIT
+            EMIT_CHECK(this, emitter, status, astYamlEmitSequenceEnd( emitter ));
          }
 
       } else if( astOK ) {
@@ -17831,20 +17815,17 @@ static void WriteEnd( AstChannel *this_channel, const char *class, int *status )
 
 /* Local Variables: */
    AstYamlChan *this;
-   yaml_event_t event;
-   yaml_emitter_t *emitter;
+   AstYamlEmitter *emitter;
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Get a pointer to the emitter from the YamlChan structure, as required
-   by the EMIT macro. */
+/* Get a pointer to the emitter from the YamlChan structure. */
    this = (AstYamlChan*) this_channel;
    emitter = this->emitter;
 
-/* Create and emit the end of the yaml mapping. */
-   yaml_mapping_end_event_initialize( &event );
-   EMIT
+/* Emit the end of the yaml mapping. */
+   EMIT_CHECK(this, emitter, status, astYamlEmitMappingEnd( emitter ));
 }
 
 static void WriteInt( AstChannel *this_channel, const char *name, int set, int helpful,
@@ -18777,68 +18758,68 @@ static AstKeyMap *WriteZoomMap( AstYamlChan *this, AstZoomMap *map,
    return ret;
 }
 
-static const char *YamlEventType( yaml_event_t e ){
+static const char *YamlEventType( int type ){
 /*
 *  Name:
 *     YamlEventType
 
 *  Purpose:
-*     Return a string descripion of a YAML event type.
+*     Return a string description of a YAML event type.
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
 *     #include "yamlchan.h"
-*     const char *YamlEventType( yaml_event_t e )
+*     const char *YamlEventType( int type )
 
 *  Class Membership:
 *     YamlChan member function
 
 *  Description:
 *     This functions returns a pointer to a static const string holding a
-*     text description of the type of the supplied yaml event.
+*     text description of the supplied yaml event type integer.
 
 *  Parameters:
-*     e
-*        The yaml event
+*     type
+*        The yaml event type (one of the YAML_*_EVENT constants).
 */
 
 /* Local Variables: */
    static const char *result = NULL;
 
 /* Compare the integer event type against each known value. */
-   if( e.type == YAML_NO_EVENT ){
+   if( type == YAML_NO_EVENT ){
       result = "YAML_NO_EVENT";
 
-   } else if( e.type == YAML_STREAM_START_EVENT ){
+   } else if( type == YAML_STREAM_START_EVENT ){
       result = "YAML_STREAM_START_EVENT";
 
-   } else if( e.type == YAML_STREAM_END_EVENT ){
+   } else if( type == YAML_STREAM_END_EVENT ){
       result = "YAML_STREAM_END_EVENT";
 
-   } else if( e.type == YAML_DOCUMENT_START_EVENT ){
+   } else if( type == YAML_DOCUMENT_START_EVENT ){
       result = "YAML_DOCUMENT_START_EVENT";
 
-   } else if( e.type == YAML_DOCUMENT_END_EVENT ){
+   } else if( type == YAML_DOCUMENT_END_EVENT ){
       result = "YAML_DOCUMENT_END_EVENT";
 
-   } else if( e.type == YAML_ALIAS_EVENT ){
+   } else if( type == YAML_ALIAS_EVENT ){
       result = "YAML_ALIAS_EVENT";
 
-   } else if( e.type == YAML_SCALAR_EVENT ){
+   } else if( type == YAML_SCALAR_EVENT ){
       result = "YAML_SCALAR_EVENT";
 
-   } else if( e.type == YAML_SEQUENCE_START_EVENT ){
+   } else if( type == YAML_SEQUENCE_START_EVENT ){
       result = "YAML_SEQUENCE_START_EVENT";
 
-   } else if( e.type == YAML_SEQUENCE_END_EVENT ){
+   } else if( type == YAML_SEQUENCE_END_EVENT ){
       result = "YAML_SEQUENCE_END_EVENT";
 
-   } else if( e.type == YAML_MAPPING_START_EVENT ){
+   } else if( type == YAML_MAPPING_START_EVENT ){
       result = "YAML_MAPPING_START_EVENT";
 
-   } else if( e.type == YAML_MAPPING_END_EVENT ){
+   } else if( type == YAML_MAPPING_END_EVENT ){
       result = "YAML_MAPPING_END_EVENT";
 
    } else {
@@ -19855,6 +19836,9 @@ AstYamlChan *astInitYamlChan_( void *mem, size_t size, int init,
       new->gotwcs = 0;
       new->defenc = UNKNOWN_ENCODING;
       new->obj = NULL;
+      new->readbuf = NULL;
+      new->readlen = 0;
+      new->readoff = 0;
 
 /* If an error occurred, clean up by deleting the new object. */
       if ( !astOK ) new = astDelete( new );
@@ -20017,6 +20001,9 @@ AstYamlChan *astLoadYamlChan_( void *mem, size_t size,
       new->gotwcs = 0;
       new->defenc = UNKNOWN_ENCODING;
       new->obj = NULL;
+      new->readbuf = NULL;
+      new->readlen = 0;
+      new->readoff = 0;
    }
 
 /* If an error occurred, clean up by deleting the new YamlChan. */

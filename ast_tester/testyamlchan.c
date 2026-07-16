@@ -1,9 +1,28 @@
+/*
+ * Tests for YamlChan
+ *
+ * Mostly a no-op if no YAML backend was configured at build-time, but still
+ * compiled to keep open the possibility of adding tests of minimal expected
+ * (non-)functionality when trying to use YamlChan in that case.
+ */
 #include "ast.h"
 #include "mers.h"
 #include "sae_par.h"
 #include <math.h>
 #include <string.h>
 
+#ifdef YAML_BACKEND
+
+/* Error sink: accumulates messages for test_parser_error. */
+#define ERR_BUF_SIZE 4096
+static char err_buf[ERR_BUF_SIZE];
+static void capture_err( int status_value, const char *msg ){
+   (void) status_value;
+   if( strlen(err_buf) + strlen(msg) + 1 < ERR_BUF_SIZE ) {
+      strcat( err_buf, msg );
+      strcat( err_buf, "\n" );
+   }
+}
 
 static void stopit( int i, int *status );
 static void check_imaging_wcs( AstObject *obj, const char *text, int *status );
@@ -13,6 +32,7 @@ static void check_sphmap_mappings( AstMapping *map, AstMapping *map2, const char
 static void check_divide_outputs( AstMapping *map, AstMapping *map2, const char *text, int *status );
 
 static void test_yamlencoding_attribute( int *status );
+static void test_asdf_header( int *status );
 static void test_imaging_wcs_roundtrip( int *status );
 static void test_tansip_wcs_roundtrip( int *status );
 static void test_lsst_wcs_roundtrip( int *status );
@@ -20,12 +40,8 @@ static void test_native_encoding_roundtrip( int *status );
 static void test_sphmap_roundtrip( int *status );
 static void test_divide_roundtrip( int *status );
 static void test_rotate_sequence_3d_roundtrip( int *status );
-
-static int chrMatch( const char *a, const char *b ){
-   int result = 0;
-   if( a && b ) result = !strcmp( a, b );
-   return result;
-}
+static void test_parser_error( int *status );
+#endif
 
 int main(){
 
@@ -36,7 +52,9 @@ int main(){
 
    astBegin;
 
+#ifdef YAML_BACKEND
    test_yamlencoding_attribute( status );
+   test_asdf_header( status );
    test_imaging_wcs_roundtrip( status );
    test_tansip_wcs_roundtrip( status );
    test_lsst_wcs_roundtrip( status );
@@ -44,20 +62,28 @@ int main(){
    test_sphmap_roundtrip( status );
    test_divide_roundtrip( status );
    test_rotate_sequence_3d_roundtrip( status );
+   test_parser_error( status );
+#endif
 
    astEnd;
 
+#ifdef YAML_BACKEND
    if( *status == SAI__OK ) {
-      printf( " All YamlChan tests passed\n" );
+      printf( " All YamlChan tests passed (" YAML_BACKEND ")\n" );
    } else {
       printf( "YamlChan tests failed\n" );
    }
    return *status == SAI__OK ? 0 : 1;
+#else
+   printf( " YamlChan tests skipped (no YAML backend compiled)\n" );
+#endif
 
    return status_value;
 }
 
 
+
+#ifdef YAML_BACKEND
 
 void stopit( int i, int *status ){
    if( *status == SAI__OK ) {
@@ -66,6 +92,12 @@ void stopit( int i, int *status ){
    }
 }
 
+
+static int chrMatch( const char *a, const char *b ){
+   int result = 0;
+   if( a && b ) result = !strcmp( a, b );
+   return result;
+}
 
 
 /* Test getting, setting, and clearing the YamlEncoding attribute. */
@@ -93,6 +125,87 @@ void test_yamlencoding_attribute( int *status ){
    if( !chrMatch(astGetC( ch, "YAMLENCODING" ),"ASDF") ) stopit( -6, status );
 
    astAnnul( ch );
+}
+
+
+
+/* Test that the ASDF output file begins with the required directives in the
+   correct order, and that the root tag uses the declared "!" handle shorthand
+   rather than the full verbatim form.  Both %YAML 1.1 and %TAG directives are
+   required by the ASDF standard and must appear before the "---" marker. */
+void test_asdf_header( int *status ){
+   AstObject *obj;
+   AstYamlChan *ch;
+   FILE *f;
+   char buf[256];
+   int i;
+
+/* libfyaml's streaming emitter unfortunately always puts the document-start
+   marker and the root tag on separate lines; libyaml puts them on one line.
+   As far as YAML is concerned this is only a cosmetic difference though. */
+#if defined(YAML)
+   static const char *expected[] = {
+      "#ASDF 1.0.0\n",
+      "%YAML 1.1\n",
+      "%TAG ! tag:stsci.edu:asdf/\n",
+      "--- !core/asdf-1.1.0\n",
+   };
+#elif defined(FYAML)
+   static const char *expected[] = {
+      "#ASDF 1.0.0\n",
+      "%YAML 1.1\n",
+      "%TAG ! tag:stsci.edu:asdf/\n",
+      "---\n",
+      "!core/asdf-1.1.0\n",
+   };
+#endif
+
+   if( *status != SAI__OK )
+      return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=imaging_wcs.asdf,SinkFile=asdf_header_test.asdf" );
+   obj = astRead( ch );
+
+   if( !obj ) {
+      stopit( 70, status ); /* LCOV_EXCL_LINE */
+      astAnnul( ch ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   if( astWrite( ch, obj ) != 1 )
+      stopit( 71, status ); /* LCOV_EXCL_LINE */
+
+   astAnnul( obj );
+   astAnnul( ch );
+
+   if( *status != SAI__OK ) {
+      remove( "asdf_header_test.asdf" ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   f = fopen( "asdf_header_test.asdf", "r" );
+   if( !f ) {
+      stopit( 72, status ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   for( i = 0; i < (int)(sizeof(expected)/sizeof(expected[0])); i++ ) {
+      if( !fgets( buf, sizeof(buf), f ) ) {
+         stopit( 73, status ); /* LCOV_EXCL_LINE */
+         break; /* LCOV_EXCL_LINE */
+      }
+      if( strcmp( buf, expected[i] ) != 0 ) {
+         printf( "  ASDF header line %d mismatch:\n"  /* LCOV_EXCL_LINE */
+                 "    expected: %s" /* LCOV_EXCL_LINE */
+                 "    got:      %s", i + 1, expected[i], buf ); /* LCOV_EXCL_LINE */
+         stopit( 74, status ); /* LCOV_EXCL_LINE */
+         break; /* LCOV_EXCL_LINE */
+      }
+   }
+
+   fclose( f );
+   remove( "asdf_header_test.asdf" );
 }
 
 
@@ -527,7 +640,9 @@ void test_divide_roundtrip( int *status ){
    astClear( ch, "SinkFile" );
    astSet( ch, "SourceFile=divide_roundtrip.asdf" );
    divfs2 = astRead( ch );
-   if( !divfs2 ) stopit( 41, status );
+
+   if( !divfs2 )
+      stopit( 41, status ); /* LCOV_EXCL_LINE */
 
 /* Compare the mappings numerically. */
    divmap1 = astGetMapping( divfs, AST__BASE, AST__CURRENT );
@@ -694,3 +809,87 @@ void test_rotate_sequence_3d_roundtrip( int *status ){
    if( *status != SAI__OK )
       printf( "rotate_sequence_3d and null-transform regression test failed\n" );
 }
+
+
+/* Test that feeding syntactically invalid YAML triggers an error with the
+   expected message.  The first line of err_buf is "AST: Error in routine ...
+   at line NNN in file ..." which embeds the source line number of astRead();
+   skip that line and compare the remainder exactly against the backend-specific
+   expected text.  This makes the test slightly sensitive to the exact wording
+   used by each library version, which is intentional: changes in error
+   formatting will show up immediately and can be re-pinned when needed. */
+void test_parser_error( int *status ){
+   AstYamlChan *ch;
+   FILE *f;
+   const char *first_nl;
+   const char *msg_body;
+
+#if defined(YAML)
+   static const char *expected_body =
+      "astRead(YamlChan): libyaml parse error:\n"
+      "libyaml parser: did not find expected ',' or ']'"
+      " (while parsing a flow sequence) at line 4, column 1\n";
+#elif defined(FYAML)
+   static const char *expected_body =
+      "astRead(YamlChan): libfyaml parse error:\n"
+      "libfyaml parser: flow sequence without a closing bracket"
+      " at line 4, column 1\n";
+#endif
+
+   if( *status != SAI__OK )
+      return; /* LCOV_EXCL_LINE */
+
+   f = fopen( "testyamlchan_bad.yaml", "w" );
+
+   if( !f ) {
+      stopit( 50, status ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   fputs( "%YAML 1.1\n---\nkey: [unclosed bracket\n", f );
+   fclose( f );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=testyamlchan_bad.yaml" );
+
+   /* Capture error messages so we can inspect them. */
+   err_buf[0] = '\0';
+   astSetPutErr( capture_err );
+   astRead( ch );
+   astSetPutErr( NULL );
+
+   /* An error must have been produced. */
+   if( astOK ) {
+      astAnnul( ch ); /* LCOV_EXCL_LINE */
+      remove( "testyamlchan_bad.yaml" ); /* LCOV_EXCL_LINE */
+      stopit( 51, status ); /* LCOV_EXCL_LINE */
+      return;
+   }
+   astClearStatus;
+
+   printf( "  parser error message (expected):\n%s", err_buf );
+
+   if( !err_buf[0] ) {
+      stopit( 52, status ); /* LCOV_EXCL_LINE */
+      goto cleanup; /* LCOV_EXCL_LINE */
+   }
+
+   /* Skip the "AST: Error in routine ... at line NNN ..." first line. */
+   first_nl = strchr( err_buf, '\n' );
+   if( !first_nl ) {
+      stopit( 53, status ); /* LCOV_EXCL_LINE */
+      goto cleanup; /* LCOV_EXCL_LINE */
+   }
+   msg_body = first_nl + 1;
+
+   if( strcmp( msg_body, expected_body ) != 0 ) {
+      printf( "  expected body:\n%s  got body:\n%s", expected_body, msg_body );
+      stopit( 54, status ); /* LCOV_EXCL_LINE */
+   }
+
+cleanup:
+   astAnnul( ch );
+   remove( "testyamlchan_bad.yaml" );
+}
+
+#endif /* YAML_BACKEND */
