@@ -445,9 +445,12 @@ if(HAVE_YAML)
 elseif(HAVE_FYAML)
     target_compile_definitions(testyamlchan PRIVATE FYAML "YAML_BACKEND=\"libfyaml\"")
 endif()
-# The libfyaml backend has a known upstream leak (in versions <0.9 on tagged events;
-# libfyaml.supp suppresses just that, so genuine leaks still surface.
-if(AST_ENABLE_SANITIZERS)
+# Run testyamlchan with LeakSanitizer enabled (overriding the suite-wide
+# detect_leaks=0) so real leaks in the YAML read/write path are caught. The
+# libfyaml backend has a known upstream leak on tagged events (in versions
+# <0.9); libfyaml.supp suppresses just that, so genuine leaks still surface.
+# LeakSanitizer only works on Linux.
+if(AST_ENABLE_SANITIZERS AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set_tests_properties(testyamlchan PROPERTIES ENVIRONMENT
         "ASAN_OPTIONS=detect_leaks=1;LSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/libfyaml.supp")
 endif()
