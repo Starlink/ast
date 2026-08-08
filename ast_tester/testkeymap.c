@@ -375,6 +375,12 @@ int main( void ) {
    astMapPut0I( map, "Fredi", 1999, "com 1" );
    astMapPut0K( map, "Fredk", (int64_t)1999, "com 1" );
    astMapPut0D( map, "Fredd", 1999.9, "com2 " );
+   astMapPut0D( map, "Negd", -1999.9, "com2 " );
+   astMapPut0F( map, "Negf", -1999.9f, "com2 " );
+   astMapPut0D( map, "Negint", -2.0, "com2 " );
+   astMapPut0D( map, "Neghalf", -2.5, "com2 " );
+   astMapPut0D( map, "Negsmall", -0.6, "com2 " );
+   astMapPut0D( map, "Negtiny", -0.4, "com2 " );
    astMapPut0F( map, "Fredr", 1999.9f, "com2 " );
    astMapPut0C( map, "Fredc", "Hello", " " );
    astMapPut0A( map, "Freda", (AstObject *)astSkyFrame( " " ), " " );
@@ -432,7 +438,7 @@ int main( void ) {
 
    map2 = (AstKeyMap *)astCopy( (AstObject *)map );
 
-   if( astMapSize( map2 ) != 7 ) {
+   if( astMapSize( map2 ) != 13 ) {
       printf( "%d\n", astMapSize( map2 ) );
       stopit( status, "Error 0" );
    }
@@ -455,6 +461,8 @@ int main( void ) {
          gota = 1;
       } else if( !gotk && strcmp( k, "Fredk" ) == 0 ) {
          gotk = 1;
+      } else if( strncmp( k, "Neg", 3 ) == 0 ) {
+         /* Entries added to test negative-value rounding; not tracked here. */
       } else {
          stopit( status, "Error badkey" );
       }
@@ -562,6 +570,62 @@ int main( void ) {
    } else if( ival != 2000 ) {
       printf( "%d\n", ival );
       stopit( status, "Error 15" );
+   }
+
+   /* Negative values must round to nearest, not toward zero. A cast of
+      the form (int)( x + 0.5 ) truncates toward zero and so is wrong for
+      every negative value, exact integers included. */
+   {
+      struct { const char *key; int expect; } negcases[] = {
+         { "Negd",     -2000 },
+         { "Negf",     -2000 },
+         { "Negint",      -2 },
+         { "Neghalf",     -3 },
+         { "Negsmall",    -1 },
+         { "Negtiny",      0 }
+      };
+      short int sval_n;
+      int64_t kval_n;
+      size_t ic;
+      int negfail = 0;
+
+      /* Failures are accumulated in "negfail" and reported with a single
+         stopit() after the loop, rather than calling stopit() inline for
+         each mismatch. stopit() sets the shared inherited status, and once
+         that happens every subsequent AST call in this loop (and the rest
+         of the test) becomes a no-op that reports failure regardless of
+         the data involved. Reporting inline would therefore make every
+         case after the first genuine mismatch look like a failure too,
+         including "Negtiny", which must only fail if its own conversion
+         is wrong. */
+      for( ic = 0; ic < sizeof( negcases ) / sizeof( negcases[ 0 ] ); ic++ ) {
+         if( !astMapGet0I( map2, negcases[ ic ].key, &ival ) ) {
+            printf( "%s\n", negcases[ ic ].key );
+            negfail = 1;
+         } else if( ival != negcases[ ic ].expect ) {
+            printf( "%s: got %d want %d\n", negcases[ ic ].key, ival,
+                    negcases[ ic ].expect );
+            negfail = 1;
+         }
+
+         if( !astMapGet0S( map2, negcases[ ic ].key, &sval_n ) ) {
+            negfail = 1;
+         } else if( sval_n != (short int) negcases[ ic ].expect ) {
+            printf( "%s: got %d want %d\n", negcases[ ic ].key, (int) sval_n,
+                    negcases[ ic ].expect );
+            negfail = 1;
+         }
+
+         if( !astMapGet0K( map2, negcases[ ic ].key, &kval_n ) ) {
+            negfail = 1;
+         } else if( kval_n != (int64_t) negcases[ ic ].expect ) {
+            printf( "%s: got %" PRId64 " want %d\n", negcases[ ic ].key,
+                    kval_n, negcases[ ic ].expect );
+            negfail = 1;
+         }
+      }
+
+      if( negfail ) stopit( status, "Error 14neg" );
    }
 
    if( !astMapGet0K( map2, "Fredd", &kval ) ) {

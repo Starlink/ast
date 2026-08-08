@@ -218,6 +218,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *         undefined.
 *     8-APR-2026 (TIMJ):
 *        Increase buffer size in DumpEntry to prevent overrun.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than truncation in ConvertValue, so that
+*        negative values convert to the nearest integer rather than
+*        being rounded toward zero.
 *class--
 */
 
@@ -266,6 +270,7 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 /* C header files. */
 /* --------------- */
 #include <limits.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -1950,19 +1955,19 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 
 /* Consider conversion to "int". */
       if( out_type == AST__INTTYPE ) {
-         if( out ) *( (int *) out ) = (int)( dval + 0.5 );
+         if( out ) *( (int *) out ) = (int) round( dval );
 
 /* Consider conversion to "short int". */
       } else if( out_type == AST__SINTTYPE ) {
-         if( out ) *( (short int *) out ) = (int)( dval + 0.5 );
+         if( out ) *( (short int *) out ) = (int) round( dval );
 
 /* Consider conversion to "64 bit int". */
       } else if( out_type == AST__KINTTYPE ) {
-         if( out ) *( (int64_t *) out ) = (int64_t)( dval + 0.5 );
+         if( out ) *( (int64_t *) out ) = (int64_t) round( dval );
 
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
-         if( out ) *( (unsigned char *) out ) = (int)( dval + 0.5 );
+         if( out ) *( (unsigned char *) out ) = (int) round( dval );
 
 /* Consider conversion to "double". */
       } else if( out_type == AST__DOUBLETYPE ) {
@@ -2009,19 +2014,19 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 
 /* Consider conversion to "int". */
       if( out_type == AST__INTTYPE ) {
-         if( out ) *( (int *) out ) = (int)( fval + 0.5 );
+         if( out ) *( (int *) out ) = (int) round( fval );
 
 /* Consider conversion to "short int". */
       } else if( out_type == AST__SINTTYPE ) {
-         if( out ) *( (short int *) out ) = (int)( fval + 0.5 );
+         if( out ) *( (short int *) out ) = (int) round( fval );
 
 /* Consider conversion to "64 bit int". */
       } else if( out_type == AST__KINTTYPE ) {
-         if( out ) *( (int64_t *) out ) = (int64_t)( fval + 0.5 );
+         if( out ) *( (int64_t *) out ) = (int64_t) round( fval );
 
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
-         if( out ) *( (unsigned char *) out ) = (int)( fval + 0.5 );
+         if( out ) *( (unsigned char *) out ) = (int) round( fval );
 
 /* Consider conversion to "double". */
       } else if( out_type == AST__DOUBLETYPE ) {
@@ -2066,7 +2071,7 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
             nc = 0;
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
             if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
-               if( out ) *( (int *) out ) = (int) ( dval + 0.5 );
+               if( out ) *( (int *) out ) = (int) round( dval );
             } else {
                result = 0;
             }
@@ -2082,7 +2087,7 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
             nc = 0;
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
             if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
-               if( out ) *( (short int *) out ) = (int) ( dval + 0.5 );
+               if( out ) *( (short int *) out ) = (int) round( dval );
             } else {
                result = 0;
             }
@@ -2098,7 +2103,7 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
             nc = 0;
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
             if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
-               if( out ) *( (int64_t *) out ) = (int64_t) ( dval + 0.5 );
+               if( out ) *( (int64_t *) out ) = (int64_t) round( dval );
             } else {
                result = 0;
             }
@@ -2114,7 +2119,7 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
             nc = 0;
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
             if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
-               if( out ) *( (unsigned char *) out ) = (int) ( dval + 0.5 );
+               if( out ) *( (unsigned char *) out ) = (int) round( dval );
             } else {
                result = 0;
             }
