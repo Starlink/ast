@@ -1212,6 +1212,58 @@ static void checktab2( int *status ) {
 }
 
 
+/*
+ * testgrismorder: a FITS grism header must preserve a negative
+ * interference order. PVi_1 holds the order, which is commonly negative.
+ */
+static void testgrismorder( int errbase, double morder, int *status ) {
+   AstFitsChan *fc;
+   AstFitsChan *out;
+   AstFrameSet *fs;
+   char buf[ 81 ];
+   double back;
+
+   if( !astOK ) return;
+
+   fc = astFitsChan( NULL, NULL, "" );
+   astPutFits( fc, "CTYPE1  = 'WAVE-GRI'", 0 );
+   astPutFits( fc, "CRVAL1  =            5.0E-7", 0 );
+   astPutFits( fc, "CRPIX1  =                1.0", 0 );
+   astPutFits( fc, "CDELT1  =            1.0E-9", 0 );
+   astPutFits( fc, "CUNIT1  = 'm       '", 0 );
+   astPutFits( fc, "PV1_0   =            9.0E5", 0 );
+   snprintf( buf, sizeof( buf ), "PV1_1   = %20.1f", morder );
+   astPutFits( fc, buf, 0 );
+   astPutFits( fc, "PV1_2   =                0.0", 0 );
+   astPutFits( fc, "PV1_3   =                1.0", 0 );
+   astPutFits( fc, "PV1_4   =                0.0", 0 );
+   astPutFits( fc, "PV1_5   =                0.0", 0 );
+   astPutFits( fc, "PV1_6   =                0.0", 0 );
+   astClear( fc, "Card" );
+
+   fs = astRead( fc );
+   if( !astOK || !fs ) {
+      stopit( errbase, "grism header could not be read", status );
+      astClearStatus;
+      return;
+   }
+
+   out = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+   if( !astWrite( out, fs ) ) {
+      stopit( errbase + 1, "grism FrameSet produced no header", status );
+   } else {
+      astClear( out, "Card" );
+      if( !astGetFitsF( out, "PV1_1", &back ) ) {
+         stopit( errbase + 2, "no PV1_1 written back", status );
+      } else if( back != morder ) {
+         printf( "PV1_1 in = %g, out = %g\n", morder, back );
+         stopit( errbase + 3, "grism interference order not preserved",
+                 status );
+      }
+   }
+}
+
+
 /* -----------------------------------------------------------------------
  * main
  * -----------------------------------------------------------------------*/
@@ -1236,6 +1288,14 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   /* A grism interference order is commonly negative and must survive a
+      read/write round trip. The positive case is a control: it confirms
+      the chosen grating parameters are physically usable, so a failure in
+      the negative cases cannot be blamed on the parameter choice. */
+   testgrismorder( 12400, 1.0, status );
+   testgrismorder( 12410, -1.0, status );
+   testgrismorder( 12420, -2.0, status );
 
    /* Create a FitsChan that will write its contents to fred.txt when deleted */
    fc = astFitsChan( NULL, NULL, "SinkFile=./fred.txt" );

@@ -1377,6 +1377,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        the cdelt term was doubled. Dormant while AddEncodingFrame forces
 *        the SpecFrame Unit to "Hz" (specfactor == 1), but wrong for any
 *        non-Hz spectral unit.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than truncation when reading the grism
+*        interference order from PVi_1, so that negative orders are
+*        preserved rather than being rounded toward zero.
 *class--
 */
 
@@ -14319,7 +14323,7 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
       pv = GetItem( &(store->pv), i, 0, s, NULL, method, class, status );
       astSetGrismG( gmap, ( pv != AST__BAD )?pv:0.0 );
       pv = GetItem( &(store->pv), i, 1, s, NULL, method, class, status );
-      astSetGrismM( gmap, ( pv != AST__BAD )?(int) ( pv + 0.5 ):0);
+      astSetGrismM( gmap, ( pv != AST__BAD )?(int) round( pv ):0);
       pv = GetItem( &(store->pv), i, 2, s, NULL, method, class, status );
       astSetGrismAlpha( gmap, ( pv != AST__BAD )?pv*AST__DD2R:0.0 );
       pv = GetItem( &(store->pv), i, 3, s, NULL, method, class, status );
