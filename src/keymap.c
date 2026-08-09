@@ -242,6 +242,9 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Reject a zero length vector in astMapPut1<X>, which has no
 *        representation in a KeyMap entry, and guard against a null
 *        string pointer when dumping a scalar entry.
+*     8-AUG-2026 (TIMJ):
+*        Report failure from astMapGetElem<X> for an undefined entry,
+*        matching astMapGet0<X> and astMapGet1<X>.
 *class--
 */
 
@@ -7044,6 +7047,11 @@ static int MapGetElem##X( AstKeyMap *this, const char *skey, int elem, \
                       "the requested data type.", status, astGetClass( this ), \
                       elem + 1, key ); \
          } \
+\
+/* An undefined entry has no value to return. Report failure, as \
+   astMapGet0<X> and astMapGet1<X> do for the same entry. */ \
+      } else { \
+         result = 0; \
       } \
 \
 /* If the KeyError attribute is non-zero, report an error if the key is not \
@@ -7256,6 +7264,11 @@ static int MapGetElemC( AstKeyMap *this, const char *skey, int l, int elem,
             strncpy( value, cvalue, l - 1 );
             value[ l - 1 ] = 0;
          }
+
+/* An undefined entry has no value to return. Report failure, as
+   astMapGet0<X> and astMapGet1<X> do for the same entry. */
+      } else {
+         result = 0;
       }
 
 /* If the KeyError attribute is non-zero, report an error if the key is not

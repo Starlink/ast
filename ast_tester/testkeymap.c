@@ -631,6 +631,52 @@ static void testemptyvector( int *status ) {
    km = astAnnul( km );
 }
 
+/*
+ * testundefelem: astMapGetElem<X> must report failure for an undefined
+ * entry, as astMapGet0<X> and astMapGet1<X> already do.
+ */
+static void testundefelem( int *status ) {
+   AstKeyMap *km;
+   int ival;
+   int local_status;
+   char cbuf[ 200 ];
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPutU( km, "UNDEF", " " );
+
+   /* The scalar and vector accessors already report failure. */
+   if( astMapGet0I( km, "UNDEF", &ival ) ) {
+      stopit( status, "Error undef-get0" );
+   }
+
+   /* The element accessor must agree with them. */
+   if( astMapGetElemI( km, "UNDEF", 0, &ival ) ) {
+      stopit( status, "Error undef-getelem-i" );
+   }
+
+   if( astMapGetElemC( km, "UNDEF", sizeof( cbuf ), 0, cbuf ) ) {
+      stopit( status, "Error undef-getelem-c" );
+   }
+
+   /* An out-of-range index on an undefined entry must still be reported
+      as a bad index, not silently folded into the "no value" case. This
+      call is expected to raise an error, so use a private status. */
+   local_status = 0;
+   astWatch( &local_status );
+   if( astMapGetElemI( km, "UNDEF", 5, &ival ) ) {
+      stopit( status, "Error undef-getelem-i-oob-result" );
+   }
+   if( local_status != AST__MPVIN ) {
+      stopit( status, "Error undef-getelem-i-oob-status" );
+   }
+   astClearStatus;
+   astWatch( status );
+
+   km = astAnnul( km );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -658,6 +704,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testundefelem( status );
 
    testemptyvector( status );
 
