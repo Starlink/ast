@@ -253,6 +253,11 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Apply the MpLck card after reading the entries in
 *        astLoadKeyMap, so that a locked non-empty KeyMap can be read
 *        back and so that nested KeyMaps inherit the flag.
+*     8-AUG-2026 (TIMJ):
+*        Remove the per entry member number read in astLoadKeyMap. No
+*        such card is written, so the read reset the member counter
+*        before every put and gave every loaded entry the same member
+*        number.
 *class--
 */
 
@@ -11209,12 +11214,6 @@ AstKeyMap *astLoadKeyMap_( void *mem, size_t size, AstKeyMapVtab *vtab,
 /* Get the vector length. */
          (void) sprintf( buff, "nel%d", nentry );
          nel = astReadInt( channel, buff, 0 );
-
-/* Get the entry member number. Set the KeyMap member count to this value
-   so that the next entry added to the KeyMap will get this value as its
-   member index. */
-         (void) sprintf( buff, "mem%d", nentry );
-         new->member_count = astReadInt( channel, buff, 0 );
 
 /* First deal with integer entries. */
          if( type == AST__INTTYPE ) {
