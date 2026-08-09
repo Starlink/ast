@@ -29,6 +29,66 @@
 - Tests use `astWatch(&status)` + `astOK` for error checking, never Starlink EMS.
 - Do NOT modify `c-bugs.md`. Do NOT commit it.
 
+## Execution Record (updated 2026-08-09)
+
+Tasks 1-12 are committed on `u/timj/misc-bugs`, each having passed an independent review that verified the fix rather than accepting the implementer's report. Both suites pass: plain `build` 1061/1061 and sanitizer `build-dev` 1061/1061.
+
+| Task | Commit(s) | Defect fixed |
+|---|---|---|
+| 1 | `a020658` | Negative grism interference order corrupted (−2→−1) or rejected (−1→0) |
+| 2 | `f195b74` | `ConvertValue` rounded every negative toward zero |
+| 3 | `750b44f`, `351d713`, `e8f5b14` | Tree-wide `round()` sweep, 70 sites / 16 files |
+| 4 | `83c7b6f` | `astMapIterate` never terminated with `SortBy` set |
+| 5 | `e232fee` | `astMapRename` destroyed the entry on a locked KeyMap |
+| 6 | `abf3515`, `2eb62dc` | Out-of-range and NaN float-to-integer conversion UB |
+| 7 | `27592ac` | Numeric-string overflow wrapped instead of failing |
+| 8 | `59c05c0` | Zero-length vector crashed the dump (null dereference) |
+| 9 | `abbdae2` | `astMapGetElem<X>` reported success having written nothing |
+| 10 | `132d43d` | Spurious `KyCas` card on every re-dump |
+| 11 | `e0a846c` | Locked non-empty KeyMap could never be reloaded |
+| 12 | `ef92bde` | Load reset the member counter, giving every entry member 0 |
+
+**Not done:** Task 13 (attempted and reverted — see the status block on that task), 14, 15, 16, 17, 18, 19. **No final whole-branch review has been run.**
+
+### Working notes for whoever resumes this
+
+**`ast_tester/testkeymap.c` has a status hazard that silently produces tests which cannot fail.** `stopit( status, text )` is `if( *status != 0 ) return; *status = 1; printf(...)`. Because it writes the watched status, and because most AST functions return immediately when `astOK` is false, three distinct failure modes appeared during tasks 1-12:
+
+1. Calling `stopit()` inside a loop that keeps making AST calls. The first mismatch makes every later iteration report a spurious "get failed", including control cases that were meant to stay clean. Accumulate into a local flag and call `stopit()` once after the loop.
+2. A call that is *expected* to raise an error must run under a private status: `astWatch( &local_status )` / call / `astClearStatus` / `astWatch( status )`. Copy `testrenamelocked` in the same file. Note `astMapGet0I` on a present-but-unparseable string raises a real `AST__MPGER`, unlike a merely missing key.
+3. If the AST call itself errors *before* `stopit()` runs, `stopit()` silently returns and a following `astClearStatus` erases the evidence — the test exits clean while testing nothing. This is the one that hides a broken regression test.
+
+All three present as "the test passed". Always confirm a new test fails before its fix is applied.
+
+**Build and toolchain.** `build-dev` is configured with homebrew clang (`/opt/homebrew/opt/llvm/bin/clang`); Apple clang has a pre-existing AddressSanitizer startup failure in this tree, and conda compilers hang. Run the suites in the foreground with `-j4`; several subagents stalled indefinitely polling backgrounded runs.
+
+**Scratch probes.** Build against the tree with:
+```
+cc -O0 -I build -o /tmp/probe /tmp/probe.c \
+   -L build -last -Wl,-force_load,build/libast_err.a -lm
+DYLD_LIBRARY_PATH=build /tmp/probe
+```
+The `-force_load` of `libast_err.a` is required — without whole-archive linkage `astPutErr` resolves to a null pointer and the binary crashes for reasons unrelated to what is being tested.
+
+**Deferred minor findings, for the final whole-branch review to triage:**
+
+- Task 1: `testgrismorder()` does not wrap itself in `astBegin`/`astEnd` or annul `fc`/`out`/`fs`, unlike neighbouring `checktab2()`. Not a leak; stylistic.
+- Task 4: the test calls the Protected `astMapIterate_` via a local `extern` wrapped in the public `astCheckKeyMap()` macro, because `astMapIterate` is stripped from the generated `ast.h`. Precedent exists (`gen_simplify_fixtures.c`). The cleaner idiom — a separate translation unit defining `astCLASS`, as `testobjectkeymap.c` does — would need a new file, which the task scope excluded. Revisit if a maintainer prefers it.
+- Task 5: `testkeymap.c` has no coverage for `astMapRename` onto a key that already exists (the replace path). Pre-existing gap; the reviewer verified the path manually.
+- Task 9: in `testundefelem`, the `MapGetElemC` check's independence relies on the `MapGetElemI` check passing first. Fine as written; matters only if the checks are reordered.
+- Task 12: the fix removes the corruption but does **not** restore true chronological age ordering — members are assigned in dump order, which is hash-bucket order. Task 14 changes dump order to key order, which decouples it further. Consistent, not a regression, but worth stating in any release note.
+
+**Corrections already folded into this plan, listed so they are not re-introduced:**
+
+- Task 8 uses `AST__NELIN` ("number of array elements invalid"), not `AST__MPVIN`, which describes a bad *index*.
+- `astMapCopyEntry`'s signature is `( destination, key, source, merge )`.
+- Task 3's verification grep was wrong three times: it omitted `PLINT` casts, omitted float-suffixed constants (`0.5f`), and the site triage wrongly classed `grf_log.c`'s sites as graphics attributes when two are `SvgX`/`SvgY` coordinate conversions that genuinely take negative values. The widened pattern is in Task 3's steps. **The "no fixture changes" gate is only as strong as the enumeration behind it.**
+- Task 3 legitimately changed one fixture: `ast_tester/serpens.svg`, `x="-11"` → `x="-12"`, user-approved.
+- Task 1's test uses `PV1_0 = 9.0E5`, not `1.0E6`; at `1.0E6` the order −2 case sits exactly on a grazing-angle singularity once the fix is applied.
+- `<errno.h>` and `<ctype.h>` were added to `src/keymap.c` by task 7; both were absent.
+
+**Line numbers in the task bodies below are from 2026-08-08 and have shifted.** Twelve tasks have edited `src/keymap.c`. Locate code by content, not by line number.
+
 ## Build and Test Commands
 
 Two build trees are used throughout.
