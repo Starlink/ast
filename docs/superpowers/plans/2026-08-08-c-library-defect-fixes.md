@@ -2064,104 +2064,207 @@ EOF
 
 ## Task 13: astMapCopyEntry uses the source KeyMap's KeyCase for both lookups
 
-> **STATUS: attempted, reverted, needs re-planning before it is attempted again.**
->
-> The fix below is correct as far as it goes, but it is not sufficient on its
-> own, and applying it alone makes matters worse.
->
-> `CopyMapEntry` (`src/keymap.c:2436`) copies the source entry's key text
-> verbatim: `result->key = astStore( NULL, in->key, strlen( in->key ) + 1 )`.
-> It has no knowledge of the destination KeyMap, so a copied entry is stored
-> under the *source's* casing.
->
-> With only the lookup fixed, the destination is searched under its own
-> casing while the entry is stored under the source's. The two disagree, so
-> a copied entry becomes unfindable in the map that now holds it. Before the
-> fix both were consistently wrong, which is less harmful.
->
-> The storage path is also shared: `CopyMapEntry` is called from
-> `MapCopyEntry` (twice) and from the bulk `MapCopy` loop (twice), so
-> `astMapCopy` between two KeyMaps with different `KeyCase` settings has the
-> same defect. Any fix has to cover both callers or neither.
->
-> The likely correct shape is to leave `CopyMapEntry` a pure copy helper and
-> re-key in the callers, which know the destination — mirroring
-> `astMapPut0<X>`, which stores the converted key rather than the caller's
-> raw string. That is a larger change than this task specifies and needs its
-> own design pass.
->
-> Verified: the lookup fix alone leaves `astMapSize( dst ) == 1` (the
-> duplicate-entry symptom is genuinely fixed) but the stored key is
-> `MixedKey` where the destination's own rule requires `MIXEDKEY`.
+> **STATUS: re-planned 2026-08-09 after a first attempt was reverted.** The
+> steps below supersede the original single-line lookup fix, which was
+> verified insufficient on its own. Read the design note before implementing.
+
+### Design note (2026-08-09)
+
+The first attempt changed only the lookup and was reverted. This section
+records why, and what the fix has to cover instead.
+
+**Two things are wrong, not one.** The *lookup* of the destination uses the
+source's casing (`MapCopyEntry`, the single `ConvertKey` call). The *storage*
+of the copied entry also uses the source's casing, because `CopyMapEntry`
+copies the key text verbatim:
+
+```c
+   text = in->key;
+   result->key = text ? astStore( NULL, text, strlen( text ) + 1 ) : NULL;
+```
+
+`CopyMapEntry` takes only an `AstMapEntry *` and has no idea which KeyMap the
+copy is destined for. Fixing the lookup alone makes the two disagree: the
+destination is searched under its own casing but the entry lands under the
+source's, so a copied entry becomes unfindable in the map that now holds it.
+Before the fix both were consistently wrong, which is less harmful. That is
+why the first attempt was reverted.
+
+**The invariant being restored.** `KeyCase` may only be changed while a
+KeyMap is empty — both `SetKeyCase` and `ClearKeyCase` report `AST__NOWRT`
+otherwise. So every key stored in a KeyMap is, by construction, already
+expressed in that KeyMap's own casing: `astMapPut0<X>` stores
+`ConvertKey`'s output, and `astMapRename` stores the converted new key. The
+copy path is the only route by which a key in the wrong casing enters a
+KeyMap. This fix restores an invariant the rest of the class already relies
+on; it does not invent a new rule.
+
+**Where to re-key.** `CopyMapEntry` stays a pure copy helper — it is also
+called from `CopyTableEntry`, which serves the KeyMap copy constructor,
+where source and destination are the same object with the same `KeyCase` and
+no re-keying is wanted. Instead the two *public* copy paths re-key after
+copying, which is exactly what `astMapPut0<X>` does with a caller-supplied
+key.
+
+Add one private helper beside `CopyMapEntry`:
+
+```c
+static void ReKeyMapEntry( AstKeyMap *this, AstMapEntry *entry,
+                           const char *method, int *status );
+```
+
+It converts `entry->key` with `ConvertKey( this, ... )`; if the result
+differs from the key already stored, it re-stores the converted string with
+`astStore` and recomputes `entry->hash` with `HashFun`. Recomputing the hash
+is required, not cosmetic: `DoubleTableSize` re-buckets purely from the
+cached `entry->hash` (`newi = ( next->hash & bitmask )`), so an entry whose
+cached hash belongs to a different key string would be filed into the wrong
+bucket on the next table growth and become unfindable then, even if it were
+findable now.
+
+Trailing spaces need no separate handling: `HashFun` and `KeyCmp` both ignore
+them, and the key being re-keyed came from a KeyMap that already stripped
+them at put time.
+
+**Three call sites re-key, one does not.**
+
+| Caller | Re-key? |
+|---|---|
+| `MapCopyEntry`, new-entry branch | yes — destination is `this` |
+| `MapCopyEntry`, replace branch | yes — destination is `this` |
+| `MapCopy` loop, new-entry branch | yes — destination is `this` |
+| `MapCopy` loop, replace branch | yes — destination is `this` |
+| `CopyTableEntry` (copy constructor) | **no** — same `KeyCase`, and it fills the output table directly by bucket index |
+
+`MapCopy` additionally reads each source key straight out of the source entry
+(`key = in_entry->key`) and uses it to hash into the *destination* table. That
+is the same defect in the bulk path and is fixed the same way: convert to the
+destination's casing before hashing and searching.
+
+**Ordering.** Re-key *before* `AddTableEntry`, because `AddTableEntry`
+inserts into `AddToSortedList` and files by the caller's `itab`; both must
+see the final key. The `itab` passed to `AddTableEntry` must be the one
+computed from the destination-cased key.
 
 **Files:**
-- Modify: `src/keymap.c:4350`
+- Modify: `src/keymap.c` — `CopyMapEntry`'s neighbourhood (new helper), `MapCopyEntry`, `MapCopy`
 - Test: `ast_tester/testkeymap.c`
 
 **Interfaces:**
 - Consumes: nothing.
 - Produces: nothing.
 
-**Background.** `MapCopyEntry` converts the caller's key using the source KeyMap's `KeyCase` and uses the same converted string for both the source lookup and the destination lookup. When the two KeyMaps differ in `KeyCase`, the destination lookup runs under the source's casing rule.
+**Background.** `MapCopyEntry` converts the caller's key using the source KeyMap's `KeyCase` and uses the same converted string for both the source lookup and the destination lookup. When the two KeyMaps differ in `KeyCase`, the destination lookup runs under the source's casing rule, and the copied entry is stored under the source's casing too.
 
-- [ ] **Step 1: Read the function fully**
+- [ ] **Step 1: Read the code fully**
+
+Locate by content, not line number:
 
 ```bash
-sed -n '4264,4420p' src/keymap.c
+grep -n 'static AstMapEntry \*CopyMapEntry\|static void MapCopy(\|static void MapCopyEntry(\|static void CopyTableEntry' src/keymap.c
 ```
 
-Identify every use of the `key` variable and which KeyMap each belongs to. The destination is `this`; the source is `that`.
+Read all four functions plus `ConvertKey` and `HashFun`. In `MapCopyEntry`
+and `MapCopy` identify every use of the key and which KeyMap it belongs to:
+the destination is `this`, the source is `that`.
 
 - [ ] **Step 2: Write the failing test**
 
-Add to `ast_tester/testkeymap.c`, immediately above `int main( void )`:
+Add to `ast_tester/testkeymap.c`, immediately above `int main( void )`. Note
+the `stopit()` hazard documented in the Execution Record: accumulate into a
+local flag rather than calling `stopit()` inside a loop, and do not let an
+`astClearStatus` erase evidence.
 
 ```c
 /*
- * testcopyentrycase: astMapCopyEntry must apply each KeyMap's own
- * KeyCase when looking up that KeyMap.
+ * testcopyentrycase: a KeyMap copy must express the copied key in the
+ * destination KeyMap's own KeyCase, both when searching the destination
+ * and when storing the entry in it. KeyCase can only be changed while a
+ * KeyMap is empty, so every key a KeyMap holds should be in that
+ * KeyMap's own casing.
  */
 static void testcopyentrycase( int *status ) {
    AstKeyMap *src;
    AstKeyMap *dst;
+   AstKeyMap *bulk;
    int ival;
 
    if( !astOK ) return;
 
-   /* Source is case sensitive; destination is not. */
+/* Source is case sensitive; destination is not. */
    src = astKeyMap( "KeyCase=1" );
    dst = astKeyMap( "KeyCase=0" );
 
    astMapPut0I( src, "MixedKey", 11, " " );
 
-   /* The destination already holds the key under its own folded form. */
+/* The destination already holds the key under its own folded form. */
    astMapPut0I( dst, "MIXEDKEY", 99, " " );
 
-   /* Argument order is (destination, key, source, merge). The merge flag
-      only affects what happens when the entry holds a KeyMap and the
-      destination already has a KeyMap under that key, so it is
-      irrelevant to this integer entry. */
+/* Argument order is (destination, key, source, merge). The merge flag
+   only affects what happens when the entry holds a KeyMap and the
+   destination already has a KeyMap under that key, so it is irrelevant
+   to this integer entry. */
    astMapCopyEntry( dst, "MixedKey", src, 0 );
 
    if( !astOK ) {
       stopit( status, "Error copyentry-status" );
       astClearStatus;
-   } else if( !astMapGet0I( dst, "MIXEDKEY", &ival ) ) {
-      stopit( status, "Error copyentry-missing" );
-   } else if( ival != 11 ) {
-      printf( "got %d want 11\n", ival );
-      stopit( status, "Error copyentry-value" );
+   } else {
+
+/* The destination must not have gained a second, differently cased copy
+   of the same logical key. */
+      if( astMapSize( dst ) != 1 ) {
+         printf( "destination has %d entries, expected 1\n",
+                 astMapSize( dst ) );
+         stopit( status, "Error copyentry-dup" );
+      }
+
+/* The copied value must be retrievable under the destination's own
+   casing rule. This is the assertion the lookup-only fix broke. */
+      if( astOK && !astMapGet0I( dst, "MIXEDKEY", &ival ) ) {
+         stopit( status, "Error copyentry-missing" );
+      } else if( astOK && ival != 11 ) {
+         printf( "got %d want 11\n", ival );
+         stopit( status, "Error copyentry-value" );
+      }
+
+/* The key as actually stored must be the destination's folded form. This
+   catches an entry that is findable only because the search and the
+   stored key are wrong in the same way. */
+      if( astOK && strcmp( astMapKey( dst, 0 ), "MIXEDKEY" ) ) {
+         printf( "stored key is '%s', expected 'MIXEDKEY'\n",
+                 astMapKey( dst, 0 ) );
+         stopit( status, "Error copyentry-storedkey" );
+      }
    }
 
-   /* The destination must not have gained a second, differently cased
-      copy of the same logical key. */
-   if( astMapSize( dst ) != 1 ) {
-      printf( "destination has %d entries, expected 1\n", astMapSize( dst ) );
-      stopit( status, "Error copyentry-dup" );
+/* The bulk astMapCopy path shares the same entry-copying helper and has
+   the same defect. A key absent from the destination exercises the
+   new-entry branch. */
+   bulk = astKeyMap( "KeyCase=0" );
+   astMapCopy( bulk, src );
+
+   if( !astOK ) {
+      stopit( status, "Error mapcopy-status" );
+      astClearStatus;
+   } else {
+      if( !astMapGet0I( bulk, "MIXEDKEY", &ival ) ) {
+         stopit( status, "Error mapcopy-missing" );
+      } else if( ival != 11 ) {
+         printf( "got %d want 11\n", ival );
+         stopit( status, "Error mapcopy-value" );
+      }
+
+      if( astOK && strcmp( astMapKey( bulk, 0 ), "MIXEDKEY" ) ) {
+         printf( "stored key is '%s', expected 'MIXEDKEY'\n",
+                 astMapKey( bulk, 0 ) );
+         stopit( status, "Error mapcopy-storedkey" );
+      }
    }
 
    src = astAnnul( src );
    dst = astAnnul( dst );
+   bulk = astAnnul( bulk );
 }
 ```
 
@@ -2171,9 +2274,13 @@ Add the call inside `main`, immediately after `astBegin;`:
    testcopyentrycase( status );
 ```
 
-The signature is `astMapCopyEntry( AstKeyMap *this, const char *key, AstKeyMap *that, int merge )`, where `this` is the destination and `that` is the source. The `merge` flag governs only the case where the entry holds a KeyMap and the destination already holds a KeyMap under that key, so it does not affect this test.
+The signature is `astMapCopyEntry( AstKeyMap *this, const char *key, AstKeyMap *that, int merge )`, where `this` is the destination and `that` is the source.
 
-The value assertion (`ival == 11`) and the entry-count assertion (`astMapSize( dst ) == 1`) are both meaningful: a destination lookup performed under the source's casing rule misses the existing `MIXEDKEY` entry and adds a second one, so the count is the primary discriminator.
+Each assertion catches a different half of the defect, which is why the first attempt's narrower test was not enough:
+
+- `copyentry-dup` catches the destination lookup running under the source's casing, so the existing `MIXEDKEY` entry is missed and a second entry is added. This is the symptom the lookup-only fix cured.
+- `copyentry-missing` / `copyentry-storedkey` catch the entry being *stored* under the source's casing. These are what the lookup-only fix broke, and `copyentry-missing` is what made that regression worse than the original defect.
+- The `mapcopy-*` group covers the shared bulk path.
 
 - [ ] **Step 3: Run the test to verify it fails**
 
@@ -2181,39 +2288,146 @@ The value assertion (`ival == 11`) and the entry-count assertion (`astMapSize( d
 cmake --build build -j && ctest --test-dir build -R testkeymap --output-on-failure
 ```
 
-Expected: FAIL, most likely `copyentry-dup`, because the destination lookup used the source's unfolded key and so missed the existing entry.
+Expected: FAIL. Pre-fix the failure is `copyentry-dup` (the destination gains a second entry). Confirm the specific check that fires and record it.
 
-**If the test passes before the fix, STOP and report.** The lookup paths may coincide for this input, and the test needs a different `KeyCase` combination to expose the defect.
+**If the test passes before the fix, STOP and report.** A test that passes in both states pins nothing.
+
+Then, as a second confirmation that the storage half is real, temporarily apply *only* the lookup change from the reverted first attempt and re-run: `copyentry-dup` should pass and `copyentry-missing` should now fail. Revert that probe before continuing. This demonstrates the test discriminates between the two halves rather than merely detecting "something is wrong".
 
 - [ ] **Step 4: Apply the fix**
 
-In `src/keymap.c:4350`, the single conversion currently reads:
+Four edits. Locate each by content.
+
+**(a) Add the re-keying helper**, immediately after `CopyMapEntry`:
 
 ```c
-   key = ConvertKey( that, skey, keybuf, AST__MXKEYLEN + 1, "astMapCopyEntry",
+static void ReKeyMapEntry( AstKeyMap *this, AstMapEntry *entry,
+                           const char *method, int *status ){
+/*
+*  Name:
+*     ReKeyMapEntry
+
+*  Purpose:
+*     Express a MapEntry's key in a KeyMap's own KeyCase.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "keymap.h"
+*     void ReKeyMapEntry( AstKeyMap *this, AstMapEntry *entry,
+*                         const char *method, int *status )
+
+*  Class Membership:
+*     KeyMap member function.
+
+*  Description:
+*     This function converts the key of the supplied MapEntry to the case
+*     required by the KeyCase attribute of the supplied KeyMap, and
+*     recomputes the entry's cached hash value to match. It is used when
+*     an entry copied out of one KeyMap is about to be stored in another,
+*     since the two KeyMaps may have different KeyCase values.
+
+*  Parameters:
+*     this
+*        Pointer to the KeyMap in which the entry is to be stored.
+*     entry
+*        Pointer to the MapEntry to be re-keyed.
+*     method
+*        Pointer to a string holding the name of the method to include in
+*        any error message.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   char keybuf[ AST__MXKEYLEN + 1 ]; /* Buffer for converted key */
+   const char *key;       /* Pointer to converted key string */
+   unsigned long hash;    /* Full width hash value */
+
+/* Check the global error status and the supplied pointers. */
+   if( !astOK || !entry || !entry->key ) return;
+
+/* Convert the key to the case required by the destination KeyMap. */
+   key = ConvertKey( this, entry->key, keybuf, AST__MXKEYLEN + 1, method,
                      status );
+
+/* If the conversion changed the key, store the converted form and
+   recompute the cached hash value. DoubleTableSize re-buckets entries
+   using the cached hash alone, so a stale hash would file the entry
+   under the wrong bucket the next time the table grows. */
+   if( astOK && strcmp( key, entry->key ) ) {
+      entry->key = astStore( (void *) entry->key, key, strlen( key ) + 1 );
+      if( astOK ) {
+         (void) HashFun( entry->key, this->mapsize - 1, &hash, status );
+         entry->hash = hash;
+      }
+   }
+}
 ```
 
-Convert once per KeyMap into separate buffers, and use each for its own lookup:
+Add a forward declaration alongside the other `static void` declarations near the head of the file.
+
+**(b) `MapCopyEntry`: convert once per KeyMap.** Replace the single conversion with one per KeyMap, into separate buffers:
 
 ```c
-/* Convert the supplied key using each KeyMap's own KeyCase, since the
-   two KeyMaps may differ in that attribute. */
+/* Convert the supplied key using each KeyMap's own KeyCase, since the two
+   KeyMaps may differ in that attribute. */
    inkey = ConvertKey( that, skey, inkeybuf, AST__MXKEYLEN + 1,
                        "astMapCopyEntry", status );
    outkey = ConvertKey( this, skey, outkeybuf, AST__MXKEYLEN + 1,
                         "astMapCopyEntry", status );
 ```
 
-Declare `inkey`, `outkey`, `inkeybuf` and `outkeybuf` alongside the existing `key` and `keybuf` declarations, then replace each use of `key`: the `HashFun`/`SearchTableEntry` pair against `that` uses `inkey`; the pair against `this` uses `outkey`. Remove the now-unused `key` and `keybuf`.
+Declare `inkey`, `outkey`, `inkeybuf` and `outkeybuf` in place of the existing `key` and `keybuf`. Then, for every use of the old `key`: the `HashFun`/`SearchTableEntry` pair against `that` uses `inkey`; everything against `this` — the `HashFun`, the `SearchTableEntry`, the `RemoveTableEntry` and the `astError` message text — uses `outkey`. Remove `key` and `keybuf`.
+
+**(c) `MapCopyEntry`: re-key each copy before adding it.** In both branches, insert the re-key between `CopyMapEntry` and `AddTableEntry`:
+
+```c
+            out_entry = CopyMapEntry( in_entry, status );
+            ReKeyMapEntry( this, out_entry, "astMapCopyEntry", status );
+            out_entry = AddTableEntry( this, itab, out_entry, -1, status );
+```
+
+and likewise in the replace branch, preserving its existing `keymember` argument.
+
+**(d) `MapCopy`: convert the source key to the destination's casing.** The
+loop currently hashes the raw source key into the destination table:
+
+```c
+         key = in_entry->key;
+         itab = HashFun( key, this->mapsize - 1, &hash, status );
+         out_entry = SearchTableEntry( this, itab, key, status );
+```
+
+Convert first, and use the converted key for the destination hash, search,
+removal and error message:
+
+```c
+/* Get its key, expressed in the destination KeyMap's own case. The two
+   KeyMaps may have different KeyCase values. */
+         key = ConvertKey( this, in_entry->key, keybuf, AST__MXKEYLEN + 1,
+                           "astMapCopy", status );
+         itab = HashFun( key, this->mapsize - 1, &hash, status );
+         out_entry = SearchTableEntry( this, itab, key, status );
+```
+
+Declare `keybuf` alongside the existing locals. Then add
+`ReKeyMapEntry( this, out_entry, "astMapCopy", status );` between each
+`CopyMapEntry` and its `AddTableEntry`, in both branches.
+
+Leave `CopyTableEntry` unchanged: it serves the copy constructor, where the
+destination is a copy of the source and shares its `KeyCase`, and it fills
+the output table directly by bucket index.
 
 - [ ] **Step 5: Add the prologue history entry**
 
 ```
-*     8-AUG-2026 (TIMJ):
-*        Apply each KeyMap's own KeyCase in astMapCopyEntry, rather than
-*        using the source KeyMap's casing rule for the destination
-*        lookup as well.
+*     9-AUG-2026 (TIMJ):
+*        Express copied keys in the destination KeyMap's own KeyCase in
+*        astMapCopyEntry and astMapCopy, for the destination lookup and
+*        for the stored key, rather than using the source KeyMap's
+*        casing rule for both.
 ```
 
 - [ ] **Step 6: Run the test to verify it passes**
@@ -2234,15 +2448,28 @@ cmake --build build-dev -j && ctest --test-dir build-dev --output-on-failure
 ```bash
 git add src/keymap.c ast_tester/testkeymap.c
 git commit -F - <<'EOF'
-keymap: apply each KeyMap's own KeyCase in astMapCopyEntry
+keymap: express copied keys in the destination KeyMap's KeyCase
 
-MapCopyEntry converted the supplied key using the source KeyMap's
-KeyCase and then used that one converted string for both the source
-lookup and the destination lookup. When the two KeyMaps differ in
-KeyCase, the destination was searched under the source's casing rule
-and could miss a key its own rule would have matched.
+Copying an entry between two KeyMaps with different KeyCase settings used
+the source KeyMap's casing rule throughout.
 
-Convert the key once per KeyMap and use each result for its own lookup.
+MapCopyEntry converted the caller's key once, using the source's KeyCase,
+and used that one string for both the source lookup and the destination
+lookup, so the destination was searched under a rule that is not its own
+and could miss a key its own rule would have matched. MapCopy hashed each
+source key into the destination table without converting it at all.
+
+The stored key was wrong as well. CopyMapEntry copies the key text
+verbatim, so a copied entry was filed under the source's casing. Since
+KeyCase can only be changed while a KeyMap is empty, every other route
+into a KeyMap stores a key already expressed in that KeyMap's own case;
+the copy paths were the sole exception.
+
+Convert the key to the destination's case before searching it, and
+re-express the copied entry's key in that case before storing it,
+recomputing the entry's cached hash to match so that a later table
+growth buckets it correctly. The copy constructor's path is unchanged,
+since there the destination shares the source's KeyCase.
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 EOF
