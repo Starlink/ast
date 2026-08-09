@@ -429,12 +429,17 @@ static void testconvrange( int *status ) {
    int ival;
    short int sval;
    unsigned char bval;
+   int64_t kval;
+   double nanval;
 
    if( !astOK ) return;
 
    km = astKeyMap( " " );
    astMapPut0D( km, "BIG", 5000000100.0, " " );
    astMapPut0D( km, "NEG", -5000000100.0, " " );
+
+   nanval = nan( "" );
+   astMapPut0D( km, "NAN", nanval, " " );
 
    if( !astMapGet0I( km, "BIG", &ival ) ) {
       stopit( status, "Error range-get-i" );
@@ -471,6 +476,37 @@ static void testconvrange( int *status ) {
    } else if( bval != 0 ) {
       printf( "byte: got %d want 0\n", (int) bval );
       stopit( status, "Error range-byte-min" );
+   }
+
+   /* A NaN has no integer value, so every narrow-integer conversion must
+      return the defined value 0 rather than performing an undefined
+      NaN-to-integer cast. */
+   if( !astMapGet0I( km, "NAN", &ival ) ) {
+      stopit( status, "Error range-get-i3" );
+   } else if( ival != 0 ) {
+      printf( "int: got %d want 0\n", ival );
+      stopit( status, "Error range-nan-int" );
+   }
+
+   if( !astMapGet0S( km, "NAN", &sval ) ) {
+      stopit( status, "Error range-get-s2" );
+   } else if( sval != 0 ) {
+      printf( "short: got %d want 0\n", (int) sval );
+      stopit( status, "Error range-nan-short" );
+   }
+
+   if( !astMapGet0K( km, "NAN", &kval ) ) {
+      stopit( status, "Error range-get-k" );
+   } else if( kval != 0 ) {
+      printf( "int64: got %" PRId64 " want 0\n", kval );
+      stopit( status, "Error range-nan-int64" );
+   }
+
+   if( !astMapGet0B( km, "NAN", &bval ) ) {
+      stopit( status, "Error range-get-b3" );
+   } else if( bval != 0 ) {
+      printf( "byte: got %d want 0\n", (int) bval );
+      stopit( status, "Error range-nan-byte" );
    }
 
    km = astAnnul( km );

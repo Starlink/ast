@@ -1671,28 +1671,39 @@ static const char *ConvertKey( AstKeyMap *this, const char *skey, char *keybuf,
 
 /* Convert a double to an integer type, saturating rather than relying on
    the undefined result of an out-of-range floating point to integer
-   cast (C11 6.3.1.4p1). */
+   cast (C11 6.3.1.4p1). A NaN has no integer value, so a NaN input
+   returns 0 rather than falling through into a NaN-to-integer cast,
+   which is itself undefined by the same clause; 0 is otherwise
+   arbitrary and only needs to be defined, not meaningful. */
 
 static int DtoI( double dval ) {
-   double r = round( dval );
+   double r;
+   if( isnan( dval ) ) return 0;
+   r = round( dval );
    return ( r >= (double) INT_MAX ) ? INT_MAX :
           ( r <= (double) INT_MIN ) ? INT_MIN : (int) r;
 }
 
 static short int DtoS( double dval ) {
-   double r = round( dval );
+   double r;
+   if( isnan( dval ) ) return 0;
+   r = round( dval );
    return ( r >= (double) SHRT_MAX ) ? SHRT_MAX :
           ( r <= (double) SHRT_MIN ) ? SHRT_MIN : (short int) r;
 }
 
 static unsigned char DtoB( double dval ) {
-   double r = round( dval );
+   double r;
+   if( isnan( dval ) ) return 0;
+   r = round( dval );
    return ( r >= (double) UCHAR_MAX ) ? UCHAR_MAX :
           ( r <= 0.0 ) ? 0 : (unsigned char) r;
 }
 
 static int64_t DtoK( double dval ) {
-   double r = round( dval );
+   double r;
+   if( isnan( dval ) ) return 0;
+   r = round( dval );
 
 /* INT64_MAX is not exactly representable as a double, so compare against
    2^63 directly rather than against (double) INT64_MAX. */
