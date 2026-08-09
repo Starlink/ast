@@ -1389,6 +1389,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In EncodeFloat, close the gap when removing a redundant leading
 *        zero from an exponent if there is no leading padding to absorb
 *        the shift, rather than pushing the value one column right.
+*     9-AUG-2026 (TIMJ):
+*        In WcsNative, use a copy of the PermMap for the axis
+*        rearrangement stage, so that the PermMap encapsulated in the
+*        earlier CmpMap does not acquire an Invert flag afterwards.
 *class--
 */
 
@@ -38166,6 +38170,7 @@ static AstMapping *WcsNative( AstFitsChan *this, FitsStore *store, char s,
    AstMatrixMap *matmap2;     /* Another MatrixMap */
    AstMatrixMap *matmap;      /* A MatrixMap */
    AstPermMap *permmap;       /* A PermMap */
+   AstPermMap *permmap2;      /* A copy of the PermMap */
    AstSphMap *sphmap;         /* A SphMap */
    AstUnitMap *unitmap;       /* A UnitMap */
    char buf[150];             /* Message buffer */
@@ -38420,14 +38425,18 @@ static AstMapping *WcsNative( AstFitsChan *this, FitsStore *store, char s,
          new = astAnnul( new );
          new = (AstMapping *) cmpmap;
 
-/* Now invert the PermMap, so that it re-arranges the axes back into
-   their original order. This is the mapping described as stage 3 in
-   the prologue. */
-         astInvert( permmap );
+/* Take a copy for stage 3 and invert that, so that it re-arranges the
+   axes back into their original order. A copy is used because astCmpMap
+   clones rather than copies its components, so inverting the original
+   would alter the PermMap already encapsulated in the stage 1 CmpMap
+   and leave it carrying a flag set after encapsulation. */
+         permmap2 = astCopy( permmap );
+         permmap = astAnnul( permmap );
+         astInvert( permmap2 );
 
 /* And finally.... add this inverted PermMap onto the end of the CmpMap. */
-         cmpmap = astCmpMap( new, permmap, 1, "", status );
-         permmap = astAnnul( permmap );
+         cmpmap = astCmpMap( new, permmap2, 1, "", status );
+         permmap2 = astAnnul( permmap2 );
          new = astAnnul( new );
          new = (AstMapping *) cmpmap;
       }

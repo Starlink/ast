@@ -127,7 +127,6 @@ ISA_J   = 'Mapping '           / Mapping between coordinate systems
 MAPA_D  = '        '           / First component Mapping                        
 BEGAST_S= 'PermMap '           / Coordinate permutation                         
 NIN_H   =                    3 / Number of input coordinates                    
-INVERT_B=                    1 / Mapping inverted                               
 ISA_K   = 'Mapping '           / Mapping between coordinate systems             
 OUT1_A  =                    2 / Output coordinate 1 = input coordinate 2       
 OUT2_A  =                    1 / Output coordinate 2 = input coordinate 1       
@@ -160,7 +159,7 @@ MAPA_H  = '        '           / First component Mapping
 BEGAST_X= 'SphMap  '           / Cartesian to Spherical mapping                 
 NIN_M   =                    3 / Number of input coordinates                    
 NOUT_B  =                    2 / Number of output coordinates                   
-INVERT_C=                    1 / Mapping inverted                               
+INVERT_B=                    1 / Mapping inverted                               
 ISA_P   = 'Mapping '           / Mapping between coordinate systems             
 UNTRD_A =                    1 / All input vectors have unit length             
 PLRLG_A =                  0.0 / Polar longitude (rad.s)                        
