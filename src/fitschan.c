@@ -1393,6 +1393,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In WcsNative, use a copy of the PermMap for the axis
 *        rearrangement stage, so that the PermMap encapsulated in the
 *        earlier CmpMap does not acquire an Invert flag afterwards.
+*     9-AUG-2026 (TIMJ):
+*        Only read the legacy CDjjjiii matrix in SpecTrans under the
+*        FITS-IRAF encoding, which is the only encoding that uses the
+*        values, so the cards are not consumed and discarded under other
+*        encodings.
 *class--
 */
 
@@ -31295,7 +31300,14 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 
 /* CDjjjiii
    -------- */
-         if( s == ' ' && astKeyFields( this, "CD%3d%3d", 1, &naxis, lbnd ) ){
+
+/* This legacy IRAF matrix form is only used - and its cards only
+   consumed - under the FITS-IRAF encoding, since that is the only
+   encoding that translates it into PCj_i values. Skipping the scan
+   under other encodings leaves the cards unread (and so unused) so
+   that they can still reach the output. */
+         if( encoding == FITSIRAF_ENCODING && s == ' ' &&
+             astKeyFields( this, "CD%3d%3d", 1, &naxis, lbnd ) ){
 
 /* Do each row in the matrix. */
             for( j = 0; j < naxis; j++ ){
@@ -31310,14 +31322,12 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 
 /* If found, save it with name PCj_i, and ensure the default value of 1.0
    is used for CDELT. */
-                     if( encoding == FITSIRAF_ENCODING ){
-                        SetValue( ret, FormatKey( "PC", j + 1, i + 1, ' ', status ),
-                                  (void *) &dval, AST__FLOAT, NULL, status );
-                        dval = 1.0;
-                        SetValue( ret, FormatKey( "CDELT", j + 1, -1, s, status ),
-                                  (void *) &dval, AST__FLOAT, NULL, status );
-                        gotpcij = 1;
-                     }
+                     SetValue( ret, FormatKey( "PC", j + 1, i + 1, ' ', status ),
+                               (void *) &dval, AST__FLOAT, NULL, status );
+                     dval = 1.0;
+                     SetValue( ret, FormatKey( "CDELT", j + 1, -1, s, status ),
+                               (void *) &dval, AST__FLOAT, NULL, status );
+                     gotpcij = 1;
                   }
                }
             }
