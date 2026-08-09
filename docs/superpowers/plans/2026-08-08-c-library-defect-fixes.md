@@ -2004,6 +2004,36 @@ EOF
 
 ## Task 13: astMapCopyEntry uses the source KeyMap's KeyCase for both lookups
 
+> **STATUS: attempted, reverted, needs re-planning before it is attempted again.**
+>
+> The fix below is correct as far as it goes, but it is not sufficient on its
+> own, and applying it alone makes matters worse.
+>
+> `CopyMapEntry` (`src/keymap.c:2436`) copies the source entry's key text
+> verbatim: `result->key = astStore( NULL, in->key, strlen( in->key ) + 1 )`.
+> It has no knowledge of the destination KeyMap, so a copied entry is stored
+> under the *source's* casing.
+>
+> With only the lookup fixed, the destination is searched under its own
+> casing while the entry is stored under the source's. The two disagree, so
+> a copied entry becomes unfindable in the map that now holds it. Before the
+> fix both were consistently wrong, which is less harmful.
+>
+> The storage path is also shared: `CopyMapEntry` is called from
+> `MapCopyEntry` (twice) and from the bulk `MapCopy` loop (twice), so
+> `astMapCopy` between two KeyMaps with different `KeyCase` settings has the
+> same defect. Any fix has to cover both callers or neither.
+>
+> The likely correct shape is to leave `CopyMapEntry` a pure copy helper and
+> re-key in the callers, which know the destination — mirroring
+> `astMapPut0<X>`, which stores the converted key rather than the caller's
+> raw string. That is a larger change than this task specifies and needs its
+> own design pass.
+>
+> Verified: the lookup fix alone leaves `astMapSize( dst ) == 1` (the
+> duplicate-entry symptom is genuinely fixed) but the stored key is
+> `MixedKey` where the destination's own rule requires `MIXEDKEY`.
+
 **Files:**
 - Modify: `src/keymap.c:4350`
 - Test: `ast_tester/testkeymap.c`
