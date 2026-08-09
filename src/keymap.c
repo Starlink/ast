@@ -263,6 +263,9 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        astMapCopyEntry and astMapCopy, for the destination lookup and
 *        for the stored key, rather than using the source KeyMap's
 *        casing rule for both.
+*     9-AUG-2026 (TIMJ):
+*        Dump KeyMap entries in key order rather than hash table order,
+*        so that a dump is stable under repeated write and read cycles.
 *class--
 */
 
@@ -544,6 +547,7 @@ static const char *MapKey( AstKeyMap *, int index, int * );
 static const char *SortByString( int, const char *, int * );
 static int CompareEntries( const void *, const void * );
 static int ConvertValue( void *, int, void *, int, int * );
+static int DumpCmp( const void *, const void * );
 static size_t GetObjSize( AstObject *, int * );
 static int HashFun( const char *, int, unsigned long *, int * );
 static int KeyCmp( const char *, const char * );
@@ -10668,6 +10672,13 @@ static void Delete( AstObject *obj, int *status ) {
    this->firstA = NULL;
 }
 
+/* Compare two entries by key, for sorting the dump into a stable order. */
+static int DumpCmp( const void *a, const void *b ) {
+   const AstMapEntry *ea = *( (const AstMapEntry * const *) a );
+   const AstMapEntry *eb = *( (const AstMapEntry * const *) b );
+   return strcmp( ea->key, eb->key );
+}
+
 /* Dump function. */
 /* -------------- */
 static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
@@ -10699,8 +10710,11 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
 /* Local Variables: */
    AstKeyMap *this;              /* Pointer to the KeyMap structure */
+   AstMapEntry **entries;        /* Array of pointers to entries, in key order */
    AstMapEntry *next;            /* Pointer to the next AstMapEntry to dump */
    int i;                        /* Index into hash table */
+   int j;                        /* Index into "entries" array */
+   int nent;                     /* Number of entries in the hash table */
    int nentry;                   /* Number of entries dumped so far */
    int set;                      /* Is attribute set? */
    int ival;                     /* Attribute value */
@@ -10753,20 +10767,32 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* member count. */
    astWriteInt( channel, "MemCnt", 1, 1, this->member_count, "Total member count" );
 
-/* Loop round each entry in the hash table. */
+/* Gather pointers to every entry, so they can be dumped in key order
+   rather than in hash table order. Bucket order depends on the KeyMap's
+   insertion history, and since a load re-inserts entries in the order it
+   reads them, dumping in bucket order means colliding keys swap places
+   on every write and read cycle. */
+   nent = 0;
    for( i = 0; i < this->mapsize; i++ ) {
+      for( next = this->table[ i ]; next; next = next->next ) nent++;
+   }
 
-/* Get a pointer to the next KeyMap entry to dump. */
-      next = this->table[ i ];
-
-/* Loop round dumping all KeyMap entries in this element of the hash table. */
-      while( next && astOK ) {
-         DumpEntry( next, channel, ++nentry, status );
-
-/* Get a pointer to the next entry to dump. */
-         next = next->next;
-
+   entries = astMalloc( sizeof( AstMapEntry * )*(size_t) nent );
+   if( entries ) {
+      j = 0;
+      for( i = 0; i < this->mapsize; i++ ) {
+         for( next = this->table[ i ]; next; next = next->next ) {
+            entries[ j++ ] = next;
+         }
       }
+
+      qsort( entries, (size_t) nent, sizeof( AstMapEntry * ), DumpCmp );
+
+      for( j = 0; j < nent && astOK; j++ ) {
+         DumpEntry( entries[ j ], channel, ++nentry, status );
+      }
+
+      entries = astFree( entries );
    }
 }
 
