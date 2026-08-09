@@ -419,6 +419,63 @@ static void testrenamelocked( int *status ) {
    km = astAnnul( km );
 }
 
+/*
+ * testconvrange: converting an out-of-range Double to a narrow integer
+ * type must saturate at the type's limit rather than producing an
+ * undefined result.
+ */
+static void testconvrange( int *status ) {
+   AstKeyMap *km;
+   int ival;
+   short int sval;
+   unsigned char bval;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPut0D( km, "BIG", 5000000100.0, " " );
+   astMapPut0D( km, "NEG", -5000000100.0, " " );
+
+   if( !astMapGet0I( km, "BIG", &ival ) ) {
+      stopit( status, "Error range-get-i" );
+   } else if( ival != INT_MAX ) {
+      printf( "int: got %d want %d\n", ival, INT_MAX );
+      stopit( status, "Error range-int-max" );
+   }
+
+   if( !astMapGet0I( km, "NEG", &ival ) ) {
+      stopit( status, "Error range-get-i2" );
+   } else if( ival != INT_MIN ) {
+      printf( "int: got %d want %d\n", ival, INT_MIN );
+      stopit( status, "Error range-int-min" );
+   }
+
+   if( !astMapGet0S( km, "BIG", &sval ) ) {
+      stopit( status, "Error range-get-s" );
+   } else if( sval != SHRT_MAX ) {
+      printf( "short: got %d want %d\n", (int) sval, SHRT_MAX );
+      stopit( status, "Error range-short-max" );
+   }
+
+   if( !astMapGet0B( km, "BIG", &bval ) ) {
+      stopit( status, "Error range-get-b" );
+   } else if( bval != UCHAR_MAX ) {
+      printf( "byte: got %d want %d\n", (int) bval, UCHAR_MAX );
+      stopit( status, "Error range-byte-max" );
+   }
+
+   /* A negative value must saturate at zero for the unsigned type, not
+      convert to a large unsigned value. */
+   if( !astMapGet0B( km, "NEG", &bval ) ) {
+      stopit( status, "Error range-get-b2" );
+   } else if( bval != 0 ) {
+      printf( "byte: got %d want 0\n", (int) bval );
+      stopit( status, "Error range-byte-min" );
+   }
+
+   km = astAnnul( km );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -446,6 +503,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testconvrange( status );
 
    testrenamelocked( status );
 
