@@ -377,6 +377,48 @@ static void testiterate( int *status ) {
    km = astAnnul( km );
 }
 
+/*
+ * testrenamelocked: a rename refused because the KeyMap is locked must
+ * leave the KeyMap unchanged, not consume the entry.
+ */
+static void testrenamelocked( int *status ) {
+   AstKeyMap *km;
+   int ival;
+   int local_status;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPut0I( km, "KEEP", 42, " " );
+   astSetI( km, "MapLocked", 1 );
+
+   /* This rename must fail: NEWKEY is not already a known key. */
+   local_status = 0;
+   astWatch( &local_status );
+   astMapRename( km, "KEEP", "NEWKEY" );
+   if( local_status == 0 ) {
+      stopit( status, "Error rename-locked-noerr" );
+   }
+   astClearStatus;
+   astWatch( status );
+
+   /* The entry must still be present under its original key. */
+   if( !astMapHasKey( km, "KEEP" ) ) {
+      stopit( status, "Error rename-locked-lost" );
+   } else if( !astMapGet0I( km, "KEEP", &ival ) ) {
+      stopit( status, "Error rename-locked-unreadable" );
+   } else if( ival != 42 ) {
+      printf( "got %d want 42\n", ival );
+      stopit( status, "Error rename-locked-value" );
+   }
+
+   if( astMapHasKey( km, "NEWKEY" ) ) {
+      stopit( status, "Error rename-locked-newkey" );
+   }
+
+   km = astAnnul( km );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -404,6 +446,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testrenamelocked( status );
 
    testiterate( status );
 

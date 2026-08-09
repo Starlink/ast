@@ -226,6 +226,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Terminate astMapIterate correctly when SortBy is set. The
 *        sorted list is circular, so the walk needs the same wrap guard
 *        that astMapKey already uses.
+*     8-AUG-2026 (TIMJ):
+*        Check MapLocked before removing the entry in astMapRename, so
+*        that a refused rename leaves the KeyMap unchanged rather than
+*        discarding the entry.
 *class--
 */
 
@@ -7674,7 +7678,6 @@ f        The global status.
    int itab;               /* Index of hash table element to use */
    int keylen;             /* Length of supplied key string */
    int keymember;          /* Identifier for new key */
-   int there;              /* Did the entry already exist in the KeyMap? */
    unsigned long hash;     /* Full width hash value */
 
 /* Check the global error status. */
@@ -7693,9 +7696,24 @@ f        The global status.
    which the old key will be stored. */
       itab = HashFun( oldkey, this->mapsize - 1, &hash, status );
 
+/* If the KeyMap is locked, renaming an entry to a key that is not
+   already present would introduce a new key, which is not allowed.
+   Check this before removing anything, so that a refused rename leaves
+   the KeyMap unchanged. */
+      if( astGetMapLocked( this ) ) {
+         int newtab = HashFun( newkey, this->mapsize - 1, &hash, status );
+         if( SearchTableEntry( this, itab, oldkey, status ) &&
+             !SearchTableEntry( this, newtab, newkey, status ) ) {
+            astError( AST__BADKEY, "astMapRename(%s): Failed to rename item "
+                      "\"%s\" in a KeyMap to \"%s\": \"%s\" is not a known "
+                      "item.", status, astGetClass( this ), oldkey, newkey,
+                      newkey );
+         }
+      }
+
 /* Search the relevent table entry for the required MapEntry. Remove it
    from the list, but do not free it. */
-      entry = RemoveTableEntry( this, itab, oldkey, status );
+      entry = astOK ? RemoveTableEntry( this, itab, oldkey, status ) : NULL;
 
 /* Skip rest if the key was not found. */
       if( entry ) {
@@ -7725,19 +7743,8 @@ f        The global status.
          if( oldent ) {
             keymember = oldent->keymember;
             oldent = FreeMapEntry( oldent, status );
-            there = 1;
          } else {
             keymember = -1;
-            there = 0;
-         }
-
-/* If the KeyMap is locked we report an error if an attempt is made to
-   introduce a new key. */
-         if( !there && astGetMapLocked( this ) ) {
-            astError( AST__BADKEY, "astMapRename(%s): Failed to rename item "
-                      "\"%s\" in a KeyMap to \"%s\": \"%s\" is not a known "
-                      "item.", status, astGetClass( this ), oldkey, newkey,
-                      newkey );
          }
 
 /* If all has gone OK, store the renamed entry at the head of the linked list
