@@ -19,6 +19,10 @@
 *  History:
 *     17-APR-2026 (TIMJ):
 *        Original version.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 
 *  Licence:
 *     This program is free software: you can redistribute it and/or
@@ -133,7 +137,7 @@ static int SvgY( float wy ) {
 }
 
 static const char *SvgColour( int prim ) {
-   int idx = (int)( attr_colour[prim] + 0.5 );
+   int idx = (int)round( attr_colour[prim] );
    if( idx < 0 || idx >= NCMAP0 ) idx = 1;
    return cmap0[idx];
 }
@@ -141,7 +145,7 @@ static const char *SvgColour( int prim ) {
 static int SvgFontSize( void ) {
    double scale = attr_size[GRF__TEXT];
    if( scale <= 0.0 ) scale = 1.0;
-   return (int)( 14.0 * scale + 0.5 );
+   return (int)round( 14.0 * scale );
 }
 
 /* Helper: current character height in mm, accounting for size scaling. */
@@ -333,7 +337,7 @@ int astGLine( int n, const float *x, const float *y ) {
       if( w < 1.0 ) w = 1.0;
       fprintf( svg_fp, "<polyline fill=\"none\" stroke=\"%s\" "
                "stroke-width=\"%d\" points=\"", SvgColour(GRF__LINE),
-               (int)(w + 0.5) );
+               (int)round( w ) );
       for( i = 0; i < n; i++ ) {
          fprintf( svg_fp, "%d,%d ", SvgX(x[i]), SvgY(y[i]) );
       }

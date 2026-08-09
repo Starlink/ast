@@ -12,6 +12,12 @@
 *  History:
 *     8-APR-2026 (TIMJ):
 *        Original version.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values. Also drop the now-redundant negative-value
+*        compensation at the Style and Font sites, which double-corrected
+*        once round() was doing the work.
 
 *  Licence:
 *     This program is free software: you can redistribute it and/or
@@ -424,8 +430,7 @@ int astGAttr( int attr, double value, double *old_value, int prim ){
 
    if( attr == GRF__STYLE ){
       if( value != AST__BAD ){
-         ival = (PLINT) ( value + 0.5 );
-         if( value < 0.0 ) ival -= 1;
+         ival = (PLINT) round( value );
          ival = ( ival - 1 ) % 5;
          ival += ( ival < 0 ) ? 6 : 1;
          c_pllsty( ival );
@@ -445,8 +450,7 @@ int astGAttr( int attr, double value, double *old_value, int prim ){
 
    } else if( attr == GRF__FONT ){
       if( value != AST__BAD ){
-         ival = (PLINT) ( value + 0.5 );
-         if( value < 0.0 ) ival -= 1;
+         ival = (PLINT) round( value );
          ival = ( ival - 1 ) % 4;
          ival += ( ival < 0 ) ? 5 : 1;
          c_plfont( ival );
@@ -454,7 +458,7 @@ int astGAttr( int attr, double value, double *old_value, int prim ){
 
    } else if( attr == GRF__COLOUR ){
       if( value != AST__BAD ){
-         ival = (PLINT) ( value + 0.5 );
+         ival = (PLINT) round( value );
          if( ival < 0 ) ival = 1;
          c_plcol0( ival );
          current_color = ival;

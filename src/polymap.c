@@ -157,6 +157,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        inverse cannot be used in that case.  Previously such a PolyMap
 *        reported TranInverse as non-zero by default and then reported an
 *        error when the inverse transformation was used.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 *class--
 */
 
@@ -2045,7 +2049,7 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
                for( icof = 0; icof <  ncof_row; icof++ ) {
 
 /* Get the power of input "icol" associated with the current coefficient. */
-                  power = (int)( this->power_f[ irow ][ icof ][ icol ] + 0.5 );
+                  power = (int)round( this->power_f[ irow ][ icof ][ icol ] );
 
 /* We can skip the coefficient if the power is zero. */
                   if( power > 0 ) {

@@ -453,6 +453,10 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        skipped because FindGradient failed, so the check could read an
 *        array slot that was never written for the current search. Index
 *        by the store index instead.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 *class--
 */
 
@@ -2420,7 +2424,7 @@ static void GlobalBounds( MapData *mapdata, double *lbnd, double *ubnd,
 
 /* Test for a satisfactory global maximum estimate. */
                if ( ( nsame_max >= minsame ) &&
-                    ( nsame_max >= (int) ( 0.3f * (float) nmax + 0.5 ) ) ) {
+                    ( nsame_max >= (int) round( 0.3f * (float) nmax ) ) ) {
                   done_max = 1;
                }
             }

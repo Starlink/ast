@@ -168,6 +168,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for HEALPix pixel coordinate
 *        rounding to avoid platform-dependent results.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 *class--
 */
 
@@ -2185,10 +2189,10 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
             ina[ 1 ] = gubnd_min[ 0 ]; \
             inb[ 1 ] = gubnd_min[ 1 ]; \
             astTran2( tempmap2, 2, ina, inb, 1, outa, outb ); \
-            glbnd_min[ 0 ] = (AstDim)( outa[ 0 ] + 0.5 ) - 1; \
-            glbnd_min[ 1 ] = (AstDim)( outb[ 0 ] + 0.5 ) - 1; \
-            gubnd_min[ 0 ] = (AstDim)( outa[ 1 ] + 0.5 ) + 1; \
-            gubnd_min[ 1 ] = (AstDim)( outb[ 1 ] + 0.5 ) + 1; \
+            glbnd_min[ 0 ] = (AstDim)round( outa[ 0 ] ) - 1; \
+            glbnd_min[ 1 ] = (AstDim)round( outb[ 0 ] ) - 1; \
+            gubnd_min[ 0 ] = (AstDim)round( outa[ 1 ] ) + 1; \
+            gubnd_min[ 1 ] = (AstDim)round( outb[ 1 ] ) + 1; \
             tempmap2 = astAnnul( tempmap2 ); \
 \
 /* Initialise a CellList structure holding the grid coords of the cells \
@@ -2664,10 +2668,10 @@ f        The global status.
          ina[ 1 ] = gubnd_min[ 0 ];
          inb[ 1 ] = gubnd_min[ 1 ];
          astTran2( tempmap2, 2, ina, inb, 1, outa, outb );
-         glbnd_min[ 0 ] = (AstDim)( outa[ 0 ] + 0.5 ) - 1;
-         glbnd_min[ 1 ] = (AstDim)( outb[ 0 ] + 0.5 ) - 1;
-         gubnd_min[ 0 ] = (AstDim)( outa[ 1 ] + 0.5 ) + 1;
-         gubnd_min[ 1 ] = (AstDim)( outb[ 1 ] + 0.5 ) + 1;
+         glbnd_min[ 0 ] = (AstDim)round( outa[ 0 ] ) - 1;
+         glbnd_min[ 1 ] = (AstDim)round( outb[ 0 ] ) - 1;
+         gubnd_min[ 0 ] = (AstDim)round( outa[ 1 ] ) + 1;
+         gubnd_min[ 1 ] = (AstDim)round( outb[ 1 ] ) + 1;
          tempmap2 = astAnnul( tempmap2 );
 
 /* Initialise a CellList structure holding the grid coords of the cells
@@ -9272,8 +9276,8 @@ f        included in the Moc. .FALSE. otherwise.
 \
 /* Get the 1-based grid indices of the pixel containing the position. */ \
          if( *px != AST__BAD && *py != AST__BAD ) { \
-            ix = (AstDim)( *px + 0.5 ); \
-            iy = (AstDim)( *py + 0.5 ); \
+            ix = (AstDim)round( *px ); \
+            iy = (AstDim)round( *py ); \
 \
 /* Check that the position is within the array. */ \
             if( ix > 0 && ix <= nx && \
@@ -9297,8 +9301,8 @@ f        included in the Moc. .FALSE. otherwise.
 \
 /* Get the 1-based grid indices of the pixel containing the position. */ \
          if( *px != AST__BAD && *py != AST__BAD ) { \
-            ix = (AstDim)( *px + 0.5 ); \
-            iy = (AstDim)( *py + 0.5 ); \
+            ix = (AstDim)round( *px ); \
+            iy = (AstDim)round( *py ); \
 \
 /* Check that the position is within the array. */ \
             if( ix > 0 && ix <= nx && \

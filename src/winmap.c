@@ -130,6 +130,10 @@ f     The WinMap class does not define any new routines beyond those
 *        the ShiftMap, but only if no other form of simplification is
 *        possible. Flag the ShiftMap as frozen to prevent the ShiftMap
 *        class turning it back into a WinMap.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 *class--
 */
 
@@ -2134,7 +2138,7 @@ static void PermGet( AstPermMap *map, int **outperm, int **inperm,
 /* If the output axis values are different, then the output axis value
    must be copied from the input axis value. */
          } else {
-            outprm[ i ] = (int) ( op + 0.5 );
+            outprm[ i ] = (int) round( op );
          }
       }
    }
@@ -2162,7 +2166,7 @@ static void PermGet( AstPermMap *map, int **outperm, int **inperm,
             nc++;
 
          } else {
-            inprm[ i ] = (int) ( ip + 0.5 );
+            inprm[ i ] = (int) round( ip );
          }
       }
    }

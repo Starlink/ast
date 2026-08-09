@@ -53,6 +53,12 @@
 *        glyph stroking. Attribute state tracked in module-level variables
 *        since PLplot lacks query functions for some attributes. Removed
 *        Fortran wrapper functions.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values. Also drop the now-redundant negative-value
+*        compensation at the Style and Font sites, which double-corrected
+*        once round() was doing the work.
 */
 
 
@@ -205,8 +211,7 @@ int astG3DAttr( int attr, double value, double *old_value, int prim ){
       if( old_value ) *old_value = (double) current_style;
 
       if( value != AST__BAD ){
-         ival = (int) ( value + 0.5 );
-         if( value < 0.0 ) ival -= 1;
+         ival = (int) round( value );
 
          ival = ( ival - 1 ) % 5;
          ival += ( ival < 0 ) ? 6 : 1;
@@ -242,8 +247,7 @@ int astG3DAttr( int attr, double value, double *old_value, int prim ){
       if( old_value ) *old_value = (double) current_font;
 
       if( value != AST__BAD ){
-         ival = (int) ( value + 0.5 );
-         if( value < 0.0 ) ival -= 1;
+         ival = (int) round( value );
 
          ival = ( ival - 1 ) % 4;
          ival += ( ival < 0 ) ? 5 : 1;
@@ -258,7 +262,7 @@ int astG3DAttr( int attr, double value, double *old_value, int prim ){
       if( old_value ) *old_value = (double) current_color;
 
       if( value != AST__BAD ){
-         ival = (int) ( value + 0.5 );
+         ival = (int) round( value );
          if( ival < 0 ) ival = 1;
          c_plcol0( ival );
          current_color = ival;

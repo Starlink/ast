@@ -88,6 +88,10 @@ f     The MathMap class does not define any new routines beyond those
 *     16-APR-2026 (DSB):
 *        Equal(): use astEQUAL instead of raw != when comparing the
 *        compiled-expression constant operands.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 *class--
 */
 
@@ -2545,7 +2549,7 @@ static void EvaluateFunction( Rcontext *rcontext, int npoint,
 /* Loading a variable involves obtaining the variable's index by
    consuming a constant (as above), and then copying the variable's
    values into the top of stack element. */
-            ARG_0( OP_LDVAR,    ivar = (int) ( con[ icon++ ] + 0.5 ),
+            ARG_0( OP_LDVAR,    ivar = (int) round( con[ icon++ ] ),
                                 *y = ptr_in[ ivar ][ point ] )
 
 /* System constants. */
@@ -2670,13 +2674,13 @@ static void EvaluateFunction( Rcontext *rcontext, int npoint,
    perform a 2-argument operation on the stack (as above) the required
    number of times. */
             case OP_MAX:
-               narg = (int) ( con[ icon++ ] + 0.5 );
+               narg = (int) round( con[ icon++ ] );
                for ( iarg = 0; iarg < ( narg - 1 ); iarg++ ) {
                   DO_ARG_2( *y = ( x1 >= x2 ) ? x1 : x2 )
                }
                break;
             case OP_MIN:
-               narg = (int) ( con[ icon++ ] + 0.5 );
+               narg = (int) round( con[ icon++ ] );
                for ( iarg = 0; iarg < ( narg - 1 ); iarg++ ) {
                   DO_ARG_2( *y = ( x1 <= x2 ) ? x1 : x2 )
                }
@@ -2937,7 +2941,7 @@ static void EvaluationSort( const double con[], int nsym, int symlist[],
                if ( symbol[ sym ].nargs >= 0 ) {
                   nstack += symbol[ sym ].stackincrement;
                } else {
-                  nstack -= (int) ( con[ icon++ ] + 0.5 ) - 1;
+                  nstack -= (int) round( con[ icon++ ] ) - 1;
                }
 
 /* Note the maximum size of the stack. */

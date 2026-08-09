@@ -106,6 +106,10 @@ f     The YamlChan class does not define any new routines beyond those
 *        - Fix missing degree to radian conversion in ReadRotateSequence3d.
 *        - Fix handling of rotation_type parameter in ReadRotateSequence3d.
 *        - Fix handling of null transform in the final WCS step.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 *class--
 */
 
@@ -14661,15 +14665,15 @@ static AstKeyMap *WriteAsdfPolynomial( AstYamlChan *this, int nin,
    output axis. */
    group = coeffs;
    for( icoeff = 0; icoeff < ncoeff; icoeff++) {
-      if( (int)( group[ 1 ] + 0.5 ) == iout + 1 ) {
+      if( (int)round( group[ 1 ] ) == iout + 1 ) {
 
 /* Record the highest power of each input axis used by the specified
    PolyMap output axis. */
-         power = (int)( group[ 2 ] + 0.5 );
+         power = (int)round( group[ 2 ] );
          if( power > mxpow[ 0 ] ) mxpow[ 0 ] = power;
 
          if( nin > 1 ) {
-            power = (int)( group[ 3 ] + 0.5 );
+            power = (int)round( group[ 3 ] );
             if( power > mxpow[ 1 ] ) mxpow[ 1 ] = power;
          }
       }
@@ -14694,13 +14698,13 @@ static AstKeyMap *WriteAsdfPolynomial( AstYamlChan *this, int nin,
    above. */
       group = coeffs;
       for( icoeff = 0; icoeff < ncoeff; icoeff++) {
-         if( (int)( group[ 1 ] + 0.5 ) == iout + 1 ) {
+         if( (int)round( group[ 1 ] ) == iout + 1 ) {
 
-            power = (int)( group[ 2 ] + 0.5 );
+            power = (int)round( group[ 2 ] );
             pc = cofs + power * ( mxpow[ 1 ] + 1 );
 
             if( nin > 1 ) {
-               power = (int)( group[ 3 ] + 0.5 );
+               power = (int)round( group[ 3 ] );
                pc += power;
             }
 

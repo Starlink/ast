@@ -1381,6 +1381,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Use round() rather than truncation when reading the grism
 *        interference order from PVi_1, so that negative orders are
 *        preserved rather than being rounded toward zero.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 *class--
 */
 
@@ -24611,7 +24615,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
 /* Save the number of wcs axes */
       val = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
       if( val != AST__BAD ) {
-         naxis = (int) ( val + 0.5 );
+         naxis = (int) round( val );
          SetValue( this, FormatKey( "WCSAXES", -1, -1, s, status ),
                    &naxis, AST__INT, "Number of WCS axes", status );
       } else {
@@ -28981,8 +28985,8 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                            pc = coeffs;
                            for( icoeff = 0; icoeff < ncoeff; icoeff++ ) {
                               if( inaxes[ 0 ] < inaxes [ 1 ] ) {
-                                 i = (int) ( pc[ 2 ] + 0.5 );
-                                 jm = (int) ( pc[ 3 ] + 0.5 );
+                                 i = (int) round( pc[ 2 ] );
+                                 jm = (int) round( pc[ 3 ] );
                                  if( pc[ 1 ] == 1 ) {
                                     if( i > aimax ) aimax = i;
                                     if( jm > ajmmax ) ajmmax = jm;
@@ -28991,8 +28995,8 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                                     if( jm > bjmmax ) bjmmax = jm;
                                  }
                               } else {
-                                 i = (int) ( pc[ 3 ] + 0.5 );
-                                 jm = (int) ( pc[ 2 ] + 0.5 );
+                                 i = (int) round( pc[ 3 ] );
+                                 jm = (int) round( pc[ 2 ] );
                                  if( pc[ 1 ] == 1 ) {
                                     if( i > bimax ) bimax = i;
                                     if( jm > bjmmax ) bjmmax = jm;
@@ -29033,16 +29037,16 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                                  } else {
                                     item = fwd ? &(store->bsip) : &(store->bpsip);
                                  }
-                                 i = (int) ( pc[ 2 ] + 0.5 );
-                                 jm = (int) ( pc[ 3 ] + 0.5 );
+                                 i = (int) round( pc[ 2 ] );
+                                 jm = (int) round( pc[ 3 ] );
                               } else {
                                  if( pc[ 1 ] == 1 ) {
                                     item = fwd ? &(store->bsip) : &(store->bpsip);
                                  } else {
                                     item = fwd ? &(store->asip) : &(store->apsip);
                                  }
-                                 i = (int) ( pc[ 3 ] + 0.5 );
-                                 jm = (int) ( pc[ 2 ] + 0.5 );
+                                 i = (int) round( pc[ 3 ] );
+                                 jm = (int) round( pc[ 2 ] );
                               }
 
                               val = pc[ 0 ];
@@ -33670,7 +33674,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
                                  dval = GetItem( &(store->pv), iiaxis, 3, s,
                                                  NULL, method, class, status );
                                  if( dval != AST__BAD ) {
-                                    ival = (int)( dval + 0.5 );
+                                    ival = (int)round( dval );
                                  } else {
                                     ival = 1;
                                  }
@@ -33761,7 +33765,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
                      dval = GetItem( &(store->pv), iaxis, 4, s,
                                      NULL, method, class, status );
                      if( dval != AST__BAD ) {
-                        interp = (int)( dval + 0.5 );
+                        interp = (int)round( dval );
                      } else {
                         interp = 0;
                      }
@@ -37060,7 +37064,7 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    store a WCSAXES keyword. */
       val = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
       if( val != AST__BAD ) {
-         nwcs = (int) ( val + 0.5 );
+         nwcs = (int) round( val );
       } else {
          nwcs = GetMaxJM( &(store->crpix), s, status ) + 1;
          if( nwcs != 0 && nwcs != naxis ) val = (double) nwcs;
