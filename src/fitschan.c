@@ -1385,6 +1385,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
 *        negative values.
+*     9-AUG-2026 (TIMJ):
+*        In EncodeFloat, close the gap when removing a redundant leading
+*        zero from an exponent if there is no leading padding to absorb
+*        the shift, rather than pushing the value one column right.
 *class--
 */
 
@@ -9871,13 +9875,20 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
          w += 1;
       }
 
-/* If a leading zero was found, shuffle everything down from the start of
-   the string by one character, over-writing the redundant zero, and insert
-   a space at the start of the string. */
+/* If a leading zero was found, remove it. If there is a leading space to
+   absorb the change, shuffle everything down from the start of the
+   string by one character, over-writing the redundant zero, and insert a
+   space at the start; this keeps the field right justified within the
+   desired field width. Otherwise there is no padding to consume, so
+   close the gap instead and let the string shorten. */
       if( w ) {
-         r = w - 1 ;
-         while( w != buf ) *(w--) = *(r--);
-         *w = ' ';
+         if( buf[ 0 ] == ' ' ) {
+            r = w - 1 ;
+            while( w != buf ) *(w--) = *(r--);
+            *w = ' ';
+         } else {
+            memmove( w, w + 1, strlen( w + 1 ) + 1 );
+         }
       }
 
 /* If the used field width was too large, reduce it and try again, so
