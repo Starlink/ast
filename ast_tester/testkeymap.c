@@ -512,6 +512,73 @@ static void testconvrange( int *status ) {
    km = astAnnul( km );
 }
 
+/*
+ * testconvstring: a numeric string too large for int must not convert to
+ * a wrapped value. The %lf fallback in ConvertValue handles it, and its
+ * result saturates.
+ */
+static void testconvstring( int *status ) {
+   AstKeyMap *km;
+   int ival;
+   int local_status;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPut0C( km, "OVER", "9999999999", " " );
+   astMapPut0C( km, "HUGE", "99999999999999999999999999999999999999", " " );
+   astMapPut0C( km, "OK", "42", " " );
+   astMapPut0C( km, "OKSPACE", " 42 ", " " );
+   astMapPut0C( km, "BLANK", "   ", " " );
+   astMapPut0C( km, "TRAIL", "12abc", " " );
+
+   /* In range values, with and without surrounding space, are unchanged. */
+   if( !astMapGet0I( km, "OK", &ival ) || ival != 42 ) {
+      stopit( status, "Error convstr-ok" );
+   }
+   if( !astMapGet0I( km, "OKSPACE", &ival ) || ival != 42 ) {
+      stopit( status, "Error convstr-okspace" );
+   }
+
+   /* Non numeric input is still refused. Unlike a missing key,
+      astMapGet0I reports a genuine AST error when a string value cannot
+      be parsed at all, so these two checks run under a private status:
+      otherwise the correctly reported refusal would leave the shared
+      status set, and every subsequent AST call in this function
+      (including the OVER and HUGE checks below) would silently no-op. */
+   local_status = 0;
+   astWatch( &local_status );
+
+   if( astMapGet0I( km, "BLANK", &ival ) ) {
+      stopit( status, "Error convstr-blank" );
+   }
+   astClearStatus;
+
+   if( astMapGet0I( km, "TRAIL", &ival ) ) {
+      stopit( status, "Error convstr-trail" );
+   }
+   astClearStatus;
+
+   astWatch( status );
+
+   /* Magnitude overflow must saturate, not wrap. */
+   if( !astMapGet0I( km, "OVER", &ival ) ) {
+      stopit( status, "Error convstr-over-get" );
+   } else if( ival != INT_MAX ) {
+      printf( "over: got %d want %d\n", ival, INT_MAX );
+      stopit( status, "Error convstr-over" );
+   }
+
+   if( !astMapGet0I( km, "HUGE", &ival ) ) {
+      stopit( status, "Error convstr-huge-get" );
+   } else if( ival != INT_MAX ) {
+      printf( "huge: got %d want %d\n", ival, INT_MAX );
+      stopit( status, "Error convstr-huge" );
+   }
+
+   km = astAnnul( km );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -539,6 +606,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testconvstring( status );
 
    testconvrange( status );
 

@@ -234,6 +234,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Range check before converting a floating point value to an
 *        integer type in ConvertValue, so that an out of range value
 *        saturates rather than producing an undefined result.
+*     8-AUG-2026 (TIMJ):
+*        Detect magnitude overflow when converting a numeric string to an
+*        integer in ConvertValue, using strtol and errno rather than a
+*        sscanf conversion whose overflow behaviour is undefined.
 *class--
 */
 
@@ -281,6 +285,8 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 
 /* C header files. */
 /* --------------- */
+#include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
@@ -2117,10 +2123,22 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 
 /* Consider conversion to "int". */
       if( out_type == AST__INTTYPE ) {
-         nc = 0;
-         nval = astSscanf( cval, " %d %n", &ival, &nc );
-         if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
-            if( out ) *( (int *) out ) = ival;
+         char *end;
+         long lval;
+         int consumed;
+
+         errno = 0;
+         lval = strtol( cval, &end, 10 );
+
+/* Record whether any digits were consumed before skipping trailing
+   space. Testing this after the skip would accept an all blank string,
+   because the skip would advance "end" away from "cval" on its own. */
+         consumed = ( end != cval );
+         while( isspace( (int) *end ) ) end++;
+
+         if( consumed && errno != ERANGE && *end == '\0' &&
+             lval >= INT_MIN && lval <= INT_MAX ) {
+            if( out ) *( (int *) out ) = (int) lval;
          } else {
             nc = 0;
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
@@ -2133,10 +2151,21 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 
 /* Consider conversion to "short int". */
       } else if( out_type == AST__SINTTYPE ) {
-         nc = 0;
-         nval = astSscanf( cval, " %d %n", &ival, &nc );
-         if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
-            if( out ) *( (short int *) out ) = ival;
+         char *end;
+         long lval;
+         int consumed;
+
+         errno = 0;
+         lval = strtol( cval, &end, 10 );
+
+/* See the AST__INTTYPE case above for why "consumed" is captured before
+   the trailing space is skipped. */
+         consumed = ( end != cval );
+         while( isspace( (int) *end ) ) end++;
+
+         if( consumed && errno != ERANGE && *end == '\0' &&
+             lval >= SHRT_MIN && lval <= SHRT_MAX ) {
+            if( out ) *( (short int *) out ) = (short int) lval;
          } else {
             nc = 0;
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
@@ -2149,10 +2178,21 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 
 /* Consider conversion to "64 bit int". */
       } else if( out_type == AST__KINTTYPE ) {
-         nc = 0;
-         nval = astSscanf( cval, " %" SCNd64 " %n", &kval, &nc );
-         if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
-            if( out ) *( (int64_t *) out ) = kval;
+         char *end;
+         long long lval;
+         int consumed;
+
+         errno = 0;
+         lval = strtoll( cval, &end, 10 );
+
+/* See the AST__INTTYPE case above for why "consumed" is captured before
+   the trailing space is skipped. */
+         consumed = ( end != cval );
+         while( isspace( (int) *end ) ) end++;
+
+         if( consumed && errno != ERANGE && *end == '\0' &&
+             lval >= INT64_MIN && lval <= INT64_MAX ) {
+            if( out ) *( (int64_t *) out ) = (int64_t) lval;
          } else {
             nc = 0;
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
@@ -2165,10 +2205,21 @@ static int ConvertValue( void *raw, int raw_type, void *out, int out_type, int *
 
 /* Consider conversion to "byte". */
       } else if( out_type == AST__BYTETYPE ) {
-         nc = 0;
-         nval = astSscanf( cval, " %d %n", &ival, &nc );
-         if( ( nval == 1 ) && ( nc >= (int) strlen( cval ) ) ) {
-            if( out ) *( (unsigned char *) out ) = ival;
+         char *end;
+         long lval;
+         int consumed;
+
+         errno = 0;
+         lval = strtol( cval, &end, 10 );
+
+/* See the AST__INTTYPE case above for why "consumed" is captured before
+   the trailing space is skipped. */
+         consumed = ( end != cval );
+         while( isspace( (int) *end ) ) end++;
+
+         if( consumed && errno != ERANGE && *end == '\0' &&
+             lval >= 0 && lval <= UCHAR_MAX ) {
+            if( out ) *( (unsigned char *) out ) = (unsigned char) lval;
          } else {
             nc = 0;
             nval = astSscanf( cval, " %lf %n", &dval, &nc );
