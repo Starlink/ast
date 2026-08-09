@@ -338,6 +338,45 @@ static void testcasesens( int *status ) {
    astAnnul( map );
 }
 
+/* astMapIterate is a protected KeyMap method, so it is not exposed via
+ * the public ast.h header included by this test. Declare the underlying
+ * function directly; it is exported by libast for use by other classes.
+ */
+extern const char *astMapIterate_( AstKeyMap *, int, int * );
+
+/*
+ * testiterate: astMapIterate must terminate for a KeyMap with SortBy set.
+ * The sorted list is circular, so a walk that does not detect the wrap
+ * runs forever. The loop below is bounded so a regression fails the test
+ * rather than hanging the suite.
+ */
+static void testiterate( int *status ) {
+   AstKeyMap *km;
+   const char *key;
+   int nseen;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( "SortBy=KeyUp" );
+   astMapPut0I( km, "AAA", 1, " " );
+   astMapPut0I( km, "BBB", 2, " " );
+   astMapPut0I( km, "CCC", 3, " " );
+
+   nseen = 0;
+   key = astMapIterate_( astCheckKeyMap( km ), 1, status );
+   while( key && astOK && nseen < 100 ) {
+      nseen++;
+      key = astMapIterate_( astCheckKeyMap( km ), 0, status );
+   }
+
+   if( nseen != 3 ) {
+      printf( "astMapIterate yielded %d keys, expected 3\n", nseen );
+      stopit( status, "Error iterate-sorted" );
+   }
+
+   km = astAnnul( km );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -365,6 +404,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testiterate( status );
 
    testcasesens( status );
    testsorting( status );

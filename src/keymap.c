@@ -222,6 +222,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Use round() rather than truncation in ConvertValue, so that
 *        negative values convert to the nearest integer rather than
 *        being rounded toward zero.
+*     8-AUG-2026 (TIMJ):
+*        Terminate astMapIterate correctly when SortBy is set. The
+*        sorted list is circular, so the walk needs the same wrap guard
+*        that astMapKey already uses.
 *class--
 */
 
@@ -8707,7 +8711,11 @@ static const char *MapIterate( AstKeyMap *this, int reset, int *status ) {
    context to point to the next entry in the *sorted* list. */
       if( entry ) {
          key = entry->key;
-         this->iter_entry = entry->snext;
+
+/* The sorted list is circular, so stop when the walk returns to the
+   first entry rather than following the link back round. */
+         this->iter_entry = ( entry->snext == this->first ) ? NULL :
+                                                             entry->snext;
       }
    }
 
