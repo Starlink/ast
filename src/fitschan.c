@@ -1398,6 +1398,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        FITS-IRAF encoding, which is the only encoding that uses the
 *        values, so the cards are not consumed and discarded under other
 *        encodings.
+*     9-AUG-2026 (TIMJ):
+*        Consume every copy of a repeated keyword in SpecTrans, matching
+*        WcsFcRead, and respect the MJD-OBS exception so that whether that
+*        card survives a read no longer depends on whether DATE-OBS is
+*        present.
 *class--
 */
 
@@ -2163,6 +2168,7 @@ static void MakeBanner( const char *, const char *, const char *, char [ AST__FI
 static void MakeIndentedComment( int, char, const char *, const char *, char [ AST__FITSCHAN_FITSCARDLEN - FITSNAMLEN + 1], int * );
 static void MakeIntoComment( AstFitsChan *, const char *, const char *, int * );
 static void MakeInvertable( double **, int, double *, int * );
+static void MarkAllCards( AstFitsChan *, const char *, const char *, const char *, int * );
 static void MarkCard( AstFitsChan *, int * );
 static void NewCard( AstFitsChan *, const char *, int, const void *, const char *, int, int * );
 static void PreQuote( const char *, char [ AST__FITSCHAN_FITSCARDLEN - FITSNAMLEN - 3 ], int * );
@@ -18386,8 +18392,12 @@ static int GetValue2( AstFitsChan *this1, AstFitsChan *this2, const char *keynam
 *     -  A value of zero is returned if an error has already occurred,
 *     or if an error occurs within this function.
 *     -  If the card is found in the first FitsChan, it is not marked as
-*     having been used. If the card is found in the second FitsChan, it is
-*     marked as having been used.
+*     having been used. If the card is found in the second FitsChan, every
+*     card for that keyword in the second FitsChan is marked as having
+*     been used, not just the one supplying the returned value. This
+*     matters for headers which concatenate several HDUs' worth of WCS
+*     cards under the same keyword: the value comes from the first such
+*     card, but a read must not leave the later copies behind.
 */
 
 /* Local Variables: */
@@ -18401,7 +18411,12 @@ static int GetValue2( AstFitsChan *this1, AstFitsChan *this2, const char *keynam
    be done, if required, once the second FitsChan has been searched). */
    ret = GetValue( this1, keyname, type, value, 0, 0, method, class, status );
    if( ! ret ) {
-      ret = GetValue( this2, keyname, type, value, report, 1, method, class, status );
+      ret = GetValue( this2, keyname, type, value, report, 0, method, class, status );
+
+/* The value just obtained is that of the first card in "this2" matching
+   "keyname", but if the keyword occurs more than once in "this2" every
+   occurrence needs to be marked as used, not just the first. */
+      if( ret ) MarkAllCards( this2, keyname, method, class, status );
    }
 
 /* If an error has occurred, return 0. */
@@ -23085,6 +23100,80 @@ static void MarkCard( AstFitsChan *this, int *status ){
    if( !( flags & PROTECTED ) ) {
       ( (FitsCard *) this->card )->flags = flags | PROVISIONALLY_USED;
    }
+}
+
+static void MarkAllCards( AstFitsChan *this, const char *name,
+                          const char *method, const char *class,
+                          int *status ){
+
+/*
+*  Name:
+*     MarkAllCards
+
+*  Purpose:
+*     Mark every card for a given keyword as having been read into an
+*     AST object.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+
+*     void MarkAllCards( AstFitsChan *this, const char *name,
+*                        const char *method, const char *class,
+*                        int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     The whole FitsChan is searched for cards referring to the given
+*     keyword, and every one found is marked as having been "provisionally
+*     used" in the construction of an AST object (see MarkCard). This
+*     differs from marking a single card in that a header containing
+*     several copies of the same keyword (for instance because it
+*     concatenates the primary and extension headers of a multi-HDU FITS
+*     file) has all of its copies consumed, not just the first one found.
+
+*  Parameters:
+*     this
+*        Pointer to the FitsChan containing the list of cards.
+*     name
+*        Pointer to a string holding the keyword name.
+*     method
+*        Pointer to a string holding the name of the calling method.
+*     class
+*        Pointer to a string holding the name of the object class.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     -  The current card on entry is restored before returning, so this
+*     function has no effect on any card sweep the caller may be part way
+*     through.
+*/
+
+/* Local Variables: */
+   int icard;             /* Index of current card on entry */
+
+/* Check the global status and supplied keyword name. */
+   if( !astOK || !name ) return;
+
+/* Save the current card index, and rewind the FitsChan so that the
+   whole list of cards is searched. */
+   icard = astGetCard( this );
+   astClearCard( this );
+
+/* Search forward through the FitsChan, marking every card whose keyword
+   name matches the supplied name. */
+   while( FindKeyCard( this, name, method, class, status ) ){
+      MarkCard( this, status );
+      MoveCard( this, 1, method, class, status );
+   }
+
+/* Reinstate the original current card index. */
+   astSetCard( this, icard );
 }
 
 static int MoveCard( AstFitsChan *this, int move, const char *method,
@@ -31739,10 +31828,15 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
          if( GetValue2( ret, this, keyname, AST__STRING, (void *) &cval, 0, method,
                        class, status ) ){
 
-/* Ignore DATE-OBS values if the header contains an MJD-OBS value */
+/* Ignore DATE-OBS values if the header contains an MJD-OBS value. MJD-OBS
+   is read here purely as a test for its presence, so it must not be
+   marked as used: whether that card survives a read must not depend on
+   whether DATE-OBS happens to sit alongside it. */
             strcpy( keyname, "MJD-OBS" );
-            if( !GetValue2( ret, this, keyname, AST__FLOAT, (void *) &dval, 0,
-                           method, class, status ) ){
+            if( !GetValue( ret, keyname, AST__FLOAT, (void *) &dval, 0, 0,
+                          method, class, status ) &&
+                !GetValue( this, keyname, AST__FLOAT, (void *) &dval, 0, 0,
+                          method, class, status ) ){
 
 /* Get the corresponding mjd-obs value, checking that DATE-OBS is valid. */
                dval = DateObs( cval, status );
