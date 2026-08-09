@@ -677,6 +677,77 @@ static void testundefelem( int *status ) {
    km = astAnnul( km );
 }
 
+/*
+ * testlockedroundtrip: a locked, non-empty KeyMap must survive a dump
+ * and reload. MapLocked has to be applied after the entries are read,
+ * or every put during the load is refused.
+ */
+static void testlockedroundtrip( int *status ) {
+   AstKeyMap *km;
+   AstKeyMap *km2;
+   AstKeyMap *nested;
+   AstObject *obj;
+   char *dump;
+   int ival;
+   int local_status;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPut0I( km, "AAA", 1, " " );
+   astMapPut0I( km, "BBB", 2, " " );
+
+   nested = astKeyMap( " " );
+   astMapPut0I( nested, "INNER", 3, " " );
+   astMapPut0A( km, "NEST", nested, " " );
+   nested = astAnnul( nested );
+
+   astSetI( km, "MapLocked", 1 );
+
+   dump = astToString( km );
+   if( !dump ) {
+      stopit( status, "Error locked-dump" );
+      km = astAnnul( km );
+      return;
+   }
+
+   /* Reading back a locked, non-empty KeyMap is expected to succeed,
+      but fails before the entries-then-MapLocked ordering fix. Use a
+      private status so a library error raised inside astFromString
+      does not itself consume the shared status before the failure
+      below can be reported. */
+   local_status = 0;
+   astWatch( &local_status );
+   km2 = astFromString( dump );
+   dump = astFree( dump );
+   astClearStatus;
+   astWatch( status );
+
+   if( local_status != 0 || !km2 ) {
+      stopit( status, "Error locked-reload" );
+   } else {
+      if( !astMapGet0I( km2, "AAA", &ival ) || ival != 1 ) {
+         stopit( status, "Error locked-reload-aaa" );
+      }
+      if( !astGetI( km2, "MapLocked" ) ) {
+         stopit( status, "Error locked-reload-flag" );
+      }
+
+      /* The flag must reach nested KeyMaps too. */
+      if( !astMapGet0A( km2, "NEST", &obj ) ) {
+         stopit( status, "Error locked-reload-nest" );
+      } else {
+         if( !astGetI( obj, "MapLocked" ) ) {
+            stopit( status, "Error locked-reload-nestflag" );
+         }
+         obj = astAnnul( obj );
+      }
+      km2 = astAnnul( km2 );
+   }
+
+   km = astAnnul( km );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -704,6 +775,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testlockedroundtrip( status );
 
    testundefelem( status );
 

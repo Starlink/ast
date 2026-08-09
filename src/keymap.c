@@ -249,6 +249,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Use the correct unset value when reading the KyCas card in
 *        astLoadKeyMap, so that an absent card is not recorded as an
 *        explicitly set KeyCase attribute.
+*     8-AUG-2026 (TIMJ):
+*        Apply the MpLck card after reading the entries in
+*        astLoadKeyMap, so that a locked non-empty KeyMap can be read
+*        back and so that nested KeyMaps inherit the flag.
 *class--
 */
 
@@ -11156,11 +11160,6 @@ AstKeyMap *astLoadKeyMap_( void *mem, size_t size, AstKeyMapVtab *vtab,
       new->keyerror = astReadInt( channel, "kyerr", -INT_MAX );
       if ( TestKeyError( new, status ) ) SetKeyError( new, new->keyerror, status );
 
-/* MapLocked. */
-/* --------- */
-      new->maplocked = astReadInt( channel, "mplck", -INT_MAX );
-      if ( TestMapLocked( new, status ) ) SetMapLocked( new, new->maplocked, status );
-
 /* SortBy. */
 /* ------- */
       sval = astReadString( channel, "sortby", " " );
@@ -11384,6 +11383,16 @@ AstKeyMap *astLoadKeyMap_( void *mem, size_t size, AstKeyMapVtab *vtab,
 
 /* Set the final member count for the KeyMap. */
       new->member_count = astReadInt( channel, "memcnt", 0 );
+
+/* MapLocked. */
+/* --------- */
+/* This is read after the entries, because applying it beforehand would
+   cause every put made by the entry loop to be refused: the KeyMap is
+   empty at that point, so each key is a new key. Applying it here also
+   propagates the flag into any nested KeyMaps that were read as
+   entries. */
+      new->maplocked = astReadInt( channel, "mplck", -INT_MAX );
+      if ( TestMapLocked( new, status ) ) SetMapLocked( new, new->maplocked, status );
 
 /* If an error occurred, clean up by deleting the new KeyMap. */
       if ( !astOK ) new = astDelete( new );
