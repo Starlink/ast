@@ -238,6 +238,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Detect magnitude overflow when converting a numeric string to an
 *        integer in ConvertValue, using strtol and errno rather than a
 *        sscanf conversion whose overflow behaviour is undefined.
+*     8-AUG-2026 (TIMJ):
+*        Reject a zero length vector in astMapPut1<X>, which has no
+*        representation in a KeyMap entry, and guard against a null
+*        string pointer when dumping a scalar entry.
 *class--
 */
 
@@ -2988,8 +2992,10 @@ static void DumpEntry( AstMapEntry *entry, AstChannel *channel, int nentry, int 
 /* Do the same for string values. */
    } else if( type == AST__STRINGTYPE ) {
       if( entry->nel == 0 ) {
-         (void) sprintf( buff, "Val%d", nentry );
-         astWriteString( channel, buff, 1, 1, ((Entry0C *)entry)->value, "Item value" );
+         if( ((Entry0C *)entry)->value ) {
+            (void) sprintf( buff, "Val%d", nentry );
+            astWriteString( channel, buff, 1, 1, ((Entry0C *)entry)->value, "Item value" );
+         }
       } else {
          com = "Item values";
          for( index = 0; index < nel; index++ ){
@@ -5021,6 +5027,16 @@ static void MapPut1##X( AstKeyMap *this, const char *skey, int size, \
 \
 /* Check the global error status. */ \
    if ( !astOK ) return; \
+\
+/* A KeyMap entry has no representation for a zero length vector: nel of \
+   zero means the entry is a scalar. Reject the call rather than creating \
+   an entry that cannot be read back or dumped. */ \
+   if( size < 1 ) { \
+      astError( AST__NELIN, "astMapPut1" #X "(%s): Illegal vector length " \
+                "%d supplied for KeyMap entry \"%s\" - must be at least " \
+                "one.", status, astGetClass( this ), size, skey ); \
+      return; \
+   } \
 \
 /* Perform any necessary checks on the supplied value to be stored. */ \
    CHECK_##X \

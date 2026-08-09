@@ -579,6 +579,58 @@ static void testconvstring( int *status ) {
    km = astAnnul( km );
 }
 
+/*
+ * testemptyvector: a zero length vector has no representation in a
+ * KeyMap entry, where nel == 0 means scalar. The put must be refused
+ * rather than creating an entry that cannot be dumped.
+ */
+static void testemptyvector( int *status ) {
+   AstKeyMap *km;
+   const char *cvec[ 1 ];
+   int ivec[ 1 ];
+   int local_status;
+   char *dump;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+
+   local_status = 0;
+   astWatch( &local_status );
+   astMapPut1I( km, "EMPTYI", 0, ivec, " " );
+   if( local_status == 0 ) {
+      stopit( status, "Error emptyvec-int-noerr" );
+   }
+   astClearStatus;
+
+   local_status = 0;
+   cvec[ 0 ] = "unused";
+   astMapPut1C( km, "EMPTYC", 0, cvec, " " );
+   if( local_status == 0 ) {
+      stopit( status, "Error emptyvec-str-noerr" );
+   }
+   astClearStatus;
+   astWatch( status );
+
+   /* Neither key may have been created, and the KeyMap must still dump. */
+   if( astMapHasKey( km, "EMPTYI" ) ) {
+      stopit( status, "Error emptyvec-int-present" );
+   }
+   if( astMapHasKey( km, "EMPTYC" ) ) {
+      stopit( status, "Error emptyvec-str-present" );
+   }
+
+   astMapPut0I( km, "REAL", 7, " " );
+   dump = astToString( km );
+   if( !dump ) {
+      stopit( status, "Error emptyvec-dump" );
+   } else {
+      dump = astFree( dump );
+   }
+
+   km = astAnnul( km );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -606,6 +658,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testemptyvector( status );
 
    testconvstring( status );
 
