@@ -129,11 +129,11 @@ void astGrfLogClose( void ) {
 
 /* SVG helpers. */
 static int SvgX( float wx ) {
-   return (int)( wx * (float)svg_w + 0.5f );
+   return (int) round( wx * (float)svg_w );
 }
 
 static int SvgY( float wy ) {
-   return (int)( (float)svg_h - wy * (float)svg_h + 0.5f );
+   return (int) round( (float)svg_h - wy * (float)svg_h );
 }
 
 static const char *SvgColour( int prim ) {
