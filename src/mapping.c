@@ -2329,7 +2329,7 @@ static void GlobalBounds( MapData *mapdata, double *lbnd, double *ubnd,
    "minsame", and at least 30% of the total number of local minima
    found. */
                if ( ( nsame_min >= minsame ) &&
-                    ( nsame_min >= (int) ( 0.3f * (float) nmin + 0.5f ) ) ) {
+                    ( nsame_min >= (int) round( 0.3f * (float) nmin ) ) ) {
                   done_min = 1;
                }
             }
