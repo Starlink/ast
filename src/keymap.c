@@ -258,6 +258,11 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        such card is written, so the read reset the member counter
 *        before every put and gave every loaded entry the same member
 *        number.
+*     9-AUG-2026 (TIMJ):
+*        Express copied keys in the destination KeyMap's own KeyCase in
+*        astMapCopyEntry and astMapCopy, for the destination lookup and
+*        for the stored key, rather than using the source KeyMap's
+*        casing rule for both.
 *class--
 */
 
@@ -622,6 +627,7 @@ static void MapPutU( AstKeyMap *, const char *, const char *, int * );
 static void MapRemove( AstKeyMap *, const char *, int * );
 static void MapRename( AstKeyMap *, const char *, const char *, int * );
 static void NewTable( AstKeyMap *, int, int * );
+static void ReKeyMapEntry( AstKeyMap *, AstMapEntry *, const char *, int * );
 static void RemoveFromSortedList( AstKeyMap *, AstMapEntry *, int * );
 static void RemoveFromObjectList( AstKeyMap *, AstMapEntry *, int * );
 static void SortEntries( AstKeyMap *, int * );
@@ -2623,6 +2629,70 @@ static AstMapEntry *CopyMapEntry( AstMapEntry *in, int *status ){
    return result;
 }
 
+static void ReKeyMapEntry( AstKeyMap *this, AstMapEntry *entry,
+                           const char *method, int *status ){
+/*
+*  Name:
+*     ReKeyMapEntry
+
+*  Purpose:
+*     Express a MapEntry's key in a KeyMap's own KeyCase.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "keymap.h"
+*     void ReKeyMapEntry( AstKeyMap *this, AstMapEntry *entry,
+*                         const char *method, int *status )
+
+*  Class Membership:
+*     KeyMap member function.
+
+*  Description:
+*     This function converts the key of the supplied MapEntry to the case
+*     required by the KeyCase attribute of the supplied KeyMap, and
+*     recomputes the entry's cached hash value to match. It is used when
+*     an entry copied out of one KeyMap is about to be stored in another,
+*     since the two KeyMaps may have different KeyCase values.
+
+*  Parameters:
+*     this
+*        Pointer to the KeyMap in which the entry is to be stored.
+*     entry
+*        Pointer to the MapEntry to be re-keyed.
+*     method
+*        Pointer to a string holding the name of the method to include in
+*        any error message.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   char keybuf[ AST__MXKEYLEN + 1 ]; /* Buffer for converted key */
+   const char *key;       /* Pointer to converted key string */
+   unsigned long hash;    /* Full width hash value */
+
+/* Check the global error status and the supplied pointers. */
+   if( !astOK || !entry || !entry->key ) return;
+
+/* Convert the key to the case required by the destination KeyMap. */
+   key = ConvertKey( this, entry->key, keybuf, AST__MXKEYLEN + 1, method,
+                     status );
+
+/* If the conversion changed the key, store the converted form and
+   recompute the cached hash value. DoubleTableSize re-buckets entries
+   using the cached hash alone, so a stale hash would file the entry
+   under the wrong bucket the next time the table grows. */
+   if( astOK && strcmp( key, entry->key ) ) {
+      entry->key = astStore( (void *) entry->key, key, strlen( key ) + 1 );
+      if( astOK ) {
+         (void) HashFun( entry->key, this->mapsize - 1, &hash, status );
+         entry->hash = hash;
+      }
+   }
+}
+
 static void CopyTableEntry( AstKeyMap *in, AstKeyMap *out, int itab, int *status ){
 /*
 *  Name:
@@ -4298,7 +4368,8 @@ f        The global status.
    AstMapEntry *out_entry;/* Pointer to existing destination entry */
    AstObject *in_obj;     /* Pointer for source Object entry */
    AstObject *out_obj;    /* Pointer for destination Object entry */
-   const char *key;       /* Key for current entry */
+   char keybuf[ AST__MXKEYLEN + 1 ]; /* Buffer for destination-cased key */
+   const char *key;       /* Key for current entry, in destination's case */
    int i;                 /* Index into source hash table */
    int itab;              /* Index of destination hash table element */
    int keymember;         /* Identifier for key */
@@ -4317,8 +4388,10 @@ f        The global status.
 /* Loop round all entries in this element of the source hash table. */
       while( in_entry && astOK ) {
 
-/* Get its key. */
-         key = in_entry->key;
+/* Get its key, expressed in the destination KeyMap's own case. The two
+   KeyMaps may have different KeyCase values. */
+         key = ConvertKey( this, in_entry->key, keybuf, AST__MXKEYLEN + 1,
+                           "astMapCopy", status );
 
 /* Search for a destination entry with the same key. */
          itab = HashFun( key, this->mapsize - 1, &hash, status );
@@ -4334,6 +4407,7 @@ f        The global status.
                          astGetClass( this ), key, key );
             } else {
                out_entry = CopyMapEntry( in_entry, status );
+               ReKeyMapEntry( this, out_entry, "astMapCopy", status );
                out_entry = AddTableEntry( this, itab, out_entry, -1, status );
             }
 
@@ -4383,6 +4457,7 @@ f        The global status.
                keymember = out_entry->keymember;
                (void) FreeMapEntry( out_entry, status );
                out_entry = CopyMapEntry( in_entry, status );
+               ReKeyMapEntry( this, out_entry, "astMapCopy", status );
                out_entry = AddTableEntry( this, itab, out_entry, keymember, status );
             }
          }
@@ -4468,8 +4543,10 @@ f        The global status.
    AstMapEntry *out_entry;/* Pointer to existing destination entry */
    AstObject *in_obj;     /* Pointer for source Object entry */
    AstObject *out_obj;    /* Pointer for destination Object entry */
-   char keybuf[ AST__MXKEYLEN + 1 ]; /* Buffer for upper cas key */
-   const char *key;       /* Pointer to key string to use */
+   char inkeybuf[ AST__MXKEYLEN + 1 ]; /* Buffer for source-cased key */
+   char outkeybuf[ AST__MXKEYLEN + 1 ]; /* Buffer for destination-cased key */
+   const char *inkey;     /* Pointer to key string, source KeyMap's case */
+   const char *outkey;    /* Pointer to key string, destination KeyMap's case */
    int itab;              /* Index of destination hash table element */
    int keymember;         /* Identifier for key */
    int merged;            /* Were source and destination KeyMaps merged? */
@@ -4478,21 +4555,24 @@ f        The global status.
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Convert the supplied key to upper case if required. */
-   key = ConvertKey( that, skey, keybuf, AST__MXKEYLEN + 1, "astMapCopyEntry",
-                     status );
+/* Convert the supplied key using each KeyMap's own KeyCase, since the two
+   KeyMaps may differ in that attribute. */
+   inkey = ConvertKey( that, skey, inkeybuf, AST__MXKEYLEN + 1,
+                       "astMapCopyEntry", status );
+   outkey = ConvertKey( this, skey, outkeybuf, AST__MXKEYLEN + 1,
+                        "astMapCopyEntry", status );
 
 /* Use the hash function to determine the element of the hash table in
    which the key will be stored. */
-   itab = HashFun( key, that->mapsize - 1, &hash, status );
+   itab = HashFun( inkey, that->mapsize - 1, &hash, status );
 
 /* Search the relevent table entry for the required MapEntry. */
-   in_entry = SearchTableEntry( that, itab, key, status );
+   in_entry = SearchTableEntry( that, itab, inkey, status );
 
 /* If found, search for a destination entry with the same key. */
    if( in_entry ) {
-      itab = HashFun( key, this->mapsize - 1, &hash, status );
-      out_entry = SearchTableEntry( this, itab, key, status );
+      itab = HashFun( outkey, this->mapsize - 1, &hash, status );
+      out_entry = SearchTableEntry( this, itab, outkey, status );
 
 /* If the destination KeyMap does not contain an entry with the current
    key, store a copy of the entry in the destination, or report an error
@@ -4501,9 +4581,10 @@ f        The global status.
          if( astGetMapLocked( this ) ) {
             astError( AST__BADKEY, "astMapCopyEntry(%s): Failed to copy "
                       "item \"%s\": \"%s\" is not a known item.", status,
-                      astGetClass( this ), key, key );
+                      astGetClass( this ), outkey, outkey );
          } else {
             out_entry = CopyMapEntry( in_entry, status );
+            ReKeyMapEntry( this, out_entry, "astMapCopyEntry", status );
             out_entry = AddTableEntry( this, itab, out_entry, -1, status );
          }
 
@@ -4551,10 +4632,11 @@ f        The global status.
    But retain the original keymember value since we are just changing the
    value of an existing key. */
          if( ! merged ) {
-            out_entry = RemoveTableEntry( this, itab, key, status );
+            out_entry = RemoveTableEntry( this, itab, outkey, status );
             keymember = out_entry->keymember;
             (void) FreeMapEntry( out_entry, status );
             out_entry = CopyMapEntry( in_entry, status );
+            ReKeyMapEntry( this, out_entry, "astMapCopyEntry", status );
             out_entry = AddTableEntry( this, itab, out_entry, keymember, status );
          }
       }

@@ -748,6 +748,103 @@ static void testlockedroundtrip( int *status ) {
    km = astAnnul( km );
 }
 
+/*
+ * testcopyentrycase: a KeyMap copy must express the copied key in the
+ * destination KeyMap's own KeyCase, both when searching the destination
+ * and when storing the entry in it. KeyCase can only be changed while a
+ * KeyMap is empty, so every key a KeyMap holds should be in that
+ * KeyMap's own casing.
+ */
+static void testcopyentrycase( int *status ) {
+   AstKeyMap *src;
+   AstKeyMap *dst;
+   AstKeyMap *bulk;
+   int ival;
+
+   if( !astOK ) return;
+
+/* Source is case sensitive; destination is not. */
+   src = astKeyMap( "KeyCase=1" );
+   dst = astKeyMap( "KeyCase=0" );
+
+   astMapPut0I( src, "MixedKey", 11, " " );
+
+/* The destination already holds the key under its own folded form. */
+   astMapPut0I( dst, "MIXEDKEY", 99, " " );
+
+/* Argument order is (destination, key, source, merge). The merge flag
+   only affects what happens when the entry holds a KeyMap and the
+   destination already has a KeyMap under that key, so it is irrelevant
+   to this integer entry. */
+   astMapCopyEntry( dst, "MixedKey", src, 0 );
+
+   if( !astOK ) {
+      stopit( status, "Error copyentry-status" );
+      astClearStatus;
+   } else {
+
+/* The destination must not have gained a second, differently cased copy
+   of the same logical key. */
+      if( astMapSize( dst ) != 1 ) {
+         printf( "destination has %d entries, expected 1\n",
+                 astMapSize( dst ) );
+         stopit( status, "Error copyentry-dup" );
+      }
+
+/* The copied value must be retrievable under the destination's own
+   casing rule. This is the assertion the lookup-only fix broke. */
+      if( astOK && !astMapGet0I( dst, "MIXEDKEY", &ival ) ) {
+         stopit( status, "Error copyentry-missing" );
+      } else if( astOK && ival != 11 ) {
+         printf( "got %d want 11\n", ival );
+         stopit( status, "Error copyentry-value" );
+      }
+
+/* The key as actually stored must be the destination's folded form. This
+   catches an entry that is findable only because the search and the
+   stored key are wrong in the same way. */
+      if( astOK && strcmp( astMapKey( dst, 0 ), "MIXEDKEY" ) ) {
+         printf( "stored key is '%s', expected 'MIXEDKEY'\n",
+                 astMapKey( dst, 0 ) );
+         stopit( status, "Error copyentry-storedkey" );
+      }
+   }
+
+/* The bulk astMapCopy path shares the same entry-copying helper and has
+   the same defect. A key absent from the destination exercises the
+   new-entry branch. Only run this if the checks above have not already
+   recorded a failure: astMapCopy would be a no-op under a bad status,
+   and the "if( !astOK )" branch below would then call astClearStatus
+   unconditionally, erasing an earlier failure rather than reporting a
+   fresh one of its own. */
+   bulk = astKeyMap( "KeyCase=0" );
+   if( astOK ) {
+      astMapCopy( bulk, src );
+
+      if( !astOK ) {
+         stopit( status, "Error mapcopy-status" );
+         astClearStatus;
+      } else {
+         if( !astMapGet0I( bulk, "MIXEDKEY", &ival ) ) {
+            stopit( status, "Error mapcopy-missing" );
+         } else if( ival != 11 ) {
+            printf( "got %d want 11\n", ival );
+            stopit( status, "Error mapcopy-value" );
+         }
+
+         if( astOK && strcmp( astMapKey( bulk, 0 ), "MIXEDKEY" ) ) {
+            printf( "stored key is '%s', expected 'MIXEDKEY'\n",
+                    astMapKey( bulk, 0 ) );
+            stopit( status, "Error mapcopy-storedkey" );
+         }
+      }
+   }
+
+   src = astAnnul( src );
+   dst = astAnnul( dst );
+   if( bulk ) bulk = astAnnul( bulk );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -775,6 +872,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testcopyentrycase( status );
 
    testlockedroundtrip( status );
 
