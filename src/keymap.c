@@ -245,6 +245,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *     8-AUG-2026 (TIMJ):
 *        Report failure from astMapGetElem<X> for an undefined entry,
 *        matching astMapGet0<X> and astMapGet1<X>.
+*     8-AUG-2026 (TIMJ):
+*        Use the correct unset value when reading the KyCas card in
+*        astLoadKeyMap, so that an absent card is not recorded as an
+*        explicitly set KeyCase attribute.
 *class--
 */
 
@@ -11144,7 +11148,7 @@ AstKeyMap *astLoadKeyMap_( void *mem, size_t size, AstKeyMapVtab *vtab,
 
 /* KeyCase. */
 /* --------- */
-      new->keycase = astReadInt( channel, "kycas", -INT_MAX );
+      new->keycase = astReadInt( channel, "kycas", -1 );
       if ( TestKeyCase( new, status ) ) SetKeyCase( new, new->keycase, status );
 
 /* KeyError. */
