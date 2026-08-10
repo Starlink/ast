@@ -1403,6 +1403,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        WcsFcRead, and respect the MJD-OBS exception so that whether that
 *        card survives a read no longer depends on whether DATE-OBS is
 *        present.
+*     9-AUG-2026 (TIMJ):
+*        Use round() when converting the WCSAXES value read from the header
+*        into an axis count, so that a value stored as a FITS float that is
+*        marginally below an integer is not truncated to the integer below.
 *class--
 */
 
@@ -10729,7 +10733,7 @@ static int FindLonLatSpecAxes( FitsStore *store, char s, int *axlon, int *axlat,
    of pixel axes. */
    dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
    if( dval != AST__BAD ) {
-      wcsaxes = (int) dval + 0.5;
+      wcsaxes = (int) round( dval );
    } else {
       wcsaxes = store->naxis;
    }
@@ -33672,7 +33676,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
    of pixel axes. */
    dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
    if( dval != AST__BAD ) {
-      wcsaxes = (int) dval + 0.5;
+      wcsaxes = (int) round( dval );
    } else {
       wcsaxes = store->naxis;
    }
@@ -37929,7 +37933,7 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
    of pixel axes. */
    dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
    if( dval != AST__BAD ) {
-      wcsaxes = (int) dval + 0.5;
+      wcsaxes = (int) round( dval );
    } else {
       wcsaxes = store->naxis;
    }
