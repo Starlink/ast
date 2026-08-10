@@ -312,10 +312,4 @@ HDUCLAS2= 'VARIANCE'           / Array component subclass
 EXTNAME = 'VARIANCE'           / Array component                                
 HDSTYPE = 'NDF     '           / HDS data type of the component                 
                                                                                 
-CD1_1   =      -0.001831773954 / Transformation matrix element                  
-CD1_2   =      -8.541702226E-4 / Transformation matrix element                  
-CD2_1   =      0.0008541702226 / Transformation matrix element                  
-CD2_2   =      -0.001831773954 / Transformation matrix element                  
-RADECSYS= 'FK5     '           / Reference frame for RA/DEC values              
-DATE-OBS= '2007-04-30T15:13:53.717' / Date of observation                       
 END                                                                             

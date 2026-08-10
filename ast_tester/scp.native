@@ -153,6 +153,7 @@ TELETYPE= 'SCHM    '           / Type of telescope
 SITELAT = -0.54584105765650004 / [radians] latitude of telescope                
 SITELONG=       2.601766194458 / [radians] longitude of telescope               
 LST     = '00:20   '           / [hh:mm] local sidereal time at start of obs    
+MJD-OBS =        43426.5730088 / Modified Julian Date of observation            
 INSTRUME= 'SuperCOSMOS I'      / Measuring machine                              
 DATE-MES= '2000-11-04'         / [yyyy-mm-dd] Date of this plate measurement    
 NHKLINES=                  146 / Number of lines from house-keeping file        

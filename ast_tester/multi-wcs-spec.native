@@ -340,4 +340,5 @@ NAXIS2  =                  100 / Spatial axis
 NAXIS3  =                  100 / Spatial axis                                   
 TELESCOP= 'JCMT    '           / Telescope name (enables DTAI)                  
 DTAI    =                 37.0 / TAI-UTC (seconds)                              
+MJD-OBS =              59000.5 / MJD of observation                             
 END                                                                             

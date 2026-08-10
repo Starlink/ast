@@ -129,4 +129,5 @@ COMMENT AST               End of AST data for FrameSet object                AST
 COMMENT AST ---------------------------------------------------------------- AST
 NAXIS1  =                  100 / length of data axis 1                          
 NAXIS2  =                  100 / length of data axis 2                          
+MJD-OBS =              51544.5 / MJD of observation (J2000.0)                   
 END                                                                             

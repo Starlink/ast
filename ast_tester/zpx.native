@@ -186,6 +186,7 @@ XAPNOM  =                  0.0 / nominal aperture in x (0.00 arcsec)
 YAPNOM  =                  0.0 / nominal aperture in y (0.00 arcsec)            
 XAPOFF  =                  0.0 / total aperture offset in x (0.00 arcsec)       
 YAPOFF  =                  0.0 / total aperture offset in y (0.00 arcsec)       
+MJD-OBS =        51277.9941545 / Modified Julian Date of midtime of observation 
 JD      =   2451278.4941544998 / Julian Date of midtime of observation          
 STSTART = ' 11:44:54.8'        / Local sidereal time at start of observation    
 ST      = ' 11:44:54.8'        / Local sidereal time at start of observation    

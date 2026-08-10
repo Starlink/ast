@@ -186,6 +186,7 @@ DEC     = '55:53:16.99       ' / DEC of observation (deg)
                                                                                 
 TIMESYS = 'UTC approximate'    / Time system                                    
 TIME-OBS= '12:08:33.0'         / Time of observation start                      
+MJD-OBS =        51460.5059375 / MJD of observation start                       
 MJDHDR  =   51460.505914349997 / MJD of header creation                         
 LSTHDR  = '05:52:50.00       ' / LST of header creation                         
                                                                                 
