@@ -651,6 +651,7 @@ static void testemptyvector( int *status ) {
  */
 static void testundefelem( int *status ) {
    AstKeyMap *km;
+   AstObject *aval;
    int ival;
    int local_status;
    char cbuf[ 200 ];
@@ -672,6 +673,11 @@ static void testundefelem( int *status ) {
 
    if( astMapGetElemC( km, "UNDEF", sizeof( cbuf ), 0, cbuf ) ) {
       stopit( status, "Error undef-getelem-c" );
+   }
+
+   aval = NULL;
+   if( astMapGetElemA( km, "UNDEF", 0, &aval ) ) {
+      stopit( status, "Error undef-getelem-a" );
    }
 
    /* An out-of-range index on an undefined entry must still be reported

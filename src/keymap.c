@@ -269,6 +269,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *     9-AUG-2026 (TIMJ):
 *        Reject a zero length vector in astMapPut1A as well, matching
 *        astMapPut1<X> for the other data types.
+*     9-AUG-2026 (TIMJ):
+*        Report failure from astMapGetElemA for an undefined entry, so
+*        that it agrees with astMapGetElem<X> for the other data types
+*        rather than reporting success without storing a value.
 *class--
 */
 
@@ -7578,6 +7582,11 @@ int astMapGetElemAId_( AstKeyMap *this, const char *skey, int elem,
          } else {
             *value = avalue ? astMakeId( avalue ) : NULL;
          }
+
+/* An undefined entry has no value to return. Report failure, as
+   astMapGet0A and astMapGet1A do for the same entry. */
+      } else {
+         result = 0;
       }
 
 /* If the KeyError attribute is non-zero, report an error if the key is not
