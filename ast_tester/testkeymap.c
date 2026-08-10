@@ -128,6 +128,77 @@ static void checkdump( AstObject *obj, const char *text, int *status ) {
    astAnnul( result );
 }
 
+/*
+ * testdumpstable: a KeyMap dump must be byte stable, both under repeated
+ * write and read cycles and against the order in which the entries were
+ * added.
+ *
+ * The keys below are chosen so that DELTA, EPSILON and ETA all hash to
+ * the same element of the default sized hash table. Entries sharing a
+ * table element are chained, so only for such a set does the order in
+ * which the table is walked depend on the order the entries were added.
+ * A key set with no collisions would exercise nothing.
+ */
+static void testdumpstable( int *status ) {
+   AstKeyMap *km1;
+   AstKeyMap *km2;
+   AstKeyMap *reload;
+   const char *keys[ 6 ] = { "DELTA", "EPSILON", "ETA", "ALPHA",
+                             "BETA", "GAMMA" };
+   const int order[ 6 ] = { 4, 2, 5, 0, 3, 1 };
+   char *dump1;
+   char *dump2;
+   char *dump3;
+   int got_dumps;
+   int i;
+   int ok_insorder;
+   int ok_roundtrip;
+
+   if( *status != 0 || !astOK ) return;
+
+   km1 = astKeyMap( " " );
+   for( i = 0; i < 6; i++ ) {
+      astMapPut0I( km1, keys[ i ], i + 1, " " );
+   }
+   dump1 = astToString( km1 );
+
+   /* A dump, reloaded and dumped again, must reproduce itself exactly. */
+   reload = dump1 ? (AstKeyMap *) astFromString( dump1 ) : NULL;
+   dump2 = reload ? astToString( reload ) : NULL;
+
+   /* The same entries added in a different order must dump identically. */
+   km2 = astKeyMap( " " );
+   for( i = 0; i < 6; i++ ) {
+      astMapPut0I( km2, keys[ order[ i ] ], order[ i ] + 1, " " );
+   }
+   dump3 = astToString( km2 );
+
+   /* Record the outcomes before reporting any of them, since reporting a
+      failure sets the status and so suppresses any AST call after it. */
+   ok_roundtrip = ( dump1 && dump2 && !strcmp( dump1, dump2 ) );
+   ok_insorder = ( dump1 && dump3 && !strcmp( dump1, dump3 ) );
+   got_dumps = ( dump1 && dump2 && dump3 );
+
+   if( reload ) reload = astAnnul( reload );
+   if( dump3 ) dump3 = astFree( dump3 );
+   if( dump2 ) dump2 = astFree( dump2 );
+   if( dump1 ) dump1 = astFree( dump1 );
+   km2 = astAnnul( km2 );
+   km1 = astAnnul( km1 );
+
+   if( !got_dumps ) {
+      stopit( status, "Error dumpstable-1" );
+   }
+   if( !ok_roundtrip ) {
+      printf( "Dump changed on a write, read, write cycle.\n" );
+      stopit( status, "Error dumpstable-2" );
+   }
+   if( !ok_insorder ) {
+      printf( "Dump depends on the order the entries were added.\n" );
+      stopit( status, "Error dumpstable-3" );
+   }
+}
+
 static void testsorting( int *status ) {
    AstKeyMap *km;
    const char *keys[5]  = { "ABC", "zzzzzzzzzzz", "this_is_a_key",
@@ -892,6 +963,8 @@ int main( void ) {
 
    astWatch( status );
    astBegin;
+
+   testdumpstable( status );
 
    testcopyentrycase( status );
 
