@@ -266,6 +266,9 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *     9-AUG-2026 (TIMJ):
 *        Dump KeyMap entries in key order rather than hash table order,
 *        so that a dump is stable under repeated write and read cycles.
+*     9-AUG-2026 (TIMJ):
+*        Reject a zero length vector in astMapPut1A as well, matching
+*        astMapPut1<X> for the other data types.
 *class--
 */
 
@@ -5301,6 +5304,16 @@ void astMapPut1AId_( AstKeyMap *this, const char *skey, int size,
 
 /* Check the global error status. */
    if ( !astOK ) return;
+
+/* A KeyMap entry has no representation for a zero length vector: nel of
+   zero means the entry is a scalar. Reject the call rather than creating
+   an entry that cannot be read back or dumped. */
+   if( size < 1 ) {
+      astError( AST__NELIN, "astMapPut1A(%s): Illegal vector length "
+                "%d supplied for KeyMap entry \"%s\" - must be at least "
+                "one.", status, astGetClass( this ), size, skey );
+      return;
+   }
 
 /* Convert the supplied key to upper case if required. */
    key = ConvertKey( this, skey, keybuf, AST__MXKEYLEN + 1, "astMapPut1A",

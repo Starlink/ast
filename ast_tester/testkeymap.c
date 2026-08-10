@@ -586,6 +586,7 @@ static void testconvstring( int *status ) {
  */
 static void testemptyvector( int *status ) {
    AstKeyMap *km;
+   AstObject *avec[ 1 ];
    const char *cvec[ 1 ];
    int ivec[ 1 ];
    int local_status;
@@ -610,14 +611,27 @@ static void testemptyvector( int *status ) {
       stopit( status, "Error emptyvec-str-noerr" );
    }
    astClearStatus;
-   astWatch( status );
 
-   /* Neither key may have been created, and the KeyMap must still dump. */
+   local_status = 0;
+   avec[ 0 ] = (AstObject *) astKeyMap( " " );
+   astMapPut1A( km, "EMPTYA", 0, avec, " " );
+   if( local_status != AST__NELIN ) {
+      stopit( status, "Error emptyvec-obj-noerr" );
+   }
+   astClearStatus;
+   astWatch( status );
+   avec[ 0 ] = astAnnul( avec[ 0 ] );
+
+   /* None of the keys may have been created, and the KeyMap must still
+      dump. */
    if( astMapHasKey( km, "EMPTYI" ) ) {
       stopit( status, "Error emptyvec-int-present" );
    }
    if( astMapHasKey( km, "EMPTYC" ) ) {
       stopit( status, "Error emptyvec-str-present" );
+   }
+   if( astMapHasKey( km, "EMPTYA" ) ) {
+      stopit( status, "Error emptyvec-obj-present" );
    }
 
    astMapPut0I( km, "REAL", 7, " " );
