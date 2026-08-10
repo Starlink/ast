@@ -235,6 +235,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        integer type in ConvertValue, so that an out of range value
 *        saturates rather than producing an undefined result.
 *     8-AUG-2026 (TIMJ):
+*        Return 0 from the DtoI, DtoS, DtoB and DtoK conversion helpers
+*        for a NaN input. A NaN has no integer value, and a NaN to
+*        integer cast is undefined.
+*     8-AUG-2026 (TIMJ):
 *        Detect magnitude overflow when converting a numeric string to an
 *        integer in ConvertValue, using strtol and errno rather than a
 *        sscanf conversion whose overflow behaviour is undefined.
