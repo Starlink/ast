@@ -235,6 +235,79 @@ static void testsimplevsinvertdump( int *status ) {
    }
 }
 
+/*
+ * IsSimple is advisory: reporting that a Mapping may need re-simplifying
+ * is always safe, whereas reporting that it does not can suppress a
+ * simplification that is available. So anything that changes what a
+ * Mapping does must discard the record, including a change made through
+ * one of the Mapping's own attributes and a transformation replaced by
+ * astPolyTran.
+ */
+static void testmutationclearssimple( int *status ) {
+   /* out1 = x + 0.1*x^2, out2 = y + 0.1*y^2. Monotonic over the bounds
+      below, so the inverse can be fitted, and not the identity, so it does
+      not simplify away to a UnitMap. */
+   double coeff[ 16 ] = { 1.0, 1, 1, 0,
+                          0.1, 1, 2, 0,
+                          1.0, 2, 0, 1,
+                          0.1, 2, 0, 2 };
+   double lbnd[ 2 ] = { -1.0, -1.0 };
+   double ubnd[ 2 ] = { 1.0, 1.0 };
+   AstMapping *cleared;
+   AstMapping *fitted;
+   AstMapping *set;
+   int simple_afterclear;
+   int simple_afterfit;
+   int simple_afterset;
+   int simple_cleared;
+   int simple_fitted;
+   int simple_set;
+
+   if( *status != 0 || !astOK ) return;
+
+   /* Setting an attribute that changes the inverse transformation. */
+   set = astSimplify( astPolyMap( 2, 2, 4, coeff, 0, NULL, " " ) );
+   simple_set = astGetI( set, "IsSimple" );
+   astSetI( set, "IterInverse", 0 );
+   simple_afterset = astGetI( set, "IsSimple" );
+   set = astAnnul( set );
+
+   /* Clearing one back to its default changes the Mapping just as much. */
+   cleared = astPolyMap( 2, 2, 4, coeff, 0, NULL, " " );
+   astSetI( cleared, "IterInverse", 0 );
+   cleared = astSimplify( cleared );
+   simple_cleared = astGetI( cleared, "IsSimple" );
+   astClear( cleared, "IterInverse" );
+   simple_afterclear = astGetI( cleared, "IsSimple" );
+   cleared = astAnnul( cleared );
+
+   /* astPolyTran returns a copy of the PolyMap with one of its
+      transformations replaced, so the copy must not inherit the record. */
+   fitted = astSimplify( astPolyMap( 2, 2, 4, coeff, 0, NULL, " " ) );
+   simple_fitted = astGetI( fitted, "IsSimple" );
+   fitted = (AstMapping *) astPolyTran( (AstPolyMap *) fitted, 0, 1.0E-5,
+                                        1.0E-3, 8, lbnd, ubnd );
+   simple_afterfit = fitted ? astGetI( fitted, "IsSimple" ) : -1;
+   if( fitted ) fitted = astAnnul( fitted );
+
+   if( !simple_set || !simple_cleared || !simple_fitted ) {
+      stopit( status, "Error mutation-1" );
+   }
+   if( simple_afterset ) {
+      printf( "Setting an attribute left IsSimple set.\n" );
+      stopit( status, "Error mutation-2" );
+   }
+   if( simple_afterclear ) {
+      printf( "Clearing an attribute left IsSimple set.\n" );
+      stopit( status, "Error mutation-3" );
+   }
+   if( simple_afterfit != 0 ) {
+      printf( "astPolyTran returned a Mapping reporting IsSimple = %d.\n",
+              simple_afterfit );
+      stopit( status, "Error mutation-4" );
+   }
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -339,6 +412,8 @@ int main( void ) {
    testsimplevsinvert( status );
 
    testsimplevsinvertdump( status );
+
+   testmutationclearssimple( status );
 
    astEnd;
 

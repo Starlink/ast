@@ -105,6 +105,10 @@ f     The PermMap class does not define any new routines beyond those
 *        could differ (e.g. 5.0 vs 7.0), causing an over-merge in
 *        astSimplify. A NULL constants array is treated as AST__BAD,
 *        matching the forward transformation.
+*     15-AUG-2026 (TIMJ):
+*        Discard the record that the PermMap has been simplified when
+*        PermSplit is set or cleared, since it selects the method used to
+*        split the PermMap and so affects how it simplifies.
 *class--
 */
 
@@ -2060,10 +2064,10 @@ static AstPointSet *Transform( AstMapping *map, AstPointSet *in,
 *        All PermMaps have this attribute.
 *att-
 */
-astMAKE_CLEAR(PermMap,PermSplit,permsplit,-INT_MAX)
+astMAKE_CLEAR(PermMap,PermSplit,permsplit,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PermMap,PermSplit,int,0,( this->permsplit != -INT_MAX ?
                                       this->permsplit : 0 ))
-astMAKE_SET(PermMap,PermSplit,int,permsplit,( value != 0 ))
+astMAKE_SET(PermMap,PermSplit,int,permsplit,(astClearIsSimple(this),( value != 0 )))
 astMAKE_TEST(PermMap,PermSplit,( this->permsplit != -INT_MAX ))
 
 

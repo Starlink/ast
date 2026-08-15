@@ -92,6 +92,10 @@ f     The IntraMap class does not define any new routines beyond those
 *        Replace astSetPermMap within DEBUG blocks by astBeginPM/astEndPM.
 *     10-MAY-2006 (DSB):
 *        Override astEqual.
+*     15-AUG-2026 (TIMJ):
+*        Discard the record that the IntraMap has been simplified when the
+*        IntraFlag is set or cleared, since it determines which IntraMaps
+*        this one is equivalent to and hence how it simplifies.
 *class--
 */
 
@@ -2083,8 +2087,11 @@ f     case-sensitive.
 */
 
 /* Clear the IntraFlag value by freeing the allocated memory and
-   assigning a NULL pointer. */
-astMAKE_CLEAR(IntraMap,IntraFlag,intraflag,astFree( this->intraflag ))
+   assigning a NULL pointer. Changing the IntraFlag changes which
+   IntraMaps this one is equivalent to, so discard any record that it has
+   been simplified. */
+astMAKE_CLEAR(IntraMap,IntraFlag,intraflag,(astClearIsSimple(this),
+                                            astFree( this->intraflag )))
 
 /* Return a pointer to the IntraFlag value. */
 astMAKE_GET(IntraMap,IntraFlag,const char *,NULL,this->intraflag)
@@ -2092,10 +2099,10 @@ astMAKE_GET(IntraMap,IntraFlag,const char *,NULL,this->intraflag)
 /* Set a IntraFlag value by freeing any previously allocated memory,
    allocating new memory, storing the string and saving the pointer to
    the copy. */
-astMAKE_SET(IntraMap,IntraFlag,const char *,intraflag,astStore(
-                                                      this->intraflag, value,
-                                                      strlen( value ) +
-                                                      (size_t) 1 ))
+astMAKE_SET(IntraMap,IntraFlag,const char *,intraflag,
+            (astClearIsSimple(this),
+             astStore( this->intraflag, value,
+                       strlen( value ) + (size_t) 1 )))
 
 /* The IntraFlag value is set if the pointer to it is not NULL. */
 astMAKE_TEST(IntraMap,IntraFlag,( this->intraflag != NULL ))
