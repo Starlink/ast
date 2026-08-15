@@ -13,6 +13,228 @@ static void stopit( int *status, const char *text ) {
    printf( "%s\n", text );
 }
 
+/* Count the occurrences of "text" in "str". */
+static int countstr( const char *str, const char *text ) {
+   const char *p = str;
+   int result = 0;
+   size_t len = strlen( text );
+
+   while( ( p = strstr( p, text ) ) ) {
+      result++;
+      p += len;
+   }
+   return result;
+}
+
+/* A simplified two component parallel CmpMap. The first component is a
+   ZoomMap that was itself the result of a simplification, so both the
+   CmpMap and that component are recorded as having been simplified. The
+   second component is non-linear, which is what stops the whole tree
+   collapsing into a single Mapping. */
+static AstMapping *simplifiedtree( void ) {
+   double coeff[ 8 ] = { 1.0, 1, 2, 0,
+                         1.0, 2, 0, 2 };
+   AstMapping *inner;
+   AstMapping *poly;
+   AstMapping *result;
+
+   inner = astSimplify( astCmpMap( astZoomMap( 2, 2.0, " " ),
+                                   astZoomMap( 2, 3.0, " " ), 1, " " ) );
+   poly = (AstMapping *) astPolyMap( 2, 2, 2, coeff, 0, NULL, " " );
+   result = astSimplify( astCmpMap( inner, poly, 0, " " ) );
+
+   inner = astAnnul( inner );
+   poly = astAnnul( poly );
+
+   return result;
+}
+
+/*
+ * astEqual is documented as a comparison, so it must not change how
+ * either operand serialises. The CmpMap implementation decomposes both
+ * operands into their live components and lines them up by setting their
+ * Invert flags, which used to discard the record that a component had
+ * been simplified.
+ */
+static void testequaldumpstable( int *status ) {
+   AstMapping *t;
+   AstMapping *u;
+   char *dump1;
+   char *dump2;
+   int equal;
+   int got_dumps;
+   int ntag;
+   int stable;
+
+   if( *status != 0 || !astOK ) return;
+
+   t = simplifiedtree();
+   u = simplifiedtree();
+
+   dump1 = astToString( t );
+   equal = astEqual( t, u );
+   dump2 = astToString( t );
+
+   /* Record the outcomes before reporting any of them, since reporting a
+      failure sets the status and so suppresses any AST call after it. */
+   got_dumps = ( dump1 && dump2 );
+   stable = ( got_dumps && !strcmp( dump1, dump2 ) );
+   ntag = dump1 ? countstr( dump1, "IsSimp" ) : 0;
+
+   if( dump2 ) dump2 = astFree( dump2 );
+   if( dump1 ) dump1 = astFree( dump1 );
+   u = astAnnul( u );
+   t = astAnnul( t );
+
+   if( !got_dumps ) {
+      stopit( status, "Error equaldump-1" );
+   }
+   if( !equal ) {
+      stopit( status, "Error equaldump-2" );
+   }
+
+   /* Both the CmpMap and its ZoomMap component are results of a
+      simplification, so the dump must tag both. Without this the stability
+      check below would pass on a dump that tags nothing. */
+   if( ntag != 2 ) {
+      printf( "Dump has %d IsSimp cards, expected 2.\n", ntag );
+      stopit( status, "Error equaldump-3" );
+   }
+   if( !stable ) {
+      printf( "Dump changed as a result of comparing the Mapping.\n" );
+      stopit( status, "Error equaldump-4" );
+   }
+}
+
+/*
+ * Whether a Mapping needs re-simplifying, and so whether its dump is
+ * tagged, depends on the orientation it is in and on nothing else. A
+ * simplified Mapping that is inverted needs looking at again, since the
+ * inverse may simplify differently, but restoring the original Invert
+ * value restores the original Mapping and hence the original dump.
+ */
+static void testsimplevsinvert( int *status ) {
+   AstMapping *s;
+   char *dump_fwd;
+   char *dump_inv;
+   char *dump_back;
+   int got_dumps;
+   int inv;
+   int simple_back;
+   int simple_inv;
+   int simple_noop;
+   int simple_simp;
+
+   if( *status != 0 || !astOK ) return;
+
+   s = astSimplify( astCmpMap( astZoomMap( 1, 2.0, " " ),
+                               astZoomMap( 1, 3.0, " " ), 1, " " ) );
+   simple_simp = astGetI( s, "IsSimple" );
+   dump_fwd = astToString( s );
+
+   /* Setting Invert to the value it already holds leaves the Mapping
+      unchanged, so it must leave IsSimple alone too. */
+   inv = astGetI( s, "Invert" );
+   astSetI( s, "Invert", inv );
+   simple_noop = astGetI( s, "IsSimple" );
+
+   /* Inverting it really does change it. */
+   astSetI( s, "Invert", !inv );
+   simple_inv = astGetI( s, "IsSimple" );
+   dump_inv = astToString( s );
+
+   /* Inverting it back restores what was simplified. */
+   astSetI( s, "Invert", inv );
+   simple_back = astGetI( s, "IsSimple" );
+   dump_back = astToString( s );
+
+   /* Record the outcomes before reporting any of them, since reporting a
+      failure sets the status and so suppresses any AST call after it. */
+   got_dumps = ( dump_fwd && dump_inv && dump_back );
+
+   if( dump_back ) dump_back = astFree( dump_back );
+   if( dump_inv ) dump_inv = astFree( dump_inv );
+   if( dump_fwd ) dump_fwd = astFree( dump_fwd );
+   s = astAnnul( s );
+
+   if( !got_dumps ) {
+      stopit( status, "Error simpinvert-1" );
+   }
+   if( !simple_simp ) {
+      stopit( status, "Error simpinvert-2" );
+   }
+   if( !simple_noop ) {
+      printf( "Setting Invert to the value it already held cleared "
+              "IsSimple.\n" );
+      stopit( status, "Error simpinvert-3" );
+   }
+   if( simple_inv ) {
+      printf( "Inverting a simplified Mapping left IsSimple set.\n" );
+      stopit( status, "Error simpinvert-4" );
+   }
+   if( !simple_back ) {
+      printf( "Restoring Invert did not restore IsSimple.\n" );
+      stopit( status, "Error simpinvert-5" );
+   }
+}
+
+/* As above, but checking the dumps rather than the attribute. Split out so
+   that the two sets of outcomes are reported independently. */
+static void testsimplevsinvertdump( int *status ) {
+   AstMapping *s;
+   char *dump_fwd;
+   char *dump_inv;
+   char *dump_back;
+   int got_dumps;
+   int inv;
+   int tagged_back;
+   int tagged_fwd;
+   int tagged_inv;
+   int stable;
+
+   if( *status != 0 || !astOK ) return;
+
+   s = astSimplify( astCmpMap( astZoomMap( 1, 2.0, " " ),
+                               astZoomMap( 1, 3.0, " " ), 1, " " ) );
+   dump_fwd = astToString( s );
+   inv = astGetI( s, "Invert" );
+   astSetI( s, "Invert", !inv );
+   dump_inv = astToString( s );
+   astSetI( s, "Invert", inv );
+   dump_back = astToString( s );
+
+   got_dumps = ( dump_fwd && dump_inv && dump_back );
+   tagged_fwd = ( dump_fwd && countstr( dump_fwd, "IsSimp" ) == 1 );
+   tagged_inv = ( dump_inv && countstr( dump_inv, "IsSimp" ) == 1 );
+   tagged_back = ( dump_back && countstr( dump_back, "IsSimp" ) == 1 );
+   stable = ( dump_fwd && dump_back && !strcmp( dump_fwd, dump_back ) );
+
+   if( dump_back ) dump_back = astFree( dump_back );
+   if( dump_inv ) dump_inv = astFree( dump_inv );
+   if( dump_fwd ) dump_fwd = astFree( dump_fwd );
+   s = astAnnul( s );
+
+   if( !got_dumps ) {
+      stopit( status, "Error simpinvertdump-1" );
+   }
+   if( !tagged_fwd ) {
+      stopit( status, "Error simpinvertdump-2" );
+   }
+   if( tagged_inv ) {
+      printf( "Dump of an inverted Mapping claims it needs no "
+              "re-simplifying.\n" );
+      stopit( status, "Error simpinvertdump-3" );
+   }
+   if( !tagged_back ) {
+      printf( "Dump lost its IsSimp card over an invert and back.\n" );
+      stopit( status, "Error simpinvertdump-4" );
+   }
+   if( !stable ) {
+      printf( "Dump changed over an invert and back.\n" );
+      stopit( status, "Error simpinvertdump-5" );
+   }
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -111,6 +333,12 @@ int main( void ) {
       a = astAnnul( a );
       b = astAnnul( b );
    }
+
+   testequaldumpstable( status );
+
+   testsimplevsinvert( status );
+
+   testsimplevsinvertdump( status );
 
    astEnd;
 

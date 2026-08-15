@@ -3165,6 +3165,8 @@ Report to the user:
 
 **Stop here and wait for the user's decision.** Do not implement either fix in this task.
 
+**Outcome.** The report is `docs/issues/2026-08-09-issimple-tag-placement.md`. The flag was split (15 August 2026); see the Resolution section there.
+
 ---
 
 ## Self-Review Notes

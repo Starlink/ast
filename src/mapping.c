@@ -457,6 +457,18 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
 *        negative values.
+*     15-AUG-2026 (TIMJ):
+*        Record the simplified state of a Mapping separately for each
+*        orientation, selecting between the two records using the current
+*        Invert value, rather than holding a single record that setting
+*        Invert clears. Simplification does depend on the orientation, but
+*        clearing the record on every set meant that the many routines that
+*        set Invert only to line a Mapping up for inspection, and then set
+*        it back again, left the Mapping reporting that it needed
+*        re-simplifying. Which nodes of a Mapping tree carried an IsSimp
+*        card in a dump therefore depended on which of them had been
+*        inspected, and two Mappings reported as equal by astEqual could
+*        dump differently as a result.
 *class--
 */
 
@@ -23257,7 +23269,7 @@ f     performed with the AST_INVERT routine.
 astMAKE_CLEAR(Mapping,Invert,invert,CHAR_MAX)
 astMAKE_GET(Mapping,Invert,int,0,( ( this->invert == CHAR_MAX ) ?
                                    0 : this->invert ))
-astMAKE_SET(Mapping,Invert,int,invert,(astClearIsSimple(this),(value!=0)))
+astMAKE_SET(Mapping,Invert,int,invert,(value!=0))
 astMAKE_TEST(Mapping,Invert,( this->invert != CHAR_MAX ))
 
 /*
@@ -23329,6 +23341,12 @@ c     astSimplify
 f     AST_SIMPLIFY
 *     method will immediately return the Mapping unchanged if the IsSimple
 *     attribute indicates that the Mapping has already been simplified.
+*
+*     Simplification applies to the Mapping in the orientation it had when
+*     it was simplified, since the inverse of a Mapping may simplify
+*     differently. Inverting a simplified Mapping therefore resets IsSimple
+*     to zero, and restoring the original Invert value restores it to
+*     non-zero.
 
 *  Applicability:
 *     Mapping
@@ -24114,6 +24132,8 @@ AstMapping *astLoadMapping_( void *mem, size_t size,
 
 /* IsSimple. */
 /* --------- */
+/* The card describes the Mapping in the orientation in which it was
+   written out, which is the orientation set up above. */
       if( astReadInt( channel, "issimp", 0 ) ) astSetIsSimple(new);
 
 

@@ -1,6 +1,6 @@
 # IsSimple tag placement depends on aliasing history, not tree shape
 
-**Status:** analysis complete, no fix written. For team discussion.
+**Status:** fixed, 15 August 2026, by recording the simplified state per orientation rather than splitting the flag. See [Resolution](#resolution).
 **Date:** 9 August 2026
 **Affects:** `src/mapping.c`, `src/mapping.h`, and every class that probes a Mapping's Invert flag.
 
@@ -303,6 +303,64 @@ Whichever is chosen, the attribute's documentation should be updated to say whic
 
 Whether `astMAKE_SET` should fire `astClearIsSimple` at all when the value is unchanged (demonstration 1) is a separate question.
 Under the split it stops being a correctness issue and becomes a performance one — a redundant re-simplification — and can be addressed independently by making the clear conditional on an actual change.
+
+## Resolution
+
+Fixed on 15 August 2026, in `src/mapping.h` and `src/mapping.c` only.
+
+The bit was not split into "guard" and "dump tag" as Option A proposed.
+Splitting it would have left the dump tag surviving a *genuine* inversion — the tag would say "simplified" for a Mapping that really did need looking at again, and since the loader turns the tag back into the guard, a round trip could silently suppress an available simplification.
+The two meanings only appeared to be in conflict because the record ignored the one thing simplification actually depends on: **which way round the Mapping was when it was simplified.**
+
+So the record is now per orientation, and the current Invert value selects between the two:
+
+```c
+#define AST__ISSIMPLE_FLAG 1     /* Mapping is simplified when not inverted */
+#define AST__ISSIMPLEINV_FLAG 16 /* Mapping is simplified when inverted */
+
+#define astIsSimpleFlag(this) \
+((((AstMapping*)this)->invert==1)?AST__ISSIMPLEINV_FLAG:AST__ISSIMPLE_FLAG)
+```
+
+`astSetIsSimple`, `astClearIsSimple` and `astIsSimple` are unchanged apart from acting on whichever flag `astIsSimpleFlag` selects.
+Neither flag is ever cleared as a side effect: apart from Invert a Mapping is immutable, so an orientation that has been simplified stays simplified.
+
+This distinguishes a probe from a real inversion without either one having to declare itself.
+A routine that sets Invert to line a Mapping up and then sets it back leaves it reporting exactly what it reported before.
+A caller that leaves the Mapping inverted gets zero from `IsSimple` and no `IsSimp` card, because that orientation has not been simplified — and gets both back if Invert is restored.
+
+**The whole of `mapping.c` is unchanged bar one line.**
+`Dump`, `astLoadMapping`, `astSimplify_`, its guard, and `GetAttrib` all still read and write the record through the same calls as before; the record they are reading is simply the right one now.
+The single change is that the Invert setter no longer clears it:
+
+```c
+astMAKE_SET(Mapping,Invert,int,invert,(value!=0))   /* was (astClearIsSimple(this),(value!=0)) */
+```
+
+### What this settles
+
+**The open question is void.**
+`astGetC( map, "IsSimple" )` keeps the documented meaning — "there is nothing to be gained by simplifying it again" — *and* agrees with the `IsSimp` card in a dump of the same object, because both read the same record.
+The card means "this Mapping, in the orientation you are reading, needs no re-simplification", which is derivable from the tree alone.
+The attribute's documentation now states the orientation dependence.
+
+Frame suppression is untouched: `Dump` still reads the virtual `astGetIsSimple`, which `Frame` overrides to return zero, so no `IsSimp` card appears in a Frame dump.
+
+Demonstration 1 is fixed as well, rather than being left as the separate performance question the analysis above anticipated: setting Invert to the value it already holds selects the same flag, so nothing changes.
+
+One behaviour change is worth recording. `astClearInvert` on a Mapping that was simplified while inverted now reports `IsSimple` as zero, where before it preserved the record. That is correct — the un-inverted orientation was never simplified — but `astMAKE_CLEAR` used to be tag-preserving and no longer is in that case.
+
+### Effect on the test suite
+
+`ast_tester/testmapping.c` gained three checks:
+
+- `testequaldumpstable` — dump a simplified two-node tree, compare it with `astEqual`, require the dump unchanged. It also asserts the untouched dump carries two `IsSimp` cards, so it cannot pass by tagging nothing.
+- `testsimplevsinvert` — `IsSimple` survives a no-op set of Invert, drops on a real inversion, and returns when Invert is restored.
+- `testsimplevsinvertdump` — the same three states seen through the dump, including that an invert and back reproduces the original bytes.
+
+27 committed fixtures changed, by 67 added `IsSimp = 1` cards and nothing else — no card moved and none was removed.
+The references were regenerated from their unchanged `.map` inputs, so what each fixture exercises is unaltered.
+Both build trees pass 1061/1061.
 
 ## Reproducing
 

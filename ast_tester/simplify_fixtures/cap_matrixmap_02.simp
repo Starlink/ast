@@ -5,6 +5,7 @@
     MapA = 	# First component Mapping
        Begin MatrixMap 	# Matrix transformation
           Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           M0 = 1 	# Forward matrix value
           M1 = 0.10000000000000001 	# Forward matrix value
