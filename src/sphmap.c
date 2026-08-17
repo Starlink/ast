@@ -88,6 +88,10 @@ f     The SphMap class does not define any new routines beyond those
 *     8-MAY-20206 (DSB):
 *        Fix bug in MapMerge - UnitMap that replaces back to back SphMaps
 *        was not taking account of the direction of the two SphMaps.
+*     17-AUG-2026 (TIMJ):
+*        Discard the record that the SphMap has been simplified when
+*        UnitRadius or PolarLong is set or cleared, since MapMerge consults
+*        both when deciding whether two SphMaps cancel.
 *class--
 */
 
@@ -1387,9 +1391,9 @@ f     AST_CLONE
 *        All SphMaps have this attribute.
 *att--
 */
-astMAKE_CLEAR1(SphMap,UnitRadius,unitradius,-1)
+astMAKE_CLEAR1(SphMap,UnitRadius,unitradius,(astClearIsSimple(this),-1))
 astMAKE_GET(SphMap,UnitRadius,int,0,(this->unitradius == -1 ? 0 : this->unitradius))
-astMAKE_SET1(SphMap,UnitRadius,int,unitradius,( value ? 1 : 0 ))
+astMAKE_SET1(SphMap,UnitRadius,int,unitradius,(astClearIsSimple(this),( value ? 1 : 0 )))
 astMAKE_TEST(SphMap,UnitRadius,( this->unitradius != -1 ))
 
 /* PolarLong */
@@ -1427,9 +1431,9 @@ f     AST_CLONE
 *        All SphMaps have this attribute.
 *att--
 */
-astMAKE_CLEAR1(SphMap,PolarLong,polarlong,AST__BAD)
+astMAKE_CLEAR1(SphMap,PolarLong,polarlong,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(SphMap,PolarLong,double,0.0,(this->polarlong == AST__BAD ? 0.0 : this->polarlong))
-astMAKE_SET1(SphMap,PolarLong,double,polarlong,value)
+astMAKE_SET1(SphMap,PolarLong,double,polarlong,(astClearIsSimple(this),value))
 astMAKE_TEST(SphMap,PolarLong,( this->polarlong != AST__BAD ))
 
 /* Copy constructor. */

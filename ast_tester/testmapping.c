@@ -314,6 +314,63 @@ static void testmutationclearssimple( int *status ) {
    }
 }
 
+/*
+ * The record that astSimplify produced a Mapping must not survive a change
+ * to an attribute that the Mapping's own simplification depends on. A
+ * ZoomMap whose Zoom is one is a UnitMap, and a PcdMap whose Disco is zero
+ * is a UnitMap, so in both cases the change makes a simplification available
+ * that the stale record would suppress.
+ *
+ * Each Mapping below is left held only by this function, since an attribute
+ * of a shared Mapping cannot be changed at all.
+ */
+static void testselfsimplifyafterset( int *status ) {
+   double centre[ 2 ] = { 0.0, 0.0 };
+   AstMapping *input;
+   AstMapping *pcd;
+   AstMapping *resimp;
+   AstMapping *zoom;
+   int unit_pcd;
+   int unit_zoom;
+
+   if( *status != 0 || !astOK ) return;
+
+   /* Simplifying two ZoomMaps in series gives a single simplified ZoomMap. */
+   input = (AstMapping *) astCmpMap( astZoomMap( 2, 2.0, " " ),
+                                     astZoomMap( 2, 3.0, " " ), 1, " " );
+   zoom = astSimplify( input );
+   input = astAnnul( input );
+
+   astSetD( zoom, "Zoom", 1.0 );
+   resimp = astSimplify( zoom );
+   unit_zoom = astIsAUnitMap( resimp );
+   resimp = astAnnul( resimp );
+   zoom = astAnnul( zoom );
+
+   /* Simplifying a PcdMap in series with a UnitMap gives back the PcdMap. */
+   input = (AstMapping *) astCmpMap( astPcdMap( 0.01, centre, " " ),
+                                     astUnitMap( 2, " " ), 1, " " );
+   pcd = astSimplify( input );
+   input = astAnnul( input );
+
+   astSetD( pcd, "Disco", 0.0 );
+   resimp = astSimplify( pcd );
+   unit_pcd = astIsAUnitMap( resimp );
+   resimp = astAnnul( resimp );
+   pcd = astAnnul( pcd );
+
+   if( !unit_zoom ) {
+      printf( "A simplified ZoomMap set to a unit Zoom did not simplify to a "
+              "UnitMap.\n" );
+      stopit( status, "Error selfsimp-1" );
+   }
+   if( !unit_pcd ) {
+      printf( "A simplified PcdMap set to a zero Disco did not simplify to a "
+              "UnitMap.\n" );
+      stopit( status, "Error selfsimp-2" );
+   }
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -420,6 +477,8 @@ int main( void ) {
    testsimplevsinvertdump( status );
 
    testmutationclearssimple( status );
+
+   testselfsimplifyafterset( status );
 
    astEnd;
 

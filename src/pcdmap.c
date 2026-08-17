@@ -93,6 +93,12 @@ f     The PcdMap class does not define any new routines beyond those
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
 *        negative values.
+*     17-AUG-2026 (TIMJ):
+*        Discard the record that the PcdMap has been simplified when Disco or
+*        PcdCen is set or cleared. MapMerge replaces a PcdMap whose Disco is
+*        zero by a UnitMap without reference to any neighbour, so a PcdMap
+*        simplified before Disco was changed could report that there was
+*        nothing left to do.
 *class--
 */
 
@@ -302,6 +308,7 @@ static void Clear##attr( AstPcdMap *this, int axis, int *status ) { \
 \
 /* Assign the "clear" value. */ \
    } else { \
+      astClearIsSimple( this ); \
       this->component[ axis ] = (assign); \
    } \
 } \
@@ -496,6 +503,7 @@ static void Set##attr( AstPcdMap *this, int axis, type value, int *status ) { \
 \
 /* Store the new value in the structure component. */ \
    } else { \
+      astClearIsSimple( this ); \
       this->component[ axis ] = (assign); \
    } \
 } \
@@ -2572,10 +2580,10 @@ f     AST_CLONE
 */
 /* This ia a double value with a value of AST__BAD when undefined but
    yielding a default of 0.0. */
-astMAKE_CLEAR1(PcdMap,Disco,disco,AST__BAD)
+astMAKE_CLEAR1(PcdMap,Disco,disco,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(PcdMap,Disco,double,0.0,( ( this->disco == AST__BAD ) ?
                                       0.0 : this->disco ))
-astMAKE_SET1(PcdMap,Disco,double,disco,value)
+astMAKE_SET1(PcdMap,Disco,double,disco,(astClearIsSimple(this),value))
 astMAKE_TEST(PcdMap,Disco,( this->disco != AST__BAD ))
 
 

@@ -109,6 +109,10 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        the SplineMap has been cloned, as SUN/210 says AST does for the
 *        attributes of any Mapping. Use the guarded astMAKE_SET1 and
 *        astMAKE_CLEAR1 macros.
+*     17-AUG-2026 (TIMJ):
+*        Discard the record that the SplineMap has been simplified when
+*        InvNiter, InvTol or OutUnit is set or cleared, since all three
+*        change what the SplineMap does.
 *class--
 */
 
@@ -2540,9 +2544,9 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 *att--
 */
-astMAKE_CLEAR1(SplineMap,InvNiter,invniter,-INT_MAX)
+astMAKE_CLEAR1(SplineMap,InvNiter,invniter,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(SplineMap,InvNiter,int,0,( this->invniter == -INT_MAX ? 6 : this->invniter))
-astMAKE_SET1(SplineMap,InvNiter,int,invniter,value)
+astMAKE_SET1(SplineMap,InvNiter,int,invniter,(astClearIsSimple(this),value))
 astMAKE_TEST(SplineMap,InvNiter,( this->invniter != -INT_MAX ))
 
 /* InvTol. */
@@ -2579,9 +2583,9 @@ astMAKE_TEST(SplineMap,InvNiter,( this->invniter != -INT_MAX ))
 *        All SplineMaps have this attribute.
 *att--
 */
-astMAKE_CLEAR1(SplineMap,InvTol,invtol,AST__BAD)
+astMAKE_CLEAR1(SplineMap,InvTol,invtol,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(SplineMap,InvTol,double,0.0,( this->invtol == AST__BAD ? 1.0E-6 : this->invtol))
-astMAKE_SET1(SplineMap,InvTol,double,invtol,value)
+astMAKE_SET1(SplineMap,InvTol,double,invtol,(astClearIsSimple(this),value))
 astMAKE_TEST(SplineMap,InvTol,( this->invtol != AST__BAD ))
 
 /* OutUnit. */
@@ -2623,9 +2627,9 @@ astMAKE_TEST(SplineMap,InvTol,( this->invtol != AST__BAD ))
 
 *att--
 */
-astMAKE_CLEAR1(SplineMap,OutUnit,outunit,-INT_MAX)
+astMAKE_CLEAR1(SplineMap,OutUnit,outunit,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(SplineMap,OutUnit,int,0,(this->outunit==-INT_MAX?0:this->outunit))
-astMAKE_SET1(SplineMap,OutUnit,int,outunit,(value?1:0))
+astMAKE_SET1(SplineMap,OutUnit,int,outunit,(astClearIsSimple(this),(value?1:0)))
 astMAKE_TEST(SplineMap,OutUnit,(this->outunit!=-INT_MAX))
 
 /* SplineKx. */
