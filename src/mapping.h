@@ -446,9 +446,15 @@ typedef unsigned long long int UINT_BIG;
 #define astIsSimple(this) \
 (this&&((((AstMapping*)this)->flags&astIsSimpleFlag(this))!=0))
 
-/* Discard both records, for use by any class that allows an attribute to
-   be changed that alters what the Mapping does or how it simplifies. Such
-   a change invalidates what was learned about either orientation. */
+/* Discard both records. A class needs this when it lets something change
+   that feeds its own simplification - that is, an input to the first part
+   of its astMapMerge method, the part marked "without reference to the
+   neighbouring Mappings in the list". Nothing else reads the records: a
+   Mapping is offered to astMapMerge by its neighbours whatever they hold,
+   so a change that only affects whether this Mapping merges with a
+   neighbour does not need to discard them. Discarding anyway is safe -
+   the records can only ever suppress a simplification, never make one
+   wrong - so err towards it when in doubt. */
 #define astClearIsSimple(this) \
 ((void)(this&&(((AstMapping*)this)->flags&= \
                ~(AST__ISSIMPLE_FLAG|AST__ISSIMPLEINV_FLAG))))
