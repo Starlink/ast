@@ -255,6 +255,7 @@ static void testmutationclearssimple( int *status ) {
    double ubnd[ 2 ] = { 1.0, 1.0 };
    AstMapping *cleared;
    AstMapping *fitted;
+   AstMapping *input;
    AstMapping *set;
    int simple_afterclear;
    int simple_afterfit;
@@ -265,17 +266,22 @@ static void testmutationclearssimple( int *status ) {
 
    if( *status != 0 || !astOK ) return;
 
-   /* Setting an attribute that changes the inverse transformation. */
-   set = astSimplify( astPolyMap( 2, 2, 4, coeff, 0, NULL, " " ) );
+   /* Setting an attribute that changes the inverse transformation. Only an
+      unshared Mapping can be changed at all, so drop the reference to the
+      input and leave the simplified Mapping held only here. */
+   input = (AstMapping *) astPolyMap( 2, 2, 4, coeff, 0, NULL, " " );
+   set = astSimplify( input );
+   input = astAnnul( input );
    simple_set = astGetI( set, "IsSimple" );
    astSetI( set, "IterInverse", 0 );
    simple_afterset = astGetI( set, "IsSimple" );
    set = astAnnul( set );
 
    /* Clearing one back to its default changes the Mapping just as much. */
-   cleared = astPolyMap( 2, 2, 4, coeff, 0, NULL, " " );
-   astSetI( cleared, "IterInverse", 0 );
-   cleared = astSimplify( cleared );
+   input = (AstMapping *) astPolyMap( 2, 2, 4, coeff, 0, NULL, " " );
+   astSetI( input, "IterInverse", 0 );
+   cleared = astSimplify( input );
+   input = astAnnul( input );
    simple_cleared = astGetI( cleared, "IsSimple" );
    astClear( cleared, "IterInverse" );
    simple_afterclear = astGetI( cleared, "IsSimple" );

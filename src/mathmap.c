@@ -98,6 +98,11 @@ f     The MathMap class does not define any new routines beyond those
 *        whether a forward-inverse pair cancels, so a MathMap simplified
 *        before they were changed could report that there was nothing left
 *        to do.
+*     17-AUG-2026 (TIMJ):
+*        Report an error if Seed, SimpFI or SimpIF is set or cleared once the
+*        MathMap has been cloned, as SUN/210 says AST does for the attributes
+*        of any Mapping. Use the guarded astMAKE_SET1 and astMAKE_CLEAR1
+*        macros.
 *class--
 */
 
@@ -5608,7 +5613,7 @@ static void ValidateSymbol( const char *method, const char *class,
    MathMap's random number generator context. Also clear the "active"
    flag, so that the generator will be re-initialised to use this seed
    when it is next invoked. */
-astMAKE_CLEAR(MathMap,Seed,rcontext.seed,( astClearIsSimple(this),
+astMAKE_CLEAR1(MathMap,Seed,rcontext.seed,( astClearIsSimple(this),
                                            this->rcontext.seed_set = 0,
                                            this->rcontext.active = 0,
                                            DefaultSeed( &this->rcontext, status ) ))
@@ -5621,7 +5626,7 @@ astMAKE_GET(MathMap,Seed,int,0,this->rcontext.seed)
    context and set the context's "seed_set" flag. Also clear the "active"
    flag, so that the generator will be re-initialised to use this seed
    when it is next invoked. */
-astMAKE_SET(MathMap,Seed,int,rcontext.seed,( astClearIsSimple(this),
+astMAKE_SET1(MathMap,Seed,int,rcontext.seed,( astClearIsSimple(this),
                                              this->rcontext.seed_set = 1,
                                              this->rcontext.active = 0,
                                              value ))
@@ -5690,14 +5695,14 @@ f     SimpFI and SimpIF attributes will be interchanged.
 *att--
 */
 /* Clear the SimpFI value by setting it to -INT_MAX. */
-astMAKE_CLEAR(MathMap,SimpFI,simp_fi,(astClearIsSimple(this),-INT_MAX))
+astMAKE_CLEAR1(MathMap,SimpFI,simp_fi,(astClearIsSimple(this),-INT_MAX))
 
 /* Supply a default of 0 if no SimpFI value has been set. */
 astMAKE_GET(MathMap,SimpFI,int,0,( ( this->simp_fi != -INT_MAX ) ?
                                    this->simp_fi : 0 ))
 
 /* Set a SimpFI value of 1 if any non-zero value is supplied. */
-astMAKE_SET(MathMap,SimpFI,int,simp_fi,(astClearIsSimple(this),( value != 0 )))
+astMAKE_SET1(MathMap,SimpFI,int,simp_fi,(astClearIsSimple(this),( value != 0 )))
 
 /* The SimpFI value is set if it is not -INT_MAX. */
 astMAKE_TEST(MathMap,SimpFI,( this->simp_fi != -INT_MAX ))
@@ -5763,14 +5768,14 @@ f     SimpFI and SimpIF attributes will be interchanged.
 *att--
 */
 /* Clear the SimpIF value by setting it to -INT_MAX. */
-astMAKE_CLEAR(MathMap,SimpIF,simp_if,(astClearIsSimple(this),-INT_MAX))
+astMAKE_CLEAR1(MathMap,SimpIF,simp_if,(astClearIsSimple(this),-INT_MAX))
 
 /* Supply a default of 0 if no SimpIF value has been set. */
 astMAKE_GET(MathMap,SimpIF,int,0,( ( this->simp_if != -INT_MAX ) ?
                                    this->simp_if : 0 ))
 
 /* Set a SimpIF value of 1 if any non-zero value is supplied. */
-astMAKE_SET(MathMap,SimpIF,int,simp_if,(astClearIsSimple(this),( value != 0 )))
+astMAKE_SET1(MathMap,SimpIF,int,simp_if,(astClearIsSimple(this),( value != 0 )))
 
 /* The SimpIF value is set if it is not -INT_MAX. */
 astMAKE_TEST(MathMap,SimpIF,( this->simp_if != -INT_MAX ))

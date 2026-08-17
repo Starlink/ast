@@ -169,6 +169,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        astMergeShift copy is then simplified to amalgamate coefficients
 *        referring to the same powers, which the inherited record
 *        suppressed.
+*     17-AUG-2026 (TIMJ):
+*        Report an error if IterInverse, NiterInverse or TolInverse is set or
+*        cleared once the PolyMap has been cloned, as SUN/210 says AST does
+*        for the attributes of any Mapping. Use the guarded astMAKE_SET1 and
+*        astMAKE_CLEAR1 macros.
 *class--
 */
 
@@ -6332,12 +6337,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 *att--
 */
-astMAKE_CLEAR(PolyMap,IterInverse,iterinverse,(astClearIsSimple(this),-INT_MAX))
+astMAKE_CLEAR1(PolyMap,IterInverse,iterinverse,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PolyMap,IterInverse,int,0,( ( this->iterinverse == -INT_MAX ) ?
                                           ( this->ncoeff_i == 0 &&
                                             astGetNin( this ) == astGetNout( this ) ) :
                                           this->iterinverse ))
-astMAKE_SET(PolyMap,IterInverse,int,iterinverse,
+astMAKE_SET1(PolyMap,IterInverse,int,iterinverse,
   (((astGetNin(this)==astGetNout(this))||!value)?
   (astClearIsSimple(this),(value?1:0)):
   (astError(AST__ATTIN,"astSetIterInverse(%s):"
@@ -6375,9 +6380,9 @@ astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 
 *att--
 */
-astMAKE_CLEAR(PolyMap,NiterInverse,niterinverse,(astClearIsSimple(this),-INT_MAX))
+astMAKE_CLEAR1(PolyMap,NiterInverse,niterinverse,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PolyMap,NiterInverse,int,0,( this->niterinverse == -INT_MAX ? 4 : this->niterinverse))
-astMAKE_SET(PolyMap,NiterInverse,int,niterinverse,(astClearIsSimple(this),value))
+astMAKE_SET1(PolyMap,NiterInverse,int,niterinverse,(astClearIsSimple(this),value))
 astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 
 /* TolInverse. */
@@ -6412,9 +6417,9 @@ astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 *        All PolyMaps have this attribute.
 *att--
 */
-astMAKE_CLEAR(PolyMap,TolInverse,tolinverse,(astClearIsSimple(this),AST__BAD))
+astMAKE_CLEAR1(PolyMap,TolInverse,tolinverse,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(PolyMap,TolInverse,double,0.0,( this->tolinverse == AST__BAD ? 1.0E-6 : this->tolinverse))
-astMAKE_SET(PolyMap,TolInverse,double,tolinverse,(astClearIsSimple(this),value))
+astMAKE_SET1(PolyMap,TolInverse,double,tolinverse,(astClearIsSimple(this),value))
 astMAKE_TEST(PolyMap,TolInverse,( this->tolinverse != AST__BAD ))
 
 /* Copy constructor. */

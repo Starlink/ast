@@ -104,6 +104,11 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        arises from valid data (the iterative inverse of an order-1
 *        spline), so the inverse now yields AST__BAD outputs instead of
 *        raising an error.
+*     17-AUG-2026 (TIMJ):
+*        Report an error if InvNiter, InvTol or OutUnit is set or cleared once
+*        the SplineMap has been cloned, as SUN/210 says AST does for the
+*        attributes of any Mapping. Use the guarded astMAKE_SET1 and
+*        astMAKE_CLEAR1 macros.
 *class--
 */
 
@@ -2535,9 +2540,9 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 *att--
 */
-astMAKE_CLEAR(SplineMap,InvNiter,invniter,-INT_MAX)
+astMAKE_CLEAR1(SplineMap,InvNiter,invniter,-INT_MAX)
 astMAKE_GET(SplineMap,InvNiter,int,0,( this->invniter == -INT_MAX ? 6 : this->invniter))
-astMAKE_SET(SplineMap,InvNiter,int,invniter,value)
+astMAKE_SET1(SplineMap,InvNiter,int,invniter,value)
 astMAKE_TEST(SplineMap,InvNiter,( this->invniter != -INT_MAX ))
 
 /* InvTol. */
@@ -2574,9 +2579,9 @@ astMAKE_TEST(SplineMap,InvNiter,( this->invniter != -INT_MAX ))
 *        All SplineMaps have this attribute.
 *att--
 */
-astMAKE_CLEAR(SplineMap,InvTol,invtol,AST__BAD)
+astMAKE_CLEAR1(SplineMap,InvTol,invtol,AST__BAD)
 astMAKE_GET(SplineMap,InvTol,double,0.0,( this->invtol == AST__BAD ? 1.0E-6 : this->invtol))
-astMAKE_SET(SplineMap,InvTol,double,invtol,value)
+astMAKE_SET1(SplineMap,InvTol,double,invtol,value)
 astMAKE_TEST(SplineMap,InvTol,( this->invtol != AST__BAD ))
 
 /* OutUnit. */
@@ -2618,9 +2623,9 @@ astMAKE_TEST(SplineMap,InvTol,( this->invtol != AST__BAD ))
 
 *att--
 */
-astMAKE_CLEAR(SplineMap,OutUnit,outunit,-INT_MAX)
+astMAKE_CLEAR1(SplineMap,OutUnit,outunit,-INT_MAX)
 astMAKE_GET(SplineMap,OutUnit,int,0,(this->outunit==-INT_MAX?0:this->outunit))
-astMAKE_SET(SplineMap,OutUnit,int,outunit,(value?1:0))
+astMAKE_SET1(SplineMap,OutUnit,int,outunit,(value?1:0))
 astMAKE_TEST(SplineMap,OutUnit,(this->outunit!=-INT_MAX))
 
 /* SplineKx. */

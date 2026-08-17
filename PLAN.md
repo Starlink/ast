@@ -11,7 +11,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 1. Add the existing C tests to the CMake build
 2. Convert Fortran tests to C to eliminate the Fortran/Starlink dependency
 
-## Current status: 108 default tests + 20 conditional (PLplot) + 1 optional huge stress test
+## Current status: 109 default tests + 20 conditional (PLplot) + 1 optional huge stress test
 
 | Phase | Status |
 |-------|--------|
@@ -32,7 +32,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 | Phase 2 Batch 14: astMask sky-curvature coverage | **Complete** (1 test) |
 | Phase 3: CI integration | **Complete** (tests run via ctest) |
 
-### Test inventory (108 default + 20 conditional PLplot + 1 optional)
+### Test inventory (109 default + 20 conditional PLplot + 1 optional)
 
 **Original test (1):**
 - ast_test — minimal installation check
@@ -82,6 +82,12 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 **New C-only regression tests (no Fortran original):**
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
   argument must return AST__BAD outputs rather than NaN.
+- testimmutable — every Mapping class with a publicly settable attribute must
+  allow the change while its reference count is one and report AST__IMMUT once
+  it has been cloned, as SUN/210 requires, for both setting and clearing. Also
+  checks that Invert stays settable on a shared Mapping. PermMap's PermSplit
+  and WcsMap's FITSProj and LonCheck are excluded because they are protected
+  and no astSet call reaches them.
 
 **Optional manual stress test:**
 - testhuge_c
