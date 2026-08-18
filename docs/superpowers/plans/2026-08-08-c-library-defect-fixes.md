@@ -29,26 +29,83 @@
 - Tests use `astWatch(&status)` + `astOK` for error checking, never Starlink EMS.
 - Do NOT modify `c-bugs.md`. Do NOT commit it.
 
-## Execution Record (updated 2026-08-09)
+## Execution Record (updated 2026-08-18)
 
-Tasks 1-12 are committed on `u/timj/misc-bugs`, each having passed an independent review that verified the fix rather than accepting the implementer's report. Both suites pass: plain `build` 1061/1061 and sanitizer `build-dev` 1061/1061.
+All nineteen tasks are committed on `u/timj/misc-bugs`. Tasks 1-12 each passed an
+independent review that verified the fix rather than accepting the implementer's
+report; tasks 13-19 have not been individually reviewed. Both suites pass at
+`b2de3a3`: plain `build` 1062/1062 and sanitizer `build-dev` 1062/1062. The
+sanitizer figure requires the cast fix in `ast_tester/testmapping.c` described
+below, which is now folded into `f9f02f0`; on a sufficiently new compiler that
+build does not compile without it.
+
+The hashes below are those of the current branch. An earlier version of this
+table recorded the pre-rebase hashes for tasks 1-12; those commits are no longer
+ancestors of `HEAD`.
 
 | Task | Commit(s) | Defect fixed |
 |---|---|---|
-| 1 | `a020658` | Negative grism interference order corrupted (−2→−1) or rejected (−1→0) |
-| 2 | `f195b74` | `ConvertValue` rounded every negative toward zero |
-| 3 | `750b44f`, `351d713`, `e8f5b14` | Tree-wide `round()` sweep, 70 sites / 16 files |
-| 4 | `83c7b6f` | `astMapIterate` never terminated with `SortBy` set |
-| 5 | `e232fee` | `astMapRename` destroyed the entry on a locked KeyMap |
-| 6 | `abf3515`, `2eb62dc` | Out-of-range and NaN float-to-integer conversion UB |
-| 7 | `27592ac` | Numeric-string overflow wrapped instead of failing |
-| 8 | `59c05c0` | Zero-length vector crashed the dump (null dereference) |
-| 9 | `abbdae2` | `astMapGetElem<X>` reported success having written nothing |
-| 10 | `132d43d` | Spurious `KyCas` card on every re-dump |
-| 11 | `e0a846c` | Locked non-empty KeyMap could never be reloaded |
-| 12 | `ef92bde` | Load reset the member counter, giving every entry member 0 |
+| 1 | `1199880` | Negative grism interference order corrupted (−2→−1) or rejected (−1→0) |
+| 2 | `7b084bb` | `ConvertValue` rounded every negative toward zero |
+| 3 | `e4e6376`, `32bda42`, `72f09a2`, `e447556` | Tree-wide `round()` sweep, 70 sites / 16 files; `e447556` adds the WCSAXES site found later |
+| 4 | `83a772c` | `astMapIterate` never terminated with `SortBy` set |
+| 5 | `89d0edf` | `astMapRename` destroyed the entry on a locked KeyMap |
+| 6 | `6d11449`, `4e5c33d`, `11f7580` | Out-of-range and NaN float-to-integer conversion UB |
+| 7 | `a76964c` | Numeric-string overflow wrapped instead of failing |
+| 8 | `b7135ab`, `9e763e4` | Zero-length vector crashed the dump (null dereference); `9e763e4` extends the fix to `astMapPut1A` |
+| 9 | `367a6a6`, `f1b76a1` | `astMapGetElem<X>` reported success having written nothing; `f1b76a1` extends the fix to `astMapGetElemA` |
+| 10 | `eec1e53` | Spurious `KyCas` card on every re-dump |
+| 11 | `f444583` | Locked non-empty KeyMap could never be reloaded |
+| 12 | `ab08de4` | Load reset the member counter, giving every entry member 0 |
+| 13 | `d8edc07` | Copy paths expressed the copied key in the source KeyMap's `KeyCase`, for both the destination lookup and the stored key |
+| 14 | `890707a`, `f526b80` | KeyMap dumps never converged; `f526b80` adds the byte-stability test |
+| 15 | `68bcb7d` | `EncodeFloat` pushed wide values one column right instead of closing the gap |
+| 16 | `f54ff1b` | `WcsNative` stamped a vestigial `Invert` on an encapsulated PermMap |
+| 17 | `fd92f9d` | `CDjjjiii` cards consumed under encodings that discard them |
+| 18 | `6301311`, `de95661` | `SpecTrans` marked only the first copy of a repeated keyword, and consumed `MJD-OBS` when `DATE-OBS` was present |
+| 19 | `21a2e9e` | Investigation only. Report at `docs/issues/2026-08-09-issimple-tag-placement.md` |
 
-**Not done:** Task 13 (attempted and reverted — see the status block on that task), 14, 15, 16, 17, 18, 19. **No final whole-branch review has been run.**
+Deviations from the task bodies as written, all deliberate:
+
+- Task 14 predicted that reference fixtures would change. None did: no committed
+  fixture compares a dumped KeyMap containing colliding keys byte for byte.
+- Task 17 hoists the `encoding == FITSIRAF_ENCODING` test to the `if` guarding
+  the whole `CD%3d%3d` scan, rather than to the position inside the loop shown
+  in the task body. The effect is the same and the scan is skipped entirely.
+- Task 18 implements the `MJD-OBS` exception by expanding `GetValue2` into its
+  two `GetValue` calls with marking disabled, rather than adding a non-marking
+  variant of `GetValue2`.
+
+**Toolchain-dependent breakage.** `f9f02f0` assigns `astPolyMap()` to an
+`AstMapping *` at `ast_tester/testmapping.c:272` and `:281` without the cast the
+rest of that file uses. Whether this builds depends on how new the compiler is:
+upstream LLVM promoted `-Wincompatible-pointer-types` from warning to
+error-by-default somewhere between 19 and 22. Measured locally: homebrew clang
+22.1.5 errors; clang 19.1.7 and Apple clang 16.0.0 warn.
+
+CI is therefore clean on this branch (run 32050845278, on `b2de3a3`, all nine
+jobs green including both Debug+sanitizer jobs) while a local `build-dev` using
+homebrew LLVM fails to compile `testmapping`. The failure is quiet in the worst
+way: the build stops but `ctest` runs the stale `testmapping` binary and still
+reports 1062/1062.
+
+The fix is the `(AstMapping *)` cast already used at line 43 of the same file,
+squashed into `f9f02f0` on 18 August 2026.
+
+Fixture churn, for anyone bisecting: task 15 changed 69 `.native` fixtures, task
+16 changed three, task 18 changed one plus the six regenerated by `de95661`.
+
+**Follow-on work beyond the nineteen tasks.** Task 19 was terminal by design and
+blocked on a user decision between splitting the flag and making the probes
+non-mutating. The decision taken was neither as stated: the simplified state is
+now recorded per orientation. Implemented in `e40e71b` (record per orientation),
+`6a4bc29` and `b2de3a3` (discard the record when a Mapping is changed, across all
+classes), `123249c` (document what the record guards) and `f9f02f0` (enforce the
+documented immutability rule in every class). `f9f02f0` is a behavioural change
+for library users and is written up in `ast.news`; the Outcome note on Task 19
+and the Resolution section of the issue report describe the mechanism.
+
+**No final whole-branch review has been run.**
 
 ### Working notes for whoever resumes this
 
@@ -3165,7 +3222,7 @@ Report to the user:
 
 **Stop here and wait for the user's decision.** Do not implement either fix in this task.
 
-**Outcome.** The report is `docs/issues/2026-08-09-issimple-tag-placement.md`. The flag was split (15 August 2026); see the Resolution section there.
+**Outcome.** The report is `docs/issues/2026-08-09-issimple-tag-placement.md`. Neither of the two candidate repairs was taken: the simplified state is now recorded per orientation instead (15 August 2026). See the Resolution section there, and the follow-on paragraph in the Execution Record.
 
 ---
 
