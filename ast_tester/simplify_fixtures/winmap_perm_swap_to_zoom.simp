@@ -5,6 +5,7 @@
     MapA = 	# First component Mapping
        Begin PermMap 	# Coordinate permutation
           Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Out1 = 1 	# Output coordinate 1 = input coordinate 1
           Out2 = 0 	# Output coordinate 2 is "bad"

@@ -5,6 +5,7 @@
     MapA = 	# First component Mapping
        Begin WinMap 	# Map one window on to another
           Nin = 3 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Sft1 = -0.215698 	# Shift for axis 1
           Scl2 = 5.2359877559829903e-06 	# Scale factor for axis 2
@@ -13,6 +14,7 @@
     MapB = 	# Second component Mapping
        Begin CmpMap 	# Compound Mapping
           Nin = 3 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Series = 0 	# Component Mappings applied in parallel
           MapA = 	# First component Mapping

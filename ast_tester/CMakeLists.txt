@@ -165,6 +165,7 @@ ast_add_test(testsplinemap_c)
 # --- Conditional tests ---
 # --- Fortran tests converted to C (Batch 1) ---
 ast_add_test(testzoommap)
+ast_add_test(testimmutable)
 ast_add_test(testnormmap)
 ast_add_test(testmapping)
 ast_add_test(testskyframe)

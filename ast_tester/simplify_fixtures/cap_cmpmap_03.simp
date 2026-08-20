@@ -5,6 +5,7 @@
     MapA = 	# First component Mapping
        Begin CmpMap 	# Compound Mapping
           Nin = 3 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Series = 0 	# Component Mappings applied in parallel
           MapA = 	# First component Mapping
@@ -284,6 +285,7 @@
                             MapA = 	# First component Mapping
                                Begin CmpMap 	# Compound Mapping
                                   Nin = 3 	# Number of input coordinates
+                                  IsSimp = 1 	# Mapping has been simplified
                                IsA Mapping 	# Mapping between coordinate systems
                                   Series = 0 	# Component Mappings applied in parallel
                                   MapA = 	# First component Mapping
@@ -364,6 +366,7 @@
                                   MapB = 	# Second component Mapping
                                      Begin ShiftMap 	# Shift each coordinate axis
                                         Nin = 3 	# Number of input coordinates
+                                        IsSimp = 1 	# Mapping has been simplified
                                      IsA Mapping 	# Mapping between coordinate systems
                                         Sft3 = 1420400000 	# Shift for axis 3
                                      End ShiftMap

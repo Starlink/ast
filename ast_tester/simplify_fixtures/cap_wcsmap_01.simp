@@ -5,6 +5,7 @@
     MapA = 	# First component Mapping
        Begin PermMap 	# Coordinate permutation
           Nin = 3 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Out1 = 1 	# Output coordinate 1 = input coordinate 1
           Out2 = -1 	# Output coordinate 2 = constant no. 1
@@ -51,6 +52,7 @@
                 MapA = 	# First component Mapping
                    Begin CmpMap 	# Compound Mapping
                       Nin = 3 	# Number of input coordinates
+                      IsSimp = 1 	# Mapping has been simplified
                    IsA Mapping 	# Mapping between coordinate systems
                       Series = 0 	# Component Mappings applied in parallel
                       MapA = 	# First component Mapping

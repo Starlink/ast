@@ -128,6 +128,77 @@ static void checkdump( AstObject *obj, const char *text, int *status ) {
    astAnnul( result );
 }
 
+/*
+ * testdumpstable: a KeyMap dump must be byte stable, both under repeated
+ * write and read cycles and against the order in which the entries were
+ * added.
+ *
+ * The keys below are chosen so that DELTA, EPSILON and ETA all hash to
+ * the same element of the default sized hash table. Entries sharing a
+ * table element are chained, so only for such a set does the order in
+ * which the table is walked depend on the order the entries were added.
+ * A key set with no collisions would exercise nothing.
+ */
+static void testdumpstable( int *status ) {
+   AstKeyMap *km1;
+   AstKeyMap *km2;
+   AstKeyMap *reload;
+   const char *keys[ 6 ] = { "DELTA", "EPSILON", "ETA", "ALPHA",
+                             "BETA", "GAMMA" };
+   const int order[ 6 ] = { 4, 2, 5, 0, 3, 1 };
+   char *dump1;
+   char *dump2;
+   char *dump3;
+   int got_dumps;
+   int i;
+   int ok_insorder;
+   int ok_roundtrip;
+
+   if( *status != 0 || !astOK ) return;
+
+   km1 = astKeyMap( " " );
+   for( i = 0; i < 6; i++ ) {
+      astMapPut0I( km1, keys[ i ], i + 1, " " );
+   }
+   dump1 = astToString( km1 );
+
+   /* A dump, reloaded and dumped again, must reproduce itself exactly. */
+   reload = dump1 ? (AstKeyMap *) astFromString( dump1 ) : NULL;
+   dump2 = reload ? astToString( reload ) : NULL;
+
+   /* The same entries added in a different order must dump identically. */
+   km2 = astKeyMap( " " );
+   for( i = 0; i < 6; i++ ) {
+      astMapPut0I( km2, keys[ order[ i ] ], order[ i ] + 1, " " );
+   }
+   dump3 = astToString( km2 );
+
+   /* Record the outcomes before reporting any of them, since reporting a
+      failure sets the status and so suppresses any AST call after it. */
+   ok_roundtrip = ( dump1 && dump2 && !strcmp( dump1, dump2 ) );
+   ok_insorder = ( dump1 && dump3 && !strcmp( dump1, dump3 ) );
+   got_dumps = ( dump1 && dump2 && dump3 );
+
+   if( reload ) reload = astAnnul( reload );
+   if( dump3 ) dump3 = astFree( dump3 );
+   if( dump2 ) dump2 = astFree( dump2 );
+   if( dump1 ) dump1 = astFree( dump1 );
+   km2 = astAnnul( km2 );
+   km1 = astAnnul( km1 );
+
+   if( !got_dumps ) {
+      stopit( status, "Error dumpstable-1" );
+   }
+   if( !ok_roundtrip ) {
+      printf( "Dump changed on a write, read, write cycle.\n" );
+      stopit( status, "Error dumpstable-2" );
+   }
+   if( !ok_insorder ) {
+      printf( "Dump depends on the order the entries were added.\n" );
+      stopit( status, "Error dumpstable-3" );
+   }
+}
+
 static void testsorting( int *status ) {
    AstKeyMap *km;
    const char *keys[5]  = { "ABC", "zzzzzzzzzzz", "this_is_a_key",
@@ -338,6 +409,533 @@ static void testcasesens( int *status ) {
    astAnnul( map );
 }
 
+/* astMapIterate is a protected KeyMap method, so it is not exposed via
+ * the public ast.h header included by this test. Declare the underlying
+ * function directly; it is exported by libast for use by other classes.
+ */
+extern const char *astMapIterate_( AstKeyMap *, int, int * );
+
+/*
+ * testiterate: astMapIterate must terminate for a KeyMap with SortBy set.
+ * The sorted list is circular, so a walk that does not detect the wrap
+ * runs forever. The loop below is bounded so a regression fails the test
+ * rather than hanging the suite.
+ */
+static void testiterate( int *status ) {
+   AstKeyMap *km;
+   const char *key;
+   int nseen;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( "SortBy=KeyUp" );
+   astMapPut0I( km, "AAA", 1, " " );
+   astMapPut0I( km, "BBB", 2, " " );
+   astMapPut0I( km, "CCC", 3, " " );
+
+   nseen = 0;
+   key = astMapIterate_( astCheckKeyMap( km ), 1, status );
+   while( key && astOK && nseen < 100 ) {
+      nseen++;
+      key = astMapIterate_( astCheckKeyMap( km ), 0, status );
+   }
+
+   if( nseen != 3 ) {
+      printf( "astMapIterate yielded %d keys, expected 3\n", nseen );
+      stopit( status, "Error iterate-sorted" );
+   }
+
+   km = astAnnul( km );
+}
+
+/*
+ * testrenamelocked: a rename refused because the KeyMap is locked must
+ * leave the KeyMap unchanged, not consume the entry.
+ */
+static void testrenamelocked( int *status ) {
+   AstKeyMap *km;
+   int ival;
+   int local_status;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPut0I( km, "KEEP", 42, " " );
+   astSetI( km, "MapLocked", 1 );
+
+   /* This rename must fail: NEWKEY is not already a known key. */
+   local_status = 0;
+   astWatch( &local_status );
+   astMapRename( km, "KEEP", "NEWKEY" );
+   if( local_status == 0 ) {
+      stopit( status, "Error rename-locked-noerr" );
+   }
+   astClearStatus;
+   astWatch( status );
+
+   /* The entry must still be present under its original key. */
+   if( !astMapHasKey( km, "KEEP" ) ) {
+      stopit( status, "Error rename-locked-lost" );
+   } else if( !astMapGet0I( km, "KEEP", &ival ) ) {
+      stopit( status, "Error rename-locked-unreadable" );
+   } else if( ival != 42 ) {
+      printf( "got %d want 42\n", ival );
+      stopit( status, "Error rename-locked-value" );
+   }
+
+   if( astMapHasKey( km, "NEWKEY" ) ) {
+      stopit( status, "Error rename-locked-newkey" );
+   }
+
+   km = astAnnul( km );
+}
+
+/*
+ * testconvrange: converting an out-of-range Double to a narrow integer
+ * type must saturate at the type's limit rather than producing an
+ * undefined result.
+ */
+static void testconvrange( int *status ) {
+   AstKeyMap *km;
+   int ival;
+   short int sval;
+   unsigned char bval;
+   int64_t kval;
+   double nanval;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPut0D( km, "BIG", 5000000100.0, " " );
+   astMapPut0D( km, "NEG", -5000000100.0, " " );
+
+   nanval = nan( "" );
+   astMapPut0D( km, "NAN", nanval, " " );
+
+   if( !astMapGet0I( km, "BIG", &ival ) ) {
+      stopit( status, "Error range-get-i" );
+   } else if( ival != INT_MAX ) {
+      printf( "int: got %d want %d\n", ival, INT_MAX );
+      stopit( status, "Error range-int-max" );
+   }
+
+   if( !astMapGet0I( km, "NEG", &ival ) ) {
+      stopit( status, "Error range-get-i2" );
+   } else if( ival != INT_MIN ) {
+      printf( "int: got %d want %d\n", ival, INT_MIN );
+      stopit( status, "Error range-int-min" );
+   }
+
+   if( !astMapGet0S( km, "BIG", &sval ) ) {
+      stopit( status, "Error range-get-s" );
+   } else if( sval != SHRT_MAX ) {
+      printf( "short: got %d want %d\n", (int) sval, SHRT_MAX );
+      stopit( status, "Error range-short-max" );
+   }
+
+   if( !astMapGet0B( km, "BIG", &bval ) ) {
+      stopit( status, "Error range-get-b" );
+   } else if( bval != UCHAR_MAX ) {
+      printf( "byte: got %d want %d\n", (int) bval, UCHAR_MAX );
+      stopit( status, "Error range-byte-max" );
+   }
+
+   /* A negative value must saturate at zero for the unsigned type, not
+      convert to a large unsigned value. */
+   if( !astMapGet0B( km, "NEG", &bval ) ) {
+      stopit( status, "Error range-get-b2" );
+   } else if( bval != 0 ) {
+      printf( "byte: got %d want 0\n", (int) bval );
+      stopit( status, "Error range-byte-min" );
+   }
+
+   /* A NaN has no integer value, so every narrow-integer conversion must
+      return the defined value 0 rather than performing an undefined
+      NaN-to-integer cast. */
+   if( !astMapGet0I( km, "NAN", &ival ) ) {
+      stopit( status, "Error range-get-i3" );
+   } else if( ival != 0 ) {
+      printf( "int: got %d want 0\n", ival );
+      stopit( status, "Error range-nan-int" );
+   }
+
+   if( !astMapGet0S( km, "NAN", &sval ) ) {
+      stopit( status, "Error range-get-s2" );
+   } else if( sval != 0 ) {
+      printf( "short: got %d want 0\n", (int) sval );
+      stopit( status, "Error range-nan-short" );
+   }
+
+   if( !astMapGet0K( km, "NAN", &kval ) ) {
+      stopit( status, "Error range-get-k" );
+   } else if( kval != 0 ) {
+      printf( "int64: got %" PRId64 " want 0\n", kval );
+      stopit( status, "Error range-nan-int64" );
+   }
+
+   if( !astMapGet0B( km, "NAN", &bval ) ) {
+      stopit( status, "Error range-get-b3" );
+   } else if( bval != 0 ) {
+      printf( "byte: got %d want 0\n", (int) bval );
+      stopit( status, "Error range-nan-byte" );
+   }
+
+   km = astAnnul( km );
+}
+
+/*
+ * testconvstring: a numeric string too large for int must not convert to
+ * a wrapped value. The %lf fallback in ConvertValue handles it, and its
+ * result saturates.
+ */
+static void testconvstring( int *status ) {
+   AstKeyMap *km;
+   int ival;
+   int local_status;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPut0C( km, "OVER", "9999999999", " " );
+   astMapPut0C( km, "HUGE", "99999999999999999999999999999999999999", " " );
+   astMapPut0C( km, "OK", "42", " " );
+   astMapPut0C( km, "OKSPACE", " 42 ", " " );
+   astMapPut0C( km, "BLANK", "   ", " " );
+   astMapPut0C( km, "TRAIL", "12abc", " " );
+
+   /* In range values, with and without surrounding space, are unchanged. */
+   if( !astMapGet0I( km, "OK", &ival ) || ival != 42 ) {
+      stopit( status, "Error convstr-ok" );
+   }
+   if( !astMapGet0I( km, "OKSPACE", &ival ) || ival != 42 ) {
+      stopit( status, "Error convstr-okspace" );
+   }
+
+   /* Non numeric input is still refused. Unlike a missing key,
+      astMapGet0I reports a genuine AST error when a string value cannot
+      be parsed at all, so these two checks run under a private status:
+      otherwise the correctly reported refusal would leave the shared
+      status set, and every subsequent AST call in this function
+      (including the OVER and HUGE checks below) would silently no-op. */
+   local_status = 0;
+   astWatch( &local_status );
+
+   if( astMapGet0I( km, "BLANK", &ival ) ) {
+      stopit( status, "Error convstr-blank" );
+   }
+   astClearStatus;
+
+   if( astMapGet0I( km, "TRAIL", &ival ) ) {
+      stopit( status, "Error convstr-trail" );
+   }
+   astClearStatus;
+
+   astWatch( status );
+
+   /* Magnitude overflow must saturate, not wrap. */
+   if( !astMapGet0I( km, "OVER", &ival ) ) {
+      stopit( status, "Error convstr-over-get" );
+   } else if( ival != INT_MAX ) {
+      printf( "over: got %d want %d\n", ival, INT_MAX );
+      stopit( status, "Error convstr-over" );
+   }
+
+   if( !astMapGet0I( km, "HUGE", &ival ) ) {
+      stopit( status, "Error convstr-huge-get" );
+   } else if( ival != INT_MAX ) {
+      printf( "huge: got %d want %d\n", ival, INT_MAX );
+      stopit( status, "Error convstr-huge" );
+   }
+
+   km = astAnnul( km );
+}
+
+/*
+ * testemptyvector: a zero length vector has no representation in a
+ * KeyMap entry, where nel == 0 means scalar. The put must be refused
+ * rather than creating an entry that cannot be dumped.
+ */
+static void testemptyvector( int *status ) {
+   AstKeyMap *km;
+   AstObject *avec[ 1 ];
+   const char *cvec[ 1 ];
+   int ivec[ 1 ];
+   int local_status;
+   char *dump;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+
+   local_status = 0;
+   astWatch( &local_status );
+   astMapPut1I( km, "EMPTYI", 0, ivec, " " );
+   if( local_status == 0 ) {
+      stopit( status, "Error emptyvec-int-noerr" );
+   }
+   astClearStatus;
+
+   local_status = 0;
+   cvec[ 0 ] = "unused";
+   astMapPut1C( km, "EMPTYC", 0, cvec, " " );
+   if( local_status == 0 ) {
+      stopit( status, "Error emptyvec-str-noerr" );
+   }
+   astClearStatus;
+
+   local_status = 0;
+   avec[ 0 ] = (AstObject *) astKeyMap( " " );
+   astMapPut1A( km, "EMPTYA", 0, avec, " " );
+   if( local_status != AST__NELIN ) {
+      stopit( status, "Error emptyvec-obj-noerr" );
+   }
+   astClearStatus;
+   astWatch( status );
+   avec[ 0 ] = astAnnul( avec[ 0 ] );
+
+   /* None of the keys may have been created, and the KeyMap must still
+      dump. */
+   if( astMapHasKey( km, "EMPTYI" ) ) {
+      stopit( status, "Error emptyvec-int-present" );
+   }
+   if( astMapHasKey( km, "EMPTYC" ) ) {
+      stopit( status, "Error emptyvec-str-present" );
+   }
+   if( astMapHasKey( km, "EMPTYA" ) ) {
+      stopit( status, "Error emptyvec-obj-present" );
+   }
+
+   astMapPut0I( km, "REAL", 7, " " );
+   dump = astToString( km );
+   if( !dump ) {
+      stopit( status, "Error emptyvec-dump" );
+   } else {
+      dump = astFree( dump );
+   }
+
+   km = astAnnul( km );
+}
+
+/*
+ * testundefelem: astMapGetElem<X> must report failure for an undefined
+ * entry, as astMapGet0<X> and astMapGet1<X> already do.
+ */
+static void testundefelem( int *status ) {
+   AstKeyMap *km;
+   AstObject *aval;
+   int ival;
+   int local_status;
+   char cbuf[ 200 ];
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPutU( km, "UNDEF", " " );
+
+   /* The scalar and vector accessors already report failure. */
+   if( astMapGet0I( km, "UNDEF", &ival ) ) {
+      stopit( status, "Error undef-get0" );
+   }
+
+   /* The element accessor must agree with them. */
+   if( astMapGetElemI( km, "UNDEF", 0, &ival ) ) {
+      stopit( status, "Error undef-getelem-i" );
+   }
+
+   if( astMapGetElemC( km, "UNDEF", sizeof( cbuf ), 0, cbuf ) ) {
+      stopit( status, "Error undef-getelem-c" );
+   }
+
+   aval = NULL;
+   if( astMapGetElemA( km, "UNDEF", 0, &aval ) ) {
+      stopit( status, "Error undef-getelem-a" );
+   }
+
+   /* An out-of-range index on an undefined entry must still be reported
+      as a bad index, not silently folded into the "no value" case. This
+      call is expected to raise an error, so use a private status. */
+   local_status = 0;
+   astWatch( &local_status );
+   if( astMapGetElemI( km, "UNDEF", 5, &ival ) ) {
+      stopit( status, "Error undef-getelem-i-oob-result" );
+   }
+   if( local_status != AST__MPVIN ) {
+      stopit( status, "Error undef-getelem-i-oob-status" );
+   }
+   astClearStatus;
+   astWatch( status );
+
+   km = astAnnul( km );
+}
+
+/*
+ * testlockedroundtrip: a locked, non-empty KeyMap must survive a dump
+ * and reload. MapLocked has to be applied after the entries are read,
+ * or every put during the load is refused.
+ */
+static void testlockedroundtrip( int *status ) {
+   AstKeyMap *km;
+   AstKeyMap *km2;
+   AstKeyMap *nested;
+   AstObject *obj;
+   char *dump;
+   int ival;
+   int local_status;
+
+   if( !astOK ) return;
+
+   km = astKeyMap( " " );
+   astMapPut0I( km, "AAA", 1, " " );
+   astMapPut0I( km, "BBB", 2, " " );
+
+   nested = astKeyMap( " " );
+   astMapPut0I( nested, "INNER", 3, " " );
+   astMapPut0A( km, "NEST", nested, " " );
+   nested = astAnnul( nested );
+
+   astSetI( km, "MapLocked", 1 );
+
+   dump = astToString( km );
+   if( !dump ) {
+      stopit( status, "Error locked-dump" );
+      km = astAnnul( km );
+      return;
+   }
+
+   /* Reading back a locked, non-empty KeyMap is expected to succeed,
+      but fails before the entries-then-MapLocked ordering fix. Use a
+      private status so a library error raised inside astFromString
+      does not itself consume the shared status before the failure
+      below can be reported. */
+   local_status = 0;
+   astWatch( &local_status );
+   km2 = astFromString( dump );
+   dump = astFree( dump );
+   astClearStatus;
+   astWatch( status );
+
+   if( local_status != 0 || !km2 ) {
+      stopit( status, "Error locked-reload" );
+   } else {
+      if( !astMapGet0I( km2, "AAA", &ival ) || ival != 1 ) {
+         stopit( status, "Error locked-reload-aaa" );
+      }
+      if( !astGetI( km2, "MapLocked" ) ) {
+         stopit( status, "Error locked-reload-flag" );
+      }
+
+      /* The flag must reach nested KeyMaps too. */
+      if( !astMapGet0A( km2, "NEST", &obj ) ) {
+         stopit( status, "Error locked-reload-nest" );
+      } else {
+         if( !astGetI( obj, "MapLocked" ) ) {
+            stopit( status, "Error locked-reload-nestflag" );
+         }
+         obj = astAnnul( obj );
+      }
+      km2 = astAnnul( km2 );
+   }
+
+   km = astAnnul( km );
+}
+
+/*
+ * testcopyentrycase: a KeyMap copy must express the copied key in the
+ * destination KeyMap's own KeyCase, both when searching the destination
+ * and when storing the entry in it. KeyCase can only be changed while a
+ * KeyMap is empty, so every key a KeyMap holds should be in that
+ * KeyMap's own casing.
+ */
+static void testcopyentrycase( int *status ) {
+   AstKeyMap *src;
+   AstKeyMap *dst;
+   AstKeyMap *bulk;
+   int ival;
+
+   if( !astOK ) return;
+
+/* Source is case sensitive; destination is not. */
+   src = astKeyMap( "KeyCase=1" );
+   dst = astKeyMap( "KeyCase=0" );
+
+   astMapPut0I( src, "MixedKey", 11, " " );
+
+/* The destination already holds the key under its own folded form. */
+   astMapPut0I( dst, "MIXEDKEY", 99, " " );
+
+/* Argument order is (destination, key, source, merge). The merge flag
+   only affects what happens when the entry holds a KeyMap and the
+   destination already has a KeyMap under that key, so it is irrelevant
+   to this integer entry. */
+   astMapCopyEntry( dst, "MixedKey", src, 0 );
+
+   if( !astOK ) {
+      stopit( status, "Error copyentry-status" );
+      astClearStatus;
+   } else {
+
+/* The destination must not have gained a second, differently cased copy
+   of the same logical key. */
+      if( astMapSize( dst ) != 1 ) {
+         printf( "destination has %d entries, expected 1\n",
+                 astMapSize( dst ) );
+         stopit( status, "Error copyentry-dup" );
+      }
+
+/* The copied value must be retrievable under the destination's own
+   casing rule. This is the assertion the lookup-only fix broke. */
+      if( astOK && !astMapGet0I( dst, "MIXEDKEY", &ival ) ) {
+         stopit( status, "Error copyentry-missing" );
+      } else if( astOK && ival != 11 ) {
+         printf( "got %d want 11\n", ival );
+         stopit( status, "Error copyentry-value" );
+      }
+
+/* The key as actually stored must be the destination's folded form. This
+   catches an entry that is findable only because the search and the
+   stored key are wrong in the same way. */
+      if( astOK && strcmp( astMapKey( dst, 0 ), "MIXEDKEY" ) ) {
+         printf( "stored key is '%s', expected 'MIXEDKEY'\n",
+                 astMapKey( dst, 0 ) );
+         stopit( status, "Error copyentry-storedkey" );
+      }
+   }
+
+/* The bulk astMapCopy path shares the same entry-copying helper and has
+   the same defect. A key absent from the destination exercises the
+   new-entry branch. Only run this if the checks above have not already
+   recorded a failure: astMapCopy would be a no-op under a bad status,
+   and the "if( !astOK )" branch below would then call astClearStatus
+   unconditionally, erasing an earlier failure rather than reporting a
+   fresh one of its own. */
+   bulk = astKeyMap( "KeyCase=0" );
+   if( astOK ) {
+      astMapCopy( bulk, src );
+
+      if( !astOK ) {
+         stopit( status, "Error mapcopy-status" );
+         astClearStatus;
+      } else {
+         if( !astMapGet0I( bulk, "MIXEDKEY", &ival ) ) {
+            stopit( status, "Error mapcopy-missing" );
+         } else if( ival != 11 ) {
+            printf( "got %d want 11\n", ival );
+            stopit( status, "Error mapcopy-value" );
+         }
+
+         if( astOK && strcmp( astMapKey( bulk, 0 ), "MIXEDKEY" ) ) {
+            printf( "stored key is '%s', expected 'MIXEDKEY'\n",
+                    astMapKey( bulk, 0 ) );
+            stopit( status, "Error mapcopy-storedkey" );
+         }
+      }
+   }
+
+   src = astAnnul( src );
+   dst = astAnnul( dst );
+   if( bulk ) bulk = astAnnul( bulk );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -366,6 +964,24 @@ int main( void ) {
    astWatch( status );
    astBegin;
 
+   testdumpstable( status );
+
+   testcopyentrycase( status );
+
+   testlockedroundtrip( status );
+
+   testundefelem( status );
+
+   testemptyvector( status );
+
+   testconvstring( status );
+
+   testconvrange( status );
+
+   testrenamelocked( status );
+
+   testiterate( status );
+
    testcasesens( status );
    testsorting( status );
 
@@ -375,6 +991,12 @@ int main( void ) {
    astMapPut0I( map, "Fredi", 1999, "com 1" );
    astMapPut0K( map, "Fredk", (int64_t)1999, "com 1" );
    astMapPut0D( map, "Fredd", 1999.9, "com2 " );
+   astMapPut0D( map, "Negd", -1999.9, "com2 " );
+   astMapPut0F( map, "Negf", -1999.9f, "com2 " );
+   astMapPut0D( map, "Negint", -2.0, "com2 " );
+   astMapPut0D( map, "Neghalf", -2.5, "com2 " );
+   astMapPut0D( map, "Negsmall", -0.6, "com2 " );
+   astMapPut0D( map, "Negtiny", -0.4, "com2 " );
    astMapPut0F( map, "Fredr", 1999.9f, "com2 " );
    astMapPut0C( map, "Fredc", "Hello", " " );
    astMapPut0A( map, "Freda", (AstObject *)astSkyFrame( " " ), " " );
@@ -432,7 +1054,7 @@ int main( void ) {
 
    map2 = (AstKeyMap *)astCopy( (AstObject *)map );
 
-   if( astMapSize( map2 ) != 7 ) {
+   if( astMapSize( map2 ) != 13 ) {
       printf( "%d\n", astMapSize( map2 ) );
       stopit( status, "Error 0" );
    }
@@ -455,6 +1077,8 @@ int main( void ) {
          gota = 1;
       } else if( !gotk && strcmp( k, "Fredk" ) == 0 ) {
          gotk = 1;
+      } else if( strncmp( k, "Neg", 3 ) == 0 ) {
+         /* Entries added to test negative-value rounding; not tracked here. */
       } else {
          stopit( status, "Error badkey" );
       }
@@ -562,6 +1186,62 @@ int main( void ) {
    } else if( ival != 2000 ) {
       printf( "%d\n", ival );
       stopit( status, "Error 15" );
+   }
+
+   /* Negative values must round to nearest, not toward zero. A cast of
+      the form (int)( x + 0.5 ) truncates toward zero and so is wrong for
+      every negative value, exact integers included. */
+   {
+      struct { const char *key; int expect; } negcases[] = {
+         { "Negd",     -2000 },
+         { "Negf",     -2000 },
+         { "Negint",      -2 },
+         { "Neghalf",     -3 },
+         { "Negsmall",    -1 },
+         { "Negtiny",      0 }
+      };
+      short int sval_n;
+      int64_t kval_n;
+      size_t ic;
+      int negfail = 0;
+
+      /* Failures are accumulated in "negfail" and reported with a single
+         stopit() after the loop, rather than calling stopit() inline for
+         each mismatch. stopit() sets the shared inherited status, and once
+         that happens every subsequent AST call in this loop (and the rest
+         of the test) becomes a no-op that reports failure regardless of
+         the data involved. Reporting inline would therefore make every
+         case after the first genuine mismatch look like a failure too,
+         including "Negtiny", which must only fail if its own conversion
+         is wrong. */
+      for( ic = 0; ic < sizeof( negcases ) / sizeof( negcases[ 0 ] ); ic++ ) {
+         if( !astMapGet0I( map2, negcases[ ic ].key, &ival ) ) {
+            printf( "%s\n", negcases[ ic ].key );
+            negfail = 1;
+         } else if( ival != negcases[ ic ].expect ) {
+            printf( "%s: got %d want %d\n", negcases[ ic ].key, ival,
+                    negcases[ ic ].expect );
+            negfail = 1;
+         }
+
+         if( !astMapGet0S( map2, negcases[ ic ].key, &sval_n ) ) {
+            negfail = 1;
+         } else if( sval_n != (short int) negcases[ ic ].expect ) {
+            printf( "%s: got %d want %d\n", negcases[ ic ].key, (int) sval_n,
+                    negcases[ ic ].expect );
+            negfail = 1;
+         }
+
+         if( !astMapGet0K( map2, negcases[ ic ].key, &kval_n ) ) {
+            negfail = 1;
+         } else if( kval_n != (int64_t) negcases[ ic ].expect ) {
+            printf( "%s: got %" PRId64 " want %d\n", negcases[ ic ].key,
+                    kval_n, negcases[ ic ].expect );
+            negfail = 1;
+         }
+      }
+
+      if( negfail ) stopit( status, "Error 14neg" );
    }
 
    if( !astMapGet0K( map2, "Fredd", &kval ) ) {

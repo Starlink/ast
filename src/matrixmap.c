@@ -199,6 +199,10 @@ f     The MatrixMap class does not define any new routines beyond those
 *        only advanced the output pointer for good elements, leaving an
 *        uninitialised slot that the MatrixMap constructor then read. Such
 *        a split is now rejected.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
 *class--
 */
 
@@ -4201,7 +4205,7 @@ static void PermGet( AstPermMap *map, int **outperm, int **inperm,
 /* If the output axis values are different, then the output axis value
    must be copied from the input axis value. */
          } else {
-            outprm[ i ] = (int) ( op + 0.5 );
+            outprm[ i ] = (int) round( op );
          }
       }
    }
@@ -4229,7 +4233,7 @@ static void PermGet( AstPermMap *map, int **outperm, int **inperm,
             nc++;
 
          } else {
-            inprm[ i ] = (int) ( ip + 0.5 );
+            inprm[ i ] = (int) round( ip );
          }
       }
    }

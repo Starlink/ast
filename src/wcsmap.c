@@ -224,6 +224,14 @@ f     The WcsMap class does not define any new routines beyond those
 *     22-APR-2026 (TJ):
 *        Fix memory leak in FreePV when called with error status set.
 *        astGetNin returns 0 on error, preventing PV array cleanup.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
+*     15-AUG-2026 (TIMJ):
+*        Discard the record that the WcsMap has been simplified when
+*        FITSProj or LonCheck is set or cleared, since LonCheck changes the
+*        values the WcsMap produces and FITSProj changes how it is used.
 *class--
 */
 
@@ -3666,7 +3674,7 @@ static void PermGet( AstPermMap *map, int **outperm, int **inperm,
 /* If the output axis values are different, then the output axis value
    must be copied from the input axis value. */
          } else {
-            outprm[ i ] = (int) ( op + 0.5 );
+            outprm[ i ] = (int) round( op );
          }
       }
    }
@@ -3694,7 +3702,7 @@ static void PermGet( AstPermMap *map, int **outperm, int **inperm,
             nc++;
 
          } else {
-            inprm[ i ] = (int) ( ip + 0.5 );
+            inprm[ i ] = (int) round( ip );
          }
       }
    }
@@ -4739,10 +4747,10 @@ f     AST_WRITE routine,
 *        All Frames have this attribute.
 *att-
 */
-astMAKE_CLEAR(WcsMap,FITSProj,fits_proj,-INT_MAX)
+astMAKE_CLEAR(WcsMap,FITSProj,fits_proj,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(WcsMap,FITSProj,int,1,( ( this->fits_proj != -INT_MAX ) ?
                                        this->fits_proj : 1 ))
-astMAKE_SET(WcsMap,FITSProj,int,fits_proj,( value != 0 ))
+astMAKE_SET(WcsMap,FITSProj,int,fits_proj,(astClearIsSimple(this),( value != 0 )))
 astMAKE_TEST(WcsMap,FITSProj,( this->fits_proj != -INT_MAX ))
 
 /*
@@ -4814,10 +4822,10 @@ astMAKE_TEST(WcsMap,TPNTan,( this->tpn_tan != -INT_MAX ))
 *        All Frames have this attribute.
 *att-
 */
-astMAKE_CLEAR(WcsMap,LonCheck,loncheck,-INT_MAX)
+astMAKE_CLEAR(WcsMap,LonCheck,loncheck,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(WcsMap,LonCheck,int,1,( ( this->loncheck != -INT_MAX ) ?
                                        this->loncheck : 1 ))
-astMAKE_SET(WcsMap,LonCheck,int,loncheck,( value != 0 ))
+astMAKE_SET(WcsMap,LonCheck,int,loncheck,(astClearIsSimple(this),( value != 0 )))
 astMAKE_TEST(WcsMap,LonCheck,( this->loncheck != -INT_MAX ))
 
 /* ProjP. */

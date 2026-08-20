@@ -17,6 +17,53 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+*** IMPORTANT - a change that may break existing code ***
+
+- Changing an attribute of a Mapping that has been cloned or included in
+  another Object now reports an error, for every Mapping class. SUN/210
+  ("Changing Attributes of a Mapping") has always stated that Mappings are
+  immutable in that situation, and that AST reports an error if the rule is
+  broken, but the rule was only enforced by some classes. It is now enforced
+  by all of them, so code that changed one of the attributes below through a
+  pointer to a shared Mapping used to succeed silently and will now fail with
+  the AST__IMMUT error status:
+
+     IntraMap    IntraFlag
+     MathMap     Seed, SimpFI, SimpIF
+     PolyMap     IterInverse, NiterInverse, TolInverse
+     SplineMap   InvNiter, InvTol, OutUnit
+
+  ZoomMap, GrismMap, PcdMap, LutMap and SphMap already enforced it and are
+  unchanged.
+
+  The rule exists because there is no such thing as changing one reference to
+  a Mapping: every holder of a pointer to it sees the change, including any
+  CmpMap, TranMap or FrameSet that contains it, whose behaviour may then
+  silently stop matching what it was built to do. Code that hit the error was
+  therefore already at risk of acting on a Mapping it did not own.
+
+  If your code reports AST__IMMUT after this change, set the attribute before
+  the Mapping is shared - that is, before it is passed to a constructor such
+  as astCmpMap or astFrameSet, and before any astClone of it is taken. If you
+  need to change an attribute of a Mapping that is already shared, take an
+  astCopy of it and change the copy; a copy has a reference count of one and
+  can be changed freely. A Mapping's reference count is readable through its
+  RefCount attribute, which is one exactly when the Mapping can be changed.
+
+  The Invert attribute is not subject to the rule and can still be changed at
+  any time.
+
+- The IsSimp item written to a Channel when a Mapping is saved now appears on
+  exactly those Mappings that astSimplify produced, rather than depending on
+  which parts of a Mapping tree happened to have been inspected beforehand.
+  Anything comparing saved Mappings byte for byte, or reproducing AST's
+  output from another implementation, will see IsSimp on more nodes than
+  before and in a position that can now be predicted from the Mapping tree
+  alone. The IsSimple attribute keeps its documented meaning and once again
+  agrees with the saved item. Inverting a simplified Mapping resets IsSimple
+  to zero, since the inverse may simplify differently, and restoring the
+  original Invert value restores it.
+
 - Added a new README.md file to provide simple instructions on how to build
   and test the library.
 - Added a new experimental build system based on CMake. This build system

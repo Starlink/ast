@@ -66,10 +66,10 @@ MAPA_B  = '        '           / First component Mapping
 BEGAST_K= 'MatrixMap'          / Matrix transformation                          
 NIN_D   =                    2 / Number of input coordinates                    
 ISA_F   = 'Mapping '           / Mapping between coordinate systems             
-M0_A    =  -3.1970486649575151E-5 / Forward matrix value                        
-M1_A    =  -1.4908082756862879E-5 / Forward matrix value                        
-M2_A    =  1.4908082756862879E-5 / Forward matrix value                         
-M3_A    =  -3.1970486649575151E-5 / Forward matrix value                        
+M0_A    = -3.1970486649575151E-5 / Forward matrix value                         
+M1_A    = -1.4908082756862879E-5 / Forward matrix value                         
+M2_A    = 1.4908082756862879E-5 / Forward matrix value                          
+M3_A    = -3.1970486649575151E-5 / Forward matrix value                         
 IM0_A   =  -25692.252166853508 / Inverse matrix value                           
 IM1_A   =   11980.493938422162 / Inverse matrix value                           
 IM2_A   =  -11980.493938422162 / Inverse matrix value                           
@@ -97,7 +97,6 @@ ISA_I   = 'Mapping '           / Mapping between coordinate systems
 MAPA_D  = '        '           / First component Mapping                        
 BEGAST_O= 'PermMap '           / Coordinate permutation                         
 NIN_H   =                    2 / Number of input coordinates                    
-INVERT_B=                    1 / Mapping inverted                               
 ISA_J   = 'Mapping '           / Mapping between coordinate systems             
 OUT1_A  =                    2 / Output coordinate 1 = input coordinate 2       
 OUT2_A  =                    1 / Output coordinate 2 = input coordinate 1       
@@ -113,7 +112,7 @@ MAPA_E  = '        '           / First component Mapping
 BEGAST_Q= 'SphMap  '           / Cartesian to Spherical mapping                 
 NIN_J   =                    3 / Number of input coordinates                    
 NOUT_A  =                    2 / Number of output coordinates                   
-INVERT_C=                    1 / Mapping inverted                               
+INVERT_B=                    1 / Mapping inverted                               
 ISA_L   = 'Mapping '           / Mapping between coordinate systems             
 UNTRD_A =                    1 / All input vectors have unit length             
 PLRLG_A =                  0.0 / Polar longitude (rad.s)                        
@@ -313,10 +312,4 @@ HDUCLAS2= 'VARIANCE'           / Array component subclass
 EXTNAME = 'VARIANCE'           / Array component                                
 HDSTYPE = 'NDF     '           / HDS data type of the component                 
                                                                                 
-CD1_1   =      -0.001831773954 / Transformation matrix element                  
-CD1_2   =      -8.541702226E-4 / Transformation matrix element                  
-CD2_1   =      0.0008541702226 / Transformation matrix element                  
-CD2_2   =      -0.001831773954 / Transformation matrix element                  
-RADECSYS= 'FK5     '           / Reference frame for RA/DEC values              
-DATE-OBS= '2007-04-30T15:13:53.717' / Date of observation                       
 END                                                                             

@@ -7,6 +7,7 @@ CRVAL2  =                 45.0 / Reference Dec (deg)
 CRPIX1  =                 50.5 / Reference pixel on axis 1                      
 CRPIX2  =                 50.5 / Reference pixel on axis 2                      
 RADESYS = 'GAPPT   '           / Geocentric apparent coordinates                
+MJD-OBS =              51544.5 / MJD of observation (J2000.0)                   
 WCSAXES =                    2 / Number of WCS axes                             
 CD1_1   =            -2.778E-4 / Transformation matrix element                  
 CD2_2   =            0.0002778 / Transformation matrix element                  

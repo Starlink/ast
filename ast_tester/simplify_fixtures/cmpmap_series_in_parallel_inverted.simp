@@ -6,6 +6,7 @@
     MapA = 	# First component Mapping
        Begin CmpMap 	# Compound Mapping
           Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           InvA = 1 	# First Mapping used in inverse direction
           InvB = 1 	# Second Mapping used in inverse direction
@@ -31,6 +32,7 @@
     MapB = 	# Second component Mapping
        Begin CmpMap 	# Compound Mapping
           Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           MapA = 	# First component Mapping
              Begin MathMap 	# Transformation using mathematical functions

@@ -1377,6 +1377,36 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        the cdelt term was doubled. Dormant while AddEncodingFrame forces
 *        the SpecFrame Unit to "Hz" (specfactor == 1), but wrong for any
 *        non-Hz spectral unit.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than truncation when reading the grism
+*        interference order from PVi_1, so that negative orders are
+*        preserved rather than being rounded toward zero.
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
+*     9-AUG-2026 (TIMJ):
+*        In EncodeFloat, close the gap when removing a redundant leading
+*        zero from an exponent if there is no leading padding to absorb
+*        the shift, rather than pushing the value one column right.
+*     9-AUG-2026 (TIMJ):
+*        In WcsNative, use a copy of the PermMap for the axis
+*        rearrangement stage, so that the PermMap encapsulated in the
+*        earlier CmpMap does not acquire an Invert flag afterwards.
+*     9-AUG-2026 (TIMJ):
+*        Only read the legacy CDjjjiii matrix in SpecTrans under the
+*        FITS-IRAF encoding, which is the only encoding that uses the
+*        values, so the cards are not consumed and discarded under other
+*        encodings.
+*     9-AUG-2026 (TIMJ):
+*        Consume every copy of a repeated keyword in SpecTrans, matching
+*        WcsFcRead, and respect the MJD-OBS exception so that whether that
+*        card survives a read no longer depends on whether DATE-OBS is
+*        present.
+*     9-AUG-2026 (TIMJ):
+*        Use round() when converting the WCSAXES value read from the header
+*        into an axis count, so that a value stored as a FITS float that is
+*        marginally below an integer is not truncated to the integer below.
 *class--
 */
 
@@ -2142,6 +2172,7 @@ static void MakeBanner( const char *, const char *, const char *, char [ AST__FI
 static void MakeIndentedComment( int, char, const char *, const char *, char [ AST__FITSCHAN_FITSCARDLEN - FITSNAMLEN + 1], int * );
 static void MakeIntoComment( AstFitsChan *, const char *, const char *, int * );
 static void MakeInvertable( double **, int, double *, int * );
+static void MarkAllCards( AstFitsChan *, const char *, const char *, const char *, int * );
 static void MarkCard( AstFitsChan *, int * );
 static void NewCard( AstFitsChan *, const char *, int, const void *, const char *, int, int * );
 static void PreQuote( const char *, char [ AST__FITSCHAN_FITSCARDLEN - FITSNAMLEN - 3 ], int * );
@@ -9863,13 +9894,20 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
          w += 1;
       }
 
-/* If a leading zero was found, shuffle everything down from the start of
-   the string by one character, over-writing the redundant zero, and insert
-   a space at the start of the string. */
+/* If a leading zero was found, remove it. If there is a leading space to
+   absorb the change, shuffle everything down from the start of the
+   string by one character, over-writing the redundant zero, and insert a
+   space at the start; this keeps the field right justified within the
+   desired field width. Otherwise there is no padding to consume, so
+   close the gap instead and let the string shorten. */
       if( w ) {
-         r = w - 1 ;
-         while( w != buf ) *(w--) = *(r--);
-         *w = ' ';
+         if( buf[ 0 ] == ' ' ) {
+            r = w - 1 ;
+            while( w != buf ) *(w--) = *(r--);
+            *w = ' ';
+         } else {
+            memmove( w, w + 1, strlen( w + 1 ) + 1 );
+         }
       }
 
 /* If the used field width was too large, reduce it and try again, so
@@ -10695,7 +10733,7 @@ static int FindLonLatSpecAxes( FitsStore *store, char s, int *axlon, int *axlat,
    of pixel axes. */
    dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
    if( dval != AST__BAD ) {
-      wcsaxes = (int) dval + 0.5;
+      wcsaxes = (int) round( dval );
    } else {
       wcsaxes = store->naxis;
    }
@@ -14319,7 +14357,7 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
       pv = GetItem( &(store->pv), i, 0, s, NULL, method, class, status );
       astSetGrismG( gmap, ( pv != AST__BAD )?pv:0.0 );
       pv = GetItem( &(store->pv), i, 1, s, NULL, method, class, status );
-      astSetGrismM( gmap, ( pv != AST__BAD )?(int) ( pv + 0.5 ):0);
+      astSetGrismM( gmap, ( pv != AST__BAD )?(int) round( pv ):0);
       pv = GetItem( &(store->pv), i, 2, s, NULL, method, class, status );
       astSetGrismAlpha( gmap, ( pv != AST__BAD )?pv*AST__DD2R:0.0 );
       pv = GetItem( &(store->pv), i, 3, s, NULL, method, class, status );
@@ -18358,8 +18396,12 @@ static int GetValue2( AstFitsChan *this1, AstFitsChan *this2, const char *keynam
 *     -  A value of zero is returned if an error has already occurred,
 *     or if an error occurs within this function.
 *     -  If the card is found in the first FitsChan, it is not marked as
-*     having been used. If the card is found in the second FitsChan, it is
-*     marked as having been used.
+*     having been used. If the card is found in the second FitsChan, every
+*     card for that keyword in the second FitsChan is marked as having
+*     been used, not just the one supplying the returned value. This
+*     matters for headers which concatenate several HDUs' worth of WCS
+*     cards under the same keyword: the value comes from the first such
+*     card, but a read must not leave the later copies behind.
 */
 
 /* Local Variables: */
@@ -18373,7 +18415,12 @@ static int GetValue2( AstFitsChan *this1, AstFitsChan *this2, const char *keynam
    be done, if required, once the second FitsChan has been searched). */
    ret = GetValue( this1, keyname, type, value, 0, 0, method, class, status );
    if( ! ret ) {
-      ret = GetValue( this2, keyname, type, value, report, 1, method, class, status );
+      ret = GetValue( this2, keyname, type, value, report, 0, method, class, status );
+
+/* The value just obtained is that of the first card in "this2" matching
+   "keyname", but if the keyword occurs more than once in "this2" every
+   occurrence needs to be marked as used, not just the first. */
+      if( ret ) MarkAllCards( this2, keyname, method, class, status );
    }
 
 /* If an error has occurred, return 0. */
@@ -23059,6 +23106,80 @@ static void MarkCard( AstFitsChan *this, int *status ){
    }
 }
 
+static void MarkAllCards( AstFitsChan *this, const char *name,
+                          const char *method, const char *class,
+                          int *status ){
+
+/*
+*  Name:
+*     MarkAllCards
+
+*  Purpose:
+*     Mark every card for a given keyword as having been read into an
+*     AST object.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+
+*     void MarkAllCards( AstFitsChan *this, const char *name,
+*                        const char *method, const char *class,
+*                        int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     The whole FitsChan is searched for cards referring to the given
+*     keyword, and every one found is marked as having been "provisionally
+*     used" in the construction of an AST object (see MarkCard). This
+*     differs from marking a single card in that a header containing
+*     several copies of the same keyword (for instance because it
+*     concatenates the primary and extension headers of a multi-HDU FITS
+*     file) has all of its copies consumed, not just the first one found.
+
+*  Parameters:
+*     this
+*        Pointer to the FitsChan containing the list of cards.
+*     name
+*        Pointer to a string holding the keyword name.
+*     method
+*        Pointer to a string holding the name of the calling method.
+*     class
+*        Pointer to a string holding the name of the object class.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     -  The current card on entry is restored before returning, so this
+*     function has no effect on any card sweep the caller may be part way
+*     through.
+*/
+
+/* Local Variables: */
+   int icard;             /* Index of current card on entry */
+
+/* Check the global status and supplied keyword name. */
+   if( !astOK || !name ) return;
+
+/* Save the current card index, and rewind the FitsChan so that the
+   whole list of cards is searched. */
+   icard = astGetCard( this );
+   astClearCard( this );
+
+/* Search forward through the FitsChan, marking every card whose keyword
+   name matches the supplied name. */
+   while( FindKeyCard( this, name, method, class, status ) ){
+      MarkCard( this, status );
+      MoveCard( this, 1, method, class, status );
+   }
+
+/* Reinstate the original current card index. */
+   astSetCard( this, icard );
+}
+
 static int MoveCard( AstFitsChan *this, int move, const char *method,
                       const char *class, int *status ){
 
@@ -24607,7 +24728,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
 /* Save the number of wcs axes */
       val = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
       if( val != AST__BAD ) {
-         naxis = (int) ( val + 0.5 );
+         naxis = (int) round( val );
          SetValue( this, FormatKey( "WCSAXES", -1, -1, s, status ),
                    &naxis, AST__INT, "Number of WCS axes", status );
       } else {
@@ -28977,8 +29098,8 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                            pc = coeffs;
                            for( icoeff = 0; icoeff < ncoeff; icoeff++ ) {
                               if( inaxes[ 0 ] < inaxes [ 1 ] ) {
-                                 i = (int) ( pc[ 2 ] + 0.5 );
-                                 jm = (int) ( pc[ 3 ] + 0.5 );
+                                 i = (int) round( pc[ 2 ] );
+                                 jm = (int) round( pc[ 3 ] );
                                  if( pc[ 1 ] == 1 ) {
                                     if( i > aimax ) aimax = i;
                                     if( jm > ajmmax ) ajmmax = jm;
@@ -28987,8 +29108,8 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                                     if( jm > bjmmax ) bjmmax = jm;
                                  }
                               } else {
-                                 i = (int) ( pc[ 3 ] + 0.5 );
-                                 jm = (int) ( pc[ 2 ] + 0.5 );
+                                 i = (int) round( pc[ 3 ] );
+                                 jm = (int) round( pc[ 2 ] );
                                  if( pc[ 1 ] == 1 ) {
                                     if( i > bimax ) bimax = i;
                                     if( jm > bjmmax ) bjmmax = jm;
@@ -29029,16 +29150,16 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                                  } else {
                                     item = fwd ? &(store->bsip) : &(store->bpsip);
                                  }
-                                 i = (int) ( pc[ 2 ] + 0.5 );
-                                 jm = (int) ( pc[ 3 ] + 0.5 );
+                                 i = (int) round( pc[ 2 ] );
+                                 jm = (int) round( pc[ 3 ] );
                               } else {
                                  if( pc[ 1 ] == 1 ) {
                                     item = fwd ? &(store->bsip) : &(store->bpsip);
                                  } else {
                                     item = fwd ? &(store->asip) : &(store->apsip);
                                  }
-                                 i = (int) ( pc[ 3 ] + 0.5 );
-                                 jm = (int) ( pc[ 2 ] + 0.5 );
+                                 i = (int) round( pc[ 3 ] );
+                                 jm = (int) round( pc[ 2 ] );
                               }
 
                               val = pc[ 0 ];
@@ -31272,7 +31393,14 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 
 /* CDjjjiii
    -------- */
-         if( s == ' ' && astKeyFields( this, "CD%3d%3d", 1, &naxis, lbnd ) ){
+
+/* This legacy IRAF matrix form is only used - and its cards only
+   consumed - under the FITS-IRAF encoding, since that is the only
+   encoding that translates it into PCj_i values. Skipping the scan
+   under other encodings leaves the cards unread (and so unused) so
+   that they can still reach the output. */
+         if( encoding == FITSIRAF_ENCODING && s == ' ' &&
+             astKeyFields( this, "CD%3d%3d", 1, &naxis, lbnd ) ){
 
 /* Do each row in the matrix. */
             for( j = 0; j < naxis; j++ ){
@@ -31287,14 +31415,12 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 
 /* If found, save it with name PCj_i, and ensure the default value of 1.0
    is used for CDELT. */
-                     if( encoding == FITSIRAF_ENCODING ){
-                        SetValue( ret, FormatKey( "PC", j + 1, i + 1, ' ', status ),
-                                  (void *) &dval, AST__FLOAT, NULL, status );
-                        dval = 1.0;
-                        SetValue( ret, FormatKey( "CDELT", j + 1, -1, s, status ),
-                                  (void *) &dval, AST__FLOAT, NULL, status );
-                        gotpcij = 1;
-                     }
+                     SetValue( ret, FormatKey( "PC", j + 1, i + 1, ' ', status ),
+                               (void *) &dval, AST__FLOAT, NULL, status );
+                     dval = 1.0;
+                     SetValue( ret, FormatKey( "CDELT", j + 1, -1, s, status ),
+                               (void *) &dval, AST__FLOAT, NULL, status );
+                     gotpcij = 1;
                   }
                }
             }
@@ -31706,10 +31832,15 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
          if( GetValue2( ret, this, keyname, AST__STRING, (void *) &cval, 0, method,
                        class, status ) ){
 
-/* Ignore DATE-OBS values if the header contains an MJD-OBS value */
+/* Ignore DATE-OBS values if the header contains an MJD-OBS value. MJD-OBS
+   is read here purely as a test for its presence, so it must not be
+   marked as used: whether that card survives a read must not depend on
+   whether DATE-OBS happens to sit alongside it. */
             strcpy( keyname, "MJD-OBS" );
-            if( !GetValue2( ret, this, keyname, AST__FLOAT, (void *) &dval, 0,
-                           method, class, status ) ){
+            if( !GetValue( ret, keyname, AST__FLOAT, (void *) &dval, 0, 0,
+                          method, class, status ) &&
+                !GetValue( this, keyname, AST__FLOAT, (void *) &dval, 0, 0,
+                          method, class, status ) ){
 
 /* Get the corresponding mjd-obs value, checking that DATE-OBS is valid. */
                dval = DateObs( cval, status );
@@ -33545,7 +33676,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
    of pixel axes. */
    dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
    if( dval != AST__BAD ) {
-      wcsaxes = (int) dval + 0.5;
+      wcsaxes = (int) round( dval );
    } else {
       wcsaxes = store->naxis;
    }
@@ -33666,7 +33797,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
                                  dval = GetItem( &(store->pv), iiaxis, 3, s,
                                                  NULL, method, class, status );
                                  if( dval != AST__BAD ) {
-                                    ival = (int)( dval + 0.5 );
+                                    ival = (int)round( dval );
                                  } else {
                                     ival = 1;
                                  }
@@ -33757,7 +33888,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
                      dval = GetItem( &(store->pv), iaxis, 4, s,
                                      NULL, method, class, status );
                      if( dval != AST__BAD ) {
-                        interp = (int)( dval + 0.5 );
+                        interp = (int)round( dval );
                      } else {
                         interp = 0;
                      }
@@ -37056,7 +37187,7 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    store a WCSAXES keyword. */
       val = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
       if( val != AST__BAD ) {
-         nwcs = (int) ( val + 0.5 );
+         nwcs = (int) round( val );
       } else {
          nwcs = GetMaxJM( &(store->crpix), s, status ) + 1;
          if( nwcs != 0 && nwcs != naxis ) val = (double) nwcs;
@@ -37802,7 +37933,7 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
    of pixel axes. */
    dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
    if( dval != AST__BAD ) {
-      wcsaxes = (int) dval + 0.5;
+      wcsaxes = (int) round( dval );
    } else {
       wcsaxes = store->naxis;
    }
@@ -38147,6 +38278,7 @@ static AstMapping *WcsNative( AstFitsChan *this, FitsStore *store, char s,
    AstMatrixMap *matmap2;     /* Another MatrixMap */
    AstMatrixMap *matmap;      /* A MatrixMap */
    AstPermMap *permmap;       /* A PermMap */
+   AstPermMap *permmap2;      /* A copy of the PermMap */
    AstSphMap *sphmap;         /* A SphMap */
    AstUnitMap *unitmap;       /* A UnitMap */
    char buf[150];             /* Message buffer */
@@ -38401,14 +38533,18 @@ static AstMapping *WcsNative( AstFitsChan *this, FitsStore *store, char s,
          new = astAnnul( new );
          new = (AstMapping *) cmpmap;
 
-/* Now invert the PermMap, so that it re-arranges the axes back into
-   their original order. This is the mapping described as stage 3 in
-   the prologue. */
-         astInvert( permmap );
+/* Take a copy for stage 3 and invert that, so that it re-arranges the
+   axes back into their original order. A copy is used because astCmpMap
+   clones rather than copies its components, so inverting the original
+   would alter the PermMap already encapsulated in the stage 1 CmpMap
+   and leave it carrying a flag set after encapsulation. */
+         permmap2 = astCopy( permmap );
+         permmap = astAnnul( permmap );
+         astInvert( permmap2 );
 
 /* And finally.... add this inverted PermMap onto the end of the CmpMap. */
-         cmpmap = astCmpMap( new, permmap, 1, "", status );
-         permmap = astAnnul( permmap );
+         cmpmap = astCmpMap( new, permmap2, 1, "", status );
+         permmap2 = astAnnul( permmap2 );
          new = astAnnul( new );
          new = (AstMapping *) cmpmap;
       }
