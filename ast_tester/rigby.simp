@@ -6,6 +6,7 @@
        Begin PermMap 	# Coordinate permutation
           Nin = 2 	# Number of input coordinates
           Nout = 3 	# Number of output coordinates
+          IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           Out1 = 1 	# Output coordinate 1 = input coordinate 1
           Out2 = -1 	# Output coordinate 2 = constant no. 1
@@ -23,6 +24,7 @@
           MapA = 	# First component Mapping
              Begin MatrixMap 	# Matrix transformation
                 Nin = 3 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
              IsA Mapping 	# Mapping between coordinate systems
                 M0 = 8.1296825791877598 	# Forward matrix value
                 M1 = 0.58230800408075301 	# Forward matrix value
@@ -52,6 +54,7 @@
                 MapA = 	# First component Mapping
                    Begin CmpMap 	# Compound Mapping
                       Nin = 3 	# Number of input coordinates
+                      IsSimp = 1 	# Mapping has been simplified
                    IsA Mapping 	# Mapping between coordinate systems
                       MapA = 	# First component Mapping
                          Begin WinMap 	# Map one window on to another
@@ -72,6 +75,7 @@
                             MapA = 	# First component Mapping
                                Begin CmpMap 	# Compound Mapping
                                   Nin = 2 	# Number of input coordinates
+                                  IsSimp = 1 	# Mapping has been simplified
                                IsA Mapping 	# Mapping between coordinate systems
                                   MapA = 	# First component Mapping
                                      Begin MatrixMap 	# Matrix transformation

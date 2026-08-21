@@ -215,11 +215,10 @@
     Ncoord = 1 	# Number of AstroCoords elements
     Coord1 = 	# AstroCoords number 1
        Begin KeyMap 	# Map of key/value pairs
-          KyCas = 1 	# Are keys case sensitive?
           MapSz = 16 	# Size of hash table
           MemCnt = 11 	# Total member count
-          Key1 = "Size" 	# Item name
-          Com1 = "AstroCoords size region" 	# Item comment
+          Key1 = "Error" 	# Item name
+          Com1 = "AstroCoords error region" 	# Item comment
           Typ1 = 4 	# Item data type (AST Object)
           Val1 = 	# Item value
              Begin Box 	# Axis intervals
@@ -427,8 +426,8 @@
                    End PointSet
              IsA Region 	# An area within a coordinate system
              End Box
-          Key4 = "Error" 	# Item name
-          Com4 = "AstroCoords error region" 	# Item comment
+          Key4 = "Size" 	# Item name
+          Com4 = "AstroCoords size region" 	# Item comment
           Typ4 = 4 	# Item data type (AST Object)
           Val4 = 	# Item value
              Begin Box 	# Axis intervals
