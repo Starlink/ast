@@ -51,6 +51,7 @@ ISA_C   = 'Mapping '           / Mapping between coordinate systems
 MAPA_A  = '        '           / First component Mapping                        
 BEGAST_I= 'MatrixMap'          / Matrix transformation                          
 NIN_B   =                    2 / Number of input coordinates                    
+ISSIMP_B=                    1 / Mapping has been simplified                    
 ISA_D   = 'Mapping '           / Mapping between coordinate systems             
 M0_A    = -1.5845078730445003E-6 / Forward matrix value                         
 M1_A    = -9.2521190078721999E-5 / Forward matrix value                         
