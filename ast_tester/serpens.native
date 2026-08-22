@@ -54,6 +54,7 @@ ISA_C   = 'Mapping '           / Mapping between coordinate systems
 MAPA_A  = '        '           / First component Mapping                        
 BEGAST_I= 'ShiftMap'           / Shift each coordinate axis                     
 NIN_B   =                    2 / Number of input coordinates                    
+ISSIMP_B=                    1 / Mapping has been simplified                    
 ISA_D   = 'Mapping '           / Mapping between coordinate systems             
 SFT1_A  =           -75.910204 / Shift for axis 1                               
 SFT2_A  =           -60.359184 / Shift for axis 2                               
