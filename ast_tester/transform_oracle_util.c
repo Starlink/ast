@@ -17,6 +17,10 @@ int oracle_within_tol( double got, double ref, double rtol, double atol ) {
     int ref_bad = ( ref == AST__BAD );
     if ( got_bad || ref_bad ) return ( got_bad && ref_bad );
     if ( isnan( got ) || isnan( ref ) ) return 0;
+    /* An overflow (e.g. a MathMap exp) yields an infinity, and no tolerance
+       expression can compare one: got - ref is NaN for two infinities.  Two
+       infinities of the same sign are an exact match; anything else is not. */
+    if ( isinf( got ) || isinf( ref ) ) return ( got == ref );
     return fabs( got - ref ) <= atol + rtol * fabs( ref );
 }
 
