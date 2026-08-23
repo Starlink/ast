@@ -1706,11 +1706,17 @@ static void gen_negative_fixtures_2(const char *dir) {
        decomposition. Every component is a MathMap, which merges with nothing,
        so neither the inner series pair nor the outer parallel pair can reduce
        on its own; the only thing on offer is the decomposition the mode
-       mismatch refuses. ZoomMap components would fuse and hide it. */
+       mismatch refuses. ZoomMap components would fuse and hide it.
+
+       The expressions stay within range over the oracle's +/-1000 sampling
+       interval. MathMap turns an overflow into AST__BAD only when libm sets
+       errno to ERANGE (mathmap.c:2172), which glibc does and Apple's libm does
+       not, so an expression that overflows records as AST__BAD on one platform
+       and as an infinity on the other and no tolerance can bridge the two. */
     {
         if (!astOK) astClearStatus;
         const char *f1[] = {"y=x*x+1"}; const char *i1[] = {"x=sqrt(y-1)"};
-        const char *f2[] = {"y=exp(x)"}; const char *i2[] = {"x=log(y)"};
+        const char *f2[] = {"y=3*x+2"}; const char *i2[] = {"x=(y-2)/3"};
         const char *f3[] = {"y=atan(x)"}; const char *i3[] = {"x=tan(y)"};
         AstMathMap *m1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
         AstMathMap *m2 = astMathMap(1, 1, 1, f2, 1, i2, " ");
@@ -1804,7 +1810,7 @@ static void gen_negative_fixtures_3(const char *dir) {
         double ina[] = {0, 0}, inb[] = {1, 1};
         double outa[] = {1, 2}, outb[] = {4, 6};
         const char *f1[] = {"y=x*x+1"}; const char *i1[] = {"x=sqrt(y-1)"};
-        const char *f2[] = {"y=exp(x)"}; const char *i2[] = {"x=log(y)"};
+        const char *f2[] = {"y=3*x+2"}; const char *i2[] = {"x=(y-2)/3"};
         AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, " ");
         AstMathMap *m1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
         AstMathMap *m2 = astMathMap(1, 1, 1, f2, 1, i2, " ");
@@ -3255,12 +3261,16 @@ static void gen_audit_gap_fixtures(const char *dir) {
        makes no change. A helper that nominated the expanded members instead of
        composing them would still find nothing here, which is the point -- this
        pins the shape as untouched so a future change cannot quietly start
-       rewriting it. */
+       rewriting it.
+
+       Both compositions stay in range over the oracle's +/-1000 sampling
+       interval; see the note on gen_negative_fixtures cmpmap-04 for why an
+       overflowing expression cannot be recorded portably. */
     {
         const char *f1[] = {"y=x*x+1"};
         const char *i1[] = {"x=sqrt(y-1)"};
-        const char *f2[] = {"y=exp(x)"};
-        const char *i2[] = {"x=log(y)"};
+        const char *f2[] = {"y=3*x+2"};
+        const char *i2[] = {"x=(y-2)/3"};
         AstMathMap *a1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
         AstMathMap *b1 = astMathMap(1, 1, 1, f2, 1, i2, " ");
         AstMathMap *a2 = astMathMap(1, 1, 1, f2, 1, i2, " ");
