@@ -127,7 +127,7 @@ permutation arrays.
 | cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | `- (requires deep internal nesting)` | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-08 | -- | focused | `- (no fixture)` | Guard: re-arranged parallel CmpMaps do not simplify | Two series CmpMaps in parallel whose rearranged pairings remain irreducible |
 | cmpmap-10 | -- | cascade | `- (no fixture)` | Guard: two CmpMaps are not both parallel, or list is not series | Two adjacent CmpMaps where at least one is series |
-| cmpmap-11 | -- | cascade | `- (no fixture)` | Parallel-in-series pairing produces no simplification | Two parallel CmpMaps in series with all irreducible sub-mappings |
+| cmpmap-11 | neg_parpair_aligned_irreducible.map | cascade | `+` | Parallel-in-series pairing produces no simplification | Two parallel CmpMaps in series with all irreducible sub-mappings |
 | cmpmap-12 | -- | focused | `- (requires deep internal nesting)` | Guard: earlier branch already succeeded (result != -1) | Any case where a prior branch already simplified |
 | cmpmap-13 | -- | focused | `- (requires deep internal nesting)` | Guard: CmpMap at position 0 (no preceding neighbour) | CmpMap first in mapping list |
 | cmpmap-14 | -- | focused | `- (no fixture)` | Guard: predecessor is not a PermMap | Parallel CmpMap preceded by non-PermMap |

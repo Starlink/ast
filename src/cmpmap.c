@@ -161,6 +161,12 @@ f     The CmpMap class does not define any new routines beyond those
 *        cause other Mappings to change.
 *     31-JUL-2020 (DSB):
 *        Modify Simplify to honour the RESTRICTED_SIMPLIFY and ALLOW_SIMPLIFY flags.
+*     23-AUG-2026 (TIMJ):
+*        In MapMerge, when combining parallel CmpMaps in series, test whether
+*        each aligned series composition simplified before annulling the
+*        pointer being tested. The annul happened first, so the test always
+*        reported a simplification and the pair was rebuilt even when no
+*        component reduced.
 *class--
 */
 
@@ -1720,12 +1726,12 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                            submap1 = astAnnul( submap1 );
                            submap2 = astAnnul( submap2 );
                            tmap2 = astSimplify( tmap );
-                           tmap = astAnnul( tmap );
 
 /* Note if any simplification took place. */
                            if( tmap != tmap2 ||
                                astGetInvert( tmap ) != astGetInvert( tmap2 ) )
                                            simpler = 1;
+                           tmap = astAnnul( tmap );
 
 /* Add the simplifed Mapping into the total merged Mapping (a parallel
    CmpMap). */

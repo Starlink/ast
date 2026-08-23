@@ -13053,6 +13053,58 @@
                        BAD                       BAD
                        BAD                       BAD
 
+[simplify_fixtures/neg_parpair_aligned_irreducible.map  nin=2 nout=2 dir=forward]
+                     -1000                    -1000                       inf                        1
+                      1000                     1000                       inf                      BAD
+                         0                        0        2.7182818284590451                        2
+                         0                        0        2.7182818284590451                        2
+                         0      -333.33333333333337        2.7182818284590451                        1
+                      -500       333.33333333333326                       inf  3.3857477783865885e+289
+                       500      -777.77777777777783                       inf                        1
+                      -750      -111.11111111111116                       inf                        1
+                       250       555.55555555555532                       inf                      BAD
+                      -250      -555.55555555555554                       inf                        1
+                       750       111.11111111111116                       inf   3.2350788276912303e+96
+                      -875       777.77777777777771                       inf                      BAD
+                       125      -925.92592592592598                       inf                        1
+                      -375       -259.2592592592593                       inf                        1
+                       625       407.40740740740745                       inf                      BAD
+                      -625       -703.7037037037037                       inf                        1
+                       375      -37.037037037037088                       inf                        1
+                      -125       629.62962962962933                       inf                      BAD
+                       875      -481.48148148148152                       inf                        1
+                    -937.5       185.18518518518511                       inf  7.0763305632405369e+160
+                      62.5       851.85185185185162                       inf                      BAD
+                    -437.5      -851.85185185185185                       inf                        1
+                     562.5      -185.18518518518522                       inf                        1
+                    -687.5       481.48148148148141                       inf                      BAD
+
+[simplify_fixtures/neg_parpair_aligned_irreducible.map  nin=2 nout=2 dir=inverse]
+                       inf                        1                       inf                      BAD
+                       inf                      BAD                       inf                      BAD
+        2.7182818284590451                        2                         0                        0
+        2.7182818284590451                        2                         0                        0
+        2.7182818284590451                        1                         0                      BAD
+                       inf  3.3857477783865885e+289                       inf       333.33333333333326
+                       inf                        1                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf                      BAD                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf   3.2350788276912303e+96                       inf       111.11111111111116
+                       inf                      BAD                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf                      BAD                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf                      BAD                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf  7.0763305632405369e+160                       inf       185.18518518518511
+                       inf                      BAD                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf                        1                       inf                      BAD
+                       inf                      BAD                       inf                      BAD
+
 [simplify_fixtures/neg_pcd_diff_centre.map  nin=2 nout=2 dir=forward]
                      -1000                    -1000        -8916025.564445667       -8916025.564445667
                       1000                     1000        8862694.4355567843       8862694.4355567843
