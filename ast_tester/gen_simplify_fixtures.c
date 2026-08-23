@@ -1621,11 +1621,17 @@ static void gen_negative_fixtures(const char *dir) {
         sm = astAnnul(sm);
     }
 
-    /* unitnormmap-03: WinMap(non-unit scale) + UnitNormMap — refuses merge */
+    /* unitnormmap-03: WinMap(non-unit scale) + UnitNormMap — refuses merge.
+       The WinMap needs a non-zero shift as well as its non-unit scales: a
+       pure-scale WinMap self-simplifies to a MatrixMap before the UnitNormMap
+       merge is ever attempted, which would leave the fixture simplified for an
+       unrelated reason. The unit-scale form of this shape does merge (the
+       shift folds into the UnitNormMap centre), so the merge path is reached
+       and the non-unit scale is what refuses it. */
     {
         double centre[] = {1.0, 2.0};
         double ina[] = {0, 0}, inb[] = {1, 1};
-        double outa[] = {0, 0}, outb[] = {2, 3};
+        double outa[] = {1, 2}, outb[] = {3, 5};
         AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, " ");
         AstUnitNormMap *unm = astUnitNormMap(2, centre, " ");
         AstCmpMap *cm = astCmpMap(wm, unm, 1, " ");
@@ -1696,17 +1702,24 @@ static void gen_negative_fixtures_2(const char *dir) {
         cm = astAnnul(cm); pm = astAnnul(pm); sm = astAnnul(sm);
     }
 
-    /* cmpmap-04: series CmpMap in parallel list — mode mismatch refuses decomposition */
+    /* cmpmap-04: series CmpMap in parallel list — mode mismatch refuses
+       decomposition. Every component is a MathMap, which merges with nothing,
+       so neither the inner series pair nor the outer parallel pair can reduce
+       on its own; the only thing on offer is the decomposition the mode
+       mismatch refuses. ZoomMap components would fuse and hide it. */
     {
         if (!astOK) astClearStatus;
-        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
-        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
-        AstCmpMap *series_inner = astCmpMap(z1, z2, 1, " ");
-        AstZoomMap *z3 = astZoomMap(1, 5.0, " ");
-        AstCmpMap *par = astCmpMap(series_inner, z3, 0, " ");
+        const char *f1[] = {"y=x*x+1"}; const char *i1[] = {"x=sqrt(y-1)"};
+        const char *f2[] = {"y=exp(x)"}; const char *i2[] = {"x=log(y)"};
+        const char *f3[] = {"y=atan(x)"}; const char *i3[] = {"x=tan(y)"};
+        AstMathMap *m1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstMathMap *m2 = astMathMap(1, 1, 1, f2, 1, i2, " ");
+        AstMathMap *m3 = astMathMap(1, 1, 1, f3, 1, i3, " ");
+        AstCmpMap *series_inner = astCmpMap(m1, m2, 1, " ");
+        AstCmpMap *par = astCmpMap(series_inner, m3, 0, " ");
         write_negative_fixture(dir, "neg_cmpmap_mode_mismatch", (AstMapping*)par);
         par = astAnnul(par); series_inner = astAnnul(series_inner);
-        z1 = astAnnul(z1); z2 = astAnnul(z2); z3 = astAnnul(z3);
+        m1 = astAnnul(m1); m2 = astAnnul(m2); m3 = astAnnul(m3);
     }
 
     /* wcsmap-07: WcsMap adjacent to different projection type — refuses merge */
@@ -1775,19 +1788,33 @@ static void gen_negative_fixtures_3(const char *dir) {
     if (!astOK) astClearStatus;
     printf("Negative fixtures batch 3:\n");
 
-    /* winmap-16: WinMap adjacent to series CmpMap (not parallel) — no merge */
+    /* winmap-17: WinMap next to a parallel CmpMap whose split does not
+       simplify. WinMap converts itself into a parallel CmpMap, composes each
+       half with the neighbour's corresponding component in series, and keeps
+       the result only if one of those compositions simplifies
+       (winmap.c:1362-1375). Both components here are series MathMap pairs
+       that merge with nothing and that a WinMap cannot absorb, so neither
+       composition reduces and the merge is refused.
+
+       This is not winmap-16: a *series* CmpMap neighbour is flattened out of
+       a series list by astMapList before the WinMap is ever nominated, so the
+       neighbour the WinMap sees is never a series CmpMap. */
     {
         if (!astOK) astClearStatus;
         double ina[] = {0, 0}, inb[] = {1, 1};
         double outa[] = {1, 2}, outb[] = {4, 6};
+        const char *f1[] = {"y=x*x+1"}; const char *i1[] = {"x=sqrt(y-1)"};
+        const char *f2[] = {"y=exp(x)"}; const char *i2[] = {"x=log(y)"};
         AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, " ");
-        AstZoomMap *z1 = astZoomMap(2, 2.0, " ");
-        AstZoomMap *z2 = astZoomMap(2, 3.0, " ");
-        AstCmpMap *series = astCmpMap(z1, z2, 1, " ");
-        AstCmpMap *cm = astCmpMap(series, wm, 1, " ");
-        write_negative_fixture(dir, "neg_win_series_cmpmap_neighbour", (AstMapping*)cm);
-        cm = astAnnul(cm); series = astAnnul(series);
-        wm = astAnnul(wm); z1 = astAnnul(z1); z2 = astAnnul(z2);
+        AstMathMap *m1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstMathMap *m2 = astMathMap(1, 1, 1, f2, 1, i2, " ");
+        AstCmpMap *series = astCmpMap(m1, m2, 1, " ");
+        AstCmpMap *par = astCmpMap(series, series, 0, " ");
+        AstCmpMap *cm = astCmpMap(par, wm, 1, " ");
+        write_negative_fixture(dir, "neg_win_cmpmap_split_no_simplify",
+                               (AstMapping*)cm);
+        cm = astAnnul(cm); par = astAnnul(par); series = astAnnul(series);
+        wm = astAnnul(wm); m1 = astAnnul(m1); m2 = astAnnul(m2);
     }
 
     /* winmap-28: WinMap swap refused — neither swapped Mapping simplifies */
@@ -1843,20 +1870,6 @@ static void gen_negative_fixtures_3(const char *dir) {
         z1 = astAnnul(z1); z2 = astAnnul(z2);
     }
 
-    /* cmpmap-06: CmpMap neighbour is not a CmpMap — refuses merge */
-    {
-        if (!astOK) astClearStatus;
-        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
-        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
-        AstCmpMap *par = astCmpMap(z1, z2, 0, " ");
-        const char *fwd[] = {"y1 = x1", "y2 = x2"};
-        const char *inv[] = {"x1 = y1", "x2 = y2"};
-        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
-        AstCmpMap *cm = astCmpMap(par, mm, 1, " ");
-        write_negative_fixture(dir, "neg_cmpmap_neighbour_not_cmpmap", (AstMapping*)cm);
-        cm = astAnnul(cm); par = astAnnul(par); mm = astAnnul(mm);
-        z1 = astAnnul(z1); z2 = astAnnul(z2);
-    }
 
     /* sphmap-03: Inverse(SphMap) + SphMap but PolarLong differs */
     {
@@ -1880,13 +1893,18 @@ static void gen_negative_fixtures_3(const char *dir) {
         cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
     }
 
-    /* polymap-10: two different PolyMaps in opposite directions — astEqual fails */
+    /* polymap-10: two different PolyMaps in opposite directions — astEqual
+       fails. Both need a second-order term: a lone first-power term makes the
+       PolyMap linear, so each self-simplifies to a ZoomMap and the pair fuses
+       before the inverse-cancel comparison is reached. With the square term
+       the identical-coefficient form of this shape cancels to a UnitMap, so
+       the comparison is reached and the differing coefficients refuse it. */
     {
         if (!astOK) astClearStatus;
-        double coeff_f1[] = {2.0, 1, 1};
-        double coeff_f2[] = {3.0, 1, 1};
-        AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f1, 0, NULL, " ");
-        AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f2, 0, NULL, " ");
+        double coeff_f1[] = {2.0, 1, 1,  1.0, 1, 2};
+        double coeff_f2[] = {3.0, 1, 1,  1.0, 1, 2};
+        AstPolyMap *p1 = astPolyMap(1, 1, 2, coeff_f1, 0, NULL, " ");
+        AstPolyMap *p2 = astPolyMap(1, 1, 2, coeff_f2, 0, NULL, " ");
         astInvert(p2);
         AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
         write_negative_fixture(dir, "neg_poly_different_coeffs", (AstMapping*)cm);

@@ -462,3 +462,7 @@ rate_inner_reduce_lone            | simplify_fixtures/rate_inner_reduce_lone.map
 # Negative controls repaired so no bystander rule fires (each was previously
 # dropped as an orphan because a component simplified on its own).
 neg_time_2arg_mismatch            | simplify_fixtures/neg_time_2arg_mismatch.map | simplify_fixtures/neg_time_2arg_mismatch.map | yes
+neg_unitnormmap_nonunit_scale     | simplify_fixtures/neg_unitnormmap_nonunit_scale.map | simplify_fixtures/neg_unitnormmap_nonunit_scale.map | yes
+neg_cmpmap_mode_mismatch          | simplify_fixtures/neg_cmpmap_mode_mismatch.map | simplify_fixtures/neg_cmpmap_mode_mismatch.map | yes
+neg_win_cmpmap_split_no_simplify  | simplify_fixtures/neg_win_cmpmap_split_no_simplify.map | simplify_fixtures/neg_win_cmpmap_split_no_simplify.map | yes
+neg_poly_different_coeffs         | simplify_fixtures/neg_poly_different_coeffs.map | simplify_fixtures/neg_poly_different_coeffs.map | yes
