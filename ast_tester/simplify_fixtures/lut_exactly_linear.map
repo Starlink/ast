@@ -1,0 +1,17 @@
+ Begin LutMap 	# Map 1-d coordinates using a lookup table
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Nlut = 9 	# Number of lookup table elements
+#   Start = 0 	# Input value at first element
+#   Incr = 1 	# Input value increment between elements
+    LutInt = 0 	# Interpolation method
+    L1 = 1 	# Lookup table elements...
+    L2 = 1.5
+    L3 = 2
+    L4 = 2.5
+    L5 = 3
+    L6 = 3.5
+    L7 = 4
+    L8 = 4.5
+    L9 = 5
+ End LutMap

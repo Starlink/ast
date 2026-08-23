@@ -1,0 +1,7 @@
+ Begin PcdMap 	# Apply pincushion distortion
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    PcdCn0 = 0 	# Distortion centre on first axis
+    PcdCn1 = 0 	# Distortion centre on second axis
+    Disco = 0 	# Distortion coefficient
+ End PcdMap
