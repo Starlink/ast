@@ -669,7 +669,7 @@ argument count (0,1,2,3,5-arg), eliminate no-op steps.
 | timemap-05 | neg_time_parallel.map | focused | `+` | Parallel-mode guard | TimeMap in parallel |
 | timemap-06 | neg_time_lone_forward.map | focused | `+` | No simplification: single forward TimeMap, no neighbours | Lone forward TimeMap |
 | timemap-13 | neg_time_arg_mismatch.map | focused | `+` | 1-arg pair with mismatched argument | Steps with different DUT1 values |
-| timemap-14 | -- | focused | `- (no fixture)` | 2-arg swapped pair with mismatched arguments | MJDTOJD + JDTOMJD with different offsets |
+| timemap-14 | neg_time_2arg_mismatch.map | focused | `+` | 2-arg swapped pair with mismatched arguments | MJDTOJD(1, 0) + JDTOMJD(0, 2): the args are not swapped copies, and neither step's combined offset is zero, so the no-op rule cannot fire instead |
 | timemap-15 | neg_time_3arg_mismatch.map | focused | `+` | 3-arg pair with mismatched arguments | GMSTTOLMST + LMSTTOGMST with different lon |
 | timemap-16 | neg_time_5arg_mismatch.map | focused | `+` | 5-arg pair with mismatched arguments | TTTOTDB + TDBTOTT with one arg different |
 | timemap-20 | neg_time_mjdtojd_real.map | focused | `+` | MJDTOJD whose offsets do not absorb the constant: a real conversion, step kept | TimeMap with a single MJDTOJD(0, 0) step |

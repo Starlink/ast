@@ -1947,11 +1947,18 @@ static void gen_negative_fixtures_4(const char *dir) {
         sm = astAnnul(sm);
     }
 
-    /* timemap-14: 2-arg swapped pair with mismatched arguments */
+    /* timemap-14: 2-arg swapped pair with mismatched arguments. The pair
+       cancels only when the two arguments are swapped copies of each other
+       (timemap.c:2301), which 1,0 against 0,2 is not. Both steps must also
+       avoid being no-ops in their own right, since the earlier
+       zero-combined-offset rule (timemap.c:2261) would drop one and leave the
+       fixture simplified for an unrelated reason: MJDTOJD derives
+       a - b + 2400000.5 and JDTOMJD derives a - b - 2400000.5, so these
+       arguments give 2400001.5 and -2400002.5, neither of them zero. */
     {
         if (!astOK) astClearStatus;
-        double args1[] = {0.0, 2400000.5, 0.0};
-        double args2[] = {2400001.0, 0.0, 0.0};
+        double args1[] = {1.0, 0.0, 0.0};
+        double args2[] = {0.0, 2.0, 0.0};
         AstTimeMap *tm = astTimeMap(0, " ");
         astTimeAdd(tm, "MJDTOJD", 2, args1);
         astTimeAdd(tm, "JDTOMJD", 2, args2);

@@ -458,3 +458,7 @@ cmpmap_inverted_lone              | simplify_fixtures/cmpmap_inverted_lone.map |
 cmpmap_inverted_nested            | simplify_fixtures/cmpmap_inverted_nested.map | simplify_fixtures/cmpmap_inverted_nested.simp |
 rate_inner_reduce_series          | simplify_fixtures/rate_inner_reduce_series.map | simplify_fixtures/rate_inner_reduce_series.simp |
 rate_inner_reduce_lone            | simplify_fixtures/rate_inner_reduce_lone.map | simplify_fixtures/rate_inner_reduce_lone.simp |
+
+# Negative controls repaired so no bystander rule fires (each was previously
+# dropped as an orphan because a component simplified on its own).
+neg_time_2arg_mismatch            | simplify_fixtures/neg_time_2arg_mismatch.map | simplify_fixtures/neg_time_2arg_mismatch.map | yes
