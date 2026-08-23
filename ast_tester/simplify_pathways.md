@@ -599,6 +599,8 @@ selectors/routes.
 | switchmap-01 | switchmap_inverse_cancel.map | focused | `+` | Inverse-pair cancellation to UnitMap | SwitchMap + Inverse(SwitchMap), identical selectors/routes |
 | switchmap-03 | switchmap_invert_normalize.map | focused | `+` | Inverted SwitchMap normalized to non-inverted equivalent | SwitchMap with Invert=1 |
 | switchmap-04 | switchmap_internal_simplify.map | focused | `+` | Internal selectors/routes simplify to new SwitchMap | SwitchMap with simplifiable route maps |
+| switchmap-07 | switchmap_inv_fwdonly.map | focused | `+` | Invert normalization with a NULL inverse selector: only the forward selector is inverted, and it becomes the inverse selector | Inverted SwitchMap with FSMap set and ISMap absent |
+| switchmap-08 | switchmap_inv_invonly.map | focused | `+` | Invert normalization with a NULL forward selector: the mirror arm of the same block | Inverted SwitchMap with ISMap set and FSMap absent |
 
 ### Negative branches
 
@@ -1014,7 +1016,11 @@ When modifying a class's `MapMerge` method:
 2. Create a corresponding `.map` fixture in `ast_tester/simplify_fixtures/`
    and add it to `ast_tester/simplify_tests.txt`.
 3. For negative (guard) branches, the `.map` file is its own reference
-   (input == expected output).
+   (input == expected output). Listing it that way also registers a
+   `simplify_<name>_noop` test, which diffs the simplified dump against the
+   input with the `IsSimp` markers removed. Do not reach for a `.simp`
+   reference to make a negative pass: if the dump differs, astSimplify fired
+   and the fixture is a positive.
 4. For positive (simplification fires) branches, generate a `.simp`
    reference file showing the expected simplified output.
 5. Update the Status column to `+` once the fixture passes.
@@ -1288,6 +1294,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | switchmap-04 | Internal selectors/routes simplify |
 | switchmap-05 | Series: no simplification possible |
 | switchmap-06 | Parallel: no simplification possible |
+| switchmap-07 | Invert normalization with NULL inverse selector |
+| switchmap-08 | Invert normalization with NULL forward selector |
 | timemap-01 | Full cancellation to UnitMap |
 | timemap-02 | Partial cancellation |
 | timemap-03 | Adjacent TimeMaps merged without reduction |

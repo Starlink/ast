@@ -27353,7 +27353,59 @@
                      562.5                       BAD
                     -687.5                       BAD
 
+[simplify_fixtures/switchmap_inv_fwdonly.simp  nin=1 nout=1 dir=inverse]
+                     -1000                       BAD
+                      1000                       BAD
+                         0                       BAD
+                         0                       BAD
+                         0                       BAD
+                      -500                       BAD
+                       500                       BAD
+                      -750                       BAD
+                       250                       BAD
+                      -250                       BAD
+                       750                       BAD
+                      -875                       BAD
+                       125                       BAD
+                      -375                       BAD
+                       625                       BAD
+                      -625                       BAD
+                       375                       BAD
+                      -125                       BAD
+                       875                       BAD
+                    -937.5                       BAD
+                      62.5                       BAD
+                    -437.5                       BAD
+                     562.5                       BAD
+                    -687.5                       BAD
+
 [simplify_fixtures/switchmap_inv_invonly.map  nin=1 nout=1 dir=forward]
+                     -1000                       BAD
+                      1000                       BAD
+                         0                       BAD
+                         0                       BAD
+                         0                       BAD
+                      -500                       BAD
+                       500                       BAD
+                      -750                       BAD
+                       250                       BAD
+                      -250                       BAD
+                       750                       BAD
+                      -875                       BAD
+                       125                       BAD
+                      -375                       BAD
+                       625                       BAD
+                      -625                       BAD
+                       375                       BAD
+                      -125                       BAD
+                       875                       BAD
+                    -937.5                       BAD
+                      62.5                       BAD
+                    -437.5                       BAD
+                     562.5                       BAD
+                    -687.5                       BAD
+
+[simplify_fixtures/switchmap_inv_invonly.simp  nin=1 nout=1 dir=forward]
                      -1000                       BAD
                       1000                       BAD
                          0                       BAD
