@@ -3390,6 +3390,81 @@ static void gen_audit_gap_fixtures(const char *dir) {
         write_negative_fixture(dir, "neg_unit_parallel_forward", (AstMapping*)cm);
         cm = astAnnul(cm); um = astAnnul(um); pm = astAnnul(pm);
     }
+
+    /* A ChebyMap whose forward transformation holds a single T_1 term over
+       bounds that are not the identity interval. A ChebyMap inherits PolyMap's
+       MapMerge -- polymap.c:2439 is the only place the slot is filled -- whose
+       replace-with-simpler half rebuilds an all-linear polynomial as a
+       MatrixMap and a ShiftMap from coeff_f and power_f alone
+       (polymap.c:3757-3850), never consulting the scale and offset that map
+       the input onto [-1,1]. The reduction therefore changes the
+       transformation: this pair simplifies to a ZoomMap of 2 where the
+       ChebyMap gives 0.4x-2. These two are the reproduction for that finding
+       and are deliberately not part of the Rust port's simplify corpus, which
+       would have to reproduce the wrong Mapping to consume them. See
+       docs/issues/c-library-quirks.md in the port. The control is the same
+       ChebyMap with a T_2 term, which is not linear and which C leaves
+       alone. */
+    {
+        double lbnd[] = {0.0};
+        double ubnd[] = {10.0};
+        double coeff_f[] = {2.0, 1.0, 1.0};
+        AstChebyMap *cm = astChebyMap(1, 1, 1, coeff_f, 0, NULL,
+                                      lbnd, ubnd, NULL, NULL, " ");
+        write_fixture(dir, "cheby_linear_lone_reduce", (AstMapping*)cm);
+        cm = astAnnul(cm);
+    }
+    {
+        double lbnd[] = {0.0};
+        double ubnd[] = {10.0};
+        double coeff_f[] = {2.0, 1.0, 2.0};
+        AstChebyMap *cm = astChebyMap(1, 1, 1, coeff_f, 0, NULL,
+                                      lbnd, ubnd, NULL, NULL, " ");
+        write_negative_fixture(dir, "neg_cheby_quadratic_no_reduce",
+                               (AstMapping*)cm);
+        cm = astAnnul(cm);
+    }
+
+    /* A WcsMap whose projection type is AST__WCSBAD, which MapMerge replaces
+       with a UnitMap without reference to its neighbours (wcsmap.c:3095-3105).
+       astWcsMap rejects AST__WCSBAD (wcsmap.c:5824), so the only way to build
+       one is the way C itself does: read a native description with no Type
+       value, which the loader turns into AST__WCSBAD (wcsmap.c:6052). The
+       control is a TAN WcsMap, which is a genuine projection and survives. */
+    {
+        char path[512];
+        AstChannel *chan;
+        AstObject *obj;
+        FILE *fd;
+
+        snprintf(path, sizeof(path), "%s/wcs_unknown_lone_reduce.in", dir);
+        fd = fopen(path, "w");
+        if (fd) {
+            fprintf(fd,
+                    " Begin WcsMap \t# FITS-WCS sky projection\n"
+                    "    Nin = 2 \t# Number of input coordinates\n"
+                    " IsA Mapping \t# Mapping between coordinate systems\n"
+                    " End WcsMap\n");
+            fclose(fd);
+            chan = astChannel(NULL, NULL, "SourceFile=%s", path);
+            obj = astRead(chan);
+            chan = astAnnul(chan);
+            if (obj) {
+                write_fixture(dir, "wcs_unknown_lone_reduce", (AstMapping*)obj);
+                obj = astAnnul(obj);
+            } else {
+                fprintf(stderr, "ERROR: astRead failed for a WCSBAD WcsMap\n");
+            }
+            remove(path);
+        } else {
+            fprintf(stderr, "ERROR: cannot write %s\n", path);
+        }
+    }
+    {
+        AstWcsMap *wm = astWcsMap(2, AST__TAN, 1, 2, " ");
+        write_negative_fixture(dir, "neg_wcs_tan_no_reduce", (AstMapping*)wm);
+        wm = astAnnul(wm);
+    }
 }
 
 int main(void) {

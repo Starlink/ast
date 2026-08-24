@@ -1,0 +1,5 @@
+ Begin WcsMap 	# FITS-WCS sky projection
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Type = "   " 	# <null> projection
+ End WcsMap
