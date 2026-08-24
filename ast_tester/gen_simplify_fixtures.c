@@ -1106,6 +1106,42 @@ static void gen_tranmap_extra_fixtures(const char *dir) {
         z2 = astAnnul(z2); z05 = astAnnul(z05);
         z3 = astAnnul(z3); z033 = astAnnul(z033);
     }
+
+    /* tranmap-10: inverted TranMap nominated from inside a series list.
+       tranmap.c:837-850 replaces it with the equal forward TranMap whose
+       components are swapped and inverted, so the serialised result holds a
+       forward TranMap. The neighbour is a ZoomMap, which the TranMap cannot
+       merge with, so the list keeps two entries throughout: the companion
+       negative neg_tranmap_nontranmap_neighbour is this same pair with the
+       TranMap not inverted, and C leaves that one alone. */
+    {
+        AstZoomMap *z2 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z05 = astZoomMap(1, 0.5, " ");
+        AstTranMap *tm = astTranMap(z2, z05, " ");
+        astInvert(tm);
+        AstZoomMap *z5 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *cm = astCmpMap(tm, z5, 1, " ");
+        write_fixture(dir, "tranmap_invert_in_list", (AstMapping*)cm);
+        cm = astAnnul(cm); tm = astAnnul(tm);
+        z2 = astAnnul(z2); z05 = astAnnul(z05); z5 = astAnnul(z5);
+    }
+
+    /* tranmap-11: TranMap(m, m) nominated from inside a series list.
+       Both components are defined in both directions and are equal, so
+       tranmap.c:864-887 replaces the TranMap with one of them. The exposed
+       ZoomMap then merges with its neighbour, so the whole Mapping collapses
+       to a single ZoomMap and the replacement has to take part in further
+       merging rather than end the pass. */
+    {
+        AstZoomMap *za = astZoomMap(1, 2.0, " ");
+        AstZoomMap *zb = astZoomMap(1, 2.0, " ");
+        AstTranMap *tm = astTranMap(za, zb, " ");
+        AstZoomMap *z5 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *cm = astCmpMap(tm, z5, 1, " ");
+        write_fixture(dir, "tranmap_equal_components_in_list", (AstMapping*)cm);
+        cm = astAnnul(cm); tm = astAnnul(tm);
+        za = astAnnul(za); zb = astAnnul(zb); z5 = astAnnul(z5);
+    }
 }
 
 /* ===== MatrixMap cascade fixtures ===== */

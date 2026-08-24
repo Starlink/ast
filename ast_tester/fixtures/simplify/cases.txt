@@ -122,6 +122,8 @@ pcd_zoom_swap_cancel    | simplify/pcd_zoom_swap_cancel.map    | simplify/pcd_zo
 switchmap_invert_normalize | simplify/switchmap_invert_normalize.map | simplify/switchmap_invert_normalize.simp |
 switchmap_internal_simplify | simplify/switchmap_internal_simplify.map | simplify/switchmap_internal_simplify.simp |
 tranmap_adjacent_merge  | simplify/tranmap_adjacent_merge.map  | simplify/tranmap_adjacent_merge.simp  |
+tranmap_invert_in_list  | simplify/tranmap_invert_in_list.map  | simplify/tranmap_invert_in_list.simp  |
+tranmap_equal_components_in_list | simplify/tranmap_equal_components_in_list.map | simplify/tranmap_equal_components_in_list.simp |
 matrix_swap_past_win    | simplify/matrix_swap_past_win.map    | simplify/matrix_swap_past_win.simp    |
 matrix_swap_past_perm   | simplify/matrix_swap_past_perm.map   | simplify/matrix_swap_past_perm.simp   |
 sla_helioecl_cancel     | simplify/sla_helioecl_cancel.map     | simplify/sla_helioecl_cancel.simp     |

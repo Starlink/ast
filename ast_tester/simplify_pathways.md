@@ -626,6 +626,8 @@ Mapping); (4) adjacent TranMap series merge.
 | tranmap-02 | tranmap_component_simplify.map | focused | `+` | Component Mappings individually simplified, TranMap rebuilt | TranMap(CmpMap(Z,Z), UnitMap) |
 | tranmap-03 | tranmap_equal_components.map | focused | `+` | Both components bidirectional and equal to single component Mapping | TranMap(ZoomMap[2], ZoomMap[2]) |
 | tranmap-04 | tranmap_adjacent_merge.map | cascade | `+` | Two adjacent TranMaps in series merge by combining fwd/inv legs | CmpMap(TranMap(A,B), TranMap(C,D)), Series=1 |
+| tranmap-10 | tranmap_invert_in_list.map | cascade | `+` | Inverted TranMap normalized while nominated from inside a series list | CmpMap(TranMap(A,B) with Invert=1, ZoomMap), Series=1 |
+| tranmap-11 | tranmap_equal_components_in_list.map | cascade | `+` | Equal components collapse to one Mapping, which then merges with the neighbour | CmpMap(TranMap(Z,Z), ZoomMap), Series=1 |
 
 ### Negative branches
 
@@ -1325,6 +1327,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | tranmap-07 | Components not equal |
 | tranmap-08 | Higher neighbour not TranMap |
 | tranmap-09 | Neither leg simplified |
+| tranmap-10 | Inverted TranMap normalized inside a list |
+| tranmap-11 | Equal components collapse inside a list |
 | unitmap-01 | Invert flag cleared |
 | unitmap-02 | Invert=0: no change |
 | unitmap-03 | UnitMap removed from series |
