@@ -1,0 +1,13 @@
+ Begin TimeMap 	# Conversion between time coordinate systems
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Ntime = 2 	# Number of conversion steps
+    Time1 = "MJDTOJD" 	# Convert MJD to JD
+    Time1a = 1 	# MJD offset
+    Time1b = 0 	# JD offset
+    Time1c = 2400001.5 	# Combined offset
+    Time2 = "JDTOMJD" 	# Convert JD to MJD
+    Time2a = 0 	# JD offset
+    Time2b = 2 	# MJD offset
+    Time2c = -2400002.5 	# Combined offset
+ End TimeMap

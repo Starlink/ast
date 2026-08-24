@@ -361,6 +361,14 @@ ast_apply_dev_options(gen_simplify_fixtures)
 #                               output and the reference (uses ast_astequal
 #                               with encoding "ast").
 #
+# A fixture whose REFERENCE is its own INPUT is a negative control: it asserts
+# astSimplify leaves the Mapping alone.  Such a fixture gets a third entry:
+#   simplify_<NAME>_noop     -- byte-level diff of the output against the
+#                               input with the IsSimp markers removed.
+# This is registered even under SKIP_STRING_COMPARE, because astEqual compares
+# meaning and so passes a structural rewrite that preserves the transformation
+# -- exactly the failure a negative control exists to catch.
+#
 # Options:
 #   SKIP_STRING_COMPARE -- register the astEqual test only; do not
 #                          register the byte-level string-diff test.
@@ -393,6 +401,20 @@ function(add_simplify_test)
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
         if(AST_ENABLE_SANITIZERS)
             set_tests_properties(simplify_${S_NAME} PROPERTIES
+                ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+        endif()
+    endif()
+
+    if(S_INPUT STREQUAL S_REFERENCE)
+        add_test(NAME simplify_${S_NAME}_noop
+            COMMAND ${CMAKE_COMMAND}
+                -DSIMPLIFY=$<TARGET_FILE:simplify>
+                -DIN_FILE=${S_INPUT}
+                -DOUT_FILE=${S_NAME}.noop.out
+                -P "${CMAKE_SOURCE_DIR}/cmake/run_simplify_noop_test.cmake"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+        if(AST_ENABLE_SANITIZERS)
+            set_tests_properties(simplify_${S_NAME}_noop PROPERTIES
                 ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
         endif()
     endif()

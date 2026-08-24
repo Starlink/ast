@@ -383,8 +383,8 @@ neg_switchmap_parallel           | simplify_fixtures/neg_switchmap_parallel.map 
 switchmap_inverse_cancel_tail      | simplify_fixtures/switchmap_inverse_cancel_tail.map | simplify_fixtures/switchmap_inverse_cancel_tail.simp |
 switchmap_fwdonly_simplify         | simplify_fixtures/switchmap_fwdonly_simplify.map | simplify_fixtures/switchmap_fwdonly_simplify.simp |
 switchmap_invonly_simplify         | simplify_fixtures/switchmap_invonly_simplify.map | simplify_fixtures/switchmap_invonly_simplify.simp |
-switchmap_inv_invonly              | simplify_fixtures/switchmap_inv_invonly.map | simplify_fixtures/switchmap_inv_invonly.map | yes
-switchmap_inv_fwdonly              | simplify_fixtures/switchmap_inv_fwdonly.map | simplify_fixtures/switchmap_inv_fwdonly.map | yes
+switchmap_inv_invonly              | simplify_fixtures/switchmap_inv_invonly.map | simplify_fixtures/switchmap_inv_invonly.simp |
+switchmap_inv_fwdonly              | simplify_fixtures/switchmap_inv_fwdonly.map | simplify_fixtures/switchmap_inv_fwdonly.simp |
 neg_switchmap_series_lower         | simplify_fixtures/neg_switchmap_series_lower.map | simplify_fixtures/neg_switchmap_series_lower.map | yes
 unitnormmap_shift_fwd_merge          | simplify_fixtures/unitnormmap_shift_fwd_merge.map | simplify_fixtures/unitnormmap_shift_fwd_merge.simp |
 unitnormmap_winmap_fwd_merge         | simplify_fixtures/unitnormmap_winmap_fwd_merge.map | simplify_fixtures/unitnormmap_winmap_fwd_merge.simp |
@@ -437,3 +437,32 @@ intra_invfwd_cancel_tail       | simplify_fixtures/intra_invfwd_cancel_tail.map 
 tranmap_merge_tail             | simplify_fixtures/tranmap_merge_tail.map | simplify_fixtures/tranmap_merge_tail.simp |
 interval_remapped_simplify     | simplify_fixtures/interval_remapped_simplify.map | simplify_fixtures/interval_remapped_simplify.map | yes
 interval_halfinf_simplify      | simplify_fixtures/interval_halfinf_simplify.map | simplify_fixtures/interval_halfinf_simplify.map | yes
+
+# Audit-gap fixtures: each isolates a MapMerge/Simplify step the rest of the
+# corpus only reaches by a route that gives the same answer for another reason.
+time_mjdtojd_noop                 | simplify_fixtures/time_mjdtojd_noop.map | simplify_fixtures/time_mjdtojd_noop.simp |
+time_jdtomjd_noop                 | simplify_fixtures/time_jdtomjd_noop.map | simplify_fixtures/time_jdtomjd_noop.simp |
+neg_time_mjdtojd_real             | simplify_fixtures/neg_time_mjdtojd_real.map | simplify_fixtures/neg_time_mjdtojd_real.map | yes
+unit_parallel_invert_pcd          | simplify_fixtures/unit_parallel_invert_pcd.map | simplify_fixtures/unit_parallel_invert_pcd.simp |
+neg_unit_parallel_forward         | simplify_fixtures/neg_unit_parallel_forward.map | simplify_fixtures/neg_unit_parallel_forward.map | yes
+pcd_zero_disc_series              | simplify_fixtures/pcd_zero_disc_series.map | simplify_fixtures/pcd_zero_disc_series.simp |
+pcd_zero_disc_lone                | simplify_fixtures/pcd_zero_disc_lone.map | simplify_fixtures/pcd_zero_disc_lone.simp |
+parcomp_inverted_reemitted        | simplify_fixtures/parcomp_inverted_reemitted.map | simplify_fixtures/parcomp_inverted_reemitted.simp |
+parcomp_inverted_nested_reemitted | simplify_fixtures/parcomp_inverted_nested_reemitted.map | simplify_fixtures/parcomp_inverted_nested_reemitted.simp |
+lut_exactly_linear                | simplify_fixtures/lut_exactly_linear.map | simplify_fixtures/lut_exactly_linear.simp |
+neg_lut_near_linear               | simplify_fixtures/neg_lut_near_linear.map | simplify_fixtures/neg_lut_near_linear.map | yes
+parpair_aligned_reduces           | simplify_fixtures/parpair_aligned_reduces.map | simplify_fixtures/parpair_aligned_reduces.simp |
+parpair_one_side_reduces          | simplify_fixtures/parpair_one_side_reduces.map | simplify_fixtures/parpair_one_side_reduces.simp |
+neg_parpair_aligned_irreducible   | simplify_fixtures/neg_parpair_aligned_irreducible.map | simplify_fixtures/neg_parpair_aligned_irreducible.map | yes
+cmpmap_inverted_lone              | simplify_fixtures/cmpmap_inverted_lone.map | simplify_fixtures/cmpmap_inverted_lone.simp |
+cmpmap_inverted_nested            | simplify_fixtures/cmpmap_inverted_nested.map | simplify_fixtures/cmpmap_inverted_nested.simp |
+rate_inner_reduce_series          | simplify_fixtures/rate_inner_reduce_series.map | simplify_fixtures/rate_inner_reduce_series.simp |
+rate_inner_reduce_lone            | simplify_fixtures/rate_inner_reduce_lone.map | simplify_fixtures/rate_inner_reduce_lone.simp |
+
+# Negative controls repaired so no bystander rule fires (each was previously
+# dropped as an orphan because a component simplified on its own).
+neg_time_2arg_mismatch            | simplify_fixtures/neg_time_2arg_mismatch.map | simplify_fixtures/neg_time_2arg_mismatch.map | yes
+neg_unitnormmap_nonunit_scale     | simplify_fixtures/neg_unitnormmap_nonunit_scale.map | simplify_fixtures/neg_unitnormmap_nonunit_scale.map | yes
+neg_cmpmap_mode_mismatch          | simplify_fixtures/neg_cmpmap_mode_mismatch.map | simplify_fixtures/neg_cmpmap_mode_mismatch.map | yes
+neg_win_cmpmap_split_no_simplify  | simplify_fixtures/neg_win_cmpmap_split_no_simplify.map | simplify_fixtures/neg_win_cmpmap_split_no_simplify.map | yes
+neg_poly_different_coeffs         | simplify_fixtures/neg_poly_different_coeffs.map | simplify_fixtures/neg_poly_different_coeffs.map | yes

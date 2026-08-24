@@ -116,18 +116,20 @@ permutation arrays.
 | cmpmap-21 | series_parallel_absorb.map | cascade | `+` | UnitMap absorbed from nested series/parallel CmpMap, collapsing to WcsMap+ShiftMap | Nested CmpMap containing WcsMap, UnitMap and ShiftMap |
 | cmpmap-22 | spec_cel_invert.map | scenario | `+` | Large celestial FITS-WCS pipeline collapses via repeated merge to CmpMap(WinMap, WcsMap) | Multi-class FITS-WCS conversion pipeline (>3 components) |
 | cmpmap-23 | wcsconv_gappt_iwc_residue.map | scenario | `+` | GAPPT/IWC conversion residue: large pipeline reassociated and partly merged | Multi-class FITS-WCS conversion pipeline (>3 components) |
+| cmpmap-24 | cmpmap_inverted_lone.map | focused | `+` | Inverted series CmpMap folds the inversion into the structure: components reversed, each inverted, Invert flag cleared | Lone CmpMap(SpecMap, ZoomMap) with Invert=1 |
+| cmpmap-25 | parcomp_inverted_reemitted.map | focused | `+` | Inverted parallel CmpMap re-emitted while the list is rebuilt: the parallel CmpMap stays forward and the inversion is carried on its components' InvA/InvB flags | CmpMap(Inverse(parallel CmpMap of MathMaps), merging ZoomMap pair), Series=1 |
 
 ### Negative branches
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | cmpmap-02 | -- | focused | `- (requires deep internal nesting)` | CmpMap does not simplify on its own (astSimplify returns same pointer unchanged) | CmpMap with irreducible components |
-| cmpmap-04 | covered (incidental) | focused | covered | Guard rejects decomposition: CmpMap mode does not match list mode | Already exercised by the simplify suite |
+| cmpmap-04 | neg_cmpmap_mode_mismatch.map | focused | `+` | Guard rejects decomposition: CmpMap mode does not match list mode | Series CmpMap of MathMaps inside a parallel CmpMap; MathMap components merge with nothing, so the refused decomposition is the only move on offer |
 | cmpmap-05 | cmpmap_solo_after_unit.map | focused | `-` | Guard rejects merging: only one mapping in list (nmap <= 1) | Series CmpMap(UnitMap, parallel CmpMap); UnitMap elided leaves the parallel CmpMap alone |
 | cmpmap-06 | neg_cmpmap_neighbour_nonexcmpmap.map | focused | `- (requires deep internal nesting)` | Guard rejects merging: neighbour is not a CmpMap | CmpMap adjacent to a non-CmpMap in the list |
 | cmpmap-08 | -- | focused | `- (no fixture)` | Guard: re-arranged parallel CmpMaps do not simplify | Two series CmpMaps in parallel whose rearranged pairings remain irreducible |
 | cmpmap-10 | -- | cascade | `- (no fixture)` | Guard: two CmpMaps are not both parallel, or list is not series | Two adjacent CmpMaps where at least one is series |
-| cmpmap-11 | -- | cascade | `- (no fixture)` | Parallel-in-series pairing produces no simplification | Two parallel CmpMaps in series with all irreducible sub-mappings |
+| cmpmap-11 | neg_parpair_aligned_irreducible.map | cascade | `+` | Parallel-in-series pairing produces no simplification | Two parallel CmpMaps in series with all irreducible sub-mappings |
 | cmpmap-12 | -- | focused | `- (requires deep internal nesting)` | Guard: earlier branch already succeeded (result != -1) | Any case where a prior branch already simplified |
 | cmpmap-13 | -- | focused | `- (requires deep internal nesting)` | Guard: CmpMap at position 0 (no preceding neighbour) | CmpMap first in mapping list |
 | cmpmap-14 | -- | focused | `- (no fixture)` | Guard: predecessor is not a PermMap | Parallel CmpMap preceded by non-PermMap |
@@ -156,7 +158,7 @@ Invert flag normalization.
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
 | unitmap-02 | neg_unit_lone.map | focused | `- (no fixture)` | Single UnitMap with Invert=0: no change needed | Lone UnitMap already canonical |
-| unitmap-06 | -- | focused | `- (no fixture)` | Parallel UnitMap with no adjacent UnitMaps and Invert=0: no simplification | Single UnitMap in parallel already canonical |
+| unitmap-06 | neg_unit_parallel_forward.map | focused | `+` | Parallel UnitMap with no adjacent UnitMaps and Invert=0: no simplification | Single UnitMap in parallel already canonical |
 
 ---
 
@@ -256,8 +258,8 @@ with same classes.
 | winmap-03 | neg_win_mixed_scale_shift.map | focused | `- (no fixture)` | Not all shifts are zero: MatrixMap replacement refused | WinMap with mixed shifts |
 | winmap-04 | neg_win_mixed_scale_shift.map | focused | `- (no fixture)` | Not all scales are 1: ShiftMap replacement refused | WinMap with mixed scales, alone |
 | winmap-13 | neg_win_nonmergeable_series.map | focused | `+` | Neither neighbour is a directly-mergeable class | CmpMap(WinMap, FullMatrixMap), Series=1 |
-| winmap-16 | -- | cascade | `- (no fixture)` | CmpMap neighbour is series (not parallel): no merge | CmpMap(series CmpMap, WinMap), Series=1 |
-| winmap-17 | -- | cascade | `- (no fixture)` | Parallel CmpMap split doesn't simplify: refused | Parallel CmpMap with non-simplifiable components next to WinMap |
+| winmap-16 | -- | cascade | `- (unreachable via the shape below)` | CmpMap neighbour is series (not parallel): no merge | CmpMap(series CmpMap, WinMap), Series=1 -- astMapList flattens a series CmpMap out of a series list before the WinMap is nominated, so the neighbour the WinMap sees is never a series CmpMap |
+| winmap-17 | neg_win_cmpmap_split_no_simplify.map | cascade | `+` | Parallel CmpMap split doesn't simplify: refused | Parallel CmpMap of series MathMap pairs next to a WinMap; neither series composition reduces, so the split is discarded |
 | winmap-21 | -- | cascade | `- (no fixture)` | No higher neighbour exists (WinMap last in list) | WinMap at end of series list |
 | winmap-22 | -- | cascade | `- (no fixture)` | No lower neighbour exists (WinMap first in list) | WinMap at start of series list |
 | winmap-23 | -- | cascade | `- (no fixture)` | Forward scan hits non-swappable class before target | CmpMap(WinMap, SpecMap, WinMap), Series=1 |
@@ -383,7 +385,7 @@ cancellation.
 | polymap-07 | neg_poly_parallel_nonlinear.map | focused | `+` | Inverse-cancel refused: combination is parallel | Two PolyMaps in parallel |
 | polymap-08 | neg_poly_nonpoly_neighbour.map | focused | `+` | Inverse-cancel refused: neighbour is not PolyMap | CmpMap(PolyMap, ZoomMap), Series=1 |
 | polymap-09 | neg_poly_same_direction.map | focused | `+` | Inverse-cancel refused: neighbour has same invert direction | Two forward PolyMaps in series |
-| polymap-10 | -- | focused | `- (open: PolyMaps self-simplify before the cancel check)` | Inverse-cancel refused: astEqual fails (different coefficients) | Two different PolyMaps in opposite directions |
+| polymap-10 | neg_poly_different_coeffs.map | focused | `+` | Inverse-cancel refused: astEqual fails (different coefficients) | Two PolyMaps in opposite directions, each carrying a square term so neither is linear; the identical-coefficient form of the shape cancels to a UnitMap, so the comparison is reached |
 
 ---
 
@@ -547,7 +549,7 @@ different to ShiftMap).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| unitnormmap-03 | -- | focused | `- (unreachable: non-unit WinMap self-simplifies to a ZoomMap before the UNM merge)` | WinMap(non-unit scale) + UnitNormMap: refused | WinMap(scale!=1) followed by UnitNormMap(fwd) |
+| unitnormmap-03 | neg_unitnormmap_nonunit_scale.map | focused | `+` | WinMap(non-unit scale) + UnitNormMap: refused | WinMap(scale!=1) with a non-zero shift followed by UnitNormMap(fwd); the shift keeps it a WinMap, and the unit-scale form of the shape does merge, so the merge path is reached |
 | unitnormmap-06 | -- | focused | `- (no fixture)` | UnitNormMap(inv) + WinMap(non-unit scale): refused | UnitNormMap(inv) followed by WinMap(scale!=1) |
 | unitnormmap-10 | -- | focused | `- (no fixture)` | Inverse + Forward with different centres: no merge (asymmetric) | Inverse(UnitNormMap,c1) + UnitNormMap(fwd,c2) |
 | unitnormmap-11 | -- | focused | `- (no fixture)` | ShiftMap + UnitNormMap(inv): refused | ShiftMap followed by Inverse(UnitNormMap) |
@@ -597,6 +599,8 @@ selectors/routes.
 | switchmap-01 | switchmap_inverse_cancel.map | focused | `+` | Inverse-pair cancellation to UnitMap | SwitchMap + Inverse(SwitchMap), identical selectors/routes |
 | switchmap-03 | switchmap_invert_normalize.map | focused | `+` | Inverted SwitchMap normalized to non-inverted equivalent | SwitchMap with Invert=1 |
 | switchmap-04 | switchmap_internal_simplify.map | focused | `+` | Internal selectors/routes simplify to new SwitchMap | SwitchMap with simplifiable route maps |
+| switchmap-07 | switchmap_inv_fwdonly.map | focused | `+` | Invert normalization with a NULL inverse selector: only the forward selector is inverted, and it becomes the inverse selector | Inverted SwitchMap with FSMap set and ISMap absent |
+| switchmap-08 | switchmap_inv_invonly.map | focused | `+` | Invert normalization with a NULL forward selector: the mirror arm of the same block | Inverted SwitchMap with ISMap set and FSMap absent |
 
 ### Negative branches
 
@@ -655,6 +659,8 @@ argument count (0,1,2,3,5-arg), eliminate no-op steps.
 | timemap-11 | time_3arg_cancel.map | focused | `+` | 3-arg pair cancellation (GMSTTOLMST+LMSTTOGMST) | Adjacent 3-arg steps with matching args |
 | timemap-12 | time_5arg_cancel.map | focused | `+` | 5-arg pair cancellation (TTTOTDB+TDBTOTT) | Adjacent 5-arg steps with matching args |
 | timemap-17 | time_run_identity.map | cascade | `+` | Run of three TimeMaps whose combined steps cancel to a UnitMap | Three adjacent TimeMaps forming an identity conversion |
+| timemap-18 | time_mjdtojd_noop.map | focused | `+` | MJDTOJD whose JD offset absorbs the 2400000.5 constant: derived combined offset is zero, step dropped, TimeMap becomes a UnitMap | TimeMap with a single MJDTOJD(0, 2400000.5) step |
+| timemap-19 | time_jdtomjd_noop.map | focused | `+` | JDTOMJD whose MJD offset absorbs the constant: same elimination in the opposite direction | TimeMap with a single JDTOMJD(2400000.5, 0) step |
 
 ### Negative branches
 
@@ -663,9 +669,10 @@ argument count (0,1,2,3,5-arg), eliminate no-op steps.
 | timemap-05 | neg_time_parallel.map | focused | `+` | Parallel-mode guard | TimeMap in parallel |
 | timemap-06 | neg_time_lone_forward.map | focused | `+` | No simplification: single forward TimeMap, no neighbours | Lone forward TimeMap |
 | timemap-13 | neg_time_arg_mismatch.map | focused | `+` | 1-arg pair with mismatched argument | Steps with different DUT1 values |
-| timemap-14 | -- | focused | `- (no fixture)` | 2-arg swapped pair with mismatched arguments | MJDTOJD + JDTOMJD with different offsets |
+| timemap-14 | neg_time_2arg_mismatch.map | focused | `+` | 2-arg swapped pair with mismatched arguments | MJDTOJD(1, 0) + JDTOMJD(0, 2): the args are not swapped copies, and neither step's combined offset is zero, so the no-op rule cannot fire instead |
 | timemap-15 | neg_time_3arg_mismatch.map | focused | `+` | 3-arg pair with mismatched arguments | GMSTTOLMST + LMSTTOGMST with different lon |
 | timemap-16 | neg_time_5arg_mismatch.map | focused | `+` | 5-arg pair with mismatched arguments | TTTOTDB + TDBTOTT with one arg different |
+| timemap-20 | neg_time_mjdtojd_real.map | focused | `+` | MJDTOJD whose offsets do not absorb the constant: a real conversion, step kept | TimeMap with a single MJDTOJD(0, 0) step |
 
 ---
 
@@ -1009,10 +1016,18 @@ When modifying a class's `MapMerge` method:
 2. Create a corresponding `.map` fixture in `ast_tester/simplify_fixtures/`
    and add it to `ast_tester/simplify_tests.txt`.
 3. For negative (guard) branches, the `.map` file is its own reference
-   (input == expected output).
+   (input == expected output). Listing it that way also registers a
+   `simplify_<name>_noop` test, which diffs the simplified dump against the
+   input with the `IsSimp` markers removed. Do not reach for a `.simp`
+   reference to make a negative pass: if the dump differs, astSimplify fired
+   and the fixture is a positive.
 4. For positive (simplification fires) branches, generate a `.simp`
    reference file showing the expected simplified output.
 5. Update the Status column to `+` once the fixture passes.
+6. A fixture that exercises a branch already marked `+`, but by a route the
+   existing witness does not isolate, belongs in "Audit-gap fixtures" at the
+   end of this document rather than in a new row -- it adds a witness, not a
+   branch.
 
 ---
 
@@ -1051,6 +1066,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | cmpmap-21 | UnitMap absorbed from nested CmpMap |
 | cmpmap-22 | Large celestial FITS-WCS pipeline collapses |
 | cmpmap-23 | GAPPT/IWC conversion residue reassociated |
+| cmpmap-24 | Inverted series CmpMap: inversion folded into the structure |
+| cmpmap-25 | Inverted parallel CmpMap re-emitted forward, inversion on component flags |
 | dssmap-01 | Parallel mode refused |
 | dssmap-02 | No adjacent mapping at expected index |
 | dssmap-03 | Adjacent mapping not a WinMap |
@@ -1277,6 +1294,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | switchmap-04 | Internal selectors/routes simplify |
 | switchmap-05 | Series: no simplification possible |
 | switchmap-06 | Parallel: no simplification possible |
+| switchmap-07 | Invert normalization with NULL inverse selector |
+| switchmap-08 | Invert normalization with NULL forward selector |
 | timemap-01 | Full cancellation to UnitMap |
 | timemap-02 | Partial cancellation |
 | timemap-03 | Adjacent TimeMaps merged without reduction |
@@ -1294,6 +1313,9 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | timemap-15 | 3-arg: mismatched arguments |
 | timemap-16 | 5-arg: mismatched arguments |
 | timemap-17 | Run of three TimeMaps cancels to UnitMap |
+| timemap-18 | MJDTOJD with zero combined offset eliminated |
+| timemap-19 | JDTOMJD with zero combined offset eliminated |
+| timemap-20 | MJDTOJD with a real offset: step kept |
 | tranmap-01 | Inverted TranMap normalized |
 | tranmap-02 | Components individually simplified |
 | tranmap-03 | Equal components to single Mapping |
@@ -1398,6 +1420,29 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | zoommap-14 | Absorbed into next ShiftMap |
 | zoommap-15 | Cannot absorb: no compatible neighbour |
 | zoommap-16 | Backward neighbour search stops at non-zoom lower neighbour |
+
+## Audit-gap fixtures
+
+Each fixture here exercises a branch that already has a `+` row, but by a
+route the pre-existing witness does not isolate: the earlier fixture reaches
+the same answer for a different reason, so it would still pass with the branch
+under test removed. They add witnesses rather than branches, so they are
+listed here rather than as new rows. All are generated by
+`gen_audit_gap_fixtures` in `ast_tester/gen_simplify_fixtures.c`.
+
+| Fixture | Branch | Why it is here |
+|---|---|---|
+| cmpmap_inverted_nested.map | cmpmap-24 | Reaches the folding as a nominee inside a list rather than as the whole Mapping |
+| parcomp_inverted_nested_reemitted.map | cmpmap-25 | Adds an intermediate parallel CmpMap, so "intermediates stay forward, each carrying InvA" has an intermediate to be wrong about |
+| parpair_aligned_reduces.map | cmpmap-09 | Both aligned pairs reduce, so the pairing loop is exercised on every sub-list |
+| parpair_one_side_reduces.map | cmpmap-09 | Only one aligned pair reduces: the "at least one sub-pair simplified" condition seen from the inside |
+| unit_parallel_invert_pcd.map | unitmap-05 | Second non-absorbing parallel neighbour class; `unit_parallel_invert_clear.map` uses a MathMap, so this adds a class rather than a route |
+| pcd_zero_disc_series.map | pcdmap-01 | The zero-distortion PcdMap is a nominee inside a list, and the two flanking MatrixMaps can only merge once it has become a UnitMap |
+| pcd_zero_disc_lone.map | pcdmap-01 | Same shape as `pcd_zero_to_unit.map`; kept as the lone half of the pair with `pcd_zero_disc_series.map` |
+| rate_inner_reduce_series.map | ratemap-01 | The RateMap is nominated from inside a list, which is where the encapsulated-Mapping rebuild runs |
+| rate_inner_reduce_lone.map | ratemap-01 | Same shape as `ratemap_simplify_interior.map`; kept as the lone half of the pair |
+| lut_exactly_linear.map | lutmap-01 | Nine-sample table whose interior samples decide linearity, not a three-sample table whose endpoints settle it |
+| neg_lut_near_linear.map | lutmap-05 | Departs from linear by 1e-12 at an interior sample, so it is refused only because GetLinear scales its tolerance by LutEpsilon; a grossly non-linear table is refused by any tolerance |
 
 ## Captured differential-coverage fixtures
 

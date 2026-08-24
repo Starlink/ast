@@ -1621,11 +1621,17 @@ static void gen_negative_fixtures(const char *dir) {
         sm = astAnnul(sm);
     }
 
-    /* unitnormmap-03: WinMap(non-unit scale) + UnitNormMap — refuses merge */
+    /* unitnormmap-03: WinMap(non-unit scale) + UnitNormMap — refuses merge.
+       The WinMap needs a non-zero shift as well as its non-unit scales: a
+       pure-scale WinMap self-simplifies to a MatrixMap before the UnitNormMap
+       merge is ever attempted, which would leave the fixture simplified for an
+       unrelated reason. The unit-scale form of this shape does merge (the
+       shift folds into the UnitNormMap centre), so the merge path is reached
+       and the non-unit scale is what refuses it. */
     {
         double centre[] = {1.0, 2.0};
         double ina[] = {0, 0}, inb[] = {1, 1};
-        double outa[] = {0, 0}, outb[] = {2, 3};
+        double outa[] = {1, 2}, outb[] = {3, 5};
         AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, " ");
         AstUnitNormMap *unm = astUnitNormMap(2, centre, " ");
         AstCmpMap *cm = astCmpMap(wm, unm, 1, " ");
@@ -1696,17 +1702,30 @@ static void gen_negative_fixtures_2(const char *dir) {
         cm = astAnnul(cm); pm = astAnnul(pm); sm = astAnnul(sm);
     }
 
-    /* cmpmap-04: series CmpMap in parallel list — mode mismatch refuses decomposition */
+    /* cmpmap-04: series CmpMap in parallel list — mode mismatch refuses
+       decomposition. Every component is a MathMap, which merges with nothing,
+       so neither the inner series pair nor the outer parallel pair can reduce
+       on its own; the only thing on offer is the decomposition the mode
+       mismatch refuses. ZoomMap components would fuse and hide it.
+
+       The expressions stay within range over the oracle's +/-1000 sampling
+       interval. MathMap turns an overflow into AST__BAD only when libm sets
+       errno to ERANGE (mathmap.c:2172), which glibc does and Apple's libm does
+       not, so an expression that overflows records as AST__BAD on one platform
+       and as an infinity on the other and no tolerance can bridge the two. */
     {
         if (!astOK) astClearStatus;
-        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
-        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
-        AstCmpMap *series_inner = astCmpMap(z1, z2, 1, " ");
-        AstZoomMap *z3 = astZoomMap(1, 5.0, " ");
-        AstCmpMap *par = astCmpMap(series_inner, z3, 0, " ");
+        const char *f1[] = {"y=x*x+1"}; const char *i1[] = {"x=sqrt(y-1)"};
+        const char *f2[] = {"y=3*x+2"}; const char *i2[] = {"x=(y-2)/3"};
+        const char *f3[] = {"y=atan(x)"}; const char *i3[] = {"x=tan(y)"};
+        AstMathMap *m1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstMathMap *m2 = astMathMap(1, 1, 1, f2, 1, i2, " ");
+        AstMathMap *m3 = astMathMap(1, 1, 1, f3, 1, i3, " ");
+        AstCmpMap *series_inner = astCmpMap(m1, m2, 1, " ");
+        AstCmpMap *par = astCmpMap(series_inner, m3, 0, " ");
         write_negative_fixture(dir, "neg_cmpmap_mode_mismatch", (AstMapping*)par);
         par = astAnnul(par); series_inner = astAnnul(series_inner);
-        z1 = astAnnul(z1); z2 = astAnnul(z2); z3 = astAnnul(z3);
+        m1 = astAnnul(m1); m2 = astAnnul(m2); m3 = astAnnul(m3);
     }
 
     /* wcsmap-07: WcsMap adjacent to different projection type — refuses merge */
@@ -1775,19 +1794,33 @@ static void gen_negative_fixtures_3(const char *dir) {
     if (!astOK) astClearStatus;
     printf("Negative fixtures batch 3:\n");
 
-    /* winmap-16: WinMap adjacent to series CmpMap (not parallel) — no merge */
+    /* winmap-17: WinMap next to a parallel CmpMap whose split does not
+       simplify. WinMap converts itself into a parallel CmpMap, composes each
+       half with the neighbour's corresponding component in series, and keeps
+       the result only if one of those compositions simplifies
+       (winmap.c:1362-1375). Both components here are series MathMap pairs
+       that merge with nothing and that a WinMap cannot absorb, so neither
+       composition reduces and the merge is refused.
+
+       This is not winmap-16: a *series* CmpMap neighbour is flattened out of
+       a series list by astMapList before the WinMap is ever nominated, so the
+       neighbour the WinMap sees is never a series CmpMap. */
     {
         if (!astOK) astClearStatus;
         double ina[] = {0, 0}, inb[] = {1, 1};
         double outa[] = {1, 2}, outb[] = {4, 6};
+        const char *f1[] = {"y=x*x+1"}; const char *i1[] = {"x=sqrt(y-1)"};
+        const char *f2[] = {"y=3*x+2"}; const char *i2[] = {"x=(y-2)/3"};
         AstWinMap *wm = astWinMap(2, ina, inb, outa, outb, " ");
-        AstZoomMap *z1 = astZoomMap(2, 2.0, " ");
-        AstZoomMap *z2 = astZoomMap(2, 3.0, " ");
-        AstCmpMap *series = astCmpMap(z1, z2, 1, " ");
-        AstCmpMap *cm = astCmpMap(series, wm, 1, " ");
-        write_negative_fixture(dir, "neg_win_series_cmpmap_neighbour", (AstMapping*)cm);
-        cm = astAnnul(cm); series = astAnnul(series);
-        wm = astAnnul(wm); z1 = astAnnul(z1); z2 = astAnnul(z2);
+        AstMathMap *m1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstMathMap *m2 = astMathMap(1, 1, 1, f2, 1, i2, " ");
+        AstCmpMap *series = astCmpMap(m1, m2, 1, " ");
+        AstCmpMap *par = astCmpMap(series, series, 0, " ");
+        AstCmpMap *cm = astCmpMap(par, wm, 1, " ");
+        write_negative_fixture(dir, "neg_win_cmpmap_split_no_simplify",
+                               (AstMapping*)cm);
+        cm = astAnnul(cm); par = astAnnul(par); series = astAnnul(series);
+        wm = astAnnul(wm); m1 = astAnnul(m1); m2 = astAnnul(m2);
     }
 
     /* winmap-28: WinMap swap refused — neither swapped Mapping simplifies */
@@ -1843,20 +1876,6 @@ static void gen_negative_fixtures_3(const char *dir) {
         z1 = astAnnul(z1); z2 = astAnnul(z2);
     }
 
-    /* cmpmap-06: CmpMap neighbour is not a CmpMap — refuses merge */
-    {
-        if (!astOK) astClearStatus;
-        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
-        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
-        AstCmpMap *par = astCmpMap(z1, z2, 0, " ");
-        const char *fwd[] = {"y1 = x1", "y2 = x2"};
-        const char *inv[] = {"x1 = y1", "x2 = y2"};
-        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
-        AstCmpMap *cm = astCmpMap(par, mm, 1, " ");
-        write_negative_fixture(dir, "neg_cmpmap_neighbour_not_cmpmap", (AstMapping*)cm);
-        cm = astAnnul(cm); par = astAnnul(par); mm = astAnnul(mm);
-        z1 = astAnnul(z1); z2 = astAnnul(z2);
-    }
 
     /* sphmap-03: Inverse(SphMap) + SphMap but PolarLong differs */
     {
@@ -1880,13 +1899,18 @@ static void gen_negative_fixtures_3(const char *dir) {
         cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
     }
 
-    /* polymap-10: two different PolyMaps in opposite directions — astEqual fails */
+    /* polymap-10: two different PolyMaps in opposite directions — astEqual
+       fails. Both need a second-order term: a lone first-power term makes the
+       PolyMap linear, so each self-simplifies to a ZoomMap and the pair fuses
+       before the inverse-cancel comparison is reached. With the square term
+       the identical-coefficient form of this shape cancels to a UnitMap, so
+       the comparison is reached and the differing coefficients refuse it. */
     {
         if (!astOK) astClearStatus;
-        double coeff_f1[] = {2.0, 1, 1};
-        double coeff_f2[] = {3.0, 1, 1};
-        AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f1, 0, NULL, " ");
-        AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f2, 0, NULL, " ");
+        double coeff_f1[] = {2.0, 1, 1,  1.0, 1, 2};
+        double coeff_f2[] = {3.0, 1, 1,  1.0, 1, 2};
+        AstPolyMap *p1 = astPolyMap(1, 1, 2, coeff_f1, 0, NULL, " ");
+        AstPolyMap *p2 = astPolyMap(1, 1, 2, coeff_f2, 0, NULL, " ");
         astInvert(p2);
         AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
         write_negative_fixture(dir, "neg_poly_different_coeffs", (AstMapping*)cm);
@@ -1947,11 +1971,18 @@ static void gen_negative_fixtures_4(const char *dir) {
         sm = astAnnul(sm);
     }
 
-    /* timemap-14: 2-arg swapped pair with mismatched arguments */
+    /* timemap-14: 2-arg swapped pair with mismatched arguments. The pair
+       cancels only when the two arguments are swapped copies of each other
+       (timemap.c:2301), which 1,0 against 0,2 is not. Both steps must also
+       avoid being no-ops in their own right, since the earlier
+       zero-combined-offset rule (timemap.c:2261) would drop one and leave the
+       fixture simplified for an unrelated reason: MJDTOJD derives
+       a - b + 2400000.5 and JDTOMJD derives a - b - 2400000.5, so these
+       arguments give 2400001.5 and -2400002.5, neither of them zero. */
     {
         if (!astOK) astClearStatus;
-        double args1[] = {0.0, 2400000.5, 0.0};
-        double args2[] = {2400001.0, 0.0, 0.0};
+        double args1[] = {1.0, 0.0, 0.0};
+        double args2[] = {0.0, 2.0, 0.0};
         AstTimeMap *tm = astTimeMap(0, " ");
         astTimeAdd(tm, "MJDTOJD", 2, args1);
         astTimeAdd(tm, "JDTOMJD", 2, args2);
@@ -3045,6 +3076,321 @@ static void gen_region_fixtures(const char *dir) {
 
 /* ===== Main ===== */
 
+/* ===== Audit-gap fixtures =====
+ *
+ * Each case here isolates a step of a MapMerge or Simplify body that the
+ * existing corpus reaches only by a route that produces the same answer for a
+ * different reason. A lone step, with no partner to cancel against, separates
+ * the two.
+ */
+
+static void gen_audit_gap_fixtures(const char *dir) {
+    printf("Audit-gap fixtures:\n");
+
+    /* A lone MJDTOJD whose JD offset absorbs the 2400000.5 constant. Its
+       derived third argument is zero, so MapMerge drops it as a change of
+       system with no effect (timemap.c:2260) and the TimeMap becomes a
+       UnitMap. time_2arg_swapped_cancel reaches a UnitMap too, but by
+       cancelling an inverse pair, so it does not exercise this rule. */
+    {
+        double args[] = {0.0, 2400000.5, 0.0};
+        AstTimeMap *tm = astTimeMap(0, " ");
+        astTimeAdd(tm, "MJDTOJD", 2, args);
+        write_fixture(dir, "time_mjdtojd_noop", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* The same for JDTOMJD, whose derived argument subtracts the constant. */
+    {
+        double args[] = {2400000.5, 0.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, " ");
+        astTimeAdd(tm, "JDTOMJD", 2, args);
+        write_fixture(dir, "time_jdtomjd_noop", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* Negative control: an MJDTOJD whose offsets do not absorb the constant is
+       a real conversion and must survive. */
+    {
+        double args[] = {0.0, 0.0, 0.0};
+        AstTimeMap *tm = astTimeMap(0, " ");
+        astTimeAdd(tm, "MJDTOJD", 2, args);
+        write_negative_fixture(dir, "neg_time_mjdtojd_real", (AstMapping*)tm);
+        tm = astAnnul(tm);
+    }
+
+    /* An inverted UnitMap in parallel with a Mapping that cannot absorb it.
+       MapMerge clears the Invert flag and reports that as a change
+       (unitmap.c:579-587). A PcdMap is the neighbour because it combines with
+       nothing in parallel (pcdmap.c:1729), where a ZoomMap, WinMap or PermMap
+       would swallow the UnitMap into its own parallel merge and so not
+       exercise this step. */
+    {
+        double pcdcen[] = {100.0, 100.0};
+        AstUnitMap *um = astUnitMap(1, " ");
+        AstPcdMap *pm = astPcdMap(0.001, pcdcen, " ");
+        AstCmpMap *cm;
+        astInvert(um);
+        cm = astCmpMap(um, pm, 0, " ");
+        write_fixture(dir, "unit_parallel_invert_pcd", (AstMapping*)cm);
+        cm = astAnnul(cm); um = astAnnul(um); pm = astAnnul(pm);
+    }
+
+    /* A zero-distortion PcdMap is a UnitMap, and MapMerge replaces it as its
+       opening move, before any neighbour is considered (pcdmap.c:1420). Placed
+       between two MatrixMaps that can only merge with each other once the
+       PcdMap has become a UnitMap, so the reduction has to happen to a nominee
+       inside the list rather than to a lone Mapping. */
+    {
+        double pcdcen[] = {0.0, 0.0};
+        double m1[] = {2.0, 0.0, 0.0, 3.0};
+        double m2[] = {5.0, 0.0, 0.0, 7.0};
+        AstMatrixMap *ma = astMatrixMap(2, 2, 0, m1, " ");
+        AstPcdMap *pm = astPcdMap(0.0, pcdcen, " ");
+        AstMatrixMap *mb = astMatrixMap(2, 2, 0, m2, " ");
+        AstCmpMap *inner = astCmpMap(ma, pm, 1, " ");
+        AstCmpMap *cm = astCmpMap(inner, mb, 1, " ");
+        write_fixture(dir, "pcd_zero_disc_series", (AstMapping*)cm);
+        cm = astAnnul(cm); inner = astAnnul(inner);
+        ma = astAnnul(ma); pm = astAnnul(pm); mb = astAnnul(mb);
+    }
+
+    /* An inverted parallel CmpMap that has to be re-emitted while the tree is
+       rebuilt around it: the two trailing ZoomMaps merge, so the list changes
+       and reconstruction runs, but the parallel component itself merges with
+       nothing. This is the shape cmpmap.rs's `invert_into_structure` exists for
+       -- the claim being that C pushes the inversion down so intermediate
+       parallel CmpMaps stay forward and the innermost carries InvA/InvB. */
+    {
+        const char *f1[] = {"y=x*x+1"};
+        const char *i1[] = {"x=sqrt(y-1)"};
+        const char *f2[] = {"y=exp(x)"};
+        const char *i2[] = {"x=log(y)"};
+        AstMathMap *ma = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstMathMap *mb = astMathMap(1, 1, 1, f2, 1, i2, " ");
+        AstCmpMap *par = astCmpMap(ma, mb, 0, " ");
+        AstZoomMap *z1 = astZoomMap(2, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, " ");
+        AstCmpMap *zz = astCmpMap(z1, z2, 1, " ");
+        AstCmpMap *cm;
+        astInvert(par);
+        cm = astCmpMap(par, zz, 1, " ");
+        write_fixture(dir, "parcomp_inverted_reemitted", (AstMapping*)cm);
+        cm = astAnnul(cm); zz = astAnnul(zz); par = astAnnul(par);
+        z1 = astAnnul(z1); z2 = astAnnul(z2); ma = astAnnul(ma); mb = astAnnul(mb);
+    }
+
+    /* The same with the parallel component nested one level deeper, so the
+       "intermediate stays forward, innermost carries the flags" claim has an
+       intermediate to be wrong about. */
+    {
+        const char *f1[] = {"y=x*x+1"};
+        const char *i1[] = {"x=sqrt(y-1)"};
+        const char *f2[] = {"y=exp(x)"};
+        const char *i2[] = {"x=log(y)"};
+        AstMathMap *ma = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstMathMap *mb = astMathMap(1, 1, 1, f2, 1, i2, " ");
+        AstUnitMap *um = astUnitMap(1, " ");
+        AstCmpMap *inner = astCmpMap(ma, mb, 0, " ");
+        AstCmpMap *outer = astCmpMap(inner, um, 0, " ");
+        AstZoomMap *z1 = astZoomMap(3, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(3, 3.0, " ");
+        AstCmpMap *zz = astCmpMap(z1, z2, 1, " ");
+        AstCmpMap *cm;
+        astInvert(outer);
+        cm = astCmpMap(outer, zz, 1, " ");
+        write_fixture(dir, "parcomp_inverted_nested_reemitted", (AstMapping*)cm);
+        cm = astAnnul(cm); zz = astAnnul(zz); outer = astAnnul(outer);
+        inner = astAnnul(inner); um = astAnnul(um);
+        z1 = astAnnul(z1); z2 = astAnnul(z2); ma = astAnnul(ma); mb = astAnnul(mb);
+    }
+
+    /* A lookup table that departs from linear by more than DBL_EPSILON and far
+       less than 1e-10. C's GetLinear scales its tolerance by the LutEpsilon
+       attribute, which defaults to DBL_EPSILON (lutmap.c:598-627), so C keeps
+       this a LutMap; a looser fixed tolerance would call it linear and replace
+       it with a WinMap. The departure is put on the middle sample so the
+       endpoint-based shortcut cannot see it. */
+    {
+        double lut[9];
+        AstLutMap *lm;
+        int i;
+        for( i = 0; i < 9; i++ ) lut[ i ] = 1.0 + 0.5*i;
+        lut[ 4 ] += 1.0e-12;
+        lm = astLutMap( 9, lut, 0.0, 1.0, " " );
+        write_negative_fixture(dir, "neg_lut_near_linear", (AstMapping*)lm);
+        lm = astAnnul(lm);
+    }
+
+    /* The control: a table that is linear to the last bit, which C does replace
+       with a WinMap. Without this the fixture above could pass for a port that
+       never converts a LutMap at all. */
+    {
+        double lut[9];
+        AstLutMap *lm;
+        int i;
+        for( i = 0; i < 9; i++ ) lut[ i ] = 1.0 + 0.5*i;
+        lm = astLutMap( 9, lut, 0.0, 1.0, " " );
+        write_fixture(dir, "lut_exactly_linear", (AstMapping*)lm);
+        lm = astAnnul(lm);
+    }
+
+    /* Two adjacent parallel CmpMaps in series, the shape C's "Parallel CmpMaps
+       in series" branch handles (cmpmap.c:1624-1783). C expands both into
+       lists, divides them into aligned sub-lists, composes each aligned pair
+       *in series*, and simplifies the composition -- it never offers an
+       expanded member to its own MapMerge. These two bracket that: the first
+       has aligned pairs that both reduce, the second has aligned pairs that
+       reduce nothing, so C merges one and leaves the other. Any change to the
+       expansion helpers has to keep both. */
+    {
+        AstZoomMap *a1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *b1 = astZoomMap(1, 3.0, " ");
+        AstZoomMap *a2 = astZoomMap(1, 5.0, " ");
+        AstZoomMap *b2 = astZoomMap(1, 7.0, " ");
+        AstCmpMap *p1 = astCmpMap(a1, b1, 0, " ");
+        AstCmpMap *p2 = astCmpMap(a2, b2, 0, " ");
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
+        write_fixture(dir, "parpair_aligned_reduces", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+        a1 = astAnnul(a1); b1 = astAnnul(b1); a2 = astAnnul(a2); b2 = astAnnul(b2);
+    }
+
+    /* The negative half: the same shape with MathMap components, which merge
+       with nothing, so every aligned series composition is irreducible and C
+       makes no change. A helper that nominated the expanded members instead of
+       composing them would still find nothing here, which is the point -- this
+       pins the shape as untouched so a future change cannot quietly start
+       rewriting it.
+
+       Both compositions stay in range over the oracle's +/-1000 sampling
+       interval; see the note on gen_negative_fixtures cmpmap-04 for why an
+       overflowing expression cannot be recorded portably. */
+    {
+        const char *f1[] = {"y=x*x+1"};
+        const char *i1[] = {"x=sqrt(y-1)"};
+        const char *f2[] = {"y=3*x+2"};
+        const char *i2[] = {"x=(y-2)/3"};
+        AstMathMap *a1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstMathMap *b1 = astMathMap(1, 1, 1, f2, 1, i2, " ");
+        AstMathMap *a2 = astMathMap(1, 1, 1, f2, 1, i2, " ");
+        AstMathMap *b2 = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstCmpMap *p1 = astCmpMap(a1, b1, 0, " ");
+        AstCmpMap *p2 = astCmpMap(a2, b2, 0, " ");
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
+        write_negative_fixture(dir, "neg_parpair_aligned_irreducible", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+        a1 = astAnnul(a1); b1 = astAnnul(b1); a2 = astAnnul(a2); b2 = astAnnul(b2);
+    }
+
+    /* One aligned pair reduces and the other does not, which is C's "only
+       proceed if at least one sub-pair genuinely simplified" condition
+       (cmpmap.c:1362-1370) seen from the inside. */
+    {
+        const char *f1[] = {"y=x*x+1"};
+        const char *i1[] = {"x=sqrt(y-1)"};
+        AstZoomMap *a1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *a2 = astZoomMap(1, 5.0, " ");
+        AstMathMap *b1 = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstMathMap *b2 = astMathMap(1, 1, 1, f1, 1, i1, " ");
+        AstCmpMap *p1 = astCmpMap(a1, b1, 0, " ");
+        AstCmpMap *p2 = astCmpMap(a2, b2, 0, " ");
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
+        write_fixture(dir, "parpair_one_side_reduces", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+        a1 = astAnnul(a1); a2 = astAnnul(a2); b1 = astAnnul(b1); b2 = astAnnul(b2);
+    }
+
+    /* An inverted series CmpMap whose two components do not merge with each
+       other. The question is whether astSimplify keeps the inversion as a flag
+       with the components in their constructed order, or folds it into the
+       structure by reversing them and inverting each. cap_cmpmap_01 shows C
+       taking the first route on a sub-Mapping; these ask it directly, at the
+       top level and one level down. */
+    {
+        double rf[] = {1.4e9, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, " ");
+        AstZoomMap *zm;
+        AstCmpMap *cm;
+        astSpecAdd(sm, "FRTOWV", 0, rf);
+        zm = astZoomMap(1, 1.0e10, " ");
+        cm = astCmpMap(sm, zm, 1, " ");
+        astInvert(cm);
+        write_fixture(dir, "cmpmap_inverted_lone", (AstMapping*)cm);
+        cm = astAnnul(cm); sm = astAnnul(sm); zm = astAnnul(zm);
+    }
+
+    /* The same inverted CmpMap as a component of an outer series CmpMap, so it
+       is reached as a nominee rather than as the whole Mapping. */
+    {
+        double rf[] = {1.4e9, 0.0};
+        AstSpecMap *sm = astSpecMap(1, 0, " ");
+        AstZoomMap *zm;
+        AstCmpMap *inner, *cm;
+        AstMathMap *mm;
+        const char *fwd[] = {"y=2*x"};
+        const char *inv[] = {"x=0.5*y"};
+        astSpecAdd(sm, "FRTOWV", 0, rf);
+        zm = astZoomMap(1, 1.0e10, " ");
+        inner = astCmpMap(sm, zm, 1, " ");
+        astInvert(inner);
+        mm = astMathMap(1, 1, 1, fwd, 1, inv, " ");
+        cm = astCmpMap(inner, mm, 1, " ");
+        write_fixture(dir, "cmpmap_inverted_nested", (AstMapping*)cm);
+        cm = astAnnul(cm); mm = astAnnul(mm); inner = astAnnul(inner);
+        sm = astAnnul(sm); zm = astAnnul(zm);
+    }
+
+    /* A RateMap whose encapsulated Mapping only reduces when simplified: a
+       series pair of ZoomMaps that fuse to one. C's MapMerge opens by
+       simplifying that Mapping and rebuilding the RateMap around the result
+       (ratemap.c:717-727). Wrapped in a series CmpMap so the RateMap is
+       nominated from inside a list, which is the only place C runs that step. */
+    {
+        AstZoomMap *z1 = astZoomMap(2, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, " ");
+        AstCmpMap *inner = astCmpMap(z1, z2, 1, " ");
+        AstRateMap *rm = astRateMap(inner, 1, 1, " ");
+        AstUnitMap *um = astUnitMap(1, " ");
+        AstCmpMap *cm = astCmpMap(rm, um, 1, " ");
+        write_fixture(dir, "rate_inner_reduce_series", (AstMapping*)cm);
+        cm = astAnnul(cm); um = astAnnul(um); rm = astAnnul(rm);
+        inner = astAnnul(inner); z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* The same RateMap on its own, which reaches the rebuild through the base
+       Simplify rather than through a nomination inside a list. */
+    {
+        AstZoomMap *z1 = astZoomMap(2, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(2, 3.0, " ");
+        AstCmpMap *inner = astCmpMap(z1, z2, 1, " ");
+        AstRateMap *rm = astRateMap(inner, 1, 1, " ");
+        write_fixture(dir, "rate_inner_reduce_lone", (AstMapping*)rm);
+        rm = astAnnul(rm); inner = astAnnul(inner);
+        z1 = astAnnul(z1); z2 = astAnnul(z2);
+    }
+
+    /* A lone zero-distortion PcdMap, which reaches the same replacement through
+       the base Simplify rather than through a nomination inside a list. */
+    {
+        double pcdcen[] = {0.0, 0.0};
+        AstPcdMap *pm = astPcdMap(0.0, pcdcen, " ");
+        write_fixture(dir, "pcd_zero_disc_lone", (AstMapping*)pm);
+        pm = astAnnul(pm);
+    }
+
+    /* Negative control: the same pair with the UnitMap already forward has
+       nothing to clear. */
+    {
+        double pcdcen[] = {100.0, 100.0};
+        AstUnitMap *um = astUnitMap(1, " ");
+        AstPcdMap *pm = astPcdMap(0.001, pcdcen, " ");
+        AstCmpMap *cm = astCmpMap(um, pm, 0, " ");
+        write_negative_fixture(dir, "neg_unit_parallel_forward", (AstMapping*)cm);
+        cm = astAnnul(cm); um = astAnnul(um); pm = astAnnul(pm);
+    }
+}
+
 int main(void) {
     int status = 0;
     const char *dir = "ast_tester/simplify_fixtures";
@@ -3052,6 +3398,7 @@ int main(void) {
     astWatch(&status);
     astBegin;
 
+    gen_audit_gap_fixtures(dir);
     gen_zoom_fixtures(dir);
     gen_win_fixtures(dir);
     gen_unit_fixtures(dir);

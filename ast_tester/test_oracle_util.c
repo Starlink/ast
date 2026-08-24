@@ -25,6 +25,12 @@ static void test_within_tol(void) {
     CHECK(oracle_within_tol(1.0, AST__BAD, ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 0);
     /* NaN never matches */
     CHECK(oracle_within_tol(NAN, 1.0, 1e9, 1e9) == 0);
+    /* infinities match only an infinity of the same sign */
+    CHECK(oracle_within_tol(INFINITY, INFINITY, 0.0, 0.0) == 1);
+    CHECK(oracle_within_tol(-INFINITY, -INFINITY, 0.0, 0.0) == 1);
+    CHECK(oracle_within_tol(INFINITY, -INFINITY, 1e9, 1e9) == 0);
+    CHECK(oracle_within_tol(INFINITY, 1.0, 1e9, 1e9) == 0);
+    CHECK(oracle_within_tol(1.0, INFINITY, 1e9, 1e9) == 0);
 }
 
 static void test_within_tol_wrap(void) {
