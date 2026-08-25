@@ -167,20 +167,10 @@ fi
 AM_CONDITIONAL(NOTHREADS, test x$use_pthreads = x0)
 AC_SUBST(THREADS, $use_pthreads)
 
-#  Conditional defining whether we build with YAML support.
-AC_ARG_WITH([yaml],
-            [ --without-yaml   Build package without YAML support],
-        if test "$withval" = "yes"; then
-           use_yaml="1"
-        else
-           use_yaml="0"
-        fi,
-        use_yaml="1")
-if test "$use_yaml" = "1"; then
-AC_CHECK_LIB([yaml], [yaml_parser_initialize], ,[use_yaml="0"])
-fi
-AM_CONDITIONAL(NOYAML, test x$use_yaml = x0)
-AC_SUBST(YAML, $use_yaml)
+#  Detect a YAML backend (libyaml or libfyaml) for YamlChan support.  All the
+#  logic lives in the AST_CHECK_YAML macro (m4/ast_yaml.m4); see there for the
+#  --with-yaml / YAML_CFLAGS / FYAML_CFLAGS interface and the outputs it sets.
+AST_CHECK_YAML
 
 # See which variadic function API to use
 AC_CHECK_HEADERS(stdarg.h varargs.h, break)
