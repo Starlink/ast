@@ -239,6 +239,7 @@ AST_H_FILES_TAIL = \
                    src/stcobsdatalocation.h \
              src/timeframe.h \
        src/channel.h \
+          src/yaml_backend.h \
           src/yamlchan.h \
           src/fitschan.h \
           src/mocchan.h \
