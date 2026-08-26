@@ -864,7 +864,7 @@ static void checktab( int *status ) {
     * Test with sparse.ast (multi-dim TAB WCS)
     * ------------------------------------------------------------------*/
    {
-      AstObject *sparseobj = readobj( "sparse.ast", status );
+      AstObject *sparseobj = readobj( "fixtures/programs/testfitschan/sparse.ast", status );
       if( !sparseobj ) {
          stopit( 1038, "readobj failed", status );
       } else {
@@ -1671,7 +1671,7 @@ int main( void ) {
     * ---------------------------------------------------------------*/
    astEmptyFits( fc );
    astSetI( fc, "SipOK", 0 );
-   astSet( fc, "SourceFile=sip.head" );
+   astSet( fc, "SourceFile=fixtures/wcsconv/inputs/sip.head" );
    astClear( fc, "Card" );
    fs = (AstFrameSet *)astRead( fc );
    astSet( fc, "Encoding=FITS-WCS" );
@@ -1690,7 +1690,7 @@ int main( void ) {
    if( astOK && astGetI( fc, "IgnoreBadAlt" ) )
       stopit( 14, " ", status );
 
-   astSet( fc, "SourceFile=alt.header" );
+   astSet( fc, "SourceFile=fixtures/programs/testfitschan/alt.header" );
    astClear( fc, "Card" );
    fs = (AstFrameSet *)astRead( fc );
 
@@ -1709,7 +1709,7 @@ int main( void ) {
       stopit( 16, " ", status );
 
    astEmptyFits( fc );
-   astSet( fc, "SourceFile=alt.header" );
+   astSet( fc, "SourceFile=fixtures/programs/testfitschan/alt.header" );
    astClear( fc, "Card" );
    fs = (AstFrameSet *)astRead( fc );
 
@@ -1723,7 +1723,7 @@ int main( void ) {
    if( fs ) astAnnul( fs );
 
    astEmptyFits( fc );
-   astSet( fc, "SourceFile=alt.header" );
+   astSet( fc, "SourceFile=fixtures/programs/testfitschan/alt.header" );
    astSet( fc, "Warnings=BadAlt" );
 
    astClear( fc, "Card" );
@@ -2550,7 +2550,7 @@ int main( void ) {
          logtfs = astAnnul( logtfs );
       }
 
-      /* --- 3D sky+spec tests moved to wcsconv_tests.txt:
+      /* --- 3D sky+spec tests moved to fixtures/wcsconv/cases.txt:
              skyspec3d.head -> fits-wcs/fits-aips/fits-aips++/fits-iraf
              skyspec3d-class.head -> fits-class
              offset-sky.head -> fits-wcs
@@ -4553,7 +4553,7 @@ int main( void ) {
          int found_a_order = 0;
          int found_freq = 0;
 
-         astSet( sipfc, "SourceFile=sip-3d.head" );
+         astSet( sipfc, "SourceFile=fixtures/wcsconv/inputs/sip-3d.head" );
          astClear( sipfc, "Card" );
          sipfs = (AstFrameSet *) astRead( sipfc );
          if( !sipfs ) {
@@ -4588,7 +4588,7 @@ int main( void ) {
          char card[81];
          int found_a_order = 0;
 
-         astSet( sipfc2, "SourceFile=sip-3d-swap.head" );
+         astSet( sipfc2, "SourceFile=fixtures/wcsconv/inputs/sip-3d-swap.head" );
          astClear( sipfc2, "Card" );
          sipfs2 = (AstFrameSet *) astRead( sipfc2 );
          if( !sipfs2 ) {

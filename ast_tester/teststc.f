@@ -49,12 +49,12 @@ c      call ast_listissued( 'teststc' )
 
       call ast_begin( status )
 
-      call puteg( 'teststc_eg6', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg6', 1, status )
       call xmlread( 1, obj1, ' ', status )
       obj1 = ast_simplify( obj1, status )
       call checkdump( obj1, 'checkdump 1', status )
 
-      call puteg( 'teststc_eg7', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg7', 1, status )
       call xmlread( 1, obj2, ' ', status )
       obj2 = ast_simplify( obj2, status )
       call checkdump( obj2, 'checkdump 2', status )
@@ -65,7 +65,7 @@ c      call ast_listissued( 'teststc' )
          call stopit( status, 'Error 1' )
       endif
 
-      call puteg( 'teststc_eg8', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg8', 1, status )
       call xmlread( 1, obj2, ' ', status )
       obj2 = ast_simplify( obj2, status )
       call checkdump( obj2, 'checkdump 3', status )
@@ -82,7 +82,7 @@ c      call ast_listissued( 'teststc' )
          call stopit( status, 'Error 3' )
       endif
 
-      call puteg( 'teststc_eg9', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg9', 1, status )
       call xmlread( 1, obj2, ' ', status )
 
       overlap = ast_overlap( obj1, obj2, status )
@@ -92,7 +92,7 @@ c      call ast_listissued( 'teststc' )
       endif
 
 
-      call puteg( 'teststc_eg10', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg10', 1, status )
       call xmlread( 1, obj2, ' ', status )
 
       x = 2.4958208
@@ -135,7 +135,7 @@ c      call ast_listissued( 'teststc' )
       call ast_begin( status )
 
 *  Put an example of an STCResourceProfile into file 1.
-      call puteg( 'teststc_eg1', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg1', 1, status )
 
 *  Use a new XmlChan to read an object from file 1,and simplify it.
       call xmlread( 1, obj, ' ', status )
@@ -642,7 +642,7 @@ c      end if
       call ast_begin( status )
 
 *  Test the Strict attribute.
-      call puteg( 'teststc_eg1', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg1', 1, status )
 
       call err_mark
       call xmlread( 1, obj, 'Strict=1', status )
@@ -695,7 +695,7 @@ c      end if
       call ast_begin( status )
 
 *  Put an example of a CatalogEntryLocation into file 1.
-      call puteg( 'teststc_eg2', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg2', 1, status )
 
 *  Use a new XmlChan to read an object from file 1,and simplify it.
       call xmlread( 1, obj, ' ', status )
@@ -947,7 +947,7 @@ c      end if
       call ast_begin( status )
 
 *  Put an example of a CatalogEntryLocation into file 1.
-      call puteg( 'teststc_eg3', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg3', 1, status )
 
 *  Use a new XmlChan to read an object from file 1,and simplify it.
       call xmlread( 1, obj, ' ', status )
@@ -1215,7 +1215,7 @@ c      end if
       call ast_begin( status )
 
 *  Put an example of an STCSearchLocation into file 1.
-      call puteg( 'teststc_eg4', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg4', 1, status )
 
 *  Use a new XmlChan to read an object from file 1,and simplify it.
       call xmlread( 1, obj, ' ', status )
@@ -1452,7 +1452,7 @@ c      end if
       call ast_begin( status )
 
 *  Put an example of an STCSearchLocation into file 1.
-      call puteg( 'teststc_eg5', 1, status )
+      call puteg( 'fixtures/programs/teststc/teststc_eg5', 1, status )
 
 *  Use a new XmlChan to read an object from file 1,and simplify it.
       call xmlread( 1, obj, ' ', status )

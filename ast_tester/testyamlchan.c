@@ -107,10 +107,10 @@ void test_imaging_wcs_roundtrip( int *status ){
    if( *status != SAI__OK ) return;
 
    ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=imaging_wcs.asdf,SinkFile=yamltest.asdf" );
+   astSet( ch, "SourceFile=fixtures/programs/testyamlchan/imaging_wcs.asdf,SinkFile=yamltest.asdf" );
 
    obj = astRead( ch );
-   check_imaging_wcs( obj, "Read tests failed for imaging_wcs.asdf", status );
+   check_imaging_wcs( obj, "Read tests failed for fixtures/programs/testyamlchan/imaging_wcs.asdf", status );
 
    if( astWrite( ch, obj ) != 1 ) stopit( 13, status );
 
@@ -142,9 +142,9 @@ void test_tansip_wcs_roundtrip( int *status ){
    ch  = astYamlChan( NULL, NULL, " " );
    ch2 = astChannel( NULL, NULL, " " );
 
-   astSet( ch2, "SourceFile=tanSipWcs.txt" );
+   astSet( ch2, "SourceFile=fixtures/programs/testyamlchan/tanSipWcs.txt" );
    obj = astRead( ch2 );
-   check_tansip_wcs( obj, "Read tests failed for tanSipWcs.txt", status );
+   check_tansip_wcs( obj, "Read tests failed for fixtures/programs/testyamlchan/tanSipWcs.txt", status );
 
    astSet( ch, "SinkFile=tanSipWcs.asdf" );
    if( astWrite( ch, obj ) != 1 ) stopit( 14, status );
@@ -175,7 +175,7 @@ void test_lsst_wcs_roundtrip( int *status ){
    ch  = astYamlChan( NULL, NULL, " " );
    ch2 = astChannel( NULL, NULL, " " );
 
-   astSet( ch2, "SourceFile=lsst_wcs.txt" );
+   astSet( ch2, "SourceFile=fixtures/programs/testyamlchan/lsst_wcs.txt" );
    obj = astRead( ch2 );
 
    astSet( ch, "SinkFile=lsst_wcs.asdf" );
@@ -186,7 +186,7 @@ void test_lsst_wcs_roundtrip( int *status ){
    obj2 = astRead( ch );
    if( !obj2 ) stopit( 16, status );
 
-   check_equal_transforms( obj, obj2, "Tests failed for lsst_wcs.txt", status );
+   check_equal_transforms( obj, obj2, "Tests failed for fixtures/programs/testyamlchan/lsst_wcs.txt", status );
 
    astAnnul( obj );
    astAnnul( obj2 );
@@ -207,7 +207,7 @@ void test_native_encoding_roundtrip( int *status ){
    if( *status != SAI__OK ) return;
 
    ch2 = astChannel( NULL, NULL, " " );
-   astSet( ch2, "SourceFile=lsst_wcs.txt" );
+   astSet( ch2, "SourceFile=fixtures/programs/testyamlchan/lsst_wcs.txt" );
    obj = astRead( ch2 );
    astAnnul( ch2 );
 
@@ -667,7 +667,7 @@ void test_rotate_sequence_3d_roundtrip( int *status ){
       return;
 
    ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=rotate_seq3d_cartesian.asdf" );
+   astSet( ch, "SourceFile=fixtures/programs/testyamlchan/rotate_seq3d_cartesian.asdf" );
    fs = (AstFrameSet *) astRead( ch );
    astAnnul( ch );
    if( !fs ) {

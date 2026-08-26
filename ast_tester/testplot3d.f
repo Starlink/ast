@@ -62,7 +62,8 @@ c
       bbox(4) = 155.5
       bbox(5) = 107.5
       bbox(6) = 1640.5
-      plot3d = ast_plot3d( readtest( "plot3d-test1.ast", status ), gbox,
+      plot3d = ast_plot3d( readtest( 'fixtures/programs/testplot3d/'//
+     :                              'plot3d-test1.ast', status ), gbox,
      :                      bbox, ' ' , status )
 c      call checkdump( plot3d, 'CheckDump test 2', status )
 c      call ast_set( plot3d, "System(1)=galactic,system(3)=freq",

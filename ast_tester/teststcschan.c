@@ -320,11 +320,11 @@ static void test1( int *status ) {
    idoc = 3; iread = 0;
    obj = astRead( ch );
 
-   sb = readast( "stcschan-test1-doc3.ast", status );
+   sb = readast( "fixtures/programs/teststcschan/stcschan-test1-doc3.ast", status );
    if( *status == 0 ) {
       if( !astEqual( obj, sb ) )
          error( "Object read from doc3 is not equal to the object read "
-                "from file stcschan-test1-doc3.ast.", status );
+                "from file fixtures/programs/teststcschan/stcschan-test1-doc3.ast.", status );
    }
 
    /* --- doc 3 again with StcsCoords + StcsProps → KeyMap --- */
@@ -341,19 +341,19 @@ static void test1( int *status ) {
                 astMapHasKey( (AstKeyMap *)obj, "COORDS" ), status );
 
    if( astMapGet0A( (AstKeyMap *)obj, "AREA", &iobj ) ) {
-      sb = readast( "stcschan-test1-doc3.ast", status );
+      sb = readast( "fixtures/programs/teststcschan/stcschan-test1-doc3.ast", status );
       if( *status == 0 && !astEqual( iobj, sb ) )
          error( "AREA read from doc3 is not equal to the object read "
-                "from file stcschan-test1-doc3.ast", status );
+                "from file fixtures/programs/teststcschan/stcschan-test1-doc3.ast", status );
    } else {
       error( "No AREA entry found", status );
    }
 
    if( astMapGet0A( (AstKeyMap *)obj, "PROPS", &iobj ) ) {
-      sb = readast( "stcschan-test1-doc3-props.ast", status );
+      sb = readast( "fixtures/programs/teststcschan/stcschan-test1-doc3-props.ast", status );
       if( *status == 0 && !astEqual( iobj, sb ) )
          error( "PROPS read from doc3 is not equal to the object read "
-                "from file stcschan-test1-doc3-props.ast", status );
+                "from file fixtures/programs/teststcschan/stcschan-test1-doc3-props.ast", status );
    } else {
       error( "No PROPS entry found", status );
    }

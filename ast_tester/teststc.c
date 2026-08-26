@@ -181,12 +181,12 @@ static void misc( int *status ) {
 
    astBegin;
 
-   puteg( "teststc_eg6", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg6", 0, status );
    obj1 = xmlread( 0, " ", status );
    obj1 = (AstObject *)astSimplify( (AstMapping *)obj1 );
    checkdump( obj1, "checkdump 1", status );
 
-   puteg( "teststc_eg7", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg7", 0, status );
    obj2 = xmlread( 0, " ", status );
    obj2 = (AstObject *)astSimplify( (AstMapping *)obj2 );
    checkdump( obj2, "checkdump 2", status );
@@ -197,7 +197,7 @@ static void misc( int *status ) {
       stopit( status, "Error 1" );
    }
 
-   puteg( "teststc_eg8", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg8", 0, status );
    obj2 = xmlread( 0, " ", status );
    obj2 = (AstObject *)astSimplify( (AstMapping *)obj2 );
    checkdump( obj2, "checkdump 3", status );
@@ -214,7 +214,7 @@ static void misc( int *status ) {
       stopit( status, "Error 3" );
    }
 
-   puteg( "teststc_eg9", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg9", 0, status );
    obj2 = xmlread( 0, " ", status );
 
    overlap = astOverlap( (AstRegion *)obj1, (AstRegion *)obj2 );
@@ -223,7 +223,7 @@ static void misc( int *status ) {
       stopit( status, "Error 4" );
    }
 
-   puteg( "teststc_eg10", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg10", 0, status );
    obj2 = xmlread( 0, " ", status );
 
    x = 2.4958208;
@@ -266,7 +266,7 @@ static void Example1( int *status ) {
    astBegin;
 
    /* Put an example of an STCResourceProfile into file 0. */
-   puteg( "teststc_eg1", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg1", 0, status );
 
    /* Use a new XmlChan to read an object from file 0, and simplify it. */
    obj = xmlread( 0, " ", status );
@@ -671,7 +671,7 @@ static void Example1b( int *status ) {
    astBegin;
 
    /* Test the Strict attribute. */
-   puteg( "teststc_eg1", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg1", 0, status );
 
    /* Read with Strict=1 - should give AST__BADIN error. */
    obj = xmlread( 0, "Strict=1", status );
@@ -686,7 +686,7 @@ static void Example1b( int *status ) {
    }
 
    /* Read without Strict - should produce warnings. */
-   puteg( "teststc_eg1", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg1", 0, status );
    obj = xmlread( 0, "Strict=0", status );
 
    if( warns_km == AST__NULL ) {
@@ -722,7 +722,7 @@ static void Example2( int *status ) {
 
    astBegin;
 
-   puteg( "teststc_eg2", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg2", 0, status );
    obj = xmlread( 0, " ", status );
    obj = (AstObject *)astSimplify( (AstMapping *)obj );
 
@@ -897,7 +897,7 @@ static void Example3( int *status ) {
 
    astBegin;
 
-   puteg( "teststc_eg3", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg3", 0, status );
    obj = xmlread( 0, " ", status );
    obj = (AstObject *)astSimplify( (AstMapping *)obj );
 
@@ -1097,7 +1097,7 @@ static void Example4( int *status ) {
 
    astBegin;
 
-   puteg( "teststc_eg4", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg4", 0, status );
    obj = xmlread( 0, " ", status );
    obj = (AstObject *)astSimplify( (AstMapping *)obj );
 
@@ -1263,7 +1263,7 @@ static void Example5( int *status ) {
 
    astBegin;
 
-   puteg( "teststc_eg5", 0, status );
+   puteg( "fixtures/programs/teststc/teststc_eg5", 0, status );
    obj = xmlread( 0, " ", status );
    checkdump( obj, "checkdump 2", status );
    obj = (AstObject *)astSimplify( (AstMapping *)obj );

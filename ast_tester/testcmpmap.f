@@ -38,7 +38,8 @@
       if( out( 3 ) .ne. 6 ) call stopit( status, 'Error 6' )
 
 
-      call readobj( 'splittest1.ast', m1, status )
+      call readobj( 'fixtures/programs/testcmpmap/'//
+     :              'splittest1.ast', m1, status )
       in(1)= 1
       call ast_mapsplit( m1, 1, in, out, m2, status )
       if( m2 .ne. AST__NULL )  call stopit( status, 'Error 7' )
@@ -146,4 +147,3 @@ c      call ast_activememory( 'testcmpmap' )
  99   call ast_putline( line, -1, status )
 
       end
-

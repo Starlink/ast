@@ -47,10 +47,11 @@
 c      call ast_watchmemory( 325 )
 
 
-c  Load the data defing a splinemap from text file 2dspline.dat. The
+c  Load the data defining a SplineMap from text file 2dspline.dat. The
 c  parameters nx, ny and k must be set above to the same values they had
 c  when this text file was created.
-      call loadspline( '2dspline.dat', k, nx, ny, tx, ty, cu, cv,
+      call loadspline( 'fixtures/programs/testsplinemap/'//
+     :                 '2dspline.dat', k, nx, ny, tx, ty, cu, cv,
      :                 xl, xu, yl, yu )
 
 *  Create a SplineMap using the knots and coefficients read from the file.

@@ -351,7 +351,9 @@ c      call ast_setl( fc, 'Clean', .true., status )
 *  because the SIP header is non-linear.
       call ast_emptyfits( fc, status )
       call ast_seti( fc, 'SipOK', 0, status )
-      call ast_set( fc, 'SourceFile=sip.head', status )
+      call ast_set( fc,
+     :              'SourceFile=fixtures/wcsconv/inputs/sip.head',
+     :              status )
       call ast_clear( fc, 'Card', status )
       fs = ast_read( fc, status )
       call ast_set( fc, 'Encoding=FITS-WCS', status )
@@ -373,7 +375,8 @@ c      call ast_setl( fc, 'Clean', .true., status )
          call stopit( 14, ' ', status )
       end if
 
-      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_set( fc, 'SourceFile=fixtures/programs/testfitschan/'//
+     :              'alt.header', status )
       call ast_clear( fc, 'Card', status )
       call err_begin( status )
       fs = ast_read( fc, status )
@@ -393,7 +396,8 @@ c      call ast_setl( fc, 'Clean', .true., status )
       end if
 
       call ast_emptyfits( fc, status )
-      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_set( fc, 'SourceFile=fixtures/programs/testfitschan/'//
+     :              'alt.header', status )
       call ast_clear( fc, 'Card', status )
       call err_begin( status )
       fs = ast_read( fc, status )
@@ -410,7 +414,8 @@ c      call ast_setl( fc, 'Clean', .true., status )
 
 
       call ast_emptyfits( fc, status )
-      call ast_set( fc, 'SourceFile=alt.header', status )
+      call ast_set( fc, 'SourceFile=fixtures/programs/testfitschan/'//
+     :              'alt.header', status )
       call ast_set( fc, 'Warnings=BadAlt', status )
 
       call ast_clear( fc, 'Card', status )
@@ -711,7 +716,8 @@ c --------------------------------------------------------------------
       end if
 
 c --------------------------------------------------------------------
-      call readobj( 'sparse.ast', fs, status )
+      call readobj( 'fixtures/programs/testfitschan/sparse.ast', fs,
+     :              status )
 
       fc = ast_fitschan( ast_null, ast_null,
      :                   'Encoding=FITS-WCS,TabOK=1', status )
