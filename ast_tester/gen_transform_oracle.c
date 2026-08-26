@@ -6,7 +6,8 @@
  * Usage:
  *   gen_transform_oracle <root> <simplify_oracle_out> <headers_oracle_out>
  *
- * <root> is the ast_tester source directory.  This program is the only
+ * <root> is the ast_tester/fixtures directory.  Paths written in section
+ * headers are relative to this root.  This program is the only
  * component that scans the filesystem; the checker is driven entirely by
  * the files written here.
  *
@@ -50,6 +51,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static double **alloc_cols( int ncol, int nrow ) {
     double **c = malloc( sizeof(double *) * (size_t) ncol );
@@ -259,29 +261,78 @@ static int cmp_str( const void *a, const void *b ) {
     return strcmp( *(const char *const *) a, *(const char *const *) b );
 }
 
-/* Collect entries of dir matching suffix into a sorted relpath list.
-   prefix is prepended to each name (e.g. "simplify_fixtures/" or ""). */
-static char **scan_dir( const char *root, const char *subdir,
-                        const char *prefix, const char *suffix, int *count ) {
+/* A fixture missing from an oracle silently stops being tested, so abort
+   rather than carry on with a short manifest. */
+static void *xalloc( void *p, size_t size, const char *what ) {
+    void *q = realloc( p, size );
+    if ( !q ) {
+        fprintf( stderr, "gen_transform_oracle: out of memory for %s\n", what );
+        exit( 1 );
+    }
+    return q;
+}
+
+/* Recursively collect files below subdir whose names end in suffix.  Every
+   returned name is the full path relative to root. */
+static void scan_tree_into( const char *root, const char *subdir,
+                            const char *suffix, char ***list, size_t *n,
+                            size_t *cap ) {
     char path[1024];
-    snprintf( path, sizeof path, "%s%s%s", root, subdir[0] ? "/" : "", subdir );
+    if ( snprintf( path, sizeof path, "%s%s%s",
+                   root, subdir[0] ? "/" : "", subdir )
+         >= (int) sizeof path ) {
+        fprintf( stderr, "gen_transform_oracle: path too long, not scanned: "
+                         "%s/%s\n", root, subdir );
+        return;
+    }
     DIR *d = opendir( path );
-    *count = 0;
-    if ( !d ) return NULL;
-    size_t cap = 64, n = 0;
-    char **list = malloc( sizeof(char *) * cap );
+    if ( !d ) return;
     struct dirent *e;
     size_t slen = strlen( suffix );
     while ( ( e = readdir( d ) ) ) {
+        if ( strcmp( e->d_name, "." ) == 0 ||
+             strcmp( e->d_name, ".." ) == 0 ) continue;
+
+        char rel[1024];
+        char child[1024];
+        /* Truncation would leave a path that no longer names the fixture, so
+           report it instead of letting the stat() below quietly drop it. */
+        if ( snprintf( rel, sizeof rel, "%s%s%s", subdir,
+                       subdir[0] ? "/" : "", e->d_name )
+             >= (int) sizeof rel ||
+             snprintf( child, sizeof child, "%s/%s", root, rel )
+             >= (int) sizeof child ) {
+            fprintf( stderr, "gen_transform_oracle: path too long, skipped: "
+                             "%s/%s%s%s\n", root, subdir,
+                             subdir[0] ? "/" : "", e->d_name );
+            continue;
+        }
+        struct stat st;
+        if ( stat( child, &st ) != 0 ) continue;
+        if ( S_ISDIR( st.st_mode ) ) {
+            scan_tree_into( root, rel, suffix, list, n, cap );
+            continue;
+        }
+
         size_t nlen = strlen( e->d_name );
         if ( nlen <= slen || strcmp( e->d_name + nlen - slen, suffix ) != 0 )
             continue;
-        if ( n == cap ) { cap *= 2; list = realloc( list, sizeof(char *) * cap ); }
-        char rel[1024];
-        snprintf( rel, sizeof rel, "%s%s", prefix, e->d_name );
-        list[n++] = strdup( rel );
+        if ( *n == *cap ) {
+            *cap *= 2;
+            *list = xalloc( *list, sizeof(char *) * *cap, "fixture list" );
+        }
+        char *copy = xalloc( NULL, strlen( rel ) + 1, "fixture path" );
+        strcpy( copy, rel );
+        (*list)[(*n)++] = copy;
     }
     closedir( d );
+}
+
+static char **scan_tree( const char *root, const char *subdir,
+                         const char *suffix, int *count ) {
+    size_t cap = 64, n = 0;
+    char **list = xalloc( NULL, sizeof(char *) * cap, "fixture list" );
+    scan_tree_into( root, subdir, suffix, &list, &n, &cap );
     qsort( list, n, sizeof(char *), cmp_str );
     *count = (int) n;
     return list;
@@ -319,8 +370,7 @@ int main( int argc, char *argv[] ) {
     if ( !fs ) { fprintf( stderr, "cannot write %s\n", simplify_out ); return 1; }
     fputs( hdr, fs );
     int nmap = 0;
-    char **maps = scan_dir( root, "simplify_fixtures", "simplify_fixtures/",
-                            ".map", &nmap );
+    char **maps = scan_tree( root, "simplify", ".map", &nmap );
     int nwritten = 0;
     for ( int i = 0; i < nmap; i++ ) {
         char simp[1024];
@@ -340,7 +390,7 @@ int main( int argc, char *argv[] ) {
     if ( !fh ) { fprintf( stderr, "cannot write %s\n", headers_out ); return 1; }
     fputs( hdr, fh );
     int nhead = 0;
-    char **heads = scan_dir( root, "", "", ".head", &nhead );
+    char **heads = scan_tree( root, "", ".head", &nhead );
     for ( int i = 0; i < nhead; i++ ) {
         nwritten += emit_fixture( fh, root, heads[i] );
         free( heads[i] );
@@ -354,7 +404,7 @@ int main( int argc, char *argv[] ) {
     if ( !ff ) { fprintf( stderr, "cannot write %s\n", framesets_out ); return 1; }
     fputs( hdr, ff );
     int nast = 0;
-    char **asts = scan_dir( root, "", "", ".ast", &nast );
+    char **asts = scan_tree( root, "", ".ast", &nast );
     for ( int i = 0; i < nast; i++ ) {
         nwritten += emit_fixture( ff, root, asts[i] );
         free( asts[i] );

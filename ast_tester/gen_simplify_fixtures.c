@@ -1403,7 +1403,8 @@ static void gen_dssmap_fixtures(const char *dir) {
        Read DSS headers from dss.fits-dss to create a FrameSet, extract
        the Mapping (which contains a DssMap), then compose with a WinMap. */
     {
-        FILE *fp = fopen("ast_tester/dss.fits-dss", "r");
+        FILE *fp = fopen(
+            "ast_tester/fixtures/wcsconv/inputs/dss.fits-dss", "r");
         if (fp) {
             char line[256];
             AstFitsChan *fc = astFitsChan(NULL, NULL, "Encoding=DSS");
@@ -3393,7 +3394,7 @@ static void gen_audit_gap_fixtures(const char *dir) {
 
 int main(void) {
     int status = 0;
-    const char *dir = "ast_tester/simplify_fixtures";
+    const char *dir = "ast_tester/fixtures/simplify";
 
     astWatch(&status);
     astBegin;
