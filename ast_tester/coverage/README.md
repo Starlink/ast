@@ -68,7 +68,7 @@ fixtures more self-contained.
 
 ## Capture method (how the `cap_*` fixtures were produced)
 
-The `cap_*` fixtures in `../simplify_fixtures/` (catalogued in
+The `cap_*` fixtures in `../fixtures/simplify/` (catalogued in
 `captured_fixtures.md`) were not hand-authored. They are real top-level
 Mappings that the wider AST test suite hands to `astSimplify`, captured and
 replayed as self-contained fixtures. This closes differential gaps without

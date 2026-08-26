@@ -1,5 +1,9 @@
 # Transform Output Oracle — Design
 
+> **Historical document.** Fixture paths below are as they were when this
+> document was written, before the test data moved under `ast_tester/fixtures/`.
+> `ast_tester/README` documents the current layout.
+
 Date: 2026-06-27
 Status: Approved design, ready for implementation planning
 
