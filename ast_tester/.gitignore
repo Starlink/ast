@@ -2,18 +2,18 @@
 *.log
 *.trs
 *.o
-ast_test
-simplify
-test*
-wcsconverter
-!test*.c
-!test*.f
-!test*.sh
+/ast_test
+/simplify
+/test*
+/wcsconverter
+!/test*.c
+!/test*.f
+!/test*.sh
 
 # Generated test outputs
-divide_roundtrip.asdf
-lsst_wcs.asdf
-nativetest.yaml
-sphmap_roundtrip.asdf
-tanSipWcs.asdf
-yamltest.asdf
+/divide_roundtrip.asdf
+/lsst_wcs.asdf
+/nativetest.yaml
+/sphmap_roundtrip.asdf
+/tanSipWcs.asdf
+/yamltest.asdf
