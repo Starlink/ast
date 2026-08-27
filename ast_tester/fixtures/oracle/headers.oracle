@@ -55,7 +55,7 @@
 
 [programs/joye_car_headers/CHIPASS_Equ.head  nin=2 nout=2 dir=forward]
                          1                        1                       BAD                      BAD
-                      5401                     1741                       BAD                      BAD
+                      5401                     1741                         0       0.4537856055185257
                          1                        1                       BAD                      BAD
                       2701                      871        3.1415926535897936     -0.55850536063818579
                       2701                      581        3.1415926535897936     -0.89593568269042301
@@ -81,7 +81,7 @@
 
 [programs/joye_car_headers/CHIPASS_Equ.head  nin=2 nout=2 dir=inverse]
                        BAD                      BAD                       BAD                      BAD
-                       BAD                      BAD                       BAD                      BAD
+                         0       0.4537856055185257                      5401       1741.0000000000002
                        BAD                      BAD                       BAD                      BAD
         3.1415926535897936     -0.55850536063818579                      2701       871.00000000000011
         3.1415926535897936     -0.89593568269042301                      2701                      581
@@ -1199,7 +1199,7 @@
 
 [wcsconv/inputs/car6.head  nin=2 nout=2 dir=forward]
                          1                        1                       BAD                      BAD
-                      5401                     1741                       BAD                      BAD
+                      5401                     1741                         0       0.4537856055185257
                          1                        1                       BAD                      BAD
                       2701                      871        3.1415926535897936     -0.55850536063818579
                       2701                      581        3.1415926535897936     -0.89593568269042301
@@ -1225,7 +1225,7 @@
 
 [wcsconv/inputs/car6.head  nin=2 nout=2 dir=inverse]
                        BAD                      BAD                       BAD                      BAD
-                       BAD                      BAD                       BAD                      BAD
+                         0       0.4537856055185257                      5401       1741.0000000000002
                        BAD                      BAD                       BAD                      BAD
         3.1415926535897936     -0.55850536063818579                      2701       871.00000000000011
         3.1415926535897936     -0.89593568269042301                      2701                      581
