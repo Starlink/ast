@@ -2,15 +2,24 @@ name: GNU Autotools Build and Test
 
 on:
   push:
-    branches: [master]
+    branches: ['**']
     tags: '*'
   pull_request:
-    branches: [master]
   workflow_dispatch:
     inputs:
       make_flags:
         description: Extra flags to pass to make
         required: false
+
+#  Every push to a branch is checked, and so is every pull request -- the
+#  latter so that forks are covered too, since a fork's push never reaches
+#  this repository.  For a branch in this repository with an open pull request
+#  that does mean two runs of the same commit; the concurrency group below at
+#  least cancels runs a newer push has superseded, except on master where the
+#  completed record is worth keeping.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   build-and-test:
@@ -29,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           submodules: true
 
@@ -42,6 +51,7 @@ jobs:
             automake \
             libtool \
             build-essential \
+            gfortran \
             libyaml-dev
 
           if [ "${{ matrix.cc }}" = "clang" ]; then
@@ -70,13 +80,15 @@ jobs:
       - name: Configure (macOS)
         if: runner.os == 'macOS'
         run: |
-          ./configure CC=${{ matrix.cc }} F77=${{ matrix.f77 }} \
+          ./configure CC=${{ matrix.cc }} \
+            FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
             --with-yaml="$(brew --prefix libyaml)"
 
       - name: Configure (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          ./configure CC=${{ matrix.cc }} F77=${{ matrix.f77 }}
+          ./configure CC=${{ matrix.cc }} \
+            FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
 
       # If make fails re-run with V=1 so we can inspect
       - name: Build
@@ -94,3 +106,19 @@ jobs:
 
       - name: Distcheck
         run: make distcheck ${{ github.event.inputs.make_flags }}
+
+      # The tarball must also build with CMake -- that is what catches a file
+      # the CMake build needs but the distribution forgot.  It runs here rather
+      # than inside `make distcheck' so that cutting a release needs only the
+      # autotools; CI has both toolchains anyway.  Fortran stays off: the point
+      # is whether every file arrived, and the flang job would otherwise fail
+      # here for unrelated reasons.
+      - name: Build the distribution tarball with CMake
+        run: |
+          rm -rf tarball-cmake
+          mkdir tarball-cmake
+          tar xzf ast-*.tar.gz -C tarball-cmake --strip-components=1
+          cmake -S tarball-cmake -B tarball-cmake/_build \
+            -DCMAKE_BUILD_TYPE=Release -DAST_C_STANDARD=11
+          cmake --build tarball-cmake/_build --parallel
+          ctest --test-dir tarball-cmake/_build --output-on-failure
