@@ -36,15 +36,23 @@ belongs in `ast.sty` instead.
 
 ## ast.sty
 
-`ast.sty` is AST's own file, not part of the Starlink component. It exists
-because AST's `addlinks` script rewrites every cross-reference into
-`\htmlref{text}{label}`, and `\htmlref` is defined only in `starstyle.4ht` —
-the tex4ht configuration used for the hypertext (`.htx_tar`) build. The
-`pdflatex` path loads `starstyle.sty`, which does not define it, so before this
-file existed every cross-reference raised an undefined-control-sequence error
-and `pdflatex` exited non-zero while still emitting a PDF.
-
+`ast.sty` is AST's own file, not part of the Starlink component.
 `sun_master.tex` loads it with `\usepackage{ast}`.
+
+It supplies the three LaTeX2HTML macros AST's documents use — `\htmlref`,
+written by the `addlinks` script for every cross-reference, plus
+`\htmladdnormallink` and `\htmladdnormallinkfoot`. These come from
+LaTeX2HTML's `html.sty`, which nothing loads; the only other definition of
+`\htmlref` is in `starstyle.4ht`, the tex4ht configuration for the hypertext
+build. Under `pdflatex` all three were therefore undefined, and because TeX
+skips an undefined macro but still typesets its arguments, every
+cross-reference was printed twice while `pdflatex` exited non-zero.
+
+The definitions follow `html.sty` (LaTeX2HTML 95.1) exactly for `\htmlref`,
+and widen the other two: `html.sty` was written for paper and discards the URL,
+whereas these are PDFs with `hyperref` loaded, so both become live links.
+Nothing printed changes. AST uses no other macro from that family, so the three
+definitions are kept here rather than vendoring all of `html.sty`.
 
 ## Licence
 
