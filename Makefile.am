@@ -897,7 +897,13 @@ EXTRA_DIST = $(srcdir)/ast_par.source $(srcdir)/ast_err.msg \
     $(srcdir)/build-aux/tap-driver.sh \
     $(srcdir)/cminpack/CopyrightMINPACK.txt \
     $(srcdir)/cminpack/README.md \
-    $(srcdir)/star_compat/starlink_compat.m4
+    $(srcdir)/star_compat/starlink_compat.m4 \
+    $(srcdir)/star_compat/latexsupport/README.md \
+    $(srcdir)/star_compat/latexsupport/ast.sty \
+    $(srcdir)/star_compat/latexsupport/sst.sty \
+    $(srcdir)/star_compat/latexsupport/starabbrev.sty \
+    $(srcdir)/star_compat/latexsupport/starlink.cls \
+    $(srcdir)/star_compat/latexsupport/starstyle.sty
 
 # Distribute files required by CMake build
 EXTRA_DIST += \
@@ -1023,16 +1029,17 @@ test: install
 	cd ast_tester && STARLINK=@STARLINK@ PGPLOT_DIR=@STARLINK@/bin FFLAGS="@STAR_FFLAGS_TEST@" ./ast_tester -nd
 
 
-#  Need to include latex support files in the distribution tar ball so
-#  that the docs can be built from the tex source files. Requires environment
-#  variable STARLATEXSUPPORT to be deined. Is there a better way to do this?
+#  A release tarball has always carried the LaTeX class and style files at its
+#  top level, beside the generated .tex, so the documents can be re-typeset
+#  from the tarball alone.  Keep doing that, taking them from the vendored
+#  copies in the tree (see star_compat/latexsupport/README.md) rather than from
+#  a Starlink installation named by an environment variable.
+LATEX_SUPPORT_FILES = starlink.cls starabbrev.sty starstyle.sty sst.sty ast.sty
+
 dist-hook:
-	if test x"$(STARLATEXSUPPORT)" != "x"; then \
-	    cp -p $(STARLATEXSUPPORT)/starlink.cls $(distdir)/; \
-	    cp -p $(STARLATEXSUPPORT)/starabbrev.sty $(distdir)/; \
-	    cp -p $(STARLATEXSUPPORT)/starstyle.sty $(distdir)/; \
-	    cp -p $(STARLATEXSUPPORT)/sst.sty $(distdir)/; \
-	fi
+	for f in $(LATEX_SUPPORT_FILES); do \
+	    cp -p $(srcdir)/star_compat/latexsupport/$$f $(distdir)/ || exit 1; \
+	done
 
 # `make distcheck` reconfigures a throw-away build from scratch, so re-pass the
 # compilers and libyaml location this build was configured with.
