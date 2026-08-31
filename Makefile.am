@@ -910,6 +910,7 @@ EXTRA_DIST += \
     cmake/run_grid_test.cmake \
     cmake/run_plotter_test.cmake \
     cmake/run_simplify_astequal_test.cmake \
+    cmake/run_simplify_noop_test.cmake \
     cmake/run_simplify_test.cmake \
     cmake/run_wcsconverter_astequal_test.cmake \
     cmake/run_wcsconverter_test.cmake \
