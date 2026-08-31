@@ -40,8 +40,8 @@ noinst_HEADERS = \
 AM_TESTS_ENVIRONMENT = srcdir='$(srcdir)'; export srcdir;
 
 # The data-driven tests (test_*.tap) emit TAP so automake reports one result
-# per case listed in their .txt data files.  Run them through automake's TAP
-# driver; other tests keep the default (exit-status) driver.
+# per case listed in the matching fixtures/*/cases.txt.  Run them through
+# automake's TAP driver; other tests keep the default (exit-status) driver.
 TEST_EXTENSIONS = .tap
 TAP_LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) \
     $(top_srcdir)/build-aux/tap-driver.sh
@@ -416,8 +416,7 @@ testhuge_f_LDADD   = $(FTEST_LDADD)
 testhuge_f_FFLAGS  = $(AM_FFLAGS)
 TESTS += testhuge.sh
 EXTRA_DIST = testhuge.sh \
-    test_wcsconverter.tap test_simplify.tap test_grid.tap \
-    wcsconv_tests.txt simplify_tests.txt grid_tests.txt
+    test_wcsconverter.tap test_simplify.tap test_grid.tap
 
 # Distribute files needed for the CMake build
 # This includes tests (and associated fixtures) that have not yet been ported
@@ -463,32 +462,6 @@ EXTRA_DIST += \
     testxmlchan_com \
     teststc_com
 
-# The fixture files consumed by the data-driven .tap tests (wcsconverter,
-# simplify, grid) are not listed in EXTRA_DIST.  They number in the hundreds
-# and their lists live in wcsconv_tests.txt / simplify_tests.txt /
-# grid_tests.txt, which the tests read at run time.  To keep the distributed
-# set exactly in sync with those lists, this dist-hook parses the .txt files
-# (input/reference columns) and copies each referenced fixture into the
-# tarball.  Files already distributed via EXTRA_DIST are left untouched.
-#
-# These awk scripts skip blank lines/comments and split on |, then print
-# the fields containing test inputs and reference files to be distributed.
-# The sed is just to trim leading and trailing whitespace.
-dist-hook:
-	@( $(AWK) -F'|' '/^[[:blank:]]*#/ || /^[[:blank:]]*$$/ {next} {print $$2; print $$3}' \
-	       "$(srcdir)/wcsconv_tests.txt"; \
-	   $(AWK) -F'|' '/^[[:blank:]]*#/ || /^[[:blank:]]*$$/ {next} {print $$2; print $$3}' \
-	       "$(srcdir)/simplify_tests.txt"; \
-	   $(AWK) -F'|' '/^[[:blank:]]*#/ || /^[[:blank:]]*$$/ {next} {print $$2; print $$6}' \
-	       "$(srcdir)/grid_tests.txt" ) \
-	| sed 's/^[[:blank:]]*//; s/[[:blank:]]*$$//' | sort -u | while read rel; do \
-	    test -n "$$rel" || continue; \
-	    dest="$(distdir)/$$rel"; \
-	    test -f "$$dest" && continue; \
-	    $(MKDIR_P) "`dirname \"$$dest\"`"; \
-	    cp -p "$(srcdir)/$$rel" "$$dest"; \
-	done
-
 # Output files written by the tests during "make check".  Listed here so that
 # "make clean"/"make distclean" removes them; otherwise distcheck's
 # distcleancheck reports them as files left in the build tree.
@@ -510,8 +483,8 @@ CLEANFILES = \
 
 # Data-driven tests: WCS encoding conversion, Mapping simplification and
 # astGrid.  Each .tap test reads its list of cases from the corresponding
-# .txt data file (shared with the CMake suite) and emits TAP, so automake
-# reports one result per case.
+# fixtures/*/cases.txt (shared with the CMake suite) and emits TAP, so
+# automake reports one result per case.
 check_PROGRAMS += wcsconverter simplify ast_astequal testgrid
 # Use the C harnesses (wcsconverter.c/simplify.c/ast_astequal.c), matching the
 # CMake suite: they are complete ports of the older wcsconverter.f/simplify.f

@@ -2,7 +2,8 @@
 # TAP producer for astGrid regression tests.
 #
 # Runs testgrid (which uses the logging GRF module to emit an SVG) on each
-# case listed in grid_tests.txt (the same data file the CMake suite reads).
+# case listed in fixtures/plot/cases.txt (the same manifest the CMake suite
+# reads).
 # Unless the case is flagged skip_text_compare, the <text> elements of the
 # produced SVG are compared (sorted) against the reference SVG -- this pins
 # label content and position while ignoring platform-dependent grid-line
@@ -10,7 +11,9 @@
 #
 # Emits TAP so automake reports one result per case.
 srcdir=${srcdir:-.}
-data=${srcdir}/grid_tests.txt
+# Fixture paths in the manifest are relative to the fixture root.
+fixtures=${srcdir}/fixtures
+data=${fixtures}/plot/cases.txt
 
 trim() {
     printf '%s' "$1" | sed 's/^[[:blank:]]*//; s/[[:blank:]]*$//'
@@ -42,7 +45,7 @@ while IFS='|' read -r name head attr fattr box reference skip rest; do
 
     # $box is intentionally unquoted so its (space-separated) coordinates
     # become separate arguments; empty means "auto".
-    ./testgrid "${srcdir}/${head}" "$attr" "$fattr" "$out" $box \
+    ./testgrid "${fixtures}/${head}" "$attr" "$fattr" "$out" $box \
         > "${out}.log" 2>&1 < /dev/null
     if [ $? -ne 0 ]; then
         echo "not ok $test"
@@ -59,7 +62,7 @@ while IFS='|' read -r name head attr fattr box reference skip rest; do
     fi
 
     grep '^<text ' "$out" | sort > "${out}.got"
-    grep '^<text ' "${srcdir}/${reference}" | sort > "${out}.ref"
+    grep '^<text ' "${fixtures}/${reference}" | sort > "${out}.ref"
     if diff -u "${out}.ref" "${out}.got" > "${out}.diff" 2>&1; then
         echo "ok $test"
     else
