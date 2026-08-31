@@ -12,7 +12,10 @@ and transform-oracle section headers are relative to that directory:
   makes that case a round-trip assertion; and `wcsconv/inputs/lsst.fits-wcs`
   is a frozen copy of the `lsst_fits-wcs` output, kept as an input so that
   regenerating the reference does not change what testgrid and testplotter
-  draw.
+  draw.  One reference is not a correct conversion:
+  `wcsconv/expected/lsst2.fits-wcs` records the truncated header astWrite
+  currently emits for `wcsconv/inputs/lsst2.ast`, as the comment on that row
+  of `wcsconv/cases.txt` explains.
 * `simplify/` contains the scenario and focused `.map`/`.simp` pairs, with
   registered cases in `simplify/cases.txt`.
 * `oracle/` contains the three transform oracles and per-fixture overrides.

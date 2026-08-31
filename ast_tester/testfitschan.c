@@ -4637,6 +4637,89 @@ int main( void ) {
       astEnd;
    }
 
+   /* --- Non-linear Mapping under a SIP fit: a FrameSet whose pixel->sky
+      Mapping contains a SplineMap has no exact FITS-WCS representation, so
+      astWrite should return 0.  This used to segfault in MakeIntWorld,
+      which applied the SIP CD values to "partmat" rows that the failed
+      linearity test had left NULL.  Reaching that code needs NAXIS1/NAXIS2,
+      so the pixel box is known, and a FitsTol tight enough that the fit
+      over that box fails; the default FitsTol of 0.1 is loose enough that
+      this FrameSet passes.
+
+      It also needs SIPIntWorld to have accepted a SIP description, and
+      that is what makes the crash rare.  SIPIntWorld checks the Mapping
+      that follows the PolyMap for linearity over a box of plus and minus
+      the image dimensions centred on the SIP reference point, which only
+      covers the image if that point lies within it.  Here it is some
+      20000 pixels away, so the box does not overlap the region the
+      Mapping is used over at all, and every sample point falls outside
+      the spline knots.  This SplineMap sets OutUnit, so those points pass
+      through unchanged and the check sees an exactly linear Mapping; with
+      the default OutUnit of zero they come back AST__BAD, the check
+      fails, and no SIP description is offered.
+
+      The fixture is the pixels-to-sky FrameSet of a DP2 difference image
+      (visit=2025042400322, detector=150), taken from the lsst-images test
+      test_as_fits_wcs_frameset_with_splinemap_returns_none_big.  Note that
+      the same fixture written with neither FitsTol nor NAXIS still produces
+      a header with no primary CTYPE cards; see the lsst2_fits-wcs row of
+      fixtures/wcsconv/cases.txt. --- */
+   if( *status == 0 ) {
+      astBegin;
+      AstChannel *spch = astChannel( NULL, NULL,
+                            "SourceFile=fixtures/wcsconv/inputs/lsst2.ast" );
+      AstFrameSet *spfs = (AstFrameSet *) astRead( spch );
+      if( !astOK || !spfs || !astIsAFrameSet( spfs ) ) {
+         if( !astOK ) astClearStatus;
+         stopit( 905, "Failed to read fixtures/wcsconv/inputs/lsst2.ast",
+                 status );
+      } else {
+         AstFitsChan *spfc = astFitsChan( NULL, NULL,
+                                          "Encoding=FITS-WCS,FitsTol=0.0001" );
+         int spnw;
+
+         astPutFits( spfc, "NAXIS1  = 1000", 0 );
+         astPutFits( spfc, "NAXIS2  = 1000", 0 );
+         spnw = astWrite( spfc, spfs );
+         if( !astOK ) astClearStatus;
+         if( spnw != 0 )
+            stopit( 906, "SplineMap FrameSet should not write to FITS",
+                    status );
+
+         /* The write lsst.images Transform.as_fits_wcs actually issues: the
+            fixture wrapped in an outer FrameSet, with a GRID frame carrying
+            the FITS one-based origin shift prepended and made the base
+            frame. */
+         {
+            double spoff[ 2 ] = { 1.0, 1.0 };
+            AstFrameSet *spouter = astFrameSet( astFrame( 2, "Ident=detector" ),
+                                                " " );
+            AstFitsChan *spfc2;
+            int spcur;
+
+            astAddFrame( spouter, AST__BASE, (AstMapping *) spfs,
+                         astSkyFrame( " " ) );
+            spcur = astGetI( spouter, "Current" );
+            astAddFrame( spouter, AST__BASE,
+                         (AstMapping *) astShiftMap( 2, spoff, " " ),
+                         astFrame( 2, "Domain=GRID" ) );
+            astSetI( spouter, "Base", astGetI( spouter, "Current" ) );
+            astSetI( spouter, "Current", spcur );
+
+            spfc2 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,CDMatrix=1,"
+                                 "FitsAxisOrder=<copy>,FitsTol=0.0001" );
+            astPutFits( spfc2, "NAXIS1  = 1000", 0 );
+            astPutFits( spfc2, "NAXIS2  = 1000", 0 );
+            spnw = astWrite( spfc2, spouter );
+            if( !astOK ) astClearStatus;
+            if( spnw != 0 )
+               stopit( 907, "as_fits_wcs FrameSet should not write to FITS",
+                       status );
+         }
+      }
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 

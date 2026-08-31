@@ -1407,6 +1407,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Use round() when converting the WCSAXES value read from the header
 *        into an axis count, so that a value stored as a FITS float that is
 *        marginally below an integer is not truncated to the integer below.
+*     31-AUG-2026 (TIMJ):
+*        Do not apply the SIP CD values in MakeIntWorld when the linearity
+*        test has already failed, since the "partmat" rows being written to
+*        are then still NULL. This segfaulted when SIPIntWorld had accepted
+*        a SIP description but the remaining Mapping was still not linear
+*        to within FitsTol over the image dimensions.
 *class--
 */
 
@@ -22106,8 +22112,10 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
       }
 
 /* If we are using SIP distortion, replace the values for the celestial
-   axes found above with the values found by SIPIntWorld. */
-      if( havesip ) {
+   axes found above with the values found by SIPIntWorld. Only do this if
+   the loop above completed, since otherwise the "partmat" rows indexed
+   below may be the NULL pointers left by an unsuccesful FitLine call. */
+      if( ret && havesip ) {
          partmat[ sipax[0] ][ lonax ] = cd_sip[ 0 ];
          partmat[ sipax[1] ][ lonax ] = cd_sip[ 1 ];
          partmat[ sipax[0] ][ latax ] = cd_sip[ 2 ];
