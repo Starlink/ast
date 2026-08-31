@@ -431,6 +431,7 @@ EXTRA_DIST += \
     plplotutil.h \
     test_oracle_util.c \
     testfitschanerrors.c \
+    testimmutable.c \
     testobjectkeymap.c \
     testplot3d.c \
     testplotter.c \
