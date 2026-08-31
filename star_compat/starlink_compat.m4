@@ -102,7 +102,14 @@ done
 
 m4_ifndef([STAR_CHECK_PROGS],
 [AC_DEFUN([STAR_CHECK_PROGS], [dnl
-AC_CHECK_PROGS([$1], [$2], [:])
+dnl Match the real macro's interface: $1 is a list of program names and $2 an
+dnl optional Starlink subdirectory to search, which is meaningless here as
+dnl there is no Starlink tree.  Each program's path lands in the upper-cased
+dnl variable, defaulting to the bare program name when not found, so callers
+dnl can distinguish the two with `test -x' exactly as with the real macro.
+m4_foreach_w([ProgramName], [$1],
+   [AC_PATH_PROG(m4_toupper(m4_bpatsubst(ProgramName, [[^0-9a-zA-Z_]], [_])),
+                 ProgramName, ProgramName)])
 ])])
 
 m4_ifndef([STAR_CNF_F2C_COMPATIBLE],
