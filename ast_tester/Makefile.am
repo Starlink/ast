@@ -425,17 +425,11 @@ EXTRA_DIST = testhuge.sh \
 EXTRA_DIST += \
     CMakeLists.txt \
     check_transform_oracle.c \
-    framesets.oracle \
     gen_simplify_fixtures.c \
     gen_transform_oracle.c \
-    headers.oracle \
     normalize_fixture.c \
-    offset-sref.head \
-    plot3d-test1.ast \
     plplotutil.c \
     plplotutil.h \
-    simplify_fixtures.oracle \
-    specflux.ast \
     test_oracle_util.c \
     testfitschanerrors.c \
     testobjectkeymap.c \
@@ -446,43 +440,28 @@ EXTRA_DIST += \
     testslamap.c \
     testthreads.c \
     transform_oracle.h \
-    transform_oracle_overrides.txt \
     transform_oracle_util.c
 
-# Test fixture data files, grouped by the test that consumes them.  These are
-# distributed so the tests can locate them (via the srcdir environment
-# variable) when run from an unpacked release tarball.
+# Committed test data lives entirely below fixtures/, so it is shipped as a
+# tree rather than enumerated file by file: there are over a thousand of them
+# and nothing generated is written there.  The copy is done here rather than
+# by naming "fixtures" in EXTRA_DIST because automake's directory support is a
+# plain "cp -R", which would also sweep up any editor or file-manager
+# droppings sitting in the tree and so make the tarball depend on the state of
+# the developer's working copy.
+dist-hook:
+	@list=`cd "$(srcdir)" && find fixtures -type f ! -name '.*'`; \
+	for rel in $$list; do \
+	    $(MKDIR_P) "$(distdir)/`dirname $$rel`"; \
+	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel"; \
+	done
 
-# testfitschan (C and Fortran)
+# Fixtures and command files that the tests read from the ast_tester directory
+# itself rather than from fixtures/.
 EXTRA_DIST += \
-    alt.header \
-    sip.head \
-    sip-3d.head \
-    sip-3d-swap.head \
-    sparse.ast
-
-# testyamlchan
-EXTRA_DIST += \
-    imaging_wcs.asdf \
-    lsst_wcs.txt \
-    tanSipWcs.txt \
-    rotate_seq3d_cartesian.asdf
-
-# testsplinemap
-EXTRA_DIST += \
-    2dspline.dat \
-    2dspline_c.dat
-
-# teststc / teststcschan / testmocchan / testxmlchan
-EXTRA_DIST += \
-    splittest1.ast \
-    stcschan-test1-doc3.ast \
-    stcschan-test1-doc3-props.ast \
     testmocchan_com \
     testxmlchan_com \
-    teststc_com \
-    teststc_eg1 teststc_eg2 teststc_eg3 teststc_eg4 teststc_eg5 \
-    teststc_eg6 teststc_eg7 teststc_eg8 teststc_eg9 teststc_eg10
+    teststc_com
 
 # The fixture files consumed by the data-driven .tap tests (wcsconverter,
 # simplify, grid) are not listed in EXTRA_DIST.  They number in the hundreds
