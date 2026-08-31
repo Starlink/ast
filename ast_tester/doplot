@@ -1,4 +1,23 @@
 #!/bin/tcsh
+#+
+#  Purpose:
+#     Plot one FITS header and display the result.
+
+#  Usage:
+#     doplot <case>
+#
+#     <case> is either the name of a case registered in
+#     fixtures/plot/cases.txt, in which case that case's attributes and box
+#     are used, or the name of any header below fixtures/wcsconv/inputs
+#     (without the ".head" suffix), or a path to a header, either of which
+#     is plotted with default settings.
+#-
+
+   if( "$1" == "" ) then
+      echo "Usage: doplot <case>"
+      echo "   (e.g. doplot serpens)"
+      exit 1
+   endif
 
    if( ! $?STARLINK ) then
       setenv STARLINK /star
@@ -17,31 +36,23 @@
    gfortran -fno-second-underscore -o plotter plotter.f -fno-range-check $LDFLAGS -I$AST/include -I$STARLINK/include -L$AST/lib -L$STARLINK/lib `ast_link -pgp -ems` `pgplot_link`
 
    set bn = $1
-   set n = "${bn}.head"
+   eval `awk -f plotcase.awk -v name=$bn fixtures/plot/cases.txt`
 
-   set atfile = "${bn}.attr"
-   if( -e $atfile ) then
-      set attr1 = `cat $atfile`
-   else
+#  Not a registered case, so plot the named header with default settings.
+   if( "$head" == "" ) then
+      set head = fixtures/wcsconv/inputs/${bn}.head
+      if( ! -e $head ) set head = $bn
       set attr1 = ' '
-   endif
-
-   set atfile = "${bn}.fattr"
-   if( -e $atfile ) then
-      set attr2 = `cat $atfile`
-   else
       set attr2 = ' '
+      set box = ( )
    endif
 
-   set boxfile = "${bn}.box"
-   if( -e $boxfile ) then
-      set box = `cat $boxfile`
-   else
-      set box = ' '
+   if( ! -e $head ) then
+      echo "No such plot case or header: $bn"
+      exit 1
    endif
 
-
-   plotter $n "$attr1" "$attr2" a.ps $box
+   ./plotter $head "$attr1" "$attr2" a.ps $box
 
    if( -e $STARLINK/bin/psmerge ) then
       $STARLINK/bin/psmerge -t300x300 -r90 a.ps > b.ps
@@ -50,4 +61,3 @@
    endif
 
    gv b.ps -orientation=landscape
-

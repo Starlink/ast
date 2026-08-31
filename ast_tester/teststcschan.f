@@ -121,10 +121,11 @@ c      call ast_flushmemory( 1 )
       iread = 0
       obj = ast_read( ch, status )
 
-      call readast( 'stcschan-test1-doc3.ast', sb, status )
+      call readast( 'fixtures/programs/teststcschan/'//
+     :              'stcschan-test1-doc3.ast', sb, status )
       if( .not. ast_equal( obj, sb, status ) ) then
          call error( 'Object read from doc3 is not equal to the '//
-     :               'object read from file stcschan-test1-doc3.ast.',
+     :               'object read from doc3 fixture.',
      :               status )
       end if
 
@@ -143,10 +144,11 @@ c      call ast_flushmemory( 1 )
      :             status ), status )
 
       if( ast_mapget0a( obj, 'AREA', iobj, status ) ) then
-         call readast( 'stcschan-test1-doc3.ast', sb, status )
+         call readast( 'fixtures/programs/teststcschan/'//
+     :                 'stcschan-test1-doc3.ast', sb, status )
          if( .not. ast_equal( iobj, sb, status ) ) then
             call error( 'AREA read from doc3 is not equal to the '//
-     :                  'object read from file stcschan-test1-doc3.ast',
+     :                  'object read from doc3 fixture',
      :                  status )
          end if
       else
@@ -154,10 +156,11 @@ c      call ast_flushmemory( 1 )
       end if
 
       if( ast_mapget0a( obj, 'PROPS', iobj, status ) ) then
-         call readast( 'stcschan-test1-doc3-props.ast', sb, status )
+         call readast( 'fixtures/programs/teststcschan/'//
+     :                 'stcschan-test1-doc3-props.ast', sb, status )
          if( .not. ast_equal( iobj, sb, status ) ) then
             call error( 'PROPS read from doc3 is not equal to the '//
-     :            'object read from file stcschan-test1-doc3-props.ast',
+     :            'object read from doc3 properties fixture',
      :            status )
          end if
       else
@@ -723,5 +726,4 @@ c      call ast_flushmemory( 1 )
 
  99   call ast_putline( buffer, -1, status )
       end
-
 

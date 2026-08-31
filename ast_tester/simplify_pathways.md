@@ -39,7 +39,7 @@ target.
   AST programmer's guide
 - [SUN/211](https://www.starlink.co.uk/docs/sun211.htx/sun211.html) --
   AST class reference
-- Fixture directory: `ast_tester/simplify_fixtures/`
+- Fixture directory: `ast_tester/fixtures/simplify/`
 - Design document:
   `docs/superpowers/specs/2026-05-05-simplify-branch-coverage-design.md`
 
@@ -52,7 +52,7 @@ class's `MapMerge` implementation that `astSimplify` can exercise.
 
 | Symbol | Meaning |
 |--------|---------|
-| `+` | Covered -- a fixture in `simplify_tests.txt` exercises this branch |
+| `+` | Covered -- a fixture in `fixtures/simplify/cases.txt` exercises this branch |
 | `-` | NOT covered |
 
 Reasons a branch may be uncovered:
@@ -1013,8 +1013,8 @@ When modifying a class's `MapMerge` method:
 
 1. If you add a new branch, add a row to the appropriate table in this
    document with a unique ID (next sequential number for that class).
-2. Create a corresponding `.map` fixture in `ast_tester/simplify_fixtures/`
-   and add it to `ast_tester/simplify_tests.txt`.
+2. Create a corresponding `.map` fixture in `ast_tester/fixtures/simplify/`
+   and add it to `ast_tester/fixtures/simplify/cases.txt`.
 3. For negative (guard) branches, the `.map` file is its own reference
    (input == expected output). Listing it that way also registers a
    `simplify_<name>_noop` test, which diffs the simplified dump against the

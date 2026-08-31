@@ -23,9 +23,9 @@
  *       -Wl,-rpath,"$PWD/build" -lm
  *    mkdir -p /tmp/sweep && /tmp/wcsconv
  *
- *  then install the .map files under ast_tester/simplify_fixtures/, generate
+ *  then install the .map files under ast_tester/fixtures/simplify/, generate
  *  their .simp with build/ast_tester/simplify, and wire them into
- *  simplify_tests.txt. Extend the per-class Pair[] tables to cover more
+ *  fixtures/simplify/cases.txt. Extend the per-class Pair[] tables to cover more
  *  conversion types.
  *
  *  NOTE: this closes the primary merge directions; the astOK/EQUAL

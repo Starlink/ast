@@ -200,7 +200,7 @@ int main( int argc, char **argv ) {
    astAnnul( plot3d );
 
    /* === Test 2: Load a FrameSet and draw a 3D grid === */
-   fset = readTest( "plot3d-test1.ast", &status );
+   fset = readTest( "fixtures/programs/testplot3d/plot3d-test1.ast", &status );
    if( fset && status == 0 ) {
       bbox[0] = 0.5;    bbox[1] = 0.5;    bbox[2] = 0.5;
       bbox[3] = 155.5;  bbox[4] = 107.5;  bbox[5] = 1640.5;

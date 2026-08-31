@@ -117,9 +117,9 @@ int main( void ){
    method, but the Fortran API assumes they are ordered according to the
    CMLIB method. That's why we need both a C and a Fortran tester for
    SplineMap. */
-   FILE *in = fopen( "2dspline_c.dat", "r" );
+   FILE *in = fopen( "fixtures/programs/testsplinemap/2dspline_c.dat", "r" );
    if( !in ){
-      astError( AST__INTER, "Could not open file '2dspline_c.dat'" );
+      astError( AST__INTER, "Could not open file 'fixtures/programs/testsplinemap/2dspline_c.dat'" );
    } else {
 
       read_values( in, nx + k, tx, "tx" );

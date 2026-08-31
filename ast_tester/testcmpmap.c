@@ -61,7 +61,7 @@ int main( void ) {
    if( out[2] != 6 ) stopit( status, "Error 6" );
 
    /* Read a Mapping from file and test MapSplit. */
-   m1 = (AstMapping *)readobj( "splittest1.ast", status );
+   m1 = (AstMapping *)readobj( "fixtures/programs/testcmpmap/splittest1.ast", status );
    if( m1 && astOK ) {
       in[0] = 1;
       astMapSplit( m1, 1, in, out, &m2 );

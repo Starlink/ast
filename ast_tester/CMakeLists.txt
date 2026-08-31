@@ -41,6 +41,50 @@ set(TEST_LIBS
     m
 )
 
+# All committed test data lives below a single fixture root.  Stage every
+# fixture at the same relative path below the build-tree ast_tester directory
+# so source-tree and CTest runs use the same "fixtures/<relative-path>"
+# convention.
+set(AST_FIXTURE_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+set(AST_FIXTURE_BINARY_ROOT "${CMAKE_CURRENT_BINARY_DIR}/fixtures")
+
+# Copy the whole tree in one build-time rule rather than one configure_file()
+# per fixture: a configure_file() would make every one of the ~1200 fixtures a
+# configure dependency, so regenerating a single .oracle would reconfigure the
+# project.  The stamp file keeps the copy off the critical path of an
+# unchanged build.  Adding or removing a fixture changes the glob and so does
+# reconfigure, which is wanted -- a new fixture normally needs a new test
+# registered as well.
+file(GLOB_RECURSE _ast_fixture_files CONFIGURE_DEPENDS
+     RELATIVE "${AST_FIXTURE_SOURCE_ROOT}"
+     "${AST_FIXTURE_SOURCE_ROOT}/*")
+set(_ast_fixture_deps)
+foreach(_fixture IN LISTS _ast_fixture_files)
+    list(APPEND _ast_fixture_deps "${AST_FIXTURE_SOURCE_ROOT}/${_fixture}")
+endforeach()
+
+set(_ast_fixture_stamp "${CMAKE_CURRENT_BINARY_DIR}/fixtures.stamp")
+add_custom_command(OUTPUT "${_ast_fixture_stamp}"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory
+            "${AST_FIXTURE_SOURCE_ROOT}" "${AST_FIXTURE_BINARY_ROOT}"
+    COMMAND "${CMAKE_COMMAND}" -E touch "${_ast_fixture_stamp}"
+    DEPENDS ${_ast_fixture_deps}
+    COMMENT "Staging ast_tester fixtures"
+    VERBATIM)
+add_custom_target(ast_stage_fixtures ALL DEPENDS "${_ast_fixture_stamp}")
+
+# Fail at configure time, naming the manifest, when a registered fixture path
+# does not exist.  The per-test configure_file() calls that used to build
+# these paths gave this check as a side effect; without it a typo in a
+# cases.txt surfaces only as a harness failure part-way through a ctest run,
+# with nothing to say the file was never there.
+function(ast_require_fixture manifest relative_path)
+    if(NOT EXISTS "${AST_FIXTURE_SOURCE_ROOT}/${relative_path}")
+        message(FATAL_ERROR
+            "${manifest}: no such fixture: fixtures/${relative_path}")
+    endif()
+endfunction()
+
 # Helper function to add a test executable
 function(ast_add_test name)
     cmake_parse_arguments(T "INTERNAL_HEADERS;NO_DEFAULT_GRF_LIBS" "" "SOURCES;EXTRA_LIBS;TEST_ARGS" ${ARGN})
@@ -59,6 +103,8 @@ function(ast_add_test name)
     target_link_libraries(${name} PRIVATE ${TARGET_LIBS})
     target_compile_definitions(${name} PRIVATE HAVE_CONFIG_H)
     ast_apply_dev_options(${name})
+    # So that building a single test target also stages the fixtures it reads.
+    add_dependencies(${name} ast_stage_fixtures)
     add_test(NAME ${name} COMMAND ${name} ${T_TEST_ARGS}
              WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
     # AST's memory system intentionally caches freed blocks for reuse,
@@ -108,7 +154,7 @@ set_target_properties(test_oracle_util PROPERTIES C_STANDARD 11)
 # Append so we keep the ASAN_OPTIONS=detect_leaks=0 that ast_add_test sets
 # under sanitizer builds, rather than replacing it.
 set_property(TEST test_oracle_util APPEND PROPERTY
-    ENVIRONMENT "ORACLE_TEST_ROOT=${CMAKE_CURRENT_SOURCE_DIR}")
+    ENVIRONMENT "ORACLE_TEST_ROOT=${AST_FIXTURE_BINARY_ROOT}")
 
 add_executable(gen_transform_oracle gen_transform_oracle.c transform_oracle_util.c)
 target_include_directories(gen_transform_oracle PRIVATE ${TEST_INCLUDES})
@@ -127,21 +173,21 @@ ast_apply_dev_options(check_transform_oracle)
 add_test(NAME transform_oracle_selftest
          COMMAND check_transform_oracle --selftest)
 set(_oracle_overrides
-    "${CMAKE_CURRENT_SOURCE_DIR}/transform_oracle_overrides.txt")
+    "${AST_FIXTURE_BINARY_ROOT}/oracle/transform_oracle_overrides.txt")
 add_test(NAME transform_oracle_simplify
          COMMAND check_transform_oracle
-                 "${CMAKE_CURRENT_SOURCE_DIR}"
-                 "${CMAKE_CURRENT_SOURCE_DIR}/simplify_fixtures.oracle"
+                 "${AST_FIXTURE_BINARY_ROOT}"
+                 "${AST_FIXTURE_BINARY_ROOT}/oracle/simplify_fixtures.oracle"
                  "${_oracle_overrides}")
 add_test(NAME transform_oracle_headers
          COMMAND check_transform_oracle
-                 "${CMAKE_CURRENT_SOURCE_DIR}"
-                 "${CMAKE_CURRENT_SOURCE_DIR}/headers.oracle"
+                 "${AST_FIXTURE_BINARY_ROOT}"
+                 "${AST_FIXTURE_BINARY_ROOT}/oracle/headers.oracle"
                  "${_oracle_overrides}")
 add_test(NAME transform_oracle_framesets
          COMMAND check_transform_oracle
-                 "${CMAKE_CURRENT_SOURCE_DIR}"
-                 "${CMAKE_CURRENT_SOURCE_DIR}/framesets.oracle"
+                 "${AST_FIXTURE_BINARY_ROOT}"
+                 "${AST_FIXTURE_BINARY_ROOT}/oracle/framesets.oracle"
                  "${_oracle_overrides}")
 if(AST_ENABLE_SANITIZERS)
     set_tests_properties(transform_oracle_simplify transform_oracle_headers
@@ -159,7 +205,6 @@ ast_add_test(testunitnorm)
 ast_add_test(testobjectkeymap)
 
 # --- Tests needing data files ---
-configure_file(2dspline_c.dat "${CMAKE_CURRENT_BINARY_DIR}/2dspline_c.dat" COPYONLY)
 ast_add_test(testsplinemap_c)
 
 # --- Conditional tests ---
@@ -179,7 +224,6 @@ ast_add_test(testrate)
 ast_add_test(testspecframe)
 ast_add_test(testflux)
 ast_add_test(testspecflux)
-configure_file(splittest1.ast "${CMAKE_CURRENT_BINARY_DIR}/splittest1.ast" COPYONLY)
 ast_add_test(testcmpmap)
 ast_add_test(testpolymap)
 ast_add_test(testchebymap)
@@ -194,23 +238,13 @@ ast_add_test(testkeymap)
 ast_add_test(testmocchan)
 ast_add_test(testxmlchan_c SOURCES testxmlchan.c)
 ast_add_test(testtable_c SOURCES testtable.c)
-configure_file(stcschan-test1-doc3.ast "${CMAKE_CURRENT_BINARY_DIR}/stcschan-test1-doc3.ast" COPYONLY)
-configure_file(stcschan-test1-doc3-props.ast "${CMAKE_CURRENT_BINARY_DIR}/stcschan-test1-doc3-props.ast" COPYONLY)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
 ast_add_test(testregions_c SOURCES testregions.c)
 ast_add_test(testregionmasking_c SOURCES testregionmasking.c)
 ast_add_test(testrebinseq_c SOURCES testrebinseq.c)
 ast_add_test(testrebin_c SOURCES testrebin.c)
 ast_add_test(testresample)
-foreach(_eg RANGE 1 10)
-    configure_file(teststc_eg${_eg} "${CMAKE_CURRENT_BINARY_DIR}/teststc_eg${_eg}" COPYONLY)
-endforeach()
 ast_add_test(teststc_c SOURCES teststc.c)
-configure_file(sip.head "${CMAKE_CURRENT_BINARY_DIR}/sip.head" COPYONLY)
-configure_file(sip-3d.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d.head" COPYONLY)
-configure_file(sip-3d-swap.head "${CMAKE_CURRENT_BINARY_DIR}/sip-3d-swap.head" COPYONLY)
-configure_file(alt.header "${CMAKE_CURRENT_BINARY_DIR}/alt.header" COPYONLY)
-configure_file(sparse.ast "${CMAKE_CURRENT_BINARY_DIR}/sparse.ast" COPYONLY)
 ast_add_test(testfitschan_c SOURCES testfitschan.c)
 ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
 
@@ -233,8 +267,7 @@ target_compile_definitions(ast_astequal PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(ast_astequal)
 
 # Helper to register wcsconverter regression tests.
-# Each call copies the input + reference file into the build tree and
-# registers two ctest entries:
+# Each call registers two ctest entries using fixture-root-relative paths:
 #   wcsconv_<NAME>          -- byte-level diff of the produced output
 #                              against the committed reference.  Catches
 #                              unintentional changes to AST's output
@@ -243,8 +276,8 @@ ast_apply_dev_options(ast_astequal)
 #                              output and the reference.  Tolerates
 #                              platform-specific serialisation and ulp
 #                              drift.
-# Adding a new fixture is a one-line add_wcsconv_test(...) call below,
-# plus dropping the input/reference files into ast_tester/.
+# Add fixtures below fixtures/ and list their fixture-root-relative paths in
+# fixtures/wcsconv/cases.txt.
 #
 # Options:
 #   SKIP_STRING_COMPARE -- register the astEqual test only; do not
@@ -267,17 +300,17 @@ function(add_wcsconv_test)
     if(NOT DEFINED W_ATTRS)
         set(W_ATTRS "")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${W_INPUT}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${W_INPUT}" COPYONLY)
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${W_REFERENCE}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${W_REFERENCE}" COPYONLY)
+    ast_require_fixture("wcsconv/cases.txt" "${W_INPUT}")
+    ast_require_fixture("wcsconv/cases.txt" "${W_REFERENCE}")
+    set(_input "fixtures/${W_INPUT}")
+    set(_reference "fixtures/${W_REFERENCE}")
 
     if(NOT W_SKIP_STRING_COMPARE)
         add_test(NAME wcsconv_${W_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DWCSCONVERTER=$<TARGET_FILE:wcsconverter>
-                -DIN_FILE=${W_INPUT}
-                -DREF_FILE=${W_REFERENCE}
+                -DIN_FILE=${_input}
+                -DREF_FILE=${_reference}
                 -DOUT_FILE=${W_NAME}.out
                 -DENCODING=${W_ENCODING}
                 -DATTRS=${W_ATTRS}
@@ -293,8 +326,8 @@ function(add_wcsconv_test)
         COMMAND ${CMAKE_COMMAND}
             -DWCSCONVERTER=$<TARGET_FILE:wcsconverter>
             -DAST_ASTEQUAL=$<TARGET_FILE:ast_astequal>
-            -DIN_FILE=${W_INPUT}
-            -DREF_FILE=${W_REFERENCE}
+            -DIN_FILE=${_input}
+            -DREF_FILE=${_reference}
             -DOUT_FILE=${W_NAME}.astequal.out
             -DENCODING=${W_ENCODING}
             -DATTRS=${W_ATTRS}
@@ -306,7 +339,8 @@ function(add_wcsconv_test)
     endif()
 endfunction()
 
-ast_read_test_data("${CMAKE_CURRENT_SOURCE_DIR}/wcsconv_tests.txt" _wcsconv_tests 6)
+ast_read_test_data("${AST_FIXTURE_SOURCE_ROOT}/wcsconv/cases.txt"
+                   _wcsconv_tests 6)
 foreach(_entry IN LISTS _wcsconv_tests)
     string(REPLACE "|" ";" _fields "${_entry}")
     list(GET _fields 0 _name)
@@ -353,8 +387,7 @@ target_compile_definitions(gen_simplify_fixtures PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(gen_simplify_fixtures)
 
 # Helper to register simplify regression tests.
-# Each call copies the input .map and reference .simp files into the build
-# tree and registers two ctest entries:
+# Each call registers tests using fixture-root-relative input/reference paths:
 #   simplify_<NAME>          -- byte-level diff of the produced output
 #                               against the committed reference.
 #   simplify_<NAME>_astequal -- astEqual-based semantic check between the
@@ -385,17 +418,17 @@ function(add_simplify_test)
         message(FATAL_ERROR
             "add_simplify_test: NAME, INPUT, REFERENCE all required")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${S_INPUT}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${S_INPUT}" COPYONLY)
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${S_REFERENCE}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${S_REFERENCE}" COPYONLY)
+    ast_require_fixture("simplify/cases.txt" "${S_INPUT}")
+    ast_require_fixture("simplify/cases.txt" "${S_REFERENCE}")
+    set(_input "fixtures/${S_INPUT}")
+    set(_reference "fixtures/${S_REFERENCE}")
 
     if(NOT S_SKIP_STRING_COMPARE)
         add_test(NAME simplify_${S_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DSIMPLIFY=$<TARGET_FILE:simplify>
-                -DIN_FILE=${S_INPUT}
-                -DREF_FILE=${S_REFERENCE}
+                -DIN_FILE=${_input}
+                -DREF_FILE=${_reference}
                 -DOUT_FILE=${S_NAME}.out
                 -P "${CMAKE_SOURCE_DIR}/cmake/run_simplify_test.cmake"
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -409,7 +442,7 @@ function(add_simplify_test)
         add_test(NAME simplify_${S_NAME}_noop
             COMMAND ${CMAKE_COMMAND}
                 -DSIMPLIFY=$<TARGET_FILE:simplify>
-                -DIN_FILE=${S_INPUT}
+                -DIN_FILE=${_input}
                 -DOUT_FILE=${S_NAME}.noop.out
                 -P "${CMAKE_SOURCE_DIR}/cmake/run_simplify_noop_test.cmake"
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -423,8 +456,8 @@ function(add_simplify_test)
         COMMAND ${CMAKE_COMMAND}
             -DSIMPLIFY=$<TARGET_FILE:simplify>
             -DAST_ASTEQUAL=$<TARGET_FILE:ast_astequal>
-            -DIN_FILE=${S_INPUT}
-            -DREF_FILE=${S_REFERENCE}
+            -DIN_FILE=${_input}
+            -DREF_FILE=${_reference}
             -DOUT_FILE=${S_NAME}.astequal.out
             -P "${CMAKE_SOURCE_DIR}/cmake/run_simplify_astequal_test.cmake"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -434,7 +467,8 @@ function(add_simplify_test)
     endif()
 endfunction()
 
-ast_read_test_data("${CMAKE_CURRENT_SOURCE_DIR}/simplify_tests.txt" _simplify_tests 4)
+ast_read_test_data("${AST_FIXTURE_SOURCE_ROOT}/simplify/cases.txt"
+                   _simplify_tests 4)
 foreach(_entry IN LISTS _simplify_tests)
     string(REPLACE "|" ";" _fields "${_entry}")
     list(GET _fields 0 _name)
@@ -457,12 +491,6 @@ endif()
 
 # --- Conditional tests ---
 if(HAVE_YAML)
-    # Input data files read by the round-trip tests (the .asdf/.yaml files
-    # written by the test are created in the working directory at run time).
-    configure_file(imaging_wcs.asdf "${CMAKE_CURRENT_BINARY_DIR}/imaging_wcs.asdf" COPYONLY)
-    configure_file(tanSipWcs.txt "${CMAKE_CURRENT_BINARY_DIR}/tanSipWcs.txt" COPYONLY)
-    configure_file(lsst_wcs.txt "${CMAKE_CURRENT_BINARY_DIR}/lsst_wcs.txt" COPYONLY)
-    configure_file(rotate_seq3d_cartesian.asdf "${CMAKE_CURRENT_BINARY_DIR}/rotate_seq3d_cartesian.asdf" COPYONLY)
     ast_add_test(testyamlchan)
 endif()
 
@@ -473,12 +501,11 @@ endif()
 # --- Grid smoke tests (no PLplot dependency) ---
 # Uses the logging GRF module (grf_log.c) to exercise astGrid on each
 # .head file without requiring any external graphics library.
-configure_file(lsst.fits-wcs "${CMAKE_CURRENT_BINARY_DIR}/lsst.fits-wcs" COPYONLY)
 ast_add_test(testgrid
     NO_DEFAULT_GRF_LIBS
     EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log>
                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
-    TEST_ARGS "lsst.fits-wcs" " " " "
+    TEST_ARGS "fixtures/wcsconv/inputs/lsst.fits-wcs" " " " "
 )
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
@@ -497,8 +524,8 @@ function(add_grid_test)
     if(NOT DEFINED P_FATTR)
         set(P_FATTR " ")
     endif()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}"
-                   "${CMAKE_CURRENT_BINARY_DIR}/${P_HEAD}" COPYONLY)
+    ast_require_fixture("plot/cases.txt" "${P_HEAD}")
+    set(_head "fixtures/${P_HEAD}")
 
     set(_box_arg "")
     if(DEFINED P_BOX)
@@ -507,15 +534,14 @@ function(add_grid_test)
 
     set(_ref_arg "")
     if(P_REFERENCE AND NOT P_SKIP_TEXT_COMPARE)
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_REFERENCE}"
-                       "${CMAKE_CURRENT_BINARY_DIR}/${P_REFERENCE}" COPYONLY)
-        set(_ref_arg "-DREF_FILE=${P_REFERENCE}")
+        ast_require_fixture("plot/cases.txt" "${P_REFERENCE}")
+        set(_ref_arg "-DREF_FILE=fixtures/${P_REFERENCE}")
     endif()
 
     add_test(NAME grid_${P_NAME}
         COMMAND ${CMAKE_COMMAND}
             -DTESTGRID=$<TARGET_FILE:testgrid>
-            -DHEAD_FILE=${P_HEAD}
+            -DHEAD_FILE=${_head}
             "-DATTR=${P_ATTR}"
             "-DFATTR=${P_FATTR}"
             -DOUT_FILE=grid_${P_NAME}.svg
@@ -529,7 +555,7 @@ function(add_grid_test)
     endif()
 endfunction()
 
-ast_read_test_data("${CMAKE_CURRENT_SOURCE_DIR}/grid_tests.txt" _grid_tests 7)
+ast_read_test_data("${AST_FIXTURE_SOURCE_ROOT}/plot/cases.txt" _grid_tests 7)
 foreach(_entry IN LISTS _grid_tests)
     string(REPLACE "|" ";" _fields "${_entry}")
     list(GET _fields 0 _name)
@@ -598,17 +624,15 @@ if(PLPLOT_FOUND)
         timeplot
     )
 
-    configure_file(lsst.fits-wcs "${CMAKE_CURRENT_BINARY_DIR}/lsst.fits-wcs" COPYONLY)
     ast_add_test(testplotter
         SOURCES testplotter.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
-        TEST_ARGS "lsst.fits-wcs" " " " " "testplotter.ps"
+        TEST_ARGS "fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.ps"
     )
     target_include_directories(testplotter PRIVATE ${PLPLOT_INCLUDE_DIRS})
     target_link_directories(testplotter PRIVATE ${PLPLOT_LIBRARY_DIRS})
 
-    configure_file(plot3d-test1.ast "${CMAKE_CURRENT_BINARY_DIR}/plot3d-test1.ast" COPYONLY)
     ast_add_test(testplot3d
         SOURCES testplot3d.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
@@ -619,9 +643,8 @@ if(PLPLOT_FOUND)
     target_link_directories(testplot3d PRIVATE ${PLPLOT_LIBRARY_DIRS})
 
     # --- Plotter smoke tests ---
-    # Run testplotter on each .head file with its .attr/.fattr/.box
-    # companions.  Pure smoke test: verifies astGrid does not crash
-    # on the given WCS.  No output comparison.
+    # Run testplotter using the inline settings in fixtures/plot/cases.txt.
+    # Pure smoke test: verifies astGrid does not crash on the given WCS.
     function(add_plotter_test)
         cmake_parse_arguments(P ""
             "NAME;HEAD;ATTR;FATTR;BOX"
@@ -637,8 +660,8 @@ if(PLPLOT_FOUND)
         if(NOT DEFINED P_FATTR)
             set(P_FATTR " ")
         endif()
-        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${P_HEAD}"
-                       "${CMAKE_CURRENT_BINARY_DIR}/${P_HEAD}" COPYONLY)
+        ast_require_fixture("plot/cases.txt" "${P_HEAD}")
+        set(_head "fixtures/${P_HEAD}")
 
         set(_box_arg "")
         if(DEFINED P_BOX)
@@ -648,7 +671,7 @@ if(PLPLOT_FOUND)
         add_test(NAME plotter_${P_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DTESTPLOTTER=$<TARGET_FILE:testplotter>
-                -DHEAD_FILE=${P_HEAD}
+                -DHEAD_FILE=${_head}
                 "-DATTR=${P_ATTR}"
                 "-DFATTR=${P_FATTR}"
                 -DOUT_FILE=plotter_${P_NAME}.pdf
@@ -672,7 +695,8 @@ if(PLPLOT_FOUND)
         endif()
     endfunction()
 
-    ast_read_test_data("${CMAKE_CURRENT_SOURCE_DIR}/grid_tests.txt" _plotter_tests 7)
+    ast_read_test_data("${AST_FIXTURE_SOURCE_ROOT}/plot/cases.txt"
+                       _plotter_tests 7)
     foreach(_entry IN LISTS _plotter_tests)
         string(REPLACE "|" ";" _fields "${_entry}")
         list(GET _fields 0 _name)

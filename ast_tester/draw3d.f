@@ -17,7 +17,7 @@
 *
 *     Alternatively, commands can be read from a text file:
 *
-*     % draw3d draw3d-test1.txt
+*     % draw3d fixtures/programs/draw3d/draw3d-test1.txt
 
 
 

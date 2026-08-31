@@ -1,5 +1,9 @@
 # Transform Output Oracle Implementation Plan
 
+> **Historical document.** Fixture paths below are as they were when this
+> document was written, before the test data moved under `ast_tester/fixtures/`.
+> `ast_tester/README` documents the current layout.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a tolerance-based, architecture-independent regression oracle that records the current numerical output of AST transforms over the `simplify_fixtures` and FITS-header corpora, with a scan-only generator and a file-driven `ctest` checker.

@@ -232,6 +232,11 @@ f     The WcsMap class does not define any new routines beyond those
 *        Discard the record that the WcsMap has been simplified when
 *        FITSProj or LonCheck is set or cleared, since LonCheck changes the
 *        values the WcsMap produces and FITSProj changes how it is used.
+*     27-AUG-2026 (TIMJ):
+*        In function Map, absorb a one-ULP rounding error at the latitude
+*        limits and at the lower longitude limit, so that the validity of a
+*        WCS does not depend on whether the compiler contracts a multiply
+*        and an add into a single FMA instruction.
 *class--
 */
 
@@ -2759,6 +2764,7 @@ static int Map( AstWcsMap *this, int forward, int npoint, double *in0,
 
 /* Local Variables: */
    const PrjData *prjdata;       /* Information about the projection */
+   double abslat;                /* Absolute latitude value in degrees */
    double factor;                /* Factor that scales input into radians. */
    double latitude;              /* Latitude value in degrees */
    double longhi;                /* Upper longitude limit in degrees */
@@ -2884,9 +2890,49 @@ static int Map( AstWcsMap *this, int forward, int npoint, double *in0,
    latitude ranges. This avoids (x,y) points outside the physical domain
    of the mapping being assigned valid (long,lat) values. */
             if( wcs_status == 0 ){
+               abslat = fabs( latitude );
+
+/* Absorb a one-ULP rounding error at a limit of the accepted range.  For
+   instance, a WinMap used by a FITS CAR mapping may evaluate the expression
+
+      -0.5 degree + 181*0.5 degree
+
+   as exactly 90 degrees when the compiler emits a fused multiply-add, but
+   as 90.00000000000001 degrees in older compiler modes that do not enable
+   FMA.  Thus arm64 and x86-64-v3 builds can accept the header while a
+   baseline x86-64 build rejects it.  The latter value is one representable
+   double above 90 and describes the same valid pole, rather than a point
+   outside the projection.  Clamp such values so that the validity of a WCS
+   does not depend on the compiler's contraction or target architecture.  Do
+   not admit the next representable value, which differs by more than
+   90*DBL_EPSILON.
+
+   Both latitude limits need this, because the accepted latitude range is
+   closed and so both -90 and +90 are inside it. */
+               if( abslat > 90.0 &&
+                   abslat - 90.0 <= 90.0*DBL_EPSILON ) {
+                  latitude = latitude < 0.0 ? -90.0 : 90.0;
+                  abslat = 90.0;
+               }
+
+/* The accepted longitude range is half-open, [longlo,longhi), so only its
+   lower limit needs the same treatment.  Perturbing a longitude strictly
+   below longhi by one ULP leaves it strictly below longhi, so the upper
+   limit does not decide acceptance differently on the two builds; a value
+   at or above longhi is the wrap of longlo and is clipped deliberately, to
+   stop a whole-sky grid mapping two pixels to the same meridian.
+
+   LongRange returns either [-180,180) or [0,360), so the width of the
+   range is the scale at which a longitude computed anywhere within it
+   rounds. */
+               if( docheck && !cyclic && longitude < longlo &&
+                   longlo - longitude <= ( longhi - longlo )*DBL_EPSILON ) {
+                  longitude = longlo;
+               }
+
                if( ( !docheck || cyclic || ( longitude < longhi &&
                                              longitude >= longlo ) ) &&
-                   fabs( latitude ) <= 90.0 ){
+                   abslat <= 90.0 ){
 
                   out0[ point ] = (AST__DD2R/factor)*longitude;
                   out1[ point ] = (AST__DD2R/factor)*latitude;
