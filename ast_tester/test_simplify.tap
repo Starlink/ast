@@ -1,9 +1,9 @@
 #!/bin/sh
 # TAP producer for Mapping-simplification regression tests.
 #
-# Runs simplify on each case listed in simplify_tests.txt (the same data file
-# the CMake test suite reads) and checks its output two ways, matching the
-# CMake suite:
+# Runs simplify on each case listed in fixtures/simplify/cases.txt (the same
+# manifest the CMake test suite reads) and checks its output two ways,
+# matching the CMake suite:
 #   - ast_astequal: a semantic (astEqual) comparison against the reference,
 #     run for every case;
 #   - exact diff against the reference, run unless the case is flagged
@@ -16,7 +16,9 @@
 # checks pass.  simplify writes AST-Channel dumps, so ast_astequal reads them
 # with the "ast" encoding.
 srcdir=${srcdir:-.}
-data=${srcdir}/simplify_tests.txt
+# Fixture paths in the manifest are relative to the fixture root.
+fixtures=${srcdir}/fixtures
+data=${fixtures}/simplify/cases.txt
 
 trim() {
     printf '%s' "$1" | sed 's/^[[:blank:]]*//; s/[[:blank:]]*$//'
@@ -38,7 +40,7 @@ while IFS='|' read -r name input reference skip rest; do
     out=${name}.out
     rm -f "$out"
 
-    ./simplify "${srcdir}/${input}" "$out" > "${out}.log" 2>&1 < /dev/null
+    ./simplify "${fixtures}/${input}" "$out" > "${out}.log" 2>&1 < /dev/null
     if [ $? -ne 0 ]; then
         echo "not ok $test"
         sed 's/^/# /' "${out}.log"
@@ -49,14 +51,14 @@ while IFS='|' read -r name input reference skip rest; do
     ok=1
     # String diff (skipped for ulp-variant fixtures).
     if [ "$skip" != yes ]; then
-        if ! diff -u "${srcdir}/${reference}" "$out" > "${out}.diff" 2>&1; then
+        if ! diff -u "${fixtures}/${reference}" "$out" > "${out}.diff" 2>&1; then
             ok=0
             echo "# $name: string diff against reference failed"
             sed 's/^/# /' "${out}.diff"
         fi
     fi
     # Semantic comparison (always).
-    if ! ./ast_astequal "${srcdir}/${reference}" "$out" ast \
+    if ! ./ast_astequal "${fixtures}/${reference}" "$out" ast \
             > "${out}.eq" 2>&1 < /dev/null; then
         ok=0
         echo "# $name: ast_astequal reported not equal to reference"
