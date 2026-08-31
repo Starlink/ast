@@ -231,10 +231,15 @@ if(AST_BUILD_FORTRAN)
     enable_language(Fortran)
 
     # Determine the type for trailing Fortran string lengths (TRAIL_TYPE).
-    # gfortran 8+ on 64-bit platforms passes hidden string lengths as
-    # size_t rather than int. Other compilers use int.
+    # gfortran 8 and later pass hidden string lengths as size_t rather than
+    # int, whatever the word size -- on a 32-bit target size_t is int-sized
+    # anyway, so gating this on a 64-bit build (as this used to) only made the
+    # answer disagree with the autotools builds for no benefit.
+    #
+    # Known gap, in both build systems: the Starlink macro additionally uses
+    # long for 64-bit Intel and Sun Fortran, and probes anything else non-GNU.
+    # Here, as in star_compat/starlink_compat.m4, non-GNU compilers get int.
     if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
-       AND CMAKE_SIZEOF_VOID_P EQUAL 8
        AND CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 8)
         set(TRAIL_TYPE "size_t")
     else()

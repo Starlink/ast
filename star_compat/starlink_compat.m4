@@ -187,8 +187,16 @@ fi
 m4_ifndef([STAR_CNF_TRAIL_TYPE],
 [AC_DEFUN([STAR_CNF_TRAIL_TYPE], [dnl
 dnl Determine the C type used for hidden Fortran character string length
-dnl arguments (the "TRAIL" type).  gfortran >= 8.1 uses size_t; older
-dnl versions use int.  This substitutes TRAIL_TYPE into src/f77.h.
+dnl arguments (the "TRAIL" type).  gfortran >= 8 uses size_t; older versions
+dnl use int.  This substitutes TRAIL_TYPE into src/f77.h.
+dnl
+dnl The version test is by major number rather than the real macro's pair of
+dnl regexps, which only match gfortran 8-19 and so would silently fall back to
+dnl int for gfortran 20.
+dnl
+dnl Known gap, shared with the CMake build: the real macro additionally uses
+dnl long for 64-bit Intel and Sun Fortran and probes anything else non-GNU,
+dnl whereas every non-GNU compiler gets int here.
   AC_CACHE_CHECK([type used for Fortran string lengths],
     [star_cv_cnf_trail_type],
     [star_cv_cnf_trail_type=int
