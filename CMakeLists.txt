@@ -251,8 +251,17 @@ if(AST_BUILD_FORTRAN)
     # that was sent; a double-returning one reads the float's bits as a double
     # and gets something else, which the probe detects by the result comparing
     # equal to zero.
+    #
+    # Passing two sources of different languages to try_run() needs CMake 3.25;
+    # below that, keep the old assumption, which is right for every compiler
+    # not explicitly asked for the f2c convention.
     set(REAL_FUNCTION_TYPE "float")
-    if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
+       AND CMAKE_VERSION VERSION_LESS 3.25)
+        message(STATUS
+            "CMake < 3.25: assuming Fortran REAL functions return float "
+            "(configure with -ff2c and CMake 3.25+ to have this measured)")
+    elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
         set(_f2c_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/f2c_probe")
         file(WRITE "${_f2c_dir}/fred.c" "\
 float fred_() {
