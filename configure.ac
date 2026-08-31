@@ -398,9 +398,32 @@ int main() {
 #   satisfy these targets, so give a non-null value
 #   for the second argument, to suppress automatic generation of
 #   rules.
-STAR_LATEX_DOCUMENTATION([sun210 sun211], [sun210.pdf sun210.tex sun211.pdf sun211.tex sun210.htx_tar sun211.htx_tar])
-STAR_PREDIST_SOURCES(sun_master.tex)
+#
+#   The PDFs need only a TeX installation plus the LaTeX class and style files
+#   vendored in star_compat/latexsupport.  The .htx_tar hypertext products
+#   additionally need the Starlink star2html program, so they are built only
+#   when it is available; a build without it still produces the PDFs, which is
+#   what nearly every reader wants.  Historically the hypertext was always
+#   included, so warn rather than pass over it silently.
 STAR_CHECK_PROGS(star2html)
+AC_ARG_ENABLE([hyperdocs],
+    [AS_HELP_STRING([--disable-hyperdocs],
+        [omit the .htx_tar hypertext documentation even when star2html is
+         available])],
+    [], [enable_hyperdocs=yes])
+
+ast_documentation="sun210.pdf sun210.tex sun211.pdf sun211.tex"
+if test "x$enable_hyperdocs" = xno; then
+    AC_MSG_NOTICE([hypertext documentation disabled by request])
+elif test -x "$STAR2HTML"; then
+    ast_documentation="$ast_documentation sun210.htx_tar sun211.htx_tar"
+else
+    AC_MSG_WARN([star2html not found: building PDF documentation only, with
+no .htx_tar hypertext. A full release has historically included it.])
+fi
+
+STAR_LATEX_DOCUMENTATION([sun210 sun211], [$ast_documentation])
+STAR_PREDIST_SOURCES(sun_master.tex)
 STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
 
 AC_CONFIG_HEADERS(config.h)
