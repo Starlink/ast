@@ -4716,6 +4716,37 @@ int main( void ) {
                stopit( 907, "as_fits_wcs FrameSet should not write to FITS",
                        status );
          }
+
+         /* At the default FitsTol the same FrameSet does have an adequate
+            linear approximation, so this write succeeds.  Check it produced
+            a usable header: astWrite used to report success while emitting
+            SIP coefficients and no primary axis description at all, because
+            SIPIntWorld returned AST__BAD CRPIX values that MakeIntWorld
+            stored as the whole description. */
+         {
+            AstFitsChan *spfc3 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+            char spcard[ 81 ];
+            int spfound = 0;
+
+            astPutFits( spfc3, "NAXIS1  = 1000", 0 );
+            astPutFits( spfc3, "NAXIS2  = 1000", 0 );
+            spnw = astWrite( spfc3, spfs );
+            if( !astOK ) astClearStatus;
+            if( spnw == 0 ) {
+               stopit( 908, "SplineMap FrameSet should write at the default "
+                       "FitsTol", status );
+            } else {
+               astClear( spfc3, "Card" );
+               while( astFindFits( spfc3, "%f", spcard, 1 ) ) {
+                  if( !strncmp( spcard, "CTYPE1  ", 8 ) ) spfound |= 1;
+                  if( !strncmp( spcard, "CTYPE2  ", 8 ) ) spfound |= 2;
+                  if( !strncmp( spcard, "A_ORDER ", 8 ) ) spfound |= 4;
+               }
+               if( spfound != 3 )
+                  stopit( 909, "SplineMap FrameSet wrote a header without a "
+                          "primary axis description", status );
+            }
+         }
       }
       astEnd;
    }

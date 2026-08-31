@@ -1413,6 +1413,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        are then still NULL. This segfaulted when SIPIntWorld had accepted
 *        a SIP description but the remaining Mapping was still not linear
 *        to within FitsTol over the image dimensions.
+*     31-AUG-2026 (TIMJ):
+*        Reject the SIP description in SIPIntWorld when the inverse
+*        transformation is undefined at the IWC origin, since the CRPIX
+*        values are then AST__BAD.  Storing them left the axis description
+*        empty, and astWrite still reported success, so a FrameSet whose
+*        celestial axes could not be described this way was written out as
+*        a header with SIP coefficients but no CTYPE or CRPIX cards.
 *class--
 */
 
@@ -29078,6 +29085,15 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                   iwcxin = 0.0;
                   iwcyin = 0.0;
                   astTran2( smap, 1, &iwcxin, &iwcyin, 0, crpix, crpix + 1 );
+
+/* The inverse transformation may be undefined at the IWC origin, in which
+   case there is no reference pixel and so the SIP conventions cannot be
+   used to describe the celestial axes. */
+                  if( crpix[ 0 ] == AST__BAD || crpix[ 1 ] == AST__BAD ) ok = 0;
+               }
+
+/* If a reference pixel was found... */
+               if( ok ) {
 
 /* The "fit" array currently contains the coefficients of a linear
    approximation to the upper Mapping. These give us the CD matrix.

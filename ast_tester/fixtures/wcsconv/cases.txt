@@ -41,13 +41,11 @@ sip-3d-swap_fits-wcs | wcsconv/inputs/sip-3d-swap.head | wcsconv/expected/sip-3d
 lsst_fits-wcs | wcsconv/inputs/lsst.ast | wcsconv/expected/lsst.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8 |
 # lsst2_fits-wcs: the pixels-to-sky FrameSet of a DP2 difference image
 # (visit=2025042400322, detector=150).  Its pixel-to-tangent-plane leg
-# contains a SplineMap, so there is no exact FITS-WCS representation and
-# astWrite ought to return 0.  It instead returns 1 and emits the header
-# committed here, which describes only the alternate TP axis description and
-# carries no primary CTYPE cards.  The reference is kept as a record of that
-# behaviour, not as an example of correct output; when the write is fixed
-# this row must be regenerated.  testfitschan covers the same fixture with
-# FitsTol and NAXIS also set, where astWrite correctly refuses.
+# contains a SplineMap, so there is no exact FITS-WCS representation; the
+# reference is the linear approximation astWrite settles for at the default
+# FitsTol of 0.1, which is good to about 0.03 pixels over a 1000-pixel box.
+# testfitschan covers the same fixture with a FitsTol tight enough that no
+# approximation is good enough, where astWrite correctly refuses.
 lsst2_fits-wcs | wcsconv/inputs/lsst2.ast | wcsconv/expected/lsst2.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8 |
 longslit_fits-wcs | wcsconv/inputs/longslit.fits-pc | wcsconv/expected/longslit.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8 |
 # jan_fits-class_ast: the SrcVel derivation (source velocity from CLASS
