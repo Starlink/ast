@@ -1,0 +1,69 @@
+%+
+%  Name:
+%     ast.sty
+%
+%  Purpose:
+%     AST's own additions to the Starlink LaTeX support files.
+%
+%  Description:
+%     The other files in this directory are vendored unmodified from the
+%     Starlink latexsupport component, so anything AST needs to add or
+%     override goes here instead. Loaded by sun_master.tex with
+%     \usepackage{ast}, after \documentclass{starlink} has pulled in
+%     starabbrev, starstyle and sst.
+%
+%  Licence:
+%     This program is free software: you can redistribute it and/or
+%     modify it under the terms of the GNU Lesser General Public
+%     License as published by the Free Software Foundation, either
+%     version 3 of the License, or (at your option) any later version.
+%
+%     This program is distributed in the hope that it will be useful,
+%     but WITHOUT ANY WARRANTY; without even the implied warranty of
+%     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+%     Lesser General Public License for more details.
+%
+%     You should have received a copy of the GNU Lesser General
+%     Public Licence along with this program. If not, see
+%     <http://www.gnu.org/licenses/>.
+%
+%  History:
+%     31-AUG-2026 (TIMJ):
+%        Original version. Define \htmlref for the pdflatex path.
+%-
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ast}[2026/08/31 AST additions to the Starlink classes]
+
+%  AST's addlinks script rewrites every cross-reference in the generated
+%  .tex into \htmlref{text}{label}, but \htmlref is only ever defined in
+%  starstyle.4ht, which tex4ht loads for the hypertext build. The pdflatex
+%  path therefore had nothing to define it, and each reference raised an
+%  undefined-control-sequence error -- thousands of them, leaving pdflatex
+%  to exit non-zero while still emitting a usable PDF.
+%
+%  Render the text and discard the label rather than calling \hyperref:
+%  addlinks passes the visible text as the label too (its label-mangling
+%  line is commented out), and the \sstlabel call that would have defined
+%  those labels is commented out as well, so there is no \label to point
+%  at and \hyperref would only trade the errors for as many warnings.
+%
+%  \providecommand, not \newcommand: starstyle.4ht overrides \htmlref with
+%  \renewcommand, which needs the command to exist first, so defining it
+%  here serves the hypertext build too.
+\providecommand{\htmlref}[2]{#1}
+
+%  \htmladdnormallink and its footnote variant are LaTeX2HTML macros from
+%  html.sty, which nothing in the Starlink support files loads -- yet
+%  sun_master.tex uses all three of them and starabbrev.sty's \FITSref is
+%  written in terms of the first, so they have been undefined in every build,
+%  hypertext included.
+%
+%  html.sty renders them for print, dropping the URL entirely from the plain
+%  form.  These are PDFs and starlink.cls loads hyperref, so make them real
+%  links instead, and keep the footnote variant's promise of putting the URL
+%  where a reader of paper can still see it.
+\providecommand{\htmladdnormallink}[2]{\href{#2}{#1}}
+\providecommand{\htmladdnormallinkfoot}[2]{\href{#2}{#1}\footnote{\url{#2}}}
+
+\endinput
