@@ -2,9 +2,19 @@ name: Coverage
 
 on:
   push:
-    branches: [master]
+    branches: ['**']
   pull_request:
-    branches: [master]
+  workflow_dispatch:
+
+#  Every push to a branch is checked, and so is every pull request -- the
+#  latter so that forks are covered too, since a fork's push never reaches
+#  this repository.  For a branch in this repository with an open pull request
+#  that does mean two runs of the same commit; the concurrency group below at
+#  least cancels runs a newer push has superseded, except on master where the
+#  completed record is worth keeping.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   coverage:
