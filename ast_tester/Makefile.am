@@ -418,29 +418,14 @@ TESTS += testhuge.sh
 EXTRA_DIST = testhuge.sh \
     test_wcsconverter.tap test_simplify.tap test_grid.tap
 
-# Distribute files needed for the CMake build
-# This includes tests (and associated fixtures) that have not yet been ported
-# to the automake tests (but should be in a follow-up)
-EXTRA_DIST += \
-    CMakeLists.txt \
-    check_transform_oracle.c \
-    gen_simplify_fixtures.c \
-    gen_transform_oracle.c \
-    normalize_fixture.c \
-    plplotutil.c \
-    plplotutil.h \
-    test_oracle_util.c \
-    testfitschanerrors.c \
-    testimmutable.c \
-    testobjectkeymap.c \
-    testplot3d.c \
-    testplotter.c \
-    testregionmasking.c \
-    testresample.c \
-    testslamap.c \
-    testthreads.c \
-    transform_oracle.h \
-    transform_oracle_util.c
+# The CMake suite runs tests this one does not, and it is meant to -- but their
+# sources still have to reach the tarball, or the CMake build inside distcheck
+# cannot compile them.  Rather than list them, the dist-hook below ships every
+# C, Fortran and header source in this directory: naming them individually
+# meant the list silently fell behind master (testimmutable.c was the last
+# one), and shipping a source the local suite happens not to build costs
+# nothing.
+EXTRA_DIST += CMakeLists.txt
 
 # Committed test data lives entirely below fixtures/, so it is shipped as a
 # tree rather than enumerated file by file: there are over a thousand of them
@@ -454,6 +439,13 @@ dist-hook:
 	for rel in $$list; do \
 	    $(MKDIR_P) "$(distdir)/`dirname $$rel`"; \
 	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel"; \
+	done
+	@list=`cd "$(srcdir)" && find . -maxdepth 1 -type f \
+	    \( -name '*.c' -o -name '*.f' -o -name '*.h' -o -name '*.awk' \) \
+	    ! -name '.*' | sed 's|^\./||'`; \
+	for rel in $$list; do \
+	    test -e "$(distdir)/$$rel" && continue; \
+	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel" || exit 1; \
 	done
 
 # Fixtures and command files that the tests read from the ast_tester directory
