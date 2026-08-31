@@ -241,9 +241,54 @@ if(AST_BUILD_FORTRAN)
         set(TRAIL_TYPE "int")
     endif()
 
-    # Check if Fortran compiler is f2c-compatible (affects REAL function return).
-    # Non-f2c compilers (i.e. nearly all modern compilers) return float.
+    # Does a Fortran REAL function return its result as a double, the way f2c
+    # does, or as a float?  This cannot be read off the compiler's identity: it
+    # is a property of the calling convention, and gfortran uses the f2c one
+    # only when given -ff2c.  So measure it, the same way the autotools build
+    # does (STAR_CNF_F2C_COMPATIBLE in star_compat/starlink_compat.m4): define
+    # a C function returning a float, call it from Fortran as a REAL function,
+    # and see what arrives.  A float-returning convention hands back the 1.0
+    # that was sent; a double-returning one reads the float's bits as a double
+    # and gets something else, which the probe detects by the result comparing
+    # equal to zero.
     set(REAL_FUNCTION_TYPE "float")
+    if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+        set(_f2c_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/f2c_probe")
+        file(WRITE "${_f2c_dir}/fred.c" "\
+float fred_() {
+   return 1.0f;
+}
+")
+        file(WRITE "${_f2c_dir}/f2ctest.f" "\
+      PROGRAM F2CTEST
+      REAL FRED
+      REAL R
+      R = FRED()
+      IF ( R .NE. 0.0 ) THEN
+         WRITE(*,*) 'no'
+      ELSE
+         WRITE(*,*) 'yes'
+      ENDIF
+      END
+")
+        try_run(AST_F2C_RUN_RESULT AST_F2C_COMPILE_RESULT
+            "${_f2c_dir}/build"
+            SOURCES "${_f2c_dir}/f2ctest.f" "${_f2c_dir}/fred.c"
+            RUN_OUTPUT_VARIABLE _f2c_output)
+        if(NOT AST_F2C_COMPILE_RESULT)
+            message(WARNING
+                "f2c compatibility probe would not build; assuming Fortran "
+                "REAL functions return float")
+        elseif(AST_F2C_RUN_RESULT STREQUAL "FAILED_TO_RUN")
+            message(WARNING
+                "f2c compatibility probe would not run; assuming Fortran "
+                "REAL functions return float")
+        elseif(_f2c_output MATCHES "yes")
+            set(REAL_FUNCTION_TYPE "double")
+        endif()
+        message(STATUS
+            "Fortran REAL functions return ${REAL_FUNCTION_TYPE}")
+    endif()
 
     # Determine the blank common symbol. gfortran 4+ uses __BLNK__,
     # other compilers typically use _BLNK__.
