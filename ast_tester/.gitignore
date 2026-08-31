@@ -2,6 +2,7 @@
 *.log
 *.trs
 *.o
+/ast_astequal
 /ast_test
 /simplify
 /test*
