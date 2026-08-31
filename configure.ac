@@ -417,7 +417,10 @@ if test "x$enable_hyperdocs" = xno; then
     AC_MSG_NOTICE([hypertext documentation disabled by request])
 elif test -x "$STAR2HTML"; then
     ast_documentation="$ast_documentation sun210.htx_tar sun211.htx_tar"
-else
+elif test "x$STARCONF" != "xno"; then
+#  Only worth remarking on where documentation is built at all.  A standalone
+#  build has an empty STAR_LATEX_DOCUMENTATION and produces none of it, so
+#  warning there about a missing star2html would just be misleading noise.
     AC_MSG_WARN([star2html not found: building PDF documentation only, with
 no .htx_tar hypertext. A full release has historically included it.])
 fi
