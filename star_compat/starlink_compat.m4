@@ -114,14 +114,74 @@ m4_foreach_w([ProgramName], [$1],
 
 m4_ifndef([STAR_CNF_F2C_COMPATIBLE],
 [AC_DEFUN([STAR_CNF_F2C_COMPATIBLE], [dnl
-dnl Determine whether the Fortran compiler returns REAL function results
-dnl as double (f2c-compatible) or float.  gfortran is f2c-compatible.
-dnl Sets REAL_FUNCTION_TYPE to 'double' (f2c) or 'float'.
-  if test "$ac_cv_fc_compiler_gnu" = yes; then
-    AC_SUBST([REAL_FUNCTION_TYPE], [double])
-  else
-    AC_SUBST([REAL_FUNCTION_TYPE], [float])
-  fi
+dnl Determine whether the Fortran compiler returns a REAL function result as a
+dnl double, the way f2c does, or as a float.  Sets REAL_FUNCTION_TYPE, which is
+dnl substituted into src/f77.h as F77_REAL_FUNCTION_TYPE.
+dnl
+dnl This cannot be read off the compiler's identity: it is a property of the
+dnl calling convention, and gfortran uses the f2c one only when given -ff2c.
+dnl So measure it, as the real macro does -- define a C function returning a
+dnl float, call it from Fortran as a REAL function, and see what arrives.  A
+dnl float-returning convention hands back the 1.0 that was sent; a
+dnl double-returning one reads the float's bits as a double and gets something
+dnl else, which the test detects by the result comparing equal to zero.  That
+dnl is indirect, but it is the original's test and it distinguishes the two
+dnl conventions in practice.
+AC_REQUIRE([AC_PROG_CC])dnl
+AC_REQUIRE([AC_PROG_FC])dnl
+AC_CACHE_CHECK([if $FC is in strict f2c compatible mode],
+   [star_cv_cnf_f2c_compatible],
+   [star_cv_cnf_f2c_compatible=no
+    if test "$ac_cv_fc_compiler_gnu" = yes; then
+       AC_LANG_PUSH([C])
+       AC_LANG_CONFTEST([AC_LANG_SOURCE([[
+float fred_() {
+   return 1.0f;
+}
+]])])
+       if (eval $ac_compile) 2>&AS_MESSAGE_LOG_FD; then
+          mv conftest.$ac_objext c-conftest.$ac_objext
+       else
+          AC_MSG_FAILURE([cannot compile a C function])
+       fi
+       AC_LANG_POP([C])
+
+       AC_LANG_PUSH([Fortran])
+       AC_LANG_CONFTEST([AC_LANG_SOURCE([
+      PROGRAM F2CTEST
+      REAL FRED
+      REAL R
+      R = FRED()
+      IF ( R .NE. 0.0 ) THEN
+         WRITE(*,*) 'no'
+      ELSE
+         WRITE(*,*) 'yes'
+      ENDIF
+      END
+])])
+dnl    Link by hand rather than through AC_RUN_IFELSE: the C object has to
+dnl    join the link line, and the Fortran driver is what must be run.
+       if $FC $FCFLAGS -o conftest conftest.$ac_ext c-conftest.$ac_objext \
+             >&AS_MESSAGE_LOG_FD 2>&1 && test -x ./conftest; then
+          if test "$cross_compiling" = yes; then
+             AC_MSG_WARN([cross compiling: assuming REAL functions return float])
+          else
+dnl          Fortran list-directed output is padded, so keep only the letters.
+             star_cv_cnf_f2c_compatible=`./conftest 2>/dev/null | sed 's/[[^a-z]]//g'`
+          fi
+       else
+          AC_MSG_WARN([f2c compatibility probe would not link; assuming
+REAL functions return float])
+       fi
+       AC_LANG_POP([Fortran])
+dnl    -r as well as -f: a debug build leaves a conftest.dSYM directory.
+       rm -rf conftest* c-conftest*
+    fi])
+if test "x$star_cv_cnf_f2c_compatible" = xyes; then
+   AC_SUBST([REAL_FUNCTION_TYPE], [double])
+else
+   AC_SUBST([REAL_FUNCTION_TYPE], [float])
+fi
 ])])
 
 m4_ifndef([STAR_CNF_TRAIL_TYPE],
