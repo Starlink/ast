@@ -4724,13 +4724,16 @@ int main( void ) {
             SIPIntWorld returned AST__BAD CRPIX values that MakeIntWorld
             stored as the whole description. */
          {
+            AstChannel *spch2 = astChannel( NULL, NULL,
+                            "SourceFile=fixtures/wcsconv/inputs/lsst2.ast" );
+            AstFrameSet *spfs2 = (AstFrameSet *) astRead( spch2 );
             AstFitsChan *spfc3 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
             char spcard[ 81 ];
             int spfound = 0;
 
             astPutFits( spfc3, "NAXIS1  = 1000", 0 );
             astPutFits( spfc3, "NAXIS2  = 1000", 0 );
-            spnw = astWrite( spfc3, spfs );
+            spnw = astWrite( spfc3, spfs2 );
             if( !astOK ) astClearStatus;
             if( spnw == 0 ) {
                stopit( 908, "SplineMap FrameSet should write at the default "

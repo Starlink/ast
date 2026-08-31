@@ -1420,6 +1420,16 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        empty, and astWrite still reported success, so a FrameSet whose
 *        celestial axes could not be described this way was written out as
 *        a header with SIP coefficients but no CTYPE or CRPIX cards.
+*     31-AUG-2026 (TIMJ):
+*        Give up in WcsFromStore and PCFromStore when the primary axis
+*        descriptions could not be written, rather than reporting success
+*        on the strength of an alternate description alone.  FsetToStore
+*        already refuses to build alternate descriptions unless the
+*        primary one was built, so this makes the two stages agree, and
+*        makes PCFromStore behave as its prologue already claimed.  Also
+*        apply the existing test for a missing CRPIX1 or CRVAL1 to the
+*        primary axis descriptions in WcsFromStore, not just to the
+*        alternate ones.
 *class--
 */
 
@@ -24712,11 +24722,13 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    int naxis;          /* No. of axes */
    int nc;             /* Length of string */
    int ok;             /* Frame written out succesfully? */
+   int primok;         /* Primary axis descriptions written succesfully? */
    int prj;            /* Projection type */
    int ret;            /* Returned value. */
 
 /* Initialise */
    ret = 0;
+   primok = 0;
 
 /* Check the inherited status. */
    if( !astOK ) return ret;
@@ -25100,6 +25112,7 @@ next:
       if( s != ' ' ) {
          astClearStatus;
       } else {
+         primok = ok;
          s = 'A' - 1;
       }
 
@@ -25113,6 +25126,12 @@ next:
 /* Set the current card so that it points to the last WCS-related keyword
    in the FitsChan (whether previously read or not). */
       FindWcs( this, 1, 1, 0, method, class, status );
+
+/* Alternate axis descriptions supplement the primary descriptions and
+   cannot stand on their own, so give up if the primary descriptions could
+   not be written. "ret" is still zero at this point, since the primary
+   descriptions are written first. */
+      if( !primok ) break;
    }
 
 /* Annul the array holding the primary PC matrix. */
@@ -37133,7 +37152,8 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
 
 *  Returned Value:
 *     A value of 1 is returned if succesfull, and zero is returned
-*     otherwise.
+*     otherwise. Zero is returned if the primary axis descriptions cannot
+*     be produced, since alternate descriptions cannot stand on their own.
 */
 
 /* Local Variables: */
@@ -37166,6 +37186,7 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    int order;          /* Max SIP polynomial order */
    int p;              /* Power of u or U */
    int pmax;           /* Max power of u or U */
+   int primok;         /* Primary axis descriptions written succesfully? */
    int prj;            /* Projection type */
    int q;              /* Power of v or V */
    int qmax;           /* Max power of v or V */
@@ -37176,6 +37197,9 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
 
 /* Other initialisation to avoid compiler warnings. */
    tabaxis = NULL;
+
+/* Assume the primary axis descriptions cannot be written. */
+   primok = 0;
 
 /* Check the inherited status. */
    if( !astOK ) return ret;
@@ -37191,16 +37215,14 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    sup = GetMaxS( &(store->crval), status );
    for( s = ' '; s <= sup && astOK; s++ ){
 
-/* For alternate axes, skip this axis description if there is no CRPIX1 or
-   CRVAL1 value. This avoids partial axis descriptions being written out. */
-      if( s != ' ' ) {
-         if( GetItem( &(store->crpix), 0, 0, s, NULL, method, class, status ) ==
-             AST__BAD ||
-             GetItem( &(store->crval), 0, 0, s, NULL, method, class, status ) ==
-             AST__BAD ) {
-            ok = 0;
-            goto next;
-         }
+/* Skip this axis description if there is no CRPIX1 or CRVAL1 value. This
+   avoids partial axis descriptions being written out. */
+      if( GetItem( &(store->crpix), 0, 0, s, NULL, method, class, status ) ==
+          AST__BAD ||
+          GetItem( &(store->crval), 0, 0, s, NULL, method, class, status ) ==
+          AST__BAD ) {
+         ok = 0;
+         goto next;
       }
 
 /* Assume the Frame can be created succesfully. */
@@ -37685,6 +37707,7 @@ next:
       if( s != ' ' ) {
          astClearStatus;
       } else {
+         primok = ok;
          s = 'A' - 1;
       }
 
@@ -37701,6 +37724,12 @@ next:
 
 /* Free resources. */
       tabaxis = astFree( tabaxis );
+
+/* Alternate axis descriptions supplement the primary descriptions and
+   cannot stand on their own, so give up if the primary descriptions could
+   not be written. "ret" is still zero at this point, since the primary
+   descriptions are written first. */
+      if( !primok ) break;
    }
 
 /* Return zero or ret depending on whether an error has occurred. */
