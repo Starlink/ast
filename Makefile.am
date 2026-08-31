@@ -911,22 +911,12 @@ EXTRA_DIST = $(srcdir)/ast_par.source $(srcdir)/ast_err.msg \
     $(srcdir)/star_compat/latexsupport/starlink.cls \
     $(srcdir)/star_compat/latexsupport/starstyle.sty
 
-# Distribute files required by CMake build
+# Distribute files required by CMake build.  Everything in cmake/ is a build
+# input, so the dist-hook below ships the whole directory rather than naming
+# each file -- a list here has to be extended every time a helper is added,
+# and nothing catches it when it is not.
 EXTRA_DIST += \
     CMakeLists.txt \
-    cmake/ast.pc.in \
-    cmake/astConfig.cmake.in \
-    cmake/config.h.cmake.in \
-    cmake/gen_ast_h.sh \
-    cmake/gen_ast_par.cmake \
-    cmake/run_grid_test.cmake \
-    cmake/run_plotter_test.cmake \
-    cmake/run_simplify_astequal_test.cmake \
-    cmake/run_simplify_noop_test.cmake \
-    cmake/run_simplify_test.cmake \
-    cmake/run_wcsconverter_astequal_test.cmake \
-    cmake/run_wcsconverter_test.cmake \
-    cmake/version.h.cmake.in \
     version.number
 
 # The autotools build doesn't detect plplot yet, so the plplot grf
@@ -1046,6 +1036,59 @@ dist-hook:
 	for f in $(LATEX_SUPPORT_FILES); do \
 	    cp -p $(srcdir)/star_compat/latexsupport/$$f $(distdir)/ || exit 1; \
 	done
+	@list=`cd "$(srcdir)" && find cmake -type f ! -name '.*'`; \
+	for rel in $$list; do \
+	    $(MKDIR_P) "$(distdir)/`dirname $$rel`"; \
+	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel" || exit 1; \
+	done
+	$(MAKE) $(AM_MAKEFLAGS) distdir="$(distdir)" dist-check-tracked
+
+#  The lists above say what to ship; this checks what actually arrived.  Every
+#  file git tracks under cmake/ and ast_tester/, bar the exclusions below, must
+#  be in the tarball -- otherwise the tarball configures and then fails to
+#  build, which is how cmake/run_simplify_noop_test.cmake and
+#  ast_tester/testimmutable.c each survived as far as a full distcheck before
+#  anyone noticed.  Checking every tracked file, rather than the extensions the
+#  dist-hook patterns happen to match, is what makes this catch a kind of file
+#  nobody thought of.
+#
+#  This runs as the last step of the top-level dist-hook, which automake
+#  invokes after the subdirectories have staged their own files, so
+#  ast_tester/ is complete by now.  It is skipped where there is no git
+#  checkout to ask, which is why it is a guard on `make dist' and not a
+#  guarantee about an arbitrary tarball.
+#  What deliberately does not ship: developer tooling and the coverage harness,
+#  none of which either build system needs.  Stated as exclusions rather than
+#  inclusions on purpose -- a file that is neither excluded here nor
+#  distributed fails the check, so leaving one out becomes a decision instead
+#  of an oversight.
+DIST_CHECK_EXCLUDE = \
+    ':!*.gitignore' \
+    ':!ast_tester/coverage' \
+    ':!ast_tester/asdftest.py' \
+    ':!ast_tester/ast_tester' \
+    ':!ast_tester/doplot' \
+    ':!ast_tester/makeplot' \
+    ':!ast_tester/maketest' \
+    ':!ast_tester/moctohtml' \
+    ':!ast_tester/simplify_pathways.md'
+
+dist-check-tracked:
+	@test -d "$(top_srcdir)/.git" || exit 0; \
+	tracked=`cd "$(top_srcdir)" && \
+	    git ls-files cmake ast_tester $(DIST_CHECK_EXCLUDE)`; \
+	missing=; \
+	for rel in $$tracked; do \
+	    test -e "$(distdir)/$$rel" || missing="$$missing $$rel"; \
+	done; \
+	if test -n "$$missing"; then \
+	    echo "make dist: tracked files missing from the distribution:" >&2; \
+	    for rel in $$missing; do echo "    $$rel" >&2; done; \
+	    echo "Add them to EXTRA_DIST, or widen the dist-hook patterns." >&2; \
+	    exit 1; \
+	fi
+
+.PHONY: dist-check-tracked
 
 # `make distcheck` reconfigures a throw-away build from scratch, so re-pass the
 # compilers and libyaml location this build was configured with.
