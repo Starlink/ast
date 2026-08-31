@@ -875,15 +875,21 @@ AST_PAR: $(srcdir)/ast_par.source astbad$(EXEEXT)
 endif
 
 # In standalone mode, build messgen from source to generate the error-facility
-# headers (ast_err.h and AST_ERR) from ast_err.msg.  Starlink builds use the
-# installed messgen binary via the STAR_MESSGEN macro instead.
+# headers (ast_err.h and AST_ERR) from ast_err.msg.  Starlink builds get both
+# the binary and the rules from the STAR_MESSGEN macro and automake's
+# _MESSAGES primary instead, so neither is declared here.
+#
+# Not called MESSGEN: STAR_MESSGEN substitutes a variable of that name, and
+# assigning to it here would override configure's own value -- which automake
+# reports on every Starlink bootstrap as "MESSGEN was already defined in
+# condition TRUE".
 if !STARLINK_BUILD
-MESSGEN = star_compat/messgen$(EXEEXT)
+AST_MESSGEN = star_compat/messgen$(EXEEXT)
 noinst_PROGRAMS += star_compat/messgen$(EXEEXT)
 star_compat_messgen_SOURCES = star_compat/messgen.c
 
-ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(MESSGEN)
-	$(MESSGEN) -cF $(srcdir)/ast_err.msg
+ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(AST_MESSGEN)
+	$(AST_MESSGEN) -cF $(srcdir)/ast_err.msg
 endif
 
 # Extra files and directories that should be included in the source dist
