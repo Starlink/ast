@@ -259,8 +259,8 @@ unlink "/tmp/ast-$$.h";
 sub protect_copy_file {
    my $file = shift;
 
-   my $path = "$srcdir/$file";
-   $path = "$builddir/$file" if ( ! -f $path && -f "$builddir/$file" );
+   my $path = "$builddir/$file";
+   $path = "$srcdir/$file" if ! -f $path;
    open( INCLUDE, $path )
        || die "Can't open input file $path: $!";
 
