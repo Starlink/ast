@@ -3521,6 +3521,56 @@ static void gen_audit_gap_fixtures(const char *dir) {
         write_fixture(dir, "cap_deep_nest_zoom", acc);
         acc = astAnnul(acc);
     }
+
+    /* [ZoomMap, PermMap, parallel CmpMap, ZoomMap] in series. The CmpMap /
+       PermMap swap (cmpmap.c:1816) brings a Mapping next to each outer
+       ZoomMap, so which merge the nominate loop reaches first depends on the
+       index the swap reports. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        const char *fwda[] = {"y = 2*x"};
+        const char *inva[] = {"x = 0.5*y"};
+        const char *fwdb[] = {"y = 3*x"};
+        const char *invb[] = {"x = y/3"};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, " ");
+        AstMathMap *ma = astMathMap(1, 1, 1, fwda, 1, inva, " ");
+        AstMathMap *mb = astMathMap(1, 1, 1, fwdb, 1, invb, " ");
+        AstCmpMap *par = astCmpMap(ma, mb, 0, " ");
+        AstZoomMap *za = astZoomMap(2, 2.0, " ");
+        AstZoomMap *zb = astZoomMap(2, 3.0, " ");
+        AstCmpMap *c1 = astCmpMap(za, pm, 1, " ");
+        AstCmpMap *c2 = astCmpMap(c1, par, 1, " ");
+        AstCmpMap *c3 = astCmpMap(c2, zb, 1, " ");
+        write_fixture(dir, "cap_cmpperm_resume", (AstMapping*)c3);
+        c3 = astAnnul(c3); c2 = astAnnul(c2); c1 = astAnnul(c1);
+        za = astAnnul(za); zb = astAnnul(zb);
+        par = astAnnul(par); pm = astAnnul(pm);
+        ma = astAnnul(ma); mb = astAnnul(mb);
+    }
+
+    /* The same swap with the PermMap stored inverted, so permmap.c::MapMerge
+       has a canonical rebuild available at the PermMap's own nomination
+       (permmap.c:1362) and C takes that before ever reaching the swap. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        const char *fwda[] = {"y = 2*x"};
+        const char *inva[] = {"x = 0.5*y"};
+        const char *fwdb[] = {"y = 3*x"};
+        const char *invb[] = {"x = y/3"};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, " ");
+        AstMathMap *ma = astMathMap(1, 1, 1, fwda, 1, inva, " ");
+        AstMathMap *mb = astMathMap(1, 1, 1, fwdb, 1, invb, " ");
+        AstCmpMap *par = astCmpMap(ma, mb, 0, " ");
+        astInvert(pm);
+        AstCmpMap *c1 = astCmpMap(pm, par, 1, " ");
+        write_fixture(dir, "cap_cmpperm_resume_inv", (AstMapping*)c1);
+        c1 = astAnnul(c1); par = astAnnul(par); pm = astAnnul(pm);
+        ma = astAnnul(ma); mb = astAnnul(mb);
+    }
 }
 
 int main(void) {
