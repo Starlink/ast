@@ -3859,6 +3859,78 @@ static void gen_audit_gap_fixtures(const char *dir) {
         box = astAnnul(box); pm = astAnnul(pm);
         base = astAnnul(base); curr = astAnnul(curr);
     }
+
+    /* There is no fixture for the bad-vertex guard at polygon.c:5400. A
+       Polygon cannot hold a bad vertex (polygon.c:7131 rejects one), and
+       astMapRegion refuses any Mapping that sends a defining point to
+       AST__BAD (region.c:5546), so no public construction reaches the guard.
+    */
+
+    /* Polygon carrying an explicit uncertainty, mapped by a ZoomMap.
+       polygon.c:5384 asks for the uncertainty in the *current* Frame, so the
+       replacement Polygon's Unc block is the supplied Box scaled by the zoom
+       factor, not the base-Frame Box. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=ZOOMED");
+        AstZoomMap *zm = astZoomMap(2, 4.0, " ");
+        double ulb[] = {-0.1, -0.1}, uub[] = {0.1, 0.1};
+        AstBox *unc = astBox(base, 1, ulb, uub, NULL, " ");
+        double verts[] = { 0.0, 10.0, 10.0,  0.0,
+                           0.0,  0.0, 20.0, 20.0 };
+        AstPolygon *poly = astPolygon(base, 4, 4, verts, (AstRegion *) unc, " ");
+        void *reg = map_region_unsimplified(poly, zm, curr);
+        write_region_fixture(dir, "cap_poly_unc_frame", reg);
+        poly = astAnnul(poly); unc = astAnnul(unc); zm = astAnnul(zm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* SimpVertices=0 with a Mapping that bows the edges. polygon.c:5415 meshes
+       the mapped Polygon and asks the straight-edged replacement whether every
+       mesh point lands on its boundary. The 0.005*x2*x2 term displaces the
+       midpoint of the x1=0 edge by 0.5 from the chord, far outside the 0.01
+       uncertainty, so astRegPins fails and C keeps the original. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=BOWED");
+        const char *fwd[] = {"y1=x1+0.005*x2*x2", "y2=x2"};
+        const char *inv[] = {"x1=y1-0.005*y2*y2", "x2=y2"};
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
+        double ulb[] = {-0.01, -0.01}, uub[] = {0.01, 0.01};
+        AstBox *unc = astBox(base, 1, ulb, uub, NULL, " ");
+        double verts[] = { 0.0, 10.0, 10.0,  0.0,
+                           0.0,  0.0, 20.0, 20.0 };
+        AstPolygon *poly = astPolygon(base, 4, 4, verts, (AstRegion *) unc, " ");
+        astSetI(poly, "SimpVertices", 0);
+        void *reg = map_region_unsimplified(poly, mm, curr);
+        write_region_fixture(dir, "cap_poly_bent_edges", reg);
+        poly = astAnnul(poly); unc = astAnnul(unc); mm = astAnnul(mm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* The same bowed Mapping with SimpVertices left at its default 1.
+       polygon.c:5415 is then skipped and C replaces the Polygon with its
+       transformed vertices, bowed edges and all. The pair discriminates the
+       SimpVertices branch from the vertex transform itself. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=BOWED");
+        const char *fwd[] = {"y1=x1+0.005*x2*x2", "y2=x2"};
+        const char *inv[] = {"x1=y1-0.005*y2*y2", "x2=y2"};
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
+        double ulb[] = {-0.01, -0.01}, uub[] = {0.01, 0.01};
+        AstBox *unc = astBox(base, 1, ulb, uub, NULL, " ");
+        double verts[] = { 0.0, 10.0, 10.0,  0.0,
+                           0.0,  0.0, 20.0, 20.0 };
+        AstPolygon *poly = astPolygon(base, 4, 4, verts, (AstRegion *) unc, " ");
+        void *reg = map_region_unsimplified(poly, mm, curr);
+        write_region_fixture(dir, "cap_poly_bend_allowed", reg);
+        poly = astAnnul(poly); unc = astAnnul(unc); mm = astAnnul(mm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
 }
 
 int main(void) {
