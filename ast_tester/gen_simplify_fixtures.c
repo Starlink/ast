@@ -3571,6 +3571,26 @@ static void gen_audit_gap_fixtures(const char *dir) {
         c1 = astAnnul(c1); par = astAnnul(par); pm = astAnnul(pm);
         ma = astAnnul(ma); mb = astAnnul(mb);
     }
+
+    /* Two forward terms with identical powers for output 1: C's PolyMap
+       MapMerge consolidation (polymap.c:3624) adds them, and chebymap.c
+       inherits it. The third term is a T_3, so the polynomial is not linear and
+       C does not go on to the replacement that reads Chebyshev coefficients as
+       monomial (polymap.c:3747). In a series list so the ChebyMap is reached as
+       a nominee. */
+    {
+        double lbnd[] = {0.0};
+        double ubnd[] = {10.0};
+        double coeff_f[] = {1.5, 1, 2,
+                            2.5, 1, 2,
+                            1.0, 1, 3};
+        AstChebyMap *cm = astChebyMap(1, 1, 3, coeff_f, 0, NULL,
+                                      lbnd, ubnd, NULL, NULL, " ");
+        AstZoomMap *zm = astZoomMap(1, 2.0, " ");
+        AstCmpMap *c1 = astCmpMap(zm, cm, 1, " ");
+        write_fixture(dir, "cap_cheby_consolidate", (AstMapping*)c1);
+        c1 = astAnnul(c1); zm = astAnnul(zm); cm = astAnnul(cm);
+    }
 }
 
 int main(void) {

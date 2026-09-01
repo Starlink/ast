@@ -1,0 +1,26 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+    Inv = 0 	# Inverse transformation not defined
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin ZoomMap 	# Zoom about the origin
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Zoom = 2 	# Zoom factor
+       End ZoomMap
+    MapB = 	# Second component Mapping
+       Begin ChebyMap 	# Chebyshev polynomial transformation
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MPF1 = 3 	# Max. power of input 1 in any forward polynomial
+          NCF1 = 2 	# No. of coeff.s for forward polynomial 1
+          CF1 = 4 	# Coeff 1 of forward polynomial 1
+          CF2 = 1 	# Coeff 2 of forward polynomial 1
+          PF1 = 2 	# Power of i/p 1 for coeff 1 of fwd poly 1
+          PF2 = 3 	# Power of i/p 1 for coeff 2 of fwd poly 1
+       IsA PolyMap 	# Polynomial transformation
+          FSCL1 = 0.20000000000000001 	# Scale factor on input 1
+          FOFF1 = -1 	# Offset on input 1
+       End ChebyMap
+ End CmpMap
