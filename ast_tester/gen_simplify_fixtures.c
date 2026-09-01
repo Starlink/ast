@@ -2659,8 +2659,13 @@ static void gen_cascade_positives_2(const char *dir) {
         ma = astAnnul(ma); mb = astAnnul(mb);
     }
 
-    /* normmap-01: NormMap whose encapsulated Frame simplifies.
-       Use a Region-as-Frame with a CmpMap(Zoom,Zoom) FrameSet. */
+    /* A NormMap over a CmpFrame whose first component is a FrameSet that
+       reduces. astSimplify on the CmpFrame simplifies each component and
+       rebuilds around the results (cmpframe.c:9018-9034), so the NormMap is
+       rebuilt around the changed CmpFrame (normmap.c:619-631) instead of
+       reaching the basic-Frame test that would give a UnitMap
+       (normmap.c:632-640). The FrameSet's base->current Mapping is a
+       CmpMap(Zoom 2, Zoom 3), which simplifies to a single ZoomMap. */
     {
         if (!astOK) astClearStatus;
         AstFrame *base = astFrame(2, "Domain=PIXEL");
@@ -2668,15 +2673,15 @@ static void gen_cascade_positives_2(const char *dir) {
         AstZoomMap *z1 = astZoomMap(2, 2.0, " ");
         AstZoomMap *z2 = astZoomMap(2, 3.0, " ");
         AstCmpMap *map = astCmpMap(z1, z2, 1, " ");
-        AstFrameSet *fs = astFrameSet(base, " ");
-        astAddFrame(fs, AST__BASE, map, curr);
-        double lbnd[] = {0.0, 0.0};
-        double ubnd[] = {10.0, 10.0};
-        AstBox *box = astBox(fs, 1, lbnd, ubnd, NULL, " ");
-        AstNormMap *nm = astNormMap((AstFrame *)box, " ");
-        write_fixture(dir, "normmap_frame_simplifies", (AstMapping*)nm);
-        nm = astAnnul(nm); box = astAnnul(box); fs = astAnnul(fs);
-        map = astAnnul(map); base = astAnnul(base); curr = astAnnul(curr);
+        AstFrameSet *fset = astFrameSet(base, " ");
+        astAddFrame(fset, AST__BASE, map, curr);
+        AstFrame *spec = astFrame(1, "Domain=OTHER");
+        AstCmpFrame *cf = astCmpFrame(fset, spec, " ");
+        AstNormMap *nm = astNormMap((AstFrame *)cf, " ");
+        write_fixture(dir, "cap_normmap_cmpframe", (AstMapping*)nm);
+        nm = astAnnul(nm); cf = astAnnul(cf); spec = astAnnul(spec);
+        fset = astAnnul(fset); map = astAnnul(map);
+        base = astAnnul(base); curr = astAnnul(curr);
         z1 = astAnnul(z1); z2 = astAnnul(z2);
     }
 
@@ -3801,8 +3806,8 @@ static void gen_audit_gap_fixtures(const char *dir) {
        fed a constant. box.c:3762 gives that current-Frame axis equal limits,
        so the simplified Region is a 3-D Box pinned on axis 3. astMapRegion is
        the only public way to install a base->current Mapping in a Region;
-       astBox would resolve a FrameSet to its current Frame (see
-       normmap_frame_simplifies). */
+       astBox would resolve a FrameSet to its current Frame
+       (region.c:10730). */
     {
         if (!astOK) astClearStatus;
         AstFrame *base = astFrame(2, "Domain=PIXEL");

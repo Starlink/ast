@@ -249,7 +249,7 @@ interval_self_simplify  | simplify/interval_self_simplify.map  | simplify/interv
 nullregion_self_simplify | simplify/nullregion_self_simplify.map | simplify/nullregion_self_simplify.simp |
 nullregion_parallel_merge | simplify/nullregion_parallel_merge.map | simplify/nullregion_parallel_merge.simp |
 pointlist_self_simplify | simplify/pointlist_self_simplify.map | simplify/pointlist_self_simplify.simp |
-normmap_frame_simplifies | simplify/normmap_frame_simplifies.map | simplify/normmap_frame_simplifies.simp |
+cap_normmap_cmpframe | simplify/cap_normmap_cmpframe.map | simplify/cap_normmap_cmpframe.simp |
 selectormap_region_simplify | simplify/selectormap_region_simplify.map | simplify/selectormap_region_simplify.simp |
 
 # Imported contributed fixtures (2026-06-29).
