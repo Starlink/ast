@@ -15,6 +15,7 @@
  */
 
 #include "ast.h"
+#include "gen_simplify_flags.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -3567,6 +3568,113 @@ static void gen_audit_gap_fixtures(const char *dir) {
         }
         write_fixture(dir, "cap_deep_nest_zoom", acc);
         acc = astAnnul(acc);
+    }
+
+    /* A FrameSet whose single edge is a UnitMap. The edge simplifies to itself,
+       so `simpler` stays 0 and Simplify returns astClone(this)
+       (frameset.c:10226). The copy Simplify worked on is a deep one
+       (frameset.c:10175), so no edge in the returned object carries an IsSimp
+       stamp of its own, and Frame overrides GetIsSimple to zero
+       (frame.c:5590) so the FrameSet itself dumps no IsSimp card either: the
+       .simp is byte-identical to the .map. */
+    {
+        AstFrame *f1 = astFrame(2, "Domain=PIXEL");
+        AstFrame *f2 = astFrame(2, "Domain=GRID");
+        AstUnitMap *um = astUnitMap(2, " ");
+        AstFrameSet *fs = astFrameSet(f1, " ");
+        astAddFrame(fs, 1, um, f2);
+        write_fixture(dir, "cap_frameset_nochange", (AstMapping*)fs);
+        f1 = astAnnul(f1);
+        f2 = astAnnul(f2);
+        um = astAnnul(um);
+        fs = astAnnul(fs);
+    }
+
+    /* A restricted simplify with one eligible and one ineligible component,
+       one of them an inverted CmpMap. C discards the decomposition's `simpler`
+       flag in this mode (cmpmap.c:3530), so the tree comes back
+       unrestructured; it clears AllowSimplify on every component
+       (cmpmap.c:3692) and on the result (mapping.c:24788), so no AlSimp card
+       survives; and a restricted simplify does not set IsSimple
+       (mapping.c:24782). */
+    {
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstCmpMap *inner = astCmpMap(z1, z2, 1, " ");
+        AstZoomMap *z3 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *outer;
+
+        astInvert(inner);              /* the inverted CmpMap astMapList sees */
+        gen_set_allow_simplify(z3);    /* eligible */
+        outer = astCmpMap(inner, z3, 1, " ");
+        gen_set_restricted_simplify(outer);
+
+        write_fixture(dir, "cap_restricted_inverted", (AstMapping*)outer);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        z3 = astAnnul(z3);
+        inner = astAnnul(inner);
+        outer = astAnnul(outer);
+    }
+
+    /* The same tree with nothing eligible. astMapList still finds the inverted
+       CmpMap and reports `simpler`, but the restricted mode discards that
+       (cmpmap.c:3530) and the nominate loop skips every component
+       (cmpmap.c:3569), so no merge follows and Simplify returns astClone(this)
+       (cmpmap.c:3641): the swapped, inverted decomposition is thrown away and
+       the tree comes back as supplied, less the ReSimp card that astSimplify
+       clears on the result (mapping.c:24783). */
+    {
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstCmpMap *inner = astCmpMap(z1, z2, 1, " ");
+        AstZoomMap *z3 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *outer;
+
+        astInvert(inner);
+        outer = astCmpMap(inner, z3, 1, " ");
+        gen_set_restricted_simplify(outer);
+
+        write_fixture(dir, "cap_restricted_no_eligible", (AstMapping*)outer);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        z3 = astAnnul(z3);
+        inner = astAnnul(inner);
+        outer = astAnnul(outer);
+    }
+
+    /* A restricted simplify that does rebuild, with an eligible component the
+       rebuild keeps. The two adjacent eligible ZoomMaps merge, so `simpler`
+       becomes 1 and the sequence is folded back into a CmpMap; the third
+       eligible ZoomMap sits next to a MathMap and merges with nothing, so it
+       survives into the result still carrying its AllowSimplify flag. C clears
+       that flag on every component as it folds (cmpmap.c:3692), so no AlSimp
+       card reaches the dump. */
+    {
+        const char *fwd[] = { "y = 2*x" };
+        const char *inv[] = { "x = 0.5*y" };
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstMathMap *math = astMathMap(1, 1, 1, fwd, 1, inv, " ");
+        AstZoomMap *z4 = astZoomMap(1, 7.0, " ");
+        AstCmpMap *left = astCmpMap(z1, z2, 1, " ");
+        AstCmpMap *right = astCmpMap(math, z4, 1, " ");
+        AstCmpMap *outer;
+
+        gen_set_allow_simplify(z1);
+        gen_set_allow_simplify(z2);
+        gen_set_allow_simplify(z4);
+        outer = astCmpMap(left, right, 1, " ");
+        gen_set_restricted_simplify(outer);
+
+        write_fixture(dir, "cap_restricted_component_flags", (AstMapping*)outer);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        z4 = astAnnul(z4);
+        math = astAnnul(math);
+        left = astAnnul(left);
+        right = astAnnul(right);
+        outer = astAnnul(outer);
     }
 
     /* [ZoomMap, PermMap, parallel CmpMap, ZoomMap] in series. The CmpMap /

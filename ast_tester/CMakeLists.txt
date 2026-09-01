@@ -380,10 +380,16 @@ target_link_libraries(normalize_fixture PRIVATE ${TEST_LIBS})
 target_compile_definitions(normalize_fixture PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(normalize_fixture)
 
-add_executable(gen_simplify_fixtures gen_simplify_fixtures.c)
+add_executable(gen_simplify_fixtures gen_simplify_fixtures.c gen_simplify_flags.c)
 target_include_directories(gen_simplify_fixtures PRIVATE ${TEST_INCLUDES})
 target_link_libraries(gen_simplify_fixtures PRIVATE ${TEST_LIBS})
 target_compile_definitions(gen_simplify_fixtures PRIVATE HAVE_CONFIG_H)
+# gen_simplify_flags.c reaches the protected Mapping flags through the internal
+# headers, so it must see the same AstObject / AstMapping layout the library was
+# compiled with -- otherwise the flag macros write at the wrong offset.
+if(HAVE_PTHREADS)
+    target_compile_definitions(gen_simplify_fixtures PRIVATE THREAD_SAFE)
+endif()
 ast_apply_dev_options(gen_simplify_fixtures)
 
 # Helper to register simplify regression tests.
