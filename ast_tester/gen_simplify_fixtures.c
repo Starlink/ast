@@ -3501,6 +3501,26 @@ static void gen_audit_gap_fixtures(const char *dir) {
         write_negative_fixture(dir, "neg_wcs_tan_no_reduce", (AstMapping*)wm);
         wm = astAnnul(wm);
     }
+
+    /* A series CmpMap nested eleven deep, each level holding a ZoomMap, which C
+       collapses to a single ZoomMap. astCmpMap puts the accumulated nest in the
+       first slot each time, so the tree is left-deep rather than a flat
+       eleven-element series list. Nothing bounds the recursion depth in C --
+       simplify_stackmaps grows with astGrow (cmpmap.c:3496) and exists only to
+       detect a Mapping already being simplified. */
+    {
+        AstMapping *acc = (AstMapping *) astZoomMap(1, 2.0, " ");
+        int i;
+        for (i = 0; i < 11; i++) {
+            AstMapping *z = (AstMapping *) astZoomMap(1, 1.5, " ");
+            AstMapping *next = (AstMapping *) astCmpMap(acc, z, 1, " ");
+            acc = astAnnul(acc);
+            z = astAnnul(z);
+            acc = next;
+        }
+        write_fixture(dir, "cap_deep_nest_zoom", acc);
+        acc = astAnnul(acc);
+    }
 }
 
 int main(void) {
