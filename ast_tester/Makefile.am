@@ -418,6 +418,8 @@ check_PROGRAMS += testhuge_f
 testhuge_f_SOURCES = testhuge.f
 testhuge_f_LDADD   = $(FTEST_LDADD)
 testhuge_f_FFLAGS  = $(AM_FFLAGS)
+endif  # NOFORTRAN
+
 TESTS += testhuge.sh
 EXTRA_DIST = testhuge.sh \
     test_wcsconverter.tap test_simplify.tap test_grid.tap
@@ -509,6 +511,7 @@ testgrid_LDADD = @LIBPAL@ @LIBCMINPACK@ \
 TESTS += test_wcsconverter.tap test_simplify.tap test_grid.tap
 
 # Source and LDADD declarations for each Fortran test.
+if !NOFORTRAN
 testchannel_f_SOURCES    = testchannel.f
 testchannel_f_LDADD      = $(FTEST_LDADD)
 testchannel_f_FFLAGS     = $(AM_FFLAGS)
