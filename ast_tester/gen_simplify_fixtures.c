@@ -1495,6 +1495,53 @@ static void write_negative_fixture(const char *dir, const char *name, AstMapping
     printf("  %s\n", name);
 }
 
+/* The public astMapRegion simplifies the Region it returns (region.c:14024),
+   which would leave the .map file holding the already-simplified Region. The
+   protected astMapRegion_ does not simplify, so Region fixtures whose subject
+   is the base->current Mapping call it directly. It returns a true Object
+   pointer rather than an identifier, so the writers below use the protected
+   astWrite_ and astSimplify_ too. */
+extern void *astMapRegion_(void *, void *, void *, int *);
+extern int *astGetStatusPtr_(void);
+
+static void *map_region_unsimplified(void *region, void *map, void *frame) {
+    return astMapRegion_(astMakePointer(region), astMakePointer(map),
+                         astMakePointer(frame), astGetStatusPtr_());
+}
+
+static void write_object(const char *path, void *obj, const char *name) {
+    AstChannel *chan = astChannel(NULL, NULL, "SinkFile=%s", path);
+    if (astWrite_((AstChannel *) astMakePointer(chan), (AstObject *) obj,
+                  astGetStatusPtr_()) != 1) {
+        fprintf(stderr, "ERROR: astWrite failed for %s\n", name);
+    }
+    chan = astAnnul(chan);
+}
+
+static void write_region_fixture(const char *dir, const char *name, void *reg) {
+    char path[512];
+    void *simp;
+
+    snprintf(path, sizeof(path), "%s/%s.map", dir, name);
+    write_object(path, reg, name);
+
+    simp = astSimplify_((AstMapping *) reg, astGetStatusPtr_());
+    snprintf(path, sizeof(path), "%s/%s.simp", dir, name);
+    write_object(path, simp, name);
+
+    printf("  %s\n", name);
+}
+
+static void write_negative_region_fixture(const char *dir, const char *name,
+                                          void *reg) {
+    char path[512];
+
+    if (!astOK) astClearStatus;
+    snprintf(path, sizeof(path), "%s/%s.map", dir, name);
+    write_object(path, reg, name);
+    printf("  %s\n", name);
+}
+
 static void gen_negative_fixtures(const char *dir) {
     if (!astOK) astClearStatus;
     printf("Negative (guard-rejection) fixtures:\n");
@@ -3552,7 +3599,8 @@ static void gen_audit_gap_fixtures(const char *dir) {
 
     /* The same swap with the PermMap stored inverted, so permmap.c::MapMerge
        has a canonical rebuild available at the PermMap's own nomination
-       (permmap.c:1362) and C takes that before ever reaching the swap. */
+       (permmap.c:1362). C takes that rebuild first, clearing the inversion,
+       and the swap then runs on the rebuilt PermMap. */
     {
         if (!astOK) astClearStatus;
         int inperm[] = {2, 1};
@@ -3590,6 +3638,69 @@ static void gen_audit_gap_fixtures(const char *dir) {
         AstCmpMap *c1 = astCmpMap(zm, cm, 1, " ");
         write_fixture(dir, "cap_cheby_consolidate", (AstMapping*)c1);
         c1 = astAnnul(c1); zm = astAnnul(zm); cm = astAnnul(cm);
+    }
+
+    /* A 2-D Box whose base->current Mapping is a PermMap with a third output
+       fed a constant. box.c:3762 gives that current-Frame axis equal limits,
+       so the simplified Region is a 3-D Box pinned on axis 3. astMapRegion is
+       the only public way to install a base->current Mapping in a Region;
+       astBox would resolve a FrameSet to its current Frame (see
+       normmap_frame_simplifies). */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(3, "Domain=SLICE");
+        int inperm[] = {1, 2};
+        int outperm[] = {1, 2, -1};
+        double consts[] = {5.0};
+        AstPermMap *pm = astPermMap(2, inperm, 3, outperm, consts, " ");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 20.0};
+        AstBox *box = astBox(base, 1, lbnd, ubnd, NULL, " ");
+        void *reg = map_region_unsimplified(box, pm, curr);
+        write_region_fixture(dir, "cap_box_permmap_const", reg);
+        box = astAnnul(box); pm = astAnnul(pm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* The same construction with the PermMap feeding base axis 2 a constant
+       that lies outside the Box. box.c:3809 then reports the slice as missing
+       the Box, so the simplified Region is a NullRegion. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=SLICE");
+        int inperm[] = {1, -1};
+        int outperm[] = {1, 2};
+        double consts[] = {99.0};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, consts, " ");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 20.0};
+        AstBox *box = astBox(base, 1, lbnd, ubnd, NULL, " ");
+        void *reg = map_region_unsimplified(box, pm, curr);
+        write_region_fixture(dir, "cap_box_permmap_null", reg);
+        box = astAnnul(box); pm = astAnnul(pm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* Negative control: both outputs are fed base axis 1, so the relation
+       between the two Frames is not bi-directional. box.c:3818 abandons the
+       branch, and abandoning it discards the parent simplification too, so the
+       Region is returned exactly as supplied. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=SLICE");
+        int inperm[] = {1, 2};
+        int outperm[] = {1, 1};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, " ");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 20.0};
+        AstBox *box = astBox(base, 1, lbnd, ubnd, NULL, " ");
+        void *reg = map_region_unsimplified(box, pm, curr);
+        write_negative_region_fixture(dir, "cap_box_permmap_nonbidi", reg);
+        box = astAnnul(box); pm = astAnnul(pm);
+        base = astAnnul(base); curr = astAnnul(curr);
     }
 }
 

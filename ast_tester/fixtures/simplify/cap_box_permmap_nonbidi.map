@@ -1,0 +1,72 @@
+ Begin Box 	# Axis intervals
+#   Title = "2-d coordinate system" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "SLICE" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+#   System = "Cartesian" 	# Coordinate system type
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    FrmSet = 	# Original & current coordinate systems
+       Begin FrameSet 	# Set of inter-related coordinate systems
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "SLICE" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+       IsA Frame 	# Coordinate system description
+          Nframe = 2 	# Number of Frames in FrameSet
+#         Base = 1 	# Index of base Frame
+          Currnt = 2 	# Index of current Frame
+          Lnk2 = 1 	# Node 2 is derived from node 1
+          Frm1 = 	# Frame number 1
+             Begin Frame 	# Coordinate system description
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+                Domain = "PIXEL" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Frm2 = 	# Frame number 2
+             Begin Frame 	# Coordinate system description
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+                Domain = "SLICE" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Map2 = 	# Mapping between nodes 1 and 2
+             Begin PermMap 	# Coordinate permutation
+                Nin = 2 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                Out2 = 1 	# Output coordinate 2 = input coordinate 1
+                In1 = 1 	# Input coordinate 1 = output coordinate 1
+                In2 = 2 	# Input coordinate 2 = output coordinate 2
+             End PermMap
+       End FrameSet
+    Points = 	# Points defining the shape
+       Begin PointSet 	# Container for a set of points
+          Npoint = 2 	# Number of points
+          Ncoord = 2 	# Number of coordinates per point
+          X1 = 5 	# Coordinate values...
+          X2 = 10
+          X3 = 10
+          X4 = 20
+       End PointSet
+ IsA Region 	# An area within a coordinate system
+ End Box
