@@ -266,6 +266,12 @@ if(AST_BUILD_FORTRAN)
         message(STATUS
             "CMake < 3.25: assuming Fortran REAL functions return float "
             "(configure with -ff2c and CMake 3.25+ to have this measured)")
+    elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
+           AND CMAKE_CROSSCOMPILING
+           AND NOT CMAKE_CROSSCOMPILING_EMULATOR)
+        message(STATUS
+            "Cross compiling without an emulator: assuming Fortran REAL "
+            "functions return float")
     elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
         set(_f2c_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/f2c_probe")
         file(WRITE "${_f2c_dir}/fred.c" "\
