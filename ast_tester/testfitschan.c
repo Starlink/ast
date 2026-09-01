@@ -4754,6 +4754,97 @@ int main( void ) {
       astEnd;
    }
 
+   /* --- The SIP linearity test must cover the region the Mapping is used
+      over.  This FrameSet puts the reference point 20000 pixels outside the
+      image and makes the Mapping between the SIP polynomial and the CD
+      matrix slightly non-linear (a cubic term that is negligible near the
+      reference point but not over the image).  SIPIntWorld used to test that
+      Mapping over a box of plus and minus the image dimensions centred on
+      the reference point, and to pass FitsTol, which is in pixels, straight
+      to astLinearApprox, which wants a displacement in the Mapping's output
+      space.  Both were wrong here, so the SIP description was accepted and
+      its CRPIX and CD values were fitted where the image is not.  astWrite
+      should now fall back to a plain linear approximation, which the
+      FitsTol check does validate over the image. --- */
+   if( *status == 0 ) {
+      astBegin;
+      {
+         const char *sipcards[ 11 ] = {
+                             "CTYPE1  = 'RA---TAN'",
+                             "CTYPE2  = 'DEC--TAN'",
+                             "CRPIX1  =                  0.0",
+                             "CRPIX2  =                  0.0",
+                             "CRVAL1  =                180.0",
+                             "CRVAL2  =                  0.0",
+                             "CD1_1   =             -5.5E-05",
+                             "CD1_2   =                  0.0",
+                             "CD2_1   =                  0.0",
+                             "CD2_2   =              5.5E-05",
+                             "RADESYS = 'ICRS'" };
+         const char *sipcubef[ 2 ] = { "u = x + 1.0E-15*x*x*x", "v = y" };
+         const char *sipcubei[ 2 ] = { "x = u - 1.0E-15*u*u*u", "y = v" };
+         double sippolyf[ 16 ] = { 1.0, 1, 1, 0,   1.0E-9, 1, 2, 0,
+                                   1.0, 2, 0, 1,   1.0E-9, 2, 0, 2 };
+         double sippolyi[ 16 ] = { 1.0, 1, 1, 0,  -1.0E-9, 1, 2, 0,
+                                   1.0, 2, 0, 1,  -1.0E-9, 2, 0, 2 };
+         double sipoff[ 2 ] = { 20000.0, 20000.0 };
+         AstFitsChan *sipfc = astFitsChan( NULL, NULL, " " );
+         AstFrameSet *sipfs;
+         int sipi;
+
+         for( sipi = 0; sipi < 11; sipi++ ) astPutFits( sipfc, sipcards[ sipi ], 0 );
+         astClear( sipfc, "Card" );
+         sipfs = (AstFrameSet *) astRead( sipfc );
+         if( !astOK || !sipfs ) {
+            if( !astOK ) astClearStatus;
+            stopit( 910, "Failed to read the TAN header for the SIP box test",
+                    status );
+         } else {
+            AstFitsChan *sipfc2;
+            AstFrameSet *sipfs2;
+            AstMapping *siptot;
+            char sipcard[ 81 ];
+            int sipfound = 0;
+            int sipnw;
+
+            siptot = (AstMapping *) astCmpMap( astShiftMap( 2, sipoff, " " ),
+                                    astPolyMap( 2, 2, 4, sippolyf, 4, sippolyi,
+                                                " " ), 1, " " );
+            siptot = (AstMapping *) astCmpMap( siptot,
+                                    astMathMap( 2, 2, 2, sipcubef, 2, sipcubei,
+                                                " " ), 1, " " );
+            siptot = (AstMapping *) astCmpMap( siptot,
+                                    astGetMapping( sipfs, AST__BASE,
+                                                   AST__CURRENT ), 1, " " );
+
+            sipfs2 = astFrameSet( astFrame( 2, "Domain=GRID" ), " " );
+            astAddFrame( sipfs2, AST__BASE, siptot,
+                         astGetFrame( sipfs, AST__CURRENT ) );
+
+            sipfc2 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,CDMatrix=1" );
+            astPutFits( sipfc2, "NAXIS1  =                 4000", 0 );
+            astPutFits( sipfc2, "NAXIS2  =                 4000", 0 );
+            sipnw = astWrite( sipfc2, sipfs2 );
+            if( !astOK ) astClearStatus;
+
+            if( sipnw == 0 ) {
+               stopit( 911, "The linear approximation is good enough to write, "
+                       "so astWrite should have succeeded", status );
+            } else {
+               astClear( sipfc2, "Card" );
+               while( astFindFits( sipfc2, "%f", sipcard, 1 ) ) {
+                  if( !strncmp( sipcard, "A_ORDER ", 8 ) ) sipfound = 1;
+               }
+               if( sipfound )
+                  stopit( 912, "SIP description accepted although the Mapping "
+                          "following the SIP polynomial is not linear over "
+                          "the image", status );
+            }
+         }
+      }
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 

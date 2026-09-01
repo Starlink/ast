@@ -1430,6 +1430,18 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        apply the existing test for a missing CRPIX1 or CRVAL1 to the
 *        primary axis descriptions in WcsFromStore, not just to the
 *        alternate ones.
+*     1-SEP-2026 (TIMJ):
+*        In SIPIntWorld, test the linearity of the Mapping that follows the
+*        PolyMap over the region in which that Mapping is used, and express
+*        the tolerance in its output space. The box used previously was the
+*        image dimensions, positive and negative, about the SIP reference
+*        point, which only covers the image if that point lies within it,
+*        and the tolerance was passed on in pixels although astLinearApprox
+*        measures it as a displacement in the output space of the Mapping
+*        being tested. A SIP description could therefore be accepted, and
+*        its CRPIX and CD values fitted, over a region the image does not
+*        occupy. Nothing else checks those values, since MakeIntWorld
+*        replaces the ones it derived itself with them.
 *class--
 */
 
@@ -28849,6 +28861,12 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    double scales[ 2 ];
    double shift[ 2 ];
    double ubnd[ 2 ];
+   double upx[ 11 ];
+   double upy[ 11 ];
+   double uscale;
+   double utol;
+   double uwx[ 11 ];
+   double uwy[ 11 ];
    double val;
    int *inax1;
    int *inax2;
@@ -28870,6 +28888,9 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    int imap_pm;
    int iout;
    int ioutrem;
+   int isamp;
+   int ix;
+   int iy;
    int jm;
    int ncoeff;
    int nin;
@@ -29059,13 +29080,90 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                }
 
 /* Check that the upper Mapping is linear and see if it produces a shift of
-   origin (if so we cannot use it). Retain the fit coefficients for later use. */
+   origin (if so we cannot use it). Retain the fit coefficients for later use.
+
+   The upper Mapping is not reached directly from grid coordinates - the
+   lower Mapping and the PolyMap come first - so the box over which it must
+   be linear is not the grid box used above. Find it by transforming a 3x3
+   grid of positions spanning the image. Two further positions, one pixel
+   away from the centre of the image along each grid axis, are transformed
+   at the same time and are used below to express the supplied tolerance,
+   which is in pixels, in the output space of the upper Mapping. */
                if( ok ) {
-                  lbnd[ 0 ] = -ubnd[ 0 ];
-                  lbnd[ 1 ] = -ubnd[ 1 ];
-                  ok = astLinearApprox( map_upper, lbnd, ubnd, tol, fit );
-                  if( fabs( fit[ 0 ] ) > 1.0E-7 ||
-                      fabs( fit[ 1 ] ) > 1.0E-7 ) ok = 0;
+                  isamp = 0;
+                  for( ix = 0; ix < 3; ix++ ) {
+                     for( iy = 0; iy < 3; iy++ ) {
+                        upx[ isamp ] = 0.5*ix*ubnd[ 0 ];
+                        upy[ isamp ] = 0.5*iy*ubnd[ 1 ];
+                        isamp++;
+                     }
+                  }
+                  upx[ 9 ] = 0.5*ubnd[ 0 ] + 1.0;
+                  upy[ 9 ] = 0.5*ubnd[ 1 ];
+                  upx[ 10 ] = 0.5*ubnd[ 0 ];
+                  upy[ 10 ] = 0.5*ubnd[ 1 ] + 1.0;
+
+                  astTran2( map_lower, 11, upx, upy, 1, uwx, uwy );
+                  astTran2( (AstMapping *) polymap, 11, uwx, uwy, 1, upx, upy );
+
+/* Form the bounding box of the transformed image corners. Give up if any
+   of them could not be transformed, since the upper Mapping cannot then be
+   tested over the region in which it is used. */
+                  for( isamp = 0; isamp < 9 && ok; isamp++ ) {
+                     if( upx[ isamp ] == AST__BAD ||
+                         upy[ isamp ] == AST__BAD ) {
+                        ok = 0;
+
+                     } else if( isamp == 0 ) {
+                        lbnd[ 0 ] = ubnd[ 0 ] = upx[ 0 ];
+                        lbnd[ 1 ] = ubnd[ 1 ] = upy[ 0 ];
+
+                     } else {
+                        if( upx[ isamp ] < lbnd[ 0 ] ) lbnd[ 0 ] = upx[ isamp ];
+                        if( upx[ isamp ] > ubnd[ 0 ] ) ubnd[ 0 ] = upx[ isamp ];
+                        if( upy[ isamp ] < lbnd[ 1 ] ) lbnd[ 1 ] = upy[ isamp ];
+                        if( upy[ isamp ] > ubnd[ 1 ] ) ubnd[ 1 ] = upy[ isamp ];
+                     }
+                  }
+
+/* Find the displacement in the output space of the upper Mapping produced
+   by a one pixel step in grid coordinates at the centre of the image, and
+   use it to convert the tolerance into that space. astLinearApprox expects
+   a displacement in the output space of the Mapping it is testing, whereas
+   FitsTol is expressed in pixels. */
+                  if( ok ) {
+                     uwx[ 0 ] = upx[ 4 ];
+                     uwy[ 0 ] = upy[ 4 ];
+                     uwx[ 1 ] = upx[ 9 ];
+                     uwy[ 1 ] = upy[ 9 ];
+                     uwx[ 2 ] = upx[ 10 ];
+                     uwy[ 2 ] = upy[ 10 ];
+                     astTran2( map_upper, 3, uwx, uwy, 1, upx, upy );
+
+                     if( upx[ 0 ] != AST__BAD && upy[ 0 ] != AST__BAD &&
+                         upx[ 1 ] != AST__BAD && upy[ 1 ] != AST__BAD &&
+                         upx[ 2 ] != AST__BAD && upy[ 2 ] != AST__BAD ) {
+                        uscale = astMAX(
+                           sqrt( ( upx[ 1 ] - upx[ 0 ] )*( upx[ 1 ] - upx[ 0 ] ) +
+                                 ( upy[ 1 ] - upy[ 0 ] )*( upy[ 1 ] - upy[ 0 ] ) ),
+                           sqrt( ( upx[ 2 ] - upx[ 0 ] )*( upx[ 2 ] - upx[ 0 ] ) +
+                                 ( upy[ 2 ] - upy[ 0 ] )*( upy[ 2 ] - upy[ 0 ] ) ) );
+                     } else {
+                        uscale = 0.0;
+                     }
+
+                     if( uscale > 0.0 ) {
+                        utol = tol*uscale;
+                     } else {
+                        ok = 0;
+                     }
+                  }
+
+                  if( ok ) {
+                     ok = astLinearApprox( map_upper, lbnd, ubnd, utol, fit );
+                     if( fabs( fit[ 0 ] ) > 1.0E-7 ||
+                         fabs( fit[ 1 ] ) > 1.0E-7 ) ok = 0;
+                  }
                }
 
 /* Split the supplied Mapping to generate the Mapping that gives
