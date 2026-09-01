@@ -97,13 +97,17 @@ C_TESTS = \
     testunitnorm \
     testunitnormmap_c \
     testxmlchan_c \
-    testyamlchan \
     testzoommap_c
 
 # testhuge (C version) is compiled unconditionally; testhuge_f is
 # compiled when !NOFORTRAN.  Both are driven by testhuge.sh.
 check_PROGRAMS = $(C_TESTS) testhuge_c
 TESTS = $(C_TESTS)
+
+if !NOYAML
+check_PROGRAMS += testyamlchan
+TESTS += testyamlchan
+endif
 
 ast_test_SOURCES       = ast_test.c
 ast_test_LDADD         = $(CTEST_LDADD)
