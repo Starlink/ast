@@ -3591,12 +3591,13 @@ static void gen_audit_gap_fixtures(const char *dir) {
     }
 
     /* A restricted simplify with one eligible and one ineligible component,
-       one of them an inverted CmpMap. C discards the decomposition's `simpler`
-       flag in this mode (cmpmap.c:3530), so the tree comes back
-       unrestructured; it clears AllowSimplify on every component
-       (cmpmap.c:3692) and on the result (mapping.c:24788), so no AlSimp card
-       survives; and a restricted simplify does not set IsSimple
-       (mapping.c:24782). */
+       one of them an inverted CmpMap. This one pins the tail of astSimplify_:
+       AllowSimplify is cleared on the result and RestrictedSimplify with it,
+       and a restricted simplify does not set IsSimple, so the .simp carries
+       none of the three cards (mapping.c:24779-24788). The chain does collapse
+       to a single ZoomMap -- the eligible ZoomMap's own MapMerge reaches across
+       its ineligible neighbours -- so this pair does not gate the `simpler`
+       reset; cap_restricted_no_eligible does. */
     {
         AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
         AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
@@ -3675,6 +3676,54 @@ static void gen_audit_gap_fixtures(const char *dir) {
         left = astAnnul(left);
         right = astAnnul(right);
         outer = astAnnul(outer);
+    }
+
+    /* A series CmpMap of ZoomMaps whose inner CmpMap carries Ident. C refuses
+       to decompose that CmpMap (astMapList consults astDoNotSimplify,
+       cmpmap.c:1154) and refuses to reach its Simplify slot (mapping.c:24764),
+       both on the base rule that a set Ident means the user wants the Mapping
+       left intact (mapping.c:1150). The inner CmpMap therefore survives with
+       its two ZoomMaps unmerged, while the outer chain around it simplifies. */
+    {
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstZoomMap *z3 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *inner = astCmpMap(z1, z2, 1, " ");
+        AstCmpMap *outer;
+
+        astSetC(inner, "Ident", "keepme");
+        outer = astCmpMap(inner, z3, 1, " ");
+
+        write_fixture(dir, "cap_ident_cmpmap", (AstMapping*)outer);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        z3 = astAnnul(z3);
+        inner = astAnnul(inner);
+        outer = astAnnul(outer);
+    }
+
+    /* The negative control for the same rule: a FrameSet -- which is a Frame,
+       and Frame overrides astDoNotSimplify to zero (frame.c:3511) -- carrying
+       the same Ident. Its base-to-current Mapping is a CmpMap of two ZoomMaps,
+       so if the Ident were honoured here the pair would come back unchanged. */
+    {
+        AstFrame *f1 = astFrame(1, "Domain=BASE");
+        AstFrame *f2 = astFrame(1, "Domain=CURRENT");
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstCmpMap *cm = astCmpMap(z1, z2, 1, " ");
+        AstFrameSet *fs = astFrameSet(f1, " ");
+
+        astAddFrame(fs, AST__BASE, cm, f2);
+        astSetC(fs, "Ident", "keepme");
+
+        write_fixture(dir, "cap_ident_frame", (AstMapping*)fs);
+        f1 = astAnnul(f1);
+        f2 = astAnnul(f2);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        cm = astAnnul(cm);
+        fs = astAnnul(fs);
     }
 
     /* [ZoomMap, PermMap, parallel CmpMap, ZoomMap] in series. The CmpMap /
