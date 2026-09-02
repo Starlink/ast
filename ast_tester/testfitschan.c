@@ -4845,6 +4845,116 @@ int main( void ) {
       astEnd;
    }
 
+   /* --- Sampling density of the SIP linearity test.  astLinearApprox fits
+      from the centres of the box faces and checks the fit at thirteen
+      further fixed positions, so structure smaller than the gaps between
+      those positions is invisible to it however well placed the box is.
+      The Mapping between the SIP polynomial and the CD matrix used here is
+      linear except for a Gaussian bump 700 pixels from the nearest of those
+      positions, 20 times FitsTol at its peak.  A least squares fit over a
+      grid spanning the image sees it.  The second pass uses a bump well
+      below FitsTol and checks that a Mapping which is linear enough is
+      still accepted, so that the test measures the tolerance rather than
+      just refusing splines. --- */
+   if( *status == 0 ) {
+      astBegin;
+      {
+         const char *bcards[ 11 ] = {
+                             "CTYPE1  = 'RA---TAN'",
+                             "CTYPE2  = 'DEC--TAN'",
+                             "CRPIX1  =                  0.0",
+                             "CRPIX2  =                  0.0",
+                             "CRVAL1  =                180.0",
+                             "CRVAL2  =                  0.0",
+                             "CD1_1   =             -5.5E-05",
+                             "CD1_2   =                  0.0",
+                             "CD2_1   =                  0.0",
+                             "CD2_2   =              5.5E-05",
+                             "RADESYS = 'ICRS'" };
+         double bpolyf[ 16 ] = { 1.0, 1, 1, 0,   1.0E-9, 1, 2, 0,
+                                 1.0, 2, 0, 1,   1.0E-9, 2, 0, 2 };
+         double bpolyi[ 16 ] = { 1.0, 1, 1, 0,  -1.0E-9, 1, 2, 0,
+                                 1.0, 2, 0, 1,  -1.0E-9, 2, 0, 2 };
+         double bamp[ 2 ] = { 2.0, 0.02 };
+         int bwant[ 2 ] = { 0, 1 };
+         char bex0[ 200 ];
+         char bex1[ 200 ];
+         const char *bfwd[ 2 ];
+         const char *binv[ 2 ];
+         int bi;
+         int bj;
+
+         for( bj = 0; bj < 2 && *status == 0; bj++ ) {
+            AstFitsChan *bfc = astFitsChan( NULL, NULL, " " );
+            AstFrameSet *bfs;
+
+            for( bi = 0; bi < 11; bi++ ) astPutFits( bfc, bcards[ bi ], 0 );
+            astClear( bfc, "Card" );
+            bfs = (AstFrameSet *) astRead( bfc );
+
+            if( !astOK || !bfs ) {
+               if( !astOK ) astClearStatus;
+               stopit( 913, "Failed to read the TAN header for the SIP "
+                       "sampling test", status );
+            } else {
+               AstFitsChan *bfc2;
+               AstFrameSet *bfs2;
+               AstMapping *btot;
+               char bcard[ 81 ];
+               int bfound = 0;
+               int bnw;
+
+               sprintf( bex0, "u = x + %g*exp( -( (x-1500)*(x-1500) + "
+                        "(y-1500)*(y-1500) )/45000 )", bamp[ bj ] );
+               sprintf( bex1, "x = u - %g*exp( -( (u-1500)*(u-1500) + "
+                        "(v-1500)*(v-1500) )/45000 )", bamp[ bj ] );
+               bfwd[ 0 ] = bex0;
+               bfwd[ 1 ] = "v = y";
+               binv[ 0 ] = bex1;
+               binv[ 1 ] = "y = v";
+
+               btot = (AstMapping *) astCmpMap(
+                          astPolyMap( 2, 2, 4, bpolyf, 4, bpolyi, " " ),
+                          astMathMap( 2, 2, 2, bfwd, 2, binv, " " ), 1, " " );
+               btot = (AstMapping *) astCmpMap( btot,
+                          astGetMapping( bfs, AST__BASE, AST__CURRENT ),
+                          1, " " );
+
+               bfs2 = astFrameSet( astFrame( 2, "Domain=GRID" ), " " );
+               astAddFrame( bfs2, AST__BASE, btot,
+                            astGetFrame( bfs, AST__CURRENT ) );
+
+               bfc2 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,CDMatrix=1" );
+               astPutFits( bfc2, "NAXIS1  =                 4000", 0 );
+               astPutFits( bfc2, "NAXIS2  =                 4000", 0 );
+               bnw = astWrite( bfc2, bfs2 );
+               if( !astOK ) astClearStatus;
+
+               if( bnw == 0 ) {
+                  stopit( 914, "The linear approximation is good enough to "
+                          "write, so astWrite should have succeeded", status );
+               } else {
+                  astClear( bfc2, "Card" );
+                  while( astFindFits( bfc2, "%f", bcard, 1 ) ) {
+                     if( !strncmp( bcard, "A_ORDER ", 8 ) ) bfound = 1;
+                  }
+                  if( bfound && !bwant[ bj ] ) {
+                     stopit( 915, "SIP description accepted although the "
+                             "Mapping following the SIP polynomial departs "
+                             "from linearity by 20 times FitsTol between the "
+                             "positions astLinearApprox samples", status );
+                  } else if( !bfound && bwant[ bj ] ) {
+                     stopit( 916, "SIP description rejected although the "
+                             "Mapping following the SIP polynomial is linear "
+                             "to well within FitsTol", status );
+                  }
+               }
+            }
+         }
+      }
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 
