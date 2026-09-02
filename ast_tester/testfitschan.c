@@ -4955,6 +4955,88 @@ int main( void ) {
       astEnd;
    }
 
+   /* --- The assembled SIP description must reproduce the Mapping.  CRPIX
+      is derived from the inverse transformation of the Mapping while
+      everything else comes from forward transformations, so an inverse that
+      is iterative or approximate corrupts CRPIX alone and no test on the
+      other parts can see it.  The PolyMap here has an inverse offset by half
+      a pixel from its forward transformation, which is five times FitsTol.
+      astWrite used to emit CRPIX1 = 0.5 for a Mapping whose reference pixel
+      is grid zero, and report success.  It should fall back to a plain
+      linear approximation, which uses only forward transformations. --- */
+   if( *status == 0 ) {
+      astBegin;
+      {
+         const char *ccards[ 11 ] = {
+                             "CTYPE1  = 'RA---TAN'",
+                             "CTYPE2  = 'DEC--TAN'",
+                             "CRPIX1  =                  0.0",
+                             "CRPIX2  =                  0.0",
+                             "CRVAL1  =                180.0",
+                             "CRVAL2  =                  0.0",
+                             "CD1_1   =             -5.5E-05",
+                             "CD1_2   =                  0.0",
+                             "CD2_1   =                  0.0",
+                             "CD2_2   =              5.5E-05",
+                             "RADESYS = 'ICRS'" };
+         double cpolyf[ 16 ] = { 1.0, 1, 1, 0,   1.0E-9, 1, 2, 0,
+                                 1.0, 2, 0, 1,   1.0E-9, 2, 0, 2 };
+         double cpolyi[ 20 ] = { 0.5, 1, 0, 0,   1.0, 1, 1, 0,
+                                -1.0E-9, 1, 2, 0,
+                                 1.0, 2, 0, 1,  -1.0E-9, 2, 0, 2 };
+         AstFitsChan *cfc = astFitsChan( NULL, NULL, " " );
+         AstFrameSet *cfs;
+         int ci;
+
+         for( ci = 0; ci < 11; ci++ ) astPutFits( cfc, ccards[ ci ], 0 );
+         astClear( cfc, "Card" );
+         cfs = (AstFrameSet *) astRead( cfc );
+
+         if( !astOK || !cfs ) {
+            if( !astOK ) astClearStatus;
+            stopit( 917, "Failed to read the TAN header for the SIP "
+                    "round-trip test", status );
+         } else {
+            AstFitsChan *cfc2;
+            AstFrameSet *cfs2;
+            AstMapping *ctot;
+            char ccard[ 81 ];
+            int cfound = 0;
+            int cnw;
+
+            ctot = (AstMapping *) astCmpMap(
+                       astPolyMap( 2, 2, 4, cpolyf, 5, cpolyi, " " ),
+                       astGetMapping( cfs, AST__BASE, AST__CURRENT ),
+                       1, " " );
+
+            cfs2 = astFrameSet( astFrame( 2, "Domain=GRID" ), " " );
+            astAddFrame( cfs2, AST__BASE, ctot,
+                         astGetFrame( cfs, AST__CURRENT ) );
+
+            cfc2 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,CDMatrix=1" );
+            astPutFits( cfc2, "NAXIS1  =                 4000", 0 );
+            astPutFits( cfc2, "NAXIS2  =                 4000", 0 );
+            cnw = astWrite( cfc2, cfs2 );
+            if( !astOK ) astClearStatus;
+
+            if( cnw == 0 ) {
+               stopit( 918, "The forward transformation is linear enough to "
+                       "write, so astWrite should have succeeded", status );
+            } else {
+               astClear( cfc2, "Card" );
+               while( astFindFits( cfc2, "%f", ccard, 1 ) ) {
+                  if( !strncmp( ccard, "A_ORDER ", 8 ) ) cfound = 1;
+               }
+               if( cfound )
+                  stopit( 919, "SIP description accepted although its CRPIX "
+                          "values put the description half a pixel away from "
+                          "the Mapping it describes", status );
+            }
+         }
+      }
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 

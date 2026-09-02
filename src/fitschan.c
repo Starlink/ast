@@ -1452,6 +1452,16 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        however well placed the box is: a Mapping can be reported as
 *        linear while departing from the returned fit by many times FitsTol
 *        in between.
+*     2-SEP-2026 (TIMJ):
+*        Check the assembled SIP description against the Mapping it is
+*        meant to describe before accepting it, in the new function
+*        CheckSipFit. The CRPIX, CDi_j and SIP coefficient values each come
+*        from a different part of the Mapping and each part is tested on
+*        its own as it is derived, so an error in one is invisible to the
+*        tests on the others. The CRPIX values in particular come from the
+*        inverse transformation of the Mapping, which may be iterative or
+*        approximate, while everything else comes from forward
+*        transformations.
 *class--
 */
 
@@ -2110,6 +2120,7 @@ static int AnalysePoly( AstPolyMap *, AstMapping **, AstMapping **, AstMapping *
 static int CLASSFromStore( AstFitsChan *, FitsStore *, AstFrameSet *, double *, const char *, const char *, int * );
 static int CardType( AstFitsChan *, int * );
 static int CheckFitsName( AstFitsChan *, const char *, const char *, const char *, int * );
+static int CheckSipFit( AstMapping *, AstPolyMap *, double *, double *, double *, double, int * );
 static int ChrLen( const char *, int * );
 static int CnvType( int, void *, size_t, int, int, int, void *, const char *, const char *, const char *, int * );
 static int CnvValue( AstFitsChan *, int , int, void *, const char *, int * );
@@ -6100,6 +6111,182 @@ static int CheckFitsName( AstFitsChan *this, const char *name,
 /* Return the answer. */
    return ret;
 }
+
+/* The number of positions used along each grid axis when checking a SIP
+   description against the Mapping it is meant to describe. */
+#define NCHK 16
+
+static int CheckSipFit( AstMapping *smap, AstPolyMap *polymap, double *crpix,
+                        double *fit, double *dim, double tol, int *status ){
+/*
+*  Name:
+*     CheckSipFit
+
+*  Purpose:
+*     Check that a SIP description reproduces the Mapping it describes.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     int CheckSipFit( AstMapping *smap, AstPolyMap *polymap, double *crpix,
+*                      double *fit, double *dim, double tol, int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     The CRPIX, CDi_j and SIP coefficient values are each derived from a
+*     different part of the Mapping being written, and each part is checked
+*     on its own as it is derived. This function checks the description
+*     they form together: it builds the Mapping the description implies
+*     and compares it with the Mapping it is meant to describe, at a grid
+*     of positions spanning the image.
+*
+*     Without this, an error in one part is invisible to the tests on the
+*     others. The CRPIX values in particular come from the inverse
+*     transformation of the supplied Mapping, which may be iterative or
+*     approximate, while everything else comes from forward
+*     transformations.
+
+*  Parameters:
+*     smap
+*        The (2-input,2-output) Mapping from grid coordinates to the
+*        celestial IWC axes, which the description is meant to reproduce.
+*     polymap
+*        The SIP polynomial, in the form required by the SIP conventions.
+*     crpix
+*        The two CRPIX values, in the order of the inputs of "smap".
+*     fit
+*        The coefficients of the linear transformation that follows the SIP
+*        polynomial, in the order used by astLinearApprox. Only the four
+*        gradients are used; they are the CDi_j values.
+*     dim
+*        An array holding the image dimensions in pixels. AST__BAD can be
+*        supplied for an unknown dimension, in which case a default value
+*        of 1000 pixels is used.
+*     tol
+*        The largest acceptable discrepancy, as a displacement in the
+*        output space of "smap".
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if the description reproduces "smap" to within "tol" at every
+*     position tested, zero otherwise.
+
+*  Notes:
+*     -  Zero is returned if an error occurs.
+*/
+
+/* Local Variables: */
+   AstMapping *sipmap;
+   AstMapping *tmap;
+   AstMatrixMap *mm;
+   AstShiftMap *sm;
+   double *ax;
+   double *ay;
+   double *bx;
+   double *by;
+   double *gx;
+   double *gy;
+   double dx;
+   double dy;
+   double mat[ 4 ];
+   double res;
+   double resmax;
+   double shift[ 2 ];
+   int i;
+   int ix;
+   int iy;
+   int np;
+   int result;
+
+/* Initialise */
+   result = 0;
+
+/* Check the inherited status. */
+   if( !astOK ) return result;
+
+/* Build the Mapping implied by the description: a shift of origin to the
+   reference pixel, then the SIP polynomial, then the CDi_j matrix. */
+   shift[ 0 ] = -crpix[ 0 ];
+   shift[ 1 ] = -crpix[ 1 ];
+   sm = astShiftMap( 2, shift, " ", status );
+
+   mat[ 0 ] = fit[ 2 ];
+   mat[ 1 ] = fit[ 3 ];
+   mat[ 2 ] = fit[ 4 ];
+   mat[ 3 ] = fit[ 5 ];
+   mm = astMatrixMap( 2, 2, 0, mat, " ", status );
+
+   tmap = (AstMapping *) astCmpMap( polymap, mm, 1, " ", status );
+   sipmap = (AstMapping *) astCmpMap( sm, tmap, 1, " ", status );
+   tmap = astAnnul( tmap );
+   sm = astAnnul( sm );
+   mm = astAnnul( mm );
+
+/* Allocate work space for a grid of positions spanning the image. */
+   dx = ( dim[ 0 ] == AST__BAD ) ? 1000.0 : dim[ 0 ];
+   dy = ( dim[ 1 ] == AST__BAD ) ? 1000.0 : dim[ 1 ];
+   np = NCHK*NCHK;
+   gx = astMalloc( sizeof( *gx )*(size_t) np );
+   gy = astMalloc( sizeof( *gy )*(size_t) np );
+   ax = astMalloc( sizeof( *ax )*(size_t) np );
+   ay = astMalloc( sizeof( *ay )*(size_t) np );
+   bx = astMalloc( sizeof( *bx )*(size_t) np );
+   by = astMalloc( sizeof( *by )*(size_t) np );
+
+   if( astOK ) {
+      i = 0;
+      for( ix = 0; ix < NCHK; ix++ ) {
+         for( iy = 0; iy < NCHK; iy++ ) {
+            gx[ i ] = dx*ix/( NCHK - 1.0 );
+            gy[ i ] = dy*iy/( NCHK - 1.0 );
+            i++;
+         }
+      }
+
+/* Transform them with the supplied Mapping and with the description. */
+      astTran2( smap, np, gx, gy, 1, ax, ay );
+      astTran2( sipmap, np, gx, gy, 1, bx, by );
+
+/* Find the largest discrepancy. A position that either Mapping cannot
+   transform is a failure, since the description then does not cover the
+   image. */
+      result = 1;
+      resmax = 0.0;
+      for( i = 0; i < np && result; i++ ) {
+         if( ax[ i ] == AST__BAD || ay[ i ] == AST__BAD ||
+             bx[ i ] == AST__BAD || by[ i ] == AST__BAD ) {
+            result = 0;
+
+         } else {
+            res = sqrt( ( ax[ i ] - bx[ i ] )*( ax[ i ] - bx[ i ] ) +
+                        ( ay[ i ] - by[ i ] )*( ay[ i ] - by[ i ] ) );
+            if( res > resmax ) resmax = res;
+         }
+      }
+
+      if( result && resmax > tol ) result = 0;
+   }
+
+/* Free resources. */
+   gx = astFree( gx );
+   gy = astFree( gy );
+   ax = astFree( ax );
+   ay = astFree( ay );
+   bx = astFree( bx );
+   by = astFree( by );
+   sipmap = astAnnul( sipmap );
+
+/* Return the answer. */
+   return astOK ? result : 0;
+}
+
+/* Undefine local constants: */
+#undef NCHK
 
 static void CheckZero( char *text, double value, int width, int fitsrnd,
                        int *status ){
@@ -29391,6 +29578,14 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    case there is no reference pixel and so the SIP conventions cannot be
    used to describe the celestial axes. */
                   if( crpix[ 0 ] == AST__BAD || crpix[ 1 ] == AST__BAD ) ok = 0;
+               }
+
+/* Everything above tests the Mapping in pieces. Check that the description
+   those pieces form actually reproduces the Mapping over the image before
+   committing to it. */
+               if( ok ) {
+                  ok = CheckSipFit( smap, polymap, crpix, fit, dim, utol,
+                                    status );
                }
 
 /* If a reference pixel was found... */
