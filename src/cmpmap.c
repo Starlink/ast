@@ -167,6 +167,13 @@ f     The CmpMap class does not define any new routines beyond those
 *        pointer being tested. The annul happened first, so the test always
 *        reported a simplification and the pair was rebuilt even when no
 *        component reduced.
+*     3-SEP-2026 (TIMJ):
+*        In Equal, compare the component Mappings directly when astMapList
+*        declines to decompose both CmpMaps. MapList returns a list holding
+*        only a clone of the CmpMap itself in that case, so comparing the
+*        lists element by element called astEqual on the same pair again and
+*        recursed until the stack was exhausted. Reached by any CmpMap for
+*        which astDoNotSimplify is true, such as one carrying an Ident.
 *class--
 */
 
@@ -381,9 +388,51 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
          astMapList( (AstMapping *) that, that->series, astGetInvert( that ),
                      &that_nmap, &that_map_list, &that_invert_list );
 
+/* If astMapList declined to decompose both CmpMaps - which happens when
+   astDoNotSimplify returns non-zero for one - the parent class returns a
+   list holding nothing but a clone of the CmpMap itself. Comparing those
+   lists element by element would call astEqual on this same pair of
+   CmpMaps again, recursing until the stack is exhausted, so compare the
+   component Mappings directly instead. The Invert attributes are compared
+   as well, since the components are held in the order and senses they had
+   when the CmpMap was created. */
+         if( this_nmap == 1 && that_nmap == 1 &&
+             this_map_list[ 0 ] == (AstMapping *) this &&
+             that_map_list[ 0 ] == (AstMapping *) that ) {
+
+            if( astGetInvert( this ) == astGetInvert( that ) &&
+                this->invert1 == that->invert1 &&
+                this->invert2 == that->invert2 ) {
+
+/* Compare the first pair of components, with the Invert flags they were
+   given when the CmpMaps were created temporarily re-instated. */
+               this_inv = astGetInvert( this->map1 );
+               astSetInvert( this->map1, this->invert1 );
+               that_inv = astGetInvert( that->map1 );
+               astSetInvert( that->map1, that->invert1 );
+
+               result = astEqual( this->map1, that->map1 );
+
+               astSetInvert( this->map1, this_inv );
+               astSetInvert( that->map1, that_inv );
+
+/* If they are equal, do the same for the second pair. */
+               if( result ) {
+                  this_inv = astGetInvert( this->map2 );
+                  astSetInvert( this->map2, this->invert2 );
+                  that_inv = astGetInvert( that->map2 );
+                  astSetInvert( that->map2, that->invert2 );
+
+                  result = astEqual( this->map2, that->map2 );
+
+                  astSetInvert( this->map2, this_inv );
+                  astSetInvert( that->map2, that_inv );
+               }
+            }
+
 /* Check the decompositions yielded the same number of component
    Mappings. */
-         if( that_nmap == this_nmap ) {
+         } else if( that_nmap == this_nmap ) {
 
 /* Check equality of every component. */
             for( i = 0; i < this_nmap; i++ ) {
