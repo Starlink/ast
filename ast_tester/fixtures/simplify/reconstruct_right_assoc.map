@@ -37,4 +37,3 @@
           Type = "TAN" 	# Gnomonic projection
        End WcsMap
  End CmpMap
-
