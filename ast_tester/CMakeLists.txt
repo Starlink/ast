@@ -381,6 +381,34 @@ target_link_libraries(normalize_fixture PRIVATE ${TEST_LIBS})
 target_compile_definitions(normalize_fixture PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(normalize_fixture)
 
+# --- roundtrip: read a dump and write it straight back ---
+#
+# The output must be byte-identical to the input.  This is the only family that
+# can see an attribute lost on load: both simplify families call astSimplify
+# after reading, and astSimplify sets IsSimple on every node it visits, so a
+# record a loader dropped is put straight back before anything compares it.
+add_executable(roundtrip roundtrip.c)
+target_include_directories(roundtrip PRIVATE ${TEST_INCLUDES})
+target_link_libraries(roundtrip PRIVATE ${TEST_LIBS})
+target_compile_definitions(roundtrip PRIVATE HAVE_CONFIG_H)
+ast_apply_dev_options(roundtrip)
+add_dependencies(roundtrip ast_stage_fixtures)
+
+function(add_roundtrip_test)
+    cmake_parse_arguments(R "" "NAME;FIXTURE" "" ${ARGN})
+    if(NOT R_NAME OR NOT R_FIXTURE)
+        message(FATAL_ERROR "add_roundtrip_test: NAME and FIXTURE required")
+    endif()
+    ast_require_fixture("roundtrip" "${R_FIXTURE}")
+    add_test(NAME roundtrip_${R_NAME}
+        COMMAND "${CMAKE_COMMAND}"
+                -DROUNDTRIP=$<TARGET_FILE:roundtrip>
+                -DIN_FILE=${AST_FIXTURE_BINARY_ROOT}/${R_FIXTURE}
+                -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/roundtrip_${R_NAME}.out
+                -P "${CMAKE_SOURCE_DIR}/cmake/run_roundtrip_test.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+endfunction()
+
 add_executable(gen_simplify_fixtures gen_simplify_fixtures.c gen_simplify_flags.c)
 target_include_directories(gen_simplify_fixtures PRIVATE ${TEST_INCLUDES})
 target_link_libraries(gen_simplify_fixtures PRIVATE ${TEST_LIBS})
@@ -490,6 +518,14 @@ foreach(_entry IN LISTS _simplify_tests)
                       INPUT ${_input}
                       REFERENCE ${_reference}
                       ${_skip_flag})
+
+# Round-trip both halves of the pair.  Reading a dump and writing it back is
+# the identity whatever the fixture is, so this needs no reference of its own
+# and no skip flag: a fixture that cannot round-trip is a serialisation defect.
+    add_roundtrip_test(NAME ${_name}_map      FIXTURE ${_input})
+    if(NOT _reference STREQUAL _input)
+        add_roundtrip_test(NAME ${_name}_simp FIXTURE ${_reference})
+    endif()
 endforeach()
 
 if(AST_ENABLE_HUGE_TEST)
