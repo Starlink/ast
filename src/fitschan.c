@@ -1462,6 +1462,14 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        inverse transformation of the Mapping, which may be iterative or
 *        approximate, while everything else comes from forward
 *        transformations.
+*     2-SEP-2026 (TIMJ):
+*        Validate the fitted and assembled SIP Mappings with a shared
+*        residual test that combines low-discrepancy probes with astMapBox
+*        extrema refinement. Express residuals in pixel coordinates using
+*        the inverse fitted CD matrix, rather than scaling a single IWC
+*        distance by the larger of the two axis scales. This avoids blind
+*        spots between a fixed grid and enforces FitsTol when the two pixel
+*        axes have different scales.
 *class--
 */
 
@@ -2135,7 +2143,7 @@ static int FindKeyCard( AstFitsChan *, const char *, const char *, const char *,
 static int FindLonLatSpecAxes( FitsStore *, char, int *, int *, int *, const char *, const char *, int * );
 static int FindString( int, const char *[], const char *, const char *, const char *, const char *, int * );
 static int FitOK( int, double *, double *, double, int * );
-static int FitSipMatrix( AstMapping *, AstPolyMap *, AstMapping *, double *, double, double *, double *, int * );
+static int FitSipMatrix( AstMapping *, AstPolyMap *, AstMapping *, double *, double, double *, int * );
 static int FitsAxisOrder( AstFitsChan *this, int nwcs, AstFrame *wcsfrm, int *perm, int *status );
 static int FitsEof( AstFitsChan *, int * );
 static int FitsFromStore( AstFitsChan *, FitsStore *, int, double *, AstFrameSet *, const char *, const char *, int * );
@@ -2182,6 +2190,7 @@ static int SAOTrans( AstFitsChan *, AstFitsChan *, const char *, const char *, i
 static int SearchCard( AstFitsChan *, const char *, const char *, const char *, int * );
 static int SetFits( AstFitsChan *, const char *, void *, int, const char *, int, int * );
 static int Similar( const char *, const char *, int * );
+static int SipResidualsOK( AstMapping *, AstMapping *, double *, double *, double, int * );
 static int SkySys( AstFitsChan *, AstSkyFrame *, int, int, FitsStore *, int, int, char c, int, const char *, const char *, int * );
 static int Split( AstFitsChan *, const char *, char **, char **, char **, const char *, const char *, int * );
 static int SplitMap( AstMapping *, int, int, int, AstMapping **, AstWcsMap **, AstMapping **, int * );
@@ -6112,9 +6121,205 @@ static int CheckFitsName( AstFitsChan *this, const char *name,
    return ret;
 }
 
-/* The number of positions used along each grid axis when checking a SIP
-   description against the Mapping it is meant to describe. */
-#define NCHK 16
+/* Number of low-discrepancy positions used to probe SIP residuals. */
+#define NSIPRES 4096
+
+static int SipResidualsOK( AstMapping *actual, AstMapping *approx,
+                           double *fit, double *dim, double tol,
+                           int *status ){
+/*
+*  Name:
+*     SipResidualsOK
+
+*  Purpose:
+*     Check the residuals of a proposed SIP description in pixel units.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     int SipResidualsOK( AstMapping *actual, AstMapping *approx,
+*                         double *fit, double *dim, double tol, int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     This function forms the difference between two Mappings that go from
+*     grid coordinates to celestial IWC, transforms that difference back to
+*     pixel coordinates using the inverse fitted CD matrix. It first probes
+*     a low-discrepancy set of positions and then uses astMapBox to refine
+*     the extrema of each residual coordinate over the image. This avoids
+*     both aliasing on a fixed sampling lattice and the use of a single
+*     world-coordinate tolerance for axes with different scales.
+
+*  Parameters:
+*     actual
+*        The Mapping that is to be described.
+*     approx
+*        The Mapping implied by the proposed SIP description.
+*     fit
+*        The coefficients of the fitted affine transformation, in the order
+*        used by astLinearApprox. The four gradients form the CD matrix.
+*     dim
+*        The image dimensions in pixels. AST__BAD selects a default of 1000.
+*     tol
+*        The maximum permitted residual on either pixel axis, in pixels.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if both pixel-coordinate residuals remain within "tol" over the
+*     image, zero otherwise.
+*/
+
+/* Local Variables: */
+   AstMapping *dmap;
+   AstMapping *pair;
+   AstMapping *rmap;
+   AstMapping *tmap;
+   AstMatrixMap *im;
+   AstMatrixMap *sub;
+   AstPermMap *dup;
+   double det;
+   double diffmat[ 8 ] = { 1.0, 0.0, -1.0, 0.0,
+                           0.0, 1.0, 0.0, -1.0 };
+   double f;
+   double hi;
+   double inv[ 4 ];
+   double lbnd[ 2 ];
+   double lo;
+   double *rx;
+   double *ry;
+   double *sx;
+   double *sy;
+   double ubnd[ 2 ];
+   int i;
+   int inperm[ 2 ] = { 0, 1 };
+   int n;
+   int oldrep;
+   int outperm[ 4 ] = { 0, 1, 0, 1 };
+   int result;
+
+/* Initialise. */
+   result = 0;
+   dup = NULL;
+   pair = NULL;
+   tmap = NULL;
+   sub = NULL;
+   dmap = NULL;
+   im = NULL;
+   rmap = NULL;
+   sx = NULL;
+   sy = NULL;
+   rx = NULL;
+   ry = NULL;
+
+/* Check the inherited status and invert the fitted CD matrix. */
+   if( !astOK ) return result;
+   det = fit[ 2 ]*fit[ 5 ] - fit[ 3 ]*fit[ 4 ];
+   if( det != 0.0 && astISGOOD( det ) ) {
+      inv[ 0 ] = fit[ 5 ]/det;
+      inv[ 1 ] = -fit[ 3 ]/det;
+      inv[ 2 ] = -fit[ 4 ]/det;
+      inv[ 3 ] = fit[ 2 ]/det;
+
+/* Duplicate the grid coordinates, transform one copy by each Mapping,
+   subtract the IWC results, and convert the difference to pixels. */
+      dup = astPermMap( 2, inperm, 4, outperm, NULL, " ", status );
+      pair = (AstMapping *) astCmpMap( actual, approx, 0, " ", status );
+      tmap = (AstMapping *) astCmpMap( dup, pair, 1, " ", status );
+      sub = astMatrixMap( 4, 2, 0, diffmat, " ", status );
+      dmap = (AstMapping *) astCmpMap( tmap, sub, 1, " ", status );
+      im = astMatrixMap( 2, 2, 0, inv, " ", status );
+      rmap = (AstMapping *) astCmpMap( dmap, im, 1, " ", status );
+
+/* Probe a low-discrepancy set of positions first. Unlike a regular lattice,
+   these positions do not leave rows or columns on which a localised feature
+   can be hidden by alignment. */
+      if( astOK ) {
+         lbnd[ 0 ] = 0.0;
+         lbnd[ 1 ] = 0.0;
+         ubnd[ 0 ] = ( dim[ 0 ] == AST__BAD ) ? 1000.0 : dim[ 0 ];
+         ubnd[ 1 ] = ( dim[ 1 ] == AST__BAD ) ? 1000.0 : dim[ 1 ];
+
+         sx = astMalloc( NSIPRES*sizeof( *sx ) );
+         sy = astMalloc( NSIPRES*sizeof( *sy ) );
+         rx = astMalloc( NSIPRES*sizeof( *rx ) );
+         ry = astMalloc( NSIPRES*sizeof( *ry ) );
+         if( astOK ) {
+            for( i = 0; i < NSIPRES; i++ ) {
+               n = i + 1;
+               f = 0.5;
+               sx[ i ] = 0.0;
+               while( n ) {
+                  sx[ i ] += f*( n % 2 );
+                  n /= 2;
+                  f *= 0.5;
+               }
+               sx[ i ] *= ubnd[ 0 ];
+
+               n = i + 1;
+               f = 1.0/3.0;
+               sy[ i ] = 0.0;
+               while( n ) {
+                  sy[ i ] += f*( n % 3 );
+                  n /= 3;
+                  f /= 3.0;
+               }
+               sy[ i ] *= ubnd[ 1 ];
+            }
+
+            astTran2( rmap, NSIPRES, sx, sy, 1, rx, ry );
+            if( astOK ) {
+               result = 1;
+               for( i = 0; i < NSIPRES && result; i++ ) {
+                  if( astISBAD( rx[ i ] ) || astISBAD( ry[ i ] ) ||
+                      fabs( rx[ i ] ) > tol || fabs( ry[ i ] ) > tol ) {
+                     result = 0;
+                  }
+               }
+            }
+         }
+
+/* Refine the result using the Mapping-wide extrema search. A failure means
+   that the proposed SIP description cannot be verified. */
+         if( result ) {
+            oldrep = astReporting( 0 );
+            astMapBox( rmap, lbnd, ubnd, 1, 0, &lo, &hi, NULL, NULL );
+            if( astOK && astISGOOD( lo ) && astISGOOD( hi ) &&
+                fabs( lo ) <= tol && fabs( hi ) <= tol ) {
+               astMapBox( rmap, lbnd, ubnd, 1, 1, &lo, &hi, NULL, NULL );
+               if( !astOK || !astISGOOD( lo ) || !astISGOOD( hi ) ||
+                   fabs( lo ) > tol || fabs( hi ) > tol ) result = 0;
+            } else {
+               result = 0;
+            }
+            if( !astOK ) astClearStatus;
+            astReporting( oldrep );
+         }
+      }
+   }
+
+/* Free resources. */
+   dup = astAnnul( dup );
+   pair = astAnnul( pair );
+   tmap = astAnnul( tmap );
+   sub = astAnnul( sub );
+   dmap = astAnnul( dmap );
+   im = astAnnul( im );
+   rmap = astAnnul( rmap );
+   sx = astFree( sx );
+   sy = astFree( sy );
+   rx = astFree( rx );
+   ry = astFree( ry );
+
+/* Return the answer. */
+   return astOK ? result : 0;
+
+#undef NSIPRES
+}
 
 static int CheckSipFit( AstMapping *smap, AstPolyMap *polymap, double *crpix,
                         double *fit, double *dim, double tol, int *status ){
@@ -6141,8 +6346,8 @@ static int CheckSipFit( AstMapping *smap, AstPolyMap *polymap, double *crpix,
 *     different part of the Mapping being written, and each part is checked
 *     on its own as it is derived. This function checks the description
 *     they form together: it builds the Mapping the description implies
-*     and compares it with the Mapping it is meant to describe, at a grid
-*     of positions spanning the image.
+*     and compares it with the Mapping it is meant to describe over the
+*     image.
 *
 *     Without this, an error in one part is invisible to the tests on the
 *     others. The CRPIX values in particular come from the inverse
@@ -6167,14 +6372,13 @@ static int CheckSipFit( AstMapping *smap, AstPolyMap *polymap, double *crpix,
 *        supplied for an unknown dimension, in which case a default value
 *        of 1000 pixels is used.
 *     tol
-*        The largest acceptable discrepancy, as a displacement in the
-*        output space of "smap".
+*        The largest acceptable discrepancy, in pixels.
 *     status
 *        Pointer to the inherited status variable.
 
 *  Returned Value:
-*     One if the description reproduces "smap" to within "tol" at every
-*     position tested, zero otherwise.
+*     One if the description reproduces "smap" to within "tol" over the
+*     image, zero otherwise.
 
 *  Notes:
 *     -  Zero is returned if an error occurs.
@@ -6185,22 +6389,8 @@ static int CheckSipFit( AstMapping *smap, AstPolyMap *polymap, double *crpix,
    AstMapping *tmap;
    AstMatrixMap *mm;
    AstShiftMap *sm;
-   double *ax;
-   double *ay;
-   double *bx;
-   double *by;
-   double *gx;
-   double *gy;
-   double dx;
-   double dy;
    double mat[ 4 ];
-   double res;
-   double resmax;
    double shift[ 2 ];
-   int i;
-   int ix;
-   int iy;
-   int np;
    int result;
 
 /* Initialise */
@@ -6227,66 +6417,15 @@ static int CheckSipFit( AstMapping *smap, AstPolyMap *polymap, double *crpix,
    sm = astAnnul( sm );
    mm = astAnnul( mm );
 
-/* Allocate work space for a grid of positions spanning the image. */
-   dx = ( dim[ 0 ] == AST__BAD ) ? 1000.0 : dim[ 0 ];
-   dy = ( dim[ 1 ] == AST__BAD ) ? 1000.0 : dim[ 1 ];
-   np = NCHK*NCHK;
-   gx = astMalloc( sizeof( *gx )*(size_t) np );
-   gy = astMalloc( sizeof( *gy )*(size_t) np );
-   ax = astMalloc( sizeof( *ax )*(size_t) np );
-   ay = astMalloc( sizeof( *ay )*(size_t) np );
-   bx = astMalloc( sizeof( *bx )*(size_t) np );
-   by = astMalloc( sizeof( *by )*(size_t) np );
-
-   if( astOK ) {
-      i = 0;
-      for( ix = 0; ix < NCHK; ix++ ) {
-         for( iy = 0; iy < NCHK; iy++ ) {
-            gx[ i ] = dx*ix/( NCHK - 1.0 );
-            gy[ i ] = dy*iy/( NCHK - 1.0 );
-            i++;
-         }
-      }
-
-/* Transform them with the supplied Mapping and with the description. */
-      astTran2( smap, np, gx, gy, 1, ax, ay );
-      astTran2( sipmap, np, gx, gy, 1, bx, by );
-
-/* Find the largest discrepancy. A position that either Mapping cannot
-   transform is a failure, since the description then does not cover the
-   image. */
-      result = 1;
-      resmax = 0.0;
-      for( i = 0; i < np && result; i++ ) {
-         if( ax[ i ] == AST__BAD || ay[ i ] == AST__BAD ||
-             bx[ i ] == AST__BAD || by[ i ] == AST__BAD ) {
-            result = 0;
-
-         } else {
-            res = sqrt( ( ax[ i ] - bx[ i ] )*( ax[ i ] - bx[ i ] ) +
-                        ( ay[ i ] - by[ i ] )*( ay[ i ] - by[ i ] ) );
-            if( res > resmax ) resmax = res;
-         }
-      }
-
-      if( result && resmax > tol ) result = 0;
-   }
+/* Compare the two Mappings in pixel coordinates over the image. */
+   if( astOK ) result = SipResidualsOK( smap, sipmap, fit, dim, tol, status );
 
 /* Free resources. */
-   gx = astFree( gx );
-   gy = astFree( gy );
-   ax = astFree( ax );
-   ay = astFree( ay );
-   bx = astFree( bx );
-   by = astFree( by );
    sipmap = astAnnul( sipmap );
 
 /* Return the answer. */
    return astOK ? result : 0;
 }
-
-/* Undefine local constants: */
-#undef NCHK
 
 static void CheckZero( char *text, double value, int width, int fitsrnd,
                        int *status ){
@@ -15384,17 +15523,15 @@ static double *FitLine( AstMapping *map, double *g, double *g0, double *w0,
 #undef NPO2
 }
 
-/* The number of positions used along each grid axis when fitting the
-   Mapping that follows the SIP polynomial. The spacing must be finer than
-   the smallest structure the Mapping can contain, or the fit can be exact
-   at every sampled position and wrong between them. Sixteen positions per
-   axis resolves anything wider than about a seventh of the image, which
-   covers a bi-cubic spline with up to about 30 coefficients per axis. */
+/* The number of positions used along each grid axis to obtain the initial
+   least-squares fit. The fit is validated over the image separately by
+   SipResidualsOK, so correctness does not depend on this lattice finding
+   the largest residual. */
 #define NFIT 16
 
 static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
                          AstMapping *map_upper, double *dim, double tol,
-                         double *fit, double *utol, int *status ){
+                         double *fit, int *status ){
 /*
 *  Name:
 *     FitSipMatrix
@@ -15410,7 +15547,7 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
 *     #include "fitschan.h"
 *     int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
 *                       AstMapping *map_upper, double *dim, double tol,
-*                       double *fit, double *utol, int *status )
+*                       double *fit, int *status )
 
 *  Class Membership:
 *     FitsChan member function.
@@ -15421,13 +15558,10 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
 *     function fits a linear transformation to that Mapping by least
 *     squares and reports whether it describes the Mapping well enough.
 *
-*     The positions used are a regular grid spanning the image,
-*     transformed into the input space of the upper Mapping through the
-*     lower Mapping and the PolyMap. That is the region in which the upper
-*     Mapping is actually used. Sampling it directly removes the need to
-*     guess a box in a space whose relationship to the image is not known
-*     in advance, and a fit to many positions cannot be exact at the
-*     sampled positions while being wrong between them.
+*     The fit positions are a regular grid spanning the image, transformed
+*     into the input space of the upper Mapping through the lower Mapping
+*     and the PolyMap. The fitted Mapping is then checked over the image by
+*     SipResidualsOK.
 
 *  Parameters:
 *     map_lower
@@ -15447,9 +15581,6 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
 *        An array of at least 6 elements in which to return the fit. The
 *        first two elements hold the constant offsets and the remaining
 *        four the gradients, in the order used by astLinearApprox.
-*     utol
-*        Returned holding "tol" expressed as a displacement in the output
-*        space of the upper Mapping.
 *     status
 *        Pointer to the inherited status variable.
 
@@ -15462,6 +15593,12 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
 */
 
 /* Local Variables: */
+   AstMapping *actual;
+   AstMapping *approx;
+   AstMapping *base;
+   AstMapping *lmap;
+   AstMatrixMap *mm;
+   AstShiftMap *sm;
    double *px;
    double *py;
    double *qx;
@@ -15475,8 +15612,8 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
    double det;
    double dx;
    double dy;
-   double res;
-   double resmax;
+   double mat[ 4 ];
+   double offset[ 2 ];
    double sxu;
    double sxv;
    double sxx;
@@ -15485,7 +15622,6 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
    double syv;
    double syy;
    double ubar;
-   double uscale;
    double vbar;
    double xbar;
    double ybar;
@@ -15498,6 +15634,12 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
 
 /* Initialise */
    result = 0;
+   actual = NULL;
+   approx = NULL;
+   base = NULL;
+   lmap = NULL;
+   mm = NULL;
+   sm = NULL;
 
 /* Check the inherited status. */
    if( !astOK ) return result;
@@ -15506,11 +15648,9 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
    dx = ( dim[ 0 ] == AST__BAD ) ? 1000.0 : dim[ 0 ];
    dy = ( dim[ 1 ] == AST__BAD ) ? 1000.0 : dim[ 1 ];
 
-/* Allocate work space for the grid of positions, plus three more used to
-   express the tolerance: the centre of the image and one position a pixel
-   away from it along each grid axis. */
+/* Allocate work space for the grid of fit positions. */
    igrid = NFIT*NFIT;
-   np = igrid + 3;
+   np = igrid;
    px = astMalloc( sizeof( *px )*(size_t) np );
    py = astMalloc( sizeof( *py )*(size_t) np );
    qx = astMalloc( sizeof( *qx )*(size_t) np );
@@ -15525,13 +15665,6 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
             i++;
          }
       }
-      px[ igrid ] = 0.5*dx;
-      py[ igrid ] = 0.5*dy;
-      px[ igrid + 1 ] = 0.5*dx + 1.0;
-      py[ igrid + 1 ] = 0.5*dy;
-      px[ igrid + 2 ] = 0.5*dx;
-      py[ igrid + 2 ] = 0.5*dy + 1.0;
-
 /* Transform the positions into the input space of the upper Mapping, and
    then through the upper Mapping. On exit "px/py" hold the inputs and
    "qx/qy" the corresponding outputs. */
@@ -15543,24 +15676,8 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
    Mapping cannot then be tested where it is used. */
       result = 1;
       for( i = 0; i < np && result; i++ ) {
-         if( px[ i ] == AST__BAD || py[ i ] == AST__BAD ||
-             qx[ i ] == AST__BAD || qy[ i ] == AST__BAD ) result = 0;
-      }
-
-/* Express the supplied tolerance as a displacement in the output space of
-   the upper Mapping, using the larger of the displacements produced by a
-   one pixel step along each grid axis. */
-      if( result ) {
-         uscale = astMAX(
-            sqrt( ( qx[ igrid + 1 ] - qx[ igrid ] )*( qx[ igrid + 1 ] - qx[ igrid ] ) +
-                  ( qy[ igrid + 1 ] - qy[ igrid ] )*( qy[ igrid + 1 ] - qy[ igrid ] ) ),
-            sqrt( ( qx[ igrid + 2 ] - qx[ igrid ] )*( qx[ igrid + 2 ] - qx[ igrid ] ) +
-                  ( qy[ igrid + 2 ] - qy[ igrid ] )*( qy[ igrid + 2 ] - qy[ igrid ] ) ) );
-         if( uscale > 0.0 ) {
-            *utol = tol*uscale;
-         } else {
-            result = 0;
-         }
+         if( astISBAD( px[ i ] ) || astISBAD( py[ i ] ) ||
+             astISBAD( qx[ i ] ) || astISBAD( qy[ i ] ) ) result = 0;
       }
 
 /* Fit a plane to each output by least squares. Work relative to the mean
@@ -15595,7 +15712,7 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
 /* A singular system means the sampled positions are collinear, so no
    plane can be fitted to them. */
          det = sxx*syy - sxy*sxy;
-         if( det == 0.0 ) {
+         if( det == 0.0 || astISBAD( det ) ) {
             result = 0;
 
          } else {
@@ -15606,26 +15723,37 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
             a0 = ubar - a1*xbar - a2*ybar;
             b0 = vbar - b1*xbar - b2*ybar;
 
-/* Find the largest departure of the Mapping from the fit. */
-            resmax = 0.0;
-            for( i = 0; i < igrid; i++ ) {
-               dx = qx[ i ] - ( a0 + a1*px[ i ] + a2*py[ i ] );
-               dy = qy[ i ] - ( b0 + b1*px[ i ] + b2*py[ i ] );
-               res = sqrt( dx*dx + dy*dy );
-               if( res > resmax ) resmax = res;
-            }
-
-            if( resmax > *utol ) {
-               result = 0;
-            } else {
-               fit[ 0 ] = a0;
-               fit[ 1 ] = b0;
-               fit[ 2 ] = a1;
-               fit[ 3 ] = a2;
-               fit[ 4 ] = b1;
-               fit[ 5 ] = b2;
-            }
+            fit[ 0 ] = a0;
+            fit[ 1 ] = b0;
+            fit[ 2 ] = a1;
+            fit[ 3 ] = a2;
+            fit[ 4 ] = b1;
+            fit[ 5 ] = b2;
          }
+      }
+   }
+
+/* Build the exact Mapping sampled above and its fitted approximation, then
+   find the extrema of the pixel-coordinate residuals over the image. */
+   if( result ) {
+      base = (AstMapping *) astCmpMap( map_lower, polymap, 1, " ", status );
+      actual = (AstMapping *) astCmpMap( base, map_upper, 1, " ", status );
+
+      mat[ 0 ] = fit[ 2 ];
+      mat[ 1 ] = fit[ 3 ];
+      mat[ 2 ] = fit[ 4 ];
+      mat[ 3 ] = fit[ 5 ];
+      mm = astMatrixMap( 2, 2, 0, mat, " ", status );
+      offset[ 0 ] = fit[ 0 ];
+      offset[ 1 ] = fit[ 1 ];
+      sm = astShiftMap( 2, offset, " ", status );
+      lmap = (AstMapping *) astCmpMap( mm, sm, 1, " ", status );
+      approx = (AstMapping *) astCmpMap( base, lmap, 1, " ", status );
+
+      if( astOK ) {
+         result = SipResidualsOK( actual, approx, fit, dim, tol, status );
+      } else {
+         result = 0;
       }
    }
 
@@ -15634,6 +15762,12 @@ static int FitSipMatrix( AstMapping *map_lower, AstPolyMap *polymap,
    py = astFree( py );
    qx = astFree( qx );
    qy = astFree( qy );
+   actual = astAnnul( actual );
+   approx = astAnnul( approx );
+   base = astAnnul( base );
+   lmap = astAnnul( lmap );
+   mm = astAnnul( mm );
+   sm = astAnnul( sm );
 
 /* Return the answer. */
    return astOK ? result : 0;
@@ -29317,7 +29451,6 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    double scales[ 2 ];
    double shift[ 2 ];
    double ubnd[ 2 ];
-   double utol;
    double val;
    int *inax1;
    int *inax2;
@@ -29532,7 +29665,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    Retain the fit coefficients for later use. */
                if( ok ) {
                   ok = FitSipMatrix( map_lower, polymap, map_upper, dim, tol,
-                                     fit, &utol, status );
+                                     fit, status );
                   if( ok && ( fabs( fit[ 0 ] ) > 1.0E-7 ||
                               fabs( fit[ 1 ] ) > 1.0E-7 ) ) ok = 0;
                }
@@ -29584,7 +29717,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    those pieces form actually reproduces the Mapping over the image before
    committing to it. */
                if( ok ) {
-                  ok = CheckSipFit( smap, polymap, crpix, fit, dim, utol,
+                  ok = CheckSipFit( smap, polymap, crpix, fit, dim, tol,
                                     status );
                }
 

@@ -4850,12 +4850,11 @@ int main( void ) {
       further fixed positions, so structure smaller than the gaps between
       those positions is invisible to it however well placed the box is.
       The Mapping between the SIP polynomial and the CD matrix used here is
-      linear except for a Gaussian bump 700 pixels from the nearest of those
-      positions, 20 times FitsTol at its peak.  A least squares fit over a
-      grid spanning the image sees it.  The second pass uses a bump well
-      below FitsTol and checks that a Mapping which is linear enough is
-      still accepted, so that the test measures the tolerance rather than
-      just refusing splines. --- */
+      linear except for a Gaussian bump centred between the positions of a
+      16x16 fit grid.  The bump is 20 times FitsTol at its peak but below
+      FitsTol at all four surrounding grid positions.  The residual
+      validation still sees it.  The second pass uses a bump below FitsTol and
+      checks that a Mapping which is linear enough is still accepted. --- */
    if( *status == 0 ) {
       astBegin;
       {
@@ -4905,9 +4904,9 @@ int main( void ) {
                int bnw;
 
                sprintf( bex0, "u = x + %g*exp( -( (x-1500)*(x-1500) + "
-                        "(y-1500)*(y-1500) )/45000 )", bamp[ bj ] );
+                        "(y-1500)*(y-1500) )/5000 )", bamp[ bj ] );
                sprintf( bex1, "x = u - %g*exp( -( (u-1500)*(u-1500) + "
-                        "(v-1500)*(v-1500) )/45000 )", bamp[ bj ] );
+                        "(v-1500)*(v-1500) )/5000 )", bamp[ bj ] );
                bfwd[ 0 ] = bex0;
                bfwd[ 1 ] = "v = y";
                binv[ 0 ] = bex1;
@@ -4942,7 +4941,7 @@ int main( void ) {
                      stopit( 915, "SIP description accepted although the "
                              "Mapping following the SIP polynomial departs "
                              "from linearity by 20 times FitsTol between the "
-                             "positions astLinearApprox samples", status );
+                             "least-squares fit positions", status );
                   } else if( !bfound && bwant[ bj ] ) {
                      stopit( 916, "SIP description rejected although the "
                              "Mapping following the SIP polynomial is linear "
@@ -4961,6 +4960,8 @@ int main( void ) {
       is iterative or approximate corrupts CRPIX alone and no test on the
       other parts can see it.  The PolyMap here has an inverse offset by half
       a pixel from its forward transformation, which is five times FitsTol.
+      The second world-coordinate axis has 100 times the scale of the first,
+      so converting FitsTol with the larger scale would hide this error.
       astWrite used to emit CRPIX1 = 0.5 for a Mapping whose reference pixel
       is grid zero, and report success.  It should fall back to a plain
       linear approximation, which uses only forward transformations. --- */
@@ -4977,7 +4978,7 @@ int main( void ) {
                              "CD1_1   =             -5.5E-05",
                              "CD1_2   =                  0.0",
                              "CD2_1   =                  0.0",
-                             "CD2_2   =              5.5E-05",
+                             "CD2_2   =              5.5E-03",
                              "RADESYS = 'ICRS'" };
          double cpolyf[ 16 ] = { 1.0, 1, 1, 0,   1.0E-9, 1, 2, 0,
                                  1.0, 2, 0, 1,   1.0E-9, 2, 0, 2 };
