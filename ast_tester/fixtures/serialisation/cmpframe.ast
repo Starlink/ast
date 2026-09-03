@@ -1,0 +1,36 @@
+ Begin CmpFrame 	# Compound coordinate system description
+#   Title = "3-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 3 	# Number of coordinate axes
+#   Domain = "SKY-SPECTRUM" 	# Coordinate system domain
+#   Lbl1 = "Right ascension" 	# Label for axis 1
+#   Lbl2 = "Declination" 	# Label for axis 2
+#   Lbl3 = "Frequency" 	# Label for axis 3
+#   Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#   Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#   Uni3 = "GHz" 	# Units for axis 3
+#   Dir1 = 0 	# Plot axis 1 in reverse direction
+ IsA Frame 	# Coordinate system description
+    FrameA = 	# First component Frame
+       Begin SkyFrame 	# Description of celestial coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          System = "FK5" 	# Coordinate system type
+          Ax1 = 	# Axis number 1
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+          Ax2 = 	# Axis number 2
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+       IsA Frame 	# Coordinate system description
+       End SkyFrame
+    FrameB = 	# Second component Frame
+       Begin SpecFrame 	# Description of spectral coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          System = "FREQ" 	# Coordinate system type
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Unit = "GHz" 	# Axis units
+             End Axis
+       IsA Frame 	# Coordinate system description
+          UFreq = "GHz" 	# Preferred units for frequency
+       End SpecFrame
+ End CmpFrame

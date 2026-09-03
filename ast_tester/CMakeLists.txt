@@ -409,6 +409,13 @@ function(add_roundtrip_test)
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endfunction()
 
+add_executable(gen_native_fixtures gen_native_fixtures.c)
+target_include_directories(gen_native_fixtures PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_native_fixtures PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_native_fixtures PRIVATE HAVE_CONFIG_H)
+set_target_properties(gen_native_fixtures PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(gen_native_fixtures)
+
 add_executable(gen_simplify_fixtures gen_simplify_fixtures.c gen_simplify_flags.c)
 target_include_directories(gen_simplify_fixtures PRIVATE ${TEST_INCLUDES})
 target_link_libraries(gen_simplify_fixtures PRIVATE ${TEST_LIBS})

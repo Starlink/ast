@@ -1,0 +1,14 @@
+ Begin TimeFrame 	# Description of time coordinate system
+#   Title = "Modified Julian Date [UTC]" 	# Title of coordinate system
+    Naxes = 1 	# Number of coordinate axes
+#   Domain = "TIME" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Modified Julian Date" 	# Label for axis 1
+    System = "MJD" 	# Coordinate system type
+#   Uni1 = "d" 	# Units for axis 1 (day)
+    Ax1 = 	# Axis number 1
+       Begin Axis 	# Coordinate axis
+       End Axis
+ IsA Frame 	# Coordinate system description
+    TmScl = "UTC" 	# Time scale
+ End TimeFrame
