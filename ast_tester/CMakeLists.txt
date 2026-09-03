@@ -409,6 +409,13 @@ function(add_roundtrip_test)
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endfunction()
 
+add_executable(gen_frameset_fixtures gen_frameset_fixtures.c)
+target_include_directories(gen_frameset_fixtures PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_frameset_fixtures PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_frameset_fixtures PRIVATE HAVE_CONFIG_H)
+set_target_properties(gen_frameset_fixtures PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(gen_frameset_fixtures)
+
 add_executable(gen_native_fixtures gen_native_fixtures.c)
 target_include_directories(gen_native_fixtures PRIVATE ${TEST_INCLUDES})
 target_link_libraries(gen_native_fixtures PRIVATE ${TEST_LIBS})
@@ -545,7 +552,8 @@ endforeach()
 file(GLOB_RECURSE _ast_native_fixtures CONFIGURE_DEPENDS
      RELATIVE "${AST_FIXTURE_SOURCE_ROOT}"
      "${AST_FIXTURE_SOURCE_ROOT}/programs/*.ast"
-     "${AST_FIXTURE_SOURCE_ROOT}/serialisation/*.ast")
+     "${AST_FIXTURE_SOURCE_ROOT}/serialisation/*.ast"
+     "${AST_FIXTURE_SOURCE_ROOT}/wcsconv/framesets/*.ast")
 foreach(_fixture IN LISTS _ast_native_fixtures)
     string(REGEX REPLACE "[/.]" "_" _rt_name "${_fixture}")
     add_roundtrip_test(NAME ${_rt_name} FIXTURE ${_fixture})

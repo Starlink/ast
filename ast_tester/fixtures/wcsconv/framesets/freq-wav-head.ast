@@ -1,0 +1,65 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "Frequency (Barycentric)" 	# Title of coordinate system
+#   Naxes = 1 	# Number of coordinate axes
+#   Domain = "SPECTRUM" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Frequency" 	# Label for axis 1
+#   System = "FREQ" 	# Coordinate system type
+#   Uni1 = "Hz" 	# Units for axis 1 (Hertz)
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+    Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+          Title = "Pixel Coordinates" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          Domain = "GRID" 	# Coordinate system domain
+#         Lbl1 = "Pixel axis 1" 	# Label for axis 1
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 1" 	# Axis Label
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin SpecFrame 	# Description of spectral coordinate system
+          Ident = " " 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "Frequency (Barycentric)" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+#         Domain = "SPECTRUM" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Frequency" 	# Label for axis 1
+          System = "FREQ" 	# Coordinate system type
+#         Uni1 = "Hz" 	# Units for axis 1 (Hertz)
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Unit = "Hz" 	# Axis units (Hertz)
+             End Axis
+       IsA Frame 	# Coordinate system description
+          SoR = "Barycentric" 	# Standard of rest
+          RstFrq = 1420400000 	# Rest frequency (Hz)
+          UFreq = "Hz" 	# Preferred units for frequency
+       End SpecFrame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin WinMap 	# Map one window on to another
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = 0.21182353613451468 	# Shift for axis 1
+                Scl1 = -1.4859335061434537e-06 	# Scale factor for axis 1
+             End WinMap
+          MapB = 	# Second component Mapping
+             Begin SpecMap 	# Conversion between spectral coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Nspec = 1 	# Number of conversion steps
+                Spec1 = "WVTOFR" 	# Convert wavelength (vacuum) to frequency
+             End SpecMap
+       End CmpMap
+ End FrameSet

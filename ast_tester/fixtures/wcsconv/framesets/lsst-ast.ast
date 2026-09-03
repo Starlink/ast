@@ -1,0 +1,351 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "ICRS coordinates; gnomonic projection" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "SKY" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Right ascension" 	# Label for axis 1
+#   Lbl2 = "Declination" 	# Label for axis 2
+#   System = "ICRS" 	# Coordinate system type
+#   Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#   Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#   Dir1 = 0 	# Plot axis 1 in reverse direction
+#   Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#   Top2 = 1.5707963267948966 	# Highest legal axis value
+ IsA Frame 	# Coordinate system description
+    Nframe = 5 	# Number of Frames in FrameSet
+#   Base = 1 	# Index of base Frame
+    Currnt = 5 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Lnk3 = 2 	# Node 3 is derived from node 2
+    Lnk4 = 3 	# Node 4 is derived from node 3
+    Lnk5 = 4 	# Node 5 is derived from node 4
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "PIXELS" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin Frame 	# Coordinate system description
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "NORMEDPIXELS" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+             End Axis
+       End Frame
+    Frm3 = 	# Frame number 3
+       Begin Frame 	# Coordinate system description
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "INTERMEDIATE0" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+             End Axis
+       End Frame
+    Frm4 = 	# Frame number 4
+       Begin Frame 	# Coordinate system description
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "IWC" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+             End Axis
+       End Frame
+    Frm5 = 	# Frame number 5
+       Begin SkyFrame 	# Description of celestial coordinate system
+          Ident = " " 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "ICRS coordinates; gnomonic projection" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+#         Domain = "SKY" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Right ascension" 	# Label for axis 1
+#         Lbl2 = "Declination" 	# Label for axis 2
+          System = "ICRS" 	# Coordinate system type
+          AlSys = "ICRS" 	# Alignment coordinate system
+#         Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#         Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+#         Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#         Top2 = 1.5707963267948966 	# Highest legal axis value
+          Ax1 = 	# Axis number 1
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+          Ax2 = 	# Axis number 2
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+       IsA Frame 	# Coordinate system description
+          Proj = "gnomonic" 	# Description of sky projection
+#         SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+          SRefIs = "Ignored" 	# Not rotated (ref. pos. is ignored)
+          SRef1 = 0.93073584964951706 	# Ref. pos. RA 3:33:18.5
+          SRef2 = -0.48994978249425891 	# Ref. pos. Dec -28:04:19
+       End SkyFrame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin PolyMap 	# Polynomial transformation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MPF1 = 1 	# Max. power of input 1 in any forward polynomial
+          MPF2 = 1 	# Max. power of input 2 in any forward polynomial
+          NCF1 = 3 	# No. of coeff.s for forward polynomial 1
+          NCF2 = 3 	# No. of coeff.s for forward polynomial 2
+          CF1 = -1 	# Coeff 1 of forward polynomial 1
+          CF2 = 0.00049127978383689509 	# Coeff 2 of forward polynomial 1
+          CF3 = 0 	# Coeff 3 of forward polynomial 1
+          CF4 = -1 	# Coeff 1 of forward polynomial 2
+          CF5 = 0 	# Coeff 2 of forward polynomial 2
+          CF6 = 0.00050012503125781451 	# Coeff 3 of forward polynomial 2
+          PF3 = 1 	# Power of i/p 1 for coeff 2 of fwd poly 1
+          PF6 = 1 	# Power of i/p 2 for coeff 3 of fwd poly 1
+          PF9 = 1 	# Power of i/p 1 for coeff 2 of fwd poly 2
+          PF12 = 1 	# Power of i/p 2 for coeff 3 of fwd poly 2
+          IterInv = 1 	# Use an iterative inverse
+          NiterInv = 10 	# Max number of iterations for iterative inverse
+          TolInv = 9.9999999999999995e-08 	# Target relative error for iterative inverse
+       End PolyMap
+    Map3 = 	# Mapping between nodes 2 and 3
+       Begin PolyMap 	# Polynomial transformation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MPF1 = 5 	# Max. power of input 1 in any forward polynomial
+          MPF2 = 5 	# Max. power of input 2 in any forward polynomial
+          NCF1 = 21 	# No. of coeff.s for forward polynomial 1
+          NCF2 = 21 	# No. of coeff.s for forward polynomial 2
+          CF1 = -0.28442541183584946 	# Coeff 1 of forward polynomial 1
+          CF2 = 0.025196410450119774 	# Coeff 2 of forward polynomial 1
+          CF3 = 0.10850740257872329 	# Coeff 3 of forward polynomial 1
+          CF4 = -1.8117214171184971e-05 	# Coeff 4 of forward polynomial 1
+          CF5 = -2.5411973475688556e-05 	# Coeff 5 of forward polynomial 1
+          CF6 = -2.7055625077518308e-05 	# Coeff 6 of forward polynomial 1
+          CF7 = 5.9561505359004041e-06 	# Coeff 7 of forward polynomial 1
+          CF8 = 4.3469327876298142e-06 	# Coeff 8 of forward polynomial 1
+          CF9 = -1.9295976474719754e-06 	# Coeff 9 of forward polynomial 1
+          CF10 = 8.9276781617670002e-06 	# Coeff 10 of forward polynomial 1
+          CF11 = -3.0253037572317978e-06 	# Coeff 11 of forward polynomial 1
+          CF12 = -3.1691916359221918e-06 	# Coeff 12 of forward polynomial 1
+          CF13 = -2.5343291201044216e-06 	# Coeff 13 of forward polynomial 1
+          CF14 = 2.5103885008176705e-06 	# Coeff 14 of forward polynomial 1
+          CF15 = -3.3353885943820633e-06 	# Coeff 15 of forward polynomial 1
+          CF16 = 7.0231915037332632e-07 	# Coeff 16 of forward polynomial 1
+          CF17 = 4.433637931327871e-06 	# Coeff 17 of forward polynomial 1
+          CF18 = 1.9014913722005829e-06 	# Coeff 18 of forward polynomial 1
+          CF19 = 1.4071986461672182e-08 	# Coeff 19 of forward polynomial 1
+          CF20 = 4.0071804654658158e-07 	# Coeff 20 of forward polynomial 1
+          CF21 = 1.2864360459629361e-07 	# Coeff 21 of forward polynomial 1
+          CF22 = -0.11865465113108672 	# Coeff 1 of forward polynomial 2
+          CF23 = 0.11043904923265806 	# Coeff 2 of forward polynomial 2
+          CF24 = -0.024679579661590779 	# Coeff 3 of forward polynomial 2
+          CF25 = -2.7450540092086099e-05 	# Coeff 4 of forward polynomial 2
+          CF26 = -1.7393341912958501e-05 	# Coeff 5 of forward polynomial 2
+          CF27 = -3.6787946682862772e-06 	# Coeff 6 of forward polynomial 2
+          CF28 = 1.0470311024552662e-05 	# Coeff 7 of forward polynomial 2
+          CF29 = -7.0809073268373886e-07 	# Coeff 8 of forward polynomial 2
+          CF30 = 1.5779574342544132e-07 	# Coeff 9 of forward polynomial 2
+          CF31 = 5.7811785237108776e-07 	# Coeff 10 of forward polynomial 2
+          CF32 = -4.2622855209830129e-06 	# Coeff 11 of forward polynomial 2
+          CF33 = -2.1386278247017794e-06 	# Coeff 12 of forward polynomial 2
+          CF34 = -2.9383420175814586e-06 	# Coeff 13 of forward polynomial 2
+          CF35 = -2.5116133254473027e-07 	# Coeff 14 of forward polynomial 2
+          CF36 = -1.3619505424895891e-06 	# Coeff 15 of forward polynomial 2
+          CF37 = 1.3034570560858815e-06 	# Coeff 16 of forward polynomial 2
+          CF38 = 3.6229356255468614e-06 	# Coeff 17 of forward polynomial 2
+          CF39 = 6.205160891544347e-07 	# Coeff 18 of forward polynomial 2
+          CF40 = 1.3650773593104822e-06 	# Coeff 19 of forward polynomial 2
+          CF41 = 3.5979635479701857e-06 	# Coeff 20 of forward polynomial 2
+          CF42 = 2.1174941282631594e-07 	# Coeff 21 of forward polynomial 2
+          PF3 = 1 	# Power of i/p 1 for coeff 2 of fwd poly 1
+          PF6 = 1 	# Power of i/p 2 for coeff 3 of fwd poly 1
+          PF7 = 2 	# Power of i/p 1 for coeff 4 of fwd poly 1
+          PF9 = 1 	# Power of i/p 1 for coeff 5 of fwd poly 1
+          PF10 = 1 	# Power of i/p 2 for coeff 5 of fwd poly 1
+          PF12 = 2 	# Power of i/p 2 for coeff 6 of fwd poly 1
+          PF13 = 3 	# Power of i/p 1 for coeff 7 of fwd poly 1
+          PF15 = 2 	# Power of i/p 1 for coeff 8 of fwd poly 1
+          PF16 = 1 	# Power of i/p 2 for coeff 8 of fwd poly 1
+          PF17 = 1 	# Power of i/p 1 for coeff 9 of fwd poly 1
+          PF18 = 2 	# Power of i/p 2 for coeff 9 of fwd poly 1
+          PF20 = 3 	# Power of i/p 2 for coeff 10 of fwd poly 1
+          PF21 = 4 	# Power of i/p 1 for coeff 11 of fwd poly 1
+          PF23 = 3 	# Power of i/p 1 for coeff 12 of fwd poly 1
+          PF24 = 1 	# Power of i/p 2 for coeff 12 of fwd poly 1
+          PF25 = 2 	# Power of i/p 1 for coeff 13 of fwd poly 1
+          PF26 = 2 	# Power of i/p 2 for coeff 13 of fwd poly 1
+          PF27 = 1 	# Power of i/p 1 for coeff 14 of fwd poly 1
+          PF28 = 3 	# Power of i/p 2 for coeff 14 of fwd poly 1
+          PF30 = 4 	# Power of i/p 2 for coeff 15 of fwd poly 1
+          PF31 = 5 	# Power of i/p 1 for coeff 16 of fwd poly 1
+          PF33 = 4 	# Power of i/p 1 for coeff 17 of fwd poly 1
+          PF34 = 1 	# Power of i/p 2 for coeff 17 of fwd poly 1
+          PF35 = 3 	# Power of i/p 1 for coeff 18 of fwd poly 1
+          PF36 = 2 	# Power of i/p 2 for coeff 18 of fwd poly 1
+          PF37 = 2 	# Power of i/p 1 for coeff 19 of fwd poly 1
+          PF38 = 3 	# Power of i/p 2 for coeff 19 of fwd poly 1
+          PF39 = 1 	# Power of i/p 1 for coeff 20 of fwd poly 1
+          PF40 = 4 	# Power of i/p 2 for coeff 20 of fwd poly 1
+          PF42 = 5 	# Power of i/p 2 for coeff 21 of fwd poly 1
+          PF45 = 1 	# Power of i/p 1 for coeff 2 of fwd poly 2
+          PF48 = 1 	# Power of i/p 2 for coeff 3 of fwd poly 2
+          PF49 = 2 	# Power of i/p 1 for coeff 4 of fwd poly 2
+          PF51 = 1 	# Power of i/p 1 for coeff 5 of fwd poly 2
+          PF52 = 1 	# Power of i/p 2 for coeff 5 of fwd poly 2
+          PF54 = 2 	# Power of i/p 2 for coeff 6 of fwd poly 2
+          PF55 = 3 	# Power of i/p 1 for coeff 7 of fwd poly 2
+          PF57 = 2 	# Power of i/p 1 for coeff 8 of fwd poly 2
+          PF58 = 1 	# Power of i/p 2 for coeff 8 of fwd poly 2
+          PF59 = 1 	# Power of i/p 1 for coeff 9 of fwd poly 2
+          PF60 = 2 	# Power of i/p 2 for coeff 9 of fwd poly 2
+          PF62 = 3 	# Power of i/p 2 for coeff 10 of fwd poly 2
+          PF63 = 4 	# Power of i/p 1 for coeff 11 of fwd poly 2
+          PF65 = 3 	# Power of i/p 1 for coeff 12 of fwd poly 2
+          PF66 = 1 	# Power of i/p 2 for coeff 12 of fwd poly 2
+          PF67 = 2 	# Power of i/p 1 for coeff 13 of fwd poly 2
+          PF68 = 2 	# Power of i/p 2 for coeff 13 of fwd poly 2
+          PF69 = 1 	# Power of i/p 1 for coeff 14 of fwd poly 2
+          PF70 = 3 	# Power of i/p 2 for coeff 14 of fwd poly 2
+          PF72 = 4 	# Power of i/p 2 for coeff 15 of fwd poly 2
+          PF73 = 5 	# Power of i/p 1 for coeff 16 of fwd poly 2
+          PF75 = 4 	# Power of i/p 1 for coeff 17 of fwd poly 2
+          PF76 = 1 	# Power of i/p 2 for coeff 17 of fwd poly 2
+          PF77 = 3 	# Power of i/p 1 for coeff 18 of fwd poly 2
+          PF78 = 2 	# Power of i/p 2 for coeff 18 of fwd poly 2
+          PF79 = 2 	# Power of i/p 1 for coeff 19 of fwd poly 2
+          PF80 = 3 	# Power of i/p 2 for coeff 19 of fwd poly 2
+          PF81 = 1 	# Power of i/p 1 for coeff 20 of fwd poly 2
+          PF82 = 4 	# Power of i/p 2 for coeff 20 of fwd poly 2
+          PF84 = 5 	# Power of i/p 2 for coeff 21 of fwd poly 2
+          IterInv = 1 	# Use an iterative inverse
+          NiterInv = 10 	# Max number of iterations for iterative inverse
+          TolInv = 9.9999999999999995e-08 	# Target relative error for iterative inverse
+       End PolyMap
+    Map4 = 	# Mapping between nodes 3 and 4
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+    Map5 = 	# Mapping between nodes 4 and 5
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin UnitMap 	# Unit (null) Mapping
+                Nin = 2 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+             End UnitMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                InvA = 1 	# First Mapping used in inverse direction
+                MapA = 	# First component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 2 	# Number of input coordinates
+                      Invert = 1 	# Mapping inverted
+                   IsA Mapping 	# Mapping between coordinate systems
+                      InvA = 1 	# First Mapping used in inverse direction
+                      MapA = 	# First component Mapping
+                         Begin SphMap 	# Cartesian to Spherical mapping
+                            Nin = 3 	# Number of input coordinates
+                            Nout = 2 	# Number of output coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            UntRd = 1 	# All input vectors have unit length
+                            PlrLg = 0.93073584964951761 	# Polar longitude (rad.s)
+                         End SphMap
+                      MapB = 	# Second component Mapping
+                         Begin CmpMap 	# Compound Mapping
+                            Nin = 3 	# Number of input coordinates
+                            Nout = 2 	# Number of output coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            InvA = 1 	# First Mapping used in inverse direction
+                            MapA = 	# First component Mapping
+                               Begin MatrixMap 	# Matrix transformation
+                                  Nin = 3 	# Number of input coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  M0 = -0.28105200045586293 	# Forward matrix value
+                                  M1 = -0.80205963974196071 	# Forward matrix value
+                                  M2 = 0.52698207496721727 	# Forward matrix value
+                                  M3 = -0.3774344917398868 	# Forward matrix value
+                                  M4 = 0.59724394873200359 	# Forward matrix value
+                                  M5 = 0.70770252942041767 	# Forward matrix value
+                                  M6 = -0.88235649115582016 	# Forward matrix value
+                                  M7 = 0 	# Forward matrix value
+                                  M8 = -0.47058157902237213 	# Forward matrix value
+                                  IM0 = -0.28105200045586293 	# Inverse matrix value
+                                  IM1 = -0.3774344917398868 	# Inverse matrix value
+                                  IM2 = -0.88235649115582016 	# Inverse matrix value
+                                  IM3 = -0.80205963974196071 	# Inverse matrix value
+                                  IM4 = 0.59724394873200359 	# Inverse matrix value
+                                  IM5 = 0 	# Inverse matrix value
+                                  IM6 = 0.52698207496721727 	# Inverse matrix value
+                                  IM7 = 0.70770252942041767 	# Inverse matrix value
+                                  IM8 = -0.47058157902237213 	# Inverse matrix value
+                                  Form = "Full" 	# Matrix storage form
+                               End MatrixMap
+                            MapB = 	# Second component Mapping
+                               Begin CmpMap 	# Compound Mapping
+                                  Nin = 3 	# Number of input coordinates
+                                  Nout = 2 	# Number of output coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  MapA = 	# First component Mapping
+                                     Begin SphMap 	# Cartesian to Spherical mapping
+                                        Nin = 3 	# Number of input coordinates
+                                        Nout = 2 	# Number of output coordinates
+                                        Invert = 1 	# Mapping inverted
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        UntRd = 1 	# All input vectors have unit length
+                                        PlrLg = 0 	# Polar longitude (rad.s)
+                                     End SphMap
+                                  MapB = 	# Second component Mapping
+                                     Begin CmpMap 	# Compound Mapping
+                                        Nin = 2 	# Number of input coordinates
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        MapA = 	# First component Mapping
+                                           Begin WcsMap 	# FITS-WCS sky projection
+                                              Nin = 2 	# Number of input coordinates
+                                              Invert = 1 	# Mapping inverted
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              Type = "TAN" 	# Gnomonic projection
+                                           End WcsMap
+                                        MapB = 	# Second component Mapping
+                                           Begin ZoomMap 	# Zoom about the origin
+                                              Nin = 2 	# Number of input coordinates
+                                           IsA Mapping 	# Mapping between coordinate systems
+                                              Zoom = 57.295779513082323 	# Zoom factor
+                                           End ZoomMap
+                                     End CmpMap
+                               End CmpMap
+                         End CmpMap
+                   End CmpMap
+                MapB = 	# Second component Mapping
+                   Begin UnitMap 	# Unit (null) Mapping
+                      Nin = 2 	# Number of input coordinates
+                      IsSimp = 1 	# Mapping has been simplified
+                   IsA Mapping 	# Mapping between coordinate systems
+                   End UnitMap
+             End CmpMap
+       End CmpMap
+ End FrameSet

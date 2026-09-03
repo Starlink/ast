@@ -1,0 +1,67 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "Energy (Barycentric)" 	# Title of coordinate system
+#   Naxes = 1 	# Number of coordinate axes
+#   Domain = "SPECTRUM" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Energy" 	# Label for axis 1
+#   System = "ENER" 	# Coordinate system type
+#   Uni1 = "J" 	# Units for axis 1 (Joule)
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+    Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+          Title = "Pixel Coordinates" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          Domain = "GRID" 	# Coordinate system domain
+#         Lbl1 = "Pixel axis 1" 	# Label for axis 1
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 1" 	# Axis Label
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin SpecFrame 	# Description of spectral coordinate system
+          Ident = " " 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "Energy (Barycentric)" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+#         Domain = "SPECTRUM" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Energy" 	# Label for axis 1
+          System = "ENER" 	# Coordinate system type
+#         Uni1 = "J" 	# Units for axis 1 (Joule)
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Unit = "J" 	# Axis units (Joule)
+             End Axis
+       IsA Frame 	# Coordinate system description
+          SoR = "Barycentric" 	# Standard of rest
+          RstFrq = 1420400000 	# Rest frequency (Hz)
+          UEner = "J" 	# Preferred units for energy
+       End SpecFrame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin WinMap 	# Map one window on to another
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = -424060.02473212697 	# Shift for axis 1
+                Scl1 = -29979.18570758 	# Scale factor for axis 1
+             End WinMap
+          MapB = 	# Second component Mapping
+             Begin SpecMap 	# Conversion between spectral coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Nspec = 2 	# Number of conversion steps
+                Spec1 = "VLTOFR" 	# Convert rel. velocity to frequency
+                Spec1a = 1420400000 	# Rest frequency (Hz)
+                Spec2 = "FRTOEN" 	# Convert frequency to energy
+             End SpecMap
+       End CmpMap
+ End FrameSet

@@ -1,0 +1,43 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "1-d coordinate system" 	# Title of coordinate system
+#   Naxes = 1 	# Number of coordinate axes
+#   Domain = "PIXEL" 	# Coordinate system domain
+#   Lbl1 = "PIXEL" 	# Label for axis 1
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+    Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+          Title = "Pixel Coordinates" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          Domain = "GRID" 	# Coordinate system domain
+#         Lbl1 = "Pixel axis 1" 	# Label for axis 1
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 1" 	# Axis Label
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin Frame 	# Coordinate system description
+          Ident = " " 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "1-d coordinate system" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          Domain = "PIXEL" 	# Coordinate system domain
+#         Lbl1 = "PIXEL" 	# Label for axis 1
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "PIXEL" 	# Axis Label
+                Symbol = "PIXEL" 	# Axis symbol
+             End Axis
+       End Frame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin ShiftMap 	# Shift each coordinate axis
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = -50 	# Shift for axis 1
+       End ShiftMap
+ End FrameSet

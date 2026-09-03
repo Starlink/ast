@@ -1,0 +1,145 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "IAU (1958) galactic coordinates; Hammer-Aitoff projection" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "SKY" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Galactic longitude" 	# Label for axis 1
+#   Lbl2 = "Galactic latitude" 	# Label for axis 2
+#   System = "GALACTIC" 	# Coordinate system type
+#   Uni1 = "degrees" 	# Units for axis 1
+#   Uni2 = "degrees" 	# Units for axis 2
+#   Dir1 = 0 	# Plot axis 1 in reverse direction
+#   Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#   Top2 = 1.5707963267948966 	# Highest legal axis value
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+    Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+          Title = "Pixel Coordinates" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "GRID" 	# Coordinate system domain
+#         Lbl1 = "Pixel axis 1" 	# Label for axis 1
+#         Lbl2 = "Pixel axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 1" 	# Axis Label
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 2" 	# Axis Label
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin SkyFrame 	# Description of celestial coordinate system
+          Ident = " " 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "IAU (1958) galactic coordinates; Hammer-Aitoff projection" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+#         Domain = "SKY" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Galactic longitude" 	# Label for axis 1
+#         Lbl2 = "Galactic latitude" 	# Label for axis 2
+          System = "GALACTIC" 	# Coordinate system type
+#         Uni1 = "degrees" 	# Units for axis 1
+#         Uni2 = "degrees" 	# Units for axis 2
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+#         Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#         Top2 = 1.5707963267948966 	# Highest legal axis value
+          Ax1 = 	# Axis number 1
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+          Ax2 = 	# Axis number 2
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+       IsA Frame 	# Coordinate system description
+          Proj = "Hammer-Aitoff" 	# Description of sky projection
+#         SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+          SRefIs = "Ignored" 	# Not rotated (ref. pos. is ignored)
+          SRef1 = -2.610465574795942 	# Ref. pos. l -149.5687
+          SRef2 = -0.34484566172083614 	# Ref. pos. b -19.7582
+       End SkyFrame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin WinMap 	# Map one window on to another
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = 3.1520646291017589 	# Shift for axis 1
+                Scl1 = -0.020943951023931952 	# Scale factor for axis 1
+                Sft2 = -3.1520646291017589 	# Shift for axis 2
+                Scl2 = 0.020943951023931952 	# Scale factor for axis 2
+             End WinMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                InvA = 1 	# First Mapping used in inverse direction
+                MapA = 	# First component Mapping
+                   Begin WcsMap 	# FITS-WCS sky projection
+                      Nin = 2 	# Number of input coordinates
+                      Invert = 1 	# Mapping inverted
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Type = "AIT" 	# Hammer-Aitoff projection
+                   End WcsMap
+                MapB = 	# Second component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 2 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      InvA = 1 	# First Mapping used in inverse direction
+                      MapA = 	# First component Mapping
+                         Begin SphMap 	# Cartesian to Spherical mapping
+                            Nin = 3 	# Number of input coordinates
+                            Nout = 2 	# Number of output coordinates
+                            Invert = 1 	# Mapping inverted
+                         IsA Mapping 	# Mapping between coordinate systems
+                            UntRd = 1 	# All input vectors have unit length
+                            PlrLg = 0 	# Polar longitude (rad.s)
+                         End SphMap
+                      MapB = 	# Second component Mapping
+                         Begin CmpMap 	# Compound Mapping
+                            Nin = 3 	# Number of input coordinates
+                            Nout = 2 	# Number of output coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            MapA = 	# First component Mapping
+                               Begin MatrixMap 	# Matrix transformation
+                                  Nin = 3 	# Number of input coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  M0 = -0.8114748329086714 	# Forward matrix value
+                                  M1 = 0.50650547146018587 	# Forward matrix value
+                                  M2 = -0.29148036458179932 	# Forward matrix value
+                                  M3 = -0.47668629803556373 	# Forward matrix value
+                                  M4 = -0.8622367467122326 	# Forward matrix value
+                                  M5 = -0.17122489855232773 	# Forward matrix value
+                                  M6 = -0.3380514292544754 	# Forward matrix value
+                                  M7 = 0 	# Forward matrix value
+                                  M8 = 0.94112763809113931 	# Forward matrix value
+                                  IM0 = -0.8114748329086714 	# Inverse matrix value
+                                  IM1 = -0.47668629803556373 	# Inverse matrix value
+                                  IM2 = -0.3380514292544754 	# Inverse matrix value
+                                  IM3 = 0.50650547146018587 	# Inverse matrix value
+                                  IM4 = -0.8622367467122326 	# Inverse matrix value
+                                  IM5 = 0 	# Inverse matrix value
+                                  IM6 = -0.29148036458179932 	# Inverse matrix value
+                                  IM7 = -0.17122489855232773 	# Inverse matrix value
+                                  IM8 = 0.94112763809113931 	# Inverse matrix value
+                                  Form = "Full" 	# Matrix storage form
+                               End MatrixMap
+                            MapB = 	# Second component Mapping
+                               Begin SphMap 	# Cartesian to Spherical mapping
+                                  Nin = 3 	# Number of input coordinates
+                                  Nout = 2 	# Number of output coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  UntRd = 1 	# All input vectors have unit length
+                                  PlrLg = -2.610465574795942 	# Polar longitude (rad.s)
+                               End SphMap
+                         End CmpMap
+                   End CmpMap
+             End CmpMap
+       End CmpMap
+ End FrameSet
