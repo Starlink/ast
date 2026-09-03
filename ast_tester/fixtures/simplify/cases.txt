@@ -460,6 +460,26 @@ cmpmap_inverted_lone              | simplify/cmpmap_inverted_lone.map | simplify
 cmpmap_inverted_nested            | simplify/cmpmap_inverted_nested.map | simplify/cmpmap_inverted_nested.simp |
 rate_inner_reduce_series          | simplify/rate_inner_reduce_series.map | simplify/rate_inner_reduce_series.simp |
 rate_inner_reduce_lone            | simplify/rate_inner_reduce_lone.map | simplify/rate_inner_reduce_lone.simp |
+cheby_linear_lone_reduce          | simplify/cheby_linear_lone_reduce.map | simplify/cheby_linear_lone_reduce.simp |
+neg_cheby_quadratic_no_reduce     | simplify/neg_cheby_quadratic_no_reduce.map | simplify/neg_cheby_quadratic_no_reduce.map | yes
+wcs_unknown_lone_reduce           | simplify/wcs_unknown_lone_reduce.map | simplify/wcs_unknown_lone_reduce.simp |
+neg_wcs_tan_no_reduce             | simplify/neg_wcs_tan_no_reduce.map | simplify/neg_wcs_tan_no_reduce.map | yes
+cap_deep_nest_zoom                | simplify/cap_deep_nest_zoom.map | simplify/cap_deep_nest_zoom.simp |
+cap_frameset_nochange             | simplify/cap_frameset_nochange.map | simplify/cap_frameset_nochange.simp |
+cap_restricted_inverted           | simplify/cap_restricted_inverted.map | simplify/cap_restricted_inverted.simp |
+cap_restricted_no_eligible        | simplify/cap_restricted_no_eligible.map | simplify/cap_restricted_no_eligible.simp |
+cap_restricted_component_flags    | simplify/cap_restricted_component_flags.map | simplify/cap_restricted_component_flags.simp |
+cap_ident_cmpmap                  | simplify/cap_ident_cmpmap.map | simplify/cap_ident_cmpmap.simp |
+cap_ident_frame                   | simplify/cap_ident_frame.map | simplify/cap_ident_frame.simp |
+cap_cmpperm_resume                | simplify/cap_cmpperm_resume.map | simplify/cap_cmpperm_resume.simp |
+cap_cmpperm_resume_inv            | simplify/cap_cmpperm_resume_inv.map | simplify/cap_cmpperm_resume_inv.simp |
+cap_cheby_consolidate             | simplify/cap_cheby_consolidate.map | simplify/cap_cheby_consolidate.simp |
+cap_box_permmap_const             | simplify/cap_box_permmap_const.map | simplify/cap_box_permmap_const.simp |
+cap_box_permmap_null              | simplify/cap_box_permmap_null.map | simplify/cap_box_permmap_null.simp |
+cap_box_permmap_nonbidi           | simplify/cap_box_permmap_nonbidi.map | simplify/cap_box_permmap_nonbidi.map | yes
+cap_poly_unc_frame                | simplify/cap_poly_unc_frame.map | simplify/cap_poly_unc_frame.simp |
+cap_poly_bent_edges               | simplify/cap_poly_bent_edges.map | simplify/cap_poly_bent_edges.simp |
+cap_poly_bend_allowed             | simplify/cap_poly_bend_allowed.map | simplify/cap_poly_bend_allowed.simp |
 
 # Negative controls repaired so no bystander rule fires (each was previously
 # dropped as an orphan because a component simplified on its own).
