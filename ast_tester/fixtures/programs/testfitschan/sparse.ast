@@ -183,9 +183,9 @@
                 Naxes = 2 	# Number of coordinate axes
                 Epoch = 2007.10664386351 	# Julian epoch of observation
                 System = "FK5" 	# Coordinate system type
-                ObsLat = 0.346026069000145 	# Observers geodetic latitude (rads)
-                ObsLon = -2.71363307300091 	# Observers geodetic longitude (rads)
-                Dut1 = -0.00321845632046122 	# UT1-UTC in seconds
+                ObsLat = 0.34602606900014499 	# Observers geodetic latitude (rads)
+                ObsLon = -2.7136330730009099 	# Observers geodetic longitude (rads)
+                Dut1 = -0.0032184563204612198 	# UT1-UTC in seconds
                 Ax1 = 	# Axis number 1
                    Begin SkyAxis 	# Celestial coordinate axis
                       Digits = 9 	# Default formatting precision
@@ -198,30 +198,30 @@
                    End SkyAxis
              IsA Frame 	# Coordinate system description
                 SRef1 = 1.2343627630284 	# Ref. pos. RA 4:42:53.706
-                SRef2 = 0.63032350835257 	# Ref. pos. Dec 36:06:53.56
+                SRef2 = 0.63032350835257001 	# Ref. pos. Dec 36:06:53.56
              End SkyFrame
           FrameB = 	# Second component Frame
              Begin DSBSpecFrame 	# Dual sideband spectral axis
                 Naxes = 1 	# Number of coordinate axes
-                Epoch = 2007.10664386353 	# Julian epoch of observation
+                Epoch = 2007.1066438635301 	# Julian epoch of observation
                 System = "VRAD" 	# Coordinate system type
-                ObsLat = 0.346026069000144 	# Observers geodetic latitude (rads)
-                ObsLon = -2.71363307300091 	# Observers geodetic longitude (rads)
-                Dut1 = -0.00321845632046122 	# UT1-UTC in seconds
+                ObsLat = 0.34602606900014399 	# Observers geodetic latitude (rads)
+                ObsLon = -2.7136330730009099 	# Observers geodetic longitude (rads)
+                Dut1 = -0.0032184563204612198 	# UT1-UTC in seconds
                 Ax1 = 	# Axis number 1
                    Begin Axis 	# Coordinate axis
                    End Axis
              IsA Frame 	# Coordinate system description
                 SoR = "LSRK" 	# Standard of rest
                 RefRA = 1.23436224892048 	# Reference RA (rads, FK5 J2000)
-                RefDec = 0.630323957597852 	# Reference Dec (rads, FK5 J2000)
+                RefDec = 0.63032395759785198 	# Reference Dec (rads, FK5 J2000)
                 RstFrq = 345795989900 	# Rest frequency (Hz)
-                SrcVel = -21699.2154029027 	# Source velocity (m/s)
+                SrcVel = -21699.215402902701 	# Source velocity (m/s)
                 SrcVRF = "LSRK" 	# Source velocity rest frame
                 UFreq = "GHz" 	# Preferred units for frequency
              IsA SpecFrame 	# Description of spectral coordinate system
                 DSBCen = 345782054267.698 	# Central frequency (Hz topo)
-                IF = -4999999979.60052 	# Intermediate frequency (Hz)
+                IF = -4999999979.6005201 	# Intermediate frequency (Hz)
                 SideBn = "USB" 	# Represents upper sideband
                 AlSdBn = 1 	# Align sidebands?
              End DSBSpecFrame
@@ -235,13 +235,11 @@
           MapA = 	# First component Mapping
              Begin CmpMap 	# Compound Mapping
                 Nin = 3 	# Number of input coordinates
-                Invert = 0 	# Mapping not inverted
              IsA Mapping 	# Mapping between coordinate systems
                 Series = 0 	# Component Mappings applied in parallel
                 MapA = 	# First component Mapping
                    Begin PermMap 	# Coordinate permutation
                       Nin = 2 	# Number of input coordinates
-                      Invert = 0 	# Mapping not inverted
                    IsA Mapping 	# Mapping between coordinate systems
                       Out1 = 1 	# Output coordinate 1 = input coordinate 1
                       Out2 = 1 	# Output coordinate 2 = input coordinate 1
@@ -251,9 +249,8 @@
                 MapB = 	# Second component Mapping
                    Begin WinMap 	# Map one window on to another
                       Nin = 1 	# Number of input coordinates
-                      Invert = 0 	# Mapping not inverted
                    IsA Mapping 	# Mapping between coordinate systems
-                      Sft1 = 2.86538852378726e-05 	# Shift for axis 1
+                      Sft1 = 2.8653885237872601e-05 	# Shift for axis 1
                    End WinMap
              End CmpMap
           MapB = 	# Second component Mapping
@@ -265,7 +262,6 @@
                 MapA = 	# First component Mapping
                    Begin LutMap 	# Map 1-d coordinates using a lookup table
                       Nin = 1 	# Number of input coordinates
-                      Invert = 0 	# Mapping not inverted
                       Inv = 0 	# Inverse transformation not defined
                    IsA Mapping 	# Mapping between coordinate systems
                       Nlut = 13 	# Number of lookup table elements
@@ -273,17 +269,17 @@
 #                     Incr = 1 	# Input value increment between elements
                       LutInt = 1 	# Interpolation method
                       L1 = 1.23418282732218 	# Lookup table elements...
-                      L2 = 1.2343639301616
-                      L3 = 1.23436339112322
-                      L4 = 1.2343628519694
+                      L2 = 1.2343639301616001
+                      L3 = 1.2343633911232199
+                      L4 = 1.2343628519694001
                       L5 = 1.23436231270009
-                      L6 = 1.23454235656739
-                      L7 = 1.23454287673211
+                      L6 = 1.2345423565673901
+                      L7 = 1.2345428767321101
                       L8 = 1.2345433967854
                       L9 = 1.23454391672729
-                      L10 = 1.23472390339668
-                      L11 = 1.23472340255133
-                      L12 = 1.23472290159864
+                      L10 = 1.2347239033966799
+                      L11 = 1.2347234025513301
+                      L12 = 1.2347229015986401
                       L13 = 1.23472240053857
                    End LutMap
                 MapB = 	# Second component Mapping
@@ -301,19 +297,19 @@
                             Start = 1 	# Input value at first element
 #                           Incr = 1 	# Input value increment between elements
                             LutInt = 1 	# Interpolation method
-                            L1 = 0.630323242601191 	# Lookup table elements...
-                            L2 = 0.630032824768848
-                            L3 = 0.630178255337191
-                            L4 = 0.630323685912113
-                            L5 = 0.630469116487462
-                            L6 = 0.630469544411238
-                            L7 = 0.630324113791166
-                            L8 = 0.630178683171532
-                            L9 = 0.630033252558487
-                            L10 = 0.630033664925644
-                            L11 = 0.630179095578678
-                            L12 = 0.630324526238311
-                            L13 = 0.63046995689839
+                            L1 = 0.63032324260119099 	# Lookup table elements...
+                            L2 = 0.63003282476884803
+                            L3 = 0.63017825533719096
+                            L4 = 0.63032368591211296
+                            L5 = 0.63046911648746196
+                            L6 = 0.63046954441123804
+                            L7 = 0.63032411379116604
+                            L8 = 0.63017868317153203
+                            L9 = 0.63003325255848697
+                            L10 = 0.63003366492564405
+                            L11 = 0.63017909557867802
+                            L12 = 0.63032452623831103
+                            L13 = 0.63046995689839003
                          End LutMap
                       MapB = 	# Second component Mapping
                          Begin CmpMap 	# Compound Mapping
@@ -323,10 +319,9 @@
                             MapA = 	# First component Mapping
                                Begin WinMap 	# Map one window on to another
                                   Nin = 1 	# Number of input coordinates
-                                  Invert = 0 	# Mapping not inverted
                                IsA Mapping 	# Mapping between coordinate systems
-                                  Sft1 = 346321451689.665 	# Shift for axis 1
-                                  Scl1 = -488226.2403564 	# Scale factor for axis 1
+                                  Sft1 = 346321451689.66498 	# Shift for axis 1
+                                  Scl1 = -488226.24035640003 	# Scale factor for axis 1
                                End WinMap
                             MapB = 	# Second component Mapping
                                Begin CmpMap 	# Compound Mapping
@@ -383,7 +378,7 @@
           Nin = 3 	# Number of input coordinates
           IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
-          Sft1 = -0.0384615384615385 	# Shift for axis 1
+          Sft1 = -0.038461538461538498 	# Shift for axis 1
           Scl1 = 0.0769230769230769 	# Scale factor for axis 1
           Sft2 = -0.5 	# Shift for axis 2
           Sft3 = -0.000244140625 	# Shift for axis 3

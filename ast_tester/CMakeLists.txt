@@ -528,6 +528,22 @@ foreach(_entry IN LISTS _simplify_tests)
     endif()
 endforeach()
 
+# Round-trip every other native-encoded fixture in the tree.  These are inputs
+# to individual programs rather than manifest cases, so they are discovered by
+# glob: a new one is picked up on the next reconfigure.
+#
+# wcsconv/ is deliberately excluded.  Its references are FITS-encoded, so
+# reading one back needs a FitsChan and the encoding it was written with, which
+# is what the wcsconv harness already does.
+file(GLOB_RECURSE _ast_native_fixtures CONFIGURE_DEPENDS
+     RELATIVE "${AST_FIXTURE_SOURCE_ROOT}"
+     "${AST_FIXTURE_SOURCE_ROOT}/programs/*.ast"
+     "${AST_FIXTURE_SOURCE_ROOT}/serialisation/*.ast")
+foreach(_fixture IN LISTS _ast_native_fixtures)
+    string(REGEX REPLACE "[/.]" "_" _rt_name "${_fixture}")
+    add_roundtrip_test(NAME ${_rt_name} FIXTURE ${_fixture})
+endforeach()
+
 if(AST_ENABLE_HUGE_TEST)
     ast_add_test(testhuge_c SOURCES testhuge.c)
 endif()

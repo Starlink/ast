@@ -141,9 +141,9 @@
                 Naxes = 2 	# Number of coordinate axes
                 Epoch = 2007.3268594222 	# Julian epoch of observation
                 System = "FK5" 	# Coordinate system type
-                ObsLat = 0.346026050148997 	# Observers geodetic latitude (rads)
-                ObsLon = -2.71363306946838 	# Observers geodetic longitude (rads)
-                Dut1 = -0.0989801599329792 	# UT1-UTC in seconds
+                ObsLat = 0.34602605014899701 	# Observers geodetic latitude (rads)
+                ObsLon = -2.7136330694683801 	# Observers geodetic longitude (rads)
+                Dut1 = -0.098980159932979206 	# UT1-UTC in seconds
                 Ax1 = 	# Axis number 1
                    Begin SkyAxis 	# Celestial coordinate axis
                    End SkyAxis
@@ -151,31 +151,31 @@
                    Begin SkyAxis 	# Celestial coordinate axis
                    End SkyAxis
              IsA Frame 	# Coordinate system description
-                SRef1 = 4.8432980149123 	# Ref. pos. RA 18:30:00.1
-                SRef2 = 0.0213067755653197 	# Ref. pos. Dec 1:13:15
+                SRef1 = 4.8432980149122997 	# Ref. pos. RA 18:30:00.1
+                SRef2 = 0.021306775565319701 	# Ref. pos. Dec 1:13:15
              End SkyFrame
           FrameB = 	# Second component Frame
              Begin DSBSpecFrame 	# Dual sideband spectral axis
                 Naxes = 1 	# Number of coordinate axes
                 Epoch = 2007.3268594222 	# Julian epoch of observation
                 System = "VRAD" 	# Coordinate system type
-                ObsLat = 0.346026069000144 	# Observers geodetic latitude (rads)
-                ObsLon = -2.71363307300091 	# Observers geodetic longitude (rads)
-                Dut1 = -0.0989801599329792 	# UT1-UTC in seconds
+                ObsLat = 0.34602606900014399 	# Observers geodetic latitude (rads)
+                ObsLon = -2.7136330730009099 	# Observers geodetic longitude (rads)
+                Dut1 = -0.098980159932979206 	# UT1-UTC in seconds
                 Ax1 = 	# Axis number 1
                    Begin Axis 	# Coordinate axis
                    End Axis
              IsA Frame 	# Coordinate system description
                 SoR = "LSRK" 	# Standard of rest
-                RefRA = 4.84328867428426 	# Reference RA (rads, FK5 J2000)
-                RefDec = 0.0213075607299356 	# Reference Dec (rads, FK5 J2000)
+                RefRA = 4.8432886742842598 	# Reference RA (rads, FK5 J2000)
+                RefDec = 0.021307560729935601 	# Reference Dec (rads, FK5 J2000)
                 RstFrq = 345795989900 	# Rest frequency (Hz)
-                SrcVel = 7000.08172321467 	# Source velocity (m/s)
+                SrcVel = 7000.0817232146701 	# Source velocity (m/s)
                 SrcVRF = "LSRK" 	# Source velocity rest frame
                 UFreq = "GHz" 	# Preferred units for frequency
              IsA SpecFrame 	# Description of spectral coordinate system
-                DSBCen = 345834569302.861 	# Central frequency (Hz topo)
-                IF = -5000001243.89453 	# Intermediate frequency (Hz)
+                DSBCen = 345834569302.86102 	# Central frequency (Hz topo)
+                IF = -5000001243.8945303 	# Intermediate frequency (Hz)
                 SideBn = "USB" 	# Represents upper sideband
                 AlSdBn = 1 	# Align sidebands?
              End DSBSpecFrame
@@ -193,9 +193,8 @@
                 MapA = 	# First component Mapping
                    Begin WinMap 	# Map one window on to another
                       Nin = 2 	# Number of input coordinates
-                      Invert = 0 	# Mapping not inverted
                    IsA Mapping 	# Mapping between coordinate systems
-                      Sft1 = -78.9102040827274 	# Shift for axis 1
+                      Sft1 = -78.910204082727404 	# Shift for axis 1
                       Sft2 = -54.3591836988926 	# Shift for axis 2
                    End WinMap
                 MapB = 	# Second component Mapping
@@ -206,15 +205,13 @@
                       MapA = 	# First component Mapping
                          Begin WinMap 	# Map one window on to another
                             Nin = 1 	# Number of input coordinates
-                            Invert = 0 	# Mapping not inverted
                          IsA Mapping 	# Mapping between coordinate systems
-                            Sft1 = 346188848728.921 	# Shift for axis 1
-                            Scl1 = -488347.122802699 	# Scale factor for axis 1
+                            Sft1 = 346188848728.92102 	# Shift for axis 1
+                            Scl1 = -488347.12280269898 	# Scale factor for axis 1
                          End WinMap
                       MapB = 	# Second component Mapping
                          Begin SpecMap 	# Conversion between spectral coordinate systems
                             Nin = 1 	# Number of input coordinates
-                            Invert = 0 	# Mapping not inverted
                          IsA Mapping 	# Mapping between coordinate systems
                             Nspec = 2 	# Number of conversion steps
                             Spec1 = "FRTOVL" 	# Convert frequency to rel. velocity
@@ -232,7 +229,6 @@
                    Begin CmpMap 	# Compound Mapping
                       Nin = 2 	# Number of input coordinates
                       IsSimp = 1 	# Mapping has been simplified
-                      Invert = 0 	# Mapping not inverted
                    IsA Mapping 	# Mapping between coordinate systems
                       MapA = 	# First component Mapping
                          Begin MatrixMap 	# Matrix transformation
@@ -240,9 +236,13 @@
                             Invert = 1 	# Mapping inverted
                          IsA Mapping 	# Mapping between coordinate systems
                             M0 = 1.49080827566563e-05 	# Forward matrix value
-                            M1 = -3.19704866431787e-05 	# Forward matrix value
-                            M2 = -3.19704866431787e-05 	# Forward matrix value
+                            M1 = -3.1970486643178697e-05 	# Forward matrix value
+                            M2 = -3.1970486643178697e-05 	# Forward matrix value
                             M3 = -1.49080827566563e-05 	# Forward matrix value
+                            IM0 = 11980.493942253184 	# Inverse matrix value
+                            IM1 = -25692.252170284832 	# Inverse matrix value
+                            IM2 = -25692.252170284832 	# Inverse matrix value
+                            IM3 = -11980.493942253184 	# Inverse matrix value
                             Form = "Full" 	# Matrix storage form
                          End MatrixMap
                       MapB = 	# Second component Mapping
@@ -253,7 +253,6 @@
                             MapA = 	# First component Mapping
                                Begin WcsMap 	# FITS-WCS sky projection
                                   Nin = 2 	# Number of input coordinates
-                                  Invert = 0 	# Mapping not inverted
                                IsA Mapping 	# Mapping between coordinate systems
                                   Type = "TAN" 	# Gnomonic projection
                                End WcsMap
@@ -266,7 +265,6 @@
                                      Begin SphMap 	# Cartesian to Spherical mapping
                                         Nin = 3 	# Number of input coordinates
                                         Nout = 2 	# Number of output coordinates
-                                        Invert = 0 	# Mapping not inverted
                                      IsA Mapping 	# Mapping between coordinate systems
                                         UntRd = 1 	# All input vectors have unit length
                                         PlrLg = 0 	# Polar longitude (rad.s)
@@ -281,15 +279,24 @@
                                               Nin = 3 	# Number of input coordinates
                                               Invert = 1 	# Mapping inverted
                                            IsA Mapping 	# Mapping between coordinate systems
-                                              M0 = 0.00278113801100606 	# Forward matrix value
-                                              M1 = 0.991443912134338 	# Forward matrix value
-                                              M2 = 0.130503771451718 	# Forward matrix value
-                                              M3 = -0.021123653434259 	# Forward matrix value
+                                              M0 = 0.0027811380110060601 	# Forward matrix value
+                                              M1 = 0.99144391213433802 	# Forward matrix value
+                                              M2 = 0.13050377145171799 	# Forward matrix value
+                                              M3 = -0.021123653434258999 	# Forward matrix value
                                               M4 = 0.130533402207093 	# Forward matrix value
-                                              M5 = -0.9912188568494 	# Forward matrix value
-                                              M6 = -0.999773002504545 	# Forward matrix value
+                                              M5 = -0.99121885684940003 	# Forward matrix value
+                                              M6 = -0.99977300250454504 	# Forward matrix value
                                               M7 = 0 	# Forward matrix value
                                               M8 = 0.0213059490060158 	# Forward matrix value
+                                              IM0 = 0.0027811380110060735 	# Inverse matrix value
+                                              IM1 = -0.02112365343425901 	# Inverse matrix value
+                                              IM2 = -0.99977300250454515 	# Inverse matrix value
+                                              IM3 = 0.99144391213433847 	# Inverse matrix value
+                                              IM4 = 0.1305334022070922 	# Inverse matrix value
+                                              IM5 = 7.3725747729014302e-18 	# Inverse matrix value
+                                              IM6 = 0.13050377145171876 	# Inverse matrix value
+                                              IM7 = -0.99121885684939925 	# Inverse matrix value
+                                              IM8 = 0.021305949006015772 	# Inverse matrix value
                                               Form = "Full" 	# Matrix storage form
                                            End MatrixMap
                                         MapB = 	# Second component Mapping
