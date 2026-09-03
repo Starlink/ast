@@ -452,9 +452,18 @@ typedef unsigned long long int UINT_BIG;
    neighbouring Mappings in the list". Nothing else reads the records: a
    Mapping is offered to astMapMerge by its neighbours whatever they hold,
    so a change that only affects whether this Mapping merges with a
-   neighbour does not need to discard them. Discarding anyway is safe -
-   the records can only ever suppress a simplification, never make one
-   wrong - so err towards it when in doubt. */
+   neighbour does not need to discard them. Discarding anyway costs only a
+   redundant simplification, never a wrong answer, so err towards it when in
+   doubt about *whether an attribute feeds simplification*.
+
+   Do not err towards it about whether the attribute changed at all. The
+   records are written out as an IsSimp card and dumps are compared card for
+   card, so clearing on a set that changes nothing makes a Mapping dump
+   differently from the way it was read. Every setter therefore clears only
+   when the value differs, which is also what lets a loader validate by
+   re-applying the value it has just read - the convention described at
+   zoommap.c:2231. An explicit astClear does change the value, to unset, and
+   clears unconditionally. */
 #define astClearIsSimple(this) \
 ((void)(this&&(((AstMapping*)this)->flags&= \
                ~(AST__ISSIMPLE_FLAG|AST__ISSIMPLEINV_FLAG))))

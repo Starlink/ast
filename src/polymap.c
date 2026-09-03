@@ -6344,7 +6344,7 @@ astMAKE_GET(PolyMap,IterInverse,int,0,( ( this->iterinverse == -INT_MAX ) ?
                                           this->iterinverse ))
 astMAKE_SET1(PolyMap,IterInverse,int,iterinverse,
   (((astGetNin(this)==astGetNout(this))||!value)?
-  (astClearIsSimple(this),(value?1:0)):
+  (( (value?1:0) != this->iterinverse ) ? astClearIsSimple(this) : (void)0,(value?1:0)):
   (astError(AST__ATTIN,"astSetIterInverse(%s):"
   "Cannot use an iterative inverse because the %s has unequal numbers of "
   "inputs and outputs.", status, astGetClass(this),astGetClass(this)),this->iterinverse)))
@@ -6382,7 +6382,9 @@ astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 */
 astMAKE_CLEAR1(PolyMap,NiterInverse,niterinverse,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PolyMap,NiterInverse,int,0,( this->niterinverse == -INT_MAX ? 4 : this->niterinverse))
-astMAKE_SET1(PolyMap,NiterInverse,int,niterinverse,(astClearIsSimple(this),value))
+astMAKE_SET1(PolyMap,NiterInverse,int,niterinverse,(
+            ( value != this->niterinverse ) ? astClearIsSimple(this) : (void)0,
+            value))
 astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 
 /* TolInverse. */
@@ -6419,7 +6421,9 @@ astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 */
 astMAKE_CLEAR1(PolyMap,TolInverse,tolinverse,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(PolyMap,TolInverse,double,0.0,( this->tolinverse == AST__BAD ? 1.0E-6 : this->tolinverse))
-astMAKE_SET1(PolyMap,TolInverse,double,tolinverse,(astClearIsSimple(this),value))
+astMAKE_SET1(PolyMap,TolInverse,double,tolinverse,(
+            ( value != this->tolinverse ) ? astClearIsSimple(this) : (void)0,
+            value))
 astMAKE_TEST(PolyMap,TolInverse,( this->tolinverse != AST__BAD ))
 
 /* Copy constructor. */

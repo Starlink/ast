@@ -252,7 +252,7 @@ static void Set##attribute( Ast##class *this, type value, int *status ) { \
 \
 /* Otherwise, store the new value in the structure component. */ \
    } else { \
-      astClearIsSimple( this ); \
+      if( (assign) != this->component ) astClearIsSimple( this ); \
       this->component = (assign); \
    } \
 \

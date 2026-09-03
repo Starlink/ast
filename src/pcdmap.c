@@ -503,7 +503,7 @@ static void Set##attr( AstPcdMap *this, int axis, type value, int *status ) { \
 \
 /* Store the new value in the structure component. */ \
    } else { \
-      astClearIsSimple( this ); \
+      if( (assign) != this->component[ axis ] ) astClearIsSimple( this ); \
       this->component[ axis ] = (assign); \
    } \
 } \
@@ -2583,7 +2583,9 @@ f     AST_CLONE
 astMAKE_CLEAR1(PcdMap,Disco,disco,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(PcdMap,Disco,double,0.0,( ( this->disco == AST__BAD ) ?
                                       0.0 : this->disco ))
-astMAKE_SET1(PcdMap,Disco,double,disco,(astClearIsSimple(this),value))
+astMAKE_SET1(PcdMap,Disco,double,disco,(
+            ( value != this->disco ) ? astClearIsSimple(this) : (void)0,
+            value))
 astMAKE_TEST(PcdMap,Disco,( this->disco != AST__BAD ))
 
 

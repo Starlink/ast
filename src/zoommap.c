@@ -1701,7 +1701,8 @@ astMAKE_GET(ZoomMap,Zoom,double,1.0,( ( this->zoom == 0.0 ) ?
 
 /* Check for an attempt to set a value of zero and report an error if
    necessary (leaving the Zoom value unchanged). */
-astMAKE_SET1(ZoomMap,Zoom,double,zoom,(astClearIsSimple(this),
+astMAKE_SET1(ZoomMap,Zoom,double,zoom,(
+            ( value != this->zoom ) ? astClearIsSimple(this) : (void)0,
             ( value != 0.0 ) ?
             value :
             ( astError( AST__ZOOMI,

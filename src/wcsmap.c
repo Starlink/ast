@@ -4796,7 +4796,9 @@ f     AST_WRITE routine,
 astMAKE_CLEAR(WcsMap,FITSProj,fits_proj,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(WcsMap,FITSProj,int,1,( ( this->fits_proj != -INT_MAX ) ?
                                        this->fits_proj : 1 ))
-astMAKE_SET(WcsMap,FITSProj,int,fits_proj,(astClearIsSimple(this),( value != 0 )))
+astMAKE_SET(WcsMap,FITSProj,int,fits_proj,(
+            ( ( value != 0 ) != this->fits_proj ) ? astClearIsSimple(this) : (void)0,
+            ( value != 0 )))
 astMAKE_TEST(WcsMap,FITSProj,( this->fits_proj != -INT_MAX ))
 
 /*
@@ -4871,7 +4873,9 @@ astMAKE_TEST(WcsMap,TPNTan,( this->tpn_tan != -INT_MAX ))
 astMAKE_CLEAR(WcsMap,LonCheck,loncheck,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(WcsMap,LonCheck,int,1,( ( this->loncheck != -INT_MAX ) ?
                                        this->loncheck : 1 ))
-astMAKE_SET(WcsMap,LonCheck,int,loncheck,(astClearIsSimple(this),( value != 0 )))
+astMAKE_SET(WcsMap,LonCheck,int,loncheck,(
+            ( ( value != 0 ) != this->loncheck ) ? astClearIsSimple(this) : (void)0,
+            ( value != 0 )))
 astMAKE_TEST(WcsMap,LonCheck,( this->loncheck != -INT_MAX ))
 
 /* ProjP. */
