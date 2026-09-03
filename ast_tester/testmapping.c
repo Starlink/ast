@@ -26,6 +26,77 @@ static int countstr( const char *str, const char *text ) {
    return result;
 }
 
+/* CmpMap equality must retain its usual effective-order and effective-sense
+   semantics when Ident prevents MapList from decomposing the outer CmpMap. */
+static void testprotectedcmpequal( int *status ) {
+   AstCmpMap *a;
+   AstCmpMap *b;
+   AstZoomMap *a1;
+   AstZoomMap *a2;
+   AstZoomMap *b1;
+   AstZoomMap *b2;
+   int equal;
+
+   if( *status != 0 || !astOK ) return;
+
+   a1 = astZoomMap( 1, 2.0, " " );
+   a2 = astZoomMap( 1, 3.0, " " );
+   a = astCmpMap( a1, a2, 1, "Ident=keep" );
+
+   /* Inverting this reversed series pair gives the same effective
+      sequence and component senses as a. */
+   b1 = astZoomMap( 1, 3.0, "Invert=1" );
+   b2 = astZoomMap( 1, 2.0, "Invert=1" );
+   b = astCmpMap( b1, b2, 1, "Ident=keep,Invert=1" );
+
+   equal = astEqual( a, b );
+
+   a = astAnnul( a );
+   b = astAnnul( b );
+   a1 = astAnnul( a1 );
+   a2 = astAnnul( a2 );
+   b1 = astAnnul( b1 );
+   b2 = astAnnul( b2 );
+
+   if( !equal ) stopit( status, "Error protectedcmpequal-1" );
+}
+
+/* Comparing protected CmpMaps that share a component must not alter the
+   live Invert value of that component. */
+static void testprotectedcmpequalstable( int *status ) {
+   AstCmpMap *a;
+   AstCmpMap *b;
+   AstZoomMap *map1;
+   AstZoomMap *map2;
+   int after;
+   int before;
+   int equal;
+
+   if( *status != 0 || !astOK ) return;
+
+   map1 = astZoomMap( 1, 2.0, " " );
+   map2 = astZoomMap( 1, 3.0, " " );
+   a = astCmpMap( map1, map2, 1, "Ident=keep" );
+   b = astCmpMap( map1, map2, 1, "Ident=keep" );
+
+   /* The CmpMaps retain the construction-time value, but callers remain
+      free to change the shared Mapping's live attribute afterwards. */
+   astInvert( map1 );
+   before = astGetI( map1, "Invert" );
+   equal = astEqual( a, b );
+   after = astGetI( map1, "Invert" );
+
+   a = astAnnul( a );
+   b = astAnnul( b );
+   map1 = astAnnul( map1 );
+   map2 = astAnnul( map2 );
+
+   if( !equal ) stopit( status, "Error protectedcmpequalstable-1" );
+   if( before != 1 || after != before ) {
+      stopit( status, "Error protectedcmpequalstable-2" );
+   }
+}
+
 /* A simplified two component parallel CmpMap. The first component is a
    ZoomMap that was itself the result of a simplification, so both the
    CmpMap and that component are recorded as having been simplified. The
@@ -471,6 +542,10 @@ int main( void ) {
    }
 
    testequaldumpstable( status );
+
+   testprotectedcmpequal( status );
+
+   testprotectedcmpequalstable( status );
 
    testsimplevsinvert( status );
 

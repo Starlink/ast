@@ -1,0 +1,114 @@
+ Begin Polygon 	# Polygonal region
+#   Title = "2-d coordinate system" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "BOWED" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+#   System = "Cartesian" 	# Coordinate system type
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    FrmSet = 	# Original & current coordinate systems
+       Begin FrameSet 	# Set of inter-related coordinate systems
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "BOWED" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+       IsA Frame 	# Coordinate system description
+          Nframe = 2 	# Number of Frames in FrameSet
+#         Base = 1 	# Index of base Frame
+          Currnt = 2 	# Index of current Frame
+          Lnk2 = 1 	# Node 2 is derived from node 1
+          Frm1 = 	# Frame number 1
+             Begin Frame 	# Coordinate system description
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+                Domain = "PIXEL" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Frm2 = 	# Frame number 2
+             Begin Frame 	# Coordinate system description
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+                Domain = "BOWED" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Map2 = 	# Mapping between nodes 1 and 2
+             Begin MathMap 	# Transformation using mathematical functions
+                Nin = 2 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                Fwd1 = "y1=x1+0.005*x2*x2" 	# Forward function 1
+                Fwd2 = "y2=x2" 	# Forward function 2
+                Inv1 = "x1=y1-0.005*y2*y2" 	# Inverse function 1
+                Inv2 = "x2=y2" 	# Inverse function 2
+             End MathMap
+       End FrameSet
+    Points = 	# Points defining the shape
+       Begin PointSet 	# Container for a set of points
+          Npoint = 4 	# Number of points
+          Ncoord = 2 	# Number of coordinates per point
+          X1 = 0 	# Coordinate values...
+          X2 = 0
+          X3 = 10
+          X4 = 0
+          X5 = 10
+          X6 = 20
+          X7 = 0
+          X8 = 20
+       End PointSet
+    Unc = 	# Region defining positional uncertainties.
+       Begin Box 	# Axis intervals
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Domain = "PIXEL" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+#         System = "Cartesian" 	# Coordinate system type
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin Frame 	# Coordinate system description
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+                Domain = "PIXEL" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 2 	# Number of points
+                Ncoord = 2 	# Number of coordinates per point
+                X1 = 0 	# Coordinate values...
+                X2 = 0
+                X3 = 0.01
+                X4 = 0.01
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End Box
+ IsA Region 	# An area within a coordinate system
+    SimpVT = 0 	# Simplify by transforming vertices?
+    Order = 1 	# Polygon uses STC vertex order convention
+ End Polygon

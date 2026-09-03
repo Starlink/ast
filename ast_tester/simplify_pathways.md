@@ -506,7 +506,7 @@ UnitMap; (3) inverse-pair cancellation; (4) duplicate-NormMap elimination.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| normmap-01 | -- | focused | `- (unreachable: API pre-simplifies)` | Encapsulated Frame simplifies to new NormMap with simplified Frame | NormMap wrapping compound Frame that simplifies |
+| normmap-01 | cap_normmap_cmpframe.map | focused | `+` | Encapsulated Frame simplifies to new NormMap with simplified Frame | NormMap wrapping a CmpFrame whose FrameSet component reduces; a Region component is pre-simplified by its own constructor |
 | normmap-02 | normmap_basic_frame_to_unit.map | focused | `+` | NormMap encapsulating basic Frame replaced by UnitMap (astNorm is no-op) | NormMap wrapping plain Frame |
 | normmap-03 | normmap_inverse_cancel.map | focused | `+` | NormMap cancels with inverse lower-neighbour NormMap | NormMap preceded by Inverse(NormMap) with same Frame |
 | normmap-04 | normmap_inverse_cancel_upper.map | focused | `+` | NormMap cancels with inverse upper-neighbour NormMap | NormMap followed by Inverse(NormMap) with same Frame |
@@ -523,7 +523,6 @@ UnitMap; (3) inverse-pair cancellation; (4) duplicate-NormMap elimination.
 | normmap-10 | neg_normmap_diff_frame.map | focused | `-` | Adjacent same-direction NormMap: Frames differ | Two NormMaps same direction, different Frames |
 | normmap-11 | neg_normmap_parallel.map | focused | `+` | Parallel mode: no simplification beyond Frame-level | NormMap in parallel |
 | normmap-12 | neg_normmap_parallel_sky.map | focused | `-` | Non-basic Frame, doesn't simplify, not in series | NormMap(SkyFrame) in parallel |
-| normmap-13 | normmap_frame_simplifies.map | scenario | `-` | Lone NormMap(Box): all guards fall through, no simplification (does not reach the frame-simplify branch; redundant with normmap-11/12) | Lone NormMap(Box) |
 
 ---
 
@@ -626,6 +625,8 @@ Mapping); (4) adjacent TranMap series merge.
 | tranmap-02 | tranmap_component_simplify.map | focused | `+` | Component Mappings individually simplified, TranMap rebuilt | TranMap(CmpMap(Z,Z), UnitMap) |
 | tranmap-03 | tranmap_equal_components.map | focused | `+` | Both components bidirectional and equal to single component Mapping | TranMap(ZoomMap[2], ZoomMap[2]) |
 | tranmap-04 | tranmap_adjacent_merge.map | cascade | `+` | Two adjacent TranMaps in series merge by combining fwd/inv legs | CmpMap(TranMap(A,B), TranMap(C,D)), Series=1 |
+| tranmap-10 | tranmap_invert_in_list.map | cascade | `+` | Inverted TranMap normalized while nominated from inside a series list | CmpMap(TranMap(A,B) with Invert=1, ZoomMap), Series=1 |
+| tranmap-11 | tranmap_equal_components_in_list.map | cascade | `+` | Equal components collapse to one Mapping, which then merges with the neighbour | CmpMap(TranMap(Z,Z), ZoomMap), Series=1 |
 
 ### Negative branches
 
@@ -932,9 +933,12 @@ direction via astEqual).
 
 ## Region-as-Mapping Classes
 
-All four Region classes below share structurally identical MapMerge logic:
-(1) self-simplification via astSimplify; (2) parallel merge with adjacent
-Region via class-specific MergeXxx helper.
+box.c, interval.c, nullregion.c and pointlist.c share structurally identical
+MapMerge logic: (1) self-simplification via astSimplify; (2) parallel merge
+with adjacent Region via class-specific MergeXxx helper.
+polygon.c follows them separately because its Simplify does more: it
+transforms the vertices and re-tests them against the uncertainty, which the
+other four have no equivalent of.
 
 ### box.c
 
@@ -942,7 +946,8 @@ Region via class-specific MergeXxx helper.
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| box-01 | -- | focused | `- (unreachable: astSimplify returns same pointer)` | Self-simplification succeeds (astSimplify returns different pointer) | Box with non-trivial base-to-current FrameSet |
+| box-01 | cap_box_permmap_const.map | focused | `+` | Self-simplification succeeds (astSimplify returns different pointer) | Box whose base-to-current Mapping is a PermMap with an output pinned to a constant, so Simplify rebuilds the current-Frame Region axis by axis |
+| box-07 | cap_box_permmap_null.map | focused | `+` | Axis-by-axis rebuild selects a slice that misses the Box, giving a NullRegion | Box over a PermMap whose retained axes lie outside the Box interval |
 | box-03 | box_parallel_merge.map | cascade | `+` | Parallel merge with lower Region via MergeBox | Box in parallel with compatible Region (lower) |
 | box-04 | box_parallel_merge.map | cascade | `+` | Parallel merge with upper Region via MergeBox | Box in parallel with compatible Region (upper) |
 
@@ -953,6 +958,7 @@ Region via class-specific MergeXxx helper.
 | box-02 | neg_box_series.map | focused | covered | No self-simplification and series mode | Two simple Boxes in series |
 | box-05 | neg_box_parallel_nonregion.map | focused | covered | Parallel but no Region neighbour or MergeBox returns NULL | Box in parallel with a ZoomMap |
 | box-06 | neg_box_asymmetric_2d.map | focused | `-` | Standalone 2-D Box with asymmetric axis intervals does not self-simplify | Lone Box, differing intervals per axis, no neighbour |
+| box-08 | cap_box_permmap_nonbidi.map | focused | `+` | Axis-by-axis rebuild refused: the PermMap is not bi-directional | Box over a PermMap with a one-way axis link |
 
 ### interval.c
 
@@ -1005,6 +1011,59 @@ Region via class-specific MergeXxx helper.
 | pointlist-02 | neg_pointlist_series.map | focused | covered | No self-simplification, series mode | Two single-point PointLists in series |
 | pointlist-05 | neg_pointlist_parallel_nonregion.map | focused | covered | Parallel but no compatible Region | PointList + ZoomMap in parallel |
 
+### polygon.c
+
+Polygon's Simplify transforms the vertices into the current Frame and then
+decides whether the straight-edged replacement is faithful.
+With `SimpVertices` clear it meshes the mapped Polygon and asks astRegPins
+whether every mesh point still lands on the replacement's boundary, keeping
+the original Polygon when they do not.
+
+#### Positive branches
+
+| ID | Fixture | Type | Status | Description | Trigger |
+|---|---|---|---|---|---|
+| polygon-01 | cap_poly_unc_frame.map | focused | `+` | Uncertainty requested in the current Frame, so the replacement's Unc block is the supplied Box mapped through the base-to-current Mapping rather than the base-Frame Box | Polygon with an explicit Box uncertainty, remapped through a ZoomMap |
+| polygon-02 | cap_poly_bend_allowed.map | focused | `+` | SimpVertices at its default: the astRegPins re-test is skipped and the transformed vertices are adopted, bowed edges and all | Polygon remapped through a quadratic MathMap, SimpVertices left unset |
+
+#### Negative branches
+
+| ID | Fixture | Type | Status | Description | Trigger |
+|---|---|---|---|---|---|
+| polygon-03 | cap_poly_bent_edges.map | focused | `+` | SimpVertices clear: astRegPins rejects the bowed edges and the original Polygon is kept | Same geometry as polygon-02 with SimpVertices=0; the 0.005*x2^2 term displaces an edge midpoint by 0.5, far outside the 0.01 uncertainty |
+| polygon-04 | -- | focused | `- (unreachable: no public construction reaches it)` | Bad-vertex guard: a transformed vertex is AST__BAD | A Polygon cannot hold a bad vertex, and astMapRegion refuses any Mapping that sends a defining point to AST__BAD |
+
+---
+
+## Simplify driver and gating flags
+
+Every row above covers a branch inside some class's `MapMerge` or `Simplify`
+method.
+The paths below sit in the driver instead: `astSimplify_` itself, the
+`astDoNotSimplify` gate that decides whether a CmpMap may be decomposed at
+all, and the `RestrictedSimplify` / `AllowSimplify` flags that let a caller
+simplify part of a compound Mapping while leaving the rest alone.
+The flags live inside `#if defined(astCLASS)` and so are absent from the
+generated `ast.h`; the fixtures are built by `gen_simplify_fixtures` using the
+helpers in `gen_simplify_flags.c`, which reaches them through the internal
+headers.
+
+### Positive branches
+
+| ID | Fixture | Type | Status | Description | Trigger |
+|---|---|---|---|---|---|
+| driver-02 | cap_ident_frame.map | focused | `+` | Frame overrides astDoNotSimplify to zero, so an Ident does not protect a FrameSet's base-to-current Mapping from being collapsed | FrameSet carrying the same Ident as driver-01, base-to-current CmpMap reducing to one ZoomMap |
+| driver-04 | cap_restricted_component_flags.map | focused | `+` | Restricted simplify clears AllowSimplify on each eligible component as the fold proceeds | CmpMap with RestrictedSimplify set and three eligible components |
+| driver-05 | cap_restricted_inverted.map | focused | `+` | A restricted simplify sets none of ReSimp, IsSimp or AlSimp on its result | CmpMap mixing an eligible and an ineligible component, the ineligible one an inverted CmpMap |
+
+### Negative branches
+
+| ID | Fixture | Type | Status | Description | Trigger |
+|---|---|---|---|---|---|
+| driver-01 | cap_ident_cmpmap.map | focused | `+` | Decomposition refused: astDoNotSimplify is true, so astMapList leaves the CmpMap whole and astSimplify never reaches its Simplify slot | Series CmpMap(CmpMap(Zoom,Zoom),Zoom) with Ident set on the inner CmpMap |
+| driver-03 | cap_restricted_no_eligible.map | focused | `+` | Restricted simplify with nothing eligible: the decomposition's `simpler` result is discarded and the input cloned instead | Inverted CmpMap with RestrictedSimplify set and no component carrying AllowSimplify |
+| driver-06 | cap_frameset_nochange.map | focused | `+` | Simplify works on a deep copy and Frame zeroes GetIsSimple, so a FrameSet left unchanged dumps no IsSimp card at all | FrameSet whose base-to-current Mapping is a UnitMap |
+
 ---
 
 ## Maintenance Contract
@@ -1043,6 +1102,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | box-04 | Parallel merge with upper Region via MergeBox |
 | box-05 | Parallel but no compatible Region neighbour |
 | box-06 | Standalone asymmetric 2-D Box does not self-simplify |
+| box-07 | PermMap slice misses the Box, giving a NullRegion |
+| box-08 | Axis-by-axis rebuild refused: PermMap not bi-directional |
 | cmpmap-01 | CmpMap self-simplifies via astSimplify |
 | cmpmap-02 | CmpMap does not self-simplify |
 | cmpmap-03 | CmpMap decomposed when mode matches list mode |
@@ -1068,6 +1129,12 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | cmpmap-23 | GAPPT/IWC conversion residue reassociated |
 | cmpmap-24 | Inverted series CmpMap: inversion folded into the structure |
 | cmpmap-25 | Inverted parallel CmpMap re-emitted forward, inversion on component flags |
+| driver-01 | Decomposition refused: astDoNotSimplify true (Ident on a CmpMap) |
+| driver-02 | Frame zeroes astDoNotSimplify, so an Ident does not protect a FrameSet |
+| driver-03 | Restricted simplify with nothing eligible clones the input |
+| driver-04 | Restricted simplify clears AllowSimplify on each eligible component |
+| driver-05 | Restricted simplify leaves no ReSimp, IsSimp or AlSimp card |
+| driver-06 | Unchanged FrameSet dumps no IsSimp card |
 | dssmap-01 | Parallel mode refused |
 | dssmap-02 | No adjacent mapping at expected index |
 | dssmap-03 | Adjacent mapping not a WinMap |
@@ -1152,7 +1219,6 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | normmap-10 | Same-direction NormMap: Frames differ |
 | normmap-11 | Parallel mode: no simplification |
 | normmap-12 | Non-basic Frame, parallel, no simplification |
-| normmap-13 | Lone NormMap(Box): all guards fall through (redundant) |
 | nullregion-01 | NullRegion self-simplification succeeds |
 | nullregion-02 | No self-simplification, series mode |
 | nullregion-03 | Parallel merge with lower Region |
@@ -1186,6 +1252,10 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | pointlist-03 | Parallel merge with lower Region |
 | pointlist-04 | Parallel merge with upper Region |
 | pointlist-05 | Parallel but no compatible Region |
+| polygon-01 | Uncertainty taken in the current Frame |
+| polygon-02 | SimpVertices default: transformed Polygon adopted |
+| polygon-03 | SimpVertices clear: bowed edges rejected, original kept |
+| polygon-04 | Bad-vertex guard unreachable |
 | polymap-01 | Duplicate terms combined |
 | polymap-02 | Linear PolyMap to ShiftMap+MatrixMap |
 | polymap-03 | No forward transform defined |
@@ -1325,6 +1395,8 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | tranmap-07 | Components not equal |
 | tranmap-08 | Higher neighbour not TranMap |
 | tranmap-09 | Neither leg simplified |
+| tranmap-10 | Inverted TranMap normalized inside a list |
+| tranmap-11 | Equal components collapse inside a list |
 | unitmap-01 | Invert flag cleared |
 | unitmap-02 | Invert=0: no change |
 | unitmap-03 | UnitMap removed from series |
@@ -1443,6 +1515,14 @@ listed here rather than as new rows. All are generated by
 | rate_inner_reduce_lone.map | ratemap-01 | Same shape as `ratemap_simplify_interior.map`; kept as the lone half of the pair |
 | lut_exactly_linear.map | lutmap-01 | Nine-sample table whose interior samples decide linearity, not a three-sample table whose endpoints settle it |
 | neg_lut_near_linear.map | lutmap-05 | Departs from linear by 1e-12 at an interior sample, so it is refused only because GetLinear scales its tolerance by LutEpsilon; a grossly non-linear table is refused by any tolerance |
+| cap_deep_nest_zoom.map | cmpmap-03 | An eleven-deep left-deep nest, so the decomposition recurses far past the two levels the existing witness reaches |
+| cap_cmpperm_resume.map | cmpmap-17 | The swap's new neighbours can merge, so the pass resumes on the rewritten list instead of ending at the swap |
+| cap_cmpperm_resume_inv.map | cmpmap-17 | The PermMap is stored inverted, so its canonical rebuild runs before the swap is attempted |
+| wcs_unknown_lone_reduce.map | wcsmap-01 | AST__WCSBAD arrived at the way the library itself produces one -- a native description carrying no Type value, which the loader maps to AST__WCSBAD -- and reduced as a lone Mapping with no neighbours to consult |
+| neg_wcs_tan_no_reduce.map | wcsmap-01 | The lone-Mapping control: a TAN WcsMap survives, so the reduction is attributable to the projection type rather than to the Mapping being alone in the list |
+| cheby_linear_lone_reduce.map | polymap-02 | A ChebyMap inherits PolyMap's MapMerge, whose all-linear branch rebuilds from coeff_f and power_f alone and never consults the scale and offset onto [-1,1]; the reduction therefore changes the transformation, which the PolyMap witness cannot show |
+| neg_cheby_quadratic_no_reduce.map | polymap-05 | The same ChebyMap with a T_2 term added, so it is refused by the power test rather than for not being a PolyMap at all |
+| cap_cheby_consolidate.map | polymap-01 | Consolidation reached through a ChebyMap, with a T_3 term present so the all-linear branch is not entered and the duplicate-term fold is the only move on offer |
 
 ## Captured differential-coverage fixtures
 

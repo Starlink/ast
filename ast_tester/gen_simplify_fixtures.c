@@ -15,6 +15,7 @@
  */
 
 #include "ast.h"
+#include "gen_simplify_flags.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1106,6 +1107,42 @@ static void gen_tranmap_extra_fixtures(const char *dir) {
         z2 = astAnnul(z2); z05 = astAnnul(z05);
         z3 = astAnnul(z3); z033 = astAnnul(z033);
     }
+
+    /* tranmap-10: inverted TranMap nominated from inside a series list.
+       tranmap.c:837-850 replaces it with the equal forward TranMap whose
+       components are swapped and inverted, so the serialised result holds a
+       forward TranMap. The neighbour is a ZoomMap, which the TranMap cannot
+       merge with, so the list keeps two entries throughout: the companion
+       negative neg_tranmap_nontranmap_neighbour is this same pair with the
+       TranMap not inverted, and C leaves that one alone. */
+    {
+        AstZoomMap *z2 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z05 = astZoomMap(1, 0.5, " ");
+        AstTranMap *tm = astTranMap(z2, z05, " ");
+        astInvert(tm);
+        AstZoomMap *z5 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *cm = astCmpMap(tm, z5, 1, " ");
+        write_fixture(dir, "tranmap_invert_in_list", (AstMapping*)cm);
+        cm = astAnnul(cm); tm = astAnnul(tm);
+        z2 = astAnnul(z2); z05 = astAnnul(z05); z5 = astAnnul(z5);
+    }
+
+    /* tranmap-11: TranMap(m, m) nominated from inside a series list.
+       Both components are defined in both directions and are equal, so
+       tranmap.c:864-887 replaces the TranMap with one of them. The exposed
+       ZoomMap then merges with its neighbour, so the whole Mapping collapses
+       to a single ZoomMap and the replacement has to take part in further
+       merging rather than end the pass. */
+    {
+        AstZoomMap *za = astZoomMap(1, 2.0, " ");
+        AstZoomMap *zb = astZoomMap(1, 2.0, " ");
+        AstTranMap *tm = astTranMap(za, zb, " ");
+        AstZoomMap *z5 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *cm = astCmpMap(tm, z5, 1, " ");
+        write_fixture(dir, "tranmap_equal_components_in_list", (AstMapping*)cm);
+        cm = astAnnul(cm); tm = astAnnul(tm);
+        za = astAnnul(za); zb = astAnnul(zb); z5 = astAnnul(z5);
+    }
 }
 
 /* ===== MatrixMap cascade fixtures ===== */
@@ -1456,6 +1493,53 @@ static void write_negative_fixture(const char *dir, const char *name, AstMapping
         fprintf(stderr, "ERROR: astWrite failed for %s.map\n", name);
     }
     chan = astAnnul(chan);
+    printf("  %s\n", name);
+}
+
+/* The public astMapRegion simplifies the Region it returns (region.c:14024),
+   which would leave the .map file holding the already-simplified Region. The
+   protected astMapRegion_ does not simplify, so Region fixtures whose subject
+   is the base->current Mapping call it directly. It returns a true Object
+   pointer rather than an identifier, so the writers below use the protected
+   astWrite_ and astSimplify_ too. */
+extern void *astMapRegion_(void *, void *, void *, int *);
+extern int *astGetStatusPtr_(void);
+
+static void *map_region_unsimplified(void *region, void *map, void *frame) {
+    return astMapRegion_(astMakePointer(region), astMakePointer(map),
+                         astMakePointer(frame), astGetStatusPtr_());
+}
+
+static void write_object(const char *path, void *obj, const char *name) {
+    AstChannel *chan = astChannel(NULL, NULL, "SinkFile=%s", path);
+    if (astWrite_((AstChannel *) astMakePointer(chan), (AstObject *) obj,
+                  astGetStatusPtr_()) != 1) {
+        fprintf(stderr, "ERROR: astWrite failed for %s\n", name);
+    }
+    chan = astAnnul(chan);
+}
+
+static void write_region_fixture(const char *dir, const char *name, void *reg) {
+    char path[512];
+    void *simp;
+
+    snprintf(path, sizeof(path), "%s/%s.map", dir, name);
+    write_object(path, reg, name);
+
+    simp = astSimplify_((AstMapping *) reg, astGetStatusPtr_());
+    snprintf(path, sizeof(path), "%s/%s.simp", dir, name);
+    write_object(path, simp, name);
+
+    printf("  %s\n", name);
+}
+
+static void write_negative_region_fixture(const char *dir, const char *name,
+                                          void *reg) {
+    char path[512];
+
+    if (!astOK) astClearStatus;
+    snprintf(path, sizeof(path), "%s/%s.map", dir, name);
+    write_object(path, reg, name);
     printf("  %s\n", name);
 }
 
@@ -2575,8 +2659,13 @@ static void gen_cascade_positives_2(const char *dir) {
         ma = astAnnul(ma); mb = astAnnul(mb);
     }
 
-    /* normmap-01: NormMap whose encapsulated Frame simplifies.
-       Use a Region-as-Frame with a CmpMap(Zoom,Zoom) FrameSet. */
+    /* A NormMap over a CmpFrame whose first component is a FrameSet that
+       reduces. astSimplify on the CmpFrame simplifies each component and
+       rebuilds around the results (cmpframe.c:9018-9034), so the NormMap is
+       rebuilt around the changed CmpFrame (normmap.c:619-631) instead of
+       reaching the basic-Frame test that would give a UnitMap
+       (normmap.c:632-640). The FrameSet's base->current Mapping is a
+       CmpMap(Zoom 2, Zoom 3), which simplifies to a single ZoomMap. */
     {
         if (!astOK) astClearStatus;
         AstFrame *base = astFrame(2, "Domain=PIXEL");
@@ -2584,15 +2673,15 @@ static void gen_cascade_positives_2(const char *dir) {
         AstZoomMap *z1 = astZoomMap(2, 2.0, " ");
         AstZoomMap *z2 = astZoomMap(2, 3.0, " ");
         AstCmpMap *map = astCmpMap(z1, z2, 1, " ");
-        AstFrameSet *fs = astFrameSet(base, " ");
-        astAddFrame(fs, AST__BASE, map, curr);
-        double lbnd[] = {0.0, 0.0};
-        double ubnd[] = {10.0, 10.0};
-        AstBox *box = astBox(fs, 1, lbnd, ubnd, NULL, " ");
-        AstNormMap *nm = astNormMap((AstFrame *)box, " ");
-        write_fixture(dir, "normmap_frame_simplifies", (AstMapping*)nm);
-        nm = astAnnul(nm); box = astAnnul(box); fs = astAnnul(fs);
-        map = astAnnul(map); base = astAnnul(base); curr = astAnnul(curr);
+        AstFrameSet *fset = astFrameSet(base, " ");
+        astAddFrame(fset, AST__BASE, map, curr);
+        AstFrame *spec = astFrame(1, "Domain=OTHER");
+        AstCmpFrame *cf = astCmpFrame(fset, spec, " ");
+        AstNormMap *nm = astNormMap((AstFrame *)cf, " ");
+        write_fixture(dir, "cap_normmap_cmpframe", (AstMapping*)nm);
+        nm = astAnnul(nm); cf = astAnnul(cf); spec = astAnnul(spec);
+        fset = astAnnul(fset); map = astAnnul(map);
+        base = astAnnul(base); curr = astAnnul(curr);
         z1 = astAnnul(z1); z2 = astAnnul(z2);
     }
 
@@ -3389,6 +3478,463 @@ static void gen_audit_gap_fixtures(const char *dir) {
         AstCmpMap *cm = astCmpMap(um, pm, 0, " ");
         write_negative_fixture(dir, "neg_unit_parallel_forward", (AstMapping*)cm);
         cm = astAnnul(cm); um = astAnnul(um); pm = astAnnul(pm);
+    }
+
+    /* A ChebyMap whose forward transformation holds a single T_1 term over
+       bounds that are not the identity interval. A ChebyMap inherits PolyMap's
+       MapMerge -- polymap.c:2439 is the only place the slot is filled -- whose
+       replace-with-simpler half rebuilds an all-linear polynomial as a
+       MatrixMap and a ShiftMap from coeff_f and power_f alone
+       (polymap.c:3757-3850), never consulting the scale and offset that map
+       the input onto [-1,1]. The reduction therefore changes the
+       transformation: this pair simplifies to a ZoomMap of 2 where the
+       ChebyMap gives 0.4x-2. These two are the reproduction for that finding
+       and are deliberately not part of the Rust port's simplify corpus, which
+       would have to reproduce the wrong Mapping to consume them. See
+       docs/issues/c-library-quirks.md in the port. The control is the same
+       ChebyMap with a T_2 term, which is not linear and which C leaves
+       alone. */
+    {
+        double lbnd[] = {0.0};
+        double ubnd[] = {10.0};
+        double coeff_f[] = {2.0, 1.0, 1.0};
+        AstChebyMap *cm = astChebyMap(1, 1, 1, coeff_f, 0, NULL,
+                                      lbnd, ubnd, NULL, NULL, " ");
+        write_fixture(dir, "cheby_linear_lone_reduce", (AstMapping*)cm);
+        cm = astAnnul(cm);
+    }
+    {
+        double lbnd[] = {0.0};
+        double ubnd[] = {10.0};
+        double coeff_f[] = {2.0, 1.0, 2.0};
+        AstChebyMap *cm = astChebyMap(1, 1, 1, coeff_f, 0, NULL,
+                                      lbnd, ubnd, NULL, NULL, " ");
+        write_negative_fixture(dir, "neg_cheby_quadratic_no_reduce",
+                               (AstMapping*)cm);
+        cm = astAnnul(cm);
+    }
+
+    /* A WcsMap whose projection type is AST__WCSBAD, which MapMerge replaces
+       with a UnitMap without reference to its neighbours (wcsmap.c:3095-3105).
+       astWcsMap rejects AST__WCSBAD (wcsmap.c:5824), so the only way to build
+       one is the way C itself does: read a native description with no Type
+       value, which the loader turns into AST__WCSBAD (wcsmap.c:6052). The
+       control is a TAN WcsMap, which is a genuine projection and survives. */
+    {
+        char path[512];
+        AstChannel *chan;
+        AstObject *obj;
+        FILE *fd;
+
+        snprintf(path, sizeof(path), "%s/wcs_unknown_lone_reduce.in", dir);
+        fd = fopen(path, "w");
+        if (fd) {
+            fprintf(fd,
+                    " Begin WcsMap \t# FITS-WCS sky projection\n"
+                    "    Nin = 2 \t# Number of input coordinates\n"
+                    " IsA Mapping \t# Mapping between coordinate systems\n"
+                    " End WcsMap\n");
+            fclose(fd);
+            chan = astChannel(NULL, NULL, "SourceFile=%s", path);
+            obj = astRead(chan);
+            chan = astAnnul(chan);
+            if (obj) {
+                write_fixture(dir, "wcs_unknown_lone_reduce", (AstMapping*)obj);
+                obj = astAnnul(obj);
+            } else {
+                fprintf(stderr, "ERROR: astRead failed for a WCSBAD WcsMap\n");
+            }
+            remove(path);
+        } else {
+            fprintf(stderr, "ERROR: cannot write %s\n", path);
+        }
+    }
+    {
+        AstWcsMap *wm = astWcsMap(2, AST__TAN, 1, 2, " ");
+        write_negative_fixture(dir, "neg_wcs_tan_no_reduce", (AstMapping*)wm);
+        wm = astAnnul(wm);
+    }
+
+    /* A series CmpMap nested eleven deep, each level holding a ZoomMap, which C
+       collapses to a single ZoomMap. astCmpMap puts the accumulated nest in the
+       first slot each time, so the tree is left-deep rather than a flat
+       eleven-element series list. Nothing bounds the recursion depth in C --
+       simplify_stackmaps grows with astGrow (cmpmap.c:3496) and exists only to
+       detect a Mapping already being simplified. */
+    {
+        AstMapping *acc = (AstMapping *) astZoomMap(1, 2.0, " ");
+        int i;
+        for (i = 0; i < 11; i++) {
+            AstMapping *z = (AstMapping *) astZoomMap(1, 1.5, " ");
+            AstMapping *next = (AstMapping *) astCmpMap(acc, z, 1, " ");
+            acc = astAnnul(acc);
+            z = astAnnul(z);
+            acc = next;
+        }
+        write_fixture(dir, "cap_deep_nest_zoom", acc);
+        acc = astAnnul(acc);
+    }
+
+    /* A FrameSet whose single edge is a UnitMap. The edge simplifies to itself,
+       so `simpler` stays 0 and Simplify returns astClone(this)
+       (frameset.c:10226). The copy Simplify worked on is a deep one
+       (frameset.c:10175), so no edge in the returned object carries an IsSimp
+       stamp of its own, and Frame overrides GetIsSimple to zero
+       (frame.c:5590) so the FrameSet itself dumps no IsSimp card either: the
+       .simp is byte-identical to the .map. */
+    {
+        AstFrame *f1 = astFrame(2, "Domain=PIXEL");
+        AstFrame *f2 = astFrame(2, "Domain=GRID");
+        AstUnitMap *um = astUnitMap(2, " ");
+        AstFrameSet *fs = astFrameSet(f1, " ");
+        astAddFrame(fs, 1, um, f2);
+        write_fixture(dir, "cap_frameset_nochange", (AstMapping*)fs);
+        f1 = astAnnul(f1);
+        f2 = astAnnul(f2);
+        um = astAnnul(um);
+        fs = astAnnul(fs);
+    }
+
+    /* A restricted simplify with one eligible and one ineligible component,
+       one of them an inverted CmpMap. This one pins the tail of astSimplify_:
+       AllowSimplify is cleared on the result and RestrictedSimplify with it,
+       and a restricted simplify does not set IsSimple, so the .simp carries
+       none of the three cards (mapping.c:24779-24788). The chain does collapse
+       to a single ZoomMap -- the eligible ZoomMap's own MapMerge reaches across
+       its ineligible neighbours -- so this pair does not gate the `simpler`
+       reset; cap_restricted_no_eligible does. */
+    {
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstCmpMap *inner = astCmpMap(z1, z2, 1, " ");
+        AstZoomMap *z3 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *outer;
+
+        astInvert(inner);              /* the inverted CmpMap astMapList sees */
+        gen_set_allow_simplify(z3);    /* eligible */
+        outer = astCmpMap(inner, z3, 1, " ");
+        gen_set_restricted_simplify(outer);
+
+        write_fixture(dir, "cap_restricted_inverted", (AstMapping*)outer);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        z3 = astAnnul(z3);
+        inner = astAnnul(inner);
+        outer = astAnnul(outer);
+    }
+
+    /* The same tree with nothing eligible. astMapList still finds the inverted
+       CmpMap and reports `simpler`, but the restricted mode discards that
+       (cmpmap.c:3530) and the nominate loop skips every component
+       (cmpmap.c:3569), so no merge follows and Simplify returns astClone(this)
+       (cmpmap.c:3641): the swapped, inverted decomposition is thrown away and
+       the tree comes back as supplied, less the ReSimp card that astSimplify
+       clears on the result (mapping.c:24783). */
+    {
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstCmpMap *inner = astCmpMap(z1, z2, 1, " ");
+        AstZoomMap *z3 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *outer;
+
+        astInvert(inner);
+        outer = astCmpMap(inner, z3, 1, " ");
+        gen_set_restricted_simplify(outer);
+
+        write_fixture(dir, "cap_restricted_no_eligible", (AstMapping*)outer);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        z3 = astAnnul(z3);
+        inner = astAnnul(inner);
+        outer = astAnnul(outer);
+    }
+
+    /* A restricted simplify that does rebuild, with an eligible component the
+       rebuild keeps. The two adjacent eligible ZoomMaps merge, so `simpler`
+       becomes 1 and the sequence is folded back into a CmpMap; the third
+       eligible ZoomMap sits next to a MathMap and merges with nothing, so it
+       survives into the result still carrying its AllowSimplify flag. C clears
+       that flag on every component as it folds (cmpmap.c:3692), so no AlSimp
+       card reaches the dump. */
+    {
+        const char *fwd[] = { "y = 2*x" };
+        const char *inv[] = { "x = 0.5*y" };
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstMathMap *math = astMathMap(1, 1, 1, fwd, 1, inv, " ");
+        AstZoomMap *z4 = astZoomMap(1, 7.0, " ");
+        AstCmpMap *left = astCmpMap(z1, z2, 1, " ");
+        AstCmpMap *right = astCmpMap(math, z4, 1, " ");
+        AstCmpMap *outer;
+
+        gen_set_allow_simplify(z1);
+        gen_set_allow_simplify(z2);
+        gen_set_allow_simplify(z4);
+        outer = astCmpMap(left, right, 1, " ");
+        gen_set_restricted_simplify(outer);
+
+        write_fixture(dir, "cap_restricted_component_flags", (AstMapping*)outer);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        z4 = astAnnul(z4);
+        math = astAnnul(math);
+        left = astAnnul(left);
+        right = astAnnul(right);
+        outer = astAnnul(outer);
+    }
+
+    /* A series CmpMap of ZoomMaps whose inner CmpMap carries Ident. C refuses
+       to decompose that CmpMap (astMapList consults astDoNotSimplify,
+       cmpmap.c:1154) and refuses to reach its Simplify slot (mapping.c:24764),
+       both on the base rule that a set Ident means the user wants the Mapping
+       left intact (mapping.c:1150). The inner CmpMap therefore survives with
+       its two ZoomMaps unmerged, while the outer chain around it simplifies. */
+    {
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstZoomMap *z3 = astZoomMap(1, 5.0, " ");
+        AstCmpMap *inner = astCmpMap(z1, z2, 1, " ");
+        AstCmpMap *outer;
+
+        astSetC(inner, "Ident", "keepme");
+        outer = astCmpMap(inner, z3, 1, " ");
+
+        write_fixture(dir, "cap_ident_cmpmap", (AstMapping*)outer);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        z3 = astAnnul(z3);
+        inner = astAnnul(inner);
+        outer = astAnnul(outer);
+    }
+
+    /* The negative control for the same rule: a FrameSet -- which is a Frame,
+       and Frame overrides astDoNotSimplify to zero (frame.c:3511) -- carrying
+       the same Ident. Its base-to-current Mapping is a CmpMap of two ZoomMaps,
+       so if the Ident were honoured here the pair would come back unchanged. */
+    {
+        AstFrame *f1 = astFrame(1, "Domain=BASE");
+        AstFrame *f2 = astFrame(1, "Domain=CURRENT");
+        AstZoomMap *z1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *z2 = astZoomMap(1, 3.0, " ");
+        AstCmpMap *cm = astCmpMap(z1, z2, 1, " ");
+        AstFrameSet *fs = astFrameSet(f1, " ");
+
+        astAddFrame(fs, AST__BASE, cm, f2);
+        astSetC(fs, "Ident", "keepme");
+
+        write_fixture(dir, "cap_ident_frame", (AstMapping*)fs);
+        f1 = astAnnul(f1);
+        f2 = astAnnul(f2);
+        z1 = astAnnul(z1);
+        z2 = astAnnul(z2);
+        cm = astAnnul(cm);
+        fs = astAnnul(fs);
+    }
+
+    /* [ZoomMap, PermMap, parallel CmpMap, ZoomMap] in series. The CmpMap /
+       PermMap swap (cmpmap.c:1816) brings a Mapping next to each outer
+       ZoomMap, so which merge the nominate loop reaches first depends on the
+       index the swap reports. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        const char *fwda[] = {"y = 2*x"};
+        const char *inva[] = {"x = 0.5*y"};
+        const char *fwdb[] = {"y = 3*x"};
+        const char *invb[] = {"x = y/3"};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, " ");
+        AstMathMap *ma = astMathMap(1, 1, 1, fwda, 1, inva, " ");
+        AstMathMap *mb = astMathMap(1, 1, 1, fwdb, 1, invb, " ");
+        AstCmpMap *par = astCmpMap(ma, mb, 0, " ");
+        AstZoomMap *za = astZoomMap(2, 2.0, " ");
+        AstZoomMap *zb = astZoomMap(2, 3.0, " ");
+        AstCmpMap *c1 = astCmpMap(za, pm, 1, " ");
+        AstCmpMap *c2 = astCmpMap(c1, par, 1, " ");
+        AstCmpMap *c3 = astCmpMap(c2, zb, 1, " ");
+        write_fixture(dir, "cap_cmpperm_resume", (AstMapping*)c3);
+        c3 = astAnnul(c3); c2 = astAnnul(c2); c1 = astAnnul(c1);
+        za = astAnnul(za); zb = astAnnul(zb);
+        par = astAnnul(par); pm = astAnnul(pm);
+        ma = astAnnul(ma); mb = astAnnul(mb);
+    }
+
+    /* The same swap with the PermMap stored inverted, so permmap.c::MapMerge
+       has a canonical rebuild available at the PermMap's own nomination
+       (permmap.c:1362). C takes that rebuild first, clearing the inversion,
+       and the swap then runs on the rebuilt PermMap. */
+    {
+        if (!astOK) astClearStatus;
+        int inperm[] = {2, 1};
+        int outperm[] = {2, 1};
+        const char *fwda[] = {"y = 2*x"};
+        const char *inva[] = {"x = 0.5*y"};
+        const char *fwdb[] = {"y = 3*x"};
+        const char *invb[] = {"x = y/3"};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, " ");
+        AstMathMap *ma = astMathMap(1, 1, 1, fwda, 1, inva, " ");
+        AstMathMap *mb = astMathMap(1, 1, 1, fwdb, 1, invb, " ");
+        AstCmpMap *par = astCmpMap(ma, mb, 0, " ");
+        astInvert(pm);
+        AstCmpMap *c1 = astCmpMap(pm, par, 1, " ");
+        write_fixture(dir, "cap_cmpperm_resume_inv", (AstMapping*)c1);
+        c1 = astAnnul(c1); par = astAnnul(par); pm = astAnnul(pm);
+        ma = astAnnul(ma); mb = astAnnul(mb);
+    }
+
+    /* Two forward terms with identical powers for output 1: C's PolyMap
+       MapMerge consolidation (polymap.c:3624) adds them, and chebymap.c
+       inherits it. The third term is a T_3, so the polynomial is not linear and
+       C does not go on to the replacement that reads Chebyshev coefficients as
+       monomial (polymap.c:3747). In a series list so the ChebyMap is reached as
+       a nominee. */
+    {
+        double lbnd[] = {0.0};
+        double ubnd[] = {10.0};
+        double coeff_f[] = {1.5, 1, 2,
+                            2.5, 1, 2,
+                            1.0, 1, 3};
+        AstChebyMap *cm = astChebyMap(1, 1, 3, coeff_f, 0, NULL,
+                                      lbnd, ubnd, NULL, NULL, " ");
+        AstZoomMap *zm = astZoomMap(1, 2.0, " ");
+        AstCmpMap *c1 = astCmpMap(zm, cm, 1, " ");
+        write_fixture(dir, "cap_cheby_consolidate", (AstMapping*)c1);
+        c1 = astAnnul(c1); zm = astAnnul(zm); cm = astAnnul(cm);
+    }
+
+    /* A 2-D Box whose base->current Mapping is a PermMap with a third output
+       fed a constant. box.c:3762 gives that current-Frame axis equal limits,
+       so the simplified Region is a 3-D Box pinned on axis 3. astMapRegion is
+       the only public way to install a base->current Mapping in a Region;
+       astBox would resolve a FrameSet to its current Frame
+       (region.c:10730). */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(3, "Domain=SLICE");
+        int inperm[] = {1, 2};
+        int outperm[] = {1, 2, -1};
+        double consts[] = {5.0};
+        AstPermMap *pm = astPermMap(2, inperm, 3, outperm, consts, " ");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 20.0};
+        AstBox *box = astBox(base, 1, lbnd, ubnd, NULL, " ");
+        void *reg = map_region_unsimplified(box, pm, curr);
+        write_region_fixture(dir, "cap_box_permmap_const", reg);
+        box = astAnnul(box); pm = astAnnul(pm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* The same construction with the PermMap feeding base axis 2 a constant
+       that lies outside the Box. box.c:3809 then reports the slice as missing
+       the Box, so the simplified Region is a NullRegion. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=SLICE");
+        int inperm[] = {1, -1};
+        int outperm[] = {1, 2};
+        double consts[] = {99.0};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, consts, " ");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 20.0};
+        AstBox *box = astBox(base, 1, lbnd, ubnd, NULL, " ");
+        void *reg = map_region_unsimplified(box, pm, curr);
+        write_region_fixture(dir, "cap_box_permmap_null", reg);
+        box = astAnnul(box); pm = astAnnul(pm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* Negative control: both outputs are fed base axis 1, so the relation
+       between the two Frames is not bi-directional. box.c:3818 abandons the
+       branch, and abandoning it discards the parent simplification too, so the
+       Region is returned exactly as supplied. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=SLICE");
+        int inperm[] = {1, 2};
+        int outperm[] = {1, 1};
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, NULL, " ");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, 20.0};
+        AstBox *box = astBox(base, 1, lbnd, ubnd, NULL, " ");
+        void *reg = map_region_unsimplified(box, pm, curr);
+        write_negative_region_fixture(dir, "cap_box_permmap_nonbidi", reg);
+        box = astAnnul(box); pm = astAnnul(pm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* There is no fixture for the bad-vertex guard at polygon.c:5400. A
+       Polygon cannot hold a bad vertex (polygon.c:7131 rejects one), and
+       astMapRegion refuses any Mapping that sends a defining point to
+       AST__BAD (region.c:5546), so no public construction reaches the guard.
+    */
+
+    /* Polygon carrying an explicit uncertainty, mapped by a ZoomMap.
+       polygon.c:5384 asks for the uncertainty in the *current* Frame, so the
+       replacement Polygon's Unc block is the supplied Box scaled by the zoom
+       factor, not the base-Frame Box. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=ZOOMED");
+        AstZoomMap *zm = astZoomMap(2, 4.0, " ");
+        double ulb[] = {-0.1, -0.1}, uub[] = {0.1, 0.1};
+        AstBox *unc = astBox(base, 1, ulb, uub, NULL, " ");
+        double verts[] = { 0.0, 10.0, 10.0,  0.0,
+                           0.0,  0.0, 20.0, 20.0 };
+        AstPolygon *poly = astPolygon(base, 4, 4, verts, (AstRegion *) unc, " ");
+        void *reg = map_region_unsimplified(poly, zm, curr);
+        write_region_fixture(dir, "cap_poly_unc_frame", reg);
+        poly = astAnnul(poly); unc = astAnnul(unc); zm = astAnnul(zm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* SimpVertices=0 with a Mapping that bows the edges. polygon.c:5415 meshes
+       the mapped Polygon and asks the straight-edged replacement whether every
+       mesh point lands on its boundary. The 0.005*x2*x2 term displaces the
+       midpoint of the x1=0 edge by 0.5 from the chord, far outside the 0.01
+       uncertainty, so astRegPins fails and C keeps the original. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=BOWED");
+        const char *fwd[] = {"y1=x1+0.005*x2*x2", "y2=x2"};
+        const char *inv[] = {"x1=y1-0.005*y2*y2", "x2=y2"};
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
+        double ulb[] = {-0.01, -0.01}, uub[] = {0.01, 0.01};
+        AstBox *unc = astBox(base, 1, ulb, uub, NULL, " ");
+        double verts[] = { 0.0, 10.0, 10.0,  0.0,
+                           0.0,  0.0, 20.0, 20.0 };
+        AstPolygon *poly = astPolygon(base, 4, 4, verts, (AstRegion *) unc, " ");
+        astSetI(poly, "SimpVertices", 0);
+        void *reg = map_region_unsimplified(poly, mm, curr);
+        write_region_fixture(dir, "cap_poly_bent_edges", reg);
+        poly = astAnnul(poly); unc = astAnnul(unc); mm = astAnnul(mm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* The same bowed Mapping with SimpVertices left at its default 1.
+       polygon.c:5415 is then skipped and C replaces the Polygon with its
+       transformed vertices, bowed edges and all. The pair discriminates the
+       SimpVertices branch from the vertex transform itself. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(2, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=BOWED");
+        const char *fwd[] = {"y1=x1+0.005*x2*x2", "y2=x2"};
+        const char *inv[] = {"x1=y1-0.005*y2*y2", "x2=y2"};
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
+        double ulb[] = {-0.01, -0.01}, uub[] = {0.01, 0.01};
+        AstBox *unc = astBox(base, 1, ulb, uub, NULL, " ");
+        double verts[] = { 0.0, 10.0, 10.0,  0.0,
+                           0.0,  0.0, 20.0, 20.0 };
+        AstPolygon *poly = astPolygon(base, 4, 4, verts, (AstRegion *) unc, " ");
+        void *reg = map_region_unsimplified(poly, mm, curr);
+        write_region_fixture(dir, "cap_poly_bend_allowed", reg);
+        poly = astAnnul(poly); unc = astAnnul(unc); mm = astAnnul(mm);
+        base = astAnnul(base); curr = astAnnul(curr);
     }
 }
 
