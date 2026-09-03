@@ -409,6 +409,12 @@ function(add_roundtrip_test)
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endfunction()
 
+add_executable(gen_keymap_mapsz gen_keymap_mapsz.c)
+target_include_directories(gen_keymap_mapsz PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_keymap_mapsz PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_keymap_mapsz PRIVATE HAVE_CONFIG_H)
+ast_apply_dev_options(gen_keymap_mapsz)
+
 add_executable(gen_frameset_fixtures gen_frameset_fixtures.c)
 target_include_directories(gen_frameset_fixtures PRIVATE ${TEST_INCLUDES})
 target_link_libraries(gen_frameset_fixtures PRIVATE ${TEST_LIBS})
