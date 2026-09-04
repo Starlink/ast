@@ -1,0 +1,101 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "2-d coordinate system" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "FPLANE" 	# Coordinate system domain
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+#   Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "PIXEL" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin Frame 	# Coordinate system description
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "FPLANE" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Vrnts = 	# Variant Frames
+             Begin FrameSet 	# Set of inter-related coordinate systems
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+#               Naxes = 2 	# Number of coordinate axes
+#               Domain = "FP2" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+             IsA Frame 	# Coordinate system description
+                Nframe = 2 	# Number of Frames in FrameSet
+#               Base = 1 	# Index of base Frame
+                Currnt = 2 	# Index of current Frame
+                Lnk2 = 1 	# Node 2 is derived from node 1
+                Frm1 = 	# Frame number 1
+                   Begin Frame 	# Coordinate system description
+#                     Title = "2-d coordinate system" 	# Title of coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+                      Domain = "FP1" 	# Coordinate system domain
+#                     Lbl1 = "Axis 1" 	# Label for axis 1
+#                     Lbl2 = "Axis 2" 	# Label for axis 2
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                      Ax2 = 	# Axis number 2
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                   End Frame
+                Frm2 = 	# Frame number 2
+                   Begin Frame 	# Coordinate system description
+#                     Title = "2-d coordinate system" 	# Title of coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+                      Domain = "FP2" 	# Coordinate system domain
+#                     Lbl1 = "Axis 1" 	# Label for axis 1
+#                     Lbl2 = "Axis 2" 	# Label for axis 2
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                      Ax2 = 	# Axis number 2
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                   End Frame
+                Map2 = 	# Mapping between nodes 1 and 2
+                   Begin WinMap 	# Map one window on to another
+                      Nin = 2 	# Number of input coordinates
+                      IsSimp = 1 	# Mapping has been simplified
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Sft1 = 150 	# Shift for axis 1
+                      Scl1 = 20.000000000000004 	# Scale factor for axis 1
+                      Sft2 = 150 	# Shift for axis 2
+                      Scl2 = 49.999999999999993 	# Scale factor for axis 2
+                   End WinMap
+             End FrameSet
+       End Frame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin WinMap 	# Map one window on to another
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 98.989898989898975 	# Shift for axis 1
+          Scl1 = 1.0101010101010102 	# Scale factor for axis 1
+          Sft2 = 99.497487437185924 	# Shift for axis 2
+          Scl2 = 0.50251256281407031 	# Scale factor for axis 2
+       End WinMap
+ End FrameSet

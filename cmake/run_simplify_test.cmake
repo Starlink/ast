@@ -6,9 +6,13 @@
 #   SIMPLIFY  : absolute path to the simplify executable
 #   IN_FILE   : input .map file (resolved against CWD)
 #   REF_FILE  : reference .simp file to diff against
+#   COMPARE   : absolute path to the compare_dumps executable
 #   OUT_FILE  : output file to produce
+# Optional:
+#   TOLERANCE : "astequal" to widen the numeric tolerance from 4 ULP to AST's
+#               own astEQUAL, for a value amplified by cancellation.
 
-foreach(_req IN ITEMS SIMPLIFY IN_FILE REF_FILE OUT_FILE)
+foreach(_req IN ITEMS SIMPLIFY COMPARE IN_FILE REF_FILE OUT_FILE)
     if(NOT DEFINED ${_req})
         message(FATAL_ERROR "run_simplify_test.cmake: ${_req} not set")
     endif()
@@ -23,8 +27,16 @@ if(NOT _rv EQUAL 0)
                         "(cmd: ${SIMPLIFY} ${IN_FILE} ${OUT_FILE})")
 endif()
 
+# compare_dumps rather than a byte comparison: a dump whose trig values differ in
+# the last bits between platforms would otherwise have to opt out of string
+# comparison altogether, and then nothing checks the rest of its several hundred
+# lines either.
+set(_tol "")
+if(DEFINED TOLERANCE AND TOLERANCE STREQUAL "astequal")
+    set(_tol "--astequal")
+endif()
 execute_process(
-    COMMAND "${CMAKE_COMMAND}" -E compare_files "${REF_FILE}" "${OUT_FILE}"
+    COMMAND "${COMPARE}" ${_tol} "${REF_FILE}" "${OUT_FILE}"
     RESULT_VARIABLE _rv
 )
 if(NOT _rv EQUAL 0)

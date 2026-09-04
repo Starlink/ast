@@ -1,0 +1,33 @@
+ Begin CmpFrame 	# Compound coordinate system description
+#   Title = "2-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+    Domain = "DATAPLOT" 	# Coordinate system domain
+#   Lbl1 = "Date/Time" 	# Label for axis 1
+#   Lbl2 = "Data up-loaded" 	# Label for axis 2
+#   Uni1 = "d" 	# Units for axis 1 (day)
+#   Uni2 = "GB" 	# Units for axis 2
+    ActUnt = 1 	# Unit strings affects alignment
+ IsA Frame 	# Coordinate system description
+    FrameA = 	# First component Frame
+       Begin TimeFrame 	# Description of time coordinate system
+          Title = "KAPPA - Trandat" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Format = "iso.0" 	# Format specifier
+             End Axis
+       IsA Frame 	# Coordinate system description
+          TmOrg = 57128.585855999998 	# Time offset
+       End TimeFrame
+    FrameB = 	# Second component Frame
+       Begin Frame 	# Coordinate system description
+          Naxes = 1 	# Number of coordinate axes
+          ActUnt = 1 	# Unit strings affects alignment
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Data up-loaded" 	# Axis Label
+                Symbol = "Data" 	# Axis symbol
+                Unit = "GB" 	# Axis units
+             End Axis
+       End Frame
+ End CmpFrame

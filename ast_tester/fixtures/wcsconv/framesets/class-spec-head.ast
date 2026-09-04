@@ -1,0 +1,60 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "Frequency (LSRK)" 	# Title of coordinate system
+#   Naxes = 1 	# Number of coordinate axes
+#   Domain = "DSBSPECTRUM" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Frequency (LSB)" 	# Label for axis 1
+#   System = "FREQ" 	# Coordinate system type
+#   Uni1 = "Hz" 	# Units for axis 1 (Hertz)
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+    Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+          Title = "Pixel Coordinates" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          Domain = "GRID" 	# Coordinate system domain
+#         Lbl1 = "Pixel axis 1" 	# Label for axis 1
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 1" 	# Axis Label
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin DSBSpecFrame 	# Dual sideband spectral axis
+          Ident = " " 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "Frequency (LSRK)" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+#         Domain = "DSBSPECTRUM" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Frequency (LSB)" 	# Label for axis 1
+          System = "FREQ" 	# Coordinate system type
+#         Uni1 = "Hz" 	# Units for axis 1 (Hertz)
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Unit = "Hz" 	# Axis units (Hertz)
+             End Axis
+       IsA Frame 	# Coordinate system description
+          SoR = "LSRK" 	# Standard of rest
+          RstFrq = 110201354300 	# Rest frequency (Hz)
+          SrcVel = -179874674.79633078 	# Source velocity (m/s)
+          SrcVRF = "LSRK" 	# Source velocity rest frame
+          UFreq = "Hz" 	# Preferred units for frequency
+       IsA SpecFrame 	# Description of spectral coordinate system
+          DSBCen = 0 	# Central frequency (Hz topo)
+          IF = 207461847734.1156 	# Intermediate frequency (Hz)
+          SideBn = "LSB" 	# Represents lower sideband
+#         AlSdBn = 0 	# Align sidebands?
+       End DSBSpecFrame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin WinMap 	# Map one window on to another
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = -22609882.354726564 	# Shift for axis 1
+          Scl1 = 39062.5 	# Scale factor for axis 1
+       End WinMap
+ End FrameSet

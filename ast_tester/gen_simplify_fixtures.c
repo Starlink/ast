@@ -3938,6 +3938,503 @@ static void gen_audit_gap_fixtures(const char *dir) {
     }
 }
 
+/* ===== Fixtures adopted from the Rust port's parity work ===== */
+
+/* WcsMap's swap search: a WcsMap next to a PermMap that cannot be swapped past
+   it, so no reduction is available. */
+static void gen_wcsmap_perm_fixtures(const char *dir) {
+    printf("WcsMap/PermMap swap-refusal fixtures:\n");
+    {
+        /* Every PermMap output is a constant, so nothing connects through. */
+        AstWcsMap *w = astWcsMap(2, AST__TAN, 1, 2, " ");
+        int inperm[2] = { -1, -2 };
+        int outperm[2] = { -1, -2 };
+        double con[2] = { 0.25, 0.5 };
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, con, " ");
+        AstCmpMap *cm = astCmpMap(w, pm, 1, " ");
+        write_negative_fixture(dir, "neg_wcsmap_perm_allconst", (AstMapping *) cm);
+        cm = astAnnul(cm);
+        pm = astAnnul(pm);
+        w = astAnnul(w);
+    }
+    {
+        /* A PermMap on both sides of the WcsMap: swapping one would only move
+           the obstruction to the other. */
+        int perm[2] = { 2, 1 };
+        AstPermMap *p1 = astPermMap(2, perm, 2, perm, NULL, " ");
+        AstWcsMap *w = astWcsMap(2, AST__TAN, 1, 2, " ");
+        AstCmpMap *inner = astCmpMap(p1, w, 1, " ");
+        AstPermMap *p2 = astPermMap(2, perm, 2, perm, NULL, " ");
+        AstCmpMap *cm = astCmpMap(inner, p2, 1, " ");
+        write_negative_fixture(dir, "neg_wcsmap_perm_both_sides", (AstMapping *) cm);
+        cm = astAnnul(cm);
+        p2 = astAnnul(p2);
+        inner = astAnnul(inner);
+        w = astAnnul(w);
+        p1 = astAnnul(p1);
+    }
+}
+
+/* Region attributes that must survive a merge: a product of FillFactors, and a
+   MeshSize that scales with the merged Region's axis count. */
+static void gen_merge_attr_fixtures(const char *dir) {
+    printf("Region merge-attribute fixtures:\n");
+    {
+        /* MeshSize is per-Region, and the merged Region's value has to be
+           derived from both rather than inherited from one. */
+        AstFrame *fa = astFrame(1, " ");
+        double acen[1] = { 5.0 }, acor[1] = { 10.0 };
+        AstBox *ba = astBox(fa, 0, acen, acor, NULL, "MeshSize=30");
+        AstFrame *fb = astFrame(1, " ");
+        double bcen[1] = { 0.0 }, bcor[1] = { 5.0 };
+        AstBox *bb = astBox(fb, 0, bcen, bcor, NULL, "MeshSize=50");
+        AstCmpMap *cm = astCmpMap(ba, bb, 0, " ");
+        write_fixture(dir, "merge_box_meshsize_scaled", (AstMapping *) cm);
+        cm = astAnnul(cm);
+        bb = astAnnul(bb);
+        fb = astAnnul(fb);
+        ba = astAnnul(ba);
+        fa = astAnnul(fa);
+    }
+    {
+        /* Two FillFactors must combine as a product, not be taken from one
+           side: the merged Region covers the product of the two fractions. */
+        AstFrame *fa = astFrame(1, " ");
+        double acen[1] = { 5.0 }, acor[1] = { 10.0 };
+        AstBox *ba = astBox(fa, 0, acen, acor, NULL, "FillFactor=0.5");
+        AstFrame *fb = astFrame(1, " ");
+        double bcen[1] = { 0.0 }, bcor[1] = { 5.0 };
+        AstBox *bb = astBox(fb, 0, bcen, bcor, NULL, "FillFactor=0.8");
+        AstCmpMap *cm = astCmpMap(ba, bb, 0, " ");
+        write_fixture(dir, "merge_box_fillfactor_product", (AstMapping *) cm);
+        cm = astAnnul(cm);
+        bb = astAnnul(bb);
+        fb = astAnnul(fb);
+        ba = astAnnul(ba);
+        fa = astAnnul(fa);
+    }
+    {
+        AstFrame *f1 = astFrame(1, " ");
+        double lb1[1] = { 0.0 }, ub1[1] = { AST__BAD };
+        AstInterval *i1 = astInterval(f1, lb1, ub1, NULL, "MeshSize=30");
+        AstFrame *f2 = astFrame(1, " ");
+        double lb2[1] = { -5.0 }, ub2[1] = { AST__BAD };
+        AstInterval *i2 = astInterval(f2, lb2, ub2, NULL, "MeshSize=50");
+        AstCmpMap *cm = astCmpMap(i1, i2, 0, " ");
+        write_fixture(dir, "merge_interval_meshsize_scaled", (AstMapping *) cm);
+        cm = astAnnul(cm);
+        i2 = astAnnul(i2);
+        f2 = astAnnul(f2);
+        i1 = astAnnul(i1);
+        f1 = astAnnul(f1);
+    }
+}
+
+/* Default uncertainties.  Each fixture is the Region astGetUnc hands back for a
+   Region that carries none, which is otherwise invisible: the default depends on
+   the Region's class and bounds, and a port that returns the wrong shape or the
+   wrong extent has nothing to be caught by. */
+static void gen_defunc_fixtures(const char *dir) {
+    printf("Default-uncertainty fixtures:\n");
+    {
+        /* A NullRegion's default is a zero-radius Circle, not a Box. */
+        AstFrame *f = astFrame(2, " ");
+        AstNullRegion *nr = astNullRegion(f, NULL, " ");
+        AstRegion *unc = astGetUnc(nr, 1);
+        write_fixture(dir, "defunc_nullregion_2d", (AstMapping *) unc);
+        unc = astAnnul(unc);
+        nr = astAnnul(nr);
+        f = astAnnul(f);
+    }
+    {
+        /* One bounded axis and one half-open axis: the bounded axis gets an
+           extent-derived width, the open axis gets zero. */
+        AstFrame *f = astFrame(2, " ");
+        double lbnd[2] = { 5.0, 0.0 };
+        double ubnd[2] = { 8.0, AST__BAD };
+        AstInterval *iv = astInterval(f, lbnd, ubnd, NULL, " ");
+        AstRegion *unc = astGetUnc(iv, 1);
+        write_fixture(dir, "defunc_interval_unbounded", (AstMapping *) unc);
+        unc = astAnnul(unc);
+        iv = astAnnul(iv);
+        f = astAnnul(f);
+    }
+    {
+        /* When a component carries an explicit uncertainty the CmpRegion's
+           default is that one, not a box round the whole thing. */
+        AstFrame *f = astFrame(2, " ");
+        double ucen[2] = { -0.25, -0.25 }, ucor[2] = { 0.25, 0.25 };
+        AstBox *unc1 = astBox(f, 0, ucen, ucor, NULL, " ");
+        double acen[2] = { 0.0, 0.0 }, acor[2] = { 10.0, 10.0 };
+        AstBox *b1 = astBox(f, 0, acen, acor, (AstRegion *) unc1, " ");
+        double bcen[2] = { 5.0, 5.0 }, bcor[2] = { 15.0, 15.0 };
+        AstBox *b2 = astBox(f, 0, bcen, bcor, NULL, " ");
+        AstCmpRegion *cr = astCmpRegion(b1, b2, AST__AND, " ");
+        AstRegion *unc = astGetUnc(cr, 1);
+        write_fixture(dir, "defunc_cmpregion_component_unc", (AstMapping *) unc);
+        unc = astAnnul(unc);
+        cr = astAnnul(cr);
+        b2 = astAnnul(b2);
+        b1 = astAnnul(b1);
+        unc1 = astAnnul(unc1);
+        f = astAnnul(f);
+    }
+    {
+        /* A Prism's default is a Prism of its components' defaults. */
+        AstFrame *f2 = astFrame(2, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 4.0, 6.0 };
+        AstBox *box = astBox(f2, 0, bcen, bcor, NULL, " ");
+        AstFrame *f1 = astFrame(1, " ");
+        double ilb[1] = { 1.0 }, iub[1] = { 9.0 };
+        AstInterval *iv = astInterval(f1, ilb, iub, NULL, " ");
+        AstPrism *pr = astPrism(box, iv, " ");
+        AstRegion *unc = astGetUnc(pr, 1);
+        write_fixture(dir, "defunc_prism_box_interval", (AstMapping *) unc);
+        unc = astAnnul(unc);
+        pr = astAnnul(pr);
+        iv = astAnnul(iv);
+        f1 = astAnnul(f1);
+        box = astAnnul(box);
+        f2 = astAnnul(f2);
+    }
+}
+
+/* Circle/Ellipse re-fitting.  Simplifying a mapped Circle re-fits the shape in
+   the new Frame, and the class of the result depends on what the Mapping did to
+   the axes.  A port that always keeps the original class, or always degrades to
+   a Frame, passes neither of the first two. */
+static void gen_cefit_fixtures(const char *dir) {
+    printf("Circle/Ellipse re-fit fixtures:\n");
+    {
+        /* Anisotropic scaling turns a circle into an ellipse.
+
+           The centre is away from the origin deliberately.  Centred on it, with
+           the scaling aligned to the axes, a defining coordinate of the fitted
+           ellipse is a residual that should be zero and is in fact rounding
+           noise around 1e-15 -- and the fit is numerical, so that noise moves
+           when the compiler contracts a multiply and an add, which is enough to
+           make astEqual call two otherwise identical Ellipses different.  A
+           fixture should not rest on a value that means nothing. */
+        AstFrame *f = astFrame(2, " ");
+        double centre[2] = { 10.0, 20.0 };
+        double radius[1] = { 3.0 };
+        AstCircle *c = astCircle(f, 1, centre, radius, NULL, " ");
+        double diag[2] = { 2.0, 5.0 };
+        AstMatrixMap *mm = astMatrixMap(2, 2, 1, diag, " ");
+        AstRegion *mapped = astMapRegion(c, (AstMapping *) mm, f);
+        write_fixture(dir, "cefit_circle_to_ellipse", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        mm = astAnnul(mm);
+        c = astAnnul(c);
+        f = astAnnul(f);
+    }
+    {
+        /* And a Mapping that equalises the axes turns an ellipse into a
+           circle, so the degradation runs both ways. */
+        AstFrame *f = astFrame(2, " ");
+        double centre[2] = { 0.0, 0.0 };
+        double p1[2] = { 5.0, 0.0 };
+        double p2[2] = { 0.0, 1.0 };
+        AstEllipse *e = astEllipse(f, 0, centre, p1, p2, NULL, " ");
+        double diag[2] = { 0.2, 1.0 };
+        AstMatrixMap *mm = astMatrixMap(2, 2, 1, diag, " ");
+        AstRegion *mapped = astMapRegion(e, (AstMapping *) mm, f);
+        write_fixture(dir, "cefit_ellipse_to_circle", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        mm = astAnnul(mm);
+        e = astAnnul(e);
+        f = astAnnul(f);
+    }
+    {
+        /* An isotropic zoom keeps a circle a circle. */
+        AstFrame *f = astFrame(2, " ");
+        double centre[2] = { 1.0, 2.0 };
+        double radius[1] = { 3.0 };
+        AstCircle *c = astCircle(f, 1, centre, radius, NULL, " ");
+        AstZoomMap *z = astZoomMap(2, 4.0, " ");
+        AstRegion *mapped = astMapRegion(c, (AstMapping *) z, f);
+        write_fixture(dir, "cefit_circle_conformal", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        z = astAnnul(z);
+        c = astAnnul(c);
+        f = astAnnul(f);
+    }
+    {
+        /* A non-linear Mapping is required for the keep branch: any linear
+           shear or rotation of a circle is still an ellipse, which the ellipse
+           fit would validate. */
+        AstFrame *f = astFrame(2, " ");
+        double centre[2] = { 2.0, 2.0 };
+        double radius[1] = { 1.0 };
+        AstCircle *c = astCircle(f, 1, centre, radius, NULL, " ");
+        const char *fwd[2] = { "y1 = x1 * x1", "y2 = x2" };
+        const char *inv[2] = { "x1 = sqrt( y1 )", "x2 = y2" };
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
+        AstRegion *mapped = astMapRegion(c, (AstMapping *) mm, f);
+        write_fixture(dir, "cefit_circle_nonconformal_keep",
+                      (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        mm = astAnnul(mm);
+        c = astAnnul(c);
+        f = astAnnul(f);
+    }
+}
+
+/* RegBasePick: simplifying a Region whose Mapping splits cleanly on a subset of
+   axes should keep the Region's class by picking the corresponding sub-region,
+   rather than falling back to a bounding box or a bare Frame. */
+static void gen_regbasepick_fixtures(const char *dir) {
+    printf("RegBasePick fixtures:\n");
+    {
+        /* A clean axis swap: every axis is permuted, so the copy path runs. */
+        AstFrame *f = astFrame(2, " ");
+        double centre[2] = { 1.0, 2.0 };
+        double radius[1] = { 0.5 };
+        AstCircle *c = astCircle(f, 1, centre, radius, NULL, " ");
+        int perm[2] = { 2, 1 };
+        AstPermMap *pm = astPermMap(2, perm, 2, perm, NULL, " ");
+        AstRegion *mapped = astMapRegion(c, (AstMapping *) pm, f);
+        write_fixture(dir, "regbasepick_circle_permaxes", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        pm = astAnnul(pm);
+        c = astAnnul(c);
+        f = astAnnul(f);
+    }
+    {
+        /* A CmpRegion over {0,1} and {2} with a Mapping that splits on the
+           same boundary: each component is picked separately. */
+        AstFrame *f3 = astFrame(3, " ");
+        /* A Box cannot leave an axis unconstrained -- that is what an Interval
+           with AST__BAD bounds is for -- so both components are Intervals: one
+           bounding axes 1 and 2, one bounding axis 3. */
+        double blb[3] = { 0.0, 0.0, AST__BAD }, bub[3] = { 4.0, 6.0, AST__BAD };
+        AstInterval *box = astInterval(f3, blb, bub, NULL, " ");
+        double ilb[3] = { AST__BAD, AST__BAD, 1.0 };
+        double iub[3] = { AST__BAD, AST__BAD, 9.0 };
+        AstInterval *iv = astInterval(f3, ilb, iub, NULL, " ");
+        AstCmpRegion *cr = astCmpRegion(box, iv, AST__AND, " ");
+        double diag[3] = { 2.0, 3.0, 5.0 };
+        AstMatrixMap *mm = astMatrixMap(3, 3, 1, diag, " ");
+        AstRegion *mapped = astMapRegion(cr, (AstMapping *) mm, f3);
+        write_fixture(dir, "regbasepick_cmpregion_subset", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        mm = astAnnul(mm);
+        cr = astAnnul(cr);
+        iv = astAnnul(iv);
+        box = astAnnul(box);
+        f3 = astAnnul(f3);
+    }
+    {
+        /* The same split, but the Region is a Prism, whose own pick has to run
+           over its two components. */
+        AstFrame *f2 = astFrame(2, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 4.0, 6.0 };
+        AstBox *box = astBox(f2, 0, bcen, bcor, NULL, " ");
+        AstFrame *f1 = astFrame(1, " ");
+        double ilb[1] = { 1.0 }, iub[1] = { 9.0 };
+        AstInterval *iv = astInterval(f1, ilb, iub, NULL, " ");
+        AstPrism *pr = astPrism(box, iv, " ");
+        AstFrame *f3 = astFrame(3, " ");
+        double diag[3] = { 2.0, 3.0, 5.0 };
+        AstMatrixMap *mm = astMatrixMap(3, 3, 1, diag, " ");
+        AstRegion *mapped = astMapRegion(pr, (AstMapping *) mm, f3);
+        write_fixture(dir, "regbasepick_prism_subset", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        mm = astAnnul(mm);
+        f3 = astAnnul(f3);
+        pr = astAnnul(pr);
+        iv = astAnnul(iv);
+        f1 = astAnnul(f1);
+        box = astAnnul(box);
+        f2 = astAnnul(f2);
+    }
+}
+
+/* astSetUnc: an uncertainty supplied by a caller is not stored as given.  It is
+   remapped into the Region's own base Frame, re-centred, negated if it was
+   unbounded, and has its FrameSet dropped when the Mapping is a UnitMap. */
+static void gen_setunc_fixtures(const char *dir) {
+    printf("astSetUnc fixtures:\n");
+    {
+        /* The uncertainty is defined in a zoomed Frame, so storing it has to
+           remap it into the Box's base Frame and re-centre it. */
+        AstFrame *f = astFrame(2, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, NULL, " ");
+        AstFrame *fz = astFrame(2, " ");
+        double ucen[2] = { 0.0, 0.0 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *raw = astBox(fz, 0, ucen, ucor, NULL, " ");
+        AstZoomMap *z = astZoomMap(2, 2.0, " ");
+        AstRegion *unc = astMapRegion(raw, (AstMapping *) z, f);
+        astSetUnc(box, unc);
+        write_fixture(dir, "setunc_box_remapped_unc", (AstMapping *) box);
+        unc = astAnnul(unc);
+        z = astAnnul(z);
+        raw = astAnnul(raw);
+        fz = astAnnul(fz);
+        box = astAnnul(box);
+        f = astAnnul(f);
+    }
+    {
+        /* A negated Box is unbounded as supplied, and has to be negated back
+           to a bounded form before it can be stored. */
+        AstFrame *f = astFrame(2, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, NULL, " ");
+        double ucen[2] = { -0.5, -0.5 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *unc = astBox(f, 0, ucen, ucor, NULL, " ");
+        astNegate(unc);
+        astSetUnc(box, unc);
+        write_fixture(dir, "setunc_unbounded_negated", (AstMapping *) box);
+        unc = astAnnul(unc);
+        box = astAnnul(box);
+        f = astAnnul(f);
+    }
+    {
+        /* When the uncertainty's own base-to-current Mapping is a UnitMap its
+           FrameSet carries nothing and is left out of the dump. */
+        AstFrame *f = astFrame(2, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, NULL, " ");
+        double ucen[2] = { -0.5, -0.5 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *unc = astBox(f, 0, ucen, ucor, NULL, " ");
+        astSetUnc(box, unc);
+        write_fixture(dir, "setunc_unitmap_regionfs_omitted", (AstMapping *) box);
+        unc = astAnnul(unc);
+        box = astAnnul(box);
+        f = astAnnul(f);
+    }
+}
+
+/* Simplifying a Region simplifies its uncertainty too -- but only when the
+   simplified uncertainty is stable across the Region.  A Mapping whose
+   linearisation varies corner to corner must keep the unsimplified form, which
+   is the branch a naive "always simplify the uncertainty" port gets wrong. */
+static void gen_simpstab_fixtures(const char *dir) {
+    printf("Uncertainty-stability fixtures:\n");
+    {
+        /* Linear: the uncertainty is the same everywhere, so it simplifies. */
+        AstFrame *f = astFrame(2, " ");
+        double ucen[2] = { -0.5, -0.5 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *unc = astBox(f, 0, ucen, ucor, NULL, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, (AstRegion *) unc, " ");
+        double shift[2] = { 3.0, -2.0 };
+        AstZoomMap *z = astZoomMap(2, 2.0, " ");
+        AstShiftMap *sm = astShiftMap(2, shift, " ");
+        AstCmpMap *cm = astCmpMap(z, sm, 1, " ");
+        AstRegion *mapped = astMapRegion(box, (AstMapping *) cm, f);
+        write_fixture(dir, "simpstab_box_linear_unc", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        cm = astAnnul(cm);
+        sm = astAnnul(sm);
+        z = astAnnul(z);
+        box = astAnnul(box);
+        unc = astAnnul(unc);
+        f = astAnnul(f);
+    }
+    {
+        /* Non-linear: the uncertainty width changes across the Region, so the
+           unsimplified form has to be kept. */
+        AstFrame *f = astFrame(2, " ");
+        double ucen[2] = { -0.5, -0.5 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *unc = astBox(f, 0, ucen, ucor, NULL, " ");
+        double bcen[2] = { 1.0, 1.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, (AstRegion *) unc, " ");
+        const char *fwd[2] = { "y1 = x1 * x1", "y2 = x2" };
+        const char *inv[2] = { "x1 = sqrt( y1 )", "x2 = y2" };
+        AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
+        AstRegion *mapped = astMapRegion(box, (AstMapping *) mm, f);
+        write_fixture(dir, "simpstab_box_nonlinear_unc", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        mm = astAnnul(mm);
+        box = astAnnul(box);
+        unc = astAnnul(unc);
+        f = astAnnul(f);
+    }
+    {
+        /* A PermMap slice, where nin differs from nout, so the uncertainty has
+           to be re-centred on the sliced axes. */
+        AstFrame *f3 = astFrame(3, " ");
+        double ucen[3] = { -0.5, -0.5, -0.5 }, ucor[3] = { 0.5, 0.5, 0.5 };
+        AstBox *unc = astBox(f3, 0, ucen, ucor, NULL, " ");
+        double bcen[3] = { 0.0, 0.0, 0.0 }, bcor[3] = { 10.0, 10.0, 10.0 };
+        AstBox *box = astBox(f3, 0, bcen, bcor, (AstRegion *) unc, " ");
+        AstFrame *f2 = astFrame(2, " ");
+        int inperm[3] = { 1, 2, -1 };
+        int outperm[2] = { 1, 2 };
+        double con[1] = { 0.0 };
+        AstPermMap *pm = astPermMap(3, inperm, 2, outperm, con, " ");
+        AstRegion *mapped = astMapRegion(box, (AstMapping *) pm, f2);
+        write_fixture(dir, "simpstab_permmap_slice_unc", (AstMapping *) mapped);
+        mapped = astAnnul(mapped);
+        pm = astAnnul(pm);
+        f2 = astAnnul(f2);
+        box = astAnnul(box);
+        unc = astAnnul(unc);
+        f3 = astAnnul(f3);
+    }
+}
+
+/* A CmpMap tree in which an inner node carries the simplified record and the
+   outer node does not, so a dump has a nested IsSimp card.  Built by simplifying
+   a tree and using the result as the fixture, which is the only way to get that
+   shape: the tag is set by astSimplify, never by a constructor. */
+static void gen_nested_tag_fixture(const char *dir) {
+    printf("Nested IsSimp fixture:\n");
+    {
+        int inperm[2] = { 1, 0 };
+        int outperm[2] = { 1, 1 };
+        double con[1] = { 0.0 };
+        AstPermMap *pm = astPermMap(2, inperm, 2, outperm, con, " ");
+        double shift[1] = { 2.8653885237872601e-05 };
+        AstShiftMap *sm = astShiftMap(1, shift, " ");
+        AstCmpMap *par = astCmpMap(pm, sm, 0, " ");
+        AstUnitMap *um = astUnitMap(3, " ");
+        AstCmpMap *inner = astCmpMap(par, um, 1, " ");
+        AstMapping *simp = astSimplify(inner);
+        AstUnitMap *u3 = astUnitMap(3, " ");
+        AstCmpMap *outer;
+
+        astInvert(u3);
+        outer = astCmpMap(u3, simp, 1, " ");
+        write_fixture(dir, "cap_cmpmap_nested_tag", (AstMapping *) outer);
+        outer = astAnnul(outer);
+        u3 = astAnnul(u3);
+        simp = astAnnul(simp);
+        inner = astAnnul(inner);
+        um = astAnnul(um);
+        par = astAnnul(par);
+        sm = astAnnul(sm);
+        pm = astAnnul(pm);
+    }
+}
+
+/* The LSST WCS as a scenario fixture: a real, large CmpMap rather than a shape
+   built to reach one rule.  The input is a FrameSet, and what is interesting is
+   its base-to-current Mapping, so the Mapping is extracted here and written as
+   the fixture.  That keeps the pair in the corpus's usual .map/.simp form, so
+   the harness needs no mode for reading a FrameSet and simplifying its Mapping
+   instead. */
+static void gen_lsst_scenario_fixture(const char *dir) {
+    AstChannel *chan;
+    AstFrameSet *fs;
+    AstMapping *map;
+
+    printf("LSST scenario fixture:\n");
+    chan = astChannel(NULL, NULL, "SourceFile=ast_tester/fixtures/wcsconv/inputs/lsst.ast");
+    fs = (AstFrameSet *) astRead(chan);
+    chan = astAnnul(chan);
+    if (!fs) {
+        fprintf(stderr, "ERROR: could not read wcsconv/inputs/lsst.ast\n");
+        return;
+    }
+    map = astGetMapping(fs, AST__BASE, AST__CURRENT);
+    write_fixture(dir, "lsst", map);
+    map = astAnnul(map);
+    fs = astAnnul(fs);
+}
+
 int main(void) {
     int status = 0;
     const char *dir = "ast_tester/fixtures/simplify";
@@ -3976,6 +4473,16 @@ int main(void) {
     gen_win_extra_cascade_fixtures(dir);
     /* DssMap: skipped — protected constructor, and DSS FitsChan encoding
        no longer creates DssMap objects (decomposes to WcsMap pipeline). */
+
+    gen_lsst_scenario_fixture(dir);
+    gen_defunc_fixtures(dir);
+    gen_cefit_fixtures(dir);
+    gen_regbasepick_fixtures(dir);
+    gen_setunc_fixtures(dir);
+    gen_simpstab_fixtures(dir);
+    gen_nested_tag_fixture(dir);
+    gen_wcsmap_perm_fixtures(dir);
+    gen_merge_attr_fixtures(dir);
 
     gen_negative_fixtures(dir);
     gen_negative_fixtures_2(dir);

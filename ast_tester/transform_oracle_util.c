@@ -90,6 +90,45 @@ double oracle_parse_double( const char *tok, int *ok ) {
     return v;
 }
 
+/* A fixture holding an IntraMap names a private transformation function, and its
+   dump cannot be read until that function is registered.  Both the generator and
+   the checker need the same four registrations simplify.c makes: if only one of
+   them had them, the generator would write sections the checker could not load.
+   Registering here keeps the two in step by construction. */
+static void OracleIntraTran( AstMapping *mapping, int npoint, int ncoord_in,
+                             const double *ptr_in[], int forward,
+                             int ncoord_out, double *ptr_out[] ) {
+    int icoord;
+    int ipoint;
+
+    (void) mapping;
+    (void) forward;
+
+    for( icoord = 0; icoord < ncoord_out; icoord++ ) {
+        for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+            ptr_out[ icoord ][ ipoint ] = ( icoord < ncoord_in ) ?
+                ptr_in[ icoord ][ ipoint ] : AST__BAD;
+        }
+    }
+}
+
+void oracle_register_intramaps( int *status ) {
+    astIntraReg_( "simplifyidentity", 1, 1, OracleIntraTran,
+                  AST__SIMPFI | AST__SIMPIF,
+                  "Identity IntraMap for simplify fixtures",
+                  "AST test suite", "starlink-ast", status );
+    astIntraReg_( "simplifyidentity2", 1, 1, OracleIntraTran,
+                  AST__SIMPFI | AST__SIMPIF,
+                  "Second identity IntraMap for simplify fixtures",
+                  "AST test suite", "starlink-ast", status );
+    astIntraReg_( "nosimpfi", 1, 1, OracleIntraTran, AST__SIMPIF,
+                  "IntraMap without SIMPFI for simplify fixtures",
+                  "AST test suite", "starlink-ast", status );
+    astIntraReg_( "nosimpif", 1, 1, OracleIntraTran, AST__SIMPFI,
+                  "IntraMap without SIMPIF for simplify fixtures",
+                  "AST test suite", "starlink-ast", status );
+}
+
 AstMapping *oracle_load_mapping( const char *root, const char *relpath,
                                  AstFrame **out_base, AstFrame **out_cur ) {
     char path[1024];

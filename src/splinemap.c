@@ -2546,7 +2546,9 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 */
 astMAKE_CLEAR1(SplineMap,InvNiter,invniter,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(SplineMap,InvNiter,int,0,( this->invniter == -INT_MAX ? 6 : this->invniter))
-astMAKE_SET1(SplineMap,InvNiter,int,invniter,(astClearIsSimple(this),value))
+astMAKE_SET1(SplineMap,InvNiter,int,invniter,(
+            ( value != this->invniter ) ? astClearIsSimple(this) : (void)0,
+            value))
 astMAKE_TEST(SplineMap,InvNiter,( this->invniter != -INT_MAX ))
 
 /* InvTol. */
@@ -2585,7 +2587,9 @@ astMAKE_TEST(SplineMap,InvNiter,( this->invniter != -INT_MAX ))
 */
 astMAKE_CLEAR1(SplineMap,InvTol,invtol,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(SplineMap,InvTol,double,0.0,( this->invtol == AST__BAD ? 1.0E-6 : this->invtol))
-astMAKE_SET1(SplineMap,InvTol,double,invtol,(astClearIsSimple(this),value))
+astMAKE_SET1(SplineMap,InvTol,double,invtol,(
+            ( value != this->invtol ) ? astClearIsSimple(this) : (void)0,
+            value))
 astMAKE_TEST(SplineMap,InvTol,( this->invtol != AST__BAD ))
 
 /* OutUnit. */
@@ -2629,7 +2633,9 @@ astMAKE_TEST(SplineMap,InvTol,( this->invtol != AST__BAD ))
 */
 astMAKE_CLEAR1(SplineMap,OutUnit,outunit,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(SplineMap,OutUnit,int,0,(this->outunit==-INT_MAX?0:this->outunit))
-astMAKE_SET1(SplineMap,OutUnit,int,outunit,(astClearIsSimple(this),(value?1:0)))
+astMAKE_SET1(SplineMap,OutUnit,int,outunit,(
+            ( (value?1:0) != this->outunit ) ? astClearIsSimple(this) : (void)0,
+            (value?1:0)))
 astMAKE_TEST(SplineMap,OutUnit,(this->outunit!=-INT_MAX))
 
 /* SplineKx. */

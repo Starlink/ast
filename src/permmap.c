@@ -2067,7 +2067,9 @@ static AstPointSet *Transform( AstMapping *map, AstPointSet *in,
 astMAKE_CLEAR(PermMap,PermSplit,permsplit,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PermMap,PermSplit,int,0,( this->permsplit != -INT_MAX ?
                                       this->permsplit : 0 ))
-astMAKE_SET(PermMap,PermSplit,int,permsplit,(astClearIsSimple(this),( value != 0 )))
+astMAKE_SET(PermMap,PermSplit,int,permsplit,(
+            ( ( value != 0 ) != this->permsplit ) ? astClearIsSimple(this) : (void)0,
+            ( value != 0 )))
 astMAKE_TEST(PermMap,PermSplit,( this->permsplit != -INT_MAX ))
 
 

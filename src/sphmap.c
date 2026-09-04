@@ -1393,7 +1393,9 @@ f     AST_CLONE
 */
 astMAKE_CLEAR1(SphMap,UnitRadius,unitradius,(astClearIsSimple(this),-1))
 astMAKE_GET(SphMap,UnitRadius,int,0,(this->unitradius == -1 ? 0 : this->unitradius))
-astMAKE_SET1(SphMap,UnitRadius,int,unitradius,(astClearIsSimple(this),( value ? 1 : 0 )))
+astMAKE_SET1(SphMap,UnitRadius,int,unitradius,(
+            ( ( value ? 1 : 0 ) != this->unitradius ) ? astClearIsSimple(this) : (void)0,
+            ( value ? 1 : 0 )))
 astMAKE_TEST(SphMap,UnitRadius,( this->unitradius != -1 ))
 
 /* PolarLong */
@@ -1433,7 +1435,9 @@ f     AST_CLONE
 */
 astMAKE_CLEAR1(SphMap,PolarLong,polarlong,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(SphMap,PolarLong,double,0.0,(this->polarlong == AST__BAD ? 0.0 : this->polarlong))
-astMAKE_SET1(SphMap,PolarLong,double,polarlong,(astClearIsSimple(this),value))
+astMAKE_SET1(SphMap,PolarLong,double,polarlong,(
+            ( value != this->polarlong ) ? astClearIsSimple(this) : (void)0,
+            value))
 astMAKE_TEST(SphMap,PolarLong,( this->polarlong != AST__BAD ))
 
 /* Copy constructor. */

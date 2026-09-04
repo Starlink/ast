@@ -5626,7 +5626,10 @@ astMAKE_GET(MathMap,Seed,int,0,this->rcontext.seed)
    context and set the context's "seed_set" flag. Also clear the "active"
    flag, so that the generator will be re-initialised to use this seed
    when it is next invoked. */
-astMAKE_SET1(MathMap,Seed,int,rcontext.seed,( astClearIsSimple(this),
+astMAKE_SET1(MathMap,Seed,int,rcontext.seed,(
+                    ( !this->rcontext.seed_set ||
+                      value != this->rcontext.seed ) ?
+                                                astClearIsSimple(this) : (void)0,
                                              this->rcontext.seed_set = 1,
                                              this->rcontext.active = 0,
                                              value ))
@@ -5702,7 +5705,9 @@ astMAKE_GET(MathMap,SimpFI,int,0,( ( this->simp_fi != -INT_MAX ) ?
                                    this->simp_fi : 0 ))
 
 /* Set a SimpFI value of 1 if any non-zero value is supplied. */
-astMAKE_SET1(MathMap,SimpFI,int,simp_fi,(astClearIsSimple(this),( value != 0 )))
+astMAKE_SET1(MathMap,SimpFI,int,simp_fi,(
+            ( ( value != 0 ) != this->simp_fi ) ? astClearIsSimple(this) : (void)0,
+            ( value != 0 )))
 
 /* The SimpFI value is set if it is not -INT_MAX. */
 astMAKE_TEST(MathMap,SimpFI,( this->simp_fi != -INT_MAX ))
@@ -5775,7 +5780,9 @@ astMAKE_GET(MathMap,SimpIF,int,0,( ( this->simp_if != -INT_MAX ) ?
                                    this->simp_if : 0 ))
 
 /* Set a SimpIF value of 1 if any non-zero value is supplied. */
-astMAKE_SET1(MathMap,SimpIF,int,simp_if,(astClearIsSimple(this),( value != 0 )))
+astMAKE_SET1(MathMap,SimpIF,int,simp_if,(
+            ( ( value != 0 ) != this->simp_if ) ? astClearIsSimple(this) : (void)0,
+            ( value != 0 )))
 
 /* The SimpIF value is set if it is not -INT_MAX. */
 astMAKE_TEST(MathMap,SimpIF,( this->simp_if != -INT_MAX ))
@@ -7434,7 +7441,6 @@ AstMathMap *astLoadMathMap_( void *mem, size_t size,
 /* Undefine macros local to this function. */
 #undef KEY_LEN
 }
-
 
 
 

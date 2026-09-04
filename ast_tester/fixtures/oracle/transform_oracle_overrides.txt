@@ -28,6 +28,11 @@
 #   returns BAD for the whole fixture (no inverse exists).
 wcsconv/inputs/tnx-cheb.head   off
 
+# The same object, reached through its dump under wcsconv/framesets/.  It has no
+# inverse for the reason above, so the round-trip cannot be asserted there
+# either.  Both entries are needed because an override is keyed on the relpath.
+wcsconv/framesets/tnx-cheb-head.ast   off
+
 # (tsc.head needs no override: its only failing pixel is a 360 deg alias in an
 #  image wider than the quad-cube period, now accepted by the alias-aware
 #  round-trip check -- inverse(forward(P)) forward-maps back to the same sky.)

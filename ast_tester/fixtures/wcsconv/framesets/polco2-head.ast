@@ -1,0 +1,98 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "Pixel coordinates; first pixel at (-100.5,-200.5)" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "POLAR" 	# Coordinate system domain
+#   Lbl1 = "Pixel coordinate 1" 	# Label for axis 1
+#   Lbl2 = "Pixel coordinate 2" 	# Label for axis 2
+#   Uni1 = "pixel" 	# Units for axis 1
+#   Uni2 = "pixel" 	# Units for axis 2
+#   Bot1 = 0 	# Lowest legal axis value
+#   Bot2 = -3.1415920000000002 	# Lowest legal axis value
+#   Top2 = 3.1415920000000002 	# Highest legal axis value
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+#   Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Nod1 = 2 	# Frame 1 is associated with node 2
+    Nod2 = 1 	# Frame 2 is associated with node 1
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+          Title = "Data grid indices; first pixel at (1,1)     " 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "GRID" 	# Coordinate system domain
+#         Lbl1 = "Data grid index 1" 	# Label for axis 1
+#         Lbl2 = "Data grid index 2" 	# Label for axis 2
+#         Uni1 = "pixel" 	# Units for axis 1
+#         Uni2 = "pixel" 	# Units for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Data grid index 1" 	# Axis Label
+                Symbol = "g1" 	# Axis symbol
+                Unit = "pixel" 	# Axis units
+                Format = "%3.1f" 	# Format specifier
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+                Label = "Data grid index 2" 	# Axis Label
+                Symbol = "g2" 	# Axis symbol
+                Unit = "pixel" 	# Axis units
+                Format = "%3.1f" 	# Format specifier
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin Frame 	# Coordinate system description
+          Title = "Pixel coordinates; first pixel at (-100.5,-200.5)" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "POLAR" 	# Coordinate system domain
+#         Lbl1 = "Pixel coordinate 1" 	# Label for axis 1
+#         Lbl2 = "Pixel coordinate 2" 	# Label for axis 2
+#         Uni1 = "pixel" 	# Units for axis 1
+#         Uni2 = "pixel" 	# Units for axis 2
+#         Bot1 = 0 	# Lowest legal axis value
+#         Bot2 = -3.1415920000000002 	# Lowest legal axis value
+#         Top2 = 3.1415920000000002 	# Highest legal axis value
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel coordinate 1" 	# Axis Label
+                Symbol = "p1" 	# Axis symbol
+                Unit = "pixel" 	# Axis units
+                Format = "%3.1f" 	# Format specifier
+                Bottom = 0 	# Minimum legal axis value
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel coordinate 2" 	# Axis Label
+                Symbol = "p2" 	# Axis symbol
+                Unit = "pixel" 	# Axis units
+                Format = "%3.1f" 	# Format specifier
+                Top = 3.1415920000000002 	# Maximum legal axis value
+                Bottom = -3.1415920000000002 	# Minimum legal axis value
+             End Axis
+       End Frame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          InvA = 1 	# First Mapping used in inverse direction
+          InvB = 1 	# Second Mapping used in inverse direction
+          MapA = 	# First component Mapping
+             Begin MathMap 	# Transformation using mathematical functions
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Fwd1 = "r=sqrt(x*x+y*y)" 	# Forward function 1
+                Fwd2 = "theta=atan2(y,x)" 	# Forward function 2
+                Inv1 = "x=r*cos(theta)" 	# Inverse function 1
+                Inv2 = "y=r*sin(theta)" 	# Inverse function 2
+                SimpFI = 1 	# Forward-inverse pairs may simplify
+                SimpIF = 1 	# Inverse-forward pairs may simplify
+             End MathMap
+          MapB = 	# Second component Mapping
+             Begin WinMap 	# Map one window on to another
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = -101.5 	# Shift for axis 1
+                Sft2 = -201.5 	# Shift for axis 2
+             End WinMap
+       End CmpMap
+ End FrameSet

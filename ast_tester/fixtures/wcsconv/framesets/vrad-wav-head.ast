@@ -1,0 +1,68 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "Radio velocity (LSRK), rest frequency = 1.4204 GHz" 	# Title of coordinate system
+#   Naxes = 1 	# Number of coordinate axes
+#   Domain = "SPECTRUM" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Radio velocity" 	# Label for axis 1
+#   System = "VRAD" 	# Coordinate system type
+#   Uni1 = "m/s" 	# Units for axis 1
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+    Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+          Title = "Pixel Coordinates" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          Domain = "GRID" 	# Coordinate system domain
+#         Lbl1 = "Pixel axis 1" 	# Label for axis 1
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 1" 	# Axis Label
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin SpecFrame 	# Description of spectral coordinate system
+          Ident = " " 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "Radio velocity (LSRK), rest frequency = 1.4204 GHz" 	# Title of coordinate system
+          Naxes = 1 	# Number of coordinate axes
+#         Domain = "SPECTRUM" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Radio velocity" 	# Label for axis 1
+          System = "VRAD" 	# Coordinate system type
+#         Uni1 = "m/s" 	# Units for axis 1
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Unit = "m/s" 	# Axis units
+             End Axis
+       IsA Frame 	# Coordinate system description
+          SoR = "LSRK" 	# Standard of rest
+          RstFrq = 1420400000 	# Rest frequency (Hz)
+          UVrad = "m/s" 	# Preferred units for radio velocity
+       End SpecFrame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin CmpMap 	# Compound Mapping
+          Nin = 1 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin WinMap 	# Map one window on to another
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = 0.2107011813585403 	# Shift for axis 1
+                Scl1 = 7.0402703234316075e-07 	# Scale factor for axis 1
+             End WinMap
+          MapB = 	# Second component Mapping
+             Begin SpecMap 	# Conversion between spectral coordinate systems
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Nspec = 3 	# Number of conversion steps
+                Spec1 = "WVTOFR" 	# Convert wavelength (vacuum) to frequency
+                Spec2 = "FRTOVL" 	# Convert frequency to rel. velocity
+                Spec2a = 1420400000 	# Rest frequency (Hz)
+                Spec3 = "VLTOVR" 	# Convert relativistic to radio velocity
+             End SpecMap
+       End CmpMap
+ End FrameSet

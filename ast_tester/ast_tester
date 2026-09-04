@@ -195,11 +195,16 @@ foreach rec ( "`awk -f cases.awk fixtures/wcsconv/cases.txt`" )
      continue
   endif
 
-#  Rows flagged skip_string_compare serialise differently at the ulp level
-#  between platforms' maths libraries, so only the conversion itself is
-#  exercised here.  The ctest suite compares those semantically instead,
-#  with astEqual.
-  if( "$skip" == "yes" ) then
+#  Rows flagged skip_string_compare serialise differently between platforms'
+#  maths libraries, so only the conversion itself is exercised here.  The ctest
+#  suite compares those with compare_dumps, which tolerates a last-bit
+#  difference, and semantically with astEqual.
+#
+#  "astequal" is flagged for the same reason and skipped the same way.  Those
+#  rows differ by more than a few ulp -- a value amplified by cancellation --
+#  and this script has only a byte-level diff to offer, so diffing them here
+#  would report a difference that ctest has already judged acceptable.
+  if( "$skip" == "yes" || "$skip" == "astequal" ) then
      @ nskip++
      \rm -f $new_file
      continue
@@ -222,7 +227,8 @@ end
 
 if( $ok == 1 ) then
    echo "   All $ncmp compared WCS conversion tests passed"
-   echo "   ($ncase registered; $nskip ulp-unstable ones left to ctest)"
+   echo "   ($ncase registered; $nskip left to ctest, which compares them"
+   echo "    with a tolerance this script does not have)"
    echo ""
 endif
 
@@ -281,7 +287,7 @@ foreach rec ( "`awk -f cases.awk fixtures/simplify/cases.txt`" )
       set dstatus = $status
       \rm -f ${name}.ref ${name}.new
 
-   else if( "$skip" == "yes" ) then
+   else if( "$skip" == "yes" || "$skip" == "astequal" ) then
       @ nskip++
       \rm -f ${name}.out
       continue

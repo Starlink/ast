@@ -448,7 +448,7 @@
        Begin KeyMap 	# Map of key/value pairs
           MapSz = 16 	# Size of hash table
           MemCnt = 8 	# Total member count
-          Key1 = "Size" 	# Item name
+          Key1 = "Error" 	# Item name
           Typ1 = 4 	# Item data type (AST Object)
           Val1 = 	# Item value
              Begin Box 	# Axis intervals
@@ -541,10 +541,10 @@
                       X2 = 0
                       X3 = 0
                       X4 = 5.0599999999999996
-                      X5 = 0.0024240684055502545
-                      X6 = 0.0024240684055456237
-                      X7 = 0.0057870370370370471
-                      X8 = 6.0599999999999996
+                      X5 = 2.4240684055494011e-06
+                      X6 = 2.4240684055446403e-06
+                      X7 = 5.7870370370370173e-10
+                      X8 = 5.1099999999999994
                    End PointSet
              IsA Region 	# An area within a coordinate system
              End Box
@@ -655,7 +655,7 @@
                    End PointSet
              IsA Region 	# An area within a coordinate system
              End Box
-          Key4 = "Error" 	# Item name
+          Key4 = "Size" 	# Item name
           Typ4 = 4 	# Item data type (AST Object)
           Val4 = 	# Item value
              Begin Box 	# Axis intervals
@@ -748,10 +748,10 @@
                       X2 = 0
                       X3 = 0
                       X4 = 5.0599999999999996
-                      X5 = 2.4240684055494011e-06
-                      X6 = 2.4240684055446403e-06
-                      X7 = 5.7870370370370173e-10
-                      X8 = 5.1099999999999994
+                      X5 = 0.0024240684055502545
+                      X6 = 0.0024240684055456237
+                      X7 = 0.0057870370370370471
+                      X8 = 6.0599999999999996
                    End PointSet
              IsA Region 	# An area within a coordinate system
              End Box

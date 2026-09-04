@@ -1,0 +1,19 @@
+ Begin Frame 	# Coordinate system description
+    Title = "Pixel Coordinates" 	# Title of coordinate system
+    Naxes = 2 	# Number of coordinate axes
+    Domain = "PIXEL" 	# Coordinate system domain
+#   Lbl1 = "Column" 	# Label for axis 1
+#   Lbl2 = "Row" 	# Label for axis 2
+#   Uni1 = "pixel" 	# Units for axis 1
+#   Uni2 = "pixel" 	# Units for axis 2
+    Ax1 = 	# Axis number 1
+       Begin Axis 	# Coordinate axis
+          Label = "Column" 	# Axis Label
+          Unit = "pixel" 	# Axis units
+       End Axis
+    Ax2 = 	# Axis number 2
+       Begin Axis 	# Coordinate axis
+          Label = "Row" 	# Axis Label
+          Unit = "pixel" 	# Axis units
+       End Axis
+ End Frame

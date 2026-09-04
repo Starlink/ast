@@ -1793,7 +1793,10 @@ f     AST_CLONE
 astMAKE_CLEAR1(LutMap,LutInterp,lutinterp,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(LutMap,LutInterp,int,LINEAR,( ( this->lutinterp == -INT_MAX ) ?
                                           LINEAR : this->lutinterp ))
-astMAKE_SET1(LutMap,LutInterp,int,lutinterp,(astClearIsSimple(this),(( value == LINEAR ) ? LINEAR : NEAR )))
+astMAKE_SET1(LutMap,LutInterp,int,lutinterp,(
+            ( (( value == LINEAR ) ? LINEAR : NEAR ) != this->lutinterp ) ?
+               astClearIsSimple(this) : (void)0,
+            (( value == LINEAR ) ? LINEAR : NEAR )))
 astMAKE_TEST(LutMap,LutInterp,( this->lutinterp != -INT_MAX ))
 
 /*
@@ -1839,7 +1842,9 @@ f     AST_CLONE
 astMAKE_CLEAR1(LutMap,LutEpsilon,lutepsilon,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(LutMap,LutEpsilon,double,DBL_EPSILON,( ( this->lutepsilon == AST__BAD ) ?
                                           DBL_EPSILON : this->lutepsilon ))
-astMAKE_SET1(LutMap,LutEpsilon,double,lutepsilon,(astClearIsSimple(this),value))
+astMAKE_SET1(LutMap,LutEpsilon,double,lutepsilon,(
+            ( value != this->lutepsilon ) ? astClearIsSimple(this) : (void)0,
+            value))
 astMAKE_TEST(LutMap,LutEpsilon,( this->lutepsilon != AST__BAD ))
 
 /* Copy constructor. */

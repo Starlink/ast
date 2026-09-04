@@ -134,6 +134,14 @@ f     The WinMap class does not define any new routines beyond those
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
 *        negative values.
+*     4-SEP-2026 (TIMJ):
+*        In astMapMerge, treat a shift term that is zero to within astEQUAL as
+*        zero when replacing a WinMap by a ShiftMap, matching the tolerance the
+*        scale terms are already tested against. A shift merged past a full
+*        MatrixMap is transformed through it, so a cancelling row leaves half an
+*        ulp behind on a build that contracts a multiply and an add, and a
+*        ShiftMap writes a Sft card only for a non-zero shift -- so the residue
+*        decided how many lines the dump had.
 *class--
 */
 
@@ -1839,6 +1847,28 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
 /* Get a copy of the shift terms from the WinMap. */
          astWinTerms( oldwm, 0, &a, NULL );
+
+/* A shift that is zero to the same tolerance the scale terms were just tested
+   against is zero.  The scale test above accepts 1.0 within astEQUAL, so
+   accepting 0.0 within astEQUAL here is the same tolerance, not a new one.
+
+   It matters because these terms can carry a rounding residue.  A shift merged
+   past a full MatrixMap is obtained by transforming it through that MatrixMap
+   (WinMat below), so it is accumulated by the general matrix product in
+   matrixmap.c, and where a row cancels -- (-c)*x + c*x -- the result is exactly
+   zero only if both products round the same way.  A compiler that contracts a
+   multiply and an add computes the second exactly and leaves half an ulp of the
+   operands behind: about 1e-16 against terms of order one.  A ShiftMap writes a
+   Sft card only for a non-zero shift, so that residue decides how many lines its
+   dump has, and the same Mapping serialises differently depending on whether the
+   compiler emitted a fused multiply-add.  Snapping it here keeps the dump a
+   property of the Mapping.
+
+   The transform itself is deliberately left alone: one rounding instead of two is
+   more accurate, and a coordinate is not a defining parameter. */
+         for( i = 0; i < nin; i++ ){
+            if( astEQUAL( a[ i ], 0.0 ) ) a[ i ] = 0.0;
+         }
 
 /* Construct the equivalent ShiftMap. */
          simp1 = (AstMapping *) astShiftMap( nin, a, " ", status );

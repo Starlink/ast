@@ -33,6 +33,28 @@ is checked for existence at configure time, so a typo in a `cases.txt` fails
 the configure with the manifest and path named, rather than part-way through
 a ctest run.
 
+Fused multiply-add
+------------------
+
+Check a fixture or a reference against two builds, not one:
+
+    cmake -S . -B build     -DCMAKE_BUILD_TYPE=Release
+    cmake -S . -B build-fma -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS=-march=x86-64-v3
+
+Baseline x86-64 has no FMA instruction, so a compiler rounds `a*b+c` twice.
+arm64 contracts it into one fused operation, clang does so by default, and gcc
+does at `-march=x86-64-v3`.  That changes results by about an ulp per operation,
+which sounds negligible and is not: where a value cancels, the difference is
+unbounded in relative terms, and where a card is written only for a non-zero
+value it changes how many lines a dump has.  Both have happened in this corpus.
+
+So a reference captured on one of those builds can fail on the other, and a
+comparison tightened on one can fail on the other.  The CI matrix runs both on
+Linux for this reason, which isolates contraction from the libm differences that
+a ubuntu-versus-macos comparison also carries.  Run both locally before trusting
+a new reference or a narrowed tolerance.
+
 Legacy installed-library test
 -----------------------------
 
@@ -67,10 +89,13 @@ new fixture is picked up without editing the script:
   `fixtures/simplify/cases.txt`, via `cases.awk`.
 
 Two groups of cases are run but not compared here, and the script reports
-how many of each: rows flagged `skip_string_compare`, whose serialisation
-varies at the ulp level between platforms, and simplify fixtures containing
-an IntraMap, which name a private transformation function that `simplify.c`
-registers with `astIntraReg` and `simplify.f` cannot.  ctest covers both.
+how many of each: rows whose `skip_string_compare` column is `yes` or
+`astequal`, whose serialisation varies between platforms by more than a
+byte-level diff can accept, and simplify fixtures containing an IntraMap, which
+name a private transformation function that `simplify.c` registers with
+`astIntraReg` and `simplify.f` cannot.  ctest covers both, comparing dumps with
+`compare_dumps`, which tolerates a last-bit difference rather than requiring
+byte equality, and widens that to astEQUAL for the `astequal` rows.
 
 `doplot <case>` and `makeplot <case>` plot a single case.  The argument is
 either a name from `fixtures/plot/cases.txt`, in which case that row's

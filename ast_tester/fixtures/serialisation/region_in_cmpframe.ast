@@ -1,0 +1,36 @@
+ Begin CmpFrame 	# Compound coordinate system description
+#   Title = "2-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "A-B" 	# Coordinate system domain
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+ IsA Frame 	# Coordinate system description
+    FrameA = 	# First component Frame
+       Begin Box 	# Axis intervals
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin Frame 	# Coordinate system description
+                Naxes = 1 	# Number of coordinate axes
+                Domain = "A" 	# Coordinate system domain
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 2 	# Number of points
+                Ncoord = 1 	# Number of coordinates per point
+                X1 = 0.5 	# Coordinate values...
+                X2 = 1
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End Box
+    FrameB = 	# Second component Frame
+       Begin Frame 	# Coordinate system description
+          Naxes = 1 	# Number of coordinate axes
+          Domain = "B" 	# Coordinate system domain
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+       End Frame
+ End CmpFrame

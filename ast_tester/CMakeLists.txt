@@ -197,6 +197,7 @@ endif()
 
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)
+ast_add_test(testissimp INTERNAL_HEADERS)
 
 # --- Tests needing SAE_PAR stub ---
 ast_add_test(testaxis)
@@ -290,7 +291,7 @@ ast_apply_dev_options(ast_astequal)
 function(add_wcsconv_test)
     cmake_parse_arguments(W
         "SKIP_STRING_COMPARE"
-        "NAME;INPUT;REFERENCE;ENCODING;ATTRS"
+        "NAME;INPUT;REFERENCE;ENCODING;ATTRS;TOLERANCE"
         ""
         ${ARGN})
     if(NOT W_NAME OR NOT W_INPUT OR NOT W_REFERENCE OR NOT W_ENCODING)
@@ -309,6 +310,8 @@ function(add_wcsconv_test)
         add_test(NAME wcsconv_${W_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DWCSCONVERTER=$<TARGET_FILE:wcsconverter>
+                -DCOMPARE=$<TARGET_FILE:compare_dumps>
+                -DTOLERANCE=${W_TOLERANCE}
                 -DIN_FILE=${_input}
                 -DREF_FILE=${_reference}
                 -DOUT_FILE=${W_NAME}.out
@@ -349,9 +352,21 @@ foreach(_entry IN LISTS _wcsconv_tests)
     list(GET _fields 3 _encoding)
     list(GET _fields 4 _attrs)
     list(GET _fields 5 _skip)
+    # Three values.  Blank compares the output with numeric tokens equal to
+    # within 4 ULP.  "astequal" widens that to AST's own astEQUAL, for a value
+    # amplified by cancellation -- OBSALT recovered from OBSGEO-X/Y/Z is the case
+    # that needs it.  "yes" runs no string comparison at all, and needs a comment
+    # above the row saying what varies.
     set(_skip_flag "")
+    set(_tolerance "")
     if(_skip STREQUAL "yes")
         set(_skip_flag "SKIP_STRING_COMPARE")
+    elseif(_skip STREQUAL "astequal")
+        set(_tolerance "astequal")
+    elseif(NOT _skip STREQUAL "")
+        message(FATAL_ERROR
+            "wcsconv/cases.txt: row ${_name} has skip_string_compare "
+            "\"${_skip}\"; expected blank, astequal or yes")
     endif()
     set(_attrs_arg "")
     if(NOT _attrs STREQUAL "")
@@ -362,6 +377,7 @@ foreach(_entry IN LISTS _wcsconv_tests)
                      REFERENCE ${_reference}
                      ENCODING ${_encoding}
                      ${_attrs_arg}
+                     TOLERANCE ${_tolerance}
                      ${_skip_flag})
 endforeach()
 
@@ -379,6 +395,103 @@ target_include_directories(normalize_fixture PRIVATE ${TEST_INCLUDES})
 target_link_libraries(normalize_fixture PRIVATE ${TEST_LIBS})
 target_compile_definitions(normalize_fixture PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(normalize_fixture)
+
+# --- roundtrip: read a dump and write it straight back ---
+#
+# The output must be byte-identical to the input.  This is the only family that
+# can see an attribute lost on load: both simplify families call astSimplify
+# after reading, and astSimplify sets IsSimple on every node it visits, so a
+# record a loader dropped is put straight back before anything compares it.
+add_executable(roundtrip roundtrip.c)
+target_include_directories(roundtrip PRIVATE ${TEST_INCLUDES})
+target_link_libraries(roundtrip PRIVATE ${TEST_LIBS})
+target_compile_definitions(roundtrip PRIVATE HAVE_CONFIG_H)
+ast_apply_dev_options(roundtrip)
+add_dependencies(roundtrip ast_stage_fixtures)
+add_dependencies(simplify compare_dumps)
+
+function(add_roundtrip_test)
+    cmake_parse_arguments(R "" "NAME;FIXTURE" "" ${ARGN})
+    if(NOT R_NAME OR NOT R_FIXTURE)
+        message(FATAL_ERROR "add_roundtrip_test: NAME and FIXTURE required")
+    endif()
+    ast_require_fixture("roundtrip" "${R_FIXTURE}")
+    add_test(NAME roundtrip_${R_NAME}
+        COMMAND "${CMAKE_COMMAND}"
+                -DROUNDTRIP=$<TARGET_FILE:roundtrip>
+                -DIN_FILE=${AST_FIXTURE_BINARY_ROOT}/${R_FIXTURE}
+                -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/roundtrip_${R_NAME}.out
+                -P "${CMAKE_SOURCE_DIR}/cmake/run_roundtrip_test.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+# As every other family here does.  Reading a dump leaks inside the library's own
+# loaders -- astLoadXphMap by way of astReadClassData is one -- and this family
+# reads every fixture in the tree, so without this it is the only one that reports
+# those leaks.  Suppressing them keeps the family measuring what it is for; the
+# leaks belong to the read path and are the same ones the simplify and wcsconv
+# families already run with detection off.
+    if(AST_ENABLE_SANITIZERS)
+        set_tests_properties(roundtrip_${R_NAME} PROPERTIES
+            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+    endif()
+endfunction()
+
+# compare_dumps: a dump comparator that tolerates last-bit variation.  It links
+# no AST library -- it is text and arithmetic only -- so a cmake -P driver can
+# call it without the library on the path.
+add_executable(compare_dumps compare_dumps.c)
+target_link_libraries(compare_dumps PRIVATE m)
+set_target_properties(compare_dumps PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(compare_dumps)
+
+add_executable(compare_dumps_selftest compare_dumps.c)
+target_compile_definitions(compare_dumps_selftest PRIVATE SELFTEST)
+target_link_libraries(compare_dumps_selftest PRIVATE m)
+set_target_properties(compare_dumps_selftest PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(compare_dumps_selftest)
+# Deliberately without the ASAN_OPTIONS=detect_leaks=0 that every other test here
+# carries: this one links no AST library and allocates nothing, so a leak report
+# from it would be a real leak in compare_dumps rather than one of the library's.
+add_test(NAME compare_dumps_selftest COMMAND compare_dumps_selftest)
+
+add_executable(gen_keymap_mapsz gen_keymap_mapsz.c)
+target_include_directories(gen_keymap_mapsz PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_keymap_mapsz PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_keymap_mapsz PRIVATE HAVE_CONFIG_H)
+ast_apply_dev_options(gen_keymap_mapsz)
+
+# Check the committed fixture still describes this library.  Without this the
+# generator would be the only target here whose output nothing reads: the
+# fixture is written for a port to be held to, and a capture nothing re-checks
+# stops being evidence the moment KeyMap's growth policy changes.  Byte-exact,
+# because every value is integer arithmetic over ASCII keys.
+ast_require_fixture("keymap_mapsz" "oracle/keymap_mapsz.txt")
+add_test(NAME keymap_mapsz
+    COMMAND "${CMAKE_COMMAND}"
+            -DGENERATOR=$<TARGET_FILE:gen_keymap_mapsz>
+            -DREF_FILE=${AST_FIXTURE_BINARY_ROOT}/oracle/keymap_mapsz.txt
+            -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/keymap_mapsz.out
+            -P "${CMAKE_SOURCE_DIR}/cmake/run_keymap_mapsz_test.cmake"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+add_dependencies(gen_keymap_mapsz ast_stage_fixtures)
+if(AST_ENABLE_SANITIZERS)
+    set_tests_properties(keymap_mapsz PROPERTIES
+        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+endif()
+
+add_executable(gen_frameset_fixtures gen_frameset_fixtures.c)
+target_include_directories(gen_frameset_fixtures PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_frameset_fixtures PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_frameset_fixtures PRIVATE HAVE_CONFIG_H)
+set_target_properties(gen_frameset_fixtures PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(gen_frameset_fixtures)
+
+add_executable(gen_native_fixtures gen_native_fixtures.c)
+target_include_directories(gen_native_fixtures PRIVATE ${TEST_INCLUDES})
+target_link_libraries(gen_native_fixtures PRIVATE ${TEST_LIBS})
+target_compile_definitions(gen_native_fixtures PRIVATE HAVE_CONFIG_H)
+set_target_properties(gen_native_fixtures PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(gen_native_fixtures)
 
 add_executable(gen_simplify_fixtures gen_simplify_fixtures.c gen_simplify_flags.c)
 target_include_directories(gen_simplify_fixtures PRIVATE ${TEST_INCLUDES})
@@ -417,7 +530,7 @@ ast_apply_dev_options(gen_simplify_fixtures)
 function(add_simplify_test)
     cmake_parse_arguments(S
         "SKIP_STRING_COMPARE"
-        "NAME;INPUT;REFERENCE"
+        "NAME;INPUT;REFERENCE;TOLERANCE"
         ""
         ${ARGN})
     if(NOT S_NAME OR NOT S_INPUT OR NOT S_REFERENCE)
@@ -433,6 +546,8 @@ function(add_simplify_test)
         add_test(NAME simplify_${S_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DSIMPLIFY=$<TARGET_FILE:simplify>
+                -DCOMPARE=$<TARGET_FILE:compare_dumps>
+                -DTOLERANCE=${S_TOLERANCE}
                 -DIN_FILE=${_input}
                 -DREF_FILE=${_reference}
                 -DOUT_FILE=${S_NAME}.out
@@ -481,14 +596,54 @@ foreach(_entry IN LISTS _simplify_tests)
     list(GET _fields 1 _input)
     list(GET _fields 2 _reference)
     list(GET _fields 3 _skip)
+    # The fourth column takes three values.  Blank compares the dump with
+    # numeric tokens to 4 ULP.  "astequal" widens that to AST's own astEQUAL,
+    # for a value amplified by cancellation.  "yes" runs no string comparison at
+    # all, which is right for a negative fixture: its reference is the
+    # unsimplified input, and astSimplify always stamps IsSimp on its result, so
+    # the two can never match by string.  Those are gated by the _noop test
+    # instead, which strips IsSimp before comparing.
     set(_skip_flag "")
+    set(_tolerance "")
     if(_skip STREQUAL "yes")
         set(_skip_flag "SKIP_STRING_COMPARE")
+    elseif(_skip STREQUAL "astequal")
+        set(_tolerance "astequal")
+    elseif(NOT _skip STREQUAL "")
+        message(FATAL_ERROR
+            "simplify/cases.txt: row ${_name} has skip_string_compare "
+            "\"${_skip}\"; expected blank, astequal or yes")
     endif()
     add_simplify_test(NAME ${_name}
                       INPUT ${_input}
                       REFERENCE ${_reference}
+                      TOLERANCE ${_tolerance}
                       ${_skip_flag})
+
+# Round-trip both halves of the pair.  Reading a dump and writing it back is
+# the identity whatever the fixture is, so this needs no reference of its own
+# and no skip flag: a fixture that cannot round-trip is a serialisation defect.
+    add_roundtrip_test(NAME ${_name}_map      FIXTURE ${_input})
+    if(NOT _reference STREQUAL _input)
+        add_roundtrip_test(NAME ${_name}_simp FIXTURE ${_reference})
+    endif()
+endforeach()
+
+# Round-trip every other native-encoded fixture in the tree.  These are inputs
+# to individual programs rather than manifest cases, so they are discovered by
+# glob: a new one is picked up on the next reconfigure.
+#
+# wcsconv/ is deliberately excluded.  Its references are FITS-encoded, so
+# reading one back needs a FitsChan and the encoding it was written with, which
+# is what the wcsconv harness already does.
+file(GLOB_RECURSE _ast_native_fixtures CONFIGURE_DEPENDS
+     RELATIVE "${AST_FIXTURE_SOURCE_ROOT}"
+     "${AST_FIXTURE_SOURCE_ROOT}/programs/*.ast"
+     "${AST_FIXTURE_SOURCE_ROOT}/serialisation/*.ast"
+     "${AST_FIXTURE_SOURCE_ROOT}/wcsconv/framesets/*.ast")
+foreach(_fixture IN LISTS _ast_native_fixtures)
+    string(REGEX REPLACE "[/.]" "_" _rt_name "${_fixture}")
+    add_roundtrip_test(NAME ${_rt_name} FIXTURE ${_fixture})
 endforeach()
 
 if(AST_ENABLE_HUGE_TEST)

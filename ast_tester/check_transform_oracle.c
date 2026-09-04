@@ -402,6 +402,8 @@ static int has_ext( const char *relpath, const char *ext ) {
 int main( int argc, char *argv[] ) {
     int status_value = 0; int *status = &status_value;
     astWatch( status );
+
+    oracle_register_intramaps( status );
     if ( argc == 2 && strcmp( argv[1], "--selftest" ) == 0 ) return selftest();
     if ( argc < 3 ) {
         fprintf( stderr,

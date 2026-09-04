@@ -1,0 +1,184 @@
+ Begin FrameSet 	# Set of inter-related coordinate systems
+#   Title = "FK5 equatorial coordinates; mean equinox J1999.80005; gnomonic polynomial projection" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "SKY" 	# Coordinate system domain
+#   Epoch = 1999.7700388236858 	# Julian epoch of observation
+#   Lbl1 = "Right ascension" 	# Label for axis 1
+#   Lbl2 = "Declination" 	# Label for axis 2
+#   System = "FK5" 	# Coordinate system type
+#   Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#   Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#   Dir1 = 0 	# Plot axis 1 in reverse direction
+#   Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#   Top2 = 1.5707963267948966 	# Highest legal axis value
+ IsA Frame 	# Coordinate system description
+    Nframe = 2 	# Number of Frames in FrameSet
+    Base = 1 	# Index of base Frame
+    Currnt = 2 	# Index of current Frame
+    Lnk2 = 1 	# Node 2 is derived from node 1
+    Frm1 = 	# Frame number 1
+       Begin Frame 	# Coordinate system description
+          Title = "Pixel Coordinates" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+          Domain = "GRID" 	# Coordinate system domain
+#         Lbl1 = "Pixel axis 1" 	# Label for axis 1
+#         Lbl2 = "Pixel axis 2" 	# Label for axis 2
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 1" 	# Axis Label
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+                Label = "Pixel axis 2" 	# Axis Label
+             End Axis
+       End Frame
+    Frm2 = 	# Frame number 2
+       Begin SkyFrame 	# Description of celestial coordinate system
+          Ident = " " 	# Permanent Object identification string
+       IsA Object 	# AST Object
+#         Title = "FK5 equatorial coordinates; mean equinox J1999.80005; gnomonic polynomial projection" 	# Title of coordinate system
+          Naxes = 2 	# Number of coordinate axes
+#         Domain = "SKY" 	# Coordinate system domain
+          Epoch = 1999.7700388236858 	# Julian epoch of observation
+#         Lbl1 = "Right ascension" 	# Label for axis 1
+#         Lbl2 = "Declination" 	# Label for axis 2
+          System = "FK5" 	# Coordinate system type
+#         Uni1 = "hh:mm:ss.s" 	# Units for axis 1
+#         Uni2 = "ddd:mm:ss" 	# Units for axis 2
+#         Dir1 = 0 	# Plot axis 1 in reverse direction
+#         Bot2 = -1.5707963267948966 	# Lowest legal axis value
+#         Top2 = 1.5707963267948966 	# Highest legal axis value
+          Ax1 = 	# Axis number 1
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+          Ax2 = 	# Axis number 2
+             Begin SkyAxis 	# Celestial coordinate axis
+             End SkyAxis
+       IsA Frame 	# Coordinate system description
+          Proj = "gnomonic polynomial" 	# Description of sky projection
+#         SkyTol = 0.001 	# Smallest significant separation [arc-sec]
+          Eqnox = 1999.8000489999999 	# Julian epoch of mean equinox
+          SRefIs = "Ignored" 	# Not rotated (ref. pos. is ignored)
+          SRef1 = 1.9289545674196613 	# Ref. pos. RA 7:22:05.0
+          SRef2 = 0.97464158730287331 	# Ref. pos. Dec 55:50:34
+       End SkyFrame
+    Map2 = 	# Mapping between nodes 1 and 2
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin ShiftMap 	# Shift each coordinate axis
+                Nin = 2 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = -4189.7739008354201 	# Shift for axis 1
+                Sft2 = 30.089407240387594 	# Shift for axis 2
+             End ShiftMap
+          MapB = 	# Second component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin MatrixMap 	# Matrix transformation
+                      Nin = 2 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      M0 = -1.3217993590781288e-08 	# Forward matrix value
+                      M1 = 2.0538511628512855e-06 	# Forward matrix value
+                      M2 = -2.0504538532469972e-06 	# Forward matrix value
+                      M3 = -2.2031330524074273e-08 	# Forward matrix value
+                      IM0 = -5231.0844108293004 	# Inverse matrix value
+                      IM1 = -487663.18440980458 	# Inverse matrix value
+                      IM2 = 486856.53256958403 	# Inverse matrix value
+                      IM3 = -3138.4595741787571 	# Inverse matrix value
+                      Form = "Full" 	# Matrix storage form
+                   End MatrixMap
+                MapB = 	# Second component Mapping
+                   Begin CmpMap 	# Compound Mapping
+                      Nin = 2 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      InvA = 1 	# First Mapping used in inverse direction
+                      MapA = 	# First component Mapping
+                         Begin WcsMap 	# FITS-WCS sky projection
+                            Nin = 2 	# Number of input coordinates
+                            Invert = 1 	# Mapping inverted
+                         IsA Mapping 	# Mapping between coordinate systems
+                            Type = "TPN" 	# Gnomonic polynomial projection
+                            PV1_0 = -0.235290188380298 	# Projection parameter 0 for axis 1
+                            PV1_1 = 1.0047201348285701 	# Projection parameter 1 for axis 1
+                            PV1_2 = 0.01246754057675834 	# Projection parameter 2 for axis 1
+                            PV1_4 = -0.0011219607896136949 	# Projection parameter 4 for axis 1
+                            PV1_5 = 0.0001048124909467771 	# Projection parameter 5 for axis 1
+                            PV1_6 = -0.027782178364902019 	# Projection parameter 6 for axis 1
+                            PV1_7 = -0.014149582807303379 	# Projection parameter 7 for axis 1
+                            PV1_8 = 0.0071685755684752807 	# Projection parameter 8 for axis 1
+                            PV1_9 = -0.016756688307076391 	# Projection parameter 9 for axis 1
+                            PV1_10 = 0.025006485965429572 	# Projection parameter 10 for axis 1
+                            PV2_0 = 0.1531926820595278 	# Projection parameter 0 for axis 2
+                            PV2_1 = 1.0035497155637068 	# Projection parameter 1 for axis 2
+                            PV2_2 = -0.0025393693495290429 	# Projection parameter 2 for axis 2
+                            PV2_4 = 0.0090616459789843971 	# Projection parameter 4 for axis 2
+                            PV2_5 = -0.0020611369457669659 	# Projection parameter 5 for axis 2
+                            PV2_6 = 0.00064546926897003241 	# Projection parameter 6 for axis 2
+                            PV2_7 = -0.02240395721775152 	# Projection parameter 7 for axis 2
+                            PV2_8 = 0.0055708425984015118 	# Projection parameter 8 for axis 2
+                            PV2_9 = -0.016446466412993511 	# Projection parameter 9 for axis 2
+                            PV2_10 = 0.0004863689582871599 	# Projection parameter 10 for axis 2
+                         End WcsMap
+                      MapB = 	# Second component Mapping
+                         Begin CmpMap 	# Compound Mapping
+                            Nin = 2 	# Number of input coordinates
+                         IsA Mapping 	# Mapping between coordinate systems
+                            InvA = 1 	# First Mapping used in inverse direction
+                            MapA = 	# First component Mapping
+                               Begin SphMap 	# Cartesian to Spherical mapping
+                                  Nin = 3 	# Number of input coordinates
+                                  Nout = 2 	# Number of output coordinates
+                                  Invert = 1 	# Mapping inverted
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  UntRd = 1 	# All input vectors have unit length
+                                  PlrLg = 0 	# Polar longitude (rad.s)
+                               End SphMap
+                            MapB = 	# Second component Mapping
+                               Begin CmpMap 	# Compound Mapping
+                                  Nin = 3 	# Number of input coordinates
+                                  Nout = 2 	# Number of output coordinates
+                               IsA Mapping 	# Mapping between coordinate systems
+                                  MapA = 	# First component Mapping
+                                     Begin MatrixMap 	# Matrix transformation
+                                        Nin = 3 	# Number of input coordinates
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        M0 = -0.2900803226009156 	# Forward matrix value
+                                        M1 = -0.93654404036604866 	# Forward matrix value
+                                        M2 = -0.19682140862870015 	# Forward matrix value
+                                        M3 = 0.77499085390321043 	# Forward matrix value
+                                        M4 = -0.35054994002971535 	# Forward matrix value
+                                        M5 = 0.52583639652608272 	# Forward matrix value
+                                        M6 = -0.56146467636541608 	# Forward matrix value
+                                        M7 = 0 	# Forward matrix value
+                                        M8 = 0.82750070525279829 	# Forward matrix value
+                                        IM0 = -0.2900803226009156 	# Inverse matrix value
+                                        IM1 = 0.77499085390321043 	# Inverse matrix value
+                                        IM2 = -0.56146467636541608 	# Inverse matrix value
+                                        IM3 = -0.93654404036604866 	# Inverse matrix value
+                                        IM4 = -0.35054994002971535 	# Inverse matrix value
+                                        IM5 = 0 	# Inverse matrix value
+                                        IM6 = -0.19682140862870015 	# Inverse matrix value
+                                        IM7 = 0.52583639652608272 	# Inverse matrix value
+                                        IM8 = 0.82750070525279829 	# Inverse matrix value
+                                        Form = "Full" 	# Matrix storage form
+                                     End MatrixMap
+                                  MapB = 	# Second component Mapping
+                                     Begin SphMap 	# Cartesian to Spherical mapping
+                                        Nin = 3 	# Number of input coordinates
+                                        Nout = 2 	# Number of output coordinates
+                                     IsA Mapping 	# Mapping between coordinate systems
+                                        UntRd = 1 	# All input vectors have unit length
+                                        PlrLg = 1.9289545674196613 	# Polar longitude (rad.s)
+                                     End SphMap
+                               End CmpMap
+                         End CmpMap
+                   End CmpMap
+             End CmpMap
+       End CmpMap
+ End FrameSet
