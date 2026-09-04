@@ -425,8 +425,8 @@ testhuge_f_FFLAGS  = $(AM_FFLAGS)
 endif  # NOFORTRAN
 
 TESTS += testhuge.sh
-EXTRA_DIST = testhuge.sh \
-    test_wcsconverter.tap test_simplify.tap test_grid.tap
+EXTRA_DIST = testhuge.sh test_keymap_mapsz.sh \
+    test_wcsconverter.tap test_simplify.tap test_grid.tap test_roundtrip.tap
 
 # The CMake suite runs tests this one does not, and it is meant to -- but their
 # sources still have to reach the tarball, or the CMake build inside distcheck
@@ -469,6 +469,7 @@ EXTRA_DIST += \
 # "make clean"/"make distclean" removes them; otherwise distcheck's
 # distcleancheck reports them as files left in the build tree.
 CLEANFILES = \
+    keymap_mapsz.out \
     divide_roundtrip.asdf \
     draw3d.txt \
     fred.tmp \
@@ -530,6 +531,24 @@ testgrid_LDADD = @LIBPAL@ @LIBCMINPACK@ \
     -lm
 
 TESTS += test_wcsconverter.tap test_simplify.tap test_grid.tap
+
+# roundtrip: read a fixture and write it straight back, which must reproduce it.
+# The only family that can see an attribute lost on load -- the simplify
+# families call astSimplify after reading, and that re-sets IsSimple on every
+# node it visits, hiding a record a loader dropped.
+check_PROGRAMS += roundtrip
+roundtrip_SOURCES = roundtrip.c
+roundtrip_LDADD   = $(CTEST_LDADD)
+TESTS += test_roundtrip.tap
+
+# keymap_mapsz: check the committed capture of KeyMap's hash-table growth policy
+# still describes this library.  Without it the generator would be the only
+# program here whose output nothing reads, and a capture nothing re-checks stops
+# being evidence the moment the policy changes.
+check_PROGRAMS += gen_keymap_mapsz
+gen_keymap_mapsz_SOURCES = gen_keymap_mapsz.c
+gen_keymap_mapsz_LDADD   = $(CTEST_LDADD)
+TESTS += test_keymap_mapsz.sh
 
 # Source and LDADD declarations for each Fortran test.
 if !NOFORTRAN
