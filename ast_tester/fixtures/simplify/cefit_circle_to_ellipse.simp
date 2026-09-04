@@ -24,12 +24,12 @@
        Begin PointSet 	# Container for a set of points
           Npoint = 3 	# Number of points
           Ncoord = 2 	# Number of coordinates per point
-          X1 = 0 	# Coordinate values...
-          X2 = 0
-          X3 = 9.274832973133512e-15
-          X4 = 5
-          X5 = 1.9999999999999991
-          X6 = -3.4302489988857642e-15
+          X1 = 20 	# Coordinate values...
+          X2 = 100
+          X3 = 19.999999999999932
+          X4 = 115
+          X5 = 26
+          X6 = 100.00000000000003
        End PointSet
  IsA Region 	# An area within a coordinate system
  End Ellipse

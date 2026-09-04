@@ -4106,10 +4106,18 @@ static void gen_defunc_fixtures(const char *dir) {
 static void gen_cefit_fixtures(const char *dir) {
     printf("Circle/Ellipse re-fit fixtures:\n");
     {
-        /* Anisotropic scaling turns a circle into an ellipse. */
+        /* Anisotropic scaling turns a circle into an ellipse.
+
+           The centre is away from the origin deliberately.  Centred on it, with
+           the scaling aligned to the axes, a defining coordinate of the fitted
+           ellipse is a residual that should be zero and is in fact rounding
+           noise around 1e-15 -- and the fit is numerical, so that noise moves
+           when the compiler contracts a multiply and an add, which is enough to
+           make astEqual call two otherwise identical Ellipses different.  A
+           fixture should not rest on a value that means nothing. */
         AstFrame *f = astFrame(2, " ");
-        double centre[2] = { 0.0, 0.0 };
-        double radius[1] = { 1.0 };
+        double centre[2] = { 10.0, 20.0 };
+        double radius[1] = { 3.0 };
         AstCircle *c = astCircle(f, 1, centre, radius, NULL, " ");
         double diag[2] = { 2.0, 5.0 };
         AstMatrixMap *mm = astMatrixMap(2, 2, 1, diag, " ");
