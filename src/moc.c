@@ -172,6 +172,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
 *        negative values.
+*     4-SEP-2026 (TIMJ):
+*        astAddMocText: test the character count before dereferencing the
+*        pointer, so that text which is not null terminated is not read
+*        past its end.
 *class--
 */
 
@@ -1224,7 +1228,7 @@ void astAddMocText_( AstMoc *this, int maxorder,
    happens first.  */
          pend = text + nc;
          pt = text;
-         while( *pt && pt < pend ){
+         while( pt < pend && *pt ){
 
 /* If we are currently looking for the first non-space character... */
             if( state == 0 ) {
