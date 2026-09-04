@@ -13,3 +13,6 @@ ignore:
   - "pal"
   - "erfa"
   - "cminpack"
+# perf/bench_simd.c is a standalone benchmark script that is never executed by
+# the test suite, so should be excluded from codecov's report.
+  - "perf"

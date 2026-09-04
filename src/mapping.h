@@ -309,6 +309,10 @@
 *        Add astRemoveRegions.
 *     26-FEB-2010 (DSB):
 *        Added method astQuadApprox.
+*     2-JUN-2026 (EMB):
+*        Added methods astSIMDState and astSIMDDisabled for controlling
+*        whether SIMD-vectorised Mapping transformations are disabled in the
+*        current thread.
 *     15-AUG-2026 (TIMJ):
 *        Record the simplified state of a Mapping separately for each
 *        orientation, in the ISSIMPLE and ISSIMPLEINV flags, and select
@@ -614,6 +618,7 @@ typedef struct AstMappingGlobals {
    char GetAttrib_Buff[ AST__MAPPING_GETATTRIB_BUFF_LEN + 1 ];
    AstMapping *Unsimplified_Mapping;
    int Rate_Disabled;
+   int SIMD_Disabled;
    AstPointSet *RateFun_Pset1_Cache[ AST__MAPPING_RATEFUN_MAX_CACHE ];
    AstPointSet *RateFun_Pset2_Cache[ AST__MAPPING_RATEFUN_MAX_CACHE ];
    int RateFun_Next_Slot;
@@ -763,6 +768,8 @@ void astMapSplitId_( AstMapping *, int, const int *, int *, AstMapping **, int *
 
 #if defined(astCLASS)            /* Protected */
 int astRateState_( int, int * );
+int astSIMDState_( int, int * );
+int astSIMDDisabled_( int * );
 AstPointSet *astTransform_( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 int astGetInvert_( AstMapping *, int * );
 int astGetIsSimple_( AstMapping *, int * );
@@ -999,6 +1006,8 @@ astINVOKE(V,astMapSplitId_(astCheckMapping(this),nin,in,out,map,STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astRateState(disabled) astRateState_(disabled,STATUS_PTR)
+#define astSIMDState(disabled) astSIMDState_(disabled,STATUS_PTR)
+#define astSIMDDisabled() astSIMDDisabled_(STATUS_PTR)
 #define astClearInvert(this) \
 astINVOKE(V,astClearInvert_(astCheckMapping(this),STATUS_PTR))
 #define astClearReport(this) \

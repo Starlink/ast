@@ -18,6 +18,7 @@ include(CheckIncludeFile)
 include(CheckFunctionExists)
 include(CheckTypeSize)
 include(CheckCSourceCompiles)
+include(CheckCCompilerFlag)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
@@ -33,6 +34,7 @@ option(AST_WITH_MEMDEBUG "Enable AST memory leak debugging" OFF)
 option(AST_ENABLE_WARNINGS "Enable extra compiler warnings for development builds" OFF)
 option(AST_ENABLE_SANITIZERS "Enable address/undefined sanitizers for supported compilers" OFF)
 option(AST_ENABLE_COVERAGE "Enable compiler coverage instrumentation for supported compilers" OFF)
+option(AST_ENABLE_SIMD "Enable SIMD/vectorization via GCC+glibc libmvec" OFF)
 option(AST_ENABLE_HUGE_TEST "Build the huge manual stress test converted from testhuge.f" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(BUILD_TESTING "Build the test program" ON)
@@ -125,6 +127,42 @@ if(AST_ENABLE_COVERAGE)
         )
     else()
         message(WARNING "AST_ENABLE_COVERAGE is ON, but no coverage profile is defined for compiler ${CMAKE_C_COMPILER_ID}")
+    endif()
+endif()
+
+set(AST_SIMD_FLAGS)  # per-file flags for SIMD-vectorized source files
+
+if(AST_ENABLE_SIMD)
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        check_c_compiler_flag(-fopenmp-simd    HAVE_FOPENMP_SIMD)
+        check_c_compiler_flag(-ffast-math      HAVE_FFAST_MATH)
+        check_c_compiler_flag(-march=x86-64-v3 HAVE_MARCH_X86_64_V3)
+
+        if(HAVE_FOPENMP_SIMD AND HAVE_FFAST_MATH AND HAVE_MARCH_X86_64_V3)
+            # -fopenmp-simd enables #pragma omp simd; -ffast-math is required
+            # for libmvec trig dispatch (sphmap.c) and improves vectorization
+            # of arithmetic loops (polymap.c).  -fno-associative-math is added
+            # back to avoid FMA-based reassociation changing other arithmetic.
+            list(APPEND AST_SIMD_FLAGS
+                -fopenmp-simd
+                -ffast-math
+                -fno-associative-math
+                -march=x86-64-v3
+            )
+            message(STATUS
+                "AST SIMD: GCC+libmvec vectorization enabled for sphmap.c, polymap.c, "
+                "matrixmap.c (${AST_SIMD_FLAGS})")
+        else()
+            message(WARNING
+                "AST_ENABLE_SIMD is ON but required flags are not available: "
+                "-fopenmp-simd=${HAVE_FOPENMP_SIMD} "
+                "-ffast-math=${HAVE_FFAST_MATH} "
+                "-march=x86-64-v3=${HAVE_MARCH_X86_64_V3}")
+        endif()
+    else()
+        message(WARNING
+            "AST_ENABLE_SIMD is ON but is only supported with GCC on glibc systems "
+            "(compiler: ${CMAKE_C_COMPILER_ID})")
     endif()
 endif()
 
@@ -750,6 +788,15 @@ set_target_properties(ast PROPERTIES
 )
 ast_apply_dev_options(ast)
 
+# Apply SIMD flags to specific source files only (not the whole library) so
+# that -ffast-math and -march= do not change the FP semantics of the rest of
+# libast. AST_HAVE_SIMD guards the restructured loops inside those files.
+if(AST_SIMD_FLAGS)
+    set_source_files_properties(src/sphmap.c src/polymap.c src/matrixmap.c
+        PROPERTIES COMPILE_OPTIONS "${AST_SIMD_FLAGS}")
+    target_compile_definitions(ast PRIVATE AST_HAVE_SIMD=1)
+endif()
+
 # libast references symbols (astGFlush, astPutErr_, etc.) that are provided
 # by the satellite libraries (ast_err, ast_grf_*). These are intentionally
 # unresolved in libast and resolved at final link time. Allow this.
@@ -901,6 +948,7 @@ if(BUILD_TESTING)
     ast_apply_dev_options(ast_test)
     add_test(NAME ast_test COMMAND ast_test)
     add_subdirectory(ast_tester)
+    add_subdirectory(perf)
 
     if(AST_ENABLE_COVERAGE)
         if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
