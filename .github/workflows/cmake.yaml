@@ -58,6 +58,21 @@ jobs:
             shared_libs: ON
             fortran: OFF
             sanitizers: ON
+          # Sanitizers with the Fortran tests built, which is the only way the
+          # F77 wrappers and the Fortran test programs get sanitizer coverage
+          # at all -- every other job either omits Fortran or omits the
+          # sanitizers.  It found a read past the end of a non-terminated
+          # Fortran string in astAddMocText the first time it ran.
+          #
+          # Linux only: here the C and Fortran compilers are both GCC and so
+          # share one ASan runtime.  On macOS the C compiler is clang and the
+          # Fortran compiler is Homebrew gfortran, which would put clang's and
+          # GCC's runtimes in one process.
+          - os: ubuntu-latest
+            build_type: Debug
+            shared_libs: ON
+            fortran: ON
+            sanitizers: ON
           - os: macos-latest
             build_type: Debug
             shared_libs: ON
