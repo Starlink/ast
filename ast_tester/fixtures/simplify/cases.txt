@@ -17,12 +17,12 @@
 #                                 IsSimp before comparing, so the assertion that
 #                                 nothing else changed is still made.
 
-# cap_winmap_03 keeps "yes" rather than a tolerance.  Its residual shift on axis 2
-# cancels to exactly zero without a fused multiply-add and to -1.0061396160665481e-16
-# with one, and a ShiftMap writes a Sft card only for a non-zero shift -- so the two
-# builds emit a different number of lines.  That is structural, and no numeric
-# tolerance can bridge it.  The astequal test still compares the objects, and finds
-# them equal, because astEQUAL's absolute term covers a residual that size.
+# cap_winmap_03 needs no opt-out any more.  Its residual shift on axis 2 used to
+# cancel to exactly zero without a fused multiply-add and to about -1e-16 with one,
+# and a ShiftMap writes a Sft card only for a non-zero shift, so the dump gained a
+# line on a contracting build.  astMapMerge now treats a shift that is zero within
+# astEQUAL as zero when it replaces a WinMap by a ShiftMap -- the same tolerance the
+# scale terms were already tested against -- so both builds emit the same dump.
 #
 # cap_timemap_02 needs only the wider tolerance: its uncertainty coordinates move by
 # about 7e-12 relative under contraction.
@@ -351,7 +351,7 @@ cap_unitnormmap_01       | simplify/cap_unitnormmap_01.map | simplify/cap_unitno
 cap_wcsmap_01            | simplify/cap_wcsmap_01.map | simplify/cap_wcsmap_01.simp |
 cap_winmap_01            | simplify/cap_winmap_01.map | simplify/cap_winmap_01.simp |
 cap_winmap_02            | simplify/cap_winmap_02.map | simplify/cap_winmap_02.simp |
-cap_winmap_03            | simplify/cap_winmap_03.map | simplify/cap_winmap_03.simp | yes
+cap_winmap_03            | simplify/cap_winmap_03.map | simplify/cap_winmap_03.simp |
 cap_winmap_04            | simplify/cap_winmap_04.map | simplify/cap_winmap_04.simp |
 cap_xphmap_01            | simplify/cap_xphmap_01.map | simplify/cap_xphmap_01.simp |
 cap_xphmap_02            | simplify/cap_xphmap_02.map | simplify/cap_xphmap_02.simp |
