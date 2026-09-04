@@ -488,3 +488,32 @@ neg_unitnormmap_nonunit_scale     | simplify/neg_unitnormmap_nonunit_scale.map |
 neg_cmpmap_mode_mismatch          | simplify/neg_cmpmap_mode_mismatch.map | simplify/neg_cmpmap_mode_mismatch.map | yes
 neg_win_cmpmap_split_no_simplify  | simplify/neg_win_cmpmap_split_no_simplify.map | simplify/neg_win_cmpmap_split_no_simplify.map | yes
 neg_poly_different_coeffs         | simplify/neg_poly_different_coeffs.map | simplify/neg_poly_different_coeffs.map | yes
+
+# Fixtures adopted from the Rust port's Region and simplify parity work.
+# Their constructors are in gen_simplify_fixtures.c; see the group
+# functions gen_defunc_, gen_cefit_, gen_regbasepick_, gen_setunc_,
+# gen_simpstab_, gen_merge_attr_, gen_wcsmap_perm_ and
+# gen_cmpmap_neighbour_fixtures.
+cap_cmpmap_nested_tag                  | simplify/cap_cmpmap_nested_tag.map | simplify/cap_cmpmap_nested_tag.simp |
+cefit_circle_conformal                 | simplify/cefit_circle_conformal.map | simplify/cefit_circle_conformal.simp |
+cefit_circle_nonconformal_keep         | simplify/cefit_circle_nonconformal_keep.map | simplify/cefit_circle_nonconformal_keep.simp |
+cefit_circle_to_ellipse                | simplify/cefit_circle_to_ellipse.map | simplify/cefit_circle_to_ellipse.simp |
+cefit_ellipse_to_circle                | simplify/cefit_ellipse_to_circle.map | simplify/cefit_ellipse_to_circle.simp |
+defunc_cmpregion_component_unc         | simplify/defunc_cmpregion_component_unc.map | simplify/defunc_cmpregion_component_unc.simp |
+defunc_interval_unbounded              | simplify/defunc_interval_unbounded.map | simplify/defunc_interval_unbounded.simp |
+defunc_nullregion_2d                   | simplify/defunc_nullregion_2d.map | simplify/defunc_nullregion_2d.simp |
+defunc_prism_box_interval              | simplify/defunc_prism_box_interval.map | simplify/defunc_prism_box_interval.simp |
+merge_box_fillfactor_product           | simplify/merge_box_fillfactor_product.map | simplify/merge_box_fillfactor_product.simp |
+merge_box_meshsize_scaled              | simplify/merge_box_meshsize_scaled.map | simplify/merge_box_meshsize_scaled.simp |
+merge_interval_meshsize_scaled         | simplify/merge_interval_meshsize_scaled.map | simplify/merge_interval_meshsize_scaled.simp |
+neg_wcsmap_perm_allconst               | simplify/neg_wcsmap_perm_allconst.map | simplify/neg_wcsmap_perm_allconst.map | yes
+neg_wcsmap_perm_both_sides             | simplify/neg_wcsmap_perm_both_sides.map | simplify/neg_wcsmap_perm_both_sides.map | yes
+regbasepick_circle_permaxes            | simplify/regbasepick_circle_permaxes.map | simplify/regbasepick_circle_permaxes.simp |
+regbasepick_cmpregion_subset           | simplify/regbasepick_cmpregion_subset.map | simplify/regbasepick_cmpregion_subset.simp |
+regbasepick_prism_subset               | simplify/regbasepick_prism_subset.map | simplify/regbasepick_prism_subset.simp |
+setunc_box_remapped_unc                | simplify/setunc_box_remapped_unc.map | simplify/setunc_box_remapped_unc.simp |
+setunc_unbounded_negated               | simplify/setunc_unbounded_negated.map | simplify/setunc_unbounded_negated.simp |
+setunc_unitmap_regionfs_omitted        | simplify/setunc_unitmap_regionfs_omitted.map | simplify/setunc_unitmap_regionfs_omitted.simp |
+simpstab_box_linear_unc                | simplify/simpstab_box_linear_unc.map | simplify/simpstab_box_linear_unc.simp |
+simpstab_box_nonlinear_unc             | simplify/simpstab_box_nonlinear_unc.map | simplify/simpstab_box_nonlinear_unc.simp |
+simpstab_permmap_slice_unc             | simplify/simpstab_permmap_slice_unc.map | simplify/simpstab_permmap_slice_unc.simp |

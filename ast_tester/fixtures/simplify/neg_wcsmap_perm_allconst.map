@@ -1,0 +1,22 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin WcsMap 	# FITS-WCS sky projection
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Type = "TAN" 	# Gnomonic projection
+       End WcsMap
+    MapB = 	# Second component Mapping
+       Begin PermMap 	# Coordinate permutation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Out1 = -1 	# Output coordinate 1 = constant no. 1
+          Out2 = -2 	# Output coordinate 2 = constant no. 2
+          In1 = -1 	# Input coordinate 1 = constant no. 1
+          In2 = -2 	# Input coordinate 2 = constant no. 2
+          Nconst = 2 	# Number of constants
+          Con1 = 0.25 	# Constant number 1
+          Con2 = 0.5 	# Constant number 2
+       End PermMap
+ End CmpMap

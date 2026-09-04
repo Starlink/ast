@@ -1,0 +1,40 @@
+ Begin Box 	# Axis intervals
+#   Title = "3-d coordinate system" 	# Title of coordinate system
+#   Naxes = 3 	# Number of coordinate axes
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+#   Lbl3 = "Axis 3" 	# Label for axis 3
+#   System = "Cartesian" 	# Coordinate system type
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    Frm = 	# Coordinate system
+       Begin Frame 	# Coordinate system description
+#         Title = "3-d coordinate system" 	# Title of coordinate system
+          Naxes = 3 	# Number of coordinate axes
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+#         Lbl3 = "Axis 3" 	# Label for axis 3
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax2 = 	# Axis number 2
+             Begin Axis 	# Coordinate axis
+             End Axis
+          Ax3 = 	# Axis number 3
+             Begin Axis 	# Coordinate axis
+             End Axis
+       End Frame
+    Points = 	# Points defining the shape
+       Begin PointSet 	# Container for a set of points
+          Npoint = 2 	# Number of points
+          Ncoord = 3 	# Number of coordinates per point
+          X1 = 6.2172489379008766e-15 	# Coordinate values...
+          X2 = 0
+          X3 = 25
+          X4 = 8.0000000000000124
+          X5 = 18
+          X6 = 45
+       End PointSet
+ IsA Region 	# An area within a coordinate system
+ End Box

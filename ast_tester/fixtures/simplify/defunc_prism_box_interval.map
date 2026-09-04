@@ -1,0 +1,102 @@
+ Begin Prism 	# Region extrusion into higher dimensions
+#   Title = "3-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 3 	# Number of coordinate axes
+#   Domain = "CMP" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+#   Lbl3 = "Axis 3" 	# Label for axis 3
+#   System = "Compound" 	# Coordinate system type
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    Frm = 	# Coordinate system
+       Begin CmpFrame 	# Compound coordinate system description
+#         Title = "3-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 3 	# Number of coordinate axes
+#         Domain = "CMP" 	# Coordinate system domain
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+#         Lbl3 = "Axis 3" 	# Label for axis 3
+       IsA Frame 	# Coordinate system description
+          FrameA = 	# First component Frame
+             Begin Frame 	# Coordinate system description
+                Naxes = 2 	# Number of coordinate axes
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          FrameB = 	# Second component Frame
+             Begin Frame 	# Coordinate system description
+                Naxes = 1 	# Number of coordinate axes
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+       End CmpFrame
+    RegAxes = 3 	# Number of axes spanned by the Region
+ IsA Region 	# An area within a coordinate system
+    RegionA = 	# First component Region
+       Begin Box 	# Axis intervals
+#         Title = "2-d coordinate system" 	# Title of coordinate system
+#         Naxes = 2 	# Number of coordinate axes
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+#         System = "Cartesian" 	# Coordinate system type
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin Frame 	# Coordinate system description
+#               Title = "2-d coordinate system" 	# Title of coordinate system
+                Naxes = 2 	# Number of coordinate axes
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 2 	# Number of points
+                Ncoord = 2 	# Number of coordinates per point
+                X1 = 0 	# Coordinate values...
+                X2 = 0
+                X3 = 3.9999999999999998e-06
+                X4 = 6.0000000000000002e-06
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End Box
+    RegionB = 	# Second component Region
+       Begin Box 	# Axis intervals
+#         Title = "1-d coordinate system" 	# Title of coordinate system
+#         Naxes = 1 	# Number of coordinate axes
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         System = "Cartesian" 	# Coordinate system type
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin Frame 	# Coordinate system description
+#               Title = "1-d coordinate system" 	# Title of coordinate system
+                Naxes = 1 	# Number of coordinate axes
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 2 	# Number of points
+                Ncoord = 1 	# Number of coordinates per point
+                X1 = 5 	# Coordinate values...
+                X2 = 5.0000039999999997
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End Box
+ End Prism

@@ -1,0 +1,150 @@
+ Begin CmpRegion 	# Combination of two Regions
+#   Title = "3-d coordinate system" 	# Title of coordinate system
+#   Naxes = 3 	# Number of coordinate axes
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Axis 2" 	# Label for axis 2
+#   Lbl3 = "Axis 3" 	# Label for axis 3
+#   System = "Cartesian" 	# Coordinate system type
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    FrmSet = 	# Original & current coordinate systems
+       Begin FrameSet 	# Set of inter-related coordinate systems
+#         Title = "3-d coordinate system" 	# Title of coordinate system
+#         Naxes = 3 	# Number of coordinate axes
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+#         Lbl3 = "Axis 3" 	# Label for axis 3
+       IsA Frame 	# Coordinate system description
+          Nframe = 2 	# Number of Frames in FrameSet
+#         Base = 1 	# Index of base Frame
+          Currnt = 2 	# Index of current Frame
+          Lnk2 = 1 	# Node 2 is derived from node 1
+          Frm1 = 	# Frame number 1
+             Begin Frame 	# Coordinate system description
+#               Title = "3-d coordinate system" 	# Title of coordinate system
+                Naxes = 3 	# Number of coordinate axes
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+#               Lbl3 = "Axis 3" 	# Label for axis 3
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax3 = 	# Axis number 3
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Frm2 = 	# Frame number 2
+             Begin Frame 	# Coordinate system description
+#               Title = "3-d coordinate system" 	# Title of coordinate system
+                Naxes = 3 	# Number of coordinate axes
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+#               Lbl3 = "Axis 3" 	# Label for axis 3
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax3 = 	# Axis number 3
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Map2 = 	# Mapping between nodes 1 and 2
+             Begin MatrixMap 	# Matrix transformation
+                Nin = 3 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                M0 = 2 	# Forward matrix value
+                M1 = 3 	# Forward matrix value
+                M2 = 5 	# Forward matrix value
+                IM0 = 0.5 	# Inverse matrix value
+                IM1 = 0.33333333333333331 	# Inverse matrix value
+                IM2 = 0.20000000000000001 	# Inverse matrix value
+                Form = "Diagonal" 	# Matrix storage form
+             End MatrixMap
+       End FrameSet
+    RegAxes = 3 	# Number of axes spanned by the Region
+ IsA Region 	# An area within a coordinate system
+    Operator = 1 	# Regions combined using Boolean AND
+    RegionA = 	# First component Region
+       Begin Interval 	# Axis intervals
+#         Title = "3-d coordinate system" 	# Title of coordinate system
+#         Naxes = 3 	# Number of coordinate axes
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+#         Lbl3 = "Axis 3" 	# Label for axis 3
+#         System = "Cartesian" 	# Coordinate system type
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin Frame 	# Coordinate system description
+#               Title = "3-d coordinate system" 	# Title of coordinate system
+                Naxes = 3 	# Number of coordinate axes
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+#               Lbl3 = "Axis 3" 	# Label for axis 3
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax3 = 	# Axis number 3
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 2 	# Number of points
+                Ncoord = 3 	# Number of coordinates per point
+                X1 = 0 	# Coordinate values...
+                X2 = 0
+                X4 = 4
+                X5 = 6
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End Interval
+    RegionB = 	# Second component Region
+       Begin Interval 	# Axis intervals
+#         Title = "3-d coordinate system" 	# Title of coordinate system
+#         Naxes = 3 	# Number of coordinate axes
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Axis 2" 	# Label for axis 2
+#         Lbl3 = "Axis 3" 	# Label for axis 3
+#         System = "Cartesian" 	# Coordinate system type
+       IsA Frame 	# Coordinate system description
+          Adapt = 1 	# Region adapts to coord sys changes
+          Frm = 	# Coordinate system
+             Begin Frame 	# Coordinate system description
+#               Title = "3-d coordinate system" 	# Title of coordinate system
+                Naxes = 3 	# Number of coordinate axes
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Axis 2" 	# Label for axis 2
+#               Lbl3 = "Axis 3" 	# Label for axis 3
+                Ax1 = 	# Axis number 1
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax2 = 	# Axis number 2
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+                Ax3 = 	# Axis number 3
+                   Begin Axis 	# Coordinate axis
+                   End Axis
+             End Frame
+          Points = 	# Points defining the shape
+             Begin PointSet 	# Container for a set of points
+                Npoint = 2 	# Number of points
+                Ncoord = 3 	# Number of coordinates per point
+                X3 = 1 	# Coordinate values...
+                X6 = 9
+             End PointSet
+       IsA Region 	# An area within a coordinate system
+       End Interval
+ End CmpRegion
