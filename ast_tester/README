@@ -67,10 +67,13 @@ new fixture is picked up without editing the script:
   `fixtures/simplify/cases.txt`, via `cases.awk`.
 
 Two groups of cases are run but not compared here, and the script reports
-how many of each: rows flagged `skip_string_compare`, whose serialisation
-varies at the ulp level between platforms, and simplify fixtures containing
-an IntraMap, which name a private transformation function that `simplify.c`
-registers with `astIntraReg` and `simplify.f` cannot.  ctest covers both.
+how many of each: rows whose `skip_string_compare` column is `yes` or
+`astequal`, whose serialisation varies between platforms by more than a
+byte-level diff can accept, and simplify fixtures containing an IntraMap, which
+name a private transformation function that `simplify.c` registers with
+`astIntraReg` and `simplify.f` cannot.  ctest covers both, comparing dumps with
+`compare_dumps`, which tolerates a last-bit difference rather than requiring
+byte equality, and widens that to astEQUAL for the `astequal` rows.
 
 `doplot <case>` and `makeplot <case>` plot a single case.  The argument is
 either a name from `fixtures/plot/cases.txt`, in which case that row's
