@@ -5627,7 +5627,8 @@ astMAKE_GET(MathMap,Seed,int,0,this->rcontext.seed)
    flag, so that the generator will be re-initialised to use this seed
    when it is next invoked. */
 astMAKE_SET1(MathMap,Seed,int,rcontext.seed,(
-                    ( value != this->rcontext.seed ) ?
+                    ( !this->rcontext.seed_set ||
+                      value != this->rcontext.seed ) ?
                                                 astClearIsSimple(this) : (void)0,
                                              this->rcontext.seed_set = 1,
                                              this->rcontext.active = 0,
@@ -7440,7 +7441,6 @@ AstMathMap *astLoadMathMap_( void *mem, size_t size,
 /* Undefine macros local to this function. */
 #undef KEY_LEN
 }
-
 
 
 

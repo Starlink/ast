@@ -229,6 +229,34 @@ int main( void ) {
       m = astAnnul( m );
    }
 
+/* Seed has a separate set/unset flag.  Explicitly setting the generated
+   default value is therefore a real state change even though the integer
+   stored in the seed field does not change. */
+   if( astOK ) {
+      const char *fwd[ 1 ] = { "y = x" };
+      const char *inv[ 1 ] = { "x = y" };
+      AstMathMap *m = astMathMap( 1, 1, 1, fwd, 1, inv, " ", status );
+      int seed = astGetSeed( m );
+
+      if( astTestSeed( m ) ) {
+         printf( "  a new MathMap unexpectedly has an explicit Seed\n" );
+         fails++;
+      }
+
+      astSetIsSimple( m );
+      astSetSeed( m, seed );
+      if( !astTestSeed( m ) ) {
+         printf( "  setting the default Seed did not make it explicit\n" );
+         fails++;
+      }
+      if( astIsSimple( m ) ) {
+         printf( "  setting an unset Seed to its default did not clear IsSimple\n" );
+         fails++;
+      }
+
+      m = astAnnul( m );
+   }
+
    astEnd_( status );
 
    if( !astOK || fails ) {
