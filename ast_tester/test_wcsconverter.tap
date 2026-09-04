@@ -6,9 +6,12 @@
 # matching the CMake suite:
 #   - ast_astequal: a semantic (astEqual) comparison against the reference,
 #     run for every case;
-#   - exact diff against the reference, run unless the case is flagged
-#     skip_string_compare (those fixtures have ulp-level output variation
-#     between platforms, so a byte comparison is not a reliable gate).
+#   - compare_dumps against the reference, which passes a byte-equal line and
+#     otherwise compares tokens, treating two doubles within 4 ULP as equal.
+#     The sixth column of the manifest selects the tolerance: blank is 4 ULP,
+#     "astequal" widens it to AST's own astEQUAL for a value amplified by
+#     cancellation -- OBSALT recovered from OBSGEO-X/Y/Z is the case
+#     that needs it -- and "yes" runs no dump comparison at all.
 # One TAP result is emitted per case; a case passes only if all its applicable
 # checks pass.
 srcdir=${srcdir:-.}
@@ -54,12 +57,25 @@ while IFS='|' read -r name input reference encoding attrs skip rest; do
     fi
 
     ok=1
-    # String diff (skipped for ulp-variant fixtures).
+    # Dump comparison against the reference, at the tolerance the manifest asks
+    # for.  An unrecognised flag is an error rather than a silent exact
+    # comparison, matching the CMake suite.
+    tol=
+    case $skip in
+        '')       ;;
+        astequal) tol=--astequal ;;
+        yes)      ;;
+        *)  echo "Bail out! wcsconv/cases.txt: row $name has" \
+                 "skip_string_compare \"$skip\"; expected blank, astequal or yes"
+            exit 1 ;;
+    esac
     if [ "$skip" != yes ]; then
-        if ! diff -u "${fixtures}/${reference}" "$out" > "${out}.diff" 2>&1; then
+        if ! ./compare_dumps $tol "${fixtures}/${reference}" "$out" \
+                > "${out}.cmp" 2>&1; then
             ok=0
-            echo "# $name: string diff against reference failed"
-            sed 's/^/# /' "${out}.diff"
+            echo "# $name: dump differs from reference"
+            sed 's/^/# /' "${out}.cmp"
+            diff -u "${fixtures}/${reference}" "$out" | sed 's/^/# /'
         fi
     fi
     # Semantic comparison (always).
@@ -75,5 +91,5 @@ while IFS='|' read -r name input reference encoding attrs skip rest; do
     else
         echo "not ok $test"
     fi
-    rm -f "$out" "${out}.log" "${out}.diff" "${out}.eq"
+    rm -f "$out" "${out}.log" "${out}.cmp" "${out}.eq"
 done < "$data"

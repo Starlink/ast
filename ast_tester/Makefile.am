@@ -488,19 +488,36 @@ CLEANFILES = \
 # astGrid.  Each .tap test reads its list of cases from the corresponding
 # fixtures/*/cases.txt (shared with the CMake suite) and emits TAP, so
 # automake reports one result per case.
-check_PROGRAMS += wcsconverter simplify ast_astequal testgrid
+check_PROGRAMS += wcsconverter simplify ast_astequal compare_dumps testgrid
 # Use the C harnesses (wcsconverter.c/simplify.c/ast_astequal.c), matching the
 # CMake suite: they are complete ports of the older wcsconverter.f/simplify.f
 # and, unlike the Fortran versions, register the IntraMap transforms needed by
 # some simplify fixtures.
 # ast_astequal performs the semantic (astEqual) comparison used alongside the
-# string diff by the .tap tests.
+# dump comparison by the .tap tests.
 wcsconverter_SOURCES = wcsconverter.c
 wcsconverter_LDADD   = $(CTEST_LDADD)
 simplify_SOURCES     = simplify.c
 simplify_LDADD       = $(CTEST_LDADD)
 ast_astequal_SOURCES = ast_astequal.c
 ast_astequal_LDADD   = $(CTEST_LDADD)
+
+# compare_dumps replaces the byte-level diff the .tap tests used to run: it
+# passes a byte-equal line and otherwise compares tokens, treating two doubles
+# within 4 ULP as equal.  This is the same comparator the CMake suite uses, so
+# both suites accept and reject the same output, and neither has to opt a
+# fixture out of dump comparison merely because its last digit moves.  It links
+# no AST library, being text and arithmetic only.
+compare_dumps_SOURCES = compare_dumps.c
+compare_dumps_LDADD   = -lm
+
+# The comparator's own self-test, built from the same source with -DSELFTEST.
+# A comparator nobody checks is how a gate quietly stops being one.
+check_PROGRAMS += compare_dumps_selftest
+TESTS += compare_dumps_selftest
+compare_dumps_selftest_SOURCES = compare_dumps.c
+compare_dumps_selftest_CFLAGS  = $(AM_CFLAGS) -DSELFTEST
+compare_dumps_selftest_LDADD   = -lm
 
 # testgrid exercises astGrid using the logging GRF module (libast_grf_log),
 # which replaces the null grf_2.0/3.2/5.6 modules used by the other tests.
