@@ -915,6 +915,12 @@ if(AST_BUILD_FORTRAN)
         "${CMAKE_BINARY_DIR}/src"   # f77.h (generated from f77.h.in)
     )
     target_compile_definitions(ast_star_compat PRIVATE HAVE_CONFIG_H)
+    # Instrumented like every other C target here: these stubs stand in for
+    # Starlink's memory and string routines, which is exactly the code a
+    # sanitizer build wants watched.
+    if(AST_SANITIZER_COMPILE_FLAGS)
+        target_compile_options(ast_star_compat PRIVATE ${AST_SANITIZER_COMPILE_FLAGS})
+    endif()
 
     # Helper: add a Fortran test program and register it with ctest.
     # Test names get a _f suffix to distinguish from C equivalents.
@@ -947,6 +953,15 @@ if(AST_BUILD_FORTRAN)
                 $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
                 ${FT_EXTRA_LIBS}
             )
+        endif()
+        if(AST_FORTRAN_SANITIZER_FLAGS)
+            target_compile_options(${name}_f PRIVATE
+                $<$<COMPILE_LANGUAGE:Fortran>:${AST_FORTRAN_SANITIZER_FLAGS}>
+            )
+            # The link is the part that matters: libast and the grf modules
+            # carry __asan_* references that only the sanitizer runtime
+            # resolves, and the Fortran driver does not add it by itself.
+            target_link_options(${name}_f PRIVATE ${AST_FORTRAN_SANITIZER_FLAGS})
         endif()
         target_link_libraries(${name}_f PRIVATE
             ast

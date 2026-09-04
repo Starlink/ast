@@ -335,6 +335,36 @@ float fred_() {
             list(APPEND AST_FORTRAN_TEST_FLAGS "${flag}")
         endif()
     endforeach()
+
+    # The Fortran test programs are linked by the Fortran driver, which does not
+    # pull in the sanitizer runtime of its own accord.  libast and the grf
+    # modules they link are compiled with -fsanitize, so without the same flag
+    # on the Fortran link the __asan_* references in those objects go
+    # unresolved and every Fortran test fails to link.  The flags are probed
+    # against the Fortran compiler rather than assumed from the C one, because
+    # the two need not be from the same vendor -- flang against clang is a
+    # supported combination here.
+    #
+    # Each flag is probed with itself on the link line as well as the compile
+    # line, which is how it is used below.  check_fortran_compiler_flag alone
+    # only compiles with the flag, so a sanitizer flag always "fails" it: the
+    # probe object gets __asan_* references and then links without the runtime
+    # that defines them.
+    set(AST_FORTRAN_SANITIZER_FLAGS "")
+    foreach(flag ${AST_SANITIZER_COMPILE_FLAGS})
+        string(MAKE_C_IDENTIFIER "HAVE_FC${flag}" varname)
+        set(CMAKE_REQUIRED_LINK_OPTIONS "${flag}")
+        check_fortran_compiler_flag("${flag}" ${varname})
+        unset(CMAKE_REQUIRED_LINK_OPTIONS)
+        if(${varname})
+            list(APPEND AST_FORTRAN_SANITIZER_FLAGS "${flag}")
+        endif()
+    endforeach()
+    if(AST_ENABLE_SANITIZERS AND NOT AST_FORTRAN_SANITIZER_FLAGS)
+        message(WARNING
+            "AST_ENABLE_SANITIZERS is ON but ${CMAKE_Fortran_COMPILER_ID} Fortran "
+            "accepts none of the sanitizer flags; the Fortran tests will not link")
+    endif()
 endif()
 
 # ============================================================
