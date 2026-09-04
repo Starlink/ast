@@ -1,5 +1,11 @@
 # WCS converter regression tests -- pipe-delimited
 # Fields: name | input | reference | encoding | attrs | skip_string_compare
+# Four rows below carry a source velocity or a shift-and-PV chain whose value is
+# amplified by cancellation, so it moves by more than a few ulp once the compiler
+# contracts a multiply and an add -- which clang does by default and gcc does at
+# -march=x86-64-v3.  They need astEQUAL rather than the default tolerance:
+# tnx-cheb, jan_fits-class_ast, multi-wcs-spec, class-noproj.
+#
 # skip_string_compare: blank    = compare the output against the reference, with
 #                                 numeric tokens equal to within 4 ULP.  The
 #                                 default; keep comparisons tight.
@@ -41,7 +47,7 @@ longslit_fits-wcs | wcsconv/inputs/longslit.fits-pc | wcsconv/expected/longslit.
 # -march=x86-64-v3 serializes -79989.315688614341 where unfused x86 and
 # fused arm64 clang both give ...607065.  Byte-diff is therefore not a
 # reliable gate for this fixture; the astequal test still pins semantics.
-jan_fits-class_ast | wcsconv/inputs/jan.fits-class | wcsconv/expected/jan.ast | ast | FitsDigits=8 |
+jan_fits-class_ast | wcsconv/inputs/jan.fits-class | wcsconv/expected/jan.ast | ast | FitsDigits=8 | astequal
 aitoff_native | wcsconv/inputs/aitoff.head | wcsconv/expected/aitoff.native | native |  |
 car1_native | wcsconv/inputs/car1.head | wcsconv/expected/car1.native | native | carlin=1 |
 car2_native | wcsconv/inputs/car2.head | wcsconv/expected/car2.native | native | carlin=1 |
@@ -65,7 +71,7 @@ zpx_native | wcsconv/inputs/zpx.head | wcsconv/expected/zpx.native | native |  |
 freq-log_native | wcsconv/inputs/freq-log.head | wcsconv/expected/freq-log.native | native |  |
 freq-f2w_native | wcsconv/inputs/freq-f2w.head | wcsconv/expected/freq-f2w.native | native |  |
 tan-pv0_native | wcsconv/inputs/tan-pv0.head | wcsconv/expected/tan-pv0.native | native |  |
-tnx-cheb_native | wcsconv/inputs/tnx-cheb.head | wcsconv/expected/tnx-cheb.native | native |  |
+tnx-cheb_native | wcsconv/inputs/tnx-cheb.head | wcsconv/expected/tnx-cheb.native | native |  | astequal
 grism_native | wcsconv/inputs/grism.head | wcsconv/expected/grism.native | native |  |
 grism_fits-wcs | wcsconv/inputs/grism.head | wcsconv/expected/grism.fits-wcs | fits-wcs | FitsDigits=8 |
 class-spec_native | wcsconv/inputs/class-spec.head | wcsconv/expected/class-spec.native | native |  |
@@ -92,7 +98,7 @@ skyref_native | wcsconv/inputs/skyref.head | wcsconv/expected/skyref.native | na
 fits-pc-unit_native | wcsconv/inputs/fits-pc-unit.head | wcsconv/expected/fits-pc-unit.native | native |  |
 gls_native | wcsconv/inputs/gls.head | wcsconv/expected/gls.native | native |  |
 iraf-longpole_native | wcsconv/inputs/iraf-longpole.head | wcsconv/expected/iraf-longpole.native | native |  |
-multi-wcs-spec_native | wcsconv/inputs/multi-wcs-spec.head | wcsconv/expected/multi-wcs-spec.native | native |  |
+multi-wcs-spec_native | wcsconv/inputs/multi-wcs-spec.head | wcsconv/expected/multi-wcs-spec.native | native |  | astequal
 multi-wcs-dup_native | wcsconv/inputs/multi-wcs-dup.head | wcsconv/expected/multi-wcs-dup.native | native |  |
 multi-wcs-dup_fits-wcs | wcsconv/inputs/multi-wcs-dup.head | wcsconv/expected/multi-wcs-dup.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8 |
 freq-wav_native | wcsconv/inputs/freq-wav.head | wcsconv/expected/freq-wav.native | native |  |
@@ -143,7 +149,7 @@ unknown-spec_native | wcsconv/inputs/unknown-spec.head | wcsconv/expected/unknow
 crota-3d_native | wcsconv/inputs/crota-3d.head | wcsconv/expected/crota-3d.native | native |  |
 axes-swap_native | wcsconv/inputs/axes-swap.head | wcsconv/expected/axes-swap.native | native |  |
 cd-cross_native | wcsconv/inputs/cd-cross.head | wcsconv/expected/cd-cross.native | native |  |
-class-noproj_native | wcsconv/inputs/class-noproj.head | wcsconv/expected/class-noproj.native | native |  |
+class-noproj_native | wcsconv/inputs/class-noproj.head | wcsconv/expected/class-noproj.native | native |  | astequal
 ait-highlatpole_native | wcsconv/inputs/ait-highlatpole.head | wcsconv/expected/ait-highlatpole.native | native |  |
 timj_fits-aips++ | wcsconv/inputs/timj.ast | wcsconv/expected/timj.fits-aips++ | fits-aips++ | FitsDigits=8 |
 a20070718_fits-aips | wcsconv/inputs/a20070718_00010_02_cube.ast | wcsconv/expected/a20070718_00010_02_cube.fits-aips | fits-aips | FitsDigits=8 |
