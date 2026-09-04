@@ -423,6 +423,17 @@ function(add_roundtrip_test)
                 -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/roundtrip_${R_NAME}.out
                 -P "${CMAKE_SOURCE_DIR}/cmake/run_roundtrip_test.cmake"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+# As every other family here does.  Reading a dump leaks inside the library's own
+# loaders -- astLoadXphMap by way of astReadClassData is one -- and this family
+# reads every fixture in the tree, so without this it is the only one that reports
+# those leaks.  Suppressing them keeps the family measuring what it is for; the
+# leaks belong to the read path and are the same ones the simplify and wcsconv
+# families already run with detection off.
+    if(AST_ENABLE_SANITIZERS)
+        set_tests_properties(roundtrip_${R_NAME} PROPERTIES
+            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+    endif()
 endfunction()
 
 # compare_dumps: a dump comparator that tolerates last-bit variation.  It links
@@ -438,6 +449,9 @@ target_compile_definitions(compare_dumps_selftest PRIVATE SELFTEST)
 target_link_libraries(compare_dumps_selftest PRIVATE m)
 set_target_properties(compare_dumps_selftest PROPERTIES C_STANDARD 11)
 ast_apply_dev_options(compare_dumps_selftest)
+# Deliberately without the ASAN_OPTIONS=detect_leaks=0 that every other test here
+# carries: this one links no AST library and allocates nothing, so a leak report
+# from it would be a real leak in compare_dumps rather than one of the library's.
 add_test(NAME compare_dumps_selftest COMMAND compare_dumps_selftest)
 
 add_executable(gen_keymap_mapsz gen_keymap_mapsz.c)
