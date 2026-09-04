@@ -201,3 +201,11 @@ tan-pv0_fits-wcs | wcsconv/inputs/tan-pv0.head | wcsconv/expected/tan-pv0.fits-w
 date-z_fits-wcs | wcsconv/inputs/date-z.head | wcsconv/expected/date-z.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8 |
 fits-pc-altgal_native | wcsconv/inputs/fits-pc-altgal.head | wcsconv/expected/fits-pc-altgal.native | native |  | yes
 fits-pc-altgal_fits-wcs | wcsconv/inputs/fits-pc-altgal.head | wcsconv/expected/fits-pc-altgal.fits-wcs | fits-wcs | cdmatrix=1,FitsDigits=8 |
+
+# offset-sref exercises a SkyFrame whose SkyRef is set with SkyRefIs=Origin, so
+# the read has to recover the reference position from the raw CRVAL rather than
+# from the rotated fiducial point.  The reference was captured on Linux; on
+# macOS the pinned library reproduces every keyword and every IsSimp card and
+# differs only in the last digit or two of trig values, which is platform
+# arithmetic rather than staleness.
+offset-sref_native | wcsconv/inputs/offset-sref.head | wcsconv/expected/offset-sref.native | native |  |

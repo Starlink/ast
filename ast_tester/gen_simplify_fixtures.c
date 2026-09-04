@@ -4402,6 +4402,31 @@ static void gen_nested_tag_fixture(const char *dir) {
     }
 }
 
+/* The LSST WCS as a scenario fixture: a real, large CmpMap rather than a shape
+   built to reach one rule.  The input is a FrameSet, and what is interesting is
+   its base-to-current Mapping, so the Mapping is extracted here and written as
+   the fixture.  That keeps the pair in the corpus's usual .map/.simp form, so
+   the harness needs no mode for reading a FrameSet and simplifying its Mapping
+   instead. */
+static void gen_lsst_scenario_fixture(const char *dir) {
+    AstChannel *chan;
+    AstFrameSet *fs;
+    AstMapping *map;
+
+    printf("LSST scenario fixture:\n");
+    chan = astChannel(NULL, NULL, "SourceFile=ast_tester/fixtures/wcsconv/inputs/lsst.ast");
+    fs = (AstFrameSet *) astRead(chan);
+    chan = astAnnul(chan);
+    if (!fs) {
+        fprintf(stderr, "ERROR: could not read wcsconv/inputs/lsst.ast\n");
+        return;
+    }
+    map = astGetMapping(fs, AST__BASE, AST__CURRENT);
+    write_fixture(dir, "lsst", map);
+    map = astAnnul(map);
+    fs = astAnnul(fs);
+}
+
 int main(void) {
     int status = 0;
     const char *dir = "ast_tester/fixtures/simplify";
@@ -4441,6 +4466,7 @@ int main(void) {
     /* DssMap: skipped — protected constructor, and DSS FitsChan encoding
        no longer creates DssMap objects (decomposes to WcsMap pipeline). */
 
+    gen_lsst_scenario_fixture(dir);
     gen_defunc_fixtures(dir);
     gen_cefit_fixtures(dir);
     gen_regbasepick_fixtures(dir);
