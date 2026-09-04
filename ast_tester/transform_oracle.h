@@ -55,6 +55,11 @@ void   oracle_sample_points( int naxis, const double *lo, const double *hi,
    returned via out_base/out_cur (each NULL-able; the caller astAnnuls any it
    requested).  For a bare Mapping they are set to NULL.  The base/current
    frames let the checker decide which output axes are angular. */
+/* Register the IntraMap transformation functions the simplify fixtures name.
+   Both the generator and the checker must call this before reading a fixture,
+   or the generator writes sections the checker cannot load. */
+void oracle_register_intramaps( int *status );
+
 AstMapping *oracle_load_mapping( const char *root, const char *relpath,
                                  AstFrame **out_base, AstFrame **out_cur );
 void   oracle_format_double( char *buf, size_t buflen, double v );

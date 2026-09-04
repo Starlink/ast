@@ -140,7 +140,37 @@ static void axis_bounds( const char *root, const char *relpath, int kind,
     if ( kind == DOM_HEAD ) {
         head_bounds( root, relpath, naxis, lo, hi );
     } else if ( kind == DOM_FRAMESET ) {
-        for ( int a = 0; a < naxis; a++ ) { lo[a] = 1.0; hi[a] = 1000.0; }
+/* A fixture under wcsconv/framesets/ is the dump of the object read from one
+   wcsconv input, and its name is that input's filename with each "." replaced by
+   "-".  Recover the input and take its pixel grid, so the mapping is sampled over
+   the domain it was built for.
+
+   Sampling wider is not harmless for every mapping.  A SIP distortion is a
+   polynomial fitted over the image, and its inverse is iterative: outside the
+   image the iteration need not converge, so a default 1..1000 range over a
+   256-pixel image reports round-trip errors of 100 pixels and more that say
+   nothing about the library.  The same mappings round-trip cleanly when sampled
+   over their own NAXIS grid, which is what the .head sections already do. */
+        char origin[ 1024 ];
+        const char *base = strrchr( relpath, '/' );
+        base = base ? base + 1 : relpath;
+        if ( !strncmp( relpath, "wcsconv/framesets/", 18 ) &&
+             snprintf( origin, sizeof origin, "wcsconv/inputs/%s", base )
+             < (int) sizeof origin ) {
+            char *dot = strrchr( origin, '.' );      /* drop the ".ast" */
+            if ( dot ) *dot = 0;
+            char *dash = strrchr( origin, '-' );     /* the "." that became "-" */
+            if ( dash ) *dash = '.';
+        } else {
+            origin[ 0 ] = 0;
+        }
+
+        if ( origin[ 0 ] && strstr( origin, ".head" ) &&
+             file_exists( root, origin ) ) {
+            head_bounds( root, origin, naxis, lo, hi );
+        } else {
+            for ( int a = 0; a < naxis; a++ ) { lo[a] = 1.0; hi[a] = 1000.0; }
+        }
     } else {
         for ( int a = 0; a < naxis; a++ ) { lo[a] = -1000.0; hi[a] = 1000.0; }
     }
@@ -193,11 +223,6 @@ static int transform_write( FILE *fp, const char *relpath, AstMapping *map,
    number of sections written. */
 static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
     int wrote = 0;
-    /* The simplify fixtures' "simplifyidentity" IntraMap is a private test
-       extension that cannot be loaded without registration; skip any
-       fixture that uses an IntraMap. */
-    if ( file_contains( root, relpath, "IntraMap" ) ) return 0;
-
     astBegin;
     AstMapping *map = oracle_load_mapping( root, relpath, NULL, NULL );
     if ( map ) {
@@ -351,6 +376,8 @@ int main( int argc, char *argv[] ) {
     const char *headers_out   = argv[3];
     const char *framesets_out = argv[4];
     astWatch( status );
+
+    oracle_register_intramaps( status );
 
     /* The tolerance line is informational (the checker takes its tolerances
        from the transform_oracle.h macros); format it from those same macros
