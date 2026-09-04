@@ -460,6 +460,25 @@ target_link_libraries(gen_keymap_mapsz PRIVATE ${TEST_LIBS})
 target_compile_definitions(gen_keymap_mapsz PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(gen_keymap_mapsz)
 
+# Check the committed fixture still describes this library.  Without this the
+# generator would be the only target here whose output nothing reads: the
+# fixture is written for a port to be held to, and a capture nothing re-checks
+# stops being evidence the moment KeyMap's growth policy changes.  Byte-exact,
+# because every value is integer arithmetic over ASCII keys.
+ast_require_fixture("keymap_mapsz" "oracle/keymap_mapsz.txt")
+add_test(NAME keymap_mapsz
+    COMMAND "${CMAKE_COMMAND}"
+            -DGENERATOR=$<TARGET_FILE:gen_keymap_mapsz>
+            -DREF_FILE=${AST_FIXTURE_BINARY_ROOT}/oracle/keymap_mapsz.txt
+            -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/keymap_mapsz.out
+            -P "${CMAKE_SOURCE_DIR}/cmake/run_keymap_mapsz_test.cmake"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+add_dependencies(gen_keymap_mapsz ast_stage_fixtures)
+if(AST_ENABLE_SANITIZERS)
+    set_tests_properties(keymap_mapsz PROPERTIES
+        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+endif()
+
 add_executable(gen_frameset_fixtures gen_frameset_fixtures.c)
 target_include_directories(gen_frameset_fixtures PRIVATE ${TEST_INCLUDES})
 target_link_libraries(gen_frameset_fixtures PRIVATE ${TEST_LIBS})
