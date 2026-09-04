@@ -1,0 +1,24 @@
+#!/bin/sh -
+# Minimal bootstrap script intended for building outside the Starlink
+# environment; if you get
+#
+# bootstrap error: The starconf application is not in your path
+#
+# ... this is for you.
+#
+# This will generate a working `configure` script, from which you can then
+# run:
+#
+# $ ./configure
+# $ make
+#
+# and optionally
+#
+# $ make check
+
+# Copy the standalone Starlink macro stubs into m4/ so aclocal picks them up.
+# In Starlink builds the real starconf.m4 (from $STARLINK/buildsupport/share/aclocal)
+# is used instead; starlink_compat.m4 must NOT be present in m4/ in that case.
+cp star_compat/starlink_compat.m4 m4/starlink_compat.m4
+
+autoreconf --install --symlink

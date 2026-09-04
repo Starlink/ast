@@ -2,6 +2,7 @@
 *.log
 *.trs
 *.o
+/ast_astequal
 /ast_test
 /simplify
 /test*
@@ -9,11 +10,13 @@
 !/test*.c
 !/test*.f
 !/test*.sh
+!/test*.tap
 
 # Generated test outputs
 /divide_roundtrip.asdf
 /lsst_wcs.asdf
 /nativetest.yaml
+/sm.txt
 /sphmap_roundtrip.asdf
 /tanSipWcs.asdf
 /yamltest.asdf

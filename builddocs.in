@@ -25,6 +25,12 @@ fi
 PATH="${here}:${perldir}:${PATH}"
 export PATH
 
+#  The Starlink LaTeX class and style files are vendored in the tree, so
+#  typesetting the documents needs no Starlink installation.  See
+#  star_compat/latexsupport/README.md.
+TEXINPUTS="${here}/star_compat/latexsupport//:${TEXINPUTS}"
+export TEXINPUTS
+
 srcdir="${here}/src"
 goodsource="${srcdir}/yamlchan.c \
             ${srcdir}/axis.c \
@@ -144,8 +150,8 @@ rm -f .sst.tmp
    rm -f memory_routines.tex
 
 
-   TEXINPUTS=@STARLINK@/share/latexsupport//:${TEXINPUTS} pdflatex -interaction=nonstopmode sun210
-   TEXINPUTS=@STARLINK@/share/latexsupport//:${TEXINPUTS} pdflatex -interaction=nonstopmode sun210
-   TEXINPUTS=@STARLINK@/share/latexsupport//:${TEXINPUTS} pdflatex -interaction=nonstopmode sun211
-   TEXINPUTS=@STARLINK@/share/latexsupport//:${TEXINPUTS} pdflatex -interaction=nonstopmode sun211
+   pdflatex -interaction=nonstopmode sun210
+   pdflatex -interaction=nonstopmode sun210
+   pdflatex -interaction=nonstopmode sun211
+   pdflatex -interaction=nonstopmode sun211
 
