@@ -28,6 +28,7 @@
  *   2  usage or I/O error
  */
 
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,8 +38,20 @@
    algorithmic change, which shows up orders of magnitude larger. */
 #define MAX_ULPS 4
 
-/* astEQUAL's tolerance: equal to within 1e-14 of the larger magnitude. */
-#define ASTEQUAL_REL 1.0E-14
+/* AST's own value comparison, from src/object.h.in:
+      astEQUALS(a,b,tol)  |a-b| <= max( tol*(|a|+|b|)*DBL_EPSILON, 1.0E-12 )
+      astEQUAL(a,b)       astEQUALS(a,b,1.0E5)
+   Reproduced rather than approximated: a tolerance invented here would be a
+   different tolerance from the library's, and this comparator exists to say
+   whether the library agrees with itself across platforms.
+
+   The absolute term is the part that matters most, and the part a relative
+   tolerance cannot supply.  A value that cancels to exactly zero on one build
+   and to -1e-16 on another differs by every relative measure -- the sign
+   changes -- while differing by nothing that means anything.  Every EQUAL macro
+   in this library carries such a term for that reason. */
+#define ASTEQUAL_TOL 1.0E5
+#define ASTEQUAL_FLOOR 1.0E-12
 
 static int use_astequal = 0;
 
@@ -54,9 +67,10 @@ static int within_ulps( double a, double b ) {
    if( isnan( a ) || isnan( b ) ) return 0;
 
    if( use_astequal ) {
-      double mag = fabs( a ) > fabs( b ) ? fabs( a ) : fabs( b );
-      return fabs( a - b ) <= ASTEQUAL_REL * mag;
+      double rel = ASTEQUAL_TOL * ( fabs( a ) + fabs( b ) ) * DBL_EPSILON;
+      return fabs( a - b ) <= ( rel > ASTEQUAL_FLOOR ? rel : ASTEQUAL_FLOOR );
    }
+
 
    memcpy( &ia, &a, sizeof ia );
    memcpy( &ib, &b, sizeof ib );
@@ -208,12 +222,18 @@ int main( void ) {
 
    /* astequal widens the tolerance, but only when asked. */
    use_astequal = 1;
-   fails += check( 1, within_ulps( 1.0e6, 1.0e6 + 1.0e-9 ),
+   /* astEQUAL is |a-b| <= max( 1e5*(|a|+|b|)*DBL_EPSILON, 1e-12 ), so at 1e6
+      it reaches about 4.4e-5 and at 1.0 about 4.4e-11. */
+   fails += check( 1, within_ulps( 1.0e6, 1.0e6 + 1.0e-5 ),
                    "astequal absorbs a cancellation-scale difference" );
-   fails += check( 0, within_ulps( 1.0, 1.1 ),
+   fails += check( 0, within_ulps( 1.0e6, 1.0e6 + 1.0 ),
                    "astequal still rejects a real change" );
+   fails += check( 1, within_ulps( 1.0, 1.0 + 1.0e-11 ),
+                   "astequal reaches 1e-11 at unit magnitude" );
+   fails += check( 0, within_ulps( 1.0, 1.0 + 1.0e-6 ),
+                   "astequal stops well below 1e-6" );
    use_astequal = 0;
-   fails += check( 0, within_ulps( 1.0e6, 1.0e6 + 1.0e-9 ),
+   fails += check( 0, within_ulps( 1.0e6, 1.0e6 + 1.0e-5 ),
                    "without astequal that difference is rejected" );
 
    if( fails ) {
