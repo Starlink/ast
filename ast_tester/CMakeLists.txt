@@ -393,6 +393,7 @@ target_link_libraries(roundtrip PRIVATE ${TEST_LIBS})
 target_compile_definitions(roundtrip PRIVATE HAVE_CONFIG_H)
 ast_apply_dev_options(roundtrip)
 add_dependencies(roundtrip ast_stage_fixtures)
+add_dependencies(simplify compare_dumps)
 
 function(add_roundtrip_test)
     cmake_parse_arguments(R "" "NAME;FIXTURE" "" ${ARGN})
@@ -408,6 +409,21 @@ function(add_roundtrip_test)
                 -P "${CMAKE_SOURCE_DIR}/cmake/run_roundtrip_test.cmake"
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endfunction()
+
+# compare_dumps: a dump comparator that tolerates last-bit variation.  It links
+# no AST library -- it is text and arithmetic only -- so a cmake -P driver can
+# call it without the library on the path.
+add_executable(compare_dumps compare_dumps.c)
+target_link_libraries(compare_dumps PRIVATE m)
+set_target_properties(compare_dumps PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(compare_dumps)
+
+add_executable(compare_dumps_selftest compare_dumps.c)
+target_compile_definitions(compare_dumps_selftest PRIVATE SELFTEST)
+target_link_libraries(compare_dumps_selftest PRIVATE m)
+set_target_properties(compare_dumps_selftest PROPERTIES C_STANDARD 11)
+ast_apply_dev_options(compare_dumps_selftest)
+add_test(NAME compare_dumps_selftest COMMAND compare_dumps_selftest)
 
 add_executable(gen_keymap_mapsz gen_keymap_mapsz.c)
 target_include_directories(gen_keymap_mapsz PRIVATE ${TEST_INCLUDES})
@@ -466,7 +482,7 @@ ast_apply_dev_options(gen_simplify_fixtures)
 function(add_simplify_test)
     cmake_parse_arguments(S
         "SKIP_STRING_COMPARE"
-        "NAME;INPUT;REFERENCE"
+        "NAME;INPUT;REFERENCE;TOLERANCE"
         ""
         ${ARGN})
     if(NOT S_NAME OR NOT S_INPUT OR NOT S_REFERENCE)
@@ -482,6 +498,8 @@ function(add_simplify_test)
         add_test(NAME simplify_${S_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DSIMPLIFY=$<TARGET_FILE:simplify>
+                -DCOMPARE=$<TARGET_FILE:compare_dumps>
+                -DTOLERANCE=${S_TOLERANCE}
                 -DIN_FILE=${_input}
                 -DREF_FILE=${_reference}
                 -DOUT_FILE=${S_NAME}.out
@@ -530,13 +548,28 @@ foreach(_entry IN LISTS _simplify_tests)
     list(GET _fields 1 _input)
     list(GET _fields 2 _reference)
     list(GET _fields 3 _skip)
+    # The fourth column takes three values.  Blank compares the dump with
+    # numeric tokens to 4 ULP.  "astequal" widens that to AST's own astEQUAL,
+    # for a value amplified by cancellation.  "yes" runs no string comparison at
+    # all, which is right for a negative fixture: its reference is the
+    # unsimplified input, and astSimplify always stamps IsSimp on its result, so
+    # the two can never match by string.  Those are gated by the _noop test
+    # instead, which strips IsSimp before comparing.
     set(_skip_flag "")
+    set(_tolerance "")
     if(_skip STREQUAL "yes")
         set(_skip_flag "SKIP_STRING_COMPARE")
+    elseif(_skip STREQUAL "astequal")
+        set(_tolerance "astequal")
+    elseif(NOT _skip STREQUAL "")
+        message(FATAL_ERROR
+            "simplify/cases.txt: row ${_name} has skip_string_compare "
+            "\"${_skip}\"; expected blank, astequal or yes")
     endif()
     add_simplify_test(NAME ${_name}
                       INPUT ${_input}
                       REFERENCE ${_reference}
+                      TOLERANCE ${_tolerance}
                       ${_skip_flag})
 
 # Round-trip both halves of the pair.  Reading a dump and writing it back is
