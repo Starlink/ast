@@ -70,6 +70,7 @@ C_TESTS = \
     testflux_c \
     testframe \
     testframeset_c \
+    testissimp \
     testkeymap_c \
     testlutmap_c \
     testmapping_c \
@@ -126,6 +127,9 @@ testframe_LDADD        = $(CTEST_LDADD)
 
 testobject_SOURCES     = testobject.c
 testobject_LDADD       = $(CTEST_LDADD)
+
+testissimp_SOURCES     = testissimp.c
+testissimp_LDADD       = $(CTEST_LDADD)
 
 testresimp_SOURCES     = testresimp.c
 testresimp_LDADD       = $(CTEST_LDADD)
