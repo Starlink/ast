@@ -1,12 +1,26 @@
 # Simplify regression tests -- pipe-delimited
 # Fields: name | input | reference | skip_string_compare
-# skip_string_compare: blank = run both string-diff and astequal tests
-#                      yes  = run astequal test only (ulp-level variation)
+# skip_string_compare: blank    = compare the simplified dump against the
+#                                 reference, with numeric tokens equal to within
+#                                 4 ULP.  The default; keep comparisons tight.
+#                      astequal = as blank, but with the tolerance widened to
+#                                 AST's own astEQUAL.  Only for a value
+#                                 amplified by cancellation, and only with a
+#                                 comment above the row saying which value.
+#                      yes      = no string comparison.  This is not a tolerance
+#                                 opt-out: it is what a negative fixture needs.
+#                                 Such a fixture's reference is its own
+#                                 unsimplified .map, and astSimplify always
+#                                 stamps IsSimp on whatever it returns, so the
+#                                 output can never match the reference by string.
+#                                 The _noop test gates those instead, stripping
+#                                 IsSimp before comparing, so the assertion that
+#                                 nothing else changed is still made.
 
 # Scenario fixtures (integration regressions).
 brad  | simplify/brad.map  | simplify/brad.simp  |
 lsst1 | simplify/lsst1.map | simplify/lsst1.simp |
-rigby | simplify/rigby.map | simplify/rigby.simp | yes
+rigby | simplify/rigby.map | simplify/rigby.simp |
 
 # Focused rule fixtures.
 unit_series_elision     | simplify/unit_series_elision.map     | simplify/unit_series_elision.simp     |
@@ -256,7 +270,7 @@ selectormap_region_simplify | simplify/selectormap_region_simplify.map | simplif
 dssmap_inv_winmap_absorb  | simplify/dssmap_inv_winmap_absorb.map  | simplify/dssmap_inv_winmap_absorb.simp  |
 dssmap_winmap_absorb      | simplify/dssmap_winmap_absorb.map      | simplify/dssmap_winmap_absorb.simp      |
 dssmap_zoom_no_merge      | simplify/dssmap_zoom_no_merge.map      | simplify/dssmap_zoom_no_merge.simp      |
-neg_box_asymmetric_2d     | simplify/neg_box_asymmetric_2d.map     | simplify/neg_box_asymmetric_2d.map      | yes
+neg_box_asymmetric_2d     | simplify/neg_box_asymmetric_2d.map     | simplify/neg_box_asymmetric_2d.map      |
 reconstruct_right_assoc   | simplify/reconstruct_right_assoc.map   | simplify/reconstruct_right_assoc.simp   |
 series_parallel_absorb    | simplify/series_parallel_absorb.map    | simplify/series_parallel_absorb.simp    |
 sla_run_identity          | simplify/sla_run_identity.map          | simplify/sla_run_identity.simp          |
@@ -272,15 +286,23 @@ cap_cmpmap_01            | simplify/cap_cmpmap_01.map | simplify/cap_cmpmap_01.s
 cap_cmpmap_02            | simplify/cap_cmpmap_02.map | simplify/cap_cmpmap_02.simp |
 cap_cmpmap_03            | simplify/cap_cmpmap_03.map | simplify/cap_cmpmap_03.simp |
 cap_cmpmap_04            | simplify/cap_cmpmap_04.map | simplify/cap_cmpmap_04.simp |
+# The uncertainty coordinates of the simplified Interval differ from this
+# reference by 1.9e-12 relative -- some four thousand ULP, far beyond any
+# tolerance worth calling one, and deterministic here.  The reference was
+# captured on another platform; regenerating it would re-anchor it to this
+# host, which the corpus's other platform-drifted values are deliberately not.
 cap_interval_01          | simplify/cap_interval_01.map | simplify/cap_interval_01.simp | yes
 cap_lutmap_01            | simplify/cap_lutmap_01.map | simplify/cap_lutmap_01.simp |
 cap_mathmap_01           | simplify/cap_mathmap_01.map | simplify/cap_mathmap_01.simp |
 cap_matrixmap_01         | simplify/cap_matrixmap_01.map | simplify/cap_matrixmap_01.simp |
 cap_matrixmap_02         | simplify/cap_matrixmap_02.map | simplify/cap_matrixmap_02.simp |
-cap_matrixmap_03         | simplify/cap_matrixmap_03.map | simplify/cap_matrixmap_03.simp | yes
+cap_matrixmap_03         | simplify/cap_matrixmap_03.map | simplify/cap_matrixmap_03.simp |
 cap_matrixmap_04         | simplify/cap_matrixmap_04.map | simplify/cap_matrixmap_04.simp |
 cap_permmap_01           | simplify/cap_permmap_01.map | simplify/cap_permmap_01.simp |
 cap_permmap_02           | simplify/cap_permmap_02.map | simplify/cap_permmap_02.simp |
+# As cap_interval_01: the simplified PointList's coordinates differ from this
+# reference by 1.2e-12 relative, deterministic here, and the reference comes
+# from another platform.
 cap_pointlist_01         | simplify/cap_pointlist_01.map | simplify/cap_pointlist_01.simp | yes
 cap_pointlist_02         | simplify/cap_pointlist_02.map | simplify/cap_pointlist_02.simp |
 cap_slamap_01            | simplify/cap_slamap_01.map | simplify/cap_slamap_01.simp |
@@ -307,8 +329,8 @@ cap_specmap_12           | simplify/cap_specmap_12.map | simplify/cap_specmap_12
 cap_specmap_13           | simplify/cap_specmap_13.map | simplify/cap_specmap_13.simp |
 cap_specmap_14           | simplify/cap_specmap_14.map | simplify/cap_specmap_14.simp |
 cap_sphmap_01            | simplify/cap_sphmap_01.map | simplify/cap_sphmap_01.simp |
-cap_timemap_01           | simplify/cap_timemap_01.map | simplify/cap_timemap_01.simp | yes
-cap_timemap_02           | simplify/cap_timemap_02.map | simplify/cap_timemap_02.simp | yes
+cap_timemap_01           | simplify/cap_timemap_01.map | simplify/cap_timemap_01.simp |
+cap_timemap_02           | simplify/cap_timemap_02.map | simplify/cap_timemap_02.simp |
 cap_timemap_03           | simplify/cap_timemap_03.map | simplify/cap_timemap_03.simp |
 cap_timemap_04           | simplify/cap_timemap_04.map | simplify/cap_timemap_04.simp |
 cap_timemap_05           | simplify/cap_timemap_05.map | simplify/cap_timemap_05.simp |
@@ -320,7 +342,7 @@ cap_unitnormmap_01       | simplify/cap_unitnormmap_01.map | simplify/cap_unitno
 cap_wcsmap_01            | simplify/cap_wcsmap_01.map | simplify/cap_wcsmap_01.simp |
 cap_winmap_01            | simplify/cap_winmap_01.map | simplify/cap_winmap_01.simp |
 cap_winmap_02            | simplify/cap_winmap_02.map | simplify/cap_winmap_02.simp |
-cap_winmap_03            | simplify/cap_winmap_03.map | simplify/cap_winmap_03.simp | yes
+cap_winmap_03            | simplify/cap_winmap_03.map | simplify/cap_winmap_03.simp |
 cap_winmap_04            | simplify/cap_winmap_04.map | simplify/cap_winmap_04.simp |
 cap_xphmap_01            | simplify/cap_xphmap_01.map | simplify/cap_xphmap_01.simp |
 cap_xphmap_02            | simplify/cap_xphmap_02.map | simplify/cap_xphmap_02.simp |
@@ -345,12 +367,12 @@ neg_zoom_parallel_lone           | simplify/neg_zoom_parallel_lone.map | simplif
 neg_cmpmap_neighbour_nonexcmpmap | simplify/neg_cmpmap_neighbour_nonexcmpmap.map | simplify/neg_cmpmap_neighbour_nonexcmpmap.map | yes
 neg_tranmap_oneway       | simplify/neg_tranmap_oneway.map | simplify/neg_tranmap_oneway.map | yes
 neg_math_inv_text_mismatch | simplify/neg_math_inv_text_mismatch.map | simplify/neg_math_inv_text_mismatch.map | yes
-pcd_search_blocked       | simplify/pcd_search_blocked.map | simplify/pcd_search_blocked.simp | yes
-cmpmap_solo_after_unit   | simplify/cmpmap_solo_after_unit.map | simplify/cmpmap_solo_after_unit.simp | yes
+pcd_search_blocked       | simplify/pcd_search_blocked.map | simplify/pcd_search_blocked.simp |
+cmpmap_solo_after_unit   | simplify/cmpmap_solo_after_unit.map | simplify/cmpmap_solo_after_unit.simp |
 neg_normmap_diff_frame         | simplify/neg_normmap_diff_frame.map | simplify/neg_normmap_diff_frame.map | yes
 neg_normmap_inv_diff_frame     | simplify/neg_normmap_inv_diff_frame.map | simplify/neg_normmap_inv_diff_frame.map | yes
 neg_normmap_parallel_sky       | simplify/neg_normmap_parallel_sky.map | simplify/neg_normmap_parallel_sky.map | yes
-intra_invfwd_cancel      | simplify/intra_invfwd_cancel.map | simplify/intra_invfwd_cancel.simp | yes
+intra_invfwd_cancel      | simplify/intra_invfwd_cancel.map | simplify/intra_invfwd_cancel.simp |
 neg_intra_parallel             | simplify/neg_intra_parallel.map | simplify/neg_intra_parallel.map | yes
 neg_intra_nonintra_neighbour   | simplify/neg_intra_nonintra_neighbour.map | simplify/neg_intra_nonintra_neighbour.map | yes
 neg_intra_diff_flag            | simplify/neg_intra_diff_flag.map | simplify/neg_intra_diff_flag.map | yes
@@ -358,7 +380,7 @@ neg_intra_same_direction       | simplify/neg_intra_same_direction.map | simplif
 neg_intra_diff_func          | simplify/neg_intra_diff_func.map | simplify/neg_intra_diff_func.map | yes
 neg_intra_no_simpfi          | simplify/neg_intra_no_simpfi.map | simplify/neg_intra_no_simpfi.map | yes
 neg_intra_no_simpif          | simplify/neg_intra_no_simpif.map | simplify/neg_intra_no_simpif.map | yes
-xph_inverse_cancel       | simplify/xph_inverse_cancel.map | simplify/xph_inverse_cancel.simp | yes
+xph_inverse_cancel       | simplify/xph_inverse_cancel.map | simplify/xph_inverse_cancel.simp |
 neg_xph_parallel             | simplify/neg_xph_parallel.map | simplify/neg_xph_parallel.map | yes
 neg_xph_nonxph_neighbour     | simplify/neg_xph_nonxph_neighbour.map | simplify/neg_xph_nonxph_neighbour.map | yes
 neg_xph_not_opposite         | simplify/neg_xph_not_opposite.map | simplify/neg_xph_not_opposite.map | yes
@@ -428,7 +450,7 @@ neg_pcd_perm_nonswap       | simplify/neg_pcd_perm_nonswap.map | simplify/neg_pc
 sph_matrix_sandwich_negz       | simplify/sph_matrix_sandwich_negz.map | simplify/sph_matrix_sandwich_negz.simp |
 specmap_invert_normalize       | simplify/specmap_invert_normalize.map | simplify/specmap_invert_normalize.simp |
 slamap_invert_normalize        | simplify/slamap_invert_normalize.map | simplify/slamap_invert_normalize.simp |
-timemap_invert_normalize       | simplify/timemap_invert_normalize.map | simplify/timemap_invert_normalize.simp | yes
+timemap_invert_normalize       | simplify/timemap_invert_normalize.map | simplify/timemap_invert_normalize.simp |
 specmap_pair_cancel            | simplify/specmap_pair_cancel.map | simplify/specmap_pair_cancel.simp |
 slamap_pair_cancel             | simplify/slamap_pair_cancel.map | simplify/slamap_pair_cancel.simp |
 timemap_pair_cancel            | simplify/timemap_pair_cancel.map | simplify/timemap_pair_cancel.simp |
@@ -437,8 +459,8 @@ nullregion_merge_tail          | simplify/nullregion_merge_tail.map | simplify/n
 grism_inverse_cancel_tail      | simplify/grism_inverse_cancel_tail.map | simplify/grism_inverse_cancel_tail.simp |
 intra_invfwd_cancel_tail       | simplify/intra_invfwd_cancel_tail.map | simplify/intra_invfwd_cancel_tail.simp |
 tranmap_merge_tail             | simplify/tranmap_merge_tail.map | simplify/tranmap_merge_tail.simp |
-interval_remapped_simplify     | simplify/interval_remapped_simplify.map | simplify/interval_remapped_simplify.map | yes
-interval_halfinf_simplify      | simplify/interval_halfinf_simplify.map | simplify/interval_halfinf_simplify.map | yes
+interval_remapped_simplify     | simplify/interval_remapped_simplify.map | simplify/interval_remapped_simplify.map |
+interval_halfinf_simplify      | simplify/interval_halfinf_simplify.map | simplify/interval_halfinf_simplify.map |
 
 # Audit-gap fixtures: each isolates a MapMerge/Simplify step the rest of the
 # corpus only reaches by a route that gives the same answer for another reason.
@@ -476,7 +498,7 @@ cap_cmpperm_resume_inv            | simplify/cap_cmpperm_resume_inv.map | simpli
 cap_cheby_consolidate             | simplify/cap_cheby_consolidate.map | simplify/cap_cheby_consolidate.simp |
 cap_box_permmap_const             | simplify/cap_box_permmap_const.map | simplify/cap_box_permmap_const.simp |
 cap_box_permmap_null              | simplify/cap_box_permmap_null.map | simplify/cap_box_permmap_null.simp |
-cap_box_permmap_nonbidi           | simplify/cap_box_permmap_nonbidi.map | simplify/cap_box_permmap_nonbidi.map | yes
+cap_box_permmap_nonbidi           | simplify/cap_box_permmap_nonbidi.map | simplify/cap_box_permmap_nonbidi.map |
 cap_poly_unc_frame                | simplify/cap_poly_unc_frame.map | simplify/cap_poly_unc_frame.simp |
 cap_poly_bent_edges               | simplify/cap_poly_bent_edges.map | simplify/cap_poly_bent_edges.simp |
 cap_poly_bend_allowed             | simplify/cap_poly_bend_allowed.map | simplify/cap_poly_bend_allowed.simp |

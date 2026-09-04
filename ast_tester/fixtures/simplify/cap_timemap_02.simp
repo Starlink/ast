@@ -203,8 +203,8 @@
                       X2 = 0
                       X3 = 0
                       X4 = 0.11999999999999922
-                      X5 = 2.424068405551284e-06
-                      X6 = 2.4240684055400257e-06
+                      X5 = 2.424068405549573e-06
+                      X6 = 2.4240684055430886e-06
                       X7 = 5.7870370370370369e-10
                       X8 = 0.16999999999999921
                    End PointSet
@@ -307,14 +307,14 @@
                    Begin PointSet 	# Container for a set of points
                       Npoint = 2 	# Number of points
                       Ncoord = 4 	# Number of coordinates per point
-                      X1 = 4.1199682554449168e-18 	# Coordinate values...
-                      X2 = 8.4567769453869346e-18
-                      X3 = 2.8189256484623115e-17
-                      X4 = 5.0599999999999552
-                      X5 = 0.0024240684055502628
-                      X6 = 0.0024240684055456406
-                      X7 = 0.0057870370370371035
-                      X8 = 6.0599999999999534
+                      X1 = 1.6940658945086007e-21 	# Coordinate values...
+                      X2 = 1.4611318340136681e-20
+                      X3 = 0
+                      X4 = 5.0600000000000467
+                      X5 = 2.4240684055494053e-06
+                      X6 = 2.4240684055446696e-06
+                      X7 = 5.7870370371833693e-10
+                      X8 = 5.1100000000000199
                    End PointSet
              IsA Region 	# An area within a coordinate system
              End Box
@@ -516,14 +516,14 @@
                    Begin PointSet 	# Container for a set of points
                       Npoint = 2 	# Number of points
                       Ncoord = 4 	# Number of coordinates per point
-                      X1 = 1.6940658945086007e-21 	# Coordinate values...
-                      X2 = 1.4611318340136681e-20
-                      X3 = 0
-                      X4 = 5.0600000000000467
-                      X5 = 2.4240684055494053e-06
-                      X6 = 2.4240684055446696e-06
-                      X7 = 5.7870370371833693e-10
-                      X8 = 5.1100000000000199
+                      X1 = 4.1199682554449168e-18 	# Coordinate values...
+                      X2 = 8.4567769453869346e-18
+                      X3 = 2.8189256484623115e-17
+                      X4 = 5.0599999999999552
+                      X5 = 0.0024240684055502628
+                      X6 = 0.0024240684055456406
+                      X7 = 0.0057870370370371035
+                      X8 = 6.0599999999999534
                    End PointSet
              IsA Region 	# An area within a coordinate system
              End Box

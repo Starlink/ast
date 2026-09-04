@@ -31,7 +31,6 @@
                       IsSimp = 1 	# Mapping has been simplified
                    IsA Mapping 	# Mapping between coordinate systems
                       Sft1 = 3.9331267401387842 	# Shift for axis 1
-                      Sft2 = -1.0061396160665481e-16 	# Shift for axis 2
                    End ShiftMap
                 MapB = 	# Second component Mapping
                    Begin MatrixMap 	# Matrix transformation
