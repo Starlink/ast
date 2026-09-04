@@ -291,7 +291,7 @@ ast_apply_dev_options(ast_astequal)
 function(add_wcsconv_test)
     cmake_parse_arguments(W
         "SKIP_STRING_COMPARE"
-        "NAME;INPUT;REFERENCE;ENCODING;ATTRS"
+        "NAME;INPUT;REFERENCE;ENCODING;ATTRS;TOLERANCE"
         ""
         ${ARGN})
     if(NOT W_NAME OR NOT W_INPUT OR NOT W_REFERENCE OR NOT W_ENCODING)
@@ -310,6 +310,8 @@ function(add_wcsconv_test)
         add_test(NAME wcsconv_${W_NAME}
             COMMAND ${CMAKE_COMMAND}
                 -DWCSCONVERTER=$<TARGET_FILE:wcsconverter>
+                -DCOMPARE=$<TARGET_FILE:compare_dumps>
+                -DTOLERANCE=${W_TOLERANCE}
                 -DIN_FILE=${_input}
                 -DREF_FILE=${_reference}
                 -DOUT_FILE=${W_NAME}.out
@@ -350,9 +352,21 @@ foreach(_entry IN LISTS _wcsconv_tests)
     list(GET _fields 3 _encoding)
     list(GET _fields 4 _attrs)
     list(GET _fields 5 _skip)
+    # Three values.  Blank compares the output with numeric tokens equal to
+    # within 4 ULP.  "astequal" widens that to AST's own astEQUAL, for a value
+    # amplified by cancellation -- OBSALT recovered from OBSGEO-X/Y/Z is the case
+    # that needs it.  "yes" runs no string comparison at all, and needs a comment
+    # above the row saying what varies.
     set(_skip_flag "")
+    set(_tolerance "")
     if(_skip STREQUAL "yes")
         set(_skip_flag "SKIP_STRING_COMPARE")
+    elseif(_skip STREQUAL "astequal")
+        set(_tolerance "astequal")
+    elseif(NOT _skip STREQUAL "")
+        message(FATAL_ERROR
+            "wcsconv/cases.txt: row ${_name} has skip_string_compare "
+            "\"${_skip}\"; expected blank, astequal or yes")
     endif()
     set(_attrs_arg "")
     if(NOT _attrs STREQUAL "")
@@ -363,6 +377,7 @@ foreach(_entry IN LISTS _wcsconv_tests)
                      REFERENCE ${_reference}
                      ENCODING ${_encoding}
                      ${_attrs_arg}
+                     TOLERANCE ${_tolerance}
                      ${_skip_flag})
 endforeach()
 
