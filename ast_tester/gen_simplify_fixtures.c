@@ -3983,11 +3983,11 @@ static void gen_merge_attr_fixtures(const char *dir) {
         /* MeshSize is per-Region, and the merged Region's value has to be
            derived from both rather than inherited from one. */
         AstFrame *fa = astFrame(1, " ");
-        double alb[1] = { 5.0 }, aub[1] = { 10.0 };
-        AstBox *ba = astBox(fa, 0, alb, aub, NULL, "MeshSize=30");
+        double acen[1] = { 5.0 }, acor[1] = { 10.0 };
+        AstBox *ba = astBox(fa, 0, acen, acor, NULL, "MeshSize=30");
         AstFrame *fb = astFrame(1, " ");
-        double blb[1] = { 0.0 }, bub[1] = { 5.0 };
-        AstBox *bb = astBox(fb, 0, blb, bub, NULL, "MeshSize=50");
+        double bcen[1] = { 0.0 }, bcor[1] = { 5.0 };
+        AstBox *bb = astBox(fb, 0, bcen, bcor, NULL, "MeshSize=50");
         AstCmpMap *cm = astCmpMap(ba, bb, 0, " ");
         write_fixture(dir, "merge_box_meshsize_scaled", (AstMapping *) cm);
         cm = astAnnul(cm);
@@ -4000,11 +4000,11 @@ static void gen_merge_attr_fixtures(const char *dir) {
         /* Two FillFactors must combine as a product, not be taken from one
            side: the merged Region covers the product of the two fractions. */
         AstFrame *fa = astFrame(1, " ");
-        double alb[1] = { 5.0 }, aub[1] = { 10.0 };
-        AstBox *ba = astBox(fa, 0, alb, aub, NULL, "FillFactor=0.5");
+        double acen[1] = { 5.0 }, acor[1] = { 10.0 };
+        AstBox *ba = astBox(fa, 0, acen, acor, NULL, "FillFactor=0.5");
         AstFrame *fb = astFrame(1, " ");
-        double blb[1] = { 0.0 }, bub[1] = { 5.0 };
-        AstBox *bb = astBox(fb, 0, blb, bub, NULL, "FillFactor=0.8");
+        double bcen[1] = { 0.0 }, bcor[1] = { 5.0 };
+        AstBox *bb = astBox(fb, 0, bcen, bcor, NULL, "FillFactor=0.8");
         AstCmpMap *cm = astCmpMap(ba, bb, 0, " ");
         write_fixture(dir, "merge_box_fillfactor_product", (AstMapping *) cm);
         cm = astAnnul(cm);
@@ -4063,12 +4063,12 @@ static void gen_defunc_fixtures(const char *dir) {
         /* When a component carries an explicit uncertainty the CmpRegion's
            default is that one, not a box round the whole thing. */
         AstFrame *f = astFrame(2, " ");
-        double ulb[2] = { -0.25, -0.25 }, uub[2] = { 0.25, 0.25 };
-        AstBox *unc1 = astBox(f, 0, ulb, uub, NULL, " ");
-        double alb[2] = { 0.0, 0.0 }, aub[2] = { 10.0, 10.0 };
-        AstBox *b1 = astBox(f, 0, alb, aub, (AstRegion *) unc1, " ");
-        double blb[2] = { 5.0, 5.0 }, bub[2] = { 15.0, 15.0 };
-        AstBox *b2 = astBox(f, 0, blb, bub, NULL, " ");
+        double ucen[2] = { -0.25, -0.25 }, ucor[2] = { 0.25, 0.25 };
+        AstBox *unc1 = astBox(f, 0, ucen, ucor, NULL, " ");
+        double acen[2] = { 0.0, 0.0 }, acor[2] = { 10.0, 10.0 };
+        AstBox *b1 = astBox(f, 0, acen, acor, (AstRegion *) unc1, " ");
+        double bcen[2] = { 5.0, 5.0 }, bcor[2] = { 15.0, 15.0 };
+        AstBox *b2 = astBox(f, 0, bcen, bcor, NULL, " ");
         AstCmpRegion *cr = astCmpRegion(b1, b2, AST__AND, " ");
         AstRegion *unc = astGetUnc(cr, 1);
         write_fixture(dir, "defunc_cmpregion_component_unc", (AstMapping *) unc);
@@ -4082,8 +4082,8 @@ static void gen_defunc_fixtures(const char *dir) {
     {
         /* A Prism's default is a Prism of its components' defaults. */
         AstFrame *f2 = astFrame(2, " ");
-        double blb[2] = { 0.0, 0.0 }, bub[2] = { 4.0, 6.0 };
-        AstBox *box = astBox(f2, 0, blb, bub, NULL, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 4.0, 6.0 };
+        AstBox *box = astBox(f2, 0, bcen, bcor, NULL, " ");
         AstFrame *f1 = astFrame(1, " ");
         double ilb[1] = { 1.0 }, iub[1] = { 9.0 };
         AstInterval *iv = astInterval(f1, ilb, iub, NULL, " ");
@@ -4228,8 +4228,8 @@ static void gen_regbasepick_fixtures(const char *dir) {
         /* The same split, but the Region is a Prism, whose own pick has to run
            over its two components. */
         AstFrame *f2 = astFrame(2, " ");
-        double blb[2] = { 0.0, 0.0 }, bub[2] = { 4.0, 6.0 };
-        AstBox *box = astBox(f2, 0, blb, bub, NULL, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 4.0, 6.0 };
+        AstBox *box = astBox(f2, 0, bcen, bcor, NULL, " ");
         AstFrame *f1 = astFrame(1, " ");
         double ilb[1] = { 1.0 }, iub[1] = { 9.0 };
         AstInterval *iv = astInterval(f1, ilb, iub, NULL, " ");
@@ -4259,11 +4259,11 @@ static void gen_setunc_fixtures(const char *dir) {
         /* The uncertainty is defined in a zoomed Frame, so storing it has to
            remap it into the Box's base Frame and re-centre it. */
         AstFrame *f = astFrame(2, " ");
-        double blb[2] = { 0.0, 0.0 }, bub[2] = { 10.0, 10.0 };
-        AstBox *box = astBox(f, 0, blb, bub, NULL, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, NULL, " ");
         AstFrame *fz = astFrame(2, " ");
-        double ulb[2] = { 0.0, 0.0 }, uub[2] = { 0.5, 0.5 };
-        AstBox *raw = astBox(fz, 0, ulb, uub, NULL, " ");
+        double ucen[2] = { 0.0, 0.0 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *raw = astBox(fz, 0, ucen, ucor, NULL, " ");
         AstZoomMap *z = astZoomMap(2, 2.0, " ");
         AstRegion *unc = astMapRegion(raw, (AstMapping *) z, f);
         astSetUnc(box, unc);
@@ -4279,10 +4279,10 @@ static void gen_setunc_fixtures(const char *dir) {
         /* A negated Box is unbounded as supplied, and has to be negated back
            to a bounded form before it can be stored. */
         AstFrame *f = astFrame(2, " ");
-        double blb[2] = { 0.0, 0.0 }, bub[2] = { 10.0, 10.0 };
-        AstBox *box = astBox(f, 0, blb, bub, NULL, " ");
-        double ulb[2] = { -0.5, -0.5 }, uub[2] = { 0.5, 0.5 };
-        AstBox *unc = astBox(f, 0, ulb, uub, NULL, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, NULL, " ");
+        double ucen[2] = { -0.5, -0.5 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *unc = astBox(f, 0, ucen, ucor, NULL, " ");
         astNegate(unc);
         astSetUnc(box, unc);
         write_fixture(dir, "setunc_unbounded_negated", (AstMapping *) box);
@@ -4294,10 +4294,10 @@ static void gen_setunc_fixtures(const char *dir) {
         /* When the uncertainty's own base-to-current Mapping is a UnitMap its
            FrameSet carries nothing and is left out of the dump. */
         AstFrame *f = astFrame(2, " ");
-        double blb[2] = { 0.0, 0.0 }, bub[2] = { 10.0, 10.0 };
-        AstBox *box = astBox(f, 0, blb, bub, NULL, " ");
-        double ulb[2] = { -0.5, -0.5 }, uub[2] = { 0.5, 0.5 };
-        AstBox *unc = astBox(f, 0, ulb, uub, NULL, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, NULL, " ");
+        double ucen[2] = { -0.5, -0.5 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *unc = astBox(f, 0, ucen, ucor, NULL, " ");
         astSetUnc(box, unc);
         write_fixture(dir, "setunc_unitmap_regionfs_omitted", (AstMapping *) box);
         unc = astAnnul(unc);
@@ -4315,10 +4315,10 @@ static void gen_simpstab_fixtures(const char *dir) {
     {
         /* Linear: the uncertainty is the same everywhere, so it simplifies. */
         AstFrame *f = astFrame(2, " ");
-        double ulb[2] = { -0.5, -0.5 }, uub[2] = { 0.5, 0.5 };
-        AstBox *unc = astBox(f, 0, ulb, uub, NULL, " ");
-        double blb[2] = { 0.0, 0.0 }, bub[2] = { 10.0, 10.0 };
-        AstBox *box = astBox(f, 0, blb, bub, (AstRegion *) unc, " ");
+        double ucen[2] = { -0.5, -0.5 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *unc = astBox(f, 0, ucen, ucor, NULL, " ");
+        double bcen[2] = { 0.0, 0.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, (AstRegion *) unc, " ");
         double shift[2] = { 3.0, -2.0 };
         AstZoomMap *z = astZoomMap(2, 2.0, " ");
         AstShiftMap *sm = astShiftMap(2, shift, " ");
@@ -4337,10 +4337,10 @@ static void gen_simpstab_fixtures(const char *dir) {
         /* Non-linear: the uncertainty width changes across the Region, so the
            unsimplified form has to be kept. */
         AstFrame *f = astFrame(2, " ");
-        double ulb[2] = { -0.5, -0.5 }, uub[2] = { 0.5, 0.5 };
-        AstBox *unc = astBox(f, 0, ulb, uub, NULL, " ");
-        double blb[2] = { 1.0, 1.0 }, bub[2] = { 10.0, 10.0 };
-        AstBox *box = astBox(f, 0, blb, bub, (AstRegion *) unc, " ");
+        double ucen[2] = { -0.5, -0.5 }, ucor[2] = { 0.5, 0.5 };
+        AstBox *unc = astBox(f, 0, ucen, ucor, NULL, " ");
+        double bcen[2] = { 1.0, 1.0 }, bcor[2] = { 10.0, 10.0 };
+        AstBox *box = astBox(f, 0, bcen, bcor, (AstRegion *) unc, " ");
         const char *fwd[2] = { "y1 = x1 * x1", "y2 = x2" };
         const char *inv[2] = { "x1 = sqrt( y1 )", "x2 = y2" };
         AstMathMap *mm = astMathMap(2, 2, 2, fwd, 2, inv, " ");
@@ -4356,10 +4356,10 @@ static void gen_simpstab_fixtures(const char *dir) {
         /* A PermMap slice, where nin differs from nout, so the uncertainty has
            to be re-centred on the sliced axes. */
         AstFrame *f3 = astFrame(3, " ");
-        double ulb[3] = { -0.5, -0.5, -0.5 }, uub[3] = { 0.5, 0.5, 0.5 };
-        AstBox *unc = astBox(f3, 0, ulb, uub, NULL, " ");
-        double blb[3] = { 0.0, 0.0, 0.0 }, bub[3] = { 10.0, 10.0, 10.0 };
-        AstBox *box = astBox(f3, 0, blb, bub, (AstRegion *) unc, " ");
+        double ucen[3] = { -0.5, -0.5, -0.5 }, ucor[3] = { 0.5, 0.5, 0.5 };
+        AstBox *unc = astBox(f3, 0, ucen, ucor, NULL, " ");
+        double bcen[3] = { 0.0, 0.0, 0.0 }, bcor[3] = { 10.0, 10.0, 10.0 };
+        AstBox *box = astBox(f3, 0, bcen, bcor, (AstRegion *) unc, " ");
         AstFrame *f2 = astFrame(2, " ");
         int inperm[3] = { 1, 2, -1 };
         int outperm[2] = { 1, 2 };
