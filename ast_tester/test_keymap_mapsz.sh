@@ -17,6 +17,14 @@ srcdir=${srcdir:-.}
 ref=${srcdir}/fixtures/oracle/keymap_mapsz.txt
 out=keymap_mapsz.out
 
+# Not distributed outside a git checkout: this holds the library to a committed
+# capture of KeyMap's growth policy, which a user's build cannot affect.  77 is
+# the exit code automake reads as "skipped", as testhuge.sh uses.
+if [ ! -f "$ref" ]; then
+    echo "keymap_mapsz: skipped (fixture not distributed)"
+    exit 77
+fi
+
 ./gen_keymap_mapsz > "$out" || exit 1
 
 if diff -u "$ref" "$out"; then

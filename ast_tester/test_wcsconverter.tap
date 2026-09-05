@@ -19,6 +19,12 @@ srcdir=${srcdir:-.}
 fixtures=${srcdir}/fixtures
 data=${fixtures}/wcsconv/cases.txt
 
+# As test_simplify.tap: the manifest ships, the reference files may not.
+if [ ! -f "$data" ] || [ ! -d "${fixtures}/wcsconv/expected" ]; then
+    echo "1..0 # SKIP fixtures not distributed"
+    exit 0
+fi
+
 trim() {
     printf '%s' "$1" | sed 's/^[[:blank:]]*//; s/[[:blank:]]*$//'
 }

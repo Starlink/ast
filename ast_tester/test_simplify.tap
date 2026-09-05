@@ -22,6 +22,13 @@ srcdir=${srcdir:-.}
 fixtures=${srcdir}/fixtures
 data=${fixtures}/simplify/cases.txt
 
+# The cut-down distribution ships this manifest but not the fixtures it names,
+# so report the family as skipped rather than failing every case.
+if [ ! -f "$data" ] || ! ls "${fixtures}"/simplify/*.map >/dev/null 2>&1; then
+    echo "1..0 # SKIP fixtures not distributed"
+    exit 0
+fi
+
 trim() {
     printf '%s' "$1" | sed 's/^[[:blank:]]*//; s/[[:blank:]]*$//'
 }

@@ -26,6 +26,11 @@ srcdir=${srcdir:-.}
 fixtures=${srcdir}/fixtures
 cases=${fixtures}/simplify/cases.txt
 
+# The simplify half of the corpus may not be distributed; the glob half then
+# finds only the .ast fixtures that were.  Reading a missing manifest must not
+# be an error here, so stand in an empty one and let the count below decide.
+test -f "$cases" || cases=/dev/null
+
 trim() {
     printf '%s' "$1" | sed 's/^[[:blank:]]*//; s/[[:blank:]]*$//'
 }
@@ -45,7 +50,12 @@ list=$(
         -type f -name '*.ast' 2>/dev/null )
 )
 
-echo "1..$(printf '%s\n' "$list" | grep -c .)"
+n=$(printf '%s\n' "$list" | grep -c . || true)
+if [ "$n" -eq 0 ]; then
+    echo "1..0 # SKIP fixtures not distributed"
+    exit 0
+fi
+echo "1..$n"
 
 # Strip the leading run of comment lines.  Only the leading run goes: a comment
 # after the first Begin is part of the dump and must still be reproduced.
