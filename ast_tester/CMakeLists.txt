@@ -60,6 +60,16 @@ if(EXISTS "${AST_FIXTURE_SOURCE_ROOT}/DIST_TIER")
     string(STRIP "${AST_DIST_TIER}" AST_DIST_TIER)
 endif()
 
+# A cut-down distribution without its manifest cannot distinguish a fixture left
+# out on purpose from one that went missing, so every omission would look
+# deliberate and the packaging check would quietly stop working.  Refuse instead.
+if(AST_DIST_TIER STREQUAL "cutdown" AND
+   NOT EXISTS "${AST_FIXTURE_SOURCE_ROOT}/DIST_MANIFEST")
+    message(FATAL_ERROR
+        "fixtures/DIST_TIER says cutdown but fixtures/DIST_MANIFEST is missing; "
+        "this distribution is malformed")
+endif()
+
 # The default tier's keep-set.  Comments and blank lines are dropped.
 set(AST_DIST_MANIFEST_PATTERNS "")
 if(EXISTS "${AST_FIXTURE_SOURCE_ROOT}/DIST_MANIFEST")

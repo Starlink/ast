@@ -16,6 +16,11 @@
 # which exist to catch library defects and say nothing about the user's
 # compiler.
 
+# This file itself.  The CMake build unpacked from a tarball reads it to tell a
+# fixture left out on purpose from one that went missing, so a distribution
+# without it would silently lose that distinction.
+DIST_MANIFEST
+
 # Inputs for the C and Fortran test programs.
 programs/
 

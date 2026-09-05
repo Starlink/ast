@@ -1088,7 +1088,8 @@ DIST_CHECK_EXCLUDE = \
     ':!ast_tester/makeplot' \
     ':!ast_tester/maketest' \
     ':!ast_tester/moctohtml' \
-    ':!ast_tester/simplify_pathways.md'
+    ':!ast_tester/simplify_pathways.md' \
+    ':!ast_tester/fixtures/*'
 
 # The full test corpus, for verifying a release rather than for shipping one.
 # A distinct archive name so that a full tarball is never mistaken for the
@@ -1102,6 +1103,13 @@ fulldist:
 
 .PHONY: fulldist
 
+#  Two checks, because the two kinds of file fail differently.  A source file
+#  must always ship: leaving one out makes the tarball configure and then fail to
+#  build, which is how testimmutable.c and run_simplify_noop_test.cmake each
+#  survived to a full distcheck.  A fixture may be left out on purpose, so what
+#  matters there is that the tarball and DIST_MANIFEST agree, in both directions
+#  -- a file shipped without an entry and an entry matching nothing are both
+#  errors, so the fixture set stays a stated decision rather than an oversight.
 dist-check-tracked:
 	@test -d "$(top_srcdir)/.git" || exit 0; \
 	tracked=`cd "$(top_srcdir)" && \
@@ -1114,6 +1122,34 @@ dist-check-tracked:
 	    echo "make dist: tracked files missing from the distribution:" >&2; \
 	    for rel in $$missing; do echo "    $$rel" >&2; done; \
 	    echo "Add them to EXTRA_DIST, or widen the dist-hook patterns." >&2; \
+	    exit 1; \
+	fi
+	@test -d "$(top_srcdir)/.git" || exit 0; \
+	if test "x$(AST_DIST_FULL)" = x1; then \
+	    expected=`cd "$(top_srcdir)" && git ls-files 'ast_tester/fixtures/*' \
+	        | sed 's|^ast_tester/||'`; \
+	else \
+	    expected=`cd "$(top_srcdir)/ast_tester" && \
+	        $(SHELL) ./dist-fixtures.sh fixtures/DIST_MANIFEST` || exit 1; \
+	fi; \
+	missing=; \
+	for rel in $$expected; do \
+	    test -e "$(distdir)/ast_tester/$$rel" || missing="$$missing $$rel"; \
+	done; \
+	if test -n "$$missing"; then \
+	    echo "make dist: fixtures missing from the distribution:" >&2; \
+	    for rel in $$missing; do echo "    $$rel" >&2; done; \
+	    exit 1; \
+	fi; \
+	got=`mktemp`; want=`mktemp`; \
+	( cd "$(distdir)/ast_tester" && find fixtures -type f ! -name '.*' \
+	    ! -name DIST_TIER ) | sort > "$$got"; \
+	printf '%s\n' $$expected | sort > "$$want"; \
+	extra=`comm -23 "$$got" "$$want"`; \
+	rm -f "$$got" "$$want"; \
+	if test -n "$$extra"; then \
+	    echo "make dist: fixtures shipped but not in DIST_MANIFEST:" >&2; \
+	    for rel in $$extra; do echo "    $$rel" >&2; done; \
 	    exit 1; \
 	fi
 
