@@ -168,6 +168,23 @@ function(ast_require_fixture manifest relative_path)
     endif()
 endfunction()
 
+# Register a test that cannot run because its fixture is not distributed.
+#
+# DISABLED rather than SKIP_RETURN_CODE: the latter needs the test to run and
+# return the code, which a test with no input cannot do without a stub program.
+# ctest names a disabled test under "the following tests did not run", so the
+# count stays visible instead of the suite silently shrinking.
+function(ast_add_skipped_test name)
+    add_test(NAME ${name} COMMAND "${CMAKE_COMMAND}" -E true)
+    set_tests_properties(${name} PROPERTIES DISABLED TRUE)
+    get_property(_n GLOBAL PROPERTY AST_SKIPPED_TEST_COUNT)
+    if(NOT _n)
+        set(_n 0)
+    endif()
+    math(EXPR _n "${_n} + 1")
+    set_property(GLOBAL PROPERTY AST_SKIPPED_TEST_COUNT ${_n})
+endfunction()
+
 # Helper function to add a test executable
 function(ast_add_test name)
     cmake_parse_arguments(T "INTERNAL_HEADERS;NO_DEFAULT_GRF_LIBS" "" "SOURCES;EXTRA_LIBS;TEST_ARGS" ${ARGN})
@@ -265,26 +282,34 @@ add_test(NAME transform_oracle_selftest
          COMMAND check_transform_oracle --selftest)
 set(_oracle_overrides
     "${AST_FIXTURE_BINARY_ROOT}/oracle/transform_oracle_overrides.txt")
-add_test(NAME transform_oracle_simplify
-         COMMAND check_transform_oracle
-                 "${AST_FIXTURE_BINARY_ROOT}"
-                 "${AST_FIXTURE_BINARY_ROOT}/oracle/simplify_fixtures.oracle"
-                 "${_oracle_overrides}")
-add_test(NAME transform_oracle_headers
-         COMMAND check_transform_oracle
-                 "${AST_FIXTURE_BINARY_ROOT}"
-                 "${AST_FIXTURE_BINARY_ROOT}/oracle/headers.oracle"
-                 "${_oracle_overrides}")
-add_test(NAME transform_oracle_framesets
-         COMMAND check_transform_oracle
-                 "${AST_FIXTURE_BINARY_ROOT}"
-                 "${AST_FIXTURE_BINARY_ROOT}/oracle/framesets.oracle"
-                 "${_oracle_overrides}")
-if(AST_ENABLE_SANITIZERS)
-    set_tests_properties(transform_oracle_simplify transform_oracle_headers
-                         transform_oracle_framesets
-        PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
-endif()
+# Each oracle is gated on its own file: the default distribution carries the
+# header oracle and not the other two.  Gated through ast_fixture_status rather
+# than a bare EXISTS so that headers.oracle, which DIST_MANIFEST does ship, is a
+# packaging defect when missing rather than a silent skip.
+#
+# The file name and the test name differ for one of them: the oracle file is
+# simplify_fixtures.oracle but the test has always been transform_oracle_simplify.
+foreach(_orc simplify_fixtures headers framesets)
+    if(_orc STREQUAL "simplify_fixtures")
+        set(_tname "simplify")
+    else()
+        set(_tname "${_orc}")
+    endif()
+    ast_fixture_status("oracle" "oracle/${_orc}.oracle" _orc_ok)
+    if(_orc_ok)
+        add_test(NAME transform_oracle_${_tname}
+                 COMMAND check_transform_oracle
+                         "${AST_FIXTURE_BINARY_ROOT}"
+                         "${AST_FIXTURE_BINARY_ROOT}/oracle/${_orc}.oracle"
+                         "${_oracle_overrides}")
+        if(AST_ENABLE_SANITIZERS)
+            set_tests_properties(transform_oracle_${_tname} PROPERTIES
+                ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+        endif()
+    else()
+        ast_add_skipped_test(transform_oracle_${_tname})
+    endif()
+endforeach()
 
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)
@@ -392,8 +417,15 @@ function(add_wcsconv_test)
     if(NOT DEFINED W_ATTRS)
         set(W_ATTRS "")
     endif()
-    ast_require_fixture("wcsconv/cases.txt" "${W_INPUT}")
-    ast_require_fixture("wcsconv/cases.txt" "${W_REFERENCE}")
+    ast_fixture_status("wcsconv/cases.txt" "${W_INPUT}" _in_ok)
+    ast_fixture_status("wcsconv/cases.txt" "${W_REFERENCE}" _ref_ok)
+    if(NOT _in_ok OR NOT _ref_ok)
+        if(NOT W_SKIP_STRING_COMPARE)
+            ast_add_skipped_test(wcsconv_${W_NAME})
+        endif()
+        ast_add_skipped_test(wcsconv_${W_NAME}_astequal)
+        return()
+    endif()
     set(_input "fixtures/${W_INPUT}")
     set(_reference "fixtures/${W_REFERENCE}")
 
@@ -506,7 +538,11 @@ function(add_roundtrip_test)
     if(NOT R_NAME OR NOT R_FIXTURE)
         message(FATAL_ERROR "add_roundtrip_test: NAME and FIXTURE required")
     endif()
-    ast_require_fixture("roundtrip" "${R_FIXTURE}")
+    ast_fixture_status("roundtrip" "${R_FIXTURE}" _rt_ok)
+    if(NOT _rt_ok)
+        ast_add_skipped_test(roundtrip_${R_NAME})
+        return()
+    endif()
     add_test(NAME roundtrip_${R_NAME}
         COMMAND "${CMAKE_COMMAND}"
                 -DROUNDTRIP=$<TARGET_FILE:roundtrip>
@@ -556,19 +592,26 @@ ast_apply_dev_options(gen_keymap_mapsz)
 # fixture is written for a port to be held to, and a capture nothing re-checks
 # stops being evidence the moment KeyMap's growth policy changes.  Byte-exact,
 # because every value is integer arithmetic over ASCII keys.
-ast_require_fixture("keymap_mapsz" "oracle/keymap_mapsz.txt")
-add_test(NAME keymap_mapsz
-    COMMAND "${CMAKE_COMMAND}"
-            -DGENERATOR=$<TARGET_FILE:gen_keymap_mapsz>
-            -DREF_FILE=${AST_FIXTURE_BINARY_ROOT}/oracle/keymap_mapsz.txt
-            -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/keymap_mapsz.out
-            -P "${CMAKE_SOURCE_DIR}/cmake/run_keymap_mapsz_test.cmake"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-add_dependencies(gen_keymap_mapsz ast_stage_fixtures)
-if(AST_ENABLE_SANITIZERS)
-    set_tests_properties(keymap_mapsz PROPERTIES
-        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+# Not distributed: this holds the library to a committed capture of KeyMap's
+# growth policy, which is a developer concern and cannot be affected by an end
+# user's build.
+ast_fixture_status("keymap_mapsz" "oracle/keymap_mapsz.txt" _km_ok)
+if(_km_ok)
+    add_test(NAME keymap_mapsz
+        COMMAND "${CMAKE_COMMAND}"
+                -DGENERATOR=$<TARGET_FILE:gen_keymap_mapsz>
+                -DREF_FILE=${AST_FIXTURE_BINARY_ROOT}/oracle/keymap_mapsz.txt
+                -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/keymap_mapsz.out
+                -P "${CMAKE_SOURCE_DIR}/cmake/run_keymap_mapsz_test.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+    if(AST_ENABLE_SANITIZERS)
+        set_tests_properties(keymap_mapsz PROPERTIES
+            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+    endif()
+else()
+    ast_add_skipped_test(keymap_mapsz)
 endif()
+add_dependencies(gen_keymap_mapsz ast_stage_fixtures)
 
 add_executable(gen_frameset_fixtures gen_frameset_fixtures.c)
 target_include_directories(gen_frameset_fixtures PRIVATE ${TEST_INCLUDES})
@@ -628,8 +671,18 @@ function(add_simplify_test)
         message(FATAL_ERROR
             "add_simplify_test: NAME, INPUT, REFERENCE all required")
     endif()
-    ast_require_fixture("simplify/cases.txt" "${S_INPUT}")
-    ast_require_fixture("simplify/cases.txt" "${S_REFERENCE}")
+    ast_fixture_status("simplify/cases.txt" "${S_INPUT}" _in_ok)
+    ast_fixture_status("simplify/cases.txt" "${S_REFERENCE}" _ref_ok)
+    if(NOT _in_ok OR NOT _ref_ok)
+        if(NOT S_SKIP_STRING_COMPARE)
+            ast_add_skipped_test(simplify_${S_NAME})
+        endif()
+        if(S_INPUT STREQUAL S_REFERENCE)
+            ast_add_skipped_test(simplify_${S_NAME}_noop)
+        endif()
+        ast_add_skipped_test(simplify_${S_NAME}_astequal)
+        return()
+    endif()
     set(_input "fixtures/${S_INPUT}")
     set(_reference "fixtures/${S_REFERENCE}")
 
@@ -1117,3 +1170,17 @@ if(AST_BUILD_FORTRAN)
         add_dependencies(testhuge_f ast_fortran_includes)
     endif()
 endif() # AST_BUILD_FORTRAN
+
+# Say once, at configure time, that this is a cut-down distribution and how much
+# of the suite it cannot run.  Without this the only clue would be a smaller test
+# count, which is exactly the question someone running the tests from a tarball
+# needs answered.
+get_property(_ast_skipped GLOBAL PROPERTY AST_SKIPPED_TEST_COUNT)
+if(_ast_skipped)
+    message(STATUS
+        "AST test fixtures: cut-down distribution (fixtures/DIST_TIER)")
+    message(STATUS
+        "  ${_ast_skipped} tests disabled: fixtures not distributed")
+    message(STATUS
+        "  use `make fulldist` from a git checkout for the full corpus")
+endif()
