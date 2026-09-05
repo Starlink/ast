@@ -13,7 +13,8 @@ set -e
 manifest=${1:?usage: dist-fixtures.sh <manifest>}
 
 pats=`sed -e 's/#.*//' -e 's/[[:space:]]*$//' "$manifest" | grep . || true`
-out=`mktemp`
+# An explicit template: BSD mktemp, which is what macOS ships, requires one.
+out=`mktemp "${TMPDIR:-/tmp}/ast_distfx.XXXXXX"`
 trap 'rm -f "$out"' EXIT
 
 # A for-loop, not a "| while read" pipeline: the loop body must be able to fail

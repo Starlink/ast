@@ -4,7 +4,7 @@
 cd "$(dirname "$0")/.."
 SRC=$PWD/ast_tester
 BUILD=$PWD/build-dev/ast_tester
-EMPTY=$(mktemp -d)
+EMPTY=$(mktemp -d "${TMPDIR:-/tmp}/ast_tapskip.XXXXXX")
 mkdir -p "$EMPTY/fixtures"
 fail=0
 

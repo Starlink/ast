@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")/.."
 FIX=ast_tester/fixtures
-STASH=$(mktemp -d)
+STASH=$(mktemp -d "${TMPDIR:-/tmp}/ast_tier.XXXXXX")
 fail=0
 
 cleanup() {

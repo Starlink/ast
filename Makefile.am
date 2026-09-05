@@ -1141,7 +1141,8 @@ dist-check-tracked:
 	    for rel in $$missing; do echo "    $$rel" >&2; done; \
 	    exit 1; \
 	fi; \
-	got=`mktemp`; want=`mktemp`; \
+	got=`mktemp "$${TMPDIR:-/tmp}/ast_got.XXXXXX"`; \
+	want=`mktemp "$${TMPDIR:-/tmp}/ast_want.XXXXXX"`; \
 	( cd "$(distdir)/ast_tester" && find fixtures -type f ! -name '.*' \
 	    ! -name DIST_TIER ) | sort > "$$got"; \
 	printf '%s\n' $$expected | sort > "$$want"; \
