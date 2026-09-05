@@ -1090,6 +1090,18 @@ DIST_CHECK_EXCLUDE = \
     ':!ast_tester/moctohtml' \
     ':!ast_tester/simplify_pathways.md'
 
+# The full test corpus, for verifying a release rather than for shipping one.
+# A distinct archive name so that a full tarball is never mistaken for the
+# release artifact.
+#
+# Overriding distdir on the command line is what renames the archive.  If a
+# future automake computes the archive name independently of distdir, fall back
+# to running dist and renaming the result.
+fulldist:
+	$(MAKE) AST_DIST_FULL=1 distdir=$(PACKAGE)-$(VERSION)-full dist
+
+.PHONY: fulldist
+
 dist-check-tracked:
 	@test -d "$(top_srcdir)/.git" || exit 0; \
 	tracked=`cd "$(top_srcdir)" && \
