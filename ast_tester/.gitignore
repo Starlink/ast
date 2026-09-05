@@ -20,3 +20,6 @@
 /sphmap_roundtrip.asdf
 /tanSipWcs.asdf
 /yamltest.asdf
+
+# Written into a distribution tarball by the dist hook; never committed.
+fixtures/DIST_TIER

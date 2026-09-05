@@ -51,6 +51,27 @@ set(TEST_LIBS
 set(AST_FIXTURE_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 set(AST_FIXTURE_BINARY_ROOT "${CMAKE_CURRENT_BINARY_DIR}/fixtures")
 
+# The distribution tier, written into a tarball by the dist hook and absent from
+# a git checkout.  It is what lets a missing fixture be read as a deliberate
+# omission rather than as a typo in a manifest.
+set(AST_DIST_TIER "")
+if(EXISTS "${AST_FIXTURE_SOURCE_ROOT}/DIST_TIER")
+    file(READ "${AST_FIXTURE_SOURCE_ROOT}/DIST_TIER" AST_DIST_TIER)
+    string(STRIP "${AST_DIST_TIER}" AST_DIST_TIER)
+endif()
+
+# The default tier's keep-set.  Comments and blank lines are dropped.
+set(AST_DIST_MANIFEST_PATTERNS "")
+if(EXISTS "${AST_FIXTURE_SOURCE_ROOT}/DIST_MANIFEST")
+    file(STRINGS "${AST_FIXTURE_SOURCE_ROOT}/DIST_MANIFEST" _dm_lines)
+    foreach(_line IN LISTS _dm_lines)
+        string(STRIP "${_line}" _line)
+        if(NOT _line STREQUAL "" AND NOT _line MATCHES "^#")
+            list(APPEND AST_DIST_MANIFEST_PATTERNS "${_line}")
+        endif()
+    endforeach()
+endif()
+
 # Copy the whole tree in one build-time rule rather than one configure_file()
 # per fixture: a configure_file() would make every one of the ~1200 fixtures a
 # configure dependency, so regenerating a single .oracle would reconfigure the
@@ -81,10 +102,69 @@ add_custom_target(ast_stage_fixtures ALL DEPENDS "${_ast_fixture_stamp}")
 # these paths gave this check as a side effect; without it a typo in a
 # cases.txt surfaces only as a harness failure part-way through a ctest run,
 # with nothing to say the file was never there.
-function(ast_require_fixture manifest relative_path)
-    if(NOT EXISTS "${AST_FIXTURE_SOURCE_ROOT}/${relative_path}")
+# TRUE in out_var when "relative_path" matches a DIST_MANIFEST entry.  A pattern
+# ending in "/" is a directory prefix; anything else is a glob in which "*" does
+# not cross a "/".
+function(ast_manifest_covers relative_path out_var)
+    foreach(_pat IN LISTS AST_DIST_MANIFEST_PATTERNS)
+        if(_pat MATCHES "/$")
+            string(LENGTH "${_pat}" _n)
+            string(LENGTH "${relative_path}" _rn)
+            if(NOT _rn LESS _n)
+                string(SUBSTRING "${relative_path}" 0 ${_n} _head)
+                if(_head STREQUAL "${_pat}")
+                    set(${out_var} TRUE PARENT_SCOPE)
+                    return()
+                endif()
+            endif()
+        else()
+            string(REPLACE "." "\\." _re "${_pat}")
+            string(REPLACE "*" "[^/]*" _re "${_re}")
+            if(relative_path MATCHES "^${_re}$")
+                set(${out_var} TRUE PARENT_SCOPE)
+                return()
+            endif()
+        endif()
+    endforeach()
+    set(${out_var} FALSE PARENT_SCOPE)
+endfunction()
+
+# Classify a fixture named by a manifest.  Sets out_var TRUE when it is present,
+# FALSE when it was deliberately left out of a cut-down distribution, and fails
+# the configure otherwise.
+#
+# The FATAL_ERROR cases matter as much as the skip.  A typo in a cases.txt used
+# to surface only as a harness failure part-way through a ctest run, with
+# nothing to say the file was never there, and a git checkout -- where typos are
+# actually introduced -- keeps exactly that strictness.  A fixture the manifest
+# says should have shipped but did not is a packaging defect and is likewise
+# fatal, so the relaxation covers only files the manifest agrees are absent on
+# purpose.
+function(ast_fixture_status manifest relative_path out_var)
+    if(EXISTS "${AST_FIXTURE_SOURCE_ROOT}/${relative_path}")
+        set(${out_var} TRUE PARENT_SCOPE)
+        return()
+    endif()
+    if(NOT AST_DIST_TIER STREQUAL "cutdown")
         message(FATAL_ERROR
             "${manifest}: no such fixture: fixtures/${relative_path}")
+    endif()
+    ast_manifest_covers("${relative_path}" _covered)
+    if(_covered)
+        message(FATAL_ERROR
+            "${manifest}: fixtures/${relative_path} matches a DIST_MANIFEST "
+            "entry but is missing from this distribution")
+    endif()
+    set(${out_var} FALSE PARENT_SCOPE)
+endfunction()
+
+# Retained for call sites that cannot yet skip.
+function(ast_require_fixture manifest relative_path)
+    ast_fixture_status("${manifest}" "${relative_path}" _ok)
+    if(NOT _ok)
+        message(FATAL_ERROR
+            "${manifest}: fixtures/${relative_path} is not distributed, and "
+            "this call site cannot skip")
     endif()
 endfunction()
 
