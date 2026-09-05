@@ -37,20 +37,29 @@ trim() {
 
 # Build the fixture list first, so the TAP plan can be announced up front.
 # Paths are relative to the fixture root, matching the manifest.
-list=$(
-    while IFS='|' read -r name input reference rest; do
-        name=$(trim "$name")
-        case $name in ''|'#'*) continue ;; esac
-        input=$(trim "$input")
-        reference=$(trim "$reference")
-        echo "$input"
-        test "$reference" = "$input" || echo "$reference"
-    done < "$cases"
-    ( cd "$fixtures" && find programs serialisation wcsconv/framesets \
-        -type f -name '*.ast' 2>/dev/null )
-)
+#
+# Collected into a file by a top-level loop rather than captured in a $( ):
+# macOS /bin/sh is bash 3.2, whose $( ) parser matches parentheses naively, so
+# the ")" ending a case pattern closes the substitution early and the following
+# ";;" is a syntax error.  The other producers here keep their loop at top level
+# too; tools/test-tap-portability.sh enforces it.
+# An explicit template: BSD mktemp, which is what macOS ships, requires one.
+listfile=$(mktemp "${TMPDIR:-/tmp}/ast_roundtrip.XXXXXX")
+trap 'rm -f "$listfile"' EXIT
 
-n=$(printf '%s\n' "$list" | grep -c . || true)
+while IFS='|' read -r name input reference rest; do
+    name=$(trim "$name")
+    case $name in ''|'#'*) continue ;; esac
+    input=$(trim "$input")
+    reference=$(trim "$reference")
+    echo "$input" >> "$listfile"
+    test "$reference" = "$input" || echo "$reference" >> "$listfile"
+done < "$cases"
+
+( cd "$fixtures" && find programs serialisation wcsconv/framesets \
+    -type f -name '*.ast' 2>/dev/null ) >> "$listfile"
+
+n=$(grep -c . "$listfile" || true)
 if [ "$n" -eq 0 ]; then
     echo "1..0 # SKIP fixtures not distributed"
     exit 0
@@ -64,7 +73,7 @@ strip_header() {
 }
 
 idx=0
-printf '%s\n' "$list" | grep . | while IFS= read -r rel; do
+grep . "$listfile" | while IFS= read -r rel; do
     idx=$((idx + 1))
     test="$idx - $rel"
     out=roundtrip_$(echo "$rel" | tr '/.' '__').out
