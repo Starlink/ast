@@ -65,8 +65,14 @@ The 1.7 MB of `plot/expected/*.ps` is referenced by no `cases.txt` row, no CMake
 driver, and no test source.
 The PLplot `plotter_*` tests are pure smoke tests that write `.pdf` and compare
 against nothing.
-These files should be deleted from git, not merely excluded from the tarball, so
-that they stop costing 1.7 MB in `fulldist` as well.
+
+They were not dead by accident: they served as a visual reference a human could
+open and compare a plot against by eye.
+The `.svg` references now do that job, and unlike the `.ps` files they are also
+compared automatically by the 20 `grid_*` tests, so the role is filled by files
+that a test keeps honest.
+The `.ps` files can therefore be deleted from git, not merely excluded from the
+tarball, so that they stop costing 1.7 MB in `fulldist` as well.
 
 The `grid_*` tests are not self-contained.
 They read their head files from `wcsconv/inputs/` and compare against
