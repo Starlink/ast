@@ -497,42 +497,50 @@ Replace lines 315-316:
 
 with:
 
+The skip branch must mirror the conditions the real registration uses, not assume
+a fixed pair, or the reported count will not match the tests that would have
+existed. `add_wcsconv_test` registers the bare test only when
+`SKIP_STRING_COMPARE` is absent, and `_astequal` always:
+
 ```cmake
     ast_fixture_status("wcsconv/cases.txt" "${W_INPUT}" _in_ok)
     ast_fixture_status("wcsconv/cases.txt" "${W_REFERENCE}" _ref_ok)
     if(NOT _in_ok OR NOT _ref_ok)
-        ast_add_skipped_test(wcsconv_${W_NAME})
+        if(NOT W_SKIP_STRING_COMPARE)
+            ast_add_skipped_test(wcsconv_${W_NAME})
+        endif()
         ast_add_skipped_test(wcsconv_${W_NAME}_astequal)
         return()
     endif()
 ```
 
-Then confirm the second registered name matches reality:
-
-```bash
-ctest --test-dir build-dev -N -R '^wcsconv_' | head -4
-```
-
-If the companion test is not named `wcsconv_<name>_astequal`, use whatever
-`ctest -N` shows. There must be exactly one `ast_add_skipped_test` call per test
-this function would otherwise register, or the skipped count will not add up.
-
 - [ ] **Step 3: Convert `add_simplify_test`**
 
 Replace lines 551-552 the same way:
+
+`add_simplify_test` registers three tests under three different conditions: the
+bare test only when `SKIP_STRING_COMPARE` is absent, `_noop` only when input and
+reference are the same file, and `_astequal` always. The skip branch mirrors all
+three:
 
 ```cmake
     ast_fixture_status("simplify/cases.txt" "${S_INPUT}" _in_ok)
     ast_fixture_status("simplify/cases.txt" "${S_REFERENCE}" _ref_ok)
     if(NOT _in_ok OR NOT _ref_ok)
-        ast_add_skipped_test(simplify_${S_NAME})
-        ast_add_skipped_test(simplify_${S_NAME}_noop)
+        if(NOT S_SKIP_STRING_COMPARE)
+            ast_add_skipped_test(simplify_${S_NAME})
+        endif()
+        if(S_INPUT STREQUAL S_REFERENCE)
+            ast_add_skipped_test(simplify_${S_NAME}_noop)
+        endif()
+        ast_add_skipped_test(simplify_${S_NAME}_astequal)
         return()
     endif()
 ```
 
-Verify the `_noop` companion name with `ctest --test-dir build-dev -N -R
-'^simplify_' | head -4`.
+Measured in a full checkout, these conditions yield 982 simplify tests: 490
+`_astequal`, 157 `_noop`, and 335 bare. The skipped count must reproduce those
+numbers exactly, which is why the conditions are mirrored rather than assumed.
 
 - [ ] **Step 4: Convert `add_roundtrip_test`**
 
