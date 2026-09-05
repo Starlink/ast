@@ -118,7 +118,60 @@ jobs:
           rm -rf tarball-cmake
           mkdir tarball-cmake
           tar xzf ast-*.tar.gz -C tarball-cmake --strip-components=1
+          # The default tarball carries a cut-down fixture set, and the CMake
+          # build must read that from DIST_TIER and skip accordingly rather than
+          # failing.  Assert the shape before building, so a dist hook that
+          # silently reverted to shipping everything is caught here.
+          grep -qx cutdown tarball-cmake/ast_tester/fixtures/DIST_TIER
+          test -f tarball-cmake/ast_tester/fixtures/DIST_MANIFEST
+          test ! -d tarball-cmake/ast_tester/fixtures/wcsconv/expected
+          test ! -d tarball-cmake/ast_tester/fixtures/wcsconv/framesets
+          size=$(du -sk tarball-cmake/ast_tester/fixtures | cut -f1)
+          echo "fixture tree in tarball: ${size}K"
+          test "$size" -lt 8000 \
+            || { echo "cut-down fixture tree unexpectedly large" >&2; exit 1; }
           cmake -S tarball-cmake -B tarball-cmake/_build \
             -DCMAKE_BUILD_TYPE=Release -DAST_C_STANDARD=11
           cmake --build tarball-cmake/_build --parallel
           ctest --test-dir tarball-cmake/_build --output-on-failure
+          # The disabled tests are the point: the suite must report what it
+          # cannot run, not silently shrink.
+          ctest --test-dir tarball-cmake/_build -N | tail -2
+
+      # The autotools suite must adapt to the cut-down fixture set too: the .tap
+      # producers report a skipped plan rather than failing every row.  A tarball
+      # already carries configure, so there is no bootstrap here.
+      - name: Run make check inside the distribution tarball
+        run: |
+          rm -rf tarball-am && mkdir tarball-am
+          tar xzf ast-*.tar.gz -C tarball-am --strip-components=1
+          cd tarball-am
+          if [ "$RUNNER_OS" = macOS ]; then
+            ./configure CC=${{ matrix.cc }} \
+              FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
+              --with-yaml="$(brew --prefix libyaml)"
+          else
+            ./configure CC=${{ matrix.cc }} \
+              FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
+          fi
+          make -j3
+          make check
+          echo "--- families reported as skipped ---"
+          grep -l 'SKIP' ast_tester/*.log || true
+
+      # fulldist covers the other half: a release is verified against the full
+      # corpus, and nothing else builds that archive.  It runs last because it
+      # adds a second ast-*.tar.gz that the globs above would otherwise match.
+      - name: Build the full distribution
+        run: |
+          make fulldist
+          ls ast-*-full.tar.gz
+          rm -rf tarball-full && mkdir tarball-full
+          tar xzf ast-*-full.tar.gz -C tarball-full --strip-components=1
+          grep -qx full tarball-full/ast_tester/fixtures/DIST_TIER
+          test -d tarball-full/ast_tester/fixtures/wcsconv/expected
+          test -d tarball-full/ast_tester/fixtures/simplify
+          cmake -S tarball-full -B tarball-full/_build \
+            -DCMAKE_BUILD_TYPE=Release -DAST_C_STANDARD=11
+          cmake --build tarball-full/_build --parallel
+          ctest --test-dir tarball-full/_build --output-on-failure
