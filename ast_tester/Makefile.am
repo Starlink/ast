@@ -425,7 +425,7 @@ testhuge_f_FFLAGS  = $(AM_FFLAGS)
 endif  # NOFORTRAN
 
 TESTS += testhuge.sh
-EXTRA_DIST = testhuge.sh test_keymap_mapsz.sh \
+EXTRA_DIST = testhuge.sh test_keymap_mapsz.sh dist-fixtures.sh \
     test_wcsconverter.tap test_simplify.tap test_grid.tap test_roundtrip.tap
 
 # The CMake suite runs tests this one does not, and it is meant to -- but their
@@ -445,17 +445,47 @@ EXTRA_DIST += CMakeLists.txt
 # droppings sitting in the tree and so make the tarball depend on the state of
 # the developer's working copy.
 dist-hook:
-	@list=`cd "$(srcdir)" && find fixtures -type f ! -name '.*'`; \
+# Fixtures ship through fixtures/DIST_MANIFEST rather than wholesale.  The tree
+# is 18MB, larger than src/, and an end user verifying a build needs a fraction
+# of it: the binary tests' inputs, a plot to compare, and enough real FITS
+# headers for the transform oracle.  `make fulldist' sets AST_DIST_FULL=1 and
+# ships everything.
+#
+# DIST_TIER records which happened, so the CMake build unpacked from this
+# tarball can tell a fixture left out on purpose from one that went missing.
+	@if test "x$(AST_DIST_FULL)" = x1; then \
+	    list=`cd "$(srcdir)" && find fixtures -type f ! -name '.*'`; \
+	    tier=full; \
+	else \
+	    list=`cd "$(srcdir)" && $(SHELL) ./dist-fixtures.sh \
+	        fixtures/DIST_MANIFEST` || exit 1; \
+	    tier=cutdown; \
+	fi; \
 	for rel in $$list; do \
 	    $(MKDIR_P) "$(distdir)/`dirname $$rel`"; \
-	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel"; \
-	done
+	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel" || exit 1; \
+	done; \
+	echo $$tier > "$(distdir)/fixtures/DIST_TIER"
 	@list=`cd "$(srcdir)" && find . -maxdepth 1 -type f \
 	    \( -name '*.c' -o -name '*.f' -o -name '*.h' -o -name '*.awk' \) \
 	    ! -name '.*' | sed 's|^\./||'`; \
 	for rel in $$list; do \
 	    test -e "$(distdir)/$$rel" && continue; \
 	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel" || exit 1; \
+	done
+
+# A shipped oracle must not name a fixture that was not shipped.  Its sections
+# are keyed by fixture path, so this is a text check.  A check rather than a
+# filter on purpose: silently dropping sections would reduce coverage with
+# nothing to say so, while failing here forces the manifest and the oracle to be
+# reconciled.
+	@cd "$(distdir)/fixtures" && \
+	for orc in `find . -name '*.oracle' -type f`; do \
+	    for fx in `sed -n 's/^\[\([^ ]*\).*/\1/p' "$$orc" | sort -u`; do \
+	        test -e "$$fx" || { \
+	            echo "make dist: $$orc names undistributed fixture: $$fx" >&2; \
+	            exit 1; }; \
+	    done; \
 	done
 
 # Fixtures and command files that the tests read from the ast_tester directory
