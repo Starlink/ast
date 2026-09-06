@@ -11,7 +11,9 @@
 #
 # The fixtures are the two halves of every pair in fixtures/simplify/cases.txt
 # plus every other native-encoded fixture in the tree, found by search so a new
-# one is picked up without editing this script.  fixtures/wcsconv/expected/ is
+# one is picked up without editing this script.  A pair the distribution did not
+# carry is reported as a skipped row: the manifest ships even when its fixtures
+# do not, so being listed is not evidence of being present.  fixtures/wcsconv/expected/ is
 # deliberately excluded: those references are FITS-encoded, so reading one back
 # needs a FitsChan and the encoding it was written with, which is what
 # test_wcsconverter.tap already does.
@@ -77,6 +79,15 @@ grep . "$listfile" | while IFS= read -r rel; do
     idx=$((idx + 1))
     test="$idx - $rel"
     out=roundtrip_$(echo "$rel" | tr '/.' '__').out
+
+    # The manifests ship even where their fixtures do not, so a listed fixture
+    # may simply be absent from a cut-down distribution.  Report that as a
+    # skipped row rather than a failure, mirroring the DISABLED test the CMake
+    # suite registers for the same fixture.
+    if [ ! -f "${fixtures}/${rel}" ]; then
+        echo "ok $test # SKIP fixture not distributed"
+        continue
+    fi
 
     if ! ./roundtrip "${fixtures}/${rel}" "$out" > "${out}.log" 2>&1 \
             < /dev/null; then
