@@ -428,13 +428,13 @@ TESTS += testhuge.sh
 EXTRA_DIST = testhuge.sh test_keymap_mapsz.sh dist-fixtures.sh \
     test_wcsconverter.tap test_simplify.tap test_grid.tap test_roundtrip.tap
 
-# The CMake suite runs tests this one does not, and it is meant to -- but their
-# sources still have to reach the tarball, or the CMake build inside distcheck
-# cannot compile them.  Rather than list them, the dist-hook below ships every
-# C, Fortran and header source in this directory: naming them individually
-# meant the list silently fell behind master (testimmutable.c was the last
-# one), and shipping a source the local suite happens not to build costs
-# nothing.
+# The CMake suite runs tests this one does not, and it is meant to.  Automake
+# ships a source only if some target names it, so those extra tests' sources
+# would never reach the tarball, and the CMake build CI runs against an
+# unpacked tarball could not compile them.  The dist-hook below therefore
+# sweeps them up wholesale rather than naming them: an enumerated list silently
+# fell behind master (testimmutable.c was the last one), while shipping a
+# source the local suite happens not to build costs nothing.
 EXTRA_DIST += CMakeLists.txt
 
 # Committed test data lives entirely below fixtures/, so it is shipped as a
@@ -466,9 +466,25 @@ dist-hook:
 	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel" || exit 1; \
 	done; \
 	echo $$tier > "$(distdir)/fixtures/DIST_TIER"
-	@list=`cd "$(srcdir)" && find . -maxdepth 1 -type f \
-	    \( -name '*.c' -o -name '*.f' -o -name '*.h' -o -name '*.awk' \) \
-	    ! -name '.*' | sed 's|^\./||'`; \
+# Sources at this level that no automake target names: the CMake-only tests and
+# the awk helpers the shell drivers run.  Tracked files only, so a scratch file
+# or an editor's leftovers sitting in the working copy cannot reach the tarball
+# and make the release depend on the state of one developer's tree.
+#
+# Outside a git checkout there is no index to consult, so fall back to a find.
+# That is not a rare case: `make distcheck' runs `make dist' again inside the
+# unpacked tarball.  The fallback is safe exactly there, because everything at
+# this level arrived in that tarball and so was tracked when it was cut.
+	@if test -d "$(top_srcdir)/.git"; then \
+	    list=`cd "$(srcdir)" && git ls-files -- . \
+	        | grep -v / | grep -E '\.(awk|c|f|h)$$'`; \
+	else \
+	    list=`cd "$(srcdir)" && find . -maxdepth 1 -type f \
+	        \( -name '*.c' -o -name '*.f' -o -name '*.h' -o -name '*.awk' \) \
+	        ! -name '.*' | sed 's|^\./||'`; \
+	fi; \
+	test -n "$$list" || { \
+	    echo "make dist: no test sources found in $(srcdir)" >&2; exit 1; }; \
 	for rel in $$list; do \
 	    test -e "$(distdir)/$$rel" && continue; \
 	    cp -p "$(srcdir)/$$rel" "$(distdir)/$$rel" || exit 1; \
