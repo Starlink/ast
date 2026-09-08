@@ -4678,7 +4678,8 @@ int main( void ) {
    if( *status == 0 ) {
       astBegin;
       AstChannel *spch = astChannel( NULL, NULL,
-                            "SourceFile=fixtures/wcsconv/inputs/lsst2.ast" );
+                            "SourceFile=%s/fixtures/wcsconv/inputs/lsst2.ast",
+                            srcdir );
       AstFrameSet *spfs = (AstFrameSet *) astRead( spch );
       if( !astOK || !spfs || !astIsAFrameSet( spfs ) ) {
          if( !astOK ) astClearStatus;
@@ -4736,7 +4737,8 @@ int main( void ) {
             stored as the whole description. */
          {
             AstChannel *spch2 = astChannel( NULL, NULL,
-                            "SourceFile=fixtures/wcsconv/inputs/lsst2.ast" );
+                            "SourceFile=%s/fixtures/wcsconv/inputs/lsst2.ast",
+                            srcdir );
             AstFrameSet *spfs2 = (AstFrameSet *) astRead( spch2 );
             AstFitsChan *spfc3 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
             char spcard[ 81 ];
