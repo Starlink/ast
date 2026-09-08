@@ -81,6 +81,14 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    #  A fork cannot upload to Codecov: secrets do not reach it, so its own push
+    #  runs have no CODECOV_TOKEN, and the tokenless path the action uses for a
+    #  pull request from a fork does not apply to a push.  The secret is exposed
+    #  as job-level env so the upload step's `if' can see whether there is one --
+    #  `if' cannot read the secrets context, nor a step's own env block.
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
     steps:
       - uses: actions/checkout@v6
 
@@ -111,7 +119,11 @@ jobs:
         run: ctest --test-dir build --output-on-failure --output-junit build/junit.xml
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        #  Skip where no upload can succeed rather than failing the run: a push
+        #  to a fork.  A pull request from a fork still uploads, tokenlessly and
+        #  against the base repository, which is what covers those commits.
+        if: ${{ !cancelled()
+          && (env.CODECOV_TOKEN != '' || github.event.pull_request.head.repo.fork) }}
         uses: codecov/codecov-action@v6
         with:
           files: build/junit.xml
