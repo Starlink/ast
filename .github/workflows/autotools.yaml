@@ -111,6 +111,22 @@ jobs:
         run: |
           tail -n +1 ast_tester/*.log
 
+      #  The dist hook is shell, and shell is where the platforms differ: BSD
+      #  mktemp, sed and find have all needed accommodating (see dist-fixtures.sh).
+      #  Nothing else in this workflow runs that code under BSD tools, so the job
+      #  that skips the distribution checks still cuts a tarball -- the hook's own
+      #  guards fail the step, and the two assertions catch a fixture set selected
+      #  differently rather than not at all.  Seconds, against the minutes a full
+      #  distcheck costs here.
+      - name: Cut a tarball
+        if: ${{ !matrix.dist }}
+        run: |
+          make dist ${{ github.event.inputs.make_flags }}
+          rm -rf tarball-tier && mkdir tarball-tier
+          tar xzf ast-*.tar.gz -C tarball-tier --strip-components=1
+          grep -qx cutdown tarball-tier/ast_tester/fixtures/DIST_TIER
+          test ! -d tarball-tier/ast_tester/fixtures/wcsconv/expected
+
       - name: Distcheck
         if: ${{ matrix.dist }}
         run: make distcheck ${{ github.event.inputs.make_flags }}
