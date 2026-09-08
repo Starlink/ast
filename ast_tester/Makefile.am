@@ -453,7 +453,18 @@ dist-hook:
 #
 # DIST_TIER records which happened, so the CMake build unpacked from this
 # tarball can tell a fixture left out on purpose from one that went missing.
+#
+# A cut-down tarball is a valid source tree -- distcheck cuts a second tarball
+# from the first -- but the fixtures it left behind are gone, so `make fulldist'
+# there would silently label a subset "full".  DIST_TIER, shipped by the parent,
+# is what says so.
 	@if test "x$(AST_DIST_FULL)" = x1; then \
+	    if test -f "$(srcdir)/fixtures/DIST_TIER" && \
+	        ! grep -qx full "$(srcdir)/fixtures/DIST_TIER"; then \
+	        echo "make fulldist: this tree is itself a cut-down distribution;" >&2; \
+	        echo "the fixtures it omits cannot be recovered from it." >&2; \
+	        exit 1; \
+	    fi; \
 	    list=`cd "$(srcdir)" && find fixtures -type f ! -name '.*'`; \
 	    tier=full; \
 	else \
