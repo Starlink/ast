@@ -36,8 +36,10 @@ oracle/headers.oracle
 oracle/transform_oracle_overrides.txt
 oracle/README.md
 
-# Manifests for the families whose fixtures are not distributed.  They ship so
-# that ctest can enumerate those tests and report them as skipped rather than
-# omitting them silently; 84K buys an honest test count.
+# Manifests for the families whose fixtures are not distributed.  Both suites
+# enumerate their cases from these, so without them the tests would not be
+# registered at all and the suite would report a smaller run rather than one
+# whose absent cases are reported as skipped.  A case list is a few tens of
+# kilobytes against the megabytes of fixtures it names.
 simplify/cases.txt
 wcsconv/cases.txt
