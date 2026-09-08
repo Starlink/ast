@@ -1407,41 +1407,22 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Use round() when converting the WCSAXES value read from the header
 *        into an axis count, so that a value stored as a FITS float that is
 *        marginally below an integer is not truncated to the integer below.
-*     31-AUG-2026 (TIMJ):
-*        Do not apply the SIP CD values in MakeIntWorld when the linearity
-*        test has already failed, since the "partmat" rows being written to
-*        are then still NULL. This segfaulted when SIPIntWorld had accepted
-*        a SIP description but the remaining Mapping was still not linear
-*        to within FitsTol over the image dimensions.
-*     31-AUG-2026 (TIMJ):
-*        Reject the SIP description in SIPIntWorld when the inverse
-*        transformation is undefined at the IWC origin, since the CRPIX
-*        values are then AST__BAD.  Storing them left the axis description
-*        empty, and astWrite still reported success, so a FrameSet whose
-*        celestial axes could not be described this way was written out as
-*        a header with SIP coefficients but no CTYPE or CRPIX cards.
-*     31-AUG-2026 (TIMJ):
-*        Give up in WcsFromStore and PCFromStore when the primary axis
-*        descriptions could not be written, rather than reporting success
-*        on the strength of an alternate description alone.  FsetToStore
-*        already refuses to build alternate descriptions unless the
-*        primary one was built, so this makes the two stages agree, and
-*        makes PCFromStore behave as its prologue already claimed.  Also
-*        apply the existing test for a missing CRPIX1 or CRVAL1 to the
-*        primary axis descriptions in WcsFromStore, not just to the
-*        alternate ones.
 *     1-SEP-2026 (TIMJ):
-*        In SIPIntWorld, test the linearity of the Mapping that follows the
-*        PolyMap over the region in which that Mapping is used, and express
-*        the tolerance in its output space. The box used previously was the
-*        image dimensions, positive and negative, about the SIP reference
-*        point, which only covers the image if that point lies within it,
-*        and the tolerance was passed on in pixels although astLinearApprox
-*        measures it as a displacement in the output space of the Mapping
-*        being tested. A SIP description could therefore be accepted, and
-*        its CRPIX and CD values fitted, over a region the image does not
-*        occupy. Nothing else checks those values, since MakeIntWorld
-*        replaces the ones it derived itself with them.
+*        Correct the writing of a FITS-WCS header for a FrameSet with a SIP
+*        distortion.  SIPIntWorld now tests the linearity of the Mapping
+*        that follows the PolyMap over the region in which that Mapping is
+*        used, with the tolerance expressed in its output space rather than
+*        in pixels, and rejects the SIP description if the inverse
+*        transformation is undefined at the IWC origin.  MakeIntWorld no
+*        longer applies the SIP CD values when that linearity test failed,
+*        which segfaulted on the NULL "partmat" rows.  WcsFromStore and
+*        PCFromStore now give up if the primary axis descriptions could not
+*        be written, instead of reporting success on the strength of an
+*        alternate description alone, and the test for a missing CRPIX1 or
+*        CRVAL1 is applied to the primary descriptions as well as the
+*        alternate ones.  Together these stop a FrameSet whose celestial
+*        axes cannot be described this way from being written out as a
+*        header of SIP coefficients with no CTYPE or CRPIX cards.
 *class--
 */
 
