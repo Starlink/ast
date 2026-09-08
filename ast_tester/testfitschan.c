@@ -4637,6 +4637,214 @@ int main( void ) {
       astEnd;
    }
 
+   /* --- Non-linear Mapping under a SIP fit: a FrameSet whose pixel->sky
+      Mapping contains a SplineMap has no exact FITS-WCS representation, so
+      astWrite should return 0.  This used to segfault in MakeIntWorld,
+      which applied the SIP CD values to "partmat" rows that the failed
+      linearity test had left NULL.  Reaching that code needs NAXIS1/NAXIS2,
+      so the pixel box is known, and a FitsTol tight enough that the fit
+      over that box fails; the default FitsTol of 0.1 is loose enough that
+      this FrameSet passes.
+
+      It also needs SIPIntWorld to have accepted a SIP description, and
+      that is what makes the crash rare.  SIPIntWorld checks the Mapping
+      that follows the PolyMap for linearity over a box of plus and minus
+      the image dimensions centred on the SIP reference point, which only
+      covers the image if that point lies within it.  Here it is some
+      20000 pixels away, so the box does not overlap the region the
+      Mapping is used over at all, and every sample point falls outside
+      the spline knots.  This SplineMap sets OutUnit, so those points pass
+      through unchanged and the check sees an exactly linear Mapping; with
+      the default OutUnit of zero they come back AST__BAD, the check
+      fails, and no SIP description is offered.
+
+      The fixture is the pixels-to-sky FrameSet of a DP2 difference image
+      (visit=2025042400322, detector=150), taken from the lsst-images test
+      test_as_fits_wcs_frameset_with_splinemap_returns_none_big.  Note that
+      the same fixture written with neither FitsTol nor NAXIS still produces
+      a header with no primary CTYPE cards; see the lsst2_fits-wcs row of
+      fixtures/wcsconv/cases.txt. --- */
+   if( *status == 0 ) {
+      astBegin;
+      AstChannel *spch = astChannel( NULL, NULL,
+                            "SourceFile=fixtures/wcsconv/inputs/lsst2.ast" );
+      AstFrameSet *spfs = (AstFrameSet *) astRead( spch );
+      if( !astOK || !spfs || !astIsAFrameSet( spfs ) ) {
+         if( !astOK ) astClearStatus;
+         stopit( 905, "Failed to read fixtures/wcsconv/inputs/lsst2.ast",
+                 status );
+      } else {
+         AstFitsChan *spfc = astFitsChan( NULL, NULL,
+                                          "Encoding=FITS-WCS,FitsTol=0.0001" );
+         int spnw;
+
+         astPutFits( spfc, "NAXIS1  = 1000", 0 );
+         astPutFits( spfc, "NAXIS2  = 1000", 0 );
+         spnw = astWrite( spfc, spfs );
+         if( !astOK ) astClearStatus;
+         if( spnw != 0 )
+            stopit( 906, "SplineMap FrameSet should not write to FITS",
+                    status );
+
+         /* The write lsst.images Transform.as_fits_wcs actually issues: the
+            fixture wrapped in an outer FrameSet, with a GRID frame carrying
+            the FITS one-based origin shift prepended and made the base
+            frame. */
+         {
+            double spoff[ 2 ] = { 1.0, 1.0 };
+            AstFrameSet *spouter = astFrameSet( astFrame( 2, "Ident=detector" ),
+                                                " " );
+            AstFitsChan *spfc2;
+            int spcur;
+
+            astAddFrame( spouter, AST__BASE, (AstMapping *) spfs,
+                         astSkyFrame( " " ) );
+            spcur = astGetI( spouter, "Current" );
+            astAddFrame( spouter, AST__BASE,
+                         (AstMapping *) astShiftMap( 2, spoff, " " ),
+                         astFrame( 2, "Domain=GRID" ) );
+            astSetI( spouter, "Base", astGetI( spouter, "Current" ) );
+            astSetI( spouter, "Current", spcur );
+
+            spfc2 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,CDMatrix=1,"
+                                 "FitsAxisOrder=<copy>,FitsTol=0.0001" );
+            astPutFits( spfc2, "NAXIS1  = 1000", 0 );
+            astPutFits( spfc2, "NAXIS2  = 1000", 0 );
+            spnw = astWrite( spfc2, spouter );
+            if( !astOK ) astClearStatus;
+            if( spnw != 0 )
+               stopit( 907, "as_fits_wcs FrameSet should not write to FITS",
+                       status );
+         }
+
+         /* At the default FitsTol the same FrameSet does have an adequate
+            linear approximation, so this write succeeds.  Check it produced
+            a usable header: astWrite used to report success while emitting
+            SIP coefficients and no primary axis description at all, because
+            SIPIntWorld returned AST__BAD CRPIX values that MakeIntWorld
+            stored as the whole description. */
+         {
+            AstChannel *spch2 = astChannel( NULL, NULL,
+                            "SourceFile=fixtures/wcsconv/inputs/lsst2.ast" );
+            AstFrameSet *spfs2 = (AstFrameSet *) astRead( spch2 );
+            AstFitsChan *spfc3 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+            char spcard[ 81 ];
+            int spfound = 0;
+
+            astPutFits( spfc3, "NAXIS1  = 1000", 0 );
+            astPutFits( spfc3, "NAXIS2  = 1000", 0 );
+            spnw = astWrite( spfc3, spfs2 );
+            if( !astOK ) astClearStatus;
+            if( spnw == 0 ) {
+               stopit( 908, "SplineMap FrameSet should write at the default "
+                       "FitsTol", status );
+            } else {
+               astClear( spfc3, "Card" );
+               while( astFindFits( spfc3, "%f", spcard, 1 ) ) {
+                  if( !strncmp( spcard, "CTYPE1  ", 8 ) ) spfound |= 1;
+                  if( !strncmp( spcard, "CTYPE2  ", 8 ) ) spfound |= 2;
+                  if( !strncmp( spcard, "A_ORDER ", 8 ) ) spfound |= 4;
+               }
+               if( spfound != 3 )
+                  stopit( 909, "SplineMap FrameSet wrote a header without a "
+                          "primary axis description", status );
+            }
+         }
+      }
+      astEnd;
+   }
+
+   /* --- The SIP linearity test must cover the region the Mapping is used
+      over.  This FrameSet puts the reference point 20000 pixels outside the
+      image and makes the Mapping between the SIP polynomial and the CD
+      matrix slightly non-linear (a cubic term that is negligible near the
+      reference point but not over the image).  SIPIntWorld used to test that
+      Mapping over a box of plus and minus the image dimensions centred on
+      the reference point, and to pass FitsTol, which is in pixels, straight
+      to astLinearApprox, which wants a displacement in the Mapping's output
+      space.  Both were wrong here, so the SIP description was accepted and
+      its CRPIX and CD values were fitted where the image is not.  astWrite
+      should now fall back to a plain linear approximation, which the
+      FitsTol check does validate over the image. --- */
+   if( *status == 0 ) {
+      astBegin;
+      {
+         const char *sipcards[ 11 ] = {
+                             "CTYPE1  = 'RA---TAN'",
+                             "CTYPE2  = 'DEC--TAN'",
+                             "CRPIX1  =                  0.0",
+                             "CRPIX2  =                  0.0",
+                             "CRVAL1  =                180.0",
+                             "CRVAL2  =                  0.0",
+                             "CD1_1   =             -5.5E-05",
+                             "CD1_2   =                  0.0",
+                             "CD2_1   =                  0.0",
+                             "CD2_2   =              5.5E-05",
+                             "RADESYS = 'ICRS'" };
+         const char *sipcubef[ 2 ] = { "u = x + 1.0E-15*x*x*x", "v = y" };
+         const char *sipcubei[ 2 ] = { "x = u - 1.0E-15*u*u*u", "y = v" };
+         double sippolyf[ 16 ] = { 1.0, 1, 1, 0,   1.0E-9, 1, 2, 0,
+                                   1.0, 2, 0, 1,   1.0E-9, 2, 0, 2 };
+         double sippolyi[ 16 ] = { 1.0, 1, 1, 0,  -1.0E-9, 1, 2, 0,
+                                   1.0, 2, 0, 1,  -1.0E-9, 2, 0, 2 };
+         double sipoff[ 2 ] = { 20000.0, 20000.0 };
+         AstFitsChan *sipfc = astFitsChan( NULL, NULL, " " );
+         AstFrameSet *sipfs;
+         int sipi;
+
+         for( sipi = 0; sipi < 11; sipi++ ) astPutFits( sipfc, sipcards[ sipi ], 0 );
+         astClear( sipfc, "Card" );
+         sipfs = (AstFrameSet *) astRead( sipfc );
+         if( !astOK || !sipfs ) {
+            if( !astOK ) astClearStatus;
+            stopit( 910, "Failed to read the TAN header for the SIP box test",
+                    status );
+         } else {
+            AstFitsChan *sipfc2;
+            AstFrameSet *sipfs2;
+            AstMapping *siptot;
+            char sipcard[ 81 ];
+            int sipfound = 0;
+            int sipnw;
+
+            siptot = (AstMapping *) astCmpMap( astShiftMap( 2, sipoff, " " ),
+                                    astPolyMap( 2, 2, 4, sippolyf, 4, sippolyi,
+                                                " " ), 1, " " );
+            siptot = (AstMapping *) astCmpMap( siptot,
+                                    astMathMap( 2, 2, 2, sipcubef, 2, sipcubei,
+                                                " " ), 1, " " );
+            siptot = (AstMapping *) astCmpMap( siptot,
+                                    astGetMapping( sipfs, AST__BASE,
+                                                   AST__CURRENT ), 1, " " );
+
+            sipfs2 = astFrameSet( astFrame( 2, "Domain=GRID" ), " " );
+            astAddFrame( sipfs2, AST__BASE, siptot,
+                         astGetFrame( sipfs, AST__CURRENT ) );
+
+            sipfc2 = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,CDMatrix=1" );
+            astPutFits( sipfc2, "NAXIS1  =                 4000", 0 );
+            astPutFits( sipfc2, "NAXIS2  =                 4000", 0 );
+            sipnw = astWrite( sipfc2, sipfs2 );
+            if( !astOK ) astClearStatus;
+
+            if( sipnw == 0 ) {
+               stopit( 911, "The linear approximation is good enough to write, "
+                       "so astWrite should have succeeded", status );
+            } else {
+               astClear( sipfc2, "Card" );
+               while( astFindFits( sipfc2, "%f", sipcard, 1 ) ) {
+                  if( !strncmp( sipcard, "A_ORDER ", 8 ) ) sipfound = 1;
+               }
+               if( sipfound )
+                  stopit( 912, "SIP description accepted although the Mapping "
+                          "following the SIP polynomial is not linear over "
+                          "the image", status );
+            }
+         }
+      }
+      astEnd;
+   }
+
 cleanup:
    astEnd;
 

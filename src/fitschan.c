@@ -1407,6 +1407,22 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Use round() when converting the WCSAXES value read from the header
 *        into an axis count, so that a value stored as a FITS float that is
 *        marginally below an integer is not truncated to the integer below.
+*     1-SEP-2026 (TIMJ):
+*        Correct the writing of a FITS-WCS header for a FrameSet with a SIP
+*        distortion.  SIPIntWorld now tests the linearity of the Mapping
+*        that follows the PolyMap over the region in which that Mapping is
+*        used, with the tolerance expressed in its output space rather than
+*        in pixels, and rejects the SIP description if the inverse
+*        transformation is undefined at the IWC origin.  MakeIntWorld no
+*        longer applies the SIP CD values when that linearity test failed,
+*        which segfaulted on the NULL "partmat" rows.  WcsFromStore and
+*        PCFromStore now give up if the primary axis descriptions could not
+*        be written, instead of reporting success on the strength of an
+*        alternate description alone, and the test for a missing CRPIX1 or
+*        CRVAL1 is applied to the primary descriptions as well as the
+*        alternate ones.  Together these stop a FrameSet whose celestial
+*        axes cannot be described this way from being written out as a
+*        header of SIP coefficients with no CTYPE or CRPIX cards.
 *class--
 */
 
@@ -22106,8 +22122,10 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
       }
 
 /* If we are using SIP distortion, replace the values for the celestial
-   axes found above with the values found by SIPIntWorld. */
-      if( havesip ) {
+   axes found above with the values found by SIPIntWorld. Only do this if
+   the loop above completed, since otherwise the "partmat" rows indexed
+   below may be the NULL pointers left by an unsuccesful FitLine call. */
+      if( ret && havesip ) {
          partmat[ sipax[0] ][ lonax ] = cd_sip[ 0 ];
          partmat[ sipax[1] ][ lonax ] = cd_sip[ 1 ];
          partmat[ sipax[0] ][ latax ] = cd_sip[ 2 ];
@@ -24697,11 +24715,13 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    int naxis;          /* No. of axes */
    int nc;             /* Length of string */
    int ok;             /* Frame written out succesfully? */
+   int primok;         /* Primary axis descriptions written succesfully? */
    int prj;            /* Projection type */
    int ret;            /* Returned value. */
 
 /* Initialise */
    ret = 0;
+   primok = 0;
 
 /* Check the inherited status. */
    if( !astOK ) return ret;
@@ -25085,6 +25105,7 @@ next:
       if( s != ' ' ) {
          astClearStatus;
       } else {
+         primok = ok;
          s = 'A' - 1;
       }
 
@@ -25098,6 +25119,12 @@ next:
 /* Set the current card so that it points to the last WCS-related keyword
    in the FitsChan (whether previously read or not). */
       FindWcs( this, 1, 1, 0, method, class, status );
+
+/* Alternate axis descriptions supplement the primary descriptions and
+   cannot stand on their own, so give up if the primary descriptions could
+   not be written. "ret" is still zero at this point, since the primary
+   descriptions are written first. */
+      if( !primok ) break;
    }
 
 /* Annul the array holding the primary PC matrix. */
@@ -28815,6 +28842,12 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    double scales[ 2 ];
    double shift[ 2 ];
    double ubnd[ 2 ];
+   double upx[ 11 ];
+   double upy[ 11 ];
+   double uscale;
+   double utol;
+   double uwx[ 11 ];
+   double uwy[ 11 ];
    double val;
    int *inax1;
    int *inax2;
@@ -28836,6 +28869,9 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
    int imap_pm;
    int iout;
    int ioutrem;
+   int isamp;
+   int ix;
+   int iy;
    int jm;
    int ncoeff;
    int nin;
@@ -29025,13 +29061,90 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                }
 
 /* Check that the upper Mapping is linear and see if it produces a shift of
-   origin (if so we cannot use it). Retain the fit coefficients for later use. */
+   origin (if so we cannot use it). Retain the fit coefficients for later use.
+
+   The upper Mapping is not reached directly from grid coordinates - the
+   lower Mapping and the PolyMap come first - so the box over which it must
+   be linear is not the grid box used above. Find it by transforming a 3x3
+   grid of positions spanning the image. Two further positions, one pixel
+   away from the centre of the image along each grid axis, are transformed
+   at the same time and are used below to express the supplied tolerance,
+   which is in pixels, in the output space of the upper Mapping. */
                if( ok ) {
-                  lbnd[ 0 ] = -ubnd[ 0 ];
-                  lbnd[ 1 ] = -ubnd[ 1 ];
-                  ok = astLinearApprox( map_upper, lbnd, ubnd, tol, fit );
-                  if( fabs( fit[ 0 ] ) > 1.0E-7 ||
-                      fabs( fit[ 1 ] ) > 1.0E-7 ) ok = 0;
+                  isamp = 0;
+                  for( ix = 0; ix < 3; ix++ ) {
+                     for( iy = 0; iy < 3; iy++ ) {
+                        upx[ isamp ] = 0.5*ix*ubnd[ 0 ];
+                        upy[ isamp ] = 0.5*iy*ubnd[ 1 ];
+                        isamp++;
+                     }
+                  }
+                  upx[ 9 ] = 0.5*ubnd[ 0 ] + 1.0;
+                  upy[ 9 ] = 0.5*ubnd[ 1 ];
+                  upx[ 10 ] = 0.5*ubnd[ 0 ];
+                  upy[ 10 ] = 0.5*ubnd[ 1 ] + 1.0;
+
+                  astTran2( map_lower, 11, upx, upy, 1, uwx, uwy );
+                  astTran2( (AstMapping *) polymap, 11, uwx, uwy, 1, upx, upy );
+
+/* Form the bounding box of the transformed image corners. Give up if any
+   of them could not be transformed, since the upper Mapping cannot then be
+   tested over the region in which it is used. */
+                  for( isamp = 0; isamp < 9 && ok; isamp++ ) {
+                     if( upx[ isamp ] == AST__BAD ||
+                         upy[ isamp ] == AST__BAD ) {
+                        ok = 0;
+
+                     } else if( isamp == 0 ) {
+                        lbnd[ 0 ] = ubnd[ 0 ] = upx[ 0 ];
+                        lbnd[ 1 ] = ubnd[ 1 ] = upy[ 0 ];
+
+                     } else {
+                        if( upx[ isamp ] < lbnd[ 0 ] ) lbnd[ 0 ] = upx[ isamp ];
+                        if( upx[ isamp ] > ubnd[ 0 ] ) ubnd[ 0 ] = upx[ isamp ];
+                        if( upy[ isamp ] < lbnd[ 1 ] ) lbnd[ 1 ] = upy[ isamp ];
+                        if( upy[ isamp ] > ubnd[ 1 ] ) ubnd[ 1 ] = upy[ isamp ];
+                     }
+                  }
+
+/* Find the displacement in the output space of the upper Mapping produced
+   by a one pixel step in grid coordinates at the centre of the image, and
+   use it to convert the tolerance into that space. astLinearApprox expects
+   a displacement in the output space of the Mapping it is testing, whereas
+   FitsTol is expressed in pixels. */
+                  if( ok ) {
+                     uwx[ 0 ] = upx[ 4 ];
+                     uwy[ 0 ] = upy[ 4 ];
+                     uwx[ 1 ] = upx[ 9 ];
+                     uwy[ 1 ] = upy[ 9 ];
+                     uwx[ 2 ] = upx[ 10 ];
+                     uwy[ 2 ] = upy[ 10 ];
+                     astTran2( map_upper, 3, uwx, uwy, 1, upx, upy );
+
+                     if( upx[ 0 ] != AST__BAD && upy[ 0 ] != AST__BAD &&
+                         upx[ 1 ] != AST__BAD && upy[ 1 ] != AST__BAD &&
+                         upx[ 2 ] != AST__BAD && upy[ 2 ] != AST__BAD ) {
+                        uscale = astMAX(
+                           sqrt( ( upx[ 1 ] - upx[ 0 ] )*( upx[ 1 ] - upx[ 0 ] ) +
+                                 ( upy[ 1 ] - upy[ 0 ] )*( upy[ 1 ] - upy[ 0 ] ) ),
+                           sqrt( ( upx[ 2 ] - upx[ 0 ] )*( upx[ 2 ] - upx[ 0 ] ) +
+                                 ( upy[ 2 ] - upy[ 0 ] )*( upy[ 2 ] - upy[ 0 ] ) ) );
+                     } else {
+                        uscale = 0.0;
+                     }
+
+                     if( uscale > 0.0 ) {
+                        utol = tol*uscale;
+                     } else {
+                        ok = 0;
+                     }
+                  }
+
+                  if( ok ) {
+                     ok = astLinearApprox( map_upper, lbnd, ubnd, utol, fit );
+                     if( fabs( fit[ 0 ] ) > 1.0E-7 ||
+                         fabs( fit[ 1 ] ) > 1.0E-7 ) ok = 0;
+                  }
                }
 
 /* Split the supplied Mapping to generate the Mapping that gives
@@ -29070,6 +29183,15 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                   iwcxin = 0.0;
                   iwcyin = 0.0;
                   astTran2( smap, 1, &iwcxin, &iwcyin, 0, crpix, crpix + 1 );
+
+/* The inverse transformation may be undefined at the IWC origin, in which
+   case there is no reference pixel and so the SIP conventions cannot be
+   used to describe the celestial axes. */
+                  if( crpix[ 0 ] == AST__BAD || crpix[ 1 ] == AST__BAD ) ok = 0;
+               }
+
+/* If a reference pixel was found... */
+               if( ok ) {
 
 /* The "fit" array currently contains the coefficients of a linear
    approximation to the upper Mapping. These give us the CD matrix.
@@ -37109,7 +37231,8 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
 
 *  Returned Value:
 *     A value of 1 is returned if succesfull, and zero is returned
-*     otherwise.
+*     otherwise. Zero is returned if the primary axis descriptions cannot
+*     be produced, since alternate descriptions cannot stand on their own.
 */
 
 /* Local Variables: */
@@ -37142,6 +37265,7 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    int order;          /* Max SIP polynomial order */
    int p;              /* Power of u or U */
    int pmax;           /* Max power of u or U */
+   int primok;         /* Primary axis descriptions written succesfully? */
    int prj;            /* Projection type */
    int q;              /* Power of v or V */
    int qmax;           /* Max power of v or V */
@@ -37152,6 +37276,9 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
 
 /* Other initialisation to avoid compiler warnings. */
    tabaxis = NULL;
+
+/* Assume the primary axis descriptions cannot be written. */
+   primok = 0;
 
 /* Check the inherited status. */
    if( !astOK ) return ret;
@@ -37167,16 +37294,14 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    sup = GetMaxS( &(store->crval), status );
    for( s = ' '; s <= sup && astOK; s++ ){
 
-/* For alternate axes, skip this axis description if there is no CRPIX1 or
-   CRVAL1 value. This avoids partial axis descriptions being written out. */
-      if( s != ' ' ) {
-         if( GetItem( &(store->crpix), 0, 0, s, NULL, method, class, status ) ==
-             AST__BAD ||
-             GetItem( &(store->crval), 0, 0, s, NULL, method, class, status ) ==
-             AST__BAD ) {
-            ok = 0;
-            goto next;
-         }
+/* Skip this axis description if there is no CRPIX1 or CRVAL1 value. This
+   avoids partial axis descriptions being written out. */
+      if( GetItem( &(store->crpix), 0, 0, s, NULL, method, class, status ) ==
+          AST__BAD ||
+          GetItem( &(store->crval), 0, 0, s, NULL, method, class, status ) ==
+          AST__BAD ) {
+         ok = 0;
+         goto next;
       }
 
 /* Assume the Frame can be created succesfully. */
@@ -37661,6 +37786,7 @@ next:
       if( s != ' ' ) {
          astClearStatus;
       } else {
+         primok = ok;
          s = 'A' - 1;
       }
 
@@ -37677,6 +37803,12 @@ next:
 
 /* Free resources. */
       tabaxis = astFree( tabaxis );
+
+/* Alternate axis descriptions supplement the primary descriptions and
+   cannot stand on their own, so give up if the primary descriptions could
+   not be written. "ret" is still zero at this point, since the primary
+   descriptions are written first. */
+      if( !primok ) break;
    }
 
 /* Return zero or ret depending on whether an error has occurred. */
