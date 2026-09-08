@@ -399,13 +399,17 @@ int main() {
 #   for the second argument, to suppress automatic generation of
 #   rules.
 #
-#   The PDFs need only a TeX installation plus the LaTeX class and style files
-#   vendored in star_compat/latexsupport.  The .htx_tar hypertext products
+#   Prologue extraction prefers starprolog, falling back to getatt/prolat.
+#   Typesetting needs TeX plus the class and style files vendored in
+#   star_compat/latexsupport.  The .htx_tar hypertext products
 #   additionally need the Starlink star2html program, so they are built only
 #   when it is available; a build without it still produces the PDFs, which is
 #   what nearly every reader wants.  Historically the hypertext was always
 #   included, so warn rather than pass over it silently.
 STAR_CHECK_PROGS(star2html)
+AC_ARG_VAR([STARPROLOG], [starprolog command, optionally with arguments])
+AS_IF([test -z "$STARPROLOG"], [AC_PATH_PROG([STARPROLOG], [starprolog])])
+AC_ARG_VAR([PDFLATEX], [pdflatex command])
 AC_ARG_ENABLE([hyperdocs],
     [AS_HELP_STRING([--disable-hyperdocs],
         [omit the .htx_tar hypertext documentation even when star2html is
@@ -418,9 +422,7 @@ if test "x$enable_hyperdocs" = xno; then
 elif test -x "$STAR2HTML"; then
     ast_documentation="$ast_documentation sun210.htx_tar sun211.htx_tar"
 elif test "x$STARCONF" != "xno"; then
-#  Only worth remarking on where documentation is built at all.  A standalone
-#  build has an empty STAR_LATEX_DOCUMENTATION and produces none of it, so
-#  warning there about a missing star2html would just be misleading noise.
+#  Ordinary standalone builds do not request documentation.
     AC_MSG_WARN([star2html not found: building PDF documentation only, with
 no .htx_tar hypertext. A full release has historically included it.])
 fi
@@ -428,6 +430,14 @@ fi
 STAR_LATEX_DOCUMENTATION([sun210 sun211], [$ast_documentation])
 STAR_PREDIST_SOURCES(sun_master.tex)
 STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
+if test -n "$STAR@&t@_LATEX_DOCUMENTATION" && test -f "$srcdir/sun_master.tex"; then
+    AS_IF([test -z "$PDFLATEX"], [AC_PATH_PROG([PDFLATEX], [pdflatex])])
+    AS_IF([test -z "$PDFLATEX"],
+        [AC_MSG_ERROR([documentation requires pdflatex; use --without-stardocs to omit it])])
+    AS_IF([test -z "$STARPROLOG" && test ! -x "$PROLAT" &&
+           test ! -x "$SST_DIR/prolat"],
+        [AC_MSG_ERROR([documentation requires starprolog (preferred) or prolat; set STARPROLOG or use --without-stardocs])])
+fi
 
 AC_CONFIG_HEADERS(config.h)
 

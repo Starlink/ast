@@ -910,6 +910,11 @@ EXTRA_DIST = $(srcdir)/ast_par.source $(srcdir)/ast_err.msg \
     $(srcdir)/star_compat/latexsupport/starlink.cls \
     $(srcdir)/star_compat/latexsupport/starstyle.sty
 
+# Starlink automake adds these automatically; GNU automake needs the list.
+if !STARLINK_BUILD
+EXTRA_DIST += $(stardocs_DATA)
+endif
+
 # Distribute files required by CMake build.  Everything in cmake/ is a build
 # input, so the dist-hook below ships the whole directory rather than naming
 # each file -- a list here has to be extended every time a helper is added,
@@ -998,18 +1003,48 @@ uninstall-hook:
 @PREDIST@    -e 's,@PACKAGE_VERSION_MINOR\@,$(PACKAGE_VERSION_MINOR),' \
 @PREDIST@    -e 's,@PACKAGE_VERSION_RELEASE\@,$(PACKAGE_VERSION_RELEASE),' \
 @PREDIST@    -e 's,@PERL\@,$(PERL),' \
+@PREDIST@    -e 's,@STARPROLOG\@,$(STARPROLOG),' \
+@PREDIST@    -e 's,@PROLAT\@,$(PROLAT),' \
+@PREDIST@    -e 's,@PDFLATEX\@,$(PDFLATEX),' \
 @PREDIST@    -e 's,@STARLINK\@,$(STARLINK),'
 
-@PREDIST@src/version.h: $(srcdir)/src/version.h.in $(srcdir)/configure.ac
+@PREDIST@src/version.h: $(srcdir)/src/version.h.in Makefile
 @PREDIST@	rm -f $@; $(predist_subs) $(srcdir)/src/version.h.in >$@
-@PREDIST@builddocs: $(srcdir)/builddocs.in $(srcdir)/configure.ac
+@PREDIST@builddocs: $(srcdir)/builddocs.in Makefile
 @PREDIST@	rm -f $@; $(predist_subs) $(srcdir)/builddocs.in >$@; chmod +x $@
-@PREDIST@addversion: $(srcdir)/addversion.in $(srcdir)/configure.ac
-@PREDIST@	rm -f $@; $(predist_subs) addversion.in >$@; chmod +x $@
+@PREDIST@addversion: $(srcdir)/addversion.in Makefile
+@PREDIST@	rm -f $@; $(predist_subs) $(srcdir)/addversion.in >$@; chmod +x $@
 
-# Documentation
-@PREDIST@$(PAPER_DOCUMENTATION): sun211_figures builddocs addversion
-@PREDIST@	./builddocs
+# One invocation produces both manuals. Force the shared stamp when any
+# output is missing, so parallel make also handles deleted outputs only once.
+@PREDIST@missing_docs = $(filter-out $(wildcard $(PAPER_DOCUMENTATION)),$(PAPER_DOCUMENTATION))
+@PREDIST@.PHONY: force-docs
+@PREDIST@stamp-docs: $(if $(missing_docs),force-docs)
+@PREDIST@stamp-docs: builddocs addversion ast_link ast_link_adam \
+@PREDIST@    $(GRP_C_ROUTINES) src/fchannel.c $(srcdir)/sun_master.tex \
+@PREDIST@    $(srcdir)/getatt $(srcdir)/doincludes $(srcdir)/selectfc \
+@PREDIST@    $(srcdir)/addlinks $(srcdir)/addcopyright \
+@PREDIST@    $(wildcard $(srcdir)/star_compat/latexsupport/*.sty) \
+@PREDIST@    $(srcdir)/star_compat/latexsupport/starlink.cls \
+@PREDIST@    $(wildcard $(srcdir)/sun210_figures/*.pdf $(srcdir)/sun211_figures/*.pdf)
+@PREDIST@	./builddocs "$(srcdir)"
+@PREDIST@	touch $@
+@PREDIST@$(PAPER_DOCUMENTATION): stamp-docs
+@PREDIST@	@test -f $@
+
+if !STARLINK_BUILD
+# Starlink automake supplies this rule itself.
+@PREDIST@sun210.htx_tar: sun210.tex
+@PREDIST@	$(STAR2HTML) $(STAR2HTML_FLAGS) $<
+@PREDIST@	tar cf $@ sun210.htx
+@PREDIST@sun211.htx_tar: sun211.tex
+@PREDIST@	$(STAR2HTML) $(STAR2HTML_FLAGS) $<
+@PREDIST@	tar cf $@ sun211.htx
+endif
+
+# Leave shipped documents intact in post-distribution builds (distcheck).
+@PREDIST@doc_clean = $(DOCUMENTATION_PRODUCTS) stamp-docs
+CLEANFILES += $(doc_clean)
 
 # The contents of the sun211_figures directory is identical to that
 # sun210_figures
