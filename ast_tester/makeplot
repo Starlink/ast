@@ -12,8 +12,11 @@
 #     (without the ".head" suffix), or a path to a header, either of which
 #     is plotted with default settings.
 #
-#     The plot is written to <case>-new.ps in the current directory, for
-#     comparison with the reference in fixtures/plot/expected.
+#     The plot is written to <case>-new.ps in the current directory, to be
+#     looked at.  The references in fixtures/plot/expected are SVG, written by
+#     the grid_ tests' logging GRF module and compared automatically by them, so
+#     there is no PostScript reference to diff this against; open both if you
+#     want to compare by eye.
 #-
 
 if( "$1" == "" ) then

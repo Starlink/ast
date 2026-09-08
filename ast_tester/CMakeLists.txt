@@ -11,8 +11,12 @@ include(CheckCSourceRuns)
 # $LDFLAGS, and the --disable-new-dtags flag forces RPATH which is
 # searched before LD_LIBRARY_PATH).  Prepending -rpath for the build
 # directory puts it first in the RPATH list.
-set(CMAKE_EXE_LINKER_FLAGS
-    "-Wl,-rpath,${CMAKE_BINARY_DIR} ${CMAKE_EXE_LINKER_FLAGS}")
+#
+# This is an ELF RPATH-precedence workaround and only applies to GNU ld.
+if(NOT APPLE)
+    set(CMAKE_EXE_LINKER_FLAGS
+        "-Wl,-rpath,${CMAKE_BINARY_DIR} ${CMAKE_EXE_LINKER_FLAGS}")
+endif()
 
 # Common include directories for all tests
 set(TEST_INCLUDES
@@ -21,8 +25,7 @@ set(TEST_INCLUDES
     "${CMAKE_CURRENT_SOURCE_DIR}/../wcslib"   # wcslib headers
     "${CMAKE_BINARY_DIR}"                     # generated ast.h, ast_err.h, config.h
     "${CMAKE_BINARY_DIR}/src"                 # generated version.h, object.h
-    "${CMAKE_SOURCE_DIR}/cmake"               # sae_par.h stub
-    "${CMAKE_SOURCE_DIR}/cmake/star"          # mers.h stub
+    "${CMAKE_CURRENT_SOURCE_DIR}/star_compat" # Starlink compatibility stubs
 )
 
 # Common link libraries for all tests.
@@ -47,6 +50,37 @@ set(TEST_LIBS
 # convention.
 set(AST_FIXTURE_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 set(AST_FIXTURE_BINARY_ROOT "${CMAKE_CURRENT_BINARY_DIR}/fixtures")
+
+# The distribution tier, written into a tarball by the dist hook and absent from
+# a git checkout.  It is what lets a missing fixture be read as a deliberate
+# omission rather than as a typo in a manifest.
+set(AST_DIST_TIER "")
+if(EXISTS "${AST_FIXTURE_SOURCE_ROOT}/DIST_TIER")
+    file(READ "${AST_FIXTURE_SOURCE_ROOT}/DIST_TIER" AST_DIST_TIER)
+    string(STRIP "${AST_DIST_TIER}" AST_DIST_TIER)
+endif()
+
+# A cut-down distribution without its manifest cannot distinguish a fixture left
+# out on purpose from one that went missing, so every omission would look
+# deliberate and the packaging check would quietly stop working.  Refuse instead.
+if(AST_DIST_TIER STREQUAL "cutdown" AND
+   NOT EXISTS "${AST_FIXTURE_SOURCE_ROOT}/DIST_MANIFEST")
+    message(FATAL_ERROR
+        "fixtures/DIST_TIER says cutdown but fixtures/DIST_MANIFEST is missing; "
+        "this distribution is malformed")
+endif()
+
+# The default tier's keep-set.  Comments and blank lines are dropped.
+set(AST_DIST_MANIFEST_PATTERNS "")
+if(EXISTS "${AST_FIXTURE_SOURCE_ROOT}/DIST_MANIFEST")
+    file(STRINGS "${AST_FIXTURE_SOURCE_ROOT}/DIST_MANIFEST" _dm_lines)
+    foreach(_line IN LISTS _dm_lines)
+        string(STRIP "${_line}" _line)
+        if(NOT _line STREQUAL "" AND NOT _line MATCHES "^#")
+            list(APPEND AST_DIST_MANIFEST_PATTERNS "${_line}")
+        endif()
+    endforeach()
+endif()
 
 # Copy the whole tree in one build-time rule rather than one configure_file()
 # per fixture: a configure_file() would make every one of the ~1200 fixtures a
@@ -78,11 +112,87 @@ add_custom_target(ast_stage_fixtures ALL DEPENDS "${_ast_fixture_stamp}")
 # these paths gave this check as a side effect; without it a typo in a
 # cases.txt surfaces only as a harness failure part-way through a ctest run,
 # with nothing to say the file was never there.
-function(ast_require_fixture manifest relative_path)
-    if(NOT EXISTS "${AST_FIXTURE_SOURCE_ROOT}/${relative_path}")
+# TRUE in out_var when "relative_path" matches a DIST_MANIFEST entry.  A pattern
+# ending in "/" is a directory prefix; anything else is a glob in which "*" does
+# not cross a "/".
+function(ast_manifest_covers relative_path out_var)
+    foreach(_pat IN LISTS AST_DIST_MANIFEST_PATTERNS)
+        if(_pat MATCHES "/$")
+            string(LENGTH "${_pat}" _n)
+            string(LENGTH "${relative_path}" _rn)
+            if(NOT _rn LESS _n)
+                string(SUBSTRING "${relative_path}" 0 ${_n} _head)
+                if(_head STREQUAL "${_pat}")
+                    set(${out_var} TRUE PARENT_SCOPE)
+                    return()
+                endif()
+            endif()
+        else()
+            string(REPLACE "." "\\." _re "${_pat}")
+            string(REPLACE "*" "[^/]*" _re "${_re}")
+            if(relative_path MATCHES "^${_re}$")
+                set(${out_var} TRUE PARENT_SCOPE)
+                return()
+            endif()
+        endif()
+    endforeach()
+    set(${out_var} FALSE PARENT_SCOPE)
+endfunction()
+
+# Classify a fixture named by a manifest.  Sets out_var TRUE when it is present,
+# FALSE when it was deliberately left out of a cut-down distribution, and fails
+# the configure otherwise.
+#
+# The FATAL_ERROR cases matter as much as the skip.  A typo in a cases.txt used
+# to surface only as a harness failure part-way through a ctest run, with
+# nothing to say the file was never there, and a git checkout -- where typos are
+# actually introduced -- keeps exactly that strictness.  A fixture the manifest
+# says should have shipped but did not is a packaging defect and is likewise
+# fatal, so the relaxation covers only files the manifest agrees are absent on
+# purpose.
+function(ast_fixture_status manifest relative_path out_var)
+    if(EXISTS "${AST_FIXTURE_SOURCE_ROOT}/${relative_path}")
+        set(${out_var} TRUE PARENT_SCOPE)
+        return()
+    endif()
+    if(NOT AST_DIST_TIER STREQUAL "cutdown")
         message(FATAL_ERROR
             "${manifest}: no such fixture: fixtures/${relative_path}")
     endif()
+    ast_manifest_covers("${relative_path}" _covered)
+    if(_covered)
+        message(FATAL_ERROR
+            "${manifest}: fixtures/${relative_path} matches a DIST_MANIFEST "
+            "entry but is missing from this distribution")
+    endif()
+    set(${out_var} FALSE PARENT_SCOPE)
+endfunction()
+
+# Retained for call sites that cannot yet skip.
+function(ast_require_fixture manifest relative_path)
+    ast_fixture_status("${manifest}" "${relative_path}" _ok)
+    if(NOT _ok)
+        message(FATAL_ERROR
+            "${manifest}: fixtures/${relative_path} is not distributed, and "
+            "this call site cannot skip")
+    endif()
+endfunction()
+
+# Register a test that cannot run because its fixture is not distributed.
+#
+# DISABLED rather than SKIP_RETURN_CODE: the latter needs the test to run and
+# return the code, which a test with no input cannot do without a stub program.
+# ctest names a disabled test under "the following tests did not run", so the
+# count stays visible instead of the suite silently shrinking.
+function(ast_add_skipped_test name)
+    add_test(NAME ${name} COMMAND "${CMAKE_COMMAND}" -E true)
+    set_tests_properties(${name} PROPERTIES DISABLED TRUE)
+    get_property(_n GLOBAL PROPERTY AST_SKIPPED_TEST_COUNT)
+    if(NOT _n)
+        set(_n 0)
+    endif()
+    math(EXPR _n "${_n} + 1")
+    set_property(GLOBAL PROPERTY AST_SKIPPED_TEST_COUNT ${_n})
 endfunction()
 
 # Helper function to add a test executable
@@ -107,12 +217,20 @@ function(ast_add_test name)
     add_dependencies(${name} ast_stage_fixtures)
     add_test(NAME ${name} COMMAND ${name} ${T_TEST_ARGS}
              WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+    set(test_env "")
     # AST's memory system intentionally caches freed blocks for reuse,
     # so LeakSanitizer reports false positives. Disable leak detection.
     if(AST_ENABLE_SANITIZERS)
-        set_tests_properties(${name} PROPERTIES
-            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+        list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
     endif()
+
+    # Tests locate their input fixture files relative to $srcdir, so point it
+    # at the source directory where those fixtures live.
+    list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
+
+    set_tests_properties(${name} PROPERTIES
+        ENVIRONMENT "${test_env}")
 endfunction()
 
 # Read a pipe-delimited text file into a list of encoded records.
@@ -174,26 +292,34 @@ add_test(NAME transform_oracle_selftest
          COMMAND check_transform_oracle --selftest)
 set(_oracle_overrides
     "${AST_FIXTURE_BINARY_ROOT}/oracle/transform_oracle_overrides.txt")
-add_test(NAME transform_oracle_simplify
-         COMMAND check_transform_oracle
-                 "${AST_FIXTURE_BINARY_ROOT}"
-                 "${AST_FIXTURE_BINARY_ROOT}/oracle/simplify_fixtures.oracle"
-                 "${_oracle_overrides}")
-add_test(NAME transform_oracle_headers
-         COMMAND check_transform_oracle
-                 "${AST_FIXTURE_BINARY_ROOT}"
-                 "${AST_FIXTURE_BINARY_ROOT}/oracle/headers.oracle"
-                 "${_oracle_overrides}")
-add_test(NAME transform_oracle_framesets
-         COMMAND check_transform_oracle
-                 "${AST_FIXTURE_BINARY_ROOT}"
-                 "${AST_FIXTURE_BINARY_ROOT}/oracle/framesets.oracle"
-                 "${_oracle_overrides}")
-if(AST_ENABLE_SANITIZERS)
-    set_tests_properties(transform_oracle_simplify transform_oracle_headers
-                         transform_oracle_framesets
-        PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
-endif()
+# Each oracle is gated on its own file: the default distribution carries the
+# header oracle and not the other two.  Gated through ast_fixture_status rather
+# than a bare EXISTS so that headers.oracle, which DIST_MANIFEST does ship, is a
+# packaging defect when missing rather than a silent skip.
+#
+# The file name and the test name differ for one of them: the oracle file is
+# simplify_fixtures.oracle but the test has always been transform_oracle_simplify.
+foreach(_orc simplify_fixtures headers framesets)
+    if(_orc STREQUAL "simplify_fixtures")
+        set(_tname "simplify")
+    else()
+        set(_tname "${_orc}")
+    endif()
+    ast_fixture_status("oracle" "oracle/${_orc}.oracle" _orc_ok)
+    if(_orc_ok)
+        add_test(NAME transform_oracle_${_tname}
+                 COMMAND check_transform_oracle
+                         "${AST_FIXTURE_BINARY_ROOT}"
+                         "${AST_FIXTURE_BINARY_ROOT}/oracle/${_orc}.oracle"
+                         "${_oracle_overrides}")
+        if(AST_ENABLE_SANITIZERS)
+            set_tests_properties(transform_oracle_${_tname} PROPERTIES
+                ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+        endif()
+    else()
+        ast_add_skipped_test(transform_oracle_${_tname})
+    endif()
+endforeach()
 
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)
@@ -210,33 +336,33 @@ ast_add_test(testsplinemap_c)
 
 # --- Conditional tests ---
 # --- Fortran tests converted to C (Batch 1) ---
-ast_add_test(testzoommap)
+ast_add_test(testzoommap_c    SOURCES testzoommap.c)
 ast_add_test(testimmutable)
-ast_add_test(testnormmap)
-ast_add_test(testmapping)
-ast_add_test(testskyframe)
-ast_add_test(testcmpframe)
-ast_add_test(testlutmap)
-ast_add_test(testratemap)
-ast_add_test(testchannel)
+ast_add_test(testnormmap_c    SOURCES testnormmap.c)
+ast_add_test(testmapping_c    SOURCES testmapping.c)
+ast_add_test(testskyframe_c   SOURCES testskyframe.c)
+ast_add_test(testcmpframe_c   SOURCES testcmpframe.c)
+ast_add_test(testlutmap_c     SOURCES testlutmap.c)
+ast_add_test(testratemap_c    SOURCES testratemap.c)
+ast_add_test(testchannel_c    SOURCES testchannel.c)
 
 # --- Fortran tests converted to C (Batch 2) ---
-ast_add_test(testrate)
-ast_add_test(testspecframe)
-ast_add_test(testflux)
-ast_add_test(testspecflux)
-ast_add_test(testcmpmap)
-ast_add_test(testpolymap)
-ast_add_test(testchebymap)
+ast_add_test(testrate_c       SOURCES testrate.c)
+ast_add_test(testspecframe_c  SOURCES testspecframe.c)
+ast_add_test(testflux_c       SOURCES testflux.c)
+ast_add_test(testspecflux_c   SOURCES testspecflux.c)
+ast_add_test(testcmpmap_c     SOURCES testcmpmap.c)
+ast_add_test(testpolymap_c    SOURCES testpolymap.c)
+ast_add_test(testchebymap_c   SOURCES testchebymap.c)
 ast_add_test(testunitnormmap_c SOURCES testunitnormmap.c)
-ast_add_test(testtrangrid)
-ast_add_test(testmoc)
-ast_add_test(testfitstable)
-ast_add_test(testframeset)
-ast_add_test(testswitchmap)
-ast_add_test(testtime)
-ast_add_test(testkeymap)
-ast_add_test(testmocchan)
+ast_add_test(testtrangrid_c   SOURCES testtrangrid.c)
+ast_add_test(testmoc_c        SOURCES testmoc.c)
+ast_add_test(testfitstable_c  SOURCES testfitstable.c)
+ast_add_test(testframeset_c   SOURCES testframeset.c)
+ast_add_test(testswitchmap_c  SOURCES testswitchmap.c)
+ast_add_test(testtime_c       SOURCES testtime.c)
+ast_add_test(testkeymap_c     SOURCES testkeymap.c)
+ast_add_test(testmocchan_c    SOURCES testmocchan.c)
 ast_add_test(testxmlchan_c SOURCES testxmlchan.c)
 ast_add_test(testtable_c SOURCES testtable.c)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
@@ -301,8 +427,15 @@ function(add_wcsconv_test)
     if(NOT DEFINED W_ATTRS)
         set(W_ATTRS "")
     endif()
-    ast_require_fixture("wcsconv/cases.txt" "${W_INPUT}")
-    ast_require_fixture("wcsconv/cases.txt" "${W_REFERENCE}")
+    ast_fixture_status("wcsconv/cases.txt" "${W_INPUT}" _in_ok)
+    ast_fixture_status("wcsconv/cases.txt" "${W_REFERENCE}" _ref_ok)
+    if(NOT _in_ok OR NOT _ref_ok)
+        if(NOT W_SKIP_STRING_COMPARE)
+            ast_add_skipped_test(wcsconv_${W_NAME})
+        endif()
+        ast_add_skipped_test(wcsconv_${W_NAME}_astequal)
+        return()
+    endif()
     set(_input "fixtures/${W_INPUT}")
     set(_reference "fixtures/${W_REFERENCE}")
 
@@ -415,7 +548,11 @@ function(add_roundtrip_test)
     if(NOT R_NAME OR NOT R_FIXTURE)
         message(FATAL_ERROR "add_roundtrip_test: NAME and FIXTURE required")
     endif()
-    ast_require_fixture("roundtrip" "${R_FIXTURE}")
+    ast_fixture_status("roundtrip" "${R_FIXTURE}" _rt_ok)
+    if(NOT _rt_ok)
+        ast_add_skipped_test(roundtrip_${R_NAME})
+        return()
+    endif()
     add_test(NAME roundtrip_${R_NAME}
         COMMAND "${CMAKE_COMMAND}"
                 -DROUNDTRIP=$<TARGET_FILE:roundtrip>
@@ -465,19 +602,26 @@ ast_apply_dev_options(gen_keymap_mapsz)
 # fixture is written for a port to be held to, and a capture nothing re-checks
 # stops being evidence the moment KeyMap's growth policy changes.  Byte-exact,
 # because every value is integer arithmetic over ASCII keys.
-ast_require_fixture("keymap_mapsz" "oracle/keymap_mapsz.txt")
-add_test(NAME keymap_mapsz
-    COMMAND "${CMAKE_COMMAND}"
-            -DGENERATOR=$<TARGET_FILE:gen_keymap_mapsz>
-            -DREF_FILE=${AST_FIXTURE_BINARY_ROOT}/oracle/keymap_mapsz.txt
-            -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/keymap_mapsz.out
-            -P "${CMAKE_SOURCE_DIR}/cmake/run_keymap_mapsz_test.cmake"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-add_dependencies(gen_keymap_mapsz ast_stage_fixtures)
-if(AST_ENABLE_SANITIZERS)
-    set_tests_properties(keymap_mapsz PROPERTIES
-        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+# Not distributed: this holds the library to a committed capture of KeyMap's
+# growth policy, which is a developer concern and cannot be affected by an end
+# user's build.
+ast_fixture_status("keymap_mapsz" "oracle/keymap_mapsz.txt" _km_ok)
+if(_km_ok)
+    add_test(NAME keymap_mapsz
+        COMMAND "${CMAKE_COMMAND}"
+                -DGENERATOR=$<TARGET_FILE:gen_keymap_mapsz>
+                -DREF_FILE=${AST_FIXTURE_BINARY_ROOT}/oracle/keymap_mapsz.txt
+                -DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/keymap_mapsz.out
+                -P "${CMAKE_SOURCE_DIR}/cmake/run_keymap_mapsz_test.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+    if(AST_ENABLE_SANITIZERS)
+        set_tests_properties(keymap_mapsz PROPERTIES
+            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+    endif()
+else()
+    ast_add_skipped_test(keymap_mapsz)
 endif()
+add_dependencies(gen_keymap_mapsz ast_stage_fixtures)
 
 add_executable(gen_frameset_fixtures gen_frameset_fixtures.c)
 target_include_directories(gen_frameset_fixtures PRIVATE ${TEST_INCLUDES})
@@ -537,8 +681,18 @@ function(add_simplify_test)
         message(FATAL_ERROR
             "add_simplify_test: NAME, INPUT, REFERENCE all required")
     endif()
-    ast_require_fixture("simplify/cases.txt" "${S_INPUT}")
-    ast_require_fixture("simplify/cases.txt" "${S_REFERENCE}")
+    ast_fixture_status("simplify/cases.txt" "${S_INPUT}" _in_ok)
+    ast_fixture_status("simplify/cases.txt" "${S_REFERENCE}" _ref_ok)
+    if(NOT _in_ok OR NOT _ref_ok)
+        if(NOT S_SKIP_STRING_COMPARE)
+            ast_add_skipped_test(simplify_${S_NAME})
+        endif()
+        if(S_INPUT STREQUAL S_REFERENCE)
+            ast_add_skipped_test(simplify_${S_NAME}_noop)
+        endif()
+        ast_add_skipped_test(simplify_${S_NAME}_astequal)
+        return()
+    endif()
     set(_input "fixtures/${S_INPUT}")
     set(_reference "fixtures/${S_REFERENCE}")
 
@@ -789,19 +943,20 @@ if(PLPLOT_FOUND)
         SOURCES testplotter.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
-        TEST_ARGS "fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.ps"
+        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.ps"
     )
     target_include_directories(testplotter PRIVATE ${PLPLOT_INCLUDE_DIRS})
     target_link_directories(testplotter PRIVATE ${PLPLOT_LIBRARY_DIRS})
 
-    ast_add_test(testplot3d
+    ast_add_test(testplot3d_c
         SOURCES testplot3d.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
+        SOURCES testplot3d.c
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
         TEST_ARGS "testplot3d.pdf"
     )
-    target_include_directories(testplot3d PRIVATE ${PLPLOT_INCLUDE_DIRS})
-    target_link_directories(testplot3d PRIVATE ${PLPLOT_LIBRARY_DIRS})
+    target_include_directories(testplot3d_c PRIVATE ${PLPLOT_INCLUDE_DIRS})
+    target_link_directories(testplot3d_c PRIVATE ${PLPLOT_LIBRARY_DIRS})
 
     # --- Plotter smoke tests ---
     # Run testplotter using the inline settings in fixtures/plot/cases.txt.
@@ -879,3 +1034,163 @@ if(PLPLOT_FOUND)
     endforeach()
 endif()
 
+
+# ============================================================
+# Fortran tests (AST_BUILD_FORTRAN=ON only)
+# ============================================================
+# These run the original Fortran test programs against the Fortran binding,
+# complementing the C equivalents above.  Each test is suffixed _f to
+# distinguish it from the C version in ctest output.
+if(AST_BUILD_FORTRAN)
+
+    # Minimal C implementations of the Starlink APIs called by the Fortran
+    # tests (EMS error handling, PSX memory, CNF C/Fortran interface, etc.).
+    add_library(ast_star_compat STATIC
+        star_compat/err_standalone.c
+        star_compat/psx_standalone.c
+        star_compat/chr_standalone.c
+        star_compat/cnf_standalone.c
+        star_compat/num_standalone.c
+    )
+    target_include_directories(ast_star_compat PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/star_compat"
+        "${CMAKE_BINARY_DIR}"       # config.h, ast_err.h
+        "${CMAKE_BINARY_DIR}/src"   # f77.h (generated from f77.h.in)
+    )
+    target_compile_definitions(ast_star_compat PRIVATE HAVE_CONFIG_H)
+    # Instrumented like every other C target here: these stubs stand in for
+    # Starlink's memory and string routines, which is exactly the code a
+    # sanitizer build wants watched.
+    if(AST_SANITIZER_COMPILE_FLAGS)
+        target_compile_options(ast_star_compat PRIVATE ${AST_SANITIZER_COMPILE_FLAGS})
+    endif()
+
+    # Helper: add a Fortran test program and register it with ctest.
+    # Test names get a _f suffix to distinguish from C equivalents.
+    # The Fortran INCLUDE search path covers:
+    #   - star_compat/  : SAE_PAR, SAI_ERR, CNF_PAR, ERR_PAR, etc.
+    #   - CMAKE_BINARY_DIR : generated AST_PAR and AST_ERR
+    function(ast_add_fortran_test name)
+        cmake_parse_arguments(FT "NO_DEFAULT_GRF_LIBS" "" "EXTRA_LIBS;TEST_ARGS" ${ARGN})
+        add_executable(${name}_f ${name}.f)
+        if(AST_FORTRAN_TEST_FLAGS)
+            target_compile_options(${name}_f PRIVATE
+                $<$<COMPILE_LANGUAGE:Fortran>:${AST_FORTRAN_TEST_FLAGS}>
+            )
+        endif()
+        target_include_directories(${name}_f PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/star_compat"
+            "${CMAKE_BINARY_DIR}"   # AST_PAR, AST_ERR
+        )
+        if(FT_NO_DEFAULT_GRF_LIBS)
+            set(_grf_libs
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
+                ${FT_EXTRA_LIBS}
+            )
+        else()
+            set(_grf_libs
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_2.0>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_3.2>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_5.6>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
+                ${FT_EXTRA_LIBS}
+            )
+        endif()
+        if(AST_FORTRAN_SANITIZER_FLAGS)
+            target_compile_options(${name}_f PRIVATE
+                $<$<COMPILE_LANGUAGE:Fortran>:${AST_FORTRAN_SANITIZER_FLAGS}>
+            )
+            # The link is the part that matters: libast and the grf modules
+            # carry __asan_* references that only the sanitizer runtime
+            # resolves, and the Fortran driver does not add it by itself.
+            target_link_options(${name}_f PRIVATE ${AST_FORTRAN_SANITIZER_FLAGS})
+        endif()
+        target_link_libraries(${name}_f PRIVATE
+            ast
+            ${_grf_libs}
+            ast_star_compat
+            m
+        )
+        add_test(NAME ${name}_f COMMAND ${name}_f ${FT_TEST_ARGS}
+                 WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+        set(test_env "")
+        if(AST_ENABLE_SANITIZERS)
+            list(APPEND test_env "ASAN_OPTIONS=detect_leaks=0")
+        endif()
+
+        # Tests locate their input fixture files relative to $srcdir, so point
+        # it at the source directory where those fixtures live.
+        list(APPEND test_env "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
+
+        set_tests_properties(${name}_f PROPERTIES
+            ENVIRONMENT "${test_env}")
+        endfunction()
+
+    # Custom target that ensures AST_PAR and AST_ERR exist before any
+    # Fortran test is compiled (they are Fortran INCLUDE files).
+    # ast_par and ast_codegen are defined in the top-level CMakeLists.txt.
+    add_custom_target(ast_fortran_includes)
+    add_dependencies(ast_fortran_includes ast_par ast_codegen)
+
+    # All 33 unconditional Fortran test programs
+    set(_fortran_tests
+        testzoommap
+        testnormmap
+        testmapping
+        testskyframe
+        testcmpframe
+        testlutmap
+        testratemap
+        testchannel
+        testrate
+        testspecframe
+        testflux
+        testspecflux
+        testcmpmap
+        testpolymap
+        testchebymap
+        testunitnormmap
+        testtrangrid
+        testmoc
+        testfitstable
+        testframeset
+        testswitchmap
+        testtime
+        testkeymap
+        testmocchan
+        testxmlchan
+        testtable
+        teststcschan
+        testregions
+        testrebinseq
+        testrebin
+        teststc
+        testfitschan
+        testsplinemap
+    )
+    foreach(_f_test IN LISTS _fortran_tests)
+        ast_add_fortran_test(${_f_test})
+        add_dependencies(${_f_test}_f ast_fortran_includes)
+    endforeach()
+
+    if(AST_ENABLE_HUGE_TEST)
+        ast_add_fortran_test(testhuge)
+        add_dependencies(testhuge_f ast_fortran_includes)
+    endif()
+endif() # AST_BUILD_FORTRAN
+
+# Say once, at configure time, that this is a cut-down distribution and how much
+# of the suite it cannot run.  Without this the only clue would be a smaller test
+# count, which is exactly the question someone running the tests from a tarball
+# needs answered.
+get_property(_ast_skipped GLOBAL PROPERTY AST_SKIPPED_TEST_COUNT)
+if(_ast_skipped)
+    message(STATUS
+        "AST test fixtures: cut-down distribution (fixtures/DIST_TIER)")
+    message(STATUS
+        "  ${_ast_skipped} tests disabled: fixtures not distributed")
+    message(STATUS
+        "  use `make fulldist` from a git checkout for the full corpus")
+endif()

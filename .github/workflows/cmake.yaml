@@ -2,9 +2,19 @@ name: CMake Build and Test
 
 on:
   push:
-    branches: [master]
+    branches: ['**']
   pull_request:
-    branches: [master]
+  workflow_dispatch:
+
+#  Every push to a branch is checked, and so is every pull request -- the
+#  latter so that forks are covered too, since a fork's push never reaches
+#  this repository.  For a branch in this repository with an open pull request
+#  that does mean two runs of the same commit; the concurrency group below at
+#  least cancels runs a newer push has superseded, except on master where the
+#  completed record is worth keeping.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   build:
@@ -48,6 +58,21 @@ jobs:
             shared_libs: ON
             fortran: OFF
             sanitizers: ON
+          # Sanitizers with the Fortran tests built, which is the only way the
+          # F77 wrappers and the Fortran test programs get sanitizer coverage
+          # at all -- every other job either omits Fortran or omits the
+          # sanitizers.  It found a read past the end of a non-terminated
+          # Fortran string in astAddMocText the first time it ran.
+          #
+          # Linux only: here the C and Fortran compilers are both GCC and so
+          # share one ASan runtime.  On macOS the C compiler is clang and the
+          # Fortran compiler is Homebrew gfortran, which would put clang's and
+          # GCC's runtimes in one process.
+          - os: ubuntu-latest
+            build_type: Debug
+            shared_libs: ON
+            fortran: ON
+            sanitizers: ON
           - os: macos-latest
             build_type: Debug
             shared_libs: ON
@@ -55,6 +80,14 @@ jobs:
             sanitizers: ON
 
     runs-on: ${{ matrix.os }}
+
+    #  A fork cannot upload to Codecov: secrets do not reach it, so its own push
+    #  runs have no CODECOV_TOKEN, and the tokenless path the action uses for a
+    #  pull request from a fork does not apply to a push.  The secret is exposed
+    #  as job-level env so the upload step's `if' can see whether there is one --
+    #  `if' cannot read the secrets context, nor a step's own env block.
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     steps:
       - uses: actions/checkout@v6
@@ -86,7 +119,11 @@ jobs:
         run: ctest --test-dir build --output-on-failure --output-junit build/junit.xml
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        #  Skip where no upload can succeed rather than failing the run: a push
+        #  to a fork.  A pull request from a fork still uploads, tokenlessly and
+        #  against the base repository, which is what covers those commits.
+        if: ${{ !cancelled()
+          && (env.CODECOV_TOKEN != '' || github.event.pull_request.head.repo.fork) }}
         uses: codecov/codecov-action@v6
         with:
           files: build/junit.xml

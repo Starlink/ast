@@ -11,7 +11,7 @@
 #                    do not.  Reproduce with -ffp-contract=off.
 # The attr, fattr and box columns are also the settings the legacy tcsh
 # harness passes to plotter.f, so a change here must be matched by
-# regenerating both the .svg and the .ps references in plot/expected/.
+# regenerating the .svg references in plot/expected/.
 aitoff | wcsconv/inputs/aitoff.head | Grid=1,tickall=0,border=1,tol=0.001 |  | 10.0 -10.0 300.0 280.0 | plot/expected/aitoff.svg |
 car1 | wcsconv/inputs/car1.head | numlabgap=0.05 | carlin=1 | 0 0 2962 562 | plot/expected/car1.svg |
 car2 | wcsconv/inputs/car2.head | numlabgap(2)=0.05,labelling=interior | carlin=1 | 0 0 2962 562 | plot/expected/car2.svg |

@@ -1705,7 +1705,7 @@ c      end if
       end
 
 
-      subroutine puteg( flnam, ifl, status )
+      subroutine puteg( file, ifl, status )
       implicit none
 
       include 'SAE_PAR'
@@ -1713,11 +1713,24 @@ c      end if
       include 'teststc_com'
 
       integer status, ifl
-      character flnam*(*)
+      character file*(*)
+      integer len, chr_len, getenv_status
+      character srcdir*255
+      character path*255
 
       if( status .ne. sai__ok ) return
 
-      open( file=flnam, status='old', unit=10 )
+      getenv_status = sai__ok
+      call err_mark
+      call psx_getenv( 'srcdir', srcdir, getenv_status )
+      if ( getenv_status .ne. sai__ok ) then
+         call err_annul( getenv_status )
+         srcdir = '.'
+      end if
+      call err_rlse
+      len = chr_len( srcdir )
+
+      open( 10, status='old', file=srcdir(1:len)//'/'//file )
 
       iline = 1
  10   continue

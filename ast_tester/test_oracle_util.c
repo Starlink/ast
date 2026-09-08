@@ -113,10 +113,15 @@ static void test_format_parse(void) {
 static void test_load_mapping(void) {
     const char *root = getenv("ORACLE_TEST_ROOT");
     if (!root) { fprintf(stderr, "skip test_load_mapping (no ORACLE_TEST_ROOT)\n"); return; }
+    /* Two fixtures, to cover both branches of oracle_load_mapping: a native
+       dump read through a Channel, and a FITS header read through a FitsChan.
+       Both must be ones the default distribution carries, so that this
+       self-test still runs from a tarball -- hence programs/ rather than a
+       simplify fixture, which ships only with the full corpus. */
     AstMapping *m1 = oracle_load_mapping(
-        root, "simplify/matrix_diagonal_to_zoom.map", NULL, NULL);
+        root, "programs/testcmpmap/splittest1.ast", NULL, NULL);
     CHECK(m1 != NULL);
-    if (m1) { CHECK(astGetI(m1, "Nin") == 2); m1 = astAnnul(m1); }
+    if (m1) { CHECK(astGetI(m1, "Nin") == 4); m1 = astAnnul(m1); }
     AstFrame *base = NULL, *cur = NULL;
     AstMapping *m2 = oracle_load_mapping(
         root, "wcsconv/inputs/cobe.head", &base, &cur);

@@ -1,0 +1,204 @@
+name: GNU Autotools Build and Test
+
+on:
+  push:
+    branches: ['**']
+    tags: '*'
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      make_flags:
+        description: Extra flags to pass to make
+        required: false
+
+#  Every push to a branch is checked, and so is every pull request -- the
+#  latter so that forks are covered too, since a fork's push never reaches
+#  this repository.  For a branch in this repository with an open pull request
+#  that does mean two runs of the same commit; the concurrency group below at
+#  least cancels runs a newer push has superseded, except on master where the
+#  completed record is worth keeping.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  build-and-test:
+    name: Build and run `make check`
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          #  `dist' selects the job that verifies the distribution: cutting a
+          #  tarball, building it with both toolchains and cutting the full
+          #  archive.  Those steps are platform-independent -- they check which
+          #  files arrived and what the suite does when some are missing -- and
+          #  on macOS they cost more than twice what they do here, so one job
+          #  runs them and the other stops after `make check'.
+          - os: macos-latest
+            cc: clang
+            f77: flang
+          - os: ubuntu-latest
+            cc: gcc
+            f77: gfortran
+            dist: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            libtool \
+            build-essential \
+            gfortran \
+            libyaml-dev
+
+          if [ "${{ matrix.cc }}" = "clang" ]; then
+            sudo apt-get install -y clang
+          fi
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install \
+            autoconf \
+            automake \
+            libtool \
+            libyaml \
+            flang
+
+      - name: Setup ccache action
+        uses: Chocobo1/setup-ccache-action@v1.5.1
+
+      - name: Bootstrap autotools
+        run: ./bootstrap.local
+
+      # Homebrew installs outside the compiler's default search paths, so
+      # libyaml has to be pointed at explicitly
+      - name: Configure (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./configure CC=${{ matrix.cc }} \
+            FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
+            --with-yaml="$(brew --prefix libyaml)"
+
+      - name: Configure (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          ./configure CC=${{ matrix.cc }} \
+            FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
+
+      # If make fails re-run with V=1 so we can inspect
+      - name: Build
+        run: |
+          make ${{ github.event.inputs.make_flags }} || \
+          make ${{ github.event.inputs.make_flags }} V=1
+
+      - name: Check
+        run: make check ${{ github.event.inputs.make_flags }}
+
+      - name: Output test logs on failure
+        if: failure()
+        run: |
+          tail -n +1 ast_tester/*.log
+
+      #  The dist hook is shell, and shell is where the platforms differ: BSD
+      #  mktemp, sed and find have all needed accommodating (see dist-fixtures.sh).
+      #  Nothing else in this workflow runs that code under BSD tools, so the job
+      #  that skips the distribution checks still cuts a tarball -- the hook's own
+      #  guards fail the step, and the two assertions catch a fixture set selected
+      #  differently rather than not at all.  Seconds, against the minutes a full
+      #  distcheck costs here.
+      - name: Cut a tarball
+        if: ${{ !matrix.dist }}
+        run: |
+          make dist ${{ github.event.inputs.make_flags }}
+          rm -rf tarball-tier && mkdir tarball-tier
+          tar xzf ast-*.tar.gz -C tarball-tier --strip-components=1
+          grep -qx cutdown tarball-tier/ast_tester/fixtures/DIST_TIER
+          test ! -d tarball-tier/ast_tester/fixtures/wcsconv/expected
+
+      - name: Distcheck
+        if: ${{ matrix.dist }}
+        run: make distcheck ${{ github.event.inputs.make_flags }}
+
+      # The tarball must also build with CMake -- that is what catches a file
+      # the CMake build needs but the distribution forgot.  It runs here rather
+      # than inside `make distcheck' so that cutting a release needs only the
+      # autotools; CI has both toolchains anyway.  Fortran stays off: the point
+      # is whether every file arrived, and the flang job would otherwise fail
+      # here for unrelated reasons.
+      - name: Build the distribution tarball with CMake
+        if: ${{ matrix.dist }}
+        run: |
+          rm -rf tarball-cmake
+          mkdir tarball-cmake
+          tar xzf ast-*.tar.gz -C tarball-cmake --strip-components=1
+          # The default tarball carries a cut-down fixture set, and the CMake
+          # build must read that from DIST_TIER and skip accordingly rather than
+          # failing.  Assert the shape before building, so a dist hook that
+          # silently reverted to shipping everything is caught here.
+          grep -qx cutdown tarball-cmake/ast_tester/fixtures/DIST_TIER
+          test -f tarball-cmake/ast_tester/fixtures/DIST_MANIFEST
+          test ! -d tarball-cmake/ast_tester/fixtures/wcsconv/expected
+          test ! -d tarball-cmake/ast_tester/fixtures/wcsconv/framesets
+          size=$(du -sk tarball-cmake/ast_tester/fixtures | cut -f1)
+          echo "fixture tree in tarball: ${size}K"
+          test "$size" -lt 8000 \
+            || { echo "cut-down fixture tree unexpectedly large" >&2; exit 1; }
+          cmake -S tarball-cmake -B tarball-cmake/_build \
+            -DCMAKE_BUILD_TYPE=Release -DAST_C_STANDARD=11
+          cmake --build tarball-cmake/_build --parallel
+          ctest --test-dir tarball-cmake/_build --output-on-failure
+          # The disabled tests are the point: the suite must report what it
+          # cannot run, not silently shrink.
+          ctest --test-dir tarball-cmake/_build -N | tail -2
+
+      # The autotools suite must adapt to the cut-down fixture set too: the .tap
+      # producers report a skipped plan rather than failing every row.  A tarball
+      # already carries configure, so there is no bootstrap here.
+      - name: Run make check inside the distribution tarball
+        if: ${{ matrix.dist }}
+        run: |
+          rm -rf tarball-am && mkdir tarball-am
+          tar xzf ast-*.tar.gz -C tarball-am --strip-components=1
+          cd tarball-am
+          if [ "$RUNNER_OS" = macOS ]; then
+            ./configure CC=${{ matrix.cc }} \
+              FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
+              --with-yaml="$(brew --prefix libyaml)"
+          else
+            ./configure CC=${{ matrix.cc }} \
+              FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
+          fi
+          make -j3
+          make check
+          echo "--- families reported as skipped ---"
+          grep -l 'SKIP' ast_tester/*.log || true
+
+      # fulldist covers the other half: a release is verified against the full
+      # corpus, and nothing else builds that archive.  It runs last because it
+      # adds a second ast-*.tar.gz that the globs above would otherwise match.
+      - name: Build the full distribution
+        if: ${{ matrix.dist }}
+        run: |
+          make fulldist
+          ls ast-*-full.tar.gz
+          rm -rf tarball-full && mkdir tarball-full
+          tar xzf ast-*-full.tar.gz -C tarball-full --strip-components=1
+          grep -qx full tarball-full/ast_tester/fixtures/DIST_TIER
+          test -d tarball-full/ast_tester/fixtures/wcsconv/expected
+          test -d tarball-full/ast_tester/fixtures/simplify
+          cmake -S tarball-full -B tarball-full/_build \
+            -DCMAKE_BUILD_TYPE=Release -DAST_C_STANDARD=11
+          cmake --build tarball-full/_build --parallel
+          ctest --test-dir tarball-full/_build --output-on-failure

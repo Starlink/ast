@@ -576,9 +576,9 @@ c      call ast_activememory( 'testfitstable' )
 
       do i = 1, 9
 
-         do j = 1, 11
-            if( vals( start + j - 1 : start + j - 1 ) .lt. ' ' ) then
-               vals( start + j - 1 : start + j - 1 ) = ' '
+         do j = start, end
+            if( vals( j : j ) .lt. ' ' ) then
+               vals( j : j ) = ' '
             endif
          end do
 

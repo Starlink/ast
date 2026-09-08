@@ -231,19 +231,84 @@ if(AST_BUILD_FORTRAN)
     enable_language(Fortran)
 
     # Determine the type for trailing Fortran string lengths (TRAIL_TYPE).
-    # gfortran 8+ on 64-bit platforms passes hidden string lengths as
-    # size_t rather than int. Other compilers use int.
+    # gfortran 8 and later pass hidden string lengths as size_t rather than
+    # int, whatever the word size -- on a 32-bit target size_t is int-sized
+    # anyway, so gating this on a 64-bit build (as this used to) only made the
+    # answer disagree with the autotools builds for no benefit.
+    #
+    # Known gap, in both build systems: the Starlink macro additionally uses
+    # long for 64-bit Intel and Sun Fortran, and probes anything else non-GNU.
+    # Here, as in star_compat/starlink_compat.m4, non-GNU compilers get int.
     if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
-       AND CMAKE_SIZEOF_VOID_P EQUAL 8
        AND CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 8)
         set(TRAIL_TYPE "size_t")
     else()
         set(TRAIL_TYPE "int")
     endif()
 
-    # Check if Fortran compiler is f2c-compatible (affects REAL function return).
-    # Non-f2c compilers (i.e. nearly all modern compilers) return float.
+    # Does a Fortran REAL function return its result as a double, the way f2c
+    # does, or as a float?  This cannot be read off the compiler's identity: it
+    # is a property of the calling convention, and gfortran uses the f2c one
+    # only when given -ff2c.  So measure it, the same way the autotools build
+    # does (STAR_CNF_F2C_COMPATIBLE in star_compat/starlink_compat.m4): define
+    # a C function returning a float, call it from Fortran as a REAL function,
+    # and see what arrives.  A float-returning convention hands back the 1.0
+    # that was sent; a double-returning one reads the float's bits as a double
+    # and gets something else, which the probe detects by the result comparing
+    # equal to zero.
+    #
+    # Passing two sources of different languages to try_run() needs CMake 3.25;
+    # below that, keep the old assumption, which is right for every compiler
+    # not explicitly asked for the f2c convention.
     set(REAL_FUNCTION_TYPE "float")
+    if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
+       AND CMAKE_VERSION VERSION_LESS 3.25)
+        message(STATUS
+            "CMake < 3.25: assuming Fortran REAL functions return float "
+            "(configure with -ff2c and CMake 3.25+ to have this measured)")
+    elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU"
+           AND CMAKE_CROSSCOMPILING
+           AND NOT CMAKE_CROSSCOMPILING_EMULATOR)
+        message(STATUS
+            "Cross compiling without an emulator: assuming Fortran REAL "
+            "functions return float")
+    elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+        set(_f2c_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/f2c_probe")
+        file(WRITE "${_f2c_dir}/fred.c" "\
+float fred_() {
+   return 1.0f;
+}
+")
+        file(WRITE "${_f2c_dir}/f2ctest.f" "\
+      PROGRAM F2CTEST
+      REAL FRED
+      REAL R
+      R = FRED()
+      IF ( R .NE. 0.0 ) THEN
+         WRITE(*,*) 'no'
+      ELSE
+         WRITE(*,*) 'yes'
+      ENDIF
+      END
+")
+        try_run(AST_F2C_RUN_RESULT AST_F2C_COMPILE_RESULT
+            "${_f2c_dir}/build"
+            SOURCES "${_f2c_dir}/f2ctest.f" "${_f2c_dir}/fred.c"
+            RUN_OUTPUT_VARIABLE _f2c_output)
+        if(NOT AST_F2C_COMPILE_RESULT)
+            message(WARNING
+                "f2c compatibility probe would not build; assuming Fortran "
+                "REAL functions return float")
+        elseif(AST_F2C_RUN_RESULT STREQUAL "FAILED_TO_RUN")
+            message(WARNING
+                "f2c compatibility probe would not run; assuming Fortran "
+                "REAL functions return float")
+        elseif(_f2c_output MATCHES "yes")
+            set(REAL_FUNCTION_TYPE "double")
+        endif()
+        message(STATUS
+            "Fortran REAL functions return ${REAL_FUNCTION_TYPE}")
+    endif()
 
     # Determine the blank common symbol. gfortran 4+ uses __BLNK__,
     # other compilers typically use _BLNK__.
@@ -259,6 +324,47 @@ if(AST_BUILD_FORTRAN)
         "${CMAKE_CURRENT_BINARY_DIR}/src/f77.h"
         @ONLY
     )
+
+    # Check for optional Fortran compiler flags needed by the test programs.
+    include(CheckFortranCompilerFlag)
+    set(AST_FORTRAN_TEST_FLAGS "")
+    foreach(flag -fallow-argument-mismatch -fno-range-check -Wno-real-constant-widening)
+        string(MAKE_C_IDENTIFIER "HAVE_FC${flag}" varname)
+        check_fortran_compiler_flag("${flag}" ${varname})
+        if(${varname})
+            list(APPEND AST_FORTRAN_TEST_FLAGS "${flag}")
+        endif()
+    endforeach()
+
+    # The Fortran test programs are linked by the Fortran driver, which does not
+    # pull in the sanitizer runtime of its own accord.  libast and the grf
+    # modules they link are compiled with -fsanitize, so without the same flag
+    # on the Fortran link the __asan_* references in those objects go
+    # unresolved and every Fortran test fails to link.  The flags are probed
+    # against the Fortran compiler rather than assumed from the C one, because
+    # the two need not be from the same vendor -- flang against clang is a
+    # supported combination here.
+    #
+    # Each flag is probed with itself on the link line as well as the compile
+    # line, which is how it is used below.  check_fortran_compiler_flag alone
+    # only compiles with the flag, so a sanitizer flag always "fails" it: the
+    # probe object gets __asan_* references and then links without the runtime
+    # that defines them.
+    set(AST_FORTRAN_SANITIZER_FLAGS "")
+    foreach(flag ${AST_SANITIZER_COMPILE_FLAGS})
+        string(MAKE_C_IDENTIFIER "HAVE_FC${flag}" varname)
+        set(CMAKE_REQUIRED_LINK_OPTIONS "${flag}")
+        check_fortran_compiler_flag("${flag}" ${varname})
+        unset(CMAKE_REQUIRED_LINK_OPTIONS)
+        if(${varname})
+            list(APPEND AST_FORTRAN_SANITIZER_FLAGS "${flag}")
+        endif()
+    endforeach()
+    if(AST_ENABLE_SANITIZERS AND NOT AST_FORTRAN_SANITIZER_FLAGS)
+        message(WARNING
+            "AST_ENABLE_SANITIZERS is ON but ${CMAKE_Fortran_COMPILER_ID} Fortran "
+            "accepts none of the sanitizer flags; the Fortran tests will not link")
+    endif()
 endif()
 
 # ============================================================
@@ -331,16 +437,39 @@ configure_file(
 )
 
 # ============================================================
-# Generate ast_err.h from ast_err.msg
+# Build messgen (host tool) and generate ast_err.h / AST_ERR
 # ============================================================
+# messgen is built as a native host tool from the vendored source
+# (star_compat/messgen.c) and used at build time to generate the C
+# error-code header and, when Fortran support is enabled, the Fortran
+# include file.
+add_executable(messgen star_compat/messgen.c)
+# messgen.c is vendored upstream code; suppress the -Wformat-overflow warning
+# it triggers.
+include(CheckCCompilerFlag)
+check_c_compiler_flag(-Wno-format-overflow HAVE_WNO_FORMAT_OVERFLOW)
+if(HAVE_WNO_FORMAT_OVERFLOW)
+    target_compile_options(messgen PRIVATE -Wno-format-overflow)
+endif()
+
+if(AST_BUILD_FORTRAN)
+    set(MESSGEN_FLAGS -c -F)
+    set(MESSGEN_OUTPUTS
+        "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
+        "${CMAKE_CURRENT_BINARY_DIR}/AST_ERR"
+    )
+else()
+    set(MESSGEN_FLAGS -c)
+    set(MESSGEN_OUTPUTS
+        "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
+    )
+endif()
+
 add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
-    COMMAND ${CMAKE_COMMAND}
-        -DINPUT="${CMAKE_CURRENT_SOURCE_DIR}/ast_err.msg"
-        -DOUTPUT="${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_ast_err_h.cmake"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ast_err.msg"
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_ast_err_h.cmake"
+    OUTPUT ${MESSGEN_OUTPUTS}
+    COMMAND messgen ${MESSGEN_FLAGS} "${CMAKE_CURRENT_SOURCE_DIR}/ast_err.msg"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    DEPENDS messgen "${CMAKE_CURRENT_SOURCE_DIR}/ast_err.msg"
     COMMENT "Generating ast_err.h from ast_err.msg"
 )
 
@@ -474,11 +603,20 @@ add_custom_command(
     DEPENDS ${MAKEH_DEPS}
     COMMENT "Generating ast.h"
 )
-add_custom_target(ast_codegen
-    DEPENDS
-        "${CMAKE_CURRENT_BINARY_DIR}/ast.h"
-        "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
-)
+if(AST_BUILD_FORTRAN)
+    add_custom_target(ast_codegen
+        DEPENDS
+            "${CMAKE_CURRENT_BINARY_DIR}/ast.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/AST_ERR"
+    )
+else()
+    add_custom_target(ast_codegen
+        DEPENDS
+            "${CMAKE_CURRENT_BINARY_DIR}/ast.h"
+            "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
+    )
+endif()
 
 # ============================================================
 # Fortran support: astbad utility and AST_PAR generation

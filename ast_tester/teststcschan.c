@@ -20,7 +20,9 @@
 
 #include "ast.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
@@ -242,10 +244,12 @@ static void assert_true( const char *name, int val, int *status ) {
 static AstObject *readast( const char *file, int *status ) {
    AstChannel *ch;
    AstObject *obj;
-   char attrib[300];
+   char attrib[PATH_MAX + 12];
+   const char *srcdir;
    if( *status != 0 ) return NULL;
    ch = astChannel( NULL, NULL, " " );
-   snprintf( attrib, sizeof(attrib), "SourceFile=%s", file );
+   srcdir = getenv("srcdir") ? getenv("srcdir") : ".";
+   snprintf( attrib, sizeof(attrib), "SourceFile=%s/%s", srcdir , file );
    astSet( ch, "%s", attrib );
    obj = astRead( ch );
    astAnnul( ch );
