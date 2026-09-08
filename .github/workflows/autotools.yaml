@@ -29,12 +29,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          #  `dist' selects the job that verifies the distribution: cutting a
+          #  tarball, building it with both toolchains and cutting the full
+          #  archive.  Those steps are platform-independent -- they check which
+          #  files arrived and what the suite does when some are missing -- and
+          #  on macOS they cost more than twice what they do here, so one job
+          #  runs them and the other stops after `make check'.
           - os: macos-latest
             cc: clang
             f77: flang
           - os: ubuntu-latest
             cc: gcc
             f77: gfortran
+            dist: true
 
     steps:
       - name: Checkout code
@@ -105,6 +112,7 @@ jobs:
           tail -n +1 ast_tester/*.log
 
       - name: Distcheck
+        if: ${{ matrix.dist }}
         run: make distcheck ${{ github.event.inputs.make_flags }}
 
       # The tarball must also build with CMake -- that is what catches a file
@@ -114,6 +122,7 @@ jobs:
       # is whether every file arrived, and the flang job would otherwise fail
       # here for unrelated reasons.
       - name: Build the distribution tarball with CMake
+        if: ${{ matrix.dist }}
         run: |
           rm -rf tarball-cmake
           mkdir tarball-cmake
@@ -142,6 +151,7 @@ jobs:
       # producers report a skipped plan rather than failing every row.  A tarball
       # already carries configure, so there is no bootstrap here.
       - name: Run make check inside the distribution tarball
+        if: ${{ matrix.dist }}
         run: |
           rm -rf tarball-am && mkdir tarball-am
           tar xzf ast-*.tar.gz -C tarball-am --strip-components=1
@@ -163,6 +173,7 @@ jobs:
       # corpus, and nothing else builds that archive.  It runs last because it
       # adds a second ast-*.tar.gz that the globs above would otherwise match.
       - name: Build the full distribution
+        if: ${{ matrix.dist }}
         run: |
           make fulldist
           ls ast-*-full.tar.gz
