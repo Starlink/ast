@@ -3845,6 +3845,30 @@ static void gen_audit_gap_fixtures(const char *dir) {
         base = astAnnul(base); curr = astAnnul(curr);
     }
 
+    /* Two constant-fed base axes: base axis 2 is fixed at 99, outside the
+       Box, and base axis 3 at 5, inside it.  Each constant is a plane the
+       slice has to lie in, so the one that misses empties the intersection
+       whatever the other does, and the simplified Region is a NullRegion.
+       Ordered so the missing plane is seen first: box.c used to overwrite the
+       verdict on each constant-fed input rather than accumulating it, which
+       let the later, satisfied plane decide and produced a Box. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(3, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=SLICE");
+        int inperm[] = {1, -1, -2};
+        int outperm[] = {1, 2};
+        double consts[] = {99.0, 5.0};
+        AstPermMap *pm = astPermMap(3, inperm, 2, outperm, consts, " ");
+        double lbnd[] = {0.0, 0.0, 0.0};
+        double ubnd[] = {10.0, 20.0, 30.0};
+        AstBox *box = astBox(base, 1, lbnd, ubnd, NULL, " ");
+        void *reg = map_region_unsimplified(box, pm, curr);
+        write_region_fixture(dir, "cap_box_permmap_null_first", reg);
+        box = astAnnul(box); pm = astAnnul(pm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
     /* Negative control: both outputs are fed base axis 1, so the relation
        between the two Frames is not bi-directional. box.c:3818 abandons the
        branch, and abandoning it discards the parent simplification too, so the
