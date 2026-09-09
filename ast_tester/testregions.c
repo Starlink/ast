@@ -20,6 +20,7 @@ static void generalChecks( int *status );
 static void checkCmpRegion( int *status );
 static void checkPointList( int *status );
 static void checkPolygonMaskLargeLobe( int *status );
+static void checkBoxPermMapSlices( int *status );
 static void sink1( const char *line );
 
 int main(void) {
@@ -43,6 +44,7 @@ int main(void) {
    checkCmpRegion( status );
    checkPointList( status );
    checkPolygonMaskLargeLobe( status );
+   checkBoxPermMapSlices( status );
    astEnd;
    // astActivememory( "testregions" )
    // astFlushmemory( 1 );
@@ -1495,6 +1497,56 @@ static void stopit( int *status, const char *text ) {
    if( *status != 0 ) return;
    *status = 1;
    printf( "%s\n", text );
+}
+
+/* Simplifying a Box whose base-to-current Mapping is a PermMap that feeds
+   more than one base axis a constant.  Each such axis is a plane the slice
+   has to lie in, so the Region is a NullRegion unless every constant falls
+   inside the Box.  The order the constants appear in must not matter. */
+static void checkBoxPermMapSlices( int *status ) {
+   AstFrame *base, *curr;
+   AstPermMap *pm;
+   AstBox *box;
+   AstRegion *reg;
+   const char *class;
+   int i;
+
+/* Base axis 1 is fed by current axis 1; base axes 2 and 3 are each fed a
+   constant.  Axis 2 spans 0 to 20 and axis 3 spans 0 to 30, so 99 is outside
+   the Box on either and 5 and 15 are inside. */
+   int inperm[ 3 ] = { 1, -1, -2 };
+   int outperm[ 2 ] = { 1, 2 };
+   double lbnd[ 3 ] = { 0.0, 0.0, 0.0 };
+   double ubnd[ 3 ] = { 10.0, 20.0, 30.0 };
+   double consts[ 4 ][ 2 ] = { { 99.0,  5.0 },     /* outside, then inside  */
+                               {  5.0, 99.0 },     /* inside, then outside  */
+                               { 99.0, 99.0 },     /* both outside          */
+                               {  5.0, 15.0 } };   /* both inside           */
+   const char *want[ 4 ] = { "NullRegion", "NullRegion", "NullRegion", "Box" };
+
+   if( *status != 0 ) return;
+
+   for( i = 0; i < 4; i++ ) {
+      astBegin;
+
+      base = astFrame( 3, "Domain=PIXEL" );
+      curr = astFrame( 2, "Domain=SLICE" );
+      pm = astPermMap( 3, inperm, 2, outperm, consts[ i ], " " );
+      box = astBox( base, 1, lbnd, ubnd, NULL, " " );
+      reg = astMapRegion( box, pm, curr );
+
+      class = astGetC( reg, "Class" );
+      if( !astOK ) {
+         stopit( status, "checkBoxPermMapSlices: error simplifying the Box" );
+      } else if( strcmp( class, want[ i ] ) ) {
+         printf( "checkBoxPermMapSlices: constants %g,%g gave %s, expected %s\n",
+                 consts[ i ][ 0 ], consts[ i ][ 1 ], class, want[ i ] );
+         stopit( status, "checkBoxPermMapSlices: wrong simplified class" );
+      }
+
+      astEnd;
+      if( *status != 0 ) return;
+   }
 }
 
 static void checkPointList( int *status ) {

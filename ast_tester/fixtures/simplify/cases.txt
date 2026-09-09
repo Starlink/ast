@@ -507,6 +507,7 @@ cap_cmpperm_resume_inv            | simplify/cap_cmpperm_resume_inv.map | simpli
 cap_cheby_consolidate             | simplify/cap_cheby_consolidate.map | simplify/cap_cheby_consolidate.simp |
 cap_box_permmap_const             | simplify/cap_box_permmap_const.map | simplify/cap_box_permmap_const.simp |
 cap_box_permmap_null              | simplify/cap_box_permmap_null.map | simplify/cap_box_permmap_null.simp |
+cap_box_permmap_null_first        | simplify/cap_box_permmap_null_first.map | simplify/cap_box_permmap_null_first.simp |
 cap_box_permmap_nonbidi           | simplify/cap_box_permmap_nonbidi.map | simplify/cap_box_permmap_nonbidi.map |
 cap_poly_unc_frame                | simplify/cap_poly_unc_frame.map | simplify/cap_poly_unc_frame.simp |
 cap_poly_bent_edges               | simplify/cap_poly_bent_edges.map | simplify/cap_poly_bent_edges.simp |
