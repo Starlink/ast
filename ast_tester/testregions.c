@@ -21,6 +21,7 @@ static void checkCmpRegion( int *status );
 static void checkPointList( int *status );
 static void checkPolygonMaskLargeLobe( int *status );
 static void checkBoxPermMapSlices( int *status );
+static void checkEllipseAxisRules( int *status );
 static void sink1( const char *line );
 
 int main(void) {
@@ -45,6 +46,7 @@ int main(void) {
    checkPointList( status );
    checkPolygonMaskLargeLobe( status );
    checkBoxPermMapSlices( status );
+   checkEllipseAxisRules( status );
    astEnd;
    // astActivememory( "testregions" )
    // astFlushmemory( 1 );
@@ -1497,6 +1499,71 @@ static void stopit( int *status, const char *text ) {
    if( *status != 0 ) return;
    *status = 1;
    printf( "%s\n", text );
+}
+
+/* An Ellipse's mesh bounding box must measure each axis by that axis's own
+   rule.  astAxDistance dispatches to the Axis, and a SkyAxis folds its result
+   into +/- pi while a plain Axis returns the raw difference, so a Frame whose
+   two axes are of different classes shows which axis index was asked about.
+
+   Ellipse serialises no bounding box -- its Dump writes no class data of its
+   own -- so astGetRegionBounds is the only place this is visible and there is
+   no dump-based fixture that could pin it. */
+static void checkEllipseAxisRules( int *status ) {
+   AstCmpFrame *cf;
+   AstFrame *mixed;
+   AstMapping *map = NULL;
+   AstEllipse *el;
+   double centre[ 2 ] = { 0.0, 0.0 };
+   double radii[ 2 ] = { 4.0, 3.5 };
+   double point2[ 2 ] = { 0.0, 1.0 };
+   double lo[ 2 ], hi[ 2 ];
+   double wrapped, raw;
+   int pick[ 2 ];
+   int sky_first;
+
+/* The radii are deliberately larger than pi, so a folded axis and a raw one
+   cannot give the same answer. */
+   if( *status != 0 ) return;
+
+   for( sky_first = 1; sky_first >= 0; sky_first-- ) {
+      astBegin;
+
+/* A CmpFrame of a SkyFrame and a 1-D Frame, reduced to one sky axis beside
+   the plain one.  With sky_first the SkyAxis is axis 1, otherwise axis 2. */
+      cf = astCmpFrame( astSkyFrame( " " ), astFrame( 1, "Domain=T" ), " " );
+      pick[ 0 ] = sky_first ? 1 : 3;
+      pick[ 1 ] = sky_first ? 3 : 1;
+      mixed = astPickAxes( cf, 2, pick, &map );
+
+      el = astEllipse( mixed, 1, centre, radii, point2, NULL, " " );
+      astGetRegionBounds( el, lo, hi );
+
+      if( !astOK ) {
+         stopit( status, "checkEllipseAxisRules: astGetRegionBounds failed" );
+      } else {
+
+/* Axis 2 is the plain axis when the sky axis comes first, and the sky axis
+   otherwise.  astAxDistance on a sky axis folds into +/- pi, so a folded axis
+   cannot report a limit beyond pi, while the plain axis here reaches the
+   4.0 primary radius. */
+         raw = 3.14159265358979323846 + 1.0E-8;
+         wrapped = ( hi[ 1 ] <= raw && lo[ 1 ] >= -raw );
+
+         if( sky_first && wrapped ) {
+            printf( "checkEllipseAxisRules: axis 2 is a plain axis but its "
+                    "range %.10g..%.10g was folded\n", lo[ 1 ], hi[ 1 ] );
+            stopit( status, "checkEllipseAxisRules: axis 2 measured by axis 1's rule" );
+         } else if( !sky_first && !wrapped ) {
+            printf( "checkEllipseAxisRules: axis 2 is a sky axis but its "
+                    "range %.10g..%.10g was not folded\n", lo[ 1 ], hi[ 1 ] );
+            stopit( status, "checkEllipseAxisRules: axis 2 measured by axis 1's rule" );
+         }
+      }
+
+      astEnd;
+      if( *status != 0 ) return;
+   }
 }
 
 /* Simplifying a Box whose base-to-current Mapping is a PermMap that feeds
