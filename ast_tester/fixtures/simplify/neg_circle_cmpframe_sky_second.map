@@ -1,0 +1,117 @@
+ Begin Circle 	# Circular or spherical region
+#   Title = "3-d compound coordinate system" 	# Title of coordinate system
+#   Naxes = 3 	# Number of coordinate axes
+#   Domain = "FPLANE-SKY" 	# Coordinate system domain
+#   Epoch = 2000 	# Julian epoch of observation
+#   Lbl1 = "Axis 1" 	# Label for axis 1
+#   Lbl2 = "Right ascension" 	# Label for axis 2
+#   Lbl3 = "Declination" 	# Label for axis 3
+#   System = "Compound" 	# Coordinate system type
+#   Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#   Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#   Dir2 = 0 	# Plot axis 2 in reverse direction
+ IsA Frame 	# Coordinate system description
+    Adapt = 1 	# Region adapts to coord sys changes
+    FrmSet = 	# Original & current coordinate systems
+       Begin FrameSet 	# Set of inter-related coordinate systems
+#         Title = "3-d compound coordinate system" 	# Title of coordinate system
+#         Naxes = 3 	# Number of coordinate axes
+#         Domain = "FPLANE-SKY" 	# Coordinate system domain
+#         Epoch = 2000 	# Julian epoch of observation
+#         Lbl1 = "Axis 1" 	# Label for axis 1
+#         Lbl2 = "Right ascension" 	# Label for axis 2
+#         Lbl3 = "Declination" 	# Label for axis 3
+#         System = "Compound" 	# Coordinate system type
+#         Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#         Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#         Dir2 = 0 	# Plot axis 2 in reverse direction
+       IsA Frame 	# Coordinate system description
+          Nframe = 2 	# Number of Frames in FrameSet
+#         Base = 1 	# Index of base Frame
+          Currnt = 2 	# Index of current Frame
+          Lnk2 = 1 	# Node 2 is derived from node 1
+          Frm1 = 	# Frame number 1
+             Begin CmpFrame 	# Compound coordinate system description
+#               Title = "3-d compound coordinate system" 	# Title of coordinate system
+#               Naxes = 3 	# Number of coordinate axes
+#               Domain = "FPLANE-SKY" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Right ascension" 	# Label for axis 2
+#               Lbl3 = "Declination" 	# Label for axis 3
+#               Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#               Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#               Dir2 = 0 	# Plot axis 2 in reverse direction
+             IsA Frame 	# Coordinate system description
+                FrameA = 	# First component Frame
+                   Begin Frame 	# Coordinate system description
+                      Naxes = 1 	# Number of coordinate axes
+                      Domain = "FPLANE" 	# Coordinate system domain
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                   End Frame
+                FrameB = 	# Second component Frame
+                   Begin SkyFrame 	# Description of celestial coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+                      Ax1 = 	# Axis number 1
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                      Ax2 = 	# Axis number 2
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                   IsA Frame 	# Coordinate system description
+                   End SkyFrame
+             End CmpFrame
+          Frm2 = 	# Frame number 2
+             Begin CmpFrame 	# Compound coordinate system description
+#               Title = "3-d compound coordinate system" 	# Title of coordinate system
+#               Naxes = 3 	# Number of coordinate axes
+#               Domain = "FPLANE-SKY" 	# Coordinate system domain
+#               Lbl1 = "Axis 1" 	# Label for axis 1
+#               Lbl2 = "Right ascension" 	# Label for axis 2
+#               Lbl3 = "Declination" 	# Label for axis 3
+#               Uni2 = "hh:mm:ss.s" 	# Units for axis 2
+#               Uni3 = "ddd:mm:ss" 	# Units for axis 3
+#               Dir2 = 0 	# Plot axis 2 in reverse direction
+             IsA Frame 	# Coordinate system description
+                FrameA = 	# First component Frame
+                   Begin Frame 	# Coordinate system description
+                      Naxes = 1 	# Number of coordinate axes
+                      Domain = "FPLANE" 	# Coordinate system domain
+                      Ax1 = 	# Axis number 1
+                         Begin Axis 	# Coordinate axis
+                         End Axis
+                   End Frame
+                FrameB = 	# Second component Frame
+                   Begin SkyFrame 	# Description of celestial coordinate system
+                      Naxes = 2 	# Number of coordinate axes
+                      Ax1 = 	# Axis number 1
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                      Ax2 = 	# Axis number 2
+                         Begin SkyAxis 	# Celestial coordinate axis
+                         End SkyAxis
+                   IsA Frame 	# Coordinate system description
+                   End SkyFrame
+             End CmpFrame
+          Map2 = 	# Mapping between nodes 1 and 2
+             Begin ShiftMap 	# Shift each coordinate axis
+                Nin = 3 	# Number of input coordinates
+                IsSimp = 1 	# Mapping has been simplified
+             IsA Mapping 	# Mapping between coordinate systems
+                Sft1 = 5 	# Shift for axis 1
+             End ShiftMap
+       End FrameSet
+    Points = 	# Points defining the shape
+       Begin PointSet 	# Container for a set of points
+          Npoint = 2 	# Number of points
+          Ncoord = 3 	# Number of coordinates per point
+          X1 = 50 	# Coordinate values...
+          X2 = 0
+          X3 = 1.2707963267948965
+          X4 = 50.5
+          X5 = 0
+          X6 = 1.2707963267948965
+       End PointSet
+ IsA Region 	# An area within a coordinate system
+ End Circle
