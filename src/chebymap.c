@@ -1116,6 +1116,12 @@ static int GetIterDomain( AstPolyMap *map, double *lbnd, double *ubnd,
 *     transformation. Such a transformation has no finite iteration
 *     domain; in that case both supplied arrays are left unchanged and
 *     zero is returned.
+*
+*     A reconstructed bound can round to a position whose normalised
+*     coordinate lies just outside [-1,1]. Each bound is moved towards
+*     the other by up to eight adjacent representable values to bring it
+*     within the range accepted by the forward evaluator. This does not
+*     enable extrapolation of the forward series.
 
 *  Parameters:
 *     map
@@ -1139,7 +1145,7 @@ static int GetIterDomain( AstPolyMap *map, double *lbnd, double *ubnd,
 *     unchanged if the inherited status is set.
 */
    AstChebyMap *this = (AstChebyMap *) map;
-   int i, nin = ((AstMapping *) map)->nin;
+   int i, j, nin = ((AstMapping *) map)->nin;
    double a, b;
    if( !astOK || !this->scale_f ) return 0;
    for( i = 0; i < nin; i++ ) {
@@ -1147,6 +1153,17 @@ static int GetIterDomain( AstPolyMap *map, double *lbnd, double *ubnd,
       b = (1.0 - this->offset_f[i])/this->scale_f[i];
       lbnd[i] = astMIN( a, b );
       ubnd[i] = astMAX( a, b );
+/* Reconstructing a bound can round its normalized value just beyond
+   [-1,1]. Move into the evaluable domain rather than extrapolating the
+   forward series or rejecting an otherwise valid endpoint inverse. */
+      for( j = 0; j < 8 &&
+           fabs(lbnd[i]*this->scale_f[i] + this->offset_f[i]) > 1.0; j++ ) {
+         lbnd[i] = nextafter( lbnd[i], ubnd[i] );
+      }
+      for( j = 0; j < 8 &&
+           fabs(ubnd[i]*this->scale_f[i] + this->offset_f[i]) > 1.0; j++ ) {
+         ubnd[i] = nextafter( ubnd[i], lbnd[i] );
+      }
    }
    return 1;
 }
