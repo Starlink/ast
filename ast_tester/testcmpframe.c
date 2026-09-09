@@ -4,6 +4,7 @@
  *  Direct conversion; no material differences from the Fortran original.
  */
 #include "ast.h"
+#include <math.h>
 #include <stdio.h>
 
 static void stopit( int *status, const char *text ) {
@@ -34,6 +35,50 @@ static int check_normed_output( const double out[ static 12 ],
    for( i = 0; i < 4; i++ ) {
       if( out[ i + 4 ] != px[ i ] ) return 5;
       if( out[ i + 8 ] != dec[ i ] ) return 6;
+   }
+   return 0;
+}
+
+/* Region bounds on a CmpFrame that holds a SkyFrame go through
+ * CmpFrame::NormBox, which asks each component Frame to normalise its own
+ * part of the box. The bounds must not depend on which component the
+ * SkyFrame is: a Circle near the north pole on (SkyFrame, 1-D) and the same
+ * Circle on (1-D, SkyFrame) must report the same limits, with the axes
+ * permuted. Returns 0 on success, else the index of the first failed check. */
+static int check_normbox_component_order( void ) {
+   AstSkyFrame *sky;
+   AstFrame *pfrm;
+   AstCmpFrame *sky_first, *sky_last;
+   AstCircle *c1, *c2;
+   double centre1[ 3 ] = { 0.0, 1.2707963267948966, 50.0 };
+   double centre2[ 3 ] = { 50.0, 0.0, 1.2707963267948966 };
+   double radius = 0.5;
+   double lb1[ 3 ], ub1[ 3 ], lb2[ 3 ], ub2[ 3 ];
+   int i;
+
+   sky = astSkyFrame( " " );
+   pfrm = astFrame( 1, "Domain=FPLANE" );
+   sky_first = astCmpFrame( sky, pfrm, " " );
+   sky_last = astCmpFrame( pfrm, sky, " " );
+
+   c1 = astCircle( sky_first, 1, centre1, &radius, NULL, " " );
+   c2 = astCircle( sky_last, 1, centre2, &radius, NULL, " " );
+
+   astGetRegionBounds( c1, lb1, ub1 );
+   if( !astOK ) return 1;
+   astGetRegionBounds( c2, lb2, ub2 );
+   if( !astOK ) return 2;
+
+   for( i = 0; i < 3; i++ ) {
+      if( lb1[ i ] == AST__BAD || ub1[ i ] == AST__BAD ) return 3;
+   }
+
+/* Axis 3 of sky_first is axis 1 of sky_last, and axes 1,2 are axes 2,3. */
+   if( fabs( lb1[ 2 ] - lb2[ 0 ] ) > 1.0e-10 ||
+       fabs( ub1[ 2 ] - ub2[ 0 ] ) > 1.0e-10 ) return 4;
+   for( i = 0; i < 2; i++ ) {
+      if( fabs( lb1[ i ] - lb2[ i + 1 ] ) > 1.0e-10 ||
+          fabs( ub1[ i ] - ub2[ i + 1 ] ) > 1.0e-10 ) return 5;
    }
    return 0;
 }
@@ -105,6 +150,14 @@ int main( void ) {
    case 7: stopit( status, "Error 7" ); break;
    case 8: stopit( status, "Error 8" ); break;
    case 9: stopit( status, "Error 9" ); break;
+   }
+
+   switch( check_normbox_component_order() ) {
+   case 1: stopit( status, "NormBox: error getting bounds with the SkyFrame first" ); break;
+   case 2: stopit( status, "NormBox: error getting bounds with the SkyFrame last" ); break;
+   case 3: stopit( status, "NormBox: bad bound with the SkyFrame first" ); break;
+   case 4: stopit( status, "NormBox: the 1-D axis bounds depend on component order" ); break;
+   case 5: stopit( status, "NormBox: the sky axis bounds depend on component order" ); break;
    }
 
    astEnd;

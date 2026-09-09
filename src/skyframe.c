@@ -361,6 +361,9 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *         great circle contains the crossing.
 *     30-JUL-2024 (GSB):
 *         Check for possible acos parameter out of range in astLineDef.
+*     9-SEP-2026 (TJ):
+*         NormBox: treat the pole test as failed if astTran2 reports an
+*         error, rather than reading the values it did not write.
 *class--
 */
 
@@ -7232,6 +7235,12 @@ static void NormBox( AstFrame *this_frame, double lbnd[], double ubnd[],
          y[ 1 ] = 0.0;
       }
       astTran2( reg, 2, x, y, 1, xo, yo );
+
+/* The tested values are only defined if the transformation succeeded. */
+      if( !astOK ) {
+         xo[ 0 ] = AST__BAD;
+         xo[ 1 ] = AST__BAD;
+      }
 
 /* If the box includes the north pole... */
       if( xo[ 0 ] != AST__BAD ) {

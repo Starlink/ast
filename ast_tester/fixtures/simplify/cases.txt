@@ -511,6 +511,7 @@ cap_box_permmap_const             | simplify/cap_box_permmap_const.map | simplif
 cap_box_permmap_null              | simplify/cap_box_permmap_null.map | simplify/cap_box_permmap_null.simp |
 cap_box_permmap_null_first        | simplify/cap_box_permmap_null_first.map | simplify/cap_box_permmap_null_first.simp |
 cap_box_permmap_nonbidi           | simplify/cap_box_permmap_nonbidi.map | simplify/cap_box_permmap_nonbidi.map |
+neg_circle_cmpframe_sky_second    | simplify/neg_circle_cmpframe_sky_second.map | simplify/neg_circle_cmpframe_sky_second.map | yes
 cap_poly_unc_frame                | simplify/cap_poly_unc_frame.map | simplify/cap_poly_unc_frame.simp |
 cap_poly_bent_edges               | simplify/cap_poly_bent_edges.map | simplify/cap_poly_bent_edges.simp |
 cap_poly_bend_allowed             | simplify/cap_poly_bend_allowed.map | simplify/cap_poly_bend_allowed.simp |
