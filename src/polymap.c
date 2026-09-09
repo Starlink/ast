@@ -174,6 +174,12 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        cleared once the PolyMap has been cloned, as SUN/210 says AST does
 *        for the attributes of any Mapping. Use the guarded astMAKE_SET1 and
 *        astMAKE_CLEAR1 macros.
+*     8-SEP-2026 (TJ):
+*        Equal: compare the inverse transformation's own coefficients and
+*        powers, and index every array by the axis count it was allocated
+*        with. The inverse block compared the forward arrays a second time,
+*        and "mxpow_f" and "ncoeff_i" were indexed to the wrong axis count,
+*        which read past the end of both.
 *class--
 */
 
@@ -716,8 +722,11 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
                result = 0;
             }
 
+/* "mxpow_f" holds the maximum power of each Mapping input, so it has "nin"
+   elements, unlike the other three forward arrays which have one element per
+   output. */
             if( this->mxpow_f && that->mxpow_f ) {
-               for( i = 0; i < nout && result; i++ ) {
+               for( i = 0; i < nin && result; i++ ) {
                   if( this->mxpow_f[ i ] != that->mxpow_f[ i ] ){
                      result = 0;
                   }
@@ -754,9 +763,12 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
                result = 0;
             }
 
-/* Check properties of the inverse transformation. */
+/* Check properties of the inverse transformation. The inverse maps "nout"
+   values to "nin" values, so "ncoeff_i", "coeff_i" and "power_i" have one
+   element per Mapping input while "mxpow_i" - the maximum power of each of the
+   inverse transformation's own inputs - has one per Mapping output. */
             if( this->ncoeff_i && that->ncoeff_i ) {
-               for( i = 0; i < nout && result; i++ ) {
+               for( i = 0; i < nin && result; i++ ) {
                   if( this->ncoeff_i[ i ] != that->ncoeff_i[ i ] ){
                      result = 0;
                   }
@@ -775,31 +787,31 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
                result = 0;
             }
 
-            if( this->coeff_f && that->coeff_f ) {
-               for( i = 0; i < nout && result; i++ ) {
-                  for( j = 0; j < this->ncoeff_f[ i ] && result; j++ ) {
-                     if( !astEQUAL( this->coeff_f[ i ][ j ],
-                                    that->coeff_f[ i ][ j ] ) ) {
+            if( this->coeff_i && that->coeff_i ) {
+               for( i = 0; i < nin && result; i++ ) {
+                  for( j = 0; j < this->ncoeff_i[ i ] && result; j++ ) {
+                     if( !astEQUAL( this->coeff_i[ i ][ j ],
+                                    that->coeff_i[ i ][ j ] ) ) {
                         result = 0;
                      }
                   }
                }
-            } else if( this->coeff_f || that->coeff_f ) {
+            } else if( this->coeff_i || that->coeff_i ) {
                result = 0;
             }
 
-            if( this->power_f && that->power_f ) {
-               for( i = 0; i < nout && result; i++ ) {
-                  for( j = 0; j < this->ncoeff_f[ i ] && result; j++ ) {
-                     for( k = 0; k < nin && result; k++ ) {
-                        if( this->power_f[ i ][ j ][ k ] !=
-                            that->power_f[ i ][ j ][ k ] ) {
+            if( this->power_i && that->power_i ) {
+               for( i = 0; i < nin && result; i++ ) {
+                  for( j = 0; j < this->ncoeff_i[ i ] && result; j++ ) {
+                     for( k = 0; k < nout && result; k++ ) {
+                        if( this->power_i[ i ][ j ][ k ] !=
+                            that->power_i[ i ][ j ][ k ] ) {
                            result = 0;
                         }
                      }
                   }
                }
-            } else if( this->power_f || that->power_f ) {
+            } else if( this->power_i || that->power_i ) {
                result = 0;
             }
 

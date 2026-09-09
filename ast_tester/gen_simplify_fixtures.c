@@ -2002,6 +2002,43 @@ static void gen_negative_fixtures_3(const char *dir) {
         cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
     }
 
+    /* polymap-11: two PolyMaps in opposite directions whose forward
+       transformations agree and whose explicit inverses do not. Equal used to
+       compare the forward coefficients a second time where it meant the
+       inverse ones, so the pair compared equal and MapMerge cancelled it to a
+       UnitMap, changing the composition. The forward term is a square for the
+       same reason as polymap-10: a linear forward transformation is rebuilt as
+       a MatrixMap and a ShiftMap, which discards the explicit inverse and
+       would cancel the pair whatever Equal said. */
+    {
+        if (!astOK) astClearStatus;
+        double coeff_f[] = {1.0, 1, 2};
+        double coeff_i1[] = {0.5, 1, 1};
+        double coeff_i2[] = {0.7, 1, 1};
+        AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f, 1, coeff_i1, " ");
+        AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f, 1, coeff_i2, " ");
+        astInvert(p2);
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
+        write_negative_fixture(dir, "neg_poly_different_inverse_coeffs",
+                               (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
+    /* The positive control for polymap-11: the same shape with equal inverse
+       coefficients still cancels to a UnitMap, so the stricter comparison has
+       not simply stopped the branch working. */
+    {
+        if (!astOK) astClearStatus;
+        double coeff_f[] = {1.0, 1, 2};
+        double coeff_i[] = {0.5, 1, 1};
+        AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f, 1, coeff_i, " ");
+        AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f, 1, coeff_i, " ");
+        astInvert(p2);
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
+        write_fixture(dir, "poly_same_inverse_coeffs_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
     /* lutmap-07: two LutMaps in parallel — cancellation not attempted */
     {
         if (!astOK) astClearStatus;
