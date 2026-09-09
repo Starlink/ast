@@ -507,6 +507,19 @@ static void inverse_tests( int *status ) {
       cm = astAnnul( cm );
    }
 
+/* Reconstructing an endpoint from scale/offset can round just outside
+   the forward domain. The inverse should find the adjacent valid value. */
+   {
+      double blo = -45.701777348010886, bhi = -40.27813046921121;
+      cm = astChebyMap( 1, 1, 1, linear, 0, NULL, &blo, &bhi, NULL, NULL,
+                        "NiterInverse=20,TolInverse=1e-12" );
+      u[0] = -2; u[1] = 2;
+      astTran1( cm, 2, u, 0, xr );
+      inverse_near( xr[0], blo, 1e-11, 775, status );
+      inverse_near( xr[1], bhi, 1e-11, 776, status );
+      cm = astAnnul( cm );
+   }
+
 /* Unsupported configurations must never advertise an iterative inverse. */
    if( *status == 0 ) {
       double coeffs[] = { 1, 1, 1, 0 };
