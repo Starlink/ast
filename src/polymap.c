@@ -180,6 +180,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        with. The inverse block compared the forward arrays a second time,
 *        and "mxpow_f" and "ncoeff_i" were indexed to the wrong axis count,
 *        which read past the end of both.
+*     9-SEP-2026 (TJ):
+*        MapMerge: fold a ChebyMap's input normalisation into the MatrixMap
+*        and ShiftMap that replace a linear polynomial. The coefficients of a
+*        ChebyMap apply to the normalised input z = scale*x + offset, so the
+*        reduction of 2*T1(z) over [0,10] is 0.4x - 2, not 2x.
 *class--
 */
 
@@ -205,6 +210,7 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 #include "mapping.h"             /* Coordinate mappings (parent class) */
 #include "cmpmap.h"              /* Compound mappings */
 #include "polymap.h"             /* Interface definition for this class */
+#include "chebymap.h"            /* Chebyshev polynomial mappings (subclass) */
 #include "unitmap.h"             /* Unit mappings */
 #include "shiftmap.h"            /* Shift of origin mappings */
 #include "cminpack/cminpack.h"   /* Levenberg - Marquardt minimization */
@@ -3577,6 +3583,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    double **coeff;       /* Pointer to arrays holding all coeff values */
    double *matrix;       /* Pointer to array of linear terms */
    double *offsets;      /* Pointer to array of offset terms */
+   double *norm_offset;  /* ChebyMap input offsets, or NULL */
+   double *norm_scale;   /* ChebyMap input scales, or NULL */
    double *outcof;       /* Pointer to array of coeff values for current output */
    int ***power;         /* Pointer to arrays holding all input powers */
    int **outpow;         /* Pointer to array of input powers for current output */
@@ -3765,8 +3773,25 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    are not a genuine inverse pair, but I can't immediately see why anyone
    would define an inverse transformation that was not a genuine inverse of
    the forward transformation). Also, we require the number of inputs equals
-   the number of outputs. */
+   the number of outputs.
+
+   A ChebyMap stores its coefficients as a Chebyshev series in the normalised
+   input z = scale*x + offset, which maps the ChebyMap's bounding box onto
+   [-1,1]. The only Chebyshev polynomials of degree one or less are T0(z) = 1
+   and T1(z) = z, so a term that passes the linearity test below is linear in
+   z, and hence in x, but the scale and offset have to be folded into the
+   matrix and offset arrays. For a PolyMap the coefficients apply to x itself
+   and the normalisation is the identity. */
    if( pmap0->ncoeff_f && nout == nin ){
+
+/* Get the normalisation applied to each input before the coefficients are
+   used. */
+      norm_scale = NULL;
+      norm_offset = NULL;
+      if( astIsAChebyMap( pmap0 ) ) {
+         norm_scale = ((AstChebyMap *) pmap0)->scale_f;
+         norm_offset = ((AstChebyMap *) pmap0)->offset_f;
+      }
 
 /* Allocate an array to store a vector representing the offset terms in
    the PolyMap. Use astCalloc so that the array is initialised to hold
@@ -3830,17 +3855,23 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   }
                }
 
-/* If this is a constant term, store it in the offset array. Having combined
-   terms with equal powers earlier, we can be sure there is only one (at most)
-   constant terms. */
+/* If this is a constant term, add it into the offset array. */
                if( const_term ) {
-                  offsets[ iout ] = *outcof;
+                  offsets[ iout ] += *outcof;
 
-/* If this is a linear term, store it at the appropriate place in the matrix
-   array. Having combined terms with equal powers earlier, we can be sure
-   there is only one (at most) coefficient for each term in the matrix. */
+/* If this is a linear term, add it into the appropriate place in the matrix
+   array. A ChebyMap term c*z, with z = scale*x + offset, contributes c*scale
+   to the matrix and c*offset to the constant term, so the arrays are
+   accumulated rather than assigned: an output can receive a constant
+   contribution from every linear term as well as from its own constant
+   term. */
                } else if( linear_term ) {
-                  matrix[ jin + iout*nin ] = *outcof;
+                  if( norm_scale && norm_offset ) {
+                     matrix[ jin + iout*nin ] += (*outcof)*norm_scale[ jin ];
+                     offsets[ iout ] += (*outcof)*norm_offset[ jin ];
+                  } else {
+                     matrix[ jin + iout*nin ] += *outcof;
+                  }
 
 /* If this term is neither an offset term nor a linear term, the PolyMap
    is non-linear and so we cannot simplify it. */

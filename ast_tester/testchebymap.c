@@ -305,6 +305,58 @@ int main( void ) {
       if( rr == AST__BAD || fabs( rr - 3.0 ) > 1.0e-6 ) stopit( 601, status );
    }
 
+   /* A ChebyMap that is linear in its Chebyshev coefficients reduces to a
+    * MatrixMap/ShiftMap combination under astSimplify. The coefficients
+    * apply to the normalised input z = scale*x + offset, so the reduction
+    * must fold that normalisation in: over [0,10] the map 2*T1(z) is
+    * 0.4*x - 2, not 2*x. Check the simplified Mapping agrees with the
+    * ChebyMap in the forward direction and that its inverse recovers the
+    * input, for a 1-D map and for a 2-D map whose two inputs have
+    * different bounds and whose outputs each combine a constant and a
+    * linear term. */
+   {
+      double lin_coeffs[] = { 2.0, 1, 1 };
+      double lin_lbnd = 0.0, lin_ubnd = 10.0;
+      double lx[3] = { 0.0, 1.0, 10.0 };
+      double lref[3], lsimp[3], lback[3];
+      AstChebyMap *lcm = astChebyMap( 1, 1, 1, lin_coeffs, 0, NULL,
+                                      &lin_lbnd, &lin_ubnd, NULL, NULL, " " );
+      AstMapping *lsm = astSimplify( lcm );
+      if( astIsAChebyMap( lsm ) ) stopit( 700, status );
+      astTran1( lcm, 3, lx, 1, lref );
+      astTran1( lsm, 3, lx, 1, lsimp );
+      for( i = 0; i < 3; i++ )
+         if( fabs( lsimp[i] - lref[i] ) > 1.0e-10 ) stopit( 701, status );
+      astTran1( lsm, 3, lref, 0, lback );
+      for( i = 0; i < 3; i++ )
+         if( fabs( lback[i] - lx[i] ) > 1.0e-10 ) stopit( 702, status );
+
+      /* fx = 3*T1(x') + 0.5 ; fy = -T1(y') + 2. Each output has a linear
+       * term, whose normalisation offset adds to the constant term, and its
+       * own constant term. The reduction is diagonal, so a lone Mapping
+       * collapses all the way to a WinMap rather than a CmpMap. */
+      double lin2_coeffs[] = { 3.0, 1, 1, 0,
+                               0.5, 1, 0, 0,
+                              -1.0, 2, 0, 1,
+                               2.0, 2, 0, 0 };
+      double lin2_lbnd[2] = { 0.0, -5.0 }, lin2_ubnd[2] = { 10.0, 5.0 };
+      double l2x[4] = { 0.0, 10.0, 3.0, 7.5 }, l2y[4] = { -5.0, 5.0, 1.0, -2.0 };
+      double l2xr[4], l2yr[4], l2xs[4], l2ys[4], l2xb[4], l2yb[4];
+      AstChebyMap *lcm2 = astChebyMap( 2, 2, 4, lin2_coeffs, 0, NULL,
+                                       lin2_lbnd, lin2_ubnd, NULL, NULL, " " );
+      AstMapping *lsm2 = astSimplify( lcm2 );
+      if( astIsAChebyMap( lsm2 ) ) stopit( 703, status );
+      astTran2( lcm2, 4, l2x, l2y, 1, l2xr, l2yr );
+      astTran2( lsm2, 4, l2x, l2y, 1, l2xs, l2ys );
+      for( i = 0; i < 4; i++ )
+         if( fabs( l2xs[i] - l2xr[i] ) > 1.0e-10 ||
+             fabs( l2ys[i] - l2yr[i] ) > 1.0e-10 ) stopit( 704, status );
+      astTran2( lsm2, 4, l2xr, l2yr, 0, l2xb, l2yb );
+      for( i = 0; i < 4; i++ )
+         if( fabs( l2xb[i] - l2x[i] ) > 1.0e-9 ||
+             fabs( l2yb[i] - l2y[i] ) > 1.0e-9 ) stopit( 705, status );
+   }
+
    astEnd;
    astFlushMemory( 1 );
 

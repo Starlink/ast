@@ -3572,18 +3572,13 @@ static void gen_audit_gap_fixtures(const char *dir) {
 
     /* A ChebyMap whose forward transformation holds a single T_1 term over
        bounds that are not the identity interval. A ChebyMap inherits PolyMap's
-       MapMerge -- polymap.c:2439 is the only place the slot is filled -- whose
-       replace-with-simpler half rebuilds an all-linear polynomial as a
-       MatrixMap and a ShiftMap from coeff_f and power_f alone
-       (polymap.c:3757-3850), never consulting the scale and offset that map
-       the input onto [-1,1]. The reduction therefore changes the
-       transformation: this pair simplifies to a ZoomMap of 2 where the
-       ChebyMap gives 0.4x-2. These two are the reproduction for that finding
-       and are deliberately not part of the Rust port's simplify corpus, which
-       would have to reproduce the wrong Mapping to consume them. See
-       docs/issues/c-library-quirks.md in the port. The control is the same
-       ChebyMap with a T_2 term, which is not linear and which C leaves
-       alone. */
+       MapMerge, whose replace-with-simpler half rebuilds an all-linear
+       polynomial as a MatrixMap and a ShiftMap. The ChebyMap's coefficients
+       apply to the normalised input z = scale*x + offset that maps [0,10]
+       onto [-1,1], so 2*T_1(z) is 0.4x - 2 and the reduction must fold the
+       scale and offset in: the result is a WinMap, not a ZoomMap of 2. The
+       control is the same ChebyMap with a T_2 term, which is not linear and
+       which C leaves alone. */
     {
         double lbnd[] = {0.0};
         double ubnd[] = {10.0};
