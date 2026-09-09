@@ -3998,6 +3998,30 @@ static void gen_audit_gap_fixtures(const char *dir) {
         base = astAnnul(base); curr = astAnnul(curr);
     }
 
+    /* A Circle near the north pole on a CmpFrame whose SkyFrame is the second
+       component, mapped by a ShiftMap along the flat axis. astSimplify
+       leaves it as it is, but on the way it meshes the Circle, which goes
+       through Circle::RegBaseMesh and so through CmpFrame::NormBox with the
+       SkyFrame's part of the box routed through the second-component probe
+       PermMap. A probe of the wrong arity makes astTran2 report AST__NCPIN
+       and the simplification fails outright, so the fixture asserts that the
+       Region comes back unchanged and without error. */
+    {
+        if (!astOK) astClearStatus;
+        AstSkyFrame *sky = astSkyFrame(" ");
+        AstFrame *pf = astFrame(1, "Domain=FPLANE");
+        AstCmpFrame *cf = astCmpFrame(pf, sky, " ");
+        double centre[] = {50.0, 0.0, 1.2707963267948966};
+        double radius[] = {0.5};
+        double shift[] = {5.0, 0.0, 0.0};
+        AstCircle *c = astCircle(cf, 1, centre, radius, NULL, " ");
+        AstShiftMap *sm = astShiftMap(3, shift, " ");
+        void *reg = map_region_unsimplified(c, sm, cf);
+        write_negative_region_fixture(dir, "neg_circle_cmpframe_sky_second", reg);
+        c = astAnnul(c); sm = astAnnul(sm);
+        cf = astAnnul(cf); pf = astAnnul(pf); sky = astAnnul(sky);
+    }
+
     /* There is no fixture for the bad-vertex guard at polygon.c:5400. A
        Polygon cannot hold a bad vertex (polygon.c:7131 rejects one), and
        astMapRegion refuses any Mapping that sends a defining point to
