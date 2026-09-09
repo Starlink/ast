@@ -522,7 +522,7 @@ neg_cmpmap_mode_mismatch          | simplify/neg_cmpmap_mode_mismatch.map | simp
 neg_win_cmpmap_split_no_simplify  | simplify/neg_win_cmpmap_split_no_simplify.map | simplify/neg_win_cmpmap_split_no_simplify.map | yes
 neg_poly_different_coeffs         | simplify/neg_poly_different_coeffs.map | simplify/neg_poly_different_coeffs.map | yes
 neg_poly_different_inverse_coeffs | simplify/neg_poly_different_inverse_coeffs.map | simplify/neg_poly_different_inverse_coeffs.map | yes
-poly_same_inverse_coeffs_cancel   | simplify/poly_same_inverse_coeffs_cancel.map | simplify/poly_same_inverse_coeffs_cancel.simp |
+poly_fitted_inverse_cancel        | simplify/poly_fitted_inverse_cancel.map | simplify/poly_fitted_inverse_cancel.simp |
 
 # Fixtures adopted from the Rust port's Region and simplify parity work.
 # Their constructors are in gen_simplify_fixtures.c; see the group
