@@ -163,6 +163,7 @@ win_cmpmap_parallel_merge | simplify/win_cmpmap_parallel_merge.map | simplify/wi
 win_swap_simplifies     | simplify/win_swap_simplifies.map     | simplify/win_swap_simplifies.simp     |
 win_swap_outer_merge    | simplify/win_swap_outer_merge.map    | simplify/win_swap_outer_merge.simp    |
 pcd_swap_zoom_simplifies | simplify/pcd_swap_zoom_simplifies.map | simplify/pcd_swap_zoom_simplifies.simp |
+pcd_inverted_zoom_swap   | simplify/pcd_inverted_zoom_swap.map | simplify/pcd_inverted_zoom_swap.simp |
 spec_merge_no_cancel    | simplify/spec_merge_no_cancel.map    | simplify/spec_merge_no_cancel.simp    |
 time_merge_no_cancel    | simplify/time_merge_no_cancel.map    | simplify/time_merge_no_cancel.simp    |
 matrix_swap_win_simplifies | simplify/matrix_swap_win_simplifies.map | simplify/matrix_swap_win_simplifies.simp |
