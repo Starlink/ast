@@ -85,6 +85,9 @@ f     The Interval class does not define any new routines beyond those
 *        uncertainty bounds overwrote the Interval's, and the width test
 *        subtracted a bound from itself, so any Interval merged, an unbounded
 *        axis included.
+*        GetDefUnc: give an axis whose limits are both zero a non-zero
+*        uncertainty width, using the absolute floor astEQUAL applies near
+*        zero.
 *class--
 */
 
@@ -676,12 +679,15 @@ static AstRegion *GetDefUnc( AstRegion *this_region, int *status ) {
          for( i = 0; i < nax; i++ ) {
 
 /* If this axis has both limits, use 1.0E-6 of the difference between the
-   limits. */
+   limits. An axis with equal limits gets 1.0E-6 of the axis value instead,
+   and an axis whose limits are both zero gets the absolute floor astEQUAL
+   applies to values near zero, so the uncertainty never has zero width. */
             if( this->lbnd[ i ] != -DBL_MAX &&
                 this->ubnd[ i ] != DBL_MAX ) {
                hw = fabs( 0.5E-6*(  this->ubnd[ i ] - this->lbnd[ i ] ) );
                c = 0.5*(  this->ubnd[ i ] + this->lbnd[ i ] );
                if( hw == 0.0 ) hw = c*0.5E-6;
+               if( hw == 0.0 ) hw = 0.5E-12;
                ubnd[ i ] = c + hw;
                lbnd[ i ] = c - hw;
 

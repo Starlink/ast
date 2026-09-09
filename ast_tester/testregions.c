@@ -23,6 +23,7 @@ static void checkPolygonMaskLargeLobe( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
 static void checkIntervalPointListMerge( int *status );
+static void checkDefaultUncAtOrigin( int *status );
 static void sink1( const char *line );
 
 int main(void) {
@@ -49,6 +50,7 @@ int main(void) {
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
    checkIntervalPointListMerge( status );
+   checkDefaultUncAtOrigin( status );
    astEnd;
    // astActivememory( "testregions" )
    // astFlushmemory( 1 );
@@ -1678,6 +1680,50 @@ static void checkIntervalPointListMerge( int *status ) {
          stopit( status, "checkIntervalPointListMerge: merged PointList holds the wrong points" );
       }
    }
+
+   astEnd;
+}
+
+/* The default uncertainty is 1.0E-6 of the Region's bounding box on each
+   axis, falling back to 1.0E-6 of the axis value when the box has zero width
+   there. Both are zero for an axis that is constant at the origin, and a
+   zero-width uncertainty makes every membership test fail: a PointList whose
+   points share the value 0 on one axis would report its own points as
+   outside. The uncertainty must keep a non-zero width on such an axis. */
+static void checkDefaultUncAtOrigin( int *status ) {
+   AstFrame *f3, *f2;
+   AstPointList *pl;
+   AstInterval *iv;
+   AstRegion *unc;
+   double pts[ 6 ] = { 5.0, 5.0, 0.0, 0.0, 3.0, 4.0 };
+   double own[ 3 ] = { 5.0, 0.0, 3.0 };
+   double lbnd[ 3 ], ubnd[ 3 ];
+   double ilb[ 2 ] = { 0.0, 1.0 }, iub[ 2 ] = { 0.0, AST__BAD };
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   f3 = astFrame( 3, " " );
+   pl = astPointList( f3, 2, 3, 2, pts, NULL, " " );
+   if( !astPointInRegion( pl, own ) ) {
+      stopit( status, "checkDefaultUncAtOrigin: PointList reports its own point outside" );
+   }
+   unc = astGetUnc( pl, 1 );
+   astGetRegionBounds( unc, lbnd, ubnd );
+   if( astOK && ubnd[ 1 ] <= lbnd[ 1 ] ) {
+      stopit( status, "checkDefaultUncAtOrigin: PointList default uncertainty has zero width at the origin" );
+   }
+
+/* An Interval with an unbounded axis is not equivalent to a Box and derives
+   its own default uncertainty, so it needs the same guard. */
+   f2 = astFrame( 2, " " );
+   iv = astInterval( f2, ilb, iub, NULL, " " );
+   unc = astGetUnc( iv, 1 );
+   astGetRegionBounds( unc, lbnd, ubnd );
+   if( astOK && ubnd[ 0 ] <= lbnd[ 0 ] ) {
+      stopit( status, "checkDefaultUncAtOrigin: Interval default uncertainty has zero width at the origin" );
+   }
+   if( !astOK ) stopit( status, "checkDefaultUncAtOrigin: AST error" );
 
    astEnd;
 }
