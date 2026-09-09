@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 
 typedef struct {
     char relpath[1024];
@@ -161,12 +162,20 @@ static int axis_match( double got, double ref, double rtol, double atol,
 }
 
 /* Compare two equal-shape output sets; report and count mismatches.
-   is_ang[a] != 0 marks output axis a as angular (wrap-aware comparison). */
+   is_ang[a] != 0 marks output axis a as angular (wrap-aware comparison).
+   skip_rows is a bitmap of row indices to leave uncompared, for rows whose
+   recorded value sits on a mathematical singularity (see load_overrides). */
 static int compare_outputs( const char *label, const char *relpath,
                             double **got, double **ref, int ncol, int npoint,
-                            double rtol, double atol, const int *is_ang ) {
+                            double rtol, double atol, const int *is_ang,
+                            uint64_t skip_rows ) {
     int fails = 0;
     for ( int p = 0; p < npoint; p++ ) {
+        if ( p < 64 && ( skip_rows >> p ) & 1u ) {
+            fprintf( stderr, "SKIP [%s] %s row=%d (overrides file)\n",
+                     label, relpath, p );
+            continue;
+        }
         for ( int a = 0; a < ncol; a++ ) {
             if ( !axis_match( got[a][p], ref[a][p], rtol, atol, is_ang[a] ) ) {
                 double d = fabs( got[a][p] - ref[a][p] );
@@ -215,8 +224,12 @@ static int compare_equiv( const char *relpath,
    "relpath off" disables round-trip, "relpath <rtol> <atol>" loosens it.
    Golden lines: "relpath golden off" / "relpath golden-fwd off" /
    "relpath golden-inv off" skip the golden comparison for the named
-   direction(s).  A fixture may have both a round-trip and a golden line;
-   the two kinds are looked up independently. */
+   direction(s), and "relpath golden-fwd-rows <list>" /
+   "relpath golden-inv-rows <list>" skip only the listed rows, where <list>
+   is comma-separated 0-based row indices below 64.  A row list is the
+   preferred form: it leaves the rest of the section pinned.  A fixture may
+   have both a round-trip and a golden line; the two kinds are looked up
+   independently. */
 typedef struct {
     char relpath[1024];
     int rtrip;                  /* round-trip entry?  else golden entry */
@@ -224,9 +237,27 @@ typedef struct {
     int off;                    /* round-trip: check disabled */
     int golden_fwd_off;         /* golden: skip forward sections */
     int golden_inv_off;         /* golden: skip inverse sections */
+    uint64_t golden_fwd_rows;   /* golden: forward rows to leave uncompared */
+    uint64_t golden_inv_rows;   /* golden: inverse rows to leave uncompared */
 } Override;
 static Override *g_over = NULL;
 static int g_nover = 0;
+
+/* Parse a comma-separated list of 0-based row indices into a bitmap.  Rows
+   at or beyond 64 are ignored, as is any token that is not a number. */
+static uint64_t parse_row_list( const char *list ) {
+    uint64_t rows = 0;
+    const char *p = list;
+    while ( *p ) {
+        char *end;
+        long v = strtol( p, &end, 10 );
+        if ( end == p ) break;
+        if ( v >= 0 && v < 64 ) rows |= (uint64_t) 1u << v;
+        p = end;
+        while ( *p == ',' || *p == ' ' ) p++;
+    }
+    return rows;
+}
 
 static void load_overrides( const char *path ) {
     if ( !path ) return;
@@ -242,7 +273,14 @@ static void load_overrides( const char *path ) {
         Override *o = &g_over[g_nover++];
         memset( o, 0, sizeof *o );
         snprintf( o->relpath, sizeof o->relpath, "%s", rel );
-        if ( strncmp( what, "golden", 6 ) == 0 ) {
+        if ( strcmp( what, "golden-fwd-rows" ) == 0 ||
+             strcmp( what, "golden-inv-rows" ) == 0 ) {
+            char list[1024] = "";
+            sscanf( line, "%*s %*s %1023s", list );
+            uint64_t rows = parse_row_list( list );
+            if ( strcmp( what, "golden-fwd-rows" ) == 0 ) o->golden_fwd_rows = rows;
+            else                                         o->golden_inv_rows = rows;
+        } else if ( strncmp( what, "golden", 6 ) == 0 ) {
             o->golden_fwd_off = ( strcmp( what, "golden" ) == 0 ||
                                   strcmp( what, "golden-fwd" ) == 0 );
             o->golden_inv_off = ( strcmp( what, "golden" ) == 0 ||
@@ -273,11 +311,24 @@ static int rtrip_tol( const char *relpath, double *rtol, double *atol ) {
 static int golden_off( const char *relpath, int forward ) {
     for ( int i = 0; i < g_nover; i++ ) {
         if ( !g_over[i].rtrip && strcmp( g_over[i].relpath, relpath ) == 0 ) {
-            return forward ? g_over[i].golden_fwd_off
-                           : g_over[i].golden_inv_off;
+            if ( forward ? g_over[i].golden_fwd_off
+                         : g_over[i].golden_inv_off ) return 1;
         }
     }
     return 0;
+}
+
+/* Bitmap of rows the golden comparison should leave uncompared for this
+   fixture and direction. */
+static uint64_t golden_skip_rows( const char *relpath, int forward ) {
+    uint64_t rows = 0;
+    for ( int i = 0; i < g_nover; i++ ) {
+        if ( !g_over[i].rtrip && strcmp( g_over[i].relpath, relpath ) == 0 ) {
+            rows |= forward ? g_over[i].golden_fwd_rows
+                            : g_over[i].golden_inv_rows;
+        }
+    }
+    return rows;
 }
 
 /* Round-trip accuracy check (GRID-domain corpora only).  fwd is a fixture's
@@ -370,7 +421,9 @@ static int selftest( void ) {
            "loose.head 2e-3 4e-2\n"
            "noisy.map golden-inv off\n"
            "both.map golden off\n"
-           "fwdonly.map golden-fwd off\n", fp );
+           "fwdonly.map golden-fwd off\n"
+           "rows.map golden-inv-rows 2,3\n"
+           "rows.map golden-fwd-rows 0\n", fp );
     fclose( fp );
     load_overrides( tmpov );
     double rtol, atol;
@@ -382,6 +435,15 @@ static int selftest( void ) {
     ok = ok && !golden_off( "noisy.map", 1 ) && golden_off( "noisy.map", 0 );
     ok = ok && golden_off( "both.map", 1 ) && golden_off( "both.map", 0 );
     ok = ok && golden_off( "fwdonly.map", 1 ) && !golden_off( "fwdonly.map", 0 );
+
+    /* A row list narrows the skip instead of disabling the direction. */
+    ok = ok && !golden_off( "rows.map", 0 ) && !golden_off( "rows.map", 1 );
+    ok = ok && golden_skip_rows( "rows.map", 0 ) == 0xcu;   /* rows 2 and 3 */
+    ok = ok && golden_skip_rows( "rows.map", 1 ) == 0x1u;   /* row 0        */
+    ok = ok && golden_skip_rows( "noisy.map", 0 ) == 0u;
+    ok = ok && parse_row_list( "" ) == 0u;
+    ok = ok && parse_row_list( "0,63" ) == ( 1ull | ( 1ull << 63 ) );
+    ok = ok && parse_row_list( "64,-1" ) == 0u;
 
     printf( "selftest: %s\n", ok ? "ok" : "FAIL" );
     return ok ? 0 : 1;
@@ -479,7 +541,9 @@ int main( int argc, char *argv[] ) {
             total_fail += compare_outputs( label, s->relpath, live, s->out,
                                            s->nout, s->npoint,
                                            ORACLE_DEF_RTOL, ORACLE_DEF_ATOL,
-                                           is_ang );
+                                           is_ang,
+                                           golden_skip_rows( s->relpath,
+                                                             s->forward ) );
             checked++;
         }
 
