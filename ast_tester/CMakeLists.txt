@@ -324,6 +324,7 @@ endforeach()
 # --- Tests using internal headers (#define astCLASS) ---
 ast_add_test(testresimp INTERNAL_HEADERS)
 ast_add_test(testissimp INTERNAL_HEADERS)
+ast_add_test(testchebyinverse INTERNAL_HEADERS)
 
 # --- Tests needing SAE_PAR stub ---
 ast_add_test(testaxis)

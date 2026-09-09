@@ -184,6 +184,17 @@ static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_equal)( AstObject *, AstObject *, int * );
 static void (* parent_polypowers)( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static AstPolyMap *(*parent_polytran)( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
+static AstPolyMap **(*parent_getjacobian)( AstPolyMap *, int * );
+
+/* A derivative term retains the original orders except on one axis. */
+typedef struct ChebyDerivTerm {
+   const int *powers;
+   int nin;
+   int axis;
+   int degree;
+   int output;
+   double coeff;
+} ChebyDerivTerm;
 
 
 #ifdef THREAD_SAFE
@@ -226,6 +237,8 @@ AstChebyMap *astChebyMapId_( int, int, int, const double[], int, const double[],
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetIterInverse( AstPolyMap *, int * );
+static AstPolyMap **GetJacobian( AstPolyMap *, int * );
+static int CompareDerivTerms( const void *, const void * );
 static size_t GetObjSize( AstObject *, int * );
 static void ChebyDomain( AstChebyMap *, int, double *, double *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
@@ -840,6 +853,223 @@ static void FitPoly2DInit( AstPolyMap *this_polymap, int forward, double **table
 
 }
 
+static int CompareDerivTerms( const void *a, const void *b ) {
+/*
+*  Name:
+*     CompareDerivTerms
+
+*  Purpose:
+*     Compare the output axes and orders of two derivative terms.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     int CompareDerivTerms( const void *a, const void *b )
+
+*  Description:
+*     This function compares two ChebyDerivTerm structures for use by
+*     qsort. Terms are ordered first by output axis and then
+*     lexicographically by their polynomial orders. On the
+*     differentiated axis the derivative order is used; on each other
+*     axis the original order is used.
+*
+*     Coefficient values are excluded from the comparison, so terms that
+*     can be combined into one coefficient compare equal. The comparator
+*     uses only information in the supplied structures and no global
+*     state.
+
+*  Parameters:
+*     a
+*        Pointer to the first ChebyDerivTerm structure.
+*     b
+*        Pointer to the second ChebyDerivTerm structure. Both terms must
+*        have the same number of input axes.
+
+*  Returned Value:
+*     Minus one if "a" precedes "b", plus one if "a" follows "b", or
+*     zero if the terms have the same output axis and polynomial orders.
+
+*  Notes:
+*     - This function does not use the inherited status, since its
+*     calling sequence is fixed by qsort.
+*/
+   const ChebyDerivTerm *ta = a;
+   const ChebyDerivTerm *tb = b;
+   int i, pa, pb;
+   if( ta->output != tb->output ) return ta->output < tb->output ? -1 : 1;
+   for( i = 0; i < ta->nin; i++ ) {
+      pa = i == ta->axis ? ta->degree : ta->powers[ i ];
+      pb = i == tb->axis ? tb->degree : tb->powers[ i ];
+      if( pa != pb ) return pa < pb ? -1 : 1;
+   }
+   return 0;
+}
+
+static AstPolyMap **GetJacobian( AstPolyMap *map, int *status ) {
+/*
+*  Name:
+*     GetJacobian
+
+*  Purpose:
+*     Get the Jacobian of the original forward transformation of a
+*     ChebyMap.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     AstPolyMap **GetJacobian( AstPolyMap *map, int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astGetJacobian protected
+*     method inherited from the parent PolyMap class).
+
+*  Description:
+*     This function returns one derivative Mapping for each original
+*     input axis. Each Mapping takes all original inputs and returns the
+*     derivatives of all original outputs with respect to that axis,
+*     thereby evaluating one column of the Jacobian. The Invert
+*     attribute is ignored.
+*
+*     For a Chebyshev forward series, each derivative is represented as
+*     another first-kind ChebyMap. The derivative of T_n contains orders
+*     n-1, n-3, ... with coefficients 2*n, except that the coefficient
+*     of order zero is n. Each coefficient also includes the physical
+*     input normalisation scale. Orders on other axes are unchanged, and
+*     terms with equal output axes and orders are combined.
+*
+*     The derivative Maps retain the exact forward normalisation and
+*     have iterative inversion disabled. A zero column is represented by
+*     a defined zero transformation. The Maps are cached for subsequent
+*     calls. If the original forward series is an ordinary polynomial,
+*     the parent PolyMap implementation is used instead.
+
+*  Parameters:
+*     map
+*        Pointer to the ChebyMap, supplied as a PolyMap pointer. The
+*        original forward transformation must be defined.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Pointer to an array of PolyMap pointers, with one element per
+*     original input axis, or NULL if the original forward
+*     transformation is undefined or an error occurs. The array and its
+*     Maps belong to "map" and must not be modified, freed or annulled
+*     by the caller.
+
+*  Notes:
+*     - The returned pointer remains valid only while "map" retains its
+*     cached Jacobian. Coefficient replacement can invalidate it.
+*     - A NULL pointer is returned if the inherited status is set, or if
+*     an error occurs.
+*/
+   AstChebyMap *this = (AstChebyMap *) map;
+   AstChebyMap *deriv;
+   ChebyDerivTerm *terms = NULL;
+   double *coeffs = NULL;
+   double *lbnd = NULL;
+   double *ubnd = NULL;
+   double *pc;
+   size_t count, iterm;
+   int nin, nout, axis, out, ico, degree, n, i, nco;
+
+   if( !astOK ) return NULL;
+   if( !this->scale_f ) return (*parent_getjacobian)( map, status );
+   if( map->jacobian ) return map->jacobian;
+
+   nin = ((AstMapping *) map)->nin;
+   nout = ((AstMapping *) map)->nout;
+   if( !map->ncoeff_f ) return NULL;
+   map->jacobian = astCalloc( nin, sizeof( *map->jacobian ) );
+   lbnd = astMalloc( nin*sizeof( *lbnd ) );
+   ubnd = astMalloc( nin*sizeof( *ubnd ) );
+   if( astOK ) {
+      for( i = 0; i < nin; i++ ) {
+         lbnd[ i ] = (-1.0 - this->offset_f[ i ])/this->scale_f[ i ];
+         ubnd[ i ] = (1.0 - this->offset_f[ i ])/this->scale_f[ i ];
+      }
+   }
+
+   for( axis = 0; axis < nin && astOK; axis++ ) {
+      count = 0;
+      for( out = 0; out < nout; out++ ) {
+         for( ico = 0; ico < map->ncoeff_f[ out ]; ico++ ) {
+            n = map->power_f[ out ][ ico ][ axis ];
+            count += (size_t) n/2 + n%2;
+         }
+      }
+      if( count > INT_MAX ) {
+         astError( AST__INTER, "GetJacobian(%s): Too many derivative terms.",
+                   status, astGetClass( this ) );
+         break;
+      }
+      terms = astMalloc( astMAX( count, 1 )*sizeof( *terms ) );
+      coeffs = astCalloc( astMAX( count, 1 ),
+                         (nin + 2)*sizeof( *coeffs ) );
+      if( astOK ) {
+         iterm = 0;
+         for( out = 0; out < nout; out++ ) {
+            for( ico = 0; ico < map->ncoeff_f[ out ]; ico++ ) {
+               n = map->power_f[ out ][ ico ][ axis ];
+               for( degree = n - 1; degree >= 0; degree -= 2 ) {
+                  ChebyDerivTerm *term = terms + iterm++;
+                  term->powers = map->power_f[ out ][ ico ];
+                  term->nin = nin;
+                  term->axis = axis;
+                  term->degree = degree;
+                  term->output = out + 1;
+                  term->coeff = map->coeff_f[ out ][ ico ];
+                  if( term->coeff != AST__BAD ) {
+                     term->coeff *= this->scale_f[ axis ]*n*
+                                    (degree ? 2.0 : 1.0);
+                  }
+               }
+            }
+         }
+
+/* Combine equal terms before constructing the derivative Mapping. */
+         qsort( terms, count, sizeof( *terms ), CompareDerivTerms );
+         nco = 0;
+         pc = coeffs;
+         for( iterm = 0; iterm < count; iterm++ ) {
+            ChebyDerivTerm *term = terms + iterm;
+            if( iterm && !CompareDerivTerms( term, term - 1 ) ) {
+               pc[ 0 ] = pc[ 0 ] == AST__BAD || term->coeff == AST__BAD ?
+                         AST__BAD : pc[ 0 ] + term->coeff;
+            } else {
+               pc = coeffs + (size_t) nco++*(nin + 2);
+               pc[ 0 ] = term->coeff;
+               pc[ 1 ] = term->output;
+               for( i = 0; i < nin; i++ ) {
+                  pc[ i + 2 ] = i == axis ? term->degree : term->powers[ i ];
+               }
+            }
+         }
+
+/* No terms means a defined zero column, not an undefined transformation. */
+         if( !nco ) {
+            nco = 1;
+            coeffs[ 1 ] = 1.0;
+         }
+         deriv = astChebyMap( nin, nout, nco, coeffs, 0, NULL,
+                              lbnd, ubnd, NULL, NULL, "IterInverse=0", status );
+         if( astOK ) {
+            memcpy( deriv->scale_f, this->scale_f, nin*sizeof( double ) );
+            memcpy( deriv->offset_f, this->offset_f, nin*sizeof( double ) );
+         }
+         map->jacobian[ axis ] = (AstPolyMap *) deriv;
+      }
+      coeffs = astFree( coeffs );
+      terms = astFree( terms );
+   }
+   lbnd = astFree( lbnd );
+   ubnd = astFree( ubnd );
+   return astOK ? map->jacobian : NULL;
+}
+
 static int GetIterInverse( AstPolyMap *this, int *status ) {
 /*
 *  Name:
@@ -1023,6 +1253,9 @@ void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status
    polymap = (AstPolyMapVtab *) vtab;
 
    polymap->GetIterInverse = GetIterInverse;
+
+   parent_getjacobian = polymap->GetJacobian;
+   polymap->GetJacobian = GetJacobian;
 
    parent_getobjsize = object->GetObjSize;
    object->GetObjSize = GetObjSize;
@@ -2403,5 +2636,4 @@ void astChebyDomain_( AstChebyMap *this, int forward, double *lbnd, double *ubnd
    if ( !astOK ) return;
    (**astMEMBER(this,ChebyMap,ChebyDomain))( this, forward, lbnd, ubnd, status );
 }
-
 
