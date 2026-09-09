@@ -4217,6 +4217,36 @@ static void gen_defunc_fixtures(const char *dir) {
         f = astAnnul(f);
     }
     {
+        /* A bounding box with zero width on an axis gets 1.0E-6 of the axis
+           value there; an axis that is constant at zero has neither scale
+           and gets the absolute 1.0E-12 floor that astEQUAL uses, so the
+           uncertainty keeps a non-zero width and the PointList still
+           contains its own points. Axis 1 is constant at 5, axis 2 at 0,
+           axis 3 varies. */
+        AstFrame *f = astFrame(3, " ");
+        double pts[6] = { 5.0, 5.0, 0.0, 0.0, 3.0, 4.0 };
+        AstPointList *pl = astPointList(f, 2, 3, 2, pts, NULL, " ");
+        AstRegion *unc = astGetUnc(pl, 1);
+        write_fixture(dir, "defunc_pointlist_origin_axis", (AstMapping *) unc);
+        unc = astAnnul(unc);
+        pl = astAnnul(pl);
+        f = astAnnul(f);
+    }
+    {
+        /* The same floor in Interval's own default, which only an Interval
+           with an unbounded axis derives: axis 1 has both limits at zero,
+           axis 2 is half-open. */
+        AstFrame *f = astFrame(2, " ");
+        double lbnd[2] = { 0.0, 1.0 };
+        double ubnd[2] = { 0.0, AST__BAD };
+        AstInterval *iv = astInterval(f, lbnd, ubnd, NULL, " ");
+        AstRegion *unc = astGetUnc(iv, 1);
+        write_fixture(dir, "defunc_interval_point_at_origin", (AstMapping *) unc);
+        unc = astAnnul(unc);
+        iv = astAnnul(iv);
+        f = astAnnul(f);
+    }
+    {
         /* When a component carries an explicit uncertainty the CmpRegion's
            default is that one, not a box round the whole thing. */
         AstFrame *f = astFrame(2, " ");

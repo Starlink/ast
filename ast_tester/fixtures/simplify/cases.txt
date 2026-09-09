@@ -538,6 +538,8 @@ cefit_circle_to_ellipse                | simplify/cefit_circle_to_ellipse.map | 
 cefit_ellipse_to_circle                | simplify/cefit_ellipse_to_circle.map | simplify/cefit_ellipse_to_circle.simp |
 defunc_cmpregion_component_unc         | simplify/defunc_cmpregion_component_unc.map | simplify/defunc_cmpregion_component_unc.simp |
 defunc_interval_unbounded              | simplify/defunc_interval_unbounded.map | simplify/defunc_interval_unbounded.simp |
+defunc_interval_point_at_origin        | simplify/defunc_interval_point_at_origin.map | simplify/defunc_interval_point_at_origin.simp |
+defunc_pointlist_origin_axis           | simplify/defunc_pointlist_origin_axis.map | simplify/defunc_pointlist_origin_axis.simp |
 defunc_nullregion_2d                   | simplify/defunc_nullregion_2d.map | simplify/defunc_nullregion_2d.simp |
 defunc_prism_box_interval              | simplify/defunc_prism_box_interval.map | simplify/defunc_prism_box_interval.simp |
 merge_box_fillfactor_product           | simplify/merge_box_fillfactor_product.map | simplify/merge_box_fillfactor_product.simp |

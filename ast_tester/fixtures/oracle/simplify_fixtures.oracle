@@ -10739,6 +10739,110 @@
                        BAD                      BAD                       BAD                      BAD
                        BAD                      BAD                       BAD                      BAD
 
+[simplify/defunc_interval_point_at_origin.map  nin=2 nout=2 dir=forward]
+                     -1000                    -1000                       BAD                      BAD
+                      1000                     1000                       BAD                      BAD
+                         0                        0                         0                        0
+                         0                        0                         0                        0
+                         0      -333.33333333333337                       BAD                      BAD
+                      -500       333.33333333333326                       BAD                      BAD
+                       500      -777.77777777777783                       BAD                      BAD
+                      -750       -111.1111111111112                       BAD                      BAD
+                       250       555.55555555555543                       BAD                      BAD
+                      -250      -555.55555555555566                       BAD                      BAD
+                       750       111.11111111111109                       BAD                      BAD
+                      -875        777.7777777777776                       BAD                      BAD
+                       125      -925.92592592592587                       BAD                      BAD
+                      -375      -259.25925925925935                       BAD                      BAD
+                       625       407.40740740740739                       BAD                      BAD
+                      -625       -703.7037037037037                       BAD                      BAD
+                       375      -37.037037037037067                       BAD                      BAD
+                      -125       629.62962962962933                       BAD                      BAD
+                       875      -481.48148148148152                       BAD                      BAD
+                    -937.5       185.18518518518522                       BAD                      BAD
+                      62.5       851.85185185185173                       BAD                      BAD
+                    -437.5      -851.85185185185185                       BAD                      BAD
+                     562.5      -185.18518518518522                       BAD                      BAD
+                    -687.5        481.4814814814813                       BAD                      BAD
+
+[simplify/defunc_interval_point_at_origin.map  nin=2 nout=2 dir=inverse]
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                         0                        0                         0                        0
+                         0                        0                         0                        0
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+
+[simplify/defunc_interval_point_at_origin.simp  nin=2 nout=2 dir=forward]
+                     -1000                    -1000                       BAD                      BAD
+                      1000                     1000                       BAD                      BAD
+                         0                        0                         0                        0
+                         0                        0                         0                        0
+                         0      -333.33333333333337                       BAD                      BAD
+                      -500       333.33333333333326                       BAD                      BAD
+                       500      -777.77777777777783                       BAD                      BAD
+                      -750       -111.1111111111112                       BAD                      BAD
+                       250       555.55555555555543                       BAD                      BAD
+                      -250      -555.55555555555566                       BAD                      BAD
+                       750       111.11111111111109                       BAD                      BAD
+                      -875        777.7777777777776                       BAD                      BAD
+                       125      -925.92592592592587                       BAD                      BAD
+                      -375      -259.25925925925935                       BAD                      BAD
+                       625       407.40740740740739                       BAD                      BAD
+                      -625       -703.7037037037037                       BAD                      BAD
+                       375      -37.037037037037067                       BAD                      BAD
+                      -125       629.62962962962933                       BAD                      BAD
+                       875      -481.48148148148152                       BAD                      BAD
+                    -937.5       185.18518518518522                       BAD                      BAD
+                      62.5       851.85185185185173                       BAD                      BAD
+                    -437.5      -851.85185185185185                       BAD                      BAD
+                     562.5      -185.18518518518522                       BAD                      BAD
+                    -687.5        481.4814814814813                       BAD                      BAD
+
+[simplify/defunc_interval_point_at_origin.simp  nin=2 nout=2 dir=inverse]
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                         0                        0                         0                        0
+                         0                        0                         0                        0
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+
 [simplify/defunc_interval_unbounded.map  nin=2 nout=2 dir=forward]
                      -1000                    -1000                       BAD                      BAD
                       1000                     1000                       BAD                      BAD
@@ -10946,6 +11050,110 @@
                        BAD                      BAD                       BAD                      BAD
                        BAD                      BAD                       BAD                      BAD
                        BAD                      BAD                       BAD                      BAD
+
+[simplify/defunc_pointlist_origin_axis.map  nin=3 nout=3 dir=forward]
+                     -1000                    -1000                    -1000                       BAD                      BAD                      BAD
+                      1000                     1000                     1000                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0      -333.33333333333337                     -600                       BAD                      BAD                      BAD
+                      -500       333.33333333333326                     -200                       BAD                      BAD                      BAD
+                       500      -777.77777777777783       200.00000000000023                       BAD                      BAD                      BAD
+                      -750       -111.1111111111112                      600                       BAD                      BAD                      BAD
+                       250       555.55555555555543                     -920                       BAD                      BAD                      BAD
+                      -250      -555.55555555555566                     -520                       BAD                      BAD                      BAD
+                       750       111.11111111111109                     -120                       BAD                      BAD                      BAD
+                      -875        777.7777777777776       280.00000000000023                       BAD                      BAD                      BAD
+                       125      -925.92592592592587       680.00000000000023                       BAD                      BAD                      BAD
+                      -375      -259.25925925925935                     -840                       BAD                      BAD                      BAD
+                       625       407.40740740740739                     -440                       BAD                      BAD                      BAD
+                      -625       -703.7037037037037      -39.999999999999886                       BAD                      BAD                      BAD
+                       375      -37.037037037037067                      360                       BAD                      BAD                      BAD
+                      -125       629.62962962962933                      760                       BAD                      BAD                      BAD
+                       875      -481.48148148148152                     -760                       BAD                      BAD                      BAD
+                    -937.5       185.18518518518522                     -360                       BAD                      BAD                      BAD
+                      62.5       851.85185185185173                       40                       BAD                      BAD                      BAD
+                    -437.5      -851.85185185185185       440.00000000000023                       BAD                      BAD                      BAD
+                     562.5      -185.18518518518522                      840                       BAD                      BAD                      BAD
+                    -687.5        481.4814814814813                     -680                       BAD                      BAD                      BAD
+
+[simplify/defunc_pointlist_origin_axis.map  nin=3 nout=3 dir=inverse]
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+
+[simplify/defunc_pointlist_origin_axis.simp  nin=3 nout=3 dir=forward]
+                     -1000                    -1000                    -1000                       BAD                      BAD                      BAD
+                      1000                     1000                     1000                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0      -333.33333333333337                     -600                       BAD                      BAD                      BAD
+                      -500       333.33333333333326                     -200                       BAD                      BAD                      BAD
+                       500      -777.77777777777783       200.00000000000023                       BAD                      BAD                      BAD
+                      -750       -111.1111111111112                      600                       BAD                      BAD                      BAD
+                       250       555.55555555555543                     -920                       BAD                      BAD                      BAD
+                      -250      -555.55555555555566                     -520                       BAD                      BAD                      BAD
+                       750       111.11111111111109                     -120                       BAD                      BAD                      BAD
+                      -875        777.7777777777776       280.00000000000023                       BAD                      BAD                      BAD
+                       125      -925.92592592592587       680.00000000000023                       BAD                      BAD                      BAD
+                      -375      -259.25925925925935                     -840                       BAD                      BAD                      BAD
+                       625       407.40740740740739                     -440                       BAD                      BAD                      BAD
+                      -625       -703.7037037037037      -39.999999999999886                       BAD                      BAD                      BAD
+                       375      -37.037037037037067                      360                       BAD                      BAD                      BAD
+                      -125       629.62962962962933                      760                       BAD                      BAD                      BAD
+                       875      -481.48148148148152                     -760                       BAD                      BAD                      BAD
+                    -937.5       185.18518518518522                     -360                       BAD                      BAD                      BAD
+                      62.5       851.85185185185173                       40                       BAD                      BAD                      BAD
+                    -437.5      -851.85185185185185       440.00000000000023                       BAD                      BAD                      BAD
+                     562.5      -185.18518518518522                      840                       BAD                      BAD                      BAD
+                    -687.5        481.4814814814813                     -680                       BAD                      BAD                      BAD
+
+[simplify/defunc_pointlist_origin_axis.simp  nin=3 nout=3 dir=inverse]
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
 
 [simplify/defunc_prism_box_interval.map  nin=3 nout=3 dir=forward]
                      -1000                    -1000                    -1000                       BAD                      BAD                      BAD
