@@ -201,6 +201,9 @@ typedef struct AstPolyMapVtab {
    void (* PolyCoeffs)( AstPolyMap *, int, int, double *, int *, int *);
    void (* FitPoly1DInit)( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
    void (* FitPoly2DInit)( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
+   AstPolyMap **(* GetJacobian)( AstPolyMap *, int * );
+   AstMapping *(* LinearGuess)( AstPolyMap *, int * );
+   int (* GetIterDomain)( AstPolyMap *, double *, double *, int * );
 
    int (*GetIterInverse)( AstPolyMap *, int * );
    int (* TestIterInverse)( AstPolyMap *, int * );
@@ -273,6 +276,9 @@ void astPolyCoeffs_( AstPolyMap *, int, int, double *, int *, int *);
 void astShowPoly_( AstPolyMap *, int * );
 
 # if defined(astCLASS)           /* Protected */
+   AstPolyMap **astGetJacobian_( AstPolyMap *, int * );
+   AstMapping *astLinearGuess_( AstPolyMap *, int * );
+   int astGetIterDomain_( AstPolyMap *, double *, double *, int * );
    AstPolyMap *astMergeShift_( AstPolyMap *, AstShiftMap *, int, int, int * );
    void astPolyPowers_( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
    void astFitPoly1DInit_( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
@@ -351,6 +357,12 @@ astINVOKE(V,astPolyCoeffs_(astCheckPolyMap(this),forward,nel,coeffs,ncoeff,STATU
 astShowPoly_(astCheckPolyMap(this),STATUS_PTR)
 
 #if defined(astCLASS)            /* Protected */
+#define astGetJacobian(this) \
+        astINVOKE(V,astGetJacobian_(astCheckPolyMap(this),STATUS_PTR))
+#define astLinearGuess(this) \
+        astINVOKE(O,astLinearGuess_(astCheckPolyMap(this),STATUS_PTR))
+#define astGetIterDomain(this,lbnd,ubnd) \
+        astINVOKE(V,astGetIterDomain_(astCheckPolyMap(this),lbnd,ubnd,STATUS_PTR))
 #define astMergeShift(this,shift,before,force) \
         astINVOKE(O,astMergeShift_(astCheckPolyMap(this),astCheckShiftMap(shift),before,force,STATUS_PTR))
 #define astPolyPowers(this,work,ncoord,mxpow,ptr,offset,fwd) \
@@ -388,7 +400,6 @@ astShowPoly_(astCheckPolyMap(this),STATUS_PTR)
 
 #endif
 #endif
-
 
 
 
