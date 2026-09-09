@@ -11,11 +11,12 @@
 *       about.
 *     - Order and Type are dump components rather than readable attributes, so
 *       they are checked by re-dumping the loaded object.
-*     - Registered twice in ast_tester/CMakeLists.txt: as an ordinary test, and
-*       as "testxphmap_leak" with LeakSanitizer enabled.  astLoadXphMap used to
-*       leak the string it read for the Type component, which no output value
-*       can reveal, so a leak-detecting run is the only regression gate for
-*       that fix.
+*     - astLoadXphMap used to leak the string it read for the Type component.
+*       No output value can reveal a leak, so nothing here asserts it is gone;
+*       the check is an AddressSanitizer run of this test with detect_leaks=1,
+*       which is not wired into either build system because LeakSanitizer does
+*       not exist on Darwin and every other test in this directory suppresses
+*       leak reports (AST's memory system caches freed blocks).
 */
 #include "ast.h"
 
