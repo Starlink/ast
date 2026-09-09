@@ -112,6 +112,7 @@ C_TESTS = \
     testunitnorm \
     testunitnormmap_c \
     testxmlchan_c \
+    testxphmap_c \
     testzoommap_c
 
 # testhuge (C version) is compiled unconditionally; testhuge_f is
@@ -295,6 +296,10 @@ testhuge_c_LDADD       = $(CTEST_LDADD)
 testxmlchan_c_SOURCES  = testxmlchan.c
 testxmlchan_c_CFLAGS   = $(AM_CFLAGS)
 testxmlchan_c_LDADD    = $(CTEST_LDADD)
+
+testxphmap_c_SOURCES   = testxphmap.c
+testxphmap_c_CFLAGS    = $(AM_CFLAGS)
+testxphmap_c_LDADD     = $(CTEST_LDADD)
 
 testzoommap_c_SOURCES  = testzoommap.c
 testzoommap_c_CFLAGS   = $(AM_CFLAGS)
