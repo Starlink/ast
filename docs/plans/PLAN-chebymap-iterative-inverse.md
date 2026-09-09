@@ -4,9 +4,11 @@ second-kind coefficient storage. The derivative representation is a small part
 of the work; initial guesses, domain constraints and convergence handling need
 equal attention.
 
-This is a design plan, not an implementation. Source inspection used local
-commit `68b452f6` and the discussion and changed-file list of PR #80. Numerical
-probes used the existing local build and NumPy 2.5.3.
+The seven implementation steps below are complete. The design and initial
+probes are retained as the rationale; completion evidence appears at the end.
+Initial source inspection used local commit `68b452f6` and the discussion and
+changed-file list of PR #80. Numerical planning probes used the existing local
+build and NumPy 2.5.3.
 
 **Correction to the motivating discussion.** The two `tnx-cheb` fixtures do not
 contain a ChebyMap. `FitsChan::WATCoeffs` calls `Cheb2Poly` at
@@ -303,3 +305,39 @@ different physical scales; all checks passed. This validates the algebraic
 choice, not an AST iterative-inverse implementation. The remaining engineering
 risk is bounded nonlinear convergence and compatibility, rather than the
 ability to represent a Chebyshev derivative.
+
+**Implementation and validation.**
+
+The implementation uses the shared PolyMap solver with protected hooks,
+first-kind derivative caches, normalized affine seeds and bounded Newton
+steps. It preserves the unbounded PolyMap convergence contract. Cache
+invalidation, memory accounting and thread-lock propagation are covered.
+Reconstructed endpoints are moved inward by representable values when
+rounding would otherwise put them outside the forward evaluator's domain.
+
+The new tests include independent analytic quadratic and coupled polynomial
+shear inverses in one, two and three dimensions; independent derivative
+checks through degree 12; domain boundaries and large offsets; invalid
+targets and exhaustion; attributes; legacy ordinary-polynomial ChebyMaps;
+copying, serialization, refitting and warmed-cache thread transfer.
+
+Validation on macOS:
+
+- The full CMake Debug ASan/UBSan suite ran 2,467 tests. Its sole failure
+  was the expected dump of `cap_cheby_consolidate`, which still declared
+  its compound inverse unavailable. That expectation was updated because
+  its ChebyMap component now provides an iterative inverse.
+- After the endpoint fix and fixture update, all 26 focused sanitizer
+  tests passed, including ChebyMap/PolyMap, all three transform oracle
+  suites, ChebyMap fixtures and thread tests. The previously failing
+  dump comparison passed in this run.
+- A separate Fortran-enabled CMake build passed all five C/Fortran
+  ChebyMap and PolyMap tests, including the protected derivative tests.
+- The new test is registered in both CMake and Automake. Validation used
+  CMake; a separate Automake build was not run.
+
+No performance improvement is claimed; cold/warm timing benchmarks remain
+future work if cache expansion or inverse throughput needs optimization.
+The independent affine simplification bug from PR #80 and inaccurate TPN
+fixture round trips remain separate work. The TPN exclusions are retained
+with their diagnosis corrected.
