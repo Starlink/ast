@@ -5,26 +5,6 @@
 
    - what about overriding astRate ?
 
-   - Providing an iterative inverse requires the Jacobian to be defined.
-
-     for a PolyMap:   if y = C.x^n     then y' = n.C.x^n-1
-     for a ChebyMap:  if y = C.Tn(x)   then y' = n.C.Un-1(x)
-
-     where Un-1(x) is the Chebyshev polynomial of the second kind, degree
-     (n-1), evaluated at x. Since PolyMap.GetJacobian function uses PolyMaps
-     to express the Jacobian of a PolyMap, it would need to use ChebyMaps
-     to express the Jacobian of a ChebyMap. But this would mean that
-     ChebyMap needs to be able to represent Chebyshev polynomials of the
-     second type. In fact the set of powers associated with each coefficient
-     would need to indicate somehow whether to use type 1 or type 2 for
-     each power. Could use negative powers to indicate type 2, but PolyMap.StoreArrays
-     objects to negative powers. StoreArrays could just store them
-     without checking, and then call a virtual function to verify the powers
-     are OK.
-
-     Simpler for the moment just to disable iterative inverses in
-     ChebyMap.
-
 */
 
 
@@ -57,8 +37,8 @@ f     AST_CHEBYMAP
 *        - Tn(x') is the nth Chebyshev polynomial of the first kind:
 *             - T0(x') = 1
 *             - T1(x') = x'
-*             - Tn+1(x') = 2.x'.Tn(x') + Tn-1(x')
-*        - x' is the inpux axis value, x, offset and scaled to the range
+*             - Tn+1(x') = 2.x'.Tn(x') - Tn-1(x')
+*        - x' is the input axis value, x, offset and scaled to the range
 *          [-1, 1] as x ranges over a specified bounding box, given when the
 *          ChebyMap is created. The input positions, x,  supplied to the
 *          forward transformation must fall within the bounding box - bad
@@ -73,17 +53,26 @@ f     of NCOEFF
 *     value and N factors of the form Tn(x'_i), where "x'_i" is the
 *     normalised value of the i'th input axis value.
 *
-*     The forward and inverse transformations are defined independantly
-*     by separate sets of coefficients, supplied when the ChebyMap is
-*     created. If no coefficients are supplied to define the inverse
-*     transformation, the
+*     The forward and inverse transformations may be defined independently
+*     by separate sets of coefficients supplied when the ChebyMap is
+*     created. If forward coefficients are supplied, no inverse coefficients
+*     are supplied, and the numbers of inputs and outputs are equal, an
+*     iterative inverse is provided by default. It uses the analytic
+*     Jacobian of the forward series and confines candidate solutions to
+*     the forward bounding box. An unsolved position is returned as
+*     AST__BAD. See IterInverse, NiterInverse and TolInverse for details.
+*
+*     Supplied inverse coefficients are used by default. Setting
+*     IterInverse to one selects iteration instead; setting it to zero
+*     disables iteration. Clearing it restores the default selection.
+*     A local iterative inverse does not guarantee a unique solution or
+*     convergence at every position.
+*
+*     Alternatively, the
 c     astPolyTran
 f     AST_POLYTRAN
-*     method of the parent PolyMap class can instead be used to create an
-*     inverse transformation. The inverse transformation so generated
-*     will be a Chebyshev polynomial with coefficients chosen to minimise
-*     the residuals left by a round trip (forward transformation followed
-*     by inverse transformation).
+*     method can fit an inverse Chebyshev series, choosing coefficients
+*     to minimise the residuals of a forward/inverse round trip.
 
 *  Inheritance:
 *     The ChebyMap class inherits from the PolyMap class.
@@ -1740,7 +1729,7 @@ static void PolyPowers( AstPolyMap *this_polymap, double **work, int ncoord,
                *t = x;
 
 /* Form and store the remaining Chebyshev polynomial values at the input axis value.
-   Use the standard recurrence relation: Tn+1(x') = 2.x'.Tn(x') + Tn-1(x'). */
+   Use the standard recurrence relation: Tn+1(x') = 2.x'.Tn(x') - Tn-1(x'). */
                for( ip = 2; ip <= mxpow[ coord ]; ip++,t++ ) {
                   t[ 1 ] = 2.0*x*t[ 0 ] - t[ -1 ];
                }
@@ -2232,8 +2221,8 @@ f                            LBND_F, UBND_F, LBND_I, UBND_I, OPTIONS, STATUS )
 *        - Tn(x') is the nth Chebyshev polynomial of the first kind:
 *             - T0(x') = 1
 *             - T1(x') = x'
-*             - Tn+1(x') = 2.x'.Tn(x') + Tn-1(x')
-*        - x' is the inpux axis value, x, offset and scaled to the range
+*             - Tn+1(x') = 2.x'.Tn(x') - Tn-1(x')
+*        - x' is the input axis value, x, offset and scaled to the range
 *          [-1, 1] as x ranges over a specified bounding box, given when the
 *          ChebyMap is created. The input positions, x,  supplied to the
 *          forward transformation must fall within the bounding box - bad
@@ -2248,17 +2237,26 @@ f     of NCOEFF
 *     value and N factors of the form Tn(x'_i), where "x'_i" is the
 *     normalised value of the i'th input axis value.
 *
-*     The forward and inverse transformations are defined independantly
-*     by separate sets of coefficients, supplied when the ChebyMap is
-*     created. If no coefficients are supplied to define the inverse
-*     transformation, the
+*     The forward and inverse transformations may be defined independently
+*     by separate sets of coefficients supplied when the ChebyMap is
+*     created. If forward coefficients are supplied, no inverse coefficients
+*     are supplied, and the numbers of inputs and outputs are equal, an
+*     iterative inverse is provided by default. It uses the analytic
+*     Jacobian of the forward series and confines candidate solutions to
+*     the forward bounding box. An unsolved position is returned as
+*     AST__BAD. See IterInverse, NiterInverse and TolInverse for details.
+*
+*     Supplied inverse coefficients are used by default. Setting
+*     IterInverse to one selects iteration instead; setting it to zero
+*     disables iteration. Clearing it restores the default selection.
+*     A local iterative inverse does not guarantee a unique solution or
+*     convergence at every position.
+*
+*     Alternatively, the
 c     astPolyTran
 f     AST_POLYTRAN
-*     method of the parent PolyMap class can instead be used to create an
-*     inverse transformation. The inverse transformation so generated
-*     will be a Chebyshev polynomial with coefficients chosen to minimise
-*     the residuals left by a round trip (forward transformation followed
-*     by inverse transformation).
+*     method can fit an inverse Chebyshev series, choosing coefficients
+*     to minimise the residuals of a forward/inverse round trip.
 
 *  Parameters:
 c     nin
@@ -2307,8 +2305,9 @@ f        described by the "NCOEFF_F" groups within the supplied array.
 c     ncoeff_i
 f     NCOEFF_I = INTEGER (Given)
 *        The number of non-zero coefficients necessary to define the
-*        inverse transformation of the ChebyMap. If zero is supplied, the
-*        inverse transformation will be undefined.
+*        inverse transformation of the ChebyMap. If zero is supplied,
+*        an iterative inverse is provided when forward coefficients exist
+*        and the numbers of inputs and outputs are equal (see IterInverse).
 c     coeff_i
 f     COEFF_I( * ) = DOUBLE PRECISION (Given)
 *        An array containing
@@ -2619,8 +2618,9 @@ AstChebyMap *astInitChebyMap_( void *mem, size_t size, int init,
 *        described by the "ncoeff_f" groups within the supplied array.
 *     ncoeff_i
 *        The number of non-zero coefficients necessary to define the
-*        inverse transformation of the ChebyMap. If zero is supplied, the
-*        inverse transformation will be undefined.
+*        inverse transformation of the ChebyMap. If zero is supplied,
+*        an iterative inverse is provided when forward coefficients exist
+*        and the numbers of inputs and outputs are equal (see IterInverse).
 *     coeff_i
 *        An array containing
 *        "ncoeff_i*( 2 + nout )" elements. Each group of "2 + nout"

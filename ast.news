@@ -17,6 +17,20 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+- ChebyMap now supplies an iterative inverse by default for square maps
+  with forward coefficients and no explicit inverse coefficients. The
+  inverse uses analytic Chebyshev derivatives and confines its search to
+  the forward domain. Unsolved positions are returned as AST__BAD.
+  IterInverse can disable iteration or select it instead of an explicit
+  inverse. NiterInverse defaults to four; TolInverse defaults to 1e-6 and
+  measures corrections relative to each input domain's half-width.
+
+  This changes inverse availability for existing forward-only ChebyMaps,
+  including objects read from older Channel dumps. Previously ignored
+  explicit IterInverse settings now take effect. Explicit inverse
+  coefficients remain preferred when IterInverse is unset. Ordinary
+  PolyMap iteration retains its previous convergence and exhaustion rules.
+
 *** IMPORTANT - a change that may break existing code ***
 
 - Changing an attribute of a Mapping that has been cloned or included in

@@ -6677,10 +6677,28 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     PolyMap
 *        All PolyMaps have this attribute.
 *     ChebyMap
-*        The ChebyMap class does not currently provide an option for an
-*        iterative inverse, and so the IterInverse value is always zero.
-*        Setting or clearing the IterInverse attribute of a ChebyMap has
-*        no effect.
+*        An iterative inverse is available when the original forward
+*        transformation is defined and the numbers of inputs and outputs
+*        are equal. It is selected by default if no inverse coefficients
+*        are supplied. Setting this attribute to one selects iteration
+*        instead of any supplied inverse coefficients; zero disables it.
+*        Clearing it restores the default selection.
+*
+*        For a Chebyshev forward series, the algorithm starts from an
+*        affine approximation at the domain midpoint and backtracks steps
+*        within the forward bounding box. Both the residual and the
+*        estimated input correction must satisfy TolInverse. Invalid or
+*        unsolved positions, including those that exhaust NiterInverse,
+*        are returned as AST__BAD. This does not set the AST error status
+*        or prevent other positions in the same batch from being solved.
+*        An exact solution can be returned even at a singular point.
+*
+*        If several solutions exist, the returned solution depends on the
+*        initial guess; there is no guarantee of finding the closest one
+*        or of finding every possible solution. TranInverse indicates
+*        availability of the algorithm, not convergence at every position.
+*        A legacy ChebyMap whose forward coefficients describe an ordinary
+*        polynomial uses the unbounded PolyMap algorithm instead.
 
 *  Notes:
 *     - The transformation replaced by the iterative algorithm is the
@@ -6746,6 +6764,14 @@ astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 *     PolyMap
 *        All PolyMaps have this attribute.
 
+*     ChebyMap
+*        For a Chebyshev forward series, this is the maximum number of
+*        Newton updates. Each update may backtrack to reduce the residual.
+*        The final candidate is checked after the last update. A value of
+*        zero checks only the initial guess. The default is four, but
+*        stronger distortions may require more iterations. An unsolved
+*        position is returned as AST__BAD.
+
 *att--
 */
 astMAKE_CLEAR1(PolyMap,NiterInverse,niterinverse,(astClearIsSimple(this),-INT_MAX))
@@ -6785,6 +6811,18 @@ astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 *  Applicability:
 *     PolyMap
 *        All PolyMaps have this attribute.
+*     ChebyMap
+*        For a Chebyshev forward series, the tolerance is a positive
+*        fraction of each original input domain's half-width, rather than
+*        a fraction of the coordinate value. This avoids dependence on
+*        the location of the coordinate origin. Each Newton correction
+*        divided by its axis half-width must be no larger than this value.
+*        The forward residual is also checked, scaling each output by
+*        the sum of the absolute Jacobian elements multiplied by their
+*        respective input half-widths. An exact zero residual is accepted
+*        even if the Jacobian is singular. This is a local convergence
+*        criterion, not a guarantee of a global inverse or an error bound
+*        for an ill-conditioned transformation.
 *att--
 */
 astMAKE_CLEAR1(PolyMap,TolInverse,tolinverse,(astClearIsSimple(this),AST__BAD))
