@@ -91,12 +91,57 @@ static void derivatives( int *status ) {
    }
 }
 
+static void seeds( int *status ) {
+   double lo = 0, hi = 10;
+   double coeffs[] = { 2, 1, 1 };
+   double target[] = { -2, -1.6, 2 }, got[3], dlo, dhi;
+   AstChebyMap *cm = astChebyMap( 1, 1, 1, coeffs, 0, NULL,
+                                  &lo, &hi, NULL, NULL, "", status );
+   AstMapping *guess = astLinearGuess( cm );
+   astTran1( guess, 3, target, 0, got );
+   near( got[0], 0, "Affine seed lower endpoint" );
+   near( got[1], 1, "Affine seed physical normalization" );
+   near( got[2], 10, "Affine seed upper endpoint" );
+   guess = astAnnul( guess );
+   astInvert( cm );
+   check( astGetIterDomain( cm, &dlo, &dhi ), "Finite iteration domain" );
+   near( dlo, lo, "Original forward lower bound" );
+   near( dhi, hi, "Original forward upper bound" );
+   guess = astLinearGuess( cm );
+   astTran1( guess, 3, target, 0, got );
+   near( got[1], 1, "Seed ignores Invert" );
+   guess = astAnnul( guess );
+   cm = astAnnul( cm );
+
+/* T3 has slope -3 at the centre although it has no T1 coefficient. */
+   coeffs[2] = 3;
+   cm = astChebyMap( 1, 1, 1, coeffs, 0, NULL,
+                     &lo, &hi, NULL, NULL, "", status );
+   guess = astLinearGuess( cm );
+   target[0] = 1.2;
+   astTran1( guess, 1, target, 0, got );
+   near( got[0], 4, "Higher-order contribution to centre Jacobian" );
+   guess = astAnnul( guess );
+   cm = astAnnul( cm );
+
+/* A singular constant map has a usable midpoint seed, not an AST error. */
+   coeffs[2] = 0;
+   cm = astChebyMap( 1, 1, 1, coeffs, 0, NULL,
+                     &lo, &hi, NULL, NULL, "", status );
+   guess = astLinearGuess( cm );
+   astTran1( guess, 1, target, 0, got );
+   near( got[0], 5, "Midpoint fallback" );
+   guess = astAnnul( guess );
+   cm = astAnnul( cm );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
    astWatch( status );
    astBegin_();
    derivatives( status );
+   seeds( status );
    astEnd_( status );
    astFlushMemory( 1 );
    check( astOK, "Unexpected AST error" );

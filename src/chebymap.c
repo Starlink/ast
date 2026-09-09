@@ -157,6 +157,9 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 #include "cmpmap.h"              /* Compound mappings */
 #include "chebymap.h"            /* Interface definition for this class */
 #include "unitmap.h"             /* Unit mappings */
+#include "matrixmap.h"           /* Affine initial guesses */
+#include "shiftmap.h"
+#include "permmap.h"
 
 /* Error code definitions. */
 /* ----------------------- */
@@ -185,6 +188,7 @@ static int (* parent_equal)( AstObject *, AstObject *, int * );
 static void (* parent_polypowers)( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static AstPolyMap *(*parent_polytran)( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static AstPolyMap **(*parent_getjacobian)( AstPolyMap *, int * );
+static AstMapping *(*parent_linearguess)( AstPolyMap *, int * );
 
 /* A derivative term retains the original orders except on one axis. */
 typedef struct ChebyDerivTerm {
@@ -239,6 +243,8 @@ static int Equal( AstObject *, AstObject *, int * );
 static int GetIterInverse( AstPolyMap *, int * );
 static AstPolyMap **GetJacobian( AstPolyMap *, int * );
 static int CompareDerivTerms( const void *, const void * );
+static AstMapping *LinearGuess( AstPolyMap *, int * );
+static int GetIterDomain( AstPolyMap *, double *, double *, int * );
 static size_t GetObjSize( AstObject *, int * );
 static void ChebyDomain( AstChebyMap *, int, double *, double *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
@@ -1070,6 +1076,235 @@ static AstPolyMap **GetJacobian( AstPolyMap *map, int *status ) {
    return astOK ? map->jacobian : NULL;
 }
 
+static int GetIterDomain( AstPolyMap *map, double *lbnd, double *ubnd,
+                          int *status ) {
+/*
+*  Name:
+*     GetIterDomain
+
+*  Purpose:
+*     Get the finite domain for ChebyMap inverse iteration.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     int GetIterDomain( AstPolyMap *map, double *lbnd, double *ubnd,
+*                        int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astGetIterDomain
+*     protected method inherited from the parent PolyMap class).
+
+*  Description:
+*     This function returns the physical input bounds used to restrict
+*     iterative inversion of the original forward Chebyshev series. The
+*     bounds are recovered from the stored forward scales and offsets,
+*     independently of the Invert attribute.
+*
+*     A ChebyMap can also contain an ordinary polynomial forward
+*     transformation. Such a transformation has no finite iteration
+*     domain; in that case both supplied arrays are left unchanged and
+*     zero is returned.
+
+*  Parameters:
+*     map
+*        Pointer to the ChebyMap, supplied as a PolyMap pointer.
+*     lbnd
+*        Pointer to an array in which to return the lower bound on each
+*        original input axis. Its length must equal the number of inputs
+*        of the uninverted ChebyMap.
+*     ubnd
+*        Pointer to an array in which to return the upper bound on each
+*        original input axis. Its length and ordering must match "lbnd".
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if bounds have been supplied, or zero if the original forward
+*     transformation has no Chebyshev normalisation.
+
+*  Notes:
+*     - A value of zero is returned and the bound arrays are left
+*     unchanged if the inherited status is set.
+*/
+   AstChebyMap *this = (AstChebyMap *) map;
+   int i, nin = ((AstMapping *) map)->nin;
+   double a, b;
+   if( !astOK || !this->scale_f ) return 0;
+   for( i = 0; i < nin; i++ ) {
+      a = (-1.0 - this->offset_f[i])/this->scale_f[i];
+      b = (1.0 - this->offset_f[i])/this->scale_f[i];
+      lbnd[i] = astMIN( a, b );
+      ubnd[i] = astMAX( a, b );
+   }
+   return 1;
+}
+
+static AstMapping *LinearGuess( AstPolyMap *map, int *status ) {
+/*
+*  Name:
+*     LinearGuess
+
+*  Purpose:
+*     Get a Mapping supplying initial guesses for ChebyMap inversion.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     AstMapping *LinearGuess( AstPolyMap *map, int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astLinearGuess protected
+*     method inherited from the parent PolyMap class).
+
+*  Description:
+*     This function returns a Mapping whose inverse supplies an initial
+*     input position for iterative inversion of the original forward
+*     transformation, independently of the Invert attribute. It first
+*     tries an affine approximation using the complete forward value and
+*     Jacobian at the midpoint of the forward domain.
+*
+*     If that approximation cannot provide a finite inverse, the
+*     constant and linear Chebyshev terms are tried, including their
+*     physical input normalisation. If neither approximation is usable,
+*     a Mapping whose inverse always returns the domain midpoint is
+*     supplied. Clipping initial guesses to the forward domain is the
+*     responsibility of the caller.
+*
+*     The Mapping is cached for subsequent calls. If the original
+*     forward transformation is an ordinary polynomial, the parent
+*     PolyMap implementation is used instead.
+
+*  Parameters:
+*     map
+*        Pointer to the ChebyMap, supplied as a PolyMap pointer. For a
+*        Chebyshev forward series, the original forward transformation
+*        must be defined and the numbers of inputs and outputs must be
+*        equal.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A new reference to the cached Mapping, or NULL if an error occurs
+*     or the Chebyshev forward transformation does not meet the stated
+*     requirements. The caller must annul the reference when it is no
+*     longer required.
+
+*  Notes:
+*     - A NULL pointer is returned if the inherited status is set, or if
+*     an error occurs.
+*/
+   AstChebyMap *this = (AstChebyMap *) map;
+   AstPolyMap **jac;
+   AstMapping *mm = NULL, *sm = NULL, *tmp = NULL, *result = NULL;
+   double *center, *value, *column, *matrix;
+   int *inperm;
+   int nin, i, j, attempt, valid, out, ico, axis, order;
+   double c;
+
+   if( !astOK ) return NULL;
+   if( !this->scale_f ) return (*parent_linearguess)( map, status );
+   if( map->lintrunc ) return astClone( map->lintrunc );
+   nin = ((AstMapping *) map)->nin;
+   if( nin != ((AstMapping *) map)->nout || !map->ncoeff_f ) return NULL;
+
+   center = astMalloc( nin*sizeof( *center ) );
+   value = astMalloc( nin*sizeof( *value ) );
+   column = astMalloc( nin*sizeof( *column ) );
+   matrix = astMalloc( (size_t) nin*nin*sizeof( *matrix ) );
+   inperm = astMalloc( nin*sizeof( *inperm ) );
+   jac = astGetJacobian( map );
+   if( astOK ) {
+      for( i = 0; i < nin; i++ ) center[i] = -this->offset_f[i]/this->scale_f[i];
+      astTranN( map, 1, nin, 1, center, !astGetInvert(map), nin, 1, value );
+      for( j = 0; j < nin; j++ ) {
+         astTranN( jac[j], 1, nin, 1, center, 1, nin, 1, column );
+         for( i = 0; i < nin; i++ ) matrix[i*nin+j] = column[i];
+      }
+
+      for( attempt = 0; attempt < 2 && astOK; attempt++ ) {
+         if( attempt ) {
+            memset( matrix, 0, (size_t) nin*nin*sizeof( *matrix ) );
+            memset( value, 0, nin*sizeof( *value ) );
+            for( out = 0; out < nin; out++ ) {
+               for( ico = 0; ico < map->ncoeff_f[out]; ico++ ) {
+                  axis = -1;
+                  order = 0;
+                  for( j = 0; j < nin; j++ ) {
+                     if( map->power_f[out][ico][j] ) {
+                        if( axis >= 0 || map->power_f[out][ico][j] != 1 ) {
+                           order = 2;
+                           break;
+                        }
+                        axis = j;
+                        order = 1;
+                     }
+                  }
+                  c = map->coeff_f[out][ico];
+                  if( order == 0 ) {
+                     value[out] += c;
+                  } else if( order == 1 ) {
+                     matrix[out*nin+axis] += c*this->scale_f[axis];
+                     value[out] += c*(this->scale_f[axis]*center[axis] +
+                                     this->offset_f[axis]);
+                  }
+               }
+            }
+         }
+         valid = 1;
+         for( i = 0; i < nin; i++ ) {
+            if( value[i] == AST__BAD || !isfinite(value[i]) ) valid = 0;
+            for( j = 0; j < nin; j++ ) {
+               c = matrix[i*nin+j];
+               if( c == AST__BAD || !isfinite(c) ) valid = 0;
+            }
+         }
+         if( valid ) {
+            mm = (AstMapping *) astMatrixMap( nin, nin, 0, matrix, "", status );
+            if( astGetTranInverse( mm ) ) {
+/* A diagonal MatrixMap can advertise an inverse but return BAD for a
+   zero diagonal element. Check that its inverse actually yields a seed. */
+               astTranN( mm, 1, nin, 1, value, 0, nin, 1, column );
+               for( i = 0; i < nin; i++ ) {
+                  if( column[i] == AST__BAD || !isfinite(column[i]) ) valid = 0;
+               }
+               if( valid ) break;
+            }
+            mm = astAnnul( mm );
+         }
+      }
+
+      if( mm ) {
+/* Keep the shifts separate to avoid subtracting a large J*center from
+   the function value when the domain is far from the origin. */
+         for( i = 0; i < nin; i++ ) column[i] = -center[i];
+         sm = (AstMapping *) astShiftMap( nin, column, "", status );
+         tmp = (AstMapping *) astCmpMap( sm, mm, 1, "", status );
+         sm = astAnnul( sm );
+         sm = (AstMapping *) astShiftMap( nin, value, "", status );
+         result = (AstMapping *) astCmpMap( tmp, sm, 1, "", status );
+      } else {
+         for( i = 0; i < nin; i++ ) inperm[i] = -i - 1;
+         result = (AstMapping *) astPermMap( nin, inperm, nin, NULL,
+                                            center, "", status );
+      }
+      if( astOK ) map->lintrunc = astClone( result );
+   }
+   if( mm ) mm = astAnnul( mm );
+   if( sm ) sm = astAnnul( sm );
+   if( tmp ) tmp = astAnnul( tmp );
+   center = astFree( center );
+   value = astFree( value );
+   column = astFree( column );
+   matrix = astFree( matrix );
+   inperm = astFree( inperm );
+   return result;
+}
+
 static int GetIterInverse( AstPolyMap *this, int *status ) {
 /*
 *  Name:
@@ -1256,6 +1491,9 @@ void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status
 
    parent_getjacobian = polymap->GetJacobian;
    polymap->GetJacobian = GetJacobian;
+   parent_linearguess = polymap->LinearGuess;
+   polymap->LinearGuess = LinearGuess;
+   polymap->GetIterDomain = GetIterDomain;
 
    parent_getobjsize = object->GetObjSize;
    object->GetObjSize = GetObjSize;
@@ -2636,4 +2874,3 @@ void astChebyDomain_( AstChebyMap *this, int forward, double *lbnd, double *ubnd
    if ( !astOK ) return;
    (**astMEMBER(this,ChebyMap,ChebyDomain))( this, forward, lbnd, ubnd, status );
 }
-
