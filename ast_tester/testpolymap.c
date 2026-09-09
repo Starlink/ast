@@ -237,13 +237,70 @@ int main( void ) {
       simp = astSimplify( series );
       if( astIsAUnitMap( simp ) ) stopit( 8021, status );
 
-      /* The same pair with equal inverses must still cancel. */
+      /* The same pair with equal inverses must still cancel.  This asserts what
+         astEqual permits, not that the composition is preserved: y = x^2 and
+         x = 0.5y are not mutually inverse, so cancelling them really does
+         change the transform.  That is a property of the cancellation branch
+         assuming the two directions of a PolyMap are a genuine inverse pair,
+         not of the comparison being tested here. */
       pb = astPolyMap( 1, 1, 1, cf_sq, 1, ci_half, " " );
       pbi = astCopy( pb );
       astInvert( pbi );
       series = astCmpMap( pa, pbi, 1, " " );
       simp = astSimplify( series );
       if( !astIsAUnitMap( simp ) ) stopit( 8022, status );
+   }
+
+   /* With a *fitted* inverse the cancellation is sound, and the composition it
+      collapses is close to the identity it is replaced by.  A non-linear
+      PolyMap cannot have an exact polynomial inverse -- if f and g are both
+      polynomials with g(f(x)) = x their degrees multiply to one, so both are
+      linear -- so a fitted inverse is the best a real caller has, and is what
+      makes this the meaningful positive control. */
+   {
+      double cf_sq[] = { 1.0, 1, 2 };            /* y = x^2 */
+      double ylo[] = { 1.0 }, yhi[] = { 1.21 };  /* fit over x in [1, 1.1] */
+      double xs[ 5 ], fwd[ 5 ], back[ 5 ];
+      AstPolyMap *raw, *pf, *pfi;
+      AstCmpMap *series;
+      AstMapping *simp;
+      double worst = 0.0;
+      int i;
+
+      raw = astPolyMap( 1, 1, 1, cf_sq, 0, NULL, " " );
+      pf = astPolyTran( raw, 0, 1.0e-9, 1.0e-6, 6, ylo, yhi );
+      if( !pf ) {
+         stopit( 8025, status );
+      } else {
+         for( i = 0; i < 5; i++ ) xs[ i ] = 1.0 + i*0.025;
+
+/* The fitted inverse really does invert the forward over the fitted range. */
+         astTran1( pf, 5, xs, 1, fwd );
+         astTran1( pf, 5, fwd, 0, back );
+         for( i = 0; i < 5; i++ ) {
+            if( fabs( back[ i ] - xs[ i ] ) > worst ) worst = fabs( back[ i ] - xs[ i ] );
+         }
+         if( worst > 1.0e-6 ) stopit( 8026, status );
+
+/* The pair cancels, and the composition agrees with the UnitMap it becomes. */
+         pfi = astCopy( pf );
+         astInvert( pfi );
+         series = astCmpMap( pf, pfi, 1, " " );
+         simp = astSimplify( series );
+         if( !astIsAUnitMap( simp ) ) stopit( 8027, status );
+
+         astTran1( series, 5, xs, 1, fwd );
+         astTran1( simp, 5, xs, 1, back );
+         worst = 0.0;
+         for( i = 0; i < 5; i++ ) {
+            if( fabs( back[ i ] - fwd[ i ] ) > worst ) worst = fabs( back[ i ] - fwd[ i ] );
+         }
+         if( worst > 1.0e-6 ) {
+            printf( "fitted-inverse cancellation changed the transform by %g\n",
+                    worst );
+            stopit( 8028, status );
+         }
+      }
    }
 
    /* A PolyMap with more outputs than inputs exercises the array bounds: the

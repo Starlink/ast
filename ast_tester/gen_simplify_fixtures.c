@@ -2048,19 +2048,44 @@ static void gen_negative_fixtures_3(const char *dir) {
         cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
     }
 
-    /* The positive control for polymap-11: the same shape with equal inverse
-       coefficients still cancels to a UnitMap, so the stricter comparison has
-       not simply stopped the branch working. */
+    /* The positive control for polymap-11: the same PolyMap in opposite
+       directions still cancels to a UnitMap, so the stricter comparison has
+       not simply stopped the branch working.
+
+       The inverse is *fitted* with astPolyTran rather than written by hand.
+       If f and g are both polynomials with g(f(x)) = x then their degrees
+       multiply to one, so both are linear -- a non-linear PolyMap cannot have
+       an exact polynomial inverse, and any hand-written pair is not a genuine
+       inverse pair. Cancelling such a pair to a UnitMap changes the
+       composition, so a hand-written control would assert a simplification
+       that does not preserve the transform. A fitted inverse is what a real
+       caller has, and the cancellation is then sound to the accuracy of the
+       fit. The forward has to stay non-linear, because a linear one is
+       rebuilt as a MatrixMap and a ShiftMap before Equal is ever reached.
+
+       The fit is over a narrow interval and to a low order, to keep the
+       coefficients in the dump as reproducible as possible; outside that
+       interval the fitted inverse is a poor approximation and the
+       composition is not close to the identity, which is a property of the
+       fit rather than of the merge. */
     {
         if (!astOK) astClearStatus;
-        double coeff_f[] = {1.0, 1, 2};
-        double coeff_i[] = {0.5, 1, 1};
-        AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f, 1, coeff_i, " ");
-        AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f, 1, coeff_i, " ");
-        astInvert(p2);
-        AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
-        write_fixture(dir, "poly_same_inverse_coeffs_cancel", (AstMapping*)cm);
-        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+        double coeff_f[] = {1.0, 1, 2};              /* y = x^2 */
+        double ylo[] = {1.0}, yhi[] = {1.21};        /* x in [1, 1.1] */
+        AstPolyMap *raw = astPolyMap(1, 1, 1, coeff_f, 0, NULL, " ");
+        AstPolyMap *p1 = astPolyTran(raw, 0, 1.0e-9, 1.0e-6, 6, ylo, yhi);
+        if (p1) {
+            AstPolyMap *p2 = astCopy(p1);
+            astInvert(p2);
+            AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
+            write_fixture(dir, "poly_fitted_inverse_cancel", (AstMapping*)cm);
+            cm = astAnnul(cm); p2 = astAnnul(p2); p1 = astAnnul(p1);
+        } else {
+            fprintf(stderr, "ERROR: astPolyTran failed for "
+                            "poly_fitted_inverse_cancel\n");
+            if (!astOK) astClearStatus;
+        }
+        raw = astAnnul(raw);
     }
 
     /* lutmap-07: two LutMaps in parallel — cancellation not attempted */

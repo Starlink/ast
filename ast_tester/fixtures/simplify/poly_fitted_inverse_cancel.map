@@ -1,0 +1,50 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvB = 1 	# Second Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin PolyMap 	# Polynomial transformation
+          Nin = 1 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MPF1 = 2 	# Max. power of input 1 in any forward polynomial
+          NCF1 = 1 	# No. of coeff.s for forward polynomial 1
+          CF1 = 1 	# Coeff 1 of forward polynomial 1
+          PF1 = 2 	# Power of i/p 1 for coeff 1 of fwd poly 1
+          MPI1 = 5 	# Max. power of output 1 in any inverse polynomial
+          NCI1 = 6 	# No. of coeff.s for inverse polynomial 1
+          CI1 = 0.2707069848330354 	# Coeff 1 of inverse polynomial 1
+          CI2 = 1.117567330788491 	# Coeff 2 of inverse polynomial 1
+          CI3 = -0.61291021126646772 	# Coeff 3 of inverse polynomial 1
+          CI4 = 0.3014251007916538 	# Coeff 4 of inverse polynomial 1
+          CI5 = -0.087918393383485866 	# Coeff 5 of inverse polynomial 1
+          CI6 = 0.011129204301603132 	# Coeff 6 of inverse polynomial 1
+          PI2 = 1 	# Power of o/p 1 for coeff 2 of inv poly 1
+          PI3 = 2 	# Power of o/p 1 for coeff 3 of inv poly 1
+          PI4 = 3 	# Power of o/p 1 for coeff 4 of inv poly 1
+          PI5 = 4 	# Power of o/p 1 for coeff 5 of inv poly 1
+          PI6 = 5 	# Power of o/p 1 for coeff 6 of inv poly 1
+       End PolyMap
+    MapB = 	# Second component Mapping
+       Begin PolyMap 	# Polynomial transformation
+          Nin = 1 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          MPF1 = 2 	# Max. power of input 1 in any forward polynomial
+          NCF1 = 1 	# No. of coeff.s for forward polynomial 1
+          CF1 = 1 	# Coeff 1 of forward polynomial 1
+          PF1 = 2 	# Power of i/p 1 for coeff 1 of fwd poly 1
+          MPI1 = 5 	# Max. power of output 1 in any inverse polynomial
+          NCI1 = 6 	# No. of coeff.s for inverse polynomial 1
+          CI1 = 0.2707069848330354 	# Coeff 1 of inverse polynomial 1
+          CI2 = 1.117567330788491 	# Coeff 2 of inverse polynomial 1
+          CI3 = -0.61291021126646772 	# Coeff 3 of inverse polynomial 1
+          CI4 = 0.3014251007916538 	# Coeff 4 of inverse polynomial 1
+          CI5 = -0.087918393383485866 	# Coeff 5 of inverse polynomial 1
+          CI6 = 0.011129204301603132 	# Coeff 6 of inverse polynomial 1
+          PI2 = 1 	# Power of o/p 1 for coeff 2 of inv poly 1
+          PI3 = 2 	# Power of o/p 1 for coeff 3 of inv poly 1
+          PI4 = 3 	# Power of o/p 1 for coeff 4 of inv poly 1
+          PI5 = 4 	# Power of o/p 1 for coeff 5 of inv poly 1
+          PI6 = 5 	# Power of o/p 1 for coeff 6 of inv poly 1
+       End PolyMap
+ End CmpMap
