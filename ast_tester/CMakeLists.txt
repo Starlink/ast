@@ -374,6 +374,20 @@ ast_add_test(testxmlchan_c SOURCES testxmlchan.c)
 ast_add_test(testtable_c SOURCES testtable.c)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
 ast_add_test(testregions_c SOURCES testregions.c)
+
+ast_add_test(testxphmap_c SOURCES testxphmap.c)
+# A second registration of the same binary, with LeakSanitizer left on.  Every
+# other test here suppresses leak reports because AST's memory system caches
+# freed blocks, but nothing this test does goes through that cache: it reads
+# XphMaps from strings and frees them.  astLoadXphMap leaked the string it read
+# for the Type component, and no output value can show that, so this run is the
+# regression gate for the fix.
+if(AST_ENABLE_SANITIZERS)
+    add_test(NAME testxphmap_leak COMMAND testxphmap_c
+             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+    set_tests_properties(testxphmap_leak PROPERTIES
+        ENVIRONMENT "ASAN_OPTIONS=detect_leaks=1;srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
 ast_add_test(testregionmasking_c SOURCES testregionmasking.c)
 ast_add_test(testrebinseq_c SOURCES testrebinseq.c)
 ast_add_test(testrebin_c SOURCES testrebin.c)
