@@ -1271,6 +1271,30 @@ static void gen_pcdmap_extra_fixtures(const char *dir) {
         cm = astAnnul(cm); pm = astAnnul(pm); zm = astAnnul(zm);
     }
 
+    /* pcdmap-07: PcdMap swapped past an *inverted* ZoomMap. PcdZoom sets both
+       Mappings' Invert attributes to the merge list's values before reading
+       their attributes, which is effective for the PcdMap but not for the
+       ZoomMap: Zoom returns the stored factor whatever Invert says, and it is
+       Transform that takes the reciprocal. So the swap used to emit a forward
+       ZoomMap of the original factor, and a PcdMap whose centre and
+       coefficient were derived from it, giving a composition that scales by 2
+       where the input scaled by 0.5. The trailing inverted PcdMap is what
+       nominates the leading one for the swap. */
+    {
+        if (!astOK) astClearStatus;
+        double pcdcen[] = {0.3, -0.2};
+        AstPcdMap *pm1 = astPcdMap(0.01, pcdcen, " ");
+        AstPcdMap *pm2 = astPcdMap(0.01, pcdcen, " ");
+        astInvert(pm2);
+        AstZoomMap *zm = astZoomMap(2, 2.0, " ");
+        astInvert(zm);
+        AstCmpMap *inner = astCmpMap(zm, pm2, 1, " ");
+        AstCmpMap *cm = astCmpMap(pm1, inner, 1, " ");
+        write_fixture(dir, "pcd_inverted_zoom_swap", (AstMapping*)cm);
+        cm = astAnnul(cm); inner = astAnnul(inner);
+        pm1 = astAnnul(pm1); pm2 = astAnnul(pm2); zm = astAnnul(zm);
+    }
+
     /* pcdmap-05: PcdMap swaps with PermMap(axis swap) to reach inverse */
     {
         double pcdcen[] = {0.0, 0.0};

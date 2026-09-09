@@ -4,6 +4,7 @@
  *  Direct conversion; no material differences from the Fortran original.
  */
 #include "ast.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -395,6 +396,75 @@ static void testmutationclearssimple( int *status ) {
  * Each Mapping below is left held only by this function, since an attribute
  * of a shared Mapping cannot be changed at all.
  */
+/*
+ * Swapping a PcdMap past a neighbouring ZoomMap must preserve the composition
+ * when the ZoomMap is used in the inverse direction.
+ *
+ * PcdZoom sets both Mappings' Invert attributes to the values the merge list
+ * holds before reading their attributes.  That works for the PcdMap, whose
+ * Disco and PcdCen are read through accessors that consult Invert, but not for
+ * the ZoomMap: Zoom returns the stored factor whatever Invert says, and it is
+ * Transform that takes the reciprocal.  So the factor the list actually applies
+ * has to be formed explicitly, or the swap emits a forward ZoomMap of the
+ * original factor and a PcdMap derived from it.
+ *
+ * The trailing inverted PcdMap is what gives the leading one a merge target to
+ * swap towards; without it the swap is not attempted.
+ */
+static void testpcdzoominverted( int *status ) {
+   double centre[ 2 ] = { 0.3, -0.2 };
+   double zooms[ 2 ] = { 2.0, 0.5 };
+   double x[ 2 ] = { 0.1, -0.25 };
+   double y[ 2 ] = { 0.2, 0.05 };
+   double xa[ 2 ], ya[ 2 ], xb[ 2 ], yb[ 2 ];
+   AstPcdMap *pm1, *pm2;
+   AstZoomMap *zm;
+   AstCmpMap *inner, *outer;
+   AstMapping *simp;
+   int inverted, iz, i;
+
+   if( *status != 0 ) return;
+
+   for( iz = 0; iz < 2; iz++ ) {
+      for( inverted = 0; inverted < 2; inverted++ ) {
+         astBegin;
+
+         pm1 = astPcdMap( 0.01, centre, " " );
+         pm2 = astPcdMap( 0.01, centre, " " );
+         astInvert( pm2 );
+         zm = astZoomMap( 2, zooms[ iz ], " " );
+         if( inverted ) astInvert( zm );
+
+         inner = astCmpMap( zm, pm2, 1, " " );
+         outer = astCmpMap( pm1, inner, 1, " " );
+         simp = astSimplify( outer );
+
+         astTran2( outer, 2, x, y, 1, xa, ya );
+         astTran2( simp, 2, x, y, 1, xb, yb );
+
+         if( !astOK ) {
+            stopit( status, "Error pcdzoom-1" );
+         } else {
+            for( i = 0; i < 2; i++ ) {
+               double mag = fabs( xa[ i ] ) + fabs( ya[ i ] );
+               double dev = fabs( xb[ i ] - xa[ i ] ) + fabs( yb[ i ] - ya[ i ] );
+               if( mag > 0.0 && dev > 1.0E-9*mag ) {
+                  printf( "Zoom %g %s: (%g,%g) gave (%.12g,%.12g) before "
+                          "simplification and (%.12g,%.12g) after.\n",
+                          zooms[ iz ], inverted ? "inverted" : "forward",
+                          x[ i ], y[ i ], xa[ i ], ya[ i ], xb[ i ], yb[ i ] );
+                  stopit( status, "Error pcdzoom-2" );
+                  break;
+               }
+            }
+         }
+
+         astEnd;
+         if( *status != 0 ) return;
+      }
+   }
+}
+
 static void testselfsimplifyafterset( int *status ) {
    double centre[ 2 ] = { 0.0, 0.0 };
    AstMapping *input;
@@ -554,6 +624,7 @@ int main( void ) {
    testmutationclearssimple( status );
 
    testselfsimplifyafterset( status );
+   testpcdzoominverted( status );
 
    astEnd;
 
