@@ -205,6 +205,74 @@ int main( void ) {
    if( astGetL( pm2, "TranInverse" ) ) stopit( 8017, status );
    if( !astGetL( pm2, "TranForward" ) ) stopit( 8018, status );
 
+   /* astEqual must compare the inverse transformation's own coefficients, not
+      the forward ones a second time, and must index every coefficient array by
+      the axis count it was allocated with.
+
+      The forward transformation here is y = x^2, chosen because it is not
+      linear: a linear forward transformation is rebuilt as a MatrixMap and a
+      ShiftMap by MapMerge, which discards the explicit inverse and would
+      cancel the pair whatever astEqual said. */
+   {
+      double cf_sq[]  = { 1.0, 1, 2 };        /* y = x^2               */
+      double ci_half[] = { 0.5, 1, 1 };       /* x = 0.5 y             */
+      double ci_seven[] = { 0.7, 1, 1 };      /* x = 0.7 y             */
+      AstPolyMap *pa, *pb, *pbi;
+      AstCmpMap *series;
+      AstMapping *simp;
+
+      pa = astPolyMap( 1, 1, 1, cf_sq, 1, ci_half, " " );
+      pb = astPolyMap( 1, 1, 1, cf_sq, 1, ci_half, " " );
+      if( !astEqual( pa, pb ) ) stopit( 8019, status );
+
+      pb = astPolyMap( 1, 1, 1, cf_sq, 1, ci_seven, " " );
+      if( astEqual( pa, pb ) ) stopit( 8020, status );
+
+      /* The consequence in MapMerge: a PolyMap and a neighbour used in the
+         opposite direction are replaced by a UnitMap when astEqual says they
+         match, so a pair whose inverses differ must not cancel. */
+      pbi = astCopy( pb );
+      astInvert( pbi );
+      series = astCmpMap( pa, pbi, 1, " " );
+      simp = astSimplify( series );
+      if( astIsAUnitMap( simp ) ) stopit( 8021, status );
+
+      /* The same pair with equal inverses must still cancel. */
+      pb = astPolyMap( 1, 1, 1, cf_sq, 1, ci_half, " " );
+      pbi = astCopy( pb );
+      astInvert( pbi );
+      series = astCmpMap( pa, pbi, 1, " " );
+      simp = astSimplify( series );
+      if( !astIsAUnitMap( simp ) ) stopit( 8022, status );
+   }
+
+   /* A PolyMap with more outputs than inputs exercises the array bounds: the
+      inverse arrays have one element per input and "mxpow_f" one per input
+      too, while the forward arrays have one per output. Comparing such a
+      PolyMap with a copy of itself used to read past the end of both, which
+      is a heap overflow and could report two identical PolyMaps as unequal. */
+   {
+      double cf_wide[ 24 ];
+      double ci_wide[ 10 ];
+      AstPolyMap *pw, *pwcopy;
+      int io, nwide = 8;
+
+      for( io = 0; io < nwide; io++ ) {
+         cf_wide[ 3*io + 0 ] = io + 1.0;    /* coefficient           */
+         cf_wide[ 3*io + 1 ] = io + 1.0;    /* one-based output index */
+         cf_wide[ 3*io + 2 ] = 1.0;         /* power of the input    */
+      }
+      for( io = 0; io < 10; io++ ) ci_wide[ io ] = 0.0;
+      ci_wide[ 0 ] = 1.0;                   /* coefficient           */
+      ci_wide[ 1 ] = 1.0;                   /* one-based input index */
+      ci_wide[ 2 ] = 1.0;                   /* power of output 1     */
+
+      pw = astPolyMap( 1, nwide, nwide, cf_wide, 1, ci_wide, " " );
+      pwcopy = astCopy( pw );
+      if( !astEqual( pw, pwcopy ) ) stopit( 8023, status );
+      if( !astEqual( pwcopy, pw ) ) stopit( 8024, status );
+   }
+
    astEnd;
    astFlushMemory( 1 );
 
