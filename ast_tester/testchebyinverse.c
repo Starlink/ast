@@ -145,8 +145,62 @@ static int testdomain( AstPolyMap *map, double *lo, double *hi, int *status ) {
    return 1;
 }
 
+static void caches( int *status ) {
+   double lo = -1, hi = 1, ilo = -3, ihi = 3;
+   double forward[] = { 2, 1, 1 }, inverse[] = { 1, 1, 1 };
+   double target = .6, got;
+   size_t before;
+   char *dump;
+   AstChebyMap *cm = astChebyMap( 1, 1, 1, forward, 1, inverse,
+                                  &lo, &hi, &ilo, &ihi, "", status );
+   AstChebyMap *copy, *fitted, *loaded;
+   AstMapping *guess;
+   (void) astGetJacobian( cm );
+   before = astGetObjSize( cm );
+   guess = astLinearGuess( cm );
+   check( astGetObjSize(cm) > before, "Object size includes the affine cache" );
+   guess = astAnnul( guess );
+
+   copy = astCopy( cm );
+   astSet( copy, "IterInverse=1,NiterInverse=0", status );
+   astTran1( copy, 1, &target, 0, &got );
+   near( got, .3, "Copy retains original forward transformation" );
+   dump = astToString( copy );
+   loaded = astFromString( dump );
+   dump = astFree( dump );
+   copy = astAnnul( copy );
+   astTran1( loaded, 1, &target, 0, &got );
+   near( got, .3, "Reload reconstructs inverse caches" );
+   loaded = astAnnul( loaded );
+
+/* Fitting the forward transformation to the explicit inverse changes
+   2*x to 3*x. Zero iterations expose any stale affine initial guess. */
+   fitted = astPolyTran( cm, 1, 1e-12, 1e-12, 2, &ilo, &ihi );
+   check( fitted != NULL, "Forward fit succeeded" );
+   if( fitted ) {
+      astSet( fitted, "IterInverse=1,NiterInverse=0", status );
+      astTran1( fitted, 1, &target, 0, &got );
+      near( got, .2, "Forward fit invalidates the copied seed" );
+      fitted = astAnnul( fitted );
+   }
+   cm = astAnnul( cm );
+
+/* Legacy ChebyMap dumps can define ordinary polynomials by omitting
+   normalization coefficients. Their inverse uses the parent hooks. */
+   loaded = astFromString( " Begin ChebyMap\n Nin = 1\n IsA Mapping\n"
+                          " MPF1 = 1\n NCF1 = 1\n CF1 = 2\n PF1 = 1\n"
+                          " IsA PolyMap\n End ChebyMap\n" );
+   check( loaded != NULL, "Load ordinary-polynomial ChebyMap" );
+   if( loaded ) {
+      target = 4;
+      astTran1( loaded, 1, &target, 0, &got );
+      near( got, 2, "Ordinary-polynomial fallback outside Chebyshev interval" );
+      loaded = astAnnul( loaded );
+   }
+}
+
 static void bounded_solver( int *status ) {
-   AstPolyMapVtab vtab;
+   static AstPolyMapVtab vtab;  /* AST's class registry retains this pointer. */
    double coeffs[] = { -.125, 1, 0, 1, 1, 1, .25, 1, 2 };
    double target[] = { -.875, -.125, 0, .3, 1.125, -1, 2, AST__BAD, NAN, INFINITY };
    double got[10];
@@ -183,6 +237,7 @@ int main( void ) {
    derivatives( status );
    seeds( status );
    bounded_solver( status );
+   caches( status );
    astEnd_( status );
    astFlushMemory( 1 );
    check( astOK, "Unexpected AST error" );
