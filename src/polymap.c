@@ -1854,8 +1854,6 @@ static void FreeJacobian( AstPolyMap *this, int *status ) {
 /* Local Variables: */
    int nc;
    int ic;
-   int lstat;
-   int error;
 
 /* Check supplied pointer */
    if( !this ) return;
@@ -1864,17 +1862,9 @@ static void FreeJacobian( AstPolyMap *this, int *status ) {
    transformation. */
    if( this->jacobian ) {
 
-/* Get the number of PolyMap inputs. We need to clear any error status
-   first since astGetNin returns zero if an error has occurred. The
-   Jacobian will only be non-NULL if the number of inputs and outputs
-   are equal. */
-      error = !astOK;
-      if( error ) {
-         lstat = astStatus;
-         astClearStatus;
-      }
-      nc = astGetNin( this );
-      if( error ) astSetStatus( lstat );
+/* The cache always describes the original forward transformation. Its
+   dimension is available even during error cleanup or after inversion. */
+      nc = ((AstMapping *) this)->nin;
 
       for( ic = 0; ic < nc; ic++ ) {
          (this->jacobian)[ ic ] = astAnnul( (this->jacobian)[ ic ] );
@@ -2274,12 +2264,13 @@ static size_t GetObjSize( AstObject *this_object, int *status ) {
    result = (*parent_getobjsize)( this_object, status );
 
    if( this->jacobian ) {
-      nc = astGetNin( this );
+      nc = ((AstMapping *) this)->nin;
       for( ic = 0; ic < nc; ic++ ) {
          result +=  astGetObjSize( (this->jacobian)[ ic ] );
       }
       result += sizeof( AstPolyMap * )*nc;
    }
+   if( this->lintrunc ) result += astGetObjSize( this->lintrunc );
 
 /* If an error occurred, clear the result value. */
    if ( !astOK ) result = 0;
@@ -3829,11 +3820,15 @@ static int ManageLock( AstObject *this_object, int mode, int extra,
 /* Invoke the astManageLock method on any Objects contained within
    the supplied Object. */
    if( this->jacobian ) {
-      nc = astGetNin( this );
-      for( ic = 0; ic < nc && result; ic++ ) {
-         result = astManageLock( (this->jacobian)[ ic ], mode,
-                                 extra, fail );
+      nc = ((AstMapping *) this)->nin;
+      for( ic = 0; ic < nc && !result; ic++ ) {
+         if( this->jacobian[ic] ) {
+            result = astManageLock( this->jacobian[ic], mode, extra, fail );
+         }
       }
+   }
+   if( this->lintrunc && !result ) {
+      result = astManageLock( this->lintrunc, mode, extra, fail );
    }
 
    return result;
@@ -6262,6 +6257,11 @@ static void StoreArrays( AstPolyMap *this, int forward, int ncoeff,
 /* Check the global status. */
    if ( !astOK ) return;
 
+/* Coefficient replacement invalidates both inverse caches. The affine
+   guess can depend on either direction when no forward terms exist. */
+   FreeJacobian( this, status );
+   if( this->lintrunc ) this->lintrunc = astAnnul( this->lintrunc );
+
 /* First Free any existing arrays. */
    FreeArrays( this, forward, status );
 
@@ -7613,6 +7613,9 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
       new->coeff_i = NULL;
       new->mxpow_i = NULL;
 
+      new->jacobian = NULL;
+      new->lintrunc = NULL;
+
 /* Store the forward transformation. */
       StoreArrays( new, 1, ncoeff_f, coeff_f, status );
 
@@ -7623,8 +7626,6 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
       new->iterinverse = -INT_MAX;
       new->niterinverse = -INT_MAX;
       new->tolinverse = AST__BAD;
-      new->jacobian = NULL;
-      new->lintrunc = NULL;
 
 /* If an error occurred, clean up by deleting the new PolyMap. */
       if ( !astOK ) new = astDelete( new );
@@ -8217,4 +8218,3 @@ AstPolyMap *astMergeShift_( AstPolyMap *this, AstShiftMap *shift,
    return (**astMEMBER(this,PolyMap,MergeShift))( this, shift, before,
                                                   force, status );
 }
-
