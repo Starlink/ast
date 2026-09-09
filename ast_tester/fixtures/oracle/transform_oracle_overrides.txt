@@ -11,9 +11,15 @@
 #   <relpath> golden off       skip golden comparison, both directions
 #   <relpath> golden-fwd off   skip golden comparison, forward sections
 #   <relpath> golden-inv off   skip golden comparison, inverse sections
-# Use these only for sections whose recorded values sit on a mathematical
-# singularity and are not architecture-stable; every skip needs a comment
-# explaining why.
+#   <relpath> golden-fwd-rows <list>   skip only these forward rows
+#   <relpath> golden-inv-rows <list>   skip only these inverse rows
+# <list> is comma-separated 0-based row indices, below 64.  Rows 0-3 of every
+# section are the deterministic all-lo, all-hi, zero and mid samples
+# (oracle_sample_points); the rest are a Halton spread.
+#
+# Use these only for values that sit on a mathematical singularity and are not
+# architecture-stable; every skip needs a comment explaining why.  Prefer a row
+# list over a whole-direction "off": it leaves the rest of the section pinned.
 #
 # Blank lines and lines starting with '#' are ignored.
 
@@ -37,13 +43,30 @@ wcsconv/framesets/tnx-cheb-head.ast   off
 #  image wider than the quad-cube period, now accepted by the alias-aware
 #  round-trip check -- inverse(forward(P)) forward-maps back to the same sky.)
 
-# neg_unitnormmap_inv_fwd_diffcentre.map: the fixture is
-# UnitNormMap(centre A)^-1 then UnitNormMap(centre B).  Its inverse chain,
-# fed the forward outputs of the sampled all-zero input, reconstructs
-# centre A as B + |A-B| * (A-B)/|A-B|.  Whether that lands on A exactly
-# (residual zero, output AST__BAD) or ~1e-16 away (output an arbitrary
-# unit-vector direction made of rounding noise) depends on the
-# architecture's rounding, so no recorded value at that point is stable:
-# x86 Linux computes BAD where the arm64 macOS generator recorded a noise
-# direction.  The forward section remains pinned by the golden check.
-simplify/neg_unitnormmap_inv_fwd_diffcentre.map   golden-inv off
+# neg_unitnormmap_inv_fwd_diffcentre.map rows 2 and 3: the fixture is
+# UnitNormMap(centre A)^-1 then UnitNormMap(centre B).  Rows 2 and 3 are both
+# the all-zero sample (for the +/-1000 sampling range "zero" and "mid"
+# coincide), and a zero norm leaves the forward direction unconstrained, so
+# the composition is not invertible there.  The inverse chain reconstructs
+# centre A as B + |A-B| * (A-B)/|A-B|, and how close that lands to A depends
+# on whether the compiler contracts the reconstruction's multiply-add:
+#
+#   unfused (two roundings)  reconstructs A exactly    -> BAD BAD 0
+#   fused (one rounding)     lands 3.4e-16 away        -> a unit-vector
+#                                                         direction and a
+#                                                         tiny norm
+#
+# The fused values are the correctly-rounded evaluation and so the better
+# answer -- computed exactly, the true displacement for these inputs is
+# 2.5847460944407276e-16 on both axes, i.e. a 45 degree direction with norm
+# 3.6553829820489655e-16, which the fused result approximates and the unfused
+# one discards.  UnitNormMap's exact zero test is therefore left alone (see
+# src/unitnormmap.c "Notes" on the UnitNormMap class): the guard is right, and
+# it is this composition that is unstable.
+#
+# Which value a build produces is not an architecture property.  With
+# -std=gnu11 (contraction permitted) it follows the target: this repo's
+# -march=nocona has no FMA instruction and computes BAD, while -march=haswell,
+# -march=native and arm64 all fuse.  Only these two rows are skipped; every
+# other row of the inverse section stays pinned.
+simplify/neg_unitnormmap_inv_fwd_diffcentre.map   golden-inv-rows 2,3
