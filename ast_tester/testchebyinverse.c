@@ -135,6 +135,46 @@ static void seeds( int *status ) {
    cm = astAnnul( cm );
 }
 
+/* Exercise the shared finite-domain solver before enabling ChebyMap's
+   public inverse. The polynomial is specified independently in monomials. */
+static int testdomain( AstPolyMap *map, double *lo, double *hi, int *status ) {
+   (void) map;
+   (void) status;
+   lo[0] = -1;
+   hi[0] = 1;
+   return 1;
+}
+
+static void bounded_solver( int *status ) {
+   AstPolyMapVtab vtab;
+   double coeffs[] = { -.125, 1, 0, 1, 1, 1, .25, 1, 2 };
+   double target[] = { -.875, -.125, 0, .3, 1.125, -1, 2, AST__BAD, NAN, INFINITY };
+   double got[10];
+   AstPolyMap *pm = astInitPolyMap( NULL, sizeof(AstPolyMap), 1, &vtab,
+                                    "BoundedPolyMap", 1, 1, 3, coeffs, 0, NULL );
+   int i;
+   vtab.GetIterDomain = testdomain;
+   astSet( pm, "NiterInverse=20,TolInverse=1e-12", status );
+   astTran1( pm, 10, target, 0, got );
+   for( i = 0; i < 5; i++ ) {
+      near( got[i], 2*(target[i]+.125)/(1+sqrt(1+target[i]+.125)),
+            "Bounded quadratic inverse" );
+   }
+   for( i = 5; i < 10; i++ ) {
+      check( got[i] == AST__BAD, "Unsolved bounded input must return BAD" );
+   }
+   astSet( pm, "NiterInverse=1", status );
+   astTran1( pm, 1, target+3, 0, got );
+   check( got[0] == AST__BAD, "Exhaustion must not return the last iterate" );
+   pm = astAnnul( pm );
+
+/* The same unbounded PolyMap retains its historical last-iterate behavior. */
+   pm = astPolyMap( 1, 1, 3, coeffs, 0, NULL, "NiterInverse=1", status );
+   astTran1( pm, 1, target+3, 0, got );
+   check( got[0] != AST__BAD && isfinite(got[0]), "Legacy PolyMap exhaustion" );
+   pm = astAnnul( pm );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -142,6 +182,7 @@ int main( void ) {
    astBegin_();
    derivatives( status );
    seeds( status );
+   bounded_solver( status );
    astEnd_( status );
    astFlushMemory( 1 );
    check( astOK, "Unexpected AST error" );
