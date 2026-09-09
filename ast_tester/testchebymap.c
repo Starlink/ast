@@ -8,6 +8,9 @@
 #include "ast.h"
 #include <stdio.h>
 #include <math.h>
+#include "ast_err.h"
+
+static void inverse_tests( int *status );
 
 static void stopit( int i, int *status ) {
    if( *status != 0 ) return;
@@ -109,7 +112,7 @@ int main( void ) {
       if( xout[i] != dval ) stopit( 3, status );
    }
 
-   if( astGetL( cm, "IterInverse" ) ) stopit( 4, status );
+   if( !astGetL( cm, "IterInverse" ) ) stopit( 4, status );
 
    /* PolyTran on 1D ChebyMap, order 2: 1 - 2*x */
    lbnd[0] = -1.0; ubnd[0] = 1.0;
@@ -305,6 +308,8 @@ int main( void ) {
       if( rr == AST__BAD || fabs( rr - 3.0 ) > 1.0e-6 ) stopit( 601, status );
    }
 
+   inverse_tests( status );
+
    astEnd;
    astFlushMemory( 1 );
 
@@ -314,4 +319,214 @@ int main( void ) {
       printf( "ChebyMap tests failed\n" );
    }
    return *status;
+}
+
+static void inverse_near( double got, double want, double tol, int code,
+                          int *status ) {
+   if( *status != 0 ) return;
+   if( got == AST__BAD || !isfinite(got) || fabs(got-want) > tol ) {
+      fprintf( stderr, "Inverse test %d: got %.17g, expected %.17g\n",
+               code, got, want );
+      stopit( code, status );
+   }
+}
+
+static void inverse_tests( int *status ) {
+   AstChebyMap *cm;
+   double lo[] = { 0, -3, 10 }, hi[] = { 10, 5, 12 };
+   double linear[] = { 2, 1, 1 };
+   double quad[] = { 1, 1, 1, .125, 1, 2 };
+   double x[441], y[441], u[441], v[441], xr[441], yr[441];
+   int i, j, n;
+   if( *status != 0 ) return;
+
+   cm = astChebyMap( 1, 1, 1, linear, 0, NULL, lo, hi, NULL, NULL, "" );
+   if( !astGetI(cm,"TranInverse") || !astGetI(cm,"IterInverse") ||
+       astTest(cm,"IterInverse") ) stopit( 700, status );
+   u[0] = -2; u[1] = -1.6; u[2] = 2;
+   astTran1( cm, 3, u, 0, xr );
+   inverse_near( xr[0], 0, 1e-12, 701, status );
+   inverse_near( xr[1], 1, 1e-12, 702, status );
+   inverse_near( xr[2], 10, 1e-12, 703, status );
+   astSet( cm, "IterInverse=0" );
+   if( astGetI(cm,"TranInverse") || astGetI(cm,"IterInverse") ) stopit(704,status);
+   astClear( cm, "IterInverse" );
+   if( !astGetI(cm,"TranInverse") || astTest(cm,"IterInverse") ) stopit(705,status);
+   astInvert( cm );
+   astTran1( cm, 3, u, 1, xr );
+   inverse_near( xr[1], 1, 1e-12, 706, status );
+   cm = astAnnul( cm );
+
+/* Sample targets independently of AST's forward transformation. */
+   cm = astChebyMap( 1, 1, 2, quad, 0, NULL, lo, hi, NULL, NULL,
+                     "IterInverse=1,NiterInverse=20,TolInverse=1e-12" );
+   for( i = 0; i <= 100; i++ ) {
+      u[i] = -.875 + 2.0*i/100;
+      x[i] = 5*(1 + 2*(u[i]+.125)/(1+sqrt(1+u[i]+.125)));
+   }
+   astTran1( cm, 101, u, 0, xr );
+   astTran1( cm, 101, x, 1, v );
+   for( i = 0; i <= 100; i++ ) {
+      inverse_near( xr[i], x[i], 1e-10, 710, status );
+      inverse_near( v[i], u[i], 1e-12, 711, status );
+   }
+   u[0] = -1; u[1] = 2; u[2] = AST__BAD; u[3] = NAN; u[4] = INFINITY;
+   u[5] = -.125;
+   astTran1( cm, 6, u, 0, xr );
+   for( i = 0; i < 5; i++ ) if( xr[i] != AST__BAD ) stopit(712,status);
+   inverse_near( xr[5], 5, 1e-10, 713, status );
+   astSet( cm, "NiterInverse=1" );
+   u[0] = .3;
+   astTran1( cm, 1, u, 0, xr );
+   if( xr[0] != AST__BAD ) stopit(714,status);
+   cm = astAnnul( cm );
+
+/* Two polynomial shears have a unique analytic inverse and determinant
+   one in normalized coordinates. This expanded single-map representation
+   has both a sixth-order term and a mixed T1(z)*T3(w) term. */
+   {
+      const double a = .125, b = .0625;
+      double coeffs[] = { 1, 1, 1, 0, a, 1, 0, 3,
+                         1, 2, 0, 1, b, 2, 2, 0, 4*a*b, 2, 1, 3,
+                         a*a*b, 2, 0, 6, a*a*b, 2, 0, 0 };
+      cm = astChebyMap( 2, 2, 7, coeffs, 0, NULL, lo, hi, NULL, NULL,
+                        "IterInverse=1,NiterInverse=30,TolInverse=1e-12" );
+      n = 0;
+      for( i = 0; i <= 20; i++ ) {
+         for( j = 0; j <= 20; j++, n++ ) {
+            double z = -1 + i/10.0, w = -1 + j/10.0;
+            x[n] = 5*(z+1); y[n] = 4*(w+1)-3;
+            u[n] = z + a*(4*w*w*w-3*w);
+            v[n] = w + b*(2*u[n]*u[n]-1);
+         }
+      }
+      astTran2( cm, n, x, y, 1, xr, yr );
+      for( i = 0; i < n; i++ ) {
+         inverse_near( xr[i], u[i], 1e-12, 720, status );
+         inverse_near( yr[i], v[i], 1e-12, 721, status );
+      }
+      astTran2( cm, n, u, v, 0, xr, yr );
+      for( i = 0; i < n; i++ ) {
+         double w = v[i] - b*(2*u[i]*u[i]-1);
+         double z = u[i] - a*(4*w*w*w-3*w);
+         inverse_near( xr[i], 5*(z+1), 1e-10, 722, status );
+         inverse_near( yr[i], 4*(w+1)-3, 1e-10, 723, status );
+      }
+      u[0] = 4; v[0] = 2;
+      astTran2( cm, 1, u, v, 0, xr, yr );
+      if( xr[0] != AST__BAD || yr[0] != AST__BAD ) stopit(724,status);
+      cm = astAnnul( cm );
+   }
+
+/* A monotonic cubic whose centre linearization overshoots the box. */
+   {
+      double coeffs[] = { 1, 1, 1, .25, 1, 3 };
+      cm = astChebyMap( 1, 1, 2, coeffs, 0, NULL, lo, hi, NULL, NULL,
+                        "NiterInverse=30,TolInverse=1e-12" );
+      for( i = 0; i <= 100; i++ ) {
+         double z = -1 + i/50.0;
+         u[i] = z*z*z + .25*z;
+         x[i] = 5*(z+1);
+      }
+      astTran1( cm, 101, u, 0, xr );
+      for( i = 0; i <= 100; i++ ) inverse_near(xr[i],x[i],1e-10,730,status);
+      cm = astAnnul( cm );
+   }
+
+/* A constant forward map: accept an exact solution, reject other targets. */
+   {
+      double coeffs[] = { 7, 1, 0 };
+      cm = astChebyMap( 1, 1, 1, coeffs, 0, NULL, lo, hi, NULL, NULL, "" );
+      u[0] = 7; u[1] = 8;
+      astTran1( cm, 2, u, 0, xr );
+      inverse_near( xr[0], 5, 1e-12, 740, status );
+      if( xr[1] != AST__BAD ) stopit(741,status);
+      cm = astAnnul( cm );
+   }
+
+/* Explicit inverse coefficients remain preferred until iteration is set. */
+   {
+      double inverse[] = { 42, 1, 0 };
+      cm = astChebyMap( 1, 1, 1, linear, 1, inverse, lo, hi, lo, hi, "" );
+      if( astGetI(cm,"IterInverse") ) stopit(750,status);
+      u[0] = 0;
+      astTran1( cm, 1, u, 0, xr );
+      inverse_near( xr[0], 42, 0, 751, status );
+      astSet( cm, "IterInverse=1" );
+      astTran1( cm, 1, u, 0, xr );
+      inverse_near( xr[0], 5, 1e-12, 752, status );
+      astClear( cm, "IterInverse" );
+      astTran1( cm, 1, u, 0, xr );
+      inverse_near( xr[0], 42, 0, 753, status );
+      cm = astAnnul( cm );
+   }
+
+/* Three dimensions, with one domain far from zero. Dyadic samples make
+   the reference coordinates representable even on the translated axis. */
+   {
+      double blo[] = { 0, -3, 1e9 }, bhi[] = { 10, 5, 1e9+16 };
+      double coeffs[] = { 1, 1, 1, 0, 0, .125, 1, 0, 2, 0,
+                         1, 2, 0, 1, 0, .125, 2, 0, 0, 3,
+                         1, 3, 0, 0, 1 };
+      double input[3*125], output[3*125], recovered[3*125];
+      int k;
+      cm = astChebyMap( 3, 3, 5, coeffs, 0, NULL, blo, bhi, NULL, NULL,
+                        "NiterInverse=20,TolInverse=1e-12" );
+      n = 0;
+      for( i = 0; i < 5; i++ ) {
+         for( j = 0; j < 5; j++ ) {
+            for( k = 0; k < 5; k++, n++ ) {
+               double z = -1 + .5*i, w = -1 + .5*j, t = -1 + .5*k;
+               input[n] = 5*(z+1);
+               input[125+n] = 4*(w+1)-3;
+               input[250+n] = 1e9+8*(t+1);
+               output[n] = z + .125*(2*w*w-1);
+               output[125+n] = w + .125*(4*t*t*t-3*t);
+               output[250+n] = t;
+            }
+         }
+      }
+      astTranN( cm, n, 3, n, input, 1, 3, n, recovered );
+      for( i = 0; i < 3*n; i++ ) inverse_near(recovered[i],output[i],1e-12,760,status);
+      astTranN( cm, n, 3, n, output, 0, 3, n, recovered );
+      for( i = 0; i < 3*n; i++ ) inverse_near(recovered[i],input[i],1e-10,761,status);
+      cm = astAnnul( cm );
+   }
+
+/* Branch selection is local; any returned root must reproduce the target. */
+   {
+      double coeffs[] = { 1, 1, 1, 1, 1, 2 };
+      cm = astChebyMap( 1, 1, 2, coeffs, 0, NULL, lo, hi, NULL, NULL,
+                        "NiterInverse=30,TolInverse=1e-12" );
+      u[0] = -1; u[1] = -.875; u[2] = -1.25;
+      astTran1( cm, 3, u, 0, xr );
+      astTran1( cm, 2, xr, 1, v );
+      inverse_near( v[0], u[0], 1e-11, 770, status );
+      inverse_near( v[1], u[1], 1e-11, 771, status );
+      if( xr[2] != AST__BAD ) stopit(772,status);
+      cm = astAnnul( cm );
+   }
+
+/* Unsupported configurations must never advertise an iterative inverse. */
+   if( *status == 0 ) {
+      double coeffs[] = { 1, 1, 1, 0 };
+      cm = astChebyMap( 2, 1, 1, coeffs, 0, NULL, lo, hi, NULL, NULL, "" );
+      if( astGetI(cm,"IterInverse") || astGetI(cm,"TranInverse") ) stopit(780,status);
+      if( *status == 0 ) {
+         astSet( cm, "IterInverse=1" );
+         int expected = *status == AST__ATTIN;
+         astClearStatus;
+         if( !expected ) stopit(781,status);
+      }
+      cm = astAnnul( cm );
+      cm = astChebyMap( 1, 1, 0, NULL, 1, linear, NULL, NULL, lo, hi, "" );
+      if( astGetI(cm,"IterInverse") || astGetI(cm,"TranForward") ) stopit(782,status);
+      if( *status == 0 ) {
+         astSet( cm, "IterInverse=1" );
+         int expected = *status == AST__ATTIN;
+         astClearStatus;
+         if( !expected ) stopit(783,status);
+      }
+      cm = astAnnul( cm );
+   }
 }
