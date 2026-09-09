@@ -1076,6 +1076,12 @@ static AstPolyMap **GetJacobian( AstPolyMap *map, int *status ) {
    }
    lbnd = astFree( lbnd );
    ubnd = astFree( ubnd );
+   if( !astOK && map->jacobian ) {
+      for( i = 0; i < nin; i++ ) {
+         if( map->jacobian[i] ) map->jacobian[i] = astAnnul( map->jacobian[i] );
+      }
+      map->jacobian = astFree( map->jacobian );
+   }
    return astOK ? map->jacobian : NULL;
 }
 
