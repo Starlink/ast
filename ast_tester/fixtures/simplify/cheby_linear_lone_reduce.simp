@@ -1,6 +1,7 @@
- Begin ZoomMap 	# Zoom about the origin
+ Begin WinMap 	# Map one window on to another
     Nin = 1 	# Number of input coordinates
     IsSimp = 1 	# Mapping has been simplified
  IsA Mapping 	# Mapping between coordinate systems
-    Zoom = 2 	# Zoom factor
- End ZoomMap
+    Sft1 = -2 	# Shift for axis 1
+    Scl1 = 0.40000000000000002 	# Scale factor for axis 1
+ End WinMap
