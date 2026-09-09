@@ -22,6 +22,7 @@ static void checkPointList( int *status );
 static void checkPolygonMaskLargeLobe( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
+static void checkIntervalPointListMerge( int *status );
 static void sink1( const char *line );
 
 int main(void) {
@@ -47,6 +48,7 @@ int main(void) {
    checkPolygonMaskLargeLobe( status );
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
+   checkIntervalPointListMerge( status );
    astEnd;
    // astActivememory( "testregions" )
    // astFlushmemory( 1 );
@@ -1614,6 +1616,70 @@ static void checkBoxPermMapSlices( int *status ) {
       astEnd;
       if( *status != 0 ) return;
    }
+}
+
+static void checkIntervalPointListMerge( int *status ) {
+   AstFrame *f1, *f2;
+   AstPointList *pl;
+   AstInterval *iv;
+   AstPrism *prism;
+   AstMapping *simp;
+   double pts[ 2 ] = { 3.0, 4.0 };
+   double lbnd[ 2 ], ubnd[ 2 ];
+   double inside[ 3 ] = { 2.0, 7.0, 3.0 };
+   double outside[ 3 ] = { 20.0, 1.0, 3.0 };
+   double got[ 3*2 ];
+   int npoint;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   f1 = astFrame( 1, " " );
+   f2 = astFrame( 2, " " );
+   pl = astPointList( f1, 2, 1, 2, pts, NULL, " " );
+
+/* An Interval that spans 0 to 10 on axis 1 and is unbounded above on axis 2
+   is nowhere near a point, so a Prism of it and a PointList must not
+   simplify to a PointList: the Prism holds every (x, y, z) with x in 0..10,
+   y >= 0 and z in {3, 4}, and a PointList holds only its points. */
+   lbnd[ 0 ] = 0.0; ubnd[ 0 ] = 10.0;
+   lbnd[ 1 ] = 0.0; ubnd[ 1 ] = AST__BAD;
+   iv = astInterval( f2, lbnd, ubnd, NULL, " " );
+   prism = astPrism( iv, pl, " " );
+   simp = astSimplify( prism );
+   if( !astOK ) {
+      stopit( status, "checkIntervalPointListMerge: error simplifying the wide Prism" );
+   } else if( astIsAPointList( simp ) ) {
+      stopit( status, "checkIntervalPointListMerge: wide Interval merged into a PointList" );
+   } else if( !astPointInRegion( simp, inside ) ) {
+      stopit( status, "checkIntervalPointListMerge: (2,7,3) reported outside the simplified Prism" );
+   } else if( astPointInRegion( simp, outside ) ) {
+      stopit( status, "checkIntervalPointListMerge: (20,1,3) reported inside the simplified Prism" );
+   }
+
+/* An Interval with zero width on every axis is a point, and a Prism of it
+   and a PointList is the PointList with the point's axis values attached to
+   every member. */
+   lbnd[ 0 ] = 5.0; ubnd[ 0 ] = 5.0;
+   lbnd[ 1 ] = 0.0; ubnd[ 1 ] = 0.0;
+   iv = astInterval( f2, lbnd, ubnd, NULL, " " );
+   prism = astPrism( iv, pl, " " );
+   simp = astSimplify( prism );
+   if( !astOK ) {
+      stopit( status, "checkIntervalPointListMerge: error simplifying the point Prism" );
+   } else if( !astIsAPointList( simp ) ) {
+      stopit( status, "checkIntervalPointListMerge: point Interval did not merge into a PointList" );
+   } else {
+      astGetRegionPoints( simp, 2, 3, &npoint, got );
+      if( npoint != 2 ||
+          got[ 0 ] != 5.0 || got[ 1 ] != 5.0 ||
+          got[ 2 ] != 0.0 || got[ 3 ] != 0.0 ||
+          got[ 4 ] != 3.0 || got[ 5 ] != 4.0 ) {
+         stopit( status, "checkIntervalPointListMerge: merged PointList holds the wrong points" );
+      }
+   }
+
+   astEnd;
 }
 
 static void checkPointList( int *status ) {

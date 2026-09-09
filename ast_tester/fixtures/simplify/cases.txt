@@ -405,6 +405,7 @@ neg_box_series                     | simplify/neg_box_series.map | simplify/neg_
 neg_box_parallel_nonregion         | simplify/neg_box_parallel_nonregion.map | simplify/neg_box_parallel_nonregion.map | yes
 neg_interval_series                | simplify/neg_interval_series.map | simplify/neg_interval_series.map | yes
 neg_interval_parallel_nonregion    | simplify/neg_interval_parallel_nonregion.map | simplify/neg_interval_parallel_nonregion.map | yes
+neg_interval_unbounded_pointlist   | simplify/neg_interval_unbounded_pointlist.map | simplify/neg_interval_unbounded_pointlist.map | yes
 selectormap_region_simplify_real     | simplify/selectormap_region_simplify_real.map | simplify/selectormap_region_simplify_real.simp |
 neg_selectormap_series_upper         | simplify/neg_selectormap_series_upper.map | simplify/neg_selectormap_series_upper.map | yes
 neg_selectormap_series_lower         | simplify/neg_selectormap_series_lower.map | simplify/neg_selectormap_series_lower.map | yes
