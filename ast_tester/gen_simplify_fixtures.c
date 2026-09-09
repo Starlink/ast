@@ -2173,27 +2173,33 @@ static void gen_negative_fixtures_4(const char *dir) {
         sf1 = astAnnul(sf1); sf2 = astAnnul(sf2);
     }
 
-    /* unitnormmap-15: two forward UnitNormMaps — same direction refuses */
+    /* unitnormmap-15: two forward UnitNormMaps — same direction refuses.
+       A UnitNormMap has one more output than input, so the second one has to
+       take three inputs for the series to have matching arity; two 2-input
+       UnitNormMaps cannot be combined in series at all. */
     {
         if (!astOK) astClearStatus;
-        double c1[] = {1.0, 2.0};
-        double c2[] = {3.0, 4.0};
+        double c1[] = {0.0, 1.0};
+        double c2[] = {0.0, 1.0, 2.0};
         AstUnitNormMap *u1 = astUnitNormMap(2, c1, " ");
-        AstUnitNormMap *u2 = astUnitNormMap(2, c2, " ");
+        AstUnitNormMap *u2 = astUnitNormMap(3, c2, " ");
         AstCmpMap *cm = astCmpMap(u1, u2, 1, " ");
-        write_negative_fixture(dir, "neg_unitnormmap_same_direction", (AstMapping*)cm);
+        write_negative_fixture(dir, "neg_unitnormmap_same_dir", (AstMapping*)cm);
         cm = astAnnul(cm); u1 = astAnnul(u1); u2 = astAnnul(u2);
     }
 
-    /* unitnormmap-13: forward UnitNormMap + ShiftMap — wrong order refuses */
+    /* unitnormmap-13: forward UnitNormMap + ShiftMap — wrong order refuses.
+       The UnitNormMap has three outputs, so the ShiftMap must have three axes;
+       the merge is refused because the shift follows the UnitNormMap rather
+       than preceding it, not because of any arity problem. */
     {
         if (!astOK) astClearStatus;
-        double centre[] = {1.0, 2.0};
-        double shifts[] = {0.5, 0.5};
+        double centre[] = {0.0, 1.0};
+        double shifts[] = {1.0, 2.0, 3.0};
         AstUnitNormMap *unm = astUnitNormMap(2, centre, " ");
-        AstShiftMap *sm = astShiftMap(2, shifts, " ");
+        AstShiftMap *sm = astShiftMap(3, shifts, " ");
         AstCmpMap *cm = astCmpMap(unm, sm, 1, " ");
-        write_negative_fixture(dir, "neg_unitnormmap_fwd_then_shift", (AstMapping*)cm);
+        write_negative_fixture(dir, "neg_unitnormmap_fwd_shift", (AstMapping*)cm);
         cm = astAnnul(cm); unm = astAnnul(unm); sm = astAnnul(sm);
     }
 
@@ -2375,15 +2381,13 @@ static void gen_negative_fixtures_6(const char *dir) {
         tm = astAnnul(tm);
     }
 
-    /* grismmap-13: GrismMap + ZoomMap(0) — zero zoom prevents merge */
-    {
-        if (!astOK) astClearStatus;
-        AstGrismMap *gm = astGrismMap(" ");
-        AstZoomMap *zm = astZoomMap(1, 0.0, " ");
-        AstCmpMap *cm = astCmpMap(gm, zm, 1, " ");
-        write_negative_fixture(dir, "neg_grism_zoom_zero", (AstMapping*)cm);
-        cm = astAnnul(cm); gm = astAnnul(gm); zm = astAnnul(zm);
-    }
+    /* There is no fixture for grismmap.c:570's `z != 0.0` guard. It cannot be
+       reached: astZoomMap refuses a zoom factor of zero outright, and a
+       ZoomMap whose Zoom has been cleared stores zero only as the unset
+       sentinel, for which astGetZoom returns 1.0. So no ZoomMap can present a
+       zero factor to GrismMap's MapMerge, and the guard beside the
+       `z != AST__BAD` test is dead. A case here used to try
+       astZoomMap(1, 0.0, " "), which reported AST__ZOOMI and wrote nothing. */
 
     /* polymap-08: PolyMap neighbour is not PolyMap — refuses cancel */
     {
