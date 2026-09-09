@@ -3180,6 +3180,30 @@ static void gen_region_fixtures(const char *dir) {
         f1 = astAnnul(f1); f2 = astAnnul(f2);
     }
 
+    /* An Interval in parallel with a PointList, which is how a Prism of the
+       two simplifies, merges into the PointList only when it has zero width
+       on every axis, since the merge attaches one constant per Interval axis
+       to every point. This Interval spans 0 to 10 on axis 1 and is unbounded
+       above on axis 2, so the merge is refused and the pair is left alone.
+       An unbounded Interval is the only kind that reaches Interval's
+       PointList branch with non-zero width: a bounded one simplifies to a
+       Box first, and a Box that is a point is merged by MergeBox instead. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *f2 = astFrame(2, " ");
+        AstFrame *f1 = astFrame(1, " ");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, AST__BAD};
+        double points[] = {3.0, 4.0};
+        AstInterval *iv = astInterval(f2, lbnd, ubnd, NULL, " ");
+        AstPointList *pl = astPointList(f1, 2, 1, 2, points, NULL, " ");
+        AstCmpMap *cm = astCmpMap(iv, pl, 0, " ");
+        write_negative_fixture(dir, "neg_interval_unbounded_pointlist",
+                               (AstMapping*)cm);
+        cm = astAnnul(cm); iv = astAnnul(iv); pl = astAnnul(pl);
+        f1 = astAnnul(f1); f2 = astAnnul(f2);
+    }
+
     /* nullregion-01: NullRegion self-simplification. */
     {
         if (!astOK) astClearStatus;

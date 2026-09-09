@@ -79,6 +79,12 @@ f     The Interval class does not define any new routines beyond those
 *        - Modify RegPins so that it can handle uncertainty regions that straddle
 *        a discontinuity. Previously, such uncertainty Regions could have a huge
 *        bounding box resulting in matching region being far too big.
+*     9-SEP-2026 (TJ):
+*        MergeInterval: read the uncertainty bounds into their own arrays and
+*        test the Interval's actual width when merging with a PointList. The
+*        uncertainty bounds overwrote the Interval's, and the width test
+*        subtracted a bound from itself, so any Interval merged, an unbounded
+*        axis included.
 *class--
 */
 
@@ -1467,16 +1473,18 @@ static AstRegion *MergeInterval( AstInterval *this, AstRegion *reg,
          lbnd_unc = astMalloc( sizeof( double )*(size_t) nax_this );
          ubnd_unc = astMalloc( sizeof( double )*(size_t) nax_this );
          bunc = astGetUncFrm( this, AST__BASE );
-         astGetRegionBounds( bunc, lbnd, ubnd );
+         astGetRegionBounds( bunc, lbnd_unc, ubnd_unc );
 
 /* Set "ok" to zero if the Interval does not have zero width on any axis. Here
-   "zero width" means a width less than half the uncertainty on the axis.
-   We also replace the lower bound values in the "lbnd" array by the central
-   values in the Interval. */
+   "zero width" means a width less than half the uncertainty on the axis,
+   the same test MergeBox applies to a Box's half-width. A missing limit is
+   stored as -DBL_MAX or DBL_MAX, so an unbounded axis fails the test and
+   the Interval is left alone. We also replace the lower bound values in
+   the "lbnd" array by the central values in the Interval. */
          if( astOK ) {
             ok = 1;
             for( i = 0; i < nax_this; i++ ) {
-               if( fabs( lbnd[ i ] - lbnd[ i ] ) >
+               if( 0.5*fabs( ubnd[ i ] - lbnd[ i ] ) >
                    0.25*fabs( ubnd_unc[ i ] - lbnd_unc[ i ] ) ) {
                   ok = 0;
                   break;
