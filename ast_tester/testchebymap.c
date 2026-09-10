@@ -542,4 +542,39 @@ static void inverse_tests( int *status ) {
       }
       cm = astAnnul( cm );
    }
+
+/* Earlier versions of AST allowed IterInverse to be set on an
+   inverse-only ChebyMap, so dumps recording that combination exist. They
+   must still load, with the recorded value having no effect. */
+   if( *status == 0 ) {
+      const char *legacy = " Begin ChebyMap\n"
+                           " Nin = 1\n"
+                           " IsA Mapping\n"
+                           " MPI1 = 1\n"
+                           " NCI1 = 1\n"
+                           " CI1 = 1\n"
+                           " PI1 = 1\n"
+                           " IterInv = 1\n"
+                           " IsA PolyMap\n"
+                           " ISCL1 = 0.1\n"
+                           " IOFF1 = 0\n"
+                           " End ChebyMap\n";
+      AstObject *obj = astFromString( legacy );
+      if( !obj || !astOK ) {
+         astClearStatus;
+         stopit( 784, status );
+      } else {
+         cm = (AstChebyMap *) obj;
+         if( astGetI( cm, "TranForward" ) ) stopit( 785, status );
+         if( astGetI( cm, "IterInverse" ) ) stopit( 786, status );
+         if( !astGetI( cm, "TranInverse" ) ) stopit( 787, status );
+
+/* The inverse coefficients survive the load and still evaluate. */
+         u[ 0 ] = 5.0;
+         xr[ 0 ] = AST__BAD;
+         astTran1( cm, 1, u, 0, xr );
+         if( fabs( xr[ 0 ] - 0.5 ) > 1e-12 ) stopit( 788, status );
+         cm = astAnnul( cm );
+      }
+   }
 }

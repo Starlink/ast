@@ -122,6 +122,10 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *     5-MAY-2018 (DSB):
 *        Correct usage of "forward" argument in astFitPoly1DInit and
 *        astFitPoly2DInit.
+*     9-SEP-2026 (TIMJ):
+*        Load a recorded IterInverse value without validating it against
+*        the forward transformation, so that dumps written by earlier
+*        versions of AST remain readable.
 *class--
 */
 
@@ -2941,12 +2945,12 @@ AstChebyMap *astLoadChebyMap_( void *mem, size_t size,
       if ( !astOK ) new = astDelete( new );
    }
 
-/* The parent loader cannot check the subclass's inverse requirements. */
-   if( astOK && new && ((AstPolyMap *)new)->iterinverse != -INT_MAX ) {
-      SetIterInverse( (AstPolyMap *)new, ((AstPolyMap *)new)->iterinverse,
-                      status );
-      if( !astOK ) new = astDelete( new );
-   }
+/* A recorded IterInverse value is not validated here. Dumps written by
+   earlier versions of AST may record a non-zero value for a ChebyMap with
+   no forward transformation, and rejecting those would make an entire
+   Object containing one unreadable. GetIterInverse returns zero whenever
+   the forward transformation is undefined, so the recorded value has no
+   effect. */
 
 /* Return the new ChebyMap pointer. */
    return new;
