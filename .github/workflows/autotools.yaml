@@ -114,12 +114,15 @@ jobs:
             FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
             --with-yaml="$(brew --prefix libyaml)"
 
+      # The documentation flags have to stay on the same `dist' gate as the
+      # TeX and starprolog install above: configuring --with-stardocs without
+      # that toolchain is a hard configure error.
       - name: Configure (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           ./configure CC=${{ matrix.cc }} \
             FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
-            --with-stardocs --disable-hyperdocs
+            ${{ matrix.dist && '--with-stardocs --disable-hyperdocs' || '' }}
 
       # If make fails re-run with V=1 so we can inspect
       - name: Build
