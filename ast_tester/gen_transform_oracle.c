@@ -132,11 +132,13 @@ static int path_kind( const char *relpath ) {
 /* Fill lo[]/hi[] for naxis input axes.  FITS headers use their pixel grid
    (NAXISj).  FrameSet dumps (.ast) have a GRID base frame but carry no
    NAXIS, so use a default positive pixel range.  Native dumps have no
-   declared domain, so use a fixed symmetric range.  Sampling outside a
-   map's valid domain merely yields AST__BAD, which the golden comparison
-   records and matches faithfully. */
+   declared domain, so use a fixed symmetric range, unless the fixture's
+   top-level object is a ChebyMap with a defined forward box, in which case
+   that box is used instead.  Sampling outside a map's valid domain merely
+   yields AST__BAD, which the golden comparison records and matches
+   faithfully. */
 static void axis_bounds( const char *root, const char *relpath, int kind,
-                         int naxis, double *lo, double *hi ) {
+                         int naxis, double *lo, double *hi, AstObject *obj ) {
     if ( kind == DOM_HEAD ) {
         head_bounds( root, relpath, naxis, lo, hi );
     } else if ( kind == DOM_FRAMESET ) {
@@ -173,6 +175,24 @@ static void axis_bounds( const char *root, const char *relpath, int kind,
         }
     } else {
         for ( int a = 0; a < naxis; a++ ) { lo[a] = -1000.0; hi[a] = 1000.0; }
+/* A ChebyMap is defined only inside its forward box.  Sampling the box gives
+   its inverse real coverage; the symmetric default lands almost entirely on
+   BAD.  Compound Mappings that contain a ChebyMap keep the default. */
+        if ( obj && astIsAChebyMap( obj ) ) {
+            double *blo = astMalloc( naxis*sizeof( double ) );
+            double *bhi = astMalloc( naxis*sizeof( double ) );
+            int usable = astOK;
+            astChebyDomain( (AstChebyMap *) obj, 1, blo, bhi );
+            for ( int a = 0; a < naxis && usable; a++ ) {
+                if ( blo[a] == AST__BAD || bhi[a] == AST__BAD ) usable = 0;
+            }
+            if ( usable ) {
+                for ( int a = 0; a < naxis; a++ ) { lo[a] = blo[a]; hi[a] = bhi[a]; }
+            }
+            blo = astFree( blo );
+            bhi = astFree( bhi );
+            if ( !astOK ) astClearStatus;
+        }
     }
 }
 
@@ -238,7 +258,7 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
         if ( has_fwd ) {
             double *lo = malloc( sizeof(double) * (size_t) nin );
             double *hi = malloc( sizeof(double) * (size_t) nin );
-            axis_bounds( root, relpath, kind, nin, lo, hi );
+            axis_bounds( root, relpath, kind, nin, lo, hi, (AstObject *) map );
             double **in  = alloc_cols( nin, np );
             double **out = alloc_cols( nout, np );
             oracle_sample_points( nin, lo, hi, np, in );
@@ -260,7 +280,7 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
             else {
                 double *lo = malloc( sizeof(double) * (size_t) nout );
                 double *hi = malloc( sizeof(double) * (size_t) nout );
-                axis_bounds( root, relpath, kind, nout, lo, hi );
+                axis_bounds( root, relpath, kind, nout, lo, hi, (AstObject *) map );
                 inv_in = alloc_cols( nout, np );
                 oracle_sample_points( nout, lo, hi, np, inv_in );
                 free( lo ); free( hi );

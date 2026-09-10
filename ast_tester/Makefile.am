@@ -61,6 +61,7 @@ C_TESTS = \
     testaxis \
     testchannel_c \
     testchebymap_c \
+    testchebyinverse \
     testcmpframe_c \
     testcmpmap_c \
     testconvert \
@@ -161,6 +162,9 @@ testchannel_c_LDADD    = $(CTEST_LDADD)
 testchebymap_c_SOURCES = testchebymap.c
 testchebymap_c_CFLAGS  = $(AM_CFLAGS)
 testchebymap_c_LDADD   = $(CTEST_LDADD)
+
+testchebyinverse_SOURCES = testchebyinverse.c
+testchebyinverse_LDADD   = $(CTEST_LDADD)
 
 testcmpframe_c_SOURCES = testcmpframe.c
 testcmpframe_c_CFLAGS  = $(AM_CFLAGS)

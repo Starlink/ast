@@ -5,26 +5,6 @@
 
    - what about overriding astRate ?
 
-   - Providing an iterative inverse requires the Jacobian to be defined.
-
-     for a PolyMap:   if y = C.x^n     then y' = n.C.x^n-1
-     for a ChebyMap:  if y = C.Tn(x)   then y' = n.C.Un-1(x)
-
-     where Un-1(x) is the Chebyshev polynomial of the second kind, degree
-     (n-1), evaluated at x. Since PolyMap.GetJacobian function uses PolyMaps
-     to express the Jacobian of a PolyMap, it would need to use ChebyMaps
-     to express the Jacobian of a ChebyMap. But this would mean that
-     ChebyMap needs to be able to represent Chebyshev polynomials of the
-     second type. In fact the set of powers associated with each coefficient
-     would need to indicate somehow whether to use type 1 or type 2 for
-     each power. Could use negative powers to indicate type 2, but PolyMap.StoreArrays
-     objects to negative powers. StoreArrays could just store them
-     without checking, and then call a virtual function to verify the powers
-     are OK.
-
-     Simpler for the moment just to disable iterative inverses in
-     ChebyMap.
-
 */
 
 
@@ -57,8 +37,8 @@ f     AST_CHEBYMAP
 *        - Tn(x') is the nth Chebyshev polynomial of the first kind:
 *             - T0(x') = 1
 *             - T1(x') = x'
-*             - Tn+1(x') = 2.x'.Tn(x') + Tn-1(x')
-*        - x' is the inpux axis value, x, offset and scaled to the range
+*             - Tn+1(x') = 2.x'.Tn(x') - Tn-1(x')
+*        - x' is the input axis value, x, offset and scaled to the range
 *          [-1, 1] as x ranges over a specified bounding box, given when the
 *          ChebyMap is created. The input positions, x,  supplied to the
 *          forward transformation must fall within the bounding box - bad
@@ -73,17 +53,26 @@ f     of NCOEFF
 *     value and N factors of the form Tn(x'_i), where "x'_i" is the
 *     normalised value of the i'th input axis value.
 *
-*     The forward and inverse transformations are defined independantly
-*     by separate sets of coefficients, supplied when the ChebyMap is
-*     created. If no coefficients are supplied to define the inverse
-*     transformation, the
+*     The forward and inverse transformations may be defined independently
+*     by separate sets of coefficients supplied when the ChebyMap is
+*     created. If forward coefficients are supplied, no inverse coefficients
+*     are supplied, and the numbers of inputs and outputs are equal, an
+*     iterative inverse is provided by default. It uses the analytic
+*     Jacobian of the forward series and confines candidate solutions to
+*     the forward bounding box. An unsolved position is returned as
+*     AST__BAD. See IterInverse, NiterInverse and TolInverse for details.
+*
+*     Supplied inverse coefficients are used by default. Setting
+*     IterInverse to one selects iteration instead; setting it to zero
+*     disables iteration. Clearing it restores the default selection.
+*     A local iterative inverse does not guarantee a unique solution or
+*     convergence at every position.
+*
+*     Alternatively, the
 c     astPolyTran
 f     AST_POLYTRAN
-*     method of the parent PolyMap class can instead be used to create an
-*     inverse transformation. The inverse transformation so generated
-*     will be a Chebyshev polynomial with coefficients chosen to minimise
-*     the residuals left by a round trip (forward transformation followed
-*     by inverse transformation).
+*     method can fit an inverse Chebyshev series, choosing coefficients
+*     to minimise the residuals of a forward/inverse round trip.
 
 *  Inheritance:
 *     The ChebyMap class inherits from the PolyMap class.
@@ -133,6 +122,73 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *     5-MAY-2018 (DSB):
 *        Correct usage of "forward" argument in astFitPoly1DInit and
 *        astFitPoly2DInit.
+*     8-SEP-2026 (TIMJ):
+*        Over-ride the astGetJacobian method inherited from the PolyMap
+*        class to express the derivatives of a Chebyshev series in the
+*        basis of the first kind, and the astLinearGuess method to seed
+*        the inversion from the normalised forward domain.
+*     8-SEP-2026 (TIMJ):
+*        Over-ride the astIterInverse method inherited from the PolyMap
+*        class with a Newton iteration restricted to the bounding box the
+*        forward series is defined over. The bounded algorithm lives in
+*        this file; the parent algorithm is used for a forward series
+*        without a usable Chebyshev box.
+*     9-SEP-2026 (TIMJ):
+*        Construct the Jacobian ChebyMaps on the canonical [-1,1] box
+*        instead of a physical box reconstructed from the scales and
+*        offsets, which are copied into the new Maps in any case.
+*     9-SEP-2026 (TIMJ):
+*        Report no finite iteration domain if the forward normalisation is
+*        zero or non-finite, rather than dividing by it.
+*     9-SEP-2026 (TIMJ):
+*        Move a recovered iteration bound into the evaluable domain for as
+*        long as doing so improves it, and report no finite domain if it
+*        cannot be moved far enough, instead of returning a bound that the
+*        forward evaluator rejects.
+*     9-SEP-2026 (TIMJ):
+*        Report an error if a bounding box is omitted for a direction that
+*        has coefficients, rather than dereferencing the null pointer.
+*     10-SEP-2026 (TIMJ):
+*        Remove the astGetIterInverse and astSetIterInverse overrides and
+*        the loader comment about an unvalidated recorded IterInverse
+*        value. PolyMap now applies one IterInverse validity rule that
+*        already covers a ChebyMap with no forward transformation.
+*     10-SEP-2026 (TIMJ):
+*        Stop checking TolInverse and NiterInverse in IterInverse; the
+*        PolyMap setters now reject an unusable value before it can reach
+*        here. Only the bounding box is still checked.
+*     10-SEP-2026 (TIMJ):
+*        Move a position off a singular Jacobian once, upward unless that
+*        would leave the box, instead of declaring it unsolved immediately.
+*        A forward series with no linear term is singular at the midpoint
+*        seed, which the previous behaviour reported as unsolved for every
+*        target. Choosing the direction by comparing room on each side made
+*        the exact midpoint a tie broken only by the last bit of rounding,
+*        which a fused multiply-add could flip.
+*     10-SEP-2026 (TIMJ):
+*        Override GetNiterInverse so that an unset NiterInverse defaults to
+*        10 rather than PolyMap's 4. The bounded algorithm checks only the
+*        final candidate, so it needs more headroom than the unbounded
+*        algorithm, which returns the last iterate. Apply the converged
+*        correction to that final candidate before returning it, instead of
+*        leaving it at the position tested for convergence, so that it is
+*        accurate to roughly the square of TolInverse rather than to
+*        TolInverse itself.
+*     10-SEP-2026 (TIMJ):
+*        Rename IterBounds to AxisBounds and use it, rather than a bare
+*        scale-and-offset division, in ChebyDomain and in PolyTran's
+*        reconstruction of a missing user bounding box, so that a bound
+*        returned by astChebyDomain or used by astPolyTran always
+*        evaluates without BAD. Remove the unreachable "lo <= hi" test in
+*        AxisBounds.
+*     10-SEP-2026 (TIMJ):
+*        Create the two trial PointSets used by IterSteps once, before the
+*        backtrack loop, and shrink them with astSetNpoint instead of
+*        re-creating them at every level. Give IterSteps a "work" array and
+*        have it copy an accepted trial's forward values into it, so that
+*        IterInverse's whole-batch forward transform at the top of each
+*        iteration can be skipped except on the first iteration or after a
+*        position has been nudged.
 *class--
 */
 
@@ -157,6 +213,11 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 #include "cmpmap.h"              /* Compound mappings */
 #include "chebymap.h"            /* Interface definition for this class */
 #include "unitmap.h"             /* Unit mappings */
+#include "matrixmap.h"           /* Affine initial guesses */
+#include "shiftmap.h"
+#include "permmap.h"
+#include "pal.h"                 /* Linear equation solver for Newton steps */
+#include "pal.h"                 /* Linear equation solver for Newton steps */
 
 /* Error code definitions. */
 /* ----------------------- */
@@ -184,6 +245,20 @@ static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_equal)( AstObject *, AstObject *, int * );
 static void (* parent_polypowers)( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
 static AstPolyMap *(*parent_polytran)( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
+static AstPolyMap **(*parent_getjacobian)( AstPolyMap *, int * );
+static AstMapping *(*parent_linearguess)( AstPolyMap *, int * );
+static void (*parent_iterinverse)( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
+static int (*parent_getniterinverse)( AstPolyMap *, int * );
+
+/* A derivative term retains the original orders except on one axis. */
+typedef struct ChebyDerivTerm {
+   const int *powers;
+   int nin;
+   int axis;
+   int degree;
+   int output;
+   double coeff;
+} ChebyDerivTerm;
 
 
 #ifdef THREAD_SAFE
@@ -225,7 +300,20 @@ AstChebyMap *astChebyMapId_( int, int, int, const double[], int, const double[],
 /* ======================================== */
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static int Equal( AstObject *, AstObject *, int * );
-static int GetIterInverse( AstPolyMap *, int * );
+static AstPolyMap **GetJacobian( AstPolyMap *, int * );
+static int CompareDerivTerms( const void *, const void * );
+static AstMapping *LinearGuess( AstPolyMap *, int * );
+static int GetIterDomain( AstChebyMap *, double *, double *, int * );
+static int AxisBounds( double, double, double *, double * );
+static void IterInverse( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
+static void IterSteps( AstPolyMap *, int, int, double **, double **,
+                       double **, const double *, const double *,
+                       const double *, const double *, const double *,
+                       const double *, int *, int *, int *, int * );
+static void MarkUnsolved( double **, int, int, int *, int * );
+static int Usable( double );
+static double NudgeIntoDomain( double, double, double, double );
+static int GetNiterInverse( AstPolyMap *, int * );
 static size_t GetObjSize( AstObject *, int * );
 static void ChebyDomain( AstChebyMap *, int, double *, double *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
@@ -353,10 +441,7 @@ f    AST_MAPBOX
 /* Check the domain is defined. */
    if( scale && offset ) {
       for( iax = 0; iax < nax; iax++ ) {
-         if( scale[ iax ] != 0.0 ) {
-            lbnd[ iax ] = ( -1.0 - offset[ iax ] ) / scale[ iax ];
-            ubnd[ iax ] = ( 1.0 - offset[ iax ] ) / scale[ iax ];
-         } else {
+         if( !AxisBounds( scale[ iax ], offset[ iax ], lbnd + iax, ubnd + iax ) ) {
             lbnd[ iax ] = AST__BAD;
             ubnd[ iax ] = AST__BAD;
          }
@@ -373,10 +458,8 @@ f    AST_MAPBOX
       ubnd_o = astMalloc( nax_o*sizeof( *ubnd_o ) );
       if( astOK ) {
          for( iax = 0; iax < nax_o; iax++ ) {
-            if( scale_o[ iax ] != 0.0 ) {
-               lbnd_o[ iax ] = ( -1.0 - offset_o[ iax ] ) / scale_o[ iax ];
-               ubnd_o[ iax ] = ( 1.0 - offset_o[ iax ] ) / scale_o[ iax ];
-            } else {
+            if( !AxisBounds( scale_o[ iax ], offset_o[ iax ], lbnd_o + iax,
+                             ubnd_o + iax ) ) {
                lbnd_o[ iax ] = AST__BAD;
                ubnd_o[ iax ] = AST__BAD;
             }
@@ -840,44 +923,1385 @@ static void FitPoly2DInit( AstPolyMap *this_polymap, int forward, double **table
 
 }
 
-static int GetIterInverse( AstPolyMap *this, int *status ) {
+static int CompareDerivTerms( const void *a, const void *b ) {
 /*
 *  Name:
-*     GetIterInverse
+*     CompareDerivTerms
 
 *  Purpose:
-*     Return the value of the IterInverse attribute.
+*     Compare the output axes and orders of two derivative terms.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     int CompareDerivTerms( const void *a, const void *b )
+
+*  Description:
+*     This function compares two ChebyDerivTerm structures for use by
+*     qsort. Terms are ordered first by output axis and then
+*     lexicographically by their polynomial orders. On the
+*     differentiated axis the derivative order is used; on each other
+*     axis the original order is used.
+*
+*     Coefficient values are excluded from the comparison, so terms that
+*     can be combined into one coefficient compare equal. The comparator
+*     uses only information in the supplied structures and no global
+*     state.
+
+*  Parameters:
+*     a
+*        Pointer to the first ChebyDerivTerm structure.
+*     b
+*        Pointer to the second ChebyDerivTerm structure. Both terms must
+*        have the same number of input axes.
+
+*  Returned Value:
+*     Minus one if "a" precedes "b", plus one if "a" follows "b", or
+*     zero if the terms have the same output axis and polynomial orders.
+
+*  Notes:
+*     - This function does not use the inherited status, since its
+*     calling sequence is fixed by qsort.
+*/
+   const ChebyDerivTerm *ta = a;
+   const ChebyDerivTerm *tb = b;
+   int i, pa, pb;
+   if( ta->output != tb->output ) return ta->output < tb->output ? -1 : 1;
+   for( i = 0; i < ta->nin; i++ ) {
+      pa = i == ta->axis ? ta->degree : ta->powers[ i ];
+      pb = i == tb->axis ? tb->degree : tb->powers[ i ];
+      if( pa != pb ) return pa < pb ? -1 : 1;
+   }
+   return 0;
+}
+
+static AstPolyMap **GetJacobian( AstPolyMap *map, int *status ) {
+/*
+*  Name:
+*     GetJacobian
+
+*  Purpose:
+*     Get the Jacobian of the original forward transformation of a
+*     ChebyMap.
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
 *     #include "polymap.h"
-*     int GetIterInverse( AstObject *this, int *status )
+*     AstPolyMap **GetJacobian( AstPolyMap *map, int *status )
 
 *  Class Membership:
-*     ChebyMap member function (over-rides the astGetIterInverse protected
+*     ChebyMap member function (over-rides the astGetJacobian protected
 *     method inherited from the parent PolyMap class).
 
 *  Description:
-*     This function returns the value of the IterInverse attribute, which
-*     is always zero for a ChebyMap.
+*     This function returns one derivative Mapping for each original
+*     input axis. Each Mapping takes all original inputs and returns the
+*     derivatives of all original outputs with respect to that axis,
+*     thereby evaluating one column of the Jacobian. The Invert
+*     attribute is ignored.
+*
+*     For a Chebyshev forward series, each derivative is represented as
+*     another first-kind ChebyMap. The derivative of T_n contains orders
+*     n-1, n-3, ... with coefficients 2*n, except that the coefficient
+*     of order zero is n. Each coefficient also includes the physical
+*     input normalisation scale. Orders on other axes are unchanged, and
+*     terms with equal output axes and orders are combined.
+*
+*     The derivative Maps retain the exact forward normalisation and
+*     have iterative inversion disabled. A zero column is represented by
+*     a defined zero transformation. The Maps are cached for subsequent
+*     calls. If the original forward series is an ordinary polynomial,
+*     the parent PolyMap implementation is used instead.
 
 *  Parameters:
-*     this
-*        Pointer to the ChebyMap.
+*     map
+*        Pointer to the ChebyMap, supplied as a PolyMap pointer. The
+*        original forward transformation must be defined.
 *     status
 *        Pointer to the inherited status variable.
 
 *  Returned Value:
-*     The IterInverse value.
+*     Pointer to an array of PolyMap pointers, with one element per
+*     original input axis, or NULL if the original forward
+*     transformation is undefined or an error occurs. The array and its
+*     Maps belong to "map" and must not be modified, freed or annulled
+*     by the caller.
 
 *  Notes:
-*     - A value of zero will be returned if this function is invoked
-*     with the global status set, or if it should fail for any reason.
+*     - The returned pointer remains valid only while "map" retains its
+*     cached Jacobian. Coefficient replacement can invalidate it.
+*     - A NULL pointer is returned if the inherited status is set, or if
+*     an error occurs.
+*/
+   AstChebyMap *this = (AstChebyMap *) map;
+   AstChebyMap *deriv;
+   ChebyDerivTerm *terms = NULL;
+   double *coeffs = NULL;
+   double *lbnd = NULL;
+   double *ubnd = NULL;
+   double *pc;
+   size_t count, iterm;
+   int nin, nout, axis, out, ico, degree, n, i, nco;
+
+   if( !astOK ) return NULL;
+   if( !this->scale_f ) return (*parent_getjacobian)( map, status );
+   if( map->jacobian ) return map->jacobian;
+
+   nin = ((AstMapping *) map)->nin;
+   nout = ((AstMapping *) map)->nout;
+   if( !map->ncoeff_f ) return NULL;
+   map->jacobian = astCalloc( nin, sizeof( *map->jacobian ) );
+   lbnd = astMalloc( nin*sizeof( *lbnd ) );
+   ubnd = astMalloc( nin*sizeof( *ubnd ) );
+/* The scale and offset derived from this box are overwritten below with
+   the values held by "map", so use the canonical box that those values
+   normalise to. Reconstructing the physical box would add rounding error,
+   and for a box narrower than the resolution of its own centre the two
+   reconstructed bounds coincide, which the constructor rejects. */
+   if( astOK ) {
+      for( i = 0; i < nin; i++ ) {
+         lbnd[ i ] = -1.0;
+         ubnd[ i ] = 1.0;
+      }
+   }
+
+   for( axis = 0; axis < nin && astOK; axis++ ) {
+      count = 0;
+      for( out = 0; out < nout; out++ ) {
+         for( ico = 0; ico < map->ncoeff_f[ out ]; ico++ ) {
+            n = map->power_f[ out ][ ico ][ axis ];
+            count += (size_t) n/2 + n%2;
+         }
+      }
+      if( count > INT_MAX ) {
+         astError( AST__INTER, "GetJacobian(%s): Too many derivative terms.",
+                   status, astGetClass( this ) );
+         break;
+      }
+      terms = astMalloc( astMAX( count, 1 )*sizeof( *terms ) );
+      coeffs = astCalloc( astMAX( count, 1 ),
+                         (nin + 2)*sizeof( *coeffs ) );
+      if( astOK ) {
+         iterm = 0;
+         for( out = 0; out < nout; out++ ) {
+            for( ico = 0; ico < map->ncoeff_f[ out ]; ico++ ) {
+               n = map->power_f[ out ][ ico ][ axis ];
+               for( degree = n - 1; degree >= 0; degree -= 2 ) {
+                  ChebyDerivTerm *term = terms + iterm++;
+                  term->powers = map->power_f[ out ][ ico ];
+                  term->nin = nin;
+                  term->axis = axis;
+                  term->degree = degree;
+                  term->output = out + 1;
+                  term->coeff = map->coeff_f[ out ][ ico ];
+                  if( term->coeff != AST__BAD ) {
+                     term->coeff *= this->scale_f[ axis ]*n*
+                                    (degree ? 2.0 : 1.0);
+                  }
+               }
+            }
+         }
+
+/* Combine equal terms before constructing the derivative Mapping. */
+         qsort( terms, count, sizeof( *terms ), CompareDerivTerms );
+         nco = 0;
+         pc = coeffs;
+         for( iterm = 0; iterm < count; iterm++ ) {
+            ChebyDerivTerm *term = terms + iterm;
+            if( iterm && !CompareDerivTerms( term, term - 1 ) ) {
+               pc[ 0 ] = pc[ 0 ] == AST__BAD || term->coeff == AST__BAD ?
+                         AST__BAD : pc[ 0 ] + term->coeff;
+            } else {
+               pc = coeffs + (size_t) nco++*(nin + 2);
+               pc[ 0 ] = term->coeff;
+               pc[ 1 ] = term->output;
+               for( i = 0; i < nin; i++ ) {
+                  pc[ i + 2 ] = i == axis ? term->degree : term->powers[ i ];
+               }
+            }
+         }
+
+/* No terms means a defined zero column, not an undefined transformation. */
+         if( !nco ) {
+            nco = 1;
+            coeffs[ 1 ] = 1.0;
+         }
+         deriv = astChebyMap( nin, nout, nco, coeffs, 0, NULL,
+                              lbnd, ubnd, NULL, NULL, "IterInverse=0", status );
+         if( astOK ) {
+            memcpy( deriv->scale_f, this->scale_f, nin*sizeof( double ) );
+            memcpy( deriv->offset_f, this->offset_f, nin*sizeof( double ) );
+         }
+         map->jacobian[ axis ] = (AstPolyMap *) deriv;
+      }
+      coeffs = astFree( coeffs );
+      terms = astFree( terms );
+   }
+   lbnd = astFree( lbnd );
+   ubnd = astFree( ubnd );
+   if( !astOK && map->jacobian ) {
+      for( i = 0; i < nin; i++ ) {
+         if( map->jacobian[i] ) map->jacobian[i] = astAnnul( map->jacobian[i] );
+      }
+      map->jacobian = astFree( map->jacobian );
+   }
+   return astOK ? map->jacobian : NULL;
+}
+
+static int GetIterDomain( AstChebyMap *this, double *lbnd, double *ubnd,
+                          int *status ) {
+/*
+*  Name:
+*     GetIterDomain
+
+*  Purpose:
+*     Get the finite domain for ChebyMap inverse iteration.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     int GetIterDomain( AstChebyMap *this, double *lbnd, double *ubnd,
+*                        int *status )
+
+*  Class Membership:
+*     ChebyMap member function.
+
+*  Description:
+*     This function returns the physical input bounds used to restrict
+*     iterative inversion of the original forward Chebyshev series. The
+*     bounds are recovered from the stored forward scales and offsets,
+*     independently of the Invert attribute.
+*
+*     A ChebyMap can also contain an ordinary polynomial forward
+*     transformation. Such a transformation has no finite iteration
+*     domain; in that case both supplied arrays are left unchanged and
+*     zero is returned.
+*
+*     A reconstructed bound can round to a position whose normalised
+*     coordinate lies just outside [-1,1]. Each bound is moved towards
+*     the other by up to eight adjacent representable values to bring it
+*     within the range accepted by the forward evaluator. This does not
+*     enable extrapolation of the forward series.
+
+*  Parameters:
+*     this
+*        Pointer to the ChebyMap.
+*     lbnd
+*        Pointer to an array in which to return the lower bound on each
+*        original input axis. Its length must equal the number of inputs
+*        of the uninverted ChebyMap.
+*     ubnd
+*        Pointer to an array in which to return the upper bound on each
+*        original input axis. Its length and ordering must match "lbnd".
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if bounds have been supplied, or zero if the original forward
+*     transformation has no Chebyshev normalisation.
+
+*  Notes:
+*     - A value of zero is returned and the bound arrays are left
+*     unchanged if the inherited status is set.
+*/
+   int i, nin = ((AstMapping *) this)->nin;
+   double a, b;
+   if( !astOK || !this->scale_f ) return 0;
+
+/* Every axis must yield a usable interval before anything is stored, so
+   that the supplied arrays are left unchanged when zero is returned. */
+   for( i = 0; i < nin; i++ ) {
+      if( !AxisBounds( this->scale_f[i], this->offset_f[i], &a, &b ) ) return 0;
+   }
+
+   for( i = 0; i < nin; i++ ) {
+      (void) AxisBounds( this->scale_f[i], this->offset_f[i], lbnd + i,
+                         ubnd + i );
+   }
+   return 1;
+}
+
+static double NudgeIntoDomain( double bound, double towards, double scale,
+                               double offset ) {
+/*
+*  Name:
+*     NudgeIntoDomain
+
+*  Purpose:
+*     Move a bound to a position the forward evaluator accepts.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     double NudgeIntoDomain( double bound, double towards, double scale,
+*                             double offset )
+
+*  Description:
+*     The forward Chebyshev series is evaluated only where the normalised
+*     coordinate "bound*scale + offset" lies in [-1,+1]. Recovering a bound
+*     from the scale and offset can round it to a position just outside
+*     that range. This function moves the bound towards the other end of
+*     the interval, one representable value at a time, for as long as that
+*     reduces the magnitude of the normalised coordinate.
+*
+*     Stopping as soon as a step makes no improvement leaves the bound
+*     unchanged where no representable position is evaluable, which the
+*     caller detects. Such normalisations describe an interval narrower
+*     than the spacing of the values around it.
+
+*  Parameters:
+*     bound
+*        The bound to be moved.
+*     towards
+*        The other end of the interval, giving the direction to move in.
+*     scale
+*        The scale factor applied to an axis value before evaluation.
+*     offset
+*        The offset added to an axis value after scaling.
+
+*  Returned Value:
+*     The moved bound.
+*/
+   double next;
+   double nresid;
+   double resid = fabs( bound*scale + offset );
+
+   while( resid > 1.0 ) {
+      next = nextafter( bound, towards );
+      if( next == bound ) break;
+      nresid = fabs( next*scale + offset );
+      if( !( nresid < resid ) ) break;
+      bound = next;
+      resid = nresid;
+   }
+
+   return bound;
+}
+
+static int AxisBounds( double scale, double offset, double *lbnd,
+                       double *ubnd ) {
+/*
+*  Name:
+*     AxisBounds
+
+*  Purpose:
+*     Recover the evaluable interval on one axis from a Chebyshev normalization.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     int AxisBounds( double scale, double offset, double *lbnd,
+*                     double *ubnd )
+
+*  Description:
+*     This function returns the range of axis values over which a
+*     Chebyshev series with the given normalisation can be evaluated. The
+*     bounds are the positions whose normalised coordinates are -1 and +1,
+*     moved inwards if necessary so that the forward evaluator accepts
+*     them.
+*
+*     Zero is returned, and the supplied bounds are left unchanged, if the
+*     normalisation describes no interval at all. That covers a zero or
+*     non-finite scale or offset, bounds that overflow, and bounds that
+*     cannot be moved to positions the evaluator accepts without crossing.
+*     An interval containing a single representable value is returned as
+*     such; it is for the caller to decide what to do with it.
+
+*  Parameters:
+*     scale
+*        The scale factor applied to an axis value before evaluation.
+*     offset
+*        The offset added to an axis value after scaling.
+*     lbnd
+*        Pointer to a double in which to return the lower bound.
+*     ubnd
+*        Pointer to a double in which to return the upper bound.
+
+*  Returned Value:
+*     One if bounds have been returned, zero otherwise.
+*/
+   double a;
+   double b;
+   double hi;
+   double lo;
+
+   if( scale == 0.0 || !isfinite( scale ) || !isfinite( offset ) ) return 0;
+
+   a = ( -1.0 - offset )/scale;
+   b = ( 1.0 - offset )/scale;
+   if( !isfinite( a ) || !isfinite( b ) ) return 0;
+
+   lo = NudgeIntoDomain( astMIN( a, b ), astMAX( a, b ), scale, offset );
+   hi = NudgeIntoDomain( astMAX( a, b ), lo, scale, offset );
+
+   if( fabs( lo*scale + offset ) > 1.0 ) return 0;
+   if( fabs( hi*scale + offset ) > 1.0 ) return 0;
+
+   *lbnd = lo;
+   *ubnd = hi;
+   return 1;
+}
+
+static int Usable( double value ) {
+/*
+*  Name:
+*     Usable
+
+*  Purpose:
+*     Test whether a coordinate value can take part in the iteration.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     int Usable( double value )
+
+*  Description:
+*     This function returns non-zero if "value" is neither AST__BAD nor
+*     a non-finite floating point value.
+
+*  Parameters:
+*     value
+*        The value to test.
+
+*  Returned Value:
+*     Non-zero if the value can be used in arithmetic.
+*/
+   return value != AST__BAD && isfinite( value );
+}
+
+static void MarkUnsolved( double **inputs, int ncoord, int ipoint,
+                          int *flags, int *nconv ) {
+/*
+*  Name:
+*     MarkUnsolved
+
+*  Purpose:
+*     Record that a batch position has no solution.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     void MarkUnsolved( double **inputs, int ncoord, int ipoint,
+*                        int *flags, int *nconv )
+
+*  Description:
+*     This function sets every coordinate of position "ipoint" in
+*     "inputs" to AST__BAD, sets its resolved flag and increments the
+*     count of resolved positions, so that the iteration does not touch
+*     the position again.
+
+*  Parameters:
+*     inputs
+*        Array of pointers to input coordinate arrays, indexed as
+*        inputs[axis][point].
+*     ncoord
+*        The number of axes.
+*     ipoint
+*        The index of the position within the batch.
+*     flags
+*        Array of resolved flags, one per position.
+*     nconv
+*        Pointer to the count of resolved positions.
+*/
+   int i;
+   for( i = 0; i < ncoord; i++ ) inputs[ i ][ ipoint ] = AST__BAD;
+   flags[ ipoint ] = 1;
+   (*nconv)++;
+}
+
+static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
+                       double **inputs, double **outputs, double **work,
+                       const double *lbnd, const double *ubnd,
+                       const double *width, const double *scales,
+                       const double *steps, const double *norms,
+                       int *stepping, int *flags, int *nconv, int *status ) {
+/*
+*  Name:
+*     IterSteps
+
+*  Purpose:
+*     Find a bounded Newton step for each unresolved batch position.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     void IterSteps( AstPolyMap *this, int npoint, int ncoord,
+*                     double **inputs, double **outputs, double **work,
+*                     const double *lbnd, const double *ubnd,
+*                     const double *width, const double *scales,
+*                     const double *steps, const double *norms,
+*                     int *stepping, int *flags, int *nconv, int *status )
+
+*  Description:
+*     This function applies one bounded Newton update to each position
+*     flagged in "stepping", during a batch of inverse transformations.
+*     Each trial position is formed by adding the scaled correction to
+*     the current input position and projecting it onto the finite
+*     forward domain. The original forward transformation is then
+*     evaluated at that position.
+*
+*     The full correction is tried first, followed by successive
+*     halvings, with at most 32 trials. A trial is accepted only if its
+*     forward values and scaled residuals are finite and its maximum
+*     absolute scaled residual is strictly smaller than the position's
+*     entry in "norms". The output scaling is held fixed throughout this
+*     search. A correction made small by projection is not by itself
+*     evidence of convergence.
+*
+*     An accepted trial replaces the input position, and its forward
+*     value is copied into "work" so the caller does not need to
+*     re-evaluate the forward transformation for that position before
+*     the next iteration. A position for which no acceptable trial is
+*     found is set bad and marked as converged. Either way its
+*     "stepping" flag is cleared, so the array is left ready for the
+*     next iteration.
+*
+*     All the positions still searching at a given trial size are
+*     evaluated by a single call to the forward transformation. The
+*     positions that have finished drop out of the following trials.
+*
+*     The two working PointSets used to hold a trial and its forward
+*     value are created once, sized for the largest trial this call will
+*     make, and reused at every backtrack level.
+
+*  Parameters:
+*     this
+*        Pointer to the ChebyMap, supplied as a PolyMap pointer. Its
+*        original forward transformation
+*        must be defined, with equal numbers of inputs and outputs. The
+*        Invert attribute does not change the transformation being
+*        evaluated.
+*     npoint
+*        The number of positions in the batch.
+*     ncoord
+*        The number of original input axes, which equals the number of
+*        original output axes.
+*     inputs
+*        Array of pointers to input coordinate arrays, indexed as
+*        inputs[axis][point]. There must be one array per original input
+*        axis. Only flagged positions are modified.
+*     outputs
+*        Array of pointers to target output coordinate arrays, indexed
+*        as outputs[axis][point]. There must be one array per original
+*        output axis. These values are not modified.
+*     work
+*        Array of pointers to the whole batch's original forward values,
+*        indexed as work[axis][point]. There must be one array per
+*        original output axis. The forward value of an accepted trial is
+*        copied here for its position; other positions are not touched.
+*     lbnd
+*        Array holding the finite lower domain bound on each original
+*        input axis.
+*     ubnd
+*        Array holding the finite upper domain bound on each original
+*        input axis, in the same order as "lbnd".
+*     width
+*        Array holding the positive half-width of the domain on each
+*        original input axis, used to convert normalised corrections
+*        into physical coordinate offsets.
+*     scales
+*        Array holding the non-negative residual scale for each original
+*        output axis of each position, indexed as
+*        scales[point*ncoord+axis]. A positive scale divides that output
+*        residual; a zero scale requires an exactly zero residual.
+*     steps
+*        Array holding the Newton correction on each original input axis
+*        of each position, divided by the corresponding value in
+*        "width", indexed as steps[point*ncoord+axis].
+*     norms
+*        Array holding, for each position, the maximum absolute scaled
+*        forward residual at its current input position.
+*     stepping
+*        Array holding a non-zero value for each position that needs an
+*        update. Every element is zero on exit.
+*     flags
+*        Array of convergence flags, set for each position that is
+*        resolved here.
+*     nconv
+*        Pointer to the count of resolved positions, incremented for
+*        each position set bad.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     void
+
+*  Notes:
+*     - Failure to find an acceptable step does not set the inherited
+*     status.
+*     - This function returns without action if the inherited status is
+*     set.
 */
 
-   return 0;
+/* Local Variables: */
+   AstPointSet *trial;
+   AstPointSet *trial_out;
+   double **x;
+   double **y;
+   double alpha;
+   double newnorm;
+   double residual;
+   double value;
+   int *index;
+   int backtrack;
+   int changed;
+   int fwd;
+   int i;
+   int ipoint;
+   int jpoint;
+   int nsearch;
+   int nstart;
+   int ntrial;
+   int valid;
+
+/* Check inherited status */
+   if( !astOK ) return;
+
+/* Count the positions needing an update, and allocate an array to hold
+   the batch index of each position still searching. */
+   nsearch = 0;
+   for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+      if( stepping[ ipoint ] ) nsearch++;
+   }
+   if( nsearch == 0 ) return;
+
+   index = astMalloc( sizeof( *index )*nsearch );
+   if( !astOK ) return;
+
+   fwd = !astGetInvert( this );
+
+/* Create the two trial PointSets once, sized for the largest batch any
+   backtrack level will need, and reuse them throughout. */
+   trial = astPointSet( nsearch, ncoord, "", status );
+   trial_out = astPointSet( nsearch, ncoord, "", status );
+   x = astGetPoints( trial );
+   if( !astOK ) {
+      trial = astAnnul( trial );
+      trial_out = astAnnul( trial_out );
+      index = astFree( index );
+      return;
+   }
+
+/* Try the full correction first, then successive halvings. */
+   alpha = 1.0;
+   for( backtrack = 0; backtrack < 32 && nsearch > 0 && astOK;
+        backtrack++, alpha *= 0.5 ) {
+
+/* Gather the trial positions. A position whose trial position is the one
+   it already holds cannot be improved by any smaller correction, so it
+   stops searching. The number of positions still searching only ever
+   shrinks between levels, so the PointSets created above are shrunk to
+   fit rather than re-created. */
+      nstart = nsearch;
+      astSetNpoint( trial, nstart );
+      astSetNpoint( trial_out, nstart );
+
+      ntrial = 0;
+      for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+         if( !stepping[ ipoint ] ) continue;
+         changed = 0;
+         for( i = 0; i < ncoord; i++ ) {
+            value = inputs[ i ][ ipoint ] +
+                    alpha*steps[ ipoint*ncoord + i ]*width[ i ];
+            value = astMAX( lbnd[ i ], astMIN( ubnd[ i ], value ) );
+            x[ i ][ ntrial ] = value;
+            if( value != inputs[ i ][ ipoint ] ) changed = 1;
+         }
+         if( changed ) {
+            index[ ntrial++ ] = ipoint;
+         } else {
+            MarkUnsolved( inputs, ncoord, ipoint, flags, nconv );
+            stepping[ ipoint ] = 0;
+            nsearch--;
+         }
+      }
+
+/* Evaluate them all at once. */
+      if( ntrial > 0 ) {
+         if( ntrial < nstart ) {
+            astSetNpoint( trial, ntrial );
+            astSetNpoint( trial_out, ntrial );
+         }
+         (void) astTransform( this, trial, fwd, trial_out );
+         y = astGetPoints( trial_out );
+      }
+
+/* Accept the first trial that reduces the scaled residual. */
+      for( jpoint = 0; jpoint < ntrial && astOK; jpoint++ ) {
+         ipoint = index[ jpoint ];
+         valid = 1;
+         newnorm = 0.0;
+         for( i = 0; i < ncoord; i++ ) {
+            value = y[ i ][ jpoint ];
+            if( !Usable( value ) ) {
+               valid = 0;
+               break;
+            }
+            residual = fabs( outputs[ i ][ ipoint ] - value );
+            if( scales[ ipoint*ncoord + i ] > 0.0 ) {
+               residual /= scales[ ipoint*ncoord + i ];
+            }
+            if( !isfinite( residual ) ||
+                ( scales[ ipoint*ncoord + i ] == 0.0 && residual != 0.0 ) ) {
+               valid = 0;
+               break;
+            }
+            newnorm = astMAX( newnorm, residual );
+         }
+         if( valid && newnorm < norms[ ipoint ] ) {
+            for( i = 0; i < ncoord; i++ ) {
+               inputs[ i ][ ipoint ] = x[ i ][ jpoint ];
+            }
+            for( i = 0; i < ncoord; i++ ) {
+               work[ i ][ ipoint ] = y[ i ][ jpoint ];
+            }
+            stepping[ ipoint ] = 0;
+            nsearch--;
+         }
+      }
+   }
+
+   trial = astAnnul( trial );
+   trial_out = astAnnul( trial_out );
+
+/* Any position that exhausted the trials has no acceptable step. */
+   for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+      if( stepping[ ipoint ] ) {
+         MarkUnsolved( inputs, ncoord, ipoint, flags, nconv );
+         stepping[ ipoint ] = 0;
+      }
+   }
+
+   index = astFree( index );
+}
+
+static void IterInverse( AstPolyMap *map, AstPointSet *out,
+                         AstPointSet *result, int *status ){
+/*
+*  Name:
+*     IterInverse
+
+*  Purpose:
+*     Evaluate the original inverse transformation of a ChebyMap by
+*     bounded Newton iteration.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void IterInverse( AstPolyMap *map, AstPointSet *out,
+*                       AstPointSet *result, int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astIterInverse protected
+*     method inherited from the PolyMap class).
+
+*  Description:
+*     This function transforms a set of original output positions into
+*     original input positions using Newton-Raphson iteration restricted
+*     to the forward bounding box of the ChebyMap. Initial guesses come
+*     from astLinearGuess and are clipped into the box. Each Newton
+*     correction is normalised by the box half-widths, each residual by
+*     its Jacobian row norm, and IterSteps backtracks corrections that
+*     do not reduce the residual. A position converges when both the
+*     normalised correction and the scaled residual are within
+*     TolInverse, at which point the converged correction is applied,
+*     clipped into the box, so the returned position is accurate to
+*     roughly the square of TolInverse rather than to TolInverse itself;
+*     an exactly zero residual converges immediately.
+*
+*     After NiterInverse updates the final candidate is checked once
+*     more. Any position that is still unsolved, was supplied with a bad
+*     or non-finite coordinate, or met a singular Jacobian is returned
+*     as AST__BAD without setting the inherited status.
+*
+*     A position whose Jacobian is singular is moved once by a quarter of
+*     each half-width, upward unless that would leave the box, before being
+*     declared unsolved.
+*
+*     The whole-batch forward transformation used to form the residual is
+*     only re-evaluated on the first iteration and after a position has
+*     been nudged off a singular seed; otherwise the forward values IterSteps
+*     already obtained for the accepted trial are reused.
+*
+*     If the forward series has no usable Chebyshev box on every axis,
+*     the parent PolyMap algorithm is used instead.
+
+*  Parameters:
+*     map
+*        Pointer to the ChebyMap, supplied as a PolyMap pointer.
+*     out
+*        PointSet holding the original output positions to invert.
+*     result
+*        PointSet to receive the original input positions.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     - TolInverse measures each input correction as a fraction of the
+*     corresponding box half-width. Each output residual is divided by
+*     the sum of the absolute Jacobian elements in its row, multiplied
+*     by the respective input half-widths.
+*     - This function returns without action if the inherited status is
+*     set.
+*/
+
+/* Local Variables: */
+   AstChebyMap *this;
+   AstMapping *lintrunc;
+   AstPointSet *work;
+   AstPointSet **ps_jac;
+   AstPolyMap **jacob;
+   double ***ptr_jac;
+   double **ptr_in;
+   double **ptr_out;
+   double **ptr_work;
+   double *lbnd;
+   double *mat;
+   double *norms;
+   double *pa;
+   double *pb;
+   double *scale;
+   double *scales;
+   double *steps;
+   double *ubnd;
+   double *vec;
+   double *width;
+   double det;
+   double norm;
+   double stepnorm;
+   double tol;
+   double xx;
+   int *flags;
+   int *iw;
+   int *nudged;
+   int *stepping;
+   int exact;
+   int fwd;
+   int icol;
+   int icoord;
+   int ipoint;
+   int irow;
+   int iter;
+   int maxiter;
+   int nconv;
+   int ncoord;
+   int npoint;
+   int sing;
+   int stale;
+   int valid;
+
+/* Check inherited status */
+   if( !astOK ) return;
+
+/* Get a pointer to the ChebyMap structure. */
+   this = (AstChebyMap *) map;
+
+/* Check the ChebyMap has equal numbers of inputs and outputs. */
+   ncoord = astGetNin( map );
+   if( ncoord != astGetNout( map ) ) {
+      astError( AST__INTER, "astTransform(%s): Supplied %s has unequal numbers"
+                " of inputs and outputs and therefore an iterative inverse "
+                "cannot be used (internal AST Programming error).", status,
+                astGetClass(map), astGetClass(map) );
+      return;
+   }
+
+/* Without a Chebyshev normalisation or a usable box there is nothing to
+   restrict the iteration to, so use the parent algorithm. */
+   lbnd = astMalloc( ncoord*sizeof( *lbnd ) );
+   ubnd = astMalloc( ncoord*sizeof( *ubnd ) );
+   if( !astOK || !this->scale_f ||
+       !GetIterDomain( this, lbnd, ubnd, status ) ) {
+      lbnd = astFree( lbnd );
+      ubnd = astFree( ubnd );
+      (*parent_iterinverse)( map, out, result, status );
+      return;
+   }
+
+/* Get the Jacobian of the forward transformation as a vector of "ncoord"
+   Mappings, each giving one column of the matrix. */
+   jacob = astGetJacobian( map );
+
+/* Get the number of points to be transformed. */
+   npoint = astGetNpoint( out );
+
+/* Allocate the box half-widths and the per-row residual scales. */
+   width = astMalloc( ncoord*sizeof( *width ) );
+   scale = astMalloc( ncoord*sizeof( *scale ) );
+
+/* Get another PointSet to hold intermediate results. */
+   work = astPointSet( npoint, ncoord, " ", status );
+
+/* See if the ChebyMap has been inverted.*/
+   fwd = !astGetInvert( map );
+
+/* Get pointers to the data arrays for all PointSets. Note, here "in" and
+   "out" refer to inputs and outputs of the forward transformation. These
+   are respectively *outputs* and *inputs* of the inverse transformation. */
+   ptr_in = astGetPoints( result );  /* Returned input positions */
+   ptr_out = astGetPoints( out );    /* Supplied output positions */
+   ptr_work = astGetPoints( work );  /* Work space */
+
+/* Allocate an array of PointSets to hold the elements of the Jacobian
+   matrix. */
+   ptr_jac = astMalloc( sizeof( double ** )*ncoord );
+   ps_jac = astCalloc( ncoord, sizeof( AstPointSet * ) );
+   if( astOK ) {
+      for( icoord = 0; icoord < ncoord; icoord++ ) {
+         ps_jac[ icoord ] = astPointSet( npoint, ncoord, " ", status );
+         ptr_jac[ icoord ] = astGetPoints( ps_jac[ icoord ] );
+      }
+   }
+
+/* Allocate an array to hold flags indicating if each position has
+   been resolved. Initialise it to hold zero at every element. */
+   flags = astCalloc( npoint, sizeof( int ) );
+
+/* Allocate an array to record whether each position has already been
+   nudged off a singular seed. Initialise it to hold zero at every
+   element. */
+   nudged = astCalloc( npoint, sizeof( int ) );
+
+/* Allocate memory to hold the Jacobian matrix at a single point. */
+   mat = astMalloc( sizeof( double )*ncoord*ncoord );
+
+/* Allocate memory to hold the offset vector. */
+   vec = astMalloc( sizeof( double )*ncoord );
+
+/* Allocate memory to hold work space for palDmat. */
+   iw = astMalloc( sizeof( int )*ncoord );
+
+/* Allocate memory to hold the deferred Newton update for each position of
+   the batch. */
+   scales = astMalloc( sizeof( double )*npoint*ncoord );
+   steps = astMalloc( sizeof( double )*npoint*ncoord );
+   norms = astMalloc( sizeof( double )*npoint );
+   stepping = astCalloc( npoint, sizeof( int ) );
+
+/* Check pointers can be used safely. */
+   if( astOK ) {
+
+/* Store the initial guess at the required input positions. These are
+   determined by transforming the supplied output positions using the
+   inverse of an affine approximation to the forward transformation. */
+      lintrunc = astLinearGuess( map );
+      (void) astTransform( lintrunc, out, 0, result );
+      lintrunc = astAnnul( lintrunc );
+
+/* Get the maximum number of iterations to perform. */
+      maxiter = astGetNiterInverse( map );
+
+/* Get the target normalised error for the returned input axis values. */
+      tol = astGetTolInverse( map );
+
+/* Initialise the number of positions which have been resolved. */
+      nconv = 0;
+
+/* Initialise the count of positions whose forward value at the top of
+   the next iteration cannot be taken from the previous iteration's
+   trial (none have been nudged off a singular seed yet). */
+      stale = 0;
+
+/* The iteration controls are validated by the NiterInverse and TolInverse
+   setters, so only the box need be checked here, then every initial guess
+   is clipped into it. A position with a bad or non-finite target, or an
+   unusable box, is resolved immediately as bad. */
+      valid = 1;
+      for( icoord = 0; icoord < ncoord; icoord++ ) {
+         width[icoord] = 0.5*ubnd[icoord] - 0.5*lbnd[icoord];
+         if( !isfinite(lbnd[icoord]) || !isfinite(ubnd[icoord]) ||
+             !isfinite(width[icoord]) || width[icoord] <= 0.0 ) valid = 0;
+      }
+      for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+         int good = valid;
+         for( icoord = 0; icoord < ncoord; icoord++ ) {
+            if( !Usable( ptr_out[icoord][ipoint] ) ) good = 0;
+            xx = ptr_in[icoord][ipoint];
+            if( !Usable( xx ) ) xx = 0.5*lbnd[icoord] + 0.5*ubnd[icoord];
+            ptr_in[icoord][ipoint] = astMAX( lbnd[icoord],
+                                            astMIN(ubnd[icoord],xx) );
+         }
+         if( !good ) MarkUnsolved( ptr_in, ncoord, ipoint, flags, &nconv );
+      }
+
+/* Loop round doing iterations of a Newton-Raphson algorithm, until all
+   points have been resolved or the maximum number of updates has been
+   performed. The final pass only checks the last candidate. */
+      for( iter = 0; iter <= maxiter && nconv < npoint && astOK; iter++ ) {
+
+/* Use the original forward transformation to transform the current
+   guesses at the required input positions into the corresponding output
+   positions. Store the results in the "work" PointSet. Every position
+   still iterating was either just stepped by IterSteps, which recorded
+   its forward value, or nudged, which did not; only the first iteration
+   and a nudge need a fresh evaluation of the whole batch. */
+         if( iter == 0 || stale > 0 ) {
+            (void) astTransform( map, result, fwd, work );
+            stale = 0;
+         }
+
+/* Modify the work PointSet so that it holds the offsets from the output
+   positions produced by the current input position guesses, and the
+   required output positions. */
+         for( icoord = 0; icoord < ncoord; icoord++ ) {
+            pa = ptr_out[ icoord ];
+            pb = ptr_work[ icoord ];
+            for( ipoint = 0; ipoint< npoint; ipoint++,pa++,pb++ ) {
+               if( *pa != AST__BAD && *pb != AST__BAD ){
+                  *pb = *pa - *pb;
+               } else {
+                  *pb = AST__BAD;
+               }
+            }
+         }
+
+/* Evaluate the elements of the Jacobian matrix at the current input
+   position guesses. */
+         for( icoord = 0; icoord < ncoord; icoord++ ) {
+            (void) astTransform( jacob[ icoord ], result, 1, ps_jac[ icoord ] );
+         }
+
+/* For each position, we now invert the matrix equation
+
+    Dy = Jacobian.Dx
+
+   to find a guess at the vector (dx) holding the offsets from the
+   current input positions guesses to their required values. Loop over all
+   points. */
+         for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+
+/* Do not change positions that have already been resolved. */
+            if( !flags[ ipoint ] ) {
+
+/* Get the numerical values for the elements of the Jacobian matrix at
+   the current point. */
+               pa = mat;
+               for( irow = 0; irow < ncoord; irow++ ) {
+                  for( icol = 0; icol < ncoord; icol++ ) {
+                     *(pa++) = ptr_jac[ icol ][ irow ][ ipoint ];
+                  }
+
+/* Store the offset from the current output position to the required
+   output position. */
+                  vec[ irow ] = ptr_work[ irow ][ ipoint ];
+               }
+
+/* Check the residual before the Jacobian: an exact solution is usable
+   even at a singular point. BAD values must never reach palDmat. */
+               sing = 0;
+               norm = 0.0;
+               valid = 1;
+               exact = 1;
+               for( irow = 0; irow < ncoord; irow++ ) {
+                  if( !Usable( vec[irow] ) ) valid = 0;
+                  if( vec[irow] != 0.0 ) exact = 0;
+               }
+               if( valid && exact ) {
+                  flags[ipoint] = 1;
+                  nconv++;
+                  continue;
+               }
+
+/* Solve for dimensionless steps (dx divided by the input half-width).
+   Scale each equation by its Jacobian row norm to avoid dependence on
+   arbitrary input or output units in the singularity and residual tests. */
+               for( irow = 0; irow < ncoord; irow++ ) {
+                  scale[irow] = 0.0;
+                  for( icol = 0; icol < ncoord; icol++ ) {
+                     pa = mat + irow*ncoord + icol;
+                     if( !Usable( *pa ) ) valid = 0;
+                     *pa *= width[icol];
+                     scale[irow] += fabs(*pa);
+                  }
+                  if( !isfinite(scale[irow]) ) valid = 0;
+                  if( scale[irow] > 0.0 ) {
+                     for( icol = 0; icol < ncoord; icol++ ) {
+                        mat[irow*ncoord+icol] /= scale[irow];
+                     }
+                     vec[irow] /= scale[irow];
+                  }
+                  if( !isfinite(vec[irow]) ) valid = 0;
+                  norm = astMAX( norm, fabs(vec[irow]) );
+               }
+               if( !valid ) sing = 1;
+               if( !sing ) palDmat( ncoord, mat, vec, &det, &sing, iw );
+
+/* If the matrix was singular, nudge the position once off the seed that
+   produced it and try again next iteration. A position singular a second
+   time cannot be evaluated, so store a bad value for it and indicate it
+   has been resolved. */
+               if( sing ) {
+                  if( !nudged[ ipoint ] ) {
+
+/* Move once off a stationary point and evaluate the forward transformation
+   there next time. Nudge upward unless that would leave the box, rather
+   than comparing room on each side: the seed is usually the exact box
+   midpoint, and a room comparison there is a tie broken only by the last
+   bit of rounding, which a fused multiply-add can flip. */
+                     nudged[ ipoint ] = 1;
+                     stale++;
+                     for( icoord = 0; icoord < ncoord; icoord++ ) {
+                        xx = ptr_in[ icoord ][ ipoint ];
+                        if( xx + 0.25*width[ icoord ] <= ubnd[ icoord ] ) {
+                           xx += 0.25*width[ icoord ];
+                        } else {
+                           xx -= 0.25*width[ icoord ];
+                        }
+                        ptr_in[ icoord ][ ipoint ] = xx;
+                     }
+                  } else {
+                     MarkUnsolved( ptr_in, ncoord, ipoint, flags, &nconv );
+                  }
+
+/* Otherwise, see whether the position has converged, has run out of
+   updates, or needs a step. */
+               } else {
+                  valid = 1;
+                  stepnorm = 0.0;
+                  for( icoord = 0; icoord < ncoord; icoord++ ) {
+                     if( !isfinite(vec[icoord]) ) valid = 0;
+                     stepnorm = astMAX( stepnorm, fabs(vec[icoord]) );
+                  }
+                  if( valid && stepnorm <= tol && norm <= tol ) {
+
+/* Apply the converged correction, so the returned position is accurate
+   to roughly the square of TolInverse rather than to TolInverse itself,
+   and is insensitive to which iterate first met the tolerance. */
+                     for( icoord = 0; icoord < ncoord; icoord++ ) {
+                        xx = ptr_in[ icoord ][ ipoint ] + vec[ icoord ]*width[ icoord ];
+                        ptr_in[ icoord ][ ipoint ] = astMAX( lbnd[ icoord ],
+                                                    astMIN( ubnd[ icoord ], xx ) );
+                     }
+                     flags[ipoint] = 1;
+                     nconv++;
+                  } else if( !valid || iter == maxiter ) {
+                     MarkUnsolved( ptr_in, ncoord, ipoint, flags, &nconv );
+
+/* Defer the backtracking search, so that all the positions looking for an
+   acceptable step share one evaluation of the forward transformation at
+   each trial size. */
+                  } else {
+                     for( icoord = 0; icoord < ncoord; icoord++ ) {
+                        steps[ipoint*ncoord + icoord] = vec[icoord];
+                        scales[ipoint*ncoord + icoord] = scale[icoord];
+                     }
+                     norms[ipoint] = norm;
+                     stepping[ipoint] = 1;
+                  }
+               }
+            }
+         }
+
+/* Apply the deferred Newton updates for the whole batch. */
+         IterSteps( map, npoint, ncoord, ptr_in, ptr_out, ptr_work, lbnd,
+                    ubnd, width, scales, steps, norms, stepping, flags,
+                    &nconv, status );
+      }
+   }
+
+/* Free resources. */
+   scales = astFree( scales );
+   steps = astFree( steps );
+   norms = astFree( norms );
+   stepping = astFree( stepping );
+   vec = astFree( vec );
+   iw = astFree( iw );
+   mat = astFree( mat );
+   flags = astFree( flags );
+   nudged = astFree( nudged );
+   work = astAnnul( work );
+
+   if( ps_jac ) {
+      for( icoord = 0; icoord < ncoord; icoord++ ) {
+         ps_jac[ icoord ] = astAnnul( ps_jac[ icoord ] );
+      }
+      ps_jac = astFree( ps_jac );
+   }
+
+   ptr_jac = astFree( ptr_jac );
+   lbnd = astFree( lbnd );
+   ubnd = astFree( ubnd );
+   width = astFree( width );
+   scale = astFree( scale );
+}
+
+static AstMapping *LinearGuess( AstPolyMap *map, int *status ) {
+/*
+*  Name:
+*     LinearGuess
+
+*  Purpose:
+*     Get a Mapping supplying initial guesses for ChebyMap inversion.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     AstMapping *LinearGuess( AstPolyMap *map, int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astLinearGuess protected
+*     method inherited from the parent PolyMap class).
+
+*  Description:
+*     This function returns a Mapping whose inverse supplies an initial
+*     input position for iterative inversion of the original forward
+*     transformation, independently of the Invert attribute. It first
+*     tries an affine approximation using the complete forward value and
+*     Jacobian at the midpoint of the forward domain.
+*
+*     If that approximation cannot provide a finite inverse, the
+*     constant and linear Chebyshev terms are tried, including their
+*     physical input normalisation. If neither approximation is usable,
+*     a Mapping whose inverse always returns the domain midpoint is
+*     supplied. Clipping initial guesses to the forward domain is the
+*     responsibility of the caller.
+*
+*     The Mapping is cached for subsequent calls. If the original
+*     forward transformation is an ordinary polynomial, the parent
+*     PolyMap implementation is used instead.
+
+*  Parameters:
+*     map
+*        Pointer to the ChebyMap, supplied as a PolyMap pointer. For a
+*        Chebyshev forward series, the original forward transformation
+*        must be defined and the numbers of inputs and outputs must be
+*        equal.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     A new reference to the cached Mapping, or NULL if an error occurs
+*     or the Chebyshev forward transformation does not meet the stated
+*     requirements. The caller must annul the reference when it is no
+*     longer required.
+
+*  Notes:
+*     - A NULL pointer is returned if the inherited status is set, or if
+*     an error occurs.
+*/
+   AstChebyMap *this = (AstChebyMap *) map;
+   AstPolyMap **jac;
+   AstMapping *mm = NULL, *sm = NULL, *tmp = NULL, *result = NULL;
+   double *center, *value, *column, *matrix;
+   int *inperm;
+   int nin, i, j, attempt, valid, out, ico, axis, order;
+   double c;
+
+   if( !astOK ) return NULL;
+   if( !this->scale_f ) return (*parent_linearguess)( map, status );
+   if( map->lintrunc ) return astClone( map->lintrunc );
+   nin = ((AstMapping *) map)->nin;
+   if( nin != ((AstMapping *) map)->nout || !map->ncoeff_f ) return NULL;
+
+   center = astMalloc( nin*sizeof( *center ) );
+   value = astMalloc( nin*sizeof( *value ) );
+   column = astMalloc( nin*sizeof( *column ) );
+   matrix = astMalloc( (size_t) nin*nin*sizeof( *matrix ) );
+   inperm = astMalloc( nin*sizeof( *inperm ) );
+   jac = astGetJacobian( map );
+   if( astOK ) {
+      for( i = 0; i < nin; i++ ) center[i] = -this->offset_f[i]/this->scale_f[i];
+      astTranN( map, 1, nin, 1, center, !astGetInvert(map), nin, 1, value );
+      for( j = 0; j < nin; j++ ) {
+         astTranN( jac[j], 1, nin, 1, center, 1, nin, 1, column );
+         for( i = 0; i < nin; i++ ) matrix[i*nin+j] = column[i];
+      }
+
+      for( attempt = 0; attempt < 2 && astOK; attempt++ ) {
+         if( attempt ) {
+            memset( matrix, 0, (size_t) nin*nin*sizeof( *matrix ) );
+            memset( value, 0, nin*sizeof( *value ) );
+            for( out = 0; out < nin; out++ ) {
+               for( ico = 0; ico < map->ncoeff_f[out]; ico++ ) {
+                  axis = -1;
+                  order = 0;
+                  for( j = 0; j < nin; j++ ) {
+                     if( map->power_f[out][ico][j] ) {
+                        if( axis >= 0 || map->power_f[out][ico][j] != 1 ) {
+                           order = 2;
+                           break;
+                        }
+                        axis = j;
+                        order = 1;
+                     }
+                  }
+                  c = map->coeff_f[out][ico];
+                  if( order == 0 ) {
+                     value[out] += c;
+                  } else if( order == 1 ) {
+                     matrix[out*nin+axis] += c*this->scale_f[axis];
+                     value[out] += c*(this->scale_f[axis]*center[axis] +
+                                     this->offset_f[axis]);
+                  }
+               }
+            }
+         }
+         valid = 1;
+         for( i = 0; i < nin; i++ ) {
+            if( value[i] == AST__BAD || !isfinite(value[i]) ) valid = 0;
+            for( j = 0; j < nin; j++ ) {
+               c = matrix[i*nin+j];
+               if( c == AST__BAD || !isfinite(c) ) valid = 0;
+            }
+         }
+         if( valid ) {
+            mm = (AstMapping *) astMatrixMap( nin, nin, 0, matrix, "", status );
+            if( astGetTranInverse( mm ) ) {
+/* A diagonal MatrixMap can advertise an inverse but return BAD for a
+   zero diagonal element. Check that its inverse actually yields a seed. */
+               astTranN( mm, 1, nin, 1, value, 0, nin, 1, column );
+               for( i = 0; i < nin; i++ ) {
+                  if( column[i] == AST__BAD || !isfinite(column[i]) ) valid = 0;
+               }
+               if( valid ) break;
+            }
+            mm = astAnnul( mm );
+         }
+      }
+
+      if( mm ) {
+/* Keep the shifts separate to avoid subtracting a large J*center from
+   the function value when the domain is far from the origin. */
+         for( i = 0; i < nin; i++ ) column[i] = -center[i];
+         sm = (AstMapping *) astShiftMap( nin, column, "", status );
+         tmp = (AstMapping *) astCmpMap( sm, mm, 1, "", status );
+         sm = astAnnul( sm );
+         sm = (AstMapping *) astShiftMap( nin, value, "", status );
+         result = (AstMapping *) astCmpMap( tmp, sm, 1, "", status );
+      } else {
+         for( i = 0; i < nin; i++ ) inperm[i] = -i - 1;
+         result = (AstMapping *) astPermMap( nin, inperm, nin, NULL,
+                                            center, "", status );
+      }
+      if( astOK ) map->lintrunc = astClone( result );
+   }
+   if( mm ) mm = astAnnul( mm );
+   if( sm ) sm = astAnnul( sm );
+   if( tmp ) tmp = astAnnul( tmp );
+   center = astFree( center );
+   value = astFree( value );
+   column = astFree( column );
+   matrix = astFree( matrix );
+   inperm = astFree( inperm );
+   return result;
 }
 
 static size_t GetObjSize( AstObject *this_object, int *status ) {
@@ -953,6 +2377,47 @@ static size_t GetObjSize( AstObject *this_object, int *status ) {
    return result;
 }
 
+static int GetNiterInverse( AstPolyMap *this, int *status ) {
+/*
+*  Name:
+*     GetNiterInverse
+
+*  Purpose:
+*     Return the value of the NiterInverse attribute.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     int GetNiterInverse( AstPolyMap *this, int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astGetNiterInverse
+*     protected method inherited from the PolyMap class).
+
+*  Description:
+*     This function returns the NiterInverse value. An explicitly set
+*     value is returned unchanged. The default for a ChebyMap is ten,
+*     because the bounded algorithm checks the final candidate after the
+*     last update and returns AST__BAD on exhaustion, so it needs more
+*     headroom than the unbounded PolyMap algorithm, whose default is
+*     four.
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap (in practice always a ChebyMap).
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The NiterInverse value to use.
+*/
+   if( !astOK ) return 0;
+   if( astTestNiterInverse( this ) ) return (*parent_getniterinverse)( this, status );
+   return 10;
+}
+
 void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status ) {
 /*
 *+
@@ -1022,7 +2487,14 @@ void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status
    object = (AstObjectVtab *) vtab;
    polymap = (AstPolyMapVtab *) vtab;
 
-   polymap->GetIterInverse = GetIterInverse;
+   parent_getjacobian = polymap->GetJacobian;
+   polymap->GetJacobian = GetJacobian;
+   parent_linearguess = polymap->LinearGuess;
+   polymap->LinearGuess = LinearGuess;
+   parent_iterinverse = polymap->IterInverse;
+   polymap->IterInverse = IterInverse;
+   parent_getniterinverse = polymap->GetNiterInverse;
+   polymap->GetNiterInverse = GetNiterInverse;
 
    parent_getobjsize = object->GetObjSize;
    object->GetObjSize = GetObjSize;
@@ -1178,7 +2650,7 @@ static void PolyPowers( AstPolyMap *this_polymap, double **work, int ncoord,
                *t = x;
 
 /* Form and store the remaining Chebyshev polynomial values at the input axis value.
-   Use the standard recurrence relation: Tn+1(x') = 2.x'.Tn(x') + Tn-1(x'). */
+   Use the standard recurrence relation: Tn+1(x') = 2.x'.Tn(x') - Tn-1(x'). */
                for( ip = 2; ip <= mxpow[ coord ]; ip++,t++ ) {
                   t[ 1 ] = 2.0*x*t[ 0 ] - t[ -1 ];
                }
@@ -1323,6 +2795,7 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
    double this_lbnd[ 2 ];
    double this_ubnd[ 2 ];
    int inverted;
+   int k;
    int nax;
 
 /* Initialise. */
@@ -1349,35 +2822,50 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
    }
 
 /* The scaled box for a Chebyshev polynomial spans [-1,+1] on each axis.
-   Create the corresponding unscaled box. If the user supplies any bounds,
-   use them in preference to the bounds in the ChebyMap. */
-   if( lbnd ) {
-      this_lbnd[ 0 ] = lbnd[ 0 ];
-      if( nax > 1 ) this_lbnd[ 1 ] = lbnd[ 1 ];
+   Create the corresponding unscaled box. If the user supplies both bounds
+   arrays, use them in preference to the bounds in the ChebyMap. Otherwise
+   reconstruct the missing bound(s) from the ChebyMap's own normalization,
+   through the same AxisBounds helper used elsewhere in this file, so that
+   a bound used here always evaluates without BAD. */
+   if( lbnd && ubnd ) {
+      for( k = 0; k < nax; k++ ) {
+         this_lbnd[ k ] = lbnd[ k ];
+         this_ubnd[ k ] = ubnd[ k ];
+      }
 
    } else if( scale && offset ) {
-      this_lbnd[ 0 ] = ( -1.0 - offset[ 0 ] )/scale[ 0 ];
-      if( nax > 1 ) this_lbnd[ 1 ] = ( -1.0 - offset[ 1 ] )/scale[ 1 ];
+      for( k = 0; k < nax; k++ ) {
+         if( !AxisBounds( scale[ k ], offset[ k ], this_lbnd + k,
+                          this_ubnd + k ) && astOK ) {
+            astError( AST__NOBOX, "astPolyTran(%s): The %s transformation "
+                      "has no usable bounding box on axis %d.", status,
+                      astGetClass( this ), word, k + 1 );
+         }
+      }
+      if( lbnd ) {
+         for( k = 0; k < nax; k++ ) this_lbnd[ k ] = lbnd[ k ];
+      }
+      if( ubnd ) {
+         for( k = 0; k < nax; k++ ) this_ubnd[ k ] = ubnd[ k ];
+      }
 
-   } else if( astOK ) {
-      astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
-                "not a Chebyshev polynomial and therefore requires a "
-                "user-supplied bounding box. But no lower bounds were "
-                "supplied. ", status, astGetClass( this ), word );
-   }
-
-
-   if( ubnd ) {
-      this_ubnd[ 0 ] = ubnd[ 0 ];
-      if( nax > 1 ) this_ubnd[ 1 ] = ubnd[ 1 ];
-   } else if( scale && offset ) {
-      this_ubnd[ 0 ] = ( 1.0 - offset[ 0 ] )/scale[ 0 ];
-      if( nax > 1 ) this_ubnd[ 1 ] = ( 1.0 - offset[ 1 ] )/scale[ 1 ];
-   } else if( astOK ) {
-      astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
-                "not a Chebyshev polynomial and therefore requires a "
-                "user-supplied bounding box. But no upper bounds were "
-                "supplied. ", status, astGetClass( this ), word );
+   } else {
+      if( !lbnd && astOK ) {
+         astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
+                   "not a Chebyshev polynomial and therefore requires a "
+                   "user-supplied bounding box. But no lower bounds were "
+                   "supplied. ", status, astGetClass( this ), word );
+      } else if( lbnd ) {
+         for( k = 0; k < nax; k++ ) this_lbnd[ k ] = lbnd[ k ];
+      }
+      if( !ubnd && astOK ) {
+         astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
+                   "not a Chebyshev polynomial and therefore requires a "
+                   "user-supplied bounding box. But no upper bounds were "
+                   "supplied. ", status, astGetClass( this ), word );
+      } else if( ubnd ) {
+         for( k = 0; k < nax; k++ ) this_ubnd[ k ] = ubnd[ k ];
+      }
    }
 
 /* Invoke the parent astPolyMap method, using the bounding box selected
@@ -1670,8 +3158,8 @@ f                            LBND_F, UBND_F, LBND_I, UBND_I, OPTIONS, STATUS )
 *        - Tn(x') is the nth Chebyshev polynomial of the first kind:
 *             - T0(x') = 1
 *             - T1(x') = x'
-*             - Tn+1(x') = 2.x'.Tn(x') + Tn-1(x')
-*        - x' is the inpux axis value, x, offset and scaled to the range
+*             - Tn+1(x') = 2.x'.Tn(x') - Tn-1(x')
+*        - x' is the input axis value, x, offset and scaled to the range
 *          [-1, 1] as x ranges over a specified bounding box, given when the
 *          ChebyMap is created. The input positions, x,  supplied to the
 *          forward transformation must fall within the bounding box - bad
@@ -1686,17 +3174,26 @@ f     of NCOEFF
 *     value and N factors of the form Tn(x'_i), where "x'_i" is the
 *     normalised value of the i'th input axis value.
 *
-*     The forward and inverse transformations are defined independantly
-*     by separate sets of coefficients, supplied when the ChebyMap is
-*     created. If no coefficients are supplied to define the inverse
-*     transformation, the
+*     The forward and inverse transformations may be defined independently
+*     by separate sets of coefficients supplied when the ChebyMap is
+*     created. If forward coefficients are supplied, no inverse coefficients
+*     are supplied, and the numbers of inputs and outputs are equal, an
+*     iterative inverse is provided by default. It uses the analytic
+*     Jacobian of the forward series and confines candidate solutions to
+*     the forward bounding box. An unsolved position is returned as
+*     AST__BAD. See IterInverse, NiterInverse and TolInverse for details.
+*
+*     Supplied inverse coefficients are used by default. Setting
+*     IterInverse to one selects iteration instead; setting it to zero
+*     disables iteration. Clearing it restores the default selection.
+*     A local iterative inverse does not guarantee a unique solution or
+*     convergence at every position.
+*
+*     Alternatively, the
 c     astPolyTran
 f     AST_POLYTRAN
-*     method of the parent PolyMap class can instead be used to create an
-*     inverse transformation. The inverse transformation so generated
-*     will be a Chebyshev polynomial with coefficients chosen to minimise
-*     the residuals left by a round trip (forward transformation followed
-*     by inverse transformation).
+*     method can fit an inverse Chebyshev series, choosing coefficients
+*     to minimise the residuals of a forward/inverse round trip.
 
 *  Parameters:
 c     nin
@@ -1745,8 +3242,9 @@ f        described by the "NCOEFF_F" groups within the supplied array.
 c     ncoeff_i
 f     NCOEFF_I = INTEGER (Given)
 *        The number of non-zero coefficients necessary to define the
-*        inverse transformation of the ChebyMap. If zero is supplied, the
-*        inverse transformation will be undefined.
+*        inverse transformation of the ChebyMap. If zero is supplied,
+*        an iterative inverse is provided when forward coefficients exist
+*        and the numbers of inputs and outputs are equal (see IterInverse).
 c     coeff_i
 f     COEFF_I( * ) = DOUBLE PRECISION (Given)
 *        An array containing
@@ -2057,8 +3555,9 @@ AstChebyMap *astInitChebyMap_( void *mem, size_t size, int init,
 *        described by the "ncoeff_f" groups within the supplied array.
 *     ncoeff_i
 *        The number of non-zero coefficients necessary to define the
-*        inverse transformation of the ChebyMap. If zero is supplied, the
-*        inverse transformation will be undefined.
+*        inverse transformation of the ChebyMap. If zero is supplied,
+*        an iterative inverse is provided when forward coefficients exist
+*        and the numbers of inputs and outputs are equal (see IterInverse).
 *     coeff_i
 *        An array containing
 *        "ncoeff_i*( 2 + nout )" elements. Each group of "2 + nout"
@@ -2113,6 +3612,19 @@ AstChebyMap *astInitChebyMap_( void *mem, size_t size, int init,
       new->offset_f = NULL;
       new->scale_i = NULL;
       new->offset_i = NULL;
+
+/* A bounding box is needed for each direction that has coefficients. The
+   checks below leave the status set, so the boxes are not read. */
+      if( ncoeff_f > 0 && ( !lbnd_f || !ubnd_f ) ) {
+         astError( AST__NOBOX, "astInitChebyMap(%s): No input bounding box "
+                   "supplied, but the forward transformation is defined.",
+                   status, name );
+
+      } else if( ncoeff_i > 0 && ( !lbnd_i || !ubnd_i ) ) {
+         astError( AST__NOBOX, "astInitChebyMap(%s): No output bounding box "
+                   "supplied, but the inverse transformation is defined.",
+                   status, name );
+      }
 
 /* Calculate the scales and offsets that map the supplied input bounding box
    onto the range [-1,+1] on each input axis, and store them. */
@@ -2403,5 +3915,3 @@ void astChebyDomain_( AstChebyMap *this, int forward, double *lbnd, double *ubnd
    if ( !astOK ) return;
    (**astMEMBER(this,ChebyMap,ChebyDomain))( this, forward, lbnd, ubnd, status );
 }
-
-

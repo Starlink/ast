@@ -58,6 +58,9 @@ image the iteration need not converge, and a default 1..1000 range over a
 256-pixel image produced round-trip errors above 100 pixels that said nothing
 about the library.  The same mappings round-trip cleanly over their own grid.
 
+A native dump whose top-level object is a ChebyMap is sampled over its forward bounding box from `astChebyDomain`, because a Chebyshev series is undefined outside it.
+Compound Mappings containing a ChebyMap keep the symmetric default.
+
 ### Checks that are disabled, and why
 
 `transform_oracle_overrides.txt` carries them, each with its reason.  Two entries

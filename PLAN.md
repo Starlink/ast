@@ -11,7 +11,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 1. Add the existing C tests to the CMake build
 2. Convert Fortran tests to C to eliminate the Fortran/Starlink dependency
 
-## Current status: 109 default tests + 20 conditional (PLplot) + 1 optional huge stress test
+## Current status: 110 default tests + 20 conditional (PLplot) + 1 optional huge stress test
 
 | Phase | Status |
 |-------|--------|
@@ -32,7 +32,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 | Phase 2 Batch 14: astMask sky-curvature coverage | **Complete** (1 test) |
 | Phase 3: CI integration | **Complete** (tests run via ctest) |
 
-### Test inventory (109 default + 20 conditional PLplot + 1 optional)
+### Test inventory (110 default + 20 conditional PLplot + 1 optional)
 
 **Original test (1):**
 - ast_test — minimal installation check
@@ -63,14 +63,14 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   viewport with no PLplot dependency. Same .head/.attr/.fattr/.box fixtures
   as Batch 10.
 
-**Coverage gap tests (2 default):**
+**Coverage gap tests (3 default):**
 - Batch 13: testresample — exercises astResampleD/F/I across 10 interpolation
   schemes (NEAREST, LINEAR, SINC, SINCSINC, SINCCOS, SINCGAUSS, GAUSS, SOMB,
   SOMBCOS, BLOCKAVE), plus bad-pixel handling, variance propagation,
   AST__NOBAD flag, and astQuadApprox.
 - Batch 14: testregionmasking — verifies how astMask treats the great-circle
   edges of a Polygon defined in a SkyFrame. Establishes a projection-independent
-  ground truth by classifying each pixel centre directly (map pixel to sky, ask
+  ground truth by classifying each pixel center directly (map pixel to sky, ask
   the Polygon via astTran2), then compares against astMask. Confirms that for a
   CAR projection the default (SimpVertices=1) mask linearises the curved edges
   (wrong at 467/38036 interior pixels in the test geometry) while SimpVertices=0
@@ -78,6 +78,15 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   maps great circles to straight lines. The CAR and TAN GRID<->SKY FrameSets are
   embedded as native serialised strings (read back with astFromString) so the
   test does not depend on the FitsChan class.
+- Batch 15: testchebyinverse — exercises the protected building blocks of the
+  ChebyMap iterative inverse (astGetJacobian, astLinearGuess,
+  astGetIterDomain) and the shared bounded solver in the PolyMap class. Built
+  with INTERNAL_HEADERS because it calls protected methods; checks the
+  Chebyshev derivative basis against an independent T_n' = n U_(n-1)
+  reference, the affine seed, endpoint and degenerate iteration domains, the
+  bad-value and exhaustion behavior of the bounded solver against the
+  historical unbounded one, and cache transfer through copy, dump and
+  astPolyTran.
 
 **New C-only regression tests (no Fortran original):**
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
@@ -173,7 +182,7 @@ Key issues:
 - **testzoommap.c**: Simplified immutability error recovery (checks `!astOK`
   rather than specific `AST__IMMUT` code).
 
-- **testfitschan.c**: FITS card padding ignored during assertions to match Fortran string comparison rules. Fixed a `heap-use-after-free` bug in `astStore_` (memory.c) exposed by AddressSanitizer during `astConvert`.  Also carries C-only write cases with no Fortran counterpart.  The last of these use `fixtures/wcsconv/inputs/lsst2.ast`, whose pixel-to-sky Mapping contains a SplineMap, to pin two fitschan.c defects: `MakeIntWorld` applied the SIP CD values to `partmat` rows that the failed linearity test had left NULL, segfaulting whenever NAXIS1/NAXIS2 gave a box of about 1000 pixels or more and FitsTol was tight enough that the fit over it failed; and `SIPIntWorld` accepted a SIP description whose CRPIX values came back AST__BAD, so `astWrite` reported success while emitting SIP coefficients and no primary axis description.  A further case, built in the test rather than read from a fixture, pins a third defect: `SIPIntWorld` tested the Mapping following the SIP polynomial over a box centred on the reference point and with a tolerance in pixels, so a SIP description could be accepted, and its CRPIX and CD values fitted, over a region the image does not occupy.
+- **testfitschan.c**: FITS card padding ignored during assertions to match Fortran string comparison rules. Fixed a `heap-use-after-free` bug in `astStore_` (memory.c) exposed by AddressSanitizer during `astConvert`.  Also carries C-only write cases with no Fortran counterpart.  The last of these use `fixtures/wcsconv/inputs/lsst2.ast`, whose pixel-to-sky Mapping contains a SplineMap, to pin two fitschan.c defects: `MakeIntWorld` applied the SIP CD values to `partmat` rows that the failed linearity test had left NULL, segfaulting whenever NAXIS1/NAXIS2 gave a box of about 1000 pixels or more and FitsTol was tight enough that the fit over it failed; and `SIPIntWorld` accepted a SIP description whose CRPIX values came back AST__BAD, so `astWrite` reported success while emitting SIP coefficients and no primary axis description.  A further case, built in the test rather than read from a fixture, pins a third defect: `SIPIntWorld` tested the Mapping following the SIP polynomial over a box centered on the reference point and with a tolerance in pixels, so a SIP description could be accepted, and its CRPIX and CD values fitted, over a region the image does not occupy.
 
 - **testregions.c**: Translated automatically and then fixed up to cast `astTranN` input arrays to `(const double *)`. Several automatic-translation defects were later corrected against `testregions.f`: the per-section "X tests failed" messages were printed unconditionally (the Fortran `if status != OK` guard had been dropped); `checkBox`/`checkCircle`/`checkEllipse` each used the wrong FITS header (a single unrelated block had been copied into all three); `checkdump` compared dump strings with `strcmp` instead of falling back to `astOverlap()==5` as the Fortran does; and four `frm1 = astFrame(...)` statements had been absorbed into `//` comments. The `astGetRegionDisc` check in `checkCmpRegion` uses tolerances relaxed to `1e-7` (from the Fortran's `1e-9`/`1e-8`) because that disc is fitted to a subsampled boundary mesh and so varies at the `~1e-8` level with build/optimisation settings; the Fortran test built against the autoconf AST passes the tight tolerance on the same machine.
 - **testrebinseq.c**: Translated to use `astRebinSeq[I|F|D]` depending on the types of the in/out pointers.

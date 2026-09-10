@@ -112,6 +112,10 @@
 *  History:
 *     28-SEP-2003 (DSB):
 *        Original version.
+*     10-SEP-2026 (TIMJ):
+*        Add the protected virtual methods astGetJacobian, astLinearGuess
+*        and astIterInverse, so that a subclass can supply its own
+*        Jacobian, initial guess and iterative inverse algorithm.
 *-
 */
 
@@ -201,6 +205,9 @@ typedef struct AstPolyMapVtab {
    void (* PolyCoeffs)( AstPolyMap *, int, int, double *, int *, int *);
    void (* FitPoly1DInit)( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
    void (* FitPoly2DInit)( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
+   AstPolyMap **(* GetJacobian)( AstPolyMap *, int * );
+   AstMapping *(* LinearGuess)( AstPolyMap *, int * );
+   void (* IterInverse)( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
 
    int (*GetIterInverse)( AstPolyMap *, int * );
    int (* TestIterInverse)( AstPolyMap *, int * );
@@ -273,6 +280,9 @@ void astPolyCoeffs_( AstPolyMap *, int, int, double *, int *, int *);
 void astShowPoly_( AstPolyMap *, int * );
 
 # if defined(astCLASS)           /* Protected */
+   AstPolyMap **astGetJacobian_( AstPolyMap *, int * );
+   AstMapping *astLinearGuess_( AstPolyMap *, int * );
+   void astIterInverse_( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
    AstPolyMap *astMergeShift_( AstPolyMap *, AstShiftMap *, int, int, int * );
    void astPolyPowers_( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
    void astFitPoly1DInit_( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
@@ -351,6 +361,12 @@ astINVOKE(V,astPolyCoeffs_(astCheckPolyMap(this),forward,nel,coeffs,ncoeff,STATU
 astShowPoly_(astCheckPolyMap(this),STATUS_PTR)
 
 #if defined(astCLASS)            /* Protected */
+#define astGetJacobian(this) \
+        astINVOKE(V,astGetJacobian_(astCheckPolyMap(this),STATUS_PTR))
+#define astLinearGuess(this) \
+        astINVOKE(O,astLinearGuess_(astCheckPolyMap(this),STATUS_PTR))
+#define astIterInverse(this,out,result) \
+        astINVOKE(V,astIterInverse_(astCheckPolyMap(this),out,result,STATUS_PTR))
 #define astMergeShift(this,shift,before,force) \
         astINVOKE(O,astMergeShift_(astCheckPolyMap(this),astCheckShiftMap(shift),before,force,STATUS_PTR))
 #define astPolyPowers(this,work,ncoord,mxpow,ptr,offset,fwd) \
@@ -388,7 +404,6 @@ astShowPoly_(astCheckPolyMap(this),STATUS_PTR)
 
 #endif
 #endif
-
 
 
 

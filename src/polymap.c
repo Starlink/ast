@@ -174,6 +174,45 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        cleared once the PolyMap has been cloned, as SUN/210 says AST does
 *        for the attributes of any Mapping. Use the guarded astMAKE_SET1 and
 *        astMAKE_CLEAR1 macros.
+*     8-SEP-2026 (TIMJ):
+*        Add the protected astGetJacobian, astLinearGuess and
+*        astIterInverse virtual methods, so that a subclass can supply
+*        its own derivative Mappings, initial guesses and iterative
+*        inverse algorithm. The PolyMap implementation of astIterInverse
+*        is the unbounded Newton iteration; the ChebyMap class supplies a
+*        bounded one.
+*     9-SEP-2026 (TIMJ):
+*        Cache the Jacobian of the forward transformation and the linear
+*        truncation used for initial guesses. Both are transferred by the
+*        copy constructor and astManageLock, and discarded when the
+*        coefficients are replaced.
+*     9-SEP-2026 (TIMJ):
+*        Return zero for IterInverse if the forward transformation is
+*        undefined. The iterative inverse evaluates the forward
+*        transformation, so without it the PolyMap defines no inverse.
+*     9-SEP-2026 (TIMJ):
+*        Sample the transformation being fitted from an uninitialised copy
+*        in ReplaceTransformation, so that the normalisation stored by
+*        astFitPoly1DInit and astFitPoly2DInit for one polynomial order
+*        cannot change what later orders sample.
+*     9-SEP-2026 (TIMJ):
+*        Discard a partly built Jacobian if an error occurs while creating
+*        it, so that a later call rebuilds it rather than returning an
+*        array holding NULL Mapping pointers.
+*     10-SEP-2026 (TIMJ):
+*        Apply one IterInverse validity rule in the getter, setter and
+*        loader: a non-zero value requires forward coefficients and equal
+*        numbers of inputs and outputs, whichever subclass is involved.
+*        A recorded value that cannot be honoured is loaded as unset
+*        rather than rejected. ChebyMap no longer needs its own
+*        astGetIterInverse and astSetIterInverse overrides.
+*     10-SEP-2026 (TIMJ):
+*        Reject a negative NiterInverse and a TolInverse that is not
+*        positive and finite, with AST__ATTIN, in the setters.
+*     10-SEP-2026 (TIMJ):
+*        Sample the caller's original PolyMap directly in
+*        ReplaceTransformation, passed in as a new "source" parameter,
+*        instead of taking a second copy of the PolyMap being fitted.
 *class--
 */
 
@@ -294,7 +333,7 @@ static int GetTranInverse( AstMapping *, int * );
 static int MPFunc1D( void *, int, int, const double *, double *, double *, int, int );
 static int MPFunc2D( void *, int, int, const double *, double *, double *, int, int );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
-static int ReplaceTransformation( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
+static int ReplaceTransformation( AstPolyMap *, AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static void AddCoeff( int, int, double, int *, int *, double **, int ***, int *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void CopyArrays( int, int, int *, double **, int ***, int *, int **, double ***, int ****, int **, int * );
@@ -1806,8 +1845,6 @@ static void FreeJacobian( AstPolyMap *this, int *status ) {
 /* Local Variables: */
    int nc;
    int ic;
-   int lstat;
-   int error;
 
 /* Check supplied pointer */
    if( !this ) return;
@@ -1816,17 +1853,9 @@ static void FreeJacobian( AstPolyMap *this, int *status ) {
    transformation. */
    if( this->jacobian ) {
 
-/* Get the number of PolyMap inputs. We need to clear any error status
-   first since astGetNin returns zero if an error has occurred. The
-   Jacobian will only be non-NULL if the number of inputs and outputs
-   are equal. */
-      error = !astOK;
-      if( error ) {
-         lstat = astStatus;
-         astClearStatus;
-      }
-      nc = astGetNin( this );
-      if( error ) astSetStatus( lstat );
+/* The cache always describes the original forward transformation. Its
+   dimension is available even during error cleanup or after inversion. */
+      nc = ((AstMapping *) this)->nin;
 
       for( ic = 0; ic < nc; ic++ ) {
          (this->jacobian)[ ic ] = astAnnul( (this->jacobian)[ ic ] );
@@ -1952,47 +1981,53 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
 *     GetJacobian
 
 *  Purpose:
-*     Get a description of a Jacobian matrix for the original
-*     fwd transformation of a PolyMap.
+*     Get the Jacobian of the original forward transformation of a
+*     PolyMap.
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
+*     #include "polymap.h"
 *     AstPolyMap **GetJacobian( AstPolyMap *this, int *status )
 
+*  Class Membership:
+*     PolyMap member function (implements the astGetJacobian protected
+*     method).
+
 *  Description:
-*     This function returns a set of PolyMaps which define the Jacobian
-*     matrix of the original forward transformation of the supplied PolyMap
-*     (i.e. the Negated attribute is assumed to be zero).
+*     This function returns a set of PolyMaps defining the Jacobian
+*     matrix of the original forward transformation. The Invert
+*     attribute is ignored.
 *
-*     The Jacobian matrix has "nout" rows and "nin" columns, where "nin"
-*     and "nout" are the number of inputs and outputs of the original PolyMap.
-*     Row "i", column "j" of the matrix holds the rate of change of the
-*     i'th PolyMap output with respect to the j'th PolyMap input.
+*     The Jacobian has "nout" rows and "nin" columns, where "nin" and
+*     "nout" are the original numbers of inputs and outputs. Row "i",
+*     column "j" holds the rate of change of output "i" with respect to
+*     input "j". Each returned PolyMap has "nin" inputs and "nout"
+*     outputs and evaluates one column at a supplied input position.
 *
-*     Since the values in the Jacobian matrix vary across the input space
-*     of the PolyMap, the matrix is returned in the form of a set of new
-*     PolyMaps which generate the elements of the Jacobian for any given
-*     position in the input space. The "nout" values in a single column of
-*     the Jacobian matrix are generated by the "nout" outputs from a single
-*     new PolyMap. The whole matrix is described by "nin" PolyMaps.
-*
-*     The returned PolyMaps are cached in the supplied PolyMap object in
-*     order to speed up subsequent calls to this function.
+*     The derivative PolyMaps are constructed on the first call and
+*     cached in the supplied object for subsequent calls.
 
 *  Parameters:
 *     this
-*        The PolyMap for which the Jacbian is required.
+*        Pointer to the PolyMap whose Jacobian is required. Its original
+*        forward transformation must be defined.
 *     status
 *        Pointer to the inherited status variable.
 
 *  Returned Value:
-*     A pointer to an array of "nin" PolyMap pointers, where "nin" is the number
-*     of inputs for the sipplied PolyMap. The returned array should not be changed
-*     in any way, and the PolyMaps should not be freed (they will be freed when
-*     the supplied PolyMap is deleted).
+*     Pointer to an array of "nin" PolyMap pointers, one per original
+*     input axis. The array and the PolyMaps belong to "this" and must
+*     not be modified, freed or annulled by the caller.
 
+*  Notes:
+*     - The returned pointer remains valid only while the cached
+*     Jacobian is retained by "this". Coefficient replacement can
+*     invalidate it.
+*     - A NULL pointer is returned if the inherited status is already
+*     set. If an error occurs during construction, the returned array
+*     may be incomplete and must not be used.
 */
 
 /* Local Variables: */
@@ -2099,6 +2134,10 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
 
 /* Free resources */
       coeffs = astFree( coeffs );
+
+/* Do not retain a partly built Jacobian. A later call would find a
+   non-NULL array and hand back the missing elements as NULL Mappings. */
+      if( !astOK ) FreeJacobian( this, status );
    }
 
 /* Return the Jacobian. */
@@ -2163,12 +2202,13 @@ static size_t GetObjSize( AstObject *this_object, int *status ) {
    result = (*parent_getobjsize)( this_object, status );
 
    if( this->jacobian ) {
-      nc = astGetNin( this );
+      nc = ((AstMapping *) this)->nin;
       for( ic = 0; ic < nc; ic++ ) {
          result +=  astGetObjSize( (this->jacobian)[ ic ] );
       }
       result += sizeof( AstPolyMap * )*nc;
    }
+   if( this->lintrunc ) result += astGetObjSize( this->lintrunc );
 
 /* If an error occurred, clear the result value. */
    if ( !astOK ) result = 0;
@@ -2390,6 +2430,9 @@ void astInitPolyMapVtab_(  AstPolyMapVtab *vtab, const char *name, int *status )
    vtab->PolyTran = PolyTran;
    vtab->PolyCoeffs = PolyCoeffs;
    vtab->MergeShift = MergeShift;
+   vtab->GetJacobian = GetJacobian;
+   vtab->LinearGuess = LinearGuess;
+   vtab->IterInverse = IterInverse;
 
    vtab->ClearIterInverse = ClearIterInverse;
    vtab->GetIterInverse = GetIterInverse;
@@ -2461,37 +2504,52 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 *     IterInverse
 
 *  Purpose:
-*     Use an iterative method to evaluate the original inverse transformation
-*     of a PolyMap at a set of (original) output positions.
+*     Evaluate the original inverse transformation of a PolyMap
+*     iteratively.
 
 *  Type:
-*     Private function.
+*     Protected virtual function.
 
 *  Synopsis:
-*     void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result,
-*                       int *status )
+*     #include "polymap.h"
+*     void IterInverse( AstPolyMap *this, AstPointSet *out,
+*                       AstPointSet *result, int *status )
+
+*  Class Membership:
+*     PolyMap method (implements the astIterInverse protected method).
 
 *  Description:
-*     This function transforms a set of PolyMap positions using the original
-*     inverse transformation of the PolyMap (i.e. the Negated attribute
-*     is assumed to be zero). An iterative Newton-Raphson method is used,
-*     which only requires the original forward transformation of the PolyMap
-*     to be defined.
+*     This function transforms a set of original output positions into
+*     original input positions using Newton-Raphson iteration. It
+*     requires only the original forward transformation and ignores the
+*     Invert attribute when choosing the direction to invert.
+*
+*     The Jacobian and initial-guess Mapping are obtained through the
+*     astGetJacobian and astLinearGuess protected virtual methods.
+*     NiterInverse limits the number of Newton updates. Convergence is
+*     tested on the relative length of each correction, and the last
+*     iterate is returned when the iterations are exhausted. A subclass
+*     may over-ride this method to supply a different algorithm.
 
 *  Parameters:
 *     this
-*        The PolyMap.
+*        Pointer to the PolyMap. Its original forward transformation
+*        must be defined and the numbers of inputs and outputs must be
+*        equal.
 *     out
-*        A PointSet holding the positions that are to be transformed using
-*        the original inverse transformation. These correspond to
-*        outputs of the original (i.e. uninverted) PolyMap
+*        PointSet holding the positions to be transformed. Each position
+*        contains one coordinate per original output axis. The supplied
+*        positions are not modified.
 *     result
-*        A PointSet into which the transformed positions are to be stored.
-*        These correspond to inputs of the original (i.e. uninverted) PolyMap
-
+*        PointSet in which to store the transformed positions. It must
+*        hold the same number of positions as "out", with one coordinate
+*        per original input axis.
 *     status
 *        Pointer to the inherited status variable.
 
+*  Notes:
+*     - This function returns without action if the inherited status is
+*     set.
 */
 
 /* Local Variables: */
@@ -2547,7 +2605,7 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    "jacob" variable holds a vector of "ncoord" PolyMaps. The outputs of
    each of these PolyMaps corresponds to a single column in the Jacobian
    matrix. */
-   jacob = GetJacobian( this, status );
+   jacob = astGetJacobian( this );
 
 /* Get the number of points to be transformed. */
    npoint = astGetNpoint( out );
@@ -2597,7 +2655,7 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    determined by transforming the supplied output positions using the
    inverse of a linear truncation of the PolyMap's forward
    transformation. */
-      lintrunc = LinearGuess( this, status );
+      lintrunc = astLinearGuess( this );
       (void) astTransform( lintrunc, out, 0, result );
       lintrunc = astAnnul( lintrunc );
 
@@ -2727,38 +2785,51 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 static AstMapping *LinearGuess( AstPolyMap *this, int *status ){
 /*
 *  Name:
-*     LinearTruncation
+*     LinearGuess
 
 *  Purpose:
-*     Get a Mapping representing a linear approximation of a PolyMap
+*     Get a Mapping representing a linear approximation of a PolyMap.
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
+*     #include "polymap.h"
 *     AstMapping *LinearGuess( AstPolyMap *this, int *status )
+
+*  Class Membership:
+*     PolyMap member function (implements the astLinearGuess protected
+*     method).
 
 *  Description:
 *     This function returns a linear Mapping approximating the original
-*     forward transformation of the supplied PolyMap (i.e. the Invert
-*     flag is assume to be zero). The linear and constant terms in the
-*     supplied PolyMap are used for all outputs that have such terms. Any
-*     other outputs are assumed to be equal to the corresponding inputs.
-*     If the forward transformation of the PolyMap is defined, then it is
-*     used to determine the returned Mapping. Otherwise, the inverse
-*     transformation of the PolyMap is used. The forward transformation of
-*     the returned Mapping always represents the forward transformation of
-*     the original (i.e. uninverted) PolyMap.
+*     forward transformation. Its inverse supplies an initial input
+*     position for inverse iteration. The original forward coefficients
+*     are used if available; otherwise the original inverse coefficients
+*     are used and the resulting approximation is inverted.
+*
+*     Constant and linear terms determine the affine approximation. An
+*     output with no linear terms is given a unit diagonal element. If
+*     the resulting matrix cannot be inverted, a UnitMap replaces its
+*     linear part. The approximation is cached for subsequent calls.
 
 *  Parameters:
 *     this
-*        Pointer to the PolyMap.
+*        Pointer to the PolyMap. At least one of its original
+*        transformations must be defined.
 *     status
 *        Pointer to the inherited status variable.
 
 *  Returned Value:
-*     The returned linear Mapping, or NULL if an error occurs.
+*     A new reference to the cached linear Mapping, or NULL if an error
+*     occurs. The caller must annul the returned reference when it is no
+*     longer required.
 
+*  Notes:
+*     - The forward direction of the returned Mapping approximates the
+*     original forward direction of "this", irrespective of Invert.
+*     - A NULL pointer is returned if the inherited status is set, or if
+*     an error occurs.
 */
 
 /* Local Variables: */
@@ -3410,11 +3481,15 @@ static int ManageLock( AstObject *this_object, int mode, int extra,
 /* Invoke the astManageLock method on any Objects contained within
    the supplied Object. */
    if( this->jacobian ) {
-      nc = astGetNin( this );
-      for( ic = 0; ic < nc && result; ic++ ) {
-         result = astManageLock( (this->jacobian)[ ic ], mode,
-                                 extra, fail );
+      nc = ((AstMapping *) this)->nin;
+      for( ic = 0; ic < nc && !result; ic++ ) {
+         if( this->jacobian[ic] ) {
+            result = astManageLock( this->jacobian[ic], mode, extra, fail );
+         }
       }
+   }
+   if( this->lintrunc && !result ) {
+      result = astManageLock( this->lintrunc, mode, extra, fail );
    }
 
    return result;
@@ -4969,8 +5044,8 @@ f     function is invoked with STATUS set to an error value, or if it
    astClearIsSimple( result );
 
 /* Replace the required transformation. */
-   ok = ReplaceTransformation( result, forward, acc, maxacc, maxorder, lbnd,
-                               ubnd, status );
+   ok = ReplaceTransformation( result, this, forward, acc, maxacc, maxorder,
+                               lbnd, ubnd, status );
 
 /* If an error occurred, or the fit was not good enough, annul the returned
    PolyMap. */
@@ -4987,7 +5062,8 @@ f     function is invoked with STATUS set to an error value, or if it
    return result;
 }
 
-static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
+static int ReplaceTransformation( AstPolyMap *this, AstPolyMap *source,
+                                  int forward, double acc,
                                   double maxacc, int maxorder, const double *lbnd,
                                   const double *ubnd, int *status ){
 /*
@@ -5001,7 +5077,8 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 *     Private function.
 
 *  Synopsis:
-*     int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
+*     int ReplaceTransformation( AstPolyMap *this, AstPolyMap *source,
+*                                int forward, double acc,
 *                                double maxacc, int maxorder, const double *lbnd,
 *                                const double *ubnd, int *status )
 
@@ -5045,7 +5122,12 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 
 *  Parameters:
 *     this
-*        The PolyMap.
+*        The PolyMap whose transformation is to be replaced.
+*     source
+*        The PolyMap to sample when generating the table of values to
+*        fit. This is the caller's original PolyMap, supplied unmodified
+*        so that every fitting order samples the same transformation
+*        (see the Notes below).
 *     forward
 *        If non-zero, then the forward PolyMap transformation is
 *        replaced. Otherwise the inverse transformation is replaced.
@@ -5155,6 +5237,16 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 /* Initialise pointer to work space. */
    table = NULL;
 
+/* Sample the caller's original PolyMap rather than "this". The
+   initialisation performed for each polynomial order (see
+   astFitPoly1DInit) may store the normalisation belonging to the
+   coefficients that the order is fitting, before those coefficients are
+   known. In a ChebyMap that changes the meaning of the transformation
+   being replaced, and the transformation that is sampled can depend on
+   it - an iterative inverse evaluates the forward transformation. The
+   caller's PolyMap ("source") is never initialised by this fitting
+   process, so every order samples the transformation as supplied. */
+
 /* Loop over increasing polynomial orders until the required accuracy is
    achieved, up to the specified maximum order. The "order" value is one more
    than the maximum power in the polynomial (so a quadratic has "order" 3). */
@@ -5167,7 +5259,7 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 /* Sample the requested polynomial transformation at a grid of points. This
    grid covers the user-supplied region, using 2*order points on each
    axis. */
-         table = SamplePoly2D( this, !forward, table, lbnd, ubnd, 2*order,
+         table = SamplePoly2D( source, !forward, table, lbnd, ubnd, 2*order,
                                &nsamp, scales, status );
 
 /* Fit the polynomial. Always fit a linear polynomial ("order" 2) to any
@@ -5178,7 +5270,7 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 
 /* Now do 1D PolyMaps. */
       } else {
-         table = SamplePoly1D( this, !forward, table, lbnd[ 0 ], ubnd[ 0 ],
+         table = SamplePoly1D( source, !forward, table, lbnd[ 0 ], ubnd[ 0 ],
                                2*order, &nsamp, scales, status );
          cofs = FitPoly1D( this, forward, nsamp, acc, order, table, scales,
                            &ncof, &racc, status );
@@ -5803,6 +5895,11 @@ static void StoreArrays( AstPolyMap *this, int forward, int ncoeff,
 /* Check the global status. */
    if ( !astOK ) return;
 
+/* Coefficient replacement invalidates both inverse caches. The affine
+   guess can depend on either direction when no forward terms exist. */
+   FreeJacobian( this, status );
+   if( this->lintrunc ) this->lintrunc = astAnnul( this->lintrunc );
+
 /* First Free any existing arrays. */
    FreeArrays( this, forward, status );
 
@@ -6119,7 +6216,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    attribute is non-zero, use an iterative inverse algorithm rather than any
    inverse transformation defined within the PolyMap. */
    if( !forward && astGetIterInverse(map) ) {
-      IterInverse( map, in, result, status );
+      astIterInverse( map, in, result );
 
 /* Otherwise, determine the numbers of points and coordinates per point from
    the input and output PointSets and obtain pointers for accessing the input
@@ -6309,10 +6406,21 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     PolyMap
 *        All PolyMaps have this attribute.
 *     ChebyMap
-*        The ChebyMap class does not currently provide an option for an
-*        iterative inverse, and so the IterInverse value is always zero.
-*        Setting or clearing the IterInverse attribute of a ChebyMap has
-*        no effect.
+*        For a Chebyshev forward series, the algorithm starts from an
+*        affine approximation at the domain midpoint and backtracks steps
+*        within the forward bounding box. Both the residual and the
+*        estimated input correction must satisfy TolInverse. Invalid or
+*        unsolved positions, including those that exhaust NiterInverse,
+*        are returned as AST__BAD. This does not set the AST error status
+*        or prevent other positions in the same batch from being solved.
+*        An exact solution can be returned even at a singular point.
+*
+*        If several solutions exist, the returned solution depends on the
+*        initial guess; there is no guarantee of finding the closest one
+*        or of finding every possible solution. TranInverse indicates
+*        availability of the algorithm, not convergence at every position.
+*        A legacy ChebyMap whose forward coefficients describe an ordinary
+*        polynomial uses the unbounded PolyMap algorithm instead.
 
 *  Notes:
 *     - The transformation replaced by the iterative algorithm is the
@@ -6334,20 +6442,28 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     numbers of inputs and outputs, as given by the Nin and Nout
 *     attributes. An error will be reported if IterInverse is set non-zero
 *     for a PolyMap that does not meet this requirement.
+*     - An error is reported if IterInverse is set non-zero for a PolyMap
+*     that has no forward transformation.
 
 *att--
 */
 astMAKE_CLEAR1(PolyMap,IterInverse,iterinverse,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PolyMap,IterInverse,int,0,( ( this->iterinverse == -INT_MAX ) ?
-                                          ( this->ncoeff_i == 0 &&
-                                            astGetNin( this ) == astGetNout( this ) ) :
-                                          this->iterinverse ))
+                                        ( this->ncoeff_f != NULL &&
+                                          this->ncoeff_i == NULL &&
+                                          astGetNin( this ) == astGetNout( this ) ) :
+                                        this->iterinverse ))
 astMAKE_SET1(PolyMap,IterInverse,int,iterinverse,
-  (((astGetNin(this)==astGetNout(this))||!value)?
+  ( !value || ( this->ncoeff_f && astGetNin(this) == astGetNout(this) ) ) ?
   (( (value?1:0) != this->iterinverse ) ? astClearIsSimple(this) : (void)0,(value?1:0)):
-  (astError(AST__ATTIN,"astSetIterInverse(%s):"
-  "Cannot use an iterative inverse because the %s has unequal numbers of "
-  "inputs and outputs.", status, astGetClass(this),astGetClass(this)),this->iterinverse)))
+  ( !this->ncoeff_f ?
+    astError(AST__ATTIN,"astSetIterInverse(%s): Cannot use an iterative "
+             "inverse because the %s has no forward transformation.",
+             status, astGetClass(this), astGetClass(this)) :
+    astError(AST__ATTIN,"astSetIterInverse(%s): Cannot use an iterative "
+             "inverse because the %s has unequal numbers of inputs and "
+             "outputs.", status, astGetClass(this), astGetClass(this)),
+    this->iterinverse ))
 astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 
 /* NiterInverse. */
@@ -6372,19 +6488,32 @@ astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 *
 *     Its value gives the maximum number of iterations of the
 *     Newton-Raphson algorithm to be used for each transformed position.
-*     The default value is 4. See also attribute TolInverse.
+*     The default value is 4. See also attribute TolInverse. An error
+*     is reported if a negative value is supplied.
 
 *  Applicability:
 *     PolyMap
 *        All PolyMaps have this attribute.
+
+*     ChebyMap
+*        For a Chebyshev forward series, this is the maximum number of
+*        Newton updates. Each update may backtrack to reduce the residual.
+*        The final candidate is checked after the last update. A value of
+*        zero checks only the initial guess. The default is ten. Stronger
+*        distortions may require more iterations. An unsolved position is
+*        returned as AST__BAD.
 
 *att--
 */
 astMAKE_CLEAR1(PolyMap,NiterInverse,niterinverse,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PolyMap,NiterInverse,int,0,( this->niterinverse == -INT_MAX ? 4 : this->niterinverse))
 astMAKE_SET1(PolyMap,NiterInverse,int,niterinverse,(
-            ( value != this->niterinverse ) ? astClearIsSimple(this) : (void)0,
-            value))
+            ( value < 0 ) ?
+            ( astError( AST__ATTIN, "astSetNiterInverse(%s): Invalid value %d "
+                        "supplied for NiterInverse (must be zero or positive).",
+                        status, astGetClass(this), value ), this->niterinverse ) :
+            ( ( value != this->niterinverse ) ? astClearIsSimple(this) : (void)0,
+              value ) ))
 astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 
 /* TolInverse. */
@@ -6412,18 +6541,35 @@ astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 *     until the target relative error is reached, or the maximum number
 *     of iterations given by attribute NiterInverse is reached.
 
-*     The default value is 1.0E-6.
+*     The default value is 1.0E-6. An error is reported if the value is
+*     not positive and finite.
 
 *  Applicability:
 *     PolyMap
 *        All PolyMaps have this attribute.
+*     ChebyMap
+*        For a Chebyshev forward series, the tolerance is a positive
+*        fraction of each original input domain's half-width, rather than
+*        a fraction of the coordinate value. This avoids dependence on
+*        the location of the coordinate origin. Each Newton correction
+*        divided by its axis half-width must be no larger than this value.
+*        The forward residual is also checked, scaling each output by
+*        the sum of the absolute Jacobian elements multiplied by their
+*        respective input half-widths. An exact zero residual is accepted
+*        even if the Jacobian is singular. This is a local convergence
+*        criterion, not a guarantee of a global inverse or an error bound
+*        for an ill-conditioned transformation.
 *att--
 */
 astMAKE_CLEAR1(PolyMap,TolInverse,tolinverse,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(PolyMap,TolInverse,double,0.0,( this->tolinverse == AST__BAD ? 1.0E-6 : this->tolinverse))
 astMAKE_SET1(PolyMap,TolInverse,double,tolinverse,(
-            ( value != this->tolinverse ) ? astClearIsSimple(this) : (void)0,
-            value))
+            ( !isfinite( value ) || value <= 0.0 ) ?
+            ( astError( AST__ATTIN, "astSetTolInverse(%s): Invalid value %g "
+                        "supplied for TolInverse (must be positive and finite).",
+                        status, astGetClass(this), value ), this->tolinverse ) :
+            ( ( value != this->tolinverse ) ? astClearIsSimple(this) : (void)0,
+              value ) ))
 astMAKE_TEST(PolyMap,TolInverse,( this->tolinverse != AST__BAD ))
 
 /* Copy constructor. */
@@ -7148,6 +7294,9 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
       new->coeff_i = NULL;
       new->mxpow_i = NULL;
 
+      new->jacobian = NULL;
+      new->lintrunc = NULL;
+
 /* Store the forward transformation. */
       StoreArrays( new, 1, ncoeff_f, coeff_f, status );
 
@@ -7158,8 +7307,6 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
       new->iterinverse = -INT_MAX;
       new->niterinverse = -INT_MAX;
       new->tolinverse = AST__BAD;
-      new->jacobian = NULL;
-      new->lintrunc = NULL;
 
 /* If an error occurred, clean up by deleting the new PolyMap. */
       if ( !astOK ) new = astDelete( new );
@@ -7461,8 +7608,14 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
          }
       }
 
-/* Whether to use an iterative inverse transformation. */
+/* Whether to use an iterative inverse transformation. A recorded non-zero
+   value that cannot be honoured (no forward coefficients) is treated as
+   unset rather than rejected, so that dumps written by earlier versions
+   still load. */
       new->iterinverse = astReadInt( channel, "iterinv", -INT_MAX );
+      if( new->iterinverse != -INT_MAX && new->iterinverse && !new->ncoeff_f ) {
+         new->iterinverse = -INT_MAX;
+      }
       if ( TestIterInverse( new, status ) ) SetIterInverse( new, new->iterinverse, status );
 
 /* Max number of iterations for iterative inverse transformation. */
@@ -7502,6 +7655,22 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
    Note that the member function may not be the one defined here, as it may
    have been over-ridden by a derived class. However, it should still have the
    same interface. */
+
+AstPolyMap **astGetJacobian_( AstPolyMap *this, int *status ){
+   if( !astOK ) return NULL;
+   return (**astMEMBER(this,PolyMap,GetJacobian))( this, status );
+}
+
+AstMapping *astLinearGuess_( AstPolyMap *this, int *status ){
+   if( !astOK ) return NULL;
+   return (**astMEMBER(this,PolyMap,LinearGuess))( this, status );
+}
+
+void astIterInverse_( AstPolyMap *this, AstPointSet *out, AstPointSet *result,
+                      int *status ){
+   if( !astOK ) return;
+   (**astMEMBER(this,PolyMap,IterInverse))( this, out, result, status );
+}
 
 void astPolyPowers_( AstPolyMap *this, double **work, int ncoord,
                      const int *mxpow, double **ptr, int point, int fwd,
@@ -7550,6 +7719,3 @@ AstPolyMap *astMergeShift_( AstPolyMap *this, AstShiftMap *shift,
    return (**astMEMBER(this,PolyMap,MergeShift))( this, shift, before,
                                                   force, status );
 }
-
-
-
