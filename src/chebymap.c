@@ -153,6 +153,10 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        the loader comment about an unvalidated recorded IterInverse
 *        value. PolyMap now applies one IterInverse validity rule that
 *        already covers a ChebyMap with no forward transformation.
+*     10-SEP-2026 (TIMJ):
+*        Stop checking TolInverse and NiterInverse in IterInverse; the
+*        PolyMap setters now reject an unusable value before it can reach
+*        here. Only the bounding box is still checked.
 *class--
 */
 
@@ -1839,10 +1843,11 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 /* Initialise the number of positions which have been resolved. */
       nconv = 0;
 
-/* Check the iteration controls and the box, then clip every initial guess
-   into the box. A position with a bad or non-finite target, or an unusable
-   box, is resolved immediately as bad. */
-      valid = isfinite(tol) && tol > 0.0 && maxiter >= 0;
+/* The iteration controls are validated by the NiterInverse and TolInverse
+   setters, so only the box need be checked here, then every initial guess
+   is clipped into it. A position with a bad or non-finite target, or an
+   unusable box, is resolved immediately as bad. */
+      valid = 1;
       for( icoord = 0; icoord < ncoord; icoord++ ) {
          width[icoord] = 0.5*ubnd[icoord] - 0.5*lbnd[icoord];
          if( !isfinite(lbnd[icoord]) || !isfinite(ubnd[icoord]) ||

@@ -206,6 +206,9 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        A recorded value that cannot be honoured is loaded as unset
 *        rather than rejected. ChebyMap no longer needs its own
 *        astGetIterInverse and astSetIterInverse overrides.
+*     10-SEP-2026 (TIMJ):
+*        Reject a negative NiterInverse and a TolInverse that is not
+*        positive and finite, with AST__ATTIN, in the setters.
 *class--
 */
 
@@ -6476,7 +6479,8 @@ astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 *
 *     Its value gives the maximum number of iterations of the
 *     Newton-Raphson algorithm to be used for each transformed position.
-*     The default value is 4. See also attribute TolInverse.
+*     The default value is 4. See also attribute TolInverse. An error
+*     is reported if a negative value is supplied.
 
 *  Applicability:
 *     PolyMap
@@ -6495,8 +6499,12 @@ astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 astMAKE_CLEAR1(PolyMap,NiterInverse,niterinverse,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PolyMap,NiterInverse,int,0,( this->niterinverse == -INT_MAX ? 4 : this->niterinverse))
 astMAKE_SET1(PolyMap,NiterInverse,int,niterinverse,(
-            ( value != this->niterinverse ) ? astClearIsSimple(this) : (void)0,
-            value))
+            ( value < 0 ) ?
+            ( astError( AST__ATTIN, "astSetNiterInverse(%s): Invalid value %d "
+                        "supplied for NiterInverse (must be zero or positive).",
+                        status, astGetClass(this), value ), this->niterinverse ) :
+            ( ( value != this->niterinverse ) ? astClearIsSimple(this) : (void)0,
+              value ) ))
 astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 
 /* TolInverse. */
@@ -6524,7 +6532,8 @@ astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 *     until the target relative error is reached, or the maximum number
 *     of iterations given by attribute NiterInverse is reached.
 
-*     The default value is 1.0E-6.
+*     The default value is 1.0E-6. An error is reported if the value is
+*     not positive and finite.
 
 *  Applicability:
 *     PolyMap
@@ -6546,8 +6555,12 @@ astMAKE_TEST(PolyMap,NiterInverse,( this->niterinverse != -INT_MAX ))
 astMAKE_CLEAR1(PolyMap,TolInverse,tolinverse,(astClearIsSimple(this),AST__BAD))
 astMAKE_GET(PolyMap,TolInverse,double,0.0,( this->tolinverse == AST__BAD ? 1.0E-6 : this->tolinverse))
 astMAKE_SET1(PolyMap,TolInverse,double,tolinverse,(
-            ( value != this->tolinverse ) ? astClearIsSimple(this) : (void)0,
-            value))
+            ( !isfinite( value ) || value <= 0.0 ) ?
+            ( astError( AST__ATTIN, "astSetTolInverse(%s): Invalid value %g "
+                        "supplied for TolInverse (must be positive and finite).",
+                        status, astGetClass(this), value ), this->tolinverse ) :
+            ( ( value != this->tolinverse ) ? astClearIsSimple(this) : (void)0,
+              value ) ))
 astMAKE_TEST(PolyMap,TolInverse,( this->tolinverse != AST__BAD ))
 
 /* Copy constructor. */

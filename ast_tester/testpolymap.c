@@ -274,6 +274,32 @@ int main( void ) {
       pm2 = NULL;
    }
 
+   /* Iteration controls must be usable: a non-positive or non-finite
+      tolerance and a negative iteration count are rejected. */
+   {
+      double fwd3[] = { 2.0, 1, 1 };
+      const char *bad[] = { "TolInverse=0", "TolInverse=-1", "NiterInverse=-1" };
+      int k;
+      pm2 = astPolyMap( 1, 1, 1, fwd3, 0, NULL, " " );
+      for( k = 0; k < 3 && *status == 0; k++ ) {
+         astSet( pm2, "%s", bad[k] );
+         int expected = ( *status == AST__ATTIN );
+         astClearStatus;
+         if( !expected ) stopit( 8031 + k, status );
+      }
+      if( *status == 0 ) {
+         astSetD( pm2, "TolInverse", INFINITY );
+         int expected = ( *status == AST__ATTIN );
+         astClearStatus;
+         if( !expected ) stopit( 8034, status );
+      }
+      if( astGetD( pm2, "TolInverse" ) != 1.0E-6 ) stopit( 8035, status );
+      if( astGetI( pm2, "NiterInverse" ) != 4 ) stopit( 8036, status );
+      astSet( pm2, "NiterInverse=0,TolInverse=1e-3" );
+      if( astGetI( pm2, "NiterInverse" ) != 0 ) stopit( 8037, status );
+      pm2 = astAnnul( pm2 );
+   }
+
    astEnd;
    astFlushMemory( 1 );
 
