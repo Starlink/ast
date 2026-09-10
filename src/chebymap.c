@@ -134,15 +134,6 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        this file; the parent algorithm is used for a forward series
 *        without a usable Chebyshev box.
 *     9-SEP-2026 (TIMJ):
-*        Over-ride the astGetIterInverse and astSetIterInverse methods
-*        inherited from the PolyMap class, so that an iterative inverse is
-*        offered whenever the forward transformation is defined, and
-*        refused when it is not.
-*     9-SEP-2026 (TIMJ):
-*        Load a recorded IterInverse value without validating it against
-*        the forward transformation, so that dumps written by earlier
-*        versions of AST remain readable.
-*     9-SEP-2026 (TIMJ):
 *        Construct the Jacobian ChebyMaps on the canonical [-1,1] box
 *        instead of a physical box reconstructed from the scales and
 *        offsets, which are copied into the new Maps in any case.
@@ -157,6 +148,11 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *     9-SEP-2026 (TIMJ):
 *        Report an error if a bounding box is omitted for a direction that
 *        has coefficients, rather than dereferencing the null pointer.
+*     10-SEP-2026 (TIMJ):
+*        Remove the astGetIterInverse and astSetIterInverse overrides and
+*        the loader comment about an unvalidated recorded IterInverse
+*        value. PolyMap now applies one IterInverse validity rule that
+*        already covers a ChebyMap with no forward transformation.
 *class--
 */
 
@@ -215,8 +211,6 @@ static void (* parent_polypowers)( AstPolyMap *, double **, int, const int *, do
 static AstPolyMap *(*parent_polytran)( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static AstPolyMap **(*parent_getjacobian)( AstPolyMap *, int * );
 static AstMapping *(*parent_linearguess)( AstPolyMap *, int * );
-static int (*parent_getiterinverse)( AstPolyMap *, int * );
-static void (*parent_setiterinverse)( AstPolyMap *, int, int * );
 static void (*parent_iterinverse)( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
 
 /* A derivative term retains the original orders except on one axis. */
@@ -269,8 +263,6 @@ AstChebyMap *astChebyMapId_( int, int, int, const double[], int, const double[],
 /* ======================================== */
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static int Equal( AstObject *, AstObject *, int * );
-static int GetIterInverse( AstPolyMap *, int * );
-static void SetIterInverse( AstPolyMap *, int, int * );
 static AstPolyMap **GetJacobian( AstPolyMap *, int * );
 static int CompareDerivTerms( const void *, const void * );
 static AstMapping *LinearGuess( AstPolyMap *, int * );
@@ -2194,108 +2186,6 @@ static AstMapping *LinearGuess( AstPolyMap *map, int *status ) {
    return result;
 }
 
-static int GetIterInverse( AstPolyMap *this, int *status ) {
-/*
-*  Name:
-*     GetIterInverse
-
-*  Purpose:
-*     Return the value of the IterInverse attribute.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "polymap.h"
-*     int GetIterInverse( AstPolyMap *this, int *status )
-
-*  Class Membership:
-*     ChebyMap member function (over-rides the astGetIterInverse
-*     protected method inherited from the parent PolyMap class).
-
-*  Description:
-*     This function returns the effective IterInverse value. If the
-*     original forward transformation is defined, the parent PolyMap
-*     attribute policy is used: an explicitly set value takes
-*     precedence, and the default selects iteration for a square Mapping
-*     without original inverse coefficients.
-*
-*     If the original forward transformation is undefined, zero is
-*     returned. Inverting an inverse-only ChebyMap does not make an
-*     iterative transformation available.
-
-*  Parameters:
-*     this
-*        Pointer to the ChebyMap, supplied as a PolyMap pointer.
-*     status
-*        Pointer to the inherited status variable.
-
-*  Returned Value:
-*     The effective boolean IterInverse value.
-
-*  Notes:
-*     - A value of zero is returned if the inherited status is set, or
-*     if an error occurs.
-*/
-
-   if( !astOK || !this->ncoeff_f ) return 0;
-   return (*parent_getiterinverse)( this, status );
-}
-
-static void SetIterInverse( AstPolyMap *this, int value, int *status ) {
-/*
-*  Name:
-*     SetIterInverse
-
-*  Purpose:
-*     Set the value of the IterInverse attribute.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "polymap.h"
-*     void SetIterInverse( AstPolyMap *this, int value, int *status )
-
-*  Class Membership:
-*     ChebyMap member function (over-rides the astSetIterInverse
-*     protected method inherited from the parent PolyMap class).
-
-*  Description:
-*     This function sets whether the original inverse transformation is
-*     to be evaluated by iteration. Enabling iteration requires the
-*     original forward transformation to be defined; otherwise an error
-*     is reported and the attribute is not changed.
-*
-*     Valid requests are passed to the parent PolyMap setter, which also
-*     checks that iteration is used only for equal numbers of inputs and
-*     outputs. The Invert attribute does not change which transformation
-*     is to be inverted.
-
-*  Parameters:
-*     this
-*        Pointer to the ChebyMap, supplied as a PolyMap pointer.
-*     value
-*        New boolean value for IterInverse. A non-zero value selects
-*        iteration instead of any supplied inverse coefficients; zero
-*        disables iteration.
-*     status
-*        Pointer to the inherited status variable.
-
-*  Notes:
-*     - This function returns without action if the inherited status is
-*     set.
-*/
-   if( !astOK ) return;
-   if( value && !this->ncoeff_f ) {
-      astError( AST__ATTIN, "astSetIterInverse(%s): Cannot use an iterative "
-                "inverse without a forward transformation.", status,
-                astGetClass( this ) );
-   } else {
-      (*parent_setiterinverse)( this, value, status );
-   }
-}
-
 static size_t GetObjSize( AstObject *this_object, int *status ) {
 /*
 *  Name:
@@ -2437,11 +2327,6 @@ void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status
    replace them with pointers to the new member functions. */
    object = (AstObjectVtab *) vtab;
    polymap = (AstPolyMapVtab *) vtab;
-
-   parent_getiterinverse = polymap->GetIterInverse;
-   polymap->GetIterInverse = GetIterInverse;
-   parent_setiterinverse = polymap->SetIterInverse;
-   polymap->SetIterInverse = SetIterInverse;
 
    parent_getjacobian = polymap->GetJacobian;
    polymap->GetJacobian = GetJacobian;
@@ -3828,13 +3713,6 @@ AstChebyMap *astLoadChebyMap_( void *mem, size_t size,
 /* If an error occurred, clean up by deleting the new ChebyMap. */
       if ( !astOK ) new = astDelete( new );
    }
-
-/* A recorded IterInverse value is not validated here. Dumps written by
-   earlier versions of AST may record a non-zero value for a ChebyMap with
-   no forward transformation, and rejecting those would make an entire
-   Object containing one unreadable. GetIterInverse returns zero whenever
-   the forward transformation is undefined, so the recorded value has no
-   effect. */
 
 /* Return the new ChebyMap pointer. */
    return new;
