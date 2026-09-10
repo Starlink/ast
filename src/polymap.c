@@ -199,6 +199,13 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        Discard a partly built Jacobian if an error occurs while creating
 *        it, so that a later call rebuilds it rather than returning an
 *        array holding NULL Mapping pointers.
+*     10-SEP-2026 (TIMJ):
+*        Apply one IterInverse validity rule in the getter, setter and
+*        loader: a non-zero value requires forward coefficients and equal
+*        numbers of inputs and outputs, whichever subclass is involved.
+*        A recorded value that cannot be honoured is loaded as unset
+*        rather than rejected. ChebyMap no longer needs its own
+*        astGetIterInverse and astSetIterInverse overrides.
 *class--
 */
 
@@ -6387,13 +6394,6 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     PolyMap
 *        All PolyMaps have this attribute.
 *     ChebyMap
-*        An iterative inverse is available when the original forward
-*        transformation is defined and the numbers of inputs and outputs
-*        are equal. It is selected by default if no inverse coefficients
-*        are supplied. Setting this attribute to one selects iteration
-*        instead of any supplied inverse coefficients; zero disables it.
-*        Clearing it restores the default selection.
-*
 *        For a Chebyshev forward series, the algorithm starts from an
 *        affine approximation at the domain midpoint and backtracks steps
 *        within the forward bounding box. Both the residual and the
@@ -6430,21 +6430,28 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     numbers of inputs and outputs, as given by the Nin and Nout
 *     attributes. An error will be reported if IterInverse is set non-zero
 *     for a PolyMap that does not meet this requirement.
+*     - An error is reported if IterInverse is set non-zero for a PolyMap
+*     that has no forward transformation.
 
 *att--
 */
 astMAKE_CLEAR1(PolyMap,IterInverse,iterinverse,(astClearIsSimple(this),-INT_MAX))
-astMAKE_GET(PolyMap,IterInverse,int,0,( !this->ncoeff_f ? 0 :
-                                        ( ( this->iterinverse == -INT_MAX ) ?
-                                          ( this->ncoeff_i == 0 &&
-                                            astGetNin( this ) == astGetNout( this ) ) :
-                                          this->iterinverse ) ))
+astMAKE_GET(PolyMap,IterInverse,int,0,( ( this->iterinverse == -INT_MAX ) ?
+                                        ( this->ncoeff_f != NULL &&
+                                          this->ncoeff_i == NULL &&
+                                          astGetNin( this ) == astGetNout( this ) ) :
+                                        this->iterinverse ))
 astMAKE_SET1(PolyMap,IterInverse,int,iterinverse,
-  (((astGetNin(this)==astGetNout(this))||!value)?
+  ( !value || ( this->ncoeff_f && astGetNin(this) == astGetNout(this) ) ) ?
   (( (value?1:0) != this->iterinverse ) ? astClearIsSimple(this) : (void)0,(value?1:0)):
-  (astError(AST__ATTIN,"astSetIterInverse(%s):"
-  "Cannot use an iterative inverse because the %s has unequal numbers of "
-  "inputs and outputs.", status, astGetClass(this),astGetClass(this)),this->iterinverse)))
+  ( !this->ncoeff_f ?
+    astError(AST__ATTIN,"astSetIterInverse(%s): Cannot use an iterative "
+             "inverse because the %s has no forward transformation.",
+             status, astGetClass(this), astGetClass(this)) :
+    astError(AST__ATTIN,"astSetIterInverse(%s): Cannot use an iterative "
+             "inverse because the %s has unequal numbers of inputs and "
+             "outputs.", status, astGetClass(this), astGetClass(this)),
+    this->iterinverse ))
 astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 
 /* NiterInverse. */
@@ -7579,8 +7586,14 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
          }
       }
 
-/* Whether to use an iterative inverse transformation. */
+/* Whether to use an iterative inverse transformation. A recorded non-zero
+   value that cannot be honoured (no forward coefficients) is treated as
+   unset rather than rejected, so that dumps written by earlier versions
+   still load. */
       new->iterinverse = astReadInt( channel, "iterinv", -INT_MAX );
+      if( new->iterinverse != -INT_MAX && new->iterinverse && !new->ncoeff_f ) {
+         new->iterinverse = -INT_MAX;
+      }
       if ( TestIterInverse( new, status ) ) SetIterInverse( new, new->iterinverse, status );
 
 /* Max number of iterations for iterative inverse transformation. */
