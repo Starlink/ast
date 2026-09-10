@@ -295,6 +295,38 @@ static void singular_seed( int *status ) {
    cm = astAnnul( cm );
 }
 
+/* A two-dimensional map with every attribute left at its default must use
+   ChebyMap's default of ten Newton iterations, not PolyMap's four, and a
+   30 by 30 grid spanning the box must round trip with no BAD points. */
+static void default_attributes( int *status ) {
+   double lo[] = { 0, 0 }, hi[] = { 10, 10 };
+   double coeffs[] = { 1, 1, 1, 0,   .2, 1, 2, 0,
+                       1, 2, 0, 1,   .1, 2, 2, 1 };
+   double u[900], v[900], x[900], y[900], bu[900], bv[900];
+   int i, j, n = 0, nbad = 0;
+   AstChebyMap *cm = astChebyMap( 2, 2, 4, coeffs, 0, NULL, lo, hi,
+                                  NULL, NULL, "", status );
+   check( astGetI( cm, "NiterInverse" ) == 10, "ChebyMap NiterInverse default" );
+   for( i = 0; i < 30; i++ ) {
+      for( j = 0; j < 30; j++ ) {
+         u[n] = 10.0*i/29.0;
+         v[n] = 10.0*j/29.0;
+         n++;
+      }
+   }
+   astTran2( cm, n, u, v, 1, x, y );
+   astTran2( cm, n, x, y, 0, bu, bv );
+   for( i = 0; i < n; i++ ) {
+      if( bu[i] == AST__BAD || bv[i] == AST__BAD ) {
+         nbad++;
+      } else if( fabs( bu[i] - u[i] ) > 1e-5 || fabs( bv[i] - v[i] ) > 1e-5 ) {
+         check( 0, "Default-attribute round trip accuracy" );
+      }
+   }
+   check( nbad == 0, "Default-attribute round trip leaves no BAD points" );
+   cm = astAnnul( cm );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -304,6 +336,7 @@ int main( void ) {
    seeds( status );
    bounded_solver( status );
    singular_seed( status );
+   default_attributes( status );
    caches( status );
    astEnd_( status );
    astFlushMemory( 1 );
