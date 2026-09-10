@@ -22,7 +22,7 @@ Main Changes in this Version
   inverse uses analytic Chebyshev derivatives and confines its search to
   the forward domain. Unsolved positions are returned as AST__BAD.
   IterInverse can disable iteration or select it instead of an explicit
-  inverse. NiterInverse defaults to four; TolInverse defaults to 1e-6 and
+  inverse. NiterInverse defaults to ten; TolInverse defaults to 1e-6 and
   measures corrections relative to each input domain's half-width.
 
   This changes inverse availability for existing forward-only ChebyMaps,
@@ -30,6 +30,12 @@ Main Changes in this Version
   explicit IterInverse settings now take effect. Explicit inverse
   coefficients remain preferred when IterInverse is unset. Ordinary
   PolyMap iteration retains its previous convergence and exhaustion rules.
+
+  Setting IterInverse to a non-zero value on a PolyMap or ChebyMap with
+  no forward transformation, a non-positive or non-finite TolInverse, or
+  a negative NiterInverse now reports an error. The ChebyMap default for
+  NiterInverse is 10. FitsChan no longer writes SIP headers for FrameSets
+  containing a ChebyMap.
 
 *** IMPORTANT - a change that may break existing code ***
 
