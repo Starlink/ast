@@ -1,0 +1,1 @@
+Setting IterInverse to a non-zero value on a PolyMap or ChebyMap with no forward transformation, a non-positive or non-finite TolInverse, or a negative NiterInverse now reports an error. The ChebyMap default for NiterInverse is 10.
