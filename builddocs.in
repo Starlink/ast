@@ -210,13 +210,13 @@ doincludes "$here/sun_master.tex" > included.tex
 # Run filters separately so a failure in any stage stops the build.
 for doc in sun210 sun211; do
     if test "$doc" = sun210; then
-        language=-f
+        fcflag=-f
         cp global_f.labels global.labels
     else
-        language=
+        fcflag=
         cp global_c.labels global.labels
     fi
-    selectfc $language included.tex > selected.tex
+    selectfc $fcflag included.tex > selected.tex
     addlinks selected.tex > linked.tex
     addcopyright < linked.tex > copyright.tex
     addversion < copyright.tex > "$doc.tex"
