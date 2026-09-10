@@ -104,7 +104,7 @@ static void seeds( int *status ) {
    near( got[2], 10, "Affine seed upper endpoint" );
    guess = astAnnul( guess );
    astInvert( cm );
-   check( astGetIterDomain( cm, &dlo, &dhi ), "Finite iteration domain" );
+   astChebyDomain( cm, 0, &dlo, &dhi );
    near( dlo, lo, "Original forward lower bound" );
    near( dhi, hi, "Original forward upper bound" );
    guess = astLinearGuess( cm );
@@ -133,16 +133,6 @@ static void seeds( int *status ) {
    near( got[0], 5, "Midpoint fallback" );
    guess = astAnnul( guess );
    cm = astAnnul( cm );
-}
-
-/* Exercise the shared finite-domain solver before enabling ChebyMap's
-   public inverse. The polynomial is specified independently in monomials. */
-static int testdomain( AstPolyMap *map, double *lo, double *hi, int *status ) {
-   (void) map;
-   (void) status;
-   lo[0] = -1;
-   hi[0] = 1;
-   return 1;
 }
 
 static void caches( int *status ) {
@@ -211,8 +201,9 @@ static void caches( int *status ) {
    check( loaded != NULL, "Load ChebyMap with an unresolvable box" );
    if( loaded ) {
       double dlo = -99, dhi = 99;
-      check( !astGetIterDomain( loaded, &dlo, &dhi ),
-             "Unresolvable box has no finite iteration domain" );
+      astChebyDomain( loaded, 1, &dlo, &dhi );
+      check( dlo == AST__BAD && dhi == AST__BAD,
+             "Unresolvable box has no evaluable domain" );
       loaded = astAnnul( loaded );
    }
 
@@ -225,25 +216,27 @@ static void caches( int *status ) {
    check( loaded != NULL, "Load ChebyMap with a zero scale" );
    if( loaded ) {
       double dlo = -99, dhi = 99;
-      check( !astGetIterDomain( loaded, &dlo, &dhi ),
-             "Zero scale has no finite iteration domain" );
-      check( dlo == -99 && dhi == 99,
-             "Undefined domain leaves the supplied bounds unchanged" );
+      astChebyDomain( loaded, 1, &dlo, &dhi );
+      check( dlo == AST__BAD && dhi == AST__BAD,
+             "Zero scale has no evaluable domain" );
       loaded = astAnnul( loaded );
    }
 }
 
+/* The bounded solver, driven through a ChebyMap on [-1,1]. The monomial
+   -0.125 + x + 0.25 x^2 is 0 T0 + 1 T1 + 0.125 T2 because x^2 = (T0+T2)/2. */
 static void bounded_solver( int *status ) {
-   static AstPolyMapVtab vtab;  /* AST's class registry retains this pointer. */
-   double coeffs[] = { -.125, 1, 0, 1, 1, 1, .25, 1, 2 };
+   double lo = -1, hi = 1;
+   double coeffs[] = { 1, 1, 1, .125, 1, 2 };
    double target[] = { -.875, -.125, 0, .3, 1.125, -1, 2, AST__BAD, NAN, INFINITY };
+   double mono[] = { -.125, 1, 0, 1, 1, 1, .25, 1, 2 };
    double got[10];
-   AstPolyMap *pm = astInitPolyMap( NULL, sizeof(AstPolyMap), 1, &vtab,
-                                    "BoundedPolyMap", 1, 1, 3, coeffs, 0, NULL );
+   AstChebyMap *cm = astChebyMap( 1, 1, 2, coeffs, 0, NULL, &lo, &hi,
+                                  NULL, NULL, "", status );
+   AstPolyMap *pm;
    int i;
-   vtab.GetIterDomain = testdomain;
-   astSet( pm, "NiterInverse=20,TolInverse=1e-12", status );
-   astTran1( pm, 10, target, 0, got );
+   astSet( cm, "NiterInverse=20,TolInverse=1e-12", status );
+   astTran1( cm, 10, target, 0, got );
    for( i = 0; i < 5; i++ ) {
       near( got[i], 2*(target[i]+.125)/(1+sqrt(1+target[i]+.125)),
             "Bounded quadratic inverse" );
@@ -251,13 +244,14 @@ static void bounded_solver( int *status ) {
    for( i = 5; i < 10; i++ ) {
       check( got[i] == AST__BAD, "Unsolved bounded input must return BAD" );
    }
-   astSet( pm, "NiterInverse=1", status );
-   astTran1( pm, 1, target+3, 0, got );
+   astSet( cm, "NiterInverse=1", status );
+   astTran1( cm, 1, target+3, 0, got );
    check( got[0] == AST__BAD, "Exhaustion must not return the last iterate" );
-   pm = astAnnul( pm );
+   cm = astAnnul( cm );
 
-/* The same unbounded PolyMap retains its historical last-iterate behavior. */
-   pm = astPolyMap( 1, 1, 3, coeffs, 0, NULL, "NiterInverse=1", status );
+/* The same polynomial as an unbounded PolyMap retains its historical
+   last-iterate behavior. */
+   pm = astPolyMap( 1, 1, 3, mono, 0, NULL, "NiterInverse=1", status );
    astTran1( pm, 1, target+3, 0, got );
    check( got[0] != AST__BAD && isfinite(got[0]), "Legacy PolyMap exhaustion" );
    pm = astAnnul( pm );
