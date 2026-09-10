@@ -183,6 +183,9 @@ f     The CmpMap class does not define any new routines beyond those
 *        sub-Mappings with the live tree, so a discarded probe left
 *        simplified stamps on Mappings that no surviving simplification had
 *        produced.
+*        RecordSimplified: record each Mapping only once, so shared
+*        sub-Mappings do not cause repeated traversal and storage of the
+*        same subtree during a merge probe.
 *class--
 */
 
@@ -3599,7 +3602,8 @@ static void RecordSimplified( AstMapping *map, AstMapping ***maps, char **flags,
 *     Mappings, together with the simplified-state flags each one holds at
 *     the time of the call. The list holds a cloned pointer to each Mapping
 *     so that the recorded objects stay alive until RestoreSimplified is
-*     called.
+*     called. Each distinct Mapping is recorded only once, even if it
+*     occurs in more than one component or more than one supplied root.
 *
 *     The merge probes in MapMerge build trial CmpMaps out of the very
 *     Mappings they are probing, since CombineMaps clones its arguments,
@@ -3630,9 +3634,19 @@ static void RecordSimplified( AstMapping *map, AstMapping ***maps, char **flags,
 /* Local Variables: */
    AstMapping *map1;
    AstMapping *map2;
+   int i;
 
 /* Check the inherited status and the supplied pointer. */
    if ( !astOK || !map ) return;
+
+/* A CmpMap can refer to the same Mapping through both components, or
+   through several of the roots recorded for a probe. Its flags and all
+   its descendants have already been recorded if we have seen this pointer
+   before. Stop before descending again: a chain of shared pairs otherwise
+   needs exponentially many records despite containing few distinct objects. */
+   for ( i = 0; i < *nmap; i++ ) {
+      if ( (*maps)[ i ] == map ) return;
+   }
 
 /* Extend the arrays and record this Mapping and its two simplified-state
    flags. */
