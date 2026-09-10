@@ -209,6 +209,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *     10-SEP-2026 (TIMJ):
 *        Reject a negative NiterInverse and a TolInverse that is not
 *        positive and finite, with AST__ATTIN, in the setters.
+*     10-SEP-2026 (TIMJ):
+*        Sample the caller's original PolyMap directly in
+*        ReplaceTransformation, passed in as a new "source" parameter,
+*        instead of taking a second copy of the PolyMap being fitted.
 *class--
 */
 
@@ -329,7 +333,7 @@ static int GetTranInverse( AstMapping *, int * );
 static int MPFunc1D( void *, int, int, const double *, double *, double *, int, int );
 static int MPFunc2D( void *, int, int, const double *, double *, double *, int, int );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
-static int ReplaceTransformation( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
+static int ReplaceTransformation( AstPolyMap *, AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static void AddCoeff( int, int, double, int *, int *, double **, int ***, int *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void CopyArrays( int, int, int *, double **, int ***, int *, int **, double ***, int ****, int **, int * );
@@ -5040,8 +5044,8 @@ f     function is invoked with STATUS set to an error value, or if it
    astClearIsSimple( result );
 
 /* Replace the required transformation. */
-   ok = ReplaceTransformation( result, forward, acc, maxacc, maxorder, lbnd,
-                               ubnd, status );
+   ok = ReplaceTransformation( result, this, forward, acc, maxacc, maxorder,
+                               lbnd, ubnd, status );
 
 /* If an error occurred, or the fit was not good enough, annul the returned
    PolyMap. */
@@ -5058,7 +5062,8 @@ f     function is invoked with STATUS set to an error value, or if it
    return result;
 }
 
-static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
+static int ReplaceTransformation( AstPolyMap *this, AstPolyMap *source,
+                                  int forward, double acc,
                                   double maxacc, int maxorder, const double *lbnd,
                                   const double *ubnd, int *status ){
 /*
@@ -5072,7 +5077,8 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 *     Private function.
 
 *  Synopsis:
-*     int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
+*     int ReplaceTransformation( AstPolyMap *this, AstPolyMap *source,
+*                                int forward, double acc,
 *                                double maxacc, int maxorder, const double *lbnd,
 *                                const double *ubnd, int *status )
 
@@ -5116,7 +5122,12 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 
 *  Parameters:
 *     this
-*        The PolyMap.
+*        The PolyMap whose transformation is to be replaced.
+*     source
+*        The PolyMap to sample when generating the table of values to
+*        fit. This is the caller's original PolyMap, supplied unmodified
+*        so that every fitting order samples the same transformation
+*        (see the Notes below).
 *     forward
 *        If non-zero, then the forward PolyMap transformation is
 *        replaced. Otherwise the inverse transformation is replaced.
@@ -5166,7 +5177,6 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 */
 
 /* Local Variables: */
-   AstPolyMap *source;
    double **table;
    double *cofs;
    double racc;
@@ -5227,15 +5237,15 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 /* Initialise pointer to work space. */
    table = NULL;
 
-/* Sample from a copy rather than from "this". The initialisation performed
-   for each polynomial order (see astFitPoly1DInit) may store the
-   normalisation belonging to the coefficients that the order is fitting,
-   before those coefficients are known. In a ChebyMap that changes the
-   meaning of the transformation being replaced, and the transformation
-   that is sampled can depend on it - an iterative inverse evaluates the
-   forward transformation. The copy is never initialised, so every order
-   samples the transformation as supplied. */
-   source = astCopy( this );
+/* Sample the caller's original PolyMap rather than "this". The
+   initialisation performed for each polynomial order (see
+   astFitPoly1DInit) may store the normalisation belonging to the
+   coefficients that the order is fitting, before those coefficients are
+   known. In a ChebyMap that changes the meaning of the transformation
+   being replaced, and the transformation that is sampled can depend on
+   it - an iterative inverse evaluates the forward transformation. The
+   caller's PolyMap ("source") is never initialised by this fitting
+   process, so every order samples the transformation as supplied. */
 
 /* Loop over increasing polynomial orders until the required accuracy is
    achieved, up to the specified maximum order. The "order" value is one more
@@ -5280,7 +5290,6 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
    result = cofs ? 1 : 0;
 
 /* Free resources. */
-   source = astAnnul( source );
    cofs = astFree( cofs );
    table = astFreeDouble( table );
 
