@@ -59,11 +59,9 @@ make install
 
 ### Standalone Autotools releases
 
-The standalone build uses ordinary GNU Autotools and does not require a
-Starlink installation. Documentation is opt-in with `--with-stardocs`.
-Install [starprolog](https://github.com/Starlink/starprolog) and a TeX
-installation providing `pdflatex` (on Ubuntu: `texlive-latex-extra`,
-`texlive-fonts-recommended`, and `texlive-science`), then run:
+The standalone build uses ordinary GNU Autotools and does not require a Starlink installation.
+Documentation is opt-in with `--with-stardocs`.
+Install [starprolog](https://github.com/Starlink/starprolog) and a TeX installation providing `pdflatex` (on Ubuntu: `texlive-latex-extra`, `texlive-fonts-recommended`, and `texlive-science`), then run:
 
 ```shell
 uv tool install --python 3.13 git+https://github.com/Starlink/starprolog.git
@@ -73,25 +71,21 @@ export PATH="$(uv tool dir --bin):$PATH"
 make dist
 ```
 
-The tarball includes `sun210.pdf`, `sun211.pdf`, their generated LaTeX,
-figures, and styles. Building the library from it needs neither `starprolog`
-nor TeX. Use `--with-stardocs` when configuring the tarball to install the
-shipped manuals as well.
+The tarball includes `sun210.pdf`, `sun211.pdf`, their generated LaTeX, figures, and styles.
+Building the library from it needs neither `starprolog` nor TeX.
+Use `--with-stardocs` when configuring the tarball to install the shipped manuals as well.
 
-`builddocs` prefers `starprolog astprep`, falling back to the historical
-`getatt`/`prolat` tools when `starprolog` is unavailable. A command can also
-be supplied explicitly, including a direct invocation through uv:
+`builddocs` prefers `starprolog astprep`, falling back to the historical `getatt`/`prolat` tools when `starprolog` is unavailable.
+A command can also be supplied explicitly, including a direct invocation through uv:
 
 ```shell
 ./configure --with-stardocs --disable-hyperdocs \
   STARPROLOG="uvx --python 3.13 --from git+https://github.com/Starlink/starprolog.git starprolog"
 ```
 
-To publish a release, update `version.number` (the canonical version used
-to generate `src/version.h` from `src/version.h.in`), commit it, and push a
-matching `vX.Y.Z` tag. The Autotools workflow builds and tests the PDF-only
-distribution and publishes it to GitHub Releases after both platform jobs
-pass. The full test-fixture archive is checked in CI but is not published.
+To publish a release, update `version.number` (the canonical version used to generate `src/version.h` from `src/version.h.in`), commit it, and push a matching `vX.Y.Z` tag.
+The Autotools workflow builds and tests the PDF-only distribution and publishes it to GitHub Releases after both platform jobs pass.
+The full test-fixture archive is checked in CI but is not published.
 
 ## Building with CMake
 
