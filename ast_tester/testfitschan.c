@@ -1271,6 +1271,57 @@ static void testgrismorder( int errbase, double morder, int *status ) {
 }
 
 
+/* A ChebyMap holds Chebyshev coefficients, which SIP cannot represent.
+   FitsChan must decline to write a FITS-WCS header for a FrameSet whose
+   pixel-to-projection Mapping contains one, even though the ChebyMap
+   reports an (iterative) inverse. */
+static void testsipcheby( int errbase, int *status ) {
+   double coeffs[] = { 1, 1, 1, 0,  .1, 1, 3, 0,  1, 2, 0, 1,  .1, 2, 0, 3 };
+   double lbnd[] = { -100, -100 }, ubnd[] = { 100, 100 };
+   double shift[] = { -100, -100 };
+   double matrix[] = { 1e-4, 0, 0, 1e-4 };
+   AstFrame *grid = astFrame( 2, "Domain=GRID" );
+   AstSkyFrame *sky = astSkyFrame( " " );
+   AstChebyMap *cm = astChebyMap( 2, 2, 2, coeffs, 0, NULL, lbnd, ubnd,
+                                  NULL, NULL, " " );
+   AstShiftMap *sm = astShiftMap( 2, shift, " " );
+   AstMatrixMap *mm = astMatrixMap( 2, 2, 0, matrix, " " );
+   AstWcsMap *wm = astWcsMap( 2, AST__TAN, 1, 2, " " );
+   AstCmpMap *c1, *c2, *c3;
+   AstFrameSet *fs;
+   AstFitsChan *fc;
+   int nwrite;
+
+   if( !astGetI( cm, "TranInverse" ) ) stopit( errbase, "ChebyMap has no inverse", status );
+   astInvert( wm );
+   c1 = astCmpMap( sm, cm, 1, " " );
+   c2 = astCmpMap( c1, mm, 1, " " );
+   c3 = astCmpMap( c2, wm, 1, " " );
+   fs = astFrameSet( grid, " " );
+   astAddFrame( fs, AST__BASE, c3, sky );
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+/* Match the pixel grid to the ChebyMap's forward box so the composite
+   Mapping is well behaved over the sampled region used by the SIP
+   analysis. */
+   astPutFits( fc, "NAXIS1  =                  200", 0 );
+   astPutFits( fc, "NAXIS2  =                  200", 0 );
+   astClear( fc, "Card" );
+   nwrite = astWrite( fc, fs );
+   if( nwrite != 0 ) stopit( errbase + 1, "FITS-WCS written for a ChebyMap", status );
+   fc = astAnnul( fc );
+   fs = astAnnul( fs );
+   c3 = astAnnul( c3 );
+   c2 = astAnnul( c2 );
+   c1 = astAnnul( c1 );
+   wm = astAnnul( wm );
+   mm = astAnnul( mm );
+   sm = astAnnul( sm );
+   cm = astAnnul( cm );
+   sky = astAnnul( sky );
+   grid = astAnnul( grid );
+}
+
+
 /* -----------------------------------------------------------------------
  * main
  * -----------------------------------------------------------------------*/
@@ -4857,6 +4908,8 @@ int main( void ) {
       }
       astEnd;
    }
+
+   testsipcheby( 12500, status );
 
 cleanup:
    astEnd;
