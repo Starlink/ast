@@ -70,9 +70,23 @@ if test -n "$STARPROLOG"; then
     }
 fi
 
+# Keep the work directory when a stage fails: the pdflatex .log inside it is
+# the only record of what went wrong, and nothing outside it is written until
+# both documents are complete.
 workdir=$(mktemp -d "${builddir}/.ast-docs.XXXXXX")
-trap 'rm -rf "$workdir"' EXIT
-trap 'exit 1' HUP INT TERM
+interrupted=
+cleanup () {
+    status=$?
+    trap - EXIT
+    if test "$status" -eq 0 || test -n "$interrupted"; then
+        rm -rf "$workdir"
+    else
+        echo "builddocs: failed; work directory kept at $workdir" >&2
+    fi
+    exit "$status"
+}
+trap cleanup EXIT
+trap 'interrupted=1; exit 1' HUP INT TERM
 cd "$workdir"
 ln -s "$here/sun210_figures" sun210_figures
 ln -s "$here/sun211_figures" sun211_figures
