@@ -1033,13 +1033,31 @@ uninstall-hook:
 @PREDIST@	@test -f $@
 
 if !STARLINK_BUILD
-# Starlink automake supplies this rule itself.
+# Starlink automake supplies the equivalent .tex.htx_tar rule itself; this is
+# that rule, written out per document.  star2html's exit status is ignored
+# because it can fail harmlessly, so the test for the .htx directory is what
+# decides whether the run worked.  A <doc>.htx_tar.extras file, if present,
+# lists files to add to the directory before it is rolled up.
 @PREDIST@sun210.htx_tar: sun210.tex
-@PREDIST@	$(STAR2HTML) $(STAR2HTML_FLAGS) $<
+@PREDIST@	- $(STAR2HTML) $(STAR2HTML_FLAGS) $<
+@PREDIST@	test -d sun210.htx
+@PREDIST@	if test -f sun210.htx_tar.extras; then \
+@PREDIST@	  for f in `cat sun210.htx_tar.extras`; do \
+@PREDIST@	    test -f "$$f" && cp "$$f" sun210.htx || true; \
+@PREDIST@	  done; else :; fi
 @PREDIST@	tar cf $@ sun210.htx
 @PREDIST@sun211.htx_tar: sun211.tex
-@PREDIST@	$(STAR2HTML) $(STAR2HTML_FLAGS) $<
+@PREDIST@	- $(STAR2HTML) $(STAR2HTML_FLAGS) $<
+@PREDIST@	test -d sun211.htx
+@PREDIST@	if test -f sun211.htx_tar.extras; then \
+@PREDIST@	  for f in `cat sun211.htx_tar.extras`; do \
+@PREDIST@	    test -f "$$f" && cp "$$f" sun211.htx || true; \
+@PREDIST@	  done; else :; fi
 @PREDIST@	tar cf $@ sun211.htx
+
+# star2html leaves directories behind, which CLEANFILES cannot remove.
+clean-local:
+	-rm -rf sun210.htx sun211.htx
 endif
 
 # Leave shipped documents intact in post-distribution builds (distcheck).
