@@ -183,6 +183,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        in ReplaceTransformation, so that the normalisation stored by
 *        astFitPoly1DInit and astFitPoly2DInit for one polynomial order
 *        cannot change what later orders sample.
+*     9-SEP-2026 (TIMJ):
+*        Discard a partly built Jacobian if an error occurs while creating
+*        it, so that a later call rebuilds it rather than returning an
+*        array holding NULL Mapping pointers.
 *class--
 */
 
@@ -2165,6 +2169,10 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
 
 /* Free resources */
       coeffs = astFree( coeffs );
+
+/* Do not retain a partly built Jacobian. A later call would find a
+   non-NULL array and hand back the missing elements as NULL Mappings. */
+      if( !astOK ) FreeJacobian( this, status );
    }
 
 /* Return the Jacobian. */
