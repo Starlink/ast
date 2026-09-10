@@ -158,11 +158,13 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        PolyMap setters now reject an unusable value before it can reach
 *        here. Only the bounding box is still checked.
 *     10-SEP-2026 (TIMJ):
-*        Move a position off a singular Jacobian once, towards the side of
-*        the box with more room, instead of declaring it unsolved
-*        immediately. A forward series with no linear term is singular at
-*        the midpoint seed, which the previous behaviour reported as
-*        unsolved for every target.
+*        Move a position off a singular Jacobian once, upward unless that
+*        would leave the box, instead of declaring it unsolved immediately.
+*        A forward series with no linear term is singular at the midpoint
+*        seed, which the previous behaviour reported as unsolved for every
+*        target. Choosing the direction by comparing room on each side made
+*        the exact midpoint a tie broken only by the last bit of rounding,
+*        which a fused multiply-add could flip.
 *     10-SEP-2026 (TIMJ):
 *        Override GetNiterInverse so that an unset NiterInverse defaults to
 *        10 rather than PolyMap's 4. The bounded algorithm checks only the
@@ -1722,7 +1724,8 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 *     as AST__BAD without setting the inherited status.
 *
 *     A position whose Jacobian is singular is moved once by a quarter of
-*     each half-width before being declared unsolved.
+*     each half-width, upward unless that would leave the box, before being
+*     declared unsolved.
 *
 *     The whole-batch forward transformation used to form the residual is
 *     only re-evaluated on the first iteration and after a position has
@@ -2039,16 +2042,19 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
                if( sing ) {
                   if( !nudged[ ipoint ] ) {
 
-/* Move once off a stationary point, towards the side of the box with
-   more room, and evaluate the forward transformation there next time. */
+/* Move once off a stationary point and evaluate the forward transformation
+   there next time. Nudge upward unless that would leave the box, rather
+   than comparing room on each side: the seed is usually the exact box
+   midpoint, and a room comparison there is a tie broken only by the last
+   bit of rounding, which a fused multiply-add can flip. */
                      nudged[ ipoint ] = 1;
                      stale++;
                      for( icoord = 0; icoord < ncoord; icoord++ ) {
                         xx = ptr_in[ icoord ][ ipoint ];
-                        if( xx - lbnd[ icoord ] >= ubnd[ icoord ] - xx ) {
-                           xx -= 0.25*width[ icoord ];
-                        } else {
+                        if( xx + 0.25*width[ icoord ] <= ubnd[ icoord ] ) {
                            xx += 0.25*width[ icoord ];
+                        } else {
+                           xx -= 0.25*width[ icoord ];
                         }
                         ptr_in[ icoord ][ ipoint ] = xx;
                      }
