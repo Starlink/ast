@@ -19,8 +19,10 @@ if test -z "$STARPROLOG" && test -z "$SST_DIR"; then
     if test ! -x "$prolat_path"; then
         prolat_path=
     fi
-    if test -z "$prolat_path" && test -x "$here/starconf.status"; then
-        finder=$("$here/starconf.status" --show finder)
+    # starconf writes starconf.status into the build directory, and a failure
+    # to interrogate it just means falling through to the searches below.
+    if test -z "$prolat_path" && test -x "$builddir/starconf.status"; then
+        finder=$("$builddir/starconf.status" --show finder) || finder=
         if test -n "$finder"; then
             prolat_path=$($finder --path prolat) || prolat_path=
         fi
