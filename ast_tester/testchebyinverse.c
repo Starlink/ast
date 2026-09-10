@@ -198,6 +198,24 @@ static void caches( int *status ) {
       loaded = astAnnul( loaded );
    }
 
+/* A normalization whose evaluable interval is narrower than the spacing of
+   the representable values around it has no usable domain: the bounds
+   recovered from it cannot be moved to positions the forward evaluator
+   accepts. */
+   loaded = astFromString( " Begin ChebyMap\n Nin = 1\n IsA Mapping\n"
+                          " MPF1 = 1\n NCF1 = 1\n CF1 = 2\n PF1 = 1\n"
+                          " IsA PolyMap\n"
+                          " FSCL1 = 368727204320.32996\n"
+                          " FOFF1 = -15386044096693470\n"
+                          " End ChebyMap\n" );
+   check( loaded != NULL, "Load ChebyMap with an unresolvable box" );
+   if( loaded ) {
+      double dlo = -99, dhi = 99;
+      check( !astGetIterDomain( loaded, &dlo, &dhi ),
+             "Unresolvable box has no finite iteration domain" );
+      loaded = astAnnul( loaded );
+   }
+
 /* A zero scale describes no bounding box, so there is no finite domain to
    restrict iteration to. */
    loaded = astFromString( " Begin ChebyMap\n Nin = 1\n IsA Mapping\n"
