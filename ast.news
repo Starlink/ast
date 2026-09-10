@@ -36,19 +36,15 @@ Main Changes in this Version
   ZoomMap, GrismMap, PcdMap, LutMap and SphMap already enforced it and are
   unchanged.
 
-  The rule exists because there is no such thing as changing one reference to
-  a Mapping: every holder of a pointer to it sees the change, including any
-  CmpMap, TranMap or FrameSet that contains it, whose behaviour may then
-  silently stop matching what it was built to do. Code that hit the error was
-  therefore already at risk of acting on a Mapping it did not own.
+  The rule exists to protect against code changing a mapping that has already
+  been stored elsewhere, such as in a CmpMap, and unexpectedly changing how
+  that CmpMap behaves.
 
   If your code reports AST__IMMUT after this change, set the attribute before
   the Mapping is shared - that is, before it is passed to a constructor such
   as astCmpMap or astFrameSet, and before any astClone of it is taken. If you
   need to change an attribute of a Mapping that is already shared, take an
-  astCopy of it and change the copy; a copy has a reference count of one and
-  can be changed freely. A Mapping's reference count is readable through its
-  RefCount attribute, which is one exactly when the Mapping can be changed.
+  astCopy of it and change the copy.
 
   The Invert attribute is not subject to the rule and can still be changed at
   any time.
@@ -56,17 +52,10 @@ Main Changes in this Version
 - The IsSimp item written to a Channel when a Mapping is saved now appears on
   exactly those Mappings that astSimplify produced, rather than depending on
   which parts of a Mapping tree happened to have been inspected beforehand.
-  Anything comparing saved Mappings byte for byte, or reproducing AST's
-  output from another implementation, will see IsSimp on more nodes than
-  before and in a position that can now be predicted from the Mapping tree
-  alone. The IsSimple attribute keeps its documented meaning and once again
-  agrees with the saved item. Inverting a simplified Mapping resets IsSimple
-  to zero, since the inverse may simplify differently, and restoring the
-  original Invert value restores it. Setting an attribute to the value it
-  already holds no longer resets IsSimple either. In particular, a saved
-  GrismMap, LutMap, MathMap, PcdMap, PermMap, PolyMap, SphMap, SplineMap,
-  WcsMap or ZoomMap now keeps its IsSimp item when read back from a Channel,
-  where previously the act of reading the object discarded it.
+  Historically the serialization format from this library has not been
+  guaranteed to be byte-for-byte reproducible but we are working towards
+  making the serialized form more reproducible to aid in testing and potential
+  ports to other languages.
 
 Other changes in behaviour
 --------------------------
@@ -112,15 +101,13 @@ New features
 
 - Added a new README.md file to provide simple instructions on how to build
   and test the library.
-- Added a new experimental build system based on CMake. This build system
-  has not been tested for installations and currently exists primarily to
-  simplify testing without any Starlink software installed. The Fortran
-  interface is built only if the AST_BUILD_FORTRAN option is enabled.
+
 - Added an experimental PLplot graphics library plugin, covering both the
   2-dimensional grf interface and the 3-dimensional grf3d interface, to
   allow graphics testing without requiring PGPLOT. The text bounding boxes
   on Linux are not as accurate as those from PGPLOT due to a limitation of
   the PLplot API.
+
 - Clarified the license situation by removing historical files. This library
   is licensed with the Gnu Lesser General Public License.
 
@@ -290,6 +277,10 @@ Bug fixes
 Testing and build changes
 -------------------------
 
+- Added a new experimental build system based on CMake. This build system
+  has not been tested for installations and currently exists primarily to
+  simplify testing without any Starlink software installed. The Fortran
+  interface is built only if the AST_BUILD_FORTRAN option is enabled.
 - Converted many Fortran test files to C. Both the C and the remaining
   Fortran tests in ast_tester are now run by "make check" in the Autotools
   build as well as by the CMake build. The Fortran tests no longer need the
@@ -323,11 +314,6 @@ Testing and build changes
 - Added a logging graphics plugin that records the drawing calls made by the
   Plot class and can write them out as SVG, so that graphical output can be
   compared against reference files without a graphics library being present.
-- Continuous integration now includes builds with warnings and sanitizers
-  enabled (including the Fortran tests on Linux), runs "make distcheck" and
-  a CMake build from the resulting tarball, collects code coverage
-  information, and publishes a release tarball to GitHub Releases when a
-  version tag is pushed.
 
 Main Changes in V9.3.0
 ----------------------
