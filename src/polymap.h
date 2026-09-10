@@ -112,6 +112,10 @@
 *  History:
 *     28-SEP-2003 (DSB):
 *        Original version.
+*     10-SEP-2026 (TIMJ):
+*        Add the protected virtual methods astGetJacobian, astLinearGuess
+*        and astIterInverse, so that a subclass can supply its own
+*        Jacobian, initial guess and iterative inverse algorithm.
 *-
 */
 
@@ -204,6 +208,7 @@ typedef struct AstPolyMapVtab {
    AstPolyMap **(* GetJacobian)( AstPolyMap *, int * );
    AstMapping *(* LinearGuess)( AstPolyMap *, int * );
    int (* GetIterDomain)( AstPolyMap *, double *, double *, int * );
+   void (* IterInverse)( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
 
    int (*GetIterInverse)( AstPolyMap *, int * );
    int (* TestIterInverse)( AstPolyMap *, int * );
@@ -279,6 +284,7 @@ void astShowPoly_( AstPolyMap *, int * );
    AstPolyMap **astGetJacobian_( AstPolyMap *, int * );
    AstMapping *astLinearGuess_( AstPolyMap *, int * );
    int astGetIterDomain_( AstPolyMap *, double *, double *, int * );
+   void astIterInverse_( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
    AstPolyMap *astMergeShift_( AstPolyMap *, AstShiftMap *, int, int, int * );
    void astPolyPowers_( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
    void astFitPoly1DInit_( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
@@ -363,6 +369,8 @@ astShowPoly_(astCheckPolyMap(this),STATUS_PTR)
         astINVOKE(O,astLinearGuess_(astCheckPolyMap(this),STATUS_PTR))
 #define astGetIterDomain(this,lbnd,ubnd) \
         astINVOKE(V,astGetIterDomain_(astCheckPolyMap(this),lbnd,ubnd,STATUS_PTR))
+#define astIterInverse(this,out,result) \
+        astINVOKE(V,astIterInverse_(astCheckPolyMap(this),out,result,STATUS_PTR))
 #define astMergeShift(this,shift,before,force) \
         astINVOKE(O,astMergeShift_(astCheckPolyMap(this),astCheckShiftMap(shift),before,force,STATUS_PTR))
 #define astPolyPowers(this,work,ncoord,mxpow,ptr,offset,fwd) \
