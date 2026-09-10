@@ -133,6 +133,11 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *     9-SEP-2026 (TIMJ):
 *        Report no finite iteration domain if the forward normalisation is
 *        zero or non-finite, rather than dividing by it.
+*     9-SEP-2026 (TIMJ):
+*        Move a recovered iteration bound into the evaluable domain for as
+*        long as doing so improves it, and report no finite domain if it
+*        cannot be moved far enough, instead of returning a bound that the
+*        forward evaluator rejects.
 *class--
 */
 
@@ -248,6 +253,8 @@ static AstPolyMap **GetJacobian( AstPolyMap *, int * );
 static int CompareDerivTerms( const void *, const void * );
 static AstMapping *LinearGuess( AstPolyMap *, int * );
 static int GetIterDomain( AstPolyMap *, double *, double *, int * );
+static int IterBounds( double, double, double *, double * );
+static double NudgeIntoDomain( double, double, double, double );
 static size_t GetObjSize( AstObject *, int * );
 static void ChebyDomain( AstChebyMap *, int, double *, double *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
@@ -1150,38 +1157,146 @@ static int GetIterDomain( AstPolyMap *map, double *lbnd, double *ubnd,
 *     unchanged if the inherited status is set.
 */
    AstChebyMap *this = (AstChebyMap *) map;
-   int i, j, nin = ((AstMapping *) map)->nin;
+   int i, nin = ((AstMapping *) map)->nin;
    double a, b;
    if( !astOK || !this->scale_f ) return 0;
 
-/* A zero or non-finite normalisation describes no bounding box, and so no
-   finite domain to restrict iteration to. Check every axis before storing
-   anything, so that the supplied arrays are left unchanged. */
+/* Every axis must yield a usable interval before anything is stored, so
+   that the supplied arrays are left unchanged when zero is returned. */
    for( i = 0; i < nin; i++ ) {
-      if( this->scale_f[i] == 0.0 || !isfinite( this->scale_f[i] ) ||
-          !isfinite( this->offset_f[i] ) ) return 0;
-      a = (-1.0 - this->offset_f[i])/this->scale_f[i];
-      b = (1.0 - this->offset_f[i])/this->scale_f[i];
-      if( !isfinite( a ) || !isfinite( b ) ) return 0;
+      if( !IterBounds( this->scale_f[i], this->offset_f[i], &a, &b ) ) return 0;
    }
 
    for( i = 0; i < nin; i++ ) {
-      a = (-1.0 - this->offset_f[i])/this->scale_f[i];
-      b = (1.0 - this->offset_f[i])/this->scale_f[i];
-      lbnd[i] = astMIN( a, b );
-      ubnd[i] = astMAX( a, b );
-/* Reconstructing a bound can round its normalized value just beyond
-   [-1,1]. Move into the evaluable domain rather than extrapolating the
-   forward series or rejecting an otherwise valid endpoint inverse. */
-      for( j = 0; j < 8 &&
-           fabs(lbnd[i]*this->scale_f[i] + this->offset_f[i]) > 1.0; j++ ) {
-         lbnd[i] = nextafter( lbnd[i], ubnd[i] );
-      }
-      for( j = 0; j < 8 &&
-           fabs(ubnd[i]*this->scale_f[i] + this->offset_f[i]) > 1.0; j++ ) {
-         ubnd[i] = nextafter( ubnd[i], lbnd[i] );
-      }
+      (void) IterBounds( this->scale_f[i], this->offset_f[i], lbnd + i,
+                         ubnd + i );
    }
+   return 1;
+}
+
+static double NudgeIntoDomain( double bound, double towards, double scale,
+                               double offset ) {
+/*
+*  Name:
+*     NudgeIntoDomain
+
+*  Purpose:
+*     Move a bound to a position the forward evaluator accepts.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     double NudgeIntoDomain( double bound, double towards, double scale,
+*                             double offset )
+
+*  Description:
+*     The forward Chebyshev series is evaluated only where the normalised
+*     coordinate "bound*scale + offset" lies in [-1,+1]. Recovering a bound
+*     from the scale and offset can round it to a position just outside
+*     that range. This function moves the bound towards the other end of
+*     the interval, one representable value at a time, for as long as that
+*     reduces the magnitude of the normalised coordinate.
+*
+*     Stopping as soon as a step makes no improvement leaves the bound
+*     unchanged where no representable position is evaluable, which the
+*     caller detects. Such normalisations describe an interval narrower
+*     than the spacing of the values around it.
+
+*  Parameters:
+*     bound
+*        The bound to be moved.
+*     towards
+*        The other end of the interval, giving the direction to move in.
+*     scale
+*        The scale factor applied to an axis value before evaluation.
+*     offset
+*        The offset added to an axis value after scaling.
+
+*  Returned Value:
+*     The moved bound.
+*/
+   double next;
+   double nresid;
+   double resid = fabs( bound*scale + offset );
+
+   while( resid > 1.0 ) {
+      next = nextafter( bound, towards );
+      if( next == bound ) break;
+      nresid = fabs( next*scale + offset );
+      if( !( nresid < resid ) ) break;
+      bound = next;
+      resid = nresid;
+   }
+
+   return bound;
+}
+
+static int IterBounds( double scale, double offset, double *lbnd,
+                       double *ubnd ) {
+/*
+*  Name:
+*     IterBounds
+
+*  Purpose:
+*     Recover the evaluable interval on one axis of a Chebyshev series.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "chebymap.h"
+*     int IterBounds( double scale, double offset, double *lbnd,
+*                     double *ubnd )
+
+*  Description:
+*     This function returns the range of axis values over which a
+*     Chebyshev series with the given normalisation can be evaluated. The
+*     bounds are the positions whose normalised coordinates are -1 and +1,
+*     moved inwards if necessary so that the forward evaluator accepts
+*     them.
+*
+*     Zero is returned, and the supplied bounds are left unchanged, if the
+*     normalisation describes no interval at all. That covers a zero or
+*     non-finite scale or offset, bounds that overflow, and bounds that
+*     cannot be moved to positions the evaluator accepts without crossing.
+*     An interval containing a single representable value is returned as
+*     such; it is for the caller to decide what to do with it.
+
+*  Parameters:
+*     scale
+*        The scale factor applied to an axis value before evaluation.
+*     offset
+*        The offset added to an axis value after scaling.
+*     lbnd
+*        Pointer to a double in which to return the lower bound.
+*     ubnd
+*        Pointer to a double in which to return the upper bound.
+
+*  Returned Value:
+*     One if bounds have been returned, zero otherwise.
+*/
+   double a;
+   double b;
+   double hi;
+   double lo;
+
+   if( scale == 0.0 || !isfinite( scale ) || !isfinite( offset ) ) return 0;
+
+   a = ( -1.0 - offset )/scale;
+   b = ( 1.0 - offset )/scale;
+   if( !isfinite( a ) || !isfinite( b ) ) return 0;
+
+   lo = NudgeIntoDomain( astMIN( a, b ), astMAX( a, b ), scale, offset );
+   hi = NudgeIntoDomain( astMAX( a, b ), lo, scale, offset );
+
+   if( !( lo <= hi ) ) return 0;
+   if( fabs( lo*scale + offset ) > 1.0 ) return 0;
+   if( fabs( hi*scale + offset ) > 1.0 ) return 0;
+
+   *lbnd = lo;
+   *ubnd = hi;
    return 1;
 }
 
