@@ -174,6 +174,24 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        cleared once the PolyMap has been cloned, as SUN/210 says AST does
 *        for the attributes of any Mapping. Use the guarded astMAKE_SET1 and
 *        astMAKE_CLEAR1 macros.
+*     8-SEP-2026 (TIMJ):
+*        Add the protected astGetJacobian, astLinearGuess and
+*        astGetIterDomain methods, and use them in the iterative inverse
+*        so that a subclass can supply its own derivative Mappings,
+*        initial guesses and iteration domain.
+*     8-SEP-2026 (TIMJ):
+*        Restrict the iterative inverse to a finite domain when
+*        astGetIterDomain supplies one. Initial guesses are projected into
+*        the domain and each Newton correction is backtracked within it
+*        until it reduces the scaled forward residual. A position that
+*        does not converge is returned bad, rather than as the last
+*        iterate. The unbounded algorithm and its stopping convention are
+*        unchanged.
+*     9-SEP-2026 (TIMJ):
+*        Cache the Jacobian of the forward transformation and the linear
+*        truncation used for initial guesses. Both are transferred by the
+*        copy constructor and astManageLock, and discarded when the
+*        coefficients are replaced.
 *     9-SEP-2026 (TIMJ):
 *        Return zero for IterInverse if the forward transformation is
 *        undefined. The iterative inverse evaluates the forward
