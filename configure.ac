@@ -406,6 +406,10 @@ int main() {
 #   when it is available; a build without it still produces the PDFs, which is
 #   what nearly every reader wants.  Historically the hypertext was always
 #   included, so warn rather than pass over it silently.
+#
+#   Only a pre-distribution tree can build any of this.  An unpacked
+#   distribution has no rules for the documents, so there the set is fixed by
+#   what was shipped rather than by what the host happens to have installed.
 STAR_CHECK_PROGS(star2html)
 AC_ARG_VAR([STARPROLOG], [starprolog command, optionally with arguments])
 AS_IF([test -z "$STARPROLOG"], [AC_PATH_PROG([STARPROLOG], [starprolog])])
@@ -416,9 +420,17 @@ AC_ARG_ENABLE([hyperdocs],
          available])],
     [], [enable_hyperdocs=yes])
 
+STAR_PREDIST_SOURCES(sun_master.tex)
+
 ast_documentation="sun210.pdf sun210.tex sun211.pdf sun211.tex"
 if test "x$enable_hyperdocs" = xno; then
     AC_MSG_NOTICE([hypertext documentation disabled by request])
+elif test -n "$PREDIST"; then
+    for ast_htx in sun210.htx_tar sun211.htx_tar; do
+        if test -f "$srcdir/$ast_htx"; then
+            ast_documentation="$ast_documentation $ast_htx"
+        fi
+    done
 elif test -x "$STAR2HTML"; then
     ast_documentation="$ast_documentation sun210.htx_tar sun211.htx_tar"
 elif test "x$STARCONF" != "xno"; then
@@ -428,9 +440,8 @@ no .htx_tar hypertext. A full release has historically included it.])
 fi
 
 STAR_LATEX_DOCUMENTATION([sun210 sun211], [$ast_documentation])
-STAR_PREDIST_SOURCES(sun_master.tex)
 STAR_CHECK_PROGS(prolat, sst)   # prolat is part of SST
-if test -n "$STAR@&t@_LATEX_DOCUMENTATION" && test -f "$srcdir/sun_master.tex"; then
+if test -n "$STAR@&t@_LATEX_DOCUMENTATION" && test -z "$PREDIST"; then
     AS_IF([test -z "$PDFLATEX"], [AC_PATH_PROG([PDFLATEX], [pdflatex])])
     AS_IF([test -z "$PDFLATEX"],
         [AC_MSG_ERROR([documentation requires pdflatex; use --without-stardocs to omit it])])
