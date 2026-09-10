@@ -313,21 +313,28 @@ int main( void ) {
    if( *status == 0 ) {
       double box_coeffs[] = { 1.0, 1, 1 };
       double blo = -1.0, bhi = 1.0;
+      int expected;
 
       cm = astChebyMap( 1, 1, 1, box_coeffs, 0, NULL, NULL, &bhi, NULL, NULL,
                         " " );
-      if( *status != AST__NOBOX || cm ) stopit( 610, status );
+      expected = ( *status == AST__NOBOX && !cm );
       astClearStatus;
+      if( !expected ) stopit( 610, status );
+      if( cm ) cm = astAnnul( cm );
 
       cm = astChebyMap( 1, 1, 1, box_coeffs, 0, NULL, &blo, NULL, NULL, NULL,
                         " " );
-      if( *status != AST__NOBOX || cm ) stopit( 611, status );
+      expected = ( *status == AST__NOBOX && !cm );
       astClearStatus;
+      if( !expected ) stopit( 611, status );
+      if( cm ) cm = astAnnul( cm );
 
       cm = astChebyMap( 1, 1, 0, NULL, 1, box_coeffs, NULL, NULL, NULL, &bhi,
                         " " );
-      if( *status != AST__NOBOX || cm ) stopit( 612, status );
+      expected = ( *status == AST__NOBOX && !cm );
       astClearStatus;
+      if( !expected ) stopit( 612, status );
+      if( cm ) cm = astAnnul( cm );
 
 /* Omitting the box for a direction with no coefficients remains valid. */
       cm = astChebyMap( 1, 1, 1, box_coeffs, 0, NULL, &blo, &bhi, NULL, NULL,
