@@ -207,7 +207,6 @@ typedef struct AstPolyMapVtab {
    void (* FitPoly2DInit)( AstPolyMap *, int, double **, AstMinPackData *, double *, int *);
    AstPolyMap **(* GetJacobian)( AstPolyMap *, int * );
    AstMapping *(* LinearGuess)( AstPolyMap *, int * );
-   int (* GetIterDomain)( AstPolyMap *, double *, double *, int * );
    void (* IterInverse)( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
 
    int (*GetIterInverse)( AstPolyMap *, int * );
@@ -283,7 +282,6 @@ void astShowPoly_( AstPolyMap *, int * );
 # if defined(astCLASS)           /* Protected */
    AstPolyMap **astGetJacobian_( AstPolyMap *, int * );
    AstMapping *astLinearGuess_( AstPolyMap *, int * );
-   int astGetIterDomain_( AstPolyMap *, double *, double *, int * );
    void astIterInverse_( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
    AstPolyMap *astMergeShift_( AstPolyMap *, AstShiftMap *, int, int, int * );
    void astPolyPowers_( AstPolyMap *, double **, int, const int *, double **, int, int, int * );
@@ -367,8 +365,6 @@ astShowPoly_(astCheckPolyMap(this),STATUS_PTR)
         astINVOKE(V,astGetJacobian_(astCheckPolyMap(this),STATUS_PTR))
 #define astLinearGuess(this) \
         astINVOKE(O,astLinearGuess_(astCheckPolyMap(this),STATUS_PTR))
-#define astGetIterDomain(this,lbnd,ubnd) \
-        astINVOKE(V,astGetIterDomain_(astCheckPolyMap(this),lbnd,ubnd,STATUS_PTR))
 #define astIterInverse(this,out,result) \
         astINVOKE(V,astIterInverse_(astCheckPolyMap(this),out,result,STATUS_PTR))
 #define astMergeShift(this,shift,before,force) \

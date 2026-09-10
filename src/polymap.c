@@ -176,17 +176,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        astMAKE_CLEAR1 macros.
 *     8-SEP-2026 (TIMJ):
 *        Add the protected astGetJacobian, astLinearGuess and
-*        astGetIterDomain methods, and use them in the iterative inverse
-*        so that a subclass can supply its own derivative Mappings,
-*        initial guesses and iteration domain.
-*     8-SEP-2026 (TIMJ):
-*        Restrict the iterative inverse to a finite domain when
-*        astGetIterDomain supplies one. Initial guesses are projected into
-*        the domain and each Newton correction is backtracked within it
-*        until it reduces the scaled forward residual. A position that
-*        does not converge is returned bad, rather than as the last
-*        iterate. The unbounded algorithm and its stopping convention are
-*        unchanged.
+*        astIterInverse virtual methods, so that a subclass can supply
+*        its own derivative Mappings, initial guesses and iterative
+*        inverse algorithm. The PolyMap implementation of astIterInverse
+*        is the unbounded Newton iteration; the ChebyMap class supplies a
+*        bounded one.
 *     9-SEP-2026 (TIMJ):
 *        Cache the Jacobian of the forward transformation and the linear
 *        truncation used for initial guesses. Both are transferred by the
@@ -205,14 +199,6 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        Discard a partly built Jacobian if an error occurs while creating
 *        it, so that a later call rebuilds it rather than returning an
 *        array holding NULL Mapping pointers.
-*     9-SEP-2026 (TIMJ):
-*        Defer the backtracking search of the bounded inverse iteration
-*        until the Newton correction is known for the whole batch, and
-*        evaluate all the positions still searching at a given trial size
-*        with one call to the forward transformation.
-*     9-SEP-2026 (TIMJ):
-*        Allocate the work space used only by the bounded inverse
-*        iteration when the domain is bounded.
 *class--
 */
 
@@ -320,7 +306,6 @@ AstPolyMap *astPolyMapId_( int, int, int, const double[], int, const double[], c
 static AstMapping *LinearGuess( AstPolyMap *, int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static AstPolyMap **GetJacobian( AstPolyMap *, int * );
-static int GetIterDomain( AstPolyMap *, double *, double *, int * );
 static AstPolyMap *MergeShift( AstPolyMap *, AstShiftMap *, int, int, int * );
 static AstPolyMap *PolyTran( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static double **SamplePoly1D( AstPolyMap *, int, double **, double, double, int, int *, double[2], int * );
@@ -346,10 +331,6 @@ static void FitPoly2DInit( AstPolyMap *, int, double **, AstMinPackData *, doubl
 static void FreeArrays( AstPolyMap *, int, int * );
 static void FreeJacobian( AstPolyMap *, int * );
 static void IterInverse( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
-static void IterSteps( AstPolyMap *, int, int, double **, double **,
-                       const double *, const double *, const double *,
-                       const double *, const double *, const double *,
-                       int *, int *, int *, int * );
 static void LMFunc1D(  const double *, double *, int, int, void * );
 static void LMFunc2D(  const double *, double *, int, int, void * );
 static void LMJacob1D( const double *, double *, int, int, void * );
@@ -1980,63 +1961,6 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 
 }
 
-static int GetIterDomain( AstPolyMap *this, double *lbnd, double *ubnd,
-                          int *status ){
-/*
-*  Name:
-*     GetIterDomain
-
-*  Purpose:
-*     Get the finite domain of the original forward transformation.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "polymap.h"
-*     int GetIterDomain( AstPolyMap *this, double *lbnd, double *ubnd,
-*                        int *status )
-
-*  Class Membership:
-*     PolyMap member function (implements the astGetIterDomain protected
-*     method).
-
-*  Description:
-*     This function determines whether the original forward
-*     transformation has a finite rectangular domain within which
-*     inverse iteration must be confined. The Invert attribute is
-*     ignored.
-*
-*     This PolyMap implementation returns zero and leaves both bound
-*     arrays unchanged, selecting unbounded iteration. A subclass may
-*     over-ride this method to supply bounds and select the bounded
-*     algorithm.
-
-*  Parameters:
-*     this
-*        Pointer to the PolyMap.
-*     lbnd
-*        Pointer to an array in which to return the lower bounds. Its
-*        length must equal the number of inputs of the original
-*        (uninverted) PolyMap. Values are supplied only if the returned
-*        value is non-zero.
-*     ubnd
-*        Pointer to an array in which to return the upper bounds. Its
-*        length and ordering must match "lbnd". Values are supplied only
-*        if the returned value is non-zero.
-*     status
-*        Pointer to the inherited status variable.
-
-*  Returned Value:
-*     One if bounds have been supplied, or zero if iteration is
-*     unbounded. This implementation always returns zero.
-
-*  Notes:
-*     - A value of zero is returned if the inherited status is set.
-*/
-   return 0;
-}
-
 static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
 /*
 *  Name:
@@ -2494,7 +2418,6 @@ void astInitPolyMapVtab_(  AstPolyMapVtab *vtab, const char *name, int *status )
    vtab->MergeShift = MergeShift;
    vtab->GetJacobian = GetJacobian;
    vtab->LinearGuess = LinearGuess;
-   vtab->GetIterDomain = GetIterDomain;
    vtab->IterInverse = IterInverse;
 
    vtab->ClearIterInverse = ClearIterInverse;
@@ -2560,254 +2483,6 @@ void astInitPolyMapVtab_(  AstPolyMapVtab *vtab, const char *name, int *status )
    }
 }
 
-static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
-                       double **inputs, double **outputs, const double *lbnd,
-                       const double *ubnd, const double *width,
-                       const double *scales, const double *steps,
-                       const double *norms, int *stepping, int *flags,
-                       int *nconv, int *status ) {
-/*
-*  Name:
-*     IterSteps
-
-*  Purpose:
-*     Find a bounded Newton step for each unresolved batch position.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     void IterSteps( AstPolyMap *this, int npoint, int ncoord,
-*                     double **inputs, double **outputs, const double *lbnd,
-*                     const double *ubnd, const double *width,
-*                     const double *scales, const double *steps,
-*                     const double *norms, int *stepping, int *flags,
-*                     int *nconv, int *status )
-
-*  Description:
-*     This function applies one bounded Newton update to each position
-*     flagged in "stepping", during a batch of inverse transformations.
-*     Each trial position is formed by adding the scaled correction to
-*     the current input position and projecting it onto the finite
-*     forward domain. The original forward transformation is then
-*     evaluated at that position.
-*
-*     The full correction is tried first, followed by successive
-*     halvings, with at most 32 trials. A trial is accepted only if its
-*     forward values and scaled residuals are finite and its maximum
-*     absolute scaled residual is strictly smaller than the position's
-*     entry in "norms". The output scaling is held fixed throughout this
-*     search. A correction made small by projection is not by itself
-*     evidence of convergence.
-*
-*     An accepted trial replaces the input position. A position for
-*     which no acceptable trial is found is set bad and marked as
-*     converged. Either way its "stepping" flag is cleared, so the array
-*     is left ready for the next iteration.
-*
-*     All the positions still searching at a given trial size are
-*     evaluated by a single call to the forward transformation. The
-*     positions that have finished drop out of the following trials.
-
-*  Parameters:
-*     this
-*        Pointer to the PolyMap. Its original forward transformation
-*        must be defined, with equal numbers of inputs and outputs. The
-*        Invert attribute does not change the transformation being
-*        evaluated.
-*     npoint
-*        The number of positions in the batch.
-*     ncoord
-*        The number of original input axes, which equals the number of
-*        original output axes.
-*     inputs
-*        Array of pointers to input coordinate arrays, indexed as
-*        inputs[axis][point]. There must be one array per original input
-*        axis. Only flagged positions are modified.
-*     outputs
-*        Array of pointers to target output coordinate arrays, indexed
-*        as outputs[axis][point]. There must be one array per original
-*        output axis. These values are not modified.
-*     lbnd
-*        Array holding the finite lower domain bound on each original
-*        input axis.
-*     ubnd
-*        Array holding the finite upper domain bound on each original
-*        input axis, in the same order as "lbnd".
-*     width
-*        Array holding the positive half-width of the domain on each
-*        original input axis, used to convert normalised corrections
-*        into physical coordinate offsets.
-*     scales
-*        Array holding the non-negative residual scale for each original
-*        output axis of each position, indexed as
-*        scales[point*ncoord+axis]. A positive scale divides that output
-*        residual; a zero scale requires an exactly zero residual.
-*     steps
-*        Array holding the Newton correction on each original input axis
-*        of each position, divided by the corresponding value in
-*        "width", indexed as steps[point*ncoord+axis].
-*     norms
-*        Array holding, for each position, the maximum absolute scaled
-*        forward residual at its current input position.
-*     stepping
-*        Array holding a non-zero value for each position that needs an
-*        update. Every element is zero on exit.
-*     flags
-*        Array of convergence flags, set for each position that is
-*        resolved here.
-*     nconv
-*        Pointer to the count of resolved positions, incremented for
-*        each position set bad.
-*     status
-*        Pointer to the inherited status variable.
-
-*  Returned Value:
-*     void
-
-*  Notes:
-*     - Failure to find an acceptable step does not set the inherited
-*     status.
-*     - This function returns without action if the inherited status is
-*     set.
-*/
-
-/* Local Variables: */
-   AstPointSet *trial;
-   AstPointSet *trial_out;
-   double **x;
-   double **y;
-   double alpha;
-   double newnorm;
-   double residual;
-   double value;
-   int *index;
-   int backtrack;
-   int changed;
-   int fwd;
-   int i;
-   int ipoint;
-   int jpoint;
-   int nsearch;
-   int nstart;
-   int ntrial;
-   int valid;
-
-/* Check inherited status */
-   if( !astOK ) return;
-
-/* Count the positions needing an update, and allocate an array to hold
-   the batch index of each position still searching. */
-   nsearch = 0;
-   for( ipoint = 0; ipoint < npoint; ipoint++ ) {
-      if( stepping[ ipoint ] ) nsearch++;
-   }
-   if( nsearch == 0 ) return;
-
-   index = astMalloc( sizeof( *index )*nsearch );
-   if( !astOK ) return;
-
-   fwd = !astGetInvert( this );
-
-/* Try the full correction first, then successive halvings. */
-   alpha = 1.0;
-   for( backtrack = 0; backtrack < 32 && nsearch > 0 && astOK;
-        backtrack++, alpha *= 0.5 ) {
-
-/* Gather the trial positions. A position whose trial position is the one
-   it already holds cannot be improved by any smaller correction, so it
-   stops searching. */
-      nstart = nsearch;
-      trial = astPointSet( nstart, ncoord, "", status );
-      trial_out = astPointSet( nstart, ncoord, "", status );
-      x = astGetPoints( trial );
-      if( !astOK ) {
-         trial = astAnnul( trial );
-         trial_out = astAnnul( trial_out );
-         break;
-      }
-
-      ntrial = 0;
-      for( ipoint = 0; ipoint < npoint; ipoint++ ) {
-         if( !stepping[ ipoint ] ) continue;
-         changed = 0;
-         for( i = 0; i < ncoord; i++ ) {
-            value = inputs[ i ][ ipoint ] +
-                    alpha*steps[ ipoint*ncoord + i ]*width[ i ];
-            value = astMAX( lbnd[ i ], astMIN( ubnd[ i ], value ) );
-            x[ i ][ ntrial ] = value;
-            if( value != inputs[ i ][ ipoint ] ) changed = 1;
-         }
-         if( changed ) {
-            index[ ntrial++ ] = ipoint;
-         } else {
-            for( i = 0; i < ncoord; i++ ) inputs[ i ][ ipoint ] = AST__BAD;
-            flags[ ipoint ] = 1;
-            (*nconv)++;
-            stepping[ ipoint ] = 0;
-            nsearch--;
-         }
-      }
-
-/* Evaluate them all at once. */
-      if( ntrial > 0 ) {
-         if( ntrial < nstart ) {
-            astSetNpoint( trial, ntrial );
-            astSetNpoint( trial_out, ntrial );
-         }
-         (void) astTransform( this, trial, fwd, trial_out );
-         y = astGetPoints( trial_out );
-      }
-
-/* Accept the first trial that reduces the scaled residual. */
-      for( jpoint = 0; jpoint < ntrial && astOK; jpoint++ ) {
-         ipoint = index[ jpoint ];
-         valid = 1;
-         newnorm = 0.0;
-         for( i = 0; i < ncoord; i++ ) {
-            value = y[ i ][ jpoint ];
-            if( value == AST__BAD || !isfinite( value ) ) {
-               valid = 0;
-               break;
-            }
-            residual = fabs( outputs[ i ][ ipoint ] - value );
-            if( scales[ ipoint*ncoord + i ] > 0.0 ) {
-               residual /= scales[ ipoint*ncoord + i ];
-            }
-            if( !isfinite( residual ) ||
-                ( scales[ ipoint*ncoord + i ] == 0.0 && residual != 0.0 ) ) {
-               valid = 0;
-               break;
-            }
-            newnorm = astMAX( newnorm, residual );
-         }
-         if( valid && newnorm < norms[ ipoint ] ) {
-            for( i = 0; i < ncoord; i++ ) {
-               inputs[ i ][ ipoint ] = x[ i ][ jpoint ];
-            }
-            stepping[ ipoint ] = 0;
-            nsearch--;
-         }
-      }
-
-      trial = astAnnul( trial );
-      trial_out = astAnnul( trial_out );
-   }
-
-/* Any position that exhausted the trials has no acceptable step. */
-   for( ipoint = 0; ipoint < npoint; ipoint++ ) {
-      if( stepping[ ipoint ] ) {
-         for( i = 0; i < ncoord; i++ ) inputs[ i ][ ipoint ] = AST__BAD;
-         flags[ ipoint ] = 1;
-         (*nconv)++;
-         stepping[ ipoint ] = 0;
-      }
-   }
-
-   index = astFree( index );
-}
-
-
 static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result,
                          int *status ){
 /*
@@ -2835,19 +2510,12 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 *     requires only the original forward transformation and ignores the
 *     Invert attribute when choosing the direction to invert.
 *
-*     The Jacobian and initial-guess Mapping are obtained through
-*     protected virtual methods. If astGetIterDomain supplies finite
-*     bounds, initial guesses are projected into that domain and
-*     IterStep backtracks subsequent Newton corrections within it.
-*     Bounded iteration requires both a small normalised input
-*     correction and a small scaled forward residual; an exact zero
-*     residual is accepted even at a singular point.
-*
-*     NiterInverse limits the number of Newton updates. Bounded
-*     iteration also checks the final candidate after the last update
-*     and returns AST__BAD for each unsolved position. Unbounded
-*     iteration retains the PolyMap convention of testing relative
-*     correction length and returning the last iterate on exhaustion.
+*     The Jacobian and initial-guess Mapping are obtained through the
+*     astGetJacobian and astLinearGuess protected virtual methods.
+*     NiterInverse limits the number of Newton updates. Convergence is
+*     tested on the relative length of each correction, and the last
+*     iterate is returned when the iterations are exhausted. A subclass
+*     may over-ride this method to supply a different algorithm.
 
 *  Parameters:
 *     this
@@ -2866,14 +2534,6 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 *        Pointer to the inherited status variable.
 
 *  Notes:
-*     - For bounded iteration, TolInverse measures each input correction
-*     as a fraction of the corresponding domain half-width. Each output
-*     residual is divided by the sum of the absolute Jacobian elements
-*     in its row, multiplied by the respective input half-widths.
-*     - An invalid or unsolved position in bounded iteration is returned
-*     with all coordinates set to AST__BAD, without setting the
-*     inherited status or preventing other positions in the batch from
-*     being solved.
 *     - This function returns without action if the inherited status is
 *     set.
 */
@@ -2896,17 +2556,6 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    double vlensq;
    double xlensq;
    double xx;
-   double *lbnd;
-   double *ubnd;
-   double *width;
-   double *scale;
-   double *scales;
-   double *steps;
-   double *norms;
-   int *stepping;
-   double norm;
-   double stepnorm;
-   double tol;
    int *flags;
    int *iw;
    int fwd;
@@ -2920,9 +2569,6 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    int ncoord;
    int npoint;
    int sing;
-   int bounded;
-   int valid;
-   int exact;
 
 /* Check inherited status */
    if( !astOK ) return;
@@ -2949,26 +2595,6 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 
 /* Get the number of points to be transformed. */
    npoint = astGetNpoint( out );
-
-/* Subclasses can restrict iteration to the original forward domain.
-   Keep the unbounded algorithm and its stopping convention unchanged, and
-   allocate only what that algorithm uses. */
-   width = NULL;
-   scale = NULL;
-   scales = NULL;
-   steps = NULL;
-   norms = NULL;
-   stepping = NULL;
-   lbnd = astMalloc( ncoord*sizeof( *lbnd ) );
-   ubnd = astMalloc( ncoord*sizeof( *ubnd ) );
-   bounded = astGetIterDomain( this, lbnd, ubnd );
-   if( bounded ) {
-      width = astMalloc( ncoord*sizeof( *width ) );
-      scale = astMalloc( ncoord*sizeof( *scale ) );
-   } else {
-      lbnd = astFree( lbnd );
-      ubnd = astFree( ubnd );
-   }
 
 /* Get another PointSet to hold intermediate results. */
    work = astPointSet( npoint, ncoord, " ", status );
@@ -3008,15 +2634,6 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 /* Allocate memory to hold work space for palDmat. */
    iw = astMalloc( sizeof( int )*ncoord );
 
-/* Allocate memory to hold the deferred Newton update for each position of
-   the batch. */
-   if( bounded ) {
-      scales = astMalloc( sizeof( double )*npoint*ncoord );
-      steps = astMalloc( sizeof( double )*npoint*ncoord );
-      norms = astMalloc( sizeof( double )*npoint );
-      stepping = astCalloc( npoint, sizeof( int ) );
-   }
-
 /* Check pointers can be used safely. */
    if( astOK ) {
 
@@ -3034,47 +2651,16 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 /* Get the target relative error for the returned input axis values, and
    square it. */
       maxerr = astGetTolInverse( this );
-      tol = maxerr;
       maxerr *= maxerr;
 
 /* Initialise the number of positions which have reached the required
    accuracy. */
       nconv = 0;
 
-      if( bounded ) {
-         valid = isfinite(tol) && tol > 0.0 && maxiter >= 0;
-         for( icoord = 0; icoord < ncoord; icoord++ ) {
-            width[icoord] = 0.5*ubnd[icoord] - 0.5*lbnd[icoord];
-            if( !isfinite(lbnd[icoord]) || !isfinite(ubnd[icoord]) ||
-                !isfinite(width[icoord]) || width[icoord] <= 0.0 ) valid = 0;
-         }
-         for( ipoint = 0; ipoint < npoint; ipoint++ ) {
-            int good = valid;
-            for( icoord = 0; icoord < ncoord; icoord++ ) {
-               xx = ptr_out[icoord][ipoint];
-               if( xx == AST__BAD || !isfinite(xx) ) good = 0;
-               xx = ptr_in[icoord][ipoint];
-               if( xx == AST__BAD || !isfinite(xx) ) {
-                  xx = 0.5*lbnd[icoord] + 0.5*ubnd[icoord];
-               }
-               ptr_in[icoord][ipoint] = astMAX( lbnd[icoord],
-                                               astMIN(ubnd[icoord],xx) );
-            }
-            if( !good ) {
-               for( icoord = 0; icoord < ncoord; icoord++ ) {
-                  ptr_in[icoord][ipoint] = AST__BAD;
-               }
-               flags[ipoint] = 1;
-               nconv++;
-            }
-         }
-      }
-
 /* Loop round doing iterations of a Newton-Raphson algorithm, until
    all points have achieved the required relative error, or the
    maximum number of iterations have been performed. */
-      for( iter = 0; (iter < maxiter || (bounded && iter == maxiter)) &&
-                    nconv < npoint && astOK; iter++ ) {
+      for( iter = 0; iter < maxiter && nconv < npoint && astOK; iter++ ) {
 
 /* Use the original forward transformation of the supplied PolyMap to
    transform the current guesses at the required input positions into
@@ -3130,47 +2716,7 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 
 /* Find the corresponding offset from the current input position to the required
    input position. */
-               sing = 0;
-               norm = 0.0;
-               if( bounded ) {
-/* Check the residual before the Jacobian: an exact solution is usable
-   even at a singular point. BAD values must never reach palDmat. */
-                  valid = 1;
-                  exact = 1;
-                  for( irow = 0; irow < ncoord; irow++ ) {
-                     if( vec[irow] == AST__BAD || !isfinite(vec[irow]) ) valid = 0;
-                     if( vec[irow] != 0.0 ) exact = 0;
-                  }
-                  if( valid && exact ) {
-                     flags[ipoint] = 1;
-                     nconv++;
-                     continue;
-                  }
-
-/* Solve for dimensionless steps (dx divided by the input half-width).
-   Scale each equation by its Jacobian row norm to avoid dependence on
-   arbitrary input or output units in the singularity and residual tests. */
-                  for( irow = 0; irow < ncoord; irow++ ) {
-                     scale[irow] = 0.0;
-                     for( icol = 0; icol < ncoord; icol++ ) {
-                        pa = mat + irow*ncoord + icol;
-                        if( *pa == AST__BAD || !isfinite(*pa) ) valid = 0;
-                        *pa *= width[icol];
-                        scale[irow] += fabs(*pa);
-                     }
-                     if( !isfinite(scale[irow]) ) valid = 0;
-                     if( scale[irow] > 0.0 ) {
-                        for( icol = 0; icol < ncoord; icol++ ) {
-                           mat[irow*ncoord+icol] /= scale[irow];
-                        }
-                        vec[irow] /= scale[irow];
-                     }
-                     if( !isfinite(vec[irow]) ) valid = 0;
-                     norm = astMAX( norm, fabs(vec[irow]) );
-                  }
-                  if( !valid ) sing = 1;
-               }
-               if( !sing ) palDmat( ncoord, mat, vec, &det, &sing, iw );
+               palDmat( ncoord, mat, vec, &det, &sing, iw );
 
 /* If the matrix was singular, the input position cannot be evaluated so
    store a bad value for it and indicate it has converged. */
@@ -3182,34 +2728,6 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
                   nconv++;
 
 /* Otherwise, update the input position guess. */
-               } else if( bounded ) {
-                  valid = 1;
-                  stepnorm = 0.0;
-                  for( icoord = 0; icoord < ncoord; icoord++ ) {
-                     if( !isfinite(vec[icoord]) ) valid = 0;
-                     stepnorm = astMAX( stepnorm, fabs(vec[icoord]) );
-                  }
-                  if( valid && stepnorm <= tol && norm <= tol ) {
-                     flags[ipoint] = 1;
-                     nconv++;
-                  } else if( !valid || iter == maxiter ) {
-                     for( icoord = 0; icoord < ncoord; icoord++ ) {
-                        ptr_in[icoord][ipoint] = AST__BAD;
-                     }
-                     flags[ipoint] = 1;
-                     nconv++;
-
-/* Defer the backtracking search, so that all the positions looking for an
-   acceptable step share one evaluation of the forward transformation at
-   each trial size. */
-                  } else {
-                     for( icoord = 0; icoord < ncoord; icoord++ ) {
-                        steps[ipoint*ncoord + icoord] = vec[icoord];
-                        scales[ipoint*ncoord + icoord] = scale[icoord];
-                     }
-                     norms[ipoint] = norm;
-                     stepping[ipoint] = 1;
-                  }
                } else {
                   vlensq = 0.0;
                   xlensq = 0.0;
@@ -3229,21 +2747,10 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
                }
             }
          }
-
-/* Apply the deferred Newton updates for the whole batch. */
-         if( bounded ) {
-            IterSteps( this, npoint, ncoord, ptr_in, ptr_out, lbnd, ubnd,
-                       width, scales, steps, norms, stepping, flags, &nconv,
-                       status );
-         }
       }
    }
 
 /* Free resources. */
-   scales = astFree( scales );
-   steps = astFree( steps );
-   norms = astFree( norms );
-   stepping = astFree( stepping );
    vec = astFree( vec );
    iw = astFree( iw );
    mat = astFree( mat );
@@ -3258,10 +2765,6 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    }
 
    ptr_jac = astFree( ptr_jac );
-   lbnd = astFree( lbnd );
-   ubnd = astFree( ubnd );
-   width = astFree( width );
-   scale = astFree( scale );
 
 }
 
@@ -8126,12 +7629,6 @@ AstPolyMap **astGetJacobian_( AstPolyMap *this, int *status ){
 AstMapping *astLinearGuess_( AstPolyMap *this, int *status ){
    if( !astOK ) return NULL;
    return (**astMEMBER(this,PolyMap,LinearGuess))( this, status );
-}
-
-int astGetIterDomain_( AstPolyMap *this, double *lbnd, double *ubnd,
-                       int *status ){
-   if( !astOK ) return 0;
-   return (**astMEMBER(this,PolyMap,GetIterDomain))( this, lbnd, ubnd, status );
 }
 
 void astIterInverse_( AstPolyMap *this, AstPointSet *out, AstPointSet *result,
