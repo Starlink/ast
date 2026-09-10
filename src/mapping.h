@@ -428,7 +428,11 @@ typedef unsigned long long int UINT_BIG;
    Apart from Invert a Mapping is immutable (except for Frames, which
    report zero for IsSimple whatever these flags hold), so a simplified
    orientation stays simplified and neither flag is ever cleared as a side
-   effect of anything else.
+   effect of anything else. The one exception is a merge probe in
+   CmpMap's astMapMerge that is discarded: it simplifies trial CmpMaps
+   built from Mappings shared with the live tree, and before discarding
+   its result it puts those Mappings' flags back as it found them, so that
+   only surviving simplifications leave a record.
 
    In particular, the many routines that set Invert only to line a Mapping
    up for inspection and then set it back again leave the Mapping reporting
