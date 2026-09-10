@@ -343,6 +343,27 @@ int main( void ) {
       cm = astAnnul( cm );
    }
 
+/* Bounds reported by astChebyDomain must be evaluable, and astPolyTran
+   without user bounds must be able to sample at them. The box [0.1,1.3]
+   reconstructs an upper bound one ulp outside the evaluator's range. */
+   if( *status == 0 ) {
+      double lin[] = { 1.0, 1, 1 };
+      double blo = 0.1, bhi = 1.3, dlo, dhi, xin[2], xout[2];
+      AstPolyMap *fit;
+
+      cm = astChebyMap( 1, 1, 1, lin, 0, NULL, &blo, &bhi, NULL, NULL, " " );
+      astChebyDomain( cm, 1, &dlo, &dhi );
+      xin[0] = dlo;
+      xin[1] = dhi;
+      astTran1( cm, 2, xin, 1, xout );
+      if( xout[0] == AST__BAD || xout[1] == AST__BAD ) stopit( 620, status );
+      if( fabs( dlo - blo ) > 1e-12 || fabs( dhi - bhi ) > 1e-12 ) stopit( 621, status );
+      fit = astPolyTran( cm, 0, 1e-8, 1e-6, 6, NULL, NULL );
+      if( !fit ) stopit( 622, status );
+      if( fit ) fit = astAnnul( fit );
+      cm = astAnnul( cm );
+   }
+
    inverse_tests( status );
 
    astEnd;
