@@ -192,6 +192,9 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        until the Newton correction is known for the whole batch, and
 *        evaluate all the positions still searching at a given trial size
 *        with one call to the forward transformation.
+*     9-SEP-2026 (TIMJ):
+*        Allocate the work space used only by the bounded inverse
+*        iteration when the domain is bounded.
 *class--
 */
 
@@ -2925,16 +2928,24 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
    npoint = astGetNpoint( out );
 
 /* Subclasses can restrict iteration to the original forward domain.
-   Keep the unbounded algorithm and its stopping convention unchanged. */
-   lbnd = astMalloc( ncoord*sizeof( *lbnd ) );
-   ubnd = astMalloc( ncoord*sizeof( *ubnd ) );
-   width = astMalloc( ncoord*sizeof( *width ) );
-   scale = astMalloc( ncoord*sizeof( *scale ) );
-   bounded = astGetIterDomain( this, lbnd, ubnd );
+   Keep the unbounded algorithm and its stopping convention unchanged, and
+   allocate only what that algorithm uses. */
+   width = NULL;
+   scale = NULL;
    scales = NULL;
    steps = NULL;
    norms = NULL;
    stepping = NULL;
+   lbnd = astMalloc( ncoord*sizeof( *lbnd ) );
+   ubnd = astMalloc( ncoord*sizeof( *ubnd ) );
+   bounded = astGetIterDomain( this, lbnd, ubnd );
+   if( bounded ) {
+      width = astMalloc( ncoord*sizeof( *width ) );
+      scale = astMalloc( ncoord*sizeof( *scale ) );
+   } else {
+      lbnd = astFree( lbnd );
+      ubnd = astFree( ubnd );
+   }
 
 /* Get another PointSet to hold intermediate results. */
    work = astPointSet( npoint, ncoord, " ", status );
