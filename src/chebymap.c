@@ -157,6 +157,12 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        Stop checking TolInverse and NiterInverse in IterInverse; the
 *        PolyMap setters now reject an unusable value before it can reach
 *        here. Only the bounding box is still checked.
+*     10-SEP-2026 (TIMJ):
+*        Move a position off a singular Jacobian once, towards the side of
+*        the box with more room, instead of declaring it unsolved
+*        immediately. A forward series with no linear term is singular at
+*        the midpoint seed, which the previous behaviour reported as
+*        unsolved for every target.
 *class--
 */
 
@@ -1676,6 +1682,9 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 *     or non-finite coordinate, or met a singular Jacobian is returned
 *     as AST__BAD without setting the inherited status.
 *
+*     A position whose Jacobian is singular is moved once by a quarter of
+*     each half-width before being declared unsolved.
+*
 *     If the forward series has no usable Chebyshev box on every axis,
 *     the parent PolyMap algorithm is used instead.
 
@@ -1726,6 +1735,7 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
    double xx;
    int *flags;
    int *iw;
+   int *nudged;
    int *stepping;
    int exact;
    int fwd;
@@ -1739,6 +1749,7 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
    int ncoord;
    int npoint;
    int sing;
+   int stale;
    int valid;
 
 /* Check inherited status */
@@ -1808,6 +1819,11 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
    been resolved. Initialise it to hold zero at every element. */
    flags = astCalloc( npoint, sizeof( int ) );
 
+/* Allocate an array to record whether each position has already been
+   nudged off a singular seed. Initialise it to hold zero at every
+   element. */
+   nudged = astCalloc( npoint, sizeof( int ) );
+
 /* Allocate memory to hold the Jacobian matrix at a single point. */
    mat = astMalloc( sizeof( double )*ncoord*ncoord );
 
@@ -1842,6 +1858,11 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 
 /* Initialise the number of positions which have been resolved. */
       nconv = 0;
+
+/* Initialise the count of positions whose forward value at the top of
+   the next iteration cannot be taken from the previous iteration's
+   trial (none have been nudged off a singular seed yet). */
+      stale = 0;
 
 /* The iteration controls are validated by the NiterInverse and TolInverse
    setters, so only the box need be checked here, then every initial guess
@@ -1961,10 +1982,29 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
                if( !valid ) sing = 1;
                if( !sing ) palDmat( ncoord, mat, vec, &det, &sing, iw );
 
-/* If the matrix was singular, the input position cannot be evaluated so
-   store a bad value for it and indicate it has been resolved. */
+/* If the matrix was singular, nudge the position once off the seed that
+   produced it and try again next iteration. A position singular a second
+   time cannot be evaluated, so store a bad value for it and indicate it
+   has been resolved. */
                if( sing ) {
-                  MarkUnsolved( ptr_in, ncoord, ipoint, flags, &nconv );
+                  if( !nudged[ ipoint ] ) {
+
+/* Move once off a stationary point, towards the side of the box with
+   more room, and evaluate the forward transformation there next time. */
+                     nudged[ ipoint ] = 1;
+                     stale++;
+                     for( icoord = 0; icoord < ncoord; icoord++ ) {
+                        xx = ptr_in[ icoord ][ ipoint ];
+                        if( xx - lbnd[ icoord ] >= ubnd[ icoord ] - xx ) {
+                           xx -= 0.25*width[ icoord ];
+                        } else {
+                           xx += 0.25*width[ icoord ];
+                        }
+                        ptr_in[ icoord ][ ipoint ] = xx;
+                     }
+                  } else {
+                     MarkUnsolved( ptr_in, ncoord, ipoint, flags, &nconv );
+                  }
 
 /* Otherwise, see whether the position has converged, has run out of
    updates, or needs a step. */
@@ -2012,6 +2052,7 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
    iw = astFree( iw );
    mat = astFree( mat );
    flags = astFree( flags );
+   nudged = astFree( nudged );
    work = astAnnul( work );
 
    if( ps_jac ) {
