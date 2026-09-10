@@ -203,6 +203,10 @@ goodsource="${goodsource} \
    getatt -u ${goodsource} >c_commands.tex
    cat getatt.labels >>global_c.labels; rm -f getatt.labels
 
+# sun_master.tex includes both the C and the Fortran fragments; selectfc is
+# what picks one, so the expansion is the same for both documents.
+doincludes "$here/sun_master.tex" > included.tex
+
 # Run filters separately so a failure in any stage stops the build.
 for doc in sun210 sun211; do
     if test "$doc" = sun210; then
@@ -212,7 +216,6 @@ for doc in sun210 sun211; do
         language=
         cp global_c.labels global.labels
     fi
-    doincludes "$here/sun_master.tex" > included.tex
     selectfc $language included.tex > selected.tex
     addlinks selected.tex > linked.tex
     addcopyright < linked.tex > copyright.tex
