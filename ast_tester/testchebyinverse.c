@@ -257,6 +257,44 @@ static void bounded_solver( int *status ) {
    pm = astAnnul( pm );
 }
 
+/* A forward series with no linear term has a singular Jacobian at the
+   domain midpoint, which is where the fallback seed lands. The solver must
+   step off that point rather than report every target as unsolved. */
+static void singular_seed( int *status ) {
+   double lo = 0, hi = 10;
+   double coeffs[] = { 1, 1, 2 };
+   double target[] = { 0, .5, -.5, .9, -.99 };
+   double got[5], back[5];
+   double lo2[] = { 0, 0 }, hi2[] = { 10, 10 };
+   double coeffs2[] = { 1, 1, 2, 0,  1, 2, 0, 1 };
+   double tx[] = { 0, .5, -.5 }, ty[] = { .2, -.4, .9 };
+   double gx[3], gy[3], bx[3], by[3];
+   AstChebyMap *cm;
+   int i;
+
+   cm = astChebyMap( 1, 1, 1, coeffs, 0, NULL, &lo, &hi, NULL, NULL, "", status );
+   astSet( cm, "TolInverse=1e-12", status );
+   check( astGetI( cm, "TranInverse" ) == 1, "Pure T2 offers an inverse" );
+   astTran1( cm, 5, target, 0, got );
+   astTran1( cm, 5, got, 1, back );
+   for( i = 0; i < 5; i++ ) {
+      check( got[i] != AST__BAD, "Pure T2 target solved" );
+      near( back[i], target[i], "Pure T2 round trip" );
+   }
+   cm = astAnnul( cm );
+
+   cm = astChebyMap( 2, 2, 2, coeffs2, 0, NULL, lo2, hi2, NULL, NULL, "", status );
+   astSet( cm, "TolInverse=1e-12", status );
+   astTran2( cm, 3, tx, ty, 0, gx, gy );
+   astTran2( cm, 3, gx, gy, 1, bx, by );
+   for( i = 0; i < 3; i++ ) {
+      check( gx[i] != AST__BAD && gy[i] != AST__BAD, "T2,T1 target solved" );
+      near( bx[i], tx[i], "T2,T1 round trip x" );
+      near( by[i], ty[i], "T2,T1 round trip y" );
+   }
+   cm = astAnnul( cm );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -265,6 +303,7 @@ int main( void ) {
    derivatives( status );
    seeds( status );
    bounded_solver( status );
+   singular_seed( status );
    caches( status );
    astEnd_( status );
    astFlushMemory( 1 );
