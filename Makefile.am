@@ -840,7 +840,7 @@ libast_cminpack_la_LDFLAGS = -version-info @version_info@
 
 # The following files are built by the targets in this makefile.
 MAINTAINERCLEANFILES = src/version.h builddocs addversion \
-	ast.h $(DOCUMENTATION_PRODUCTS)
+	ast.h stamp-docs $(DOCUMENTATION_PRODUCTS)
 if !NOFORTRAN
 CLEANFILES = AST_PAR ast.h
 else
@@ -1074,9 +1074,10 @@ clean-local:
 	-rm -rf sun210.htx sun211.htx
 endif
 
-# Leave shipped documents intact in post-distribution builds (distcheck).
-@PREDIST@doc_clean = $(DOCUMENTATION_PRODUCTS) stamp-docs
-CLEANFILES += $(doc_clean)
+# The documents come with the distribution, so per the GNU standards `clean'
+# preserves them and only `maintainer-clean' removes them; see
+# MAINTAINERCLEANFILES above.  Sweeping them into CLEANFILES would make an
+# ordinary `make clean' cost two more pdflatex passes over sun_master.tex.
 
 # The contents of the sun211_figures directory is identical to that
 # sun210_figures
