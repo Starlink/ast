@@ -1079,11 +1079,6 @@ endif
 # MAINTAINERCLEANFILES above.  Sweeping them into CLEANFILES would make an
 # ordinary `make clean' cost two more pdflatex passes over sun_master.tex.
 
-# The contents of the sun211_figures directory is identical to that
-# sun210_figures
-sun211_figures: sun210_figures
-	$(LN_S) sun210_figures sun211_figures
-
 # Installation check
 
 noinst_LTLIBRARIES =
