@@ -37,8 +37,9 @@ static int has_issimp_card( AstObject *obj ) {
    expanded by astMapList and never itself simplified along the surviving
    path, but the probe wraps it in a parallel CmpMap where it is nominated
    and stamped as simplified, so it is the object on which a leaked stamp
-   shows. */
-static void checkProbeLeavesNoStamp( int *status ) {
+   shows. Repeat with the same inner CmpMap in both branches to check that
+   sharing it does not affect restoration of its recorded state. */
+static void checkProbeLeavesNoStamp( int shared, int *status ) {
    AstCmpMap *inner, *s1, *s2, *par;
    AstMapping *simp;
 
@@ -47,7 +48,9 @@ static void checkProbeLeavesNoStamp( int *status ) {
 
    inner = astCmpMap( quadratic( 1.0 ), quadratic( 2.0 ), 1, " " );
    s1 = astCmpMap( inner, quadratic( 3.0 ), 1, " " );
-   s2 = astCmpMap( quadratic( 4.0 ), quadratic( 5.0 ), 1, " " );
+   s2 = astCmpMap( shared ? (AstMapping *) inner :
+                           (AstMapping *) quadratic( 4.0 ),
+                   quadratic( 5.0 ), 1, " " );
    par = astCmpMap( s1, s2, 0, " " );
 
    if( has_issimp_card( (AstObject *) inner ) ) {
@@ -142,7 +145,8 @@ int main( void ) {
 
    astEnd;
 
-   checkProbeLeavesNoStamp( status );
+   checkProbeLeavesNoStamp( 0, status );
+   checkProbeLeavesNoStamp( 1, status );
 
    astFlushMemory( 1 );
 
