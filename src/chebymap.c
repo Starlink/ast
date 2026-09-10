@@ -126,6 +126,10 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        Load a recorded IterInverse value without validating it against
 *        the forward transformation, so that dumps written by earlier
 *        versions of AST remain readable.
+*     9-SEP-2026 (TIMJ):
+*        Construct the Jacobian ChebyMaps on the canonical [-1,1] box
+*        instead of a physical box reconstructed from the scales and
+*        offsets, which are copied into the new Maps in any case.
 *class--
 */
 
@@ -988,10 +992,15 @@ static AstPolyMap **GetJacobian( AstPolyMap *map, int *status ) {
    map->jacobian = astCalloc( nin, sizeof( *map->jacobian ) );
    lbnd = astMalloc( nin*sizeof( *lbnd ) );
    ubnd = astMalloc( nin*sizeof( *ubnd ) );
+/* The scale and offset derived from this box are overwritten below with
+   the values held by "map", so use the canonical box that those values
+   normalise to. Reconstructing the physical box would add rounding error,
+   and for a box narrower than the resolution of its own centre the two
+   reconstructed bounds coincide, which the constructor rejects. */
    if( astOK ) {
       for( i = 0; i < nin; i++ ) {
-         lbnd[ i ] = (-1.0 - this->offset_f[ i ])/this->scale_f[ i ];
-         ubnd[ i ] = (1.0 - this->offset_f[ i ])/this->scale_f[ i ];
+         lbnd[ i ] = -1.0;
+         ubnd[ i ] = 1.0;
       }
    }
 

@@ -543,6 +543,39 @@ static void inverse_tests( int *status ) {
       cm = astAnnul( cm );
    }
 
+/* A loaded normalization can describe a box whose width is below the
+   resolution of its own centre. Inverting such a ChebyMap yields bad
+   values, but must not report an error from within astTransform. */
+   if( *status == 0 ) {
+      const char *degenerate = " Begin ChebyMap\n"
+                               " Nin = 1\n"
+                               " IsA Mapping\n"
+                               " MPF1 = 1\n"
+                               " NCF1 = 1\n"
+                               " CF1 = 1\n"
+                               " PF1 = 1\n"
+                               " IsA PolyMap\n"
+                               " FSCL1 = 1\n"
+                               " FOFF1 = 1e17\n"
+                               " End ChebyMap\n";
+      cm = (AstChebyMap *) astFromString( degenerate );
+      if( !cm || !astOK ) {
+         astClearStatus;
+         stopit( 796, status );
+      } else {
+         u[ 0 ] = 0.5;
+         xr[ 0 ] = 0.0;
+         astTran1( cm, 1, u, 0, xr );
+         if( *status != 0 ) {
+            astClearStatus;
+            stopit( 797, status );
+         } else if( xr[ 0 ] != AST__BAD ) {
+            stopit( 798, status );
+         }
+         cm = astAnnul( cm );
+      }
+   }
+
 /* Refitting the forward transformation samples the iterative inverse,
    which evaluates the forward transformation. The fit must therefore see
    the supplied transformation unchanged at every polynomial order, even
