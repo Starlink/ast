@@ -197,6 +197,22 @@ static void caches( int *status ) {
       near( got, 2, "Ordinary-polynomial fallback outside Chebyshev interval" );
       loaded = astAnnul( loaded );
    }
+
+/* A zero scale describes no bounding box, so there is no finite domain to
+   restrict iteration to. */
+   loaded = astFromString( " Begin ChebyMap\n Nin = 1\n IsA Mapping\n"
+                          " MPF1 = 1\n NCF1 = 1\n CF1 = 2\n PF1 = 1\n"
+                          " IsA PolyMap\n FSCL1 = 0\n FOFF1 = 0\n"
+                          " End ChebyMap\n" );
+   check( loaded != NULL, "Load ChebyMap with a zero scale" );
+   if( loaded ) {
+      double dlo = -99, dhi = 99;
+      check( !astGetIterDomain( loaded, &dlo, &dhi ),
+             "Zero scale has no finite iteration domain" );
+      check( dlo == -99 && dhi == 99,
+             "Undefined domain leaves the supplied bounds unchanged" );
+      loaded = astAnnul( loaded );
+   }
 }
 
 static void bounded_solver( int *status ) {
