@@ -13,7 +13,14 @@ PDFLATEX=${PDFLATEX:-pdflatex}
 if test -z "$STARPROLOG" && command -v starprolog >/dev/null 2>&1; then
     STARPROLOG=starprolog
 fi
-perldir=$(dirname @PERL@)
+# @PERL@ is a path when configure found perl and the two-word fallback
+# "/usr/bin/env perl" when it did not.  Only the former names a directory
+# worth putting on PATH for the `#! /usr/bin/env perl' filters below.
+perl_command="@PERL@"
+case $perl_command in
+    *' '*) perldir= ;;
+    *) perldir=$(dirname "$perl_command") ;;
+esac
 if test -z "$STARPROLOG" && test -z "$SST_DIR"; then
     prolat_path=${PROLAT-@PROLAT@}
     if test ! -x "$prolat_path"; then
@@ -45,7 +52,7 @@ if test -z "$STARPROLOG"; then
     SST_DIR=$(cd "$SST_DIR" && pwd)
     export SST_DIR
 fi
-PATH="${builddir}:${here}:${perldir}:${PATH}"
+PATH="${builddir}:${here}${perldir:+:$perldir}:${PATH}"
 export PATH
 
 # Keep the old getatt interface within this script. astprep emits the same
