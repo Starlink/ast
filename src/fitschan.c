@@ -1423,6 +1423,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        alternate ones.  Together these stop a FrameSet whose celestial
 *        axes cannot be described this way from being written out as a
 *        header of SIP coefficients with no CTYPE or CRPIX cards.
+*     10-SEP-2026 (TIMJ):
+*        Exclude ChebyMaps from the search for a PolyMap in SIPIntWorld.
+*        A ChebyMap's coefficients are Chebyshev, not monomial, so the SIP
+*        analysis was misreading them and could write a bogus SIP
+*        description for a FrameSet containing one.
 *class--
 */
 
@@ -1624,6 +1629,7 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 #include "unit.h"
 #include "unitmap.h"
 #include "polymap.h"
+#include "chebymap.h"
 #include "wcsmap.h"
 #include "winmap.h"
 #include "zoommap.h"
@@ -28931,7 +28937,10 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
          (void) astMapList( smap, 1, astGetInvert(smap), &nmap, &map_list,
                             &invert_list );
          for( imap = 0; imap < nmap; imap++ ) {
-            if( astIsAPolyMap( map_list[ imap ] ) ) {
+/* A ChebyMap is a PolyMap but its coefficients are Chebyshev, not
+   monomial, so the SIP analysis below would misread them. Skip it. */
+            if( astIsAPolyMap( map_list[ imap ] ) &&
+                !astIsAChebyMap( map_list[ imap ] ) ) {
                imap_pm = imap;
                polymap = astCopy( map_list[ imap ] );
                astSetInvert( polymap, invert_list[ imap ] );
