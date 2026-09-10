@@ -168,6 +168,13 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        10 rather than PolyMap's 4. The bounded algorithm checks only the
 *        final candidate, so it needs more headroom than the unbounded
 *        algorithm, which returns the last iterate.
+*     10-SEP-2026 (TIMJ):
+*        Rename IterBounds to AxisBounds and use it, rather than a bare
+*        scale-and-offset division, in ChebyDomain and in PolyTran's
+*        reconstruction of a missing user bounding box, so that a bound
+*        returned by astChebyDomain or used by astPolyTran always
+*        evaluates without BAD. Remove the unreachable "lo <= hi" test in
+*        AxisBounds.
 *class--
 */
 
@@ -283,7 +290,7 @@ static AstPolyMap **GetJacobian( AstPolyMap *, int * );
 static int CompareDerivTerms( const void *, const void * );
 static AstMapping *LinearGuess( AstPolyMap *, int * );
 static int GetIterDomain( AstChebyMap *, double *, double *, int * );
-static int IterBounds( double, double, double *, double * );
+static int AxisBounds( double, double, double *, double * );
 static void IterInverse( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
 static void IterSteps( AstPolyMap *, int, int, double **, double **,
                        const double *, const double *, const double *,
@@ -420,10 +427,7 @@ f    AST_MAPBOX
 /* Check the domain is defined. */
    if( scale && offset ) {
       for( iax = 0; iax < nax; iax++ ) {
-         if( scale[ iax ] != 0.0 ) {
-            lbnd[ iax ] = ( -1.0 - offset[ iax ] ) / scale[ iax ];
-            ubnd[ iax ] = ( 1.0 - offset[ iax ] ) / scale[ iax ];
-         } else {
+         if( !AxisBounds( scale[ iax ], offset[ iax ], lbnd + iax, ubnd + iax ) ) {
             lbnd[ iax ] = AST__BAD;
             ubnd[ iax ] = AST__BAD;
          }
@@ -440,10 +444,8 @@ f    AST_MAPBOX
       ubnd_o = astMalloc( nax_o*sizeof( *ubnd_o ) );
       if( astOK ) {
          for( iax = 0; iax < nax_o; iax++ ) {
-            if( scale_o[ iax ] != 0.0 ) {
-               lbnd_o[ iax ] = ( -1.0 - offset_o[ iax ] ) / scale_o[ iax ];
-               ubnd_o[ iax ] = ( 1.0 - offset_o[ iax ] ) / scale_o[ iax ];
-            } else {
+            if( !AxisBounds( scale_o[ iax ], offset_o[ iax ], lbnd_o + iax,
+                             ubnd_o + iax ) ) {
                lbnd_o[ iax ] = AST__BAD;
                ubnd_o[ iax ] = AST__BAD;
             }
@@ -1200,11 +1202,11 @@ static int GetIterDomain( AstChebyMap *this, double *lbnd, double *ubnd,
 /* Every axis must yield a usable interval before anything is stored, so
    that the supplied arrays are left unchanged when zero is returned. */
    for( i = 0; i < nin; i++ ) {
-      if( !IterBounds( this->scale_f[i], this->offset_f[i], &a, &b ) ) return 0;
+      if( !AxisBounds( this->scale_f[i], this->offset_f[i], &a, &b ) ) return 0;
    }
 
    for( i = 0; i < nin; i++ ) {
-      (void) IterBounds( this->scale_f[i], this->offset_f[i], lbnd + i,
+      (void) AxisBounds( this->scale_f[i], this->offset_f[i], lbnd + i,
                          ubnd + i );
    }
    return 1;
@@ -1269,21 +1271,21 @@ static double NudgeIntoDomain( double bound, double towards, double scale,
    return bound;
 }
 
-static int IterBounds( double scale, double offset, double *lbnd,
+static int AxisBounds( double scale, double offset, double *lbnd,
                        double *ubnd ) {
 /*
 *  Name:
-*     IterBounds
+*     AxisBounds
 
 *  Purpose:
-*     Recover the evaluable interval on one axis of a Chebyshev series.
+*     Recover the evaluable interval on one axis from a Chebyshev normalization.
 
 *  Type:
 *     Private function.
 
 *  Synopsis:
 *     #include "chebymap.h"
-*     int IterBounds( double scale, double offset, double *lbnd,
+*     int AxisBounds( double scale, double offset, double *lbnd,
 *                     double *ubnd )
 
 *  Description:
@@ -1327,7 +1329,6 @@ static int IterBounds( double scale, double offset, double *lbnd,
    lo = NudgeIntoDomain( astMIN( a, b ), astMAX( a, b ), scale, offset );
    hi = NudgeIntoDomain( astMAX( a, b ), lo, scale, offset );
 
-   if( !( lo <= hi ) ) return 0;
    if( fabs( lo*scale + offset ) > 1.0 ) return 0;
    if( fabs( hi*scale + offset ) > 1.0 ) return 0;
 
@@ -2730,6 +2731,7 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
    double this_lbnd[ 2 ];
    double this_ubnd[ 2 ];
    int inverted;
+   int k;
    int nax;
 
 /* Initialise. */
@@ -2756,35 +2758,50 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
    }
 
 /* The scaled box for a Chebyshev polynomial spans [-1,+1] on each axis.
-   Create the corresponding unscaled box. If the user supplies any bounds,
-   use them in preference to the bounds in the ChebyMap. */
-   if( lbnd ) {
-      this_lbnd[ 0 ] = lbnd[ 0 ];
-      if( nax > 1 ) this_lbnd[ 1 ] = lbnd[ 1 ];
+   Create the corresponding unscaled box. If the user supplies both bounds
+   arrays, use them in preference to the bounds in the ChebyMap. Otherwise
+   reconstruct the missing bound(s) from the ChebyMap's own normalization,
+   through the same AxisBounds helper used elsewhere in this file, so that
+   a bound used here always evaluates without BAD. */
+   if( lbnd && ubnd ) {
+      for( k = 0; k < nax; k++ ) {
+         this_lbnd[ k ] = lbnd[ k ];
+         this_ubnd[ k ] = ubnd[ k ];
+      }
 
    } else if( scale && offset ) {
-      this_lbnd[ 0 ] = ( -1.0 - offset[ 0 ] )/scale[ 0 ];
-      if( nax > 1 ) this_lbnd[ 1 ] = ( -1.0 - offset[ 1 ] )/scale[ 1 ];
+      for( k = 0; k < nax; k++ ) {
+         if( !AxisBounds( scale[ k ], offset[ k ], this_lbnd + k,
+                          this_ubnd + k ) && astOK ) {
+            astError( AST__NOBOX, "astPolyTran(%s): The %s transformation "
+                      "has no usable bounding box on axis %d.", status,
+                      astGetClass( this ), word, k + 1 );
+         }
+      }
+      if( lbnd ) {
+         for( k = 0; k < nax; k++ ) this_lbnd[ k ] = lbnd[ k ];
+      }
+      if( ubnd ) {
+         for( k = 0; k < nax; k++ ) this_ubnd[ k ] = ubnd[ k ];
+      }
 
-   } else if( astOK ) {
-      astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
-                "not a Chebyshev polynomial and therefore requires a "
-                "user-supplied bounding box. But no lower bounds were "
-                "supplied. ", status, astGetClass( this ), word );
-   }
-
-
-   if( ubnd ) {
-      this_ubnd[ 0 ] = ubnd[ 0 ];
-      if( nax > 1 ) this_ubnd[ 1 ] = ubnd[ 1 ];
-   } else if( scale && offset ) {
-      this_ubnd[ 0 ] = ( 1.0 - offset[ 0 ] )/scale[ 0 ];
-      if( nax > 1 ) this_ubnd[ 1 ] = ( 1.0 - offset[ 1 ] )/scale[ 1 ];
-   } else if( astOK ) {
-      astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
-                "not a Chebyshev polynomial and therefore requires a "
-                "user-supplied bounding box. But no upper bounds were "
-                "supplied. ", status, astGetClass( this ), word );
+   } else {
+      if( !lbnd && astOK ) {
+         astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
+                   "not a Chebyshev polynomial and therefore requires a "
+                   "user-supplied bounding box. But no lower bounds were "
+                   "supplied. ", status, astGetClass( this ), word );
+      } else if( lbnd ) {
+         for( k = 0; k < nax; k++ ) this_lbnd[ k ] = lbnd[ k ];
+      }
+      if( !ubnd && astOK ) {
+         astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
+                   "not a Chebyshev polynomial and therefore requires a "
+                   "user-supplied bounding box. But no upper bounds were "
+                   "supplied. ", status, astGetClass( this ), word );
+      } else if( ubnd ) {
+         for( k = 0; k < nax; k++ ) this_ubnd[ k ] = ubnd[ k ];
+      }
    }
 
 /* Invoke the parent astPolyMap method, using the bounding box selected
