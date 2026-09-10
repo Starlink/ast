@@ -10,6 +10,7 @@ typedef struct MyData {
    AstObject *obj;
    int lock;
    int status;
+   double xin;
    double expected;
 } MyData;
 
@@ -30,6 +31,10 @@ int main( void ){
    astUnlock( data1.obj, 1 );
    data1.lock = 0;
    data2.lock = 0;
+   data1.xin = 1.5;
+   data2.xin = 1.5;
+   data1.expected = 1.5;
+   data2.expected = 1.5;
 
    if( pthread_create( &thread1, NULL, worker, &data1 ) ) {
       astError( AST__INTER, "Error creating thread1");
@@ -107,6 +112,7 @@ int main( void ){
       astTran1( cm, 1, &target, 0, &value );
       astInvert( cm );
       data1.obj = (AstObject *) cm;
+      data1.xin = target;
       data1.expected = 5*(1 + .25/(1+sqrt(1.125)));
       astUnlock( cm, 1 );
       if( pthread_create( &thread1, NULL, worker, &data1 ) ) {
@@ -142,7 +148,7 @@ void *worker( void *ptr ) {
 
    if( data->lock ) astLock( data->obj, 0 );
 
-   xin = 0;
+   xin = data->xin;
    astTran1( data->obj, 1, &xin, 1, &xout );
    if( astOK && (xout == AST__BAD || !isfinite(xout) ||
                  fabs(xout-data->expected) > 1e-10) ) {
