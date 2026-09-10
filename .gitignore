@@ -8,6 +8,10 @@
 /ast_test
 /builddocs
 /stamp-docs
+# builddocs work directory, kept behind when a documentation build fails
+/.ast-docs.*
+/sun210.htx/
+/sun211.htx/
 /sun210.tex
 /sun210.pdf
 /sun211.tex
