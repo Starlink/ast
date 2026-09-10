@@ -63,7 +63,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   viewport with no PLplot dependency. Same .head/.attr/.fattr/.box fixtures
   as Batch 10.
 
-**Coverage gap tests (2 default):**
+**Coverage gap tests (3 default):**
 - Batch 13: testresample — exercises astResampleD/F/I across 10 interpolation
   schemes (NEAREST, LINEAR, SINC, SINCSINC, SINCCOS, SINCGAUSS, GAUSS, SOMB,
   SOMBCOS, BLOCKAVE), plus bad-pixel handling, variance propagation,
@@ -78,6 +78,15 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   maps great circles to straight lines. The CAR and TAN GRID<->SKY FrameSets are
   embedded as native serialised strings (read back with astFromString) so the
   test does not depend on the FitsChan class.
+- Batch 15: testchebyinverse — exercises the protected building blocks of the
+  ChebyMap iterative inverse (astGetJacobian, astLinearGuess,
+  astGetIterDomain) and the shared bounded solver in the PolyMap class. Built
+  with INTERNAL_HEADERS because it calls protected methods; checks the
+  Chebyshev derivative basis against an independent T_n' = n U_(n-1)
+  reference, the affine seed, endpoint and degenerate iteration domains, the
+  bad-value and exhaustion behaviour of the bounded solver against the
+  historical unbounded one, and cache transfer through copy, dump and
+  astPolyTran.
 
 **New C-only regression tests (no Fortran original):**
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
