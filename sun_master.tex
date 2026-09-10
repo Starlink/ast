@@ -64,8 +64,12 @@ environment-independent.
 
 \providecommand{\fitskey}[3]{{#1}&{#2}&{#3}\\}
 
-% Use {\tt ... } as \texttt{...} does not work if there are new lines in #1
-\providecommand{\sstsynopsis}[1]{\sstdiytopic{Synopsis}{\tt #1}}
+% \texttt{...} cannot be used here because the synopsis may contain a
+% paragraph break, which a short font command such as \texttt rejects.
+% The extra braces are needed because \sstdiytopic does not group its
+% second argument, so an unbraced font switch would apply to the rest of
+% the routine description as well.
+\providecommand{\sstsynopsis}[1]{\sstdiytopic{Synopsis}{{\ttfamily #1}}}
 
 %  Format the constructor section.
 \providecommand{\sstconstructor}[1]{\sstdiytopic{Constructor Function}{#1}}
