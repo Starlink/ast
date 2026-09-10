@@ -11,7 +11,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 1. Add the existing C tests to the CMake build
 2. Convert Fortran tests to C to eliminate the Fortran/Starlink dependency
 
-## Current status: 109 default tests + 20 conditional (PLplot) + 1 optional huge stress test
+## Current status: 110 default tests + 20 conditional (PLplot) + 1 optional huge stress test
 
 | Phase | Status |
 |-------|--------|
@@ -32,7 +32,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 | Phase 2 Batch 14: astMask sky-curvature coverage | **Complete** (1 test) |
 | Phase 3: CI integration | **Complete** (tests run via ctest) |
 
-### Test inventory (109 default + 20 conditional PLplot + 1 optional)
+### Test inventory (110 default + 20 conditional PLplot + 1 optional)
 
 **Original test (1):**
 - ast_test — minimal installation check
@@ -63,7 +63,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   viewport with no PLplot dependency. Same .head/.attr/.fattr/.box fixtures
   as Batch 10.
 
-**Coverage gap tests (2 default):**
+**Coverage gap tests (3 default):**
 - Batch 13: testresample — exercises astResampleD/F/I across 10 interpolation
   schemes (NEAREST, LINEAR, SINC, SINCSINC, SINCCOS, SINCGAUSS, GAUSS, SOMB,
   SOMBCOS, BLOCKAVE), plus bad-pixel handling, variance propagation,
@@ -78,6 +78,15 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   maps great circles to straight lines. The CAR and TAN GRID<->SKY FrameSets are
   embedded as native serialised strings (read back with astFromString) so the
   test does not depend on the FitsChan class.
+- Batch 15: testchebyinverse — exercises the protected building blocks of the
+  ChebyMap iterative inverse (astGetJacobian, astLinearGuess,
+  astGetIterDomain) and the shared bounded solver in the PolyMap class. Built
+  with INTERNAL_HEADERS because it calls protected methods; checks the
+  Chebyshev derivative basis against an independent T_n' = n U_(n-1)
+  reference, the affine seed, endpoint and degenerate iteration domains, the
+  bad-value and exhaustion behaviour of the bounded solver against the
+  historical unbounded one, and cache transfer through copy, dump and
+  astPolyTran.
 
 **New C-only regression tests (no Fortran original):**
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
