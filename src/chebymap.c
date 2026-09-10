@@ -122,6 +122,20 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *     5-MAY-2018 (DSB):
 *        Correct usage of "forward" argument in astFitPoly1DInit and
 *        astFitPoly2DInit.
+*     8-SEP-2026 (TIMJ):
+*        Over-ride the astGetJacobian method inherited from the PolyMap
+*        class to express the derivatives of a Chebyshev series in the
+*        basis of the first kind, and the astLinearGuess method to seed
+*        the inversion from the normalised forward domain.
+*     8-SEP-2026 (TIMJ):
+*        Over-ride the astGetIterDomain method inherited from the PolyMap
+*        class, so that inverse iteration is restricted to the bounding
+*        box the forward series is defined over.
+*     9-SEP-2026 (TIMJ):
+*        Over-ride the astGetIterInverse and astSetIterInverse methods
+*        inherited from the PolyMap class, so that an iterative inverse is
+*        offered whenever the forward transformation is defined, and
+*        refused when it is not.
 *     9-SEP-2026 (TIMJ):
 *        Load a recorded IterInverse value without validating it against
 *        the forward transformation, so that dumps written by earlier
