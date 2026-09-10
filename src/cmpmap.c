@@ -176,6 +176,13 @@ f     The CmpMap class does not define any new routines beyond those
 *        resulting components so their Invert values can be set without
 *        modifying shared Mappings. Reached by any CmpMap for which
 *        astDoNotSimplify is true, such as one carrying an Ident.
+*     9-SEP-2026 (TJ):
+*        MapMerge: record the simplified state of every Mapping a merge
+*        probe can reach before the probe runs, and restore it if the probe
+*        is discarded. The trial CmpMaps a probe simplifies share their
+*        sub-Mappings with the live tree, so a discarded probe left
+*        simplified stamps on Mappings that no surviving simplification had
+*        produced.
 *class--
 */
 
@@ -296,6 +303,8 @@ static void Decompose( AstMapping *, AstMapping **, AstMapping **, int *, int *,
 static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void SeparateMappings( AstMapping **, int, int * );
+static void RecordSimplified( AstMapping *, AstMapping ***, char **, int *, int * );
+static void RestoreSimplified( AstMapping ***, char **, int *, int, int * );
 static size_t GetObjSize( AstObject *, int * );
 
 #if defined(THREAD_SAFE)
@@ -1543,6 +1552,9 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    AstCmpMap *cmpmap;            /* Pointer to nominated CmpMap */
    AstCmpMap *new_cm;            /* Pointer to new CmpMap */
    AstMapping **map_list1;       /* Pointer to list of cmpmap1 component Mappings */
+   AstMapping **rec_maps;        /* Mappings whose simplified state is recorded */
+   char *rec_flags;              /* Recorded simplified-state flags */
+   int nrec;                     /* Number of recorded Mappings */
    AstMapping **map_list2;       /* Pointer to list of cmpmap2 component Mappings */
    AstMapping **new_map_list;    /* Extended Mapping list */
    AstMapping *map;              /* Pointer to nominated CmpMap */
@@ -1785,6 +1797,18 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    adjacent CmpMaps both combine their sub-Mappings in series. */
                if ( !series && cmpmap1->series && cmpmap2->series ) {
 
+/* The trial CmpMaps built below share their sub-Mappings with the two
+   CmpMaps being probed, and simplifying them stamps those sub-Mappings as
+   simplified. Record the current state so that it can be restored if the
+   probe is discarded. */
+                  rec_maps = NULL;
+                  rec_flags = NULL;
+                  nrec = 0;
+                  RecordSimplified( cmpmap1->map1, &rec_maps, &rec_flags, &nrec, status );
+                  RecordSimplified( cmpmap1->map2, &rec_maps, &rec_flags, &nrec, status );
+                  RecordSimplified( cmpmap2->map1, &rec_maps, &rec_flags, &nrec, status );
+                  RecordSimplified( cmpmap2->map2, &rec_maps, &rec_flags, &nrec, status );
+
 /* Form two new parallel CmpMaps with the sub-Mappings re-arranged so
    that when combined in series these new CmpMaps are equivalent to
    the original ones. In doing this, we must take account of the
@@ -1819,6 +1843,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   if ( simpler ) new =
                                (AstMapping *) astCmpMap( simp1, simp2, 1, "", status );
 
+/* If the probe is being discarded, put the shared sub-Mappings back the
+   way they were. */
+                  RestoreSimplified( &rec_maps, &rec_flags, &nrec, !simpler, status );
+
 /* Annul the temporary Mapping pointers. */
                   new1 = astAnnul( new1 );
                   new2 = astAnnul( new2 );
@@ -1847,6 +1875,20 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    because some Mapping classes make temporary changes to the Mappings. */
                   SeparateMappings( map_list1, nmap1, status );
                   SeparateMappings( map_list2, nmap2, status );
+
+/* The lists still share their Mappings with the two CmpMaps being probed,
+   and the trial CmpMaps built from them below are simplified, which
+   stamps those Mappings as simplified. Record the current state so that
+   it can be restored if the probe is discarded. */
+                  rec_maps = NULL;
+                  rec_flags = NULL;
+                  nrec = 0;
+                  for( jmap1 = 0; jmap1 < nmap1; jmap1++ ) {
+                     RecordSimplified( map_list1[ jmap1 ], &rec_maps, &rec_flags, &nrec, status );
+                  }
+                  for( jmap2 = 0; jmap2 < nmap2; jmap2++ ) {
+                     RecordSimplified( map_list2[ jmap2 ], &rec_maps, &rec_flags, &nrec, status );
+                  }
 
 /* We want to divide each of these lists into N sub-lists so that the
    outputs of the Mappings in the i'th sub-list from cmpmap1 can feed
@@ -1964,6 +2006,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                         }
                      }
                   }
+
+/* If the probe is being discarded, put the shared Mappings back the way
+   they were. */
+                  RestoreSimplified( &rec_maps, &rec_flags, &nrec, !simpler, status );
 
 /* Free the lists of Mapping pointers and invert flags. */
                   if( map_list1 ) {
@@ -3525,6 +3571,160 @@ static AstMapping *RemoveRegions( AstMapping *this_mapping, int *status ) {
 
 /* Return the result. */
    return result;
+}
+
+static void RecordSimplified( AstMapping *map, AstMapping ***maps, char **flags,
+                              int *nmap, int *status ) {
+/*
+*  Name:
+*     RecordSimplified
+
+*  Purpose:
+*     Record the simplified state of a Mapping and every Mapping it contains.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "cmpmap.h"
+*     void RecordSimplified( AstMapping *map, AstMapping ***maps, char **flags,
+*                            int *nmap, int *status )
+
+*  Class Membership:
+*     CmpMap member function.
+
+*  Description:
+*     This function appends the supplied Mapping, and recursively every
+*     component Mapping reached through astDecompose, to a list of
+*     Mappings, together with the simplified-state flags each one holds at
+*     the time of the call. The list holds a cloned pointer to each Mapping
+*     so that the recorded objects stay alive until RestoreSimplified is
+*     called.
+*
+*     The merge probes in MapMerge build trial CmpMaps out of the very
+*     Mappings they are probing, since CombineMaps clones its arguments,
+*     and simplifying a trial CmpMap stamps whichever of those shared
+*     Mappings astSimplify is called on as simplified. A probe that is then
+*     discarded must not leave that record behind on the live tree, since
+*     the surviving simplification never produced it: whether a Mapping
+*     carries an IsSimp card in a dump would otherwise depend on which
+*     probes happened to run, and not on the tree that is dumped. The
+*     record taken here lets a discarded probe put every flag back.
+
+*  Parameters:
+*     map
+*        Pointer to the Mapping to record. May be NULL.
+*     maps
+*        Address of a pointer to a dynamically allocated array of Mapping
+*        pointers, or of a NULL pointer. The array is extended as needed.
+*     flags
+*        Address of a pointer to a dynamically allocated array of flag
+*        values parallel to "maps", or of a NULL pointer.
+*     nmap
+*        Address of the number of entries in the two arrays. Updated on
+*        exit.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   AstMapping *map1;
+   AstMapping *map2;
+
+/* Check the inherited status and the supplied pointer. */
+   if ( !astOK || !map ) return;
+
+/* Extend the arrays and record this Mapping and its two simplified-state
+   flags. */
+   *maps = astGrow( *maps, *nmap + 1, sizeof( AstMapping * ) );
+   *flags = astGrow( *flags, *nmap + 1, sizeof( char ) );
+   if ( astOK ) {
+      (*maps)[ *nmap ] = astClone( map );
+      (*flags)[ *nmap ] = map->flags & ( AST__ISSIMPLE_FLAG | AST__ISSIMPLEINV_FLAG );
+      (*nmap)++;
+   }
+
+/* Recurse into the component Mappings, if any. An atomic Mapping returns
+   a clone of itself as the first component and NULL as the second. */
+   map1 = NULL;
+   map2 = NULL;
+   astDecompose( map, &map1, &map2, NULL, NULL, NULL );
+   if ( map2 ) {
+      RecordSimplified( map1, maps, flags, nmap, status );
+      RecordSimplified( map2, maps, flags, nmap, status );
+   }
+   if ( map1 ) map1 = astAnnul( map1 );
+   if ( map2 ) map2 = astAnnul( map2 );
+}
+
+static void RestoreSimplified( AstMapping ***maps, char **flags, int *nmap,
+                               int restore, int *status ) {
+/*
+*  Name:
+*     RestoreSimplified
+
+*  Purpose:
+*     Optionally restore recorded simplified states, and free the record.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "cmpmap.h"
+*     void RestoreSimplified( AstMapping ***maps, char **flags, int *nmap,
+*                             int restore, int *status )
+
+*  Class Membership:
+*     CmpMap member function.
+
+*  Description:
+*     This function frees a record made by RecordSimplified. If "restore"
+*     is non-zero, it first puts the simplified-state flags of every
+*     recorded Mapping back to the recorded values, undoing any stamps a
+*     discarded merge probe left on them.
+
+*  Parameters:
+*     maps
+*        Address of the array pointer filled by RecordSimplified. Set to
+*        NULL on exit.
+*     flags
+*        Address of the flags array pointer filled by RecordSimplified.
+*        Set to NULL on exit.
+*     nmap
+*        Address of the number of entries. Set to zero on exit.
+*     restore
+*        If non-zero, restore the recorded flags before freeing the record.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     - This function attempts to execute even if an error has occurred,
+*     so that the record is always freed.
+*/
+
+/* Local Variables: */
+   int i;
+
+/* Restore the flags if requested. Each recorded Mapping still exists,
+   since the record holds a cloned pointer to it. */
+   if ( *maps && *flags ) {
+      for ( i = 0; i < *nmap; i++ ) {
+         if ( restore && (*maps)[ i ] ) {
+            (*maps)[ i ]->flags &= ~( AST__ISSIMPLE_FLAG | AST__ISSIMPLEINV_FLAG );
+            (*maps)[ i ]->flags |= (*flags)[ i ];
+         }
+      }
+   }
+
+/* Annul the cloned pointers and free the arrays. */
+   if ( *maps ) {
+      for ( i = 0; i < *nmap; i++ ) {
+         if ( (*maps)[ i ] ) (*maps)[ i ] = astAnnul( (*maps)[ i ] );
+      }
+   }
+   *maps = astFree( *maps );
+   *flags = astFree( *flags );
+   *nmap = 0;
 }
 
 static void SeparateMappings( AstMapping **map_list, int nmap, int *status ) {
