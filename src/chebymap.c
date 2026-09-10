@@ -175,6 +175,14 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        returned by astChebyDomain or used by astPolyTran always
 *        evaluates without BAD. Remove the unreachable "lo <= hi" test in
 *        AxisBounds.
+*     10-SEP-2026 (TIMJ):
+*        Create the two trial PointSets used by IterSteps once, before the
+*        backtrack loop, and shrink them with astSetNpoint instead of
+*        re-creating them at every level. Give IterSteps a "work" array and
+*        have it copy an accepted trial's forward values into it, so that
+*        IterInverse's whole-batch forward transform at the top of each
+*        iteration can be skipped except on the first iteration or after a
+*        position has been nudged.
 *class--
 */
 
@@ -293,9 +301,9 @@ static int GetIterDomain( AstChebyMap *, double *, double *, int * );
 static int AxisBounds( double, double, double *, double * );
 static void IterInverse( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
 static void IterSteps( AstPolyMap *, int, int, double **, double **,
+                       double **, const double *, const double *,
                        const double *, const double *, const double *,
-                       const double *, const double *, const double *,
-                       int *, int *, int *, int * );
+                       const double *, int *, int *, int *, int * );
 static void MarkUnsolved( double **, int, int, int *, int * );
 static int Usable( double );
 static double NudgeIntoDomain( double, double, double, double );
@@ -1409,11 +1417,11 @@ static void MarkUnsolved( double **inputs, int ncoord, int ipoint,
 }
 
 static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
-                       double **inputs, double **outputs, const double *lbnd,
-                       const double *ubnd, const double *width,
-                       const double *scales, const double *steps,
-                       const double *norms, int *stepping, int *flags,
-                       int *nconv, int *status ) {
+                       double **inputs, double **outputs, double **work,
+                       const double *lbnd, const double *ubnd,
+                       const double *width, const double *scales,
+                       const double *steps, const double *norms,
+                       int *stepping, int *flags, int *nconv, int *status ) {
 /*
 *  Name:
 *     IterSteps
@@ -1426,11 +1434,11 @@ static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
 
 *  Synopsis:
 *     void IterSteps( AstPolyMap *this, int npoint, int ncoord,
-*                     double **inputs, double **outputs, const double *lbnd,
-*                     const double *ubnd, const double *width,
-*                     const double *scales, const double *steps,
-*                     const double *norms, int *stepping, int *flags,
-*                     int *nconv, int *status )
+*                     double **inputs, double **outputs, double **work,
+*                     const double *lbnd, const double *ubnd,
+*                     const double *width, const double *scales,
+*                     const double *steps, const double *norms,
+*                     int *stepping, int *flags, int *nconv, int *status )
 
 *  Description:
 *     This function applies one bounded Newton update to each position
@@ -1448,14 +1456,21 @@ static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
 *     search. A correction made small by projection is not by itself
 *     evidence of convergence.
 *
-*     An accepted trial replaces the input position. A position for
-*     which no acceptable trial is found is set bad and marked as
-*     converged. Either way its "stepping" flag is cleared, so the array
-*     is left ready for the next iteration.
+*     An accepted trial replaces the input position, and its forward
+*     value is copied into "work" so the caller does not need to
+*     re-evaluate the forward transformation for that position before
+*     the next iteration. A position for which no acceptable trial is
+*     found is set bad and marked as converged. Either way its
+*     "stepping" flag is cleared, so the array is left ready for the
+*     next iteration.
 *
 *     All the positions still searching at a given trial size are
 *     evaluated by a single call to the forward transformation. The
 *     positions that have finished drop out of the following trials.
+*
+*     The two working PointSets used to hold a trial and its forward
+*     value are created once, sized for the largest trial this call will
+*     make, and reused at every backtrack level.
 
 *  Parameters:
 *     this
@@ -1477,6 +1492,11 @@ static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
 *        Array of pointers to target output coordinate arrays, indexed
 *        as outputs[axis][point]. There must be one array per original
 *        output axis. These values are not modified.
+*     work
+*        Array of pointers to the whole batch's original forward values,
+*        indexed as work[axis][point]. There must be one array per
+*        original output axis. The forward value of an accepted trial is
+*        copied here for its position; other positions are not touched.
 *     lbnd
 *        Array holding the finite lower domain bound on each original
 *        input axis.
@@ -1558,6 +1578,18 @@ static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
 
    fwd = !astGetInvert( this );
 
+/* Create the two trial PointSets once, sized for the largest batch any
+   backtrack level will need, and reuse them throughout. */
+   trial = astPointSet( nsearch, ncoord, "", status );
+   trial_out = astPointSet( nsearch, ncoord, "", status );
+   x = astGetPoints( trial );
+   if( !astOK ) {
+      trial = astAnnul( trial );
+      trial_out = astAnnul( trial_out );
+      index = astFree( index );
+      return;
+   }
+
 /* Try the full correction first, then successive halvings. */
    alpha = 1.0;
    for( backtrack = 0; backtrack < 32 && nsearch > 0 && astOK;
@@ -1565,16 +1597,12 @@ static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
 
 /* Gather the trial positions. A position whose trial position is the one
    it already holds cannot be improved by any smaller correction, so it
-   stops searching. */
+   stops searching. The number of positions still searching only ever
+   shrinks between levels, so the PointSets created above are shrunk to
+   fit rather than re-created. */
       nstart = nsearch;
-      trial = astPointSet( nstart, ncoord, "", status );
-      trial_out = astPointSet( nstart, ncoord, "", status );
-      x = astGetPoints( trial );
-      if( !astOK ) {
-         trial = astAnnul( trial );
-         trial_out = astAnnul( trial_out );
-         break;
-      }
+      astSetNpoint( trial, nstart );
+      astSetNpoint( trial_out, nstart );
 
       ntrial = 0;
       for( ipoint = 0; ipoint < npoint; ipoint++ ) {
@@ -1632,14 +1660,17 @@ static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
             for( i = 0; i < ncoord; i++ ) {
                inputs[ i ][ ipoint ] = x[ i ][ jpoint ];
             }
+            for( i = 0; i < ncoord; i++ ) {
+               work[ i ][ ipoint ] = y[ i ][ jpoint ];
+            }
             stepping[ ipoint ] = 0;
             nsearch--;
          }
       }
-
-      trial = astAnnul( trial );
-      trial_out = astAnnul( trial_out );
    }
+
+   trial = astAnnul( trial );
+   trial_out = astAnnul( trial_out );
 
 /* Any position that exhausted the trials has no acceptable step. */
    for( ipoint = 0; ipoint < npoint; ipoint++ ) {
@@ -1692,6 +1723,11 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 *
 *     A position whose Jacobian is singular is moved once by a quarter of
 *     each half-width before being declared unsolved.
+*
+*     The whole-batch forward transformation used to form the residual is
+*     only re-evaluated on the first iteration and after a position has
+*     been nudged off a singular seed; otherwise the forward values IterSteps
+*     already obtained for the accepted trial are reused.
 *
 *     If the forward series has no usable Chebyshev box on every axis,
 *     the parent PolyMap algorithm is used instead.
@@ -1901,8 +1937,14 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 
 /* Use the original forward transformation to transform the current
    guesses at the required input positions into the corresponding output
-   positions. Store the results in the "work" PointSet. */
-         (void) astTransform( map, result, fwd, work );
+   positions. Store the results in the "work" PointSet. Every position
+   still iterating was either just stepped by IterSteps, which recorded
+   its forward value, or nudged, which did not; only the first iteration
+   and a nudge need a fresh evaluation of the whole batch. */
+         if( iter == 0 || stale > 0 ) {
+            (void) astTransform( map, result, fwd, work );
+            stale = 0;
+         }
 
 /* Modify the work PointSet so that it holds the offsets from the output
    positions produced by the current input position guesses, and the
@@ -2045,9 +2087,9 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
          }
 
 /* Apply the deferred Newton updates for the whole batch. */
-         IterSteps( map, npoint, ncoord, ptr_in, ptr_out, lbnd, ubnd,
-                    width, scales, steps, norms, stepping, flags, &nconv,
-                    status );
+         IterSteps( map, npoint, ncoord, ptr_in, ptr_out, ptr_work, lbnd,
+                    ubnd, width, scales, steps, norms, stepping, flags,
+                    &nconv, status );
       }
    }
 
