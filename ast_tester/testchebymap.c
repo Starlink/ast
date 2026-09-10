@@ -543,6 +543,39 @@ static void inverse_tests( int *status ) {
       cm = astAnnul( cm );
    }
 
+/* Refitting the forward transformation samples the iterative inverse,
+   which evaluates the forward transformation. The fit must therefore see
+   the supplied transformation unchanged at every polynomial order, even
+   though the fit normalizes its own coefficients differently. */
+   if( *status == 0 ) {
+      /* f(x) = 500*T1(x/1000) + 100*T2(x/1000) = 0.5x + 2e-4 x^2 - 100,
+         monotonic on [-1000,1000] with output range [-400,600]. */
+      double fwd[] = { 500.0, 1, 1, 100.0, 1, 2 };
+      double inv[] = { 1.0, 1, 1 };
+      double ilo[] = { -1000.0 }, ihi[] = { 1000.0 };
+      double olo[] = { -400.0 }, ohi[] = { 600.0 };
+      double slo[] = { -350.0 }, shi[] = { 0.0 };
+      AstChebyMap *refit;
+
+      cm = astChebyMap( 1, 1, 2, fwd, 1, inv, ilo, ihi, olo, ohi,
+                        "IterInverse=1" );
+
+/* The sampled sub-range of the output box covers inputs [-691,186]. */
+      refit = (AstChebyMap *) astPolyTran( cm, 1, 1e-7, 1e-3, 8, slo, shi );
+      if( !refit ) {
+         stopit( 790, status );
+      } else {
+         for( i = 0; i < 5; i++ ) {
+            double xi = -600.0 + 150.0*i;
+            double want = 0.5*xi + 2.0e-4*xi*xi - 100.0;
+            astTran1( refit, 1, &xi, 1, xr );
+            if( fabs( xr[ 0 ] - want ) > 1e-3 ) stopit( 791 + i, status );
+         }
+         refit = astAnnul( refit );
+      }
+      cm = astAnnul( cm );
+   }
+
 /* Earlier versions of AST allowed IterInverse to be set on an
    inverse-only ChebyMap, so dumps recording that combination exist. They
    must still load, with the recorded value having no effect. */

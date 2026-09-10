@@ -178,6 +178,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        Return zero for IterInverse if the forward transformation is
 *        undefined. The iterative inverse evaluates the forward
 *        transformation, so without it the PolyMap defines no inverse.
+*     9-SEP-2026 (TIMJ):
+*        Sample the transformation being fitted from an uninitialised copy
+*        in ReplaceTransformation, so that the normalisation stored by
+*        astFitPoly1DInit and astFitPoly2DInit for one polynomial order
+*        cannot change what later orders sample.
 *class--
 */
 
@@ -5462,6 +5467,7 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 */
 
 /* Local Variables: */
+   AstPolyMap *source;
    double **table;
    double *cofs;
    double racc;
@@ -5522,6 +5528,16 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 /* Initialise pointer to work space. */
    table = NULL;
 
+/* Sample from a copy rather than from "this". The initialisation performed
+   for each polynomial order (see astFitPoly1DInit) may store the
+   normalisation belonging to the coefficients that the order is fitting,
+   before those coefficients are known. In a ChebyMap that changes the
+   meaning of the transformation being replaced, and the transformation
+   that is sampled can depend on it - an iterative inverse evaluates the
+   forward transformation. The copy is never initialised, so every order
+   samples the transformation as supplied. */
+   source = astCopy( this );
+
 /* Loop over increasing polynomial orders until the required accuracy is
    achieved, up to the specified maximum order. The "order" value is one more
    than the maximum power in the polynomial (so a quadratic has "order" 3). */
@@ -5534,7 +5550,7 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 /* Sample the requested polynomial transformation at a grid of points. This
    grid covers the user-supplied region, using 2*order points on each
    axis. */
-         table = SamplePoly2D( this, !forward, table, lbnd, ubnd, 2*order,
+         table = SamplePoly2D( source, !forward, table, lbnd, ubnd, 2*order,
                                &nsamp, scales, status );
 
 /* Fit the polynomial. Always fit a linear polynomial ("order" 2) to any
@@ -5545,7 +5561,7 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
 
 /* Now do 1D PolyMaps. */
       } else {
-         table = SamplePoly1D( this, !forward, table, lbnd[ 0 ], ubnd[ 0 ],
+         table = SamplePoly1D( source, !forward, table, lbnd[ 0 ], ubnd[ 0 ],
                                2*order, &nsamp, scales, status );
          cofs = FitPoly1D( this, forward, nsamp, acc, order, table, scales,
                            &ncof, &racc, status );
@@ -5565,6 +5581,7 @@ static int ReplaceTransformation( AstPolyMap *this, int forward, double acc,
    result = cofs ? 1 : 0;
 
 /* Free resources. */
+   source = astAnnul( source );
    cofs = astFree( cofs );
    table = astFreeDouble( table );
 
