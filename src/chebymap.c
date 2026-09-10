@@ -130,6 +130,9 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        Construct the Jacobian ChebyMaps on the canonical [-1,1] box
 *        instead of a physical box reconstructed from the scales and
 *        offsets, which are copied into the new Maps in any case.
+*     9-SEP-2026 (TIMJ):
+*        Report no finite iteration domain if the forward normalisation is
+*        zero or non-finite, rather than dividing by it.
 *class--
 */
 
@@ -1150,6 +1153,18 @@ static int GetIterDomain( AstPolyMap *map, double *lbnd, double *ubnd,
    int i, j, nin = ((AstMapping *) map)->nin;
    double a, b;
    if( !astOK || !this->scale_f ) return 0;
+
+/* A zero or non-finite normalisation describes no bounding box, and so no
+   finite domain to restrict iteration to. Check every axis before storing
+   anything, so that the supplied arrays are left unchanged. */
+   for( i = 0; i < nin; i++ ) {
+      if( this->scale_f[i] == 0.0 || !isfinite( this->scale_f[i] ) ||
+          !isfinite( this->offset_f[i] ) ) return 0;
+      a = (-1.0 - this->offset_f[i])/this->scale_f[i];
+      b = (1.0 - this->offset_f[i])/this->scale_f[i];
+      if( !isfinite( a ) || !isfinite( b ) ) return 0;
+   }
+
    for( i = 0; i < nin; i++ ) {
       a = (-1.0 - this->offset_f[i])/this->scale_f[i];
       b = (1.0 - this->offset_f[i])/this->scale_f[i];
