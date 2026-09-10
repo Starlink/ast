@@ -2513,6 +2513,7 @@ void astInitPolyMapVtab_(  AstPolyMapVtab *vtab, const char *name, int *status )
    vtab->GetJacobian = GetJacobian;
    vtab->LinearGuess = LinearGuess;
    vtab->GetIterDomain = GetIterDomain;
+   vtab->IterInverse = IterInverse;
 
    vtab->ClearIterInverse = ClearIterInverse;
    vtab->GetIterInverse = GetIterInverse;
@@ -2836,11 +2837,15 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
 *     iteratively.
 
 *  Type:
-*     Private function.
+*     Protected virtual function.
 
 *  Synopsis:
+*     #include "polymap.h"
 *     void IterInverse( AstPolyMap *this, AstPointSet *out,
 *                       AstPointSet *result, int *status )
+
+*  Class Membership:
+*     PolyMap method (implements the astIterInverse protected method).
 
 *  Description:
 *     This function transforms a set of original output positions into
@@ -6732,7 +6737,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    attribute is non-zero, use an iterative inverse algorithm rather than any
    inverse transformation defined within the PolyMap. */
    if( !forward && astGetIterInverse(map) ) {
-      IterInverse( map, in, result, status );
+      astIterInverse( map, in, result );
 
 /* Otherwise, determine the numbers of points and coordinates per point from
    the input and output PointSets and obtain pointers for accessing the input
@@ -8170,6 +8175,12 @@ int astGetIterDomain_( AstPolyMap *this, double *lbnd, double *ubnd,
                        int *status ){
    if( !astOK ) return 0;
    return (**astMEMBER(this,PolyMap,GetIterDomain))( this, lbnd, ubnd, status );
+}
+
+void astIterInverse_( AstPolyMap *this, AstPointSet *out, AstPointSet *result,
+                      int *status ){
+   if( !astOK ) return;
+   (**astMEMBER(this,PolyMap,IterInverse))( this, out, result, status );
 }
 
 void astPolyPowers_( AstPolyMap *this, double **work, int ncoord,
