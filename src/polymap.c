@@ -6499,9 +6499,9 @@ astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 *        For a Chebyshev forward series, this is the maximum number of
 *        Newton updates. Each update may backtrack to reduce the residual.
 *        The final candidate is checked after the last update. A value of
-*        zero checks only the initial guess. The default is four, but
-*        stronger distortions may require more iterations. An unsolved
-*        position is returned as AST__BAD.
+*        zero checks only the initial guess. The default is ten. Stronger
+*        distortions may require more iterations. An unsolved position is
+*        returned as AST__BAD.
 
 *att--
 */

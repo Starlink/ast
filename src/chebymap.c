@@ -163,6 +163,11 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        immediately. A forward series with no linear term is singular at
 *        the midpoint seed, which the previous behaviour reported as
 *        unsolved for every target.
+*     10-SEP-2026 (TIMJ):
+*        Override GetNiterInverse so that an unset NiterInverse defaults to
+*        10 rather than PolyMap's 4. The bounded algorithm checks only the
+*        final candidate, so it needs more headroom than the unbounded
+*        algorithm, which returns the last iterate.
 *class--
 */
 
@@ -222,6 +227,7 @@ static AstPolyMap *(*parent_polytran)( AstPolyMap *, int, double, double, int, c
 static AstPolyMap **(*parent_getjacobian)( AstPolyMap *, int * );
 static AstMapping *(*parent_linearguess)( AstPolyMap *, int * );
 static void (*parent_iterinverse)( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
+static int (*parent_getniterinverse)( AstPolyMap *, int * );
 
 /* A derivative term retains the original orders except on one axis. */
 typedef struct ChebyDerivTerm {
@@ -286,6 +292,7 @@ static void IterSteps( AstPolyMap *, int, int, double **, double **,
 static void MarkUnsolved( double **, int, int, int *, int * );
 static int Usable( double );
 static double NudgeIntoDomain( double, double, double, double );
+static int GetNiterInverse( AstPolyMap *, int * );
 static size_t GetObjSize( AstObject *, int * );
 static void ChebyDomain( AstChebyMap *, int, double *, double *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
@@ -2305,6 +2312,47 @@ static size_t GetObjSize( AstObject *this_object, int *status ) {
    return result;
 }
 
+static int GetNiterInverse( AstPolyMap *this, int *status ) {
+/*
+*  Name:
+*     GetNiterInverse
+
+*  Purpose:
+*     Return the value of the NiterInverse attribute.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     int GetNiterInverse( AstPolyMap *this, int *status )
+
+*  Class Membership:
+*     ChebyMap member function (over-rides the astGetNiterInverse
+*     protected method inherited from the PolyMap class).
+
+*  Description:
+*     This function returns the NiterInverse value. An explicitly set
+*     value is returned unchanged. The default for a ChebyMap is ten,
+*     because the bounded algorithm checks the final candidate after the
+*     last update and returns AST__BAD on exhaustion, so it needs more
+*     headroom than the unbounded PolyMap algorithm, whose default is
+*     four.
+
+*  Parameters:
+*     this
+*        Pointer to the PolyMap (in practice always a ChebyMap).
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The NiterInverse value to use.
+*/
+   if( !astOK ) return 0;
+   if( astTestNiterInverse( this ) ) return (*parent_getniterinverse)( this, status );
+   return 10;
+}
+
 void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status ) {
 /*
 *+
@@ -2380,6 +2428,8 @@ void astInitChebyMapVtab_(  AstChebyMapVtab *vtab, const char *name, int *status
    polymap->LinearGuess = LinearGuess;
    parent_iterinverse = polymap->IterInverse;
    polymap->IterInverse = IterInverse;
+   parent_getniterinverse = polymap->GetNiterInverse;
+   polymap->GetNiterInverse = GetNiterInverse;
 
    parent_getobjsize = object->GetObjSize;
    object->GetObjSize = GetObjSize;
