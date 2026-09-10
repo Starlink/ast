@@ -169,7 +169,11 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        Override GetNiterInverse so that an unset NiterInverse defaults to
 *        10 rather than PolyMap's 4. The bounded algorithm checks only the
 *        final candidate, so it needs more headroom than the unbounded
-*        algorithm, which returns the last iterate.
+*        algorithm, which returns the last iterate. Apply the converged
+*        correction to that final candidate before returning it, instead of
+*        leaving it at the position tested for convergence, so that it is
+*        accurate to roughly the square of TolInverse rather than to
+*        TolInverse itself.
 *     10-SEP-2026 (TIMJ):
 *        Rename IterBounds to AxisBounds and use it, rather than a bare
 *        scale-and-offset division, in ChebyDomain and in PolyTran's
@@ -1716,7 +1720,10 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 *     its Jacobian row norm, and IterSteps backtracks corrections that
 *     do not reduce the residual. A position converges when both the
 *     normalised correction and the scaled residual are within
-*     TolInverse; an exactly zero residual converges immediately.
+*     TolInverse, at which point the converged correction is applied,
+*     clipped into the box, so the returned position is accurate to
+*     roughly the square of TolInverse rather than to TolInverse itself;
+*     an exactly zero residual converges immediately.
 *
 *     After NiterInverse updates the final candidate is checked once
 *     more. Any position that is still unsolved, was supplied with a bad
@@ -2072,6 +2079,15 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
                      stepnorm = astMAX( stepnorm, fabs(vec[icoord]) );
                   }
                   if( valid && stepnorm <= tol && norm <= tol ) {
+
+/* Apply the converged correction, so the returned position is accurate
+   to roughly the square of TolInverse rather than to TolInverse itself,
+   and is insensitive to which iterate first met the tolerance. */
+                     for( icoord = 0; icoord < ncoord; icoord++ ) {
+                        xx = ptr_in[ icoord ][ ipoint ] + vec[ icoord ]*width[ icoord ];
+                        ptr_in[ icoord ][ ipoint ] = astMAX( lbnd[ icoord ],
+                                                    astMIN( ubnd[ icoord ], xx ) );
+                     }
                      flags[ipoint] = 1;
                      nconv++;
                   } else if( !valid || iter == maxiter ) {
