@@ -152,6 +152,9 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        long as doing so improves it, and report no finite domain if it
 *        cannot be moved far enough, instead of returning a bound that the
 *        forward evaluator rejects.
+*     9-SEP-2026 (TIMJ):
+*        Report an error if a bounding box is omitted for a direction that
+*        has coefficients, rather than dereferencing the null pointer.
 *class--
 */
 
@@ -2832,6 +2835,19 @@ AstChebyMap *astInitChebyMap_( void *mem, size_t size, int init,
       new->offset_f = NULL;
       new->scale_i = NULL;
       new->offset_i = NULL;
+
+/* A bounding box is needed for each direction that has coefficients. The
+   checks below leave the status set, so the boxes are not read. */
+      if( ncoeff_f > 0 && ( !lbnd_f || !ubnd_f ) ) {
+         astError( AST__NOBOX, "astInitChebyMap(%s): No input bounding box "
+                   "supplied, but the forward transformation is defined.",
+                   status, name );
+
+      } else if( ncoeff_i > 0 && ( !lbnd_i || !ubnd_i ) ) {
+         astError( AST__NOBOX, "astInitChebyMap(%s): No output bounding box "
+                   "supplied, but the inverse transformation is defined.",
+                   status, name );
+      }
 
 /* Calculate the scales and offsets that map the supplied input bounding box
    onto the range [-1,+1] on each input axis, and store them. */

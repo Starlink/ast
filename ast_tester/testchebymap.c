@@ -360,6 +360,34 @@ int main( void ) {
              fabs( l2yb[i] - l2y[i] ) > 1.0e-9 ) stopit( 705, status );
    }
 
+/* A bounding box is required whenever coefficients are supplied for that
+   direction. Omitting it must be reported, not read. */
+   if( *status == 0 ) {
+      double box_coeffs[] = { 1.0, 1, 1 };
+      double blo = -1.0, bhi = 1.0;
+
+      cm = astChebyMap( 1, 1, 1, box_coeffs, 0, NULL, NULL, &bhi, NULL, NULL,
+                        " " );
+      if( *status != AST__NOBOX || cm ) stopit( 610, status );
+      astClearStatus;
+
+      cm = astChebyMap( 1, 1, 1, box_coeffs, 0, NULL, &blo, NULL, NULL, NULL,
+                        " " );
+      if( *status != AST__NOBOX || cm ) stopit( 611, status );
+      astClearStatus;
+
+      cm = astChebyMap( 1, 1, 0, NULL, 1, box_coeffs, NULL, NULL, NULL, &bhi,
+                        " " );
+      if( *status != AST__NOBOX || cm ) stopit( 612, status );
+      astClearStatus;
+
+/* Omitting the box for a direction with no coefficients remains valid. */
+      cm = astChebyMap( 1, 1, 1, box_coeffs, 0, NULL, &blo, &bhi, NULL, NULL,
+                        " " );
+      if( !cm || *status != 0 ) stopit( 613, status );
+      cm = astAnnul( cm );
+   }
+
    inverse_tests( status );
 
    astEnd;
