@@ -205,6 +205,24 @@ int main( void ) {
    if( astGetL( pm2, "TranInverse" ) ) stopit( 8017, status );
    if( !astGetL( pm2, "TranForward" ) ) stopit( 8018, status );
 
+   /* A PolyMap with neither forward nor inverse coefficients defines no
+      transformation at all. The iterative inverse needs the forward
+      coefficients to evaluate, so it must not be offered, and the
+      unusable inverse must be reported as an error rather than
+      attempted. */
+   pm2 = astPolyMap( 1, 1, 0, NULL, 0, NULL, " " );
+   if( astGetL( pm2, "TranForward" ) ) stopit( 8019, status );
+   if( astGetL( pm2, "IterInverse" ) ) stopit( 8020, status );
+   if( astGetL( pm2, "TranInverse" ) ) stopit( 8021, status );
+
+   if( *status == 0 ) {
+      xin[ 0 ] = 0.5;
+      xout[ 0 ] = AST__BAD;
+      astTran1( pm2, 1, xin, 0, xout );
+      if( *status == 0 ) stopit( 8022, status );
+      astClearStatus;
+   }
+
    astEnd;
    astFlushMemory( 1 );
 

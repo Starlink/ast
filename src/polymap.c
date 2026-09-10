@@ -174,6 +174,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        cleared once the PolyMap has been cloned, as SUN/210 says AST does
 *        for the attributes of any Mapping. Use the guarded astMAKE_SET1 and
 *        astMAKE_CLEAR1 macros.
+*     9-SEP-2026 (TIMJ):
+*        Return zero for IterInverse if the forward transformation is
+*        undefined. The iterative inverse evaluates the forward
+*        transformation, so without it the PolyMap defines no inverse.
 *class--
 */
 
@@ -6724,10 +6728,11 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *att--
 */
 astMAKE_CLEAR1(PolyMap,IterInverse,iterinverse,(astClearIsSimple(this),-INT_MAX))
-astMAKE_GET(PolyMap,IterInverse,int,0,( ( this->iterinverse == -INT_MAX ) ?
+astMAKE_GET(PolyMap,IterInverse,int,0,( !this->ncoeff_f ? 0 :
+                                        ( ( this->iterinverse == -INT_MAX ) ?
                                           ( this->ncoeff_i == 0 &&
                                             astGetNin( this ) == astGetNout( this ) ) :
-                                          this->iterinverse ))
+                                          this->iterinverse ) ))
 astMAKE_SET1(PolyMap,IterInverse,int,iterinverse,
   (((astGetNin(this)==astGetNout(this))||!value)?
   (( (value?1:0) != this->iterinverse ) ? astClearIsSimple(this) : (void)0,(value?1:0)):
