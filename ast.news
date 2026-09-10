@@ -62,7 +62,11 @@ Main Changes in this Version
   alone. The IsSimple attribute keeps its documented meaning and once again
   agrees with the saved item. Inverting a simplified Mapping resets IsSimple
   to zero, since the inverse may simplify differently, and restoring the
-  original Invert value restores it.
+  original Invert value restores it. Setting an attribute to the value it
+  already holds no longer resets IsSimple either. In particular, a saved
+  GrismMap, LutMap, MathMap, PcdMap, PermMap, PolyMap, SphMap, SplineMap,
+  WcsMap or ZoomMap now keeps its IsSimp item when read back from a Channel,
+  where previously the act of reading the object discarded it.
 
 Other changes in behaviour
 --------------------------
@@ -110,8 +114,8 @@ New features
   and test the library.
 - Added a new experimental build system based on CMake. This build system
   has not been tested for installations and currently exists primarily to
-  simplify testing without any Starlink software installed. It does not
-  build the Fortran interface.
+  simplify testing without any Starlink software installed. The Fortran
+  interface is built only if the AST_BUILD_FORTRAN option is enabled.
 - Added an experimental PLplot graphics library plugin, covering both the
   2-dimensional grf interface and the 3-dimensional grf3d interface, to
   allow graphics testing without requiring PGPLOT. The text bounding boxes
@@ -153,14 +157,30 @@ Bug fixes
   - Wide floating point values could be written one column to the right of
     the intended field, and, in some cases, a number was converted to a
     string with a leading space.
+  - Writing a FrameSet containing a SIP distortion could produce a header
+    that no FITS-WCS reader can use. If the inverse transformation was
+    undefined at the reference point, the SIP coefficients were written
+    without any CTYPE, CRPIX or CD cards, and astWrite reported success. In
+    addition, the Mapping following the SIP polynomial was tested for
+    linearity over a box centred on the SIP reference point rather than over
+    the image, with FitsTol applied in the output space of that Mapping
+    rather than in pixels, so a Mapping that was far from linear over the
+    image could be accepted. The test is now made over the region the
+    Mapping is actually used for, a SIP description without a usable
+    reference pixel is rejected and the Mapping is instead fitted directly,
+    and astWrite reports failure rather than writing a header holding only
+    alternate axis descriptions when the primary descriptions could not be
+    produced.
 
   Also fixed are a null pointer dereference and several buffer overruns and
   memory leaks (in PCFromStore, in WATCoeffs when reading TNX Chebyshev
   headers, on error paths, and when reading ill-conditioned headers), an
   out-of-bounds read when scaling the inverse coefficients of a PolyMap on
-  the SIP write path, use of the input rather than the output axis count
-  when writing SIP keywords for a non-square Mapping, and double application
-  of the spectral unit factor to CDELT when writing FITS-CLASS.
+  the SIP write path, a null pointer dereference when a non-linear Mapping
+  was written with a FitsTol too tight for the linear fit to succeed, use of
+  the input rather than the output axis count when writing SIP keywords for
+  a non-square Mapping, and double application of the spectral unit factor
+  to CDELT when writing FITS-CLASS.
 
 - A bug has been fixed in astMask that caused a Polygon defined on the sky
   and enclosing more than half the sky to be effectively negated. astMask
@@ -183,6 +203,20 @@ Bug fixes
   they are the same object; and two PermMaps that feed an axis from the same
   constant slot now compare the constant values, which previously could
   cause astSimplify to merge two PermMaps that are not equivalent.
+
+- Comparing two CmpMaps that may not be decomposed, such as CmpMaps that
+  carry an Ident attribute, recursed without limit until the stack was
+  exhausted. The comparison now expands the outer level of each CmpMap
+  itself, and compares copies of the components so that the Invert values
+  of Mappings shared with other Objects are left untouched.
+
+- When astSimplify replaces a WinMap that has unit scale factors by a
+  ShiftMap, a shift term that is zero to within the tolerance used for the
+  scale factors is now treated as zero. A shift that had been merged past a
+  MatrixMap could carry a rounding residue of the order of 1E-16, and since
+  a ShiftMap only writes a non-zero shift to a Channel, the same Mapping
+  was saved with a different number of items depending on whether the
+  compiler used a fused multiply-add instruction.
 
 - A bug has been fixed in the astDat method of the TimeMap class. The
   inverse (TAI to UTC) branch of the pre-1972 "rubber second" model used
@@ -248,15 +282,39 @@ Bug fixes
   frame, a buffer over-read when the Plot class builds the name of a
   graphical item, a spurious astFree of a static buffer while reporting an
   XmlChan error, an uninitialised read in astMapSplit for a MatrixMap
-  containing bad matrix elements, a stack overrun in YamlChan, and assorted
-  buffer overruns and memory leaks in the FitsChan, FitsTable, MocChan and
-  PermMap classes.
+  containing bad matrix elements, a stack overrun in YamlChan, a read one
+  byte beyond the end of the string passed to AST_ADDMOCSTRING from Fortran,
+  and assorted buffer overruns and memory leaks in the FitsChan, FitsTable,
+  MocChan and PermMap classes.
 
 Testing and build changes
 -------------------------
 
-- Converted many Fortran test files to C. Currently these are only enabled
-  in the CMake build.
+- Converted many Fortran test files to C. Both the C and the remaining
+  Fortran tests in ast_tester are now run by "make check" in the Autotools
+  build as well as by the CMake build. The Fortran tests no longer need the
+  Starlink ERR, CHR, CNF, PSX and PRM libraries, since minimal replacements
+  for the routines they use are provided in ast_tester/star_compat.
+- The Autotools build no longer requires a Starlink installation. A new
+  bootstrap.local script supplies the few Starlink autoconf macros that
+  configure.ac uses, the Starlink fork of automake is no longer needed, and
+  out-of-source (VPATH) builds and "make distcheck" work. The Fortran REAL
+  return convention is now measured by configure rather than guessed, and
+  libyaml detection has been improved.
+- The documentation (SUN/210 and SUN/211) can now be built outside a
+  Starlink tree. The prologue extraction is done by the starprolog Python
+  package when it is available, falling back to the Starlink getatt and
+  prolat tools otherwise, and the Starlink LaTeX support files are now
+  vendored so that a plain TeX Live installation can typeset the PDFs. The
+  hypertext (.htx) documents still need the Starlink star2html tool and are
+  built only when it is present, or can be omitted with the new
+  --disable-hyperdocs configure option. In a build outside a Starlink tree
+  the documentation is built only when --with-stardocs is given.
+- The distribution built by "make dist" now ships a cut-down set of the test
+  fixtures, sufficient to check that a build works, and the tests that use
+  the missing fixtures are skipped. A new "make fulldist" target ships the
+  complete fixture corpus for verifying a release. A release tarball now
+  includes the PDF documentation.
 - The test suite has been extended with new regression harnesses that
   compare the results of astTran<X> against stored reference data, check
   that astSimplify produces the expected Mapping for a large corpus of
@@ -266,7 +324,10 @@ Testing and build changes
   Plot class and can write them out as SVG, so that graphical output can be
   compared against reference files without a graphics library being present.
 - Continuous integration now includes builds with warnings and sanitizers
-  enabled, and collects code coverage information.
+  enabled (including the Fortran tests on Linux), runs "make distcheck" and
+  a CMake build from the resulting tarball, collects code coverage
+  information, and publishes a release tarball to GitHub Releases when a
+  version tag is pushed.
 
 Main Changes in V9.3.0
 ----------------------
