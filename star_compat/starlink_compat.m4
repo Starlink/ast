@@ -52,8 +52,17 @@ dnl no-op fallback
 
 m4_ifndef([STAR_LATEX_DOCUMENTATION],
 [AC_DEFUN([STAR_LATEX_DOCUMENTATION], [dnl
-dnl No documentation built in standalone mode.
-  AC_SUBST([STAR_LATEX_DOCUMENTATION], [""])
+dnl Ordinary standalone builds need no documentation tools. Release builders
+dnl opt in explicitly; shipped documents can also be installed with this option.
+  AC_ARG_WITH([stardocs],
+    [AS_HELP_STRING([--with-stardocs],
+      [build and install documentation (standalone default: no)])],
+    [], [with_stardocs=no])
+  AS_CASE([$with_stardocs],
+    [yes], [STAR@&t@_LATEX_DOCUMENTATION="$2"],
+    [no], [STAR@&t@_LATEX_DOCUMENTATION=""],
+    [AC_MSG_ERROR([--with-stardocs expects yes or no])])
+  AC_SUBST([STAR@&t@_LATEX_DOCUMENTATION])
 ])])
 
 m4_ifndef([STAR_PREDIST_SOURCES],

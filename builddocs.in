@@ -1,29 +1,104 @@
 #! /bin/sh -
 
-here=.
-perldir=`dirname @PERL@`
-if test -z "$SST_DIR"; then
-    if test -x starconf.status; then
-        finder=`./starconf.status --show finder`
-        test -n "$finder" && prolat_path=`$finder --path prolat`
+set -e
+
+# Inputs live in the source tree; generated link scripts and outputs live in
+# the build tree. Use a private directory so failed builds leave no partial
+# manuals behind and independent builds do not share getatt.labels.
+here=$(cd "${1:-.}" && pwd)
+builddir=$(pwd)
+STARPROLOG=${STARPROLOG-@STARPROLOG@}
+PDFLATEX=${PDFLATEX-@PDFLATEX@}
+PDFLATEX=${PDFLATEX:-pdflatex}
+if test -z "$STARPROLOG" && command -v starprolog >/dev/null 2>&1; then
+    STARPROLOG=starprolog
+fi
+# @PERL@ is a path when configure found perl and the two-word fallback
+# "/usr/bin/env perl" when it did not.  Only the former names a directory
+# worth putting on PATH for the `#! /usr/bin/env perl' filters below.
+perl_command="@PERL@"
+case $perl_command in
+    *' '*) perldir= ;;
+    *) perldir=$(dirname "$perl_command") ;;
+esac
+if test -z "$STARPROLOG" && test -z "$SST_DIR"; then
+    prolat_path=${PROLAT-@PROLAT@}
+    if test ! -x "$prolat_path"; then
+        prolat_path=
     fi
-    if test -z "$prolat_path" -a -f $STARLINK/bin/sst/prolat; then
+    # starconf writes starconf.status into the build directory, and a failure
+    # to interrogate it just means falling through to the searches below.
+    if test -z "$prolat_path" && test -x "$builddir/starconf.status"; then
+        finder=$("$builddir/starconf.status" --show finder) || finder=
+        if test -n "$finder"; then
+            prolat_path=$($finder --path prolat) || prolat_path=
+        fi
+    fi
+    if test -z "$prolat_path" -a -f "$STARLINK/bin/sst/prolat"; then
         prolat_path=$STARLINK/bin/sst/prolat
     fi
     if test -z "$prolat_path"; then
-        # not all shells have the which builtin, but try anyway
-        prolat_path=`which prolat 2>/dev/null`
+        prolat_path=$(command -v prolat) || prolat_path=
     fi
     if test -z "$prolat_path"; then
         echo "SST_DIR isn't set, and can't find prolat" >&2
         exit 1
     fi
-    SST_DIR=`dirname $prolat_path`
+    SST_DIR=$(dirname "$prolat_path")
     export SST_DIR
     echo "SST_DIR set to $SST_DIR"
 fi
-PATH="${here}:${perldir}:${PATH}"
+if test -z "$STARPROLOG"; then
+    SST_DIR=$(cd "$SST_DIR" && pwd)
+    export SST_DIR
+fi
+PATH="${builddir}:${here}${perldir:+:$perldir}:${PATH}"
 export PATH
+
+# Keep the old getatt interface within this script. astprep emits the same
+# fragments and labels without invoking either getatt or prolat. STARPROLOG
+# is deliberately word-split to allow a command such as uvx --from ... starprolog.
+if test -n "$STARPROLOG"; then
+    echo "Extracting documentation with $STARPROLOG"
+    getatt () {
+        kind=routine
+        language=c
+        unix_script=
+        while test "$#" -gt 0; do
+            case "$1" in
+                -class) kind=class ;;
+                -att) kind=attribute ;;
+                -f) language=fortran ;;
+                -u) unix_script=--unix-script ;;
+                *) break ;;
+            esac
+            shift
+        done
+        $STARPROLOG astprep --kind "$kind" --language "$language" \
+            $unix_script --labels getatt.labels "$@"
+    }
+fi
+
+# Keep the work directory when a stage fails: the pdflatex .log inside it is
+# the only record of what went wrong, and nothing outside it is written until
+# both documents are complete.
+workdir=$(mktemp -d "${builddir}/.ast-docs.XXXXXX")
+interrupted=
+cleanup () {
+    status=$?
+    trap - EXIT
+    if test "$status" -eq 0 || test -n "$interrupted"; then
+        rm -rf "$workdir"
+    else
+        echo "builddocs: failed; work directory kept at $workdir" >&2
+    fi
+    exit "$status"
+}
+trap cleanup EXIT
+trap 'interrupted=1; exit 1' HUP INT TERM
+cd "$workdir"
+ln -s "$here/sun210_figures" sun210_figures
+ln -s "$here/sun211_figures" sun211_figures
 
 #  The Starlink LaTeX class and style files are vendored in the tree, so
 #  typesetting the documents needs no Starlink installation.  See
@@ -104,17 +179,8 @@ goodsource="${srcdir}/yamlchan.c \
             ${srcdir}/zoommap.c"
 
 goodsource="${goodsource} \
-            ${here}/ast_link \
-            ${here}/ast_link_adam"
-
-#chmod +x ${here}/addcopyright
-#chmod +x ${here}/addlinks
-#chmod +x ${here}/addversion
-#chmod +x ${here}/doincludes
-#chmod +x ${here}/getatt
-#chmod +x ${here}/selectfc
-
-rm -f .sst.tmp
+            ${builddir}/ast_link \
+            ${builddir}/ast_link_adam"
 
    getatt -class -f ${goodsource} >f_classes.tex
    cat getatt.labels >global_f.labels; rm -f getatt.labels
@@ -129,7 +195,7 @@ rm -f .sst.tmp
    getatt ${goodsource} >c_routines.tex
    cat getatt.labels >>global_c.labels; rm -f getatt.labels
 
-   getatt ${srcdir}/memory.c > memory_routines.tex
+   getatt "${srcdir}/memory.c" > memory_routines.tex
    cat getatt.labels >>global_c.labels; rm -f getatt.labels
 
    getatt -u -f ${goodsource} >f_commands.tex
@@ -137,21 +203,27 @@ rm -f .sst.tmp
    getatt -u ${goodsource} >c_commands.tex
    cat getatt.labels >>global_c.labels; rm -f getatt.labels
 
-   ln -f global_f.labels global.labels
-   doincludes ${here}/sun_master.tex \
-      | selectfc -f | addlinks | addcopyright | addversion >sun210.tex
-   ln -f global_c.labels global.labels
-   doincludes ${here}/sun_master.tex \
-      | selectfc | addlinks | addcopyright | addversion >sun211.tex
+# sun_master.tex includes both the C and the Fortran fragments; selectfc is
+# what picks one, so the expansion is the same for both documents.
+doincludes "$here/sun_master.tex" > included.tex
 
-   rm -f global.labels global_f.labels global_c.labels
-   rm -f c_attribs.tex c_classes.tex c_routines.tex c_commands.tex
-   rm -f f_attribs.tex f_classes.tex f_routines.tex f_commands.tex
-   rm -f memory_routines.tex
+# Run filters separately so a failure in any stage stops the build.
+for doc in sun210 sun211; do
+    if test "$doc" = sun210; then
+        fcflag=-f
+        cp global_f.labels global.labels
+    else
+        fcflag=
+        cp global_c.labels global.labels
+    fi
+    selectfc $fcflag included.tex > selected.tex
+    addlinks selected.tex > linked.tex
+    addcopyright < linked.tex > copyright.tex
+    addversion < copyright.tex > "$doc.tex"
+    $PDFLATEX -halt-on-error -interaction=nonstopmode "$doc"
+    $PDFLATEX -halt-on-error -interaction=nonstopmode "$doc"
+done
 
-
-   pdflatex -interaction=nonstopmode sun210
-   pdflatex -interaction=nonstopmode sun210
-   pdflatex -interaction=nonstopmode sun211
-   pdflatex -interaction=nonstopmode sun211
-
+for doc in sun210 sun211; do
+    mv "$doc.tex" "$doc.pdf" "$builddir/"
+done

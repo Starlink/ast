@@ -79,6 +79,29 @@ jobs:
       - name: Setup ccache action
         uses: Chocobo1/setup-ccache-action@v1.5.1
 
+      - name: Set up uv for documentation
+        if: ${{ matrix.dist }}
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "latest-known"
+      - name: Install documentation dependencies
+        if: ${{ matrix.dist }}
+        run: |
+          sudo apt-get install -y texlive-latex-extra texlive-fonts-recommended texlive-science
+          uv tool install --python 3.13 git+https://github.com/Starlink/starprolog.git
+          echo "$(uv tool dir --bin)" >> "$GITHUB_PATH"
+
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version=$(cat version.number)
+          test "$RELEASE_TAG" = "v$version" || {
+            echo "Tag $RELEASE_TAG does not match version.number ($version)" >&2
+            exit 1
+          }
+
       - name: Bootstrap autotools
         run: ./bootstrap.local
 
@@ -91,11 +114,15 @@ jobs:
             FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
             --with-yaml="$(brew --prefix libyaml)"
 
+      # The documentation flags have to stay on the same `dist' gate as the
+      # TeX and starprolog install above: configuring --with-stardocs without
+      # that toolchain is a hard configure error.
       - name: Configure (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           ./configure CC=${{ matrix.cc }} \
-            FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
+            FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
+            ${{ matrix.dist && '--with-stardocs --disable-hyperdocs' || '' }}
 
       # If make fails re-run with V=1 so we can inspect
       - name: Build
@@ -129,7 +156,18 @@ jobs:
 
       - name: Distcheck
         if: ${{ matrix.dist }}
-        run: make distcheck ${{ github.event.inputs.make_flags }}
+        run: |
+          make distcheck \
+            DISTCHECK_CONFIGURE_FLAGS="--with-stardocs --disable-hyperdocs STARPROLOG=false PDFLATEX=false" \
+            ${{ github.event.inputs.make_flags }}
+          tar tzf ast-*.tar.gz > tarball-contents.txt
+          for doc in sun210.pdf sun211.pdf sun210.tex sun211.tex; do
+            grep -qx "ast-$(cat version.number)/$doc" tarball-contents.txt
+          done
+          if grep -q '\.htx_tar$' tarball-contents.txt; then
+            echo "PDF-only distribution unexpectedly contains HTML" >&2
+            exit 1
+          fi
 
       # The tarball must also build with CMake -- that is what catches a file
       # the CMake build needs but the distribution forgot.  It runs here rather
@@ -202,3 +240,33 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DAST_C_STANDARD=11
           cmake --build tarball-full/_build --parallel
           ctest --test-dir tarball-full/_build --output-on-failure
+
+      - name: Save release tarball
+        if: ${{ matrix.dist }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-distribution
+          path: |
+            ast-*.tar.gz
+            !ast-*-full.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Publish tagged release
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: source-distribution
+      - name: Publish release tarball
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" --verify-tag --generate-notes \
+            --title "AST $RELEASE_TAG" ast-*.tar.gz
