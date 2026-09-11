@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.4.0) of the Starlink AST (astrometry) library is
+   A new release (V9.4.1) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -16,6 +16,16 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+This release only makes changes to the new out-of-Starlink build system to fix
+some issues with the distribution tar file noticed during the conda build.
+In particular the ast_err.h/AST_ERR files are now included in the distribution
+as was previously the case.
+A linking fix has also been adopted that was a standalone patch for the
+conda feedstock.
+
+Main Changes in V9.4.0
+----------------------
 
 *** IMPORTANT - a change that may break existing code ***
 
