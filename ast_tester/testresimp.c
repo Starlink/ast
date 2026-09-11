@@ -1,5 +1,4 @@
 #define astCLASS testresimp
-#define THREAD_SAFE 1
 
 #include "ast_err.h"
 #include "error.h"

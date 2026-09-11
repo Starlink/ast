@@ -23,6 +23,16 @@ if !STARLINK_BUILD
 AM_CPPFLAGS += -I$(srcdir)/star_compat
 endif
 
+# The tests that reach the protected internals through the astCLASS headers
+# see the AstObject and AstMapping structures directly, and those structures
+# gain four members when THREAD_SAFE is defined.  A test must therefore be
+# compiled with the same setting the library was, or its member accesses land
+# at the wrong offsets.  The library gets this from $(threadsafe) in the
+# top-level Makefile.am; use the same condition here.
+if !NOTHREADS
+AM_CPPFLAGS += -DTHREAD_SAFE
+endif
+
 # star_compat/ C headers + Fortran INCLUDE files needed to build the tests
 # from a dist tarball (the .c stubs ship via libstar_compat_la_SOURCES).
 noinst_HEADERS = \

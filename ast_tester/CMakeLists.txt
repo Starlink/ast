@@ -212,6 +212,13 @@ function(ast_add_test name)
     
     target_link_libraries(${name} PRIVATE ${TARGET_LIBS})
     target_compile_definitions(${name} PRIVATE HAVE_CONFIG_H)
+    # A test that reaches the protected Mapping flags through the internal
+    # headers must see the same AstObject / AstMapping layout the library was
+    # compiled with -- otherwise the flag macros read and write at the wrong
+    # offset.
+    if(T_INTERNAL_HEADERS AND HAVE_PTHREADS)
+        target_compile_definitions(${name} PRIVATE THREAD_SAFE)
+    endif()
     ast_apply_dev_options(${name})
     # So that building a single test target also stages the fixtures it reads.
     add_dependencies(${name} ast_stage_fixtures)
