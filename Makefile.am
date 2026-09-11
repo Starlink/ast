@@ -840,15 +840,12 @@ libast_cminpack_la_SOURCES = $(CMINPACK_FILES)
 libast_cminpack_la_LDFLAGS = -version-info @version_info@
 
 # The following files are built by the targets in this makefile.
-MAINTAINERCLEANFILES = src/version.h builddocs addversion \
+MAINTAINERCLEANFILES = src/version.h ast_err.h AST_ERR builddocs addversion \
 	ast.h stamp-docs $(DOCUMENTATION_PRODUCTS)
 if !NOFORTRAN
 CLEANFILES = AST_PAR ast.h
 else
 CLEANFILES = ast.h
-endif
-if !STARLINK_BUILD
-CLEANFILES += ast_err.h AST_ERR
 endif
 
 # Special cases start here
@@ -884,11 +881,19 @@ endif
 # reports on every Starlink bootstrap as "MESSGEN was already defined in
 # condition TRUE".
 #
-# messgen is run as soon as it is built, so it is built with the compiler for
-# the build machine rather than with $(CC), which in a cross compilation
-# produces executables that cannot run here. That puts it outside automake's
-# program rules, so it is named in EXTRA_DIST and CLEANFILES by hand.
+# messgen translates ast_err.msg into ast_err.h and AST_ERR, and the
+# translation is machine independent, so the two files are generated here and
+# then distributed (see EXTRA_DIST below). A build from a tarball uses what
+# was shipped and needs neither messgen nor ast_err.msg, which is what makes
+# it cross compilable: nothing has to be run on the build machine.
+#
+# Where messgen does run, it runs as soon as it is built, so it is built with
+# the compiler for the build machine rather than with $(CC) -- which in a
+# cross compilation produces executables that cannot run here. That puts it
+# outside automake's program rules, so it is named in EXTRA_DIST and
+# CLEANFILES by hand.
 if !STARLINK_BUILD
+if PREDIST_BUILD
 AST_MESSGEN = star_compat/messgen
 CLEANFILES += $(AST_MESSGEN)
 
@@ -899,6 +904,7 @@ $(AST_MESSGEN): $(srcdir)/star_compat/messgen.c
 
 ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(AST_MESSGEN)
 	$(AST_MESSGEN) -cF $(srcdir)/ast_err.msg
+endif
 endif
 
 # Extra files and directories that should be included in the source dist
@@ -933,6 +939,11 @@ endif
 EXTRA_DIST += \
     CMakeLists.txt \
     version.number
+
+# The error-facility headers, generated above before distribution. No
+# $(srcdir) prefix: they are made in the build tree, and automake's distdir
+# rule looks there first, as it does for src/version.h.
+EXTRA_DIST += ast_err.h AST_ERR
 
 # The autotools build doesn't detect plplot yet, so the plplot grf
 # backend is never built here (but it is built by CMake); for now ensure

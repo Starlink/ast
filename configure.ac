@@ -494,4 +494,9 @@ AC_CONFIG_FILES([ast_cpp], [chmod +x ast_cpp])
 #   distribution time, rather than by configure.  They are not distributed.
 STAR_PREDIST_SOURCES(src/version.h.in builddocs.in addversion.in)
 
+#  ast_err.h and AST_ERR are among those files: messgen's translation of
+#  ast_err.msg is machine independent, so they are generated here and
+#  shipped, and only a pre-distribution tree needs the rules that make them.
+AM_CONDITIONAL([PREDIST_BUILD], [test -z "$PREDIST"])
+
 AC_OUTPUT

@@ -15,8 +15,12 @@
 # C tests
 # ---------------------------------------------------------------------------
 
+# -I$(top_srcdir) is for ast_err.h, which is generated before distribution
+# and so is read from the source tree in a build from a tarball, and from the
+# build tree in a build from a checkout.  Both directories are needed.
 AM_CPPFLAGS = -DHAVE_CONFIG_H \
-    -I$(top_builddir) -I$(top_builddir)/src -I$(top_srcdir)/src \
+    -I$(top_builddir) -I$(top_srcdir) \
+    -I$(top_builddir)/src -I$(top_srcdir)/src \
     $(STAR_CPPFLAGS)
 
 if !STARLINK_BUILD
@@ -364,12 +368,16 @@ libstar_compat_la_CFLAGS = $(AM_CFLAGS) -I$(top_builddir)/src
 
 # Fortran compiler include path for test include files:
 #   - $(top_builddir) for AST_PAR (generated at build time)
+#   - $(top_srcdir) for AST_ERR, which is generated before distribution and so
+#     is read from the source tree in a build from a tarball and from the
+#     build tree in a build from a checkout
 #   - star_compat/ for SAE_PAR, SAI_ERR, ERR_PAR, PRM_PAR
-#   - $(builddir) for AST_ERR and any other generated headers
+#   - $(builddir) for any other generated include files
 # Starlink's automake compiles .f files via FC (not F77), so AM_FCFLAGS is
 # used (it appears in FCCOMPILE = $(FC) $(STAR_FCFLAGS) $(AM_FCFLAGS) $(FCFLAGS)).
 AM_FCFLAGS = \
     -I$(top_builddir) \
+    -I$(top_srcdir) \
     -I$(srcdir)/star_compat \
     -I$(builddir) \
     $(AST_FFLAGS_EXTRA)
