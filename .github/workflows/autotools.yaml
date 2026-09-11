@@ -42,6 +42,15 @@ jobs:
             cc: gcc
             f77: gfortran
             dist: true
+          #  --without-pthreads removes four members from the AstObject
+          #  structure, so everything that reaches the structures through the
+          #  internal headers -- the library and the tests that use astCLASS
+          #  -- has to be compiled to agree about it.  Nothing else in this
+          #  matrix builds that configuration.
+          - os: ubuntu-latest
+            cc: gcc
+            f77: gfortran
+            configure_extra: --without-pthreads
 
     steps:
       - name: Checkout code
@@ -112,7 +121,8 @@ jobs:
         run: |
           ./configure CC=${{ matrix.cc }} \
             FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
-            --with-yaml="$(brew --prefix libyaml)"
+            --with-yaml="$(brew --prefix libyaml)" \
+            ${{ matrix.configure_extra }}
 
       # The documentation flags have to stay on the same `dist' gate as the
       # TeX and starprolog install above: configuring --with-stardocs without
@@ -122,7 +132,8 @@ jobs:
         run: |
           ./configure CC=${{ matrix.cc }} \
             FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
-            ${{ matrix.dist && '--with-stardocs --disable-hyperdocs' || '' }}
+            ${{ matrix.dist && '--with-stardocs --disable-hyperdocs' || '' }} \
+            ${{ matrix.configure_extra }}
 
       # If make fails re-run with V=1 so we can inspect
       - name: Build

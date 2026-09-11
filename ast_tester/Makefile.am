@@ -15,12 +15,26 @@
 # C tests
 # ---------------------------------------------------------------------------
 
+# -I$(top_srcdir) is for ast_err.h, which is generated before distribution
+# and so is read from the source tree in a build from a tarball, and from the
+# build tree in a build from a checkout.  Both directories are needed.
 AM_CPPFLAGS = -DHAVE_CONFIG_H \
-    -I$(top_builddir) -I$(top_builddir)/src -I$(top_srcdir)/src \
+    -I$(top_builddir) -I$(top_srcdir) \
+    -I$(top_builddir)/src -I$(top_srcdir)/src \
     $(STAR_CPPFLAGS)
 
 if !STARLINK_BUILD
 AM_CPPFLAGS += -I$(srcdir)/star_compat
+endif
+
+# The tests that reach the protected internals through the astCLASS headers
+# see the AstObject and AstMapping structures directly, and those structures
+# gain four members when THREAD_SAFE is defined.  A test must therefore be
+# compiled with the same setting the library was, or its member accesses land
+# at the wrong offsets.  The library gets this from $(threadsafe) in the
+# top-level Makefile.am; use the same condition here.
+if !NOTHREADS
+AM_CPPFLAGS += -DTHREAD_SAFE
 endif
 
 # star_compat/ C headers + Fortran INCLUDE files needed to build the tests
@@ -354,12 +368,16 @@ libstar_compat_la_CFLAGS = $(AM_CFLAGS) -I$(top_builddir)/src
 
 # Fortran compiler include path for test include files:
 #   - $(top_builddir) for AST_PAR (generated at build time)
+#   - $(top_srcdir) for AST_ERR, which is generated before distribution and so
+#     is read from the source tree in a build from a tarball and from the
+#     build tree in a build from a checkout
 #   - star_compat/ for SAE_PAR, SAI_ERR, ERR_PAR, PRM_PAR
-#   - $(builddir) for AST_ERR and any other generated headers
+#   - $(builddir) for any other generated include files
 # Starlink's automake compiles .f files via FC (not F77), so AM_FCFLAGS is
 # used (it appears in FCCOMPILE = $(FC) $(STAR_FCFLAGS) $(AM_FCFLAGS) $(FCFLAGS)).
 AM_FCFLAGS = \
     -I$(top_builddir) \
+    -I$(top_srcdir) \
     -I$(srcdir)/star_compat \
     -I$(builddir) \
     $(AST_FFLAGS_EXTRA)

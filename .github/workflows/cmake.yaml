@@ -78,6 +78,16 @@ jobs:
             shared_libs: ON
             fortran: OFF
             sanitizers: ON
+          # Without pthreads the AstObject structure loses four members, so
+          # the library and every test that reaches the structures through
+          # the internal headers must agree about it.  Every other job here
+          # builds with threads.
+          - os: ubuntu-latest
+            build_type: Release
+            shared_libs: ON
+            fortran: OFF
+            sanitizers: OFF
+            pthreads: OFF
 
     runs-on: ${{ matrix.os }}
 
@@ -109,6 +119,7 @@ jobs:
           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs }}
           -DAST_BUILD_FORTRAN=${{ matrix.fortran }}
           -DAST_ENABLE_SANITIZERS=${{ matrix.sanitizers }}
+          -DAST_WITH_PTHREADS=${{ matrix.pthreads || 'ON' }}
           -DAST_C_STANDARD=11
           "-DCMAKE_C_FLAGS=${{ matrix.c_flags }}"
 

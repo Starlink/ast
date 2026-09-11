@@ -20,7 +20,6 @@
  *  protected C functions, which is why this file compiles with astCLASS.
  */
 #define astCLASS testissimp
-#define THREAD_SAFE 1
 
 #include "ast_err.h"
 #include "error.h"

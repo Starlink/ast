@@ -757,15 +757,15 @@ libast_la_LDFLAGS = -version-info @version_info@
 # library instead. Do the same for cminpack
 if EXTERNAL_PAL
 if EXTERNAL_CMINPACK
-libast_la_LIBADD =  -lpal -lcminpack
+libast_la_LIBADD =  -lpal -lcminpack $(LIBM)
 else
-libast_la_LIBADD = -lpal libast_cminpack.la
+libast_la_LIBADD = -lpal libast_cminpack.la $(LIBM)
 endif
 else
 if EXTERNAL_CMINPACK
-libast_la_LIBADD =  libast_pal.la -lcminpack
+libast_la_LIBADD =  libast_pal.la -lcminpack $(LIBM)
 else
-libast_la_LIBADD = libast_pal.la libast_cminpack.la
+libast_la_LIBADD = libast_pal.la libast_cminpack.la $(LIBM)
 endif
 endif
 
@@ -833,21 +833,19 @@ libast_pgplot3d_la_LDFLAGS = -version-info @version_info@
 #  Positional astronomy libraries.
 libast_pal_la_SOURCES = $(PAL_FILES)
 libast_pal_la_LDFLAGS = -version-info @version_info@
+libast_pal_la_LIBADD = $(LIBM)
 
 #  Cminpack
 libast_cminpack_la_SOURCES = $(CMINPACK_FILES)
 libast_cminpack_la_LDFLAGS = -version-info @version_info@
 
 # The following files are built by the targets in this makefile.
-MAINTAINERCLEANFILES = src/version.h builddocs addversion \
+MAINTAINERCLEANFILES = src/version.h ast_err.h AST_ERR builddocs addversion \
 	ast.h stamp-docs $(DOCUMENTATION_PRODUCTS)
 if !NOFORTRAN
 CLEANFILES = AST_PAR ast.h
 else
 CLEANFILES = ast.h
-endif
-if !STARLINK_BUILD
-CLEANFILES += ast_err.h AST_ERR
 endif
 
 # Special cases start here
@@ -882,13 +880,31 @@ endif
 # assigning to it here would override configure's own value -- which automake
 # reports on every Starlink bootstrap as "MESSGEN was already defined in
 # condition TRUE".
+#
+# messgen translates ast_err.msg into ast_err.h and AST_ERR, and the
+# translation is machine independent, so the two files are generated here and
+# then distributed (see EXTRA_DIST below). A build from a tarball uses what
+# was shipped and needs neither messgen nor ast_err.msg, which is what makes
+# it cross compilable: nothing has to be run on the build machine.
+#
+# Where messgen does run, it runs as soon as it is built, so it is built with
+# the compiler for the build machine rather than with $(CC) -- which in a
+# cross compilation produces executables that cannot run here. That puts it
+# outside automake's program rules, so it is named in EXTRA_DIST and
+# CLEANFILES by hand.
 if !STARLINK_BUILD
-AST_MESSGEN = star_compat/messgen$(EXEEXT)
-noinst_PROGRAMS += star_compat/messgen$(EXEEXT)
-star_compat_messgen_SOURCES = star_compat/messgen.c
+if PREDIST_BUILD
+AST_MESSGEN = star_compat/messgen
+CLEANFILES += $(AST_MESSGEN)
+
+$(AST_MESSGEN): $(srcdir)/star_compat/messgen.c
+	$(AM_V_at)$(MKDIR_P) star_compat
+	$(AM_V_GEN)$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) \
+	    -o $@ $(srcdir)/star_compat/messgen.c
 
 ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(AST_MESSGEN)
 	$(AST_MESSGEN) -cF $(srcdir)/ast_err.msg
+endif
 endif
 
 # Extra files and directories that should be included in the source dist
@@ -902,6 +918,7 @@ EXTRA_DIST = $(srcdir)/ast_par.source $(srcdir)/ast_err.msg \
     $(srcdir)/build-aux/tap-driver.sh \
     $(srcdir)/cminpack/CopyrightMINPACK.txt \
     $(srcdir)/cminpack/README.md \
+    $(srcdir)/star_compat/messgen.c \
     $(srcdir)/star_compat/starlink_compat.m4 \
     $(srcdir)/star_compat/latexsupport/README.md \
     $(srcdir)/star_compat/latexsupport/ast.sty \
@@ -922,6 +939,11 @@ endif
 EXTRA_DIST += \
     CMakeLists.txt \
     version.number
+
+# The error-facility headers, generated above before distribution. No
+# $(srcdir) prefix: they are made in the build tree, and automake's distdir
+# rule looks there first, as it does for src/version.h.
+EXTRA_DIST += ast_err.h AST_ERR
 
 # The autotools build doesn't detect plplot yet, so the plplot grf
 # backend is never built here (but it is built by CMake); for now ensure

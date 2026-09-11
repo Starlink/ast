@@ -208,6 +208,34 @@ fi
 AM_CONDITIONAL(NOTHREADS, test x$use_pthreads = x0)
 AC_SUBST(THREADS, $use_pthreads)
 
+#  libast and libast_pal call math functions, so on platforms where those
+#  live in a library of their own the shared objects have to name it. The
+#  third argument keeps -lm out of LIBS: it belongs to the two libraries
+#  that need it, and is added to their LIBADD in Makefile.am.
+AC_CHECK_LIB([m], [sin], [LIBM=-lm], [LIBM=])
+AC_SUBST([LIBM])
+
+#  star_compat/messgen is compiled and then run during the build, so it has
+#  to be an executable for the build machine and not for the host. Take the
+#  compiler for it, and its flags, from the conventional *_FOR_BUILD
+#  variables, which the user can set; when the build is not a cross
+#  compilation the host compiler is the build compiler.
+AC_ARG_VAR([CC_FOR_BUILD],
+           [C compiler for programs that are run on the build machine])
+AC_ARG_VAR([CFLAGS_FOR_BUILD],
+           [C compiler flags for programs that are run on the build machine])
+AC_ARG_VAR([LDFLAGS_FOR_BUILD],
+           [linker flags for programs that are run on the build machine])
+if test "x$CC_FOR_BUILD" = x; then
+   if test "x$cross_compiling" = xyes; then
+      AC_CHECK_PROGS([CC_FOR_BUILD], [gcc clang cc], [cc])
+   else
+      CC_FOR_BUILD=$CC
+      test "x$CFLAGS_FOR_BUILD" = x && CFLAGS_FOR_BUILD=$CFLAGS
+      test "x$LDFLAGS_FOR_BUILD" = x && LDFLAGS_FOR_BUILD=$LDFLAGS
+   fi
+fi
+
 #  Conditional defining whether we build with YAML support. libyaml is
 #  looked for on the compiler's default search paths, unless it is told
 #  where to look: either --with-yaml=DIR, for an installation with the
@@ -465,5 +493,10 @@ AC_CONFIG_FILES([ast_cpp], [chmod +x ast_cpp])
 #   Following are files which are substituted by the Makefile at
 #   distribution time, rather than by configure.  They are not distributed.
 STAR_PREDIST_SOURCES(src/version.h.in builddocs.in addversion.in)
+
+#  ast_err.h and AST_ERR are among those files: messgen's translation of
+#  ast_err.msg is machine independent, so they are generated here and
+#  shipped, and only a pre-distribution tree needs the rules that make them.
+AM_CONDITIONAL([PREDIST_BUILD], [test -z "$PREDIST"])
 
 AC_OUTPUT
