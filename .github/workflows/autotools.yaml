@@ -51,6 +51,22 @@ jobs:
             cc: gcc
             f77: gfortran
             configure_extra: --without-pthreads
+          #  -dead_strip_dylibs drops a dylib the program holds no direct
+          #  reference to, which is every satellite library: libast refers to
+          #  their symbols but does not link against them.  Several
+          #  distributions put it in LDFLAGS, so build one macOS job the way
+          #  they do.  Nothing else here would notice the satellite libraries
+          #  going missing until a test reported an error and segfaulted.
+          #
+          #  --without-fortran is what makes this job mean anything: libtool
+          #  reports no shared library support for flang on Darwin, so the
+          #  other macOS jobs are static throughout and have no dylib to
+          #  strip.  It also matches how the conda-forge recipe, where this
+          #  was found, configures AST.
+          - os: macos-latest
+            cc: clang
+            f77: flang
+            configure_extra: --without-fortran LDFLAGS=-Wl,-dead_strip_dylibs
 
     steps:
       - name: Checkout code
