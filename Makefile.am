@@ -757,15 +757,15 @@ libast_la_LDFLAGS = -version-info @version_info@
 # library instead. Do the same for cminpack
 if EXTERNAL_PAL
 if EXTERNAL_CMINPACK
-libast_la_LIBADD =  -lpal -lcminpack
+libast_la_LIBADD =  -lpal -lcminpack $(LIBM)
 else
-libast_la_LIBADD = -lpal libast_cminpack.la
+libast_la_LIBADD = -lpal libast_cminpack.la $(LIBM)
 endif
 else
 if EXTERNAL_CMINPACK
-libast_la_LIBADD =  libast_pal.la -lcminpack
+libast_la_LIBADD =  libast_pal.la -lcminpack $(LIBM)
 else
-libast_la_LIBADD = libast_pal.la libast_cminpack.la
+libast_la_LIBADD = libast_pal.la libast_cminpack.la $(LIBM)
 endif
 endif
 
@@ -833,6 +833,7 @@ libast_pgplot3d_la_LDFLAGS = -version-info @version_info@
 #  Positional astronomy libraries.
 libast_pal_la_SOURCES = $(PAL_FILES)
 libast_pal_la_LDFLAGS = -version-info @version_info@
+libast_pal_la_LIBADD = $(LIBM)
 
 #  Cminpack
 libast_cminpack_la_SOURCES = $(CMINPACK_FILES)

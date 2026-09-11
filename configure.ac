@@ -208,6 +208,13 @@ fi
 AM_CONDITIONAL(NOTHREADS, test x$use_pthreads = x0)
 AC_SUBST(THREADS, $use_pthreads)
 
+#  libast and libast_pal call math functions, so on platforms where those
+#  live in a library of their own the shared objects have to name it. The
+#  third argument keeps -lm out of LIBS: it belongs to the two libraries
+#  that need it, and is added to their LIBADD in Makefile.am.
+AC_CHECK_LIB([m], [sin], [LIBM=-lm], [LIBM=])
+AC_SUBST([LIBM])
+
 #  Conditional defining whether we build with YAML support. libyaml is
 #  looked for on the compiler's default search paths, unless it is told
 #  where to look: either --with-yaml=DIR, for an installation with the
