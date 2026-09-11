@@ -1271,6 +1271,30 @@ static void gen_pcdmap_extra_fixtures(const char *dir) {
         cm = astAnnul(cm); pm = astAnnul(pm); zm = astAnnul(zm);
     }
 
+    /* pcdmap-07: PcdMap swapped past an *inverted* ZoomMap. PcdZoom sets both
+       Mappings' Invert attributes to the merge list's values before reading
+       their attributes, which is effective for the PcdMap but not for the
+       ZoomMap: Zoom returns the stored factor whatever Invert says, and it is
+       Transform that takes the reciprocal. So the swap used to emit a forward
+       ZoomMap of the original factor, and a PcdMap whose centre and
+       coefficient were derived from it, giving a composition that scales by 2
+       where the input scaled by 0.5. The trailing inverted PcdMap is what
+       nominates the leading one for the swap. */
+    {
+        if (!astOK) astClearStatus;
+        double pcdcen[] = {0.3, -0.2};
+        AstPcdMap *pm1 = astPcdMap(0.01, pcdcen, " ");
+        AstPcdMap *pm2 = astPcdMap(0.01, pcdcen, " ");
+        astInvert(pm2);
+        AstZoomMap *zm = astZoomMap(2, 2.0, " ");
+        astInvert(zm);
+        AstCmpMap *inner = astCmpMap(zm, pm2, 1, " ");
+        AstCmpMap *cm = astCmpMap(pm1, inner, 1, " ");
+        write_fixture(dir, "pcd_inverted_zoom_swap", (AstMapping*)cm);
+        cm = astAnnul(cm); inner = astAnnul(inner);
+        pm1 = astAnnul(pm1); pm2 = astAnnul(pm2); zm = astAnnul(zm);
+    }
+
     /* pcdmap-05: PcdMap swaps with PermMap(axis swap) to reach inverse */
     {
         double pcdcen[] = {0.0, 0.0};
@@ -2002,6 +2026,68 @@ static void gen_negative_fixtures_3(const char *dir) {
         cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
     }
 
+    /* polymap-11: two PolyMaps in opposite directions whose forward
+       transformations agree and whose explicit inverses do not. Equal used to
+       compare the forward coefficients a second time where it meant the
+       inverse ones, so the pair compared equal and MapMerge cancelled it to a
+       UnitMap, changing the composition. The forward term is a square for the
+       same reason as polymap-10: a linear forward transformation is rebuilt as
+       a MatrixMap and a ShiftMap, which discards the explicit inverse and
+       would cancel the pair whatever Equal said. */
+    {
+        if (!astOK) astClearStatus;
+        double coeff_f[] = {1.0, 1, 2};
+        double coeff_i1[] = {0.5, 1, 1};
+        double coeff_i2[] = {0.7, 1, 1};
+        AstPolyMap *p1 = astPolyMap(1, 1, 1, coeff_f, 1, coeff_i1, " ");
+        AstPolyMap *p2 = astPolyMap(1, 1, 1, coeff_f, 1, coeff_i2, " ");
+        astInvert(p2);
+        AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
+        write_negative_fixture(dir, "neg_poly_different_inverse_coeffs",
+                               (AstMapping*)cm);
+        cm = astAnnul(cm); p1 = astAnnul(p1); p2 = astAnnul(p2);
+    }
+
+    /* The positive control for polymap-11: the same PolyMap in opposite
+       directions still cancels to a UnitMap, so the stricter comparison has
+       not simply stopped the branch working.
+
+       The inverse is *fitted* with astPolyTran rather than written by hand.
+       If f and g are both polynomials with g(f(x)) = x then their degrees
+       multiply to one, so both are linear -- a non-linear PolyMap cannot have
+       an exact polynomial inverse, and any hand-written pair is not a genuine
+       inverse pair. Cancelling such a pair to a UnitMap changes the
+       composition, so a hand-written control would assert a simplification
+       that does not preserve the transform. A fitted inverse is what a real
+       caller has, and the cancellation is then sound to the accuracy of the
+       fit. The forward has to stay non-linear, because a linear one is
+       rebuilt as a MatrixMap and a ShiftMap before Equal is ever reached.
+
+       The fit is over a narrow interval and to a low order, to keep the
+       coefficients in the dump as reproducible as possible; outside that
+       interval the fitted inverse is a poor approximation and the
+       composition is not close to the identity, which is a property of the
+       fit rather than of the merge. */
+    {
+        if (!astOK) astClearStatus;
+        double coeff_f[] = {1.0, 1, 2};              /* y = x^2 */
+        double ylo[] = {1.0}, yhi[] = {1.21};        /* x in [1, 1.1] */
+        AstPolyMap *raw = astPolyMap(1, 1, 1, coeff_f, 0, NULL, " ");
+        AstPolyMap *p1 = astPolyTran(raw, 0, 1.0e-9, 1.0e-6, 6, ylo, yhi);
+        if (p1) {
+            AstPolyMap *p2 = astCopy(p1);
+            astInvert(p2);
+            AstCmpMap *cm = astCmpMap(p1, p2, 1, " ");
+            write_fixture(dir, "poly_fitted_inverse_cancel", (AstMapping*)cm);
+            cm = astAnnul(cm); p2 = astAnnul(p2); p1 = astAnnul(p1);
+        } else {
+            fprintf(stderr, "ERROR: astPolyTran failed for "
+                            "poly_fitted_inverse_cancel\n");
+            if (!astOK) astClearStatus;
+        }
+        raw = astAnnul(raw);
+    }
+
     /* lutmap-07: two LutMaps in parallel — cancellation not attempted */
     {
         if (!astOK) astClearStatus;
@@ -2112,27 +2198,33 @@ static void gen_negative_fixtures_4(const char *dir) {
         sf1 = astAnnul(sf1); sf2 = astAnnul(sf2);
     }
 
-    /* unitnormmap-15: two forward UnitNormMaps — same direction refuses */
+    /* unitnormmap-15: two forward UnitNormMaps — same direction refuses.
+       A UnitNormMap has one more output than input, so the second one has to
+       take three inputs for the series to have matching arity; two 2-input
+       UnitNormMaps cannot be combined in series at all. */
     {
         if (!astOK) astClearStatus;
-        double c1[] = {1.0, 2.0};
-        double c2[] = {3.0, 4.0};
+        double c1[] = {0.0, 1.0};
+        double c2[] = {0.0, 1.0, 2.0};
         AstUnitNormMap *u1 = astUnitNormMap(2, c1, " ");
-        AstUnitNormMap *u2 = astUnitNormMap(2, c2, " ");
+        AstUnitNormMap *u2 = astUnitNormMap(3, c2, " ");
         AstCmpMap *cm = astCmpMap(u1, u2, 1, " ");
-        write_negative_fixture(dir, "neg_unitnormmap_same_direction", (AstMapping*)cm);
+        write_negative_fixture(dir, "neg_unitnormmap_same_dir", (AstMapping*)cm);
         cm = astAnnul(cm); u1 = astAnnul(u1); u2 = astAnnul(u2);
     }
 
-    /* unitnormmap-13: forward UnitNormMap + ShiftMap — wrong order refuses */
+    /* unitnormmap-13: forward UnitNormMap + ShiftMap — wrong order refuses.
+       The UnitNormMap has three outputs, so the ShiftMap must have three axes;
+       the merge is refused because the shift follows the UnitNormMap rather
+       than preceding it, not because of any arity problem. */
     {
         if (!astOK) astClearStatus;
-        double centre[] = {1.0, 2.0};
-        double shifts[] = {0.5, 0.5};
+        double centre[] = {0.0, 1.0};
+        double shifts[] = {1.0, 2.0, 3.0};
         AstUnitNormMap *unm = astUnitNormMap(2, centre, " ");
-        AstShiftMap *sm = astShiftMap(2, shifts, " ");
+        AstShiftMap *sm = astShiftMap(3, shifts, " ");
         AstCmpMap *cm = astCmpMap(unm, sm, 1, " ");
-        write_negative_fixture(dir, "neg_unitnormmap_fwd_then_shift", (AstMapping*)cm);
+        write_negative_fixture(dir, "neg_unitnormmap_fwd_shift", (AstMapping*)cm);
         cm = astAnnul(cm); unm = astAnnul(unm); sm = astAnnul(sm);
     }
 
@@ -2314,15 +2406,13 @@ static void gen_negative_fixtures_6(const char *dir) {
         tm = astAnnul(tm);
     }
 
-    /* grismmap-13: GrismMap + ZoomMap(0) — zero zoom prevents merge */
-    {
-        if (!astOK) astClearStatus;
-        AstGrismMap *gm = astGrismMap(" ");
-        AstZoomMap *zm = astZoomMap(1, 0.0, " ");
-        AstCmpMap *cm = astCmpMap(gm, zm, 1, " ");
-        write_negative_fixture(dir, "neg_grism_zoom_zero", (AstMapping*)cm);
-        cm = astAnnul(cm); gm = astAnnul(gm); zm = astAnnul(zm);
-    }
+    /* There is no fixture for grismmap.c:570's `z != 0.0` guard. It cannot be
+       reached: astZoomMap refuses a zoom factor of zero outright, and a
+       ZoomMap whose Zoom has been cleared stores zero only as the unset
+       sentinel, for which astGetZoom returns 1.0. So no ZoomMap can present a
+       zero factor to GrismMap's MapMerge, and the guard beside the
+       `z != AST__BAD` test is dead. A case here used to try
+       astZoomMap(1, 0.0, " "), which reported AST__ZOOMI and wrote nothing. */
 
     /* polymap-08: PolyMap neighbour is not PolyMap — refuses cancel */
     {
@@ -3090,6 +3180,30 @@ static void gen_region_fixtures(const char *dir) {
         f1 = astAnnul(f1); f2 = astAnnul(f2);
     }
 
+    /* An Interval in parallel with a PointList, which is how a Prism of the
+       two simplifies, merges into the PointList only when it has zero width
+       on every axis, since the merge attaches one constant per Interval axis
+       to every point. This Interval spans 0 to 10 on axis 1 and is unbounded
+       above on axis 2, so the merge is refused and the pair is left alone.
+       An unbounded Interval is the only kind that reaches Interval's
+       PointList branch with non-zero width: a bounded one simplifies to a
+       Box first, and a Box that is a point is merged by MergeBox instead. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *f2 = astFrame(2, " ");
+        AstFrame *f1 = astFrame(1, " ");
+        double lbnd[] = {0.0, 0.0};
+        double ubnd[] = {10.0, AST__BAD};
+        double points[] = {3.0, 4.0};
+        AstInterval *iv = astInterval(f2, lbnd, ubnd, NULL, " ");
+        AstPointList *pl = astPointList(f1, 2, 1, 2, points, NULL, " ");
+        AstCmpMap *cm = astCmpMap(iv, pl, 0, " ");
+        write_negative_fixture(dir, "neg_interval_unbounded_pointlist",
+                               (AstMapping*)cm);
+        cm = astAnnul(cm); iv = astAnnul(iv); pl = astAnnul(pl);
+        f1 = astAnnul(f1); f2 = astAnnul(f2);
+    }
+
     /* nullregion-01: NullRegion self-simplification. */
     {
         if (!astOK) astClearStatus;
@@ -3482,18 +3596,13 @@ static void gen_audit_gap_fixtures(const char *dir) {
 
     /* A ChebyMap whose forward transformation holds a single T_1 term over
        bounds that are not the identity interval. A ChebyMap inherits PolyMap's
-       MapMerge -- polymap.c:2439 is the only place the slot is filled -- whose
-       replace-with-simpler half rebuilds an all-linear polynomial as a
-       MatrixMap and a ShiftMap from coeff_f and power_f alone
-       (polymap.c:3757-3850), never consulting the scale and offset that map
-       the input onto [-1,1]. The reduction therefore changes the
-       transformation: this pair simplifies to a ZoomMap of 2 where the
-       ChebyMap gives 0.4x-2. These two are the reproduction for that finding
-       and are deliberately not part of the Rust port's simplify corpus, which
-       would have to reproduce the wrong Mapping to consume them. See
-       docs/issues/c-library-quirks.md in the port. The control is the same
-       ChebyMap with a T_2 term, which is not linear and which C leaves
-       alone. */
+       MapMerge, whose replace-with-simpler half rebuilds an all-linear
+       polynomial as a MatrixMap and a ShiftMap. The ChebyMap's coefficients
+       apply to the normalised input z = scale*x + offset that maps [0,10]
+       onto [-1,1], so 2*T_1(z) is 0.4x - 2 and the reduction must fold the
+       scale and offset in: the result is a WinMap, not a ZoomMap of 2. The
+       control is the same ChebyMap with a T_2 term, which is not linear and
+       which C leaves alone. */
     {
         double lbnd[] = {0.0};
         double ubnd[] = {10.0};
@@ -3845,6 +3954,30 @@ static void gen_audit_gap_fixtures(const char *dir) {
         base = astAnnul(base); curr = astAnnul(curr);
     }
 
+    /* Two constant-fed base axes: base axis 2 is fixed at 99, outside the
+       Box, and base axis 3 at 5, inside it.  Each constant is a plane the
+       slice has to lie in, so the one that misses empties the intersection
+       whatever the other does, and the simplified Region is a NullRegion.
+       Ordered so the missing plane is seen first: box.c used to overwrite the
+       verdict on each constant-fed input rather than accumulating it, which
+       let the later, satisfied plane decide and produced a Box. */
+    {
+        if (!astOK) astClearStatus;
+        AstFrame *base = astFrame(3, "Domain=PIXEL");
+        AstFrame *curr = astFrame(2, "Domain=SLICE");
+        int inperm[] = {1, -1, -2};
+        int outperm[] = {1, 2};
+        double consts[] = {99.0, 5.0};
+        AstPermMap *pm = astPermMap(3, inperm, 2, outperm, consts, " ");
+        double lbnd[] = {0.0, 0.0, 0.0};
+        double ubnd[] = {10.0, 20.0, 30.0};
+        AstBox *box = astBox(base, 1, lbnd, ubnd, NULL, " ");
+        void *reg = map_region_unsimplified(box, pm, curr);
+        write_region_fixture(dir, "cap_box_permmap_null_first", reg);
+        box = astAnnul(box); pm = astAnnul(pm);
+        base = astAnnul(base); curr = astAnnul(curr);
+    }
+
     /* Negative control: both outputs are fed base axis 1, so the relation
        between the two Frames is not bi-directional. box.c:3818 abandons the
        branch, and abandoning it discards the parent simplification too, so the
@@ -3863,6 +3996,30 @@ static void gen_audit_gap_fixtures(const char *dir) {
         write_negative_region_fixture(dir, "cap_box_permmap_nonbidi", reg);
         box = astAnnul(box); pm = astAnnul(pm);
         base = astAnnul(base); curr = astAnnul(curr);
+    }
+
+    /* A Circle near the north pole on a CmpFrame whose SkyFrame is the second
+       component, mapped by a ShiftMap along the flat axis. astSimplify
+       leaves it as it is, but on the way it meshes the Circle, which goes
+       through Circle::RegBaseMesh and so through CmpFrame::NormBox with the
+       SkyFrame's part of the box routed through the second-component probe
+       PermMap. A probe of the wrong arity makes astTran2 report AST__NCPIN
+       and the simplification fails outright, so the fixture asserts that the
+       Region comes back unchanged and without error. */
+    {
+        if (!astOK) astClearStatus;
+        AstSkyFrame *sky = astSkyFrame(" ");
+        AstFrame *pf = astFrame(1, "Domain=FPLANE");
+        AstCmpFrame *cf = astCmpFrame(pf, sky, " ");
+        double centre[] = {50.0, 0.0, 1.2707963267948966};
+        double radius[] = {0.5};
+        double shift[] = {5.0, 0.0, 0.0};
+        AstCircle *c = astCircle(cf, 1, centre, radius, NULL, " ");
+        AstShiftMap *sm = astShiftMap(3, shift, " ");
+        void *reg = map_region_unsimplified(c, sm, cf);
+        write_negative_region_fixture(dir, "neg_circle_cmpframe_sky_second", reg);
+        c = astAnnul(c); sm = astAnnul(sm);
+        cf = astAnnul(cf); pf = astAnnul(pf); sky = astAnnul(sky);
     }
 
     /* There is no fixture for the bad-vertex guard at polygon.c:5400. A
@@ -4055,6 +4212,36 @@ static void gen_defunc_fixtures(const char *dir) {
         AstInterval *iv = astInterval(f, lbnd, ubnd, NULL, " ");
         AstRegion *unc = astGetUnc(iv, 1);
         write_fixture(dir, "defunc_interval_unbounded", (AstMapping *) unc);
+        unc = astAnnul(unc);
+        iv = astAnnul(iv);
+        f = astAnnul(f);
+    }
+    {
+        /* A bounding box with zero width on an axis gets 1.0E-6 of the axis
+           value there; an axis that is constant at zero has neither scale
+           and gets the absolute 1.0E-12 floor that astEQUAL uses, so the
+           uncertainty keeps a non-zero width and the PointList still
+           contains its own points. Axis 1 is constant at 5, axis 2 at 0,
+           axis 3 varies. */
+        AstFrame *f = astFrame(3, " ");
+        double pts[6] = { 5.0, 5.0, 0.0, 0.0, 3.0, 4.0 };
+        AstPointList *pl = astPointList(f, 2, 3, 2, pts, NULL, " ");
+        AstRegion *unc = astGetUnc(pl, 1);
+        write_fixture(dir, "defunc_pointlist_origin_axis", (AstMapping *) unc);
+        unc = astAnnul(unc);
+        pl = astAnnul(pl);
+        f = astAnnul(f);
+    }
+    {
+        /* The same floor in Interval's own default, which only an Interval
+           with an unbounded axis derives: axis 1 has both limits at zero,
+           axis 2 is half-open. */
+        AstFrame *f = astFrame(2, " ");
+        double lbnd[2] = { 0.0, 1.0 };
+        double ubnd[2] = { 0.0, AST__BAD };
+        AstInterval *iv = astInterval(f, lbnd, ubnd, NULL, " ");
+        AstRegion *unc = astGetUnc(iv, 1);
+        write_fixture(dir, "defunc_interval_point_at_origin", (AstMapping *) unc);
         unc = astAnnul(unc);
         iv = astAnnul(iv);
         f = astAnnul(f);

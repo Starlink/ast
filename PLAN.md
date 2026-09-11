@@ -11,7 +11,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 1. Add the existing C tests to the CMake build
 2. Convert Fortran tests to C to eliminate the Fortran/Starlink dependency
 
-## Current status: 109 default tests + 20 conditional (PLplot) + 1 optional huge stress test
+## Current status: 110 default tests + 20 conditional (PLplot) + 1 optional huge stress test
 
 | Phase | Status |
 |-------|--------|
@@ -32,7 +32,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 | Phase 2 Batch 14: astMask sky-curvature coverage | **Complete** (1 test) |
 | Phase 3: CI integration | **Complete** (tests run via ctest) |
 
-### Test inventory (109 default + 20 conditional PLplot + 1 optional)
+### Test inventory (110 default + 20 conditional PLplot + 1 optional)
 
 **Original test (1):**
 - ast_test — minimal installation check
@@ -88,6 +88,15 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   checks that Invert stays settable on a shared Mapping. PermMap's PermSplit
   and WcsMap's FITSProj and LonCheck are excluded because they are protected
   and no astSet call reaches them.
+- testxphmap — the XphMap loader: every projection name in its table, the Order
+  and Type components surviving a dump/load/re-dump round trip, an unknown Type
+  being rejected, and the forward transformation being invertible over a scan of
+  the projection's grid. XphMap has no public constructor, so every XphMap in it
+  comes from a dump, which is also the only route into the loader. The loader's
+  fixed leak of the Type string is not asserted by any test: LeakSanitizer is
+  unavailable on Darwin, and every test here suppresses leak reports because
+  AST's memory system caches freed blocks. Running this test under
+  `ASAN_OPTIONS=detect_leaks=1` on Linux is the manual check.
 
 **Optional manual stress test:**
 - testhuge_c
@@ -284,7 +293,18 @@ work (SIMD kernels, refactors) can be checked for unintended changes.  See
   (`inverse(forward(P)) ~= P`) to an absolute pixel tolerance.
 - `oracle/transform_oracle_overrides.txt` records per-fixture round-trip
   exceptions (currently `tsc.head` and `tnx-cheb.head`, whose inverses do not
-  recover the pixel and are flagged for investigation).
+  recover the pixel and are flagged for investigation), and per-row golden
+  exceptions for values that sit on a mathematical singularity (currently rows
+  2 and 3 of `neg_unitnormmap_inv_fwd_diffcentre.map`'s inverse section, which
+  depend on whether the compiler contracts a multiply-add).
+- The recorded values are build-configuration dependent in the last bit or two.
+  Regenerating `framesets.oracle` under a Debug sanitizer build reproduces the
+  committed file except for about 60 latitude values differing by one ULP from
+  the Release build it was captured with. That is what the 1e-7 tolerance is
+  for, and both files pass the gate, so **do not commit a regeneration that
+  only moves last digits** -- it is churn, not a change. Regenerate only when a
+  transform has intentionally changed, and check the diff names the fixtures you
+  expect.
 
 Regenerate after an intentional transform change and commit the diff:
 
