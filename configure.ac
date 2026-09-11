@@ -215,6 +215,42 @@ AC_SUBST(THREADS, $use_pthreads)
 AC_CHECK_LIB([m], [sin], [LIBM=-lm], [LIBM=])
 AC_SUBST([LIBM])
 
+#  The graphics and error-reporting libraries are link-time plugins: libast
+#  refers to their symbols but does not link against them, so that a program
+#  can supply its own implementation instead. A program therefore has no
+#  direct reference to them, and on Darwin libast is linked with
+#  -undefined dynamic_lookup, which records no undefined symbols at all.
+#  The linker consequently believes the satellite libraries are unused, and
+#  -dead_strip_dylibs -- which several distributions, conda-forge among
+#  them, put in LDFLAGS -- drops them from the program. The symbols then
+#  bind to nothing and the first call through one segfaults, which for
+#  astPutErr means the first error report of the run.
+#
+#  Force a reference to one symbol from each library so that the linker has
+#  to keep it. The libraries are disjoint: each supplies the part of the grf
+#  interface added at the version it is named for, so one symbol each is
+#  needed rather than one between them. Mach-O prefixes C symbols with an
+#  underscore; nothing outside Darwin needs any of this, because there the
+#  undefined symbols of libast are recorded and the linker can see that the
+#  satellite libraries satisfy them.
+#
+#  These reach the C tests only. libtool leaves $wl empty for the Fortran
+#  tag, so it rewrites -Wl,-u,sym to a bare "-u sym", which flang rejects
+#  outright. The Fortran tests are unprotected in consequence, which costs
+#  nothing today: libtool reports no shared library support for flang on
+#  Darwin, so a build with the Fortran interface is static throughout and
+#  has no dylib to strip.
+case $host_os in
+  darwin*)
+    AST_PLUGIN_KEEP="-Wl,-u,_astPutErr_ -Wl,-u,_astGAttr -Wl,-u,_astGCap"
+    AST_PLUGIN_KEEP="$AST_PLUGIN_KEEP -Wl,-u,_astGBBuf -Wl,-u,_astG3DAttr"
+    ;;
+  *)
+    AST_PLUGIN_KEEP=
+    ;;
+esac
+AC_SUBST([AST_PLUGIN_KEEP])
+
 #  star_compat/messgen is compiled and then run during the build, so it has
 #  to be an executable for the build machine and not for the host. Take the
 #  compiler for it, and its flags, from the conventional *_FOR_BUILD

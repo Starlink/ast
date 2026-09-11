@@ -61,7 +61,7 @@ TAP_LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) \
     $(top_srcdir)/build-aux/tap-driver.sh
 TAP_LOG_COMPILER = $(SHELL)
 
-CTEST_LDADD = @LIBPAL@ @LIBCMINPACK@ \
+CTEST_LDADD = $(AST_PLUGIN_KEEP) @LIBPAL@ @LIBCMINPACK@ \
     $(top_builddir)/libast.la \
     $(top_builddir)/libast_grf_3.2.la \
     $(top_builddir)/libast_grf_5.6.la \
