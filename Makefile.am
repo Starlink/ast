@@ -883,10 +883,19 @@ endif
 # assigning to it here would override configure's own value -- which automake
 # reports on every Starlink bootstrap as "MESSGEN was already defined in
 # condition TRUE".
+#
+# messgen is run as soon as it is built, so it is built with the compiler for
+# the build machine rather than with $(CC), which in a cross compilation
+# produces executables that cannot run here. That puts it outside automake's
+# program rules, so it is named in EXTRA_DIST and CLEANFILES by hand.
 if !STARLINK_BUILD
-AST_MESSGEN = star_compat/messgen$(EXEEXT)
-noinst_PROGRAMS += star_compat/messgen$(EXEEXT)
-star_compat_messgen_SOURCES = star_compat/messgen.c
+AST_MESSGEN = star_compat/messgen
+CLEANFILES += $(AST_MESSGEN)
+
+$(AST_MESSGEN): $(srcdir)/star_compat/messgen.c
+	$(AM_V_at)$(MKDIR_P) star_compat
+	$(AM_V_GEN)$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) \
+	    -o $@ $(srcdir)/star_compat/messgen.c
 
 ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(AST_MESSGEN)
 	$(AST_MESSGEN) -cF $(srcdir)/ast_err.msg
@@ -903,6 +912,7 @@ EXTRA_DIST = $(srcdir)/ast_par.source $(srcdir)/ast_err.msg \
     $(srcdir)/build-aux/tap-driver.sh \
     $(srcdir)/cminpack/CopyrightMINPACK.txt \
     $(srcdir)/cminpack/README.md \
+    $(srcdir)/star_compat/messgen.c \
     $(srcdir)/star_compat/starlink_compat.m4 \
     $(srcdir)/star_compat/latexsupport/README.md \
     $(srcdir)/star_compat/latexsupport/ast.sty \
