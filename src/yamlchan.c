@@ -5398,6 +5398,11 @@ static int IsA##Class( const char *class, int *status ){ \
    return result; \
 }
 
+/* Exclude MAKE_TEST expansions from coverage reports since it
+ * can't meaningfully report which parts of the macro expansion
+ * are uncovered: */
+
+/* LCOV_EXCL_BR_START */
 MAKE_TEST(Wcs,gwcs,1,4)
 MAKE_TEST(Step,gwcs,1,3)
 MAKE_TEST(Celestial_Frame,gwcs,1,2)
@@ -5460,6 +5465,7 @@ MAKE_TEST(Time,asdf/time,1,4)
 MAKE_TEST(EarthLocation,astropy/coordinates/earthlocation,1,2)
 MAKE_TEST(Quantity,asdf/unit,1,3)
 MAKE_TEST(NDArray,asdf/core,1,1)
+/* LCOV_EXCL_BR_STOP */
 #undef MAKE_TEST
 
 
@@ -5525,6 +5531,7 @@ static int IsA##Class( const char *class, int *status ){ \
 
 
 
+/* LCOV_EXCL_BR_START */
 MAKE_TEST(Frame,gwcs,1,0,
           IsACelestial_Frame(class,status)||
           IsAFrame2d(class,status))
@@ -5537,6 +5544,7 @@ MAKE_TEST(Baseframe,astropy/coordinates/frames,1,0,
           IsAGalactic(class,status)||
           IsASuperGalactic(class,status)||
           IsAIcrs(class,status))
+/* LCOV_EXCL_BR_STOP */
 #undef MAKE_TEST
 
 
