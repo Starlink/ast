@@ -91,6 +91,13 @@ f     only within textual output (e.g. from AST_WRITE).
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
 *        negative values.
+*     16-SEP-2026 (TIMJ):
+*        Return the unnormalised Unit string from astGetAxisNormUnit when
+*        the Unit value is not a units expression that astUnitNormaliser
+*        can parse, rather than reporting an error. This is the documented
+*        value of the NormUnit attribute when no simplification can be
+*        performed, and it covers both a blank Unit and the sexagesimal
+*        formats used by some Axis classes.
 *class--
 */
 
@@ -1566,7 +1573,9 @@ static const char *GetAxisNormUnit( AstAxis *this, int *status ){
 /* Local Variables: */
    astDECLARE_GLOBALS        /* Pointer to thread-specific global data */
    const char *result;       /* Pointer to dynamic memory holding returned text */
+   const char *unit;         /* Pointer to the unnormalised Unit string */
    int nc;                   /* Length of normalised Unit string */
+   int oldrep;               /* Original error reporting state */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
@@ -1574,8 +1583,25 @@ static const char *GetAxisNormUnit( AstAxis *this, int *status ){
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(this);
 
-/* Get the Axis Unit attrribute and normalise it. */
-   result = astUnitNormaliser( astGetAxisUnit( this ) );
+/* Get the Axis Unit attrribute. */
+   unit = astGetAxisUnit( this );
+
+/* Normalise it. Not every Unit value is a units expression that
+   astUnitNormaliser can parse: a blank string has no units to normalise,
+   and some Axis classes describe their axis values with a sexagesimal
+   format such as "ddd:mm:ss". Switch off error reporting so that such a
+   string can be handled here rather than being reported as a failure. */
+   oldrep = astReporting( 0 );
+   result = astUnitNormaliser( unit );
+   if( !astOK ) astClearStatus;
+   astReporting( oldrep );
+
+/* A units string with no normalised form is returned unchanged, which is
+   the documented value of the NormUnit attribute when no simplification
+   can be performed. */
+   if( !result && unit ) {
+      result = astStore( NULL, unit, strlen( unit ) + 1 );
+   }
 
 /* If successful, check that the resulting string will fit in the buffer.
    If not, report an error. */
