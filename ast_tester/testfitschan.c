@@ -237,6 +237,11 @@ static void stopit( int errnum, const char *text, int *status ) {
       printf( "Error %d: %s\n", errnum, text );
    else
       printf( "Error %d\n", errnum );
+
+/* The status reported here is the one AST is watching, so every later AST
+   call in this program is a no-op that returns nothing. Flush now, while
+   the reason for the failure is still known. */
+   fflush( stdout );
 }
 
 /* -----------------------------------------------------------------------
