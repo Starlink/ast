@@ -36,6 +36,14 @@ include(CMakePackageConfigHelpers)
 # The symptom is quiet and strange -- a 9.4.1 build reporting itself as
 # 9.4.0 through astVersion, because it compiled against a stale
 # src/version.h -- so refuse to configure rather than produce it.
+#
+# Only in a git working tree, though.  None of these files is tracked, so a
+# copy in a checkout can only be a local build artifact, and there is no way
+# to tell a current one from a stale one.  An unpacked distribution is the
+# opposite case: `make dist' ships ast_err.h, AST_ERR and src/version.h
+# deliberately (see EXTRA_DIST and BUILT_SOURCES in Makefile.am), those
+# copies were generated for that release, and building the tarball with
+# CMake has to keep working.
 set(_ast_generated_in_source
     ast.h
     ast_err.h
@@ -47,11 +55,14 @@ set(_ast_generated_in_source
     src/f77.h
 )
 set(_ast_stale "")
-foreach(_file IN LISTS _ast_generated_in_source)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_file}")
-        list(APPEND _ast_stale "${_file}")
-    endif()
-endforeach()
+# .git is a directory in a clone and a file in a worktree or submodule.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+    foreach(_file IN LISTS _ast_generated_in_source)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_file}")
+            list(APPEND _ast_stale "${_file}")
+        endif()
+    endforeach()
+endif()
 if(_ast_stale)
     list(JOIN _ast_stale "\n    " _ast_stale_text)
     message(FATAL_ERROR
@@ -60,8 +71,9 @@ if(_ast_stale)
         "The source copies take precedence over the generated ones for any "
         "source file that includes them by quoted name, so the library "
         "would be built against whatever those copies happen to contain. "
-        "They are left over from an autotools build. Remove them, or run "
-        "'make distclean' in the source tree, and configure again.")
+        "None of them is tracked by git, so they are left over from an "
+        "autotools build in this checkout. Remove them, or run 'make "
+        "distclean' in the source tree, and configure again.")
 endif()
 
 # ============================================================
