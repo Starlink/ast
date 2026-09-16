@@ -16,6 +16,57 @@ int main( void ) {
       astError( AST__INTER, "NormUnit did not give expected result" );
    }
 
+/* Not every Unit value is a units expression that can be parsed. A Frame
+   axis has a blank Unit until one is set, and there is then nothing to
+   normalise, so NormUnit is blank too rather than an error. The same
+   applies to the Frame classes that report a Unit of their own but leave
+   the Axis Unit unset. */
+   {
+      AstFrame *plain = astFrame( 2, " " );
+      AstSpecFrame *spec = astSpecFrame( " " );
+      AstTimeFrame *time = astTimeFrame( " " );
+      const char *blank;
+      int iaxis;
+
+      for( iaxis = 1; iaxis <= 2; iaxis++ ) {
+         blank = astGetC( plain, iaxis == 1 ? "NormUnit(1)" : "NormUnit(2)" );
+         if( astOK && ( !blank || strlen( blank ) ) ) {
+            astError( AST__INTER, "NormUnit(%d) of a default Frame is '%s', "
+                      "expected a blank string", iaxis, blank ? blank : "<NULL>" );
+         }
+      }
+
+      blank = astGetC( spec, "NormUnit(1)" );
+      if( astOK && ( !blank || strlen( blank ) ) ) {
+         astError( AST__INTER, "NormUnit(1) of a default SpecFrame is '%s', "
+                   "expected a blank string", blank ? blank : "<NULL>" );
+      }
+
+      blank = astGetC( time, "NormUnit(1)" );
+      if( astOK && ( !blank || strlen( blank ) ) ) {
+         astError( AST__INTER, "NormUnit(1) of a default TimeFrame is '%s', "
+                   "expected a blank string", blank ? blank : "<NULL>" );
+      }
+
+      plain = astAnnul( plain );
+      spec = astAnnul( spec );
+      time = astAnnul( time );
+   }
+
+/* A SkyFrame axis describes its values with a sexagesimal format such as
+   "ddd:mm:ss", which is not a units expression either. Reading NormUnit
+   must still succeed; the value follows the Axis Unit. */
+   {
+      AstSkyFrame *sky = astSkyFrame( " " );
+      const char *norm = astGetC( sky, "NormUnit(1)" );
+
+      if( astOK && ( !norm || !strlen( norm ) ) ) {
+         astError( AST__INTER, "NormUnit(1) of a default SkyFrame is '%s', "
+                   "expected a non-blank string", norm ? norm : "<NULL>" );
+      }
+      sky = astAnnul( sky );
+   }
+
 /* astAxAngle: when the offset position has a zero component on the
    measured axis but a non-zero component on the other axis, the angle is
    still well defined. Previously the nudge applied to break the
