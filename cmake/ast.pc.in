@@ -6,5 +6,5 @@ includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
 Name: ast
 Description: AST - World Coordinate Systems Library
 Version: @PROJECT_VERSION@
-Libs: -L${libdir} -last -last_err -last_grf_2.0 -last_grf_3.2 -last_grf_5.6 -last_grf3d -lm
+Libs: -L${libdir} @AST_PC_LIBS@
 Cflags: -I${includedir}
