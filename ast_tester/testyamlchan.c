@@ -2,6 +2,7 @@
 #include "mers.h"
 #include "sae_par.h"
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,6 +23,7 @@ static void check_tansip_wcs( AstObject *obj, const char *text, int *status );
 static void check_equal_transforms( AstObject *obj, AstObject *obj2, const char *text, int *status );
 static void check_sphmap_mappings( AstMapping *map, AstMapping *map2, const char *text, int *status );
 static void check_divide_outputs( AstMapping *map, AstMapping *map2, const char *text, int *status );
+static void check_fitswcs_imaging( AstObject *obj, const char *text, int *status );
 
 static void test_yamlencoding_attribute( int *status );
 static void test_imaging_wcs_roundtrip( int *status );
@@ -38,11 +40,44 @@ static void test_transforms_1d( int *status );
 static void test_transforms_2d( int *status );
 static void test_earthlocation( int *status );
 static void test_yamlchan_dump( int *status );
-static void test_fitswcs_imaging_read( int *status );
+static void test_fitswcs_imaging_roundtrip( int *status );
+static void test_fitswcs_imaging_handbuilt( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
    if( a && b ) result = !strcmp( a, b );
+   return result;
+}
+
+/* Return non-zero if the named file exists and contains the supplied
+   string. */
+static int file_contains( const char *path, const char *needle ){
+   FILE *fd;
+   char *buf;
+   long size;
+   size_t nread;
+   int result = 0;
+
+   fd = fopen( path, "rb" );
+
+   if( !fd )
+      return 0;
+
+   fseek( fd, 0, SEEK_END );
+   size = ftell( fd );
+   rewind( fd );
+
+   if( size >= 0 ) {
+      buf = astMalloc( (size_t) size + 1 );
+      if( buf ) {
+         nread = fread( buf, 1, (size_t) size, fd );
+         buf[ nread ] = 0;
+         result = ( strstr( buf, needle ) != NULL );
+         buf = astFree( buf );
+      }
+   }
+
+   fclose( fd );
    return result;
 }
 
@@ -82,7 +117,8 @@ int main(){
    test_transforms_2d( status );
    test_earthlocation( status );
    test_yamlchan_dump( status );
-   test_fitswcs_imaging_read( status );
+   test_fitswcs_imaging_roundtrip( status );
+   test_fitswcs_imaging_handbuilt( status );
 
    astEnd;
 
@@ -1081,18 +1117,15 @@ void test_yamlchan_dump( int *status ){
 }
 
 
-
-/* Test reading a GWCS fitswcs_imaging transform: read the Roman L3 sample
-   WCS (a fitswcs_imaging with a gnomonic/TAN projection) from ASDF, evaluate
-   pixel -> celestial for a set of points, and compare against reference
-   RA/Dec values computed independently with the Python GWCS library.
+/* Check a WCS equivalent to the Roman L3 sample GWCS fitswcs_imaging
+   transform (which uses a gnomonic/TAN projection): evaluate pixel ->
+   celestial for a set of points, and compare against reference RA/Dec values
+   computed independently with the Python GWCS library.
 
    Note: the WCS current Frame is an ICRS SkyFrame, so astTran2 returns the
    sky coordinates in radians; the reference values below are therefore in
    radians. */
-void test_fitswcs_imaging_read( int *status ){
-   AstYamlChan *ch;
-   AstObject *obj;
+void check_fitswcs_imaging( AstObject *obj, const char *text, int *status ){
    int i;
    double xout[ 6 ];
    double yout[ 6 ];
@@ -1107,18 +1140,7 @@ void test_fitswcs_imaging_read( int *status ){
    double latT[ 6 ] = { 1.1511598141523738, 1.1522259402330988, 1.1518302230206918,
                         1.151342819228696, 1.1514327418783765, 1.1524996269399377 };
 
-   if( *status != SAI__OK ) return;
-
-   ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/fitswcs_imaging.asdf",
-           fixture_dir() );
-
-   obj = astRead( ch );
-   if( !obj ) {
-      stopit( 70, status );
-      astAnnul( ch );
-      return;
-   }
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
 
    astTran2( obj, 6, xin, yin, 1, xout, yout );
 
@@ -1127,18 +1149,190 @@ void test_fitswcs_imaging_read( int *status ){
          if( *status == SAI__OK )
             printf( "fitswcs_imaging lon[%d]: got %.15g expected %.15g (d=%g)\n",
                     i, xout[ i ], lonT[ i ], fabs( angDiff( xout[ i ], lonT[ i ] ) ) );
-         stopit( 71 + i, status );
+         stopit( 111 + i, status );
       } else if( fabs( yout[ i ] - latT[ i ] ) > 1.0E-9 ){
          if( *status == SAI__OK )
             printf( "fitswcs_imaging lat[%d]: got %.15g expected %.15g (d=%g)\n",
                     i, yout[ i ], latT[ i ], fabs( yout[ i ] - latT[ i ] ) );
-         stopit( 77 + i, status );
+         stopit( 117 + i, status );
       }
    }
 
    if( *status != SAI__OK )
-      printf( "Read tests failed for fitswcs_imaging.asdf\n" );
+      printf( "%s\n", text );
+}
+
+
+
+/* Read the fitswcs_imaging WCS and check it, then write it out to ASDF and
+   read it back, twice. Each output file must still hold a fitswcs_imaging
+   (because the WCS was read from one) and give the same results. */
+void test_fitswcs_imaging_roundtrip( int *status ){
+   AstObject *obj;
+   AstObject *obj2;
+   AstObject *obj3;
+   AstYamlChan *ch;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/fitswcs_imaging.asdf,"
+           "SinkFile=fitswcs_imaging_out.asdf", fixture_dir() );
+
+   obj = astRead( ch );
+   if( !obj ) {
+      stopit( 110, status ); /* LCOV_EXCL_LINE */
+      astAnnul( ch ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   check_fitswcs_imaging( obj, "Read tests failed for fitswcs_imaging.asdf",
+                          status );
+
+/* First write/read cycle. */
+   if( astWrite( ch, obj ) != 1 )
+      stopit( 123, status ); /* LCOV_EXCL_LINE */
+
+   astClear( ch, "SourceFile,SinkFile" );
+
+   if( !file_contains( "fitswcs_imaging_out.asdf", "gwcs/fitswcs_imaging-" ) )
+      stopit( 124, status ); /* LCOV_EXCL_LINE */
+
+   astSet( ch, "SourceFile=fitswcs_imaging_out.asdf,"
+           "SinkFile=fitswcs_imaging_out2.asdf" );
+   obj2 = astRead( ch );
+   if( !obj2 ) {
+      stopit( 125, status ); /* LCOV_EXCL_LINE */
+   } else {
+      check_fitswcs_imaging( obj2,
+                             "Read tests failed for fitswcs_imaging_out.asdf",
+                             status );
+
+/* Second write/read cycle, writing the WCS read back from AST's own output. */
+      if( astWrite( ch, obj2 ) != 1 )
+         stopit( 126, status ); /* LCOV_EXCL_LINE */
+
+      astClear( ch, "SourceFile,SinkFile" );
+
+      if( !file_contains( "fitswcs_imaging_out2.asdf", "gwcs/fitswcs_imaging-" ) )
+         stopit( 127, status ); /* LCOV_EXCL_LINE */
+
+      astSet( ch, "SourceFile=fitswcs_imaging_out2.asdf" );
+      obj3 = astRead( ch );
+      if( !obj3 ) {
+         stopit( 128, status ); /* LCOV_EXCL_LINE */
+      } else {
+         check_fitswcs_imaging( obj3,
+                                "Read tests failed for fitswcs_imaging_out2.asdf",
+                                status );
+         astAnnul( obj3 );
+      }
+      astAnnul( obj2 );
+   }
 
    astAnnul( obj );
+   astAnnul( ch );
+}
+
+
+
+/* Build by hand a chain of Mappings with the same form as a fitswcs_imaging
+   (shift by -crpix, pc matrix, cdelt scale, TAN projection and native to
+   celestial rotation), using the parameters of the Roman L3 sample. It must
+   give the GWCS reference results, and must survive a write/read cycle, but
+   since it was not read from a fitswcs_imaging it should not be written as
+   one. */
+void test_fitswcs_imaging_handbuilt( int *status ){
+   AstFrame *pixfrm;
+   AstFrameSet *fs;
+   AstMapping *map;
+   AstMapping *parts[ 8 ];
+   AstMapping *tmp;
+   AstObject *fs2;
+   AstSkyFrame *skyfrm;
+   AstYamlChan *ch;
+   double ca;
+   double cd;
+   double cdelt[ 2 ] = { 1.5277777777777777e-05, 1.5277777777777777e-05 };
+   double crval[ 2 ] = { 270.0, 64.6023730065 };
+   double negcrpix[ 2 ] = { -12099.5, 88700.5 };
+   double pc[ 4 ] = { 1.0, 0.0, -0.0, 1.0 };
+   double rot[ 9 ];
+   double sa;
+   double sd;
+   int i;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+/* The native to celestial rotation for a native longitude of the celestial
+   pole of 180 degrees is Rz(crval[0]) * Ry(90 - crval[1]), acting on unit
+   Cartesian vectors. */
+   ca = cos( crval[ 0 ]*AST__DD2R );
+   sa = sin( crval[ 0 ]*AST__DD2R );
+   cd = cos( crval[ 1 ]*AST__DD2R );
+   sd = sin( crval[ 1 ]*AST__DD2R );
+   rot[ 0 ] = ca*sd;
+   rot[ 1 ] = -sa;
+   rot[ 2 ] = ca*cd;
+   rot[ 3 ] = sa*sd;
+   rot[ 4 ] = ca;
+   rot[ 5 ] = sa*cd;
+   rot[ 6 ] = -cd;
+   rot[ 7 ] = 0.0;
+   rot[ 8 ] = sd;
+
+   parts[ 0 ] = (AstMapping *) astShiftMap( 2, negcrpix, " " );
+   parts[ 1 ] = (AstMapping *) astMatrixMap( 2, 2, 0, pc, " " );
+   parts[ 2 ] = (AstMapping *) astMatrixMap( 2, 2, 1, cdelt, " " );
+   parts[ 3 ] = (AstMapping *) astZoomMap( 2, AST__DD2R, " " );
+   parts[ 4 ] = (AstMapping *) astWcsMap( 2, AST__TAN, 1, 2, "Invert=1" );
+   parts[ 5 ] = (AstMapping *) astSphMap( "Invert=1" );
+   parts[ 6 ] = (AstMapping *) astMatrixMap( 3, 3, 0, rot, " " );
+   parts[ 7 ] = (AstMapping *) astSphMap( " " );
+
+   map = astClone( parts[ 0 ] );
+   for( i = 1; i < 8; i++ ) {
+      tmp = (AstMapping *) astCmpMap( map, parts[ i ], 1, " " );
+      astAnnul( map );
+      map = tmp;
+   }
+   for( i = 0; i < 8; i++ ) {
+      astAnnul( parts[ i ] );
+   }
+
+   pixfrm = astFrame( 2, "Domain=PIXEL" );
+   skyfrm = astSkyFrame( "System=ICRS" );
+   fs = astFrameSet( pixfrm, " " );
+   astAddFrame( fs, AST__BASE, map, skyfrm );
+   astAnnul( pixfrm );
+   astAnnul( skyfrm );
+   astAnnul( map );
+
+   check_fitswcs_imaging( (AstObject *) fs,
+                          "Tests failed for the hand-built fitswcs_imaging chain",
+                          status );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=fitswcs_handbuilt.asdf" );
+   if( astWrite( ch, fs ) != 1 )
+      stopit( 130, status ); /* LCOV_EXCL_LINE */
+
+   astClear( ch, "SinkFile" );
+
+   if( file_contains( "fitswcs_handbuilt.asdf", "fitswcs_imaging" ) )
+      stopit( 131, status ); /* LCOV_EXCL_LINE */
+
+   astSet( ch, "SourceFile=fitswcs_handbuilt.asdf" );
+   fs2 = astRead( ch );
+   if( !fs2 ) {
+      stopit( 132, status ); /* LCOV_EXCL_LINE */
+   } else {
+      check_fitswcs_imaging( fs2,
+                             "Read tests failed for fitswcs_handbuilt.asdf",
+                             status );
+      astAnnul( fs2 );
+   }
+
+   astAnnul( fs );
    astAnnul( ch );
 }
