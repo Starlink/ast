@@ -137,7 +137,6 @@ jobs:
         run: |
           ./configure CC=${{ matrix.cc }} \
             FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
-            --with-yaml="$(brew --prefix libyaml)" \
             ${{ matrix.configure_extra }}
 
       # The documentation flags have to stay on the same `dist' gate as the
@@ -239,8 +238,7 @@ jobs:
           cd tarball-am
           if [ "$RUNNER_OS" = macOS ]; then
             ./configure CC=${{ matrix.cc }} \
-              FC=${{ matrix.f77 }} F77=${{ matrix.f77 }} \
-              --with-yaml="$(brew --prefix libyaml)"
+              FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
           else
             ./configure CC=${{ matrix.cc }} \
               FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
