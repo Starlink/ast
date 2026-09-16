@@ -2,6 +2,7 @@
 #include "mers.h"
 #include "sae_par.h"
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,6 +23,7 @@ static void check_tansip_wcs( AstObject *obj, const char *text, int *status );
 static void check_equal_transforms( AstObject *obj, AstObject *obj2, const char *text, int *status );
 static void check_sphmap_mappings( AstMapping *map, AstMapping *map2, const char *text, int *status );
 static void check_divide_outputs( AstMapping *map, AstMapping *map2, const char *text, int *status );
+static void check_fitswcs_imaging( AstObject *obj, const char *text, int *status );
 
 static void test_yamlencoding_attribute( int *status );
 static void test_imaging_wcs_roundtrip( int *status );
@@ -31,11 +33,64 @@ static void test_native_encoding_roundtrip( int *status );
 static void test_sphmap_roundtrip( int *status );
 static void test_divide_roundtrip( int *status );
 static void test_rotate_sequence_3d_roundtrip( int *status );
+static void test_affine_roundtrip( int *status );
+static void test_time_equinox( int *status );
+static void test_quantity( int *status );
+static void test_transforms_1d( int *status );
+static void test_transforms_2d( int *status );
+static void test_earthlocation( int *status );
+static void test_yamlchan_dump( int *status );
+static void test_fitswcs_imaging_roundtrip( int *status );
+static void test_fitswcs_imaging_handbuilt( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
    if( a && b ) result = !strcmp( a, b );
    return result;
+}
+
+/* Return non-zero if the named file exists and contains the supplied
+   string. */
+static int file_contains( const char *path, const char *needle ){
+   FILE *fd;
+   char *buf;
+   long size;
+   size_t nread;
+   int result = 0;
+
+   fd = fopen( path, "rb" );
+
+   if( !fd )
+      return 0;
+
+   fseek( fd, 0, SEEK_END );
+   size = ftell( fd );
+   rewind( fd );
+
+   if( size >= 0 ) {
+      buf = astMalloc( (size_t) size + 1 );
+      if( buf ) {
+         nread = fread( buf, 1, (size_t) size, fd );
+         buf[ nread ] = 0;
+         result = ( strstr( buf, needle ) != NULL );
+         buf = astFree( buf );
+      }
+   }
+
+   fclose( fd );
+   return result;
+}
+
+/* Return the signed difference (a - b) of two angles in radians, reduced to
+   the range (-pi,pi]. Used to compare longitudes that may differ by a
+   multiple of 2*pi (e.g. AST's SphMap returns longitudes in (-pi,pi] while
+   the reference values are normalised to [0,2*pi)). */
+static double angDiff( double a, double b ){
+   double twopi = 2.0*M_PI;
+   double d = a - b;
+   while( d > twopi/2.0 ) d -= twopi;
+   while( d <= -twopi/2.0 ) d += twopi;
+   return d;
 }
 
 int main(){
@@ -55,6 +110,15 @@ int main(){
    test_sphmap_roundtrip( status );
    test_divide_roundtrip( status );
    test_rotate_sequence_3d_roundtrip( status );
+   test_affine_roundtrip( status );
+   test_time_equinox( status );
+   test_quantity( status );
+   test_transforms_1d( status );
+   test_transforms_2d( status );
+   test_earthlocation( status );
+   test_yamlchan_dump( status );
+   test_fitswcs_imaging_roundtrip( status );
+   test_fitswcs_imaging_handbuilt( status );
 
    astEnd;
 
@@ -259,8 +323,10 @@ void test_sphmap_roundtrip( int *status ){
    AstFrame *frm2d;
    AstFrameSet *sphfs;
    AstObject *sphfs2;
+   AstObject *sphfs3;
    AstMapping *sphmap;
    AstMapping *sphmap2;
+   AstMapping *sphmap3;
 
    if( *status != SAI__OK ) return;
 
@@ -287,10 +353,28 @@ void test_sphmap_roundtrip( int *status ){
 
    check_sphmap_mappings( sphmap, sphmap2, "SphMap round-trip test failed", status );
 
+/* Write the object recovered from ASDF back out and read it again. This
+   exercises the path where a spherical_cartesian read from ASDF (a SphMap
+   flanked by unit ZoomMaps) is re-serialised. */
+   astClear( ch, "SourceFile" );
+   astSet( ch, "SinkFile=sphmap_roundtrip2.asdf" );
+   if( astWrite( ch, sphfs2 ) != 1 ) stopit( 33, status );
+
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=sphmap_roundtrip2.asdf" );
+   sphfs3 = astRead( ch );
+   if( !sphfs3 ) stopit( 34, status );
+
+   sphmap3 = astGetMapping( (AstFrameSet *) sphfs3, AST__BASE, AST__CURRENT );
+   check_sphmap_mappings( sphmap, sphmap3, "SphMap re-serialisation test failed",
+                          status );
+
    astAnnul( sphmap );
    astAnnul( sphmap2 );
+   astAnnul( sphmap3 );
    astAnnul( sphfs );
    astAnnul( sphfs2 );
+   astAnnul( sphfs3 );
    astAnnul( ch );
 }
 
@@ -443,7 +527,9 @@ void test_divide_roundtrip( int *status ){
    AstMapping *divide_mapping;
    AstMapping *divmap1;
    AstMapping *divmap2;
+   AstMapping *divmap3;
    AstObject *divfs2;
+   AstObject *divfs3;
    AstPermMap *forkmap;
    AstPermMap *intrlvmap;
    AstPermMap *mapa;
@@ -548,10 +634,30 @@ void test_divide_roundtrip( int *status ){
    check_divide_outputs( divmap1, divmap2,
                          "Divide round-trip test failed", status );
 
+/* Write the object recovered from ASDF back out and read it again. The first
+   write above exercised the structural FindDivide path (the hand-built divide
+   had no summary); this second write exercises the KeyMap fast-path, since
+   ReadDivide attaches a "divide" summary to the Mapping it returns and
+   WriteMapping writes it directly via WriteProxyDivide. */
+   astClear( ch, "SourceFile" );
+   astSet( ch, "SinkFile=divide_roundtrip2.asdf" );
+   if( astWrite( ch, divfs2 ) != 1 ) stopit( 58, status );
+
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=divide_roundtrip2.asdf" );
+   divfs3 = astRead( ch );
+   if( !divfs3 ) stopit( 59, status );
+
+   divmap3 = astGetMapping( (AstFrameSet *) divfs3, AST__BASE, AST__CURRENT );
+   check_divide_outputs( divmap1, divmap3,
+                         "Divide re-serialisation test failed", status );
+
    astAnnul( divmap1 );
    astAnnul( divmap2 );
+   astAnnul( divmap3 );
    astAnnul( divfs );
    astAnnul( divfs2 );
+   astAnnul( divfs3 );
    astAnnul( ch );
 }
 
@@ -705,4 +811,528 @@ void test_rotate_sequence_3d_roundtrip( int *status ){
 
    if( *status != SAI__OK )
       printf( "rotate_sequence_3d and null-transform regression test failed\n" );
+}
+
+
+
+/* Test affine round-trip: build a FrameSet whose mapping is a 2-D MatrixMap
+   followed by a 2-D ShiftMap (the pattern FindAffine recognises), write it to
+   ASDF as an affine transform, read it back and verify the recovered mapping
+   gives the same numerical results. Exercises FindAffine, WriteProxyAffine,
+   WriteAsdfAffine and ReadAffine. */
+void test_affine_roundtrip( int *status ){
+   AstYamlChan *ch;
+   AstFrame *frm_in;
+   AstFrame *frm_out;
+   AstFrameSet *affs;
+   AstObject *affs2;
+   AstMatrixMap *mm;
+   AstShiftMap *sm;
+   AstMapping *affine;
+   double matrix[4] = { 0.6, -0.8, 0.8, 0.6 };
+   double shift[2] = { 100.0, -50.0 };
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+/* MatrixMap (a rotation, so it will not collapse to a diagonal WinMap)
+   followed in series by a ShiftMap. */
+   mm = astMatrixMap( 2, 2, 0, matrix, " " );
+   sm = astShiftMap( 2, shift, " " );
+   affine = (AstMapping *) astCmpMap( mm, sm, 1, " " );
+   astAnnul( mm );
+   astAnnul( sm );
+
+   frm_in = astFrame( 2, "Domain=PIXEL" );
+   frm_out = astFrame( 2, "Domain=WORLD" );
+   affs = astFrameSet( frm_in, " " );
+   astAddFrame( affs, AST__BASE, affine, frm_out );
+   astAnnul( frm_in );
+   astAnnul( frm_out );
+   astAnnul( affine );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=affine_roundtrip.asdf" );
+
+   if( astWrite( ch, affs ) != 1 )
+      stopit( 70, status ); /* LCOV_EXCL_LINE */
+
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=affine_roundtrip.asdf" );
+   affs2 = astRead( ch );
+
+   if( !affs2 )
+      stopit( 71, status ); /* LCOV_EXCL_LINE */
+
+   check_equal_transforms( (AstObject *) affs, affs2,
+                           "Affine round-trip test failed", status );
+
+   astAnnul( affs );
+   astAnnul( affs2 );
+   astAnnul( ch );
+}
+
+
+
+/* Read an ASDF WCS whose current frame is an FK5 celestial frame carrying an
+   equinox stored as an ASDF time object. Exercises GetTime and the FK5
+   celestial-frame reading path. */
+void test_time_equinox( int *status ){
+   AstYamlChan *ch;
+   AstFrameSet *fs;
+   AstFrame *sf;
+   const char *eqn;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/time_equinox.asdf",
+           fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+
+   if( !fs ) {
+      stopit( 80, status ); return; /* LCOV_EXCL_LINE */
+   }
+
+   sf = astGetFrame( fs, AST__CURRENT );
+
+   if( !chrMatch( astGetC( sf, "System" ), "FK5" ) )
+      stopit( 81, status ); /* LCOV_EXCL_LINE */
+
+/* The equinox came from a time object with value J2010, which AST formats as
+   a Julian epoch (2009.999...;  after the timescale conversion).
+   TODO: See if this can be fixed. */
+   eqn = astGetC( sf, "Equinox" );
+   if( ( !eqn || fabs( atof( eqn ) - 2010.0 ) > 0.01 ) && *status == SAI__OK ) {
+      printf( "Equinox = %s\n", eqn ? eqn : "(null)" ); /* LCOV_EXCL_LINE */
+      stopit( 82, status ); /* LCOV_EXCL_LINE */
+   }
+
+   astAnnul( sf );
+   astAnnul( fs );
+}
+
+
+
+/* Read an ASDF WCS whose transform is an affine with matrix and translation
+   stored as array unit/quantity objects, followed by a rotate2d whose angle
+   is a scalar unit/quantity. Exercises GetQuantityV (the affine arrays), the
+   scalar GetQuantity path (the rotation angle), ReadAffine and ReadRotate2d,
+   and verifies the values were read correctly. */
+void test_quantity( int *status ){
+   AstYamlChan *ch;
+   AstFrameSet *fs;
+   double xin[1] = { 1.0 };
+   double yin[1] = { 0.0 };
+   double xout[1];
+   double yout[1];
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/quantity.asdf",
+           fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+
+   if( !fs ) {
+      stopit( 85, status ); return; /* LCOV_EXCL_LINE */
+   }
+
+/* matrix = [[0.6, -0.8],[0.8, 0.6]], translation = [100, -50], so the affine
+   maps (1, 0) -> (100.6, -49.2); the following 90-degree rotation maps
+   (x,y) -> (-y,x). */
+   astTran2( fs, 1, xin, yin, 1, xout, yout );
+
+   if( ( fabs( xout[0] - 49.2 ) > 1.0E-9 || fabs( yout[0] - 100.6 ) > 1.0E-9 )
+       && *status == SAI__OK ) {
+      printf( "quantity out = (%g,%g), expected (49.2,100.6)\n", xout[0], yout[0] ); /* LCOV_EXCL_LINE */
+      stopit( 86, status ); /* LCOV_EXCL_LINE */
+   }
+
+   astAnnul( fs );
+}
+
+
+
+/* Read an ASDF WCS whose transform is a 1-D compose Const1D | Linear1D |
+   Multiply. Exercises ReadConstant, ReadLinear1d and ReadMultiplyScale.
+   Const1D outputs 2.5 for any input, Linear1D gives 2*2.5+1 = 6, and Multiply
+   gives 6*3 = 18. */
+void test_transforms_1d( int *status ){
+   AstYamlChan *ch;
+   AstFrameSet *fs;
+   double xin[1] = { 7.0 };
+   double xout[1];
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/transforms_1d.asdf",
+           fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+
+   if( !fs ) {
+      stopit( 90, status ); return; /* LCOV_EXCL_LINE */
+   }
+
+   astTran1( fs, 1, xin, 1, xout );
+   if( fabs( xout[0] - 18.0 ) > 1.0E-9 && *status == SAI__OK ) {
+      printf( "transforms_1d out = %g, expected 18\n", xout[0] ); /* LCOV_EXCL_LINE */
+      stopit( 91, status ); /* LCOV_EXCL_LINE */
+   }
+
+   astAnnul( fs );
+}
+
+
+
+/* Read an ASDF WCS whose transform is fix_inputs(Rotation2D(30), {0:1.5})
+   followed by Planar2D. Exercises ReadFixInputs, ReadRotate2d and ReadPlanar2d.
+   For input x, the rotation acts on (1.5, x); Planar2D then forms
+   a + 2*b + 3 from the rotated (a,b). */
+void test_transforms_2d( int *status ){
+   AstYamlChan *ch;
+   AstFrameSet *fs;
+   double c = cos( 30.0*AST__DD2R );
+   double s = sin( 30.0*AST__DD2R );
+   double a = 1.5*c - 1.0*s;
+   double b = 1.5*s + 1.0*c;
+   double expected = a + 2.0*b + 3.0;
+   double xin[1] = { 1.0 };
+   double xout[1];
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/transforms_2d.asdf",
+           fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   astAnnul( ch );
+
+   if( !fs ) {
+      stopit( 92, status ); return; /* LCOV_EXCL_LINE */
+   }
+
+   astTran1( fs, 1, xin, 1, xout );
+   if( fabs( xout[0] - expected ) > 1.0E-8 && *status == SAI__OK ) {
+      printf( "transforms_2d out = %g, expected %g\n", xout[0], expected ); /* LCOV_EXCL_LINE */
+      stopit( 93, status ); /* LCOV_EXCL_LINE */
+   }
+
+   astAnnul( fs );
+}
+
+
+
+/* Build an AZEL (azimuth-elevation) / AltAz SkyFrame with an observer
+   location and epoch, write it t. ASDF and read it back. Exercises
+   WriteAsdfEarthLocation, WriteAsdfQuantity and WriteAsdfTime; reading in
+   exercises ReadEarthLocation and the scalar GetQuantity/GetTime paths.
+   The geodetic latitude should survive the geocentric round trip. */
+void test_earthlocation( int *status ){
+   AstYamlChan *ch;
+   AstFrame *pixfrm;
+   AstSkyFrame *sky;
+   AstFrameSet *fs;
+   AstObject *fs2;
+   AstMapping *um;
+   AstFrame *sky2;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   sky = astSkyFrame( "System=AZEL,ObsLat=19.8,ObsLon=-155.5,"
+                      "ObsAlt=4200,Epoch=2020.5" );
+
+   pixfrm = astFrame( 2, "Domain=PIXEL" );
+   um = (AstMapping *) astUnitMap( 2, " " );
+   fs = astFrameSet( pixfrm, " " );
+   astAddFrame( fs, AST__BASE, um, (AstFrame *) sky );
+   astAnnul( pixfrm );
+   astAnnul( um );
+   astAnnul( sky );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=earthloc.asdf" );
+
+   if( astWrite( ch, fs ) != 1 )
+      stopit( 94, status ); /* LCOV_EXCL_LINE */
+
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=earthloc.asdf" );
+   fs2 = astRead( ch );
+   astAnnul( ch );
+
+   if( !fs2 )
+      stopit( 95, status ); astAnnul( fs ); return; /* LCOV_EXCL_LINE */
+
+
+/* The recovered frame should be an AZEL SkyFrame that still carries the
+   observer location (ObsLat/ObsLon), confirming the earthlocation was
+   written and read back. */
+   sky2 = astGetFrame( (AstFrameSet *) fs2, AST__CURRENT );
+
+   if( !chrMatch( astGetC( sky2, "System" ), "AZEL" ) )
+      stopit( 96, status ); /* LCOV_EXC_LINE */
+
+   if( ( !astTest( sky2, "ObsLat" ) || !astTest( sky2, "ObsLon" ) )
+       && *status == SAI__OK ) stopit( 97, status ); /* LCOV_EXCL_LINE */
+
+   astAnnul( sky2 );
+   astAnnul( fs );
+   astAnnul( fs2 );
+}
+
+
+
+/* Dump a YamlChan (with its attributes set to non-default values) to a string
+   using the native AST serialisation and read it back, checking the
+   attributes survive. Exercises the YamlChan Dump and astLoadYamlChan
+   routines. */
+void test_yamlchan_dump( int *status ){
+   AstYamlChan *ch;
+   AstObject *ch2;
+   char *dump;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, "YamlEncoding=NATIVE" );
+
+   dump = astToString( ch );
+   ch2 = astFromString( dump );
+   dump = astFree( dump );
+
+   if( !ch2 )
+      stopit( 100, status ); astAnnul( ch ); return; /* LCOV_EXCL_LINE */
+
+   if( !astIsAYamlChan( ch2 ) )
+      stopit( 101, status ); /* LCOV_EXCL_LINE */
+
+   if( !chrMatch( astGetC( ch2, "YamlEncoding" ), "NATIVE" ) )
+      stopit( 102, status ); /* LCOV_EXCL_LINE */
+
+   astAnnul( ch );
+   astAnnul( ch2 );
+}
+
+
+/* Check a WCS equivalent to the Roman L3 sample GWCS fitswcs_imaging
+   transform (which uses a gnomonic/TAN projection): evaluate pixel ->
+   celestial for a set of points, and compare against reference RA/Dec values
+   computed independently with the Python GWCS library.
+
+   Note: the WCS current Frame is an ICRS SkyFrame, so astTran2 returns the
+   sky coordinates in radians; the reference values below are therefore in
+   radians. */
+void check_fitswcs_imaging( AstObject *obj, const char *text, int *status ){
+   int i;
+   double xout[ 6 ];
+   double yout[ 6 ];
+   double xin[ 6 ] = { 0.0, 100.0, 2499.5, 1234.5, 4000.0, 4999.0 };
+   double yin[ 6 ] = { 0.0, 4000.0, 2499.5, 678.25, 1000.0, 4999.0 };
+
+/* Reference RA (radians) from the Python GWCS forward transform. */
+   double lonT[ 6 ] = { 4.704472459148153, 4.704519279767015, 4.706098502804541,
+                        4.705277294315075, 4.707086403913128, 4.707729398611457 };
+
+/* Reference Dec (radians) from the Python GWCS forward transform. */
+   double latT[ 6 ] = { 1.1511598141523738, 1.1522259402330988, 1.1518302230206918,
+                        1.151342819228696, 1.1514327418783765, 1.1524996269399377 };
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   astTran2( obj, 6, xin, yin, 1, xout, yout );
+
+   for( i = 0; i < 6; i++ ){
+      if( fabs( angDiff( xout[ i ], lonT[ i ] ) ) > 1.0E-9 ){
+         if( *status == SAI__OK )
+            printf( "fitswcs_imaging lon[%d]: got %.15g expected %.15g (d=%g)\n",
+                    i, xout[ i ], lonT[ i ], fabs( angDiff( xout[ i ], lonT[ i ] ) ) );
+         stopit( 111 + i, status );
+      } else if( fabs( yout[ i ] - latT[ i ] ) > 1.0E-9 ){
+         if( *status == SAI__OK )
+            printf( "fitswcs_imaging lat[%d]: got %.15g expected %.15g (d=%g)\n",
+                    i, yout[ i ], latT[ i ], fabs( yout[ i ] - latT[ i ] ) );
+         stopit( 117 + i, status );
+      }
+   }
+
+   if( *status != SAI__OK )
+      printf( "%s\n", text );
+}
+
+
+
+/* Read the fitswcs_imaging WCS and check it, then write it out to ASDF and
+   read it back, twice. Each output file must still hold a fitswcs_imaging
+   (because the WCS was read from one) and give the same results. */
+void test_fitswcs_imaging_roundtrip( int *status ){
+   AstObject *obj;
+   AstObject *obj2;
+   AstObject *obj3;
+   AstYamlChan *ch;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/fitswcs_imaging.asdf,"
+           "SinkFile=fitswcs_imaging_out.asdf", fixture_dir() );
+
+   obj = astRead( ch );
+   if( !obj ) {
+      stopit( 110, status ); /* LCOV_EXCL_LINE */
+      astAnnul( ch ); /* LCOV_EXCL_LINE */
+      return; /* LCOV_EXCL_LINE */
+   }
+
+   check_fitswcs_imaging( obj, "Read tests failed for fitswcs_imaging.asdf",
+                          status );
+
+/* First write/read cycle. */
+   if( astWrite( ch, obj ) != 1 )
+      stopit( 123, status ); /* LCOV_EXCL_LINE */
+
+   astClear( ch, "SourceFile,SinkFile" );
+
+   if( !file_contains( "fitswcs_imaging_out.asdf", "gwcs/fitswcs_imaging-" ) )
+      stopit( 124, status ); /* LCOV_EXCL_LINE */
+
+   astSet( ch, "SourceFile=fitswcs_imaging_out.asdf,"
+           "SinkFile=fitswcs_imaging_out2.asdf" );
+   obj2 = astRead( ch );
+   if( !obj2 ) {
+      stopit( 125, status ); /* LCOV_EXCL_LINE */
+   } else {
+      check_fitswcs_imaging( obj2,
+                             "Read tests failed for fitswcs_imaging_out.asdf",
+                             status );
+
+/* Second write/read cycle, writing the WCS read back from AST's own output. */
+      if( astWrite( ch, obj2 ) != 1 )
+         stopit( 126, status ); /* LCOV_EXCL_LINE */
+
+      astClear( ch, "SourceFile,SinkFile" );
+
+      if( !file_contains( "fitswcs_imaging_out2.asdf", "gwcs/fitswcs_imaging-" ) )
+         stopit( 127, status ); /* LCOV_EXCL_LINE */
+
+      astSet( ch, "SourceFile=fitswcs_imaging_out2.asdf" );
+      obj3 = astRead( ch );
+      if( !obj3 ) {
+         stopit( 128, status ); /* LCOV_EXCL_LINE */
+      } else {
+         check_fitswcs_imaging( obj3,
+                                "Read tests failed for fitswcs_imaging_out2.asdf",
+                                status );
+         astAnnul( obj3 );
+      }
+      astAnnul( obj2 );
+   }
+
+   astAnnul( obj );
+   astAnnul( ch );
+}
+
+
+
+/* Build by hand a chain of Mappings with the same form as a fitswcs_imaging
+   (shift by -crpix, pc matrix, cdelt scale, TAN projection and native to
+   celestial rotation), using the parameters of the Roman L3 sample. It must
+   give the GWCS reference results, and must survive a write/read cycle, but
+   since it was not read from a fitswcs_imaging it should not be written as
+   one. */
+void test_fitswcs_imaging_handbuilt( int *status ){
+   AstFrame *pixfrm;
+   AstFrameSet *fs;
+   AstMapping *map;
+   AstMapping *parts[ 8 ];
+   AstMapping *tmp;
+   AstObject *fs2;
+   AstSkyFrame *skyfrm;
+   AstYamlChan *ch;
+   double ca;
+   double cd;
+   double cdelt[ 2 ] = { 1.5277777777777777e-05, 1.5277777777777777e-05 };
+   double crval[ 2 ] = { 270.0, 64.6023730065 };
+   double negcrpix[ 2 ] = { -12099.5, 88700.5 };
+   double pc[ 4 ] = { 1.0, 0.0, -0.0, 1.0 };
+   double rot[ 9 ];
+   double sa;
+   double sd;
+   int i;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+/* The native to celestial rotation for a native longitude of the celestial
+   pole of 180 degrees is Rz(crval[0]) * Ry(90 - crval[1]), acting on unit
+   Cartesian vectors. */
+   ca = cos( crval[ 0 ]*AST__DD2R );
+   sa = sin( crval[ 0 ]*AST__DD2R );
+   cd = cos( crval[ 1 ]*AST__DD2R );
+   sd = sin( crval[ 1 ]*AST__DD2R );
+   rot[ 0 ] = ca*sd;
+   rot[ 1 ] = -sa;
+   rot[ 2 ] = ca*cd;
+   rot[ 3 ] = sa*sd;
+   rot[ 4 ] = ca;
+   rot[ 5 ] = sa*cd;
+   rot[ 6 ] = -cd;
+   rot[ 7 ] = 0.0;
+   rot[ 8 ] = sd;
+
+   parts[ 0 ] = (AstMapping *) astShiftMap( 2, negcrpix, " " );
+   parts[ 1 ] = (AstMapping *) astMatrixMap( 2, 2, 0, pc, " " );
+   parts[ 2 ] = (AstMapping *) astMatrixMap( 2, 2, 1, cdelt, " " );
+   parts[ 3 ] = (AstMapping *) astZoomMap( 2, AST__DD2R, " " );
+   parts[ 4 ] = (AstMapping *) astWcsMap( 2, AST__TAN, 1, 2, "Invert=1" );
+   parts[ 5 ] = (AstMapping *) astSphMap( "Invert=1" );
+   parts[ 6 ] = (AstMapping *) astMatrixMap( 3, 3, 0, rot, " " );
+   parts[ 7 ] = (AstMapping *) astSphMap( " " );
+
+   map = astClone( parts[ 0 ] );
+   for( i = 1; i < 8; i++ ) {
+      tmp = (AstMapping *) astCmpMap( map, parts[ i ], 1, " " );
+      astAnnul( map );
+      map = tmp;
+   }
+   for( i = 0; i < 8; i++ ) {
+      astAnnul( parts[ i ] );
+   }
+
+   pixfrm = astFrame( 2, "Domain=PIXEL" );
+   skyfrm = astSkyFrame( "System=ICRS" );
+   fs = astFrameSet( pixfrm, " " );
+   astAddFrame( fs, AST__BASE, map, skyfrm );
+   astAnnul( pixfrm );
+   astAnnul( skyfrm );
+   astAnnul( map );
+
+   check_fitswcs_imaging( (AstObject *) fs,
+                          "Tests failed for the hand-built fitswcs_imaging chain",
+                          status );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=fitswcs_handbuilt.asdf" );
+   if( astWrite( ch, fs ) != 1 )
+      stopit( 130, status ); /* LCOV_EXCL_LINE */
+
+   astClear( ch, "SinkFile" );
+
+   if( file_contains( "fitswcs_handbuilt.asdf", "fitswcs_imaging" ) )
+      stopit( 131, status ); /* LCOV_EXCL_LINE */
+
+   astSet( ch, "SourceFile=fitswcs_handbuilt.asdf" );
+   fs2 = astRead( ch );
+   if( !fs2 ) {
+      stopit( 132, status ); /* LCOV_EXCL_LINE */
+   } else {
+      check_fitswcs_imaging( fs2,
+                             "Read tests failed for fitswcs_handbuilt.asdf",
+                             status );
+      astAnnul( fs2 );
+   }
+
+   astAnnul( fs );
+   astAnnul( ch );
 }
