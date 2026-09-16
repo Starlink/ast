@@ -812,8 +812,23 @@ if(AST_ENABLE_HUGE_TEST)
 endif()
 
 # --- Conditional tests ---
+# testyamlchan is always built; it skips YAML tests at runtime when no backend
+# is compiled in, so that the test suite still runs clean without YAML support.
+ast_add_test(testyamlchan)
 if(HAVE_YAML)
-    ast_add_test(testyamlchan)
+    target_compile_definitions(testyamlchan PRIVATE YAML "YAML_BACKEND=\"libyaml\"")
+elseif(HAVE_FYAML)
+    target_compile_definitions(testyamlchan PRIVATE FYAML "YAML_BACKEND=\"libfyaml\"")
+endif()
+
+# Run testyamlchan with LeakSanitizer enabled (overriding the suite-wide
+# detect_leaks=0) so real leaks in the YAML read/write path are caught. The
+# libfyaml backend has a known upstream leak on tagged events (in versions
+# <0.9); libfyaml.supp suppresses just that, so genuine leaks still surface.
+# LeakSanitizer only works on Linux.
+if(AST_ENABLE_SANITIZERS AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set_tests_properties(testyamlchan PROPERTIES ENVIRONMENT_MODIFICATION
+        "ASAN_OPTIONS=set:detect_leaks=1;LSAN_OPTIONS=set:suppressions=${CMAKE_CURRENT_SOURCE_DIR}/libfyaml.supp")
 endif()
 
 if(HAVE_PTHREADS)

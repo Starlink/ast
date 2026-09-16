@@ -272,73 +272,10 @@ if test "x$CC_FOR_BUILD" = x; then
    fi
 fi
 
-#  Conditional defining whether we build with YAML support. libyaml is
-#  looked for on the compiler's default search paths, unless it is told
-#  where to look: either --with-yaml=DIR, for an installation with the
-#  usual DIR/include and DIR/lib layout, or the YAML_CFLAGS and YAML_LIBS
-#  variables, for anything more awkward.
-AC_ARG_VAR([YAML_CFLAGS], [C compiler flags for libyaml, e.g. -I/opt/foo/include])
-AC_ARG_VAR([YAML_LIBS], [linker flags for libyaml, e.g. -L/opt/foo/lib -lyaml])
-AC_ARG_WITH([yaml],
-            [AS_HELP_STRING([--with-yaml@<:@=DIR@:>@],
-                            [Build package with YAML support, taking libyaml
-                             from DIR/include and DIR/lib if DIR is given
-                             @<:@default=yes@:>@])],
-        [yaml_explicit="1"],
-        [with_yaml="yes"; yaml_explicit="0"])
-
-#  Setting either variable by hand is as much a request for YAML support as
-#  --with-yaml is, so treat it the same when the search comes up empty.
-if test -n "$YAML_CFLAGS" || test -n "$YAML_LIBS"; then
-    yaml_explicit="1"
-fi
-
-use_yaml="1"
-case $with_yaml in
-    no)
-        use_yaml="0" ;;
-    yes) ;;
-    *)
-        test -z "$YAML_CFLAGS" && YAML_CFLAGS="-I$with_yaml/include"
-        test -z "$YAML_LIBS" && YAML_LIBS="-L$with_yaml/lib -lyaml" ;;
-esac
-
-if test "$use_yaml" = "1"; then
-    test -z "$YAML_LIBS" && YAML_LIBS="-lyaml"
-
-#  Both the header and the library have to be usable with these flags in
-#  place, so probe with them applied. They are left applied afterwards on
-#  success, since the whole package is then built against libyaml.
-    yaml_save_CPPFLAGS="$CPPFLAGS"
-    yaml_save_LIBS="$LIBS"
-    CPPFLAGS="$CPPFLAGS $YAML_CFLAGS"
-    LIBS="$YAML_LIBS $LIBS"
-
-    AC_CHECK_HEADER([yaml.h], [], [use_yaml="0"])
-    if test "$use_yaml" = "1"; then
-        AC_MSG_CHECKING([for yaml_parser_initialize in libyaml])
-        AC_LINK_IFELSE([AC_LANG_CALL([], [yaml_parser_initialize])],
-                       [AC_MSG_RESULT([yes])],
-                       [AC_MSG_RESULT([no]); use_yaml="0"])
-    fi
-
-    if test "$use_yaml" = "0"; then
-        CPPFLAGS="$yaml_save_CPPFLAGS"
-        LIBS="$yaml_save_LIBS"
-        YAML_CFLAGS=""
-        YAML_LIBS=""
-
-#  Having been told explicitly to build with libyaml, quietly building
-#  without it is never what the user wanted.
-        if test "$yaml_explicit" = "1"; then
-            AC_MSG_ERROR([libyaml could not be found, but YAML support was
-requested via --with-yaml, YAML_CFLAGS or YAML_LIBS. Use --without-yaml to
-build without YAML support.])
-        fi
-    fi
-fi
-AM_CONDITIONAL(NOYAML, test x$use_yaml = x0)
-AC_SUBST(YAML, $use_yaml)
+#  Detect a YAML backend (libyaml or libfyaml) for YamlChan support.  All the
+#  logic lives in the AST_CHECK_YAML macro (m4/ast_yaml.m4); see there for the
+#  --with-yaml / YAML_CFLAGS / FYAML_CFLAGS interface and the outputs it sets.
+AST_CHECK_YAML
 
 # See which variadic function API to use
 AC_CHECK_HEADERS(stdarg.h varargs.h, break)
