@@ -537,24 +537,28 @@ dist-hook:
 # itself rather than from fixtures/.
 EXTRA_DIST += \
     testmocchan_com \
-    testxmlchan_com \
-    teststc_com
+    teststc_com \
+    testxmlchan_com
 
 # Output files written by the tests during "make check".  Listed here so that
 # "make clean"/"make distclean" removes them; otherwise distcheck's
 # distcleancheck reports them as files left in the build tree.
 CLEANFILES = \
-    keymap_mapsz.out \
+    affine_roundtrip.asdf \
     divide_roundtrip.asdf \
+    divide_roundtrip2.asdf \
     draw3d.txt \
+    earthloc.asdf \
     fred.tmp \
     fred.txt \
     fred2.txt \
+    keymap_mapsz.out \
     lsst_wcs.asdf \
     nativetest.yaml \
     sm.txt \
     sm2.txt \
     sphmap_roundtrip.asdf \
+    sphmap_roundtrip2.asdf \
     tanSipWcs.asdf \
     testdmp \
     testfitschan_write.fits \
