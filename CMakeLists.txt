@@ -22,6 +22,49 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 # ============================================================
+# Stale generated headers in the source tree
+# ============================================================
+# An autotools build generates ast.h, config.h, src/version.h and friends
+# into the source tree; this build generates them into the build tree.  A
+# source tree that has been built with autotools therefore holds copies
+# that may be out of date, and they win: src/object.c says
+#
+#     #include "version.h"
+#
+# and a quoted include is resolved against the directory of the including
+# file before any -I path, so no include ordering here can prevent it.
+# The symptom is quiet and strange -- a 9.4.1 build reporting itself as
+# 9.4.0 through astVersion, because it compiled against a stale
+# src/version.h -- so refuse to configure rather than produce it.
+set(_ast_generated_in_source
+    ast.h
+    ast_err.h
+    config.h
+    AST_PAR
+    AST_ERR
+    src/version.h
+    src/object.h
+    src/f77.h
+)
+set(_ast_stale "")
+foreach(_file IN LISTS _ast_generated_in_source)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_file}")
+        list(APPEND _ast_stale "${_file}")
+    endif()
+endforeach()
+if(_ast_stale)
+    list(JOIN _ast_stale "\n    " _ast_stale_text)
+    message(FATAL_ERROR
+        "This build generates the following files, but copies of them are "
+        "already present in the source tree:\n    ${_ast_stale_text}\n\n"
+        "The source copies take precedence over the generated ones for any "
+        "source file that includes them by quoted name, so the library "
+        "would be built against whatever those copies happen to contain. "
+        "They are left over from an autotools build. Remove them, or run "
+        "'make distclean' in the source tree, and configure again.")
+endif()
+
+# ============================================================
 # Shared library versioning
 # ============================================================
 # configure.ac hands libtool a version-info triple derived from the package
@@ -949,11 +992,15 @@ list(APPEND AST_INSTALL_TARGETS ast ast-static)
 foreach(_target ast ast-static)
     target_include_directories(${_target}
         PRIVATE
+            # Build tree before source tree, so the generated headers are
+            # preferred.  Note this does not settle the matter for a source
+            # file that includes one of them by quoted name: see the stale
+            # generated header check near the top of this file.
+            "${CMAKE_CURRENT_BINARY_DIR}"
+            "${CMAKE_CURRENT_BINARY_DIR}/src"
             "${CMAKE_CURRENT_SOURCE_DIR}"
             "${CMAKE_CURRENT_SOURCE_DIR}/src"
             "${CMAKE_CURRENT_SOURCE_DIR}/wcslib"
-            "${CMAKE_CURRENT_BINARY_DIR}"
-            "${CMAKE_CURRENT_BINARY_DIR}/src"
         PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -1019,10 +1066,10 @@ endif()
 # implementation.  Each is built shared and static, as autotools does.
 # ============================================================
 set(SATELLITE_INCLUDES
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 # Error reporting modules. err_null discards messages and is the default;
