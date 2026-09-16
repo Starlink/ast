@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-SUBDIRS = ast_tester
+SUBDIRS = ast_tester perf
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -1154,9 +1154,9 @@ dist-hook:
 	$(MAKE) $(AM_MAKEFLAGS) distdir="$(distdir)" dist-check-tracked
 
 #  The lists above say what to ship; this checks what actually arrived.  Every
-#  file git tracks under cmake/, ast_tester/ and src/, bar the exclusions below,
-#  must be in the tarball -- otherwise the tarball configures and then fails to
-#  build, which is how cmake/run_simplify_noop_test.cmake and
+#  file git tracks under cmake/, ast_tester/, perf/ and src/, bar the exclusions
+#  below, must be in the tarball -- otherwise the tarball configures and then
+#  fails to build, which is how cmake/run_simplify_noop_test.cmake and
 #  ast_tester/testimmutable.c each survived as far as a full distcheck before
 #  anyone noticed.  Checking every tracked file, rather than the extensions the
 #  dist-hook patterns happen to match, is what makes this catch a kind of file
@@ -1214,7 +1214,7 @@ fulldist:
 dist-check-tracked:
 	@test -d "$(top_srcdir)/.git" || exit 0; \
 	tracked=`cd "$(top_srcdir)" && \
-	    git ls-files cmake ast_tester src $(DIST_CHECK_EXCLUDE)`; \
+	    git ls-files cmake ast_tester perf src $(DIST_CHECK_EXCLUDE)`; \
 	missing=; \
 	for rel in $$tracked; do \
 	    test -e "$(distdir)/$$rel" || missing="$$missing $$rel"; \
