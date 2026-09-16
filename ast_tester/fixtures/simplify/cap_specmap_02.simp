@@ -96,7 +96,6 @@
                 MapB = 	# Second component Mapping
                    Begin CmpMap 	# Compound Mapping
                       Nin = 1 	# Number of input coordinates
-                      IsSimp = 1 	# Mapping has been simplified
                    IsA Mapping 	# Mapping between coordinate systems
                       MapA = 	# First component Mapping
                          Begin SpecMap 	# Conversion between spectral coordinate systems

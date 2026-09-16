@@ -885,6 +885,110 @@
                        BAD                      BAD                       BAD                      BAD
                        BAD                      BAD                       BAD                      BAD
 
+[simplify/cap_box_permmap_null_first.map  nin=2 nout=2 dir=forward]
+                     -1000                    -1000                       BAD                      BAD
+                      1000                     1000                       BAD                      BAD
+                         0                        0                       BAD                      BAD
+                         0                        0                       BAD                      BAD
+                         0      -333.33333333333337                       BAD                      BAD
+                      -500       333.33333333333326                       BAD                      BAD
+                       500      -777.77777777777783                       BAD                      BAD
+                      -750       -111.1111111111112                       BAD                      BAD
+                       250       555.55555555555543                       BAD                      BAD
+                      -250      -555.55555555555566                       BAD                      BAD
+                       750       111.11111111111109                       BAD                      BAD
+                      -875        777.7777777777776                       BAD                      BAD
+                       125      -925.92592592592587                       BAD                      BAD
+                      -375      -259.25925925925935                       BAD                      BAD
+                       625       407.40740740740739                       BAD                      BAD
+                      -625       -703.7037037037037                       BAD                      BAD
+                       375      -37.037037037037067                       BAD                      BAD
+                      -125       629.62962962962933                       BAD                      BAD
+                       875      -481.48148148148152                       BAD                      BAD
+                    -937.5       185.18518518518522                       BAD                      BAD
+                      62.5       851.85185185185173                       BAD                      BAD
+                    -437.5      -851.85185185185185                       BAD                      BAD
+                     562.5      -185.18518518518522                       BAD                      BAD
+                    -687.5        481.4814814814813                       BAD                      BAD
+
+[simplify/cap_box_permmap_null_first.map  nin=2 nout=2 dir=inverse]
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+
+[simplify/cap_box_permmap_null_first.simp  nin=2 nout=2 dir=forward]
+                     -1000                    -1000                       BAD                      BAD
+                      1000                     1000                       BAD                      BAD
+                         0                        0                       BAD                      BAD
+                         0                        0                       BAD                      BAD
+                         0      -333.33333333333337                       BAD                      BAD
+                      -500       333.33333333333326                       BAD                      BAD
+                       500      -777.77777777777783                       BAD                      BAD
+                      -750       -111.1111111111112                       BAD                      BAD
+                       250       555.55555555555543                       BAD                      BAD
+                      -250      -555.55555555555566                       BAD                      BAD
+                       750       111.11111111111109                       BAD                      BAD
+                      -875        777.7777777777776                       BAD                      BAD
+                       125      -925.92592592592587                       BAD                      BAD
+                      -375      -259.25925925925935                       BAD                      BAD
+                       625       407.40740740740739                       BAD                      BAD
+                      -625       -703.7037037037037                       BAD                      BAD
+                       375      -37.037037037037067                       BAD                      BAD
+                      -125       629.62962962962933                       BAD                      BAD
+                       875      -481.48148148148152                       BAD                      BAD
+                    -937.5       185.18518518518522                       BAD                      BAD
+                      62.5       851.85185185185173                       BAD                      BAD
+                    -437.5      -851.85185185185185                       BAD                      BAD
+                     562.5      -185.18518518518522                       BAD                      BAD
+                    -687.5        481.4814814814813                       BAD                      BAD
+
+[simplify/cap_box_permmap_null_first.simp  nin=2 nout=2 dir=inverse]
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+
 [simplify/cap_cheby_consolidate.map  nin=1 nout=1 dir=forward]
                      -1000                       BAD
                       1000                       BAD
@@ -8920,56 +9024,56 @@
                     -687.5                       BAD
 
 [simplify/cheby_linear_lone_reduce.simp  nin=1 nout=1 dir=forward]
-                     -1000                     -2000
-                      1000                      2000
-                         0                         0
-                         0                         0
-                         0                         0
-                      -500                     -1000
-                       500                      1000
-                      -750                     -1500
-                       250                       500
-                      -250                      -500
-                       750                      1500
-                      -875                     -1750
-                       125                       250
-                      -375                      -750
-                       625                      1250
-                      -625                     -1250
-                       375                       750
-                      -125                      -250
-                       875                      1750
-                    -937.5                     -1875
-                      62.5                       125
-                    -437.5                      -875
-                     562.5                      1125
-                    -687.5                     -1375
+                     -1000                      -402
+                      1000                       398
+                         0                        -2
+                         0                        -2
+                         0                        -2
+                      -500                      -202
+                       500                       198
+                      -750                      -302
+                       250                        98
+                      -250                      -102
+                       750                       298
+                      -875                      -352
+                       125                        48
+                      -375                      -152
+                       625                       248
+                      -625                      -252
+                       375                       148
+                      -125                       -52
+                       875                       348
+                    -937.5                      -377
+                      62.5                        23
+                    -437.5                      -177
+                     562.5                       223
+                    -687.5                      -277
 
 [simplify/cheby_linear_lone_reduce.simp  nin=1 nout=1 dir=inverse]
-                     -2000                     -1000
-                      2000                      1000
-                         0                         0
-                         0                         0
-                         0                         0
-                     -1000                      -500
-                      1000                       500
-                     -1500                      -750
-                       500                       250
-                      -500                      -250
-                      1500                       750
-                     -1750                      -875
-                       250                       125
-                      -750                      -375
-                      1250                       625
-                     -1250                      -625
-                       750                       375
-                      -250                      -125
-                      1750                       875
-                     -1875                    -937.5
-                       125                      62.5
-                      -875                    -437.5
-                      1125                     562.5
-                     -1375                    -687.5
+                      -402                     -1000
+                       398                      1000
+                        -2                         0
+                        -2                         0
+                        -2                         0
+                      -202                      -500
+                       198                       500
+                      -302                      -750
+                        98                       250
+                      -102                      -250
+                       298                       750
+                      -352                      -875
+                        48                       125
+                      -152                      -375
+                       248                       625
+                      -252                      -625
+                       148                       375
+                       -52                      -125
+                       348                       875
+                      -377                    -937.5
+                        23                      62.5
+                      -177                    -437.5
+                       223                     562.5
+                      -277                    -687.5
 
 [simplify/chebymap_inverse_cancel.map  nin=1 nout=1 dir=forward]
                      -1000                       BAD
@@ -10635,6 +10739,110 @@
                        BAD                      BAD                       BAD                      BAD
                        BAD                      BAD                       BAD                      BAD
 
+[simplify/defunc_interval_point_at_origin.map  nin=2 nout=2 dir=forward]
+                     -1000                    -1000                       BAD                      BAD
+                      1000                     1000                       BAD                      BAD
+                         0                        0                         0                        0
+                         0                        0                         0                        0
+                         0      -333.33333333333337                       BAD                      BAD
+                      -500       333.33333333333326                       BAD                      BAD
+                       500      -777.77777777777783                       BAD                      BAD
+                      -750       -111.1111111111112                       BAD                      BAD
+                       250       555.55555555555543                       BAD                      BAD
+                      -250      -555.55555555555566                       BAD                      BAD
+                       750       111.11111111111109                       BAD                      BAD
+                      -875        777.7777777777776                       BAD                      BAD
+                       125      -925.92592592592587                       BAD                      BAD
+                      -375      -259.25925925925935                       BAD                      BAD
+                       625       407.40740740740739                       BAD                      BAD
+                      -625       -703.7037037037037                       BAD                      BAD
+                       375      -37.037037037037067                       BAD                      BAD
+                      -125       629.62962962962933                       BAD                      BAD
+                       875      -481.48148148148152                       BAD                      BAD
+                    -937.5       185.18518518518522                       BAD                      BAD
+                      62.5       851.85185185185173                       BAD                      BAD
+                    -437.5      -851.85185185185185                       BAD                      BAD
+                     562.5      -185.18518518518522                       BAD                      BAD
+                    -687.5        481.4814814814813                       BAD                      BAD
+
+[simplify/defunc_interval_point_at_origin.map  nin=2 nout=2 dir=inverse]
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                         0                        0                         0                        0
+                         0                        0                         0                        0
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+
+[simplify/defunc_interval_point_at_origin.simp  nin=2 nout=2 dir=forward]
+                     -1000                    -1000                       BAD                      BAD
+                      1000                     1000                       BAD                      BAD
+                         0                        0                         0                        0
+                         0                        0                         0                        0
+                         0      -333.33333333333337                       BAD                      BAD
+                      -500       333.33333333333326                       BAD                      BAD
+                       500      -777.77777777777783                       BAD                      BAD
+                      -750       -111.1111111111112                       BAD                      BAD
+                       250       555.55555555555543                       BAD                      BAD
+                      -250      -555.55555555555566                       BAD                      BAD
+                       750       111.11111111111109                       BAD                      BAD
+                      -875        777.7777777777776                       BAD                      BAD
+                       125      -925.92592592592587                       BAD                      BAD
+                      -375      -259.25925925925935                       BAD                      BAD
+                       625       407.40740740740739                       BAD                      BAD
+                      -625       -703.7037037037037                       BAD                      BAD
+                       375      -37.037037037037067                       BAD                      BAD
+                      -125       629.62962962962933                       BAD                      BAD
+                       875      -481.48148148148152                       BAD                      BAD
+                    -937.5       185.18518518518522                       BAD                      BAD
+                      62.5       851.85185185185173                       BAD                      BAD
+                    -437.5      -851.85185185185185                       BAD                      BAD
+                     562.5      -185.18518518518522                       BAD                      BAD
+                    -687.5        481.4814814814813                       BAD                      BAD
+
+[simplify/defunc_interval_point_at_origin.simp  nin=2 nout=2 dir=inverse]
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                         0                        0                         0                        0
+                         0                        0                         0                        0
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+                       BAD                      BAD                       BAD                      BAD
+
 [simplify/defunc_interval_unbounded.map  nin=2 nout=2 dir=forward]
                      -1000                    -1000                       BAD                      BAD
                       1000                     1000                       BAD                      BAD
@@ -10842,6 +11050,110 @@
                        BAD                      BAD                       BAD                      BAD
                        BAD                      BAD                       BAD                      BAD
                        BAD                      BAD                       BAD                      BAD
+
+[simplify/defunc_pointlist_origin_axis.map  nin=3 nout=3 dir=forward]
+                     -1000                    -1000                    -1000                       BAD                      BAD                      BAD
+                      1000                     1000                     1000                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0      -333.33333333333337                     -600                       BAD                      BAD                      BAD
+                      -500       333.33333333333326                     -200                       BAD                      BAD                      BAD
+                       500      -777.77777777777783       200.00000000000023                       BAD                      BAD                      BAD
+                      -750       -111.1111111111112                      600                       BAD                      BAD                      BAD
+                       250       555.55555555555543                     -920                       BAD                      BAD                      BAD
+                      -250      -555.55555555555566                     -520                       BAD                      BAD                      BAD
+                       750       111.11111111111109                     -120                       BAD                      BAD                      BAD
+                      -875        777.7777777777776       280.00000000000023                       BAD                      BAD                      BAD
+                       125      -925.92592592592587       680.00000000000023                       BAD                      BAD                      BAD
+                      -375      -259.25925925925935                     -840                       BAD                      BAD                      BAD
+                       625       407.40740740740739                     -440                       BAD                      BAD                      BAD
+                      -625       -703.7037037037037      -39.999999999999886                       BAD                      BAD                      BAD
+                       375      -37.037037037037067                      360                       BAD                      BAD                      BAD
+                      -125       629.62962962962933                      760                       BAD                      BAD                      BAD
+                       875      -481.48148148148152                     -760                       BAD                      BAD                      BAD
+                    -937.5       185.18518518518522                     -360                       BAD                      BAD                      BAD
+                      62.5       851.85185185185173                       40                       BAD                      BAD                      BAD
+                    -437.5      -851.85185185185185       440.00000000000023                       BAD                      BAD                      BAD
+                     562.5      -185.18518518518522                      840                       BAD                      BAD                      BAD
+                    -687.5        481.4814814814813                     -680                       BAD                      BAD                      BAD
+
+[simplify/defunc_pointlist_origin_axis.map  nin=3 nout=3 dir=inverse]
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+
+[simplify/defunc_pointlist_origin_axis.simp  nin=3 nout=3 dir=forward]
+                     -1000                    -1000                    -1000                       BAD                      BAD                      BAD
+                      1000                     1000                     1000                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0      -333.33333333333337                     -600                       BAD                      BAD                      BAD
+                      -500       333.33333333333326                     -200                       BAD                      BAD                      BAD
+                       500      -777.77777777777783       200.00000000000023                       BAD                      BAD                      BAD
+                      -750       -111.1111111111112                      600                       BAD                      BAD                      BAD
+                       250       555.55555555555543                     -920                       BAD                      BAD                      BAD
+                      -250      -555.55555555555566                     -520                       BAD                      BAD                      BAD
+                       750       111.11111111111109                     -120                       BAD                      BAD                      BAD
+                      -875        777.7777777777776       280.00000000000023                       BAD                      BAD                      BAD
+                       125      -925.92592592592587       680.00000000000023                       BAD                      BAD                      BAD
+                      -375      -259.25925925925935                     -840                       BAD                      BAD                      BAD
+                       625       407.40740740740739                     -440                       BAD                      BAD                      BAD
+                      -625       -703.7037037037037      -39.999999999999886                       BAD                      BAD                      BAD
+                       375      -37.037037037037067                      360                       BAD                      BAD                      BAD
+                      -125       629.62962962962933                      760                       BAD                      BAD                      BAD
+                       875      -481.48148148148152                     -760                       BAD                      BAD                      BAD
+                    -937.5       185.18518518518522                     -360                       BAD                      BAD                      BAD
+                      62.5       851.85185185185173                       40                       BAD                      BAD                      BAD
+                    -437.5      -851.85185185185185       440.00000000000023                       BAD                      BAD                      BAD
+                     562.5      -185.18518518518522                      840                       BAD                      BAD                      BAD
+                    -687.5        481.4814814814813                     -680                       BAD                      BAD                      BAD
+
+[simplify/defunc_pointlist_origin_axis.simp  nin=3 nout=3 dir=inverse]
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
 
 [simplify/defunc_prism_box_interval.map  nin=3 nout=3 dir=forward]
                      -1000                    -1000                    -1000                       BAD                      BAD                      BAD
@@ -15159,6 +15471,58 @@
                      562.5      -185.18518518518522                       BAD                      BAD
                     -687.5        481.4814814814813                       BAD                      BAD
 
+[simplify/neg_circle_cmpframe_sky_second.map  nin=3 nout=3 dir=forward]
+                     -1000                    -1000                    -1000                       BAD                      BAD                      BAD
+                      1000                     1000                     1000                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0                        0                        0                       BAD                      BAD                      BAD
+                         0      -333.33333333333337                     -600                       BAD                      BAD                      BAD
+                      -500       333.33333333333326                     -200                       BAD                      BAD                      BAD
+                       500      -777.77777777777783       200.00000000000023                       BAD                      BAD                      BAD
+                      -750       -111.1111111111112                      600                       BAD                      BAD                      BAD
+                       250       555.55555555555543                     -920                       BAD                      BAD                      BAD
+                      -250      -555.55555555555566                     -520                       BAD                      BAD                      BAD
+                       750       111.11111111111109                     -120                       BAD                      BAD                      BAD
+                      -875        777.7777777777776       280.00000000000023                       BAD                      BAD                      BAD
+                       125      -925.92592592592587       680.00000000000023                       BAD                      BAD                      BAD
+                      -375      -259.25925925925935                     -840                       BAD                      BAD                      BAD
+                       625       407.40740740740739                     -440                       BAD                      BAD                      BAD
+                      -625       -703.7037037037037      -39.999999999999886                       BAD                      BAD                      BAD
+                       375      -37.037037037037067                      360                       BAD                      BAD                      BAD
+                      -125       629.62962962962933                      760                       BAD                      BAD                      BAD
+                       875      -481.48148148148152                     -760                       BAD                      BAD                      BAD
+                    -937.5       185.18518518518522                     -360                       BAD                      BAD                      BAD
+                      62.5       851.85185185185173                       40                       BAD                      BAD                      BAD
+                    -437.5      -851.85185185185185       440.00000000000023                       BAD                      BAD                      BAD
+                     562.5      -185.18518518518522                      840                       BAD                      BAD                      BAD
+                    -687.5        481.4814814814813                     -680                       BAD                      BAD                      BAD
+
+[simplify/neg_circle_cmpframe_sky_second.map  nin=3 nout=3 dir=inverse]
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+
 [simplify/neg_cmpmap_mode_mismatch.map  nin=2 nout=2 dir=forward]
                      -1000                    -1000                   3000005      -1.5697963271282298
                       1000                     1000                   3000005       1.5697963271282298
@@ -15730,6 +16094,58 @@
                        BAD                       BAD
                      562.5                     562.5
                        BAD                       BAD
+
+[simplify/neg_interval_unbounded_pointlist.map  nin=3 nout=3 dir=forward]
+                     -1000                    -1000                    -1000                       BAD                      BAD                      BAD
+                      1000                     1000                     1000                       BAD                      BAD                      BAD
+                         0                        0                        0                         0                        0                      BAD
+                         0                        0                        0                         0                        0                      BAD
+                         0      -333.33333333333337                     -600                       BAD                      BAD                      BAD
+                      -500       333.33333333333326                     -200                       BAD                      BAD                      BAD
+                       500      -777.77777777777783       200.00000000000023                       BAD                      BAD                      BAD
+                      -750       -111.1111111111112                      600                       BAD                      BAD                      BAD
+                       250       555.55555555555543                     -920                       BAD                      BAD                      BAD
+                      -250      -555.55555555555566                     -520                       BAD                      BAD                      BAD
+                       750       111.11111111111109                     -120                       BAD                      BAD                      BAD
+                      -875        777.7777777777776       280.00000000000023                       BAD                      BAD                      BAD
+                       125      -925.92592592592587       680.00000000000023                       BAD                      BAD                      BAD
+                      -375      -259.25925925925935                     -840                       BAD                      BAD                      BAD
+                       625       407.40740740740739                     -440                       BAD                      BAD                      BAD
+                      -625       -703.7037037037037      -39.999999999999886                       BAD                      BAD                      BAD
+                       375      -37.037037037037067                      360                       BAD                      BAD                      BAD
+                      -125       629.62962962962933                      760                       BAD                      BAD                      BAD
+                       875      -481.48148148148152                     -760                       BAD                      BAD                      BAD
+                    -937.5       185.18518518518522                     -360                       BAD                      BAD                      BAD
+                      62.5       851.85185185185173                       40                       BAD                      BAD                      BAD
+                    -437.5      -851.85185185185185       440.00000000000023                       BAD                      BAD                      BAD
+                     562.5      -185.18518518518522                      840                       BAD                      BAD                      BAD
+                    -687.5        481.4814814814813                     -680                       BAD                      BAD                      BAD
+
+[simplify/neg_interval_unbounded_pointlist.map  nin=3 nout=3 dir=inverse]
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                         0                        0                      BAD                         0                        0                      BAD
+                         0                        0                      BAD                         0                        0                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
+                       BAD                      BAD                      BAD                       BAD                      BAD                      BAD
 
 [simplify/neg_intra_diff_flag.map  nin=1 nout=1 dir=forward]
                      -1000                     -1000
@@ -17992,6 +18408,58 @@
         3983.9194707644579        496371.12832776835
         6629.7579283958685         1374184.045699555
         9832.8854381488381         3022357.646744817
+
+[simplify/neg_poly_different_inverse_coeffs.map  nin=1 nout=1 dir=forward]
+                     -1000                    700000
+                      1000                    700000
+                         0                         0
+                         0                         0
+                         0                         0
+                      -500                    175000
+                       500                    175000
+                      -750                    393750
+                       250                     43750
+                      -250                     43750
+                       750                    393750
+                      -875                  535937.5
+                       125                   10937.5
+                      -375                   98437.5
+                       625                  273437.5
+                      -625                  273437.5
+                       375                   98437.5
+                      -125                   10937.5
+                       875                  535937.5
+                    -937.5                615234.375
+                      62.5                  2734.375
+                    -437.5                133984.375
+                     562.5                221484.375
+                    -687.5                330859.375
+
+[simplify/neg_poly_different_inverse_coeffs.map  nin=1 nout=1 dir=inverse]
+                    700000              245000000000
+                    700000              245000000000
+                         0                         0
+                         0                         0
+                         0                         0
+                    175000               15312500000
+                    175000               15312500000
+                    393750               77519531250
+                     43750                 957031250
+                     43750                 957031250
+                    393750               77519531250
+                  535937.5          143614501953.125
+                   10937.5              59814453.125
+                   98437.5            4844970703.125
+                  273437.5           37384033203.125
+                  273437.5           37384033203.125
+                   98437.5            4844970703.125
+                   10937.5              59814453.125
+                  535937.5          143614501953.125
+                615234.375        189256668090.82031
+                  2734.375           3738403.3203125
+                133984.375        8975906372.0703125
+                221484.375        24527664184.570312
+                330859.375        54733963012.695312
 
 [simplify/neg_poly_nin_ne_nout.map  nin=2 nout=1 dir=forward]
                      -1000                    -1000                     -8000
@@ -23947,6 +24415,110 @@
                     1687.5      -555.55555555555566                     562.5      -185.18518518518522
                    -2062.5       1444.4444444444439                    -687.5        481.4814814814813
 
+[simplify/pcd_inverted_zoom_swap.map  nin=2 nout=2 dir=forward]
+                     -1000                    -1000       -4446444.7000891194      -4444222.5332780071
+                      1000                     1000        4442889.4776935643       4445111.2000602325
+                         0                        0    0.00019424294291098265  -0.00012949529527397918
+                         0                        0    0.00019424294291098265  -0.00012949529527397918
+                         0      -333.33333333333337       -73.818605424258138      -82230.719549024303
+                      -500       333.33333333333326       -402068.16802545625       268045.44535030407
+                       500      -777.77777777777783        948794.27125064179      -1476408.3195990722
+                      -750       -111.1111111111112       -959302.27521179675      -141806.50916666663
+                       250       555.55555555555543        206038.42798323961       458577.62311213504
+                      -250      -555.55555555555566       -206452.70387679423      -458069.61476612941
+                       750       111.11111111111109        957184.29561464081       142116.98664849845
+                      -875        777.7777777777776       -2667718.7077386957        2371102.384728808
+                       125      -925.92592592592587        241812.53759593455      -1795123.8064278748
+                      -375      -259.25925925925935       -173523.29945163251      -119778.67372055167
+                       625       407.40740740740739        772537.41600157053       504068.80258951057
+                      -625       -703.7037037037037       -1231170.3771597189      -1385148.2194816906
+                       375      -37.037037037037067        118119.87655940672      -11612.585959399823
+                      -125       629.62962962962933       -114854.04929752382       577323.31045218208
+                       875      -481.48148148148152        1937620.0345165485      -1066126.2884711965
+                    -937.5       185.18518518518522       -1904643.4470284141       376511.59683904378
+                      62.5       851.85185185185173        100897.09229178446       1382143.8238911228
+                    -437.5      -851.85185185185185       -892216.43333556526      -1735628.2424026406
+                     562.5      -185.18518518518522        437752.08956162835      -144037.16763230713
+                    -687.5        481.4814814814813       -1077837.2219433307       754833.14228377782
+
+[simplify/pcd_inverted_zoom_swap.map  nin=2 nout=2 dir=inverse]
+       -4446444.7000891194      -4444222.5332780071   -1.5620651899632251e+18   -1.561284352585397e+18
+        4442889.4776935643       4445111.2000602325     1.559879813257888e+18   1.5606600262390582e+18
+    0.00019424294291098265  -0.00012949529527397918    1.1102230246251565e-16                        0
+    0.00019424294291098265  -0.00012949529527397918    1.1102230246251565e-16                        0
+       -73.818605424258138      -82230.719549024303       -4454932668.1678724      -4942502976116.7637
+       -402068.16802545625       268045.44535030407       -834542322397150.62       556361548264766.81
+        948794.27125064179      -1476408.3195990722         25975794055142704       -40420654449874128
+       -959302.27521179675      -141806.50916666663         -8018664925771575      -1185337459681914.8
+        206038.42798323961       458577.62311213504        462890441574492.19       1030252473726186.6
+       -206452.70387679423      -458069.61476612941       -463281332843985.31      -1027909524312668.6
+        957184.29561464081       142116.98664849845          7967161370467517       1182918398900274.8
+       -2667718.7077386957        2371102.384728808   -3.0207713844538054e+17   2.6849000276174566e+17
+        241812.53759593455      -1795123.8064278748          7052194731272588       -52352855939357736
+       -173523.29945163251      -119778.67372055167       -68572396539008.258      -47333602015859.273
+        772537.41600157053       504068.80258951057          5843121593486161         3812550119121802
+       -1231170.3771597189      -1385148.2194816906        -37585356511835024       -42285999089895208
+        118119.87655940672      -11612.585959399823        14790756957825.385      -1454085626014.6965
+       -114854.04929752382       577323.31045218208       -353745226752394.94       1778125402855762.2
+        1937620.0345165485      -1066126.2884711965         84239009540722048       -46350377289456112
+       -1904643.4470284141       376511.59683904378        -63817060031053120        12615417438964494
+        100897.09229178446       1382143.8238911228        1722422383870149.5        23594762037606148
+       -892216.43333556526      -1735628.2424026406        -30204156772103240       -58756106596211416
+        437752.08956162835      -144037.16763230713           826371397696976      -271907581192392.94
+       -1077837.2219433307       754833.14228377782        -16589185068457696        11617771469312824
+
+[simplify/pcd_inverted_zoom_swap.simp  nin=2 nout=2 dir=forward]
+                     -1000                    -1000       -4446444.7000891194      -4444222.5332780071
+                      1000                     1000        4442889.4776935643       4445111.2000602325
+                         0                        0    0.00019424294291098265  -0.00012949529527397918
+                         0                        0    0.00019424294291098265  -0.00012949529527397918
+                         0      -333.33333333333337       -73.818605424258138      -82230.719549024303
+                      -500       333.33333333333326       -402068.16802545625       268045.44535030407
+                       500      -777.77777777777783        948794.27125064179      -1476408.3195990722
+                      -750       -111.1111111111112       -959302.27521179675      -141806.50916666663
+                       250       555.55555555555543        206038.42798323961       458577.62311213504
+                      -250      -555.55555555555566       -206452.70387679423      -458069.61476612941
+                       750       111.11111111111109        957184.29561464081       142116.98664849845
+                      -875        777.7777777777776       -2667718.7077386957        2371102.384728808
+                       125      -925.92592592592587        241812.53759593455      -1795123.8064278748
+                      -375      -259.25925925925935       -173523.29945163251      -119778.67372055167
+                       625       407.40740740740739        772537.41600157053       504068.80258951057
+                      -625       -703.7037037037037       -1231170.3771597189      -1385148.2194816906
+                       375      -37.037037037037067        118119.87655940672      -11612.585959399823
+                      -125       629.62962962962933       -114854.04929752382       577323.31045218208
+                       875      -481.48148148148152        1937620.0345165485      -1066126.2884711965
+                    -937.5       185.18518518518522       -1904643.4470284141       376511.59683904378
+                      62.5       851.85185185185173        100897.09229178446       1382143.8238911228
+                    -437.5      -851.85185185185185       -892216.43333556526      -1735628.2424026406
+                     562.5      -185.18518518518522        437752.08956162835      -144037.16763230713
+                    -687.5        481.4814814814813       -1077837.2219433307       754833.14228377782
+
+[simplify/pcd_inverted_zoom_swap.simp  nin=2 nout=2 dir=inverse]
+       -4446444.7000891194      -4444222.5332780071   -1.5620651899632251e+18   -1.561284352585397e+18
+        4442889.4776935643       4445111.2000602325     1.559879813257888e+18   1.5606600262390582e+18
+    0.00019424294291098265  -0.00012949529527397918    1.1102230246251565e-16                        0
+    0.00019424294291098265  -0.00012949529527397918    1.1102230246251565e-16                        0
+       -73.818605424258138      -82230.719549024303       -4454932668.1678724      -4942502976116.7637
+       -402068.16802545625       268045.44535030407       -834542322397150.62       556361548264766.81
+        948794.27125064179      -1476408.3195990722         25975794055142704       -40420654449874128
+       -959302.27521179675      -141806.50916666663         -8018664925771575      -1185337459681914.8
+        206038.42798323961       458577.62311213504        462890441574492.19       1030252473726186.6
+       -206452.70387679423      -458069.61476612941       -463281332843985.31      -1027909524312668.6
+        957184.29561464081       142116.98664849845          7967161370467517       1182918398900274.8
+       -2667718.7077386957        2371102.384728808   -3.0207713844538054e+17   2.6849000276174566e+17
+        241812.53759593455      -1795123.8064278748          7052194731272588       -52352855939357736
+       -173523.29945163251      -119778.67372055167       -68572396539008.258      -47333602015859.273
+        772537.41600157053       504068.80258951057          5843121593486161         3812550119121802
+       -1231170.3771597189      -1385148.2194816906        -37585356511835024       -42285999089895208
+        118119.87655940672      -11612.585959399823        14790756957825.385      -1454085626014.6965
+       -114854.04929752382       577323.31045218208       -353745226752394.94       1778125402855762.2
+        1937620.0345165485      -1066126.2884711965         84239009540722048       -46350377289456112
+       -1904643.4470284141       376511.59683904378        -63817060031053120        12615417438964494
+        100897.09229178446       1382143.8238911228        1722422383870149.5        23594762037606148
+       -892216.43333556526      -1735628.2424026406        -30204156772103240       -58756106596211416
+        437752.08956162835      -144037.16763230713           826371397696976      -271907581192392.94
+       -1077837.2219433307       754833.14228377782        -16589185068457696        11617771469312824
+
 [simplify/pcd_perm_swap_cancel.map  nin=2 nout=2 dir=forward]
                      -1000                    -1000       -889333.33345595724      -889333.33345595724
                       1000                     1000        889333.33345595724       889333.33345595724
@@ -26235,6 +26807,110 @@
                       3379                     562.5
                      -4121       -687.49999999999989
 
+[simplify/poly_fitted_inverse_cancel.map  nin=1 nout=1 dir=forward]
+                     -1000    1.1129116383511173e+28
+                      1000    1.1129116383511173e+28
+                         0        0.2707069848330354
+                         0        0.2707069848330354
+                         0        0.2707069848330354
+                      -500    1.0868020149269882e+25
+                       500    1.0868020149269882e+25
+                      -750    6.2671580843005418e+26
+                       250    1.0612294849845229e+22
+                      -250    1.0612294849845229e+22
+                       750    6.2671580843005418e+26
+                      -875     2.927791624480649e+27
+                       125    1.0359640008679729e+19
+                      -375    6.1200137103008622e+23
+                       625    1.0121747648091949e+26
+                      -625    1.0121747648091949e+26
+                       375    6.1200137103008622e+23
+                      -125    1.0359640008679729e+19
+                       875     2.927791624480649e+27
+                    -937.5    5.8367753125203206e+27
+                      62.5         10101500208124196
+                    -437.5    2.8590830057405366e+24
+                     562.5    3.5292184391110849e+25
+                    -687.5    2.6253298790681117e+26
+
+[simplify/poly_fitted_inverse_cancel.map  nin=1 nout=1 dir=inverse]
+    1.1129116383511173e+28    3.243926129709611e+278
+    1.1129116383511173e+28    3.243926129709611e+278
+        0.2707069848330354       0.34942946408447639
+        0.2707069848330354       0.34942946408447639
+        0.2707069848330354       0.34942946408447639
+    1.0868020149269882e+25   2.5584001048974135e+248
+    1.0868020149269882e+25   2.5584001048974135e+248
+    6.2671580843005418e+26    1.040328774449315e+266
+    1.0612294849845229e+22   2.0163094855022355e+218
+    1.0612294849845229e+22   2.0163094855022355e+218
+    6.2671580843005418e+26    1.040328774449315e+266
+     2.927791624480649e+27   5.1506940731597506e+272
+    1.0359640008679729e+19   1.5845675465113542e+188
+    6.1200137103008622e+23   8.2032900148746518e+235
+    1.0121747648091949e+26   1.2560854045227126e+258
+    1.0121747648091949e+26   1.2560854045227126e+258
+    6.1200137103008622e+23   8.2032900148746518e+235
+    1.0359640008679729e+19   1.5845675465113542e+188
+     2.927791624480649e+27   5.1506940731597506e+272
+    5.8367753125203206e+27    5.107329402034219e+275
+         10101500208124196   1.2311837823487421e+158
+    2.8590830057405366e+24   4.0619236507425486e+242
+    3.5292184391110849e+25   3.3361802814942458e+253
+    2.6253298790681117e+26   1.7310233580833846e+262
+
+[simplify/poly_fitted_inverse_cancel.simp  nin=1 nout=1 dir=forward]
+                     -1000                     -1000
+                      1000                      1000
+                         0                         0
+                         0                         0
+                         0                         0
+                      -500                      -500
+                       500                       500
+                      -750                      -750
+                       250                       250
+                      -250                      -250
+                       750                       750
+                      -875                      -875
+                       125                       125
+                      -375                      -375
+                       625                       625
+                      -625                      -625
+                       375                       375
+                      -125                      -125
+                       875                       875
+                    -937.5                    -937.5
+                      62.5                      62.5
+                    -437.5                    -437.5
+                     562.5                     562.5
+                    -687.5                    -687.5
+
+[simplify/poly_fitted_inverse_cancel.simp  nin=1 nout=1 dir=inverse]
+                     -1000                     -1000
+                      1000                      1000
+                         0                         0
+                         0                         0
+                         0                         0
+                      -500                      -500
+                       500                       500
+                      -750                      -750
+                       250                       250
+                      -250                      -250
+                       750                       750
+                      -875                      -875
+                       125                       125
+                      -375                      -375
+                       625                       625
+                      -625                      -625
+                       375                       375
+                      -125                      -125
+                       875                       875
+                    -937.5                    -937.5
+                      62.5                      62.5
+                    -437.5                    -437.5
+                     562.5                     562.5
+                    -687.5                    -687.5
+
 [simplify/poly_inverse_cancel.map  nin=1 nout=1 dir=forward]
                      -1000        967.55978188517383
                       1000         1104.406050966297
@@ -26314,6 +26990,110 @@
                     -687.5                    -687.5
 
 [simplify/poly_inverse_cancel.simp  nin=1 nout=1 dir=inverse]
+                     -1000                     -1000
+                      1000                      1000
+                         0                         0
+                         0                         0
+                         0                         0
+                      -500                      -500
+                       500                       500
+                      -750                      -750
+                       250                       250
+                      -250                      -250
+                       750                       750
+                      -875                      -875
+                       125                       125
+                      -375                      -375
+                       625                       625
+                      -625                      -625
+                       375                       375
+                      -125                      -125
+                       875                       875
+                    -937.5                    -937.5
+                      62.5                      62.5
+                    -437.5                    -437.5
+                     562.5                     562.5
+                    -687.5                    -687.5
+
+[simplify/poly_same_inverse_coeffs_cancel.map  nin=1 nout=1 dir=forward]
+                     -1000                    500000
+                      1000                    500000
+                         0                         0
+                         0                         0
+                         0                         0
+                      -500                    125000
+                       500                    125000
+                      -750                    281250
+                       250                     31250
+                      -250                     31250
+                       750                    281250
+                      -875                  382812.5
+                       125                    7812.5
+                      -375                   70312.5
+                       625                  195312.5
+                      -625                  195312.5
+                       375                   70312.5
+                      -125                    7812.5
+                       875                  382812.5
+                    -937.5                439453.125
+                      62.5                  1953.125
+                    -437.5                 95703.125
+                     562.5                158203.125
+                    -687.5                236328.125
+
+[simplify/poly_same_inverse_coeffs_cancel.map  nin=1 nout=1 dir=inverse]
+                    500000              125000000000
+                    500000              125000000000
+                         0                         0
+                         0                         0
+                         0                         0
+                    125000                7812500000
+                    125000                7812500000
+                    281250               39550781250
+                     31250                 488281250
+                     31250                 488281250
+                    281250               39550781250
+                  382812.5           73272705078.125
+                    7812.5              30517578.125
+                   70312.5            2471923828.125
+                  195312.5           19073486328.125
+                  195312.5           19073486328.125
+                   70312.5            2471923828.125
+                    7812.5              30517578.125
+                  382812.5           73272705078.125
+                439453.125        96559524536.132812
+                  1953.125           1907348.6328125
+                 95703.125        4579544067.3828125
+                158203.125        12514114379.882812
+                236328.125        27925491333.007812
+
+[simplify/poly_same_inverse_coeffs_cancel.simp  nin=1 nout=1 dir=forward]
+                     -1000                     -1000
+                      1000                      1000
+                         0                         0
+                         0                         0
+                         0                         0
+                      -500                      -500
+                       500                       500
+                      -750                      -750
+                       250                       250
+                      -250                      -250
+                       750                       750
+                      -875                      -875
+                       125                       125
+                      -375                      -375
+                       625                       625
+                      -625                      -625
+                       375                       375
+                      -125                      -125
+                       875                       875
+                    -937.5                    -937.5
+                      62.5                      62.5
+                    -437.5                    -437.5
+                     562.5                     562.5
+                    -687.5                    -687.5
+
+[simplify/poly_same_inverse_coeffs_cancel.simp  nin=1 nout=1 dir=inverse]
                      -1000                     -1000
                       1000                      1000
                          0                         0

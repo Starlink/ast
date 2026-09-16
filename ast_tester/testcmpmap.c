@@ -9,11 +9,63 @@
 #include "ast.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static void stopit( int *status, const char *text ) {
    if( *status != 0 ) return;
    *status = 1;
    printf( "%s\n", text );
+}
+
+/* A 1-D quadratic PolyMap: irreducible on its own, and it merges with
+   nothing but its own inverse, so trees built from these simplify only
+   where the structure allows. */
+static AstPolyMap *quadratic( double coeff ) {
+   double coeffs[ 3 ] = { coeff, 1, 2 };
+   return astPolyMap( 1, 1, 1, coeffs, 0, NULL, " " );
+}
+
+static int has_issimp_card( AstObject *obj ) {
+   return strstr( astToString( obj ), "IsSimp" ) != NULL;
+}
+
+/* Simplifying a parallel CmpMap of two series CmpMaps tries a probe that
+   regroups the four sub-Mappings into two parallel pairs and simplifies
+   those. The probe shares its sub-Mappings with the tree it is probing.
+   When the probe is discarded, nothing that only the probe did may remain
+   visible on the tree. A series CmpMap nested inside a series CmpMap is
+   expanded by astMapList and never itself simplified along the surviving
+   path, but the probe wraps it in a parallel CmpMap where it is nominated
+   and stamped as simplified, so it is the object on which a leaked stamp
+   shows. Repeat with the same inner CmpMap in both branches to check that
+   sharing it does not affect restoration of its recorded state. */
+static void checkProbeLeavesNoStamp( int shared, int *status ) {
+   AstCmpMap *inner, *s1, *s2, *par;
+   AstMapping *simp;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   inner = astCmpMap( quadratic( 1.0 ), quadratic( 2.0 ), 1, " " );
+   s1 = astCmpMap( inner, quadratic( 3.0 ), 1, " " );
+   s2 = astCmpMap( shared ? (AstMapping *) inner :
+                           (AstMapping *) quadratic( 4.0 ),
+                   quadratic( 5.0 ), 1, " " );
+   par = astCmpMap( s1, s2, 0, " " );
+
+   if( has_issimp_card( (AstObject *) inner ) ) {
+      stopit( status, "probe leak: the nested CmpMap is stamped before simplification" );
+   }
+   simp = astSimplify( par );
+   if( !astOK ) {
+      stopit( status, "probe leak: error simplifying the parallel CmpMap" );
+   } else if( !has_issimp_card( (AstObject *) simp ) ) {
+      stopit( status, "probe leak: the simplified result is not stamped" );
+   } else if( has_issimp_card( (AstObject *) inner ) ) {
+      stopit( status, "probe leak: a discarded probe stamped the nested CmpMap" );
+   }
+
+   astEnd;
 }
 
 static AstObject *readobj( const char *file, int *status ) {
@@ -92,6 +144,10 @@ int main( void ) {
    }
 
    astEnd;
+
+   checkProbeLeavesNoStamp( 0, status );
+   checkProbeLeavesNoStamp( 1, status );
+
    astFlushMemory( 1 );
 
    if( *status == 0 ) {
