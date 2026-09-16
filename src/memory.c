@@ -177,6 +177,9 @@
 *        astAppendStringf.
 *     22-APR-2026 (EMB):
 *        Fix undefined behavior with pointer arithmetic in astChrSplit.
+*     2-JUN-2026 (EMB):
+*        Add astCPUCacheSize: query CPU L1D/L2/L3 cache capacity via CPUID
+*        (x86-64) or sysconf fallback.
 */
 
 /* Configuration results. */
@@ -247,6 +250,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <limits.h>
+#include <unistd.h>          /* sysconf */
+
+#ifdef __x86_64__
+#include <cpuid.h>           /* __cpuid_count -- GCC built-in on x86-64 */
+#endif
 
 #ifdef THREAD_SAFE
 #include <pthread.h>
@@ -6080,3 +6088,150 @@ static int CompareTimers2( const void *a, const void *b ){
 }
 
 #endif
+
+long astCPUCacheSize_( int level ) {
+/*
+*++
+*  Name:
+*     astCPUCacheSize
+
+*  Purpose:
+*     Return the size of a CPU cache level in bytes.
+
+*  Type:
+*     Public function.
+
+*  Synopsis:
+*     #include "memory.h"
+*     long astCPUCacheSize( int level )
+
+*  Description:
+*     Returns the total capacity in bytes of the requested CPU cache level
+*     (1 = L1 data, 2 = L2, 3 = L3).  The result is determined once by
+*     querying the hardware and then memoised in a static array; subsequent
+*     calls for the same level are free.
+*
+*     Detection strategy (tried in order):
+*       1. CPUID deterministic cache parameters on x86-64 (Intel leaf 4, or
+*          the identically-encoded AMD extended leaf 0x8000001D).
+*       2. sysconf(_SC_LEVEL{n}_CACHE_SIZE)
+*       3. Conservative hard-coded fallbacks: L1=32 KiB, L2=512 KiB, L3=8 MiB.
+
+*  Parameters:
+*     level
+*        Cache level: 1 (L1 data), 2 (L2), or 3 (L3).  Values outside
+*        this range return 0.
+
+*  Returned Value:
+*     astCPUCacheSize()
+*        Cache size in bytes, or 0 if level is out of range.
+
+*  Notes:
+*     - This function never sets the AST error status.
+*     - A benign write-write race is possible in multi-threaded programs
+*       (both threads compute the same value from the same hardware query),
+*       but the result is always deterministic.
+*--
+*/
+
+/* CPUID cache-descriptor field extractors (x86-64 only). These apply equally
+   to Intel's leaf 4 and AMD's leaf 0x8000001D, which share the same encoding.
+   All geometry fields are encoded as (actual_value - 1), so each macro
+   adds 1. Instruction caches are excluded (type == 2). */
+#ifdef __x86_64__
+#define CPUID_CACHE_LEAF_INTEL    0x4U
+#define CPUID_CACHE_LEAF_AMD      0x8000001DU
+#define CPUID4_CACHE_TYPE(eax)    ( (eax) & 0x1f )
+#define CPUID4_CACHE_LEVEL(eax)   ( ((eax) >> 5) & 0x7 )
+#define CPUID4_CACHE_TYPE_NULL    0   /* no more descriptors */
+#define CPUID4_CACHE_TYPE_INSTR   2   /* instruction cache--skip */
+/* EBX[11:0]: line size in bytes, minus 1 */
+#define CPUID4_LINE_SIZE(ebx)     ( (long)((ebx) & 0xfff) + 1L )
+/* EBX[21:12]: physical line partitions, minus 1 */
+#define CPUID4_PARTITIONS(ebx)    ( (long)(((ebx) >> 12) & 0x3ff) + 1L )
+/* EBX[31:22]: ways of associativity, minus 1 */
+#define CPUID4_WAYS(ebx)          ( (long)(((ebx) >> 22) & 0x3ff) + 1L )
+/* ECX: number of sets, minus 1 */
+#define CPUID4_SETS(ecx)          ( (long)(ecx) + 1L )
+
+/* Test whether the host CPU supports a given CPUID leaf, storing the boolean
+   result in "result". CPUID called with the base of the leaf's range
+   (leaf & 0xFFFF0000 -- 0 for standard leaves, 0x80000000 for extended ones)
+   returns the highest supported leaf in that range in EAX, so the leaf is
+   available when it does not exceed that maximum. */
+#define CPUID_LEAF_SUPPORTED(leaf, result)                               \
+   do {                                                                  \
+      unsigned _eax, _ebx, _ecx, _edx;                                   \
+      __cpuid( (unsigned)(leaf) & 0xFFFF0000U, _eax, _ebx, _ecx, _edx ); \
+      (result) = ( _eax >= (unsigned)(leaf) );                           \
+   } while( 0 )
+#endif
+
+   static long sizes[4] = { 0L, 0L, 0L, 0L }; /* indices 1-3 */
+   static const long defaults[4] = { 0L, 32L*1024L, 512L*1024L, 8L*1024L*1024L };
+   long sz = -1L;
+
+/* Range check. */
+   if( level < 1 || level > 3 ) return 0L;
+
+/* Return memoised value if already detected. */
+   if( sizes[ level ] != 0L )
+      return sizes[ level ];
+
+/* x86-64 CPUID deterministic cache parameters. */
+#ifdef __x86_64__
+   unsigned eax, ebx, ecx, edx, idx;
+   int amd_cache_leaf;
+   unsigned leaf;
+
+/* Intel reports cache geometry in leaf 4, but AMD leaves it empty there and
+   instead uses the identically-encoded extended leaf 0x8000001D. Use that leaf
+   when it is supported (i.e. on AMD); otherwise fall back to leaf 4. */
+   CPUID_LEAF_SUPPORTED( CPUID_CACHE_LEAF_AMD, amd_cache_leaf );
+   leaf = amd_cache_leaf ? CPUID_CACHE_LEAF_AMD : CPUID_CACHE_LEAF_INTEL;
+
+   for( idx = 0; ; idx++ ) {
+      __cpuid_count( leaf, idx, eax, ebx, ecx, edx );
+
+      if( CPUID4_CACHE_TYPE( eax ) == CPUID4_CACHE_TYPE_NULL )
+         break;
+
+      if( (int) CPUID4_CACHE_LEVEL( eax ) != level )
+         continue;
+
+      if( CPUID4_CACHE_TYPE( eax ) == CPUID4_CACHE_TYPE_INSTR )
+         continue;
+
+      sizes[ level ] = CPUID4_WAYS( ebx ) * CPUID4_PARTITIONS( ebx )
+                     * CPUID4_LINE_SIZE( ebx ) * CPUID4_SETS( ecx );
+      return sizes[ level ];
+   }
+#endif
+
+/* The remaining fall-backs (sysconf, then conservative hard-coded defaults)
+   are only reached when CPUID cache enumeration is unavailable. */
+/* LCOV_EXCL_START */
+
+/* sysconf fallback */
+#ifdef _SC_LEVEL1_DCACHE_SIZE
+   if( level == 1 )
+      sz = sysconf( _SC_LEVEL1_DCACHE_SIZE );
+#endif
+#ifdef _SC_LEVEL2_CACHE_SIZE
+   if( level == 2 )
+      sz = sysconf( _SC_LEVEL2_CACHE_SIZE );
+#endif
+#ifdef _SC_LEVEL3_CACHE_SIZE
+   if( level == 3 )
+      sz = sysconf( _SC_LEVEL3_CACHE_SIZE );
+#endif
+   if( sz > 0L ) {
+      sizes[ level ] = sz;
+      return sizes[ level ];
+   }
+
+/* Hard-coded fallbacks */
+   sizes[ level ] = defaults[ level ];
+   return sizes[ level ];
+/* LCOV_EXCL_STOP */
+}
