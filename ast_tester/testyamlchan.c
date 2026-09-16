@@ -835,7 +835,8 @@ void test_time_equinox( int *status ){
    if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
 
    ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=time_equinox.asdf" );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/time_equinox.asdf",
+           fixture_dir() );
    fs = (AstFrameSet *) astRead( ch );
    astAnnul( ch );
 
@@ -879,7 +880,8 @@ void test_quantity( int *status ){
    if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
 
    ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=quantity.asdf" );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/quantity.asdf",
+           fixture_dir() );
    fs = (AstFrameSet *) astRead( ch );
    astAnnul( ch );
 
@@ -916,7 +918,8 @@ void test_transforms_1d( int *status ){
    if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
 
    ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=transforms_1d.asdf" );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/transforms_1d.asdf",
+           fixture_dir() );
    fs = (AstFrameSet *) astRead( ch );
    astAnnul( ch );
 
@@ -953,7 +956,8 @@ void test_transforms_2d( int *status ){
    if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
 
    ch = astYamlChan( NULL, NULL, " " );
-   astSet( ch, "SourceFile=transforms_2d.asdf" );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/transforms_2d.asdf",
+           fixture_dir() );
    fs = (AstFrameSet *) astRead( ch );
    astAnnul( ch );
 
