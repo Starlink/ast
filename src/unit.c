@@ -90,6 +90,13 @@
 *     9-MAY-2011 (DSB):
 *        Change "A" to be Ampere (as defined by FITS-WCS paper 1) rather
 *        than "Angstrom".
+*     16-SEP-2026 (TIMJ):
+*        Added astNormUnit, which normalises a units string but
+*        returns it unchanged when it has no normalised form.
+*     21-SEP-2026 (TIMJ):
+*        astUnitNormaliser no longer replaces an inherited error with
+*        AST__BADUN, and astNormUnit only recovers from AST__BADUN, so
+*        that an allocation failure is still reported to the caller.
 */
 
 /* Module Macros. */
@@ -5832,9 +5839,91 @@ const char *astUnitNormaliser_( const char *in, int *status ){
 /* Free the tree. */
       in_tree = FreeTree( in_tree, status );
 
-   } else {
+/* Report a parsing error, unless CreateTree failed for some other reason
+   and has already reported it. */
+   } else if( astOK ) {
       astError( AST__BADUN, "astUnitNormaliser: Error parsing input "
                 "units string '%s'.", status, in );
+   }
+
+/* Return the result */
+   return result;
+}
+
+const char *astNormUnit_( const char *in, int *status ){
+/*
+*+
+*  Name:
+*     astNormUnit
+
+*  Purpose:
+*     Normalise a unit string, or return it unchanged if it has no
+*     normalised form.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "unit.h"
+*     const char *astNormUnit( const char *in )
+
+*  Class Membership:
+*     Unit member function.
+
+*  Description:
+*     This function returns a standard FITS-WCS form of the supplied unit
+*     string, as astUnitNormaliser does, except that a string which cannot
+*     be parsed as a units expression is returned unchanged rather than
+*     reported as an error.
+*
+*     Not every value that describes an axis is a units expression. An
+*     Axis has a blank Unit until one is set, and some Axis classes
+*     describe their axis values with a sexagesimal format such as
+*     "ddd:mm:ss". Neither has a normalised form, and the documented value
+*     of the NormUnit attribute in such a case is the Unit value itself.
+*
+*     Only a parsing failure is recovered from in this way. A failure for
+*     any other reason, such as an allocation failure, is reported as
+*     usual.
+
+*  Parameters:
+*     in
+*        A string representation of the units, for instance "km/h".
+
+*  Returned Value:
+*     A pointer to a dynamically allocated string. It should be freed
+*     using astFree when no longer needed.
+
+*  Notes:
+*     -  NULL is returned if this function is invoked with the global
+*     error status set or if it should fail for any reason.
+*-
+*/
+
+/* Local Variables: */
+   const char *result;
+   int oldrep;
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Attempt to normalise the supplied string with error reporting switched
+   off, so that a string which is not a units expression can be handled
+   here rather than being reported as a failure. */
+   oldrep = astReporting( 0 );
+   result = astUnitNormaliser( in );
+
+/* A string that is not a units expression is reported as AST__BADUN, and
+   is the case this function exists to recover from. Any other status (an
+   allocation failure, say) means the normalisation failed for a reason the
+   caller still needs to see, so it is left set and its deferred messages
+   are delivered when reporting is switched back on. */
+   if( astStatus == AST__BADUN ) astClearStatus;
+   astReporting( oldrep );
+
+/* No normalised form, so return the supplied string unchanged. */
+   if( astOK && !result && in ) {
+      result = astStore( NULL, in, strlen( in ) + 1 );
    }
 
 /* Return the result */

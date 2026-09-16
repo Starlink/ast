@@ -16,55 +16,83 @@ int main( void ) {
       astError( AST__INTER, "NormUnit did not give expected result" );
    }
 
-/* Not every Unit value is a units expression that can be parsed. A Frame
-   axis has a blank Unit until one is set, and there is then nothing to
-   normalise, so NormUnit is blank too rather than an error. The same
-   applies to the Frame classes that report a Unit of their own but leave
-   the Axis Unit unset. */
+/* NormUnit is documented to equal Unit when no simplification can be
+   performed, and several Unit values cannot be simplified at all: a Frame
+   axis has a blank Unit until one is set, and a SkyFrame axis describes its
+   values with a sexagesimal format such as "ddd:mm:ss". Check the
+   relationship rather than the individual strings, so that this pins the
+   documented behaviour and not whatever the library currently returns.
+
+   The classes below are the ones that report a Unit of their own by
+   over-riding astGetUnit while leaving the Axis Unit unset, which is where
+   NormUnit and Unit are easiest to get out of step. */
    {
-      AstFrame *plain = astFrame( 2, " " );
-      AstSpecFrame *spec = astSpecFrame( " " );
-      AstTimeFrame *time = astTimeFrame( " " );
-      const char *blank;
+      AstFrame *frames[ 4 ];
+      int naxes[ 4 ] = { 2, 2, 1, 1 };
+      const char *names[ 4 ] = { "Frame", "SkyFrame", "SpecFrame",
+                                 "TimeFrame" };
+      int iframe;
       int iaxis;
 
-      for( iaxis = 1; iaxis <= 2; iaxis++ ) {
-         blank = astGetC( plain, iaxis == 1 ? "NormUnit(1)" : "NormUnit(2)" );
-         if( astOK && ( !blank || strlen( blank ) ) ) {
-            astError( AST__INTER, "NormUnit(%d) of a default Frame is '%s', "
-                      "expected a blank string", iaxis, blank ? blank : "<NULL>" );
+      frames[ 0 ] = astFrame( 2, " " );
+      frames[ 1 ] = (AstFrame *) astSkyFrame( " " );
+      frames[ 2 ] = (AstFrame *) astSpecFrame( " " );
+      frames[ 3 ] = (AstFrame *) astTimeFrame( " " );
+
+      for( iframe = 0; iframe < 4 && astOK; iframe++ ) {
+         for( iaxis = 1; iaxis <= naxes[ iframe ] && astOK; iaxis++ ) {
+            char attr[ 20 ];
+            const char *unit;
+            const char *norm;
+
+            snprintf( attr, sizeof( attr ), "Unit(%d)", iaxis );
+            unit = astGetC( frames[ iframe ], attr );
+            if( !astOK ) break;
+
+/* Copy it, since the next astGetC may re-use the buffer it points into. */
+            {
+               char saved[ 128 ];
+               snprintf( saved, sizeof( saved ), "%s", unit ? unit : "" );
+
+               snprintf( attr, sizeof( attr ), "NormUnit(%d)", iaxis );
+               norm = astGetC( frames[ iframe ], attr );
+               if( !astOK ) break;
+
+               if( !norm || strcmp( norm, saved ) ) {
+                  astError( AST__INTER, "NormUnit(%d) of a default %s is "
+                            "'%s', expected '%s' since it cannot be "
+                            "simplified", iaxis, names[ iframe ],
+                            norm ? norm : "<NULL>", saved );
+               }
+            }
          }
       }
 
-      blank = astGetC( spec, "NormUnit(1)" );
-      if( astOK && ( !blank || strlen( blank ) ) ) {
-         astError( AST__INTER, "NormUnit(1) of a default SpecFrame is '%s', "
-                   "expected a blank string", blank ? blank : "<NULL>" );
+      for( iframe = 0; iframe < 4; iframe++ ) {
+         frames[ iframe ] = astAnnul( frames[ iframe ] );
       }
-
-      blank = astGetC( time, "NormUnit(1)" );
-      if( astOK && ( !blank || strlen( blank ) ) ) {
-         astError( AST__INTER, "NormUnit(1) of a default TimeFrame is '%s', "
-                   "expected a blank string", blank ? blank : "<NULL>" );
-      }
-
-      plain = astAnnul( plain );
-      spec = astAnnul( spec );
-      time = astAnnul( time );
    }
 
-/* A SkyFrame axis describes its values with a sexagesimal format such as
-   "ddd:mm:ss", which is not a units expression either. Reading NormUnit
-   must still succeed; the value follows the Axis Unit. */
+/* A Unit that can be simplified is, and the value follows the Unit the
+   Frame reports even when the axes have been permuted. */
    {
-      AstSkyFrame *sky = astSkyFrame( " " );
-      const char *norm = astGetC( sky, "NormUnit(1)" );
+      AstFrame *perm = astFrame( 2, "Unit(1)=km,Unit(2)=s*(m/s)" );
+      int outperm[ 2 ] = { 2, 1 };
+      const char *norm;
 
-      if( astOK && ( !norm || !strlen( norm ) ) ) {
-         astError( AST__INTER, "NormUnit(1) of a default SkyFrame is '%s', "
-                   "expected a non-blank string", norm ? norm : "<NULL>" );
+      astPermAxes( perm, outperm );
+
+      norm = astGetC( perm, "NormUnit(1)" );
+      if( astOK && ( !norm || strcmp( norm, "m" ) ) ) {
+         astError( AST__INTER, "NormUnit(1) of a permuted Frame is '%s', "
+                   "expected 'm'", norm ? norm : "<NULL>" );
       }
-      sky = astAnnul( sky );
+      norm = astGetC( perm, "NormUnit(2)" );
+      if( astOK && ( !norm || strcmp( norm, "km" ) ) ) {
+         astError( AST__INTER, "NormUnit(2) of a permuted Frame is '%s', "
+                   "expected 'km'", norm ? norm : "<NULL>" );
+      }
+      perm = astAnnul( perm );
    }
 
 /* astAxAngle: when the offset position has a zero component on the
