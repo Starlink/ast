@@ -106,11 +106,14 @@ f     The YamlChan class does not define any new routines beyond those
 *        - Fix missing degree to radian conversion in ReadRotateSequence3d.
 *        - Fix handling of rotation_type parameter in ReadRotateSequence3d.
 *        - Fix handling of null transform in the final WCS step.
-*     1-JUL-2026 (EMB):
-*        Fix a crash and a spurious error that could occur when writing
+*     8-AUG-2026 (TIMJ):
+*        Use round() rather than (int)(x+0.5) for rounding, so that the
+*        library uses a single rounding idiom that is correct for
+*        negative values.
+*     16-SEP-2026 (EMB):
+*        - Fix a crash and a spurious error that could occur when writing
 *        certain WCS objects to ASDF, caused by mishandling of degree/radian
 *        unit conversions when simplifying the transform chain.
-*     2-JUL-2026 (EMB):
 *        - Fix reading of the ASDF linear1d transform, which used the wrong
 *        property name and constructed an incorrect Mapping.
 *        - Fix reading and writing of observer earth locations, which failed
@@ -119,10 +122,6 @@ f     The YamlChan class does not define any new routines beyond those
 *        - Fix serialisation of a YamlChan object itself: it was missing from
 *        the AST object loader and had an out-of-bounds array access when
 *        dumping a channel that uses the NATIVE encoding.
-*     8-AUG-2026 (TIMJ):
-*        Use round() rather than (int)(x+0.5) for rounding, so that the
-*        library uses a single rounding idiom that is correct for
-*        negative values.
 *class--
 */
 
