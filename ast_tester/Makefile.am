@@ -549,6 +549,9 @@ CLEANFILES = \
     divide_roundtrip2.asdf \
     draw3d.txt \
     earthloc.asdf \
+    fitswcs_handbuilt.asdf \
+    fitswcs_imaging_out.asdf \
+    fitswcs_imaging_out2.asdf \
     fred.tmp \
     fred.txt \
     fred2.txt \
