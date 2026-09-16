@@ -237,7 +237,141 @@ static void stopit( int errnum, const char *text, int *status ) {
       printf( "Error %d: %s\n", errnum, text );
    else
       printf( "Error %d\n", errnum );
+
+/* The status reported here is the one AST is watching, so every later AST
+   call in this program is a no-op that returns nothing. Flush now, while
+   the reason for the failure is still known. */
+   fflush( stdout );
 }
+
+/* -----------------------------------------------------------------------
+ * testtabspectrum: write a non-linear spectral axis as -TAB
+ *
+ * A LutMap from pixel index to wavelength cannot be described by any of
+ * the linear or analytic FITS-WCS algorithms, so with TabOK set the axis
+ * must come out as a -TAB axis with an accompanying table. This exercises
+ * the path from IsMapLinear rejecting the Mapping through to the table
+ * FitsChan, which is where a WCS this shape is normally lost.
+ * -----------------------------------------------------------------------*/
+static void testtabspectrum( int errnum, int *status ) {
+   const double lut[ 5 ] = { 0.0, 0.5, 1.5, 3.0, 5.0 };
+   AstFitsChan *fc;
+   AstFitsChan *header;
+   AstFitsTable *table;
+   AstFrame *pixfrm;
+   AstFrameSet *fs;
+   AstKeyMap *tables;
+   AstLutMap *lutmap;
+   AstSpecFrame *wavefrm;
+   char *cval;
+   char cellkey[ 80 ];
+   const char *colnam;
+   double coldata[ 5 ];
+   int i;
+   int nel;
+   int shape[ 2 ];
+
+   if( *status != 0 ) return;
+
+   astBegin;
+
+   pixfrm = astFrame( 1, "Domain=PIXELS" );
+   wavefrm = astSpecFrame( "System=wave,Unit=nm" );
+   lutmap = astLutMap( 5, lut, 1.0, 1.0, " " );
+   fs = astFrameSet( pixfrm, " " );
+   astAddFrame( fs, AST__BASE, lutmap, wavefrm );
+
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,CDMatrix=1,TabOK=1" );
+
+   if( astWrite( fc, fs ) != 1 ) {
+      stopit( errnum, "-TAB: astWrite did not write the FrameSet", status );
+      astEnd;
+      return;
+   }
+
+   astClear( fc, "Card" );
+   if( !astGetFitsS( fc, "CTYPE1", &cval ) || strcmp( cval, "WAVE-TAB" ) ) {
+      stopit( errnum + 1, "-TAB: CTYPE1 is not WAVE-TAB", status );
+   }
+
+/* PS1_0 names the binary table extension, PS1_1 the column within it
+   holding the coordinate array. */
+   astClear( fc, "Card" );
+   if( !astGetFitsS( fc, "PS1_0", &cval ) || strcmp( cval, AST_TABEXTNAME ) ) {
+      stopit( errnum + 2, "-TAB: PS1_0 is not the table extension name",
+              status );
+      astEnd;
+      return;
+   }
+
+   astClear( fc, "Card" );
+   if( !astGetFitsS( fc, "PS1_1", &cval ) || strcmp( cval, "COORDS1" ) ) {
+      stopit( errnum + 3, "-TAB: PS1_1 is not COORDS1", status );
+      astEnd;
+      return;
+   }
+
+/* The table itself travels alongside the header rather than in it. */
+   tables = astGetTables( fc );
+   if( !astMapGet0A( tables, AST_TABEXTNAME, &table ) ) {
+      stopit( errnum + 4, "-TAB: no table for the extension name", status );
+      astEnd;
+      return;
+   }
+
+   header = astGetTableHeader( table );
+   if( !astGetFitsS( header, "TDIM1", &cval ) || strcmp( cval, "(1,5)" ) ) {
+      stopit( errnum + 5, "-TAB: TDIM1 is not (1,5)", status );
+   }
+
+   if( astGetI( table, "NRow" ) != 1 || astGetI( table, "NColumn" ) != 1 ) {
+      stopit( errnum + 6, "-TAB: table is not a single 1-row column",
+              status );
+      astEnd;
+      return;
+   }
+
+   colnam = astColumnName( table, 1 );
+   if( !colnam || strcmp( colnam, "COORDS1" ) ) {
+      stopit( errnum + 7, "-TAB: column 1 is not named COORDS1", status );
+      astEnd;
+      return;
+   }
+
+   astColumnShape( table, colnam, 2, &nel, shape );
+   if( nel != 2 || shape[ 0 ] != 1 || shape[ 1 ] != 5 ) {
+      stopit( errnum + 8, "-TAB: column shape is not (1,5)", status );
+   }
+
+/* Five doubles. */
+   if( astColumnSize( table, colnam ) != 5 * sizeof( double ) ) {
+      stopit( errnum + 9, "-TAB: column does not hold 5 doubles", status );
+   }
+
+/* The column carries the units of the SpecFrame the axis came from. */
+   if( !astGetFitsS( header, "TUNIT1", &cval ) || strcmp( cval, "nm" ) ) {
+      stopit( errnum + 10, "-TAB: TUNIT1 is not nm", status );
+   }
+
+/* The stored coordinates are the look-up table values, unchanged. Table
+   cells are addressed as "column(row)". */
+   snprintf( cellkey, sizeof( cellkey ), "%s(1)", colnam );
+   astMapGet1D( table, cellkey, 5, &nel, coldata );
+   if( nel != 5 ) {
+      stopit( errnum + 11, "-TAB: column does not hold 5 values", status );
+   } else {
+      for( i = 0; i < 5; i++ ) {
+         if( coldata[ i ] != lut[ i ] ) {
+            stopit( errnum + 12, "-TAB: column data differs from the LutMap",
+                    status );
+            break;
+         }
+      }
+   }
+
+   astEnd;
+}
+
 
 /* -----------------------------------------------------------------------
  * tabsource callback: called by FitsChan when it needs a FITS extension
@@ -1304,6 +1438,10 @@ int main( void ) {
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
+
+   /* A non-linear spectral axis has no analytic FITS-WCS description and
+      must be written as a -TAB axis. */
+   testtabspectrum( 12430, status );
    /* Set the fixture source directory from the srcdir environment variable
     * or fall back to "." */
    srcdir = getenv("srcdir") ? getenv("srcdir") : ".";
