@@ -32,6 +32,7 @@ static void test_sphmap_roundtrip( int *status );
 static void test_divide_roundtrip( int *status );
 static void test_rotate_sequence_3d_roundtrip( int *status );
 static void test_healpix_projections( int *status );
+static void test_jyear_equinox( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -57,6 +58,7 @@ int main(){
    test_divide_roundtrip( status );
    test_rotate_sequence_3d_roundtrip( status );
    test_healpix_projections( status );
+   test_jyear_equinox( status );
 
    astEnd;
 
@@ -749,4 +751,41 @@ void test_healpix_projections( int *status ){
 
    if( *status != SAI__OK )
       printf( "HEALPix projection regression test failed\n" );
+}
+
+void test_jyear_equinox( int *status ){
+/* An equinox given as {value: 2000.0, format: jyear} must come back as
+   epoch 2000. GetTime() has to prepend the "J" that the TimeFrame needs,
+   and its guard tested the format string rather than the value; since
+   "jyear" itself starts with a "j" the prefix was never added and the bare
+   number was read as an MJD, giving epoch 1864 - wrong by the best part of
+   two degrees of precession, with nothing reported. */
+   AstFrameSet *fs;
+   AstYamlChan *ch;
+   double equinox;
+
+   if( *status != SAI__OK )
+      return;
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/"
+           "fk5_jyear_equinox.asdf", fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( !fs ) {
+      stopit( 110, status );
+      return;
+   }
+
+   equinox = astGetD( fs, "Equinox" );
+   fs = astAnnul( fs );
+
+   if( fabs( equinox - 2000.0 ) > 1.0E-6 ){
+      if( *status == SAI__OK )
+         printf( "Equinox: got %.10g expected 2000\n", equinox );
+      stopit( 111, status );
+   }
+
+   if( *status != SAI__OK )
+      printf( "jyear equinox regression test failed\n" );
 }

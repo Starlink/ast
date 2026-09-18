@@ -5056,19 +5056,19 @@ static double GetTime( AstKeyMap *km, const char *name, AstFrame *frm,
    required by the TimeFrame. */
    if( format ) {
       if( !strcmp( format, "byear" ) &&
-          strncasecmp( format, "B", 1 ) ){
+          strncasecmp( value, "B", 1 ) ){
          sprintf( vbuf, "B%s", value );
          value = vbuf;
       } else if( !strcmp( format, "jyear" ) &&
-                 strncasecmp( format, "J", 1 ) ){
+                 strncasecmp( value, "J", 1 ) ){
          sprintf( vbuf, "J%s", value );
          value = vbuf;
       } else if( !strcmp( format, "jd" ) &&
-                 strncasecmp( format, "JD", 2 ) ){
+                 strncasecmp( value, "JD", 2 ) ){
          sprintf( vbuf, "JD %s", value );
          value = vbuf;
       } else if( !strcmp( format, "mjd" ) &&
-                 strncasecmp( format, "MJD", 2 ) ){
+                 strncasecmp( value, "MJD", 3 ) ){
          sprintf( vbuf, "MJD %s", value );
          value = vbuf;
       }
