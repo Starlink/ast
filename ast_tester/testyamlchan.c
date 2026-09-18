@@ -62,6 +62,7 @@ static void test_earthlocation( int *status );
 static void test_yamlchan_dump( int *status );
 static void test_fitswcs_imaging_roundtrip( int *status );
 static void test_fitswcs_imaging_handbuilt( int *status );
+static void test_healpix_projections( int *status );
 
 static void test_parser_error( int *status );
 #endif
@@ -139,6 +140,7 @@ int main(){
    test_yamlchan_dump( status );
    test_fitswcs_imaging_roundtrip( status );
    test_fitswcs_imaging_handbuilt( status );
+   test_healpix_projections( status );
    test_parser_error( status );
 #endif
 
@@ -1539,3 +1541,44 @@ cleanup:
 }
 
 #endif /* YAML_BACKEND */
+void test_healpix_projections( int *status ){
+/* Both HEALPix projections must be recognised as sky projections. They are
+   in none of the six families IsASkyProjection() tests, so without their
+   own entries the /healpix- and /healpix_polar- branches of
+   ReadSkyProjection() cannot be reached and a WCS using either fails to
+   read at all. */
+   const char *files[ 2 ] = { "healpix", "healpix_polar" };
+   const char *systems[ 2 ] = { "HPX", "XPH" };
+   AstFrameSet *fs;
+   AstYamlChan *ch;
+   int i;
+
+   if( *status != SAI__OK )
+      return;
+
+   for( i = 0; i < 2; i++ ){
+      ch = astYamlChan( NULL, NULL, " " );
+      astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/%s.asdf",
+              fixture_dir(), files[ i ] );
+      fs = (AstFrameSet *) astRead( ch );
+      ch = astAnnul( ch );
+      if( !fs ) {
+         printf( "could not read a %s (%s) projection\n", files[ i ],
+                 systems[ i ] );
+         stopit( 90 + i, status );
+         return;
+      }
+
+/* The current Frame must be a SkyFrame: a projection that went unrecognised
+   would leave a plain Frame. */
+      if( !astIsASkyFrame( astGetFrame( fs, AST__CURRENT ) ) ){
+         printf( "%s did not produce a SkyFrame\n", files[ i ] );
+         stopit( 92 + i, status );
+         return;
+      }
+      fs = astAnnul( fs );
+   }
+
+   if( *status != SAI__OK )
+      printf( "HEALPix projection regression test failed\n" );
+}
