@@ -35,6 +35,7 @@ static void test_healpix_projections( int *status );
 static void test_jyear_equinox( int *status );
 static void test_zenithal_perspective_roundtrip( int *status );
 static void test_ortho_polynomial_basis( int *status );
+static void test_asdf_standard_header( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -63,6 +64,7 @@ int main(){
    test_jyear_equinox( status );
    test_zenithal_perspective_roundtrip( status );
    test_ortho_polynomial_basis( status );
+   test_asdf_standard_header( status );
 
    astEnd;
 
@@ -925,4 +927,55 @@ void test_ortho_polynomial_basis( int *status ){
 
    if( *status != SAI__OK )
       printf( "ortho_polynomial basis regression test failed\n" );
+}
+
+void test_asdf_standard_header( int *status ){
+/* Written ASDF must declare the standard version its tags belong to. Without
+   the "#ASDF_STANDARD" line a reader has to assume the oldest standard, whose
+   tag set does not contain the tags written here, and the whole tree comes
+   back untagged - the asdf Python package reports each tag as unrecognised
+   and hands back plain dicts rather than objects. */
+   AstFrameSet *fs;
+   AstYamlChan *ch;
+   FILE *fd;
+   char line[ 80 ];
+   int found;
+
+   if( *status != SAI__OK )
+      return;
+
+/* Any object will do; use the simplest FrameSet available. */
+   fs = astFrameSet( astFrame( 2, "Domain=GRID", status ), " ", status );
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=asdf_header.asdf" );
+   astWrite( ch, fs );
+   ch = astAnnul( ch );
+   fs = astAnnul( fs );
+   if( *status != SAI__OK ) {
+      stopit( 150, status );
+      return;
+   }
+
+   fd = fopen( "asdf_header.asdf", "r" );
+   if( !fd ) {
+      stopit( 151, status );
+      return;
+   }
+
+   found = 0;
+   while( fgets( line, sizeof( line ), fd ) ) {
+      if( !strncmp( line, "#ASDF_STANDARD ", 15 ) ) found = 1;
+
+/* The header comments come before the YAML directives, so stop there. */
+      if( !strncmp( line, "%YAML", 5 ) ) break;
+   }
+   fclose( fd );
+
+   if( !found ) {
+      printf( "written ASDF has no #ASDF_STANDARD line\n" );
+      stopit( 152, status );
+   }
+
+   if( *status != SAI__OK )
+      printf( "ASDF standard header regression test failed\n" );
 }
