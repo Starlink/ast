@@ -34,6 +34,7 @@ static void test_rotate_sequence_3d_roundtrip( int *status );
 static void test_healpix_projections( int *status );
 static void test_jyear_equinox( int *status );
 static void test_zenithal_perspective_roundtrip( int *status );
+static void test_ortho_polynomial_basis( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -61,6 +62,7 @@ int main(){
    test_healpix_projections( status );
    test_jyear_equinox( status );
    test_zenithal_perspective_roundtrip( status );
+   test_ortho_polynomial_basis( status );
 
    astEnd;
 
@@ -866,4 +868,61 @@ void test_zenithal_perspective_roundtrip( int *status ){
 
    if( *status != SAI__OK )
       printf( "zenithal_perspective regression test failed\n" );
+}
+
+void test_ortho_polynomial_basis( int *status ){
+/* A chebyshev ortho_polynomial must read; any other basis must be refused
+   rather than evaluated with Chebyshev basis functions. The two fixtures
+   differ only in polynomial_type and hold a single degree-2 term, so at
+   x = 0.3 the value is 10 + T2(0.3) = 9.18 for chebyshev and would be
+   10 + P2(0.3) = 9.635 for legendre. Before this check both returned 9.18. */
+   AstFrameSet *fs;
+   AstMapping *map;
+   AstYamlChan *ch;
+   double in[ 2 ] = { 0.3, 0.0 };
+   double out[ 1 ];
+
+   if( *status != SAI__OK )
+      return;
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/"
+           "ortho_chebyshev.asdf", fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( !fs ) {
+      stopit( 140, status );
+      return;
+   }
+   map = astGetMapping( fs, AST__BASE, AST__CURRENT );
+   fs = astAnnul( fs );
+   astTranN( map, 1, 2, 1, in, 1, 1, 1, out );
+   map = astAnnul( map );
+
+   if( fabs( out[ 0 ] - 9.18 ) > 1.0E-10 ){
+      if( *status == SAI__OK )
+         printf( "chebyshev ortho_polynomial: got %.15g expected 9.18\n",
+                 out[ 0 ] );
+      stopit( 141, status );
+      return;
+   }
+
+/* The legendre fixture must be refused. The read is meant to fail, so it
+   reports an error; say so first, then check astOK (an AST error does not
+   reach this file's own status variable) and clear it before carrying on. */
+   printf( " The following YamlChan error is expected:\n" );
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/"
+           "ortho_legendre.asdf", fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( astOK ) {
+      printf( "a legendre ortho_polynomial was read as a Chebyshev\n" );
+      if( fs ) fs = astAnnul( fs );
+      stopit( 142, status );
+   }
+   astClearStatus;
+
+   if( *status != SAI__OK )
+      printf( "ortho_polynomial basis regression test failed\n" );
 }

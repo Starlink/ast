@@ -8845,12 +8845,28 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
    int ndim;
    int ndimd;
    int ndimw;
+   const char *polytype;
 
 /* Initialise */
    result = NULL;
 
 /* Check inherited status */
    if( !astOK ) return result;
+
+/* An ortho_polynomial names its basis in the mandatory "polynomial_type"
+   field, which may be "chebyshev", "legendre" or "hermite". Only Chebyshev
+   is supported (astChebyMap below), so check rather than assume: the other
+   two bases have entirely different basis functions, so reading one as a
+   Chebyshev would give a plausible but wrong Mapping. A missing field is
+   taken as Chebyshev so that files which omit it are unaffected. */
+   if( isortho ) {
+      polytype = Get0C( km, "polynomial_type", 1, "chebyshev", status );
+      if( astOK && polytype && strcasecmp( polytype, "chebyshev" ) ) {
+         astError( AST__BYAML, "astRead(YamlChan): The '%s' polynomial_type "
+                   "of an ASDF ortho_polynomial is not supported by AST "
+                   "(only 'chebyshev' is).", status, polytype );
+      }
+   }
 
 /* The coefficients array may be stored in a vector-valued Quantity or in an
    NDarray or in an array of arrays. None of these are primitive and so
