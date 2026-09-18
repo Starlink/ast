@@ -10112,7 +10112,7 @@ static AstMapping *ReadSkyProjection( AstKeyMap *km, int *status ){
          type = AST__ARC;
 
       } else if( strstr( km_class, "/zenithal_perspective-" ) ) {
-         type = AST__SZP;
+         type = AST__AZP;
          pv[ 1 ] = Get0D( km, "mu", 1, 0.0, status );
          pv[ 2 ] = Get0D( km, "gamma", 1, 0.0, status );
          maxm = 2;
@@ -17005,7 +17005,7 @@ static AstKeyMap *WriteWcsMap( AstYamlChan *this, AstWcsMap *map,
    } else if( type == AST__ARC ){
       class = "asdf/transform/zenithal_equidistant-1.2.0";
 
-   } else if( type == AST__SZP ){
+   } else if( type == AST__AZP ){
       class = "asdf/transform/zenithal_perspective-1.3.0";
       astMapPut0D( km_pv, "mu", astGetPV( map, ilat, 1 ), NULL );
       astMapPut0D( km_pv, "gamma", astGetPV( map, ilat, 2 ), NULL );

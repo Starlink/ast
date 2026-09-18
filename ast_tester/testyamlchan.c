@@ -33,6 +33,7 @@ static void test_divide_roundtrip( int *status );
 static void test_rotate_sequence_3d_roundtrip( int *status );
 static void test_healpix_projections( int *status );
 static void test_jyear_equinox( int *status );
+static void test_zenithal_perspective_roundtrip( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -59,6 +60,7 @@ int main(){
    test_rotate_sequence_3d_roundtrip( status );
    test_healpix_projections( status );
    test_jyear_equinox( status );
+   test_zenithal_perspective_roundtrip( status );
 
    astEnd;
 
@@ -788,4 +790,80 @@ void test_jyear_equinox( int *status ){
 
    if( *status != SAI__OK )
       printf( "jyear equinox regression test failed\n" );
+}
+
+void test_zenithal_perspective_roundtrip( int *status ){
+/* An AZP WCS written out as ASDF and read back must give the same sky
+   positions. zenithal_perspective is AZP: its mu and gamma are AZP's PV2_1
+   and PV2_2, where SZP's second and third parameters are phi_c and theta_c.
+   Reading it as AST__SZP therefore feeds gamma in as phi_c, and writing an
+   AST__AZP WcsMap matched no branch at all. */
+   const char *cards[] = {
+      "CRPIX1  =                -6.0", "CRPIX2  =                 7.0",
+      "CDELT1  =                -6.0", "CDELT2  =                 6.0",
+      "CTYPE1  = 'RA---AZP'",          "CTYPE2  = 'DEC--AZP'",
+      "CRVAL1  =                  0.0","CRVAL2  =               -90.0",
+      "PV2_1   =                  2.0","PV2_2   =                30.0",
+      "LONPOLE =                180.0","RADESYS = 'ICRS'", NULL };
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   AstFrameSet *fs2;
+   AstYamlChan *ch;
+   double x[2] = { 1.0, 5.0 };
+   double y[2] = { 1.0, 9.0 };
+   double a[2], b[2], a2[2], b2[2];
+   int i;
+
+   if( *status != SAI__OK )
+      return;
+
+/* Build the AZP WCS through a FitsChan, which is the reference here. */
+   fc = astFitsChan( NULL, NULL, " " );
+   for( i = 0; cards[ i ]; i++ ) astPutFits( fc, cards[ i ], 0 );
+   astClear( fc, "Card" );
+   fs = (AstFrameSet *) astRead( fc );
+   fc = astAnnul( fc );
+   if( !fs ) {
+      stopit( 80, status );
+      return;
+   }
+   astTran2( fs, 2, x, y, 1, a, b );
+
+/* Write it as ASDF and read it back. */
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=azp_roundtrip.asdf" );
+   astWrite( ch, fs );
+   ch = astAnnul( ch );
+   fs = astAnnul( fs );
+   if( *status != SAI__OK ) {
+      printf( "failed to write an AZP WcsMap as ASDF\n" );
+      stopit( 81, status );
+      return;
+   }
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=azp_roundtrip.asdf" );
+   fs2 = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( !fs2 ) {
+      stopit( 82, status );
+      return;
+   }
+   astTran2( fs2, 2, x, y, 1, a2, b2 );
+   fs2 = astAnnul( fs2 );
+
+   for( i = 0; i < 2; i++ ){
+      if( fabs( a2[ i ] - a[ i ] ) > 1.0E-10 ||
+          fabs( b2[ i ] - b[ i ] ) > 1.0E-10 ){
+         if( *status == SAI__OK )
+            printf( "zenithal_perspective point %d: got (%.15g, %.15g) "
+                    "expected (%.15g, %.15g)\n", i, a2[ i ], b2[ i ],
+                    a[ i ], b[ i ] );
+         stopit( 83 + i, status );
+         break;
+      }
+   }
+
+   if( *status != SAI__OK )
+      printf( "zenithal_perspective regression test failed\n" );
 }
