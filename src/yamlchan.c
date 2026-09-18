@@ -197,6 +197,13 @@ f     The YamlChan class does not define any new routines beyond those
 /* The ASDF version header. */
 #define ASDF_HEADER "#ASDF 1.0.0"
 
+/* The ASDF standard version the written tags belong to. Without this line a
+   reader has to assume the oldest standard, whose tag set does not include
+   the tags written here, and the whole tree comes back untagged. 1.5.0 is the
+   version whose tag set matches what this class writes: its core/asdf is
+   1.1.0 (see ROOT_TAG) and its core/ndarray is 1.0.0. */
+#define ASDF_STANDARD_HEADER "#ASDF_STANDARD 1.5.0"
+
 /* The major version numbers required by this module for the two
    supported STSci schemas (gwcs/ and asdf/transform/). */
 #define TRANSFORM_MAJOR 1
@@ -12653,6 +12660,8 @@ static void StartYamlDoc( AstYamlChan *this, AstYamlEmitter *emitter,
    tag_prefix = NULL;
    if( enc == ASDF_ENCODING ) {
       AstYamlWriter( this, (unsigned char *) ASDF_HEADER, strlen(ASDF_HEADER) );
+      AstYamlWriter( this, (unsigned char *) ASDF_STANDARD_HEADER,
+                     strlen(ASDF_STANDARD_HEADER) );
       tag_prefix = ASDF_TAG;
 
    } else if( enc == NATIVE_ENCODING ) {

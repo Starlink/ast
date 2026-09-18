@@ -231,6 +231,7 @@ void test_asdf_header( int *status ){
 #if defined(YAML)
    static const char *expected[] = {
       "#ASDF 1.0.0\n",
+      "#ASDF_STANDARD 1.5.0\n",
       "%YAML 1.1\n",
       "%TAG ! tag:stsci.edu:asdf/\n",
       "--- !core/asdf-1.1.0\n",
@@ -238,6 +239,7 @@ void test_asdf_header( int *status ){
 #elif defined(FYAML)
    static const char *expected[] = {
       "#ASDF 1.0.0\n",
+      "#ASDF_STANDARD 1.5.0\n",
       "%YAML 1.1\n",
       "%TAG ! tag:stsci.edu:asdf/\n",
       "---\n",
@@ -1758,3 +1760,4 @@ void test_ortho_polynomial_basis( int *status ){
    if( *status != SAI__OK )
       printf( "ortho_polynomial basis regression test failed\n" );
 }
+
