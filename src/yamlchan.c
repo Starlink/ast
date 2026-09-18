@@ -5644,8 +5644,15 @@ static int IsATransform( const char *class, int *status ){
 }
 
 static int IsASkyProjection( const char *class, int *status ){
+
+/* The two HEALPix projections are in none of the six families below, so
+   without naming them here they are never recognised as sky projections and
+   the /healpix- and /healpix_polar- branches of ReadSkyProjection() cannot
+   be reached. */
    return IsAConic( class, status ) ||
           IsACylindrical( class, status ) ||
+          IsAHealpix( class, status ) ||
+          IsAHealpix_Polar( class, status ) ||
           IsAPseudoConic( class, status ) ||
           IsAPseudoCylindrical( class, status ) ||
           IsAQuadCube( class, status ) ||
