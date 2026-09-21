@@ -90,17 +90,15 @@
 *     9-MAY-2011 (DSB):
 *        Change "A" to be Ampere (as defined by FITS-WCS paper 1) rather
 *        than "Angstrom".
-*     16-SEP-2026 (TIMJ):
-*        Added astNormUnit, which normalises a units string but
-*        returns it unchanged when it has no normalised form.
 *     21-SEP-2026 (TIMJ):
-*        astUnitNormaliser no longer replaces an inherited error with
-*        AST__BADUN, and astNormUnit only recovers from AST__BADUN, so
-*        that an allocation failure is still reported to the caller.
-*     21-SEP-2026 (TIMJ):
-*        Check the allocations made while parsing and formatting a units
-*        expression, so that a failure reports an error rather than
-*        dereferencing a null pointer.
+*        - Added astNormUnit, which normalises a units string but
+*          returns it unchanged when it has no normalised form.
+*        - astUnitNormaliser no longer replaces an inherited error with
+*          AST__BADUN, and astNormUnit only recovers from AST__BADUN, so
+*          that an allocation failure is still reported to the caller.
+*        - Check the allocations made while parsing and formatting a units
+*          expression, so that a failure reports an error rather than
+*          dereferencing a null pointer.
 */
 
 /* Module Macros. */
@@ -6386,7 +6384,3 @@ static const char *TreeExp( UnitNode *node ) {
 }
 
 */
-
-
-
-
