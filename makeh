@@ -10,7 +10,7 @@
 #     Perl script.
 
 #  Invocation:
-#     makeh file_list
+#     makeh [-s srcdir] [-b builddir] [-o outfile] file_list
 
 #  Description:
 #     This script processes private header files used within the AST library
@@ -19,12 +19,31 @@
 #     which defines the public interface to the library.
 
 #  Parameters:
+#     -s srcdir
+#        The directory holding the distributed source files. Defaults to ".".
+#     -b builddir
+#        The directory holding the generated files (ast_err.h, config.h,
+#        src/version.h, src/object.h). Defaults to ".". The scratch directory
+#        is created here, so it must be writable.
+#     -o outfile
+#        Write the result to this file rather than to standard output. The
+#        file is replaced only once the whole run has succeeded, so a failure
+#        leaves any existing file untouched rather than truncated.
 #     file_list
 #        A space-separated list of the private AST header files whose public
-#        information is to be extracted.
+#        information is to be extracted. Each is looked for in builddir first
+#        and then in srcdir.
 
 #  Result:
-#     The contents of the "ast.h" header file are written to standard output.
+#     The contents of the "ast.h" header file are written to standard output,
+#     or to the file named by "-o".
+
+#  Environment:
+#     CPP
+#        The C pre-processor command, including any flags: "gcc -E", for
+#        instance. Defaults to "cc -E". The build system passes the same
+#        pre-processor it uses for the rest of the build, because the result
+#        depends on that compiler's config.h and built-in macros.
 
 #  Notes:
 #     - This script is specific to the AST library and contains some knowledge
@@ -55,6 +74,13 @@
 #        Force removal of temp directory.  In certain build scenarios (e.g.
 #        "make distcheck") some generated files may default to read-only
 #        permissions, necessitating the "-f" flag to "rm".
+#     21-SEP-2026 (EMB):
+#        - Remove use of ast_cpp wrapper script in favor of taking a cpp to
+#        invoke from the CPP environment variable.
+#        - Added the -o option to output to a file rather than stdout (easier
+#        for build systems to manage and prevents writing a truncated ast.h on
+#        failure). Also documented the -s and -b flags added previously.
+#        - Respect the -b flag when locating the config.h to use.
 #-
 
 ( $#ARGV >= 0 ) || Usage();
@@ -71,6 +97,9 @@ $srcdir = '.';
 # rather than in $srcdir for out-of-source builds.  Defaults to '.'.
 $builddir = '.';
 
+# Where to write the result.  Empty or '-' means standard output.
+$outfile = '';
+
 while ( $ARGV[0] =~ /^-/ ) {
    if ( $ARGV[0] eq '-s' ) {
       shift @ARGV;
@@ -82,13 +111,26 @@ while ( $ARGV[0] =~ /^-/ ) {
       ( $#ARGV >= 0 ) || Usage();
       $builddir = $ARGV[0];
       shift @ARGV;
+   } elsif ( $ARGV[0] eq '-o' ) {
+      shift @ARGV;
+      ( $#ARGV >= 0 ) || Usage();
+      $outfile = $ARGV[0];
+      shift @ARGV;
+      if ( $outfile eq '-' ) {  # Same as no -o
+         $outfile = '';
+      }
    } else {
       Usage();
    }
 }
 
-#  Create a scratch directory.
-$tmpdir="/tmp/makeh-$$.tmp";
+#  The C pre-processor to run, command and flags together, as the CPP
+#  environment variable spells it.
+@cpp = split( ' ', $ENV{CPP} || 'cc -E' );
+
+#  Create a scratch directory.  It goes in the build tree rather than in
+#  /tmp because the pre-processor reads the scratch .c file from it.
+$tmpdir="$builddir/makeh-$$.tmp";
 unless ( -d $tmpdir && -w $tmpdir ) {
     if ( -e $tmpdir ) {
         die "Temp $tmpdir exists, but is unwritable or is not a directory\n";
@@ -97,22 +139,34 @@ unless ( -d $tmpdir && -w $tmpdir ) {
         die "Failed to create temporary directory $tmpdir\n";
 }
 
+#  Open the output file, if one was named, and make it the destination of
+#  the plain "print"s below.  It is written under a temporary name and moved
+#  into place at the end, so that a failure part way through does not leave
+#  a truncated header behind for the rest of the build to compile against.
+if ( $outfile ne '' ) {
+   $tmpout = "$outfile.tmp$$";
+   open( OUT, ">$tmpout" ) || die "Can't create $tmpout: $!\n";
+   select( OUT );
+}
+
 #  Open each input file.
 foreach $file ( @ARGV ) {
    protect_copy_file( $file );
 }
 
 
-#  Open a pipe to a script (in the current directory) which runs the C
-# preprocessor and direct its output to a scratch file.
-open( CC, "| ./ast_cpp $tmpdir >/tmp/ast-$$.h" ) ||
-                                die "Can't open pipe to C preprocessor (cpp)";
+#  Write the scratch .c file which includes each of the protected copies
+#  made above.  It goes in the scratch directory beside them, so that the
+#  quoted #include lines resolve relative to it.
+$cppin = "$tmpdir/makeh.c";
+open( CC, ">$cppin" ) || die "Can't create $cppin: $!\n";
 
 if ( $need_config_h ) {
-# Include this directory's config.h, unescaped, in the output.  We
+# Include the build directory's config.h, unescaped, in the output.  We
 # need to pay attention to the values in this file, but don't want
 # them unexpanded in the final ast.h.
-    system("cp ./config.h $tmpdir/config.h");
+    system( "cp", "$builddir/config.h", "$tmpdir/config.h" ) == 0
+        || die "Can't copy $builddir/config.h to $tmpdir\n";
     print(CC "#include \"config.h\"\n");
 }
 
@@ -134,11 +188,8 @@ foreach $file ( @ARGV ) {
    printf(CC "#include \"%s\"\n", $tmp_file);
 };
 
-#  Close the pipe to cpp.
-close( CC ) || die "C preprocessor (cpp) error";
-
-#  Remove the temporary directory and the files it contains.
-print( stderr `rm -rf $tmpdir` );
+#  Close the scratch .c file.
+close( CC ) || die "Error writing $cppin: $!\n";
 
 #  Write the output preamble.
 print(
@@ -212,9 +263,13 @@ print( ' (makeh):
 
 ' );
 
-#  Open the scratch file created above and read it.
+#  Run the pre-processor on the scratch file created above and read its
+#  output.  No -I is needed: the file sits in the same directory as the
+#  headers it includes.
 $space = 0;
-open( TEMP, "</tmp/ast-$$.h" );
+$nlines = 0;
+open( TEMP, '-|', @cpp, $cppin )
+    || die "Can't run C pre-processor (@cpp): $!\n";
 while( <TEMP> ) {
 
 #  Remove the underscores from the protected lines and macros.
@@ -241,9 +296,16 @@ while( <TEMP> ) {
 
 #  Output the lines we want to keep.
          print;
+         $nlines++;
       }
    }
 }
+
+#  A pre-processor that fails must stop the build here.  Outerwise, it
+#  outputs a header that is empty but for the preamble, and the failure only
+#  shows up much later in whatever includes ast.h.
+close( TEMP ) || die "C pre-processor (@cpp) failed\n";
+( $nlines > 0 ) || die "C pre-processor (@cpp) produced no output\n";
 
 #  Write closing output lines.
 print(
@@ -251,9 +313,23 @@ print(
 #endif
 ' );
 
-#  Close and remove the scratch file.
-close( TEMP );
-unlink "/tmp/ast-$$.h";
+#  Move the completed output into place.
+if ( $outfile ne '' ) {
+   select( STDOUT );
+   close( OUT ) || die "Error writing $tmpout: $!\n";
+   rename( $tmpout, $outfile )
+       || die "Can't rename $tmpout to $outfile: $!\n";
+}
+
+#  Remove the scratch directory, and the part-written output if we are
+#  leaving early.  Some generated files default to read-only permissions
+#  (under "make distcheck", for one), hence the "-f".
+END {
+   my $status = $?;
+   system( "rm", "-rf", $tmpdir ) if defined( $tmpdir ) && -d $tmpdir;
+   unlink( $tmpout ) if defined( $tmpout ) && -f $tmpout;
+   $? = $status;
+}
 
 
 sub protect_copy_file {
@@ -341,6 +417,6 @@ line: while ( <INCLUDE> ) {
 }
 
 sub Usage {
-   print STDERR "$0 [-s srcdir] [-b builddir] file...\n";
+   print STDERR "$0 [-s srcdir] [-b builddir] [-o outfile] file...\n";
    exit (1);
 }
