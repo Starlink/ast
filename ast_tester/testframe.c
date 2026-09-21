@@ -95,6 +95,51 @@ int main( void ) {
       perm = astAnnul( perm );
    }
 
+/* A SkyFrame axis reports a description of its values rather than a unit
+   for them whenever its Format calls for more than one sexagesimal field,
+   or for a single field of a time. Those descriptions contain spaces,
+   which the units parser reads as multiplication, so they have to be left
+   alone. A Format that names a single field of an angle, and a Unit set
+   explicitly, both give units expressions which are simplified as usual. */
+   {
+      const char *attrs[ 6 ] = { "Format(1)=bhms", "Format(1)=bdms.2",
+                                 "Format(1)=btm", "Format(1)=bts",
+                                 "Format(1)=bd", "Unit(1)=s*(m/s)" };
+      const char *units[ 6 ] = { "hh mm ss", "ddd mm ss.ss",
+                                 "minutes of time", "seconds of time",
+                                 "degrees", "s*(m/s)" };
+      const char *norms[ 6 ] = { "hh mm ss", "ddd mm ss.ss",
+                                 "minutes of time", "seconds of time",
+                                 "deg", "m" };
+      int i;
+
+      for( i = 0; i < 6 && astOK; i++ ) {
+         AstSkyFrame *sf = astSkyFrame( attrs[ i ] );
+         const char *unit = astGetC( sf, "Unit(1)" );
+         char saved[ 128 ];
+
+         if( astOK ) {
+            const char *norm;
+
+            snprintf( saved, sizeof( saved ), "%s", unit ? unit : "" );
+            if( strcmp( saved, units[ i ] ) ) {
+               astError( AST__INTER, "Unit(1) of a SkyFrame with %s is "
+                         "'%s', expected '%s'", attrs[ i ], saved,
+                         units[ i ] );
+            }
+
+            norm = astGetC( sf, "NormUnit(1)" );
+            if( astOK && ( !norm || strcmp( norm, norms[ i ] ) ) ) {
+               astError( AST__INTER, "NormUnit(1) of a SkyFrame with %s is "
+                         "'%s', expected '%s'", attrs[ i ],
+                         norm ? norm : "<NULL>", norms[ i ] );
+            }
+         }
+
+         sf = astAnnul( sf );
+      }
+   }
+
 /* astAxAngle: when the offset position has a zero component on the
    measured axis but a non-zero component on the other axis, the angle is
    still well defined. Previously the nudge applied to break the
