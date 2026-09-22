@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.4.1) of the Starlink AST (astrometry) library is
+   A new release (V9.5.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -16,6 +16,53 @@ environment-independent.
 
 Main Changes in this Version
 ----------------------------
+
+*** IMPORTANT - a change in documented behaviour ***
+
+- The NormUnit attribute of a Frame is now derived from the value of the
+  Frame's Unit attribute, as documented, and equals Unit whenever no
+  simplification is possible. Previously NormUnit was derived from the Unit
+  of the underlying Axis, bypassing the Unit values reported by SkyFrame,
+  SpecFrame, TimeFrame and FluxFrame, and reading it raised an error for any
+  Unit that could not be parsed as a units expression (for example a blank
+  Unit, or the sexagesimal descriptions such as "hh:mm:ss.s" used by SkyFrame
+  axes). For example, a TimeFrame now reports NormUnit "d" rather than a
+  blank string, and a SkyFrame axis reports its Unit value unchanged.
+  Code that recorded the old NormUnit values will see different results.
+
+Bug fixes
+---------
+
+- The astEQUAL comparison used internally by AST could overflow for values
+  near the top of the double precision range, causing any value to compare
+  equal to such a value. One consequence was that a FrameSet whose spectral
+  axis is described by a LutMap was written to a FitsChan as an empty
+  header, rather than as a -TAB axis, even with TabOK set. This was a
+  regression introduced in V9.4.0.
+
+- Allocation failures while normalising a units string are now reported as
+  errors rather than crashing the library.
+
+Build system changes
+--------------------
+
+- On macOS, programs linked with -dead_strip_dylibs (as used by conda-forge,
+  among others) no longer lose the graphics and error-reporting satellite
+  libraries, which previously caused a segfault on the first error report.
+
+- The CMake build now installs the same files as the autotools build: public
+  headers go to include/star (with an AST_WITH_TOPINCLUDE option matching
+  --with-topinclude), all libraries are built both shared and static, the
+  ast_ems, ast_drama, ast_pgplot and ast_pgplot3d libraries are provided,
+  PAL and CMINPACK are built as separate libraries, the macOS library
+  version numbers match those from libtool, and ast_link and ast_link_adam
+  are installed.
+
+- The CMake build now refuses to configure if stale generated headers from
+  an earlier autotools build are present in the source tree.
+
+Main Changes in V9.4.1
+----------------------
 
 This release only makes changes to the new out-of-Starlink build system to fix
 some issues with the distribution tar file noticed during the conda build.
