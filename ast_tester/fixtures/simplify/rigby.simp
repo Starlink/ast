@@ -94,7 +94,6 @@
                                   MapB = 	# Second component Mapping
                                      Begin CmpMap 	# Compound Mapping
                                         Nin = 2 	# Number of input coordinates
-                                        IsSimp = 1 	# Mapping has been simplified
                                      IsA Mapping 	# Mapping between coordinate systems
                                         InvA = 1 	# First Mapping used in inverse direction
                                         MapA = 	# First component Mapping

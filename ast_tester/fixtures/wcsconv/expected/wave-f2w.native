@@ -143,7 +143,6 @@ MAPB_E  = '        '           / Second component Mapping
 BEGAST_V= 'CmpMap  '           / Compound Mapping                               
 NIN_K   =                    3 / Number of input coordinates                    
 NOUT_B  =                    2 / Number of output coordinates                   
-ISSIMP_E=                    1 / Mapping has been simplified                    
 ISA_N   = 'Mapping '           / Mapping between coordinate systems             
 MAPA_F  = '        '           / First component Mapping                        
 BEGAST_W= 'MatrixMap'          / Matrix transformation                          
