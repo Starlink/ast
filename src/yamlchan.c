@@ -150,6 +150,13 @@ f     The YamlChan class does not define any new routines beyond those
 /* The ASDF version header. */
 #define ASDF_HEADER "#ASDF 1.0.0"
 
+/* The ASDF standard version the written tags belong to. Without this line a
+   reader has to assume the oldest standard, whose tag set does not include
+   the tags written here, and the whole tree comes back untagged. 1.5.0 is the
+   version whose tag set matches what this class writes: its core/asdf is
+   1.1.0 (see ROOT_TAG) and its core/ndarray is 1.0.0. */
+#define ASDF_STANDARD_HEADER "#ASDF_STANDARD 1.5.0"
+
 /* The major version numbers required by this module for the two
    supported STSci schemas (gwcs/ and asdf/transform/). */
 #define TRANSFORM_MAJOR 1
@@ -505,7 +512,7 @@ static int Get1I( AstKeyMap *, const char *, int, int, int *, int *, int * );
 static int GetChoice( AstKeyMap *, const char *, const char *, int, int, int * );
 static int IsA( AstKeyMap *, const char *, int * );
 static int LibYamlReader( void *, yaml_char_t *, size_t, size_t * );
-static int LibYamlWriter( void *, yaml_char_t *, long unsigned int );
+static int LibYamlWriter( void *, yaml_char_t *, size_t );
 static int ReadBaseFrame( AstKeyMap *, AstSkyFrame *, int * );
 static int SimplifyAsdf( AstYamlChan *, AstKeyMap **, int *);
 static int Use( AstYamlChan *, int, int, int * );
@@ -5056,19 +5063,19 @@ static double GetTime( AstKeyMap *km, const char *name, AstFrame *frm,
    required by the TimeFrame. */
    if( format ) {
       if( !strcmp( format, "byear" ) &&
-          strncasecmp( format, "B", 1 ) ){
+          strncasecmp( value, "B", 1 ) ){
          sprintf( vbuf, "B%s", value );
          value = vbuf;
       } else if( !strcmp( format, "jyear" ) &&
-                 strncasecmp( format, "J", 1 ) ){
+                 strncasecmp( value, "J", 1 ) ){
          sprintf( vbuf, "J%s", value );
          value = vbuf;
       } else if( !strcmp( format, "jd" ) &&
-                 strncasecmp( format, "JD", 2 ) ){
+                 strncasecmp( value, "JD", 2 ) ){
          sprintf( vbuf, "JD %s", value );
          value = vbuf;
       } else if( !strcmp( format, "mjd" ) &&
-                 strncasecmp( format, "MJD", 2 ) ){
+                 strncasecmp( value, "MJD", 3 ) ){
          sprintf( vbuf, "MJD %s", value );
          value = vbuf;
       }
@@ -5452,7 +5459,7 @@ static int IsA##Class( const char *class, int *status ){ \
             } else if( minor > Minor ){ \
                astError( AST__BASDF, "astRead(YamlChan): ASDF class (%s) " \
                          "unsupported minor version number %d (should be " \
-                         "at least %d).", status, class, minor, Minor ); \
+                         "at most %d).", status, class, minor, Minor ); \
             } \
    \
          } else {  \
@@ -5529,7 +5536,7 @@ MAKE_TEST(Icrs,astropy/coordinates/frames,1,1)
 MAKE_TEST(Time,asdf/time,1,1)
 MAKE_TEST(EarthLocation,astropy/coordinates/earthlocation,1,0)
 MAKE_TEST(Quantity,asdf/unit,1,1)
-MAKE_TEST(NDArray,asdf/core,1,1)
+MAKE_TEST(NDArray,asdf/core,1,2)
 #undef MAKE_TEST
 
 
@@ -5576,7 +5583,7 @@ static int IsA##Class( const char *class, int *status ){ \
                } else if( minor < Minor ){ \
                   astError( AST__BASDF, "astRead(YamlChan): ASDF class (%s) " \
                             "unsupported minor version number %d (should be " \
-                            "at least %d).", status, class, minor, Minor ); \
+                            "at most %d).", status, class, minor, Minor ); \
                } \
 \
             } else { \
@@ -5644,8 +5651,15 @@ static int IsATransform( const char *class, int *status ){
 }
 
 static int IsASkyProjection( const char *class, int *status ){
+
+/* The two HEALPix projections are in none of the six families below, so
+   without naming them here they are never recognised as sky projections and
+   the /healpix- and /healpix_polar- branches of ReadSkyProjection() cannot
+   be reached. */
    return IsAConic( class, status ) ||
           IsACylindrical( class, status ) ||
+          IsAHealpix( class, status ) ||
+          IsAHealpix_Polar( class, status ) ||
           IsAPseudoConic( class, status ) ||
           IsAPseudoCylindrical( class, status ) ||
           IsAQuadCube( class, status ) ||
@@ -6348,7 +6362,7 @@ static int LibYamlReader( void *data, yaml_char_t *buffer, size_t size,
 }
 
 static int LibYamlWriter( void *data, yaml_char_t *buffer,
-                          long unsigned int size ){
+                          size_t size ){
 /*
 *  Name:
 *     LibYamlWriter
@@ -6362,7 +6376,7 @@ static int LibYamlWriter( void *data, yaml_char_t *buffer,
 *  Synopsis:
 *     #include "yamlchan.h"
 *     int LibYamlWriter( void *data, yaml_char_t *buffer,
-*                        long unsigned int size )
+*                        size_t size )
 
 *  Class Membership:
 *     YamlChan member function.
@@ -8838,12 +8852,28 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
    int ndim;
    int ndimd;
    int ndimw;
+   const char *polytype;
 
 /* Initialise */
    result = NULL;
 
 /* Check inherited status */
    if( !astOK ) return result;
+
+/* An ortho_polynomial names its basis in the mandatory "polynomial_type"
+   field, which may be "chebyshev", "legendre" or "hermite". Only Chebyshev
+   is supported (astChebyMap below), so check rather than assume: the other
+   two bases have entirely different basis functions, so reading one as a
+   Chebyshev would give a plausible but wrong Mapping. A missing field is
+   taken as Chebyshev so that files which omit it are unaffected. */
+   if( isortho ) {
+      polytype = Get0C( km, "polynomial_type", 1, "chebyshev", status );
+      if( astOK && polytype && strcasecmp( polytype, "chebyshev" ) ) {
+         astError( AST__BYAML, "astRead(YamlChan): The '%s' polynomial_type "
+                   "of an ASDF ortho_polynomial is not supported by AST "
+                   "(only 'chebyshev' is).", status, polytype );
+      }
+   }
 
 /* The coefficients array may be stored in a vector-valued Quantity or in an
    NDarray or in an array of arrays. None of these are primitive and so
@@ -10105,7 +10135,7 @@ static AstMapping *ReadSkyProjection( AstKeyMap *km, int *status ){
          type = AST__ARC;
 
       } else if( strstr( km_class, "/zenithal_perspective-" ) ) {
-         type = AST__SZP;
+         type = AST__AZP;
          pv[ 1 ] = Get0D( km, "mu", 1, 0.0, status );
          pv[ 2 ] = Get0D( km, "gamma", 1, 0.0, status );
          maxm = 2;
@@ -11939,7 +11969,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
@@ -12017,7 +12047,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
@@ -12092,7 +12122,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
@@ -12360,6 +12390,8 @@ static void StartYamlDoc( AstYamlChan *this, yaml_emitter_t *emitter,
    enc = astGetYamlEncoding( this );
    if( enc == ASDF_ENCODING ) {
       LibYamlWriter( this, (yaml_char_t *) ASDF_HEADER, strlen(ASDF_HEADER) );
+      LibYamlWriter( this, (yaml_char_t *) ASDF_STANDARD_HEADER,
+                     strlen(ASDF_STANDARD_HEADER) );
       tag.prefix = (yaml_char_t *) ASDF_TAG;
 
    } else if( enc == NATIVE_ENCODING ) {
@@ -16998,7 +17030,7 @@ static AstKeyMap *WriteWcsMap( AstYamlChan *this, AstWcsMap *map,
    } else if( type == AST__ARC ){
       class = "asdf/transform/zenithal_equidistant-1.2.0";
 
-   } else if( type == AST__SZP ){
+   } else if( type == AST__AZP ){
       class = "asdf/transform/zenithal_perspective-1.3.0";
       astMapPut0D( km_pv, "mu", astGetPV( map, ilat, 1 ), NULL );
       astMapPut0D( km_pv, "gamma", astGetPV( map, ilat, 2 ), NULL );

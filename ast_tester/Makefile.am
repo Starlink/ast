@@ -545,6 +545,8 @@ EXTRA_DIST += \
 # distcleancheck reports them as files left in the build tree.
 CLEANFILES = \
     keymap_mapsz.out \
+    asdf_header.asdf \
+    azp_roundtrip.asdf \
     divide_roundtrip.asdf \
     draw3d.txt \
     fred.tmp \

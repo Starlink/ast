@@ -31,6 +31,12 @@ static void test_native_encoding_roundtrip( int *status );
 static void test_sphmap_roundtrip( int *status );
 static void test_divide_roundtrip( int *status );
 static void test_rotate_sequence_3d_roundtrip( int *status );
+static void test_healpix_projections( int *status );
+static void test_jyear_equinox( int *status );
+static void test_zenithal_perspective_roundtrip( int *status );
+static void test_ortho_polynomial_basis( int *status );
+static void test_asdf_standard_header( int *status );
+static void test_ndarray_1_2( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -55,6 +61,12 @@ int main(){
    test_sphmap_roundtrip( status );
    test_divide_roundtrip( status );
    test_rotate_sequence_3d_roundtrip( status );
+   test_healpix_projections( status );
+   test_jyear_equinox( status );
+   test_zenithal_perspective_roundtrip( status );
+   test_ortho_polynomial_basis( status );
+   test_asdf_standard_header( status );
+   test_ndarray_1_2( status );
 
    astEnd;
 
@@ -705,4 +717,321 @@ void test_rotate_sequence_3d_roundtrip( int *status ){
 
    if( *status != SAI__OK )
       printf( "rotate_sequence_3d and null-transform regression test failed\n" );
+}
+
+void test_healpix_projections( int *status ){
+/* Both HEALPix projections must be recognised as sky projections. They are
+   in none of the six families IsASkyProjection() tests, so without their
+   own entries the /healpix- and /healpix_polar- branches of
+   ReadSkyProjection() cannot be reached and a WCS using either fails to
+   read at all. */
+   const char *files[ 2 ] = { "healpix", "healpix_polar" };
+   const char *systems[ 2 ] = { "HPX", "XPH" };
+   AstFrameSet *fs;
+   AstYamlChan *ch;
+   int i;
+
+   if( *status != SAI__OK )
+      return;
+
+   for( i = 0; i < 2; i++ ){
+      ch = astYamlChan( NULL, NULL, " " );
+      astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/%s.asdf",
+              fixture_dir(), files[ i ] );
+      fs = (AstFrameSet *) astRead( ch );
+      ch = astAnnul( ch );
+      if( !fs ) {
+         printf( "could not read a %s (%s) projection\n", files[ i ],
+                 systems[ i ] );
+         stopit( 90 + i, status );
+         return;
+      }
+
+/* The current Frame must be a SkyFrame: a projection that went unrecognised
+   would leave a plain Frame. */
+      if( !astIsASkyFrame( astGetFrame( fs, AST__CURRENT ) ) ){
+         printf( "%s did not produce a SkyFrame\n", files[ i ] );
+         stopit( 92 + i, status );
+         return;
+      }
+      fs = astAnnul( fs );
+   }
+
+   if( *status != SAI__OK )
+      printf( "HEALPix projection regression test failed\n" );
+}
+
+void test_jyear_equinox( int *status ){
+/* An equinox given as {value: 2000.0, format: jyear} must come back as
+   epoch 2000. GetTime() has to prepend the "J" that the TimeFrame needs,
+   and its guard tested the format string rather than the value; since
+   "jyear" itself starts with a "j" the prefix was never added and the bare
+   number was read as an MJD, giving epoch 1864 - wrong by the best part of
+   two degrees of precession, with nothing reported. */
+   AstFrameSet *fs;
+   AstYamlChan *ch;
+   double equinox;
+
+   if( *status != SAI__OK )
+      return;
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/"
+           "fk5_jyear_equinox.asdf", fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( !fs ) {
+      stopit( 110, status );
+      return;
+   }
+
+   equinox = astGetD( fs, "Equinox" );
+   fs = astAnnul( fs );
+
+   if( fabs( equinox - 2000.0 ) > 1.0E-6 ){
+      if( *status == SAI__OK )
+         printf( "Equinox: got %.10g expected 2000\n", equinox );
+      stopit( 111, status );
+   }
+
+   if( *status != SAI__OK )
+      printf( "jyear equinox regression test failed\n" );
+}
+
+void test_zenithal_perspective_roundtrip( int *status ){
+/* An AZP WCS written out as ASDF and read back must give the same sky
+   positions. zenithal_perspective is AZP: its mu and gamma are AZP's PV2_1
+   and PV2_2, where SZP's second and third parameters are phi_c and theta_c.
+   Reading it as AST__SZP therefore feeds gamma in as phi_c, and writing an
+   AST__AZP WcsMap matched no branch at all. */
+   const char *cards[] = {
+      "CRPIX1  =                -6.0", "CRPIX2  =                 7.0",
+      "CDELT1  =                -6.0", "CDELT2  =                 6.0",
+      "CTYPE1  = 'RA---AZP'",          "CTYPE2  = 'DEC--AZP'",
+      "CRVAL1  =                  0.0","CRVAL2  =               -90.0",
+      "PV2_1   =                  2.0","PV2_2   =                30.0",
+      "LONPOLE =                180.0","RADESYS = 'ICRS'", NULL };
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   AstFrameSet *fs2;
+   AstYamlChan *ch;
+   double x[2] = { 1.0, 5.0 };
+   double y[2] = { 1.0, 9.0 };
+   double a[2], b[2], a2[2], b2[2];
+   int i;
+
+   if( *status != SAI__OK )
+      return;
+
+/* Build the AZP WCS through a FitsChan, which is the reference here. */
+   fc = astFitsChan( NULL, NULL, " " );
+   for( i = 0; cards[ i ]; i++ ) astPutFits( fc, cards[ i ], 0 );
+   astClear( fc, "Card" );
+   fs = (AstFrameSet *) astRead( fc );
+   fc = astAnnul( fc );
+   if( !fs ) {
+      stopit( 80, status );
+      return;
+   }
+   astTran2( fs, 2, x, y, 1, a, b );
+
+/* Write it as ASDF and read it back. */
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=azp_roundtrip.asdf" );
+   astWrite( ch, fs );
+   ch = astAnnul( ch );
+   fs = astAnnul( fs );
+   if( *status != SAI__OK ) {
+      printf( "failed to write an AZP WcsMap as ASDF\n" );
+      stopit( 81, status );
+      return;
+   }
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=azp_roundtrip.asdf" );
+   fs2 = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( !fs2 ) {
+      stopit( 82, status );
+      return;
+   }
+   astTran2( fs2, 2, x, y, 1, a2, b2 );
+   fs2 = astAnnul( fs2 );
+
+   for( i = 0; i < 2; i++ ){
+      if( fabs( a2[ i ] - a[ i ] ) > 1.0E-10 ||
+          fabs( b2[ i ] - b[ i ] ) > 1.0E-10 ){
+         if( *status == SAI__OK )
+            printf( "zenithal_perspective point %d: got (%.15g, %.15g) "
+                    "expected (%.15g, %.15g)\n", i, a2[ i ], b2[ i ],
+                    a[ i ], b[ i ] );
+         stopit( 83 + i, status );
+         break;
+      }
+   }
+
+   if( *status != SAI__OK )
+      printf( "zenithal_perspective regression test failed\n" );
+}
+
+void test_ortho_polynomial_basis( int *status ){
+/* A chebyshev ortho_polynomial must read; any other basis must be refused
+   rather than evaluated with Chebyshev basis functions. The two fixtures
+   differ only in polynomial_type and hold a single degree-2 term, so at
+   x = 0.3 the value is 10 + T2(0.3) = 9.18 for chebyshev and would be
+   10 + P2(0.3) = 9.635 for legendre. Before this check both returned 9.18. */
+   AstFrameSet *fs;
+   AstMapping *map;
+   AstYamlChan *ch;
+   double in[ 2 ] = { 0.3, 0.0 };
+   double out[ 1 ];
+
+   if( *status != SAI__OK )
+      return;
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/"
+           "ortho_chebyshev.asdf", fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( !fs ) {
+      stopit( 140, status );
+      return;
+   }
+   map = astGetMapping( fs, AST__BASE, AST__CURRENT );
+   fs = astAnnul( fs );
+   astTranN( map, 1, 2, 1, in, 1, 1, 1, out );
+   map = astAnnul( map );
+
+   if( fabs( out[ 0 ] - 9.18 ) > 1.0E-10 ){
+      if( *status == SAI__OK )
+         printf( "chebyshev ortho_polynomial: got %.15g expected 9.18\n",
+                 out[ 0 ] );
+      stopit( 141, status );
+      return;
+   }
+
+/* The legendre fixture must be refused. The read is meant to fail, so it
+   reports an error; say so first, then check astOK (an AST error does not
+   reach this file's own status variable) and clear it before carrying on. */
+   printf( " The following YamlChan error is expected:\n" );
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/"
+           "ortho_legendre.asdf", fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( astOK ) {
+      printf( "a legendre ortho_polynomial was read as a Chebyshev\n" );
+      if( fs ) fs = astAnnul( fs );
+      stopit( 142, status );
+   }
+   astClearStatus;
+
+   if( *status != SAI__OK )
+      printf( "ortho_polynomial basis regression test failed\n" );
+}
+
+void test_asdf_standard_header( int *status ){
+/* Written ASDF must declare the standard version its tags belong to. Without
+   the "#ASDF_STANDARD" line a reader has to assume the oldest standard, whose
+   tag set does not contain the tags written here, and the whole tree comes
+   back untagged - the asdf Python package reports each tag as unrecognised
+   and hands back plain dicts rather than objects. */
+   AstFrameSet *fs;
+   AstYamlChan *ch;
+   FILE *fd;
+   char line[ 80 ];
+   int found;
+
+   if( *status != SAI__OK )
+      return;
+
+/* Any object will do; use the simplest FrameSet available. */
+   fs = astFrameSet( astFrame( 2, "Domain=GRID", status ), " ", status );
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=asdf_header.asdf" );
+   astWrite( ch, fs );
+   ch = astAnnul( ch );
+   fs = astAnnul( fs );
+   if( *status != SAI__OK ) {
+      stopit( 150, status );
+      return;
+   }
+
+   fd = fopen( "asdf_header.asdf", "r" );
+   if( !fd ) {
+      stopit( 151, status );
+      return;
+   }
+
+   found = 0;
+   while( fgets( line, sizeof( line ), fd ) ) {
+      if( !strncmp( line, "#ASDF_STANDARD ", 15 ) ) found = 1;
+
+/* The header comments come before the YAML directives, so stop there. */
+      if( !strncmp( line, "%YAML", 5 ) ) break;
+   }
+   fclose( fd );
+
+   if( !found ) {
+      printf( "written ASDF has no #ASDF_STANDARD line\n" );
+      stopit( 152, status );
+   }
+
+   if( *status != SAI__OK )
+      printf( "ASDF standard header regression test failed\n" );
+}
+
+void test_ndarray_1_2( int *status ){
+/* An inline core/ndarray tagged 1.2.0 must be accepted. The ceiling was
+   1.1, so the whole WCS was refused with "unsupported minor version
+   number 2" rather than degrading; asdf-standard 1.5.0 publishes 1.2.0,
+   which only factors the datatype definitions out into their own schema
+   and references them, leaving the enums and the structured-field shape
+   unchanged. Every other tag here is at a version the old ceilings
+   already accepted, so this fixture isolates that one. */
+   double xin[ 2 ] = { 1.0, 1.0 };
+   double yin[ 2 ] = { 1.0, 2.0 };
+   double xout[ 2 ];
+   double yout[ 2 ];
+   double xexp[ 2 ] = { 7.0, 7.0 };
+   double yexp[ 2 ] = { 10.0, 13.0 };
+   AstFrameSet *fs;
+   AstMapping *map;
+   AstYamlChan *ch;
+   int i;
+
+   if( *status != SAI__OK )
+      return;
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/ndarray_1_2.asdf",
+           fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( !fs ) {
+      printf( "could not read a WCS using core/ndarray-1.2.0\n" );
+      stopit( 110, status );
+      return;
+   }
+
+   map = astGetMapping( fs, AST__BASE, AST__CURRENT );
+   fs = astAnnul( fs );
+   astTran2( map, 2, xin, yin, 1, xout, yout );
+   map = astAnnul( map );
+
+   for( i = 0; i < 2; i++ ){
+      if( fabs( xout[ i ] - xexp[ i ] ) > 1.0E-10 ||
+          fabs( yout[ i ] - yexp[ i ] ) > 1.0E-10 ){
+         if( *status == SAI__OK )
+            printf( "ndarray_1_2 point %d: got (%.15g,%.15g) expected "
+                    "(%.15g,%.15g)\n", i, xout[ i ], yout[ i ], xexp[ i ],
+                    yexp[ i ] );
+         stopit( 111 + i, status );
+         break;
+      }
+   }
+
+   if( *status != SAI__OK )
+      printf( "core/ndarray-1.2.0 regression test failed\n" );
 }
