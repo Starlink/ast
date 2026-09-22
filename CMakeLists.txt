@@ -22,11 +22,94 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 # ============================================================
+# Stale generated headers in the source tree
+# ============================================================
+# An autotools build generates ast.h, config.h, src/version.h and friends
+# into the source tree; this build generates them into the build tree.  A
+# source tree that has been built with autotools therefore holds copies
+# that may be out of date, and they win: src/object.c says
+#
+#     #include "version.h"
+#
+# and a quoted include is resolved against the directory of the including
+# file before any -I path, so no include ordering here can prevent it.
+# The symptom is quiet and strange -- a 9.4.1 build reporting itself as
+# 9.4.0 through astVersion, because it compiled against a stale
+# src/version.h -- so refuse to configure rather than produce it.
+#
+# Only in a git working tree, though.  None of these files is tracked, so a
+# copy in a checkout can only be a local build artifact, and there is no way
+# to tell a current one from a stale one.  An unpacked distribution is the
+# opposite case: `make dist' ships ast_err.h, AST_ERR and src/version.h
+# deliberately (see EXTRA_DIST and BUILT_SOURCES in Makefile.am), those
+# copies were generated for that release, and building the tarball with
+# CMake has to keep working.
+set(_ast_generated_in_source
+    ast.h
+    ast_err.h
+    config.h
+    AST_PAR
+    AST_ERR
+    src/version.h
+    src/object.h
+    src/f77.h
+)
+set(_ast_stale "")
+# .git is a directory in a clone and a file in a worktree or submodule.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+    foreach(_file IN LISTS _ast_generated_in_source)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_file}")
+            list(APPEND _ast_stale "${_file}")
+        endif()
+    endforeach()
+endif()
+if(_ast_stale)
+    list(JOIN _ast_stale "\n    " _ast_stale_text)
+    message(FATAL_ERROR
+        "This build generates the following files, but copies of them are "
+        "already present in the source tree:\n    ${_ast_stale_text}\n\n"
+        "The source copies take precedence over the generated ones for any "
+        "source file that includes them by quoted name, so the library "
+        "would be built against whatever those copies happen to contain. "
+        "None of them is tracked by git, so they are left over from an "
+        "autotools build in this checkout. Remove them, or run 'make "
+        "distclean' in the source tree, and configure again.")
+endif()
+
+# ============================================================
+# Shared library versioning
+# ============================================================
+# configure.ac hands libtool a version-info triple derived from the package
+# version as
+#
+#     current = major + minor,  revision = patch,  age = minor
+#
+# so the interface number libtool works with, current - age, is always the
+# package major version.  That is the number in the installed library name,
+# and it deliberately stays put across a minor release series.
+#
+# On Darwin libtool puts current + 1 in the Mach-O compatibility version (see
+# the darwin case in build-aux/ltmain.sh), which is not derivable from the
+# package version, so it has to be set explicitly.  Getting this wrong does
+# not fail the build: the library names still match, and only dyld notices,
+# by refusing to load this library for a program linked against an autotools
+# built one.
+math(EXPR AST_LT_CURRENT "${PROJECT_VERSION_MAJOR} + ${PROJECT_VERSION_MINOR}")
+set(AST_LT_REVISION "${PROJECT_VERSION_PATCH}")
+set(AST_LT_AGE "${PROJECT_VERSION_MINOR}")
+math(EXPR AST_SOVERSION "${AST_LT_CURRENT} - ${AST_LT_AGE}")
+math(EXPR AST_MACHO_COMPATIBILITY "${AST_LT_CURRENT} + 1")
+set(AST_MACHO_CURRENT "${AST_MACHO_COMPATIBILITY}.${AST_LT_REVISION}")
+
+# ============================================================
 # Build options
 # ============================================================
 option(AST_BUILD_FORTRAN "Build with Fortran wrappers" OFF)
 option(AST_WITH_PTHREADS "Build with POSIX threads support" ON)
 option(AST_WITH_YAML "Build with YAML support" ON)
+option(AST_WITH_TOPINCLUDE
+    "Also install ast.h and the grf headers directly in the include directory, for code that does not use the star/ prefix"
+    OFF)
 option(AST_WITH_EXTERNAL_PAL "Use external PAL/ERFA libraries" OFF)
 option(AST_WITH_EXTERNAL_CMINPACK "Use external CMINPACK library" OFF)
 option(AST_WITH_MEMDEBUG "Enable AST memory leak debugging" OFF)
@@ -145,6 +228,55 @@ function(ast_apply_dev_options target_name)
         target_link_options(${target_name} PRIVATE ${AST_COVERAGE_LINK_FLAGS})
     endif()
 endfunction()
+
+# ------------------------------------------------------------
+# Library helpers
+# ------------------------------------------------------------
+# Give a shared library the same name and recorded versions that libtool
+# would.
+function(ast_set_library_version target)
+    set_target_properties(${target} PROPERTIES SOVERSION "${AST_SOVERSION}")
+    if(APPLE)
+        # Darwin's library_names_spec uses only the interface number, so the
+        # real file is lib<name>.<soversion>.dylib with lib<name>.dylib beside
+        # it.  Leaving VERSION unset is what produces that; setting it would
+        # add a lib<name>.<full version>.dylib that autotools never makes.
+        set_target_properties(${target} PROPERTIES
+            MACHO_COMPATIBILITY_VERSION "${AST_MACHO_COMPATIBILITY}"
+            MACHO_CURRENT_VERSION "${AST_MACHO_CURRENT}"
+        )
+    else()
+        set_target_properties(${target} PROPERTIES VERSION "${PROJECT_VERSION}")
+    endif()
+endfunction()
+
+# Declare a library as both a shared and a static object, as libtool does, so
+# that an install from this build offers the same variants as an autotools
+# one.  The static target is named <name>-static but installs as lib<name>.a.
+#
+# Every satellite is a small module that plugs into libast: it supplies
+# functions libast calls, and calls libast's memory and error functions in
+# return.  Those references are resolved when the program is linked, so on
+# Darwin the shared form has to be allowed to leave them undefined.
+function(ast_add_satellite name)
+    add_library(${name} SHARED ${ARGN})
+    add_library(${name}-static STATIC ${ARGN})
+    set_target_properties(${name}-static PROPERTIES OUTPUT_NAME "${name}")
+    foreach(_target ${name} ${name}-static)
+        target_include_directories(${_target} PRIVATE ${SATELLITE_INCLUDES})
+        target_compile_definitions(${_target} PRIVATE HAVE_CONFIG_H)
+        set_target_properties(${_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        add_dependencies(${_target} ast_codegen)
+        ast_apply_dev_options(${_target})
+    endforeach()
+    ast_set_library_version(${name})
+    if(APPLE)
+        target_link_options(${name} PRIVATE "-undefined" "dynamic_lookup")
+    endif()
+    set(AST_INSTALL_TARGETS ${AST_INSTALL_TARGETS} ${name} ${name}-static
+        PARENT_SCOPE)
+endfunction()
+
 
 # ============================================================
 # System checks (replacing autoconf checks)
@@ -650,15 +782,26 @@ endif()
 # ============================================================
 # Internal PAL/ERFA library (via palwrap.c which #includes all sources)
 # ============================================================
+# Installed as a library of its own rather than folded into libast, because
+# packagers who have a system PAL want to link that instead of a second copy
+# of the same code.  AST_WITH_EXTERNAL_PAL selects that case, and ast_link
+# reports the choice to whoever links against us.
 if(NOT AST_WITH_EXTERNAL_PAL)
-    add_library(ast_pal OBJECT palwrap.c)
-    target_include_directories(ast_pal PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${CMAKE_CURRENT_BINARY_DIR}"
-    )
-    target_compile_definitions(ast_pal PRIVATE HAVE_CONFIG_H)
-    set_target_properties(ast_pal PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    ast_apply_dev_options(ast_pal)
+    add_library(ast_pal SHARED palwrap.c)
+    add_library(ast_pal-static STATIC palwrap.c)
+    set_target_properties(ast_pal-static PROPERTIES OUTPUT_NAME "ast_pal")
+    foreach(_target ast_pal ast_pal-static)
+        target_include_directories(${_target} PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+            "${CMAKE_CURRENT_BINARY_DIR}"
+        )
+        target_compile_definitions(${_target} PRIVATE HAVE_CONFIG_H)
+        set_target_properties(${_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        target_link_libraries(${_target} PRIVATE m)
+        ast_apply_dev_options(${_target})
+    endforeach()
+    ast_set_library_version(ast_pal)
+    list(APPEND AST_INSTALL_TARGETS ast_pal ast_pal-static)
 endif()
 
 # ============================================================
@@ -674,12 +817,18 @@ if(NOT AST_WITH_EXTERNAL_CMINPACK)
         cminpack/lmpar.c
         cminpack/qrsolv.c
     )
-    add_library(ast_cminpack OBJECT ${CMINPACK_SOURCES})
-    target_include_directories(ast_cminpack PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/cminpack"
-    )
-    set_target_properties(ast_cminpack PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    ast_apply_dev_options(ast_cminpack)
+    add_library(ast_cminpack SHARED ${CMINPACK_SOURCES})
+    add_library(ast_cminpack-static STATIC ${CMINPACK_SOURCES})
+    set_target_properties(ast_cminpack-static PROPERTIES OUTPUT_NAME "ast_cminpack")
+    foreach(_target ast_cminpack ast_cminpack-static)
+        target_include_directories(${_target} PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/cminpack"
+        )
+        set_target_properties(${_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        ast_apply_dev_options(${_target})
+    endforeach()
+    ast_set_library_version(ast_cminpack)
+    list(APPEND AST_INSTALL_TARGETS ast_cminpack ast_cminpack-static)
 endif()
 
 # ============================================================
@@ -841,97 +990,106 @@ if(AST_BUILD_FORTRAN)
     list(APPEND AST_SOURCES ${AST_FORTRAN_SOURCES})
 endif()
 
-add_library(ast ${AST_SOURCES})
-add_dependencies(ast ast_codegen)
-if(AST_BUILD_FORTRAN)
-    add_dependencies(ast ast_par)
-endif()
+add_library(ast SHARED ${AST_SOURCES})
+add_library(ast-static STATIC ${AST_SOURCES})
+set_target_properties(ast-static PROPERTIES OUTPUT_NAME "ast")
+foreach(_target ast ast-static)
+    add_dependencies(${_target} ast_codegen)
+    if(AST_BUILD_FORTRAN)
+        add_dependencies(${_target} ast_par)
+    endif()
+endforeach()
+list(APPEND AST_INSTALL_TARGETS ast ast-static)
 
-# Pull in OBJECT libraries
-set(AST_OBJECTS "")
-if(NOT AST_WITH_EXTERNAL_PAL)
-    list(APPEND AST_OBJECTS $<TARGET_OBJECTS:ast_pal>)
-endif()
-if(NOT AST_WITH_EXTERNAL_CMINPACK)
-    list(APPEND AST_OBJECTS $<TARGET_OBJECTS:ast_cminpack>)
-endif()
-target_sources(ast PRIVATE ${AST_OBJECTS})
+foreach(_target ast ast-static)
+    target_include_directories(${_target}
+        PRIVATE
+            # Build tree before source tree, so the generated headers are
+            # preferred.  Note this does not settle the matter for a source
+            # file that includes one of them by quoted name: see the stale
+            # generated header check near the top of this file.
+            "${CMAKE_CURRENT_BINARY_DIR}"
+            "${CMAKE_CURRENT_BINARY_DIR}/src"
+            "${CMAKE_CURRENT_SOURCE_DIR}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src"
+            "${CMAKE_CURRENT_SOURCE_DIR}/wcslib"
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
 
-target_include_directories(ast
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
-        "${CMAKE_CURRENT_SOURCE_DIR}/wcslib"
-        "${CMAKE_CURRENT_BINARY_DIR}"
-        "${CMAKE_CURRENT_BINARY_DIR}/src"
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
+    target_compile_definitions(${_target} PRIVATE HAVE_CONFIG_H)
+    if(HAVE_PTHREADS)
+        target_compile_definitions(${_target} PRIVATE THREAD_SAFE)
+    endif()
+    if(HAVE_YAML)
+        target_compile_definitions(${_target} PRIVATE YAML)
+    endif()
+    if(AST_WITH_MEMDEBUG)
+        target_compile_definitions(${_target} PRIVATE MEM_DEBUG)
+    endif()
+endforeach()
 
-target_compile_definitions(ast PRIVATE HAVE_CONFIG_H)
-if(HAVE_PTHREADS)
-    target_compile_definitions(ast PRIVATE THREAD_SAFE)
-endif()
-if(HAVE_YAML)
-    target_compile_definitions(ast PRIVATE YAML)
-endif()
-if(AST_WITH_MEMDEBUG)
-    target_compile_definitions(ast PRIVATE MEM_DEBUG)
-endif()
-
-set_target_properties(ast PROPERTIES
-    VERSION "${PROJECT_VERSION}"
-    SOVERSION "${PROJECT_VERSION_MAJOR}"
+set_target_properties(ast ast-static PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     C_STANDARD ${AST_C_STANDARD}
 )
+ast_set_library_version(ast)
 ast_apply_dev_options(ast)
+ast_apply_dev_options(ast-static)
 
 # libast references symbols (astGFlush, astPutErr_, etc.) that are provided
 # by the satellite libraries (ast_err, ast_grf_*). These are intentionally
 # unresolved in libast and resolved at final link time. Allow this.
-if(BUILD_SHARED_LIBS)
-    if(APPLE)
-        target_link_options(ast PRIVATE "-undefined" "dynamic_lookup")
-    endif()
+if(APPLE)
+    target_link_options(ast PRIVATE "-undefined" "dynamic_lookup")
 endif()
 
-# Link dependencies
-target_link_libraries(ast PRIVATE m)
-if(HAVE_PTHREADS)
-    target_link_libraries(ast PRIVATE Threads::Threads)
-endif()
-if(HAVE_YAML)
-    target_link_libraries(ast PRIVATE ${YAML_LIBRARY})
-    target_include_directories(ast PRIVATE ${YAML_INCLUDE_DIR})
-endif()
+# Link dependencies. PAL and CMINPACK are libraries in their own right now,
+# so libast records a dependency on them rather than absorbing their objects,
+# which is what libast_la_LIBADD does in the autotools build.
+foreach(_target ast ast-static)
+    target_link_libraries(${_target} PRIVATE m)
+    if(HAVE_PTHREADS)
+        target_link_libraries(${_target} PRIVATE Threads::Threads)
+    endif()
+    if(HAVE_YAML)
+        target_link_libraries(${_target} PRIVATE ${YAML_LIBRARY})
+        target_include_directories(${_target} PRIVATE ${YAML_INCLUDE_DIR})
+    endif()
+endforeach()
 if(AST_WITH_EXTERNAL_PAL)
-    target_link_libraries(ast PRIVATE ${PAL_LIBRARY})
+    target_link_libraries(ast PUBLIC ${PAL_LIBRARY})
+    target_link_libraries(ast-static PUBLIC ${PAL_LIBRARY})
+else()
+    target_link_libraries(ast PUBLIC ast_pal)
+    target_link_libraries(ast-static PUBLIC ast_pal-static)
 endif()
 if(AST_WITH_EXTERNAL_CMINPACK)
-    target_link_libraries(ast PRIVATE ${CMINPACK_LIBRARY})
+    target_link_libraries(ast PUBLIC ${CMINPACK_LIBRARY})
+    target_link_libraries(ast-static PUBLIC ${CMINPACK_LIBRARY})
+else()
+    target_link_libraries(ast PUBLIC ast_cminpack)
+    target_link_libraries(ast-static PUBLIC ast_cminpack-static)
 endif()
-
 # ============================================================
-# Satellite libraries: these reference symbols from libast and are
-# designed to be linked alongside it. Build as static libraries
-# with PIC so they can be linked into shared executables.
+# Satellite libraries: link-time plugins that supply the error reporting and
+# graphics functions libast calls, so that a program can choose an
+# implementation.  Each is built shared and static, as autotools does.
 # ============================================================
 set(SATELLITE_INCLUDES
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-# Null error reporting library (default)
-add_library(ast_err STATIC src/err_null.c)
-target_include_directories(ast_err PRIVATE ${SATELLITE_INCLUDES})
-target_compile_definitions(ast_err PRIVATE HAVE_CONFIG_H)
-set_target_properties(ast_err PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_dependencies(ast_err ast_codegen)
-ast_apply_dev_options(ast_err)
+# Error reporting modules. err_null discards messages and is the default;
+# the other two hand them to Starlink EMS or to DRAMA Ers, whose headers are
+# vendored under src/ so that these build without either package present.
+ast_add_satellite(ast_err src/err_null.c)
+ast_add_satellite(ast_ems src/err_ems.c)
+ast_add_satellite(ast_drama src/err_drama.c)
 
 # ============================================================
 # PLplot graphics library
@@ -988,37 +1146,25 @@ endif()
 # ============================================================
 # Null graphics libraries
 # ============================================================
-add_library(ast_grf_2.0 STATIC src/grf_2.0.c)
-target_include_directories(ast_grf_2.0 PRIVATE ${SATELLITE_INCLUDES})
-set_target_properties(ast_grf_2.0 PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_dependencies(ast_grf_2.0 ast_codegen)
-ast_apply_dev_options(ast_grf_2.0)
-
-add_library(ast_grf_3.2 STATIC src/grf_3.2.c)
-target_include_directories(ast_grf_3.2 PRIVATE ${SATELLITE_INCLUDES})
-set_target_properties(ast_grf_3.2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_dependencies(ast_grf_3.2 ast_codegen)
-ast_apply_dev_options(ast_grf_3.2)
-
-add_library(ast_grf_5.6 STATIC src/grf_5.6.c)
-target_include_directories(ast_grf_5.6 PRIVATE ${SATELLITE_INCLUDES})
-set_target_properties(ast_grf_5.6 PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_dependencies(ast_grf_5.6 ast_codegen)
-ast_apply_dev_options(ast_grf_5.6)
-
-add_library(ast_grf3d STATIC src/grf3d.c)
-target_include_directories(ast_grf3d PRIVATE ${SATELLITE_INCLUDES})
-set_target_properties(ast_grf3d PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_dependencies(ast_grf3d ast_codegen)
-ast_apply_dev_options(ast_grf3d)
+ast_add_satellite(ast_grf_2.0 src/grf_2.0.c)
+ast_add_satellite(ast_grf_3.2 src/grf_3.2.c)
+ast_add_satellite(ast_grf_5.6 src/grf_5.6.c)
+ast_add_satellite(ast_grf3d src/grf3d.c)
 
 # Logging/virtual graphics library (no external dependencies)
-add_library(ast_grf_log STATIC src/grf_log.c)
-target_include_directories(ast_grf_log PRIVATE ${SATELLITE_INCLUDES})
-target_compile_definitions(ast_grf_log PRIVATE HAVE_CONFIG_H)
-set_target_properties(ast_grf_log PROPERTIES POSITION_INDEPENDENT_CODE ON)
-add_dependencies(ast_grf_log ast_codegen)
-ast_apply_dev_options(ast_grf_log)
+ast_add_satellite(ast_grf_log src/grf_log.c)
+
+# The PGPLOT graphics modules.  PGPLOT needs a Fortran runtime, so without
+# Fortran these carry the null implementations instead, exactly as
+# GRF_PGPLOT_SOURCES does in the autotools build.  The libraries are still
+# installed, so a program can link -last_pgplot either way.
+if(AST_BUILD_FORTRAN)
+    ast_add_satellite(ast_pgplot src/grf_pgplot.c)
+    ast_add_satellite(ast_pgplot3d src/grf3d_pgplot.c)
+else()
+    ast_add_satellite(ast_pgplot src/grf_5.6.c)
+    ast_add_satellite(ast_pgplot3d src/grf3d.c)
+endif()
 
 # ============================================================
 # Test program
@@ -1026,13 +1172,16 @@ ast_apply_dev_options(ast_grf_log)
 if(BUILD_TESTING)
     enable_testing()
     add_executable(ast_test ast_test.c)
+    # The static satellites, whole-archive: a program holds no direct
+    # reference to a link-time plugin, so a shared one is a candidate for
+    # -dead_strip_dylibs and the lookups would bind to nothing.
     target_link_libraries(ast_test PRIVATE
         ast
-        ast_grf_2.0
-        ast_grf_3.2
-        ast_grf_5.6
-        ast_grf3d
-        ast_err
+        $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_2.0-static>
+        $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_3.2-static>
+        $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_5.6-static>
+        $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d-static>
+        $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err-static>
         m
     )
     target_include_directories(ast_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
@@ -1097,12 +1246,29 @@ endif()
 # ============================================================
 # Installation
 # ============================================================
-install(TARGETS ast ast_err ast_grf_2.0 ast_grf_3.2 ast_grf_5.6 ast_grf3d ast_grf_log
+install(TARGETS ${AST_INSTALL_TARGETS}
     EXPORT astTargets
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
+
+# A second name for libast, so that a link line can pass through the library
+# twice and resolve the satellites' references back into it.  ast_link emits
+# -last_pass2 for this.  The autotools build makes the same links from
+# install-exec-hook.
+install(CODE "
+    file(GLOB _ast_libs LIST_DIRECTORIES false
+         \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libast.*\")
+    foreach(_lib IN LISTS _ast_libs)
+        get_filename_component(_name \"\${_lib}\" NAME)
+        string(REPLACE \"libast.\" \"libast_pass2.\" _pass2 \"\${_name}\")
+        message(STATUS \"Linking: \${_pass2} -> \${_name}\")
+        file(CREATE_LINK \"\${_name}\"
+             \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/\${_pass2}\"
+             SYMBOLIC)
+    endforeach()
+")
 
 if(PLPLOT_FOUND)
     install(TARGETS ast_grf_plplot ast_grf3d_plplot
@@ -1113,26 +1279,97 @@ if(PLPLOT_FOUND)
     )
 endif()
 
-set(AST_INSTALL_HEADERS
+# The public headers go under include/star, because "ast.h" on its own is a
+# name several unrelated projects use.  AST_WITH_TOPINCLUDE additionally
+# places them at the top of the include directory for code that predates the
+# star/ prefix.  The error facility headers always go to the top, as they do
+# in an autotools build.  pl3d.h is private to grf3d_plplot.c and is not
+# installed by either build system.
+set(AST_STAR_HEADERS
     "${CMAKE_CURRENT_BINARY_DIR}/ast.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
     src/grf.h
     src/grf3d.h
-    src/pl3d.h
+)
+set(AST_TOP_HEADERS
+    "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
 )
 if(AST_BUILD_FORTRAN)
-    list(APPEND AST_INSTALL_HEADERS
+    list(APPEND AST_STAR_HEADERS
         "${CMAKE_CURRENT_BINARY_DIR}/AST_PAR"
         GRF_PAR
     )
+    list(APPEND AST_TOP_HEADERS "${CMAKE_CURRENT_BINARY_DIR}/AST_ERR")
 endif()
-install(FILES ${AST_INSTALL_HEADERS}
+
+install(FILES ${AST_STAR_HEADERS}
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/star"
+)
+install(FILES ${AST_TOP_HEADERS}
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
+if(AST_WITH_TOPINCLUDE)
+    install(FILES ${AST_STAR_HEADERS}
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
+endif()
+
+# ============================================================
+# ast_link / ast_link_adam
+# ============================================================
+# The link scripts report the choices made here to whoever links against the
+# installed library: which satellites exist, and whether PAL, CMINPACK and
+# YAML are ours or the system's.  configure generates them from the same
+# templates.
+if(AST_WITH_EXTERNAL_PAL)
+    set(EXTERNAL_PAL 1)
+else()
+    set(EXTERNAL_PAL 0)
+endif()
+if(AST_WITH_EXTERNAL_CMINPACK)
+    set(EXTERNAL_CMINPACK 1)
+else()
+    set(EXTERNAL_CMINPACK 0)
+endif()
+if(HAVE_YAML)
+    set(YAML 1)
+else()
+    set(YAML 0)
+endif()
+if(AST_BUILD_FORTRAN)
+    set(FCLIBS "${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
+else()
+    set(FCLIBS "")
+endif()
+
+foreach(_script ast_link ast_link_adam)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/${_script}.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/${_script}"
+        @ONLY
+    )
+    install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/${_script}"
+        DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    )
+endforeach()
 
 # ============================================================
 # pkg-config
 # ============================================================
+# Keep the link line in step with what ast_link reports; the satellites and
+# the second pass through libast are as necessary here as they are there.
+set(AST_PC_LIBS "-last")
+if(NOT AST_WITH_EXTERNAL_PAL)
+    string(APPEND AST_PC_LIBS " -last_pal")
+endif()
+if(NOT AST_WITH_EXTERNAL_CMINPACK)
+    string(APPEND AST_PC_LIBS " -last_cminpack")
+endif()
+string(APPEND AST_PC_LIBS
+    " -last_grf_2.0 -last_grf_3.2 -last_grf_5.6 -last_grf3d -last_pass2 -last_err -lm")
+if(HAVE_YAML)
+    string(APPEND AST_PC_LIBS " -lyaml")
+endif()
+
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ast.pc.in"
     "${CMAKE_CURRENT_BINARY_DIR}/ast.pc"

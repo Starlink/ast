@@ -36,11 +36,11 @@ set(TEST_INCLUDES
 # libast crashes on null function pointers at runtime.
 set(TEST_LIBS
     ast
-    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
-    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_2.0>
-    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_3.2>
-    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_5.6>
-    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
+    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err-static>
+    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_2.0-static>
+    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_3.2-static>
+    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_5.6-static>
+    $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d-static>
     m
 )
 
@@ -205,7 +205,7 @@ function(ast_add_test name)
     target_include_directories(${name} PRIVATE ${TEST_INCLUDES})
     
     if(T_NO_DEFAULT_GRF_LIBS)
-        set(TARGET_LIBS ast $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err> ${T_EXTRA_LIBS} m)
+        set(TARGET_LIBS ast $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err-static> ${T_EXTRA_LIBS} m)
     else()
         set(TARGET_LIBS ${TEST_LIBS} ${T_EXTRA_LIBS})
     endif()
@@ -825,8 +825,8 @@ endif()
 # .head file without requiring any external graphics library.
 ast_add_test(testgrid
     NO_DEFAULT_GRF_LIBS
-    EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log>
-               $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
+    EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log-static>
+               $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d-static>
     TEST_ARGS "fixtures/wcsconv/inputs/lsst.fits-wcs" " " " "
 )
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
@@ -1091,16 +1091,16 @@ if(AST_BUILD_FORTRAN)
         )
         if(FT_NO_DEFAULT_GRF_LIBS)
             set(_grf_libs
-                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err-static>
                 ${FT_EXTRA_LIBS}
             )
         else()
             set(_grf_libs
-                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err>
-                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_2.0>
-                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_3.2>
-                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_5.6>
-                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err-static>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_2.0-static>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_3.2-static>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_5.6-static>
+                $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d-static>
                 ${FT_EXTRA_LIBS}
             )
         endif()
