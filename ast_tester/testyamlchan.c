@@ -36,6 +36,7 @@ static void test_jyear_equinox( int *status );
 static void test_zenithal_perspective_roundtrip( int *status );
 static void test_ortho_polynomial_basis( int *status );
 static void test_asdf_standard_header( int *status );
+static void test_ndarray_1_2( int *status );
 
 static int chrMatch( const char *a, const char *b ){
    int result = 0;
@@ -65,6 +66,7 @@ int main(){
    test_zenithal_perspective_roundtrip( status );
    test_ortho_polynomial_basis( status );
    test_asdf_standard_header( status );
+   test_ndarray_1_2( status );
 
    astEnd;
 
@@ -978,4 +980,58 @@ void test_asdf_standard_header( int *status ){
 
    if( *status != SAI__OK )
       printf( "ASDF standard header regression test failed\n" );
+}
+
+void test_ndarray_1_2( int *status ){
+/* An inline core/ndarray tagged 1.2.0 must be accepted. The ceiling was
+   1.1, so the whole WCS was refused with "unsupported minor version
+   number 2" rather than degrading; asdf-standard 1.5.0 publishes 1.2.0,
+   which only factors the datatype definitions out into their own schema
+   and references them, leaving the enums and the structured-field shape
+   unchanged. Every other tag here is at a version the old ceilings
+   already accepted, so this fixture isolates that one. */
+   double xin[ 2 ] = { 1.0, 1.0 };
+   double yin[ 2 ] = { 1.0, 2.0 };
+   double xout[ 2 ];
+   double yout[ 2 ];
+   double xexp[ 2 ] = { 7.0, 7.0 };
+   double yexp[ 2 ] = { 10.0, 13.0 };
+   AstFrameSet *fs;
+   AstMapping *map;
+   AstYamlChan *ch;
+   int i;
+
+   if( *status != SAI__OK )
+      return;
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=%s/fixtures/programs/testyamlchan/ndarray_1_2.asdf",
+           fixture_dir() );
+   fs = (AstFrameSet *) astRead( ch );
+   ch = astAnnul( ch );
+   if( !fs ) {
+      printf( "could not read a WCS using core/ndarray-1.2.0\n" );
+      stopit( 110, status );
+      return;
+   }
+
+   map = astGetMapping( fs, AST__BASE, AST__CURRENT );
+   fs = astAnnul( fs );
+   astTran2( map, 2, xin, yin, 1, xout, yout );
+   map = astAnnul( map );
+
+   for( i = 0; i < 2; i++ ){
+      if( fabs( xout[ i ] - xexp[ i ] ) > 1.0E-10 ||
+          fabs( yout[ i ] - yexp[ i ] ) > 1.0E-10 ){
+         if( *status == SAI__OK )
+            printf( "ndarray_1_2 point %d: got (%.15g,%.15g) expected "
+                    "(%.15g,%.15g)\n", i, xout[ i ], yout[ i ], xexp[ i ],
+                    yexp[ i ] );
+         stopit( 111 + i, status );
+         break;
+      }
+   }
+
+   if( *status != SAI__OK )
+      printf( "core/ndarray-1.2.0 regression test failed\n" );
 }

@@ -5459,7 +5459,7 @@ static int IsA##Class( const char *class, int *status ){ \
             } else if( minor > Minor ){ \
                astError( AST__BASDF, "astRead(YamlChan): ASDF class (%s) " \
                          "unsupported minor version number %d (should be " \
-                         "at least %d).", status, class, minor, Minor ); \
+                         "at most %d).", status, class, minor, Minor ); \
             } \
    \
          } else {  \
@@ -5536,7 +5536,7 @@ MAKE_TEST(Icrs,astropy/coordinates/frames,1,1)
 MAKE_TEST(Time,asdf/time,1,1)
 MAKE_TEST(EarthLocation,astropy/coordinates/earthlocation,1,0)
 MAKE_TEST(Quantity,asdf/unit,1,1)
-MAKE_TEST(NDArray,asdf/core,1,1)
+MAKE_TEST(NDArray,asdf/core,1,2)
 #undef MAKE_TEST
 
 
@@ -5583,7 +5583,7 @@ static int IsA##Class( const char *class, int *status ){ \
                } else if( minor < Minor ){ \
                   astError( AST__BASDF, "astRead(YamlChan): ASDF class (%s) " \
                             "unsupported minor version number %d (should be " \
-                            "at least %d).", status, class, minor, Minor ); \
+                            "at most %d).", status, class, minor, Minor ); \
                } \
 \
             } else { \
