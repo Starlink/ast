@@ -11939,7 +11939,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
@@ -12017,7 +12017,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
@@ -12092,7 +12092,7 @@ static int SimplifyAsdf( AstYamlChan *this, AstKeyMap **km, int *status ){
             if( *pkm ) *(pw++) = *pkm;
          }
          nkm = ( pw - km_list );
-         while( *pw < *pkm ){
+         while( pw < pkm ){
             *(pw++) = NULL;
          }
       }
