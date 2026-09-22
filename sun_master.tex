@@ -22680,8 +22680,7 @@ B-spline surfaces.
 
 \subsection{Changes Introduced in V9.4.0}
 The following describes the most significant changes which have
-occurred in the AST library between versions V9.3.0 and V9.4.0 (the
-current version):
+occurred in the AST library between versions V9.3.0 and V9.4.0:
 
 \subsubsection{Main Changes}
 
@@ -22818,8 +22817,8 @@ SplineMap   InvNiter, InvTol, OutUnit
   The Fortran REAL return convention is now measured by configure rather than guessed, and libyaml detection has been improved.
 \item The documentation (SUN/210 and SUN/211) can now be built outside a Starlink tree.
   The prologue extraction is done by the starprolog Python package when it is available, falling back to the Starlink getatt and prolat tools otherwise, and the Starlink LaTeX support files are now vendored so that a plain TeX Live installation can typeset the PDFs.
-  The hypertext (.htx) documents still need the Starlink star2html tool and are built only when it is present, or can be omitted with the new \texttt{--disable-hyperdocs} configure option.
-  In a build outside a Starlink tree the documentation is built only when \texttt{--with-stardocs} is given.
+  The hypertext (.htx) documents still need the Starlink star2html tool and are built only when it is present, or can be omitted with the new \texttt{-{}-disable-hyperdocs} configure option.
+  In a build outside a Starlink tree the documentation is built only when \texttt{-{}-with-stardocs} is given.
 \item The distribution built by ``make dist'' now ships a cut-down set of the test fixtures, sufficient to check that a build works, and the tests that use the missing fixtures are skipped.
   A new ``make fulldist'' target ships the complete fixture corpus for verifying a release.
   A release tarball now includes the PDF documentation.
@@ -22827,14 +22826,47 @@ SplineMap   InvNiter, InvTol, OutUnit
 \item Added a logging graphics plugin that records the drawing calls made by the Plot class and can write them out as SVG, so that graphical output can be compared against reference files without a graphics library being present.
 \end{enumerate}
 
-Programs which are statically linked will need to be re-linked in
-order to take advantage of these new facilities.
-
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes Introduced in V9.4.1}
+\subsection{Changes Introduced in V9.4.1}
 
 This release only makes changes to the new out-of-Starlink build system to fix some issues with the distribution tar file noticed during the conda build.
 In particular the ast\_err.h/AST\_ERR files are now included in the distribution as was previously the case.
 A linking fix has also been adopted that was a standalone patch for the
 conda feedstock.
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes Introduced in V9.5.0}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.4.1 and V9.5.0 (the
+current version):
+
+\subsubsection{Main Changes}
+
+\textbf{IMPORTANT - a change in documented behaviour}
+
+\begin{enumerate}
+\item The NormUnit attribute of a Frame is now derived from the value of the Frame's Unit attribute, as documented, and equals Unit whenever no simplification is possible.
+  Previously NormUnit was derived from the Unit of the underlying Axis, bypassing the Unit values reported by SkyFrame, SpecFrame, TimeFrame and FluxFrame, and reading it raised an error for any Unit that could not be parsed as a units expression (for example a blank Unit, or the sexagesimal descriptions such as ``hh:mm:ss.s'' used by SkyFrame axes).
+  For example, a TimeFrame now reports NormUnit ``d'' rather than a blank string, and a SkyFrame axis reports its Unit value unchanged.
+  Code that recorded the old NormUnit values will see different results.
+\end{enumerate}
+
+\subsubsection{Bug Fixes}
+
+\begin{enumerate}
+\item The astEQUAL comparison used internally by AST could overflow for values near the top of the double precision range, causing any value to compare equal to such a value.
+  One consequence was that a FrameSet whose spectral axis is described by a LutMap was written to a FitsChan as an empty header, rather than as a -TAB axis, even with TabOK set.
+  This was a regression introduced in V9.4.0.
+\item Allocation failures while normalising a units string are now reported as errors rather than crashing the library.
+\end{enumerate}
+
+\subsubsection{Build System Changes}
+
+\begin{enumerate}
+\item On macOS, programs linked with \texttt{-dead\_strip\_dylibs} (as used by conda-forge, among others) no longer lose the graphics and error-reporting satellite libraries, which previously caused a segfault on the first error report.
+\item The CMake build now installs the same files as the autotools build: public headers go to include/star (with an AST\_WITH\_TOPINCLUDE option matching \texttt{-{}-with-topinclude}), all libraries are built both shared and static, the ast\_ems, ast\_drama, ast\_pgplot and ast\_pgplot3d libraries are provided, PAL and CMINPACK are built as separate libraries, the macOS library version numbers match those from libtool, and ast\_link and ast\_link\_adam are installed.
+\item The CMake build now refuses to configure if stale generated headers from an earlier autotools build are present in the source tree.
+\end{enumerate}
+
+Programs which are statically linked will need to be re-linked in
+order to take advantage of these new facilities.
 
 \end{document}
