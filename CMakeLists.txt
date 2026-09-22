@@ -709,7 +709,6 @@ set(AST_H_FILES
 # Build the list of dependencies for ast.h generation
 set(MAKEH_DEPS
     "${CMAKE_CURRENT_SOURCE_DIR}/makeh"
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_ast_h.sh"
     "${CMAKE_CURRENT_BINARY_DIR}/config.h"
     "${CMAKE_CURRENT_BINARY_DIR}/ast_err.h"
     "${CMAKE_CURRENT_BINARY_DIR}/src/version.h"
@@ -723,16 +722,26 @@ foreach(hfile IN LISTS AST_H_FILES)
     endif()
 endforeach()
 
+# The pre-processor must be the one that compiles the library: ast.h is
+# generated against this build's config.h and the compiler's built-in macros.
+# This is what the autotools build gets from AC_PROG_CPP, which likewise
+# defaults to "$CC -E".  Exposed as a cache variable for use, if needed, by
+# pathological toolchains that spell preprocess-to-stdout differently.
+set(AST_CPP "${CMAKE_C_COMPILER} -E" CACHE STRING
+    "C preprocessor command used to generate ast.h")
+
+# makeh locates each header in the build tree first and then the source tree
+# (-b and -s), and writes to the path given by -o only once makeh has succeeded.
 add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ast.h"
-    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_ast_h.sh"
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-        "${CMAKE_CURRENT_BINARY_DIR}"
-        "${PERL}"
-        "${CMAKE_C_COMPILER}"
-        "${CMAKE_CURRENT_BINARY_DIR}/ast.h"
+    COMMAND "${CMAKE_COMMAND}" -E env "CPP=${AST_CPP}"
+        "${PERL}" "${CMAKE_CURRENT_SOURCE_DIR}/makeh"
+        -s "${CMAKE_CURRENT_SOURCE_DIR}"
+        -b "${CMAKE_CURRENT_BINARY_DIR}"
+        -o "${CMAKE_CURRENT_BINARY_DIR}/ast.h"
         ${AST_H_FILES}
     DEPENDS ${MAKEH_DEPS}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Generating ast.h"
 )
 if(AST_BUILD_FORTRAN)

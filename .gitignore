@@ -1,8 +1,9 @@
 /AST_PAR
 /addversion
 /ast.h
+/ast.h.tmp*
+/makeh-*.tmp
 /astbad
-/ast_cpp
 /ast_link
 /ast_link_adam
 /ast_test

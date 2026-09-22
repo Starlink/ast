@@ -525,7 +525,6 @@ if test "x$STARCONF" != "xno"; then
 AC_CONFIG_FILES(component.xml)
 fi
 
-AC_CONFIG_FILES([ast_cpp], [chmod +x ast_cpp])
 #   Following are files which are substituted by the Makefile at
 #   distribution time, rather than by configure.  They are not distributed.
 STAR_PREDIST_SOURCES(src/version.h.in builddocs.in addversion.in)
