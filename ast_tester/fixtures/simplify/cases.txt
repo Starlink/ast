@@ -163,6 +163,7 @@ win_cmpmap_parallel_merge | simplify/win_cmpmap_parallel_merge.map | simplify/wi
 win_swap_simplifies     | simplify/win_swap_simplifies.map     | simplify/win_swap_simplifies.simp     |
 win_swap_outer_merge    | simplify/win_swap_outer_merge.map    | simplify/win_swap_outer_merge.simp    |
 pcd_swap_zoom_simplifies | simplify/pcd_swap_zoom_simplifies.map | simplify/pcd_swap_zoom_simplifies.simp |
+pcd_inverted_zoom_swap   | simplify/pcd_inverted_zoom_swap.map | simplify/pcd_inverted_zoom_swap.simp |
 spec_merge_no_cancel    | simplify/spec_merge_no_cancel.map    | simplify/spec_merge_no_cancel.simp    |
 time_merge_no_cancel    | simplify/time_merge_no_cancel.map    | simplify/time_merge_no_cancel.simp    |
 matrix_swap_win_simplifies | simplify/matrix_swap_win_simplifies.map | simplify/matrix_swap_win_simplifies.simp |
@@ -404,6 +405,7 @@ neg_box_series                     | simplify/neg_box_series.map | simplify/neg_
 neg_box_parallel_nonregion         | simplify/neg_box_parallel_nonregion.map | simplify/neg_box_parallel_nonregion.map | yes
 neg_interval_series                | simplify/neg_interval_series.map | simplify/neg_interval_series.map | yes
 neg_interval_parallel_nonregion    | simplify/neg_interval_parallel_nonregion.map | simplify/neg_interval_parallel_nonregion.map | yes
+neg_interval_unbounded_pointlist   | simplify/neg_interval_unbounded_pointlist.map | simplify/neg_interval_unbounded_pointlist.map | yes
 selectormap_region_simplify_real     | simplify/selectormap_region_simplify_real.map | simplify/selectormap_region_simplify_real.simp |
 neg_selectormap_series_upper         | simplify/neg_selectormap_series_upper.map | simplify/neg_selectormap_series_upper.map | yes
 neg_selectormap_series_lower         | simplify/neg_selectormap_series_lower.map | simplify/neg_selectormap_series_lower.map | yes
@@ -507,7 +509,9 @@ cap_cmpperm_resume_inv            | simplify/cap_cmpperm_resume_inv.map | simpli
 cap_cheby_consolidate             | simplify/cap_cheby_consolidate.map | simplify/cap_cheby_consolidate.simp |
 cap_box_permmap_const             | simplify/cap_box_permmap_const.map | simplify/cap_box_permmap_const.simp |
 cap_box_permmap_null              | simplify/cap_box_permmap_null.map | simplify/cap_box_permmap_null.simp |
+cap_box_permmap_null_first        | simplify/cap_box_permmap_null_first.map | simplify/cap_box_permmap_null_first.simp |
 cap_box_permmap_nonbidi           | simplify/cap_box_permmap_nonbidi.map | simplify/cap_box_permmap_nonbidi.map |
+neg_circle_cmpframe_sky_second    | simplify/neg_circle_cmpframe_sky_second.map | simplify/neg_circle_cmpframe_sky_second.map | yes
 cap_poly_unc_frame                | simplify/cap_poly_unc_frame.map | simplify/cap_poly_unc_frame.simp |
 cap_poly_bent_edges               | simplify/cap_poly_bent_edges.map | simplify/cap_poly_bent_edges.simp |
 cap_poly_bend_allowed             | simplify/cap_poly_bend_allowed.map | simplify/cap_poly_bend_allowed.simp |
@@ -519,6 +523,8 @@ neg_unitnormmap_nonunit_scale     | simplify/neg_unitnormmap_nonunit_scale.map |
 neg_cmpmap_mode_mismatch          | simplify/neg_cmpmap_mode_mismatch.map | simplify/neg_cmpmap_mode_mismatch.map | yes
 neg_win_cmpmap_split_no_simplify  | simplify/neg_win_cmpmap_split_no_simplify.map | simplify/neg_win_cmpmap_split_no_simplify.map | yes
 neg_poly_different_coeffs         | simplify/neg_poly_different_coeffs.map | simplify/neg_poly_different_coeffs.map | yes
+neg_poly_different_inverse_coeffs | simplify/neg_poly_different_inverse_coeffs.map | simplify/neg_poly_different_inverse_coeffs.map | yes
+poly_fitted_inverse_cancel        | simplify/poly_fitted_inverse_cancel.map | simplify/poly_fitted_inverse_cancel.simp |
 
 # Fixtures adopted from the Rust port's Region and simplify parity work.
 # Their constructors are in gen_simplify_fixtures.c; see the group
@@ -532,6 +538,8 @@ cefit_circle_to_ellipse                | simplify/cefit_circle_to_ellipse.map | 
 cefit_ellipse_to_circle                | simplify/cefit_ellipse_to_circle.map | simplify/cefit_ellipse_to_circle.simp |
 defunc_cmpregion_component_unc         | simplify/defunc_cmpregion_component_unc.map | simplify/defunc_cmpregion_component_unc.simp |
 defunc_interval_unbounded              | simplify/defunc_interval_unbounded.map | simplify/defunc_interval_unbounded.simp |
+defunc_interval_point_at_origin        | simplify/defunc_interval_point_at_origin.map | simplify/defunc_interval_point_at_origin.simp |
+defunc_pointlist_origin_axis           | simplify/defunc_pointlist_origin_axis.map | simplify/defunc_pointlist_origin_axis.simp |
 defunc_nullregion_2d                   | simplify/defunc_nullregion_2d.map | simplify/defunc_nullregion_2d.simp |
 defunc_prism_box_interval              | simplify/defunc_prism_box_interval.map | simplify/defunc_prism_box_interval.simp |
 merge_box_fillfactor_product           | simplify/merge_box_fillfactor_product.map | simplify/merge_box_fillfactor_product.simp |

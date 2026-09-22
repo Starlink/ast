@@ -365,6 +365,9 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *         Over-ride astGetNormUnit so that the Axis normalises the Unit a
 *         SkyFrame reports, with the same temporary Format value that
 *         astGetUnit uses.
+*     22-SEP-2026 (TIMJ):
+*         NormBox: treat the pole test as failed if astTran2 reports an
+*         error, rather than reading the values it did not write.
 *class--
 */
 
@@ -7331,6 +7334,12 @@ static void NormBox( AstFrame *this_frame, double lbnd[], double ubnd[],
          y[ 1 ] = 0.0;
       }
       astTran2( reg, 2, x, y, 1, xo, yo );
+
+/* The tested values are only defined if the transformation succeeded. */
+      if( !astOK ) {
+         xo[ 0 ] = AST__BAD;
+         xo[ 1 ] = AST__BAD;
+      }
 
 /* If the box includes the north pole... */
       if( xo[ 0 ] != AST__BAD ) {

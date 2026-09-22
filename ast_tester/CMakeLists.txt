@@ -374,6 +374,8 @@ ast_add_test(testxmlchan_c SOURCES testxmlchan.c)
 ast_add_test(testtable_c SOURCES testtable.c)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
 ast_add_test(testregions_c SOURCES testregions.c)
+
+ast_add_test(testxphmap_c SOURCES testxphmap.c)
 ast_add_test(testregionmasking_c SOURCES testregionmasking.c)
 ast_add_test(testrebinseq_c SOURCES testrebinseq.c)
 ast_add_test(testrebin_c SOURCES testrebin.c)
