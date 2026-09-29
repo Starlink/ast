@@ -368,6 +368,9 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *     22-SEP-2026 (TIMJ):
 *         NormBox: treat the pole test as failed if astTran2 reports an
 *         error, rather than reading the values it did not write.
+*     29-SEP-2026 (EMB):
+*         Added astFreeSkyFrameGlobals to annul the cached TDB and LAST
+*         TimeFrames when a thread exits.
 *class--
 */
 
@@ -906,6 +909,18 @@ astMAKE_INITGLOBALS(SkyFrame) {
    globals->GetTitle_Buff2[ 0 ] = 0;
    globals->TDBFrame = NULL;
    globals->LASTFrame = NULL;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: annul the
+   TimeFrames cached for computing local apparent sidereal time. */
+astMAKE_FREEGLOBALS(SkyFrame) {
+   if( globals->TDBFrame ) {
+      globals->TDBFrame = astAnnul( globals->TDBFrame );
+   }
+   if( globals->LASTFrame ) {
+      globals->LASTFrame = astAnnul( globals->LASTFrame );
+   }
 }
 
 /* Define macros for accessing each item of thread specific global data. */

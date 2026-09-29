@@ -313,6 +313,9 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        FluxFrame all do - has a NormUnit that is a simplification of the
 *        units it reports. A Unit set on the Axis itself is still
 *        normalised by the Axis method.
+*     29-SEP-2026 (EMB):
+*        Added astFreeFrameGlobals to free the strings returned by astFormat
+*        when a thread exits.
 *class--
 */
 
@@ -780,6 +783,20 @@ astMAKE_INITGLOBALS(Frame) {
    globals->Title_Buff[ 0 ] = 0;
    globals->AstFmtDecimalYr_Buff[ 0 ] = 0;
    globals->GetNormUnit_Buff[ 0 ] = 0;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: free the
+   strings returned by recent calls to astFormat. */
+astMAKE_FREEGLOBALS(Frame) {
+/* Local Variables: */
+   int i;
+
+   if( globals->AstFormatID_Init ) {
+      for( i = 0; i < AST__FRAME_ASTFORMATID_MAX_STRINGS; i++ ) {
+         globals->AstFormatID_Strings[ i ] = astFree( globals->AstFormatID_Strings[ i ] );
+      }
+   }
 }
 
 #define class_init astGLOBAL(Frame,Class_Init)

@@ -246,6 +246,10 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        may be associated with any Object for storing extra internal data.
 *        The companion astHasKeyMap method tests whether an Object already has
 *        an associated KeyMap without creating one.
+*     29-SEP-2026 (EMB):
+*        Keep a thread's global data, which holds its vtabs, until no Object
+*        uses one of those vtabs, even after the thread exits. Added
+*        astFreeObjectGlobals and astFreeObjectVtabs.
 *class--
 */
 
@@ -354,6 +358,25 @@ astMAKE_INITGLOBALS(Object) {
    globals->Class_Init = 0;
    globals->Nvtab = 0;
    globals->Known_Vtabs = NULL;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: free the
+   handle context array and the strings returned by recent calls to
+   astGetC. The vtabs are left intact, since Objects created by the thread
+   may still refer to them; they are freed by astFreeObjectVtabs. */
+astMAKE_FREEGLOBALS(Object) {
+/* Local Variables: */
+   int i;
+
+   globals->Active_Handles = astFree( globals->Active_Handles );
+   globals->Context_Level = 0;
+
+   if( globals->AstGetC_Init ) {
+      for( i = 0; i < AST__ASTGETC_MAX_STRINGS; i++ ) {
+         globals->AstGetC_Strings[ i ] = astFree( globals->AstGetC_Strings[ i ] );
+      }
+   }
 }
 
 /* Define macros for accessing each item of thread specific global data. */
@@ -793,6 +816,12 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
 *     thread, this function should be called to change the vtab pointer
 *     in the Object to refer to the vtab relevant to the currently
 *     executing thread.
+*
+*     If the currently executing thread has not yet created a vtab for
+*     the Object's class, the Object keeps its existing vtab. That vtab
+*     remains valid even if the thread that created it has exited, since
+*     the Object holds a reference to the thread-specific data containing
+*     it.
 
 *  Parameters:
 *     this
@@ -804,6 +833,7 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
 
 /* Local Variables: */
    astDECLARE_GLOBALS
+   AstGlobals *old_globals;
    const char *class;
    int i;
 
@@ -830,11 +860,82 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
    supplied Object, then store a pointer to the vtab in the Object
    structure, and exit. */
          if( !strcmp( class, known_vtabs[ i ]->class ) ) {
-            this->vtab = known_vtabs[ i ];
+            if( this->vtab != known_vtabs[ i ] ) {
+               /* Don't forget to deref the old globals and add a ref to the
+                * new one */
+               old_globals = this->vtab->globals;
+               this->vtab = known_vtabs[ i ];
+               astGlobalsRef_( this->vtab->globals );
+               astGlobalsUnref_( old_globals );
+            }
             break;
          }
       }
    }
+}
+
+void astFreeObjectVtabs_( AstObjectGlobals *globals, int *status ) {
+/*
+*+
+*  Name:
+*     astFreeObjectVtabs
+
+*  Purpose:
+*     Free the memory used by all vtabs held in a thread's global data.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "object.h"
+*     void astFreeObjectVtabs( AstObjectGlobals *globals, int *status )
+
+*  Description:
+*     This function frees the memory referred to by every vtab created by
+*     a thread, including the memory blocks cached on each vtab's free
+*     list, together with the list of known vtabs itself. It is called
+*     once the thread has exited and no Object refers to any of the vtabs,
+*     and may be called by any thread.
+
+*  Parameters:
+*     globals
+*        Pointer to the Object class's thread-specific data for the thread
+*        that created the vtabs.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     -  This function attempts to execute even if an error has occurred.
+*-
+*/
+
+/* Local Variables: */
+   AstObjectVtab *vtab;
+   int iblock;
+   int itab;
+
+   for( itab = 0; itab < globals->Nvtab; itab++ ) {
+      vtab = globals->Known_Vtabs[ itab ];
+
+      for( iblock = 0; iblock < vtab->nfree; iblock++ ) {
+         vtab->free_list[ iblock ] = astFree( vtab->free_list[ iblock ] );
+      }
+      vtab->free_list = astFree( vtab->free_list );
+      vtab->nfree = 0;
+
+      vtab->delete = astFree( vtab->delete );
+      vtab->copy = astFree( vtab->copy );
+      vtab->dump = astFree( vtab->dump );
+      vtab->dump_class = astFree( vtab->dump_class );
+      vtab->dump_comment = astFree( vtab->dump_comment );
+      vtab->defaults = astFree( (void *) vtab->defaults );
+      vtab->ndelete = 0;
+      vtab->ncopy = 0;
+      vtab->ndump = 0;
+   }
+
+   globals->Known_Vtabs = astFree( globals->Known_Vtabs );
+   globals->Nvtab = 0;
 }
 #endif
 
@@ -1375,6 +1476,9 @@ f     function is invoked with STATUS set to an error value, or if it
    AstObject *new;               /* Pointer to new object */
    AstObjectVtab *vtab;          /* Pointer to object vtab */
    int i;                        /* Loop counter for copy constructors */
+#if defined(THREAD_SAFE)
+   AstGlobals *new_globals;      /* Structure holding the new Object's vtab */
+#endif
 
 /* Initiallise. */
    new = NULL;
@@ -1404,6 +1508,9 @@ f     function is invoked with STATUS set to an error value, or if it
 /* Perform an initial byte-by-byte copy of the entire object
    structure. */
       (void) memcpy( (void *) new, (const void *) this, this->size );
+#if defined(THREAD_SAFE)
+      astGlobalsRef_( vtab->globals );
+#endif
 
 /* Initialise any components of the new Object structure that need to
    differ from the input. */
@@ -1457,6 +1564,13 @@ f     function is invoked with STATUS set to an error value, or if it
                (*vtab->delete[ i ])( new, status );
             }
 
+/* Note the thread-specific data structure holding the vtab the new
+   Object refers to, which may differ from "vtab" if locking the new
+   Object switched it to a vtab owned by the calling thread. */
+#if defined(THREAD_SAFE)
+            new_globals = new->vtab->globals;
+#endif
+
 /* Zero the entire new Object structure (to prevent accidental re-use
    of any of its values after deletion). */
             (void) memset( new, 0, new->size );
@@ -1464,6 +1578,12 @@ f     function is invoked with STATUS set to an error value, or if it
 /* Free the Object's memory and ensure that a NULL pointer will be
    returned. */
             new = astFree( new );
+#if defined(THREAD_SAFE)
+            /* If the new object was given a reference to thread-local
+             * globals, unref that too now that the new object was
+             * destroyed. */
+            astGlobalsUnref_( new_globals );
+#endif
 
 /* Quit trying to copy the Object. */
             break;
@@ -1611,6 +1731,13 @@ f     value
 
 /* Decrement the count of active Objects. */
    vtab->nobject--;
+
+/* Release the Object's reference to the thread-specific data structure
+   holding its vtab. This may free the structure, and the vtab with it, if
+   the thread that created the vtab has exited, so it must come last. */
+#if defined(THREAD_SAFE)
+   astGlobalsUnref_( vtab->globals );
+#endif
 
 /* Always return NULL. */
    return NULL;
@@ -3813,7 +3940,18 @@ void astSetVtab_( AstObject *this, AstObjectVtab *vtab, int *status ) {
 *        Pointer to the virtual function table to store in the Object.
 *-
 */
+#if defined(THREAD_SAFE)
+   AstGlobals *old_globals;
+
+   if( this && this->vtab != vtab ) {
+      old_globals = this->vtab->globals;
+      this->vtab = vtab;
+      astGlobalsRef_( vtab->globals );
+      astGlobalsUnref_( old_globals );
+   }
+#else
    if( this ) this->vtab = vtab;
+#endif
 }
 
 static int Same( AstObject *this, AstObject *that, int *status ) {
@@ -5626,6 +5764,10 @@ void astInitObjectVtab_(  AstObjectVtab *vtab, const char *name, int *status ) {
 
 #if defined(THREAD_SAFE)
    vtab->ManageLock = ManageLock;
+
+/* Record the thread-specific data structure that holds the vtab, so that
+   Objects using the vtab can keep that structure alive. */
+   vtab->globals = AST__GLOBALS;
 #endif
 
 /* Store the pointer to the class name. */
@@ -5809,6 +5951,9 @@ AstObject *astInitObject_( void *mem, size_t size, int init,
 
 /* Associate the Object with its virtual function table. */
          new->vtab = vtab;
+#if defined(THREAD_SAFE)
+         astGlobalsRef_( vtab->globals );
+#endif
 
 /* Store the Object size and note if its memory was dynamically allocated. */
          new->size = size;

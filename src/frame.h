@@ -544,6 +544,8 @@
 *        Added method astAxNorm.
 *     11-JAN-2017 (GSB):
 *        Add Dtai attribute.
+*     29-SEP-2026 (EMB):
+*        Added astFreeFrameGlobals.
 *-
 */
 
@@ -902,6 +904,7 @@ AstFrame *astLoadFrame_( void *, size_t, AstFrameVtab *,
 /* Thread-safe initialiser for all global data used by this module. */
 #if defined(THREAD_SAFE)
 void astInitFrameGlobals_( AstFrameGlobals * );
+void astFreeFrameGlobals_( AstFrameGlobals *, int * );
 #endif
 #endif
 

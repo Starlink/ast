@@ -74,6 +74,8 @@
 *        Remove astAssert.
 *     19-SEP-2008 (DSB)
 *        Big changes for thread-safe version of AST.
+*     29-SEP-2026 (EMB):
+*        Added astFreeErrorGlobals.
 *-
 */
 
@@ -305,6 +307,7 @@ void astGetAt_( const char **, const char **, int * );
 
 #if defined(THREAD_SAFE)
 void astInitErrorGlobals_( AstErrorGlobals * );
+void astFreeErrorGlobals_( AstErrorGlobals *, int * );
 #endif
 #endif
 

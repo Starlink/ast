@@ -138,6 +138,9 @@
 *        than at link-time.
 *     17-OCT-2017 (DSB):
 *        Added astGetAt.
+*     29-SEP-2026 (EMB):
+*        Added astFreeErrorGlobals to free the deferred error message stack
+*        when a thread exits.
 */
 
 /* Define the astCLASS macro (even although this is not a class
@@ -220,6 +223,24 @@ astMAKE_INITGLOBALS(Error) {
    globals->Current_Routine = NULL;
    globals->Current_Line = 0;
    globals->Foreign_Set = 0;
+   globals->Mstack_Size = 0;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: free any
+   deferred error messages left on the message stack. */
+astMAKE_FREEGLOBALS(Error) {
+/* Local Variables: */
+   int i;
+
+/* Messages are allocated with MALLOC rather than astMalloc, so the
+   status is not needed. */
+   (void) status;
+
+   for( i = 0; i < globals->Mstack_Size; i++ ) {
+      FREE( globals->Message_Stack[ i ] );
+      globals->Message_Stack[ i ] = NULL;
+   }
    globals->Mstack_Size = 0;
 }
 

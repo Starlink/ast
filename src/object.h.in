@@ -357,6 +357,11 @@
 *        multiplier in astEQUALS. Applying the multiplier first overflows
 *        to infinity for operands near the top of the range, which made
 *        every comparison against such a value report equality.
+*     29-SEP-2026 (EMB):
+*        Added a pointer to the thread-specific data holding the vtab to the
+*        Object vtab: this is needed so that Object instances can ref/deref
+*        the globals holding its current vtab. Added astFreeObjectGlobals and
+*        astFreeObjectVtabs.
 */
 
 /* Include files. */
@@ -1661,6 +1666,9 @@ typedef struct AstObjectVtab {
 
 #if defined(THREAD_SAFE)
    int (* ManageLock)( AstObject *, int, int, AstObject **, int * );
+
+/* The thread-specific data structure holding this vtab. */
+   struct AstGlobals *globals;
 #endif
 
 } AstObjectVtab;
@@ -1723,6 +1731,8 @@ AstObject *astLoadObject_( void *, size_t, AstObjectVtab *,
 
 #if defined(THREAD_SAFE)
 void astInitObjectGlobals_( AstObjectGlobals * );
+void astFreeObjectGlobals_( AstObjectGlobals *, int * );
+void astFreeObjectVtabs_( AstObjectGlobals *, int * );
 #endif
 
 #endif

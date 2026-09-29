@@ -743,6 +743,9 @@ f     - Title: The Plot title drawn using AST_GRID
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for logarithmic gap rounding
 *        to avoid platform-dependent results.
+*     29-SEP-2026 (EMB):
+*        Added astFreePlotGlobals to free the polyline buffers when a thread
+*        exits.
 
 *class--
 */
@@ -1782,6 +1785,26 @@ astMAKE_INITGLOBALS(Plot) {
    globals->Grf_chh_t = AST__BAD;
    globals->Grf_alpha_t = 0.0;
    globals->Grf_beta_t = 0.0;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: free the
+   arrays used to buffer polylines. */
+astMAKE_FREEGLOBALS(Plot) {
+/* Local Variables: */
+   int ipoly;
+
+   for( ipoly = 0; ipoly < globals->Poly_npoly_t; ipoly++ ) {
+      globals->Poly_xp_t[ ipoly ] = astFree( globals->Poly_xp_t[ ipoly ] );
+      globals->Poly_yp_t[ ipoly ] = astFree( globals->Poly_yp_t[ ipoly ] );
+   }
+   globals->Poly_npoly_t = 0;
+   globals->Poly_xp_t = astFree( globals->Poly_xp_t );
+   globals->Poly_yp_t = astFree( globals->Poly_yp_t );
+   globals->Poly_np_t = astFree( globals->Poly_np_t );
+   globals->Poly_x_t = astFree( globals->Poly_x_t );
+   globals->Poly_y_t = astFree( globals->Poly_y_t );
+   globals->Poly_n_t = 0;
 }
 
 /* Define macros for accessing each item of thread specific global data. */
