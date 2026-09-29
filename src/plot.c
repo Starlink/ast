@@ -1731,60 +1731,58 @@ static const char *xtgaptype[2] = { "box", "plot" };
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GrfAttrs_nesting_t = 0; \
-   globals->Crv_nent_t = 0; \
-   globals->Box_lbnd_t[ 0 ] = FLT_MAX; \
-   globals->Box_ubnd_t[ 0 ] = FLT_MIN; \
-   globals->Boxp_lbnd_t[ 0 ] = FLT_MAX; \
-   globals->Boxp_ubnd_t[ 0 ] = FLT_MIN; \
-   globals->Box_lbnd_t[ 1 ] = FLT_MAX; \
-   globals->Box_ubnd_t[ 1 ] = FLT_MIN; \
-   globals->Boxp_lbnd_t[ 1 ] = FLT_MAX; \
-   globals->Boxp_ubnd_t[ 1 ] = FLT_MIN; \
-   globals->Boxp_freeze_t = 0; \
-   globals->Map1_plot_t = NULL; \
-   globals->Map1_map_t = NULL; \
-   globals->Map1_frame_t = NULL; \
-   globals->Map1_origin_t = NULL; \
-   globals->Map1_statics_t = NULL; \
-   globals->Map2_plot_t = NULL; \
-   globals->Map2_map_t = NULL; \
-   globals->Map2_statics_t = NULL; \
-   globals->Map3_plot_t = NULL; \
-   globals->Map3_map_t = NULL; \
-   globals->Map3_frame_t = NULL; \
-   globals->Map3_origin_t = NULL; \
-   globals->Map3_end_t = NULL; \
-   globals->Map3_statics_t = NULL; \
-   globals->Map4_plot_t = NULL; \
-   globals->Map4_map_t = NULL; \
-   globals->Map4_umap_t = NULL; \
-   globals->Map4_statics_t = NULL; \
-   globals->Map5_plot_t = NULL; \
-   globals->Map5_region_t = NULL; \
-   globals->Map5_map_t = NULL; \
-   globals->Map5_statics_t = NULL; \
-   globals->Poly_n_t = 0; \
-   globals->Poly_x_t = NULL; \
-   globals->Poly_y_t = NULL; \
-   globals->Poly_npoly_t = 0; \
-   globals->Poly_np_t = NULL; \
-   globals->Poly_xp_t = NULL; \
-   globals->Poly_yp_t = NULL; \
-   globals->Curve_data_t.nbrk = -1; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->SplitValue_Buff[ 0 ] = 0; \
-   globals->StripEscapes_Buff[ 0 ] = 0; \
-   globals->Grf_chv_t = AST__BAD; \
-   globals->Grf_chh_t = AST__BAD; \
-   globals->Grf_alpha_t = 0.0; \
-   globals->Grf_beta_t = 0.0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Plot)
+astMAKE_INITGLOBALS(Plot) {
+   globals->Class_Init = 0;
+   globals->GrfAttrs_nesting_t = 0;
+   globals->Crv_nent_t = 0;
+   globals->Box_lbnd_t[ 0 ] = FLT_MAX;
+   globals->Box_ubnd_t[ 0 ] = FLT_MIN;
+   globals->Boxp_lbnd_t[ 0 ] = FLT_MAX;
+   globals->Boxp_ubnd_t[ 0 ] = FLT_MIN;
+   globals->Box_lbnd_t[ 1 ] = FLT_MAX;
+   globals->Box_ubnd_t[ 1 ] = FLT_MIN;
+   globals->Boxp_lbnd_t[ 1 ] = FLT_MAX;
+   globals->Boxp_ubnd_t[ 1 ] = FLT_MIN;
+   globals->Boxp_freeze_t = 0;
+   globals->Map1_plot_t = NULL;
+   globals->Map1_map_t = NULL;
+   globals->Map1_frame_t = NULL;
+   globals->Map1_origin_t = NULL;
+   globals->Map1_statics_t = NULL;
+   globals->Map2_plot_t = NULL;
+   globals->Map2_map_t = NULL;
+   globals->Map2_statics_t = NULL;
+   globals->Map3_plot_t = NULL;
+   globals->Map3_map_t = NULL;
+   globals->Map3_frame_t = NULL;
+   globals->Map3_origin_t = NULL;
+   globals->Map3_end_t = NULL;
+   globals->Map3_statics_t = NULL;
+   globals->Map4_plot_t = NULL;
+   globals->Map4_map_t = NULL;
+   globals->Map4_umap_t = NULL;
+   globals->Map4_statics_t = NULL;
+   globals->Map5_plot_t = NULL;
+   globals->Map5_region_t = NULL;
+   globals->Map5_map_t = NULL;
+   globals->Map5_statics_t = NULL;
+   globals->Poly_n_t = 0;
+   globals->Poly_x_t = NULL;
+   globals->Poly_y_t = NULL;
+   globals->Poly_npoly_t = 0;
+   globals->Poly_np_t = NULL;
+   globals->Poly_xp_t = NULL;
+   globals->Poly_yp_t = NULL;
+   globals->Curve_data_t.nbrk = -1;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->SplitValue_Buff[ 0 ] = 0;
+   globals->StripEscapes_Buff[ 0 ] = 0;
+   globals->Grf_chv_t = AST__BAD;
+   globals->Grf_chh_t = AST__BAD;
+   globals->Grf_alpha_t = 0.0;
+   globals->Grf_beta_t = 0.0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(Plot,Class_Init)

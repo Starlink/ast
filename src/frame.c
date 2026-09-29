@@ -769,20 +769,18 @@ static AstSkyFrame *skyframe;
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->AstFormatID_Init = 0; \
-   globals->AstFormatID_Istr = 0; \
-   globals->Label_Buff[ 0 ] = 0; \
-   globals->Symbol_Buff[ 0 ] = 0; \
-   globals->Title_Buff[ 0 ] = 0; \
-   globals->AstFmtDecimalYr_Buff[ 0 ] = 0; \
-   globals->GetNormUnit_Buff[ 0 ] = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Frame)
+astMAKE_INITGLOBALS(Frame) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->AstFormatID_Init = 0;
+   globals->AstFormatID_Istr = 0;
+   globals->Label_Buff[ 0 ] = 0;
+   globals->Symbol_Buff[ 0 ] = 0;
+   globals->Title_Buff[ 0 ] = 0;
+   globals->AstFmtDecimalYr_Buff[ 0 ] = 0;
+   globals->GetNormUnit_Buff[ 0 ] = 0;
+}
 
 #define class_init astGLOBAL(Frame,Class_Init)
 #define class_vtab astGLOBAL(Frame,Class_Vtab)

@@ -895,20 +895,18 @@ static AstSkyLastTable **last_tables = NULL;
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->GetFormat_Buff[ 0 ] = 0; \
-   globals->GetLabel_Buff[ 0 ] = 0; \
-   globals->GetSymbol_Buff[ 0 ] = 0; \
-   globals->GetTitle_Buff[ 0 ] = 0; \
-   globals->GetTitle_Buff2[ 0 ] = 0; \
-   globals->TDBFrame = NULL; \
-   globals->LASTFrame = NULL; \
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(SkyFrame)
+astMAKE_INITGLOBALS(SkyFrame) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->GetFormat_Buff[ 0 ] = 0;
+   globals->GetLabel_Buff[ 0 ] = 0;
+   globals->GetSymbol_Buff[ 0 ] = 0;
+   globals->GetTitle_Buff[ 0 ] = 0;
+   globals->GetTitle_Buff2[ 0 ] = 0;
+   globals->TDBFrame = NULL;
+   globals->LASTFrame = NULL;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(SkyFrame,Class_Init)

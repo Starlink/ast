@@ -343,20 +343,18 @@ static int object_caching = 0;
 /* Set up global data access, mutexes, etc, needed for thread safety. */
 #ifdef THREAD_SAFE
 
-/* Define the initial values for the global data for this module. */
-#define GLOBAL_inits \
-   globals->Retain_Esc = 0; \
-   globals->Context_Level = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->AstGetC_Init = 0; \
-   globals->AstGetC_Istr = 0; \
-   globals->Active_Handles = NULL; \
-   globals->Class_Init = 0; \
-   globals->Nvtab = 0; \
-   globals->Known_Vtabs = NULL;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Object)
+astMAKE_INITGLOBALS(Object) {
+   globals->Retain_Esc = 0;
+   globals->Context_Level = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->AstGetC_Init = 0;
+   globals->AstGetC_Istr = 0;
+   globals->Active_Handles = NULL;
+   globals->Class_Init = 0;
+   globals->Nvtab = 0;
+   globals->Known_Vtabs = NULL;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define retain_esc  astGLOBAL(Object,Retain_Esc)

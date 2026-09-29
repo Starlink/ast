@@ -1762,35 +1762,33 @@ static int int_dig;
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->Items_Written = 0; \
-   globals->Write_Nest = -1; \
-   globals->Current_Indent = 0; \
-   globals->Ignore_Used = 1; \
-   globals->Mark_New = 0; \
-   globals->CnvType_Text[ 0 ] = 0; \
-   globals->CnvType_Text0[ 0 ] = 0; \
-   globals->CnvType_Text1[ 0 ] = 0; \
-   globals->CreateKeyword_Seq_Nchars = -1; \
-   globals->FormatKey_Buff[ 0 ] = 0; \
-   globals->FitsGetCom_Sval[ 0 ] = 0; \
-   globals->IsSpectral_Ret = NULL; \
-   globals->Match_Fmt[ 0 ] = 0; \
-   globals->Match_Template = NULL; \
-   globals->Match_PA = 0; \
-   globals->Match_PB = 0; \
-   globals->Match_NA = 0; \
-   globals->Match_NB = 0; \
-   globals->Match_Nentry = 0; \
-   globals->WcsCelestial_Type[ 0 ] = 0; \
-   globals->Ignore_Used = 1; \
-   globals->Mark_New = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(FitsChan)
+astMAKE_INITGLOBALS(FitsChan) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->Items_Written = 0;
+   globals->Write_Nest = -1;
+   globals->Current_Indent = 0;
+   globals->Ignore_Used = 1;
+   globals->Mark_New = 0;
+   globals->CnvType_Text[ 0 ] = 0;
+   globals->CnvType_Text0[ 0 ] = 0;
+   globals->CnvType_Text1[ 0 ] = 0;
+   globals->CreateKeyword_Seq_Nchars = -1;
+   globals->FormatKey_Buff[ 0 ] = 0;
+   globals->FitsGetCom_Sval[ 0 ] = 0;
+   globals->IsSpectral_Ret = NULL;
+   globals->Match_Fmt[ 0 ] = 0;
+   globals->Match_Template = NULL;
+   globals->Match_PA = 0;
+   globals->Match_PB = 0;
+   globals->Match_NA = 0;
+   globals->Match_NB = 0;
+   globals->Match_Nentry = 0;
+   globals->WcsCelestial_Type[ 0 ] = 0;
+   globals->Ignore_Used = 1;
+   globals->Mark_New = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(FitsChan,Class_Init)

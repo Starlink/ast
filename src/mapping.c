@@ -583,16 +583,14 @@ static int (* parent_equal)( AstObject *, AstObject *, int * );
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->Unsimplified_Mapping = NULL; \
-   globals->Rate_Disabled = 0;
-
 
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Mapping)
+astMAKE_INITGLOBALS(Mapping) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->Unsimplified_Mapping = NULL;
+   globals->Rate_Disabled = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(Mapping,Class_Init)

@@ -140,12 +140,10 @@ static void (* parent_resetcache)( AstRegion *, int * );
 
 
 #ifdef THREAD_SAFE
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Ellipse)
+astMAKE_INITGLOBALS(Ellipse) {
+   globals->Class_Init = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(Ellipse,Class_Init)

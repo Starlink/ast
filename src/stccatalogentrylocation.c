@@ -98,12 +98,10 @@ static int class_check;
 
 
 #ifdef THREAD_SAFE
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(StcCatalogEntryLocation)
+astMAKE_INITGLOBALS(StcCatalogEntryLocation) {
+   globals->Class_Init = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(StcCatalogEntryLocation,Class_Init)

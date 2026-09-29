@@ -137,11 +137,16 @@
 #define AST__THREAD_ID (AST__GLOBALS->thread_identifier) \
 
 
+/* A macro that expands to the signature of the function that initialises
+   the thread-specific global data for a class, for use as:
+
+      astMAKE_INITGLOBALS(Class) {
+         globals->Item = 0;
+      }
+
+   The function is called when a thread first uses AST. */
 #define astMAKE_INITGLOBALS(class) \
-\
-void astInit##class##Globals_( Ast##class##Globals *globals ){ \
-   GLOBAL_inits \
-}
+void astInit##class##Globals_( Ast##class##Globals *globals )
 
 /* Type definitions */
 /* ================ */

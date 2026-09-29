@@ -181,8 +181,9 @@ AstXml##type *astXmlCheck##type##_( void *this, int nullok, int *status ) { \
 
 #define next_id astGLOBAL(Xml,Next_ID)
 #define gettag_buff astGLOBAL(Xml,GetTag_Buff)
-#define GLOBAL_inits globals->Next_ID = 0;
-astMAKE_INITGLOBALS(Xml)
+astMAKE_INITGLOBALS(Xml) {
+   globals->Next_ID = 0;
+}
 
 /* Set up mutexes */
 static pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;

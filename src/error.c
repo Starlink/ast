@@ -211,19 +211,17 @@ static pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_MUTEX1 pthread_mutex_lock( &mutex1 )
 #define UNLOCK_MUTEX1 pthread_mutex_unlock( &mutex1 )
 
-/* Define the initial values for the global data for this module. */
-#define GLOBAL_inits \
-   globals->Reporting = 1; \
-   globals->PutErr = NULL;  \
-   globals->PutErr_Wrapper = NULL;  \
-   globals->Current_File = NULL;  \
-   globals->Current_Routine = NULL;  \
-   globals->Current_Line = 0; \
-   globals->Foreign_Set = 0; \
-   globals->Mstack_Size = 0; \
-
 /* Create the global initialisation function. */
-astMAKE_INITGLOBALS(Error)
+astMAKE_INITGLOBALS(Error) {
+   globals->Reporting = 1;
+   globals->PutErr = NULL;
+   globals->PutErr_Wrapper = NULL;
+   globals->Current_File = NULL;
+   globals->Current_Routine = NULL;
+   globals->Current_Line = 0;
+   globals->Foreign_Set = 0;
+   globals->Mstack_Size = 0;
+}
 
 
 /* If thread safety is not needed, declare globals at static variables. */

@@ -474,18 +474,16 @@ static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->ConvertValue_Init = 0; \
-   globals->ConvertValue_Istr = 0; \
-   globals->ConvertValue_Buff[ 0 ] = 0; \
-   globals->MapKey_Init = 0; \
-   globals->MapKey_Istr = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(KeyMap)
+astMAKE_INITGLOBALS(KeyMap) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->ConvertValue_Init = 0;
+   globals->ConvertValue_Istr = 0;
+   globals->ConvertValue_Buff[ 0 ] = 0;
+   globals->MapKey_Init = 0;
+   globals->MapKey_Istr = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(KeyMap,Class_Init)

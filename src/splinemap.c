@@ -174,13 +174,11 @@ static size_t (* parent_getobjsize)( AstObject *, int * );
 
 
 #ifdef THREAD_SAFE
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(SplineMap)
+astMAKE_INITGLOBALS(SplineMap) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(SplineMap,Class_Init)
