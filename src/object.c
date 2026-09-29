@@ -249,7 +249,10 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *     29-SEP-2026 (EMB):
 *        Keep a thread's global data, which holds its vtabs, until no Object
 *        uses one of those vtabs, even after the thread exits. Added
-*        astFreeObjectGlobals and astFreeObjectVtabs.
+*        astFreeObjectGlobals and astFreeObjectVtabs. Identify vtabs by
+*        class identifier rather than class name in ChangeThreadVtab, and
+*        skip the search when the Object already uses one of the calling
+*        thread's vtabs.
 *class--
 */
 
@@ -834,7 +837,7 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
 /* Local Variables: */
    astDECLARE_GLOBALS
    AstGlobals *old_globals;
-   const char *class;
+   int *check;
    int i;
 
 /* Check the global error status. */
@@ -843,33 +846,31 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
 /* Get a pointer to Thread-specific data for the currently executing thread. */
    astGET_GLOBALS(this);
 
-/* Get the class name for the supplied Object. This uses the existing
-   vtab pointer in the Object structure to locate the required GetClass
-   method and the class name. This vtab pointer may be for a vtab created
-   by a different thread to the one currently executing, but this shouldn't
-   matter since we are not modifying the vtab contents. */
-   class = astGetClass( this );
+/* If the Object already uses a vtab created by the currently executing
+   thread, there is nothing to do. */
+   if( this->vtab->globals == AST__GLOBALS ) {
+      return;
+   }
 
-/* Check a class name was obtained */
-   if( class ) {
+/* Identify the class of the supplied Object by the "check" value in the
+   identifier of its top-level class. This is the address of a static
+   variable in the class's source file, and so is the same for the vtabs
+   of that class created by every thread. */
+   check = this->vtab->top_id->check;
 
 /* Loop round the vtab structures created by the currently executing thread. */
-      for( i = 0; i < nvtab; i++ ) {
+   for( i = 0; i < nvtab; i++ ) {
 
-/* If the current vtab is for a class that matches the class of the
-   supplied Object, then store a pointer to the vtab in the Object
-   structure, and exit. */
-         if( !strcmp( class, known_vtabs[ i ]->class ) ) {
-            if( this->vtab != known_vtabs[ i ] ) {
-               /* Don't forget to deref the old globals and add a ref to the
-                * new one */
-               old_globals = this->vtab->globals;
-               this->vtab = known_vtabs[ i ];
-               astGlobalsRef_( this->vtab->globals );
-               astGlobalsUnref_( old_globals );
-            }
-            break;
-         }
+/* If the current vtab is for the class of the supplied Object, then store
+   a pointer to the vtab in the Object structure, and exit. The Object
+   now keeps the thread-specific data holding the new vtab alive instead
+   of that holding the old one. */
+      if( known_vtabs[ i ]->top_id->check == check ) {
+         old_globals = this->vtab->globals;
+         this->vtab = known_vtabs[ i ];
+         astGlobalsRef_( this->vtab->globals );
+         astGlobalsUnref_( old_globals );
+         break;
       }
    }
 }
@@ -5730,6 +5731,12 @@ void astInitObjectVtab_(  AstObjectVtab *vtab, const char *name, int *status ) {
    base class, we assign null values to the fields. */
    vtab->id.check = NULL;
    vtab->id.parent = NULL;
+
+/* Derived classes replace this with the identifier of their own class once
+   their part of the vtab is initialised. Setting it now means that the
+   vtab has a valid top-level identifier, which matches no class, while it
+   is on the list of known vtabs but not yet fully initialised. */
+   astSetVtabClassIdentifier( vtab, &(vtab->id) );
 
 /* Store pointers to the member functions (implemented here) that provide
    virtual methods for this class. */
