@@ -837,8 +837,9 @@ if(HAVE_PTHREADS)
     ast_add_test(testthreads EXTRA_LIBS Threads::Threads)
     ast_add_test(testthreadexit EXTRA_LIBS Threads::Threads)
     # Leak detection is the point of this test, and it does not enable
-    # AST's memory cache (except in one test), so turn LeakSanitizer back on.
-    if(AST_ENABLE_SANITIZERS)
+    # AST's memory cache (except in one test), so turn LeakSanitizer back on
+    # (Linux only)
+    if(AST_ENABLE_SANITIZERS AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set_tests_properties(testthreadexit PROPERTIES
             ENVIRONMENT "ASAN_OPTIONS=detect_leaks=1")
     endif()
