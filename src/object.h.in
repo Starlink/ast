@@ -414,6 +414,18 @@
 #define AST__UNLOCK 2    /* Unlock the object */
 #define AST__CHECKLOCK 3 /* Check if the object is locked */
 
+/* Values returned by astManageLock */
+#define AST__LOCKSTAT_OK 0          /* Success */
+#define AST__LOCKSTAT_BUSY 1        /* AST__LOCK or AST__UNLOCK failed: the
+                                       object is locked by another thread */
+#define AST__LOCKSTAT_LOCKFAIL 2    /* Failed to lock a POSIX mutex */
+#define AST__LOCKSTAT_UNLOCKFAIL 3  /* Failed to unlock a POSIX mutex */
+#define AST__LOCKSTAT_BADMODE 4     /* Unknown "mode" value */
+#define AST__LOCKSTAT_OTHER 5       /* AST__CHECKLOCK failed: the object is
+                                       locked by another thread */
+#define AST__LOCKSTAT_UNLOCKED 6    /* AST__CHECKLOCK failed: the object is
+                                       unlocked */
+
 #endif
 
 #define AST__F77API "F77API" /* A string used to indicate a call from the F77 API */

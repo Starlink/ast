@@ -3118,14 +3118,15 @@ static int ManageLock( AstObject *this, int mode, int extra,
 
 *  Returned Value:
 *     A status value:
-*        0 - Success.
-*        1 - Could not lock or unlock the object because it was already
-*            locked by another thread.
-*        2 - Failed to lock a POSIX mutex
-*        3 - Failed to unlock a POSIX mutex
-*        4 - Bad "mode" value supplied.
-*        5 - Check failed - object is locked by a different thread
-*        6 - Check failed - object is unlocked
+*        AST__LOCKSTAT_OK - Success.
+*        AST__LOCKSTAT_BUSY - Could not lock or unlock the object because
+*            it was already locked by another thread.
+*        AST__LOCKSTAT_LOCKFAIL - Failed to lock a POSIX mutex
+*        AST__LOCKSTAT_UNLOCKFAIL - Failed to unlock a POSIX mutex
+*        AST__LOCKSTAT_BADMODE - Bad "mode" value supplied.
+*        AST__LOCKSTAT_OTHER - Check failed - object is locked by a
+*            different thread
+*        AST__LOCKSTAT_UNLOCKED - Check failed - object is unlocked
 *
 
 *  Notes:
@@ -3140,7 +3141,7 @@ static int ManageLock( AstObject *this, int mode, int extra,
    int result;                   /* Returned value */
 
 /* Initialise */
-   result = 0;
+   result = AST__LOCKSTAT_OK;
    if( fail ) *fail = NULL;
 
 /* Check the supplied point is not NULL. */
@@ -3154,7 +3155,7 @@ static int ManageLock( AstObject *this, int mode, int extra,
    structure. All other components in the structure are guarded by the
    primary mutex (this->mutex1). */
    if( LOCK_SMUTEX(this) ) {
-      result = 2;
+      result = AST__LOCKSTAT_LOCKFAIL;
 
 /* If the secondary mutex was locked succesfully, first deal with cases
    where the caller wants to lock the Object for exclusive use by the
@@ -3164,7 +3165,7 @@ static int ManageLock( AstObject *this, int mode, int extra,
 /* If the Object is not currently locked, lock the Object primary mutex
    and record the identity of the calling thread in the Object. */
       if( this->locker == -1 ) {
-         if( LOCK_PMUTEX(this) ) result = 2;
+         if( LOCK_PMUTEX(this) ) result = AST__LOCKSTAT_LOCKFAIL;
          this->locker = AST__THREAD_ID;
          this->globals = AST__GLOBALS;
          ChangeThreadVtab( this, status );
@@ -3183,20 +3184,20 @@ static int ManageLock( AstObject *this, int mode, int extra,
    thread can change the "locker" component safely. */
       } else if( extra ) {
          if( UNLOCK_SMUTEX(this) ) {
-            result = 3;
+            result = AST__LOCKSTAT_UNLOCKFAIL;
          } else if( LOCK_PMUTEX(this) ) {
-            result = 2;
+            result = AST__LOCKSTAT_LOCKFAIL;
          } else if( LOCK_SMUTEX(this) ) {
-            result = 2;
+            result = AST__LOCKSTAT_LOCKFAIL;
          }
          this->locker = AST__THREAD_ID;
          this->globals = AST__GLOBALS;
          ChangeThreadVtab( this, status );
 
 /* If the caller does not want to wait until the Object is available,
-   return a status of 1. */
+   report that it is locked by another thread. */
       } else {
-         result = 1;
+         result = AST__LOCKSTAT_BUSY;
       }
 
 /* Unlock the Object for use by other threads. */
@@ -3211,31 +3212,31 @@ static int ManageLock( AstObject *this, int mode, int extra,
       } else if( this->locker == AST__THREAD_ID ) {
          this->locker = -1;
          this->globals = NULL;
-         if( UNLOCK_PMUTEX(this) ) result = 3;
+         if( UNLOCK_PMUTEX(this) ) result = AST__LOCKSTAT_UNLOCKFAIL;
 
 /* Return an error status value if the Object is locked by another
    thread. */
       } else {
-         result = 1;
+         result = AST__LOCKSTAT_BUSY;
       }
 
-/* Check the Object is locked by the calling thread. Return a status of 1 if
-   not. */
+/* Check the Object is locked by the calling thread. If not, report
+   whether it is unlocked or locked by another thread. */
    } else if( mode == AST__CHECKLOCK ) {
       if( this->locker == -1 ) {
-         result = 6;
+         result = AST__LOCKSTAT_UNLOCKED;
       } else if( this->locker != AST__THREAD_ID ) {
-         result = 5;
+         result = AST__LOCKSTAT_OTHER;
       }
 
-/* Return a status of 4 for any other modes. */
+/* Reject any other modes. */
    } else {
-      result = 4;
+      result = AST__LOCKSTAT_BADMODE;
    }
 
 /* Unlock the secondary mutex so that other threads can access the "locker"
    component in the Object to see if it is locked. */
-   if( UNLOCK_SMUTEX(this) ) result = 3;
+   if( UNLOCK_SMUTEX(this) ) result = AST__LOCKSTAT_UNLOCKFAIL;
 
 /* If the operation failed, return a pointer to the failed object. */
    if( result && fail ) *fail = this;
@@ -7820,7 +7821,7 @@ c--
    astLock and astUnlock. */
       lstat = astManageLock( this, AST__LOCK, wait, &fail );
       if( astOK ) {
-         if( lstat == 1 ) {
+         if( lstat == AST__LOCKSTAT_BUSY ) {
             if( fail == this ) {
                astError( AST__LCKERR, "astLock(%s): Failed to lock the %s because"
                          " it is already locked by another thread (programming "
@@ -7835,7 +7836,7 @@ c--
                          astGetClass( fail ) );
             }
 
-         } else if( lstat == 2 ) {
+         } else if( lstat == AST__LOCKSTAT_LOCKFAIL ) {
             astError( AST__LCKERR, "astLock(%s): Failed to lock a POSIX mutex.", status,
                       astGetClass( this ) );
 
@@ -7987,7 +7988,7 @@ c--
    astLock and astUnlock. */
       lstat = astManageLock( this, AST__UNLOCK, 0, &fail );
       if( astOK ) {
-         if( lstat == 1 ) {
+         if( lstat == AST__LOCKSTAT_BUSY ) {
             if( report ) {
                if( fail == this ) {
                   astError( AST__LCKERR, "astUnlock(%s): Failed to unlock the %s "
@@ -8004,7 +8005,7 @@ c--
                }
             }
 
-         } else if( lstat == 3 ) {
+         } else if( lstat == AST__LOCKSTAT_UNLOCKFAIL ) {
             astError( AST__LCKERR, "astUnlock(%s): Failed to unlock a POSIX mutex.", status,
                       astGetClass( this ) );
 
@@ -8907,9 +8908,9 @@ c--
    appropriate return value. */
       check = astManageLock( this, AST__CHECKLOCK, 0, NULL );
 
-      if( check == 5 ) {
+      if( check == AST__LOCKSTAT_OTHER ) {
          result = AST__OTHER;
-      } else if( check == 6 ) {
+      } else if( check == AST__LOCKSTAT_UNLOCKED ) {
          result = AST__UNLOCKED;
       }
    }
