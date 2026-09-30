@@ -103,6 +103,9 @@
 *        - InvertConstants inverts a constant numerator as well as a
 *          constant denominator, so that "2/m" is converted as "2 per
 *          metre" rather than as "0.5 per metre".
+*        - astUnitNormaliser only returns a blank string when the whole
+*          normalised string is a constant, rather than when it starts
+*          with one (so "2*m" is no longer normalised to "").
 */
 
 /* Module Macros. */
@@ -5896,6 +5899,7 @@ const char *astUnitNormaliser_( const char *in, int *status ){
 /* Local Variables: */
    UnitNode *in_tree;
    double dval;
+   int nc;
    const char *result;
 
 /* Initialise */
@@ -5923,8 +5927,11 @@ const char *astUnitNormaliser_( const char *in, int *status ){
 /* Convert the tree into string form. */
       result = MakeExp( in_tree, 2, 1, status );
 
-/* If the result is a constant value, return a blank string. */
-      if( result && 1 == astSscanf( result, "%lg", &dval ) ) {
+/* If the result is a constant value, return a blank string. The whole
+   string must be consumed, since "%lg" alone also matches a units string
+   that merely starts with a number, such as "2*m". */
+      if( result && 1 == astSscanf( result, " %lg %n", &dval, &nc ) &&
+          nc >= (int) strlen( result ) ) {
          *((char *) result) = 0;
       }
 
