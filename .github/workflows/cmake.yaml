@@ -26,7 +26,7 @@ jobs:
         shared_libs: [ON, OFF]
         fortran: [OFF]
         sanitizers: [OFF]
-        yaml_backend: [yaml, fyaml]
+        pthreads: [ON]
         c_flags: ['']
         include:
           # x86-64-v3 (Haswell+, 2013: AVX2/FMA) build.  Baseline x86-64
@@ -48,7 +48,6 @@ jobs:
             shared_libs: ON
             fortran: ON
             sanitizers: OFF
-            yaml_backend: yaml
           - os: macos-latest
             build_type: Release
             shared_libs: ON

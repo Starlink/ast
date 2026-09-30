@@ -130,8 +130,6 @@ jobs:
       - name: Bootstrap autotools
         run: ./bootstrap.local
 
-      # Homebrew installs outside the compiler's default search paths, so
-      # libyaml has to be pointed at explicitly
       - name: Configure (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -236,13 +234,8 @@ jobs:
           rm -rf tarball-am && mkdir tarball-am
           tar xzf ast-*.tar.gz -C tarball-am --strip-components=1
           cd tarball-am
-          if [ "$RUNNER_OS" = macOS ]; then
-            ./configure CC=${{ matrix.cc }} \
-              FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
-          else
-            ./configure CC=${{ matrix.cc }} \
-              FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
-          fi
+          ./configure CC=${{ matrix.cc }} \
+            FC=${{ matrix.f77 }} F77=${{ matrix.f77 }}
           make -j3
           make check
           echo "--- families reported as skipped ---"
