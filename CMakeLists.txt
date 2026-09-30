@@ -517,19 +517,56 @@ else()
     set(HAVE_PTHREADS 0)
 endif()
 
-# YAML
+# YAML: by default try libyaml first, then libfyaml; override with AST_YAML_BACKEND
+set(AST_YAML_BACKEND "auto" CACHE STRING
+    "YAML backend: auto (try libyaml then libfyaml), yaml, or fyaml")
+
 if(AST_WITH_YAML)
-    find_library(YAML_LIBRARY NAMES yaml)
-    find_path(YAML_INCLUDE_DIR yaml.h)
-    if(YAML_LIBRARY AND YAML_INCLUDE_DIR)
-        set(HAVE_YAML 1)
-        message(STATUS "Found libyaml: ${YAML_LIBRARY}")
-    else()
-        set(HAVE_YAML 0)
-        message(STATUS "libyaml not found - building without YAML support")
+    find_package(PkgConfig QUIET)
+
+    if(NOT AST_YAML_BACKEND STREQUAL "auto" AND
+       NOT AST_YAML_BACKEND STREQUAL "yaml" AND
+       NOT AST_YAML_BACKEND STREQUAL "fyaml")
+        message(FATAL_ERROR
+            "Unknown AST_YAML_BACKEND '${AST_YAML_BACKEND}': expected auto, yaml, or fyaml")
     endif()
-else()
-    set(HAVE_YAML 0)
+
+    if(AST_YAML_BACKEND STREQUAL "auto" OR AST_YAML_BACKEND STREQUAL "yaml")
+        find_library(YAML_LIBRARY NAMES yaml)
+        find_path(YAML_INCLUDE_DIR yaml.h)
+        if(YAML_LIBRARY AND YAML_INCLUDE_DIR)
+            set(HAVE_YAML 1)
+            message(STATUS "Found libyaml: ${YAML_LIBRARY}")
+        elseif(AST_YAML_BACKEND STREQUAL "yaml")
+            message(FATAL_ERROR "libyaml requested but not found")
+        endif()
+    endif()
+
+    if(NOT HAVE_YAML AND
+       (AST_YAML_BACKEND STREQUAL "auto" OR AST_YAML_BACKEND STREQUAL "fyaml"))
+        # Try pkg-config first; fall back to find_library/find_path.
+        if(PKG_CONFIG_FOUND)
+            pkg_check_modules(FYAML QUIET libfyaml)
+        endif()
+        if(FYAML_FOUND)
+            set(HAVE_FYAML 1)
+            message(STATUS "Found libfyaml via pkg-config: ${FYAML_LINK_LIBRARIES}")
+        else()
+            find_library(FYAML_LIBRARY NAMES fyaml)
+            find_path(FYAML_INCLUDE_DIR libfyaml.h)
+            if(FYAML_LIBRARY AND FYAML_INCLUDE_DIR)
+                set(HAVE_FYAML 1)
+                set(FYAML_LINK_LIBRARIES ${FYAML_LIBRARY})
+                set(FYAML_INCLUDE_DIRS ${FYAML_INCLUDE_DIR})
+                message(STATUS "Found libfyaml: ${FYAML_LIBRARY}")
+            elseif(AST_YAML_BACKEND STREQUAL "fyaml")
+                message(FATAL_ERROR "libfyaml requested but not found")
+            endif()
+        endif()
+    endif()
+    if(NOT HAVE_YAML AND NOT HAVE_FYAML)
+        message(STATUS "No YAML library found - building without YAML support")
+    endif()
 endif()
 
 # External PAL
@@ -582,6 +619,11 @@ include(CheckCCompilerFlag)
 check_c_compiler_flag(-Wno-format-overflow HAVE_WNO_FORMAT_OVERFLOW)
 if(HAVE_WNO_FORMAT_OVERFLOW)
     target_compile_options(messgen PRIVATE -Wno-format-overflow)
+endif()
+
+check_c_compiler_flag(-Wno-unused-value HAVE_WNO_UNUSED_VALUE)
+if(HAVE_WNO_UNUSED_VALUE)
+    target_compile_options(messgen PRIVATE -Wno-unused-value)
 endif()
 
 if(AST_BUILD_FORTRAN)
@@ -1019,12 +1061,17 @@ foreach(_target ast ast-static)
     )
 
     target_compile_definitions(${_target} PRIVATE HAVE_CONFIG_H)
+
     if(HAVE_PTHREADS)
         target_compile_definitions(${_target} PRIVATE THREAD_SAFE)
     endif()
+
     if(HAVE_YAML)
-        target_compile_definitions(${_target} PRIVATE YAML)
+        target_compile_definitions(${_target} PRIVATE YAML "YAML_BACKEND=\"libyaml\"")
+    elseif(HAVE_FYAML)
+        target_compile_definitions(${_target} PRIVATE FYAML "YAML_BACKEND=\"libfyaml\"")
     endif()
+
     if(AST_WITH_MEMDEBUG)
         target_compile_definitions(${_target} PRIVATE MEM_DEBUG)
     endif()
@@ -1050,12 +1097,17 @@ endif()
 # which is what libast_la_LIBADD does in the autotools build.
 foreach(_target ast ast-static)
     target_link_libraries(${_target} PRIVATE m)
+
     if(HAVE_PTHREADS)
         target_link_libraries(${_target} PRIVATE Threads::Threads)
     endif()
+
     if(HAVE_YAML)
         target_link_libraries(${_target} PRIVATE ${YAML_LIBRARY})
         target_include_directories(${_target} PRIVATE ${YAML_INCLUDE_DIR})
+    elseif(HAVE_FYAML)
+        target_link_libraries(${_target} PRIVATE ${FYAML_LINK_LIBRARIES})
+        target_include_directories(${_target} PRIVATE ${FYAML_INCLUDE_DIRS})
     endif()
 endforeach()
 if(AST_WITH_EXTERNAL_PAL)
