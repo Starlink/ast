@@ -3045,9 +3045,9 @@ static int ManageLock( AstObject *this, int mode, int extra,
    structure. All other components in the structure are guarded by the
    primary mutex (this->mutex1). */
    have_smutex = 1;
-   if( LOCK_SMUTEX(this) ) {
-      have_smutex = 0;
-      result = 2;
+   if( LOCK_SMUTEX(this) ) { /* LCOV_EXCL_BR_LINE */
+      have_smutex = 0; /* LCOV_EXCL_LINE */
+      result = 2; /* LCOV_EXCL_LINE */
 
 /* If the secondary mutex was locked succesfully, first deal with cases
    where the caller wants to lock the Object for exclusive use by the
@@ -3078,12 +3078,12 @@ static int ManageLock( AstObject *this, int mode, int extra,
    component safely. */
          if( lock_err == EBUSY && extra ) {
             have_smutex = 0;
-            if( UNLOCK_SMUTEX(this) ) {
-               result = 3;
-            } else if( LOCK_PMUTEX(this) ) {
-               result = 2;
-            } else if( LOCK_SMUTEX(this) ) {
-               result = 2;
+            if( UNLOCK_SMUTEX(this) ) { /* LCOV_EXCL_BR_LINE */
+               result = 3; /* LCOV_EXCL_LINE */
+            } else if( LOCK_PMUTEX(this) ) { /* LCOV_EXCL_BR_LINE */
+               result = 2; /* LCOV_EXCL_LINE */
+            } else if( LOCK_SMUTEX(this) ) { /* LCOV_EXCL_BR_LINE */
+               result = 2; /* LCOV_EXCL_LINE */
             } else {
                have_smutex = 1;
             }
@@ -3093,8 +3093,8 @@ static int ManageLock( AstObject *this, int mode, int extra,
          } else if( lock_err == EBUSY ) {
             result = 1;
 
-         } else if( lock_err ) {
-            result = 2;
+         } else if( lock_err ) { /* LCOV_EXCL_BR_LINE */
+            result = 2; /* LCOV_EXCL_LINE */
          }
 
 /* If this thread now holds both mutexes, record it as the owner of the
@@ -3142,8 +3142,8 @@ static int ManageLock( AstObject *this, int mode, int extra,
 
 /* Unlock the secondary mutex so that other threads can access the "locker"
    component in the Object to see if it is locked. */
-   if( have_smutex && UNLOCK_SMUTEX(this) ) {
-      result = 3;
+   if( have_smutex && UNLOCK_SMUTEX(this) ) { /* LCOV_EXCL_BR_LINE */
+      result = 3; /* LCOV_EXCL_LINE */
    }
 
 /* If the operation failed, return a pointer to the failed object. */
