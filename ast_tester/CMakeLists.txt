@@ -820,6 +820,7 @@ endif()
 
 if(HAVE_PTHREADS)
     ast_add_test(testthreads EXTRA_LIBS Threads::Threads)
+    ast_add_test(testlockcontention EXTRA_LIBS Threads::Threads)
 endif()
 
 # --- Grid smoke tests (no PLplot dependency) ---
