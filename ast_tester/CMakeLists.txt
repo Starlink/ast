@@ -967,7 +967,7 @@ if(PLPLOT_FOUND)
         SOURCES testplotter.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
-        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.ps"
+        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.pdf"
     )
     target_include_directories(testplotter PRIVATE ${PLPLOT_INCLUDE_DIRS})
     target_link_directories(testplotter PRIVATE ${PLPLOT_LIBRARY_DIRS})

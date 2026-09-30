@@ -236,7 +236,6 @@ Key issues:
   preamble lines ("FITS headers in ...") that would need stripping first.
 - **Dead file cleanup**: The following files are no longer used and could be
   removed in a future pass:
-  - `.ps` files (20 generated PostScript outputs, ~18 MB)
   - Old build scripts: `doplot`, `makeplot`, `maketest`, `moctohtml`
   - Duplicate `2dspline.dat` (identical to `2dspline_c.dat`)
   - `asdftest.py` (standalone Python test, not integrated)
