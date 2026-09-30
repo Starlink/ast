@@ -246,6 +246,12 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        may be associated with any Object for storing extra internal data.
 *        The companion astHasKeyMap method tests whether an Object already has
 *        an associated KeyMap without creating one.
+*     30-SEP-2026 (EMB):
+*        - Fix potential deadlock when more than two threads are contending
+*        for the lock on an object.
+*        - Fix segfault when a thread tries to unlock an Object owned by
+*        another thread: this is a programming error on the part of the user
+*        but is better to return an error than crash.
 *class--
 */
 
@@ -389,8 +395,16 @@ static pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
    access to these two remaining items. We need this secondary mutex
    since the "locker" and "ref_count" items need to be accessable within
    a thread even if that thread has not locked the Object using astLock.
+
+   A thread may block on the secondary mutex while holding the primary
+   one (as ManageLock does when taking over a lock it waited for), so no
+   thread may block on the primary mutex while holding the secondary one.
+   While holding the secondary mutex, use TRYLOCK_PMUTEX instead, which
+   never blocks.
+
    Define macros for accessing these two mutexes. */
 #define LOCK_PMUTEX(this) (pthread_mutex_lock(&((this)->mutex1)))
+#define TRYLOCK_PMUTEX(this) (pthread_mutex_trylock(&((this)->mutex1)))
 #define UNLOCK_PMUTEX(this) (pthread_mutex_unlock(&((this)->mutex1)))
 #define LOCK_SMUTEX(this) (pthread_mutex_lock(&((this)->mutex2)))
 #define UNLOCK_SMUTEX(this) (pthread_mutex_unlock(&((this)->mutex2)))
@@ -442,6 +456,7 @@ static int astgetc_init = 0;
 #define LOCK_MUTEX2
 #define UNLOCK_MUTEX2
 #define LOCK_PMUTEX(this)
+#define TRYLOCK_PMUTEX(this)
 #define LOCK_SMUTEX(this)
 #define UNLOCK_PMUTEX(this)
 #define UNLOCK_SMUTEX(this)
@@ -3011,6 +3026,8 @@ static int ManageLock( AstObject *this, int mode, int extra,
 
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Thread-specific global data */
+   int have_smutex;              /* Is the secondary mutex held? */
+   int lock_err;                 /* Value returned by TRYLOCK_PMUTEX */
    int result;                   /* Returned value */
 
 /* Initialise */
@@ -3027,7 +3044,9 @@ static int ManageLock( AstObject *this, int mode, int extra,
    access to the "locker" (and "ref_count") component in the AstObject
    structure. All other components in the structure are guarded by the
    primary mutex (this->mutex1). */
+   have_smutex = 1;
    if( LOCK_SMUTEX(this) ) {
+      have_smutex = 0;
       result = 2;
 
 /* If the secondary mutex was locked succesfully, first deal with cases
@@ -3035,42 +3054,56 @@ static int ManageLock( AstObject *this, int mode, int extra,
    calling thread. */
    } else if( mode == AST__LOCK ) {
 
-/* If the Object is not currently locked, lock the Object primary mutex
-   and record the identity of the calling thread in the Object. */
-      if( this->locker == -1 ) {
-         if( LOCK_PMUTEX(this) ) result = 2;
-         this->locker = AST__THREAD_ID;
-         this->globals = AST__GLOBALS;
-         ChangeThreadVtab( this, status );
+/* If the Object is already locked by the calling thread, do nothing. This
+   is checked first since the calling thread then holds the primary mutex,
+   and so would fail to lock it below. */
+      if( this->locker == AST__THREAD_ID ) {
 
-/* If the Object is already locked by the calling thread, do nothing. */
-      } else if( this->locker == AST__THREAD_ID ) {
+/* Otherwise, try to lock the primary mutex. We hold the secondary mutex,
+   so must not block on the primary mutex (see the note on the mutex
+   macros), and so use TRYLOCK_PMUTEX. This succeeds if no other thread
+   holds the primary mutex. A thread other than the one recorded in
+   "locker" may hold it, so it can be held even if "locker" is -1: a
+   thread taking over the lock after waiting for it (below) holds the
+   primary mutex before it can record itself in "locker". */
+      } else {
+         lock_err = TRYLOCK_PMUTEX(this);
 
-/* If the object is locked by a different thread, and the caller is
-   willing to wait, attempt to lock the Object primary mutex. This will
-   cause the calling thread to block until the Object is release by the
-   thread that currently has it locked. Then store the identity of the
-   calling thread (the new lock owner). We first need to release the
-   secondary mutex so that the other thread can modify the "locker"
-   component in the AstObject structure when it releases the Object
-   (using this function). We then re-lock the secondary mutex so this
-   thread can change the "locker" component safely. */
-      } else if( extra ) {
-         if( UNLOCK_SMUTEX(this) ) {
-            result = 3;
-         } else if( LOCK_PMUTEX(this) ) {
-            result = 2;
-         } else if( LOCK_SMUTEX(this) ) {
-            result = 2;
-         }
-         this->locker = AST__THREAD_ID;
-         this->globals = AST__GLOBALS;
-         ChangeThreadVtab( this, status );
+/* If another thread holds the primary mutex, and the caller is willing to
+   wait, lock the primary mutex, blocking until the other thread releases
+   the Object. We first need to release the secondary mutex so that the
+   other thread can modify the "locker" component in the AstObject
+   structure when it releases the Object (using this function). We then
+   re-lock the secondary mutex so this thread can change the "locker"
+   component safely. */
+         if( lock_err == EBUSY && extra ) {
+            have_smutex = 0;
+            if( UNLOCK_SMUTEX(this) ) {
+               result = 3;
+            } else if( LOCK_PMUTEX(this) ) {
+               result = 2;
+            } else if( LOCK_SMUTEX(this) ) {
+               result = 2;
+            } else {
+               have_smutex = 1;
+            }
 
 /* If the caller does not want to wait until the Object is available,
-   return a status of 1. */
-      } else {
-         result = 1;
+   report that it is locked by another thread. */
+         } else if( lock_err == EBUSY ) {
+            result = 1;
+
+         } else if( lock_err ) {
+            result = 2;
+         }
+
+/* If this thread now holds both mutexes, record it as the owner of the
+   Object. */
+         if( result == 0 ) {
+            this->locker = AST__THREAD_ID;
+            this->globals = AST__GLOBALS;
+            ChangeThreadVtab( this, status );
+         }
       }
 
 /* Unlock the Object for use by other threads. */
@@ -3109,7 +3142,9 @@ static int ManageLock( AstObject *this, int mode, int extra,
 
 /* Unlock the secondary mutex so that other threads can access the "locker"
    component in the Object to see if it is locked. */
-   if( UNLOCK_SMUTEX(this) ) result = 3;
+   if( have_smutex && UNLOCK_SMUTEX(this) ) {
+      result = 3;
+   }
 
 /* If the operation failed, return a pointer to the failed object. */
    if( result && fail ) *fail = this;
@@ -7790,8 +7825,10 @@ c--
    an error if the Object is not currently locked by the calling thread. */
    if ( !astIsAObject( this = astMakePointer_NoLockCheck( this_id ) ) ) return;
 
-/* Ensure the global data for this class is accessable. */
-   astGET_GLOBALS(this);
+/* Ensure the global data for this class is accessable. Do not use the
+   globals pointer stored in "*this" because "*this" may be locked by
+   another thread and so we would pick up the wrong globals. */
+   astGET_GLOBALS(NULL);
 
 /* Start a new error reporting context. This saves any existing error status
    and then clear the status value. It also defer further error reporting. */
