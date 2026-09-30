@@ -28,6 +28,16 @@ int main( void ) {
          { "1000 m", "km" },
          { "2", "" },
          { "0.5", "" },
+
+/* A reciprocal is folded into the unit's multiplier prefix when one is
+   closer; otherwise it is left alone. Without a closer prefix these used
+   to recurse without end. */
+         { "2/m", "2/m" },
+         { "0.5/m", "0.5/m" },
+         { "3/s", "3/s" },
+         { "2/km", "2/km" },
+         { "10/m", "1/dm" },
+         { "1000/m", "1/mm" },
       };
       size_t ncase = sizeof( cases )/sizeof( cases[ 0 ] );
       size_t i;
