@@ -140,6 +140,34 @@ int main( void ) {
       }
    }
 
+/* An axis picked out of a SkyFrame into a plain Frame keeps the same
+   Unit and NormUnit. astSubFrame sets the SkyFrame's Unit explicitly on
+   the picked axis, so a description such as "hh mm ss" arrives as a set
+   Unit, and must still not be handed to the units parser. */
+   {
+      const char *attrs[ 4 ] = { "Format(1)=bhms", "Format(1)=btm",
+                                 "Format(1)=bdms.2", "Format(1)=bd" };
+      const char *norms[ 4 ] = { "hh mm ss", "minutes of time",
+                                 "ddd mm ss.ss", "deg" };
+      int axes[ 1 ] = { 1 };
+      int i;
+
+      for( i = 0; i < 4 && astOK; i++ ) {
+         AstSkyFrame *sf = astSkyFrame( attrs[ i ] );
+         AstFrame *pick = astPickAxes( sf, 1, axes, NULL );
+         const char *norm = astGetC( pick, "NormUnit(1)" );
+
+         if( astOK && ( !norm || strcmp( norm, norms[ i ] ) ) ) {
+            astError( AST__INTER, "NormUnit(1) of axis 1 picked from a "
+                      "SkyFrame with %s is '%s', expected '%s'", attrs[ i ],
+                      norm ? norm : "<NULL>", norms[ i ] );
+         }
+
+         pick = astAnnul( pick );
+         sf = astAnnul( sf );
+      }
+   }
+
 /* astAxAngle: when the offset position has a zero component on the
    measured axis but a non-zero component on the other axis, the angle is
    still well defined. Previously the nudge applied to break the
