@@ -99,6 +99,10 @@
 *        - Check the allocations made while parsing and formatting a units
 *          expression, so that a failure reports an error rather than
 *          dereferencing a null pointer.
+*     30-SEP-2026 (TIMJ):
+*        - InvertConstants inverts a constant numerator as well as a
+*          constant denominator, so that "2/m" is converted as "2 per
+*          metre" rather than as "0.5 per metre".
 */
 
 /* Module Macros. */
@@ -2557,14 +2561,19 @@ static void InvertConstants( UnitNode **node, int *status ) {
                }
             }
 
-/* Likewise, check for division nodes in which the denominator is
-   constant. */
+/* Likewise, check for division nodes in which either argument is
+   constant. A constant numerator is a coefficient just as a constant
+   factor is: "2/m" means "each unit is 2 per metre", the same as
+   "2*m**-1", so it is inverted too. A constant denominator is the
+   reciprocal of a coefficient, and inverting it has the same effect. */
          } else if( op == OP_DIV ) {
-            if( (*node)->arg[ 1 ]->con != AST__BAD ) {
-               if( (*node)->arg[ 1 ]->con != 0.0 ) {
-                  (*node)->arg[ 1 ]->con = 1.0/(*node)->arg[ 1 ]->con;
-               } else {
-                  astError( AST__BADUN, "Illegal zero constant encountered." , status);
+            for( i = 0; i < 2; i++ ) {
+               if( (*node)->arg[ i ]->con != AST__BAD ) {
+                  if( (*node)->arg[ i ]->con != 0.0 ) {
+                     (*node)->arg[ i ]->con = 1.0/(*node)->arg[ i ]->con;
+                  } else {
+                     astError( AST__BADUN, "Illegal zero constant encountered." , status);
+                  }
                }
             }
 
