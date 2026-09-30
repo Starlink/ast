@@ -621,6 +621,11 @@ if(HAVE_WNO_FORMAT_OVERFLOW)
     target_compile_options(messgen PRIVATE -Wno-format-overflow)
 endif()
 
+check_c_compiler_flag(-Wno-unused-value HAVE_WNO_UNUSED_VALUE)
+if(HAVE_WNO_UNUSED_VALUE)
+    target_compile_options(messgen PRIVATE -Wno-unused-value)
+endif()
+
 if(AST_BUILD_FORTRAN)
     set(MESSGEN_FLAGS -c -F)
     set(MESSGEN_OUTPUTS
