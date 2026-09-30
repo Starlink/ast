@@ -106,6 +106,9 @@
 *        - astUnitNormaliser only returns a blank string when the whole
 *          normalised string is a constant, rather than when it starts
 *          with one (so "2*m" is no longer normalised to "").
+*        - ModifyPrefix no longer reports a change to an unchanged
+*          "constant/unit" node, which made MakeExp recurse without end
+*          (for instance when normalising "2/m").
 */
 
 /* Module Macros. */
@@ -4399,9 +4402,14 @@ static UnitNode *ModifyPrefix( UnitNode *old, int *status ) {
             changed = 1;
          }
 
+/* In the reciprocal case the LDCON node holds the numerator, not the
+   constant found above, so whether it has changed is only known once the
+   numerator has been recomputed below. Setting "changed" here would report
+   a change for an unmodified node, and MakeExp, which formats the returned
+   node by calling itself on it, would then recurse without end. */
          if( ldcon->con != con ) {
             ldcon->con = con;
-            changed = 1;
+            if( !recip ) changed = 1;
          }
 
 /* Unless the node is proportional to the reciprocal of the variable, the
