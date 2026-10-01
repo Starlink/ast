@@ -174,6 +174,25 @@ int main( void ) {
    fs = astConvert( ff, ff2, " " );
    if( fs ) stopit( status, "Error 29" );
 
+   /* Each System name the FluxFrame writes reads back as the same System,
+      in a setting and in a dump. */
+   ff = astFluxFrame( AST__BAD, NULL, "System=SFCBRW" );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( status, "Error 30" );
+   } else {
+      AstObject *copy;
+      char *pickle;
+      if( strcmp( astGetC( ff, "System" ), "SFCBRW" ) )
+         stopit( status, "Error 31" );
+      pickle = astToString( ff );
+      copy = pickle ? astFromString( pickle ) : NULL;
+      pickle = astFree( pickle );
+      if( !copy || strcmp( astGetC( copy, "System" ), "SFCBRW" ) )
+         stopit( status, "Error 32" );
+      if( copy ) copy = astAnnul( copy );
+   }
+
    astEnd;
 
    if( *status == 0 ) {
