@@ -444,9 +444,12 @@ static void ThreadExit( void *data ) {
    Classes whose resources are Objects come first, since deleting an
    Object may use the resources of the classes below. */
 #define FREE_GLOBALS(class) astFree##class##Globals_( &(globals->class), status );
+   FREE_GLOBALS( FitsChan );
+   FREE_GLOBALS( Plot3D );
+   FREE_GLOBALS( SpecFrame );
+   FREE_GLOBALS( Frame );
    FREE_GLOBALS( SkyFrame );
    FREE_GLOBALS( Plot );
-   FREE_GLOBALS( Frame );
    FREE_GLOBALS( KeyMap );
    FREE_GLOBALS( Object );
    FREE_GLOBALS( Error );

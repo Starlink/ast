@@ -857,6 +857,7 @@ typedef struct AstFrameGlobals {
    char Title_Buff[ AST__FRAME_TITLE_BUFF_LEN + 1 ];
    char AstFmtDecimalYr_Buff[ AST__FRAME_ASTFMTDECIMALYR_BUFF_LEN + 1 ];
    char GetNormUnit_Buff[ AST__FRAME_GETNORMUNIT_BUFF_LEN + 1 ];
+   struct AstSkyFrame *SkyFrame;
 } AstFrameGlobals;
 
 #endif
