@@ -46,9 +46,8 @@ Main Changes in this Version
 
   Setting IterInverse to a non-zero value on a PolyMap or ChebyMap with
   no forward transformation, a non-positive or non-finite TolInverse, or
-  a negative NiterInverse now reports an error. The ChebyMap default for
-  NiterInverse is 10. FitsChan no longer writes SIP headers for FrameSets
-  containing a ChebyMap.
+  a negative NiterInverse now reports an error. FitsChan no longer writes
+  SIP headers for FrameSets containing a ChebyMap.
 
 Bug fixes
 ---------

@@ -79,8 +79,9 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   embedded as native serialised strings (read back with astFromString) so the
   test does not depend on the FitsChan class.
 - Batch 15: testchebyinverse — exercises the protected building blocks of the
-  ChebyMap iterative inverse (astGetJacobian, astLinearGuess,
-  astGetIterDomain) and the shared bounded solver in the PolyMap class. Built
+  ChebyMap iterative inverse (astGetJacobian and astLinearGuess), the
+  evaluable domain reported by the public astChebyDomain, and the bounded
+  solver in the ChebyMap class. Built
   with INTERNAL_HEADERS because it calls protected methods; checks the
   Chebyshev derivative basis against an independent T_n' = n U_(n-1)
   reference, the affine seed, endpoint and degenerate iteration domains, the

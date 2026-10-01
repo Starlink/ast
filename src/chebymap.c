@@ -189,6 +189,26 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        IterInverse's whole-batch forward transform at the top of each
 *        iteration can be skipped except on the first iteration or after a
 *        position has been nudged.
+*     30-SEP-2026 (TIMJ):
+*        - Keep the orientation of the supplied box in AxisBounds, so that
+*        astChebyDomain returns a descending box descending, as it did
+*        before, and sort the bounds only where the iteration needs them
+*        ascending.
+*        - Return every position as bad when a Chebyshev series has no
+*        evaluable box, instead of using the unbounded parent algorithm.
+*        - Do not nudge a singular position on the final pass, where the
+*        moved position could not be checked; report it unsolved.
+*        - Treat a midpoint Jacobian row that is negligible against the
+*        sum of the output's coefficients as singular in LinearGuess, so
+*        that a slope left by rounding does not place the seed far outside
+*        the box.
+*        - Use the original numbers of inputs and outputs, and the matching
+*        direction for astMapBox, in ChebyDomain, which gave wrong results
+*        for an inverted ChebyMap with unequal numbers of inputs and
+*        outputs.
+*        - Keep the parent NiterInverse default for a ChebyMap holding an
+*        ordinary polynomial, which uses the parent algorithm.
+*        - Use astISGOOD in place of a private equivalent.
 *class--
 */
 
@@ -216,7 +236,6 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 #include "matrixmap.h"           /* Affine initial guesses */
 #include "shiftmap.h"
 #include "permmap.h"
-#include "pal.h"                 /* Linear equation solver for Newton steps */
 #include "pal.h"                 /* Linear equation solver for Newton steps */
 
 /* Error code definitions. */
@@ -249,6 +268,15 @@ static AstPolyMap **(*parent_getjacobian)( AstPolyMap *, int * );
 static AstMapping *(*parent_linearguess)( AstPolyMap *, int * );
 static void (*parent_iterinverse)( AstPolyMap *, AstPointSet *, AstPointSet *, int * );
 static int (*parent_getniterinverse)( AstPolyMap *, int * );
+
+/* A Jacobian row whose entries, scaled by the box half-widths, sum to no
+   more than this fraction of the sum of the absolute coefficients of its
+   output is treated as singular. The series cannot exceed that sum anywhere
+   in the box, so such a row carries no usable slope: it is what rounding
+   leaves of an exact zero, as at the midpoint of a series with no odd
+   terms, and inverting it would place a position far outside the box. The
+   same criterion serves the affine seed and the Newton iteration. */
+#define SINGULAR_SLOPE 1.0e-10
 
 /* A derivative term retains the original orders except on one axis. */
 typedef struct ChebyDerivTerm {
@@ -311,7 +339,6 @@ static void IterSteps( AstPolyMap *, int, int, double **, double **,
                        const double *, const double *, const double *,
                        const double *, int *, int *, int *, int * );
 static void MarkUnsolved( double **, int, int, int *, int * );
-static int Usable( double );
 static double NudgeIntoDomain( double, double, double, double );
 static int GetNiterInverse( AstPolyMap *, int * );
 static size_t GetObjSize( AstObject *, int * );
@@ -397,6 +424,14 @@ c    astMapBox
 f    AST_MAPBOX
 *    method on the opposite transformation, if the opposite
 *    transformation is defined.
+*    - The returned bounds are the positions at which the normalised
+*    coordinate on each axis is -1 and +1, in that order, so a bounding
+*    box that was supplied with descending bounds is returned descending.
+*    Each bound may differ from the value supplied when the ChebyMap was
+*    created by a few units in the last place, since it is moved inwards
+*    where rounding would otherwise put it outside the range over which
+*    the transformation can be evaluated. An axis whose normalisation
+*    leaves no such position is returned as AST__BAD.
 *    - If the above procedure fails to determine a bounding box, the supplied
 *    arrays are filled with AST__BAD values but no error is reported.
 
@@ -419,23 +454,28 @@ f    AST_MAPBOX
    if( !astOK ) return;
 
 /* Get the scales and offsets to use, depending on the value of "forward"
-   and whether the ChebyMap has been inverted. */
+   and whether the ChebyMap has been inverted. The scale and offset arrays
+   describe the original transformations, so their lengths are the
+   original numbers of inputs and outputs, which astGetNin and astGetNout
+   swap once the ChebyMap is inverted. The "fwd_o" flag selects, relative
+   to the current Invert setting, the transformation that maps the other
+   box into the requested space. */
    if( forward != astGetInvert( this ) ) {
       scale = this->scale_f;
       offset = this->offset_f;
-      nax = astGetNin( this );
+      nax = ((AstMapping *) this)->nin;
       scale_o = this->scale_i;
       offset_o = this->offset_i;
-      nax_o = astGetNout( this );
-      fwd_o = 0;
+      nax_o = ((AstMapping *) this)->nout;
+      fwd_o = astGetInvert( this );
    } else {
       scale = this->scale_i;
       offset = this->offset_i;
-      nax = astGetNout( this );
+      nax = ((AstMapping *) this)->nout;
       scale_o = this->scale_f;
       offset_o = this->offset_f;
-      nax_o = astGetNin( this );
-      fwd_o = 1;
+      nax_o = ((AstMapping *) this)->nin;
+      fwd_o = !astGetInvert( this );
    }
 
 /* Check the domain is defined. */
@@ -1179,14 +1219,18 @@ static int GetIterDomain( AstChebyMap *this, double *lbnd, double *ubnd,
 *
 *     A ChebyMap can also contain an ordinary polynomial forward
 *     transformation. Such a transformation has no finite iteration
-*     domain; in that case both supplied arrays are left unchanged and
-*     zero is returned.
+*     domain, and zero is returned for it. Zero is also returned if the
+*     normalisation of any axis describes no interval holding a position
+*     the forward evaluator accepts. The contents of the supplied arrays
+*     are undefined when zero is returned.
 *
 *     A reconstructed bound can round to a position whose normalised
 *     coordinate lies just outside [-1,1]. Each bound is moved towards
-*     the other by up to eight adjacent representable values to bring it
-*     within the range accepted by the forward evaluator. This does not
-*     enable extrapolation of the forward series.
+*     the other by adjacent representable values to bring it within the
+*     range accepted by the forward evaluator. This does not enable
+*     extrapolation of the forward series. The bounds are returned in
+*     ascending order on each axis, whichever way round the box was
+*     supplied.
 
 *  Parameters:
 *     this
@@ -1203,25 +1247,23 @@ static int GetIterDomain( AstChebyMap *this, double *lbnd, double *ubnd,
 
 *  Returned Value:
 *     One if bounds have been supplied, or zero if the original forward
-*     transformation has no Chebyshev normalisation.
+*     transformation has no Chebyshev normalisation or no evaluable box.
 
 *  Notes:
-*     - A value of zero is returned and the bound arrays are left
-*     unchanged if the inherited status is set.
+*     - A value of zero is returned if the inherited status is set.
 */
    int i, nin = ((AstMapping *) this)->nin;
    double a, b;
    if( !astOK || !this->scale_f ) return 0;
 
-/* Every axis must yield a usable interval before anything is stored, so
-   that the supplied arrays are left unchanged when zero is returned. */
    for( i = 0; i < nin; i++ ) {
       if( !AxisBounds( this->scale_f[i], this->offset_f[i], &a, &b ) ) return 0;
-   }
 
-   for( i = 0; i < nin; i++ ) {
-      (void) AxisBounds( this->scale_f[i], this->offset_f[i], lbnd + i,
-                         ubnd + i );
+/* AxisBounds keeps the orientation of the supplied box. The iteration
+   clips positions into the box and measures corrections against its
+   half-width, so it needs each lower bound below its upper bound. */
+      lbnd[ i ] = astMIN( a, b );
+      ubnd[ i ] = astMAX( a, b );
    }
    return 1;
 }
@@ -1306,8 +1348,11 @@ static int AxisBounds( double scale, double offset, double *lbnd,
 *     This function returns the range of axis values over which a
 *     Chebyshev series with the given normalisation can be evaluated. The
 *     bounds are the positions whose normalised coordinates are -1 and +1,
-*     moved inwards if necessary so that the forward evaluator accepts
-*     them.
+*     in that order, moved inwards if necessary so that the forward
+*     evaluator accepts them. A negative scale therefore returns a lower
+*     bound greater than the upper bound: the box was supplied that way
+*     round, and callers that rebuild a ChebyMap from the bounds depend
+*     on getting it back that way round.
 *
 *     Zero is returned, and the supplied bounds are left unchanged, if the
 *     normalisation describes no interval at all. That covers a zero or
@@ -1322,17 +1367,17 @@ static int AxisBounds( double scale, double offset, double *lbnd,
 *     offset
 *        The offset added to an axis value after scaling.
 *     lbnd
-*        Pointer to a double in which to return the lower bound.
+*        Pointer to a double in which to return the position whose
+*        normalised coordinate is -1.
 *     ubnd
-*        Pointer to a double in which to return the upper bound.
+*        Pointer to a double in which to return the position whose
+*        normalised coordinate is +1.
 
 *  Returned Value:
 *     One if bounds have been returned, zero otherwise.
 */
    double a;
    double b;
-   double hi;
-   double lo;
 
    if( scale == 0.0 || !isfinite( scale ) || !isfinite( offset ) ) return 0;
 
@@ -1340,44 +1385,15 @@ static int AxisBounds( double scale, double offset, double *lbnd,
    b = ( 1.0 - offset )/scale;
    if( !isfinite( a ) || !isfinite( b ) ) return 0;
 
-   lo = NudgeIntoDomain( astMIN( a, b ), astMAX( a, b ), scale, offset );
-   hi = NudgeIntoDomain( astMAX( a, b ), lo, scale, offset );
+   a = NudgeIntoDomain( a, b, scale, offset );
+   b = NudgeIntoDomain( b, a, scale, offset );
 
-   if( fabs( lo*scale + offset ) > 1.0 ) return 0;
-   if( fabs( hi*scale + offset ) > 1.0 ) return 0;
+   if( fabs( a*scale + offset ) > 1.0 ) return 0;
+   if( fabs( b*scale + offset ) > 1.0 ) return 0;
 
-   *lbnd = lo;
-   *ubnd = hi;
+   *lbnd = a;
+   *ubnd = b;
    return 1;
-}
-
-static int Usable( double value ) {
-/*
-*  Name:
-*     Usable
-
-*  Purpose:
-*     Test whether a coordinate value can take part in the iteration.
-
-*  Type:
-*     Private function.
-
-*  Synopsis:
-*     #include "chebymap.h"
-*     int Usable( double value )
-
-*  Description:
-*     This function returns non-zero if "value" is neither AST__BAD nor
-*     a non-finite floating point value.
-
-*  Parameters:
-*     value
-*        The value to test.
-
-*  Returned Value:
-*     Non-zero if the value can be used in arithmetic.
-*/
-   return value != AST__BAD && isfinite( value );
 }
 
 static void MarkUnsolved( double **inputs, int ncoord, int ipoint,
@@ -1647,7 +1663,7 @@ static void IterSteps( AstPolyMap *this, int npoint, int ncoord,
          newnorm = 0.0;
          for( i = 0; i < ncoord; i++ ) {
             value = y[ i ][ jpoint ];
-            if( !Usable( value ) ) {
+            if( !astISGOOD( value ) ) {
                valid = 0;
                break;
             }
@@ -1739,8 +1755,10 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 *     been nudged off a singular seed; otherwise the forward values IterSteps
 *     already obtained for the accepted trial are reused.
 *
-*     If the forward series has no usable Chebyshev box on every axis,
-*     the parent PolyMap algorithm is used instead.
+*     If the forward series is an ordinary polynomial, the parent PolyMap
+*     algorithm is used instead. If it is a Chebyshev series whose box
+*     holds no position the forward evaluator accepts, every position is
+*     returned as AST__BAD.
 
 *  Parameters:
 *     map
@@ -1774,6 +1792,7 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
    double *lbnd;
    double *mat;
    double *norms;
+   double *outscale;
    double *pa;
    double *pb;
    double *scale;
@@ -1822,15 +1841,33 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
       return;
    }
 
-/* Without a Chebyshev normalisation or a usable box there is nothing to
-   restrict the iteration to, so use the parent algorithm. */
+/* A ChebyMap whose forward series is an ordinary polynomial has no box
+   to restrict the iteration to, so the parent algorithm is used for it. */
    lbnd = astMalloc( ncoord*sizeof( *lbnd ) );
    ubnd = astMalloc( ncoord*sizeof( *ubnd ) );
-   if( !astOK || !this->scale_f ||
-       !GetIterDomain( this, lbnd, ubnd, status ) ) {
+   if( !astOK || !this->scale_f ) {
       lbnd = astFree( lbnd );
       ubnd = astFree( ubnd );
       (*parent_iterinverse)( map, out, result, status );
+      return;
+   }
+
+/* A Chebyshev series whose box holds no position the forward evaluator
+   accepts can be inverted nowhere. The unbounded algorithm would iterate
+   on bad forward values and return finite nonsense, so every position is
+   returned bad instead. */
+   if( !GetIterDomain( this, lbnd, ubnd, status ) ) {
+      lbnd = astFree( lbnd );
+      ubnd = astFree( ubnd );
+      npoint = astGetNpoint( out );
+      ptr_in = astGetPoints( result );
+      if( astOK ) {
+         for( icoord = 0; icoord < ncoord; icoord++ ) {
+            for( ipoint = 0; ipoint < npoint; ipoint++ ) {
+               ptr_in[ icoord ][ ipoint ] = AST__BAD;
+            }
+         }
+      }
       return;
    }
 
@@ -1844,6 +1881,19 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 /* Allocate the box half-widths and the per-row residual scales. */
    width = astMalloc( ncoord*sizeof( *width ) );
    scale = astMalloc( ncoord*sizeof( *scale ) );
+
+/* Bound each output over the box by the sum of the absolute values of its
+   coefficients, against which a Jacobian row is judged negligible. */
+   outscale = astMalloc( ncoord*sizeof( *outscale ) );
+   if( astOK ) {
+      for( irow = 0; irow < ncoord; irow++ ) {
+         outscale[ irow ] = 0.0;
+         for( icol = 0; icol < map->ncoeff_f[ irow ]; icol++ ) {
+            xx = map->coeff_f[ irow ][ icol ];
+            if( xx != AST__BAD ) outscale[ irow ] += fabs( xx );
+         }
+      }
+   }
 
 /* Get another PointSet to hold intermediate results. */
    work = astPointSet( npoint, ncoord, " ", status );
@@ -1931,9 +1981,9 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
       for( ipoint = 0; ipoint < npoint; ipoint++ ) {
          int good = valid;
          for( icoord = 0; icoord < ncoord; icoord++ ) {
-            if( !Usable( ptr_out[icoord][ipoint] ) ) good = 0;
+            if( !astISGOOD( ptr_out[icoord][ipoint] ) ) good = 0;
             xx = ptr_in[icoord][ipoint];
-            if( !Usable( xx ) ) xx = 0.5*lbnd[icoord] + 0.5*ubnd[icoord];
+            if( !astISGOOD( xx ) ) xx = 0.5*lbnd[icoord] + 0.5*ubnd[icoord];
             ptr_in[icoord][ipoint] = astMAX( lbnd[icoord],
                                             astMIN(ubnd[icoord],xx) );
          }
@@ -2009,7 +2059,7 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
                valid = 1;
                exact = 1;
                for( irow = 0; irow < ncoord; irow++ ) {
-                  if( !Usable( vec[irow] ) ) valid = 0;
+                  if( !astISGOOD( vec[irow] ) ) valid = 0;
                   if( vec[irow] != 0.0 ) exact = 0;
                }
                if( valid && exact ) {
@@ -2020,16 +2070,21 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 
 /* Solve for dimensionless steps (dx divided by the input half-width).
    Scale each equation by its Jacobian row norm to avoid dependence on
-   arbitrary input or output units in the singularity and residual tests. */
+   arbitrary input or output units in the singularity and residual tests.
+   A row that is negligible against the bound on its output is singular
+   for this purpose, whatever the equation solver would make of it: once
+   normalised to unit norm it would yield a step far outside the box that
+   no amount of backtracking could bring back inside. */
                for( irow = 0; irow < ncoord; irow++ ) {
                   scale[irow] = 0.0;
                   for( icol = 0; icol < ncoord; icol++ ) {
                      pa = mat + irow*ncoord + icol;
-                     if( !Usable( *pa ) ) valid = 0;
+                     if( !astISGOOD( *pa ) ) valid = 0;
                      *pa *= width[icol];
                      scale[irow] += fabs(*pa);
                   }
                   if( !isfinite(scale[irow]) ) valid = 0;
+                  if( scale[irow] <= SINGULAR_SLOPE*outscale[irow] ) sing = 1;
                   if( scale[irow] > 0.0 ) {
                      for( icol = 0; icol < ncoord; icol++ ) {
                         mat[irow*ncoord+icol] /= scale[irow];
@@ -2044,13 +2099,15 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 
 /* If the matrix was singular, nudge the position once off the seed that
    produced it and try again next iteration. A position singular a second
-   time cannot be evaluated, so store a bad value for it and indicate it
-   has been resolved. */
+   time, or singular on the final pass, cannot be evaluated, so store a
+   bad value for it and indicate it has been resolved. */
                if( sing ) {
-                  if( !nudged[ ipoint ] ) {
+                  if( !nudged[ ipoint ] && iter < maxiter ) {
 
 /* Move once off a stationary point and evaluate the forward transformation
-   there next time. Nudge upward unless that would leave the box, rather
+   there next time. This needs an update still to come: on the final pass
+   the moved position could not be checked against the target, so it is
+   unsolved instead. Nudge upward unless that would leave the box, rather
    than comparing room on each side: the seed is usually the exact box
    midpoint, and a room comparison there is a tie broken only by the last
    bit of rounding, which a fused multiply-add can flip. */
@@ -2139,6 +2196,7 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
    ubnd = astFree( ubnd );
    width = astFree( width );
    scale = astFree( scale );
+   outscale = astFree( outscale );
 }
 
 static AstMapping *LinearGuess( AstPolyMap *map, int *status ) {
@@ -2167,7 +2225,8 @@ static AstMapping *LinearGuess( AstPolyMap *map, int *status ) {
 *     tries an affine approximation using the complete forward value and
 *     Jacobian at the midpoint of the forward domain.
 *
-*     If that approximation cannot provide a finite inverse, the
+*     If that approximation cannot provide a finite inverse, or is so
+*     nearly singular that a seed would lie far outside the box, the
 *     constant and linear Chebyshev terms are tried, including their
 *     physical input normalisation. If neither approximation is usable,
 *     a Mapping whose inverse always returns the domain midpoint is
@@ -2203,7 +2262,7 @@ static AstMapping *LinearGuess( AstPolyMap *map, int *status ) {
    double *center, *value, *column, *matrix;
    int *inperm;
    int nin, i, j, attempt, valid, out, ico, axis, order;
-   double c;
+   double c, outscale, rownorm;
 
    if( !astOK ) return NULL;
    if( !this->scale_f ) return (*parent_linearguess)( map, status );
@@ -2257,10 +2316,24 @@ static AstMapping *LinearGuess( AstPolyMap *map, int *status ) {
          valid = 1;
          for( i = 0; i < nin; i++ ) {
             if( value[i] == AST__BAD || !isfinite(value[i]) ) valid = 0;
+            rownorm = 0.0;
             for( j = 0; j < nin; j++ ) {
                c = matrix[i*nin+j];
                if( c == AST__BAD || !isfinite(c) ) valid = 0;
+               rownorm += fabs( c )/fabs( this->scale_f[j] );
             }
+
+/* The row gives the change in output "i" for a move of one half-width
+   along each input. A row that is negligible against the bound on that
+   output (see SINGULAR_SLOPE) describes an output this approximation
+   cannot invert, even where rounding has left it a slope of order 1e-17
+   rather than an exact zero. */
+            outscale = 0.0;
+            for( ico = 0; ico < map->ncoeff_f[i]; ico++ ) {
+               c = map->coeff_f[i][ico];
+               if( c != AST__BAD ) outscale += fabs( c );
+            }
+            if( rownorm <= SINGULAR_SLOPE*outscale ) valid = 0;
          }
          if( valid ) {
             mm = (AstMapping *) astMatrixMap( nin, nin, 0, matrix, "", status );
@@ -2402,7 +2475,8 @@ static int GetNiterInverse( AstPolyMap *this, int *status ) {
 *     because the bounded algorithm checks the final candidate after the
 *     last update and returns AST__BAD on exhaustion, so it needs more
 *     headroom than the unbounded PolyMap algorithm, whose default is
-*     four.
+*     four. A ChebyMap whose forward series is an ordinary polynomial
+*     uses that parent algorithm, and keeps the parent default.
 
 *  Parameters:
 *     this
@@ -2414,7 +2488,9 @@ static int GetNiterInverse( AstPolyMap *this, int *status ) {
 *     The NiterInverse value to use.
 */
    if( !astOK ) return 0;
-   if( astTestNiterInverse( this ) ) return (*parent_getniterinverse)( this, status );
+   if( astTestNiterInverse( this ) || !((AstChebyMap *) this)->scale_f ) {
+      return (*parent_getniterinverse)( this, status );
+   }
    return 10;
 }
 

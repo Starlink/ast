@@ -194,9 +194,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        bounded one.
 *     9-SEP-2026 (TIMJ):
 *        Cache the Jacobian of the forward transformation and the linear
-*        truncation used for initial guesses. Both are transferred by the
-*        copy constructor and astManageLock, and discarded when the
-*        coefficients are replaced.
+*        truncation used for initial guesses. The copy constructor copies
+*        the linear truncation and leaves the Jacobian to be rebuilt on
+*        demand; astManageLock manages the locks of both, and both are
+*        discarded when the coefficients are replaced.
 *     9-SEP-2026 (TIMJ):
 *        Return zero for IterInverse if the forward transformation is
 *        undefined. The iterative inverse evaluates the forward

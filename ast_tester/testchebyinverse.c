@@ -1,6 +1,5 @@
 /* Test the protected building blocks of ChebyMap's iterative inverse. */
 #define astCLASS testchebyinverse
-#define THREAD_SAFE 1
 #include "error.h"
 #include "object.h"
 #include "mapping.h"
@@ -133,6 +132,20 @@ static void seeds( int *status ) {
    near( got[0], 5, "Midpoint fallback" );
    guess = astAnnul( guess );
    cm = astAnnul( cm );
+
+/* A pure T2 series has zero slope at the midpoint. On this box rounding
+   leaves a slope of order 1e-17 rather than exactly zero, which must not
+   be mistaken for a usable affine approximation: the seed is the midpoint,
+   not a position far outside the box. */
+   coeffs[2] = 2;
+   cm = astChebyMap( 1, 1, 1, coeffs, 0, NULL,
+                     &lo, &hi, NULL, NULL, "", status );
+   guess = astLinearGuess( cm );
+   got[0] = AST__BAD;
+   astTran1( guess, 1, target, 0, got );
+   near( got[0], 5, "Near-singular affine seed falls back to the midpoint" );
+   guess = astAnnul( guess );
+   cm = astAnnul( cm );
 }
 
 static void caches( int *status ) {
@@ -185,6 +198,8 @@ static void caches( int *status ) {
       target = 4;
       astTran1( loaded, 1, &target, 0, &got );
       near( got, 2, "Ordinary-polynomial fallback outside Chebyshev interval" );
+      check( astGetI( loaded, "NiterInverse" ) == 4,
+             "Ordinary-polynomial ChebyMap keeps the PolyMap iteration default" );
       loaded = astAnnul( loaded );
    }
 
@@ -204,6 +219,14 @@ static void caches( int *status ) {
       astChebyDomain( loaded, 1, &dlo, &dhi );
       check( dlo == AST__BAD && dhi == AST__BAD,
              "Unresolvable box has no evaluable domain" );
+
+/* The forward series can be evaluated nowhere, so no target has an
+   inverse. The unbounded algorithm must not be used in its place. */
+      target = 0.0;
+      got = 0.0;
+      astTran1( loaded, 1, &target, 0, &got );
+      check( astOK && got == AST__BAD,
+             "Unresolvable box gives a bad inverse without error" );
       loaded = astAnnul( loaded );
    }
 
@@ -282,6 +305,18 @@ static void singular_seed( int *status ) {
       near( back[i], target[i], "Pure T2 round trip" );
    }
    cm = astAnnul( cm );
+
+/* On a symmetric box the midpoint slope is exactly zero, so the seed is
+   singular and gets nudged. With no updates allowed, the nudged position
+   has not been checked against the target and must not be returned. */
+   {
+      double slo = -1, shi = 1;
+      cm = astChebyMap( 1, 1, 1, coeffs, 0, NULL, &slo, &shi, NULL, NULL,
+                        "NiterInverse=0", status );
+      astTran1( cm, 1, target + 1, 0, got );
+      check( got[0] == AST__BAD, "Singular seed with no updates is unsolved" );
+      cm = astAnnul( cm );
+   }
 
    cm = astChebyMap( 2, 2, 2, coeffs2, 0, NULL, lo2, hi2, NULL, NULL, "", status );
    astSet( cm, "TolInverse=1e-12", status );

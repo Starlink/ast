@@ -628,6 +628,45 @@ static void inverse_tests( int *status ) {
       cm = astAnnul( cm );
    }
 
+/* A bounding box may be given with its bounds in descending order. The
+   domain reported for it must keep that order, since callers rebuild
+   ChebyMaps from it, and the inverse must still be found. */
+   {
+      double dlo = 10, dhi = 0, glo = -99, ghi = -99;
+      cm = astChebyMap( 1, 1, 1, linear, 0, NULL, &dlo, &dhi, NULL, NULL,
+                        "TolInverse=1e-12" );
+      astChebyDomain( cm, 1, &glo, &ghi );
+      inverse_near( glo, 10, 1e-12, 800, status );
+      inverse_near( ghi, 0, 1e-12, 801, status );
+      u[0] = 2; u[1] = -2;
+      astTran1( cm, 2, u, 0, xr );
+      inverse_near( xr[0], 0, 1e-10, 802, status );
+      inverse_near( xr[1], 10, 1e-10, 803, status );
+      cm = astAnnul( cm );
+   }
+
+/* The domain of an inverted ChebyMap with different numbers of inputs
+   and outputs: the original forward box has one bound per original
+   input, and the range of the original forward transformation one per
+   original output. */
+   {
+      double blo[] = { -1, -1 }, bhi[] = { 1, 1 };
+      double coeffs[] = { 1, 1, 1, 0,  1, 1, 0, 1 };
+      double glo[] = { -99, -99 }, ghi[] = { -99, -99 };
+      cm = astChebyMap( 2, 1, 2, coeffs, 0, NULL, blo, bhi, NULL, NULL, "" );
+      astInvert( cm );
+      astChebyDomain( cm, 0, glo, ghi );
+      inverse_near( glo[0], -1, 1e-12, 810, status );
+      inverse_near( ghi[0], 1, 1e-12, 811, status );
+      inverse_near( glo[1], -1, 1e-12, 812, status );
+      inverse_near( ghi[1], 1, 1e-12, 813, status );
+      glo[0] = ghi[0] = -99;
+      astChebyDomain( cm, 1, glo, ghi );
+      inverse_near( glo[0], -2, 1e-8, 814, status );
+      inverse_near( ghi[0], 2, 1e-8, 815, status );
+      cm = astAnnul( cm );
+   }
+
 /* Unsupported configurations must never advertise an iterative inverse. */
    if( *status == 0 ) {
       double coeffs[] = { 1, 1, 1, 0 };
