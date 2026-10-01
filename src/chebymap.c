@@ -209,6 +209,9 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        - Keep the parent NiterInverse default for a ChebyMap holding an
 *        ordinary polynomial, which uses the parent algorithm.
 *        - Use astISGOOD in place of a private equivalent.
+*        - Explain in IterInverse and LinearGuess why only a series with
+*        no odd terms reaches the singular midpoint seed, and which of
+*        its symmetric solutions the nudge then selects.
 *class--
 */
 
@@ -1748,7 +1751,25 @@ static void IterInverse( AstPolyMap *map, AstPointSet *out,
 *
 *     A position whose Jacobian is singular is moved once by a quarter of
 *     each half-width, upward unless that would leave the box, before being
-*     declared unsolved.
+*     declared unsolved. In practice this path is reached from the seed,
+*     and only by a series with no odd terms: such a series has zero
+*     slope at the midpoint of the box (the derivative of each even
+*     Chebyshev polynomial vanishes there), so astLinearGuess rejects
+*     both of its affine approximations and seeds every target at the
+*     midpoint, where the Jacobian is singular. A series with odd terms
+*     cannot arrive here that way. Zero slope at the midpoint would need
+*     a T1 term to cancel the slope of the higher odd terms (T3 alone has
+*     slope -3 there), and astLinearGuess then builds its seed from that
+*     linear term instead of falling back to the midpoint; the slope of a
+*     cubic such as 4z^3 vanishes only at its root, where an exact
+*     residual converges before the Jacobian is examined. Since a series
+*     with no odd terms is even about the midpoint, its targets have
+*     solutions in symmetric pairs, and the upward nudge selects the
+*     upper one. The rounding that leaves the midpoint a slope of order
+*     1e-17 on an asymmetric box (5*0.2 is not exactly 1) must take the
+*     same path, which is why singularity is judged against the output's
+*     coefficient bound (SINGULAR_SLOPE) rather than by the equation
+*     solver alone.
 *
 *     The whole-batch forward transformation used to form the residual is
 *     only re-evaluated on the first iteration and after a position has
@@ -2230,8 +2251,11 @@ static AstMapping *LinearGuess( AstPolyMap *map, int *status ) {
 *     constant and linear Chebyshev terms are tried, including their
 *     physical input normalisation. If neither approximation is usable,
 *     a Mapping whose inverse always returns the domain midpoint is
-*     supplied. Clipping initial guesses to the forward domain is the
-*     responsibility of the caller.
+*     supplied. Both are unusable for a series with no odd terms, whose
+*     slope at the midpoint is zero and which has no linear term to fall
+*     back on; the midpoint seed is then singular and IterInverse nudges
+*     off it (see the note there). Clipping initial guesses to the
+*     forward domain is the responsibility of the caller.
 *
 *     The Mapping is cached for subsequent calls. If the original
 *     forward transformation is an ordinary polynomial, the parent

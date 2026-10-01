@@ -6461,7 +6461,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *
 *        If several solutions exist, the returned solution depends on the
 *        initial guess; there is no guarantee of finding the closest one
-*        or of finding every possible solution. TranInverse indicates
+*        or of finding every possible solution. In particular, a forward
+*        series with no odd terms is symmetric about the centre of its
+*        box, so every output it reaches has a pair of mirror-image
+*        solutions; the one above the centre is returned. TranInverse indicates
 *        availability of the algorithm, not convergence at every position.
 *        A legacy ChebyMap whose forward coefficients describe an ordinary
 *        polynomial uses the unbounded PolyMap algorithm instead.
