@@ -325,14 +325,14 @@ int main( void ) {
       AstChebyMap *lcm = astChebyMap( 1, 1, 1, lin_coeffs, 0, NULL,
                                       &lin_lbnd, &lin_ubnd, NULL, NULL, " " );
       AstMapping *lsm = astSimplify( lcm );
-      if( astIsAChebyMap( lsm ) ) stopit( 700, status );
+      if( astIsAChebyMap( lsm ) ) stopit( 690, status );
       astTran1( lcm, 3, lx, 1, lref );
       astTran1( lsm, 3, lx, 1, lsimp );
       for( i = 0; i < 3; i++ )
-         if( fabs( lsimp[i] - lref[i] ) > 1.0e-10 ) stopit( 701, status );
+         if( fabs( lsimp[i] - lref[i] ) > 1.0e-10 ) stopit( 691, status );
       astTran1( lsm, 3, lref, 0, lback );
       for( i = 0; i < 3; i++ )
-         if( fabs( lback[i] - lx[i] ) > 1.0e-10 ) stopit( 702, status );
+         if( fabs( lback[i] - lx[i] ) > 1.0e-10 ) stopit( 692, status );
 
       /* fx = 3*T1(x') + 0.5 ; fy = -T1(y') + 2. Each output has a linear
        * term, whose normalisation offset adds to the constant term, and its
@@ -348,16 +348,16 @@ int main( void ) {
       AstChebyMap *lcm2 = astChebyMap( 2, 2, 4, lin2_coeffs, 0, NULL,
                                        lin2_lbnd, lin2_ubnd, NULL, NULL, " " );
       AstMapping *lsm2 = astSimplify( lcm2 );
-      if( astIsAChebyMap( lsm2 ) ) stopit( 703, status );
+      if( astIsAChebyMap( lsm2 ) ) stopit( 693, status );
       astTran2( lcm2, 4, l2x, l2y, 1, l2xr, l2yr );
       astTran2( lsm2, 4, l2x, l2y, 1, l2xs, l2ys );
       for( i = 0; i < 4; i++ )
          if( fabs( l2xs[i] - l2xr[i] ) > 1.0e-10 ||
-             fabs( l2ys[i] - l2yr[i] ) > 1.0e-10 ) stopit( 704, status );
+             fabs( l2ys[i] - l2yr[i] ) > 1.0e-10 ) stopit( 694, status );
       astTran2( lsm2, 4, l2xr, l2yr, 0, l2xb, l2yb );
       for( i = 0; i < 4; i++ )
          if( fabs( l2xb[i] - l2x[i] ) > 1.0e-9 ||
-             fabs( l2yb[i] - l2y[i] ) > 1.0e-9 ) stopit( 705, status );
+             fabs( l2yb[i] - l2y[i] ) > 1.0e-9 ) stopit( 695, status );
    }
 
 /* A bounding box is required whenever coefficients are supplied for that
