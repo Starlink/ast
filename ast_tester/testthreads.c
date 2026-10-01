@@ -207,6 +207,125 @@ static int test_locked_copies( void ) {
    return ok && astOK;
 }
 
+/* A Worker for clone_worker, which also records what it found. */
+typedef struct CloneWorker {
+   Worker worker;      /* Must come first: record_error receives a Worker */
+   int clone_thread;   /* astThread result for the cloned pointer */
+   double xout;        /* Result of transforming 1.0 with the copy */
+} CloneWorker;
+
+/* Lets clone_worker tell the main thread that it has cloned its pointer. */
+static pthread_mutex_t clone_ready_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t clone_ready_cond = PTHREAD_COND_INITIALIZER;
+static int clone_ready = 0;
+
+/* Get a pointer of our own to an Object locked by the main thread, using
+   astClone, then wait for the main thread to release the Object, lock it
+   through that pointer, and take a copy of it. */
+static void *clone_worker( void *ptr ) {
+   CloneWorker *data = (CloneWorker *) ptr;
+   AstObject *clone;
+   AstMapping *copy;
+   double xin = 1.0;
+   double xout = 0.0;
+   int status = SAI__OK;
+
+   astWatch( &status );
+   data->worker.nmessage = 0;
+   pthread_setspecific( worker_key, &data->worker );
+   astSetPutErr( record_error );
+
+   clone = astClone( data->worker.obj );
+   data->clone_thread = astOK ? astThread( clone, 1 ) : -1;
+
+/* Tell the main thread it can now release the Object, even if the clone
+   failed, so that it does not wait for ever. */
+   pthread_mutex_lock( &clone_ready_mutex );
+   clone_ready = 1;
+   pthread_cond_signal( &clone_ready_cond );
+   pthread_mutex_unlock( &clone_ready_mutex );
+
+/* Wait for the Object and copy it. */
+   astLock( clone, 1 );
+   copy = astCopy( clone );
+   astUnlock( clone, 1 );
+   clone = astAnnul( clone );
+
+/* The copy belongs to this thread, so it can be used without explicit
+   locking. */
+   astTran1( copy, 1, &xin, 1, &xout );
+   data->xout = xout;
+   copy = astAnnul( copy );
+
+   data->worker.status = status;
+   if( !astOK ) {
+      astClearStatus;
+   }
+   return NULL;
+}
+
+/* A thread can obtain its own pointer to an Object that another thread
+   has locked, using astClone, and then wait for the Object with astLock.
+   The worker clones its pointer while the main thread still has the
+   ZoomMap locked, and the main thread releases it only after that.
+
+   This demonstrates the use case that was not possible before introducing
+   astCloneId_ */
+static int test_clone_unowned( void ) {
+   static CloneWorker data;    /* static to avoid ASan stack-use-after-return
+                                  false positive when threads access these */
+   pthread_t thread;
+   AstZoomMap *map;
+   int ok = 1;
+
+   map = astZoomMap( 1, 2.0, " " );
+   data.worker.obj = (AstObject *) map;
+   data.clone_thread = -1;
+   data.xout = 0.0;
+   clone_ready = 0;
+
+   if( pthread_create( &thread, NULL, clone_worker, &data ) ) {
+      printf( "FAIL: clone-unowned: could not create thread\n" );
+      map = astAnnul( map );
+      return 0;
+   }
+
+/* Now wait here--when the condition is signaled by the worker it means
+   they have their own cloned handle to the map, and this thread can
+   astUnlock it, giving the worker thread waiting on astLock the opportunity
+   to acquire the lock on the map. */
+   pthread_mutex_lock( &clone_ready_mutex );
+   while( !clone_ready ) {
+      pthread_cond_wait( &clone_ready_cond, &clone_ready_mutex );
+   }
+   pthread_mutex_unlock( &clone_ready_mutex );
+
+   astUnlock( map, 1 );
+
+   if( pthread_join( thread, NULL ) ) {
+      printf( "FAIL: clone-unowned: could not join thread\n" );
+      ok = 0;
+   } else {
+      ok = check_success( "clone-unowned", &data.worker );
+      if( data.clone_thread != AST__RUNNING ) {
+         printf( "FAIL: clone-unowned: astThread gave %d for the cloned "
+                 "pointer in the thread that cloned it, expected "
+                 "AST__RUNNING (%d)\n", data.clone_thread, AST__RUNNING );
+         ok = 0;
+      }
+      if( ok && data.xout != 2.0 ) {
+         printf( "FAIL: clone-unowned: the copy transformed 1.0 to %g, "
+                 "expected 2.0\n", data.xout );
+         ok = 0;
+      }
+   }
+
+   astLock( map, 0 );
+   map = astAnnul( map );
+   return ok && astOK;
+}
+
+
 int main( void ) {
    int status = SAI__OK;
    int fails = 0;
@@ -221,6 +340,9 @@ int main( void ) {
       fails++;
    }
    if( !test_locked_copies() ) {
+      fails++;
+   }
+   if( !test_clone_unowned() ) {
       fails++;
    }
 
