@@ -54,6 +54,8 @@ static void test_sphmap_roundtrip( int *status );
 static void test_divide_roundtrip( int *status );
 static void test_rotate_sequence_3d_roundtrip( int *status );
 static void test_affine_roundtrip( int *status );
+static void test_chebymap_roundtrips( int *status );
+static void test_ndarray_without_data( int *status );
 static void test_time_equinox( int *status );
 static void test_quantity( int *status );
 static void test_transforms_1d( int *status );
@@ -131,6 +133,8 @@ int main(){
    test_divide_roundtrip( status );
    test_rotate_sequence_3d_roundtrip( status );
    test_affine_roundtrip( status );
+   test_chebymap_roundtrips( status );
+   test_ndarray_without_data( status );
    test_time_equinox( status );
    test_quantity( status );
    test_transforms_1d( status );
@@ -990,6 +994,165 @@ void test_affine_roundtrip( int *status ){
 }
 
 
+
+/* Write a FrameSet whose base-to-current Mapping is "map" to ASDF, read it
+   back, and compare the two forward transformations on a grid spanning the
+   box [lbnd,ubnd] on each of the "nin" axes (which may be descending).
+   Reports "code" on any mismatch. */
+static void roundtrip_check( AstMapping *map, int nin, const double *lbnd,
+                             const double *ubnd, const char *file, int code,
+                             int *status ){
+   AstYamlChan *ch;
+   AstFrame *frm_in;
+   AstFrame *frm_out;
+   AstFrameSet *fs;
+   AstObject *fs2;
+   double in[ 2*25 ], out1[ 2*25 ], out2[ 2*25 ];
+   int npoint, ip, ax, i, j;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   if( nin == 1 ) {
+      npoint = 5;
+      for( i = 0; i < 5; i++ ) in[ i ] = lbnd[ 0 ] + ( ubnd[ 0 ] - lbnd[ 0 ] )*i/4.0;
+   } else {
+      npoint = 25;
+      for( i = 0, ip = 0; i < 5; i++ ) {
+         for( j = 0; j < 5; j++, ip++ ) {
+            in[ ip ] = lbnd[ 0 ] + ( ubnd[ 0 ] - lbnd[ 0 ] )*i/4.0;
+            in[ 25 + ip ] = lbnd[ 1 ] + ( ubnd[ 1 ] - lbnd[ 1 ] )*j/4.0;
+         }
+      }
+   }
+
+   frm_in = astFrame( nin, "Domain=PIXEL" );
+   frm_out = astFrame( nin, "Domain=WORLD" );
+   fs = astFrameSet( frm_in, " " );
+   astAddFrame( fs, AST__BASE, map, frm_out );
+   astAnnul( frm_in );
+   astAnnul( frm_out );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SinkFile=%s", file );
+   if( astWrite( ch, fs ) != 1 ) stopit( code, status ); /* LCOV_EXCL_LINE */
+   astClear( ch, "SinkFile" );
+   astSet( ch, "SourceFile=%s", file );
+   fs2 = astRead( ch );
+
+   if( !fs2 ) {
+      stopit( code + 1, status ); /* LCOV_EXCL_LINE */
+   } else {
+      astTranN( fs, npoint, nin, npoint, in, 1, nin, npoint, out1 );
+      astTranN( fs2, npoint, nin, npoint, in, 1, nin, npoint, out2 );
+      for( ax = 0; ax < nin && *status == SAI__OK; ax++ ) {
+         for( ip = 0; ip < npoint; ip++ ) {
+            double a = out1[ ax*npoint + ip ], b = out2[ ax*npoint + ip ];
+            if( a == AST__BAD || b == AST__BAD || fabs( a - b ) > 1.0e-10 ) {
+               printf( "%s: axis %d point %d: got %.17g, expected %.17g\n",
+                       file, ax + 1, ip, b, a );
+               stopit( code + 2, status );
+               break;
+            }
+         }
+      }
+      astAnnul( fs2 );
+   }
+
+   astAnnul( fs );
+   astAnnul( ch );
+}
+
+/* ChebyMaps written to ASDF and read back must reproduce their forward
+   transformation. Three cases that each failed in the reader or writer:
+
+   - A 1-D series. The writer emitted its coefficients as a flat list,
+     which is the ASDF form for one input, but the reader never recorded
+     such a list as one-dimensional and then overran the array. The box
+     is given descending, which the writer must preserve: the reader
+     rebuilds the normalisation from it, and a sorted box would change
+     the sign of every odd term.
+
+   - A 2-D series whose outputs each depend on one input. A row of
+     coefficients holding a single value was written as a scalar, so an
+     x-only output came back as a flat list indistinguishable from a 1-D
+     polynomial while its domain still had two axes.
+
+   - A 2-D series with a cross term and a constant output, whose
+     coefficient array has a single row and a single column. */
+void test_chebymap_roundtrips( int *status ){
+   double c1[] = { 1.0, 1, 1,   0.25, 1, 3 };
+   double lb1[] = { 10.0 }, ub1[] = { 0.0 };
+   double c2[] = { 1.0, 1, 1, 0,   0.25, 1, 3, 0,   1.0, 2, 0, 1 };
+   double lb2[] = { 10.0, -1.0 }, ub2[] = { 0.0, 1.0 };
+   double c3[] = { 1.0, 1, 1, 0,   0.1, 1, 1, 1,   7.0, 2, 0, 0 };
+   double lb3[] = { -2.0, 3.0 }, ub3[] = { 2.0, 5.0 };
+   AstChebyMap *cm;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   cm = astChebyMap( 1, 1, 2, c1, 0, NULL, lb1, ub1, NULL, NULL, " " );
+   roundtrip_check( (AstMapping *) cm, 1, lb1, ub1, "cheby_1d.asdf", 160, status );
+   astAnnul( cm );
+
+   cm = astChebyMap( 2, 2, 3, c2, 0, NULL, lb2, ub2, NULL, NULL, " " );
+   roundtrip_check( (AstMapping *) cm, 2, lb2, ub2, "cheby_2d_separable.asdf", 163, status );
+   astAnnul( cm );
+
+   cm = astChebyMap( 2, 2, 3, c3, 0, NULL, lb3, ub3, NULL, NULL, " " );
+   roundtrip_check( (AstMapping *) cm, 2, lb3, ub3, "cheby_2d_cross.asdf", 166, status );
+   astAnnul( cm );
+}
+
+/* An ndarray with no data must be reported as an error, not read past the
+   end of an array that was never allocated. */
+void test_ndarray_without_data( int *status ){
+   static const char *text =
+      "#ASDF 1.0.0\n"
+      "%YAML 1.1\n"
+      "%TAG ! tag:stsci.edu:asdf/\n"
+      "--- !core/asdf-1.1.0\n"
+      "wcs: !<tag:stsci.edu:gwcs/wcs-1.0.0>\n"
+      "  name: ''\n"
+      "  steps:\n"
+      "  - !<tag:stsci.edu:gwcs/step-1.0.0>\n"
+      "    frame: !<tag:stsci.edu:gwcs/frame-1.0.0>\n"
+      "      name: pixel\n"
+      "    transform: !transform/ortho_polynomial-1.0.0\n"
+      "      polynomial_type: chebyshev\n"
+      "      coefficients: !core/ndarray-1.0.0\n"
+      "        datatype: float64\n"
+      "        shape: [4]\n"
+      "      domain:\n"
+      "      - [0.0, 10.0]\n"
+      "  - !<tag:stsci.edu:gwcs/step-1.0.0>\n"
+      "    frame: !<tag:stsci.edu:gwcs/frame-1.0.0>\n"
+      "      name: world\n"
+      "...\n";
+   AstYamlChan *ch;
+   AstObject *obj;
+   FILE *fd;
+
+   if( *status != SAI__OK ) return; /* LCOV_EXCL_LINE */
+
+   fd = fopen( "ndarray_nodata.asdf", "w" );
+   if( !fd ) {
+      stopit( 169, status ); /* LCOV_EXCL_LINE */
+      return;               /* LCOV_EXCL_LINE */
+   }
+   fputs( text, fd );
+   fclose( fd );
+
+   ch = astYamlChan( NULL, NULL, " " );
+   astSet( ch, "SourceFile=ndarray_nodata.asdf" );
+   obj = astRead( ch );
+   if( obj || astOK ) {
+      stopit( 170, status );
+   } else {
+      astClearStatus;
+   }
+   if( obj ) astAnnul( obj );
+   astAnnul( ch );
+}
 
 /* Read an ASDF WCS whose current frame is an FK5 celestial frame carrying an
    equinox stored as an ASDF time object. Exercises GetTime and the FK5

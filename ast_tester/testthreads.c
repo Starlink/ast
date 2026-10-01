@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "ast_err.h"
 #include <pthread.h>
+#include <math.h>
 
 void *worker( void *ptr );
 
@@ -9,6 +10,8 @@ typedef struct MyData {
    AstObject *obj;
    int lock;
    int status;
+   double xin;
+   double expected;
 } MyData;
 
 int main( void ){
@@ -28,6 +31,10 @@ int main( void ){
    astUnlock( data1.obj, 1 );
    data1.lock = 0;
    data2.lock = 0;
+   data1.xin = 1.5;
+   data2.xin = 1.5;
+   data1.expected = 1.5;
+   data2.expected = 1.5;
 
    if( pthread_create( &thread1, NULL, worker, &data1 ) ) {
       astError( AST__INTER, "Error creating thread1");
@@ -94,6 +101,32 @@ int main( void ){
 
 
 
+/* Warm both ChebyMap inverse caches, then transfer the inverted Mapping
+   to another thread. All cached child Mappings must transfer their locks. */
+   if( astOK ) {
+      double coeffs[] = { 1, 1, 1, .125, 1, 2 };
+      double lo = 0, hi = 10, target = 0, value;
+      AstChebyMap *cm = astChebyMap( 1, 1, 2, coeffs, 0, NULL,
+                                     &lo, &hi, NULL, NULL,
+                                     "NiterInverse=20,TolInverse=1e-12" );
+      astTran1( cm, 1, &target, 0, &value );
+      astInvert( cm );
+      data1.obj = (AstObject *) cm;
+      data1.xin = target;
+      data1.expected = 5*(1 + .25/(1+sqrt(1.125)));
+      astUnlock( cm, 1 );
+      if( pthread_create( &thread1, NULL, worker, &data1 ) ) {
+         astError( AST__INTER, "Error creating ChebyMap worker" );
+      } else if( pthread_join( thread1, NULL ) ) {
+         astError( AST__INTER, "Error joining ChebyMap worker" );
+      }
+      if( astOK && data1.status != SAI__OK ) {
+         astError( AST__INTER, "ChebyMap cache transfer failed: %d", data1.status );
+      }
+      astLock( cm, 0 );
+      cm = astAnnul( cm );
+   }
+
    if( astOK ) {
       printf(" All thread tests passed\n");
    } else {
@@ -115,8 +148,12 @@ void *worker( void *ptr ) {
 
    if( data->lock ) astLock( data->obj, 0 );
 
-   xin = 0;
+   xin = data->xin;
    astTran1( data->obj, 1, &xin, 1, &xout );
+   if( astOK && (xout == AST__BAD || !isfinite(xout) ||
+                 fabs(xout-data->expected) > 1e-10) ) {
+      astError( AST__INTER, "Incorrect worker transformation: %.17g", xout );
+   }
 
    if( data->lock ) astUnlock( data->obj, 1 );
 
@@ -124,4 +161,3 @@ void *worker( void *ptr ) {
    if( !astOK ) astClearStatus;
    return NULL;
 }
-
