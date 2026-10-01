@@ -131,6 +131,28 @@ f     The YamlChan class does not define any new routines beyond those
 *        Add support for reading and writing the gwcs/fitswcs_imaging
 *        transform. A fitswcs_imaging that was read from ASDF is written
 *        back out as a fitswcs_imaging; other Mappings are not.
+*     30-SEP-2026 (TIMJ):
+*        - Record a flat sequence of ndarray values as a one-dimensional
+*        array when reading. It was left with no dimensions, so a
+*        polynomial of one input written by this class could not be read
+*        back, and ReadPoly then read past the end of its coefficients.
+*        - Stop ReadPoly indexing the coefficient array when it could not
+*        be read or has the wrong number of dimensions.
+*        - Check a polynomial's domain and window by their number of
+*        [lower,upper] pairs rather than by the dimensions of the array
+*        holding them. The one-pair domain of a polynomial of one input,
+*        written as a list holding one pair, was rejected as the wrong
+*        length.
+*        - Take the power of the only input of a polynomial of one input
+*        from each coefficient's position in its one-dimensional array.
+*        The row index was used, which is always zero, so such a
+*        polynomial read as a constant.
+*        - Write the coefficients of a polynomial of one input as a
+*        one-dimensional ndarray, and give a polynomial of two inputs at
+*        least two columns. A KeyMap cannot tell a one-element vector
+*        from a scalar, so a column of single coefficients was written as
+*        a flat list, which reads back as a polynomial of one input under
+*        a domain of two axes.
 *class--
 */
 
@@ -8543,8 +8565,9 @@ static double *ReadNDArray( AstYamlChan *this, AstKeyMap *km, int mxdim,
    array). Attempt to get a pointer to the "data" entry. */
       } else {
          type = astMapType( km, "data" );
-         if( type == AST__OBJECTTYPE ) {
-            subkm = Get0A( km, "data", 1, NULL, NULL, status );
+         if( type == AST__OBJECTTYPE || !astMapHasKey( km, "data" ) ) {
+            subkm = ( type == AST__OBJECTTYPE ) ?
+                    Get0A( km, "data", 1, NULL, NULL, status ) : NULL;
 
 /* If the "data" entry did not exist, the data array is stored (in the
    same manner) at the top level of the "ndarray" object. */
@@ -8556,11 +8579,14 @@ static double *ReadNDArray( AstYamlChan *this, AstKeyMap *km, int mxdim,
 /* Free resources. */
             subkm = astAnnul( subkm );
 
-/* Otherwise, assume the "data" is a sequence of doubles. */
+/* Otherwise, the "data" is a flat sequence of doubles, which is a
+   one-dimensional array. Say so: a caller that is told the array has no
+   dimensions cannot use it. */
          } else {
             dims[ 0 ] = astMapLength( km, "data" );
             result = astMalloc( dims[ 0 ]*sizeof(*result) );
             Get1D( km, "data", 0, dims[ 0 ], result, dims, status );
+            *ndim = 1;
          }
       }
    }
@@ -8792,6 +8818,7 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
    int ndim;
    int ndimd;
    int ndimw;
+   int npair;
 
 /* Initialise */
    result = NULL;
@@ -8853,9 +8880,17 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
                 "%d dimensions (must be 1 or 2).", status, ndim );
    }
 
+/* If the array could not be read, or has the wrong number of dimensions,
+   the loops below must not index it: give them nothing to do. */
+   if( !astOK || !cof_ptr ) {
+      dims[ 0 ] = 0;
+      dims[ 1 ] = 0;
+
 /* Store the coefficients in the form required by the PolyMap or ChebyMap
    constructor. First find the number of non-zero coefficients. */
-   if( ndim == 1 ) dims[ 1 ] = 1;
+   } else if( ndim == 1 ) {
+      dims[ 1 ] = 1;
+   }
 
    ncoeff_f = 0;
    pc = cof_ptr;
@@ -8878,11 +8913,15 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
             if( *pc != 0.0 ) {
                pinfo[ 0 ] = *pc;  /* Coeff value */
                pinfo[ 1 ] = 1;    /* Output index */
-               pinfo[ 2 ] = j;    /* Power for input 1 */
                if( ndim == 2 ){
-                  pinfo[ 3 ] = i; /* Power for input 2 */
+                  pinfo[ 2 ] = j; /* Power for input 1: the row */
+                  pinfo[ 3 ] = i; /* Power for input 2: the column */
                   pinfo += 4;
+
+/* A one-dimensional array holds one coefficient per power of the only
+   input, so the power is the position in the array, not the row. */
                } else {
+                  pinfo[ 2 ] = i;
                   pinfo += 3;
                }
             }
@@ -8920,10 +8959,15 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
    by the WinMap constructor. Use a domain of [-1,1] on each axis if no
    domain was supplied. */
          if( domain ) {
-            if( ndimd != ndim ) {
+
+/* The domain is one [lower,upper] pair per input, so a polynomial of one
+   input may have a flat pair or a list holding one pair. Count the pairs
+   rather than the dimensions of the array. */
+            npair = ( ndimd == 1 ) ? 1 : dimd[ 1 ];
+            if( dimd[ 0 ] != 2 || npair != ndim ) {
                astError( AST__BYAML, "astRead(YamlChan): The domain array "
-                         "has wrong length (%d) - should be %d.", status,
-                         ndimd, ndim );
+                         "holds %d pair(s) of %d value(s) - should be %d "
+                         "pair(s) of 2.", status, npair, dimd[ 0 ], ndim );
             } else {
                ina[ 0 ] = domain[ 0 ];
                if( ndim == 2 ) ina[ 1 ] = domain[ 2 ];
@@ -8941,10 +8985,11 @@ static AstMapping *ReadPoly( AstYamlChan *this, AstKeyMap *km, int isortho,
    window), as required by the WinMap constructor. Use a window of [-1,1]
    on each axis if no domain was supplied. */
          if( window ) {
-            if( ndimw != ndim ) {
+            npair = ( ndimw == 1 ) ? 1 : dimw[ 1 ];
+            if( dimw[ 0 ] != 2 || npair != ndim ) {
                astError( AST__BYAML, "astRead(YamlChan): The window array "
-                         "has wrong length (%d) - should be %d.", status,
-                         ndimw, ndim );
+                         "holds %d pair(s) of %d value(s) - should be %d "
+                         "pair(s) of 2.", status, npair, dimw[ 0 ], ndim );
             } else {
                outa[ 0 ] = window[ 0 ];
                if( ndim == 2 ) outa[ 1 ] = window[ 2 ];
@@ -14949,6 +14994,15 @@ static AstKeyMap *WriteAsdfPolynomial( AstYamlChan *this, int nin,
 /* Allocate space to hold the 2-d array of coefficients for all input powers,
    including any that are zero. Use astCalloc so that they are initialised
    to zero. */
+/* A polynomial of two inputs is written as a two-dimensional array with
+   one row per power of the first input. A KeyMap cannot tell a vector of
+   one element from a scalar, so a row holding a single coefficient would
+   be written as a scalar, and a column of them would read back as a flat
+   list: a polynomial of one input, under a domain of two axes. Give such
+   a polynomial a second column. The extra coefficients are zero, and the
+   reader keeps only the non-zero ones. */
+   if( nin > 1 && mxpow[ 1 ] < 1 ) mxpow[ 1 ] = 1;
+
    dims[ 1 ] = mxpow[ 0 ] + 1;
    if( nin > 1 ) {
       dims[ 0 ] =  mxpow[ 1 ] + 1;
@@ -14993,9 +15047,15 @@ static AstKeyMap *WriteAsdfPolynomial( AstYamlChan *this, int nin,
                                    status );
       }
 
-/* Create a KeyMap holding an NdArray of coefficient valuess and store
-   the KeyMap in the returned KeyMap with key "coefficients". */
-      km = WriteAsdfNdArray( this, 2, dims, cofs, status );
+/* Create a KeyMap holding an NdArray of coefficient values and store
+   the KeyMap in the returned KeyMap with key "coefficients". ASDF stores
+   the coefficients of a polynomial of one input as a one-dimensional
+   array, so write them that way rather than as rows of one value. */
+      if( nin > 1 ) {
+         km = WriteAsdfNdArray( this, 2, dims, cofs, status );
+      } else {
+         km = WriteAsdfNdArray( this, 1, dims + 1, cofs, status );
+      }
       ret = StoreKeyMap( this, "coefficients", ret, &km, status );
 
 /* Free resources */
