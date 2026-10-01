@@ -58,7 +58,9 @@ image the iteration need not converge, and a default 1..1000 range over a
 256-pixel image produced round-trip errors above 100 pixels that said nothing
 about the library.  The same mappings round-trip cleanly over their own grid.
 
-A native dump whose top-level object is a ChebyMap is sampled over its forward bounding box from `astChebyDomain`, because a Chebyshev series is undefined outside it.
+A native dump whose top-level object is a ChebyMap is sampled over the domain that `astChebyDomain` reports for the direction being sampled, because a Chebyshev series is undefined outside its box.
+For the forward transformation that is the forward bounding box.
+For the inverse it is the inverse box or, when the ChebyMap has none, the range of the forward transformation over the forward box.
 Compound Mappings containing a ChebyMap keep the symmetric default.
 
 ### Checks that are disabled, and why
