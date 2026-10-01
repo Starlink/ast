@@ -96,6 +96,50 @@ static int check_passthrough_output( const double out[ static 12 ],
    return 0;
 }
 
+/* astResolvePoints is protected (frame.h); call its entry point with real
+   object pointers. */
+extern void *astResolvePoints_( void *, const double[], const double[], void *,
+                                void *, int * );
+
+/* On a CmpFrame of a SkyFrame and a SpecFrame with permuted axes, each
+   vector astResolvePoints resolves must give the components astResolve
+   gives it alone. Returns 0 if so, else the number of the failing check. */
+static int check_resolve_points_permuted( void ) {
+   static const double pts[ 3 ][ 3 ] = {
+      { 0.2, 0.3, 5.5 }, { 0.15, 0.1, 4.0 }, { 0.4, 0.2, 7.0 }
+   };
+   const double p1[ 3 ] = { 0.1, 0.2, 5.0 };
+   const double p2[ 3 ] = { 0.3, 0.25, 6.0 };
+   int perm[ 3 ] = { 3, 2, 1 };
+   int result = 0, i, j, st = 0;
+   AstCmpFrame *cf;
+   AstPointSet *in, *out;
+   double **pin, **pout, p4[ 3 ], d1, d2;
+
+   cf = astCmpFrame( astSkyFrame( " " ), astSpecFrame( " " ), " " );
+   astPermAxes( cf, perm );
+   in = astPointSet( 3, 3, " " );
+   out = astPointSet( 3, 2, " " );
+   pin = astGetPoints( in );
+   for( i = 0; i < 3; i++ ) for( j = 0; j < 3; j++ ) pin[ j ][ i ] = pts[ i ][ j ];
+   (void) astResolvePoints_( astMakePointer( cf ), p1, p2, astMakePointer( in ),
+                             astMakePointer( out ), &st );
+   if( st || !astOK ) {
+      result = 10;
+   } else {
+      pout = astGetPoints( out );
+      for( i = 0; i < 3 && !result; i++ ) {
+         astResolve( cf, p1, p2, pts[ i ], p4, &d1, &d2 );
+         if( fabs( pout[ 0 ][ i ] - d1 ) > 1.0e-12 ) result = 11;
+         if( fabs( pout[ 1 ][ i ] - d2 ) > 1.0e-12 ) result = 12;
+      }
+   }
+   out = astAnnul( out );
+   in = astAnnul( in );
+   cf = astAnnul( cf );
+   return result;
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -158,6 +202,12 @@ int main( void ) {
    case 3: stopit( status, "NormBox: bad bound with the SkyFrame first" ); break;
    case 4: stopit( status, "NormBox: the 1-D axis bounds depend on component order" ); break;
    case 5: stopit( status, "NormBox: the sky axis bounds depend on component order" ); break;
+   }
+
+   switch( check_resolve_points_permuted() ) {
+   case 10: stopit( status, "ResolvePoints: failed on a permuted CmpFrame" ); break;
+   case 11: stopit( status, "ResolvePoints: parallel distance differs from astResolve" ); break;
+   case 12: stopit( status, "ResolvePoints: perpendicular distance differs from astResolve" ); break;
    }
 
    astEnd;
