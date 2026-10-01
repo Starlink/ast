@@ -858,6 +858,13 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
    of that class created by every thread. */
    check = this->vtab->top_id->check;
 
+/* A NULL value identifies no class: only the case if astInitObjectVtab did
+   not complete; unlikely but better to guard against since a null value
+   could match any arbitrary vtab that wasn't fully initialized. */
+   if( !check ) {
+      return;
+   }
+
 /* Loop round the vtab structures created by the currently executing thread. */
    for( i = 0; i < nvtab; i++ ) {
 

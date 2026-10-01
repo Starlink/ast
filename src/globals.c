@@ -411,10 +411,18 @@ static void ThreadExit( void *data ) {
 /* Local Variables: */
    AstGlobals *globals;
    AstStatusBlock *status_block;
+   AstStatusBlock temp_status_block;
    int *status;
 
    globals = (AstGlobals *) data;
    status_block = globals->status_block;
+
+/* astGlobalsInit_ leaves the thread without a status block if it could
+   not allocate one. Use a temporary one in that case, since the AST
+   functions used below need a status variable. */
+   if( !status_block ) {
+      status_block = &temp_status_block;
+   }
 
 /* pthreads clears the thread-specific data before invoking destructors.
    Re-instate it so that the AST functions used below find this thread's
@@ -449,7 +457,9 @@ static void ThreadExit( void *data ) {
 
    pthread_setspecific( starlink_ast_globals_key, NULL );
    pthread_setspecific( starlink_ast_status_key, NULL );
-   FREE( status_block );
+   if( status_block != &temp_status_block ) {
+      FREE( status_block );
+   }
 }
 
 #endif

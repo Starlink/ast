@@ -841,7 +841,7 @@ if(HAVE_PTHREADS)
     # (Linux only)
     if(AST_ENABLE_SANITIZERS AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set_tests_properties(testthreadexit PROPERTIES
-            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=1")
+            ENVIRONMENT_MODIFICATION "ASAN_OPTIONS=set:detect_leaks=1")
     endif()
 endif()
 
