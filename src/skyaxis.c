@@ -122,6 +122,12 @@ f     only within textual output (e.g. from AST_WRITE).
 *        axis values, such as "hh mm ss", is not handed to the units
 *        parser. DHmsUnit reports which of its results are such
 *        descriptions.
+*     30-SEP-2026 (TIMJ):
+*        astGetAxisNormUnit also leaves unchanged a Unit that has been set
+*        to the description the Format produces, as astSubFrame does for
+*        each axis it picks out of a SkyFrame, so that the axis of
+*        astPickAxes( skyframe, ... ) does not report "hh mm ss" as
+*        "hh*mm*s".
 *class--
 */
 
@@ -3122,6 +3128,12 @@ static const char *GetAxisNormUnit( AstAxis *this_axis, int *status ) {
 *     descriptions contain spaces, which the units parser reads as
 *     multiplication: "hh mm ss" would otherwise be reported as "hh*mm*s".
 *
+*     The same holds for a Unit set explicitly to the description the
+*     Format produces. astSubFrame sets one on every axis it picks out of a
+*     SkyFrame into a plain Frame, since the SkyFrame's default Unit would
+*     otherwise be lost, so the axis of astPickAxes( skyframe, 1, ... )
+*     carries Unit "hh mm ss" when the Format is "bhms".
+*
 *     Any other Unit value, whether set explicitly or a unit named by the
 *     SkyAxis itself such as "degrees", is a units expression which the
 *     parent method normalises.
@@ -3143,9 +3155,11 @@ static const char *GetAxisNormUnit( AstAxis *this_axis, int *status ) {
 */
 
 /* Local Variables: */
+   const char *descunit;         /* Unit the Format describes */
    const char *fmt;              /* Pointer to format specifier */
    const char *result;           /* Pointer to result string */
-   int descr;                    /* Unit describes the axis values? */
+   const char *unit;             /* Unit value that has been set */
+   int descr;                    /* descunit describes the axis values? */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
@@ -3153,26 +3167,33 @@ static const char *GetAxisNormUnit( AstAxis *this_axis, int *status ) {
 /* Initialise */
    result = NULL;
 
-/* If the Unit attribute is set, or the format specifier is a C format
-   specifier (in which case the Unit is "rad"), the Unit is a units
-   expression. */
-   if ( astTestAxisUnit( this_axis ) ) {
-      result = (*parent_getaxisnormunit)( this_axis, status );
+/* If the format specifier is a C format specifier, the default Unit is
+   "rad", so whatever the Unit is, it is a units expression. */
+   fmt = GetAxisFormat( this_axis, status );
+   if ( astOK ) {
+      if ( fmt[ 0 ] == '%' ) {
+         result = (*parent_getaxisnormunit)( this_axis, status );
 
-   } else {
-      fmt = GetAxisFormat( this_axis, status );
-      if ( astOK ) {
-         if ( fmt[ 0 ] == '%' ) {
+/* Otherwise find the Unit the Format produces, and whether it describes the
+   axis values or names a unit such as "degrees". A description is returned
+   unchanged if the Unit is the default, or has been set to that same
+   description. Anything else is a units expression, normalised by the
+   parent method. */
+      } else {
+         descunit = DHmsUnit( fmt, astGetAxisDigits( this_axis ), 1, &descr,
+                              status );
+         if ( astOK && descr ) {
+            if ( !astTestAxisUnit( this_axis ) ) {
+               result = descunit;
+            } else {
+               unit = (*parent_getaxisunit)( this_axis, status );
+               if ( astOK && unit && !strcmp( unit, descunit ) ) {
+                  result = descunit;
+               }
+            }
+         }
+         if ( astOK && !result ) {
             result = (*parent_getaxisnormunit)( this_axis, status );
-
-/* Otherwise the Unit either describes the axis values, in which case it is
-   returned unchanged, or names a unit such as "degrees", which the parent
-   method normalises. */
-         } else {
-            result = DHmsUnit( fmt, astGetAxisDigits( this_axis ), 1, &descr,
-                               status );
-            if ( !descr ) result = (*parent_getaxisnormunit)( this_axis,
-                                                              status );
          }
       }
    }

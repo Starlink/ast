@@ -3,6 +3,7 @@
  */
 #include "ast.h"
 #include "ast_err.h"
+#include <math.h>
 #include <stdio.h>
 
 int main( void ){
@@ -220,6 +221,36 @@ int main( void ){
    fs = astFindFrame( target, template, " " );
    if( fs && astOK ) {
       astError( AST__INTER, "Error 51\n" );
+   }
+
+/* A constant in a units string is a coefficient wherever it appears:
+   "2/m" means "each unit is 2 per metre", the same as "2*m**-1", so a
+   value of 1 per metre is 0.5 in either. */
+   {
+      const char *units[ 4 ] = { "2/m", "2*m**-1", "0.5/m", "2/s" };
+      const char *from[ 4 ] = { "1/m", "1/m", "1/m", "Hz" };
+      double expect[ 4 ] = { 0.5, 0.5, 2.0, 0.5 };
+      double in, out;
+      int i;
+
+      for( i = 0; i < 4 && astOK; i++ ) {
+         AstFrame *f1 = astFrame( 1, "Unit(1)=%s", from[ i ] );
+         AstFrame *f2 = astFrame( 1, "Unit(1)=%s", units[ i ] );
+         astSetActiveUnit( f1, 1 );
+         astSetActiveUnit( f2, 1 );
+         fs = astConvert( f1, f2, " " );
+         if( !fs && astOK ) {
+            astError( AST__INTER, "Error 52: no conversion from %s to %s\n",
+                      from[ i ], units[ i ] );
+         } else if( astOK ) {
+            in = 1.0;
+            astTran1( fs, 1, &in, 1, &out );
+            if( fabs( out - expect[ i ] ) > 1.0E-12 ) {
+               astError( AST__INTER, "Error 53: 1 %s is %g %s, expected "
+                         "%g\n", from[ i ], out, units[ i ], expect[ i ] );
+            }
+         }
+      }
    }
 
 

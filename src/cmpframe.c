@@ -8238,12 +8238,19 @@ static AstPointSet *ResolvePoints( AstFrame *this_frame, const double point1[],
             if( *d1_1 != AST__BAD && *d1_2 != AST__BAD ) {
                *d1 = ( b1*(*d1_1) + b2*(*d1_2) )/b;
 
-/*  Offset this distance away from point 1 towards point 2 to get point 4. */
-               astOffset( this, p1, p2, *d1, p4 );
+/*  Offset this distance away from point 1 towards point 2 to get point 4.
+    astOffset and astDistance work on the CmpFrame's external axes, so
+    use the supplied point1 and point2 rather than their un-permuted
+    copies, and put point 3 back into external order (the input PointSet
+    is un-permuted, so external axis "axis" is in its element
+    perm[axis]). */
+               astOffset( this, point1, point2, *d1, p4 );
 
 /* Now find the perpendicular distance (the distance between point4 and
    point3). */
-               for( axis = 0; axis < nax; axis++ ) p3[ axis ] = ptr_in[ axis ][ ipoint ];
+               for( axis = 0; axis < nax; axis++ ) {
+                  p3[ axis ] = ptr_in[ perm[ axis ] ][ ipoint ];
+               }
                *d2 = astDistance( this, p4, p3 );
 
             } else {
