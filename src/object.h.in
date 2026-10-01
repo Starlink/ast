@@ -357,6 +357,11 @@
 *        multiplier in astEQUALS. Applying the multiplier first overflows
 *        to infinity for operands near the top of the range, which made
 *        every comparison against such a value report equality.
+*     29-SEP-2026 (EMB):
+*        Added a pointer to the thread-specific data holding the vtab to the
+*        Object vtab: this is needed so that Object instances can ref/deref
+*        the globals holding its current vtab. Added astFreeObjectGlobals and
+*        astFreeObjectVtabs.
 */
 
 /* Include files. */
@@ -408,6 +413,18 @@
 #define AST__LOCK 1      /* Lock the object */
 #define AST__UNLOCK 2    /* Unlock the object */
 #define AST__CHECKLOCK 3 /* Check if the object is locked */
+
+/* Values returned by astManageLock */
+#define AST__LOCKSTAT_OK 0          /* Success */
+#define AST__LOCKSTAT_BUSY 1        /* AST__LOCK or AST__UNLOCK failed: the
+                                       object is locked by another thread */
+#define AST__LOCKSTAT_LOCKFAIL 2    /* Failed to lock a POSIX mutex */
+#define AST__LOCKSTAT_UNLOCKFAIL 3  /* Failed to unlock a POSIX mutex */
+#define AST__LOCKSTAT_BADMODE 4     /* Unknown "mode" value */
+#define AST__LOCKSTAT_OTHER 5       /* AST__CHECKLOCK failed: the object is
+                                       locked by another thread */
+#define AST__LOCKSTAT_UNLOCKED 6    /* AST__CHECKLOCK failed: the object is
+                                       unlocked */
 
 #endif
 
@@ -1661,6 +1678,9 @@ typedef struct AstObjectVtab {
 
 #if defined(THREAD_SAFE)
    int (* ManageLock)( AstObject *, int, int, AstObject **, int * );
+
+/* The thread-specific data structure holding this vtab. */
+   struct AstGlobals *globals;
 #endif
 
 } AstObjectVtab;
@@ -1723,6 +1743,8 @@ AstObject *astLoadObject_( void *, size_t, AstObjectVtab *,
 
 #if defined(THREAD_SAFE)
 void astInitObjectGlobals_( AstObjectGlobals * );
+void astFreeObjectGlobals_( AstObjectGlobals *, int * );
+void astFreeObjectVtabs_( AstObjectGlobals *, int * );
 #endif
 
 #endif

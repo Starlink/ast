@@ -1423,6 +1423,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        alternate ones.  Together these stop a FrameSet whose celestial
 *        axes cannot be described this way from being written out as a
 *        header of SIP coefficients with no CTYPE or CRPIX cards.
+*     1-OCT-2026 (EMB):
+*        Make the TimeFrames used for converting MJD values to and from TDB
+*        belong to the calling thread, created on first use and annulled when
+*        the thread exits. Previously they were shared by all threads but
+*        locked by the first to use the FitsChan class, so other threads could
+*        wait for ever when reading a header with an MJD value.
 *class--
 */
 
@@ -1751,46 +1757,53 @@ static const char *xaltax[3] = { ALTAXES_ALL_STRING,
                                  ALTAXES_IDENT_STRING,
                                  ALTAXES_NONE_STRING };
 
-/* Define two variables to hold TimeFrames which will be used for converting
-   MJD values between time scales. */
-static AstTimeFrame *tdbframe = NULL;
-static AstTimeFrame *timeframe = NULL;
-
 /* Max number of characters in a formatted int */
 static int int_dig;
 
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->Items_Written = 0; \
-   globals->Write_Nest = -1; \
-   globals->Current_Indent = 0; \
-   globals->Ignore_Used = 1; \
-   globals->Mark_New = 0; \
-   globals->CnvType_Text[ 0 ] = 0; \
-   globals->CnvType_Text0[ 0 ] = 0; \
-   globals->CnvType_Text1[ 0 ] = 0; \
-   globals->CreateKeyword_Seq_Nchars = -1; \
-   globals->FormatKey_Buff[ 0 ] = 0; \
-   globals->FitsGetCom_Sval[ 0 ] = 0; \
-   globals->IsSpectral_Ret = NULL; \
-   globals->Match_Fmt[ 0 ] = 0; \
-   globals->Match_Template = NULL; \
-   globals->Match_PA = 0; \
-   globals->Match_PB = 0; \
-   globals->Match_NA = 0; \
-   globals->Match_NB = 0; \
-   globals->Match_Nentry = 0; \
-   globals->WcsCelestial_Type[ 0 ] = 0; \
-   globals->Ignore_Used = 1; \
-   globals->Mark_New = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(FitsChan)
+astMAKE_INITGLOBALS(FitsChan) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->Items_Written = 0;
+   globals->Write_Nest = -1;
+   globals->Current_Indent = 0;
+   globals->Ignore_Used = 1;
+   globals->Mark_New = 0;
+   globals->CnvType_Text[ 0 ] = 0;
+   globals->CnvType_Text0[ 0 ] = 0;
+   globals->CnvType_Text1[ 0 ] = 0;
+   globals->CreateKeyword_Seq_Nchars = -1;
+   globals->FormatKey_Buff[ 0 ] = 0;
+   globals->FitsGetCom_Sval[ 0 ] = 0;
+   globals->IsSpectral_Ret = NULL;
+   globals->Match_Fmt[ 0 ] = 0;
+   globals->Match_Template = NULL;
+   globals->Match_PA = 0;
+   globals->Match_PB = 0;
+   globals->Match_NA = 0;
+   globals->Match_NB = 0;
+   globals->Match_Nentry = 0;
+   globals->WcsCelestial_Type[ 0 ] = 0;
+   globals->Ignore_Used = 1;
+   globals->Mark_New = 0;
+   globals->TDBFrame = NULL;
+   globals->TimeFrame = NULL;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: annul the
+   TimeFrames used for converting MJD values between time scales. */
+astMAKE_FREEGLOBALS(FitsChan) {
+   if( globals->TDBFrame ) {
+      globals->TDBFrame = astAnnul( globals->TDBFrame );
+   }
+   if( globals->TimeFrame ) {
+      globals->TimeFrame = astAnnul( globals->TimeFrame );
+   }
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(FitsChan,Class_Init)
@@ -1816,6 +1829,8 @@ astMAKE_INITGLOBALS(FitsChan)
 #define match_nb astGLOBAL(FitsChan,Match_NB)
 #define match_nentry  astGLOBAL(FitsChan,Match_Nentry)
 #define wcscelestial_type astGLOBAL(FitsChan,WcsCelestial_Type)
+#define tdbframe astGLOBAL(FitsChan,TDBFrame)
+#define timeframe astGLOBAL(FitsChan,TimeFrame)
 static pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_MUTEX2 pthread_mutex_lock( &mutex2 );
 #define UNLOCK_MUTEX2 pthread_mutex_unlock( &mutex2 );
@@ -1905,6 +1920,11 @@ static char wcscelestial_type[ 4 ];
    as static variables. */
 static AstFitsChanVtab class_vtab;   /* Virtual function table */
 static int class_init = 0;       /* Virtual function table initialised? */
+
+/* TimeFrames used for converting MJD values between time scales. */
+static AstTimeFrame *tdbframe = NULL;
+static AstTimeFrame *timeframe = NULL;
+
 #define LOCK_MUTEX2
 #define UNLOCK_MUTEX2
 #define LOCK_MUTEX3
@@ -18813,13 +18833,6 @@ void astInitFitsChanVtab_(  AstFitsChanVtab *vtab, const char *name, int *status
    LOCK_MUTEX4
    sprintf( buf, "%d", INT_MAX );
    int_dig = strlen( buf );
-
-/* Create a pair of MJD TimeFrames which will be used for converting to and
-   from TDB. */
-   astBeginPM;
-   if( !tdbframe ) tdbframe = astTimeFrame( "system=MJD,timescale=TDB", status );
-   if( !timeframe ) timeframe = astTimeFrame( "system=MJD", status );
-   astEndPM;
    UNLOCK_MUTEX4
 
 /* If we have just initialised the vtab for the current class, indicate
@@ -34256,6 +34269,7 @@ static double TDBConv( double mjd, int timescale, int fromTDB,
 */
 
 /* Local Variables: */
+   astDECLARE_GLOBALS  /* Thread-specific global data */
    AstFrameSet *fs;    /* Mapping from supplied timescale to TDB */
    double ret;         /* The returned value */
 
@@ -34265,6 +34279,10 @@ static double TDBConv( double mjd, int timescale, int fromTDB,
 /* Check inherited status and supplied TDB value. */
    if( !astOK || mjd == AST__BAD ) return ret;
 
+/* Get a pointer to the thread-specific global data for the calling
+   thread. */
+   astGET_GLOBALS(NULL);
+
 /* Return the supplied value if no conversion is needed. */
    if( timescale == AST__TDB ) {
       ret = mjd;
@@ -34272,10 +34290,15 @@ static double TDBConv( double mjd, int timescale, int fromTDB,
 /* Otherwise, do the conversion. */
    } else {
 
-/* Lock the timeframes for use by the current thread, waiting if they are
-   currently locked by another thread. */
-      astManageLock( timeframe, AST__LOCK, 1, NULL );
-      astManageLock( tdbframe, AST__LOCK, 1, NULL );
+/* Lazily instantiate a pair of MJD TimeFrames for converting to and
+   from TDB. These live in thread-local storage and may need to be
+   recreated on new threads. */
+      if( !tdbframe ) {
+         astBeginPM;
+         tdbframe = astTimeFrame( "system=MJD,timescale=TDB", status );
+         timeframe = astTimeFrame( "system=MJD", status );
+         astEndPM;
+      }
 
 /* Set the required timescale. */
       astSetTimeScale( timeframe, timescale );
@@ -34285,10 +34308,6 @@ static double TDBConv( double mjd, int timescale, int fromTDB,
       fs = astConvert( tdbframe, timeframe, "" );
       astTran1( fs, 1, &mjd, fromTDB, &ret );
       fs = astAnnul( fs );
-
-/* Unlock the timeframes. */
-      astManageLock( timeframe, AST__UNLOCK, 1, NULL );
-      astManageLock( tdbframe, AST__UNLOCK, 1, NULL );
    }
 
 /* Return the result */

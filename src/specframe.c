@@ -164,6 +164,11 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *         explicitly.
 *     27-APR-2020 (DSB):
 *         Correct "Heliographic" to "heliocentric".
+*     1-OCT-2026 (EMB):
+*         Make the SkyFrame used for formatting and unformatting RefRA and
+*         RefDec values belong to the calling thread, annulled when the
+*         thread created lazily on first use, rather than a process global
+*         variable locked to the thread the first creates it.
 *class--
 */
 
@@ -265,23 +270,27 @@ static void (* parent_setsystem)( AstFrame *, AstSystemType, int * );
 static void (* parent_clearsystem)( AstFrame *, int * );
 static void (* parent_clearunit)( AstFrame *, int, int * );
 
-/* Define a variable to hold a SkyFrame which will be used for formatting
-   and unformatting sky positions, etc. */
-static AstSkyFrame *skyframe;
-
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->GetLabel_Buff[ 0 ] = 0; \
-   globals->GetSymbol_Buff[ 0 ] = 0; \
-   globals->GetTitle_Buff[ 0 ] = 0; \
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(SpecFrame)
+astMAKE_INITGLOBALS(SpecFrame) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->GetLabel_Buff[ 0 ] = 0;
+   globals->GetSymbol_Buff[ 0 ] = 0;
+   globals->GetTitle_Buff[ 0 ] = 0;
+   globals->SkyFrame = NULL;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: annul the
+   SkyFrame used for formatting and unformatting sky positions. */
+astMAKE_FREEGLOBALS(SpecFrame) {
+   if( globals->SkyFrame ) {
+      globals->SkyFrame = astAnnul( globals->SkyFrame );
+   }
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(SpecFrame,Class_Init)
@@ -290,12 +299,7 @@ astMAKE_INITGLOBALS(SpecFrame)
 #define getlabel_buff astGLOBAL(SpecFrame,GetLabel_Buff)
 #define getsymbol_buff astGLOBAL(SpecFrame,GetSymbol_Buff)
 #define gettitle_buff astGLOBAL(SpecFrame,GetTitle_Buff)
-
-
-
-static pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
-#define LOCK_MUTEX2 pthread_mutex_lock( &mutex2 );
-#define UNLOCK_MUTEX2 pthread_mutex_unlock( &mutex2 );
+#define skyframe astGLOBAL(SpecFrame,SkyFrame)
 
 /* If thread safety is not needed, declare and initialise globals at static
    variables. */
@@ -319,8 +323,9 @@ static char gettitle_buff[ 201 ];
 static AstSpecFrameVtab class_vtab;   /* Virtual function table */
 static int class_init = 0;       /* Virtual function table initialised? */
 
-#define LOCK_MUTEX2
-#define UNLOCK_MUTEX2
+/* Define a variable to hold a SkyFrame which will be used for formatting
+   and unformatting sky positions, etc. */
+static AstSkyFrame *skyframe = NULL;
 
 #endif
 
@@ -1261,13 +1266,11 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 
 /* Create an FK5 J2000 SkyFrame which will be used for formatting and
    unformatting sky positions, etc. */
-   LOCK_MUTEX2
    if( !skyframe ) {
       astBeginPM;
       skyframe = astSkyFrame( "system=FK5,equinox=J2000", status );
       astEndPM;
    }
-   UNLOCK_MUTEX2
 
 /* Obtain the length of the attrib string. */
    len = strlen( attrib );
@@ -1696,6 +1699,7 @@ f     invoked with STATUS set to an error value, or if it should fail for
 */
 
 /* Local Variables: */
+   astDECLARE_GLOBALS          /* Thread-specific global data */
    AstFrameSet *fs;            /* Conversion FrameSet */
    AstFrame *fb;               /* Base Frame */
    AstFrame *fc;               /* Current Frame */
@@ -1711,6 +1715,9 @@ f     invoked with STATUS set to an error value, or if it should fail for
 /* Check the global error status. */
    if ( !astOK ) return;
 
+/* Get a pointer to the thread specific global data structure. */
+   astGET_GLOBALS(this);
+
 /* If no SkyFrame was supplied, just return the stored RefRA and RefDec
    values. */
    if( !frm ) {
@@ -1722,13 +1729,11 @@ f     invoked with STATUS set to an error value, or if it should fail for
 
 /* Create an FK5 J2000 SkyFrame which will be used for formatting and
    unformatting sky positions, etc. */
-      LOCK_MUTEX2
       if( !skyframe ) {
          astBeginPM;
          skyframe = astSkyFrame( "system=FK5,equinox=J2000", status );
          astEndPM;
       }
-      UNLOCK_MUTEX2
 
 /* Find the Mapping from the SkyFrame which describes the internal format
    in which the RefRA and RefDec attribute values are stored, to the
@@ -3611,6 +3616,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 */
 
 /* Local Vaiables: */
+   astDECLARE_GLOBALS            /* Thread-specific global data */
    AstMapping *umap;             /* Mapping between units */
    AstSpecFrame *this;           /* Pointer to the SpecFrame structure */
    AstStdOfRestType sor;         /* Standard of rest type code */
@@ -3629,18 +3635,19 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* Check the global error status. */
    if ( !astOK ) return;
 
+/* Get a pointer to the thread specific global data structure. */
+   astGET_GLOBALS(this_object);
+
 /* Obtain a pointer to the SpecFrame structure. */
    this = (AstSpecFrame *) this_object;
 
 /* Create an FK5 J2000 SkyFrame which will be used for formatting and
    unformatting sky positions, etc. */
-   LOCK_MUTEX2
    if( !skyframe ) {
       astBeginPM;
       skyframe = astSkyFrame( "system=FK5,equinox=J2000", status );
       astEndPM;
    }
-   UNLOCK_MUTEX2
 
 /* Obtain the length of the setting string. */
    len = strlen( setting );
@@ -3967,6 +3974,7 @@ f        The global status.
 */
 
 /* Local Variables: */
+   astDECLARE_GLOBALS          /* Thread-specific global data */
    AstFrameSet *fs;            /* Conversion FrameSet */
    AstFrame *fb;               /* Base Frame */
    AstFrame *fc;               /* Current Frame */
@@ -3977,6 +3985,9 @@ f        The global status.
 
 /* Check the global error status. */
    if ( !astOK ) return;
+
+/* Get a pointer to the thread specific global data structure. */
+   astGET_GLOBALS(this);
 
 /* If no SkyFrame was supplied, just store the supplied RefRA and RefDec
    values. */
@@ -3989,13 +4000,11 @@ f        The global status.
 
 /* Create an FK5 J2000 SkyFrame which will be used for formatting and
    unformatting sky positions, etc. */
-      LOCK_MUTEX2
       if( !skyframe ) {
          astBeginPM;
          skyframe = astSkyFrame( "system=FK5,equinox=J2000", status );
          astEndPM;
       }
-      UNLOCK_MUTEX2
 
 /* Find the Mapping from the supplied SkyFrame, to the SkyFrame which
    describes the internal format in which the RefRA and RefDec attribute

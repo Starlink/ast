@@ -76,6 +76,8 @@
 *     24-OCT-2006 (DSB):
 *        - Remove duplicated documentation from prologue.
 *        - Add ForceExterior attribute.
+*     29-SEP-2026 (EMB):
+*        Added astFreePlotGlobals.
 *-
 */
 
@@ -715,6 +717,7 @@ AstPlot *astLoadPlot_( void *, size_t, AstPlotVtab *,
 /* Thread-safe initialiser for all global data used by this module. */
 #if defined(THREAD_SAFE)
 void astInitPlotGlobals_( AstPlotGlobals * );
+void astFreePlotGlobals_( AstPlotGlobals *, int * );
 #endif
 
 #endif

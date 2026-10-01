@@ -1240,6 +1240,7 @@ if(BUILD_TESTING)
     ast_apply_dev_options(ast_test)
     add_test(NAME ast_test COMMAND ast_test)
     add_subdirectory(ast_tester)
+    add_subdirectory(perf)
 
     if(AST_ENABLE_COVERAGE)
         if(CMAKE_C_COMPILER_ID STREQUAL "GNU")

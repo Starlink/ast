@@ -277,6 +277,9 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Report failure from astMapGetElemA for an undefined entry, so
 *        that it agrees with astMapGetElem<X> for the other data types
 *        rather than reporting success without storing a value.
+*     29-SEP-2026 (EMB):
+*        Added astFreeKeyMapGlobals to free the strings returned by
+*        astMapGet0C and astMapKey when a thread exits.
 *class--
 */
 
@@ -474,18 +477,35 @@ static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->ConvertValue_Init = 0; \
-   globals->ConvertValue_Istr = 0; \
-   globals->ConvertValue_Buff[ 0 ] = 0; \
-   globals->MapKey_Init = 0; \
-   globals->MapKey_Istr = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(KeyMap)
+astMAKE_INITGLOBALS(KeyMap) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->ConvertValue_Init = 0;
+   globals->ConvertValue_Istr = 0;
+   globals->ConvertValue_Buff[ 0 ] = 0;
+   globals->MapKey_Init = 0;
+   globals->MapKey_Istr = 0;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: free the
+   strings returned by recent calls to astMapGet0C and astMapKey. */
+astMAKE_FREEGLOBALS(KeyMap) {
+/* Local Variables: */
+   int i;
+
+   if( globals->ConvertValue_Init ) {
+      for( i = 0; i < AST__KEYMAP_CONVERTVALUE_MAX_STRINGS; i++ ) {
+         globals->ConvertValue_Strings[ i ] = astFree( globals->ConvertValue_Strings[ i ] );
+      }
+   }
+   if( globals->MapKey_Init ) {
+      for( i = 0; i < AST__KEYMAP_MAPKEY_MAX_STRINGS; i++ ) {
+         globals->MapKey_Strings[ i ] = astFree( globals->MapKey_Strings[ i ] );
+      }
+   }
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(KeyMap,Class_Init)
