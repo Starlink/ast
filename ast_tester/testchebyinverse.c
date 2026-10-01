@@ -306,6 +306,43 @@ static void singular_seed( int *status ) {
    }
    cm = astAnnul( cm );
 
+/* Pin the singular-seed path against a closed-form root. A series with no
+   odd terms has zero slope at the midpoint, so both affine seeds are
+   rejected and every target starts from the midpoint, where the Jacobian
+   is singular. T2 + T4/8 is z^4 + z^2 - 7/8, a quadratic in z^2 whose
+   positive root is known in closed form, and the nudge moves upward, so
+   that is the root the solver must find. On [0,10] rounding leaves the
+   midpoint a slope of order 1e-17 rather than an exact zero, which must
+   take the same path. A cubic cannot be used here: zero slope at the
+   midpoint needs a T1 term to cancel the slope of T3, and the linear-term
+   seed then takes over before the midpoint fallback is reached. */
+   {
+      double quart[] = { 1, 1, 2, .125, 1, 4 };
+      double y[] = { -.75, -.5, 0, .5, 1 };
+      double boxlo[] = { -1, 0 }, boxhi[] = { 1, 10 };
+      int ibox;
+      for( ibox = 0; ibox < 2; ibox++ ) {
+         double centre = 0.5*( boxlo[ibox] + boxhi[ibox] );
+         double half = 0.5*( boxhi[ibox] - boxlo[ibox] );
+         AstMapping *guess;
+         cm = astChebyMap( 1, 1, 2, quart, 0, NULL, boxlo + ibox, boxhi + ibox,
+                           NULL, NULL, "NiterInverse=40,TolInverse=1e-12",
+                           status );
+         guess = astLinearGuess( cm );
+         got[0] = AST__BAD;
+         astTran1( guess, 1, y, 0, got );
+         near( got[0], centre, "Even series seeds at the midpoint" );
+         guess = astAnnul( guess );
+         astTran1( cm, 5, y, 0, got );
+         for( i = 0; i < 5; i++ ) {
+            double s = 0.5*( -1 + sqrt( 1 + 4*( y[i] + .875 ) ) );
+            near( got[i], centre + half*sqrt( s ),
+                  "Known positive root of an even quartic" );
+         }
+         cm = astAnnul( cm );
+      }
+   }
+
 /* On a symmetric box the midpoint slope is exactly zero, so the seed is
    singular and gets nudged. With no updates allowed, the nudged position
    has not been checked against the target and must not be returned. */

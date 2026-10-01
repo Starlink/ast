@@ -87,7 +87,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   Chebyshev derivative basis against an independent T_n' = n U_(n-1)
   reference, the affine seed, endpoint and degenerate iteration domains, the
   bad-value and exhaustion behavior of the bounded solver against the
-  historical unbounded one, and cache transfer through copy, dump and
+  historical unbounded one, the singular-seed path against the closed-form
+  positive root of an even quartic, and cache transfer through copy, dump and
   astPolyTran.
 
 **Plot3D coverage (28 default):**
