@@ -554,6 +554,7 @@ EXTRA_DIST += \
 # distcleancheck reports them as files left in the build tree.
 CLEANFILES = \
     affine_roundtrip.asdf \
+    azp_roundtrip.asdf \
     divide_roundtrip.asdf \
     divide_roundtrip2.asdf \
     draw3d.txt \
