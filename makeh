@@ -131,6 +131,10 @@ while ( $ARGV[0] =~ /^-/ ) {
 @cpp = shellwords( $ENV{CPP} // '' );
 @cpp = ( 'cc', '-E' ) unless @cpp;
 
+#  Exit through the END block below when interrupted, so that the scratch
+#  directory and part-written output are removed then too.
+$SIG{INT} = $SIG{TERM} = $SIG{HUP} = sub { exit 1 };
+
 #  Create a scratch directory.  It goes in the build tree rather than in
 #  /tmp because the pre-processor reads the scratch .c file from it.
 $tmpdir="$builddir/makeh-$$.tmp";
