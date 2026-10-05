@@ -97,6 +97,15 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   unavailable on Darwin, and every test here suppresses leak reports because
   AST's memory system caches freed blocks. Running this test under
   `ASAN_OPTIONS=detect_leaks=1` on Linux is the manual check.
+- testthreadexit (conditional on pthreads) — a thread's thread-specific data,
+  which includes its copy of every class vtab, is released when the thread
+  exits, while Objects it created stay usable after being unlocked and handed
+  to another thread. Also checks that the resources classes keep for each
+  thread (cached helper Objects, returned-string buffers, the memory cache)
+  are released at exit, and that a thread can read a FITS header with an MJD
+  value after another thread has used the FitsChan class first. Its leak
+  checks need LeakSanitizer, which the CMake build enables for this test on
+  Linux only.
 
 **Optional manual stress test:**
 - testhuge_c
