@@ -308,7 +308,7 @@ while( <TEMP> ) {
    }
 }
 
-#  A pre-processor that fails must stop the build here.  Outerwise, it
+#  A pre-processor that fails must stop the build here.  Otherwise, it
 #  outputs a header that is empty but for the preamble, and the failure only
 #  shows up much later in whatever includes ast.h.
 close( TEMP ) || die "C pre-processor (@cpp) failed\n";
@@ -334,7 +334,10 @@ if ( $outfile ne '' ) {
 END {
    my $status = $?;
    system( "rm", "-rf", $tmpdir ) if defined( $tmpdir ) && -d $tmpdir;
-   unlink( $tmpout ) if defined( $tmpout ) && -f $tmpout;
+   if ( defined( $tmpout ) && -f $tmpout ) {
+      close( OUT );
+      unlink( $tmpout );
+   }
    $? = $status;
 }
 
