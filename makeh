@@ -83,7 +83,7 @@
 #        - Respect the -b flag when locating the config.h to use.
 #-
 
-( $#ARGV >= 0 ) || Usage();
+use Text::ParseWords;
 
 #  Test whether we need to include config.h in the result.
 $need_config_h = 0;
@@ -123,10 +123,13 @@ while ( $ARGV[0] =~ /^-/ ) {
       Usage();
    }
 }
+( $#ARGV >= 0 ) || Usage();
 
 #  The C pre-processor to run, command and flags together, as the CPP
-#  environment variable spells it.
-@cpp = split( ' ', $ENV{CPP} || 'cc -E' );
+#  environment variable spells it.  It is split into words as the shell
+#  would split it, so a command path containing spaces must be quoted.
+@cpp = shellwords( $ENV{CPP} // '' );
+@cpp = ( 'cc', '-E' ) unless @cpp;
 
 #  Create a scratch directory.  It goes in the build tree rather than in
 #  /tmp because the pre-processor reads the scratch .c file from it.
@@ -145,7 +148,7 @@ unless ( -d $tmpdir && -w $tmpdir ) {
 #  a truncated header behind for the rest of the build to compile against.
 if ( $outfile ne '' ) {
    $tmpout = "$outfile.tmp$$";
-   open( OUT, ">$tmpout" ) || die "Can't create $tmpout: $!\n";
+   open( OUT, '>', $tmpout ) || die "Can't create $tmpout: $!\n";
    select( OUT );
 }
 
@@ -159,7 +162,7 @@ foreach $file ( @ARGV ) {
 #  made above.  It goes in the scratch directory beside them, so that the
 #  quoted #include lines resolve relative to it.
 $cppin = "$tmpdir/makeh.c";
-open( CC, ">$cppin" ) || die "Can't create $cppin: $!\n";
+open( CC, '>', $cppin ) || die "Can't create $cppin: $!\n";
 
 if ( $need_config_h ) {
 # Include the build directory's config.h, unescaped, in the output.  We
@@ -337,7 +340,7 @@ sub protect_copy_file {
 
    my $path = "$builddir/$file";
    $path = "$srcdir/$file" if ! -f $path;
-   open( INCLUDE, $path )
+   open( INCLUDE, '<', $path )
        || die "Can't open input file $path: $!";
 
 #  Inicate we have no deferred text to write out.
@@ -346,7 +349,8 @@ sub protect_copy_file {
 #  Open an output file with the same name in the temporary directory.
    $tmp_file = $file;
    $tmp_file =~ s|^.*/||;
-   open( TEMP, ">$tmpdir/$tmp_file" );
+   open( TEMP, '>', "$tmpdir/$tmp_file" )
+       || die "Can't create $tmpdir/$tmp_file: $!\n";
 
 #  Read the input file and detect "#include <...>" lines, extracting the name
 #  of the header file being included.

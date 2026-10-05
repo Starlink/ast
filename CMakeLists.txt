@@ -769,7 +769,8 @@ endforeach()
 # This is what the autotools build gets from AC_PROG_CPP, which likewise
 # defaults to "$CC -E".  Exposed as a cache variable for use, if needed, by
 # pathological toolchains that spell preprocess-to-stdout differently.
-set(AST_CPP "${CMAKE_C_COMPILER} -E" CACHE STRING
+# makeh splits it into words as the shell would, hence the quoted path.
+set(AST_CPP "\"${CMAKE_C_COMPILER}\" -E" CACHE STRING
     "C preprocessor command used to generate ast.h")
 
 # makeh locates each header in the build tree first and then the source tree
