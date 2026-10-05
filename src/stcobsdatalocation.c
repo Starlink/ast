@@ -124,12 +124,10 @@ static size_t (* parent_getobjsize)( AstObject *, int * );
 
 
 #ifdef THREAD_SAFE
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(StcObsDataLocation)
+astMAKE_INITGLOBALS(StcObsDataLocation) {
+   globals->Class_Init = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(StcObsDataLocation,Class_Init)

@@ -107,6 +107,8 @@
 *        Added astPutCards function.
 *     20-NOV-2017 (DSB):
 *        Added SipReplace attribute.
+*     1-OCT-2026 (EMB):
+*        Added astFreeFitsChanGlobals.
 *-
 */
 
@@ -421,6 +423,8 @@ typedef struct AstFitsChanGlobals {
    int Match_NB;
    int Match_Nentry;
    char WcsCelestial_Type[ 4 ];
+   struct AstTimeFrame *TDBFrame;
+   struct AstTimeFrame *TimeFrame;
 } AstFitsChanGlobals;
 
 #endif
@@ -471,6 +475,7 @@ AstFitsChan *astLoadFitsChan_( void *, size_t, AstFitsChanVtab *,
 /* Thread-safe initialiser for all global data used by this module. */
 #if defined(THREAD_SAFE)
 void astInitFitsChanGlobals_( AstFitsChanGlobals * );
+void astFreeFitsChanGlobals_( AstFitsChanGlobals *, int * );
 #endif
 
 #endif

@@ -56,6 +56,8 @@
 *        Added support for single precision entries.
 *     7-MAR-2008 (DSB):
 *        Added support for pointer ("P") entries.
+*     29-SEP-2026 (EMB):
+*        Added astFreeKeyMapGlobals.
 *-
 */
 
@@ -309,6 +311,7 @@ AstKeyMap *astLoadKeyMap_( void *, size_t, AstKeyMapVtab *, const char *, AstCha
 /* Thread-safe initialiser for all global data used by this module. */
 #if defined(THREAD_SAFE)
 void astInitKeyMapGlobals_( AstKeyMapGlobals * );
+void astFreeKeyMapGlobals_( AstKeyMapGlobals *, int * );
 #endif
 
 #endif

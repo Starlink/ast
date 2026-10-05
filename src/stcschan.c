@@ -287,13 +287,11 @@ static int class_check;
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->Class_Init = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(StcsChan)
+astMAKE_INITGLOBALS(StcsChan) {
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->Class_Init = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define getattrib_buff astGLOBAL(StcsChan,GetAttrib_Buff)

@@ -235,14 +235,12 @@ static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->Simplify_Depth = 0; \
-   globals->Simplify_Stackmaps = NULL;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(CmpMap)
+astMAKE_INITGLOBALS(CmpMap) {
+   globals->Class_Init = 0;
+   globals->Simplify_Depth = 0;
+   globals->Simplify_Stackmaps = NULL;
+}
 
 #define class_init astGLOBAL(CmpMap,Class_Init)
 #define class_vtab astGLOBAL(CmpMap,Class_Vtab)

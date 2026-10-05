@@ -508,15 +508,13 @@ static pthread_mutex_t mutex3 = PTHREAD_MUTEX_INITIALIZER;
 #define use_cache astGLOBAL(Memory,Use_Cache)
 #define pm_depth astGLOBAL(Memory,PM_Depth)
 
-/* Define the initial values for the global data for this module. */
-#define GLOBAL_inits \
-   globals->Sizeof_Memory = 0; \
-   globals->Cache_Init = 0; \
-   globals->Use_Cache = 0; \
-   globals->PM_Depth = 0; \
-
 /* Create the global initialisation function. */
-astMAKE_INITGLOBALS(Memory)
+astMAKE_INITGLOBALS(Memory) {
+   globals->Sizeof_Memory = 0;
+   globals->Cache_Init = 0;
+   globals->Use_Cache = 0;
+   globals->PM_Depth = 0;
+}
 
 /* If thread safety is not needed, declare globals at static variables. */
 /* -------------------------------------------------------------------- */

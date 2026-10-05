@@ -221,14 +221,12 @@ static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstP
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->Eq_Cache = AST__BAD; \
-   globals->Ep_Cache = AST__BAD; \
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(SlaMap)
+astMAKE_INITGLOBALS(SlaMap) {
+   globals->Class_Init = 0;
+   globals->Eq_Cache = AST__BAD;
+   globals->Ep_Cache = AST__BAD;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(SlaMap,Class_Init)

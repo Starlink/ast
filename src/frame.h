@@ -544,6 +544,8 @@
 *        Added method astAxNorm.
 *     11-JAN-2017 (GSB):
 *        Add Dtai attribute.
+*     29-SEP-2026 (EMB):
+*        Added astFreeFrameGlobals.
 *-
 */
 
@@ -855,6 +857,7 @@ typedef struct AstFrameGlobals {
    char Title_Buff[ AST__FRAME_TITLE_BUFF_LEN + 1 ];
    char AstFmtDecimalYr_Buff[ AST__FRAME_ASTFMTDECIMALYR_BUFF_LEN + 1 ];
    char GetNormUnit_Buff[ AST__FRAME_GETNORMUNIT_BUFF_LEN + 1 ];
+   struct AstSkyFrame *SkyFrame;
 } AstFrameGlobals;
 
 #endif
@@ -902,6 +905,7 @@ AstFrame *astLoadFrame_( void *, size_t, AstFrameVtab *,
 /* Thread-safe initialiser for all global data used by this module. */
 #if defined(THREAD_SAFE)
 void astInitFrameGlobals_( AstFrameGlobals * );
+void astFreeFrameGlobals_( AstFrameGlobals *, int * );
 #endif
 #endif
 

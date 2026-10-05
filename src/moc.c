@@ -383,18 +383,16 @@ static int (* parent_equal)( AstObject *, AstObject *, int * );
 
 
 #ifdef THREAD_SAFE
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Comp_Corner_tol = 0.0; \
-   globals->Comp_Corner_exact = 0; \
-   globals->Comp_Corner_loop = 0; \
-   globals->Comp_Decra_ptr1 = NULL; \
-   globals->Comp_Decra_ptr2 = NULL; \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Moc)
+astMAKE_INITGLOBALS(Moc) {
+   globals->Comp_Corner_tol = 0.0;
+   globals->Comp_Corner_exact = 0;
+   globals->Comp_Corner_loop = 0;
+   globals->Comp_Decra_ptr1 = NULL;
+   globals->Comp_Decra_ptr2 = NULL;
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(Moc,Class_Init)

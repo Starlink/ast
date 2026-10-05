@@ -105,6 +105,8 @@
 *        Moved dut1 to the Frame class.
 *     6-APR-2017 (GSB):
 *        Added dtai to AstSkyLastTable.
+*     29-SEP-2026 (EMB):
+*        Added astFreeSkyFrameGlobals.
 *-
 */
 
@@ -323,6 +325,7 @@ AstSkyFrame *astLoadSkyFrame_( void *, size_t, AstSkyFrameVtab *,
 /* Thread-safe initialiser for all global data used by this module. */
 #if defined(THREAD_SAFE)
 void astInitSkyFrameGlobals_( AstSkyFrameGlobals * );
+void astFreeSkyFrameGlobals_( AstSkyFrameGlobals *, int * );
 #endif
 #endif
 

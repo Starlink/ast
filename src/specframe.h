@@ -47,6 +47,8 @@
 *        Original version.
 *     18-OCT-2006 (DSB):
 *        Added SpecOrigin.
+*     1-OCT-2026 (EMB):
+*        Added astFreeSpecFrameGlobals.
 *-
 */
 
@@ -211,6 +213,7 @@ typedef struct AstSpecFrameGlobals {
    char GetLabel_Buff[ 201 ];
    char GetSymbol_Buff[ 21 ];
    char GetTitle_Buff[ 201 ];
+   struct AstSkyFrame *SkyFrame;
 } AstSpecFrameGlobals;
 
 #endif
@@ -249,6 +252,7 @@ AstSpecFrame *astLoadSpecFrame_( void *, size_t,
 /* Thread-safe initialiser for all global data used by this module. */
 #if defined(THREAD_SAFE)
 void astInitSpecFrameGlobals_( AstSpecFrameGlobals * );
+void astFreeSpecFrameGlobals_( AstSpecFrameGlobals *, int * );
 #endif
 
 #endif

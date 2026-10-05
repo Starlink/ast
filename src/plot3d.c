@@ -151,6 +151,10 @@ f    AST_GRIDLINE, AST_POLYCURVE.
 *        established. Also establish the grf routines to be used.
 *     5-OCT-2015 (DSB):
 *        Allow Plot attributes to be set for specific planes.
+*     1-OCT-2026 (EMB):
+*        Make the FrameSet used when calling astCast belong to the calling
+*        thread, created lazily on first use, rather than a process global
+*        variable locked to the thread the first creates it.
 *class--
 */
 
@@ -1208,9 +1212,6 @@ static int (* parent_testattrib)( AstObject *, const char *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
 static void (* parent_setattrib)( AstObject *, const char *, int * );
 
-/* A FrameSet pointer that is used when calling astCast. */
-static AstFrameSet *dummy_frameset = NULL;
-
 #if defined(THREAD_SAFE)
 static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
 #endif
@@ -1218,26 +1219,31 @@ static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Plot3D)
+astMAKE_INITGLOBALS(Plot3D) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->Dummy_FrameSet = NULL;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: annul the
+   FrameSet used when calling astCast. */
+astMAKE_FREEGLOBALS(Plot3D) {
+   if( globals->Dummy_FrameSet ) {
+      globals->Dummy_FrameSet = astAnnul( globals->Dummy_FrameSet );
+   }
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define class_init astGLOBAL(Plot3D,Class_Init)
 #define class_vtab astGLOBAL(Plot3D,Class_Vtab)
 #define getattrib_buff astGLOBAL(Plot3D,GetAttrib_Buff)
+#define dummy_frameset astGLOBAL(Plot3D,Dummy_FrameSet)
 
 static pthread_mutex_t mutex2 = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK_MUTEX2 pthread_mutex_lock( &mutex2 );
 #define UNLOCK_MUTEX2 pthread_mutex_unlock( &mutex2 );
-
-static pthread_mutex_t mutex3 = PTHREAD_MUTEX_INITIALIZER;
-#define LOCK_MUTEX3 pthread_mutex_lock( &mutex3 );
-#define UNLOCK_MUTEX3 pthread_mutex_unlock( &mutex3 );
 
 /* If thread safety is not needed, declare and initialise globals at static
    variables. */
@@ -1251,11 +1257,11 @@ static char getattrib_buff[ 101 ];
 static AstPlot3DVtab class_vtab;   /* Virtual function table */
 static int class_init = 0;       /* Virtual function table initialised? */
 
+/* A FrameSet pointer that is used when calling astCast. */
+static AstFrameSet *dummy_frameset = NULL;
+
 #define LOCK_MUTEX2
 #define UNLOCK_MUTEX2
-
-#define LOCK_MUTEX3
-#define UNLOCK_MUTEX3
 
 #endif
 
@@ -3686,7 +3692,6 @@ void astInitPlot3DVtab_(  AstPlot3DVtab *vtab, const char *name, int *status ) {
 
 /* Local Variables: */
    astDECLARE_GLOBALS          /* Pointer to thread-specific global data */
-   AstFrame *dummy_frame;      /* The Frame to put in dummy_frameset */
    AstPlotVtab *plot;          /* Pointer to Plot component of Vtab */
    AstFrameSetVtab *fset;      /* Pointer to FrameSet component of Vtab */
    AstMappingVtab *mapping;    /* Pointer to Mapping component of Vtab */
@@ -3860,16 +3865,6 @@ SET_PLOT_ACCESSORS(Size)
    astSetCopy( vtab, Copy );
    astSetDelete( vtab, Delete );
    astSetDump( vtab, Dump, "Plot3D", "Provide facilities for 3D graphical output" );
-
-/* Create a FrameSet that can be used when calling astCast to indicate
-   the class to which we want to cast. */
-   LOCK_MUTEX3
-   if( !dummy_frameset ) {
-      dummy_frame = astFrame( 1, " ", status );
-      dummy_frameset = astFrameSet( dummy_frame, " ", status );
-      dummy_frame = astAnnul( dummy_frame );
-   }
-   UNLOCK_MUTEX3
 
 /* If we have just initialised the vtab for the current class, indicate
    that the vtab is now initialised, and store a pointer to the class
@@ -6921,6 +6916,8 @@ static void UpdatePlots( AstPlot3D *this, int *status ) {
 */
 
 /* Local Variables: */
+   astDECLARE_GLOBALS          /* Thread-specific global data */
+   AstFrame *dummy_frame;      /* The Frame to put in dummy_frameset */
    AstFrame *frm;
    AstFrameSet *fsetxy;
    AstFrameSet *fsetxz;
@@ -6939,6 +6936,9 @@ static void UpdatePlots( AstPlot3D *this, int *status ) {
 /* Check the inherited status. */
    if( !astOK ) return;
 
+/* Get a pointer to the thread-specific global data. */
+   astGET_GLOBALS(this);
+
 /* Return without action if the Plot3D does not contain the three 2D
    Plots. This may be the case for instance if this function is called
    before the Plot3D is fully constructed. */
@@ -6950,6 +6950,18 @@ static void UpdatePlots( AstPlot3D *this, int *status ) {
    parent FrameSet, remove the GRAPHICS Frame (Frame 1) and set the base
    Frame to be the Frame that was the base Frame when the Plot3D was
    constructed. */
+/* If not yet done, create a FrameSet to indicate to astCast the class to
+   which the Plot3D is to be cast. In the thread-safe build this belongs to
+   the calling thread, which may never have initialised the Plot3D class
+   itself, so it is created here on first use rather than when the class
+   is initialised. */
+      if( !dummy_frameset ) {
+         astBeginPM;
+         dummy_frame = astFrame( 1, " ", status );
+         dummy_frameset = astFrameSet( dummy_frame, " ", status );
+         dummy_frame = astAnnul( dummy_frame );
+         astEndPM;
+      }
       fset = (AstFrameSet *) astCast( this, dummy_frameset );
       astSetBase( fset, this->pix_frame );
       astRemoveFrame( fset, 1 );

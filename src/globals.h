@@ -137,17 +137,42 @@
 #define AST__THREAD_ID (AST__GLOBALS->thread_identifier) \
 
 
+/* Macros that expand to the signatures of the functions that initialise
+   and free the thread-specific global data for a class, for use as:
+
+      astMAKE_INITGLOBALS(Class) {
+         globals->Item = 0;
+      }
+
+   The init function is called when a thread first uses AST, and the free
+   function when the thread exits (only classes whose thread-specific data
+   refer to resources that must be released need define one). Within the
+   free function body, "status" is the inherited status pointer. */
 #define astMAKE_INITGLOBALS(class) \
-\
-void astInit##class##Globals_( Ast##class##Globals *globals ){ \
-   GLOBAL_inits \
-}
+void astInit##class##Globals_( Ast##class##Globals *globals )
+
+#define astMAKE_FREEGLOBALS(class) \
+void astFree##class##Globals_( Ast##class##Globals *globals, int *status )
 
 /* Type definitions */
 /* ================ */
 
 typedef struct AstGlobals {
    int thread_identifier;
+
+/* The number of references to this structure: one held by the thread
+   that owns it until the thread exits, plus one for each Object whose
+   vtab is stored in it. The structure is freed when this reaches zero.
+   Objects may be deleted by any thread, so access is serialised by
+   "ref_mutex". */
+   int nref;
+   pthread_mutex_t ref_mutex;
+
+/* The thread-specific status block created alongside this structure.
+   Kept here so it can be found when the thread exits, by which time
+   pthreads may already have cleared the thread-specific status key. */
+   AstStatusBlock *status_block;
+
    AstMemoryGlobals Memory;
    AstErrorGlobals  Error;
    AstObjectGlobals Object;
@@ -244,6 +269,8 @@ extern pthread_once_t starlink_ast_globals_initialised;
 
 void astGlobalsCreateKey_( void );
 AstGlobals *astGlobalsInit_( void );
+void astGlobalsRef_( AstGlobals * );
+void astGlobalsUnref_( AstGlobals * );
 
 
 /* If thread-safety is not required, define some null macros. */

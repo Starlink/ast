@@ -45,6 +45,8 @@
 *  History:
 *     6-JUN-2007 (DSB):
 *        Original version.
+*     1-OCT-2026 (EMB):
+*        Added astFreePlot3DGlobals.
 *-
 */
 
@@ -128,6 +130,7 @@ typedef struct AstPlot3DGlobals {
    AstPlot3DVtab Class_Vtab;
    int Class_Init;
    char GetAttrib_Buff[ 101 ];
+   AstFrameSet *Dummy_FrameSet;
 } AstPlot3DGlobals;
 
 #endif
@@ -166,6 +169,7 @@ AstPlot3D *astLoadPlot3D_( void *, size_t,
 /* Thread-safe initialiser for all global data used by this module. */
 #if defined(THREAD_SAFE)
 void astInitPlot3DGlobals_( AstPlot3DGlobals * );
+void astFreePlot3DGlobals_( AstPlot3DGlobals *, int * );
 #endif
 
 #endif

@@ -141,6 +141,7 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *  Authors:
 *     RFWS: R.F. Warren-Smith (Starlink)
 *     DSB: B.S. Berry (Starlink)
+*     EMB: E. Madison Bray (STScI)
 
 *  History:
 *     1-MAR-1996 (RFWS):
@@ -313,6 +314,13 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        FluxFrame all do - has a NormUnit that is a simplification of the
 *        units it reports. A Unit set on the Axis itself is still
 *        normalised by the Axis method.
+*     29-SEP-2026 (EMB):
+*        Added astFreeFrameGlobals to free the strings returned by astFormat
+*        when a thread exits.
+*     1-OCT-2026 (EMB):
+*        Make the SkyFrame used for formatting and unformatting ObsLat and
+*        ObsLon values belong to the calling thread, rather than a global
+*        variable locked to one thread.
 *class--
 */
 
@@ -762,30 +770,45 @@ static size_t (* parent_getobjsize)( AstObject *, int * );
 static int (* parent_managelock)( AstObject *, int, int, AstObject **, int * );
 #endif
 
-/* Define a variable to hold a SkyFrame which will be used for formatting
-   and unformatting ObsLat and ObsLon values. */
-static AstSkyFrame *skyframe;
-
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
 
-/* Define how to initialise thread-specific globals. */
-#define GLOBAL_inits \
-   globals->Class_Init = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->AstFormatID_Init = 0; \
-   globals->AstFormatID_Istr = 0; \
-   globals->Label_Buff[ 0 ] = 0; \
-   globals->Symbol_Buff[ 0 ] = 0; \
-   globals->Title_Buff[ 0 ] = 0; \
-   globals->AstFmtDecimalYr_Buff[ 0 ] = 0; \
-   globals->GetNormUnit_Buff[ 0 ] = 0;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Frame)
+astMAKE_INITGLOBALS(Frame) {
+   globals->Class_Init = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->AstFormatID_Init = 0;
+   globals->AstFormatID_Istr = 0;
+   globals->Label_Buff[ 0 ] = 0;
+   globals->Symbol_Buff[ 0 ] = 0;
+   globals->Title_Buff[ 0 ] = 0;
+   globals->AstFmtDecimalYr_Buff[ 0 ] = 0;
+   globals->GetNormUnit_Buff[ 0 ] = 0;
+   globals->SkyFrame = NULL;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: annul the
+   SkyFrame used for formatting ObsLat and ObsLon values, and free the
+   strings returned by recent calls to astFormat. */
+astMAKE_FREEGLOBALS(Frame) {
+/* Local Variables: */
+   int i;
+
+   if( globals->SkyFrame ) {
+      globals->SkyFrame = astAnnul( globals->SkyFrame );
+   }
+
+   if( globals->AstFormatID_Init ) {
+      for( i = 0; i < AST__FRAME_ASTFORMATID_MAX_STRINGS; i++ ) {
+         globals->AstFormatID_Strings[ i ] = astFree( globals->AstFormatID_Strings[ i ] );
+      }
+   }
+}
 
 #define class_init astGLOBAL(Frame,Class_Init)
 #define class_vtab astGLOBAL(Frame,Class_Vtab)
+#define skyframe astGLOBAL(Frame,SkyFrame)
 #define getattrib_buff astGLOBAL(Frame,GetAttrib_Buff)
 #define astformatid_strings astGLOBAL(Frame,AstFormatID_Strings)
 #define astformatid_istr astGLOBAL(Frame,AstFormatID_Istr)
@@ -801,6 +824,10 @@ astMAKE_INITGLOBALS(Frame)
 /* If thread safety is not needed, declare and initialise globals at static
    variables. */
 #else
+
+/* A SkyFrame used for formatting and unformatting ObsLat and ObsLon
+   values. */
+static AstSkyFrame *skyframe = NULL;
 
 /* Buffer returned by GetAttrib. */
 static char getattrib_buff[ GETATTRIB_BUFF_LEN + 1 ];
@@ -10087,6 +10114,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 */
 
 /* Local Vaiables: */
+   astDECLARE_GLOBALS            /* Declare the thread specific global data */
    AstAxis *ax;                  /* Pointer to Axis */
    AstFrame *pfrm;               /* Pointer to primary Frame containing axis */
    AstFrame *this;               /* Pointer to the Frame structure */
@@ -10131,6 +10159,9 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 
 /* Check the global error status. */
    if ( !astOK ) return;
+
+/* Get a pointer to the thread specific global data structure. */
+   astGET_GLOBALS(this_object);
 
 /* Obtain a pointer to the Frame structure. */
    this = (AstFrame *) this_object;

@@ -246,6 +246,13 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        may be associated with any Object for storing extra internal data.
 *        The companion astHasKeyMap method tests whether an Object already has
 *        an associated KeyMap without creating one.
+*     29-SEP-2026 (EMB):
+*        Keep a thread's global data, which holds its vtabs, until no Object
+*        uses one of those vtabs, even after the thread exits. Added
+*        astFreeObjectGlobals and astFreeObjectVtabs. Identify vtabs by
+*        class identifier rather than class name in ChangeThreadVtab, and
+*        skip the search when the Object already uses one of the calling
+*        thread's vtabs.
 *class--
 */
 
@@ -343,20 +350,37 @@ static int object_caching = 0;
 /* Set up global data access, mutexes, etc, needed for thread safety. */
 #ifdef THREAD_SAFE
 
-/* Define the initial values for the global data for this module. */
-#define GLOBAL_inits \
-   globals->Retain_Esc = 0; \
-   globals->Context_Level = 0; \
-   globals->GetAttrib_Buff[ 0 ] = 0; \
-   globals->AstGetC_Init = 0; \
-   globals->AstGetC_Istr = 0; \
-   globals->Active_Handles = NULL; \
-   globals->Class_Init = 0; \
-   globals->Nvtab = 0; \
-   globals->Known_Vtabs = NULL;
-
 /* Create the function that initialises global data for this module. */
-astMAKE_INITGLOBALS(Object)
+astMAKE_INITGLOBALS(Object) {
+   globals->Retain_Esc = 0;
+   globals->Context_Level = 0;
+   globals->GetAttrib_Buff[ 0 ] = 0;
+   globals->AstGetC_Init = 0;
+   globals->AstGetC_Istr = 0;
+   globals->Active_Handles = NULL;
+   globals->Class_Init = 0;
+   globals->Nvtab = 0;
+   globals->Known_Vtabs = NULL;
+}
+
+/* Create the function that frees the per-thread resources held in the
+   global data for this module when the owning thread exits: free the
+   handle context array and the strings returned by recent calls to
+   astGetC. The vtabs are left intact, since Objects created by the thread
+   may still refer to them; they are freed by astFreeObjectVtabs. */
+astMAKE_FREEGLOBALS(Object) {
+/* Local Variables: */
+   int i;
+
+   globals->Active_Handles = astFree( globals->Active_Handles );
+   globals->Context_Level = 0;
+
+   if( globals->AstGetC_Init ) {
+      for( i = 0; i < AST__ASTGETC_MAX_STRINGS; i++ ) {
+         globals->AstGetC_Strings[ i ] = astFree( globals->AstGetC_Strings[ i ] );
+      }
+   }
+}
 
 /* Define macros for accessing each item of thread specific global data. */
 #define retain_esc  astGLOBAL(Object,Retain_Esc)
@@ -795,6 +819,12 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
 *     thread, this function should be called to change the vtab pointer
 *     in the Object to refer to the vtab relevant to the currently
 *     executing thread.
+*
+*     If the currently executing thread has not yet created a vtab for
+*     the Object's class, the Object keeps its existing vtab. That vtab
+*     remains valid even if the thread that created it has exited, since
+*     the Object holds a reference to the thread-specific data containing
+*     it.
 
 *  Parameters:
 *     this
@@ -806,7 +836,8 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
 
 /* Local Variables: */
    astDECLARE_GLOBALS
-   const char *class;
+   AstGlobals *old_globals;
+   int *check;
    int i;
 
 /* Check the global error status. */
@@ -815,28 +846,104 @@ static void ChangeThreadVtab( AstObject *this, int *status ){
 /* Get a pointer to Thread-specific data for the currently executing thread. */
    astGET_GLOBALS(this);
 
-/* Get the class name for the supplied Object. This uses the existing
-   vtab pointer in the Object structure to locate the required GetClass
-   method and the class name. This vtab pointer may be for a vtab created
-   by a different thread to the one currently executing, but this shouldn't
-   matter since we are not modifying the vtab contents. */
-   class = astGetClass( this );
+/* If the Object already uses a vtab created by the currently executing
+   thread, there is nothing to do. */
+   if( this->vtab->globals == AST__GLOBALS ) {
+      return;
+   }
 
-/* Check a class name was obtained */
-   if( class ) {
+/* Identify the class of the supplied Object by the "check" value in the
+   identifier of its top-level class. This is the address of a static
+   variable in the class's source file, and so is the same for the vtabs
+   of that class created by every thread. */
+   check = this->vtab->top_id->check;
+
+/* A NULL value identifies no class: only the case if astInitObjectVtab did
+   not complete; unlikely but better to guard against since a null value
+   could match any arbitrary vtab that wasn't fully initialized. */
+   if( !check ) {
+      return;
+   }
 
 /* Loop round the vtab structures created by the currently executing thread. */
-      for( i = 0; i < nvtab; i++ ) {
+   for( i = 0; i < nvtab; i++ ) {
 
-/* If the current vtab is for a class that matches the class of the
-   supplied Object, then store a pointer to the vtab in the Object
-   structure, and exit. */
-         if( !strcmp( class, known_vtabs[ i ]->class ) ) {
-            this->vtab = known_vtabs[ i ];
-            break;
-         }
+/* If the current vtab is for the class of the supplied Object, then store
+   a pointer to the vtab in the Object structure, and exit. The Object
+   now keeps the thread-specific data holding the new vtab alive instead
+   of that holding the old one. */
+      if( known_vtabs[ i ]->top_id->check == check ) {
+         old_globals = this->vtab->globals;
+         this->vtab = known_vtabs[ i ];
+         astGlobalsRef_( this->vtab->globals );
+         astGlobalsUnref_( old_globals );
+         break;
       }
    }
+}
+
+void astFreeObjectVtabs_( AstObjectGlobals *globals, int *status ) {
+/*
+*+
+*  Name:
+*     astFreeObjectVtabs
+
+*  Purpose:
+*     Free the memory used by all vtabs held in a thread's global data.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "object.h"
+*     void astFreeObjectVtabs( AstObjectGlobals *globals, int *status )
+
+*  Description:
+*     This function frees the memory referred to by every vtab created by
+*     a thread, including the memory blocks cached on each vtab's free
+*     list, together with the list of known vtabs itself. It is called
+*     once the thread has exited and no Object refers to any of the vtabs,
+*     and may be called by any thread.
+
+*  Parameters:
+*     globals
+*        Pointer to the Object class's thread-specific data for the thread
+*        that created the vtabs.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     -  This function attempts to execute even if an error has occurred.
+*-
+*/
+
+/* Local Variables: */
+   AstObjectVtab *vtab;
+   int iblock;
+   int itab;
+
+   for( itab = 0; itab < globals->Nvtab; itab++ ) {
+      vtab = globals->Known_Vtabs[ itab ];
+
+      for( iblock = 0; iblock < vtab->nfree; iblock++ ) {
+         vtab->free_list[ iblock ] = astFree( vtab->free_list[ iblock ] );
+      }
+      vtab->free_list = astFree( vtab->free_list );
+      vtab->nfree = 0;
+
+      vtab->delete = astFree( vtab->delete );
+      vtab->copy = astFree( vtab->copy );
+      vtab->dump = astFree( vtab->dump );
+      vtab->dump_class = astFree( vtab->dump_class );
+      vtab->dump_comment = astFree( vtab->dump_comment );
+      vtab->defaults = astFree( (void *) vtab->defaults );
+      vtab->ndelete = 0;
+      vtab->ncopy = 0;
+      vtab->ndump = 0;
+   }
+
+   globals->Known_Vtabs = astFree( globals->Known_Vtabs );
+   globals->Nvtab = 0;
 }
 #endif
 
@@ -1377,6 +1484,9 @@ f     function is invoked with STATUS set to an error value, or if it
    AstObject *new;               /* Pointer to new object */
    AstObjectVtab *vtab;          /* Pointer to object vtab */
    int i;                        /* Loop counter for copy constructors */
+#if defined(THREAD_SAFE)
+   AstGlobals *new_globals;      /* Structure holding the new Object's vtab */
+#endif
 
 /* Initiallise. */
    new = NULL;
@@ -1406,6 +1516,9 @@ f     function is invoked with STATUS set to an error value, or if it
 /* Perform an initial byte-by-byte copy of the entire object
    structure. */
       (void) memcpy( (void *) new, (const void *) this, this->size );
+#if defined(THREAD_SAFE)
+      astGlobalsRef_( vtab->globals );
+#endif
 
 /* Initialise any components of the new Object structure that need to
    differ from the input. */
@@ -1459,6 +1572,13 @@ f     function is invoked with STATUS set to an error value, or if it
                (*vtab->delete[ i ])( new, status );
             }
 
+/* Note the thread-specific data structure holding the vtab the new
+   Object refers to, which may differ from "vtab" if locking the new
+   Object switched it to a vtab owned by the calling thread. */
+#if defined(THREAD_SAFE)
+            new_globals = new->vtab->globals;
+#endif
+
 /* Zero the entire new Object structure (to prevent accidental re-use
    of any of its values after deletion). */
             (void) memset( new, 0, new->size );
@@ -1466,6 +1586,12 @@ f     function is invoked with STATUS set to an error value, or if it
 /* Free the Object's memory and ensure that a NULL pointer will be
    returned. */
             new = astFree( new );
+#if defined(THREAD_SAFE)
+            /* If the new object was given a reference to thread-local
+             * globals, unref that too now that the new object was
+             * destroyed. */
+            astGlobalsUnref_( new_globals );
+#endif
 
 /* Quit trying to copy the Object. */
             break;
@@ -1613,6 +1739,13 @@ f     value
 
 /* Decrement the count of active Objects. */
    vtab->nobject--;
+
+/* Release the Object's reference to the thread-specific data structure
+   holding its vtab. This may free the structure, and the vtab with it, if
+   the thread that created the vtab has exited, so it must come last. */
+#if defined(THREAD_SAFE)
+   astGlobalsUnref_( vtab->globals );
+#endif
 
 /* Always return NULL. */
    return NULL;
@@ -2992,14 +3125,15 @@ static int ManageLock( AstObject *this, int mode, int extra,
 
 *  Returned Value:
 *     A status value:
-*        0 - Success.
-*        1 - Could not lock or unlock the object because it was already
-*            locked by another thread.
-*        2 - Failed to lock a POSIX mutex
-*        3 - Failed to unlock a POSIX mutex
-*        4 - Bad "mode" value supplied.
-*        5 - Check failed - object is locked by a different thread
-*        6 - Check failed - object is unlocked
+*        AST__LOCKSTAT_OK - Success.
+*        AST__LOCKSTAT_BUSY - Could not lock or unlock the object because
+*            it was already locked by another thread.
+*        AST__LOCKSTAT_LOCKFAIL - Failed to lock a POSIX mutex
+*        AST__LOCKSTAT_UNLOCKFAIL - Failed to unlock a POSIX mutex
+*        AST__LOCKSTAT_BADMODE - Bad "mode" value supplied.
+*        AST__LOCKSTAT_OTHER - Check failed - object is locked by a
+*            different thread
+*        AST__LOCKSTAT_UNLOCKED - Check failed - object is unlocked
 *
 
 *  Notes:
@@ -3014,7 +3148,7 @@ static int ManageLock( AstObject *this, int mode, int extra,
    int result;                   /* Returned value */
 
 /* Initialise */
-   result = 0;
+   result = AST__LOCKSTAT_OK;
    if( fail ) *fail = NULL;
 
 /* Check the supplied point is not NULL. */
@@ -3028,7 +3162,7 @@ static int ManageLock( AstObject *this, int mode, int extra,
    structure. All other components in the structure are guarded by the
    primary mutex (this->mutex1). */
    if( LOCK_SMUTEX(this) ) {
-      result = 2;
+      result = AST__LOCKSTAT_LOCKFAIL;
 
 /* If the secondary mutex was locked succesfully, first deal with cases
    where the caller wants to lock the Object for exclusive use by the
@@ -3038,7 +3172,7 @@ static int ManageLock( AstObject *this, int mode, int extra,
 /* If the Object is not currently locked, lock the Object primary mutex
    and record the identity of the calling thread in the Object. */
       if( this->locker == -1 ) {
-         if( LOCK_PMUTEX(this) ) result = 2;
+         if( LOCK_PMUTEX(this) ) result = AST__LOCKSTAT_LOCKFAIL;
          this->locker = AST__THREAD_ID;
          this->globals = AST__GLOBALS;
          ChangeThreadVtab( this, status );
@@ -3057,20 +3191,20 @@ static int ManageLock( AstObject *this, int mode, int extra,
    thread can change the "locker" component safely. */
       } else if( extra ) {
          if( UNLOCK_SMUTEX(this) ) {
-            result = 3;
+            result = AST__LOCKSTAT_UNLOCKFAIL;
          } else if( LOCK_PMUTEX(this) ) {
-            result = 2;
+            result = AST__LOCKSTAT_LOCKFAIL;
          } else if( LOCK_SMUTEX(this) ) {
-            result = 2;
+            result = AST__LOCKSTAT_LOCKFAIL;
          }
          this->locker = AST__THREAD_ID;
          this->globals = AST__GLOBALS;
          ChangeThreadVtab( this, status );
 
 /* If the caller does not want to wait until the Object is available,
-   return a status of 1. */
+   report that it is locked by another thread. */
       } else {
-         result = 1;
+         result = AST__LOCKSTAT_BUSY;
       }
 
 /* Unlock the Object for use by other threads. */
@@ -3085,31 +3219,31 @@ static int ManageLock( AstObject *this, int mode, int extra,
       } else if( this->locker == AST__THREAD_ID ) {
          this->locker = -1;
          this->globals = NULL;
-         if( UNLOCK_PMUTEX(this) ) result = 3;
+         if( UNLOCK_PMUTEX(this) ) result = AST__LOCKSTAT_UNLOCKFAIL;
 
 /* Return an error status value if the Object is locked by another
    thread. */
       } else {
-         result = 1;
+         result = AST__LOCKSTAT_BUSY;
       }
 
-/* Check the Object is locked by the calling thread. Return a status of 1 if
-   not. */
+/* Check the Object is locked by the calling thread. If not, report
+   whether it is unlocked or locked by another thread. */
    } else if( mode == AST__CHECKLOCK ) {
       if( this->locker == -1 ) {
-         result = 6;
+         result = AST__LOCKSTAT_UNLOCKED;
       } else if( this->locker != AST__THREAD_ID ) {
-         result = 5;
+         result = AST__LOCKSTAT_OTHER;
       }
 
-/* Return a status of 4 for any other modes. */
+/* Reject any other modes. */
    } else {
-      result = 4;
+      result = AST__LOCKSTAT_BADMODE;
    }
 
 /* Unlock the secondary mutex so that other threads can access the "locker"
    component in the Object to see if it is locked. */
-   if( UNLOCK_SMUTEX(this) ) result = 3;
+   if( UNLOCK_SMUTEX(this) ) result = AST__LOCKSTAT_UNLOCKFAIL;
 
 /* If the operation failed, return a pointer to the failed object. */
    if( result && fail ) *fail = this;
@@ -3815,7 +3949,18 @@ void astSetVtab_( AstObject *this, AstObjectVtab *vtab, int *status ) {
 *        Pointer to the virtual function table to store in the Object.
 *-
 */
+#if defined(THREAD_SAFE)
+   AstGlobals *old_globals;
+
+   if( this && this->vtab != vtab ) {
+      old_globals = this->vtab->globals;
+      this->vtab = vtab;
+      astGlobalsRef_( vtab->globals );
+      astGlobalsUnref_( old_globals );
+   }
+#else
    if( this ) this->vtab = vtab;
+#endif
 }
 
 static int Same( AstObject *this, AstObject *that, int *status ) {
@@ -5595,6 +5740,12 @@ void astInitObjectVtab_(  AstObjectVtab *vtab, const char *name, int *status ) {
    vtab->id.check = NULL;
    vtab->id.parent = NULL;
 
+/* Derived classes replace this with the identifier of their own class once
+   their part of the vtab is initialised. Setting it now means that the
+   vtab has a valid top-level identifier, which matches no class, while it
+   is on the list of known vtabs but not yet fully initialised. */
+   astSetVtabClassIdentifier( vtab, &(vtab->id) );
+
 /* Store pointers to the member functions (implemented here) that provide
    virtual methods for this class. */
    vtab->Clear = Clear;
@@ -5628,6 +5779,10 @@ void astInitObjectVtab_(  AstObjectVtab *vtab, const char *name, int *status ) {
 
 #if defined(THREAD_SAFE)
    vtab->ManageLock = ManageLock;
+
+/* Record the thread-specific data structure that holds the vtab, so that
+   Objects using the vtab can keep that structure alive. */
+   vtab->globals = AST__GLOBALS;
 #endif
 
 /* Store the pointer to the class name. */
@@ -5811,6 +5966,9 @@ AstObject *astInitObject_( void *mem, size_t size, int init,
 
 /* Associate the Object with its virtual function table. */
          new->vtab = vtab;
+#if defined(THREAD_SAFE)
+         astGlobalsRef_( vtab->globals );
+#endif
 
 /* Store the Object size and note if its memory was dynamically allocated. */
          new->size = size;
@@ -7670,7 +7828,7 @@ c--
    astLock and astUnlock. */
       lstat = astManageLock( this, AST__LOCK, wait, &fail );
       if( astOK ) {
-         if( lstat == 1 ) {
+         if( lstat == AST__LOCKSTAT_BUSY ) {
             if( fail == this ) {
                astError( AST__LCKERR, "astLock(%s): Failed to lock the %s because"
                          " it is already locked by another thread (programming "
@@ -7685,7 +7843,7 @@ c--
                          astGetClass( fail ) );
             }
 
-         } else if( lstat == 2 ) {
+         } else if( lstat == AST__LOCKSTAT_LOCKFAIL ) {
             astError( AST__LCKERR, "astLock(%s): Failed to lock a POSIX mutex.", status,
                       astGetClass( this ) );
 
@@ -7837,7 +7995,7 @@ c--
    astLock and astUnlock. */
       lstat = astManageLock( this, AST__UNLOCK, 0, &fail );
       if( astOK ) {
-         if( lstat == 1 ) {
+         if( lstat == AST__LOCKSTAT_BUSY ) {
             if( report ) {
                if( fail == this ) {
                   astError( AST__LCKERR, "astUnlock(%s): Failed to unlock the %s "
@@ -7854,7 +8012,7 @@ c--
                }
             }
 
-         } else if( lstat == 3 ) {
+         } else if( lstat == AST__LOCKSTAT_UNLOCKFAIL ) {
             astError( AST__LCKERR, "astUnlock(%s): Failed to unlock a POSIX mutex.", status,
                       astGetClass( this ) );
 
@@ -8757,9 +8915,9 @@ c--
    appropriate return value. */
       check = astManageLock( this, AST__CHECKLOCK, 0, NULL );
 
-      if( check == 5 ) {
+      if( check == AST__LOCKSTAT_OTHER ) {
          result = AST__OTHER;
-      } else if( check == 6 ) {
+      } else if( check == AST__LOCKSTAT_UNLOCKED ) {
          result = AST__UNLOCKED;
       }
    }
