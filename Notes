@@ -92,10 +92,13 @@ ast_err.msg is now created from ast_err.msg.in, and has the facility
 code declared in STAR_FACILITY_CODE edited into it at that point.
 Same for error.h and error.h.in.
 
-ast_cpp generated from ast_cpp.in with the CC edited in
-
-makeh now calls ast_cpp through /bin/sh (avoids having to worry about
-execute bits)
+makeh runs the C pre-processor itself, taking the command from the CPP
+environment variable, which the build system sets to the same
+pre-processor it uses for the rest of the build.  (It used to pipe
+through an ast_cpp wrapper script, generated from ast_cpp.in with the
+pre-processor edited in; that wrapper existed to work around older
+compilers which could not read a program from standard input, and it
+swallowed the pre-processor's exit status.)
 
 Versioning: The version number (as mentioned above, set in
 configure.ac) is now substituted into version.h.in, broken into
