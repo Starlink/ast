@@ -773,6 +773,15 @@ endforeach()
 set(AST_CPP "\"${CMAKE_C_COMPILER}\" -E" CACHE STRING
     "C preprocessor command used to generate ast.h")
 
+# Stamp file for the value of AST_CPP: This is a bit of a corner case since
+# rebuilding with a different AST_CPP is unlikely, but this will force makeh to
+# be rerun when it is changed, as the The Makefile generators do not otherwise
+# rerun a custom command when only its COMMAND line changes. file(CONFIGURE)
+# rewrites the stamp file it only when its contents would change.
+file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ast_cpp.stamp"
+     CONTENT "${AST_CPP}\n" @ONLY)
+list(APPEND MAKEH_DEPS "${CMAKE_CURRENT_BINARY_DIR}/ast_cpp.stamp")
+
 # makeh locates each header in the build tree first and then the source tree
 # (-b and -s), and writes to the path given by -o only once makeh has succeeded.
 add_custom_command(
