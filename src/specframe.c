@@ -2953,6 +2953,14 @@ static int MakeSpecMapping( AstSpecFrame *target, AstSpecFrame *result,
    if( astGetAlignSpecOffset( target ) && astGetAlignSpecOffset( result ) ) {
       result_origin = 0.0;
       astTran1( map1, 1, &result_origin, 1, &result_origin );
+
+/* The target's zero point may have no value in the result system (zero
+   wavelength has no frequency, for instance), and then there is no offset
+   system to align in. Use the origin from the result frame, as when not
+   aligning offsets, rather than shifting by the negated AST__BAD value. */
+      if( result_origin == AST__BAD ) {
+         result_origin = GetSpecOriginCur( result, status );
+      }
    } else {
       result_origin = GetSpecOriginCur( result, status );
    }
