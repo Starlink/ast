@@ -164,6 +164,11 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *         explicitly.
 *     27-APR-2020 (DSB):
 *         Correct "Heliographic" to "heliocentric".
+*     6-OCT-2026 (TIMJ):
+*        In MakeSpecMapping, when aligning in the offset system, use the
+*        origin from the result frame if the target's zero point has no
+*        value in the result system (e.g. zero wavelength), rather than
+*        shifting by the negated AST__BAD value.
 *class--
 */
 
