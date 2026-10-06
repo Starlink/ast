@@ -56,6 +56,7 @@ int main( void ) {
    AstFrameSet *fs, *result;
    AstMapping *map;
    int orig;
+   char *pickle, *cur;
 
    astWatch( status );
    astBegin;
@@ -302,6 +303,27 @@ int main( void ) {
    text = astGetC( fs, "Variant" );
    if( strcmp( text, "DSB" ) )
       stopit( status, "Error 40" );
+
+   /* A Current index below 1 in a dump is unset, as a Base index is, so
+      the last Frame is current. */
+   fs = astFrameSet( astFrame( 1, "Domain=A" ), " " );
+   astAddFrame( fs, AST__BASE, astUnitMap( 1, " " ), astFrame( 1, "Domain=B" ) );
+   pickle = astToString( fs );
+   cur = strstr( pickle, "Currnt" );
+   if( !cur ) {
+      stopit( status, "Error 41" );
+   } else {
+      cur = strchr( cur, '=' ) + 1;
+      while( *cur == ' ' ) cur++;
+      *cur = '0';
+      result = astFromString( pickle );
+      if( !result || astTest( result, "Current" ) ) {
+         stopit( status, "Error 42" );
+      } else if( astGetI( result, "Current" ) != 2 ) {
+         stopit( status, "Error 43" );
+      }
+   }
+   pickle = astFree( pickle );
 
    astEnd;
 
