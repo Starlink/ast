@@ -104,6 +104,34 @@ int main( void ) {
    if( fabs( astGetD( sf, "SourceVel" ) - 1000.0 ) > 1.0e-6 )
       stopit( status, "Error 12" );
 
+   /* With AlignSpecOffset set in a wavelength system the target's zero
+      point has no frequency, so there is no offset system to align in. A
+      change of rest frame must then convert as it does without
+      AlignSpecOffset, rather than giving bad values, and a SpecOrigin must
+      still be re-expressed in a new rest frame. */
+   sf1 = astSpecFrame( "system=wave,unit=Angstrom,StdOfRest=LSRK,Epoch=2005.0,"
+                       "RefRA=10:00:00,RefDec=20:00:00" );
+   sf2 = astCopy( sf1 );
+   astSetC( sf2, "StdOfRest", "HELIO" );
+   fs = astConvert( sf1, sf2, "" );
+   x = 1.3e7;
+   astTran1( fs, 1, &x, 1, &rf );
+
+   astSetL( sf1, "AlignSpecOffset", 1 );
+   astSetL( sf2, "AlignSpecOffset", 1 );
+   fs = astConvert( sf1, sf2, "" );
+   astTran1( fs, 1, &x, 1, &y );
+   if( y == AST__BAD || fabs( y - rf ) > 1.0e-6 ) stopit( status, "Error 13" );
+
+   astSetD( sf1, "SpecOrigin", 1.299e7 );
+   astSetC( sf1, "StdOfRest", "HELIO" );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( status, "Error 14" );
+   } else if( fabs( astGetD( sf1, "SpecOrigin" ) - 1.299e7 ) > 1.0e3 ) {
+      stopit( status, "Error 15" );
+   }
+
    astEnd;
 
    if( *status == 0 ) {
