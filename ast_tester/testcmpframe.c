@@ -104,6 +104,39 @@ extern void *astResolvePoints_( void *, const double[], const double[], void *,
 /* On a CmpFrame of a SkyFrame and a SpecFrame with permuted axes, each
    vector astResolvePoints resolves must give the components astResolve
    gives it alone. Returns 0 if so, else the number of the failing check. */
+/* The interior grid of a Box on a CmpFrame of two 1-D Frames is the cross
+   product of the components' grids: 3 values on the first axis, each with
+   the 4 values of the second. Returns 0 if it is, or the failing check. */
+static int check_frame_grid( void ) {
+   const double lo[ 2 ] = { 0.0, 0.0 }, hi[ 2 ] = { 1.0, 2.0 };
+   double pts[ 2 ][ 50 ], x, y;
+   int result = 0, i, np = 0;
+   AstCmpFrame *cf;
+   AstBox *box;
+
+   cf = astCmpFrame( astFrame( 1, " " ), astFrame( 1, " " ), " " );
+   box = astBox( cf, 1, lo, hi, NULL, "MeshSize=12" );
+   astGetRegionMesh( box, 0, 50, 2, &np, (double *) pts );
+   if( !astOK ) {
+      astClearStatus;
+      result = 13;
+   } else if( np != 12 ) {
+      result = 14;
+   } else {
+      for( i = 0; i < np; i++ ) {
+         x = 0.5*( i/4 );
+         y = ( 2.0/3.0 )*( i % 4 );
+         if( fabs( pts[ 0 ][ i ] - x ) > 1.0e-12 || fabs( pts[ 1 ][ i ] - y ) > 1.0e-12 ) {
+            result = 15;
+            break;
+         }
+      }
+   }
+   box = astAnnul( box );
+   cf = astAnnul( cf );
+   return result;
+}
+
 static int check_resolve_points_permuted( void ) {
    static const double pts[ 3 ][ 3 ] = {
       { 0.2, 0.3, 5.5 }, { 0.15, 0.1, 4.0 }, { 0.4, 0.2, 7.0 }
@@ -202,6 +235,12 @@ int main( void ) {
    case 3: stopit( status, "NormBox: bad bound with the SkyFrame first" ); break;
    case 4: stopit( status, "NormBox: the 1-D axis bounds depend on component order" ); break;
    case 5: stopit( status, "NormBox: the sky axis bounds depend on component order" ); break;
+   }
+
+   switch( check_frame_grid() ) {
+   case 13: stopit( status, "FrameGrid: error getting the grid of a Box on a CmpFrame" ); break;
+   case 14: stopit( status, "FrameGrid: wrong number of grid points" ); break;
+   case 15: stopit( status, "FrameGrid: grid point is not the cross product of the components'" ); break;
    }
 
    switch( check_resolve_points_permuted() ) {
