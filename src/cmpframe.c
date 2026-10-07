@@ -203,7 +203,7 @@ f     The CmpFrame class does not define any new routines beyond those
 *        forward transformation put the second component's position on the
 *        first component's axes. Record in the prologue that a CmpFrame does
 *        not extend a box for a component's singularity.
-*     7-OCT-2026 (TIMJ):
+*     6-OCT-2026 (TIMJ):
 *        FrameGrid: store each grid point by index. The loop advanced the
 *        data pointers astGetPoints returns, which belong to the PointSet,
 *        and advanced the second component's by npoint2*sizeof(double)
