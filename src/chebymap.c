@@ -133,6 +133,10 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *     5-MAY-2018 (DSB):
 *        Correct usage of "forward" argument in astFitPoly1DInit and
 *        astFitPoly2DInit.
+*     7-OCT-2026 (TIMJ):
+*        ChebyDomain maps the other transformation's box in the direction
+*        opposite to the requested one for an inverted ChebyMap too, where
+*        it used the requested direction and failed.
 *class--
 */
 
@@ -339,7 +343,7 @@ f    AST_MAPBOX
       scale_o = this->scale_i;
       offset_o = this->offset_i;
       nax_o = astGetNout( this );
-      fwd_o = 0;
+      fwd_o = !forward;
    } else {
       scale = this->scale_i;
       offset = this->offset_i;
@@ -347,7 +351,7 @@ f    AST_MAPBOX
       scale_o = this->scale_f;
       offset_o = this->offset_f;
       nax_o = astGetNin( this );
-      fwd_o = 1;
+      fwd_o = !forward;
    }
 
 /* Check the domain is defined. */
@@ -383,7 +387,9 @@ f    AST_MAPBOX
          }
 
 /* Loop round finding the bounds on each input axis of the requested
-   transformation. */
+   transformation. The other transformation's box is mapped by the
+   direction opposite to the requested one, which "fwd_o" gives relative
+   to the ChebyMap as it stands, so including any inversion. */
          for( iax = 0; iax < nax; iax++ ) {
             astMapBox( this, lbnd_o, ubnd_o, fwd_o, iax, lbnd + iax,
                        ubnd + iax, NULL, NULL );
