@@ -2793,6 +2793,15 @@ static void checkRemoveRegions( int *status ) {
    } else if( fabs( xout[(2)-1] - ixin[(2)-1] )  >  1.0E-10  ||            fabs( yout[(2)-1] - iyin[(2)-1] )  >  1.0E-10 ) {
    stopit( status, "RemoveRegions test 9 failed" );
 }
+
+   /* A TranMap of two Regions becomes a UnitMap with the TranMap's own
+      number of axes. */
+   map = astRemoveRegions( astTranMap( reg, reg, " " ) );
+   if( !astIsAUnitMap( map ) ) {
+      stopit( status, "RemoveRegions test 10 failed" );
+   } else if( astGetI( map, "Nin" ) != 2 ) {
+      stopit( status, "RemoveRegions test 11 failed" );
+   }
    astEnd;
 }
 static void checkConvex( int *status ) {
