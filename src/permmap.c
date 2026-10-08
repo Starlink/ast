@@ -109,6 +109,10 @@ f     The PermMap class does not define any new routines beyond those
 *        Discard the record that the PermMap has been simplified when
 *        PermSplit is set or cleared, since it selects the method used to
 *        split the PermMap and so affects how it simplifies.
+*     7-OCT-2026 (TIMJ):
+*        MapSplit returns no Mapping for an input index out of range. It
+*        checked the indices but went on regardless, reading the
+*        permutation arrays beyond their ends.
 *class--
 */
 
@@ -1551,7 +1555,8 @@ static int *MapSplit( AstMapping *this_map, int nin, const int *in, AstMapping *
    npin = astGetNin( this );
    npout = astGetNout( this );
 
-/* Check all input axis indices are valid. */
+/* Check all input axis indices are valid. If not, the selected inputs
+   cannot be split off, so return without a Mapping. */
    ok = 1;
    for( i = 0; i < nin; i++ ) {
       if( in[ i ] < 0 || in[ i ] >= npin ) {
@@ -1559,6 +1564,7 @@ static int *MapSplit( AstMapping *this_map, int nin, const int *in, AstMapping *
          break;
       }
    }
+   if( !ok ) return result;
 
 /* Get pointers to the input and output permutation arrays and constant
    array taking account of whether the PermMap has been inverted. */

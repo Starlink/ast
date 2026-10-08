@@ -91,6 +91,19 @@ int main( void ) {
       if( y2[2] != y[3] ) stopit( status, "Error 13" );
    }
 
+   /* A PermMap cannot split off inputs that do not exist, so selecting
+      one out of range gives no Mapping and no error. */
+   if( astOK ) {
+      int perm[] = { 2, 1, 3 };
+      AstPermMap *pm = astPermMap( 3, perm, 3, perm, NULL, " " );
+      in[0] = 1; in[1] = 4;
+      astMapSplit( pm, 2, in, out, &m2 );
+      if( m2 || !astOK ) stopit( status, "Error 14" );
+      in[0] = 0;
+      astMapSplit( pm, 1, in, out, &m2 );
+      if( m2 || !astOK ) stopit( status, "Error 15" );
+   }
+
    astEnd;
    astFlushMemory( 1 );
 
