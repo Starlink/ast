@@ -22,6 +22,7 @@ static void checkCmpRegion( int *status );
 static void checkPointList( int *status );
 static void checkPolygonMaskLargeLobe( int *status );
 static void checkPrismOverlapFallback( int *status );
+static void checkNonAdaptiveSettingCase( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
 static void checkIntervalPointListMerge( int *status );
@@ -51,6 +52,7 @@ int main(void) {
    checkPointList( status );
    checkPolygonMaskLargeLobe( status );
    checkPrismOverlapFallback( status );
+   checkNonAdaptiveSettingCase( status );
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
    checkIntervalPointListMerge( status );
@@ -2904,6 +2906,29 @@ static void checkPrismOverlapFallback( int *status ) {
    rbox = astMapRegion( box, rot, f3 );
    if( astOverlap( prism, rbox ) != 2 ) stopit( status, "Prism overlap fallback 1" );
    if( astOverlap( rbox, prism ) != 3 ) stopit( status, "Prism overlap fallback 2" );
+   astEnd;
+}
+
+/* A string attribute set on a Region that is not Adaptive keeps its case,
+   in the current and base Frames. */
+static void checkNonAdaptiveSettingCase( int *status ) {
+   AstFrame *bfrm;
+   AstFrameSet *fs;
+   AstRegion *box;
+   double lbnd[] = { 0.0, 0.0 }, ubnd[] = { 1.0, 1.0 };
+   const char *text;
+
+   if( *status != 0 ) return;
+   astBegin;
+   box = (AstRegion *) astBox( astFrame( 2, " " ), 1, lbnd, ubnd, NULL, " " );
+   astSetI( box, "Adaptive", 0 );
+   astSetC( box, "Label(1)", "Mixed Case" );
+   text = astGetC( box, "Label(1)" );
+   if( !text || strcmp( text, "Mixed Case" ) ) stopit( status, "Non-adaptive setting case 1" );
+   fs = astGetRegionFrameSet( box );
+   bfrm = astGetFrame( fs, AST__BASE );
+   text = astGetC( bfrm, "Label(1)" );
+   if( !text || strcmp( text, "Mixed Case" ) ) stopit( status, "Non-adaptive setting case 2" );
    astEnd;
 }
 

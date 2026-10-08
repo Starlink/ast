@@ -279,6 +279,10 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        astEQUAL applies near zero. The width was 1.0E-6 of the axis
 *        value, which is zero there, and a zero-width uncertainty made a
 *        PointList report its own points as outside.
+*     8-OCT-2026 (TIMJ):
+*        RegSetAttrib: Lower-case only the attribute name in the setting,
+*        not its value, so that a string attribute set on a Region that
+*        is not Adaptive (for instance Label or Title) keeps its case.
 *class--
 
 *  Implementation Notes:
@@ -10004,10 +10008,13 @@ static void RegSetAttrib( AstRegion *this, const char *asetting,
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Produce a lower case version of the setting string */
+/* Produce a copy of the setting string with the attribute name in lower
+   case. The value is copied unchanged, since a string attribute such as
+   Label or Title keeps the case it is given. */
    nc = strlen( asetting );
    setting = astMalloc( nc + 1 );
-   for( i = 0; i < nc; i++ ) setting[ i ] = tolower( asetting[ i ] );
+   for( i = 0; i < nc && asetting[ i ] != '='; i++ ) setting[ i ] = tolower( asetting[ i ] );
+   for( ; i < nc; i++ ) setting[ i ] = asetting[ i ];
    setting[ nc ] = 0;
 
 /* Apply the setting to the current Frame in the encapsulated FrameSet.
