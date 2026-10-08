@@ -121,6 +121,10 @@ f     The Box class does not define any new routines beyond those
 *        just off a zero-width axis was inside depended on whether some
 *        other method had filled the cache first, and the widened limits
 *        then leaked into the Box's bounding box.
+*     8-OCT-2026 (TIMJ):
+*        RegBaseMesh: The mesh of a Box occupying a single point now has
+*        that point's value on each axis, rather than the first axis's
+*        value on every axis.
 *class--
 */
 
@@ -2368,7 +2372,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this, int *status ){
          ptr = astGetPoints( result );
          if( astOK ) {
             for( i = 0; i < naxes; i++ ) {
-               ptr[ i ][ 0 ] = 0.5*( lbnd[ 0 ] + ubnd[ 0 ] );
+               ptr[ i ][ 0 ] = 0.5*( lbnd[ i ] + ubnd[ i ] );
             }
          }
 
