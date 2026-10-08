@@ -114,6 +114,13 @@ f     The Box class does not define any new routines beyond those
 *     8-SEP-2026 (TIMJ):
 *        Simplify: accumulate the slice verdict over every constant-fed
 *        PermMap input, rather than letting the last one decide.
+*     8-OCT-2026 (TIMJ):
+*        Transform: Widen the Box limits by the uncertainty in a copy
+*        local to Transform, rather than in the cached limits. Cache only
+*        widened the limits when the cache was stale, so whether a point
+*        just off a zero-width axis was inside depended on whether some
+*        other method had filled the cache first, and the widened limits
+*        then leaked into the Box's bounding box.
 *class--
 */
 
@@ -232,7 +239,7 @@ static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int 
 static int RegPins( AstRegion *, AstPointSet *, AstRegion *, int **, int * );
 static int RegTrace( AstRegion *, int, double *, double **, int * );
 static void BoxPoints( AstBox *, double *, double *, int *);
-static void Cache( AstBox *, int, int * );
+static void Cache( AstBox *, int * );
 static void ClearClosed( AstRegion *, int * );
 static void ClearNegated( AstRegion *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
@@ -670,7 +677,7 @@ static AstBox *BestBox( AstFrame *frm, AstPointSet *mesh, AstRegion *unc, int *s
    return result;
 }
 
-static void Cache( AstBox *this, int lohi, int *status ){
+static void Cache( AstBox *this, int *status ){
 /*
 *  Name:
 *     Cache
@@ -683,7 +690,7 @@ static void Cache( AstBox *this, int lohi, int *status ){
 
 *  Synopsis:
 *     #include "box.h"
-*     void Cache( AstRegion *this, int lohi, int *status )
+*     void Cache( AstRegion *this, int *status )
 
 *  Class Membership:
 *     Box member function
@@ -696,8 +703,6 @@ static void Cache( AstBox *this, int lohi, int *status ){
 *  Parameters:
 *     this
 *        Pointer to the Box.
-*     lohi
-*        Are the lo and hi arrays to be used?
 *     status
 *        Pointer to the inherited status variable.
 
@@ -706,16 +711,12 @@ static void Cache( AstBox *this, int lohi, int *status ){
 /* Local Variables: */
    AstFrame *frm;
    AstPointSet *pset;
-   AstRegion *unc;
    double **ptr;
    double *centre;
    double *extent;
    double *hi;
-   double *lbnd_unc;
    double *geolen;
    double *lo;
-   double *ubnd_unc;
-   double wid;
    int i;
    int nc;
 
@@ -736,9 +737,6 @@ static void Cache( AstBox *this, int lohi, int *status ){
    hi = (double *) astMalloc( sizeof( double )*(size_t) nc );
    lo = (double *) astMalloc( sizeof( double )*(size_t) nc );
 
-/* Memory to store the uncertainty bounding box */
-   lbnd_unc = astMalloc( sizeof( double)*(size_t) nc );
-   ubnd_unc = astMalloc( sizeof( double)*(size_t) nc );
 
 /* Memory to store the geodesic half-dimensions of the box. */
    geolen = astMalloc( sizeof( double)*(size_t) nc );
@@ -792,36 +790,6 @@ static void Cache( AstBox *this, int lohi, int *status ){
          geolen = NULL;
       }
 
-/* If lo and hi values are to be used, ensure they are expanded to at
-   least the width of an uncertainty box. */
-      if( lohi ) {
-
-/* If we are dealing with an unnegated closed Box or a negated open
-   Box, ensure that the box does not have zero width on any axis. We do
-   this by ensuring that the extent on all axes is at least half the
-   width  of the bounding box of the uncertainty Region. */
-         if(  astGetNegated( this ) != astGetClosed( this ) ) {
-
-/* Get the bounding box of the uncertainty Region in the base Frame of
-   the supplied Box. */
-            unc = astGetUncFrm( this, AST__BASE );
-            astGetRegionBounds( unc, lbnd_unc, ubnd_unc );
-
-/* Ensure the extents are at least half the width of the uncertainty
-   bounding box. */
-            for ( i = 0; i < nc; i++ ) {
-               wid = 0.5*( ubnd_unc[ i ] - lbnd_unc[ i ] );
-               if( this->extent[ i ] < wid ) {
-                  this->extent[ i ] = wid;
-                  this->lo[ i ] = this->centre[ i ] - wid;
-                  this->hi[ i ] = this->centre[ i ] + wid;
-               }
-            }
-
-/* Free resources. */
-            unc = astAnnul( unc );
-         }
-      }
    }
 
 /* Annul the memory allocated above if an error occurred. */
@@ -831,11 +799,6 @@ static void Cache( AstBox *this, int lohi, int *status ){
       lo = astFree( lo );
       hi = astFree( hi );
    }
-
-/* Free other resources */
-   lbnd_unc = astFree( lbnd_unc );
-   ubnd_unc = astFree( ubnd_unc );
-
 }
 
 static double *GeoCorner( AstFrame *frm, int nc, double *centre,
@@ -2164,7 +2127,7 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd, double *ubnd, int 
    this = (AstBox *) this_region;
 
 /* Ensure cached information is up to date. */
-   Cache( this, 0, status );
+   Cache( this, status );
 
 /* Get the number of base Frame axes in the Region. */
    nc = astGetNin( this_region->frameset );
@@ -2866,7 +2829,7 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
 
 /* First ensure cached information (which includes the centre coords)
    is up to date. */
-   Cache( this, 0, status );
+   Cache( this, status );
 
 /* Get the number of axis values per point in the base and current Frames. */
    ncb = astGetNin( this_region->frameset );
@@ -3045,7 +3008,7 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
    this = (AstBox *) this_region;
 
 /* Ensure cached information is up to date. */
-   Cache( this, 0, status );
+   Cache( this, status );
 
 /* Get the number of base Frame axes in the Box, and check the supplied
    PointSet has the same number of axis values per point. */
@@ -3732,7 +3695,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
       newbox = (AstBox *) new;
 
 /* Ensure cached information is up to date. */
-      Cache( newbox, 0, status );
+      Cache( newbox, status );
 
 /* Get the input and output permutation arrays and the array of constants
    from the PermMap. */
@@ -3932,7 +3895,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
          ptr1 = astGetPoints( ps1 );
          if( astOK ) {
             box = (AstBox *) new;
-            Cache( box, 0, status );
+            Cache( box, status );
 
             isSkyFrame = astIsASkyFrame( frm );
             if( isSkyFrame ) {
@@ -4143,6 +4106,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    AstPointSet *pset_tmp;        /* Pointer to PointSet holding base Frame positions*/
    AstPointSet *result;          /* Pointer to output PointSet */
    AstRegion *reg;               /* Pointer to Region */
+   AstRegion *unc;               /* Pointer to uncertainty Region */
+   double *hi;                   /* Upper limits used for each axis */
+   double *lbnd_unc;             /* Lower bounds of the uncertainty */
+   double *lo;                   /* Lower limits used for each axis */
+   double *ubnd_unc;             /* Upper bounds of the uncertainty */
+   double wid;                   /* Half the width of the uncertainty */
    double **ptr_out;             /* Pointer to output coordinate data */
    double **ptr_tmp;             /* Pointer to base Frame coordinate data */
    double axval;                 /* Input axis value */
@@ -4196,8 +4165,35 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* See if the Box is negated */
    neg = astGetNegated( reg );
 
-/* Ensire the cached information is up to date. */
-   Cache( box, 1, status );
+/* Ensure the cached information is up to date. */
+   Cache( box, status );
+
+/* Take the box limits from the cache. If we are dealing with an unnegated
+   closed Box or a negated open Box, ensure that the box does not have zero
+   width on any axis, by ensuring that the extent on all axes is at least
+   half the width of the bounding box of the uncertainty Region. The
+   widened limits are used only here, so they do not change the cached
+   limits that other methods (e.g. the bounding box) use. */
+   lo = astStore( NULL, box->lo, sizeof( double )*(size_t) ncoord_tmp );
+   hi = astStore( NULL, box->hi, sizeof( double )*(size_t) ncoord_tmp );
+   if( astOK && neg != closed ) {
+      lbnd_unc = astMalloc( sizeof( double )*(size_t) ncoord_tmp );
+      ubnd_unc = astMalloc( sizeof( double )*(size_t) ncoord_tmp );
+      unc = astGetUncFrm( reg, AST__BASE );
+      astGetRegionBounds( unc, lbnd_unc, ubnd_unc );
+      if( astOK ) {
+         for( coord = 0; coord < ncoord_tmp; coord++ ) {
+            wid = 0.5*( ubnd_unc[ coord ] - lbnd_unc[ coord ] );
+            if( box->extent[ coord ] < wid ) {
+               lo[ coord ] = box->centre[ coord ] - wid;
+               hi[ coord ] = box->centre[ coord ] + wid;
+            }
+         }
+      }
+      unc = astAnnul( unc );
+      lbnd_unc = astFree( lbnd_unc );
+      ubnd_unc = astFree( ubnd_unc );
+   }
 
 /* Perform coordinate arithmetic. */
 /* ------------------------------ */
@@ -4227,7 +4223,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Otherwise check the current axis value, depending on whether the
    boundary is included in the Region or not. Break as soon as an axis
    value is found which is outside the box limits (i.e. in the Region). */
-               } else if( !astAxIn( frm, coord, box->lo[ coord ], box->hi[ coord ],
+               } else if( !astAxIn( frm, coord, lo[ coord ], hi[ coord ],
                                     axval, !closed ) ) {
                   ok = 1;
                   break;
@@ -4265,7 +4261,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Otherwise check the current axis value, depending on whether the
    boundary is included in the Region or not. Break as soon as an axis
    value is found which is outside the box limits (i.e. outside the Region). */
-               } else if( !astAxIn( frm, coord, box->lo[ coord ], box->hi[ coord ],
+               } else if( !astAxIn( frm, coord, lo[ coord ], hi[ coord ],
                                     axval, closed ) ) {
                   ok = 0;
                   break;
@@ -4285,6 +4281,8 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Free resources */
    pset_tmp = astAnnul( pset_tmp );
    frm = astAnnul( frm );
+   lo = astFree( lo );
+   hi = astFree( hi );
 
 /* Annul the result if an error has occurred. */
    if( !astOK ) result = astAnnul( result );
