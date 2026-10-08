@@ -575,6 +575,23 @@ int main( void ) {
       }
    }
 
+/* The rate of change of a TimeMap is the slope of its transformation in the
+   direction it applies: an MJD to Julian epoch conversion has slope 1/365.25
+   and, inverted, 365.25. */
+   {
+      AstTimeMap *tm = astTimeMap( 0, " " );
+      double args[ 2 ] = { 0.0, 0.0 };
+      double at = 51544.5;
+      astTimeAdd( tm, "MJDTOJEP", 2, args );
+      if( fabs( astRate( tm, &at, 1, 1 ) - 1.0/365.25 ) > 1.0E-15 )
+         stopit( status, "error 62" );
+      astInvert( tm );
+      at = 2000.0;
+      if( fabs( astRate( tm, &at, 1, 1 ) - 365.25 ) > 1.0E-9 )
+         stopit( status, "error 63" );
+      tm = astAnnul( tm );
+   }
+
    astEnd;
 
    if( *status == 0 ) {
