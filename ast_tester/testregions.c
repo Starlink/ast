@@ -23,6 +23,7 @@ static void checkPointList( int *status );
 static void checkPolygonMaskLargeLobe( int *status );
 static void checkPrismOverlapFallback( int *status );
 static void checkNonAdaptiveSettingCase( int *status );
+static void checkPointListMaskOutside( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
 static void checkIntervalPointListMerge( int *status );
@@ -53,6 +54,7 @@ int main(void) {
    checkPolygonMaskLargeLobe( status );
    checkPrismOverlapFallback( status );
    checkNonAdaptiveSettingCase( status );
+   checkPointListMaskOutside( status );
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
    checkIntervalPointListMerge( status );
@@ -2929,6 +2931,39 @@ static void checkNonAdaptiveSettingCase( int *status ) {
    bfrm = astGetFrame( fs, AST__BASE );
    text = astGetC( bfrm, "Label(1)" );
    if( !text || strcmp( text, "Mixed Case" ) ) stopit( status, "Non-adaptive setting case 2" );
+   astEnd;
+}
+
+/* A PointList point whose pixel lies outside the array given to astMask is
+   ignored: nothing beyond the array changes, and only the points inside it
+   are counted. */
+static void checkPointListMaskOutside( int *status ) {
+   AstPointList *pl;
+   AstDim lbnd[] = { 1, 1 }, ubnd[] = { 3, 3 };
+   double pts[] = { 2.0, 10.0, 2.0, 10.0 };
+   double buf[ 60 ];
+   AstDim n;
+   int i, nset;
+
+   if( *status != 0 ) return;
+   astBegin;
+   pl = astPointList( astFrame( 2, " " ), 2, 2, 2, pts, NULL, " " );
+
+   for( i = 0; i < 60; i++ ) buf[ i ] = 7.0;
+   n = astMask8D( pl, NULL, 1, 2, lbnd, ubnd, buf, -1.0 );
+   if( n != 1 || buf[ 4 ] != -1.0 ) stopit( status, "PointList mask outside 1" );
+   for( i = 9; i < 60; i++ ) {
+      if( buf[ i ] != 7.0 ) stopit( status, "PointList mask outside 2" );
+   }
+
+   for( i = 0; i < 60; i++ ) buf[ i ] = 7.0;
+   n = astMask8D( pl, NULL, 0, 2, lbnd, ubnd, buf, -1.0 );
+   nset = 0;
+   for( i = 0; i < 9; i++ ) if( buf[ i ] == -1.0 ) nset++;
+   if( n != 8 || nset != 8 || buf[ 4 ] != 7.0 ) stopit( status, "PointList mask outside 3" );
+   for( i = 9; i < 60; i++ ) {
+      if( buf[ i ] != 7.0 ) stopit( status, "PointList mask outside 4" );
+   }
    astEnd;
 }
 
