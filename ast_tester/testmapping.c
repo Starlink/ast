@@ -465,6 +465,30 @@ static void testpcdzoominverted( int *status ) {
    }
 }
 
+/* WcsMaps are equal when each projection parameter is unset in both or set
+   in both to equal values, however their stored parameter arrays grew. */
+static void testwcsmapequal( int *status ) {
+   AstWcsMap *plain, *a, *b;
+   if( *status != 0 || !astOK ) return;
+   plain = astWcsMap( 2, AST__SIN, 1, 2, " " );
+   a = astWcsMap( 2, AST__SIN, 1, 2, "PV2_1=0.5" );
+   if( astEqual( a, plain ) || astEqual( plain, a ) )
+      stopit( status, "Error wcsmapequal-1" );
+   b = astWcsMap( 2, AST__SIN, 1, 2, "PV2_1=0.0" );
+   if( astEqual( b, plain ) ) stopit( status, "Error wcsmapequal-2" );
+   b = astAnnul( b );
+   b = astWcsMap( 2, AST__SIN, 1, 2, "PV2_1=0.5,PV2_2=1.0" );
+   astClear( b, "PV2_2" );
+   if( !astEqual( a, b ) || !astEqual( b, a ) )
+      stopit( status, "Error wcsmapequal-3" );
+   b = astAnnul( b );
+   b = astWcsMap( 2, AST__SIN, 1, 2, "PV2_1=0.5" );
+   if( !astEqual( a, b ) ) stopit( status, "Error wcsmapequal-4" );
+   plain = astAnnul( plain );
+   a = astAnnul( a );
+   b = astAnnul( b );
+}
+
 static void testselfsimplifyafterset( int *status ) {
    double centre[ 2 ] = { 0.0, 0.0 };
    AstMapping *input;
@@ -625,6 +649,7 @@ int main( void ) {
 
    testselfsimplifyafterset( status );
    testpcdzoominverted( status );
+   testwcsmapequal( status );
 
    astEnd;
 
