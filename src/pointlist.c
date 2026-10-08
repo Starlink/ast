@@ -75,6 +75,10 @@ f     The PointList class does not define any new routines beyond those
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for grid index rounding
 *        to avoid platform-dependent results.
+*     8-OCT-2026 (TIMJ):
+*        Mask<X>: Ignore a point whose pixel lies outside the supplied
+*        array, rather than writing beyond the array, and count only the
+*        points inside it in the returned number of pixels set.
 *class--
 
 *  Implementation Deficiencies:
@@ -805,6 +809,7 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
    AstDim npnt;                  /* Number of points in PointList */ \
    AstDim result;                /* Result value to return */ \
    AstDim vlen;                  /* Length of vectorised array */ \
+   AstDim nvalid;                /* Number of points inside the array */ \
    AstFrame *grid_frame;         /* Pointer to Frame describing grid coords */ \
    AstPointSet *pset1;           /* Pointer to base Frame positions */ \
    AstPointSet *pset2;           /* Pointer to current Frame positions */ \
@@ -904,16 +909,26 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
    if( astOK ) { \
 \
 /* Convert the transformed GRID positions into integer indices into the \
-   vectorised data array. Also form the total size of the data array. */ \
-      vlen = 0; \
+   vectorised data array. Also form the total size of the data array. A \
+   point whose pixel lies outside the array (or is bad) is given index -1, \
+   and does not affect the array. */ \
+      vlen = 1; \
+      for( j = 0; j < ndim; j++ ) vlen *= ubnd[ j ] - lbnd[ j ] + 1; \
+      nvalid = 0; \
       for( i = 0; i < npnt; i++ ) { \
-         vlen = 1; \
+         AstDim stride = 1; \
          ii = 0; \
-         for( j = 0; j < ndim; j++ ) { \
-            ii += vlen*( (int)round( ptr2[ j ][ i ] ) - lbnd[ j ] ); \
-            vlen *= ubnd[ j ] - lbnd[ j ] + 1; \
+         for( j = 0; j < ndim && ii >= 0; j++ ) { \
+            double gpix = round( ptr2[ j ][ i ] ); \
+            if( gpix < (double) lbnd[ j ] || gpix > (double) ubnd[ j ] ) { \
+               ii = -1; \
+            } else { \
+               ii += stride*( (AstDim) gpix - lbnd[ j ] ); \
+               stride *= ubnd[ j ] - lbnd[ j ] + 1; \
+            } \
          }  \
          iv[ i ] = ii; \
+         if( ii >= 0 ) nvalid++; \
       } \
 \
 /* See if the Region is negated. */ \
@@ -921,18 +936,18 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
 \
 /* If necessary, set the transformed pixel coords to the supplied value. */ \
       if( ( inside && !negated ) || ( !inside && negated ) ) { \
-         for( i = 0; i < npnt; i++ ) in[ iv[ i ] ] = val; \
-         result = npnt; \
+         for( i = 0; i < npnt; i++ ) if( iv[ i ] >= 0 ) in[ iv[ i ] ] = val; \
+         result = nvalid; \
 \
 /* If necessary, set all except the transformed pixel coords to the supplied  \
    value. */ \
       } else { \
          temp = astMalloc( sizeof( Xtype )*(size_t)npnt ); \
          if( astOK ) { \
-            for( i = 0; i < npnt; i++ ) temp[ i ] = in[ iv[ i ] ]; \
+            for( i = 0; i < npnt; i++ ) if( iv[ i ] >= 0 ) temp[ i ] = in[ iv[ i ] ]; \
             for( i = 0; i < vlen; i++ ) in[ i ] = val; \
-            for( i = 0; i < npnt; i++ ) in[ iv[ i ] ] = temp[ i ]; \
-            result = vlen - npnt; \
+            for( i = 0; i < npnt; i++ ) if( iv[ i ] >= 0 ) in[ iv[ i ] ] = temp[ i ]; \
+            result = vlen - nvalid; \
          } \
          temp = astFree( temp ); \
       } \
