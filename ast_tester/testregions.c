@@ -9,6 +9,7 @@ static void checkdump( void *obj, const char *text, int *status );
 static int hasframeset( void *reg, int *status );
 static void checkConvex( int *status );
 static void checkRemoveRegions( int *status );
+static void checkSelectorMapEqual( int *status );
 static void checkInterval( int *status );
 static void checkEllipse( int *status );
 static void checkPrism( int *status );
@@ -36,6 +37,7 @@ int main(void) {
    astBegin;
    checkConvex( status );
    checkRemoveRegions( status );
+   checkSelectorMapEqual( status );
    checkInterval( status );
    checkEllipse( status );
    checkPrism( status );
@@ -2804,6 +2806,31 @@ static void checkRemoveRegions( int *status ) {
    }
    astEnd;
 }
+/* SelectorMaps are equal only when they hold the same number of equal
+   Regions and the same bad value: one holding only the first of
+   another's Regions is not equal to it, whatever their bad values. */
+static void checkSelectorMapEqual( int *status ) {
+   AstFrame *frm;
+   AstRegion *regs[ 2 ];
+   AstSelectorMap *one, *two;
+   double c1[] = { 0.0, 0.0 }, c2[] = { 5.0, 5.0 }, r[] = { 1.0 };
+   if( *status != 0 ) return;
+   astBegin;
+   frm = astFrame( 2, " " );
+   regs[ 0 ] = (AstRegion *) astCircle( frm, 1, c1, r, NULL, " " );
+   regs[ 1 ] = (AstRegion *) astCircle( frm, 1, c2, r, NULL, " " );
+   one = astSelectorMap( 1, (void **) regs, AST__BAD, " " );
+   two = astSelectorMap( 2, (void **) regs, AST__BAD, " " );
+   if( astEqual( one, two ) ) {
+      stopit( status, "SelectorMap Equal test 1 failed" );
+   } else if( astEqual( two, one ) ) {
+      stopit( status, "SelectorMap Equal test 2 failed" );
+   } else if( !astEqual( two, astCopy( two ) ) ) {
+      stopit( status, "SelectorMap Equal test 3 failed" );
+   }
+   astEnd;
+}
+
 static void checkConvex( int *status ) {
    int nx = 8;
    int ny = 7;
