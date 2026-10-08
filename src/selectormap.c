@@ -80,6 +80,11 @@ f     The SelectorMap class does not define any new routines beyond those
 *     18-MAY-2006 (DSB):
 *        - Change logic for detecting interior points in function Transform.
 *        - Added BADVAL to contructor argument list.
+*     7-OCT-2026 (TIMJ):
+*        Equal requires the same number of Regions and the same bad value,
+*        where it required either, and so compared a SelectorMap holding
+*        fewer Regions equal to one holding more, or read beyond the shorter
+*        list of Regions.
 *class--
 */
 
@@ -249,7 +254,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 
 /* Check they contain the same number of Regions, and have the same badval. */
          nreg = this->nreg;
-         if( that->nreg == nreg ||
+         if( that->nreg == nreg &&
              astEQUAL( that->badval, this->badval) ) {
 
 /* Loop over the Regions, breaking as soon as two unequal Regions are
