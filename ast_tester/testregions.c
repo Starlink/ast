@@ -24,6 +24,7 @@ static void checkPolygonMaskLargeLobe( int *status );
 static void checkPrismOverlapFallback( int *status );
 static void checkNonAdaptiveSettingCase( int *status );
 static void checkPointListMaskOutside( int *status );
+static void checkBoxTransformAfterBounds( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
 static void checkIntervalPointListMerge( int *status );
@@ -55,6 +56,7 @@ int main(void) {
    checkPrismOverlapFallback( status );
    checkNonAdaptiveSettingCase( status );
    checkPointListMaskOutside( status );
+   checkBoxTransformAfterBounds( status );
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
    checkIntervalPointListMerge( status );
@@ -2964,6 +2966,29 @@ static void checkPointListMaskOutside( int *status ) {
    for( i = 9; i < 60; i++ ) {
       if( buf[ i ] != 7.0 ) stopit( status, "PointList mask outside 4" );
    }
+   astEnd;
+}
+
+/* A point just off a zero-width Box axis, within the uncertainty, is inside
+   the Box whether or not the Box's bounding box was found first, and the
+   bounding box does not take the uncertainty's width. */
+static void checkBoxTransformAfterBounds( int *status ) {
+   AstRegion *a, *b;
+   double l[] = { 1.0, 5.0 }, u[] = { 2.0, 5.0 }, lb[ 2 ], ub[ 2 ];
+   double x = 1.5, y = 5.0 + 1.0E-6, xo, yo;
+
+   if( *status != 0 ) return;
+   astBegin;
+   a = (AstRegion *) astBox( astFrame( 2, " " ), 1, l, u, NULL, " " );
+   astTran2( a, 1, &x, &y, 1, &xo, &yo );
+   if( xo == AST__BAD ) stopit( status, "Box transform after bounds 1" );
+   astGetRegionBounds( a, lb, ub );
+   if( lb[ 1 ] != 5.0 || ub[ 1 ] != 5.0 ) stopit( status, "Box transform after bounds 2" );
+
+   b = (AstRegion *) astBox( astFrame( 2, " " ), 1, l, u, NULL, " " );
+   astGetRegionBounds( b, lb, ub );
+   astTran2( b, 1, &x, &y, 1, &xo, &yo );
+   if( xo == AST__BAD ) stopit( status, "Box transform after bounds 3" );
    astEnd;
 }
 
