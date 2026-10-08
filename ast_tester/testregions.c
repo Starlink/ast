@@ -25,6 +25,7 @@ static void checkPrismOverlapFallback( int *status );
 static void checkNonAdaptiveSettingCase( int *status );
 static void checkPointListMaskOutside( int *status );
 static void checkBoxTransformAfterBounds( int *status );
+static void checkSinglePointBoxMesh( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
 static void checkIntervalPointListMerge( int *status );
@@ -57,6 +58,7 @@ int main(void) {
    checkNonAdaptiveSettingCase( status );
    checkPointListMaskOutside( status );
    checkBoxTransformAfterBounds( status );
+   checkSinglePointBoxMesh( status );
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
    checkIntervalPointListMerge( status );
@@ -2989,6 +2991,22 @@ static void checkBoxTransformAfterBounds( int *status ) {
    astGetRegionBounds( b, lb, ub );
    astTran2( b, 1, &x, &y, 1, &xo, &yo );
    if( xo == AST__BAD ) stopit( status, "Box transform after bounds 3" );
+   astEnd;
+}
+
+/* The boundary mesh of a Box occupying a single point is that point. */
+static void checkSinglePointBoxMesh( int *status ) {
+   AstRegion *box;
+   double l[] = { 1.0, 3.0 }, u[] = { 1.0, 3.0 }, mesh[ 20 ];
+   int npoint;
+
+   if( *status != 0 ) return;
+   astBegin;
+   box = (AstRegion *) astBox( astFrame( 2, " " ), 1, l, u, NULL, " " );
+   astGetRegionMesh( box, 1, 10, 2, &npoint, mesh );
+   if( npoint != 1 || mesh[ 0 ] != 1.0 || mesh[ 10 ] != 3.0 ) {
+      stopit( status, "Single point Box mesh" );
+   }
    astEnd;
 }
 
