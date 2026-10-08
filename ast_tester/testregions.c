@@ -21,6 +21,7 @@ static void generalChecks( int *status );
 static void checkCmpRegion( int *status );
 static void checkPointList( int *status );
 static void checkPolygonMaskLargeLobe( int *status );
+static void checkPrismOverlapFallback( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
 static void checkIntervalPointListMerge( int *status );
@@ -49,6 +50,7 @@ int main(void) {
    checkCmpRegion( status );
    checkPointList( status );
    checkPolygonMaskLargeLobe( status );
+   checkPrismOverlapFallback( status );
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
    checkIntervalPointListMerge( status );
@@ -2871,6 +2873,37 @@ static void checkConvex( int *status ) {
    if( points[(2)-1][(6)-1]  !=   5) stopit( status, "Convex 13" );
    if( points[(1)-1][(7)-1]  !=   -5) stopit( status, "Convex 14" );
    if( points[(2)-1][(7)-1]  !=   3) stopit( status, "Convex 15" );
+   astEnd;
+}
+
+/* A Prism inside a Region whose axes cannot be split into the Prism's
+   components is compared by the inherited OverlapX, which must still
+   report the Prism as the first Region: astOverlap(prism, box) is 2. */
+static void checkPrismOverlapFallback( int *status ) {
+   AstFrame *f1, *f2, *f3;
+   AstMapping *rot;
+   AstRegion *box, *circle, *interval, *prism, *rbox;
+   double a = 0.5, c[] = { 0.0, 0.0 }, r = 1.0;
+   double lbnd[] = { -5.0, -5.0, -5.0 }, ubnd[] = { 5.0, 5.0, 5.0 };
+   double zl[] = { 0.0 }, zu[] = { 1.0 };
+   double m[ 9 ];
+
+   if( *status != 0 ) return;
+   astBegin;
+   m[ 0 ] = cos( a ); m[ 1 ] = 0.0; m[ 2 ] = -sin( a );
+   m[ 3 ] = 0.0;      m[ 4 ] = 1.0; m[ 5 ] = 0.0;
+   m[ 6 ] = sin( a ); m[ 7 ] = 0.0; m[ 8 ] = cos( a );
+   f1 = astFrame( 1, " " );
+   f2 = astFrame( 2, " " );
+   f3 = astFrame( 3, " " );
+   circle = (AstRegion *) astCircle( f2, 1, c, &r, NULL, " " );
+   interval = (AstRegion *) astInterval( f1, zl, zu, NULL, " " );
+   prism = (AstRegion *) astPrism( circle, interval, " " );
+   box = (AstRegion *) astBox( f3, 1, lbnd, ubnd, NULL, " " );
+   rot = (AstMapping *) astMatrixMap( 3, 3, 0, m, " " );
+   rbox = astMapRegion( box, rot, f3 );
+   if( astOverlap( prism, rbox ) != 2 ) stopit( status, "Prism overlap fallback 1" );
+   if( astOverlap( rbox, prism ) != 3 ) stopit( status, "Prism overlap fallback 2" );
    astEnd;
 }
 
