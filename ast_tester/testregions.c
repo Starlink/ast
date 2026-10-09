@@ -28,6 +28,7 @@ static void checkBoxTransformAfterBounds( int *status );
 static void checkSinglePointBoxMesh( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
+static void checkIntervalCentreFrame( int *status );
 static void checkIntervalPointListMerge( int *status );
 static void checkDefaultUncAtOrigin( int *status );
 static void sink1( const char *line );
@@ -61,6 +62,7 @@ int main(void) {
    checkSinglePointBoxMesh( status );
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
+   checkIntervalCentreFrame( status );
    checkIntervalPointListMerge( status );
    checkDefaultUncAtOrigin( status );
    astEnd;
@@ -1580,6 +1582,56 @@ static void checkEllipseAxisRules( int *status ) {
       astEnd;
       if( *status != 0 ) return;
    }
+}
+
+/* The protected astRegCentre gives the centre of a Region in the Frame its
+   "ifrm" argument asks for. Prism asks its components for their centres in
+   their current Frames, and SetUnc asks the uncertainty for its own. An
+   Interval mapped through a ZoomMap of 2 without simplification keeps its
+   base Frame limits of 1 and 3 and so has a base Frame centre of 2 and a
+   current Frame centre of 4. The Interval used to report its base Frame
+   centre whatever was asked. A Circle mapped the same way is the control. */
+extern void *astMapRegion_( void *, void *, void *, int * );
+extern double *astRegCentre_( void *, double *, double **, int, int, int * );
+extern AstObject *astMakeId_( AstObject *, int * );
+
+static void checkIntervalCentreFrame( int *status ) {
+   AstRegion *reg[ 2 ];
+   double lbnd[ 1 ] = { 1.0 }, ubnd[ 1 ] = { 3.0 }, centre[ 1 ] = { 2.0 };
+   double radius = 1.0;
+   double *base, *current;
+   void *mapped;
+   int i;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   reg[ 0 ] = (AstRegion *) astInterval( astFrame( 1, " " ), lbnd, ubnd, NULL, " " );
+   reg[ 1 ] = (AstRegion *) astCircle( astFrame( 1, " " ), 1, centre, &radius,
+                                      NULL, " " );
+   for( i = 0; i < 2 && astOK; i++ ) {
+      mapped = astMapRegion_( astMakePointer( reg[ i ] ),
+                              astMakePointer( astZoomMap( 1, 2.0, " " ) ),
+                              astMakePointer( astFrame( 1, " " ) ), status );
+      base = astRegCentre_( mapped, NULL, NULL, 0, AST__BASE, status );
+      current = astRegCentre_( mapped, NULL, NULL, 0, AST__CURRENT, status );
+      if( astOK ) {
+         if( base[ 0 ] != 2.0 ) {
+            printf( "checkIntervalCentreFrame: region %d base Frame centre "
+                    "%g, expected 2\n", i, base[ 0 ] );
+            stopit( status, "checkIntervalCentreFrame: wrong base Frame centre" );
+         } else if( current[ 0 ] != 4.0 ) {
+            printf( "checkIntervalCentreFrame: region %d current Frame centre "
+                    "%g, expected 4\n", i, current[ 0 ] );
+            stopit( status, "checkIntervalCentreFrame: wrong current Frame centre" );
+         }
+      }
+      base = astFree( base );
+      current = astFree( current );
+      (void) astMakeId_( (AstObject *) mapped, status );
+   }
+
+   astEnd;
 }
 
 /* Simplifying a Box whose base-to-current Mapping is a PermMap that feeds
