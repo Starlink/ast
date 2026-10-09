@@ -31,6 +31,7 @@ static void checkEllipseAxisRules( int *status );
 static void checkIntervalCentreFrame( int *status );
 static void checkNullRegionDefUnc( int *status );
 static void checkAdaptiveDump( int *status );
+static void checkLoadedUncFrame( int *status );
 static void checkIntervalPointListMerge( int *status );
 static void checkDefaultUncAtOrigin( int *status );
 static void sink1( const char *line );
@@ -67,6 +68,7 @@ int main(void) {
    checkIntervalCentreFrame( status );
    checkNullRegionDefUnc( status );
    checkAdaptiveDump( status );
+   checkLoadedUncFrame( status );
    checkIntervalPointListMerge( status );
    checkDefaultUncAtOrigin( status );
    astEnd;
@@ -1598,6 +1600,7 @@ static void checkEllipseAxisRules( int *status ) {
 extern void *astMapRegion_( void *, void *, void *, int * );
 extern double *astRegCentre_( void *, double *, double **, int, int, int * );
 extern AstObject *astMakeId_( AstObject *, int * );
+extern void *astGetUncFrm_( void *, int, int * );
 
 static void checkIntervalCentreFrame( int *status ) {
    AstRegion *reg[ 2 ];
@@ -1688,6 +1691,45 @@ static void checkAdaptiveDump( int *status ) {
       stopit( status, "checkAdaptiveDump: Adaptive=0 lost in the dump" );
    } else if( !astTest( restored, "Adaptive" ) ) {
       stopit( status, "checkAdaptiveDump: restored Adaptive is not set" );
+   }
+
+   astEnd;
+}
+
+/* An uncertainty set on a Region whose current Frame differs from its base
+   Frame is dumped without a Frame, as its Frame is the Region's base Frame.
+   Reading the dump back used to leave it with the dummy Frame it was read
+   with, so its Domain was lost. */
+static void checkLoadedUncFrame( int *status ) {
+   AstObject *mapped, *restored, *uncfrm;
+   AstRegion *circle, *unc;
+   char *text;
+   double centre[ 2 ] = { 1.0, 0.5 }, radius = 0.1, uradius = 0.001;
+   void *uncptr;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   unc = (AstRegion *) astCircle( astFrame( 2, "Domain=FOO" ), 1, centre, &uradius,
+                                  NULL, " " );
+   circle = (AstRegion *) astCircle( astFrame( 2, "Domain=FOO" ), 1, centre, &radius,
+                                     NULL, " " );
+   mapped = astMakeId_( astMapRegion_( astMakePointer( circle ),
+                        astMakePointer( astZoomMap( 2, 2.0, " " ) ),
+                        astMakePointer( astFrame( 2, "Domain=BAR" ) ), status ),
+                        status );
+   astSetUnc( mapped, unc );
+   text = astToString( mapped );
+   restored = astFromString( text );
+   text = astFree( text );
+   uncptr = astGetUncFrm_( astMakePointer( restored ), AST__BASE, status );
+   uncfrm = (AstObject *) astGetRegionFrame( astMakeId_( uncptr, status ) );
+   if( !astOK ) {
+      stopit( status, "checkLoadedUncFrame: dump and restore failed" );
+   } else if( strcmp( astGetC( uncfrm, "Domain" ), "FOO" ) ) {
+      printf( "checkLoadedUncFrame: uncertainty Domain '%s', expected 'FOO'\n",
+              astGetC( uncfrm, "Domain" ) );
+      stopit( status, "checkLoadedUncFrame: uncertainty lost its Frame" );
    }
 
    astEnd;

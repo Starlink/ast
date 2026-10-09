@@ -288,6 +288,10 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        well as when it is non-zero. A Region whose Adaptive attribute
 *        was set to zero wrote it commented out, so reading the dump back
 *        gave a Region whose Adaptive attribute was the default of 1.
+*        Load: give an uncertainty Region that was dumped without a
+*        Frame the base Frame of a Region read with a FrameSet, as is
+*        done for a Region read with a single Frame. It kept the dummy
+*        Frame it was read with, losing its Domain, System and so on.
 *class--
 
 *  Implementation Notes:
@@ -13607,6 +13611,16 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
    unknown and so we must read it from an attribute as normal. */
             new->regionfs = astReadInt( channel, "regfs", 1 );
             if ( TestRegionFS( new, status ) ) SetRegionFS( new, new->regionfs, status );
+
+/* An uncertainty Region dumped without a Frame (because its RegionFS
+   attribute is zero) has been read with a dummy FrameSet. Its Frame is
+   the base Frame of this Region, so give it that, as astSetRegFS does
+   when a single Frame is read. */
+            if( new->unc && !astGetRegionFS( new->unc ) ) {
+               f1 = astGetFrame( new->frameset, AST__BASE );
+               astSetRegFS( new->unc, f1 );
+               f1 = astAnnul( f1 );
+            }
 
          } else {
             nax = 0;
