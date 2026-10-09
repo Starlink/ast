@@ -32,6 +32,7 @@ static void checkIntervalCentreFrame( int *status );
 static void checkNullRegionDefUnc( int *status );
 static void checkAdaptiveDump( int *status );
 static void checkLoadedUncFrame( int *status );
+static void checkCmpRegionListXor( int *status );
 static void checkIntervalPointListMerge( int *status );
 static void checkDefaultUncAtOrigin( int *status );
 static void sink1( const char *line );
@@ -69,6 +70,7 @@ int main(void) {
    checkNullRegionDefUnc( status );
    checkAdaptiveDump( status );
    checkLoadedUncFrame( status );
+   checkCmpRegionListXor( status );
    checkIntervalPointListMerge( status );
    checkDefaultUncAtOrigin( status );
    astEnd;
@@ -1601,6 +1603,7 @@ extern void *astMapRegion_( void *, void *, void *, int * );
 extern double *astRegCentre_( void *, double *, double **, int, int, int * );
 extern AstObject *astMakeId_( AstObject *, int * );
 extern void *astGetUncFrm_( void *, int, int * );
+extern int astCmpRegionList_( void *, int *, void ***, int * );
 
 static void checkIntervalCentreFrame( int *status ) {
    AstRegion *reg[ 2 ];
@@ -1731,6 +1734,43 @@ static void checkLoadedUncFrame( int *status ) {
               astGetC( uncfrm, "Domain" ) );
       stopit( status, "checkLoadedUncFrame: uncertainty lost its Frame" );
    }
+
+   astEnd;
+}
+
+/* The protected astCmpRegionList lists the Regions a CmpRegion combines
+   with one operator, descending into component CmpRegions that use the
+   same operator. A CmpRegion equivalent to an XOR is stored as an OR, and
+   "A OR (B XOR C)" used to be listed as "A OR B OR C". It must be listed as
+   A and the XOR CmpRegion. */
+static void checkCmpRegionListXor( int *status ) {
+   AstRegion *reg[ 3 ];
+   AstCmpRegion *bxorc, *cr;
+   double centre[ 2 ], radius = 1.0;
+   void **list = NULL;
+   int i, n = 0, oper;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   for( i = 0; i < 3; i++ ) {
+      centre[ 0 ] = 3.0*i;
+      centre[ 1 ] = 0.0;
+      reg[ i ] = (AstRegion *) astCircle( astFrame( 2, " " ), 1, centre, &radius,
+                                          NULL, " " );
+   }
+   bxorc = astCmpRegion( reg[ 1 ], reg[ 2 ], AST__XOR, " " );
+   cr = astCmpRegion( reg[ 0 ], bxorc, AST__OR, " " );
+   oper = astCmpRegionList_( astMakePointer( cr ), &n, &list, status );
+   if( !astOK ) {
+      stopit( status, "checkCmpRegionListXor: astCmpRegionList failed" );
+   } else if( oper != AST__OR || n != 2 ) {
+      printf( "checkCmpRegionListXor: operator %d with %d Regions, expected "
+              "%d with 2\n", oper, n, AST__OR );
+      stopit( status, "checkCmpRegionListXor: XOR component merged into OR list" );
+   }
+   for( i = 0; i < n; i++ ) (void) astMakeId_( list[ i ], status );
+   list = astFree( list );
 
    astEnd;
 }
