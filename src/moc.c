@@ -189,6 +189,13 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        Transform: an empty Moc, which may have no MaxOrder, needs no
 *        HPX12 Mapping; asking for one at order -1 indexed the cache of
 *        Mappings out of bounds.
+*        AddRegion: report an error if MaxOrder is zero, as
+*        AddPixelMask<X> does, rather than index the Mappings for each
+*        order at -1.
+*        IncorporateCells: negate the ranges at the Moc's MaxOrder, not at
+*        the order of the finest cells, which is higher when MinOrder
+*        exceeds MaxOrder. Negating at the higher order covered the
+*        whole sky four times or more.
 *class--
 */
 
@@ -2544,6 +2551,17 @@ f        The global status.
             oversample = minorder - maxorder;
             maxorder = minorder;
             minorder = maxorder - 1;
+         }
+
+/* A MaxOrder of zero leaves no lower order at which to start. */
+         if( minorder < 0 ) {
+            if( astOK ) {
+               astError( AST__INVAR, "astAddRegion(%s): Invalid value (%d) "
+                         "supplied for parameter 'MinOrder'.", status,
+                         astGetClass(this), minorder );
+            }
+            picked = astAnnul( picked );
+            return;
          }
 
 /* Get a pointer to the Frame in which the Region is defined. We use this
@@ -5675,8 +5693,10 @@ static void IncorporateCells( AstMoc *this, CellList *clist,
       }
    }
 
-/* Normalise the Moc. */
-   astMocNorm( this, negate, cmode, nold, clist->maxorder, method );
+/* Normalise the Moc. The ranges are at the Moc's own MaxOrder, which is
+   below the order of the finest cells by "oversample". */
+   astMocNorm( this, negate, cmode, nold, clist->maxorder - oversample,
+               method );
 }
 
 void astInitMocVtab_(  AstMocVtab *vtab, const char *name, int *status ) {
