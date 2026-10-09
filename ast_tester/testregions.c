@@ -35,6 +35,7 @@ static void checkLoadedUncFrame( int *status );
 static void checkCmpRegionListXor( int *status );
 static void checkIntervalPointListMerge( int *status );
 static void checkDefaultUncAtOrigin( int *status );
+static void checkStcNegated( int *status );
 static void sink1( const char *line );
 
 int main(void) {
@@ -73,6 +74,7 @@ int main(void) {
    checkCmpRegionListXor( status );
    checkIntervalPointListMerge( status );
    checkDefaultUncAtOrigin( status );
+   checkStcNegated( status );
    astEnd;
    // astActivememory( "testregions" )
    // astFlushmemory( 1 );
@@ -3293,6 +3295,38 @@ static void checkPolygonMaskLargeLobe( int *status ) {
       }
    }
    data = astFree( data );
+
+   astEnd;
+}
+
+/* A negated Stc must cover the complement of the Region it encapsulates,
+   as a negated Region does. */
+static void checkStcNegated( int *status ) {
+   AstCircle *circle;
+   AstStcResourceProfile *stc;
+   double centre[ 2 ] = { 0.0, 0.0 }, radius = 1.0;
+   double xin[ 2 ] = { 0.0, 5.0 }, yin[ 2 ] = { 0.0, 0.0 };
+   double xout[ 2 ], yout[ 2 ];
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   circle = astCircle( astFrame( 2, " " ), 1, centre, &radius, NULL, " " );
+   stc = astStcResourceProfile( circle, 0, NULL, " " );
+
+   astTran2( stc, 2, xin, yin, 1, xout, yout );
+   if( xout[ 0 ] == AST__BAD || xout[ 1 ] != AST__BAD ) {
+      stopit( status, "checkStcNegated: Stc does not cover its Circle" );
+   }
+
+   astNegate( stc );
+   astTran2( stc, 2, xin, yin, 1, xout, yout );
+   if( xout[ 0 ] != AST__BAD || xout[ 1 ] == AST__BAD ) {
+      stopit( status, "checkStcNegated: negated Stc covers its Circle" );
+   }
+   if( astGetI( stc, "Bounded" ) ) {
+      stopit( status, "checkStcNegated: negated Stc is bounded" );
+   }
 
    astEnd;
 }
