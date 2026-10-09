@@ -61,6 +61,11 @@ f     The NullRegion class does not define any new routines beyond those
 *        Over-ride astRegBasePick.
 *     26-JAN-2009 (DSB):
 *        Over-ride astMapMerge.
+*     9-OCT-2026 (TIMJ):
+*        GetDefUnc: create the default uncertainty in the base Frame, as
+*        astGetDefUnc requires. It was created in the current Frame, so a
+*        NullRegion whose base and current Frames differ in number of axes
+*        reported an error when its uncertainty was used.
 *class--
 */
 
@@ -209,6 +214,7 @@ static AstRegion *GetDefUnc( AstRegion *this, int *status ) {
 */
 
 /* Local Variables: */
+   AstFrame *bfrm;
    AstRegion *result;
    double *cen;
    double rad;
@@ -221,15 +227,18 @@ static AstRegion *GetDefUnc( AstRegion *this, int *status ) {
 /* Check inherited status */
    if( !astOK ) return result;
 
-/* Create a Circle centred on the origin with zero radius. */
-   n = astGetNaxes( this );
+/* Create a Circle in the base Frame, centred on the origin with zero
+   radius. */
+   bfrm = astGetFrame( this->frameset, AST__BASE );
+   n = astGetNaxes( bfrm );
    cen = astMalloc( sizeof(double)*(size_t) n );
    if( cen ) {
       for( i = 0; i < n; i++ ) cen[ i ] = 0.0;
       rad = 0.0;
-      result = (AstRegion *) astCircle( this, 1, cen, &rad, NULL, "", status );
+      result = (AstRegion *) astCircle( bfrm, 1, cen, &rad, NULL, "", status );
       cen = astFree( cen );
    }
+   bfrm = astAnnul( bfrm );
 
 /* Return the default uncertainty Region. */
    return result;
