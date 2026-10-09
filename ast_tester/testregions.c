@@ -29,6 +29,7 @@ static void checkSinglePointBoxMesh( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
 static void checkIntervalCentreFrame( int *status );
+static void checkNullRegionDefUnc( int *status );
 static void checkIntervalPointListMerge( int *status );
 static void checkDefaultUncAtOrigin( int *status );
 static void sink1( const char *line );
@@ -63,6 +64,7 @@ int main(void) {
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
    checkIntervalCentreFrame( status );
+   checkNullRegionDefUnc( status );
    checkIntervalPointListMerge( status );
    checkDefaultUncAtOrigin( status );
    astEnd;
@@ -1629,6 +1631,34 @@ static void checkIntervalCentreFrame( int *status ) {
       base = astFree( base );
       current = astFree( current );
       (void) astMakeId_( (AstObject *) mapped, status );
+   }
+
+   astEnd;
+}
+
+/* The default uncertainty of a NullRegion is a zero-radius Circle in its
+   base Frame, which astGetUnc maps into the current Frame. A NullRegion
+   mapped from a 2-D Frame into a 3-D Frame by a PermMap without
+   simplification used to build the Circle in its 3-D current Frame, so
+   mapping it on through the 2-input PermMap failed. */
+static void checkNullRegionDefUnc( int *status ) {
+   AstObject *mapped;
+   AstRegion *nr, *unc;
+   double con[ 1 ] = { 5.0 };
+   int inperm[ 2 ] = { 1, 2 }, outperm[ 3 ] = { 1, 2, -1 };
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   nr = (AstRegion *) astNullRegion( astFrame( 2, " " ), NULL, " " );
+   mapped = astMakeId_( astMapRegion_( astMakePointer( nr ),
+                        astMakePointer( astPermMap( 2, inperm, 3, outperm, con, " " ) ),
+                        astMakePointer( astFrame( 3, " " ) ), status ), status );
+   unc = astGetUnc( mapped, 1 );
+   if( !astOK ) {
+      stopit( status, "checkNullRegionDefUnc: astGetUnc failed" );
+   } else if( !astIsACircle( unc ) || astGetI( unc, "Naxes" ) != 3 ) {
+      stopit( status, "checkNullRegionDefUnc: wrong default uncertainty" );
    }
 
    astEnd;
