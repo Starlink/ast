@@ -30,6 +30,7 @@ static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
 static void checkIntervalCentreFrame( int *status );
 static void checkNullRegionDefUnc( int *status );
+static void checkAdaptiveDump( int *status );
 static void checkIntervalPointListMerge( int *status );
 static void checkDefaultUncAtOrigin( int *status );
 static void sink1( const char *line );
@@ -65,6 +66,7 @@ int main(void) {
    checkEllipseAxisRules( status );
    checkIntervalCentreFrame( status );
    checkNullRegionDefUnc( status );
+   checkAdaptiveDump( status );
    checkIntervalPointListMerge( status );
    checkDefaultUncAtOrigin( status );
    astEnd;
@@ -1659,6 +1661,33 @@ static void checkNullRegionDefUnc( int *status ) {
       stopit( status, "checkNullRegionDefUnc: astGetUnc failed" );
    } else if( !astIsACircle( unc ) || astGetI( unc, "Naxes" ) != 3 ) {
       stopit( status, "checkNullRegionDefUnc: wrong default uncertainty" );
+   }
+
+   astEnd;
+}
+
+/* A Region whose Adaptive attribute has been set to zero keeps it through
+   a dump and restore. The dump used to write Adapt as set only when it was
+   non-zero, so the restored Region was Adaptive. */
+static void checkAdaptiveDump( int *status ) {
+   AstObject *restored;
+   AstRegion *box;
+   char *text;
+   double lo[ 2 ] = { 0.0, 0.0 }, hi[ 2 ] = { 1.0, 1.0 };
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   box = (AstRegion *) astBox( astFrame( 2, " " ), 1, lo, hi, NULL, "Adaptive=0" );
+   text = astToString( box );
+   restored = astFromString( text );
+   text = astFree( text );
+   if( !astOK ) {
+      stopit( status, "checkAdaptiveDump: dump and restore failed" );
+   } else if( astGetI( restored, "Adaptive" ) != 0 ) {
+      stopit( status, "checkAdaptiveDump: Adaptive=0 lost in the dump" );
+   } else if( !astTest( restored, "Adaptive" ) ) {
+      stopit( status, "checkAdaptiveDump: restored Adaptive is not set" );
    }
 
    astEnd;

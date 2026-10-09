@@ -283,6 +283,11 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        RegSetAttrib: Lower-case only the attribute name in the setting,
 *        not its value, so that a string attribute set on a Region that
 *        is not Adaptive (for instance Label or Title) keeps its case.
+*     9-OCT-2026 (TIMJ):
+*        Dump: write Adapt as set when it has been set explicitly, as
+*        well as when it is non-zero. A Region whose Adaptive attribute
+*        was set to zero wrote it commented out, so reading the dump back
+*        gave a Region whose Adaptive attribute was the default of 1.
 *class--
 
 *  Implementation Notes:
@@ -13101,7 +13106,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* -------- */
    set = TestAdaptive( this, status );
    ival = set ? GetAdaptive( this, status ) : astGetAdaptive( this );
-   astWriteInt( channel, "Adapt", (ival != 0), 0, ival,
+   astWriteInt( channel, "Adapt", ( ival != 0 ) || set, 0, ival,
                 ival ? "Region adapts to coord sys changes" : "Region does not adapt to coord sys changes" );
 
 /* FrameSet */
