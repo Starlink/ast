@@ -9,6 +9,7 @@
  *  0-based indices.
  */
 #include "ast.h"
+#include "ast_err.h"
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -201,6 +202,48 @@ static void checkEmptyTransform( int *status ) {
               status );
    }
    moc = astAnnul( moc );
+}
+
+/* Adding a Region to a Moc whose MaxOrder is zero leaves no lower order
+   to start from, and is an error, as it is for a pixel mask. */
+static void checkAddRegionOrderZero( int *status ) {
+   AstMoc *moc;
+   AstCircle *circle;
+   double centre[ 2 ] = { 1.2, 0.3 }, radius = 0.2;
+
+   if( *status != 0 ) return;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc = astMoc( "MaxOrder=0" );
+   astAddRegion( moc, AST__OR, circle );
+   if( astStatus == AST__INVAR ) {
+      astClearStatus;
+   } else {
+      stopit( "checkAddRegionOrderZero: no AST__INVAR error", status );
+   }
+   moc = astAnnul( moc );
+   circle = astAnnul( circle );
+}
+
+/* A negated Region added to a Moc whose MinOrder exceeds its MaxOrder
+   covers no more than the whole sky. */
+static void checkOversampleNegate( int *status ) {
+   AstMoc *over;
+   AstCircle *circle;
+   double centre[ 2 ] = { 1.2, 0.3 }, radius = 0.2, sky;
+
+   if( *status != 0 ) return;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   astNegate( circle );
+   over = astMoc( "MaxOrder=5,MinOrder=6" );
+   astAddRegion( over, AST__OR, circle );
+   sky = 4.0*AST__DPI*pow( 180.0*60.0/AST__DPI, 2 );
+   if( astGetD( over, "MocArea" ) > sky ) {
+      stopit( "checkOversampleNegate: Moc covers more than the sky", status );
+   }
+   over = astAnnul( over );
+   circle = astAnnul( circle );
 }
 
 int main( void ) {
@@ -470,6 +513,8 @@ int main( void ) {
    checkPinsMask( status );
    checkMeshTieBreak( status );
    checkEmptyTransform( status );
+   checkAddRegionOrderZero( status );
+   checkOversampleNegate( status );
 
    astEnd;
    astFlushMemory( 1 );
