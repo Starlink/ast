@@ -36,6 +36,7 @@ static void checkCmpRegionListXor( int *status );
 static void checkIntervalPointListMerge( int *status );
 static void checkDefaultUncAtOrigin( int *status );
 static void checkStcNegated( int *status );
+static void checkStcObsDump( int *status );
 static void sink1( const char *line );
 
 int main(void) {
@@ -75,6 +76,7 @@ int main(void) {
    checkIntervalPointListMerge( status );
    checkDefaultUncAtOrigin( status );
    checkStcNegated( status );
+   checkStcObsDump( status );
    astEnd;
    // astActivememory( "testregions" )
    // astFlushmemory( 1 );
@@ -3326,6 +3328,50 @@ static void checkStcNegated( int *status ) {
    }
    if( astGetI( stc, "Bounded" ) ) {
       stopit( status, "checkStcNegated: negated Stc is bounded" );
+   }
+
+   astEnd;
+}
+
+/* A sink and source holding the lines of one Channel dump. */
+static char obsdump_lines[ 400 ][ 200 ];
+static int obsdump_nline;
+static int obsdump_next;
+
+static void obsdump_sink( const char *line ) {
+   if( obsdump_nline < 400 ) {
+      strncpy( obsdump_lines[ obsdump_nline ], line, 199 );
+      obsdump_lines[ obsdump_nline++ ][ 199 ] = 0;
+   }
+}
+
+static const char *obsdump_source( void ) {
+   return ( obsdump_next < obsdump_nline ) ? obsdump_lines[ obsdump_next++ ] : NULL;
+}
+
+/* An StcObsDataLocation with no observatory position can be written and
+   read back. */
+static void checkStcObsDump( int *status ) {
+   AstCircle *circle;
+   AstStcObsDataLocation *stc;
+   AstObject *back;
+   AstChannel *ch;
+   double centre[ 2 ] = { 0.0, 0.0 }, radius = 1.0;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   circle = astCircle( astFrame( 2, " " ), 1, centre, &radius, NULL, " " );
+   stc = astStcObsDataLocation( circle, 0, NULL, " " );
+   obsdump_nline = 0;
+   obsdump_next = 0;
+   ch = astChannel( obsdump_source, obsdump_sink, " " );
+   if( astWrite( ch, stc ) != 1 ) {
+      stopit( status, "checkStcObsDump: StcObsDataLocation not written" );
+   }
+   back = astRead( ch );
+   if( !back || !astEqual( back, stc ) ) {
+      stopit( status, "checkStcObsDump: StcObsDataLocation not read back" );
    }
 
    astEnd;
