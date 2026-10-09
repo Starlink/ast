@@ -196,6 +196,18 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        the order of the finest cells, which is higher when MinOrder
 *        exceeds MaxOrder. Negating at the higher order covered the
 *        whole sky four times or more.
+*        astAddMocText: reset the current order after the loop that
+*        initialises the list for each order, which left it at 28, so
+*        that a string MOC with no order is reported rather than read
+*        past the end of the lists. Report a range at the end of a string
+*        MOC that ends before it starts, as one elsewhere is reported,
+*        rather than ask for a huge allocation. Accept "{}", an empty
+*        JSON MOC.
+*        astGetMocText: write an empty JSON MOC with no MaxOrder as "{}"
+*        rather than "}".
+*        AddMocData: report a NUNIQ value below 4, which encodes no
+*        cell, before using any value, rather than shift by 32 or 64
+*        bits and add a cell that is not there.
 *class--
 */
 
@@ -837,6 +849,7 @@ f     MAXORDER  is negative.
    int64_t ihigh;
    int64_t ilow;
    int64_t npix;
+   int64_t nuniq;
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -871,6 +884,29 @@ f     MAXORDER  is negative.
 /* Otherwise, read a MOC from the data array and combine it with the
    supplied Moc. */
    } else {
+
+/* Check every value before any is used. A NUNIQ value below 4 encodes no
+   cell (4 is cell 0 at order 0). */
+      nuniq = 4;
+      if( nbyte == 4 ) {
+         pni = data;
+         for( icell = 0; icell < len; icell++ ) {
+            nuniq = *(pni++);
+            if( nuniq < 4 ) break;
+         }
+      } else {
+         pnk = data;
+         for( icell = 0; icell < len; icell++ ) {
+            nuniq = *(pnk++);
+            if( nuniq < 4 ) break;
+         }
+      }
+      if( nuniq < 4 ) {
+         astError( AST__INMOC, "astAddMocData(%s): Invalid NUNIQ value (%"
+                   PRId64 ") at element %d of the supplied data - must be "
+                   "at least 4.", status, astGetClass( this ), nuniq, icell );
+         return;
+      }
 
 /* If the MaxOrder attribute is set in the Moc, use it in preference to
    the value supplied for parameter "maxorder". */
@@ -1231,11 +1267,14 @@ void astAddMocText_( AstMoc *this, int maxorder,
    holding the first characters to read. */
       text = (*source)( data, &nc, status );
 
-/* Initialise the list of NPIX values at each order. */
+/* Initialise the list of NPIX values at each order. Then reset the
+   current order, which the loop uses, so that a string MOC that gives no
+   order is detected. */
       for( order = 0; order <= AST__MXORDHPX; order++ ) {
          orders[ order ].nval = 0;
          orders[ order ].values = NULL;
       }
+      order = -1;
 
 /* Loop to parse all available text. This loop populates the above array
    of "Order" structures, which hold the orders used, and the NPIX values
@@ -1287,6 +1326,9 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   if( *pt == '"' ) {
                      order = 0;
                      state = 2;
+/* A closing curly brace before any order is an empty MOC. */
+                  } else if( *pt == '}' && order < 0 ) {
+                     state = 9;
                   } else if( !isspace( *pt ) ) {
                      astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
                                status, method, astGetClass( this ), text );
@@ -1594,26 +1636,35 @@ void astAddMocText_( AstMoc *this, int maxorder,
                          status, method, astGetClass( this ), text ? text : "" );
                astError( AST__INMOC, "No order value found at start of string.",
                          status );
-            }
 
-            if( !isrange ) {
-               npix0 = npix;
-               nadd = 1;
+/* A range must not end before it starts, as checked above for a range
+   that is not at the end of the string. */
+            } else if( isrange && npix < npix0 ) {
+               astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                         status, method, astGetClass( this ), text ? text : "" );
+               astError( AST__INMOC, "Range start (%" PRId64 ") is after range "
+                         "end (%" PRId64 ").", status, npix0, npix );
+
             } else {
-               isrange = 0;
-               nadd = npix - npix0 + 1;
-            }
-
-            nval = orders[ order ].nval;
-            nbyte = ( nval + nadd )*sizeof( size_t );
-            values = astGrow( orders[ order ].values, 1, nbyte );
-            if( astOK ) {
-               for( ; npix0 <= npix; npix0++ ) {
-                  values[ nval++ ] = npix0;
+               if( !isrange ) {
+                  npix0 = npix;
+                  nadd = 1;
+               } else {
+                  isrange = 0;
+                  nadd = npix - npix0 + 1;
                }
 
-               orders[ order ].values = values;
-               orders[ order ].nval = nval;
+               nval = orders[ order ].nval;
+               nbyte = ( nval + nadd )*sizeof( size_t );
+               values = astGrow( orders[ order ].values, 1, nbyte );
+               if( astOK ) {
+                  for( ; npix0 <= npix; npix0++ ) {
+                     values[ nval++ ] = npix0;
+                  }
+
+                  orders[ order ].values = values;
+                  orders[ order ].nval = nval;
+               }
             }
          }
 
@@ -5073,12 +5124,14 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
       } else {
          nc = sprintf( token, first?"%d/":" %d/", maxorder );
       }
+      first = 0;
       TOKEN_WRITE;
    }
 
-/* Terminate the complete JSON string. */
+/* Terminate the complete JSON string. A Moc with no cells and no MaxOrder
+   has written nothing yet, so is an empty JSON object. */
    if( json ) {
-      nc = sprintf( token, "}" );
+      nc = sprintf( token, first ? "{}" : "}" );
       TOKEN_WRITE;
    }
 
