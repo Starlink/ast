@@ -246,6 +246,77 @@ static void checkOversampleNegate( int *status ) {
    circle = astAnnul( circle );
 }
 
+/* Malformed string MOCs are reported: one with no order, at the end of
+   the text or before more of it, and one whose final range ends before it
+   starts. */
+static void checkMocStringErrors( int *status ) {
+   const char *bad[] = { "5", "5 6", "3/10-5" };
+   AstMoc *moc;
+   int i, json;
+
+   for( i = 0; i < 3 && *status == 0; i++ ) {
+      moc = astMoc( " " );
+      astAddMocString( moc, AST__OR, 0, -1, strlen( bad[ i ] ), bad[ i ],
+                       &json );
+      if( astStatus == AST__INMOC ) {
+         astClearStatus;
+      } else {
+         stopit( "checkMocStringErrors: no AST__INMOC error", status );
+      }
+      moc = astAnnul( moc );
+   }
+}
+
+/* An empty Moc with no MaxOrder is written as an empty JSON object, which
+   can be read back. */
+static void checkEmptyJson( int *status ) {
+   AstMoc *moc;
+   char buf[ 10 ];
+   size_t size;
+   int json;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astGetMocString( moc, 1, sizeof( buf ), buf, &size );
+   if( size != 2 || strncmp( buf, "{}", 2 ) ) {
+      stopit( "checkEmptyJson: empty Moc not written as {}", status );
+   }
+   moc = astAnnul( moc );
+   moc = astMoc( "MaxOrder=3" );
+   astAddMocString( moc, AST__OR, 0, -1, 2, "{}", &json );
+   if( astOK && ( !json || astGetI( moc, "MocLength" ) != 0 ) ) {
+      stopit( "checkEmptyJson: {} not read as an empty JSON MOC", status );
+   }
+   moc = astAnnul( moc );
+}
+
+/* NUNIQ values below 4 encode no cell, and are reported before any value
+   is used, so the Moc is left as it was. */
+static void checkBadNuniq( int *status ) {
+   AstMoc *moc;
+   int64_t kdata[ 2 ] = { 20, 0 };
+   int idata[ 2 ] = { 20, -5 };
+
+   if( *status != 0 ) return;
+   moc = astMoc( "MaxOrder=5" );
+   astAddMocData( moc, AST__OR, 0, -1, 2, 8, kdata );
+   if( astStatus == AST__INMOC ) {
+      astClearStatus;
+   } else {
+      stopit( "checkBadNuniq: no AST__INMOC error for 8 byte data", status );
+   }
+   astAddMocData( moc, AST__OR, 0, -1, 2, 4, idata );
+   if( astStatus == AST__INMOC ) {
+      astClearStatus;
+   } else {
+      stopit( "checkBadNuniq: no AST__INMOC error for 4 byte data", status );
+   }
+   if( astOK && astGetI( moc, "MocLength" ) != 0 ) {
+      stopit( "checkBadNuniq: invalid data changed the Moc", status );
+   }
+   moc = astAnnul( moc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -515,6 +586,9 @@ int main( void ) {
    checkEmptyTransform( status );
    checkAddRegionOrderZero( status );
    checkOversampleNegate( status );
+   checkMocStringErrors( status );
+   checkEmptyJson( status );
+   checkBadNuniq( status );
 
    astEnd;
    astFlushMemory( 1 );
