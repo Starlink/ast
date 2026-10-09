@@ -183,6 +183,12 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        RegPins: flag each point in the mask at its own index. The
 *        points are taken in order of Dec, and the mask was filled in
 *        that order, so its flags were against the wrong points.
+*        Comp_corner: in an exact sort, order corners with the same RA
+*        and Decs within the tolerance by Dec, so that the merged corners,
+*        and so the mesh, do not depend on the platform's qsort.
+*        Transform: an empty Moc, which may have no MaxOrder, needs no
+*        HPX12 Mapping; asking for one at order -1 indexed the cache of
+*        Mappings out of bounds.
 *class--
 */
 
@@ -3408,6 +3414,14 @@ static int Comp_corner( const void *a, const void *b ){
    a single HEALPix ring (constant Dec) get sorted by RA together. */
    if( fabs( dec1 - dec2 ) <= Comp_Corner_Tol ) {
       if( fabs( ra1 - ra2 ) <= ratol ) {
+
+/* In an exact sort, corners with the same RA and Decs within the
+   tolerance are ordered by Dec, so that their order does not depend on
+   how qsort orders elements that compare equal. */
+         if( Comp_Corner_Exact ) {
+            if( dec1 < dec2 ) return -1;
+            if( dec1 > dec2 ) return 1;
+         }
          return 0;
       } else if( ra1 < ra2 ) {
          return -1;
@@ -9588,7 +9602,12 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       order = astGetMaxOrder( this );
 
 /* Get a Mapping that goes from ICRS to grid coordinates in an HPX12
-   projection of the whole sky with the Moc's order. */
+   projection of the whole sky with the Moc's order. An empty Moc may have
+   no order, and contains no position, so it needs no Mapping. */
+      ps1 = NULL;
+      px = NULL;
+      py = NULL;
+      if( this->nrange > 0 ) {
       map1 = GetCachedMapping( this, order, "astTransform", status );
 
 /* Use this Mapping to convert all the ICRS positions to HPX12 grid
@@ -9601,6 +9620,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       ptr = astGetPoints( ps1 );
       px = ptr[ 0 ];
       py = ptr[ 1 ];
+      }
 
 /* Get pointers to the first output sky coordinate values. */
       ptr_out = astGetPoints( result );
@@ -9611,8 +9631,8 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       for( ipoint = 0; ipoint < npoint; ipoint++ ) {
 
 /* Convert from grid (x,y) to nested index. */
-         inest = XyToNested( order, (int)round( *(px++) ),
-                             (int)round( *(py++) ) );
+         inest = px ? XyToNested( order, (int)round( *(px++) ),
+                                  (int)round( *(py++) ) ) : INT64_MAX;
 
 /* Test if this nested index is contained in the Moc. Each pair of
    adjacent values in the "this->range" array are the upper and lower
@@ -9649,7 +9669,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       }
 
 /* Free resources */
-      ps1 = astAnnul( ps1 );
+      if( ps1 ) ps1 = astAnnul( ps1 );
    }
    pset_tmp = astAnnul( pset_tmp );
 

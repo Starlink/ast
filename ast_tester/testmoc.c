@@ -148,6 +148,61 @@ static void checkPinsMask( int *status ) {
    moc = astAnnul( moc );
 }
 
+/* Corners that the boundary mesh merges are sorted by Dec then RA, and
+   two with the same RA and nearly the same Dec are ordered by Dec, so the
+   corner kept, and so the mesh, does not depend on the platform's qsort.
+   For these cells the kept corner is the one with the lower Dec. */
+static void checkMeshTieBreak( int *status ) {
+   AstMoc *moc;
+   double *mesh;
+   int npnt, i, found = 0;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddCell( moc, AST__OR, 2, 37 );
+   astAddCell( moc, AST__OR, 1, 3 );
+   astAddCell( moc, AST__OR, 2, 100 );
+   astAddCell( moc, AST__XOR, 1, 25 );
+   astAddCell( moc, AST__XOR, 2, 101 );
+   astAddCell( moc, AST__AND, 2, 13 );
+   astAddCell( moc, AST__OR, 0, 7 );
+   astAddCell( moc, AST__AND, 2, 30 );
+   astGetRegionMesh( moc, 1, 0, 2, &npnt, NULL );
+   mesh = astMalloc( sizeof( double )*2*npnt );
+   astGetRegionMesh( moc, 1, npnt, 2, &npnt, mesh );
+   for( i = 0; i < npnt; i++ ) {
+      if( fabs( mesh[ npnt + i ] - 0.5235949266007811 ) < 1.0E-14 ) found = 1;
+      if( fabs( mesh[ npnt + i ] - 0.5236026246043699 ) < 1.0E-14 ) {
+         stopit( "checkMeshTieBreak: mesh kept the higher of two tied corners",
+                 status );
+      }
+   }
+   if( !found ) stopit( "checkMeshTieBreak: expected mesh corner missing", status );
+   mesh = astFree( mesh );
+   moc = astAnnul( moc );
+}
+
+/* An empty Moc, which has no MaxOrder, contains no position, and its
+   negation every position. */
+static void checkEmptyTransform( int *status ) {
+   AstMoc *moc;
+   double x[ 2 ] = { 1.0, 4.0 }, y[ 2 ] = { 0.5, -0.5 }, xo[ 2 ], yo[ 2 ];
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astTran2( moc, 2, x, y, 1, xo, yo );
+   if( xo[ 0 ] != AST__BAD || yo[ 1 ] != AST__BAD ) {
+      stopit( "checkEmptyTransform: empty Moc contains a position", status );
+   }
+   astNegate( moc );
+   astTran2( moc, 2, x, y, 1, xo, yo );
+   if( xo[ 0 ] != x[ 0 ] || yo[ 1 ] != y[ 1 ] ) {
+      stopit( "checkEmptyTransform: negated empty Moc excludes a position",
+              status );
+   }
+   moc = astAnnul( moc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -413,6 +468,8 @@ int main( void ) {
 
    checkEmptyBounds( status );
    checkPinsMask( status );
+   checkMeshTieBreak( status );
+   checkEmptyTransform( status );
 
    astEnd;
    astFlushMemory( 1 );
