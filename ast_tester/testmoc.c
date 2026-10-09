@@ -14,6 +14,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+extern int astRegPins_( AstRegion *, AstPointSet *, AstRegion *, int **, int * );
+extern AstPointSet *astPointSet_( int, int, const char *, int *, ... );
+extern double **astGetPoints_( AstPointSet *, int * );
+
 static void stopit( const char *text, int *status ) {
    if( *status != 0 ) return;
    *status = 1;
@@ -87,6 +91,61 @@ static void makeimage( int dims[2], float **pdata, AstFrameSet **iwcs,
    astClear( fc, "Card" );
    *iwcs = (AstFrameSet *)astRead( fc );
    astAnnul( fc );
+}
+
+/* An empty Moc and a Moc of the whole sky have bounds: none for the empty
+   one (upper bounds below lower), and the whole sky for the other. */
+static void checkEmptyBounds( int *status ) {
+   AstMoc *moc;
+   double lbnd[ 2 ], ubnd[ 2 ];
+   int npix;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astGetRegionBounds( moc, lbnd, ubnd );
+   if( !( ubnd[ 0 ] < lbnd[ 0 ] && ubnd[ 1 ] < lbnd[ 1 ] ) ) {
+      stopit( "checkEmptyBounds: empty Moc has a bounding box", status );
+   }
+   for( npix = 0; npix < 12; npix++ ) astAddCell( moc, AST__OR, 0, npix );
+   astGetRegionBounds( moc, lbnd, ubnd );
+   if( lbnd[ 1 ] != -AST__DPIBY2 || ubnd[ 1 ] != AST__DPIBY2 ||
+       ubnd[ 0 ] - lbnd[ 0 ] != 2*AST__DPI ) {
+      stopit( "checkEmptyBounds: whole-sky Moc does not bound the sky", status );
+   }
+   moc = astAnnul( moc );
+}
+
+/* The mask astRegPins returns flags each point at its own index, whatever
+   order the points come in. */
+static void checkPinsMask( int *status ) {
+   AstMoc *moc;
+   AstPointSet *pins;
+   double **ptr, *mesh;
+   int *mask = NULL, npnt, i;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddCell( moc, AST__OR, 2, 37 );
+   astGetRegionMesh( moc, 1, 0, 2, &npnt, NULL );
+   mesh = astMalloc( sizeof( double )*2*npnt );
+   astGetRegionMesh( moc, 1, npnt, 2, &npnt, mesh );
+
+/* The mesh in reverse order, then one point far from the boundary. */
+   pins = astPointSet_( npnt + 1, 2, " ", status );
+   ptr = astGetPoints_( pins, status );
+   for( i = 0; i < npnt; i++ ) {
+      ptr[ 0 ][ i ] = mesh[ npnt - 1 - i ];
+      ptr[ 1 ][ i ] = mesh[ 2*npnt - 1 - i ];
+   }
+   ptr[ 0 ][ npnt ] = 3.0;
+   ptr[ 1 ][ npnt ] = -1.4;
+   (void) astRegPins_( astMakePointer( moc ), pins, NULL, &mask, status );
+   if( mask && ( mask[ npnt ] || !mask[ 0 ] ) ) {
+      stopit( "checkPinsMask: mask flags the wrong points", status );
+   }
+   mask = astFree( mask );
+   mesh = astFree( mesh );
+   moc = astAnnul( moc );
 }
 
 int main( void ) {
@@ -351,6 +410,9 @@ int main( void ) {
          astAnnul( moc );
       }
    }
+
+   checkEmptyBounds( status );
+   checkPinsMask( status );
 
    astEnd;
    astFlushMemory( 1 );

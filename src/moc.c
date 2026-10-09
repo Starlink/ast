@@ -176,6 +176,13 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        astAddMocText: test the character count before dereferencing the
 *        pointer, so that text which is not null terminated is not read
 *        past its end.
+*     9-OCT-2026 (TIMJ):
+*        RegBaseBox: an empty Moc or one of the whole sky, whose mesh
+*        is a single bad point, gets the box of an empty Region or of
+*        the whole sky. Normalising the bad RA looped forever.
+*        RegPins: flag each point in the mask at its own index. The
+*        points are taken in order of Dec, and the mask was filled in
+*        that order, so its flags were against the wrong points.
 *class--
 */
 
@@ -7268,8 +7275,24 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd,
    now. */
    if( this->lbnd[ 0 ] == AST__BAD ) {
 
-/* Get a mesh of points over the boundary of the MOC, in ICRS (the base
-   Frame). */
+/* An empty Moc, or one of the whole sky, has no boundary, and its mesh is
+   a single bad point. Give an empty Moc the box NullRegion gives (upper
+   bounds below lower bounds), and a Moc of the whole sky the whole sky. */
+     if( this->nrange == 0 ) {
+        this->lbnd[ 0 ] = 1.0;
+        this->lbnd[ 1 ] = 1.0;
+        this->ubnd[ 0 ] = -1.0;
+        this->ubnd[ 1 ] = -1.0;
+     } else if( this->range[ 0 ] == 0 &&
+                this->range[ 1 ] == 12*( ONE << 2*astGetMaxOrder( this ) ) - 1 ) {
+        this->lbnd[ 0 ] = 0.0;
+        this->lbnd[ 1 ] = -AST__DPIBY2;
+        this->ubnd[ 0 ] = 2*AST__DPI;
+        this->ubnd[ 1 ] = AST__DPIBY2;
+
+/* Otherwise, get a mesh of points over the boundary of the MOC, in ICRS
+   (the base Frame). */
+     } else {
      ps = astRegBaseMesh( this );
      ptr = astGetPoints( ps );
      np = astGetNpoint( ps );
@@ -7320,6 +7343,7 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd,
 
 /* Free resources */
       ps = astAnnul( ps );
+     }
    }
 
 /* Return the bounds. */
@@ -8298,7 +8322,6 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
    double ubnd_unc[ 2 ];
    int *index;
    int *pi;
-   int *pm;
    int imesh2;
    int imesh;
    int ipin;
@@ -8399,9 +8422,8 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
       result = 1;
 
 /* Now loop through the sorted pins. */
-      pm = mask ? *mask : NULL;
       pi = index;
-      for( ipin = 0; ipin < len_pins; ipin++,pi++,pm++ ) {
+      for( ipin = 0; ipin < len_pins; ipin++,pi++ ) {
          ra_pin = ptr_pins[ 0 ][ *pi ];
          dec_pin = ptr_pins[ 1 ][ *pi ];
 
@@ -8458,9 +8480,11 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
          }
 
 /* If a suitable mesh point was found and a mask is being created, flag
-   that the pin is on the boundary and continue to check further pins. */
+   that the pin is on the boundary and continue to check further pins.
+   The pins are taken in sorted order, so the flag goes at the pin's own
+   index. */
          if( on ) {
-            if( mask ) *pm = 1;
+            if( mask ) (*mask)[ *pi ] = 1;
 
 /* If no suitable mesh point was found, the current pin does not fall on
    the boundary but later ones may do. We can break out of the pin loop
