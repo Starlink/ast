@@ -1423,6 +1423,15 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        alternate ones.  Together these stop a FrameSet whose celestial
 *        axes cannot be described this way from being written out as a
 *        header of SIP coefficients with no CTYPE or CRPIX cards.
+*     10-OCT-2026 (TIMJ):
+*        In CnvType, select the string conversions when the stored value is
+*        a CONTINUE string, rather than when the requested type is one, so
+*        that astGetFitsS can read a CONTINUE card (it reported an internal
+*        error) and astGetFitsCN of a numerical value formats the number
+*        (it read the number's bytes as a string).  Also require two values
+*        from the "%lf %lf" and "%d %d" reads of a string converted to a
+*        complex value, so that a string holding both parts is read rather
+*        than always failing over to the one-value form, which rejected it.
 *class--
 */
 
@@ -7698,7 +7707,7 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
          }
 
 /* Convert a AST__STRING data value to ... */
-      } else if( otype == AST__STRING || type == AST__CONTINUE ){
+      } else if( otype == AST__STRING || otype == AST__CONTINUE ){
          ostring = (char *) odata;
          len = (int) strlen( ostring );
          if( type == AST__FLOAT ){
@@ -7746,7 +7755,7 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             }
          } else if( type == AST__COMPLEXF ){
             if( nc = 0,
-                     ( 1 != astSscanf( ostring, "%lf %lf %n", (double *) buff,
+                     ( 2 != astSscanf( ostring, "%lf %lf %n", (double *) buff,
                                     (double *) buff + 1, &nc ) )
                   || (nc < len ) ){
                if( nc = 0,
@@ -7760,7 +7769,7 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
             }
          } else if( type == AST__COMPLEXI ){
             if( nc = 0,
-                    ( 1 != astSscanf( ostring, "%d %d %n", (int *) buff,
+                    ( 2 != astSscanf( ostring, "%d %d %n", (int *) buff,
                                    (int *) buff + 1, &nc ) )
                    || (nc < len ) ){
                if( nc = 0,
