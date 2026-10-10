@@ -84,6 +84,9 @@ f     The MocChan class does not define any new routines beyond those
 *        Dump and astLoadMocChan: index the MocEnc names by format, so
 *        that a STRING MocFormat is dumped as "STRING" and a JSON one as
 *        "JSON". They were swapped, in the dump and again on loading.
+*        astLoadMocChan: apply MocLineLen through its setter, as every
+*        other attribute is, so that a negative value read from a dump
+*        becomes zero rather than a huge buffer length.
 *class--
 */
 
@@ -2059,6 +2062,8 @@ AstMocChan *astLoadMocChan_( void *mem, size_t size,
 /* MocLineLen */
 /* --------- */
       new->moclinelen = astReadInt( channel, "moclln", -INT_MAX );
+      if ( TestMocLineLen( new, status ) ) SetMocLineLen( new,
+                                                      new->moclinelen, status );
    }
 
 /* If an error occurred, clean up by deleting the new MocChan. */

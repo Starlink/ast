@@ -75,6 +75,24 @@ static void checkDumpFormat( const char *format, int *status ) {
       stopit( "Error dump 2", status );
 }
 
+/* A MocChan read from a dump holding a negative MocLLn has a MocLineLen
+   of zero, as setting a negative value gives. */
+static void checkLoadNegativeLineLen( int *status ) {
+   AstChannel *dch;
+   AstObject *obj;
+
+   if( *status != 0 ) return;
+   strcpy( dump[ 0 ], " Begin MocChan" );
+   strcpy( dump[ 1 ], "    MocLLn = -3" );
+   strcpy( dump[ 2 ], " End MocChan" );
+   ndump = 3;
+   dch = astChannel( dumpsource, NULL, " " );
+   iline = 0;
+   obj = astRead( dch );
+   if( !obj || astGetI( obj, "MocLineLen" ) != 0 )
+      stopit( "Error load 1", status );
+}
+
 /* A MocLineLen of zero, which any negative value becomes, is too short
    for any value and is reported rather than crashing. */
 static void checkZeroLineLen( int *status ) {
@@ -214,6 +232,7 @@ int main( void ) {
    checkDumpFormat( "STRING", status );
    checkDumpFormat( "JSON", status );
    checkZeroLineLen( status );
+   checkLoadNegativeLineLen( status );
 
    astEnd;
 
