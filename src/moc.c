@@ -208,6 +208,12 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        AddMocData: report a NUNIQ value below 4, which encodes no
 *        cell, before using any value, rather than shift by 32 or 64
 *        bits and add a cell that is not there.
+*        astAddMocText: check a string MOC order before narrowing it to
+*        an int, report a value too large for an int64_t, report an NPIX
+*        value beyond the cells at its order, and add no ranges once an
+*        error has been reported. Each range was counted before room was
+*        made for it, so a MOC that failed to parse left the Moc counting
+*        a range it did not hold.
 *class--
 */
 
@@ -246,6 +252,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 
 /* A 64 bit literal integer value of 1 */
 #define ONE INT64_C(1)
+
+/* The largest value that can have another decimal digit appended without
+   overflowing an int64_t. */
+#define MXVALUE ( ( INT64_MAX - 9 )/10 )
 
 /* Absolute value (e.g. for path distance). */
 #define ABS(x) ( ((x) < 0) ? - (x) : (x) )
@@ -1415,6 +1425,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   first = 0;
 
                   if( isdigit( *pt ) ){
+                     if( npix > MXVALUE ) {
+                        astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                                  status, method, astGetClass( this ), text );
+                        astError( AST__INMOC, "Value too large at '%.15s'.",
+                                  status, pt );
+                        break;
+                     }
                      npix = ( *pt - '0' ) + 10*npix;
                   } else if( isspace( *pt ) ) {
                      state = 7;
@@ -1518,6 +1535,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
 
 /* digit - update the order or npix value recorded in "npix". */
                   if( isdigit( *pt ) ) {
+                     if( npix > MXVALUE ) {
+                        astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                                  status, method, astGetClass( this ), text );
+                        astError( AST__INMOC, "Value too large at '%.15s'.",
+                                  status, pt );
+                        break;
+                     }
                      npix = ( *pt - '0' ) + 10*npix;
 
 /* space or comma - the value previously recorded is an npix value,
@@ -1565,14 +1589,14 @@ void astAddMocText_( AstMoc *this, int maxorder,
 /* slash - the value previously recorded is an order value. Update the
    maximum order and then look for the start of the next numerical value. */
                   } else if( *pt == '/' ) {
-                     order = npix;
-                     if( order > AST__MXORDHPX ){
+                     if( npix > AST__MXORDHPX ){
                         astError( AST__INMOC, "%s(%s): Error reading string MOC: '%.30s...'",
                                   status, method, astGetClass( this ), text );
-                        astError( AST__INMOC, "Invalid MOC order %d encountrered.",
-                                  status, order );
+                        astError( AST__INMOC, "Invalid MOC order %" PRId64
+                                  " encountrered.", status, npix );
                         break;
                      }
+                     order = npix;
                      if( order > mxord ) mxord = order;
                      state = 1;
 
@@ -1668,6 +1692,23 @@ void astAddMocText_( AstMoc *this, int maxorder,
             }
          }
 
+/* Check every NPIX value is a cell at its order, of which there are
+   12*4^order, before the Moc is changed. */
+         for( order = 0; order <= AST__MXORDHPX && astOK; order++ ) {
+            for( ipix = 0; ipix < orders[ order ].nval; ipix++ ) {
+               if( orders[ order ].values[ ipix ] >=
+                   (size_t) ( 12*( ONE << ( 2*order ) ) ) ) {
+                  astError( AST__INMOC, "%s(%s): Invalid NPIX value (%zu) "
+                            "for order %d in the supplied MOC - there are "
+                            "%" PRId64 " cells at that order.", status,
+                            method, astGetClass( this ),
+                            orders[ order ].values[ ipix ], order,
+                            12*( ONE << ( 2*order ) ) );
+                  break;
+               }
+            }
+         }
+
 /* If the MaxOrder attribute is set in the Moc, use it in preference to
    the value supplied for parameter "maxorder". */
          if( astTestMaxOrder( this ) ) {
@@ -1708,9 +1749,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   ihigh = ( *values >> -shift );
                }
 
-               irange = this->nrange++;
-               this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
+/* Count the new range only once there is room for it, and add none if
+   the text could not be read, so that the Moc is left as it was. */
+               if( !astOK ) break;
+               irange = this->nrange;
+               this->range = astGrow( this->range, irange + 1, 2*sizeof(*(this->range)) );
                if( astOK ) {
+                  this->nrange++;
                   pr = this->range + 2*irange;
                   pr[ 0 ] = ilow;
                   pr[ 1 ] = ihigh;
