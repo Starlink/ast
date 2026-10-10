@@ -214,6 +214,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        error has been reported. Each range was counted before room was
 *        made for it, so a MOC that failed to parse left the Moc counting
 *        a range it did not hold.
+*        astGetMocText: report a buffer length of zero as too small,
+*        rather than search for a space or comma from the byte before
+*        the start of a null buffer, which crashed.
 *class--
 */
 
@@ -5009,18 +5012,19 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
 /* If the end of the buffer was reached before the whole token had been \
    copied, find the last space or comma in the buffer. */ \
    if( nleft == 0 && mc > 0 ) { \
-      pc = pwrite - 1; \
-      while( pc >= buf && *pc != ' ' && *pc != ',' ) pc--; \
+      pc = pwrite; \
+      while( pc > buf && pc[ -1 ] != ' ' && pc[ -1 ] != ',' ) pc--; \
 \
-/* Write out the buffer up to and including the final space or comma. */ \
-      if( pc >= buf ) { \
-         STRING_WRITE( pc - buf + 1 ); \
+/* Write out the buffer up to and including the final space or comma, \
+   which is the character before "pc". */ \
+      if( pc > buf ) { \
+         STRING_WRITE( pc - buf ); \
 \
 /* Copy any remaining characters following the comma or space to the  \
    start of the buffer. */ \
-         nleft = pc - buf + 1; \
+         nleft = pc - buf; \
          pwrite = buf  + buflen - nleft; \
-         memcpy( buf, pc + 1, pwrite - buf ); \
+         memcpy( buf, pc, pwrite - buf ); \
 \
 /* Append the remaining part of the token to the buffer. */ \
          while( nleft > 0 && mc > 0 ) { \
