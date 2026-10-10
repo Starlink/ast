@@ -1408,6 +1408,44 @@ static void testgrismorder( int errbase, double morder, int *status ) {
 /* -----------------------------------------------------------------------
  * main
  * -----------------------------------------------------------------------*/
+/* astGetFits<X> converts between the stored and requested types: a
+   CONTINUE card read as a string, a number read as a CONTINUE string, and
+   a string holding both parts of a complex value. */
+static void testcnvtype( int *status ) {
+   AstFitsChan *fc;
+   char *sval;
+   double cf[ 2 ];
+   int ci[ 2 ];
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, " " );
+   astPutFits( fc, "CONTINUE  'more'", 0 );
+   astSetFitsI( fc, "IVAL", 5, NULL, 0 );
+   astSetFitsS( fc, "CSTR", "1.5 2.5", NULL, 0 );
+   astSetFitsS( fc, "ISTR", "3 4", NULL, 0 );
+
+   astClear( fc, "Card" );
+   if( !astGetFitsS( fc, "CONTINUE", &sval ) || strcmp( sval, "more" ) ) {
+      stopit( 1001, "astGetFitsS should read a CONTINUE card", status );
+   }
+   if( astOK && ( !astGetFitsCN( fc, "IVAL", &sval ) || strcmp( sval, "5" ) ) ) {
+      stopit( 1002, "astGetFitsCN of an integer should give its digits", status );
+   }
+   if( astOK && ( !astGetFitsCF( fc, "CSTR", cf ) || cf[ 0 ] != 1.5 ||
+                  cf[ 1 ] != 2.5 ) ) {
+      stopit( 1003, "astGetFitsCF should read both parts of '1.5 2.5'", status );
+   }
+   if( astOK && ( !astGetFitsCI( fc, "ISTR", ci ) || ci[ 0 ] != 3 ||
+                  ci[ 1 ] != 4 ) ) {
+      stopit( 1004, "astGetFitsCI should read both parts of '3 4'", status );
+   }
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1001, "astGetFits<X> conversion raised an error", status );
+   }
+   fc = astAnnul( fc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1435,6 +1473,7 @@ int main( void ) {
       read/write round trip. The positive case is a control: it confirms
       the chosen grating parameters are physically usable, so a failure in
       the negative cases cannot be blamed on the parameter choice. */
+   testcnvtype( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
