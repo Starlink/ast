@@ -246,15 +246,18 @@ static void checkOversampleNegate( int *status ) {
    circle = astAnnul( circle );
 }
 
-/* Malformed string MOCs are reported: one with no order, at the end of
-   the text or before more of it, and one whose final range ends before it
-   starts. */
+/* Malformed MOC text is reported: a string MOC with no order, at the end
+   of the text or before more of it; one whose final range ends before it
+   starts; an order that is too large only once narrowed to an int; an
+   NPIX value beyond the cells at its order, in either serialisation; and
+   a value too large for an int64_t, which would wrap to a valid one. */
 static void checkMocStringErrors( int *status ) {
-   const char *bad[] = { "5", "5 6", "3/10-5" };
+   const char *bad[] = { "5", "5 6", "3/10-5", "4294967301/1", "0/12",
+                         "{\"0\":[12]}", "3/18446744073709551621" };
    AstMoc *moc;
    int i, json;
 
-   for( i = 0; i < 3 && *status == 0; i++ ) {
+   for( i = 0; i < 7 && *status == 0; i++ ) {
       moc = astMoc( " " );
       astAddMocString( moc, AST__OR, 0, -1, strlen( bad[ i ] ), bad[ i ],
                        &json );
@@ -265,6 +268,29 @@ static void checkMocStringErrors( int *status ) {
       }
       moc = astAnnul( moc );
    }
+}
+
+/* MOC text that cannot be read leaves the Moc as it was. */
+static void checkParseErrorLeavesMoc( int *status ) {
+   const char *text = "{\"1\":[3]";
+   AstMoc *moc, *before;
+   int json;
+
+   if( *status != 0 ) return;
+   moc = astMoc( "MaxOrder=3" );
+   astAddCell( moc, AST__OR, 2, 7 );
+   before = astCopy( moc );
+   astAddMocString( moc, AST__OR, 0, -1, strlen( text ), text, &json );
+   if( astStatus == AST__INMOC ) {
+      astClearStatus;
+   } else {
+      stopit( "checkParseErrorLeavesMoc: no AST__INMOC error", status );
+   }
+   if( astOK && !astEqual( moc, before ) ) {
+      stopit( "checkParseErrorLeavesMoc: the Moc changed", status );
+   }
+   moc = astAnnul( moc );
+   before = astAnnul( before );
 }
 
 /* An empty Moc with no MaxOrder is written as an empty JSON object, which
@@ -588,6 +614,7 @@ int main( void ) {
    checkOversampleNegate( status );
    checkMocStringErrors( status );
    checkEmptyJson( status );
+   checkParseErrorLeavesMoc( status );
    checkBadNuniq( status );
 
    astEnd;
