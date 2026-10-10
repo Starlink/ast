@@ -9,6 +9,7 @@ static void checkdump( void *obj, const char *text, int *status );
 static int hasframeset( void *reg, int *status );
 static void checkConvex( int *status );
 static void checkRemoveRegions( int *status );
+static void checkSelectorMapEqual( int *status );
 static void checkInterval( int *status );
 static void checkEllipse( int *status );
 static void checkPrism( int *status );
@@ -20,10 +21,22 @@ static void generalChecks( int *status );
 static void checkCmpRegion( int *status );
 static void checkPointList( int *status );
 static void checkPolygonMaskLargeLobe( int *status );
+static void checkPrismOverlapFallback( int *status );
+static void checkNonAdaptiveSettingCase( int *status );
+static void checkPointListMaskOutside( int *status );
+static void checkBoxTransformAfterBounds( int *status );
+static void checkSinglePointBoxMesh( int *status );
 static void checkBoxPermMapSlices( int *status );
 static void checkEllipseAxisRules( int *status );
+static void checkIntervalCentreFrame( int *status );
+static void checkNullRegionDefUnc( int *status );
+static void checkAdaptiveDump( int *status );
+static void checkLoadedUncFrame( int *status );
+static void checkCmpRegionListXor( int *status );
 static void checkIntervalPointListMerge( int *status );
 static void checkDefaultUncAtOrigin( int *status );
+static void checkStcNegated( int *status );
+static void checkStcObsDump( int *status );
 static void sink1( const char *line );
 
 int main(void) {
@@ -36,6 +49,7 @@ int main(void) {
    astBegin;
    checkConvex( status );
    checkRemoveRegions( status );
+   checkSelectorMapEqual( status );
    checkInterval( status );
    checkEllipse( status );
    checkPrism( status );
@@ -47,10 +61,22 @@ int main(void) {
    checkCmpRegion( status );
    checkPointList( status );
    checkPolygonMaskLargeLobe( status );
+   checkPrismOverlapFallback( status );
+   checkNonAdaptiveSettingCase( status );
+   checkPointListMaskOutside( status );
+   checkBoxTransformAfterBounds( status );
+   checkSinglePointBoxMesh( status );
    checkBoxPermMapSlices( status );
    checkEllipseAxisRules( status );
+   checkIntervalCentreFrame( status );
+   checkNullRegionDefUnc( status );
+   checkAdaptiveDump( status );
+   checkLoadedUncFrame( status );
+   checkCmpRegionListXor( status );
    checkIntervalPointListMerge( status );
    checkDefaultUncAtOrigin( status );
+   checkStcNegated( status );
+   checkStcObsDump( status );
    astEnd;
    // astActivememory( "testregions" )
    // astFlushmemory( 1 );
@@ -1570,6 +1596,189 @@ static void checkEllipseAxisRules( int *status ) {
    }
 }
 
+/* The protected astRegCentre gives the centre of a Region in the Frame its
+   "ifrm" argument asks for. Prism asks its components for their centres in
+   their current Frames, and SetUnc asks the uncertainty for its own. An
+   Interval mapped through a ZoomMap of 2 without simplification keeps its
+   base Frame limits of 1 and 3 and so has a base Frame centre of 2 and a
+   current Frame centre of 4. The Interval used to report its base Frame
+   centre whatever was asked. A Circle mapped the same way is the control. */
+extern void *astMapRegion_( void *, void *, void *, int * );
+extern double *astRegCentre_( void *, double *, double **, int, int, int * );
+extern AstObject *astMakeId_( AstObject *, int * );
+extern void *astGetUncFrm_( void *, int, int * );
+extern int astCmpRegionList_( void *, int *, void ***, int * );
+
+static void checkIntervalCentreFrame( int *status ) {
+   AstRegion *reg[ 2 ];
+   double lbnd[ 1 ] = { 1.0 }, ubnd[ 1 ] = { 3.0 }, centre[ 1 ] = { 2.0 };
+   double radius = 1.0;
+   double *base, *current;
+   void *mapped;
+   int i;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   reg[ 0 ] = (AstRegion *) astInterval( astFrame( 1, " " ), lbnd, ubnd, NULL, " " );
+   reg[ 1 ] = (AstRegion *) astCircle( astFrame( 1, " " ), 1, centre, &radius,
+                                      NULL, " " );
+   for( i = 0; i < 2 && astOK; i++ ) {
+      mapped = astMapRegion_( astMakePointer( reg[ i ] ),
+                              astMakePointer( astZoomMap( 1, 2.0, " " ) ),
+                              astMakePointer( astFrame( 1, " " ) ), status );
+      base = astRegCentre_( mapped, NULL, NULL, 0, AST__BASE, status );
+      current = astRegCentre_( mapped, NULL, NULL, 0, AST__CURRENT, status );
+      if( astOK ) {
+         if( base[ 0 ] != 2.0 ) {
+            printf( "checkIntervalCentreFrame: region %d base Frame centre "
+                    "%g, expected 2\n", i, base[ 0 ] );
+            stopit( status, "checkIntervalCentreFrame: wrong base Frame centre" );
+         } else if( current[ 0 ] != 4.0 ) {
+            printf( "checkIntervalCentreFrame: region %d current Frame centre "
+                    "%g, expected 4\n", i, current[ 0 ] );
+            stopit( status, "checkIntervalCentreFrame: wrong current Frame centre" );
+         }
+      }
+      base = astFree( base );
+      current = astFree( current );
+      (void) astMakeId_( (AstObject *) mapped, status );
+   }
+
+   astEnd;
+}
+
+/* The default uncertainty of a NullRegion is a zero-radius Circle in its
+   base Frame, which astGetUnc maps into the current Frame. A NullRegion
+   mapped from a 2-D Frame into a 3-D Frame by a PermMap without
+   simplification used to build the Circle in its 3-D current Frame, so
+   mapping it on through the 2-input PermMap failed. */
+static void checkNullRegionDefUnc( int *status ) {
+   AstObject *mapped;
+   AstRegion *nr, *unc;
+   double con[ 1 ] = { 5.0 };
+   int inperm[ 2 ] = { 1, 2 }, outperm[ 3 ] = { 1, 2, -1 };
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   nr = (AstRegion *) astNullRegion( astFrame( 2, " " ), NULL, " " );
+   mapped = astMakeId_( astMapRegion_( astMakePointer( nr ),
+                        astMakePointer( astPermMap( 2, inperm, 3, outperm, con, " " ) ),
+                        astMakePointer( astFrame( 3, " " ) ), status ), status );
+   unc = astGetUnc( mapped, 1 );
+   if( !astOK ) {
+      stopit( status, "checkNullRegionDefUnc: astGetUnc failed" );
+   } else if( !astIsACircle( unc ) || astGetI( unc, "Naxes" ) != 3 ) {
+      stopit( status, "checkNullRegionDefUnc: wrong default uncertainty" );
+   }
+
+   astEnd;
+}
+
+/* A Region whose Adaptive attribute has been set to zero keeps it through
+   a dump and restore. The dump used to write Adapt as set only when it was
+   non-zero, so the restored Region was Adaptive. */
+static void checkAdaptiveDump( int *status ) {
+   AstObject *restored;
+   AstRegion *box;
+   char *text;
+   double lo[ 2 ] = { 0.0, 0.0 }, hi[ 2 ] = { 1.0, 1.0 };
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   box = (AstRegion *) astBox( astFrame( 2, " " ), 1, lo, hi, NULL, "Adaptive=0" );
+   text = astToString( box );
+   restored = astFromString( text );
+   text = astFree( text );
+   if( !astOK ) {
+      stopit( status, "checkAdaptiveDump: dump and restore failed" );
+   } else if( astGetI( restored, "Adaptive" ) != 0 ) {
+      stopit( status, "checkAdaptiveDump: Adaptive=0 lost in the dump" );
+   } else if( !astTest( restored, "Adaptive" ) ) {
+      stopit( status, "checkAdaptiveDump: restored Adaptive is not set" );
+   }
+
+   astEnd;
+}
+
+/* An uncertainty set on a Region whose current Frame differs from its base
+   Frame is dumped without a Frame, as its Frame is the Region's base Frame.
+   Reading the dump back used to leave it with the dummy Frame it was read
+   with, so its Domain was lost. */
+static void checkLoadedUncFrame( int *status ) {
+   AstObject *mapped, *restored, *uncfrm;
+   AstRegion *circle, *unc;
+   char *text;
+   double centre[ 2 ] = { 1.0, 0.5 }, radius = 0.1, uradius = 0.001;
+   void *uncptr;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   unc = (AstRegion *) astCircle( astFrame( 2, "Domain=FOO" ), 1, centre, &uradius,
+                                  NULL, " " );
+   circle = (AstRegion *) astCircle( astFrame( 2, "Domain=FOO" ), 1, centre, &radius,
+                                     NULL, " " );
+   mapped = astMakeId_( astMapRegion_( astMakePointer( circle ),
+                        astMakePointer( astZoomMap( 2, 2.0, " " ) ),
+                        astMakePointer( astFrame( 2, "Domain=BAR" ) ), status ),
+                        status );
+   astSetUnc( mapped, unc );
+   text = astToString( mapped );
+   restored = astFromString( text );
+   text = astFree( text );
+   uncptr = astGetUncFrm_( astMakePointer( restored ), AST__BASE, status );
+   uncfrm = (AstObject *) astGetRegionFrame( astMakeId_( uncptr, status ) );
+   if( !astOK ) {
+      stopit( status, "checkLoadedUncFrame: dump and restore failed" );
+   } else if( strcmp( astGetC( uncfrm, "Domain" ), "FOO" ) ) {
+      printf( "checkLoadedUncFrame: uncertainty Domain '%s', expected 'FOO'\n",
+              astGetC( uncfrm, "Domain" ) );
+      stopit( status, "checkLoadedUncFrame: uncertainty lost its Frame" );
+   }
+
+   astEnd;
+}
+
+/* The protected astCmpRegionList lists the Regions a CmpRegion combines
+   with one operator, descending into component CmpRegions that use the
+   same operator. A CmpRegion equivalent to an XOR is stored as an OR, and
+   "A OR (B XOR C)" used to be listed as "A OR B OR C". It must be listed as
+   A and the XOR CmpRegion. */
+static void checkCmpRegionListXor( int *status ) {
+   AstRegion *reg[ 3 ];
+   AstCmpRegion *bxorc, *cr;
+   double centre[ 2 ], radius = 1.0;
+   void **list = NULL;
+   int i, n = 0, oper;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   for( i = 0; i < 3; i++ ) {
+      centre[ 0 ] = 3.0*i;
+      centre[ 1 ] = 0.0;
+      reg[ i ] = (AstRegion *) astCircle( astFrame( 2, " " ), 1, centre, &radius,
+                                          NULL, " " );
+   }
+   bxorc = astCmpRegion( reg[ 1 ], reg[ 2 ], AST__XOR, " " );
+   cr = astCmpRegion( reg[ 0 ], bxorc, AST__OR, " " );
+   oper = astCmpRegionList_( astMakePointer( cr ), &n, &list, status );
+   if( !astOK ) {
+      stopit( status, "checkCmpRegionListXor: astCmpRegionList failed" );
+   } else if( oper != AST__OR || n != 2 ) {
+      printf( "checkCmpRegionListXor: operator %d with %d Regions, expected "
+              "%d with 2\n", oper, n, AST__OR );
+      stopit( status, "checkCmpRegionListXor: XOR component merged into OR list" );
+   }
+   for( i = 0; i < n; i++ ) (void) astMakeId_( list[ i ], status );
+   list = astFree( list );
+
+   astEnd;
+}
+
 /* Simplifying a Box whose base-to-current Mapping is a PermMap that feeds
    more than one base axis a constant.  Each such axis is a plane the slice
    has to lie in, so the Region is a NullRegion unless every constant falls
@@ -2793,8 +3002,42 @@ static void checkRemoveRegions( int *status ) {
    } else if( fabs( xout[(2)-1] - ixin[(2)-1] )  >  1.0E-10  ||            fabs( yout[(2)-1] - iyin[(2)-1] )  >  1.0E-10 ) {
    stopit( status, "RemoveRegions test 9 failed" );
 }
+
+   /* A TranMap of two Regions becomes a UnitMap with the TranMap's own
+      number of axes. */
+   map = astRemoveRegions( astTranMap( reg, reg, " " ) );
+   if( !astIsAUnitMap( map ) ) {
+      stopit( status, "RemoveRegions test 10 failed" );
+   } else if( astGetI( map, "Nin" ) != 2 ) {
+      stopit( status, "RemoveRegions test 11 failed" );
+   }
    astEnd;
 }
+/* SelectorMaps are equal only when they hold the same number of equal
+   Regions and the same bad value: one holding only the first of
+   another's Regions is not equal to it, whatever their bad values. */
+static void checkSelectorMapEqual( int *status ) {
+   AstFrame *frm;
+   AstRegion *regs[ 2 ];
+   AstSelectorMap *one, *two;
+   double c1[] = { 0.0, 0.0 }, c2[] = { 5.0, 5.0 }, r[] = { 1.0 };
+   if( *status != 0 ) return;
+   astBegin;
+   frm = astFrame( 2, " " );
+   regs[ 0 ] = (AstRegion *) astCircle( frm, 1, c1, r, NULL, " " );
+   regs[ 1 ] = (AstRegion *) astCircle( frm, 1, c2, r, NULL, " " );
+   one = astSelectorMap( 1, (void **) regs, AST__BAD, " " );
+   two = astSelectorMap( 2, (void **) regs, AST__BAD, " " );
+   if( astEqual( one, two ) ) {
+      stopit( status, "SelectorMap Equal test 1 failed" );
+   } else if( astEqual( two, one ) ) {
+      stopit( status, "SelectorMap Equal test 2 failed" );
+   } else if( !astEqual( two, astCopy( two ) ) ) {
+      stopit( status, "SelectorMap Equal test 3 failed" );
+   }
+   astEnd;
+}
+
 static void checkConvex( int *status ) {
    int nx = 8;
    int ny = 7;
@@ -2835,6 +3078,132 @@ static void checkConvex( int *status ) {
    if( points[(2)-1][(6)-1]  !=   5) stopit( status, "Convex 13" );
    if( points[(1)-1][(7)-1]  !=   -5) stopit( status, "Convex 14" );
    if( points[(2)-1][(7)-1]  !=   3) stopit( status, "Convex 15" );
+   astEnd;
+}
+
+/* A Prism inside a Region whose axes cannot be split into the Prism's
+   components is compared by the inherited OverlapX, which must still
+   report the Prism as the first Region: astOverlap(prism, box) is 2. */
+static void checkPrismOverlapFallback( int *status ) {
+   AstFrame *f1, *f2, *f3;
+   AstMapping *rot;
+   AstRegion *box, *circle, *interval, *prism, *rbox;
+   double a = 0.5, c[] = { 0.0, 0.0 }, r = 1.0;
+   double lbnd[] = { -5.0, -5.0, -5.0 }, ubnd[] = { 5.0, 5.0, 5.0 };
+   double zl[] = { 0.0 }, zu[] = { 1.0 };
+   double m[ 9 ];
+
+   if( *status != 0 ) return;
+   astBegin;
+   m[ 0 ] = cos( a ); m[ 1 ] = 0.0; m[ 2 ] = -sin( a );
+   m[ 3 ] = 0.0;      m[ 4 ] = 1.0; m[ 5 ] = 0.0;
+   m[ 6 ] = sin( a ); m[ 7 ] = 0.0; m[ 8 ] = cos( a );
+   f1 = astFrame( 1, " " );
+   f2 = astFrame( 2, " " );
+   f3 = astFrame( 3, " " );
+   circle = (AstRegion *) astCircle( f2, 1, c, &r, NULL, " " );
+   interval = (AstRegion *) astInterval( f1, zl, zu, NULL, " " );
+   prism = (AstRegion *) astPrism( circle, interval, " " );
+   box = (AstRegion *) astBox( f3, 1, lbnd, ubnd, NULL, " " );
+   rot = (AstMapping *) astMatrixMap( 3, 3, 0, m, " " );
+   rbox = astMapRegion( box, rot, f3 );
+   if( astOverlap( prism, rbox ) != 2 ) stopit( status, "Prism overlap fallback 1" );
+   if( astOverlap( rbox, prism ) != 3 ) stopit( status, "Prism overlap fallback 2" );
+   astEnd;
+}
+
+/* A string attribute set on a Region that is not Adaptive keeps its case,
+   in the current and base Frames. */
+static void checkNonAdaptiveSettingCase( int *status ) {
+   AstFrame *bfrm;
+   AstFrameSet *fs;
+   AstRegion *box;
+   double lbnd[] = { 0.0, 0.0 }, ubnd[] = { 1.0, 1.0 };
+   const char *text;
+
+   if( *status != 0 ) return;
+   astBegin;
+   box = (AstRegion *) astBox( astFrame( 2, " " ), 1, lbnd, ubnd, NULL, " " );
+   astSetI( box, "Adaptive", 0 );
+   astSetC( box, "Label(1)", "Mixed Case" );
+   text = astGetC( box, "Label(1)" );
+   if( !text || strcmp( text, "Mixed Case" ) ) stopit( status, "Non-adaptive setting case 1" );
+   fs = astGetRegionFrameSet( box );
+   bfrm = astGetFrame( fs, AST__BASE );
+   text = astGetC( bfrm, "Label(1)" );
+   if( !text || strcmp( text, "Mixed Case" ) ) stopit( status, "Non-adaptive setting case 2" );
+   astEnd;
+}
+
+/* A PointList point whose pixel lies outside the array given to astMask is
+   ignored: nothing beyond the array changes, and only the points inside it
+   are counted. */
+static void checkPointListMaskOutside( int *status ) {
+   AstPointList *pl;
+   AstDim lbnd[] = { 1, 1 }, ubnd[] = { 3, 3 };
+   double pts[] = { 2.0, 10.0, 2.0, 10.0 };
+   double buf[ 60 ];
+   AstDim n;
+   int i, nset;
+
+   if( *status != 0 ) return;
+   astBegin;
+   pl = astPointList( astFrame( 2, " " ), 2, 2, 2, pts, NULL, " " );
+
+   for( i = 0; i < 60; i++ ) buf[ i ] = 7.0;
+   n = astMask8D( pl, NULL, 1, 2, lbnd, ubnd, buf, -1.0 );
+   if( n != 1 || buf[ 4 ] != -1.0 ) stopit( status, "PointList mask outside 1" );
+   for( i = 9; i < 60; i++ ) {
+      if( buf[ i ] != 7.0 ) stopit( status, "PointList mask outside 2" );
+   }
+
+   for( i = 0; i < 60; i++ ) buf[ i ] = 7.0;
+   n = astMask8D( pl, NULL, 0, 2, lbnd, ubnd, buf, -1.0 );
+   nset = 0;
+   for( i = 0; i < 9; i++ ) if( buf[ i ] == -1.0 ) nset++;
+   if( n != 8 || nset != 8 || buf[ 4 ] != 7.0 ) stopit( status, "PointList mask outside 3" );
+   for( i = 9; i < 60; i++ ) {
+      if( buf[ i ] != 7.0 ) stopit( status, "PointList mask outside 4" );
+   }
+   astEnd;
+}
+
+/* A point just off a zero-width Box axis, within the uncertainty, is inside
+   the Box whether or not the Box's bounding box was found first, and the
+   bounding box does not take the uncertainty's width. */
+static void checkBoxTransformAfterBounds( int *status ) {
+   AstRegion *a, *b;
+   double l[] = { 1.0, 5.0 }, u[] = { 2.0, 5.0 }, lb[ 2 ], ub[ 2 ];
+   double x = 1.5, y = 5.0 + 1.0E-6, xo, yo;
+
+   if( *status != 0 ) return;
+   astBegin;
+   a = (AstRegion *) astBox( astFrame( 2, " " ), 1, l, u, NULL, " " );
+   astTran2( a, 1, &x, &y, 1, &xo, &yo );
+   if( xo == AST__BAD ) stopit( status, "Box transform after bounds 1" );
+   astGetRegionBounds( a, lb, ub );
+   if( lb[ 1 ] != 5.0 || ub[ 1 ] != 5.0 ) stopit( status, "Box transform after bounds 2" );
+
+   b = (AstRegion *) astBox( astFrame( 2, " " ), 1, l, u, NULL, " " );
+   astGetRegionBounds( b, lb, ub );
+   astTran2( b, 1, &x, &y, 1, &xo, &yo );
+   if( xo == AST__BAD ) stopit( status, "Box transform after bounds 3" );
+   astEnd;
+}
+
+/* The boundary mesh of a Box occupying a single point is that point. */
+static void checkSinglePointBoxMesh( int *status ) {
+   AstRegion *box;
+   double l[] = { 1.0, 3.0 }, u[] = { 1.0, 3.0 }, mesh[ 20 ];
+   int npoint;
+
+   if( *status != 0 ) return;
+   astBegin;
+   box = (AstRegion *) astBox( astFrame( 2, " " ), 1, l, u, NULL, " " );
+   astGetRegionMesh( box, 1, 10, 2, &npoint, mesh );
+   if( npoint != 1 || mesh[ 0 ] != 1.0 || mesh[ 10 ] != 3.0 ) {
+      stopit( status, "Single point Box mesh" );
+   }
    astEnd;
 }
 
@@ -2928,6 +3297,82 @@ static void checkPolygonMaskLargeLobe( int *status ) {
       }
    }
    data = astFree( data );
+
+   astEnd;
+}
+
+/* A negated Stc must cover the complement of the Region it encapsulates,
+   as a negated Region does. */
+static void checkStcNegated( int *status ) {
+   AstCircle *circle;
+   AstStcResourceProfile *stc;
+   double centre[ 2 ] = { 0.0, 0.0 }, radius = 1.0;
+   double xin[ 2 ] = { 0.0, 5.0 }, yin[ 2 ] = { 0.0, 0.0 };
+   double xout[ 2 ], yout[ 2 ];
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   circle = astCircle( astFrame( 2, " " ), 1, centre, &radius, NULL, " " );
+   stc = astStcResourceProfile( circle, 0, NULL, " " );
+
+   astTran2( stc, 2, xin, yin, 1, xout, yout );
+   if( xout[ 0 ] == AST__BAD || xout[ 1 ] != AST__BAD ) {
+      stopit( status, "checkStcNegated: Stc does not cover its Circle" );
+   }
+
+   astNegate( stc );
+   astTran2( stc, 2, xin, yin, 1, xout, yout );
+   if( xout[ 0 ] != AST__BAD || xout[ 1 ] == AST__BAD ) {
+      stopit( status, "checkStcNegated: negated Stc covers its Circle" );
+   }
+   if( astGetI( stc, "Bounded" ) ) {
+      stopit( status, "checkStcNegated: negated Stc is bounded" );
+   }
+
+   astEnd;
+}
+
+/* A sink and source holding the lines of one Channel dump. */
+static char obsdump_lines[ 400 ][ 200 ];
+static int obsdump_nline;
+static int obsdump_next;
+
+static void obsdump_sink( const char *line ) {
+   if( obsdump_nline < 400 ) {
+      strncpy( obsdump_lines[ obsdump_nline ], line, 199 );
+      obsdump_lines[ obsdump_nline++ ][ 199 ] = 0;
+   }
+}
+
+static const char *obsdump_source( void ) {
+   return ( obsdump_next < obsdump_nline ) ? obsdump_lines[ obsdump_next++ ] : NULL;
+}
+
+/* An StcObsDataLocation with no observatory position can be written and
+   read back. */
+static void checkStcObsDump( int *status ) {
+   AstCircle *circle;
+   AstStcObsDataLocation *stc;
+   AstObject *back;
+   AstChannel *ch;
+   double centre[ 2 ] = { 0.0, 0.0 }, radius = 1.0;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   circle = astCircle( astFrame( 2, " " ), 1, centre, &radius, NULL, " " );
+   stc = astStcObsDataLocation( circle, 0, NULL, " " );
+   obsdump_nline = 0;
+   obsdump_next = 0;
+   ch = astChannel( obsdump_source, obsdump_sink, " " );
+   if( astWrite( ch, stc ) != 1 ) {
+      stopit( status, "checkStcObsDump: StcObsDataLocation not written" );
+   }
+   back = astRead( ch );
+   if( !back || !astEqual( back, stc ) ) {
+      stopit( status, "checkStcObsDump: StcObsDataLocation not read back" );
+   }
 
    astEnd;
 }

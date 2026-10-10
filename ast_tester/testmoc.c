@@ -9,10 +9,15 @@
  *  0-based indices.
  */
 #include "ast.h"
+#include "ast_err.h"
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+
+extern int astRegPins_( AstRegion *, AstPointSet *, AstRegion *, int **, int * );
+extern AstPointSet *astPointSet_( int, int, const char *, int *, ... );
+extern double **astGetPoints_( AstPointSet *, int * );
 
 static void stopit( const char *text, int *status ) {
    if( *status != 0 ) return;
@@ -87,6 +92,255 @@ static void makeimage( int dims[2], float **pdata, AstFrameSet **iwcs,
    astClear( fc, "Card" );
    *iwcs = (AstFrameSet *)astRead( fc );
    astAnnul( fc );
+}
+
+/* An empty Moc and a Moc of the whole sky have bounds: none for the empty
+   one (upper bounds below lower), and the whole sky for the other. */
+static void checkEmptyBounds( int *status ) {
+   AstMoc *moc;
+   double lbnd[ 2 ], ubnd[ 2 ];
+   int npix;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astGetRegionBounds( moc, lbnd, ubnd );
+   if( !( ubnd[ 0 ] < lbnd[ 0 ] && ubnd[ 1 ] < lbnd[ 1 ] ) ) {
+      stopit( "checkEmptyBounds: empty Moc has a bounding box", status );
+   }
+   for( npix = 0; npix < 12; npix++ ) astAddCell( moc, AST__OR, 0, npix );
+   astGetRegionBounds( moc, lbnd, ubnd );
+   if( lbnd[ 1 ] != -AST__DPIBY2 || ubnd[ 1 ] != AST__DPIBY2 ||
+       ubnd[ 0 ] - lbnd[ 0 ] != 2*AST__DPI ) {
+      stopit( "checkEmptyBounds: whole-sky Moc does not bound the sky", status );
+   }
+   moc = astAnnul( moc );
+}
+
+/* The mask astRegPins returns flags each point at its own index, whatever
+   order the points come in. */
+static void checkPinsMask( int *status ) {
+   AstMoc *moc;
+   AstPointSet *pins;
+   double **ptr, *mesh;
+   int *mask = NULL, npnt, i;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddCell( moc, AST__OR, 2, 37 );
+   astGetRegionMesh( moc, 1, 0, 2, &npnt, NULL );
+   mesh = astMalloc( sizeof( double )*2*npnt );
+   astGetRegionMesh( moc, 1, npnt, 2, &npnt, mesh );
+
+/* The mesh in reverse order, then one point far from the boundary. */
+   pins = astPointSet_( npnt + 1, 2, " ", status );
+   ptr = astGetPoints_( pins, status );
+   for( i = 0; i < npnt; i++ ) {
+      ptr[ 0 ][ i ] = mesh[ npnt - 1 - i ];
+      ptr[ 1 ][ i ] = mesh[ 2*npnt - 1 - i ];
+   }
+   ptr[ 0 ][ npnt ] = 3.0;
+   ptr[ 1 ][ npnt ] = -1.4;
+   (void) astRegPins_( astMakePointer( moc ), pins, NULL, &mask, status );
+   if( mask && ( mask[ npnt ] || !mask[ 0 ] ) ) {
+      stopit( "checkPinsMask: mask flags the wrong points", status );
+   }
+   mask = astFree( mask );
+   mesh = astFree( mesh );
+   moc = astAnnul( moc );
+}
+
+/* Corners that the boundary mesh merges are sorted by Dec then RA, and
+   two with the same RA and nearly the same Dec are ordered by Dec, so the
+   corner kept, and so the mesh, does not depend on the platform's qsort.
+   For these cells the kept corner is the one with the lower Dec. */
+static void checkMeshTieBreak( int *status ) {
+   AstMoc *moc;
+   double *mesh;
+   int npnt, i, found = 0;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddCell( moc, AST__OR, 2, 37 );
+   astAddCell( moc, AST__OR, 1, 3 );
+   astAddCell( moc, AST__OR, 2, 100 );
+   astAddCell( moc, AST__XOR, 1, 25 );
+   astAddCell( moc, AST__XOR, 2, 101 );
+   astAddCell( moc, AST__AND, 2, 13 );
+   astAddCell( moc, AST__OR, 0, 7 );
+   astAddCell( moc, AST__AND, 2, 30 );
+   astGetRegionMesh( moc, 1, 0, 2, &npnt, NULL );
+   mesh = astMalloc( sizeof( double )*2*npnt );
+   astGetRegionMesh( moc, 1, npnt, 2, &npnt, mesh );
+   for( i = 0; i < npnt; i++ ) {
+      if( fabs( mesh[ npnt + i ] - 0.5235949266007811 ) < 1.0E-14 ) found = 1;
+      if( fabs( mesh[ npnt + i ] - 0.5236026246043699 ) < 1.0E-14 ) {
+         stopit( "checkMeshTieBreak: mesh kept the higher of two tied corners",
+                 status );
+      }
+   }
+   if( !found ) stopit( "checkMeshTieBreak: expected mesh corner missing", status );
+   mesh = astFree( mesh );
+   moc = astAnnul( moc );
+}
+
+/* An empty Moc, which has no MaxOrder, contains no position, and its
+   negation every position. */
+static void checkEmptyTransform( int *status ) {
+   AstMoc *moc;
+   double x[ 2 ] = { 1.0, 4.0 }, y[ 2 ] = { 0.5, -0.5 }, xo[ 2 ], yo[ 2 ];
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astTran2( moc, 2, x, y, 1, xo, yo );
+   if( xo[ 0 ] != AST__BAD || yo[ 1 ] != AST__BAD ) {
+      stopit( "checkEmptyTransform: empty Moc contains a position", status );
+   }
+   astNegate( moc );
+   astTran2( moc, 2, x, y, 1, xo, yo );
+   if( xo[ 0 ] != x[ 0 ] || yo[ 1 ] != y[ 1 ] ) {
+      stopit( "checkEmptyTransform: negated empty Moc excludes a position",
+              status );
+   }
+   moc = astAnnul( moc );
+}
+
+/* Adding a Region to a Moc whose MaxOrder is zero leaves no lower order
+   to start from, and is an error, as it is for a pixel mask. */
+static void checkAddRegionOrderZero( int *status ) {
+   AstMoc *moc;
+   AstCircle *circle;
+   double centre[ 2 ] = { 1.2, 0.3 }, radius = 0.2;
+
+   if( *status != 0 ) return;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc = astMoc( "MaxOrder=0" );
+   astAddRegion( moc, AST__OR, circle );
+   if( astStatus == AST__INVAR ) {
+      astClearStatus;
+   } else {
+      stopit( "checkAddRegionOrderZero: no AST__INVAR error", status );
+   }
+   moc = astAnnul( moc );
+   circle = astAnnul( circle );
+}
+
+/* A negated Region added to a Moc whose MinOrder exceeds its MaxOrder
+   covers no more than the whole sky. */
+static void checkOversampleNegate( int *status ) {
+   AstMoc *over;
+   AstCircle *circle;
+   double centre[ 2 ] = { 1.2, 0.3 }, radius = 0.2, sky;
+
+   if( *status != 0 ) return;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   astNegate( circle );
+   over = astMoc( "MaxOrder=5,MinOrder=6" );
+   astAddRegion( over, AST__OR, circle );
+   sky = 4.0*AST__DPI*pow( 180.0*60.0/AST__DPI, 2 );
+   if( astGetD( over, "MocArea" ) > sky ) {
+      stopit( "checkOversampleNegate: Moc covers more than the sky", status );
+   }
+   over = astAnnul( over );
+   circle = astAnnul( circle );
+}
+
+/* Malformed MOC text is reported: a string MOC with no order, at the end
+   of the text or before more of it; one whose final range ends before it
+   starts; an order that is too large only once narrowed to an int; an
+   NPIX value beyond the cells at its order, in either serialisation; and
+   a value too large for an int64_t, which would wrap to a valid one. */
+static void checkMocStringErrors( int *status ) {
+   const char *bad[] = { "5", "5 6", "3/10-5", "4294967301/1", "0/12",
+                         "{\"0\":[12]}", "3/18446744073709551621" };
+   AstMoc *moc;
+   int i, json;
+
+   for( i = 0; i < 7 && *status == 0; i++ ) {
+      moc = astMoc( " " );
+      astAddMocString( moc, AST__OR, 0, -1, strlen( bad[ i ] ), bad[ i ],
+                       &json );
+      if( astStatus == AST__INMOC ) {
+         astClearStatus;
+      } else {
+         stopit( "checkMocStringErrors: no AST__INMOC error", status );
+      }
+      moc = astAnnul( moc );
+   }
+}
+
+/* MOC text that cannot be read leaves the Moc as it was. */
+static void checkParseErrorLeavesMoc( int *status ) {
+   const char *text = "{\"1\":[3]";
+   AstMoc *moc, *before;
+   int json;
+
+   if( *status != 0 ) return;
+   moc = astMoc( "MaxOrder=3" );
+   astAddCell( moc, AST__OR, 2, 7 );
+   before = astCopy( moc );
+   astAddMocString( moc, AST__OR, 0, -1, strlen( text ), text, &json );
+   if( astStatus == AST__INMOC ) {
+      astClearStatus;
+   } else {
+      stopit( "checkParseErrorLeavesMoc: no AST__INMOC error", status );
+   }
+   if( astOK && !astEqual( moc, before ) ) {
+      stopit( "checkParseErrorLeavesMoc: the Moc changed", status );
+   }
+   moc = astAnnul( moc );
+   before = astAnnul( before );
+}
+
+/* An empty Moc with no MaxOrder is written as an empty JSON object, which
+   can be read back. */
+static void checkEmptyJson( int *status ) {
+   AstMoc *moc;
+   char buf[ 10 ];
+   size_t size;
+   int json;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astGetMocString( moc, 1, sizeof( buf ), buf, &size );
+   if( size != 2 || strncmp( buf, "{}", 2 ) ) {
+      stopit( "checkEmptyJson: empty Moc not written as {}", status );
+   }
+   moc = astAnnul( moc );
+   moc = astMoc( "MaxOrder=3" );
+   astAddMocString( moc, AST__OR, 0, -1, 2, "{}", &json );
+   if( astOK && ( !json || astGetI( moc, "MocLength" ) != 0 ) ) {
+      stopit( "checkEmptyJson: {} not read as an empty JSON MOC", status );
+   }
+   moc = astAnnul( moc );
+}
+
+/* NUNIQ values below 4 encode no cell, and are reported before any value
+   is used, so the Moc is left as it was. */
+static void checkBadNuniq( int *status ) {
+   AstMoc *moc;
+   int64_t kdata[ 2 ] = { 20, 0 };
+   int idata[ 2 ] = { 20, -5 };
+
+   if( *status != 0 ) return;
+   moc = astMoc( "MaxOrder=5" );
+   astAddMocData( moc, AST__OR, 0, -1, 2, 8, kdata );
+   if( astStatus == AST__INMOC ) {
+      astClearStatus;
+   } else {
+      stopit( "checkBadNuniq: no AST__INMOC error for 8 byte data", status );
+   }
+   astAddMocData( moc, AST__OR, 0, -1, 2, 4, idata );
+   if( astStatus == AST__INMOC ) {
+      astClearStatus;
+   } else {
+      stopit( "checkBadNuniq: no AST__INMOC error for 4 byte data", status );
+   }
+   if( astOK && astGetI( moc, "MocLength" ) != 0 ) {
+      stopit( "checkBadNuniq: invalid data changed the Moc", status );
+   }
+   moc = astAnnul( moc );
 }
 
 int main( void ) {
@@ -351,6 +605,17 @@ int main( void ) {
          astAnnul( moc );
       }
    }
+
+   checkEmptyBounds( status );
+   checkPinsMask( status );
+   checkMeshTieBreak( status );
+   checkEmptyTransform( status );
+   checkAddRegionOrderZero( status );
+   checkOversampleNegate( status );
+   checkMocStringErrors( status );
+   checkEmptyJson( status );
+   checkParseErrorLeavesMoc( status );
+   checkBadNuniq( status );
 
    astEnd;
    astFlushMemory( 1 );

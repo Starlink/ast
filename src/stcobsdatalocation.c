@@ -75,6 +75,11 @@ f     The StcObsDataLocation class does not define any new routines beyond those
 *        Original version.
 *     14-FEB-2006 (DSB):
 *        Override astGetObjSize.
+*     9-OCT-2026 (TIMJ):
+*        Dump: write the observatory position only when there is one.
+*        astWriteObject dumps the Object it is given, so an
+*        StcObsDataLocation with no observatory position crashed when
+*        it was written.
 *class--
 */
 
@@ -528,7 +533,9 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
 /* Observatory position. */
 /* --------------------- */
-   astWriteObject( channel, "ObsLoc", 1, 1, this->obs, "Observatory position" );
+   if( this->obs ) {
+      astWriteObject( channel, "ObsLoc", 1, 1, this->obs, "Observatory position" );
+   }
 
 }
 

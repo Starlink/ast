@@ -119,6 +119,10 @@ f     The LutMap class does not define any new routines beyond those
 *        Discard the record that the LutMap has been simplified when
 *        LutInterp or LutEpsilon is set or cleared, since both change what
 *        the LutMap does.
+*     7-OCT-2026 (TIMJ):
+*        The inverse transformation no longer reads the element before the
+*        start of the lookup table when the supplied value is beyond the
+*        first table value.
 *class--
 */
 
@@ -1669,14 +1673,14 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    a bad value. Likewise, if the upper table value is equal to the required
    value, and either of its neighbours is also equal to the required value,
    then we have been asked to find the inverse in a flat region of the table,
-   so return a bad value. */
+   so return a bad value. If the value is beyond the first table element,
+   "i1" is -1 and there is no lower table value. */
                ok = 1;
-               if( lut[ i1 ] == value_in ) {
+               if( i1 >= 0 && lut[ i1 ] == value_in ) {
                   if( i1 > 0 && lut[ i1 - 1 ] == value_in ) ok = 0;
                   if( lut[ i2 ] == value_in ) ok = 0;
                } else if( lut[ i2 ] == value_in ) {
                   if( i2 < nlutm1 && lut[ i2 + 1 ] == value_in ) ok = 0;
-                  if( lut[ i1 ] == value_in ) ok = 0;
                }
 
                if( !ok ) {
@@ -1684,16 +1688,21 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* If both of the two table elements were adjacent to a bad value in the
    full lookup table, return a bad output value. */
-               } else if( flags && ( flags[ i1 ] && flags[ i2 ] ) ) {
+               } else if( flags && i1 >= 0 && flags[ i1 ] && flags[ i2 ] ) {
                   value_out = AST__BAD;
 
 /* Nearest neighbour interpolation: return the closest of i1 or i2. Return
    AST__BAD if the supplied value is less than either or greater than
-   either.  */
+   either. With no lower table value, the supplied value is within the
+   table only if it equals the first table value. */
                } else if( near ) {
-                  d1 = lut[ i1 ] - value_in;
                   d2 = lut[ i2 ] - value_in;
-                  if( ( d1 > 0.0 && d2 > 0.0 ) ||
+                  d1 = ( i1 >= 0 ) ? lut[ i1 ] - value_in : d2;
+                  if( i1 < 0 && d2 == 0.0 ) {
+                     istart = index ? index[ i2 ] : i2;
+                     value_out = map->start + map->inc * istart;
+
+                  } else if( ( d1 > 0.0 && d2 > 0.0 ) ||
                       ( d1 < 0.0 && d2 < 0.0 ) ) {
                      value_out = AST__BAD;
 

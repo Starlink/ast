@@ -176,6 +176,47 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        astAddMocText: test the character count before dereferencing the
 *        pointer, so that text which is not null terminated is not read
 *        past its end.
+*     9-OCT-2026 (TIMJ):
+*        RegBaseBox: an empty Moc or one of the whole sky, whose mesh
+*        is a single bad point, gets the box of an empty Region or of
+*        the whole sky. Normalising the bad RA looped forever.
+*        RegPins: flag each point in the mask at its own index. The
+*        points are taken in order of Dec, and the mask was filled in
+*        that order, so its flags were against the wrong points.
+*        Comp_corner: in an exact sort, order corners with the same RA
+*        and Decs within the tolerance by Dec, so that the merged corners,
+*        and so the mesh, do not depend on the platform's qsort.
+*        Transform: an empty Moc, which may have no MaxOrder, needs no
+*        HPX12 Mapping; asking for one at order -1 indexed the cache of
+*        Mappings out of bounds.
+*        AddRegion: report an error if MaxOrder is zero, as
+*        AddPixelMask<X> does, rather than index the Mappings for each
+*        order at -1.
+*        IncorporateCells: negate the ranges at the Moc's MaxOrder, not at
+*        the order of the finest cells, which is higher when MinOrder
+*        exceeds MaxOrder. Negating at the higher order covered the
+*        whole sky four times or more.
+*        astAddMocText: reset the current order after the loop that
+*        initialises the list for each order, which left it at 28, so
+*        that a string MOC with no order is reported rather than read
+*        past the end of the lists. Report a range at the end of a string
+*        MOC that ends before it starts, as one elsewhere is reported,
+*        rather than ask for a huge allocation. Accept "{}", an empty
+*        JSON MOC.
+*        astGetMocText: write an empty JSON MOC with no MaxOrder as "{}"
+*        rather than "}".
+*        AddMocData: report a NUNIQ value below 4, which encodes no
+*        cell, before using any value, rather than shift by 32 or 64
+*        bits and add a cell that is not there.
+*        astAddMocText: check a string MOC order before narrowing it to
+*        an int, report a value too large for an int64_t, report an NPIX
+*        value beyond the cells at its order, and add no ranges once an
+*        error has been reported. Each range was counted before room was
+*        made for it, so a MOC that failed to parse left the Moc counting
+*        a range it did not hold.
+*        astGetMocText: report a buffer length of zero as too small,
+*        rather than search for a space or comma from the byte before
+*        the start of a null buffer, which crashed.
 *class--
 */
 
@@ -214,6 +255,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 
 /* A 64 bit literal integer value of 1 */
 #define ONE INT64_C(1)
+
+/* The largest value that can have another decimal digit appended without
+   overflowing an int64_t. */
+#define MXVALUE ( ( INT64_MAX - 9 )/10 )
 
 /* Absolute value (e.g. for path distance). */
 #define ABS(x) ( ((x) < 0) ? - (x) : (x) )
@@ -817,6 +862,7 @@ f     MAXORDER  is negative.
    int64_t ihigh;
    int64_t ilow;
    int64_t npix;
+   int64_t nuniq;
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -851,6 +897,29 @@ f     MAXORDER  is negative.
 /* Otherwise, read a MOC from the data array and combine it with the
    supplied Moc. */
    } else {
+
+/* Check every value before any is used. A NUNIQ value below 4 encodes no
+   cell (4 is cell 0 at order 0). */
+      nuniq = 4;
+      if( nbyte == 4 ) {
+         pni = data;
+         for( icell = 0; icell < len; icell++ ) {
+            nuniq = *(pni++);
+            if( nuniq < 4 ) break;
+         }
+      } else {
+         pnk = data;
+         for( icell = 0; icell < len; icell++ ) {
+            nuniq = *(pnk++);
+            if( nuniq < 4 ) break;
+         }
+      }
+      if( nuniq < 4 ) {
+         astError( AST__INMOC, "astAddMocData(%s): Invalid NUNIQ value (%"
+                   PRId64 ") at element %d of the supplied data - must be "
+                   "at least 4.", status, astGetClass( this ), nuniq, icell );
+         return;
+      }
 
 /* If the MaxOrder attribute is set in the Moc, use it in preference to
    the value supplied for parameter "maxorder". */
@@ -1211,11 +1280,14 @@ void astAddMocText_( AstMoc *this, int maxorder,
    holding the first characters to read. */
       text = (*source)( data, &nc, status );
 
-/* Initialise the list of NPIX values at each order. */
+/* Initialise the list of NPIX values at each order. Then reset the
+   current order, which the loop uses, so that a string MOC that gives no
+   order is detected. */
       for( order = 0; order <= AST__MXORDHPX; order++ ) {
          orders[ order ].nval = 0;
          orders[ order ].values = NULL;
       }
+      order = -1;
 
 /* Loop to parse all available text. This loop populates the above array
    of "Order" structures, which hold the orders used, and the NPIX values
@@ -1267,6 +1339,9 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   if( *pt == '"' ) {
                      order = 0;
                      state = 2;
+/* A closing curly brace before any order is an empty MOC. */
+                  } else if( *pt == '}' && order < 0 ) {
+                     state = 9;
                   } else if( !isspace( *pt ) ) {
                      astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
                                status, method, astGetClass( this ), text );
@@ -1353,6 +1428,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   first = 0;
 
                   if( isdigit( *pt ) ){
+                     if( npix > MXVALUE ) {
+                        astError( AST__INMOC, "%s(%s): Invalid JSON MOC supplied: '%.30s...'",
+                                  status, method, astGetClass( this ), text );
+                        astError( AST__INMOC, "Value too large at '%.15s'.",
+                                  status, pt );
+                        break;
+                     }
                      npix = ( *pt - '0' ) + 10*npix;
                   } else if( isspace( *pt ) ) {
                      state = 7;
@@ -1456,6 +1538,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
 
 /* digit - update the order or npix value recorded in "npix". */
                   if( isdigit( *pt ) ) {
+                     if( npix > MXVALUE ) {
+                        astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                                  status, method, astGetClass( this ), text );
+                        astError( AST__INMOC, "Value too large at '%.15s'.",
+                                  status, pt );
+                        break;
+                     }
                      npix = ( *pt - '0' ) + 10*npix;
 
 /* space or comma - the value previously recorded is an npix value,
@@ -1503,14 +1592,14 @@ void astAddMocText_( AstMoc *this, int maxorder,
 /* slash - the value previously recorded is an order value. Update the
    maximum order and then look for the start of the next numerical value. */
                   } else if( *pt == '/' ) {
-                     order = npix;
-                     if( order > AST__MXORDHPX ){
+                     if( npix > AST__MXORDHPX ){
                         astError( AST__INMOC, "%s(%s): Error reading string MOC: '%.30s...'",
                                   status, method, astGetClass( this ), text );
-                        astError( AST__INMOC, "Invalid MOC order %d encountrered.",
-                                  status, order );
+                        astError( AST__INMOC, "Invalid MOC order %" PRId64
+                                  " encountrered.", status, npix );
                         break;
                      }
+                     order = npix;
                      if( order > mxord ) mxord = order;
                      state = 1;
 
@@ -1574,26 +1663,52 @@ void astAddMocText_( AstMoc *this, int maxorder,
                          status, method, astGetClass( this ), text ? text : "" );
                astError( AST__INMOC, "No order value found at start of string.",
                          status );
-            }
 
-            if( !isrange ) {
-               npix0 = npix;
-               nadd = 1;
+/* A range must not end before it starts, as checked above for a range
+   that is not at the end of the string. */
+            } else if( isrange && npix < npix0 ) {
+               astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
+                         status, method, astGetClass( this ), text ? text : "" );
+               astError( AST__INMOC, "Range start (%" PRId64 ") is after range "
+                         "end (%" PRId64 ").", status, npix0, npix );
+
             } else {
-               isrange = 0;
-               nadd = npix - npix0 + 1;
-            }
-
-            nval = orders[ order ].nval;
-            nbyte = ( nval + nadd )*sizeof( size_t );
-            values = astGrow( orders[ order ].values, 1, nbyte );
-            if( astOK ) {
-               for( ; npix0 <= npix; npix0++ ) {
-                  values[ nval++ ] = npix0;
+               if( !isrange ) {
+                  npix0 = npix;
+                  nadd = 1;
+               } else {
+                  isrange = 0;
+                  nadd = npix - npix0 + 1;
                }
 
-               orders[ order ].values = values;
-               orders[ order ].nval = nval;
+               nval = orders[ order ].nval;
+               nbyte = ( nval + nadd )*sizeof( size_t );
+               values = astGrow( orders[ order ].values, 1, nbyte );
+               if( astOK ) {
+                  for( ; npix0 <= npix; npix0++ ) {
+                     values[ nval++ ] = npix0;
+                  }
+
+                  orders[ order ].values = values;
+                  orders[ order ].nval = nval;
+               }
+            }
+         }
+
+/* Check every NPIX value is a cell at its order, of which there are
+   12*4^order, before the Moc is changed. */
+         for( order = 0; order <= AST__MXORDHPX && astOK; order++ ) {
+            for( ipix = 0; ipix < orders[ order ].nval; ipix++ ) {
+               if( orders[ order ].values[ ipix ] >=
+                   (size_t) ( 12*( ONE << ( 2*order ) ) ) ) {
+                  astError( AST__INMOC, "%s(%s): Invalid NPIX value (%zu) "
+                            "for order %d in the supplied MOC - there are "
+                            "%" PRId64 " cells at that order.", status,
+                            method, astGetClass( this ),
+                            orders[ order ].values[ ipix ], order,
+                            12*( ONE << ( 2*order ) ) );
+                  break;
+               }
             }
          }
 
@@ -1637,9 +1752,13 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   ihigh = ( *values >> -shift );
                }
 
-               irange = this->nrange++;
-               this->range = astGrow( this->range, this->nrange, 2*sizeof(*(this->range)) );
+/* Count the new range only once there is room for it, and add none if
+   the text could not be read, so that the Moc is left as it was. */
+               if( !astOK ) break;
+               irange = this->nrange;
+               this->range = astGrow( this->range, irange + 1, 2*sizeof(*(this->range)) );
                if( astOK ) {
+                  this->nrange++;
                   pr = this->range + 2*irange;
                   pr[ 0 ] = ilow;
                   pr[ 1 ] = ihigh;
@@ -2533,6 +2652,17 @@ f        The global status.
             minorder = maxorder - 1;
          }
 
+/* A MaxOrder of zero leaves no lower order at which to start. */
+         if( minorder < 0 ) {
+            if( astOK ) {
+               astError( AST__INVAR, "astAddRegion(%s): Invalid value (%d) "
+                         "supplied for parameter 'MinOrder'.", status,
+                         astGetClass(this), minorder );
+            }
+            picked = astAnnul( picked );
+            return;
+         }
+
 /* Get a pointer to the Frame in which the Region is defined. We use this
    with astConvert below, rather than the original Region, so that the
    FrameSet returned by astConvert will not include the masking effects of
@@ -3401,6 +3531,14 @@ static int Comp_corner( const void *a, const void *b ){
    a single HEALPix ring (constant Dec) get sorted by RA together. */
    if( fabs( dec1 - dec2 ) <= Comp_Corner_Tol ) {
       if( fabs( ra1 - ra2 ) <= ratol ) {
+
+/* In an exact sort, corners with the same RA and Decs within the
+   tolerance are ordered by Dec, so that their order does not depend on
+   how qsort orders elements that compare equal. */
+         if( Comp_Corner_Exact ) {
+            if( dec1 < dec2 ) return -1;
+            if( dec1 > dec2 ) return 1;
+         }
          return 0;
       } else if( ra1 < ra2 ) {
          return -1;
@@ -4874,18 +5012,19 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
 /* If the end of the buffer was reached before the whole token had been \
    copied, find the last space or comma in the buffer. */ \
    if( nleft == 0 && mc > 0 ) { \
-      pc = pwrite - 1; \
-      while( pc >= buf && *pc != ' ' && *pc != ',' ) pc--; \
+      pc = pwrite; \
+      while( pc > buf && pc[ -1 ] != ' ' && pc[ -1 ] != ',' ) pc--; \
 \
-/* Write out the buffer up to and including the final space or comma. */ \
-      if( pc >= buf ) { \
-         STRING_WRITE( pc - buf + 1 ); \
+/* Write out the buffer up to and including the final space or comma, \
+   which is the character before "pc". */ \
+      if( pc > buf ) { \
+         STRING_WRITE( pc - buf ); \
 \
 /* Copy any remaining characters following the comma or space to the  \
    start of the buffer. */ \
-         nleft = pc - buf + 1; \
+         nleft = pc - buf; \
          pwrite = buf  + buflen - nleft; \
-         memcpy( buf, pc + 1, pwrite - buf ); \
+         memcpy( buf, pc, pwrite - buf ); \
 \
 /* Append the remaining part of the token to the buffer. */ \
          while( nleft > 0 && mc > 0 ) { \
@@ -5034,12 +5173,14 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
       } else {
          nc = sprintf( token, first?"%d/":" %d/", maxorder );
       }
+      first = 0;
       TOKEN_WRITE;
    }
 
-/* Terminate the complete JSON string. */
+/* Terminate the complete JSON string. A Moc with no cells and no MaxOrder
+   has written nothing yet, so is an empty JSON object. */
    if( json ) {
-      nc = sprintf( token, "}" );
+      nc = sprintf( token, first ? "{}" : "}" );
       TOKEN_WRITE;
    }
 
@@ -5654,8 +5795,10 @@ static void IncorporateCells( AstMoc *this, CellList *clist,
       }
    }
 
-/* Normalise the Moc. */
-   astMocNorm( this, negate, cmode, nold, clist->maxorder, method );
+/* Normalise the Moc. The ranges are at the Moc's own MaxOrder, which is
+   below the order of the finest cells by "oversample". */
+   astMocNorm( this, negate, cmode, nold, clist->maxorder - oversample,
+               method );
 }
 
 void astInitMocVtab_(  AstMocVtab *vtab, const char *name, int *status ) {
@@ -7268,8 +7411,24 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd,
    now. */
    if( this->lbnd[ 0 ] == AST__BAD ) {
 
-/* Get a mesh of points over the boundary of the MOC, in ICRS (the base
-   Frame). */
+/* An empty Moc, or one of the whole sky, has no boundary, and its mesh is
+   a single bad point. Give an empty Moc the box NullRegion gives (upper
+   bounds below lower bounds), and a Moc of the whole sky the whole sky. */
+     if( this->nrange == 0 ) {
+        this->lbnd[ 0 ] = 1.0;
+        this->lbnd[ 1 ] = 1.0;
+        this->ubnd[ 0 ] = -1.0;
+        this->ubnd[ 1 ] = -1.0;
+     } else if( this->range[ 0 ] == 0 &&
+                this->range[ 1 ] == 12*( ONE << 2*astGetMaxOrder( this ) ) - 1 ) {
+        this->lbnd[ 0 ] = 0.0;
+        this->lbnd[ 1 ] = -AST__DPIBY2;
+        this->ubnd[ 0 ] = 2*AST__DPI;
+        this->ubnd[ 1 ] = AST__DPIBY2;
+
+/* Otherwise, get a mesh of points over the boundary of the MOC, in ICRS
+   (the base Frame). */
+     } else {
      ps = astRegBaseMesh( this );
      ptr = astGetPoints( ps );
      np = astGetNpoint( ps );
@@ -7320,6 +7479,7 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd,
 
 /* Free resources */
       ps = astAnnul( ps );
+     }
    }
 
 /* Return the bounds. */
@@ -8298,7 +8458,6 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
    double ubnd_unc[ 2 ];
    int *index;
    int *pi;
-   int *pm;
    int imesh2;
    int imesh;
    int ipin;
@@ -8399,9 +8558,8 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
       result = 1;
 
 /* Now loop through the sorted pins. */
-      pm = mask ? *mask : NULL;
       pi = index;
-      for( ipin = 0; ipin < len_pins; ipin++,pi++,pm++ ) {
+      for( ipin = 0; ipin < len_pins; ipin++,pi++ ) {
          ra_pin = ptr_pins[ 0 ][ *pi ];
          dec_pin = ptr_pins[ 1 ][ *pi ];
 
@@ -8458,9 +8616,11 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
          }
 
 /* If a suitable mesh point was found and a mask is being created, flag
-   that the pin is on the boundary and continue to check further pins. */
+   that the pin is on the boundary and continue to check further pins.
+   The pins are taken in sorted order, so the flag goes at the pin's own
+   index. */
          if( on ) {
-            if( mask ) *pm = 1;
+            if( mask ) (*mask)[ *pi ] = 1;
 
 /* If no suitable mesh point was found, the current pin does not fall on
    the boundary but later ones may do. We can break out of the pin loop
@@ -9564,7 +9724,12 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       order = astGetMaxOrder( this );
 
 /* Get a Mapping that goes from ICRS to grid coordinates in an HPX12
-   projection of the whole sky with the Moc's order. */
+   projection of the whole sky with the Moc's order. An empty Moc may have
+   no order, and contains no position, so it needs no Mapping. */
+      ps1 = NULL;
+      px = NULL;
+      py = NULL;
+      if( this->nrange > 0 ) {
       map1 = GetCachedMapping( this, order, "astTransform", status );
 
 /* Use this Mapping to convert all the ICRS positions to HPX12 grid
@@ -9577,6 +9742,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       ptr = astGetPoints( ps1 );
       px = ptr[ 0 ];
       py = ptr[ 1 ];
+      }
 
 /* Get pointers to the first output sky coordinate values. */
       ptr_out = astGetPoints( result );
@@ -9587,8 +9753,8 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       for( ipoint = 0; ipoint < npoint; ipoint++ ) {
 
 /* Convert from grid (x,y) to nested index. */
-         inest = XyToNested( order, (int)round( *(px++) ),
-                             (int)round( *(py++) ) );
+         inest = px ? XyToNested( order, (int)round( *(px++) ),
+                                  (int)round( *(py++) ) ) : INT64_MAX;
 
 /* Test if this nested index is contained in the Moc. Each pair of
    adjacent values in the "this->range" array are the upper and lower
@@ -9625,7 +9791,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       }
 
 /* Free resources */
-      ps1 = astAnnul( ps1 );
+      if( ps1 ) ps1 = astAnnul( ps1 );
    }
    pset_tmp = astAnnul( pset_tmp );
 

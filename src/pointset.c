@@ -546,7 +546,7 @@ static int class_init = 0;       /* Virtual function table initialised? */
 /* The following functions have public prototypes only (i.e. no
    protected prototypes), so we must provide local prototypes for use
    within this module. */
-AstPointSet *astPointSetId_( AstDim, int, const char *, int *, ...);
+AstPointSet *astPointSetId_( AstDim, int, const char *, ...);
 
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
@@ -2843,7 +2843,7 @@ AstPointSet *astPointSet_( AstDim npoint, int ncoord, const char *options, int *
 }
 
 AstPointSet *astPointSetId_( AstDim npoint, int ncoord,
-                             const char *options, int *status, ...) {
+                             const char *options, ...) {
 /*
 *  Name:
 *     astPointSetId_
@@ -2885,7 +2885,11 @@ AstPointSet *astPointSetId_( AstDim npoint, int ncoord,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstPointSet *new;             /* Pointer to new PointSet */
+   int *status;                  /* Pointer to inherited status value */
    va_list args;                 /* Variable argument list */
+
+/* Get a pointer to the inherited status value. */
+   status = astGetStatusPtr;
 
 /* Check the global status. */
    if ( !astOK ) return NULL;
@@ -2906,7 +2910,7 @@ AstPointSet *astPointSetId_( AstDim npoint, int ncoord,
 /* Obtain the variable argument list and pass it along with the
    options string to the astVSet method to initialise the new
    PointSet's attributes. */
-      va_start( args, status );
+      va_start( args, options );
       astVSet( new, options, NULL, args );
       va_end( args );
 

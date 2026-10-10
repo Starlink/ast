@@ -274,6 +274,9 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        instead.
 *     11-DEC-2017 (DSB):
 *        Added method astGetNode.
+*     6-OCT-2026 (TIMJ):
+*        In astLoadFrameSet, treat a Current index below 1 as unset, as is
+*        done for Base. The check repeated the one for Base instead.
 *class--
 */
 
@@ -13212,7 +13215,7 @@ AstFrameSet *astLoadFrameSet_( void *mem, size_t size,
 /* Current. */
 /* -------- */
          new->current = astReadInt( channel, "currnt", -INT_MAX );
-         if ( new->base < 1 ) new->base = -INT_MAX;
+         if ( new->current < 1 ) new->current = -INT_MAX;
       }
 
 /* If an error occurred, clean up by deleting the new FrameSet. */

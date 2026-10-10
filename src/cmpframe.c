@@ -203,6 +203,11 @@ f     The CmpFrame class does not define any new routines beyond those
 *        forward transformation put the second component's position on the
 *        first component's axes. Record in the prologue that a CmpFrame does
 *        not extend a box for a component's singularity.
+*     6-OCT-2026 (TIMJ):
+*        FrameGrid: store each grid point by index. The loop advanced the
+*        data pointers astGetPoints returns, which belong to the PointSet,
+*        and advanced the second component's by npoint2*sizeof(double)
+*        elements, so the grid held garbage and was written out of bounds.
 *class--
 */
 
@@ -2828,16 +2833,15 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
    double **ptr;
    double *lbnd1;
    double *lbnd2;
-   double *p;
    double *ubnd1;
    double *ubnd2;
-   double v;
    int axis;
    int iax1;
    int iax2;
    int iaxis;
    int ip1;
    int ip2;
+   int ip;
    int nax1;
    int nax2;
    int naxes;
@@ -2917,19 +2921,18 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
       if( astOK ) {
 
 /* For every point in the first Frame's PointSet, duplicate the second
-   Frame's entire PointSet, using the first Frame's axis values. */
+   Frame's entire PointSet, using the first Frame's axis values. The
+   points are stored by index rather than by advancing the PointSet's own
+   data pointers, which astGetPoints returns for the PointSet's use. */
+         ip = 0;
          for( ip1 = 0; ip1 < npoint1; ip1++ ) {
-            for( iax1 = 0; iax1 < nax1; iax1++ ) {
-               p = ptr[ iax1 ];
-               v = ptr1[ iax1 ][ ip1 ];
-               for( ip2 = 0; ip2 < npoint2; ip2++ ) {
-                  *(p++) = v;
+            for( ip2 = 0; ip2 < npoint2; ip2++, ip++ ) {
+               for( iax1 = 0; iax1 < nax1; iax1++ ) {
+                  ptr[ iax1 ][ ip ] = ptr1[ iax1 ][ ip1 ];
                }
-               ptr[ iax1 ] = p;
-            }
-            for( iax2 = 0; iax2 < nax2; iax2++ ) {
-               memcpy( ptr[ iax2 + nax1 ], ptr2[ iax2 ], npoint2*sizeof( double ) );
-               ptr[ iax2 + nax1 ] += npoint2*sizeof( double );
+               for( iax2 = 0; iax2 < nax2; iax2++ ) {
+                  ptr[ iax2 + nax1 ][ ip ] = ptr2[ iax2 ][ ip2 ];
+               }
             }
          }
 
@@ -8238,12 +8241,19 @@ static AstPointSet *ResolvePoints( AstFrame *this_frame, const double point1[],
             if( *d1_1 != AST__BAD && *d1_2 != AST__BAD ) {
                *d1 = ( b1*(*d1_1) + b2*(*d1_2) )/b;
 
-/*  Offset this distance away from point 1 towards point 2 to get point 4. */
-               astOffset( this, p1, p2, *d1, p4 );
+/*  Offset this distance away from point 1 towards point 2 to get point 4.
+    astOffset and astDistance work on the CmpFrame's external axes, so
+    use the supplied point1 and point2 rather than their un-permuted
+    copies, and put point 3 back into external order (the input PointSet
+    is un-permuted, so external axis "axis" is in its element
+    perm[axis]). */
+               astOffset( this, point1, point2, *d1, p4 );
 
 /* Now find the perpendicular distance (the distance between point4 and
    point3). */
-               for( axis = 0; axis < nax; axis++ ) p3[ axis ] = ptr_in[ axis ][ ipoint ];
+               for( axis = 0; axis < nax; axis++ ) {
+                  p3[ axis ] = ptr_in[ perm[ axis ] ][ ipoint ];
+               }
                *d2 = astDistance( this, p4, p3 );
 
             } else {

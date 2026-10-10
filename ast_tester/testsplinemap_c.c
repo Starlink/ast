@@ -187,6 +187,35 @@ int main( void ){
       sm1 = astAnnul( sm1 );
    }
 
+/* The rate of change of an inverted SplineMap is that of the inverse
+   transformation. The order-2 spline here is u = 2x, v = 3y on the unit
+   square (coefficients in SciPy order), so the inverse has dx/du = 0.5
+   and dx/dv = 0, where the forward has du/dx = 2. */
+   if( astOK ) {
+      double tk[4] = { 0.0, 0.0, 1.0, 1.0 };
+      double cu2l[4] = { 0.0, 0.0, 2.0, 2.0 };
+      double cv2l[4] = { 0.0, 3.0, 0.0, 3.0 };
+      double fat[2] = { 0.5, 0.5 };
+      double iat[2] = { 1.0, 1.5 };
+      double r;
+
+      AstSplineMap *sm2 = astSplineMap( 2, 2, 2, 2, tk, tk, cu2l, cv2l, " " );
+      r = astRate( sm2, fat, 1, 1 );
+      if( astOK && fabs( r - 2.0 ) > 1.0E-12 ) {
+         astError( AST__INTER, "Error 11: forward rate %.20g, expected 2", r );
+      }
+      astInvert( sm2 );
+      r = astRate( sm2, iat, 1, 1 );
+      if( astOK && fabs( r - 0.5 ) > 1.0E-6 ) {
+         astError( AST__INTER, "Error 12: inverse rate %.20g, expected 0.5", r );
+      }
+      r = astRate( sm2, iat, 1, 2 );
+      if( astOK && fabs( r ) > 1.0E-6 ) {
+         astError( AST__INTER, "Error 13: inverse cross rate %.20g, expected 0", r );
+      }
+      sm2 = astAnnul( sm2 );
+   }
+
    if( astOK ) {
       printf(" All SplineMap (C API) tests passed\n");
    } else {
