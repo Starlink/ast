@@ -1444,6 +1444,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        wrote "-SIP" CTYPE values and the CRPIX and CD of the linear part
 *        of the SIP description with no coefficients, so the distortion was
 *        lost without the FitsTol test that guards a linear approximation.
+*     11-OCT-2026 (TIMJ):
+*        In EncodeFloat, when adding a decimal point to a value with one
+*        leading space, shift everything before the end of the digits, as is
+*        done when there are two leading spaces.  Only the digits were
+*        shifted, so a minus sign was overwritten and a negative value such
+*        as -123456789012345678 written with FitsDigits 18 lost its sign.
 *class--
 */
 
@@ -10002,7 +10008,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    one character to the left, and insert "." in the gap created. This
    keeps the field right justified within the desired field width. */
             } else if( buf[ 0 ] == ' ' ){
-               for( i = 0; i < n; i++ ) c[ i - 1 ] = c[ i ];
+               for( i = 1; i < c - buf + n; i++ ) buf[ i - 1 ] = buf[ i ];
                c[ n - 1 ] = '.';
 
 /* If there are no leading spaces we need to move the end of the string
