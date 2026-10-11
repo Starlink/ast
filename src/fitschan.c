@@ -1460,6 +1460,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Besselian or Julian epoch WcsSkyFrame reads it as.  It was stored
 *        as an MJD, so EQUINOX was written as 51544.5 for J2000, which was
 *        harmless only while the EQUINOX of an ecliptic header was ignored.
+*     11-OCT-2026 (TIMJ):
+*        In SkySys, remove the blanks padding a TIMESYS value before using
+*        it, as WcsFcRead does.  A padded value such as 'TAI     ' was not
+*        recognised, so MJD-OBS was written in UTC under a TIMESYS that
+*        named another timescale, and a "badval" warning was given.
 *class--
 */
 
@@ -30039,6 +30044,7 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
    const char *skyrefis;    /* SkyRefIs value */
    const char *sys;         /* Celestal coordinate system */
    const char *timesys;     /* Timescale specified in FitsChan */
+   char timesys_buf[ AST__FITSCHAN_FITSCARDLEN + 1 ]; /* Unpadded timescale */
    double ep;               /* Epoch of observation in required timescale (MJD) */
    double ep_tdb;           /* Epoch of observation in TDB timescale (MJD) */
    double ep_utc;           /* Epoch of observation in UTC timescale (MJD) */
@@ -30052,6 +30058,7 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
    double skyrefp_lon;      /* SkyRefP longitude value (rads) */
    double xyz[3];           /* Geocentric position vector (in m) */
    int defdate;             /* Can the date keywords be defaulted? */
+   int found;               /* Was a TIMESYS keyword found? */
    int i;                   /* Character count */
    int isys;                /* Celestial coordinate system */
    int latax;               /* Index of latitude axis in SkyFrame */
@@ -30087,12 +30094,21 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
    FitsStore. */
    old_ignore_used = ignore_used;
    ignore_used = 0;
-   if( GetValue( this, "TIMESYS", AST__STRING, (void *) &timesys, 0, 0, method,
-                 class, status ) && strcmp( timesys, "UTC" ) ) {
-      ep = TDBConv( ep_tdb, TimeSysToAst( this, timesys, method, class,
+   found = GetValue( this, "TIMESYS", AST__STRING, (void *) &timesys, 0, 0,
+                     method, class, status );
+
+/* Remove any blanks padding the value, as WcsFcRead does when it reads
+   TIMESYS. */
+   if( found ) {
+      strncpy( timesys_buf, timesys, AST__FITSCHAN_FITSCARDLEN );
+      timesys_buf[ AST__FITSCHAN_FITSCARDLEN ] = 0;
+      astChrTrunc( timesys_buf );
+   }
+   if( found && strcmp( timesys_buf, "UTC" ) ) {
+      ep = TDBConv( ep_tdb, TimeSysToAst( this, timesys_buf, method, class,
                                           status ),
                     1, method, class, status );
-      SetItemC( &(store->timesys), 0, 0, s, timesys, status );
+      SetItemC( &(store->timesys), 0, 0, s, timesys_buf, status );
 
 /* If no TIMESYS keyword was found in the FitsChan, or the timesys was
    UTC, we use the UTC epoch value found above. In this case no TIMESYS value

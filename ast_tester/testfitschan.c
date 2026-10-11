@@ -1580,6 +1580,41 @@ static void testeclipticequinox( int *status ) {
    fc = astAnnul( fc );
 }
 
+static void testpaddedtimesys( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   const char *cards[] = { "NAXIS   = 2", "NAXIS1  = 100", "NAXIS2  = 100",
+                           "CRPIX1  = 50", "CRPIX2  = 50", "CRVAL1  = 10",
+                           "CRVAL2  = 20", "CDELT1  = -0.001",
+                           "CDELT2  = 0.001", "CTYPE1  = 'RA---TAN'",
+                           "CTYPE2  = 'DEC--TAN'", "RADESYS = 'ICRS'",
+                           "MJD-OBS = 55000.0", "TIMESYS = 'TAI     '", NULL };
+   double mjd = 0.0;
+   int i;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+   for( i = 0; cards[ i ]; i++ ) astPutFits( fc, cards[ i ], 0 );
+   astClear( fc, "Card" );
+   fs = astRead( fc );
+   if( !fs ) {
+      stopit( 1010, "a header with a padded TIMESYS could not be read", status );
+   } else {
+      if( astWrite( fc, fs ) != 1 ) {
+         stopit( 1010, "a FrameSet could not be written back", status );
+      } else {
+         astClear( fc, "Card" );
+         if( !astGetFitsF( fc, "MJD-OBS", &mjd ) ||
+             fabs( mjd - 55000.0 ) > 1.0E-9 ) {
+            stopit( 1010, "MJD-OBS was not written in the timescale a padded "
+                    "TIMESYS names", status );
+         }
+      }
+      fs = astAnnul( fs );
+   }
+   fc = astAnnul( fc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1612,6 +1647,7 @@ int main( void ) {
    testsipencoding( status );
    testfloatsign( status );
    testeclipticequinox( status );
+   testpaddedtimesys( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
