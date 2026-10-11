@@ -1432,6 +1432,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        from the "%lf %lf" and "%d %d" reads of a string converted to a
 *        complex value, so that a string holding both parts is read rather
 *        than always failing over to the one-value form, which rejected it.
+*     10-OCT-2026 (TIMJ):
+*        Count the cards holding each keyword in the KeyMap used by
+*        HasCard, and remove a keyword from it in DeleteCard only when the
+*        last such card is deleted.  Deleting one of two cards with the same
+*        keyword made HasCard report the keyword absent, so a NATIVE write
+*        could reuse the name of a card still in the FitsChan.
 *class--
 */
 
@@ -8651,6 +8657,7 @@ static void DeleteCard( AstFitsChan *this, const char *method,
    FitsCard *card;            /* Pointer to the current card */
    FitsCard *next;            /* Pointer to next card in list */
    FitsCard *prev;            /* Pointer to previous card in list */
+   int ncard;                 /* No. of cards holding the keyword */
 
 /* Return if the supplied object or current card is NULL. */
    if( !this || !this->card ) return;
@@ -8658,8 +8665,13 @@ static void DeleteCard( AstFitsChan *this, const char *method,
 /* Get a pointer to the card to be deleted (the current card). */
    card = (FitsCard *) this->card;
 
-/* Remove it from the KeyMap holding all keywords. */
-   astMapRemove( this->keywords, card->name );
+/* Reduce the count of cards holding its keyword in the KeyMap holding
+   all keywords, removing the keyword when this is the last such card. */
+   if( astMapGet0I( this->keywords, card->name, &ncard ) && ncard > 1 ) {
+      astMapPut0I( this->keywords, card->name, ncard - 1, NULL );
+   } else {
+      astMapRemove( this->keywords, card->name );
+   }
 
 /* Move the current card on to the next card. */
    MoveCard( this, 1, method, class, status );
@@ -23552,6 +23564,7 @@ static void NewCard( AstFitsChan *this, const char *name, int type,
    char *b;                   /* Pointer to next stored character */
    const char *a;             /* Pointer to next supplied character */
    int lval;                  /* Logical data value restricted to 0 or 1 */
+   int ncard;                 /* No. of cards already holding the keyword */
    int nc;                    /* No. of characters to store */
 
 /* Check the global status. */
@@ -23574,8 +23587,10 @@ static void NewCard( AstFitsChan *this, const char *name, int type,
       if( !this->keywords ) this->keywords = astKeyMap( " ", status );
 
 /* Add the keyword name to the KeyMap. The value associated with the
-   KeyMap entry is not used and is set arbitrarily to zero. */
-      astMapPut0I( this->keywords, new->name, 0, NULL );
+   KeyMap entry is the number of cards holding the keyword, so that
+   DeleteCard can tell when the last of them goes. */
+      if( !astMapGet0I( this->keywords, new->name, &ncard ) ) ncard = 0;
+      astMapPut0I( this->keywords, new->name, ncard + 1, NULL );
 
 /* Copy the data type. */
       new->type = type;

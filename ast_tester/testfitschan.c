@@ -1446,6 +1446,38 @@ static void testcnvtype( int *status ) {
    fc = astAnnul( fc );
 }
 
+/* Deleting one of two cards with the same keyword leaves the keyword in
+   the FitsChan, so a NATIVE write must not reuse it for a new card. */
+static void testdupdelete( int *status ) {
+   AstFitsChan *fc;
+   AstZoomMap *zm;
+   char card[ 81 ];
+   int nzoom;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "Encoding=NATIVE" );
+   astPutFits( fc, "ZOOM_A  = 1", 0 );
+   astPutFits( fc, "ZOOM_A  = 2", 0 );
+   astClear( fc, "Card" );
+   astDelFits( fc );
+   zm = astZoomMap( 2, 2.0, " " );
+   astWrite( fc, zm );
+
+   nzoom = 0;
+   astClear( fc, "Card" );
+   while( astFindFits( fc, "ZOOM_A", card, 1 ) ) nzoom++;
+   if( astOK && nzoom != 1 ) {
+      stopit( 1005, "a NATIVE write reused the keyword of a remaining card",
+              status );
+   }
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1005, "deleting a duplicate keyword raised an error", status );
+   }
+   zm = astAnnul( zm );
+   fc = astAnnul( fc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1474,6 +1506,7 @@ int main( void ) {
       the chosen grating parameters are physically usable, so a failure in
       the negative cases cannot be blamed on the parameter choice. */
    testcnvtype( status );
+   testdupdelete( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
