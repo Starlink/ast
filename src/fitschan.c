@@ -1465,6 +1465,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        it, as WcsFcRead does.  A padded value such as 'TAI     ' was not
 *        recognised, so MJD-OBS was written in UTC under a TIMESYS that
 *        named another timescale, and a "badval" warning was given.
+*     11-OCT-2026 (TIMJ):
+*        Free the Warnings attribute value in Delete rather than in
+*        EmptyFits, and in WriteFits empty the FitsChan with EmptyFits
+*        rather than Delete.  astEmptyFits and astPutCards cleared the
+*        Warnings attribute, and astWriteFits cleared the Warnings and
+*        FitsAxisOrder attributes, although each is documented as deleting
+*        only the cards.
 *class--
 */
 
@@ -9840,9 +9847,6 @@ f     Unlike AST_WRITEFITS,
 
 /* Delete the KeyMap holding the keyword names. */
    if( this->keywords ) this->keywords = astAnnul( this->keywords );
-
-/* Free any memory used to hold the Warnings attribute value. */
-   this->warnings = astFree( this->warnings );
 
 /* Other objects in the FitsChan structure. */
    if( this->tables ) this->tables = astAnnul( this->tables );
@@ -41168,10 +41172,10 @@ f     AST_EMPTYFITS.
 /* Ensure the source function has been called */
       ReadFromSource( this, status );
 
-/* We can usefully use the local destructor function to do the work,
-   since it only frees resources used within teh FitsChan, rather than
-   freeing the FitsChan itself. */
-      Delete( (AstObject *) this, status );
+/* Write out the cards, then remove them. The attributes are left as
+   they are. */
+      WriteToSink( this, status );
+      EmptyFits( this, status );
    }
 }
 
@@ -43964,6 +43968,9 @@ static void Delete( AstObject *obj, int *status ) {
 
 /* Remove all cards from the FitsChan. */
    EmptyFits( this, status );
+
+/* Free any memory used to hold the Warnings attribute value. */
+   this->warnings = astFree( this->warnings );
 
 /* Free any memory used to hold the FitsAxisOrder attribute value. */
    this->fitsaxisorder = astFree( this->fitsaxisorder );
