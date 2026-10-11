@@ -290,6 +290,10 @@ spec_run_inverted_mid     | simplify/spec_run_inverted_mid.map     | simplify/sp
 spec_run4_identity        | simplify/spec_run4_identity.map        | simplify/spec_run4_identity.simp        |
 time_run_identity         | simplify/time_run_identity.map         | simplify/time_run_identity.simp         |
 wcsconv_gappt_iwc_residue | simplify/wcsconv_gappt_iwc_residue.map | simplify/wcsconv_gappt_iwc_residue.simp |
+# The Mapping from WCS through pixel to IWC coordinates that astRead makes
+# with Iwc set, for a header with RA---TAN, DEC--TAN and FREQ axes, captured
+# from WcsFrame before and after astSimplify.
+fitschan_iwc_spectral     | simplify/fitschan_iwc_spectral.map     | simplify/fitschan_iwc_spectral.simp     |
 
 # Captured differential-coverage fixtures (2026-06-29, auto-selected).
 cap_cmpmap_01            | simplify/cap_cmpmap_01.map | simplify/cap_cmpmap_01.simp |
