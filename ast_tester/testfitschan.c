@@ -1478,6 +1478,47 @@ static void testdupdelete( int *status ) {
    fc = astAnnul( fc );
 }
 
+/* Only FITS-WCS writes SIP coefficients, so a FrameSet read from a SIP
+   header and written with another encoding must not be given "-SIP"
+   CTYPE values. */
+static void testsipencoding( int *status ) {
+   AstFitsChan *in, *out;
+   AstObject *obj;
+   char *ctype;
+   const char *cards[] = {
+      "NAXIS   = 2", "NAXIS1  = 256", "NAXIS2  = 256",
+      "CTYPE1  = 'RA---TAN-SIP'", "CTYPE2  = 'DEC--TAN-SIP'",
+      "CRVAL1  = 202.48", "CRVAL2  = 47.17", "CRPIX1  = 128.0",
+      "CRPIX2  = 128.0", "CD1_1   = 0.00025", "CD1_2   = 0.00023",
+      "CD2_1   = 0.00023", "CD2_2   = -0.00025", "A_ORDER = 2",
+      "A_0_2   = 2.0E-5", "A_1_1   = -1.5E-5", "A_2_0   = 1.0E-5",
+      "B_ORDER = 2", "B_0_2   = -1.0E-5", "B_1_1   = 2.0E-5",
+      "B_2_0   = 1.5E-5", NULL };
+   int i;
+
+   if( *status != 0 ) return;
+   in = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+   for( i = 0; cards[ i ]; i++ ) astPutFits( in, cards[ i ], 0 );
+   astClear( in, "Card" );
+   obj = astRead( in );
+
+   out = astFitsChan( NULL, NULL, "Encoding=FITS-PC" );
+   if( obj && astWrite( out, obj ) ) {
+      astClear( out, "Card" );
+      if( astGetFitsS( out, "CTYPE1", &ctype ) && strstr( ctype, "-SIP" ) ) {
+         stopit( 1006, "a FITS-PC header was given a -SIP CTYPE", status );
+      }
+   }
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1006, "writing a SIP FrameSet as FITS-PC raised an error",
+              status );
+   }
+   if( obj ) obj = astAnnul( obj );
+   out = astAnnul( out );
+   in = astAnnul( in );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1507,6 +1548,7 @@ int main( void ) {
       the negative cases cannot be blamed on the parameter choice. */
    testcnvtype( status );
    testdupdelete( status );
+   testsipencoding( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
