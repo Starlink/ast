@@ -1519,6 +1519,27 @@ static void testsipencoding( int *status ) {
    in = astAnnul( in );
 }
 
+/* A value formatted with one leading space and no decimal point is given
+   one; a negative value must keep its sign when that is done. */
+static void testfloatsign( int *status ) {
+   AstFitsChan *fc;
+   char card[ 81 ];
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "FitsDigits=18" );
+   astSetFitsF( fc, "NEG", -123456789012345678.0, NULL, 0 );
+   astClear( fc, "Card" );
+   if( astFindFits( fc, "NEG", card, 0 ) &&
+       !strstr( card, "-123456789012345680." ) ) {
+      stopit( 1007, "a negative value lost its sign", status );
+   }
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1007, "formatting a negative value raised an error", status );
+   }
+   fc = astAnnul( fc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1549,6 +1570,7 @@ int main( void ) {
    testcnvtype( status );
    testdupdelete( status );
    testsipencoding( status );
+   testfloatsign( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
