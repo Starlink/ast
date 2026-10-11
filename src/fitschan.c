@@ -1438,6 +1438,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        last such card is deleted.  Deleting one of two cards with the same
 *        keyword made HasCard report the keyword absent, so a NATIVE write
 *        could reuse the name of a card still in the FitsChan.
+*     10-OCT-2026 (TIMJ):
+*        In AddVersion, use SIP distortion only when writing FITS-WCS, the
+*        only encoding that writes the SIP coefficients.  Other encodings
+*        wrote "-SIP" CTYPE values and the CRPIX and CD of the linear part
+*        of the SIP description with no coefficients, so the distortion was
+*        lost without the FitsTol test that guards a linear approximation.
 *class--
 */
 
@@ -3001,8 +3007,10 @@ static int AddVersion( AstFitsChan *this, AstFrameSet *fs, int ipix, int iwcs,
    mapping to be considered linear. */
    fitstol = astGetFitsTol( this );
 
-/* See if SIP headers are to be produced. */
-   sipok = astGetSipOK( this );
+/* See if SIP headers are to be produced. Only FITS-WCS writes the SIP
+   coefficients, so for other encodings the distortion must be described
+   by the linear approximation that is used when SipOK is zero. */
+   sipok = ( encoding == FITSWCS_ENCODING ) && astGetSipOK( this );
 
 /* Now attempt to store values for the keywords describing the pixel->IWC
    Mapping (CRPIX, CD, PC, CDELT). This tests that the iwcmap is linear.
