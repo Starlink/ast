@@ -1615,6 +1615,36 @@ static void testpaddedtimesys( int *status ) {
    fc = astAnnul( fc );
 }
 
+static void testemptykeepsattributes( int *status ) {
+   AstFitsChan *fc;
+   const char *what[] = { "astEmptyFits", "astPutCards", "astWriteFits" };
+   char msg[ 100 ];
+   int i;
+
+   if( *status != 0 ) return;
+   for( i = 0; i < 3 && *status == 0; i++ ) {
+      fc = astFitsChan( NULL, NULL, "Warnings=BadKeyName,FitsAxisOrder=<copy>" );
+      astPutFits( fc, "A       = 1", 0 );
+      if( i == 0 ) {
+         astEmptyFits( fc );
+      } else if( i == 1 ) {
+         astPutCards( fc, "B       = 2" );
+      } else {
+         astWriteFits( fc );
+      }
+      if( !astTest( fc, "Warnings" ) ||
+          strcmp( astGetC( fc, "Warnings" ), "BadKeyName" ) ) {
+         snprintf( msg, sizeof msg, "%s cleared the Warnings attribute", what[ i ] );
+         stopit( 1070, msg, status );
+      } else if( !astTest( fc, "FitsAxisOrder" ) ||
+                 strcmp( astGetC( fc, "FitsAxisOrder" ), "<copy>" ) ) {
+         snprintf( msg, sizeof msg, "%s cleared the FitsAxisOrder attribute", what[ i ] );
+         stopit( 1070, msg, status );
+      }
+      fc = astAnnul( fc );
+   }
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1648,6 +1678,7 @@ int main( void ) {
    testfloatsign( status );
    testeclipticequinox( status );
    testpaddedtimesys( status );
+   testemptykeepsattributes( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
