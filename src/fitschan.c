@@ -1450,6 +1450,16 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        done when there are two leading spaces.  Only the digits were
 *        shifted, so a minus sign was overwritten and a negative value such
 *        as -123456789012345678 written with FitsDigits 18 lost its sign.
+*     11-OCT-2026 (TIMJ):
+*        In WcsSkyFrame, test for ecliptic axes with the system code "E"
+*        that WcsCelestial gives them.  The code "ECL" was tested, which
+*        WcsCelestial never gives, so the EQUINOX value of an ecliptic
+*        header was ignored, leaving the SkyFrame at the J2000 default, and
+*        no "noequinox" warning was given for a default equinox.  In
+*        SkySys, convert the Equinox of an ecliptic SkyFrame to the
+*        Besselian or Julian epoch WcsSkyFrame reads it as.  It was stored
+*        as an MJD, so EQUINOX was written as 51544.5 for J2000, which was
+*        harmless only while the EQUINOX of an ecliptic header was ignored.
 *class--
 */
 
@@ -30129,6 +30139,9 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
       isys = RADEC;
       SetItemC( &(store->radesys), 0, 0, s, "GAPPT", status );
    } else if( !Ustrcmp( sys, "Ecliptic", status ) ){
+/* With no RADESYS, WcsSkyFrame reads an EQUINOX below 1984.0 as a
+   Besselian epoch and any other as a Julian epoch. */
+      eq = ( palEpb( eq ) < 1984.0 ) ? palEpb( eq ) : palEpj( eq );
       isys = ECLIP;
    } else if( !Ustrcmp( sys, "Helioecliptic", status ) ){
       eq = AST__BAD;
@@ -39563,7 +39576,7 @@ static AstSkyFrame *WcsSkyFrame( AstFitsChan *this, FitsStore *store, char s,
 /* If we have an equatorial or ecliptic system, issue a warning that a default
    equinox has been adopted. */
       if( ( !strcmp( sys, "EQU" ) && radesys != ICRS && radesys != GAPPT ) ||
-          !strcmp( sys, "ECL" ) ){
+          ( !strcmp( sys, "E" ) && equinox != AST__BAD ) ){
          sprintf( buf, "The original FITS header did not specify the "
                   "reference equinox. A default value of %c%.8g was "
                   "assumed.", bj, equinox );
@@ -39677,7 +39690,7 @@ static AstSkyFrame *WcsSkyFrame( AstFitsChan *this, FitsStore *store, char s,
 
 /* For equatorial and ecliptic systems, store the epoch of the reference
    equinox in the SkyFrame. */
-      if( ( !strcmp( sys, "EQU" ) || !strcmp( sys, "ECL" ) ) &&
+      if( ( !strcmp( sys, "EQU" ) || !strcmp( sys, "E" ) ) &&
           equinox != AST__BAD ) astSetEquinox( ret, eqmjd );
 
 /* If either of the CNAME keywords is set, use it as the axis label. */
