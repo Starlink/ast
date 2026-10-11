@@ -28,5 +28,5 @@ CD2_2A  =                 0.01 / Transformation matrix element
 RADESYSA= 'ICRS    '           / Reference frame for RA/DEC values              
 CD1_1B  =                -0.01 / Transformation matrix element                  
 CD2_2B  =                 0.01 / Transformation matrix element                  
-EQUINOXB=              51544.5 / [yr] Epoch of reference equinox                
+EQUINOXB=               2000.0 / [yr] Epoch of reference equinox                
 END                                                                             

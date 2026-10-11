@@ -1540,6 +1540,46 @@ static void testfloatsign( int *status ) {
    fc = astAnnul( fc );
 }
 
+static void testeclipticequinox( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   const char *cards[] = { "NAXIS   = 2", "NAXIS1  = 100", "NAXIS2  = 100",
+                           "CRPIX1  = 50", "CRPIX2  = 50", "CRVAL1  = 10",
+                           "CRVAL2  = 20", "CDELT1  = -0.001",
+                           "CDELT2  = 0.001", "CTYPE1  = 'ELON-TAN'",
+                           "CTYPE2  = 'ELAT-TAN'", "EQUINOX = 1950.0", NULL };
+   int i;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+   for( i = 0; cards[ i ]; i++ ) astPutFits( fc, cards[ i ], 0 );
+   astClear( fc, "Card" );
+   fs = astRead( fc );
+   if( !fs ) {
+      stopit( 1008, "an ecliptic header could not be read", status );
+   } else if( !astTest( fs, "Equinox" ) ||
+              fabs( astGetD( fs, "Equinox" ) - 1950.0 ) > 1.0E-6 ) {
+      stopit( 1008, "the EQUINOX of an ecliptic header was ignored", status );
+   }
+   if( fs ) {
+      fc = astAnnul( fc );
+      fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      if( astWrite( fc, fs ) != 1 ) {
+         stopit( 1009, "an ecliptic FrameSet could not be written", status );
+      } else {
+         double eq = 0.0;
+         astClear( fc, "Card" );
+         if( !astGetFitsF( fc, "EQUINOX", &eq ) ||
+             fabs( eq - 1950.0 ) > 1.0E-6 ) {
+            stopit( 1009, "the EQUINOX of an ecliptic SkyFrame was not "
+                    "written as an epoch", status );
+         }
+      }
+      fs = astAnnul( fs );
+   }
+   fc = astAnnul( fc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1571,6 +1611,7 @@ int main( void ) {
    testdupdelete( status );
    testsipencoding( status );
    testfloatsign( status );
+   testeclipticequinox( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
