@@ -4511,6 +4511,62 @@ int main( void ) {
       astEnd;
    }
 
+   /* MJD-OBS survives a read. FITS-AIPS, FITS-AIPS++, FITS-IRAF and
+      FITS-CLASS write only DATE-OBS, and must update that MJD-OBS so that
+      it agrees, but add none to a header that had none. */
+   if( *status == 0 ) {
+      const char *md_sky[] = { "NAXIS   = 2", "NAXIS1  = 10", "NAXIS2  = 10",
+         "CRPIX1  = 5", "CRPIX2  = 5", "CRVAL1  = 10", "CRVAL2  = 20",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CTYPE1  = 'RA---TAN'",
+         "CTYPE2  = 'DEC--TAN'", "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      const char *md_class[] = { "NAXIS   = 3", "NAXIS1  = 20", "NAXIS2  = 10",
+         "NAXIS3  = 10", "CRPIX1  = 10", "CRPIX2  = 5", "CRPIX3  = 5",
+         "CRVAL1  = 1.102E11", "CRVAL2  = 40.738", "CRVAL3  = 62.933",
+         "CDELT1  = 39062.5", "CDELT2  = -0.01", "CDELT3  = 0.01",
+         "CTYPE1  = 'FREQ'", "CTYPE2  = 'RA---TAN'", "CTYPE3  = 'DEC--TAN'",
+         "CUNIT1  = 'Hz'", "SPECSYS = 'SOURCE'", "RESTFRQ = 1.10201354E11",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      const char *md_enc[] = { "FITS-AIPS", "FITS-AIPS++", "FITS-IRAF",
+                               "FITS-CLASS", NULL };
+      int ienc, ih, withmjd;
+      double md_mjd;
+
+      astBegin;
+      for( ienc = 0; md_enc[ ienc ] && *status == 0; ienc++ ) {
+         const char **md_head = ( ienc == 3 ) ? md_class : md_sky;
+         for( withmjd = 0; withmjd < 2 && *status == 0; withmjd++ ) {
+            AstFitsChan *mdfc = astFitsChan( NULL, NULL, " " );
+            for( ih = 0; md_head[ ih ]; ih++ ) astPutFits( mdfc, md_head[ ih ], 0 );
+            astPutFits( mdfc, "DATE-OBS= '2002-05-19T14:09:36.000'", 0 );
+            if( withmjd ) astPutFits( mdfc, "MJD-OBS = 52413.59", 0 );
+            astClear( mdfc, "Card" );
+            AstObject *mdfs = astRead( mdfc );
+            if( !mdfs ) {
+               stopit( 12356, "MJD-OBS: header not read", status );
+               break;
+            }
+            astSetC( mdfs, "Epoch", "MJD 55000" );
+            astSet( mdfc, "Encoding=%s", md_enc[ ienc ] );
+            if( astWrite( mdfc, mdfs ) != 1 ) {
+               stopit( 12357, "MJD-OBS: write failed", status );
+               break;
+            }
+            astClear( mdfc, "Card" );
+            if( !withmjd ) {
+               if( astGetFitsF( mdfc, "MJD-OBS", &md_mjd ) ) {
+                  stopit( 12358, "MJD-OBS: added to a header without one",
+                          status );
+               }
+            } else if( !astGetFitsF( mdfc, "MJD-OBS", &md_mjd ) ||
+                       fabs( md_mjd - 55000.0 ) > 0.01 ) {
+               stopit( 12359, "MJD-OBS: not updated to agree with DATE-OBS",
+                       status );
+            }
+         }
+      }
+      astEnd;
+   }
+
    /* IsMapLinear: a spectral axis of 20 channels at 1.1E11 Hz is linear in
       Hz, so FITS-WCS writes it in Hz, with CRPIX and CRVAL at the channel
       nearest the middle of the axis. */
