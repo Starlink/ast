@@ -325,6 +325,22 @@ int main( void ) {
    }
    pickle = astFree( pickle );
 
+   /* Adding a variant leaves the Domain of the current Frame unset if it
+      was unset; its default, CMP, names the original variant. */
+   fs = astFrameSet( astFrame( 2, "Domain=A" ), " " );
+   astAddFrame( fs, AST__BASE, astUnitMap( 2, " " ),
+                astCmpFrame( astFrame( 1, " " ), astFrame( 1, " " ), " " ) );
+   astAddVariant( fs, astZoomMap( 2, 2.0, " " ), "TWO" );
+   if( astTest( fs, "Domain" ) ) {
+      stopit( status, "Error 44" );
+   }
+
+   /* So does selecting another variant. */
+   astSetC( fs, "Variant", "CMP" );
+   if( astTest( fs, "Domain" ) ) {
+      stopit( status, "Error 45" );
+   }
+
    astEnd;
 
    if( *status == 0 ) {
