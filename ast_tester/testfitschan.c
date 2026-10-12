@@ -4473,6 +4473,44 @@ int main( void ) {
       astEnd;
    }
 
+   /* CLASSFromStore LONPOLE: FITS-CLASS cannot describe a rotated image,
+      but tolerates a LONPOLE of +/-180 degrees. A header giving LONPOLE
+      180 (its default for TAN away from the pole) can be written; one
+      giving LONPOLE 90 cannot. */
+   if( *status == 0 ) {
+      const char *lp_vals[] = { "180", "90", NULL };
+      int lp_want[] = { 1, 0 };
+      const char *lp_head[] = { "NAXIS   = 3", "NAXIS1  = 20", "NAXIS2  = 10",
+         "NAXIS3  = 10", "CRPIX1  = 10", "CRPIX2  = 5", "CRPIX3  = 5",
+         "CRVAL1  = 1.102E11", "CRVAL2  = 40.738", "CRVAL3  = 62.933",
+         "CDELT1  = 39062.5", "CDELT2  = -0.01", "CDELT3  = 0.01",
+         "CTYPE1  = 'FREQ'", "CTYPE2  = 'RA---TAN'", "CTYPE3  = 'DEC--TAN'",
+         "CUNIT1  = 'Hz'", "SPECSYS = 'SOURCE'", "RESTFRQ = 1.10201354E11",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      int ilp, ih;
+      char lp_card[ 81 ];
+
+      astBegin;
+      for( ilp = 0; lp_vals[ ilp ] && *status == 0; ilp++ ) {
+         AstFitsChan *lpfc = astFitsChan( NULL, NULL, " " );
+         for( ih = 0; lp_head[ ih ]; ih++ ) astPutFits( lpfc, lp_head[ ih ], 0 );
+         sprintf( lp_card, "LONPOLE = %s", lp_vals[ ilp ] );
+         astPutFits( lpfc, lp_card, 0 );
+         astClear( lpfc, "Card" );
+         AstObject *lpfs = astRead( lpfc );
+         if( !lpfs ) {
+            stopit( 12345, "CLASS LONPOLE: header not read", status );
+         } else {
+            AstFitsChan *lpcl = astFitsChan( NULL, NULL, "Encoding=FITS-CLASS" );
+            if( astWrite( lpcl, lpfs ) != lp_want[ ilp ] ) {
+               stopit( 12346 + ilp, "CLASS LONPOLE: wrong FITS-CLASS acceptance",
+                       status );
+            }
+         }
+      }
+      astEnd;
+   }
+
    /* CLASSFromStore 1D→3D expansion: a 1D SpecFrame written to FITS-CLASS
       triggers NAXIS expansion from 1 to 3 (degenerate spatial axes),
       and also exercises: SFL→GLS rename, kHz/MHz/GHz unit branches,
