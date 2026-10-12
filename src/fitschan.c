@@ -1472,6 +1472,16 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Warnings attribute, and astWriteFits cleared the Warnings and
 *        FitsAxisOrder attributes, although each is documented as deleting
 *        only the cards.
+*     11-OCT-2026 (TIMJ):
+*        In Dump, write the SipReplace attribute under the name "SipRpl",
+*        and write 64 bit integer card values with astWriteInt64.  In
+*        astLoadFitsChan, read SipReplace from "SipRpl", read 64 bit
+*        integer card values into int64_t variables, and use -INT_MAX, the
+*        unset value, as the default for PolyTan and SipOK.  The name
+*        "SipReplace" is longer than the 8 characters a Channel reads, so a
+*        dump with SipReplace set could not be read back.  64 bit integer
+*        values were truncated to an int.  An unset PolyTan or SipOK was
+*        read back as set to -1.
 *class--
 */
 
@@ -44121,7 +44131,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* ------ */
    set = TestSipReplace( this, status );
    ival = set ? GetSipReplace( this, status ) : astGetSipReplace( this );
-   astWriteInt( channel, "SipReplace", set, 1, ival, "Replace SIP inverse coefficients?" );
+   astWriteInt( channel, "SipRpl", set, 1, ival, "Replace SIP inverse coefficients?" );
 
 /* FitsTol */
 /* ------- */
@@ -44211,7 +44221,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
                          "FITS keyword value" );
          } else if( cardtype == AST__KINT ){
             (void) sprintf( buff, "Dt%d", ncard );
-            astWriteInt( channel, buff, 1, 1, *( (int64_t *) data ),
+            astWriteInt64( channel, buff, 1, 1, *( (int64_t *) data ),
                          "FITS keyword value" );
          } else if( cardtype == AST__LOGICAL ){
             (void) sprintf( buff, "Dt%d", ncard );
@@ -45108,7 +45118,7 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
    int flags;                   /* Keyword flags */
    int free_data;               /* Should data memory be freed? */
    int ival[2];                 /* Integer data values */
-   int kval[2];                 /* 64 bit integer data values */
+   int64_t kval[2];             /* 64 bit integer data values */
    int ncard;                   /* No. of FitsCards read so far */
    int type;                    /* Keyword type */
    void *data;                  /* Pointer to keyword data value */
@@ -45243,7 +45253,7 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 
 /* SipReplace */
 /* ---------- */
-      new->sipreplace = astReadInt( channel, "sipreplace", -1 );
+      new->sipreplace = astReadInt( channel, "siprpl", -1 );
       if ( TestSipReplace( new, status ) ) SetSipReplace( new, new->sipreplace, status );
 
 /* FitsTol */
@@ -45253,12 +45263,12 @@ AstFitsChan *astLoadFitsChan_( void *mem, size_t size,
 
 /* PolyTan */
 /* ------- */
-      new->polytan = astReadInt( channel, "polytan", -1 );
+      new->polytan = astReadInt( channel, "polytan", -INT_MAX );
       if ( TestPolyTan( new, status ) ) SetPolyTan( new, new->polytan, status );
 
 /* SipOK */
 /* ----- */
-      new->sipok = astReadInt( channel, "sipok", -1 );
+      new->sipok = astReadInt( channel, "sipok", -INT_MAX );
       if ( TestSipOK( new, status ) ) SetSipOK( new, new->sipok, status );
 
 /* Iwc */
