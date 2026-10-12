@@ -1488,6 +1488,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        "==" rather than "!=", so it rejected a LONPOLE of 180 and accepted
 *        any other value.
 *     12-OCT-2026 (TIMJ):
+*        In IsMapLinear, fit values offset by the first value of each.  The
+*        sums formed from values far from zero compared to their range lost
+*        the fit to rounding, so that a linear Mapping was judged non-linear:
+*        given NAXIS1 = 20, the Hz to GHz unit Mapping of a spectral axis at
+*        1.1E11 Hz, and SpectralAxes then wrote CUNIT 'GHz' and CRVAL in GHz
+*        with CDELT and CRPIX in Hz.
+*     12-OCT-2026 (TIMJ):
 *        In PCFromStore, compare an alternate axis description's MJD-OBS
 *        with the primary one's only if the alternate one has a value, as
 *        the comment describes.  SkyAxes stores MJD-OBS only for the
@@ -19393,8 +19400,10 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
    double lbnd_out;
    double m;
    double p0;
+   double poff;
    double pv;
    double sn;
+   double soff;
    double sp;
    double sps;
    double ss2;
@@ -19539,11 +19548,15 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
 /* Do a least squares fit to each input coordinate. Each fit gives the
    corresponding input coordinate value as a linear function of the
    specified output coordinate value. Note, linear function should never
-   produce bad values so abort if a bad value is found. */
+   produce bad values so abort if a bad value is found. The fit is made to
+   values offset by the first value of each, since the sums formed from
+   values far from zero compared to their range lose the fit to rounding. */
          ret = 1;
          s = ptr2[ coord_out ];
+         soff = s[ 0 ];
          for( i = 0; i < nin; i++ ) {
             p = ptr1[ i ];
+            poff = p[ 0 ];
 
 /* Form the required sums. Also find the largest and smallest input
    coordinate value achieved. */
@@ -19558,13 +19571,15 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
                sv = s[ j ];
                pv = p[ j ];
                if( pv != AST__BAD && sv != AST__BAD ) {
+                  if( pv < in_lbnd ) in_lbnd = pv;
+                  if( pv > in_ubnd ) in_ubnd = pv;
+                  sv -= soff;
+                  pv -= poff;
                   sp += pv;
                   ss += sv;
                   sps += pv*sv;
                   sn += 1.0;
                   ss2 += sv*sv;
-                  if( pv < in_lbnd ) in_lbnd = pv;
-                  if( pv > in_ubnd ) in_ubnd = pv;
                } else {
                   sn = 0.0;
                   break;
@@ -19582,7 +19597,7 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
 
 /* Subtract off the fit value form the "p" values to get the residuals of
    the fit. */
-                  for( j = 0; j < NP; j++ ) p[ j ] -= m*s[ j ] + c;
+                  for( j = 0; j < NP; j++ ) p[ j ] -= poff + m*( s[ j ] - soff ) + c;
 
 /* We now do a least squares fit to the residuals. This second fit is done
    because the first least squares fit sometimes leaves the residuals with a
@@ -19595,7 +19610,7 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
                   for( j = 0; j < NP; j++ ) {
                      pv = p[ j ];
                      sp += pv;
-                     sps += pv*s[ j ];
+                     sps += pv*( s[ j ] - soff );
                   }
 
 /* Find the constants in "input residual = m*output coord + c" equation. */
@@ -19604,7 +19619,7 @@ static int IsMapLinear( AstMapping *smap, const double lbnd_in[],
 
 /* Subtract off the fit value form the "p residuals" values to get the
    residual redisuals of the fit. */
-                  for( j = 0; j < NP; j++ ) p[ j ] -= m*s[ j ] + c;
+                  for( j = 0; j < NP; j++ ) p[ j ] -= m*( s[ j ] - soff ) + c;
 
 /* The requirement for a linear relationship is that the absolute residual
    between the input coord produced by the above linear fit and the input

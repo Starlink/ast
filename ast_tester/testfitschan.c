@@ -4511,6 +4511,46 @@ int main( void ) {
       astEnd;
    }
 
+   /* IsMapLinear: a spectral axis of 20 channels at 1.1E11 Hz is linear in
+      Hz, so FITS-WCS writes it in Hz, with CRPIX and CRVAL at the channel
+      nearest the middle of the axis. */
+   if( *status == 0 ) {
+      const char *lm_head[] = { "NAXIS   = 3", "NAXIS1  = 20", "NAXIS2  = 10",
+         "NAXIS3  = 10", "CRPIX1  = 10", "CRPIX2  = 5", "CRPIX3  = 5",
+         "CRVAL1  = 1.102E11", "CRVAL2  = 40.738", "CRVAL3  = 62.933",
+         "CDELT1  = 39062.5", "CDELT2  = -0.01", "CDELT3  = 0.01",
+         "CTYPE1  = 'FREQ'", "CTYPE2  = 'RA---TAN'", "CTYPE3  = 'DEC--TAN'",
+         "CUNIT1  = 'Hz'", "SPECSYS = 'SOURCE'", "RESTFRQ = 1.10201354E11",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      int ih;
+      char *lm_unit;
+      double lm_crpix;
+
+      astBegin;
+      AstFitsChan *lmfc = astFitsChan( NULL, NULL, " " );
+      for( ih = 0; lm_head[ ih ]; ih++ ) astPutFits( lmfc, lm_head[ ih ], 0 );
+      astClear( lmfc, "Card" );
+      AstObject *lmfs = astRead( lmfc );
+      if( !lmfs ) {
+         stopit( 12352, "IsMapLinear: header not read", status );
+      } else {
+         AstFitsChan *lmwc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astPutFits( lmwc, "NAXIS1  = 20", 0 );
+         if( astWrite( lmwc, lmfs ) != 1 ) {
+            stopit( 12353, "IsMapLinear: FITS-WCS write failed", status );
+         }
+         astClear( lmwc, "Card" );
+         if( !astGetFitsS( lmwc, "CUNIT1", &lm_unit ) || strncmp( lm_unit, "Hz", 2 ) ) {
+            stopit( 12354, "IsMapLinear: spectral axis not written in Hz", status );
+         }
+         astClear( lmwc, "Card" );
+         if( !astGetFitsF( lmwc, "CRPIX1", &lm_crpix ) || lm_crpix != 11.0 ) {
+            stopit( 12355, "IsMapLinear: CRPIX1 not 11", status );
+         }
+      }
+      astEnd;
+   }
+
    /* PCFromStore alternates: an alternate description sharing the primary
       one's PC matrix is written with C<n>ELT<i> etc.; one with a different
       PC matrix is not. The primary description has an MJD-OBS, which an
