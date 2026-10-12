@@ -1482,6 +1482,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        dump with SipReplace set could not be read back.  64 bit integer
 *        values were truncated to an int.  An unset PolyTan or SipOK was
 *        read back as set to -1.
+*     12-OCT-2026 (TIMJ):
+*        In CLASSFromStore, accept a LONPOLE of +180 or -180 degrees, as
+*        the comment describes.  The test compared LONPOLE with 180 using
+*        "==" rather than "!=", so it rejected a LONPOLE of 180 and accepted
+*        any other value.
 *class--
 */
 
@@ -6834,7 +6839,7 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    values of +/- 180 degrees. */
    if( ok && ( naxis2 != 1 || naxis3 != 1 ) ) {
       lonpole =  GetItem( &(store->lonpole), 0, 0, s, NULL, method, class, status );
-      if( lonpole != AST__BAD && lonpole != -180.0 && lonpole == 180 ) ok = 0;
+      if( lonpole != AST__BAD && lonpole != -180.0 && lonpole != 180.0 ) ok = 0;
       if( GetItem( &(store->latpole), 0, 0, s, NULL, method, class, status )
           != AST__BAD ) ok = 0;
    }
