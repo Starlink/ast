@@ -1488,6 +1488,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        "==" rather than "!=", so it rejected a LONPOLE of 180 and accepted
 *        any other value.
 *     12-OCT-2026 (TIMJ):
+*        In AIPSFromStore, AIPSPPFromStore, CLASSFromStore and
+*        IRAFFromStore, update an MJD-OBS card already in the header to
+*        agree with the DATE-OBS written.  A read leaves MJD-OBS in the
+*        header, so these encodings, which write only DATE-OBS, could
+*        leave an MJD-OBS that disagreed with it.
+*     12-OCT-2026 (TIMJ):
 *        In IsMapLinear, fit values offset by the first value of each.  The
 *        sums formed from values far from zero compared to their range lost
 *        the fit to rounding, so that a linear Mapping was judged non-linear:
@@ -3770,6 +3776,13 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
          cval = combuf;
          SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
                    "Date of observation", status );
+
+/* A read leaves any MJD-OBS card in the header, since other software
+   may use it. Update it so that it agrees with DATE-OBS. */
+         if( HasCard( this, "MJD-OBS", method, class, status ) ) {
+            SetValue( this, "MJD-OBS", (void *) &val, AST__FLOAT,
+                      "Modified Julian Date of observation", status );
+         }
       }
 
 /* Spectral stuff.. */
@@ -4302,6 +4315,13 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
          cval = combuf;
          SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
                    "Date of observation", status );
+
+/* A read leaves any MJD-OBS card in the header, since other software
+   may use it. Update it so that it agrees with DATE-OBS. */
+         if( HasCard( this, "MJD-OBS", method, class, status ) ) {
+            SetValue( this, "MJD-OBS", (void *) &val, AST__FLOAT,
+                      "Modified Julian Date of observation", status );
+         }
       }
 
 /* Projection parameters. */
@@ -6977,6 +6997,13 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
          cval = combuf;
          SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
                    "Date of observation", status );
+
+/* A read leaves any MJD-OBS card in the header, since other software
+   may use it. Update it so that it agrees with DATE-OBS. */
+         if( HasCard( this, "MJD-OBS", method, class, status ) ) {
+            SetValue( this, "MJD-OBS", (void *) &val, AST__FLOAT,
+                      "Modified Julian Date of observation", status );
+         }
       }
 
 /* Rest frequency */
@@ -19308,6 +19335,13 @@ static int IRAFFromStore( AstFitsChan *this, FitsStore *store,
       cval = combuf;
       SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
                 "Date of observation", status );
+
+/* A read leaves any MJD-OBS card in the header, since other software
+   may use it. Update it so that it agrees with DATE-OBS. */
+      if( HasCard( this, "MJD-OBS", method, class, status ) ) {
+         SetValue( this, "MJD-OBS", (void *) &val, AST__FLOAT,
+                   "Modified Julian Date of observation", status );
+      }
    }
 
 /* If we get here we have succeeded. */
