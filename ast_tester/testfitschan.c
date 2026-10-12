@@ -4511,6 +4511,41 @@ int main( void ) {
       astEnd;
    }
 
+   /* GetCDMatrix keeps the current card. Here the card after the last WCS
+      card, CO1_1, is consumed by the read, and a FITS-WCS write puts the
+      cards it adds, MJD-OBS and DATE-OBS, in front of it, so they follow
+      RADESYS. */
+   if( *status == 0 ) {
+      const char *cd_head[] = { "NAXIS   = 2", "NAXIS1  = 2048", "NAXIS2  = 2048",
+         "CTYPE1  = 'RA---TAN'", "CTYPE2  = 'DEC--TAN'", "CRVAL1  = 180.0",
+         "CRVAL2  = 45.0", "CRPIX1  = 1024.5", "CRPIX2  = 1024.5",
+         "CDELT1  = -1.111E-04", "CDELT2  = 1.111E-04", "EQUINOX = 2000.0",
+         "RADESYS = 'FK5'", "CO1_1   = 0.0", "CO1_2   = 1.0", "CO1_4   = 2.5E-06",
+         NULL };
+      int ih;
+      char cd_card[ 81 ];
+
+      astBegin;
+      AstFitsChan *cdfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      for( ih = 0; cd_head[ ih ]; ih++ ) astPutFits( cdfc, cd_head[ ih ], 0 );
+      astClear( cdfc, "Card" );
+      AstObject *cdfs = astRead( cdfc );
+      if( !cdfs ) {
+         stopit( 12360, "GetCDMatrix: header not read", status );
+      } else if( astWrite( cdfc, cdfs ) != 1 ) {
+         stopit( 12361, "GetCDMatrix: write failed", status );
+      } else {
+         astClear( cdfc, "Card" );
+         if( !astFindFits( cdfc, "RADESYS", cd_card, 1 ) ||
+             !astFindFits( cdfc, "%f", cd_card, 0 ) ||
+             strncmp( cd_card, "MJD-OBS", 7 ) ) {
+            stopit( 12362, "GetCDMatrix: MJD-OBS does not follow RADESYS",
+                    status );
+         }
+      }
+      astEnd;
+   }
+
    /* MJD-OBS survives a read. FITS-AIPS, FITS-AIPS++, FITS-IRAF and
       FITS-CLASS write only DATE-OBS, and must update that MJD-OBS so that
       it agrees, but add none to a header that had none. */
