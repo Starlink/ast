@@ -1488,6 +1488,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        "==" rather than "!=", so it rejected a LONPOLE of 180 and accepted
 *        any other value.
 *     12-OCT-2026 (TIMJ):
+*        In GetCDMatrix, reinstate the current card itself rather than its
+*        index.  astGetCard gives end-of-file for a card that has been read
+*        while such cards are skipped, so when the current card had been
+*        read the FitsChan was left at end-of-file, and a write that asked
+*        for the CDMatrix default put its new cards at the end of the
+*        header rather than after the last WCS card.
+*     12-OCT-2026 (TIMJ):
 *        In AIPSFromStore, AIPSPPFromStore, CLASSFromStore and
 *        IRAFFromStore, update an MJD-OBS card already in the header to
 *        agree with the DATE-OBS written.  A read leaves MJD-OBS in the
@@ -12637,7 +12644,7 @@ static int GetCDMatrix( AstFitsChan *this, int *status ){
 
 /* Local Variables... */
    int ret;            /* Returned value */
-   int icard;          /* Index of current card on entry */
+   void *card0;        /* Current card on entry */
 
 /* Check the global status. */
    if( !astOK ) return 0;
@@ -12649,16 +12656,18 @@ static int GetCDMatrix( AstFitsChan *this, int *status ){
 /* Otherwise, check for the existence of CDi_j keywords... */
    } else {
 
-/* Save the current card index, and rewind the FitsChan. */
-      icard = astGetCard( this );
+/* Save the current card, and rewind the FitsChan. The card itself is
+   saved rather than its index, since astGetCard gives end-of-file for a
+   card that has been read while such cards are skipped. */
+      card0 = this->card;
       astClearCard( this );
 
 /* If the FitsChan contains any keywords with the format "CDi_j" then return
    1. Otherwise return zero. */
       ret = astKeyFields( this, "CD%1d_%1d", 0, NULL, NULL ) ? 1 : 0;
 
-/* Reinstate the original current card index. */
-      astSetCard( this, icard );
+/* Reinstate the original current card. */
+      this->card = card0;
    }
 
 /* Return  the result. */
