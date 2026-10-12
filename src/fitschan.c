@@ -1487,6 +1487,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        the comment describes.  The test compared LONPOLE with 180 using
 *        "==" rather than "!=", so it rejected a LONPOLE of 180 and accepted
 *        any other value.
+*     12-OCT-2026 (TIMJ):
+*        In PCFromStore, compare an alternate axis description's MJD-OBS
+*        with the primary one's only if the alternate one has a value, as
+*        the comment describes.  SkyAxes stores MJD-OBS only for the
+*        primary description, so no alternate description was written
+*        when the primary one had an MJD-OBS.
 *class--
 */
 
@@ -25112,7 +25118,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
             SetValue( this, "DATE-OBS", &cval, AST__STRING,
                       "Date of observation", status );
          }
-      } else if( !astEQUAL( val, primdt ) ){
+      } else if( val != AST__BAD && !astEQUAL( val, primdt ) ){
          ok = 0;
          goto next;
       }
