@@ -1645,6 +1645,55 @@ static void testemptykeepsattributes( int *status ) {
    }
 }
 
+/* A Channel that writes to and reads from this list of lines. */
+static char dump_lines[ 100 ][ 200 ];
+static int dump_nline, dump_iline;
+
+static void dump_sink( const char *line ) {
+   if( dump_nline < 100 ) {
+      strncpy( dump_lines[ dump_nline ], line, 199 );
+      dump_lines[ dump_nline++ ][ 199 ] = 0;
+   }
+}
+
+static const char *dump_source( void ) {
+   return dump_iline < dump_nline ? dump_lines[ dump_iline++ ] : NULL;
+}
+
+/* Check that a FitsChan dumped to a Channel reads back with its SipReplace
+   value, its 64 bit integer card values, and PolyTan and SipOK unset. */
+static void testdumpload( int *status ) {
+   AstChannel *ch;
+   AstFitsChan *fc, *back;
+   int64_t kval;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "SipReplace=0" );
+   astSetFitsK( fc, "BIGINT", 123456789012, NULL, 0 );
+   ch = astChannel( dump_source, dump_sink, " " );
+   dump_nline = dump_iline = 0;
+   astWrite( ch, fc );
+   back = astRead( ch );
+   if( !astOK ) astClearStatus;
+   if( !back ) {
+      stopit( 1071, "a FitsChan dump with SipReplace set was not read back", status );
+   } else if( !astTest( back, "SipReplace" ) || astGetI( back, "SipReplace" ) != 0 ) {
+      stopit( 1071, "SipReplace was not read back", status );
+   } else if( astTest( back, "PolyTan" ) ) {
+      stopit( 1071, "an unset PolyTan was read back set", status );
+   } else if( astTest( back, "SipOK" ) ) {
+      stopit( 1071, "an unset SipOK was read back set", status );
+   } else {
+      astClear( back, "Card" );
+      if( !astGetFitsK( back, "BIGINT", &kval ) || kval != 123456789012 ) {
+         stopit( 1071, "a 64 bit integer card value was not read back", status );
+      }
+   }
+   if( back ) back = astAnnul( back );
+   ch = astAnnul( ch );
+   fc = astAnnul( fc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1679,6 +1728,7 @@ int main( void ) {
    testeclipticequinox( status );
    testpaddedtimesys( status );
    testemptykeepsattributes( status );
+   testdumpload( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
