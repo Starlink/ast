@@ -16,6 +16,20 @@ static void stopit( int i, int *status ) {
    *status = 1;
 }
 
+/* An IntraMap transformation that is never called. */
+static void tran( AstMapping *this, int npoint, int ncoord_in,
+                  const double *ptr_in[], int forward, int ncoord_out,
+                  double *ptr_out[] ) {}
+
+/* The line of the last dump that names "Iflag". */
+static char iflag_line[ 200 ];
+
+static void iflag_sink( const char *line ) {
+   if( strstr( line, "Iflag" ) ) {
+      strncpy( iflag_line, line, sizeof( iflag_line ) - 1 );
+   }
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -76,6 +90,19 @@ int main( void ) {
    if( !sf2 ) stopit( 5, status );
    if( sf2 && !astEqual( sf, sf2 ) ) {
       stopit( 6, status );
+   }
+
+   /* A Channel with Full set to 1 writes the unset IntraFlag of an
+      IntraMap, which is blank. */
+   astIntraReg( "testchannel", 1, 1, tran, 0, "Test", "Author", "Contact" );
+   if( astOK ) {
+      AstIntraMap *im = astIntraMap( "testchannel", 1, 1, " " );
+      AstChannel *full = astChannel( NULL, iflag_sink, "Full=1" );
+      iflag_line[ 0 ] = 0;
+      astWrite( full, im );
+      if( astOK && !strstr( iflag_line, "Iflag = \"\"" ) ) {
+         stopit( 8, status );
+      }
    }
 
    astEnd;
