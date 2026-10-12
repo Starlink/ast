@@ -4511,6 +4511,51 @@ int main( void ) {
       astEnd;
    }
 
+   /* PCFromStore alternates: an alternate description sharing the primary
+      one's PC matrix is written with C<n>ELT<i> etc.; one with a different
+      PC matrix is not. The primary description has an MJD-OBS, which an
+      alternate one shares. */
+   if( *status == 0 ) {
+      const char *pa_head[] = { "NAXIS   = 2", "NAXIS1  = 10", "NAXIS2  = 10",
+         "CRPIX1  = 5", "CRPIX2  = 5", "CRVAL1  = 10", "CRVAL2  = 20",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CTYPE1  = 'RA---TAN'",
+         "CTYPE2  = 'DEC--TAN'", "RADESYS = 'FK5'", "EQUINOX = 2000.0",
+         "MJD-OBS = 51000.0",
+         "CRPIX1A = 5", "CRPIX2A = 5", "CRVAL1A = 10", "CRVAL2A = 20",
+         "CDELT1A = -0.002", "CDELT2A = 0.002", "CTYPE1A = 'RA---TAN'",
+         "CTYPE2A = 'DEC--TAN'", "RADESYSA= 'FK5'", "EQUINOXA= 2000.0",
+         "CRPIX1B = 5", "CRPIX2B = 5", "CRVAL1B = 10", "CRVAL2B = 20",
+         "CDELT1B = -0.001", "CDELT2B = 0.001", "CTYPE1B = 'RA---TAN'",
+         "CTYPE2B = 'DEC--TAN'", "PC1_1B  = 0.8660254037844387",
+         "PC1_2B  = -0.5", "PC2_1B  = 0.5", "PC2_2B  = 0.8660254037844387",
+         "RADESYSB= 'FK5'", "EQUINOXB= 2000.0", NULL };
+      int ih;
+      char pa_card[ 81 ];
+
+      astBegin;
+      AstFitsChan *pafc = astFitsChan( NULL, NULL, " " );
+      for( ih = 0; pa_head[ ih ]; ih++ ) astPutFits( pafc, pa_head[ ih ], 0 );
+      astClear( pafc, "Card" );
+      AstObject *pafs = astRead( pafc );
+      if( !pafs ) {
+         stopit( 12348, "PC alternates: header not read", status );
+      } else {
+         AstFitsChan *papc = astFitsChan( NULL, NULL, "Encoding=FITS-PC" );
+         if( astWrite( papc, pafs ) != 1 ) {
+            stopit( 12349, "PC alternates: FITS-PC write failed", status );
+         }
+         astClear( papc, "Card" );
+         if( !astFindFits( papc, "C1ELT1", pa_card, 0 ) ) {
+            stopit( 12350, "PC alternates: alternate A not written", status );
+         }
+         astClear( papc, "Card" );
+         if( astFindFits( papc, "C2ELT1", pa_card, 0 ) ) {
+            stopit( 12351, "PC alternates: rotated alternate B written", status );
+         }
+      }
+      astEnd;
+   }
+
    /* CLASSFromStore 1D→3D expansion: a 1D SpecFrame written to FITS-CLASS
       triggers NAXIS expansion from 1 to 3 (degenerate spatial axes),
       and also exercises: SFL→GLS rename, kHz/MHz/GHz unit branches,
