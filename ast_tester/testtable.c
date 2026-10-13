@@ -149,6 +149,10 @@ static void checkpurge( int *status ) {
    astMapPut0I( table, "Tom(2)",  -456, " " );
    astMapPut0I( table, "Tom(6)",  0,    " " );
 
+   /* A parameter value is in no row, and must not stop the purge. */
+   astAddParameter( table, "Colour" );
+   astMapPut0C( table, "Colour", "Red", " " );
+
    if( astGetI( table, "NRow" ) != 6 )
       stopit( status, "Table error purge-1" );
 
@@ -157,6 +161,10 @@ static void checkpurge( int *status ) {
       stopit( status, "Table error purge-2" );
 
    astPurgeRows( table );
+   if( !astOK ) {
+      printf( "Table error purge-13\n" );
+      return;
+   }
    if( astGetI( table, "NRow" ) != 3 ) {
       printf( "ZZ: %d\n", astGetI( table, "NRow" ) );
       stopit( status, "Table error purge-3" );
@@ -187,6 +195,12 @@ static void checkpurge( int *status ) {
       if( ival != 456 ) stopit( status, "Table error purge-11" );
    } else {
       stopit( status, "Table error purge-12" );
+   }
+
+   {
+      const char *cval;
+      if( !astMapGet0C( table, "Colour", &cval ) || strcmp( cval, "Red" ) )
+         stopit( status, "Table error purge-14" );
    }
 
    astAnnul( table );
