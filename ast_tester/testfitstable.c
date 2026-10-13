@@ -427,6 +427,62 @@ int main( void ) {
       }
    }
 
+   /* Column definitions read from a FITS header. */
+   if( astOK ) {
+      const char *cards[] = {
+         "XTENSION= 'BINTABLE'",
+         "TFIELDS =                    3",
+         "TFORM1  = '1J      '",
+         "TTYPE1  = 'SCALED  '",
+         "TSCAL1  =                  1.0",
+         "TFORM2  = '10A     '",
+         "TTYPE2  = 'NAME    '",
+         "TFORM3  = '6J      '",
+         "TTYPE3  = 'ARRAY   '",
+         "TDIM3   = '2,3     '"
+      };
+      int i;
+
+      /* A unit scale is accepted, a string column with no TDIM holds
+         scalar strings, and TDIM may omit the parentheses. */
+      header = astFitsChan( NULL, NULL, " " );
+      for( i = 0; i < 10; i++ ) astPutFits( header, cards[ i ], 0 );
+      table2 = astFitsTable( header, " " );
+      if( !astOK ) {
+         stopit( status, "error 36" );
+      } else {
+         if( astGetI( table2, "ColumnNdim(NAME)" ) != 0 ) stopit( status, "error 37" );
+         if( astGetI( table2, "ColumnType(NAME)" ) != AST__STRINGTYPE ) stopit( status, "error 38" );
+         if( astGetI( table2, "ColumnNdim(ARRAY)" ) != 2 ) stopit( status, "error 39" );
+         if( astGetI( table2, "ColumnLength(ARRAY)" ) != 6 ) stopit( status, "error 40" );
+      }
+
+      /* A non-zero offset is rejected. */
+      if( astOK ) {
+         astSetFitsF( header, "TZERO1", 5.0, NULL, 0 );
+         table2 = astFitsTable( header, " " );
+         if( astStatus == AST__BDFTS ) {
+            astClearStatus;
+         } else {
+            stopit( status, "error 41" );
+         }
+      }
+
+      /* A missing TFORM keyword is reported. */
+      if( astOK ) {
+         header = astFitsChan( NULL, NULL, " " );
+         astPutFits( header, "XTENSION= 'BINTABLE'", 0 );
+         astPutFits( header, "TFIELDS =                    1", 0 );
+         astPutFits( header, "TTYPE1  = 'NOFORM  '", 0 );
+         table2 = astFitsTable( header, " " );
+         if( astStatus == AST__NOFTS ) {
+            astClearStatus;
+         } else {
+            stopit( status, "error 42" );
+         }
+      }
+   }
+
    astEnd;
    astFlushMemory( 1 );
 

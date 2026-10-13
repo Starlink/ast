@@ -94,6 +94,14 @@ f     - AST_PUTTABLEHEADER: Store FITS headers within a FitsTable
 *        value rather than only the first "ndim" elements, and report the
 *        documented error (or return zero) when every value allowed by the
 *        column data type is in use, rather than returning a used value.
+*     12-OCT-2026 (TIMJ):
+*        Fix the reading of column definitions from a FITS header: stop
+*        at a missing TFORMn keyword instead of reading an undefined
+*        string, take the repeat count as one when TFORMn starts with no
+*        integer, make a string column with no TDIMn keyword hold scalar
+*        strings (and free its memory correctly), read no more TDIMn
+*        values than there is room for, and check TZEROn rather than
+*        TSCALn a second time.
 *class--
 */
 
@@ -1093,6 +1101,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
    char keyword[ 20 ];
    double dval;
    int *dims;
+   int *dims0;
    int icol;
    int idim;
    int64_t kval;
@@ -1119,14 +1128,17 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
 /* Get the TFORMi keyword that defines the column data type and shape from
    the header. Report an error if it is missing. */
       sprintf( keyword, "TFORM%d", icol + 1 );
-      if( !astGetFitsS( header, keyword, &cval ) && astOK ) {
-         astError( AST__NOFTS, "astFitsTable: Supplied FITS binary table "
-                   "header does not contain the required keyword '%s'.",
-                   status, keyword );
+      if( !astGetFitsS( header, keyword, &cval ) ) {
+         if( astOK ) {
+            astError( AST__NOFTS, "astFitsTable: Supplied FITS binary table "
+                      "header does not contain the required keyword '%s'.",
+                      status, keyword );
+         }
+         break;
       }
 
 /* Extract the repeat count and data type code from the TFORM string. */
-      if( sscanf( cval, "%d%n", &repeat, &nc ) == 0 ) {
+      if( sscanf( cval, "%d%n", &repeat, &nc ) != 1 ) {
          repeat = 1;
          nc = 0;
       } else if( repeat < 0 && astOK ) {
@@ -1199,7 +1211,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
          }
 
 /* Allocate memory for the dimensions. */
-         dims = astMalloc( ndim*sizeof( int ) );
+         dims0 = dims = astMalloc( ndim*sizeof( int ) );
 
 /* Find each dimension and copy it into the above memory. Also find the
    total number of elements (nel). */
@@ -1207,28 +1219,36 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
          idim = 0;
          p = cval;
          if( *p == '(' ) p++;
-         while( sscanf( p, "%d%n", dims + idim, &nc ) ) {
+         while( dims && idim < ndim &&
+                sscanf( p, "%d%n", dims + idim, &nc ) == 1 ) {
             nel *= dims[ idim ];
             idim++;
             p += nc;
             if( *p == ',' ) p++;
          }
+         ndim = idim;
 
 /* For strings, the first TDIM value gives the length of the string, so
    reduce the number of dimensions by one. */
-         if( type == AST__STRINGTYPE ) {
+         if( type == AST__STRINGTYPE && ndim > 0 ) {
             ndim--;
             dims++;
          }
+
+/* For strings, the repeat count is the length of a single string. */
+      } else if( type == AST__STRINGTYPE ) {
+         nel = repeat;
+         ndim = 0;
+         dims0 = dims = NULL;
 
       } else {
          nel = repeat;
          if( nel == 1 ) {
             ndim = 0;
-            dims = NULL;
+            dims0 = dims = NULL;
          } else {
             ndim = 1;
-            dims = astMalloc( sizeof( int ) );
+            dims0 = dims = astMalloc( sizeof( int ) );
             if( dims ) *dims = nel;
          }
       }
@@ -1258,7 +1278,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
       }
 
 /* Check any TZEROi value is 0.0 */
-      sprintf( keyword, "TSCAL%d", icol + 1 );
+      sprintf( keyword, "TZERO%d", icol + 1 );
       if( astGetFitsF( header, keyword, &dval ) && dval != 0.0 && astOK ) {
          astError( AST__BDFTS, "astFitsTable: Supplied FITS binary table "
                    "header contains scaled columns which are not "
@@ -1275,7 +1295,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
       }
 
 /* Free resources. */
-      dims = astFree( dims - ( ( type == AST__STRINGTYPE ) ? 1 : 0 ) );
+      dims0 = astFree( dims0 );
       name = astFree( name );
       unit = astFree( unit );
 
