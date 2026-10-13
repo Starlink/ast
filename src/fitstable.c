@@ -91,9 +91,10 @@ f     - AST_PUTTABLEHEADER: Store FITS headers within a FitsTable
 *        input buffer using the correct element size.
 *     12-OCT-2026 (TIMJ):
 *        In astColumnNullK, check every element of each cell for the null
-*        value rather than only the first "ndim" elements, and report the
-*        documented error (or return zero) when every value allowed by the
-*        column data type is in use, rather than returning a used value.
+*        value rather than only the first "ndim" elements, keep checking
+*        every element of the cells that follow an empty cell, and report
+*        the documented error (or return zero) when every value allowed by
+*        the column data type is in use, rather than returning a used value.
 *     12-OCT-2026 (TIMJ):
 *        Fix the reading of column definitions from a FITS header: stop
 *        at a missing TFORMn keyword instead of reading an undefined
@@ -599,6 +600,7 @@ f     - Unlike AST_COLUMNNULL,
    int irow;               /* Index of current row in table */
    int nel;                /* Total number of values in each cell */
    int nrow;               /* Number of rows in table */
+   int nval;               /* Number of values read from the current cell */
    int nullfound;          /* Has a null value been found in the column yet? */
    int type;               /* Column data type */
    int64_t *cell;          /* Pointer to array of cell values */
@@ -720,14 +722,14 @@ f     - Unlike AST_COLUMNNULL,
                                status );
 
 /* Attempt to get the values in the cell */
-               if( astMapGet1K( this, key, nel, &nel, cell ) ) {
+               if( astMapGet1K( this, key, nel, &nval, cell ) ) {
 
 /* If we know what the null value is on exit, check the cell for such null
    values (but only if the caller want s to know). Skip this check after the
    first null is found. */
                   if( gotresult ) {
                      if( ! nullfound ) {
-                        for( iel = 0; iel < nel; iel++ ) {
+                        for( iel = 0; iel < nval; iel++ ) {
                            if( cell[ iel ] == null ) {
                               nullfound = 1;
                               break;
@@ -745,7 +747,7 @@ f     - Unlike AST_COLUMNNULL,
 /* See if the current cell contains any occurrences of either of the
    two currently nominated null values. Is so, increment the matched
    nominated null value, and start again at row 1. */
-                     for( iel = 0; iel < nel; iel++ ) {
+                     for( iel = 0; iel < nval; iel++ ) {
 
                         if( cell[ iel ] == nulllo ) {
                            foundlo = 1;
