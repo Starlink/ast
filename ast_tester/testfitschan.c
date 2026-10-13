@@ -1753,6 +1753,42 @@ static void testtabotheraxis( int *status ) {
    fs = astAnnul( fs );
 }
 
+/* Check that a header with a non-spectral "-LOG" axis reads, both with a
+   non-zero CRVAL, which gives a logarithmic axis, and with a zero CRVAL,
+   which has no logarithmic form and so gives a linear one. */
+static void testotherlogaxis( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   double x = 3.0, y;
+   int i;
+   const char *crval[] = { "CRVAL1  = 10", "CRVAL1  = 0" };
+   const double want[] = { 10.0*exp( 4.0/10.0 ), 4.0 };
+
+   if( *status != 0 ) return;
+   for( i = 0; i < 2; i++ ) {
+      fc = astFitsChan( NULL, NULL, " " );
+      astPutFits( fc, "NAXIS   = 1", 0 );
+      astPutFits( fc, "CRPIX1  = 1", 0 );
+      astPutFits( fc, crval[ i ], 0 );
+      astPutFits( fc, "CDELT1  = 2", 0 );
+      astPutFits( fc, "CTYPE1  = 'XXXX-LOG'", 0 );
+      astClear( fc, "Card" );
+      fs = astRead( fc );
+      if( !fs ) {
+         stopit( 1087, "astRead did not read a non-spectral -LOG axis",
+                 status );
+      } else {
+         astTran1( fs, 1, &x, 1, &y );
+         if( fabs( y - want[ i ] ) > 1.0e-10 ) {
+            stopit( 1088, "a non-spectral -LOG axis read to other values",
+                    status );
+         }
+         fs = astAnnul( fs );
+      }
+      fc = astAnnul( fc );
+   }
+}
+
 /* A Channel that writes to and reads from this list of lines. */
 static char dump_lines[ 100 ][ 200 ];
 static int dump_nline, dump_iline;
@@ -1840,6 +1876,7 @@ int main( void ) {
    testremovealltables( status );
    testtabonecelestial( status );
    testtabotheraxis( status );
+   testotherlogaxis( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
