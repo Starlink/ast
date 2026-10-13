@@ -1548,6 +1548,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In OtherAxes, store the zero CRVAL a -TAB axis needs, rather than
 *        the CRVAL found before the algorithm was chosen, which shifted
 *        the grid coordinates of the look-up by the axis value.
+*        In WcsOthers, use a UnitMap for a non-spectral "-LOG" axis with
+*        a zero CRVAL, for which LogWcs returns NULL. It passed the NULL
+*        pointer to astCmpMap, so astRead crashed.
 *class--
 */
 
@@ -39353,6 +39356,10 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
             if( len > 3 && !strcmp( ckeyval + len - 4, "-LOG" ) ){
                map1 = LogWcs( store, i, s, method, class, status );
                sprintf( buf2, "%.*s", len - 4, ckeyval );
+
+/* A zero CRVAL has no logarithmic form, so LogWcs returns NULL. Use a
+   UnitMap, as WcsSpectral does for a spectral axis. */
+               if( !map1 && astOK ) map1 = (AstMapping *) astUnitMap( 1, "", status );
 
 /* Otherwise, assume the axis is linearly spaced. */
             } else {
