@@ -4511,6 +4511,48 @@ int main( void ) {
       astEnd;
    }
 
+   /* SpectralAxes chooses the default spectral reference value from the
+      size of the spectral pixel axis: its middle when NAXIS3 is known,
+      otherwise its first pixel, whatever NAXIS1 says. */
+   if( *status == 0 ) {
+      const char *px_head[] = { "NAXIS   = 3", "CRPIX1  = 5", "CRPIX2  = 5",
+         "CRPIX3  = 10", "CRVAL1  = 10", "CRVAL2  = 20", "CRVAL3  = 1.4E9",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CDELT3  = 1.0E6",
+         "CTYPE1  = 'RA---TAN'", "CTYPE2  = 'DEC--TAN'", "CTYPE3  = 'FREQ'",
+         "CUNIT3  = 'Hz'", "SPECSYS = 'LSRK'", "RESTFRQ = 1.420405752E9",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      int ih, ipx;
+      double px_crpix;
+
+      astBegin;
+      AstFitsChan *pxfc = astFitsChan( NULL, NULL, " " );
+      for( ih = 0; px_head[ ih ]; ih++ ) astPutFits( pxfc, px_head[ ih ], 0 );
+      astClear( pxfc, "Card" );
+      AstObject *pxfs = astRead( pxfc );
+      for( ipx = 0; ipx < 2 && pxfs && *status == 0; ipx++ ) {
+         AstFitsChan *pxw = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         if( ipx == 0 ) {
+            astPutFits( pxw, "NAXIS3  = 20", 0 );
+         } else {
+            astPutFits( pxw, "NAXIS1  = 10", 0 );
+            astPutFits( pxw, "NAXIS2  = 10", 0 );
+         }
+         if( astWrite( pxw, pxfs ) != 1 ) {
+            stopit( 12363, "SpectralAxes: write failed", status );
+         } else {
+            astClear( pxw, "Card" );
+            if( !astGetFitsF( pxw, "CRPIX3", &px_crpix ) ||
+                ( ipx == 0 && ( px_crpix < 10.0 || px_crpix > 11.0 ) ) ||
+                ( ipx == 1 && px_crpix != 1.0 ) ) {
+               stopit( 12364 + ipx, "SpectralAxes: wrong spectral reference pixel",
+                       status );
+            }
+         }
+      }
+      if( !pxfs ) stopit( 12366, "SpectralAxes: header not read", status );
+      astEnd;
+   }
+
    /* GetCDMatrix keeps the current card. Here the card after the last WCS
       card, CO1_1, is consumed by the read, and a FITS-WCS write puts the
       cards it adds, MJD-OBS and DATE-OBS, in front of it, so they follow

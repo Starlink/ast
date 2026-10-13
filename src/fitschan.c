@@ -1488,6 +1488,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        "==" rather than "!=", so it rejected a LONPOLE of 180 and accepted
 *        any other value.
 *     12-OCT-2026 (TIMJ):
+*        In SpectralAxes, choose the default reference value from the size
+*        of the pixel axis that feeds the spectral axis.  The index of that
+*        axis was taken from IsMapLinear applied to the 1-input Mapping
+*        between spectral units, so it was always zero, and the size of the
+*        first pixel axis decided between the middle of the spectral axis
+*        and its first pixel.
+*     12-OCT-2026 (TIMJ):
 *        In GetCDMatrix, reinstate the current card itself rather than its
 *        index.  astGetCard gives end-of-file for a card that has been read
 *        while such cards are skipped, so when the current card had been
@@ -30618,6 +30625,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    AstGrismMap *gmap;      /* GrismMap defining the spectral axis */
    AstMapping *axmap;      /* Mapping from WCS to IWC */
    AstMapping *map;        /* Pixel -> WCS mapping */
+   AstMapping *paxmap;     /* WCS -> pixel mapping for the spectral axis */
    AstMapping *ret;        /* Returned Mapping */
    AstMapping *tmap0;      /* A temporary Mapping */
    AstMapping *tmap1;      /* A temporary Mapping */
@@ -30655,6 +30663,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    double xyz[3];          /* Geocentric position vector (in m) */
    double zsource;         /* Redshift of source */
    int *inperm;            /* Pointer to permutation array for input axes */
+   int *pins;              /* Pixel axes feeding the spectral axis */
    int *outperm;           /* Pointer to permutation array for output axes */
    int extver;             /* Table version number for -TAB headers */
    int fits_i;             /* FITS WCS axis index for current WCS axis */
@@ -30729,6 +30738,19 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
 /* Get a pointer to the Mapping from FITS pixel coordinates to SpecFrame. */
          map = astGetMapping( fs, AST__BASE, AST__CURRENT );
 
+/* Find the pixel axis that feeds the spectral axis, if only one does. The
+   Mapping is inverted so that any WCS axes with no inverse do not stop it
+   being split. */
+         pax = -1;
+         astInvert( map );
+         pins = astMapSplit( map, 1, &iax, &paxmap );
+         astInvert( map );
+         if( pins ) {
+            if( astGetNout( paxmap ) == 1 ) pax = pins[ 0 ];
+            paxmap = astAnnul( paxmap );
+            pins = astFree( pins );
+         }
+
 /* Find the bounds of the Spectral axis over the volume of the pixel grid. */
          astMapBox( map, lbnd_p, ubnd_p, 1, iax, &lbnd_s, &ubnd_s,
                     NULL, NULL );
@@ -30759,7 +30781,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
             crval = crvals ? crvals[ iax ] : AST__BAD;
             tmap1 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
             tfs = astAnnul( tfs );
-            if( !IsMapLinear( tmap1, &lbnd_s, &ubnd_s, 0, &pax, status ) ) {
+            if( !IsMapLinear( tmap1, &lbnd_s, &ubnd_s, 0, NULL, status ) ) {
                astClear( fs, unit_attr );
                (void) astAnnul( map );
                map = astGetMapping( fs, AST__BASE, AST__CURRENT );
