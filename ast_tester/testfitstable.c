@@ -402,6 +402,18 @@ int main( void ) {
       if( !hasnull ) stopit( status, "error 32" );
    }
 
+   /* The default null value avoids the values in cells that follow an
+      empty cell. */
+   {  unsigned char ends[2] = { 0, 255 };
+      table2 = astFitsTable( NULL, " " );
+      dims[0] = 2;
+      astAddColumn( table2, "GAP", AST__BYTETYPE, 1, dims, " " );
+      astMapPut1B( table2, "GAP(2)", 2, ends, " " );
+      null = astColumnNullK( table2, "GAP", 0, 0, &wasset, &hasnull );
+      if( null != 254 ) stopit( status, "error 32a" );
+      if( !hasnull ) stopit( status, "error 32b" );
+   }
+
    /* When every value allowed by the column type is in use, the default
       null value is zero if there are no empty cells, and an error
       otherwise. */
