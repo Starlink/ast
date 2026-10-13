@@ -1545,6 +1545,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        and remove the index column before the main one, so that the
 *        column numbers stay valid. Such a FrameSet made astWrite report an
 *        invalid column index instead of finding no -TAB description.
+*        In OtherAxes, store the zero CRVAL a -TAB axis needs, rather than
+*        the CRVAL found before the algorithm was chosen, which shifted
+*        the grid coordinates of the look-up by the axis value.
 *class--
 */
 
@@ -24648,6 +24651,7 @@ static AstMapping *OtherAxes( AstFitsChan *this, AstFrameSet *fs, double *dim,
    need to ensure that IWC are equivalent to GRID coords. So set CRVAL
    to zero. */
                   crval = 0.0;
+                  SetItem( &(store->crval), fits_i, 0, s, crval, status );
 
 /* Store TAB-specific values in the FitsStore. First the name of the
    FITS binary table extension holding the coordinate info. */

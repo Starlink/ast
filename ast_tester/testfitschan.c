@@ -1711,6 +1711,48 @@ static void testtabonecelestial( int *status ) {
    fs = astAnnul( fs );
 }
 
+/* Check that a non-spectral axis written as -TAB reads back to the same
+   coordinates: the first and last pixels, which are entries in the look-up
+   table, taken to voltage by the original FrameSet come back to the same
+   pixels through the one read. */
+static void testtabotheraxis( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs, *fs2;
+   const char *fwd[] = { "y=1/(x*x)" }, *inv[] = { "x=1/sqrt(y)" };
+   double x[ 2 ] = { 1.0, 100.0 }, y[ 2 ], y2[ 2 ];
+   int i;
+
+   if( *status != 0 ) return;
+   fs = astFrameSet( astFrame( 1, "Domain=GRID" ), " " );
+   astAddFrame( fs, AST__BASE, astMathMap( 1, 1, 1, fwd, 1, inv, " " ),
+                astFrame( 1, "domain=voltage,unit=V" ) );
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+   astPutFits( fc, "NAXIS   = 1", 0 );
+   astPutFits( fc, "NAXIS1  = 100", 0 );
+   if( astWrite( fc, fs ) != 1 ) {
+      stopit( 1084, "astWrite did not write a -TAB voltage axis", status );
+   } else {
+      astClear( fc, "Card" );
+      fs2 = astRead( fc );
+      if( !fs2 ) {
+         stopit( 1085, "astRead did not read a -TAB voltage axis", status );
+      } else {
+         astTran1( fs, 2, x, 1, y );
+         astTran1( fs2, 2, y, 0, y2 );
+         for( i = 0; i < 2; i++ ) {
+            if( fabs( y2[ i ] - x[ i ] ) > 1.0e-6 ) {
+               stopit( 1086, "a -TAB voltage axis read back to other values",
+                       status );
+               break;
+            }
+         }
+         fs2 = astAnnul( fs2 );
+      }
+   }
+   fc = astAnnul( fc );
+   fs = astAnnul( fs );
+}
+
 /* A Channel that writes to and reads from this list of lines. */
 static char dump_lines[ 100 ][ 200 ];
 static int dump_nline, dump_iline;
@@ -1797,6 +1839,7 @@ int main( void ) {
    testdumpload( status );
    testremovealltables( status );
    testtabonecelestial( status );
+   testtabotheraxis( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
