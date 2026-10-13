@@ -1488,6 +1488,14 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        "==" rather than "!=", so it rejected a LONPOLE of 180 and accepted
 *        any other value.
 *     12-OCT-2026 (TIMJ):
+*        In AddVersion, obtain the pixel->WCS Mapping again after describing
+*        the axes.  SpectralAxes clears a spectral Unit that is not linearly
+*        related to the default Unit through the FrameSet, which re-maps the
+*        WCS Frame, so the Mapping obtained earlier gave values in the old
+*        Unit while the WCS->IWC Mapping expected the new one: an axis in
+*        "log(Hz)" was written with CUNIT 'GHz' and CRVAL in GHz but CDELT in
+*        log(Hz).
+*     12-OCT-2026 (TIMJ):
 *        In SpectralAxes, choose the default reference value from the size
 *        of the pixel axis that feeds the spectral axis.  The index of that
 *        axis was taken from IsMapLinear applied to the 1-input Mapping
@@ -3074,7 +3082,11 @@ static int AddVersion( AstFitsChan *this, AstFrameSet *fs, int ipix, int iwcs,
 
 /* The "iwcmap" Mapping found above converts from the WCS Frame to the IWC
    Frame. Combine the pixel->WCS Mapping with this WCS->IWC Mapping to
-   get the pixel->IWC Mapping. */
+   get the pixel->IWC Mapping. The pixel->WCS Mapping is obtained again,
+   since SpectralAxes may have changed the WCS Frame (clearing a non-linear
+   spectral Unit) through the FrameSet, which re-maps it. */
+   mapping = astAnnul( mapping );
+   mapping = astGetMapping( fset, AST__BASE, AST__CURRENT );
    pixiwcmap = (AstMapping *) astCmpMap( mapping, iwcmap, 1, "", status );
    mapping = astAnnul( mapping );
    iwcmap = astAnnul( iwcmap );
