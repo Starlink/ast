@@ -305,6 +305,12 @@ fitschan_tab_spectral     | simplify/fitschan_tab_spectral.map     | simplify/fi
 # a FITS binary table, captured from WcsFrame before and after astSimplify.
 fitschan_tab_celestial_iwc | simplify/fitschan_tab_celestial_iwc.map | simplify/fitschan_tab_celestial_iwc.simp |
 
+# The Mapping from pixel to WCS coordinates that astRead makes for an
+# alternate axis description of linear axes whose CDELT values include one a
+# few units in the last place from 1, written by a FITS-WCS write of
+# sparse.ast, captured from WcsFrame before and after astSimplify.
+fitschan_alt_diagonal_cdelt | simplify/fitschan_alt_diagonal_cdelt.map | simplify/fitschan_alt_diagonal_cdelt.simp |
+
 # Captured differential-coverage fixtures (2026-06-29, auto-selected).
 cap_cmpmap_01            | simplify/cap_cmpmap_01.map | simplify/cap_cmpmap_01.simp |
 cap_cmpmap_02            | simplify/cap_cmpmap_02.map | simplify/cap_cmpmap_02.simp |
