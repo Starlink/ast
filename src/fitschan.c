@@ -1534,6 +1534,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        the comment describes.  SkyAxes stores MJD-OBS only for the
 *        primary description, so no alternate description was written
 *        when the primary one had an MJD-OBS.
+*     13-OCT-2026 (TIMJ):
+*        In astRemoveTables, remove every table when given a blank key.
+*        It removed the table at each index in turn while the KeyMap
+*        shrank, so removed every other table and then reported an
+*        invalid index.
 *class--
 */
 
@@ -26546,9 +26551,8 @@ f        The global status.
 
 /* If the string is blank, remove all tables. */
    if( astChrLen( key ) == 0 ) {
-      ntable = astMapSize( this->tables );
-      for( itable = 0; itable < ntable; itable++ ) {
-         astMapRemove( this->tables, astMapKey( this->tables, itable ) );
+      while( astOK && astMapSize( this->tables ) > 0 ) {
+         astMapRemove( this->tables, astMapKey( this->tables, 0 ) );
       }
 
 /* Otherwise, split the supplied comma-separated string up into individual
