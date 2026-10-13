@@ -89,6 +89,11 @@ f     - AST_PUTTABLEHEADER: Store FITS headers within a FitsTable
 *     8-APR-2026 (TIMJ):
 *        Fix finite-value checks for float and double columns to read the
 *        input buffer using the correct element size.
+*     12-OCT-2026 (TIMJ):
+*        In astColumnNullK, check every element of each cell for the null
+*        value rather than only the first "ndim" elements, and report the
+*        documented error (or return zero) when every value allowed by the
+*        column data type is in use, rather than returning a used value.
 *class--
 */
 
@@ -582,10 +587,8 @@ f     - Unlike AST_COLUMNNULL,
    int foundhi;            /* Has an occurrence of "nullhi" been found yet? */
    int foundlo;            /* Has an occurrence of "nulllo" been found yet? */
    int gotresult;          /* Has a usable value been put into "result"? */
-   int idim;               /* Index of current axis in each column's value */
    int iel;                /* Index of current element within cell value */
    int irow;               /* Index of current row in table */
-   int ndim;               /* Number of axes in each column's value */
    int nel;                /* Total number of values in each cell */
    int nrow;               /* Number of rows in table */
    int nullfound;          /* Has a null value been found in the column yet? */
@@ -711,16 +714,13 @@ f     - Unlike AST_COLUMNNULL,
 /* Attempt to get the values in the cell */
                if( astMapGet1K( this, key, nel, &nel, cell ) ) {
 
-/* Get the number of dimensions. */
-                  ndim = astGetColumnNdim( this, column );
-
 /* If we know what the null value is on exit, check the cell for such null
    values (but only if the caller want s to know). Skip this check after the
    first null is found. */
                   if( gotresult ) {
                      if( ! nullfound ) {
-                        for( idim = 0; idim < ndim; idim++ ) {
-                           if( cell[ idim ] == null ) {
+                        for( iel = 0; iel < nel; iel++ ) {
+                           if( cell[ iel ] == null ) {
                               nullfound = 1;
                               break;
                            }
@@ -745,12 +745,16 @@ f     - Unlike AST_COLUMNNULL,
                            foundhi = 1;
                         }
 
+/* If every allowed value has now been tried, leave both flags set so
+   that no default is chosen below. */
                         if( foundlo && foundhi ) {
                            nullhi--;
                            nulllo++;
-                           irow = 0;
-                           foundlo = 0;
-                           foundhi = 0;
+                           if( nulllo <= nullhi ) {
+                              irow = 0;
+                              foundlo = 0;
+                              foundhi = 0;
+                           }
                            continue;
                         }
 

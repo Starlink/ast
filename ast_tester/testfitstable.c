@@ -385,6 +385,48 @@ int main( void ) {
 
    table2 = astCopy( table );
 
+   /* A null value stored in any element of a cell is found. */
+   {  int ivals[6] = { 1, 2, 3, 4, 5, 9 };
+      table2 = astFitsTable( NULL, " " );
+      astAddColumn( table2, "SCALAR", AST__INTTYPE, 0, NULL, " " );
+      astMapPut0I( table2, "SCALAR(1)", 5, " " );
+      astMapPut0I( table2, "SCALAR(2)", 7, " " );
+      astColumnNullK( table2, "SCALAR", 1, 7, &wasset, &hasnull );
+      if( !hasnull ) stopit( status, "error 31" );
+
+      dims[0] = 2; dims[1] = 3;
+      astAddColumn( table2, "ARRAY", AST__INTTYPE, 2, dims, " " );
+      astMapPut1I( table2, "ARRAY(1)", 6, ivals, " " );
+      astMapPut1I( table2, "ARRAY(2)", 6, ivals, " " );
+      astColumnNullK( table2, "ARRAY", 1, 9, &wasset, &hasnull );
+      if( !hasnull ) stopit( status, "error 32" );
+   }
+
+   /* When every value allowed by the column type is in use, the default
+      null value is zero if there are no empty cells, and an error
+      otherwise. */
+   {  unsigned char allbytes[256];
+      int i;
+      for( i = 0; i < 256; i++ ) allbytes[i] = i;
+      table2 = astFitsTable( NULL, " " );
+      dims[0] = 256;
+      astAddColumn( table2, "ALL", AST__BYTETYPE, 1, dims, " " );
+      astMapPut1B( table2, "ALL(1)", 256, allbytes, " " );
+      null = astColumnNullK( table2, "ALL", 0, 0, &wasset, &hasnull );
+      if( null != 0 ) stopit( status, "error 33" );
+      if( hasnull ) stopit( status, "error 34" );
+
+      astMapPut1B( table2, "ALL(3)", 256, allbytes, " " );
+      if( astOK ) {
+         astColumnNullK( table2, "ALL", 0, 0, &wasset, &hasnull );
+         if( astStatus == AST__BADNULL ) {
+            astClearStatus;
+         } else {
+            stopit( status, "error 35" );
+         }
+      }
+   }
+
    astEnd;
    astFlushMemory( 1 );
 
