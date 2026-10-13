@@ -295,6 +295,16 @@ wcsconv_gappt_iwc_residue | simplify/wcsconv_gappt_iwc_residue.map | simplify/wc
 # from WcsFrame before and after astSimplify.
 fitschan_iwc_spectral     | simplify/fitschan_iwc_spectral.map     | simplify/fitschan_iwc_spectral.simp     |
 
+# The Mapping from pixel to WCS coordinates that astRead makes for a header
+# with RA---TAN, DEC--TAN and FREQ-TAB axes, the last a -TAB look-up in a
+# FITS binary table, captured from WcsFrame before and after astSimplify.
+fitschan_tab_spectral     | simplify/fitschan_tab_spectral.map     | simplify/fitschan_tab_spectral.simp     |
+
+# The Mapping from WCS through pixel to IWC coordinates that astRead makes
+# with Iwc set, for a header whose RA---TAB and DEC--TAB axes are look-ups in
+# a FITS binary table, captured from WcsFrame before and after astSimplify.
+fitschan_tab_celestial_iwc | simplify/fitschan_tab_celestial_iwc.map | simplify/fitschan_tab_celestial_iwc.simp |
+
 # Captured differential-coverage fixtures (2026-06-29, auto-selected).
 cap_cmpmap_01            | simplify/cap_cmpmap_01.map | simplify/cap_cmpmap_01.simp |
 cap_cmpmap_02            | simplify/cap_cmpmap_02.map | simplify/cap_cmpmap_02.simp |

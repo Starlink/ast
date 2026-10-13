@@ -1,0 +1,44 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvA = 1 	# First Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 0.16580627893946132 	# Shift for axis 1
+          Scl1 = 0.0087266462599716477 	# Scale factor for axis 1
+          Sft2 = -0.53232542185827048 	# Shift for axis 2
+          Scl2 = 0.0087266462599716477 	# Scale factor for axis 2
+       End WinMap
+    MapB = 	# Second component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# First component Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin WinMap 	# Map one window on to another
+                      Nin = 2 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Sft1 = -1 	# Shift for axis 1
+                      Sft2 = -1 	# Shift for axis 2
+                   End WinMap
+                MapB = 	# Second component Mapping
+                   Begin MatrixMap 	# Matrix transformation
+                      Nin = 2 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Form = "Unit" 	# Matrix storage form
+                   End MatrixMap
+             End CmpMap
+          MapB = 	# Second component Mapping
+             Begin MatrixMap 	# Matrix transformation
+                Nin = 2 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Form = "Unit" 	# Matrix storage form
+             End MatrixMap
+       End CmpMap
+ End CmpMap
