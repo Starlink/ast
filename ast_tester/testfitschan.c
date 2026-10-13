@@ -4553,6 +4553,59 @@ int main( void ) {
       astEnd;
    }
 
+   /* MJD-OBS is the primary axis description's date: an alternate
+      description with another Epoch, written or not, does not change it. */
+   if( *status == 0 ) {
+      const char *md_head[] = { "NAXIS   = 2", "NAXIS1  = 100", "NAXIS2  = 100",
+         "CRPIX1  = 50", "CRPIX2  = 50", "CRVAL1  = 10", "CRVAL2  = 20",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CTYPE1  = 'RA---TAN'",
+         "CTYPE2  = 'DEC--TAN'", "RADESYS = 'FK5'", "EQUINOX = 2000.0",
+         "MJD-OBS = 51000.0", "CRPIX1A = 50", "CRPIX2A = 50", "CRVAL1A = 100",
+         "CRVAL2A = 30", "CDELT1A = -0.001", "CDELT2A = 0.001",
+         "CTYPE1A = 'GLON-TAN'", "CTYPE2A = 'GLAT-TAN'", NULL };
+      const char *md_fwd[2] = { "x=a+100*b*b", "y=b" };
+      const char *md_inv[2] = { "a=x-100*y*y", "b=y" };
+      int ih, imd, icur;
+      double md_val;
+      char md_card[ 81 ];
+
+      astBegin;
+      for( imd = 0; imd < 2 && *status == 0; imd++ ) {
+         AstFitsChan *mdfc = astFitsChan( NULL, NULL, " " );
+         for( ih = 0; md_head[ ih ]; ih++ ) astPutFits( mdfc, md_head[ ih ], 0 );
+         astClear( mdfc, "Card" );
+         AstFrameSet *mdfs = (AstFrameSet *) astRead( mdfc );
+         if( !mdfs ) {
+            stopit( 12370, "MJD-OBS: header not read", status );
+            break;
+         }
+         icur = astGetI( mdfs, "Current" );
+         astSetI( mdfs, "Current", 3 );
+         astSetC( mdfs, "Epoch", "MJD 55000" );
+         if( imd == 1 ) {
+            astRemapFrame( mdfs, 3, astMathMap( 2, 2, 2, md_fwd, 2, md_inv, " " ) );
+         }
+         astSetI( mdfs, "Current", icur );
+         AstFitsChan *mdw = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astPutFits( mdw, "NAXIS1  = 100", 0 );
+         astPutFits( mdw, "NAXIS2  = 100", 0 );
+         if( astWrite( mdw, mdfs ) != 1 ) {
+            stopit( 12371, "MJD-OBS: write failed", status );
+         } else {
+            astClear( mdw, "Card" );
+            if( !astGetFitsF( mdw, "MJD-OBS", &md_val ) || md_val != 51000.0 ) {
+               stopit( 12372, "MJD-OBS: not the primary description's date",
+                       status );
+            }
+            astClear( mdw, "Card" );
+            if( astFindFits( mdw, "CTYPE1A", md_card, 0 ) != ( imd == 0 ) ) {
+               stopit( 12373, "MJD-OBS: alternate written unexpectedly", status );
+            }
+         }
+      }
+      astEnd;
+   }
+
    /* AddVersion uses the pixel->WCS Mapping as SpectralAxes leaves it. With
       the spectral Unit "log(Hz)", which SpectralAxes clears to GHz, the
       header must give 1.401 GHz at pixel 11 of a 20-channel axis of 1 MHz

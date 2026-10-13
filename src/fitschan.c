@@ -1488,6 +1488,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        "==" rather than "!=", so it rejected a LONPOLE of 180 and accepted
 *        any other value.
 *     12-OCT-2026 (TIMJ):
+*        In SkySys, store the date of observation only for the primary axis
+*        description.  It was stored in the primary slot whatever the
+*        version, so the last alternate description with a SkyFrame
+*        replaced the primary description's MJD-OBS with its own Epoch,
+*        even when that alternate description could not be written.
+*     12-OCT-2026 (TIMJ):
 *        In AddVersion, obtain the pixel->WCS Mapping again after describing
 *        the axes.  SpectralAxes clears a spectral Unit that is not linearly
 *        related to the default Unit through the FrameSet, which re-maps the
@@ -30279,9 +30285,12 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
    }
 
 /* Store these values. Only store the date if it does not take its
-   default value. */
+   default value, and only for the primary axis description: FITS has a
+   single date of observation, MJD-OBS, with no alternate versions, and an
+   alternate axis description, which may not even be written, must not
+   change it. */
    SetItem( &(store->equinox), 0, 0, s, eq, status );
-   if( !defdate ) SetItem( &(store->mjdobs), 0, 0, ' ', ep, status );
+   if( !defdate && s == ' ' ) SetItem( &(store->mjdobs), 0, 0, ' ', ep, status );
 
 /* Only proceed if we have usable values */
    if( astOK ) {
