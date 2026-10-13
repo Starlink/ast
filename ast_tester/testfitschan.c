@@ -1645,6 +1645,34 @@ static void testemptykeepsattributes( int *status ) {
    }
 }
 
+/* Check that astRemoveTables with a blank key removes every table. */
+static void testremovealltables( int *status ) {
+   AstFitsChan *fc;
+   AstFitsTable *ft;
+   AstKeyMap *tables;
+   const char *names[] = { "A", "B", "C", "D", "E" };
+   int i;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, " " );
+   ft = astFitsTable( NULL, " " );
+   for( i = 0; i < 5; i++ ) astPutTable( fc, ft, names[ i ] );
+   ft = astAnnul( ft );
+   astRemoveTables( fc, " " );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1080, "astRemoveTables reported an error removing every table",
+              status );
+   } else {
+      tables = astGetTables( fc );
+      if( tables ) {
+         stopit( 1081, "astRemoveTables left tables in the FitsChan", status );
+         tables = astAnnul( tables );
+      }
+   }
+   fc = astAnnul( fc );
+}
+
 /* A Channel that writes to and reads from this list of lines. */
 static char dump_lines[ 100 ][ 200 ];
 static int dump_nline, dump_iline;
@@ -1729,6 +1757,7 @@ int main( void ) {
    testpaddedtimesys( status );
    testemptykeepsattributes( status );
    testdumpload( status );
+   testremovealltables( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
