@@ -1673,6 +1673,44 @@ static void testremovealltables( int *status ) {
    fc = astAnnul( fc );
 }
 
+/* Check that a FrameSet whose celestial longitude, but not latitude, can be
+   described by a look-up table is not written as -TAB, without error. */
+static void testtabonecelestial( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   AstFrame *wcs;
+   AstMapping *map;
+   double lut[ 5 ] = { 0.1, 0.11, 0.13, 0.16, 0.2 };
+   double mat[ 4 ] = { 0.001, 0.0001, 0.0, 1.0e6 };
+   double shift[ 2 ] = { -0.5, 1.0e9 };
+   int nobj;
+
+   if( *status != 0 ) return;
+   wcs = (AstFrame *) astCmpFrame( astSkyFrame( " " ),
+                                   astSpecFrame( "System=FREQ,Unit=Hz" ), " " );
+   map = (AstMapping *) astCmpMap( astLutMap( 5, lut, 1.0, 1.0, " " ),
+                                   astCmpMap( astMatrixMap( 2, 2, 0, mat, " " ),
+                                              astShiftMap( 2, shift, " " ),
+                                              1, " " ), 0, " " );
+   fs = astFrameSet( astFrame( 3, "Domain=GRID" ), " " );
+   astAddFrame( fs, AST__BASE, map, wcs );
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+   astPutFits( fc, "NAXIS1  = 5", 0 );
+   astPutFits( fc, "NAXIS2  = 5", 0 );
+   astPutFits( fc, "NAXIS3  = 5", 0 );
+   nobj = astWrite( fc, fs );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1082, "astWrite reported an error for a celestial axis pair "
+              "of which only one is tabular", status );
+   } else if( nobj != 0 ) {
+      stopit( 1083, "astWrite wrote a celestial axis pair of which only one "
+              "is tabular", status );
+   }
+   fc = astAnnul( fc );
+   fs = astAnnul( fs );
+}
+
 /* A Channel that writes to and reads from this list of lines. */
 static char dump_lines[ 100 ][ 200 ];
 static int dump_nline, dump_iline;
@@ -1758,6 +1796,7 @@ int main( void ) {
    testemptykeepsattributes( status );
    testdumpload( status );
    testremovealltables( status );
+   testtabonecelestial( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );

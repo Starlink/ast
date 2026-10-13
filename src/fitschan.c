@@ -1539,6 +1539,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        It removed the table at each index in turn while the KeyMap
 *        shrank, so removed every other table and then reported an
 *        invalid index.
+*        In IsMapTab2D, when only one of the two celestial axes can be
+*        described by a look-up table, test the index column number rather
+*        than the pointer to it, use the second axis's own index column,
+*        and remove the index column before the main one, so that the
+*        column numbers stay valid. Such a FrameSet made astWrite report an
+*        invalid column index instead of finding no -TAB description.
 *class--
 */
 
@@ -20359,12 +20365,12 @@ static AstMapping *IsMapTab2D( AstMapping *map, double scale, const char *unit,
    the returned table. */
    } else if( ret1 ) {
       ret1 = astAnnul( ret1 );
+      if( *icolindex1 >= 0 ) astRemoveColumn( *table, astColumnName( *table, *icolindex1 ) );
       astRemoveColumn( *table, astColumnName( *table, *icolmain1 ) );
-      if( icolindex1 >= 0 ) astRemoveColumn( *table, astColumnName( *table, *icolindex1 ) );
    } else if( ret2 ) {
       ret2 = astAnnul( ret2 );
+      if( *icolindex2 >= 0 ) astRemoveColumn( *table, astColumnName( *table, *icolindex2 ) );
       astRemoveColumn( *table, astColumnName( *table, *icolmain2 ) );
-      if( icolindex1 >= 0 ) astRemoveColumn( *table, astColumnName( *table, *icolindex2 ) );
    }
 
 /* If the required Mapping outputs were not separable, create a single
