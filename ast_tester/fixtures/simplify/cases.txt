@@ -311,6 +311,26 @@ fitschan_tab_celestial_iwc | simplify/fitschan_tab_celestial_iwc.map | simplify/
 # sparse.ast, captured from WcsFrame before and after astSimplify.
 fitschan_alt_diagonal_cdelt | simplify/fitschan_alt_diagonal_cdelt.map | simplify/fitschan_alt_diagonal_cdelt.simp |
 
+# A MatrixMap built in diagonal form is a unit MatrixMap when every diagonal
+# element equals 1 within astEQUAL, where one built in full form needs each to
+# be exactly 1. These merges build diagonal MatrixMaps from values a few parts
+# in 1e11 from 1 (zoommap.c and winmap.c MapMerge, WinMat and MatWin, the
+# zero-off-diagonal branch of matrixmap.c MapMerge, and MatZoom), and the
+# matzoom rows pin MatZoom, the product of a MatrixMap and a diagonal
+# MatrixMap of the zoom factor, with the ZoomMap on either side and the
+# MatrixMap inverted or not.
+diag_unit_zoom_parallel             | simplify/diag_unit_zoom_parallel.map | simplify/diag_unit_zoom_parallel.simp |
+diag_unit_win_zero_shift            | simplify/diag_unit_win_zero_shift.map | simplify/diag_unit_win_zero_shift.simp |
+diag_unit_win_then_matrix           | simplify/diag_unit_win_then_matrix.map | simplify/diag_unit_win_then_matrix.simp |
+diag_unit_matrix_then_win           | simplify/diag_unit_matrix_then_win.map | simplify/diag_unit_matrix_then_win.simp |
+diag_unit_full_matrix               | simplify/diag_unit_full_matrix.map | simplify/diag_unit_full_matrix.simp |
+diag_unit_matrix_then_zoom          | simplify/diag_unit_matrix_then_zoom.map | simplify/diag_unit_matrix_then_zoom.simp |
+diag_unit_zoom_parallel_then_matrix | simplify/diag_unit_zoom_parallel_then_matrix.map | simplify/diag_unit_zoom_parallel_then_matrix.simp |
+diag_unit_win_then_diagonal_matrix  | simplify/diag_unit_win_then_diagonal_matrix.map | simplify/diag_unit_win_then_diagonal_matrix.simp |
+matzoom_inverted_matrix             | simplify/matzoom_inverted_matrix.map | simplify/matzoom_inverted_matrix.simp |
+matzoom_zoom_then_matrix            | simplify/matzoom_zoom_then_matrix.map | simplify/matzoom_zoom_then_matrix.simp |
+matzoom_zoom_then_inverted_matrix   | simplify/matzoom_zoom_then_inverted_matrix.map | simplify/matzoom_zoom_then_inverted_matrix.simp |
+
 # Captured differential-coverage fixtures (2026-06-29, auto-selected).
 cap_cmpmap_01            | simplify/cap_cmpmap_01.map | simplify/cap_cmpmap_01.simp |
 cap_cmpmap_02            | simplify/cap_cmpmap_02.map | simplify/cap_cmpmap_02.simp |
