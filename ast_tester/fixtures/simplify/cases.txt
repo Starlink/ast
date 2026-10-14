@@ -331,6 +331,12 @@ matzoom_inverted_matrix             | simplify/matzoom_inverted_matrix.map | sim
 matzoom_zoom_then_matrix            | simplify/matzoom_zoom_then_matrix.map | simplify/matzoom_zoom_then_matrix.simp |
 matzoom_zoom_then_inverted_matrix   | simplify/matzoom_zoom_then_inverted_matrix.map | simplify/matzoom_zoom_then_inverted_matrix.simp |
 
+# The Mapping FrameSet integrity forms when SkyRefIs is set to Origin
+# through a FrameSet read from a RA---TAN, DEC--TAN header: the pixel to
+# sky Mapping followed by the conversion astConvert gives from the
+# SkyFrame before the change to the SkyFrame after it.
+offset_skyref_integrity | simplify/offset_skyref_integrity.map | simplify/offset_skyref_integrity.simp |
+
 # Captured differential-coverage fixtures (2026-06-29, auto-selected).
 cap_cmpmap_01            | simplify/cap_cmpmap_01.map | simplify/cap_cmpmap_01.simp |
 cap_cmpmap_02            | simplify/cap_cmpmap_02.map | simplify/cap_cmpmap_02.simp |
