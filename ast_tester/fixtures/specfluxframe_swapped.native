@@ -1,0 +1,34 @@
+ Begin SpecFluxFrame 	# Compound spectral/flux coordinate system description
+    Title = "MyT" 	# Title of coordinate system
+#   Naxes = 2 	# Number of coordinate axes
+#   Domain = "SPECTRUM-FLUX" 	# Coordinate system domain
+#   Lbl1 = "Frequency" 	# Label for axis 1
+#   Lbl2 = "Flux density" 	# Label for axis 2
+#   Uni1 = "GHz" 	# Units for axis 1
+#   Uni2 = "W/m^2/Hz" 	# Units for axis 2
+ IsA Frame 	# Coordinate system description
+    Axp1 = 2 	# Axis 1 permuted to use internal axis 2
+    Axp2 = 1 	# Axis 2 permuted to use internal axis 1
+    FrameA = 	# First component Frame
+       Begin SpecFrame 	# Description of spectral coordinate system
+          Naxes = 1 	# Number of coordinate axes
+          System = "FREQ" 	# Coordinate system type
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+                Unit = "GHz" 	# Axis units
+             End Axis
+       IsA Frame 	# Coordinate system description
+          UFreq = "GHz" 	# Preferred units for frequency
+       End SpecFrame
+    FrameB = 	# Second component Frame
+       Begin FluxFrame 	# Description of flux values
+          Naxes = 1 	# Number of coordinate axes
+          System = "FLXDN" 	# Coordinate system type
+          Ax1 = 	# Axis number 1
+             Begin Axis 	# Coordinate axis
+             End Axis
+       IsA Frame 	# Coordinate system description
+          DfSpc = 1400000000 	# Default spectral position
+       End FluxFrame
+ IsA CmpFrame 	# Compound coordinate system description
+ End SpecFluxFrame
