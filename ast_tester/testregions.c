@@ -3,6 +3,10 @@
 #include <string.h>
 #include <math.h>
 #include "ast.h"
+#include <float.h>
+
+/* The Starlink single-precision bad value, which the Fortran original used. */
+#define VAL__BADR (-FLT_MAX)
 
 static void stopit( int *status, const char *text );
 static void checkdump( void *obj, const char *text, int *status );
@@ -839,7 +843,7 @@ static void checkBox( int *status ) {
    strcpy(cards[6], "  ");
    strcpy(cards[7], "CDELT1  = 0.6");
    strcpy(cards[8], "CDELT2  = 0.6");
-   if( status  !=  0 ) return;
+   if( *status  !=  0 ) return;
    astBegin; fc = (void *)astFitsChan( NULL, NULL, " ");
    for (i = 1; i <= 9; i++) {
    astPutFits( fc, cards[i-1],  0);
@@ -856,10 +860,10 @@ static void checkBox( int *status ) {
    perm[(1)-1]=2;
    perm[(2)-1]=1;
    astPermAxes( box1, perm); box3 = (void *)astCopy( box1);
-   yin[(1)-1] = 2.82175432250852;
-   xin[(1)-1] = -0.0269096590283195;
-   yin[(2)-1] = 2.70798275154741;
-   xin[(2)-1] = 0.2467384819891;
+   yin[(1)-1] = (float) 2.82175432250852;
+   xin[(1)-1] = (float) -0.0269096590283195;
+   yin[(2)-1] = (float) 2.70798275154741;
+   xin[(2)-1] = (float) 0.2467384819891;
    astTran2( box1, 2, xin, yin,  1 , xout, yout);
    if( fabs( yout[(1)-1]-2.82175422 )  >  1.0E-6 )       stopit( status, "error 1" );
    if( fabs( xout[(1)-1]+0.0269096587 )  >  1.0E-7 )       stopit( status, "error 2" );
@@ -868,20 +872,20 @@ static void checkBox( int *status ) {
    if(  !  astGetI( box3, "Adaptive") )      stopit( status, "error 4a" );
    astSetI( box3, "Adaptive",  0);
    astSetC( box3, "system", "icrs");
-   yin[(1)-1] = 2.82175432250852;
-   xin[(1)-1] = -0.0269096590283195;
-   yin[(2)-1] = 2.70798275154741;
-   xin[(2)-1] = 0.2467384819891;
+   yin[(1)-1] = (float) 2.82175432250852;
+   xin[(1)-1] = (float) -0.0269096590283195;
+   yin[(2)-1] = (float) 2.70798275154741;
+   xin[(2)-1] = (float) 0.2467384819891;
    astTran2( box3, 2, xin, yin,  1 , xout, yout);
    if( fabs( yout[(1)-1]-2.82175422 )  >  1.0E-8 )       stopit( status, "error 1" );
    if( fabs( xout[(1)-1]+0.0269096587 )  >  1.0E-8 )       stopit( status, "error 2" );
    if( yout[(2)-1]  !=  AST__BAD ) stopit( status, "error 4b" );
    if( xout[(2)-1]  !=  AST__BAD ) stopit( status, "error 4c" );
    astClear( box3, "system");
-   yin[(1)-1] = 2.82175432250852;
-   xin[(1)-1] = -0.0269096590283195;
-   yin[(2)-1] = 2.70798275154741;
-   xin[(2)-1] = 0.2467384819891;
+   yin[(1)-1] = (float) 2.82175432250852;
+   xin[(1)-1] = (float) -0.0269096590283195;
+   yin[(2)-1] = (float) 2.70798275154741;
+   xin[(2)-1] = (float) 0.2467384819891;
    astTran2( box3, 2, xin, yin,  1 , xout, yout);
    if( fabs( yout[(1)-1]-2.82175422 )  >  1.0E-8 )       stopit( status, "error 1" );
    if( fabs( xout[(1)-1]+0.0269096587 )  >  1.0E-8 )       stopit( status, "error 2" );
@@ -1244,9 +1248,9 @@ static void checkBox( int *status ) {
    ubnd_in[(2)-1] = 5;
    for (i = 1; i <= 5; i++) {
    for (j = 1; j <= 5; j++) {
-   rin[j-1][i-1]=1.0;
+   rin[i-1][j-1]=1.0;
 }
-} res = astMaskF( box1, AST__NULL,  0 , 2, lbnd_in, ubnd_in,                 (float *)rin, AST__BAD);
+} res = astMaskF( box1, AST__NULL,  0 , 2, lbnd_in, ubnd_in,                 (float *)rin, VAL__BADR);
    if( res  !=  13 ) {
    printf("Res is %d\n", res);
    stopit( status, "res should be 13" );
@@ -1254,14 +1258,14 @@ static void checkBox( int *status ) {
    for (i = 1; i <= 5; i++) {
    for (j = 1; j <= 5; j++) {
    if( j  <=  3  &&  i  <=  4 ) {
-   if( rin[j-1][i-1]  !=  1.0 ) {
-   printf("rin(%d,%d) = %g\n", j, i, rin[j-1][i-1]);
+   if( rin[i-1][j-1]  !=  1.0 ) {
+   printf("rin(%d,%d) = %g\n", j, i, rin[i-1][j-1]);
    stopit( status, "Above value should be 1.0" );
 }
    } else {
-   if( rin[j-1][i-1]  !=  AST__BAD ) {
-   printf("rin(%d,%d) = %g\n", j, i, rin[j-1][i-1]);
-   stopit( status, "Above value should be " "AST__BAD" );
+   if( rin[i-1][j-1]  !=  VAL__BADR ) {
+   printf("rin(%d,%d) = %g\n", j, i, rin[i-1][j-1]);
+   stopit( status, "Above value should be VAL__BADR" );
 }
 }
 }
@@ -1283,7 +1287,7 @@ static void checkBox( int *status ) {
    p2[(2 )-1] = -0.17453293; box1 = (void *)astBox( fs, 0, p1, p2, AST__NULL, " ");
    for (i = 1; i <= 50; i++) {
    for (j = 1; j <= 50; j++) {
-   image[j-1][i-1]=1.0;
+   image[i-1][j-1]=1.0;
 }
 }
    lbnd_in[(1)-1] = 1;
@@ -1291,25 +1295,25 @@ static void checkBox( int *status ) {
    ubnd_in[(1)-1] = 50;
    ubnd_in[(2)-1] = 50;
    astNegate( box1);
-   astInvert( fs); res = astMaskF( box1, fs,  0 , 2, lbnd_in, ubnd_in,                 (float *)image, AST__BAD);
+   astInvert( fs); res = astMaskF( box1, fs,  0 , 2, lbnd_in, ubnd_in,                 (float *)image, VAL__BADR);
    if( res  !=  522 ) {
    printf("Res is %d\n", res);
    stopit( status, "res should be 522" );
 }
-   if( image[34-1][42-1]  !=  AST__BAD ) {
-   printf("image[34-1][42-1] = %g\n", image[34-1][42-1]);
-   stopit( status, "Above value should be AST__BAD" );
+   if( image[42-1][34-1]  !=  VAL__BADR ) {
+   printf("image(34,42) = %g\n", image[42-1][34-1]);
+   stopit( status, "Above value should be VAL__BADR" );
 }
-   if( image[33-1][42-1]  !=  1.0 ) {
-   printf("image[33-1][42-1] = %g\n", image[33-1][42-1]);
+   if( image[42-1][33-1]  !=  1.0 ) {
+   printf("image(33,42) = %g\n", image[42-1][33-1]);
    stopit( status, "Above value should be 1.0" );
 }
-   if( image[16-1][14-1]  !=  AST__BAD ) {
-   printf("image[16-1][14-1] = %g\n", image[16-1][14-1]);
-   stopit( status, "Above value should be AST__BAD" );
+   if( image[14-1][16-1]  !=  VAL__BADR ) {
+   printf("image(16,14) = %g\n", image[14-1][16-1]);
+   stopit( status, "Above value should be VAL__BADR" );
 }
-   if( image[15-1][13-1]  !=  1.0 ) {
-   printf("image[15-1][13-1] = %g\n", image[15-1][13-1]);
+   if( image[13-1][15-1]  !=  1.0 ) {
+   printf("image(15,13) = %g\n", image[13-1][15-1]);
    stopit( status, "Above value should be 1.0" );
 }
 //   Changing the number of axes in the Region
@@ -1481,7 +1485,7 @@ static void checkBox( int *status ) {
    printf("%d\n", npoint);
    stopit( status, "Box: Error mesh 3" );
 }
-   if( status  !=  0 ) goto label_991;
+   if( *status  !=  0 ) goto label_991;
    for (i = 1; i <= npoint; i++) {
    if( fabs( grid[(1)-1][(i)-1] - 100 )  >  50.0e0 ) {
    stopit( status, "Box: Error mesh 1" );
@@ -1491,7 +1495,7 @@ static void checkBox( int *status ) {
 }
    astGetRegionMesh( box1,  1 , 250, 2, &npoint, (double *) grid );
    if( npoint  !=  198 )    stopit( status, "Box: Error mesh 4" );
-   if( status  !=  0 ) goto label_991;
+   if( *status  !=  0 ) goto label_991;
    for (i = 1; i <= npoint; i++) {
    if( grid[(1)-1][(i)-1]  !=  50.0e0  &&  grid[(1)-1][(i)-1]  !=  150.0e0  &&        grid[(2)-1][(i)-1]  !=  130.0e0  &&  grid[(2)-1][(i)-1]  !=  170.0e0 ) {
    stopit( status, "Box: Error mesh 5" );
@@ -3047,7 +3051,7 @@ static void checkConvex( int *status ) {
    int npoint = 0;
    float array[8*7] = {0};
    double points[2][10];
-   if( status  !=  0 ) return;
+   if( *status  !=  0 ) return;
    astBegin;
    ubnd[(1 )-1] = lbnd[(1 )-1] + nx- 1;
    ubnd[(2 )-1] = lbnd[(2 )-1] + ny- 1;
