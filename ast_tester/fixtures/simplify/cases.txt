@@ -337,6 +337,12 @@ matzoom_zoom_then_inverted_matrix   | simplify/matzoom_zoom_then_inverted_matrix
 # SkyFrame before the change to the SkyFrame after it.
 offset_skyref_integrity | simplify/offset_skyref_integrity.map | simplify/offset_skyref_integrity.simp |
 
+# An inverted SwitchMap followed by its forward copy, with different
+# forward and inverse selectors, cancels to a UnitMap (switchmap.c MapMerge
+# compares the SwitchMap with its inverted neighbour). testswitchmap.c
+# section 1, Error 26.
+switchmap_inverse_cancel_distinct_selectors | simplify/switchmap_inverse_cancel_distinct_selectors.map | simplify/switchmap_inverse_cancel_distinct_selectors.simp |
+
 # Captured differential-coverage fixtures (2026-06-29, auto-selected).
 cap_cmpmap_01            | simplify/cap_cmpmap_01.map | simplify/cap_cmpmap_01.simp |
 cap_cmpmap_02            | simplify/cap_cmpmap_02.map | simplify/cap_cmpmap_02.simp |
