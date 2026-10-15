@@ -185,6 +185,12 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        and ShiftMap that replace a linear polynomial. The coefficients of a
 *        ChebyMap apply to the normalised input z = scale*x + offset, so the
 *        reduction of 2*T1(z) over [0,10] is 0.4x - 2, not 2x.
+*     7-OCT-2026 (TIMJ):
+*        PolyCoeffs takes the numbers of polynomials and axes from the
+*        uninverted PolyMap, whose coefficients it returns. It took them
+*        from the PolyMap as inverted, so for an inverted PolyMap with
+*        different numbers of inputs and outputs it read beyond the
+*        coefficient arrays.
 *class--
 */
 
@@ -4659,6 +4665,8 @@ f        The global status.
    int iel;
    int ipoly;
    int nax;
+   int nin;
+   int nout;
    int npoly;
 
 /* Initialise */
@@ -4670,20 +4678,30 @@ f        The global status.
 /* Fill any supplied array with zeros. */
    if( nel ) memset( coeffs, 0, nel*sizeof( *coeffs ) );
 
+/* Get the numbers of inputs and outputs of the uninverted PolyMap, which
+   are the numbers the stored coefficient arrays describe. */
+   if( astGetInvert( this ) ) {
+      nin = astGetNout( this );
+      nout = astGetNin( this );
+   } else {
+      nin = astGetNin( this );
+      nout = astGetNout( this );
+   }
+
 /* Get the values to use, taking account of whether the PolyMap has been
    inverted or not. */
    if( forward != astGetInvert( this ) ){
       nco = this->ncoeff_f;
       power = this->power_f;
       coeff = this->coeff_f;
-      npoly = astGetNout( this );
-      nax = astGetNin( this );
+      npoly = nout;
+      nax = nin;
    } else {
       nco = this->ncoeff_i;
       power = this->power_i;
       coeff = this->coeff_i;
-      npoly = astGetNin( this );
-      nax = astGetNout( this );
+      npoly = nin;
+      nax = nout;
    }
 
 /* Notheg to do if there are no coeffs. */

@@ -113,6 +113,10 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        Discard the record that the SplineMap has been simplified when
 *        InvNiter, InvTol or OutUnit is set or cleared, since all three
 *        change what the SplineMap does.
+*     7-OCT-2026 (TIMJ):
+*        The rate of change of an inverted SplineMap is that of its inverse
+*        transformation, found numerically by the parent Rate, where it was
+*        the derivative of the forward spline.
 *class--
 */
 
@@ -166,6 +170,7 @@ static int class_check;
 /* Pointers to parent class methods which are extended by this class. */
 static size_t (* parent_getobjsize)( AstObject *, int * );
 static AstPointSet *(* parent_transform)( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
+static double (* parent_rate)( AstMapping *, double *, int, int, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static int (* parent_testattrib)( AstObject *, const char *, int * );
 static void (* parent_clearattrib)( AstObject *, const char *, int * );
@@ -1202,11 +1207,13 @@ void astInitSplineMapVtab_(  AstSplineMapVtab *vtab, const char *name, int *stat
    parent_transform = mapping->Transform;
    mapping->Transform = Transform;
 
+   parent_rate = mapping->Rate;
+   mapping->Rate = Rate;
+
 /* Store replacement pointers for methods which will be over-ridden by
    new member functions implemented here. */
    object->Equal = Equal;
    mapping->MapMerge = MapMerge;
-   mapping->Rate = Rate;
    mapping->GetIsLinear = GetIsLinear;
 
    vtab->GetSplineKx = GetSplineKx;
@@ -1929,8 +1936,14 @@ static double Rate( AstMapping *this_mapping, double *at, int ax1, int ax2, int 
                 status, astGetClass( this ), ax2 + 1 );
    }
 
+/* The splines give the derivatives of the forward transformation only, so
+   the rate of change of an inverted SplineMap, which is that of the inverse
+   transformation, is found numerically by the parent method. */
+   if( astOK && astGetInvert( this ) ) {
+      result = (*parent_rate)( this_mapping, at, ax1, ax2, status );
+
 /* Check inputs are good */
-   if( at[ 0 ] != AST__BAD && at[ 1 ] != AST__BAD ) {
+   } else if( astOK && at[ 0 ] != AST__BAD && at[ 1 ] != AST__BAD ) {
 
 /* Choose the B-spline coefficients to use, based on whether we are
    finding the rate of change of output u or output v. */

@@ -89,6 +89,20 @@ f     - AST_PUTTABLEHEADER: Store FITS headers within a FitsTable
 *     8-APR-2026 (TIMJ):
 *        Fix finite-value checks for float and double columns to read the
 *        input buffer using the correct element size.
+*     12-OCT-2026 (TIMJ):
+*        In astColumnNullK, check every element of each cell for the null
+*        value rather than only the first "ndim" elements, keep checking
+*        every element of the cells that follow an empty cell, and report
+*        the documented error (or return zero) when every value allowed by
+*        the column data type is in use, rather than returning a used value.
+*     12-OCT-2026 (TIMJ):
+*        Fix the reading of column definitions from a FITS header: stop
+*        at a missing TFORMn keyword instead of reading an undefined
+*        string, take the repeat count as one when TFORMn starts with no
+*        integer, make a string column with no TDIMn keyword hold scalar
+*        strings (and free its memory correctly), read no more TDIMn
+*        values than there is room for, and check TZEROn rather than
+*        TSCALn a second time.
 *class--
 */
 
@@ -582,12 +596,11 @@ f     - Unlike AST_COLUMNNULL,
    int foundhi;            /* Has an occurrence of "nullhi" been found yet? */
    int foundlo;            /* Has an occurrence of "nulllo" been found yet? */
    int gotresult;          /* Has a usable value been put into "result"? */
-   int idim;               /* Index of current axis in each column's value */
    int iel;                /* Index of current element within cell value */
    int irow;               /* Index of current row in table */
-   int ndim;               /* Number of axes in each column's value */
    int nel;                /* Total number of values in each cell */
    int nrow;               /* Number of rows in table */
+   int nval;               /* Number of values read from the current cell */
    int nullfound;          /* Has a null value been found in the column yet? */
    int type;               /* Column data type */
    int64_t *cell;          /* Pointer to array of cell values */
@@ -709,18 +722,15 @@ f     - Unlike AST_COLUMNNULL,
                                status );
 
 /* Attempt to get the values in the cell */
-               if( astMapGet1K( this, key, nel, &nel, cell ) ) {
-
-/* Get the number of dimensions. */
-                  ndim = astGetColumnNdim( this, column );
+               if( astMapGet1K( this, key, nel, &nval, cell ) ) {
 
 /* If we know what the null value is on exit, check the cell for such null
    values (but only if the caller want s to know). Skip this check after the
    first null is found. */
                   if( gotresult ) {
                      if( ! nullfound ) {
-                        for( idim = 0; idim < ndim; idim++ ) {
-                           if( cell[ idim ] == null ) {
+                        for( iel = 0; iel < nval; iel++ ) {
+                           if( cell[ iel ] == null ) {
                               nullfound = 1;
                               break;
                            }
@@ -737,7 +747,7 @@ f     - Unlike AST_COLUMNNULL,
 /* See if the current cell contains any occurrences of either of the
    two currently nominated null values. Is so, increment the matched
    nominated null value, and start again at row 1. */
-                     for( iel = 0; iel < nel; iel++ ) {
+                     for( iel = 0; iel < nval; iel++ ) {
 
                         if( cell[ iel ] == nulllo ) {
                            foundlo = 1;
@@ -745,12 +755,16 @@ f     - Unlike AST_COLUMNNULL,
                            foundhi = 1;
                         }
 
+/* If every allowed value has now been tried, leave both flags set so
+   that no default is chosen below. */
                         if( foundlo && foundhi ) {
                            nullhi--;
                            nulllo++;
-                           irow = 0;
-                           foundlo = 0;
-                           foundhi = 0;
+                           if( nulllo <= nullhi ) {
+                              irow = 0;
+                              foundlo = 0;
+                              foundhi = 0;
+                           }
                            continue;
                         }
 
@@ -1089,6 +1103,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
    char keyword[ 20 ];
    double dval;
    int *dims;
+   int *dims0;
    int icol;
    int idim;
    int64_t kval;
@@ -1115,14 +1130,17 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
 /* Get the TFORMi keyword that defines the column data type and shape from
    the header. Report an error if it is missing. */
       sprintf( keyword, "TFORM%d", icol + 1 );
-      if( !astGetFitsS( header, keyword, &cval ) && astOK ) {
-         astError( AST__NOFTS, "astFitsTable: Supplied FITS binary table "
-                   "header does not contain the required keyword '%s'.",
-                   status, keyword );
+      if( !astGetFitsS( header, keyword, &cval ) ) {
+         if( astOK ) {
+            astError( AST__NOFTS, "astFitsTable: Supplied FITS binary table "
+                      "header does not contain the required keyword '%s'.",
+                      status, keyword );
+         }
+         break;
       }
 
 /* Extract the repeat count and data type code from the TFORM string. */
-      if( sscanf( cval, "%d%n", &repeat, &nc ) == 0 ) {
+      if( sscanf( cval, "%d%n", &repeat, &nc ) != 1 ) {
          repeat = 1;
          nc = 0;
       } else if( repeat < 0 && astOK ) {
@@ -1195,7 +1213,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
          }
 
 /* Allocate memory for the dimensions. */
-         dims = astMalloc( ndim*sizeof( int ) );
+         dims0 = dims = astMalloc( ndim*sizeof( int ) );
 
 /* Find each dimension and copy it into the above memory. Also find the
    total number of elements (nel). */
@@ -1203,28 +1221,36 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
          idim = 0;
          p = cval;
          if( *p == '(' ) p++;
-         while( sscanf( p, "%d%n", dims + idim, &nc ) ) {
+         while( dims && idim < ndim &&
+                sscanf( p, "%d%n", dims + idim, &nc ) == 1 ) {
             nel *= dims[ idim ];
             idim++;
             p += nc;
             if( *p == ',' ) p++;
          }
+         ndim = idim;
 
 /* For strings, the first TDIM value gives the length of the string, so
    reduce the number of dimensions by one. */
-         if( type == AST__STRINGTYPE ) {
+         if( type == AST__STRINGTYPE && ndim > 0 ) {
             ndim--;
             dims++;
          }
+
+/* For strings, the repeat count is the length of a single string. */
+      } else if( type == AST__STRINGTYPE ) {
+         nel = repeat;
+         ndim = 0;
+         dims0 = dims = NULL;
 
       } else {
          nel = repeat;
          if( nel == 1 ) {
             ndim = 0;
-            dims = NULL;
+            dims0 = dims = NULL;
          } else {
             ndim = 1;
-            dims = astMalloc( sizeof( int ) );
+            dims0 = dims = astMalloc( sizeof( int ) );
             if( dims ) *dims = nel;
          }
       }
@@ -1254,7 +1280,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
       }
 
 /* Check any TZEROi value is 0.0 */
-      sprintf( keyword, "TSCAL%d", icol + 1 );
+      sprintf( keyword, "TZERO%d", icol + 1 );
       if( astGetFitsF( header, keyword, &dval ) && dval != 0.0 && astOK ) {
          astError( AST__BDFTS, "astFitsTable: Supplied FITS binary table "
                    "header contains scaled columns which are not "
@@ -1271,7 +1297,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
       }
 
 /* Free resources. */
-      dims = astFree( dims - ( ( type == AST__STRINGTYPE ) ? 1 : 0 ) );
+      dims0 = astFree( dims0 );
       name = astFree( name );
       unit = astFree( unit );
 

@@ -80,6 +80,13 @@ f     The MocChan class does not define any new routines beyond those
 *        Original version.
 *     8-APR-2026 (TIMJ):
 *        Fix copying of non-null-terminated output lines supplied to Sink1.
+*     9-OCT-2026 (TIMJ):
+*        Dump and astLoadMocChan: index the MocEnc names by format, so
+*        that a STRING MocFormat is dumped as "STRING" and a JSON one as
+*        "JSON". They were swapped, in the dump and again on loading.
+*        astLoadMocChan: apply MocLineLen through its setter, as every
+*        other attribute is, so that a negative value read from a dump
+*        becomes zero rather than a huge buffer length.
 *class--
 */
 
@@ -129,7 +136,7 @@ f     The MocChan class does not define any new routines beyond those
 /* Module Variables. */
 /* ================= */
 /* Text values used to represent MocFormat values externally. */
-static const char *xencod[8] = { JSON_STRING, STRING_STRING };
+static const char *xencod[8] = { STRING_STRING, JSON_STRING };
 
 /* Pointers to parent class methods which are extended by this class. */
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
@@ -2055,6 +2062,8 @@ AstMocChan *astLoadMocChan_( void *mem, size_t size,
 /* MocLineLen */
 /* --------- */
       new->moclinelen = astReadInt( channel, "moclln", -INT_MAX );
+      if ( TestMocLineLen( new, status ) ) SetMocLineLen( new,
+                                                      new->moclinelen, status );
    }
 
 /* If an error occurred, clean up by deleting the new MocChan. */

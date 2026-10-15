@@ -1408,6 +1408,436 @@ static void testgrismorder( int errbase, double morder, int *status ) {
 /* -----------------------------------------------------------------------
  * main
  * -----------------------------------------------------------------------*/
+/* astGetFits<X> converts between the stored and requested types: a
+   CONTINUE card read as a string, a number read as a CONTINUE string, and
+   a string holding both parts of a complex value. */
+static void testcnvtype( int *status ) {
+   AstFitsChan *fc;
+   char *sval;
+   double cf[ 2 ];
+   int ci[ 2 ];
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, " " );
+   astPutFits( fc, "CONTINUE  'more'", 0 );
+   astSetFitsI( fc, "IVAL", 5, NULL, 0 );
+   astSetFitsS( fc, "CSTR", "1.5 2.5", NULL, 0 );
+   astSetFitsS( fc, "ISTR", "3 4", NULL, 0 );
+
+   astClear( fc, "Card" );
+   if( !astGetFitsS( fc, "CONTINUE", &sval ) || strcmp( sval, "more" ) ) {
+      stopit( 1001, "astGetFitsS should read a CONTINUE card", status );
+   }
+   if( astOK && ( !astGetFitsCN( fc, "IVAL", &sval ) || strcmp( sval, "5" ) ) ) {
+      stopit( 1002, "astGetFitsCN of an integer should give its digits", status );
+   }
+   if( astOK && ( !astGetFitsCF( fc, "CSTR", cf ) || cf[ 0 ] != 1.5 ||
+                  cf[ 1 ] != 2.5 ) ) {
+      stopit( 1003, "astGetFitsCF should read both parts of '1.5 2.5'", status );
+   }
+   if( astOK && ( !astGetFitsCI( fc, "ISTR", ci ) || ci[ 0 ] != 3 ||
+                  ci[ 1 ] != 4 ) ) {
+      stopit( 1004, "astGetFitsCI should read both parts of '3 4'", status );
+   }
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1001, "astGetFits<X> conversion raised an error", status );
+   }
+   fc = astAnnul( fc );
+}
+
+/* Deleting one of two cards with the same keyword leaves the keyword in
+   the FitsChan, so a NATIVE write must not reuse it for a new card. */
+static void testdupdelete( int *status ) {
+   AstFitsChan *fc;
+   AstZoomMap *zm;
+   char card[ 81 ];
+   int nzoom;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "Encoding=NATIVE" );
+   astPutFits( fc, "ZOOM_A  = 1", 0 );
+   astPutFits( fc, "ZOOM_A  = 2", 0 );
+   astClear( fc, "Card" );
+   astDelFits( fc );
+   zm = astZoomMap( 2, 2.0, " " );
+   astWrite( fc, zm );
+
+   nzoom = 0;
+   astClear( fc, "Card" );
+   while( astFindFits( fc, "ZOOM_A", card, 1 ) ) nzoom++;
+   if( astOK && nzoom != 1 ) {
+      stopit( 1005, "a NATIVE write reused the keyword of a remaining card",
+              status );
+   }
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1005, "deleting a duplicate keyword raised an error", status );
+   }
+   zm = astAnnul( zm );
+   fc = astAnnul( fc );
+}
+
+/* Only FITS-WCS writes SIP coefficients, so a FrameSet read from a SIP
+   header and written with another encoding must not be given "-SIP"
+   CTYPE values. */
+static void testsipencoding( int *status ) {
+   AstFitsChan *in, *out;
+   AstObject *obj;
+   char *ctype;
+   const char *cards[] = {
+      "NAXIS   = 2", "NAXIS1  = 256", "NAXIS2  = 256",
+      "CTYPE1  = 'RA---TAN-SIP'", "CTYPE2  = 'DEC--TAN-SIP'",
+      "CRVAL1  = 202.48", "CRVAL2  = 47.17", "CRPIX1  = 128.0",
+      "CRPIX2  = 128.0", "CD1_1   = 0.00025", "CD1_2   = 0.00023",
+      "CD2_1   = 0.00023", "CD2_2   = -0.00025", "A_ORDER = 2",
+      "A_0_2   = 2.0E-5", "A_1_1   = -1.5E-5", "A_2_0   = 1.0E-5",
+      "B_ORDER = 2", "B_0_2   = -1.0E-5", "B_1_1   = 2.0E-5",
+      "B_2_0   = 1.5E-5", NULL };
+   int i;
+
+   if( *status != 0 ) return;
+   in = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+   for( i = 0; cards[ i ]; i++ ) astPutFits( in, cards[ i ], 0 );
+   astClear( in, "Card" );
+   obj = astRead( in );
+
+   out = astFitsChan( NULL, NULL, "Encoding=FITS-PC" );
+   if( obj && astWrite( out, obj ) ) {
+      astClear( out, "Card" );
+      if( astGetFitsS( out, "CTYPE1", &ctype ) && strstr( ctype, "-SIP" ) ) {
+         stopit( 1006, "a FITS-PC header was given a -SIP CTYPE", status );
+      }
+   }
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1006, "writing a SIP FrameSet as FITS-PC raised an error",
+              status );
+   }
+   if( obj ) obj = astAnnul( obj );
+   out = astAnnul( out );
+   in = astAnnul( in );
+}
+
+/* A value formatted with one leading space and no decimal point is given
+   one; a negative value must keep its sign when that is done. */
+static void testfloatsign( int *status ) {
+   AstFitsChan *fc;
+   char card[ 81 ];
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "FitsDigits=18" );
+   astSetFitsF( fc, "NEG", -123456789012345678.0, NULL, 0 );
+   astClear( fc, "Card" );
+   if( astFindFits( fc, "NEG", card, 0 ) &&
+       !strstr( card, "-123456789012345680." ) ) {
+      stopit( 1007, "a negative value lost its sign", status );
+   }
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1007, "formatting a negative value raised an error", status );
+   }
+   fc = astAnnul( fc );
+}
+
+static void testeclipticequinox( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   const char *cards[] = { "NAXIS   = 2", "NAXIS1  = 100", "NAXIS2  = 100",
+                           "CRPIX1  = 50", "CRPIX2  = 50", "CRVAL1  = 10",
+                           "CRVAL2  = 20", "CDELT1  = -0.001",
+                           "CDELT2  = 0.001", "CTYPE1  = 'ELON-TAN'",
+                           "CTYPE2  = 'ELAT-TAN'", "EQUINOX = 1950.0", NULL };
+   int i;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+   for( i = 0; cards[ i ]; i++ ) astPutFits( fc, cards[ i ], 0 );
+   astClear( fc, "Card" );
+   fs = astRead( fc );
+   if( !fs ) {
+      stopit( 1008, "an ecliptic header could not be read", status );
+   } else if( !astTest( fs, "Equinox" ) ||
+              fabs( astGetD( fs, "Equinox" ) - 1950.0 ) > 1.0E-6 ) {
+      stopit( 1008, "the EQUINOX of an ecliptic header was ignored", status );
+   }
+   if( fs ) {
+      fc = astAnnul( fc );
+      fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      if( astWrite( fc, fs ) != 1 ) {
+         stopit( 1009, "an ecliptic FrameSet could not be written", status );
+      } else {
+         double eq = 0.0;
+         astClear( fc, "Card" );
+         if( !astGetFitsF( fc, "EQUINOX", &eq ) ||
+             fabs( eq - 1950.0 ) > 1.0E-6 ) {
+            stopit( 1009, "the EQUINOX of an ecliptic SkyFrame was not "
+                    "written as an epoch", status );
+         }
+      }
+      fs = astAnnul( fs );
+   }
+   fc = astAnnul( fc );
+}
+
+static void testpaddedtimesys( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   const char *cards[] = { "NAXIS   = 2", "NAXIS1  = 100", "NAXIS2  = 100",
+                           "CRPIX1  = 50", "CRPIX2  = 50", "CRVAL1  = 10",
+                           "CRVAL2  = 20", "CDELT1  = -0.001",
+                           "CDELT2  = 0.001", "CTYPE1  = 'RA---TAN'",
+                           "CTYPE2  = 'DEC--TAN'", "RADESYS = 'ICRS'",
+                           "MJD-OBS = 55000.0", "TIMESYS = 'TAI     '", NULL };
+   double mjd = 0.0;
+   int i;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+   for( i = 0; cards[ i ]; i++ ) astPutFits( fc, cards[ i ], 0 );
+   astClear( fc, "Card" );
+   fs = astRead( fc );
+   if( !fs ) {
+      stopit( 1010, "a header with a padded TIMESYS could not be read", status );
+   } else {
+      if( astWrite( fc, fs ) != 1 ) {
+         stopit( 1010, "a FrameSet could not be written back", status );
+      } else {
+         astClear( fc, "Card" );
+         if( !astGetFitsF( fc, "MJD-OBS", &mjd ) ||
+             fabs( mjd - 55000.0 ) > 1.0E-9 ) {
+            stopit( 1010, "MJD-OBS was not written in the timescale a padded "
+                    "TIMESYS names", status );
+         }
+      }
+      fs = astAnnul( fs );
+   }
+   fc = astAnnul( fc );
+}
+
+static void testemptykeepsattributes( int *status ) {
+   AstFitsChan *fc;
+   const char *what[] = { "astEmptyFits", "astPutCards", "astWriteFits" };
+   char msg[ 100 ];
+   int i;
+
+   if( *status != 0 ) return;
+   for( i = 0; i < 3 && *status == 0; i++ ) {
+      fc = astFitsChan( NULL, NULL, "Warnings=BadKeyName,FitsAxisOrder=<copy>" );
+      astPutFits( fc, "A       = 1", 0 );
+      if( i == 0 ) {
+         astEmptyFits( fc );
+      } else if( i == 1 ) {
+         astPutCards( fc, "B       = 2" );
+      } else {
+         astWriteFits( fc );
+      }
+      if( !astTest( fc, "Warnings" ) ||
+          strcmp( astGetC( fc, "Warnings" ), "BadKeyName" ) ) {
+         snprintf( msg, sizeof msg, "%s cleared the Warnings attribute", what[ i ] );
+         stopit( 1070, msg, status );
+      } else if( !astTest( fc, "FitsAxisOrder" ) ||
+                 strcmp( astGetC( fc, "FitsAxisOrder" ), "<copy>" ) ) {
+         snprintf( msg, sizeof msg, "%s cleared the FitsAxisOrder attribute", what[ i ] );
+         stopit( 1070, msg, status );
+      }
+      fc = astAnnul( fc );
+   }
+}
+
+/* Check that astRemoveTables with a blank key removes every table. */
+static void testremovealltables( int *status ) {
+   AstFitsChan *fc;
+   AstFitsTable *ft;
+   AstKeyMap *tables;
+   const char *names[] = { "A", "B", "C", "D", "E" };
+   int i;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, " " );
+   ft = astFitsTable( NULL, " " );
+   for( i = 0; i < 5; i++ ) astPutTable( fc, ft, names[ i ] );
+   ft = astAnnul( ft );
+   astRemoveTables( fc, " " );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1080, "astRemoveTables reported an error removing every table",
+              status );
+   } else {
+      tables = astGetTables( fc );
+      if( tables ) {
+         stopit( 1081, "astRemoveTables left tables in the FitsChan", status );
+         tables = astAnnul( tables );
+      }
+   }
+   fc = astAnnul( fc );
+}
+
+/* Check that a FrameSet whose celestial longitude, but not latitude, can be
+   described by a look-up table is not written as -TAB, without error. */
+static void testtabonecelestial( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   AstFrame *wcs;
+   AstMapping *map;
+   double lut[ 5 ] = { 0.1, 0.11, 0.13, 0.16, 0.2 };
+   double mat[ 4 ] = { 0.001, 0.0001, 0.0, 1.0e6 };
+   double shift[ 2 ] = { -0.5, 1.0e9 };
+   int nobj;
+
+   if( *status != 0 ) return;
+   wcs = (AstFrame *) astCmpFrame( astSkyFrame( " " ),
+                                   astSpecFrame( "System=FREQ,Unit=Hz" ), " " );
+   map = (AstMapping *) astCmpMap( astLutMap( 5, lut, 1.0, 1.0, " " ),
+                                   astCmpMap( astMatrixMap( 2, 2, 0, mat, " " ),
+                                              astShiftMap( 2, shift, " " ),
+                                              1, " " ), 0, " " );
+   fs = astFrameSet( astFrame( 3, "Domain=GRID" ), " " );
+   astAddFrame( fs, AST__BASE, map, wcs );
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+   astPutFits( fc, "NAXIS1  = 5", 0 );
+   astPutFits( fc, "NAXIS2  = 5", 0 );
+   astPutFits( fc, "NAXIS3  = 5", 0 );
+   nobj = astWrite( fc, fs );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( 1082, "astWrite reported an error for a celestial axis pair "
+              "of which only one is tabular", status );
+   } else if( nobj != 0 ) {
+      stopit( 1083, "astWrite wrote a celestial axis pair of which only one "
+              "is tabular", status );
+   }
+   fc = astAnnul( fc );
+   fs = astAnnul( fs );
+}
+
+/* Check that a non-spectral axis written as -TAB reads back to the same
+   coordinates: the first and last pixels, which are entries in the look-up
+   table, taken to voltage by the original FrameSet come back to the same
+   pixels through the one read. */
+static void testtabotheraxis( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs, *fs2;
+   const char *fwd[] = { "y=1/(x*x)" }, *inv[] = { "x=1/sqrt(y)" };
+   double x[ 2 ] = { 1.0, 100.0 }, y[ 2 ], y2[ 2 ];
+   int i;
+
+   if( *status != 0 ) return;
+   fs = astFrameSet( astFrame( 1, "Domain=GRID" ), " " );
+   astAddFrame( fs, AST__BASE, astMathMap( 1, 1, 1, fwd, 1, inv, " " ),
+                astFrame( 1, "domain=voltage,unit=V" ) );
+   fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS,TabOK=1" );
+   astPutFits( fc, "NAXIS   = 1", 0 );
+   astPutFits( fc, "NAXIS1  = 100", 0 );
+   if( astWrite( fc, fs ) != 1 ) {
+      stopit( 1084, "astWrite did not write a -TAB voltage axis", status );
+   } else {
+      astClear( fc, "Card" );
+      fs2 = astRead( fc );
+      if( !fs2 ) {
+         stopit( 1085, "astRead did not read a -TAB voltage axis", status );
+      } else {
+         astTran1( fs, 2, x, 1, y );
+         astTran1( fs2, 2, y, 0, y2 );
+         for( i = 0; i < 2; i++ ) {
+            if( fabs( y2[ i ] - x[ i ] ) > 1.0e-6 ) {
+               stopit( 1086, "a -TAB voltage axis read back to other values",
+                       status );
+               break;
+            }
+         }
+         fs2 = astAnnul( fs2 );
+      }
+   }
+   fc = astAnnul( fc );
+   fs = astAnnul( fs );
+}
+
+/* Check that a header with a non-spectral "-LOG" axis reads, both with a
+   non-zero CRVAL, which gives a logarithmic axis, and with a zero CRVAL,
+   which has no logarithmic form and so gives a linear one. */
+static void testotherlogaxis( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *fs;
+   double x = 3.0, y;
+   int i;
+   const char *crval[] = { "CRVAL1  = 10", "CRVAL1  = 0" };
+   const double want[] = { 10.0*exp( 4.0/10.0 ), 4.0 };
+
+   if( *status != 0 ) return;
+   for( i = 0; i < 2; i++ ) {
+      fc = astFitsChan( NULL, NULL, " " );
+      astPutFits( fc, "NAXIS   = 1", 0 );
+      astPutFits( fc, "CRPIX1  = 1", 0 );
+      astPutFits( fc, crval[ i ], 0 );
+      astPutFits( fc, "CDELT1  = 2", 0 );
+      astPutFits( fc, "CTYPE1  = 'XXXX-LOG'", 0 );
+      astClear( fc, "Card" );
+      fs = astRead( fc );
+      if( !fs ) {
+         stopit( 1087, "astRead did not read a non-spectral -LOG axis",
+                 status );
+      } else {
+         astTran1( fs, 1, &x, 1, &y );
+         if( fabs( y - want[ i ] ) > 1.0e-10 ) {
+            stopit( 1088, "a non-spectral -LOG axis read to other values",
+                    status );
+         }
+         fs = astAnnul( fs );
+      }
+      fc = astAnnul( fc );
+   }
+}
+
+/* A Channel that writes to and reads from this list of lines. */
+static char dump_lines[ 100 ][ 200 ];
+static int dump_nline, dump_iline;
+
+static void dump_sink( const char *line ) {
+   if( dump_nline < 100 ) {
+      strncpy( dump_lines[ dump_nline ], line, 199 );
+      dump_lines[ dump_nline++ ][ 199 ] = 0;
+   }
+}
+
+static const char *dump_source( void ) {
+   return dump_iline < dump_nline ? dump_lines[ dump_iline++ ] : NULL;
+}
+
+/* Check that a FitsChan dumped to a Channel reads back with its SipReplace
+   value, its 64 bit integer card values, and PolyTan and SipOK unset. */
+static void testdumpload( int *status ) {
+   AstChannel *ch;
+   AstFitsChan *fc, *back;
+   int64_t kval;
+
+   if( *status != 0 ) return;
+   fc = astFitsChan( NULL, NULL, "SipReplace=0" );
+   astSetFitsK( fc, "BIGINT", 123456789012, NULL, 0 );
+   ch = astChannel( dump_source, dump_sink, " " );
+   dump_nline = dump_iline = 0;
+   astWrite( ch, fc );
+   back = astRead( ch );
+   if( !astOK ) astClearStatus;
+   if( !back ) {
+      stopit( 1071, "a FitsChan dump with SipReplace set was not read back", status );
+   } else if( !astTest( back, "SipReplace" ) || astGetI( back, "SipReplace" ) != 0 ) {
+      stopit( 1071, "SipReplace was not read back", status );
+   } else if( astTest( back, "PolyTan" ) ) {
+      stopit( 1071, "an unset PolyTan was read back set", status );
+   } else if( astTest( back, "SipOK" ) ) {
+      stopit( 1071, "an unset SipOK was read back set", status );
+   } else {
+      astClear( back, "Card" );
+      if( !astGetFitsK( back, "BIGINT", &kval ) || kval != 123456789012 ) {
+         stopit( 1071, "a 64 bit integer card value was not read back", status );
+      }
+   }
+   if( back ) back = astAnnul( back );
+   ch = astAnnul( ch );
+   fc = astAnnul( fc );
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -1435,6 +1865,18 @@ int main( void ) {
       read/write round trip. The positive case is a control: it confirms
       the chosen grating parameters are physically usable, so a failure in
       the negative cases cannot be blamed on the parameter choice. */
+   testcnvtype( status );
+   testdupdelete( status );
+   testsipencoding( status );
+   testfloatsign( status );
+   testeclipticequinox( status );
+   testpaddedtimesys( status );
+   testemptykeepsattributes( status );
+   testdumpload( status );
+   testremovealltables( status );
+   testtabonecelestial( status );
+   testtabotheraxis( status );
+   testotherlogaxis( status );
    testgrismorder( 12400, 1.0, status );
    testgrismorder( 12410, -1.0, status );
    testgrismorder( 12420, -2.0, status );
@@ -4176,6 +4618,357 @@ int main( void ) {
          clfs = astAnnul( clfs );
       }
 
+      astEnd;
+   }
+
+   /* CLASSFromStore LONPOLE: FITS-CLASS cannot describe a rotated image,
+      but tolerates a LONPOLE of +/-180 degrees. A header giving LONPOLE
+      180 (its default for TAN away from the pole) can be written; one
+      giving LONPOLE 90 cannot. */
+   if( *status == 0 ) {
+      const char *lp_vals[] = { "180", "90", NULL };
+      int lp_want[] = { 1, 0 };
+      const char *lp_head[] = { "NAXIS   = 3", "NAXIS1  = 20", "NAXIS2  = 10",
+         "NAXIS3  = 10", "CRPIX1  = 10", "CRPIX2  = 5", "CRPIX3  = 5",
+         "CRVAL1  = 1.102E11", "CRVAL2  = 40.738", "CRVAL3  = 62.933",
+         "CDELT1  = 39062.5", "CDELT2  = -0.01", "CDELT3  = 0.01",
+         "CTYPE1  = 'FREQ'", "CTYPE2  = 'RA---TAN'", "CTYPE3  = 'DEC--TAN'",
+         "CUNIT1  = 'Hz'", "SPECSYS = 'SOURCE'", "RESTFRQ = 1.10201354E11",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      int ilp, ih;
+      char lp_card[ 81 ];
+
+      astBegin;
+      for( ilp = 0; lp_vals[ ilp ] && *status == 0; ilp++ ) {
+         AstFitsChan *lpfc = astFitsChan( NULL, NULL, " " );
+         for( ih = 0; lp_head[ ih ]; ih++ ) astPutFits( lpfc, lp_head[ ih ], 0 );
+         sprintf( lp_card, "LONPOLE = %s", lp_vals[ ilp ] );
+         astPutFits( lpfc, lp_card, 0 );
+         astClear( lpfc, "Card" );
+         AstObject *lpfs = astRead( lpfc );
+         if( !lpfs ) {
+            stopit( 12345, "CLASS LONPOLE: header not read", status );
+         } else {
+            AstFitsChan *lpcl = astFitsChan( NULL, NULL, "Encoding=FITS-CLASS" );
+            if( astWrite( lpcl, lpfs ) != lp_want[ ilp ] ) {
+               stopit( 12346 + ilp, "CLASS LONPOLE: wrong FITS-CLASS acceptance",
+                       status );
+            }
+         }
+      }
+      astEnd;
+   }
+
+   /* SpectralAxes chooses the default spectral reference value from the
+      size of the spectral pixel axis: its middle when NAXIS3 is known,
+      otherwise its first pixel, whatever NAXIS1 says. */
+   if( *status == 0 ) {
+      const char *px_head[] = { "NAXIS   = 3", "CRPIX1  = 5", "CRPIX2  = 5",
+         "CRPIX3  = 10", "CRVAL1  = 10", "CRVAL2  = 20", "CRVAL3  = 1.4E9",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CDELT3  = 1.0E6",
+         "CTYPE1  = 'RA---TAN'", "CTYPE2  = 'DEC--TAN'", "CTYPE3  = 'FREQ'",
+         "CUNIT3  = 'Hz'", "SPECSYS = 'LSRK'", "RESTFRQ = 1.420405752E9",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      int ih, ipx;
+      double px_crpix;
+
+      astBegin;
+      AstFitsChan *pxfc = astFitsChan( NULL, NULL, " " );
+      for( ih = 0; px_head[ ih ]; ih++ ) astPutFits( pxfc, px_head[ ih ], 0 );
+      astClear( pxfc, "Card" );
+      AstObject *pxfs = astRead( pxfc );
+      for( ipx = 0; ipx < 2 && pxfs && *status == 0; ipx++ ) {
+         AstFitsChan *pxw = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         if( ipx == 0 ) {
+            astPutFits( pxw, "NAXIS3  = 20", 0 );
+         } else {
+            astPutFits( pxw, "NAXIS1  = 10", 0 );
+            astPutFits( pxw, "NAXIS2  = 10", 0 );
+         }
+         if( astWrite( pxw, pxfs ) != 1 ) {
+            stopit( 12363, "SpectralAxes: write failed", status );
+         } else {
+            astClear( pxw, "Card" );
+            if( !astGetFitsF( pxw, "CRPIX3", &px_crpix ) ||
+                ( ipx == 0 && ( px_crpix < 10.0 || px_crpix > 11.0 ) ) ||
+                ( ipx == 1 && px_crpix != 1.0 ) ) {
+               stopit( 12364 + ipx, "SpectralAxes: wrong spectral reference pixel",
+                       status );
+            }
+         }
+      }
+      if( !pxfs ) stopit( 12366, "SpectralAxes: header not read", status );
+      astEnd;
+   }
+
+   /* MJD-OBS is the primary axis description's date: an alternate
+      description with another Epoch, written or not, does not change it. */
+   if( *status == 0 ) {
+      const char *md_head[] = { "NAXIS   = 2", "NAXIS1  = 100", "NAXIS2  = 100",
+         "CRPIX1  = 50", "CRPIX2  = 50", "CRVAL1  = 10", "CRVAL2  = 20",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CTYPE1  = 'RA---TAN'",
+         "CTYPE2  = 'DEC--TAN'", "RADESYS = 'FK5'", "EQUINOX = 2000.0",
+         "MJD-OBS = 51000.0", "CRPIX1A = 50", "CRPIX2A = 50", "CRVAL1A = 100",
+         "CRVAL2A = 30", "CDELT1A = -0.001", "CDELT2A = 0.001",
+         "CTYPE1A = 'GLON-TAN'", "CTYPE2A = 'GLAT-TAN'", NULL };
+      const char *md_fwd[2] = { "x=a+100*b*b", "y=b" };
+      const char *md_inv[2] = { "a=x-100*y*y", "b=y" };
+      int ih, imd, icur;
+      double md_val;
+      char md_card[ 81 ];
+
+      astBegin;
+      for( imd = 0; imd < 2 && *status == 0; imd++ ) {
+         AstFitsChan *mdfc = astFitsChan( NULL, NULL, " " );
+         for( ih = 0; md_head[ ih ]; ih++ ) astPutFits( mdfc, md_head[ ih ], 0 );
+         astClear( mdfc, "Card" );
+         AstFrameSet *mdfs = (AstFrameSet *) astRead( mdfc );
+         if( !mdfs ) {
+            stopit( 12370, "MJD-OBS: header not read", status );
+            break;
+         }
+         icur = astGetI( mdfs, "Current" );
+         astSetI( mdfs, "Current", 3 );
+         astSetC( mdfs, "Epoch", "MJD 55000" );
+         if( imd == 1 ) {
+            astRemapFrame( mdfs, 3, astMathMap( 2, 2, 2, md_fwd, 2, md_inv, " " ) );
+         }
+         astSetI( mdfs, "Current", icur );
+         AstFitsChan *mdw = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astPutFits( mdw, "NAXIS1  = 100", 0 );
+         astPutFits( mdw, "NAXIS2  = 100", 0 );
+         if( astWrite( mdw, mdfs ) != 1 ) {
+            stopit( 12371, "MJD-OBS: write failed", status );
+         } else {
+            astClear( mdw, "Card" );
+            if( !astGetFitsF( mdw, "MJD-OBS", &md_val ) || md_val != 51000.0 ) {
+               stopit( 12372, "MJD-OBS: not the primary description's date",
+                       status );
+            }
+            astClear( mdw, "Card" );
+            if( astFindFits( mdw, "CTYPE1A", md_card, 0 ) != ( imd == 0 ) ) {
+               stopit( 12373, "MJD-OBS: alternate written unexpectedly", status );
+            }
+         }
+      }
+      astEnd;
+   }
+
+   /* AddVersion uses the pixel->WCS Mapping as SpectralAxes leaves it. With
+      the spectral Unit "log(Hz)", which SpectralAxes clears to GHz, the
+      header must give 1.401 GHz at pixel 11 of a 20-channel axis of 1 MHz
+      channels. */
+   if( *status == 0 ) {
+      const char *lu_head[] = { "NAXIS   = 3", "CRPIX1  = 5", "CRPIX2  = 5",
+         "CRPIX3  = 10", "CRVAL1  = 10", "CRVAL2  = 20", "CRVAL3  = 1.4E9",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CDELT3  = 1.0E6",
+         "CTYPE1  = 'RA---TAN'", "CTYPE2  = 'DEC--TAN'", "CTYPE3  = 'FREQ'",
+         "CUNIT3  = 'Hz'", "SPECSYS = 'LSRK'", "RESTFRQ = 1.420405752E9",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      int ih;
+      double lu_crpix, lu_crval, lu_cdelt;
+
+      astBegin;
+      AstFitsChan *lufc = astFitsChan( NULL, NULL, " " );
+      for( ih = 0; lu_head[ ih ]; ih++ ) astPutFits( lufc, lu_head[ ih ], 0 );
+      astClear( lufc, "Card" );
+      AstObject *lufs = astRead( lufc );
+      if( !lufs ) {
+         stopit( 12367, "AddVersion: header not read", status );
+      } else {
+         astSetC( lufs, "Unit(3)", "log(Hz)" );
+         AstFitsChan *luw = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astPutFits( luw, "NAXIS3  = 20", 0 );
+         if( astWrite( luw, lufs ) != 1 ) {
+            stopit( 12368, "AddVersion: write failed", status );
+         } else {
+            astClear( luw, "Card" );
+            if( !astGetFitsF( luw, "CRPIX3", &lu_crpix ) ||
+                !astGetFitsF( luw, "CRVAL3", &lu_crval ) ||
+                !astGetFitsF( luw, "CDELT3", &lu_cdelt ) ||
+                fabs( lu_cdelt - 0.001 ) > 1.0E-9 ||
+                fabs( lu_crval + ( 11.0 - lu_crpix )*lu_cdelt - 1.401 ) > 1.0E-9 ) {
+               stopit( 12369, "AddVersion: spectral axis written inconsistently",
+                       status );
+            }
+         }
+      }
+      astEnd;
+   }
+
+   /* GetCDMatrix keeps the current card. Here the card after the last WCS
+      card, CO1_1, is consumed by the read, and a FITS-WCS write puts the
+      cards it adds, MJD-OBS and DATE-OBS, in front of it, so they follow
+      RADESYS. */
+   if( *status == 0 ) {
+      const char *cd_head[] = { "NAXIS   = 2", "NAXIS1  = 2048", "NAXIS2  = 2048",
+         "CTYPE1  = 'RA---TAN'", "CTYPE2  = 'DEC--TAN'", "CRVAL1  = 180.0",
+         "CRVAL2  = 45.0", "CRPIX1  = 1024.5", "CRPIX2  = 1024.5",
+         "CDELT1  = -1.111E-04", "CDELT2  = 1.111E-04", "EQUINOX = 2000.0",
+         "RADESYS = 'FK5'", "CO1_1   = 0.0", "CO1_2   = 1.0", "CO1_4   = 2.5E-06",
+         NULL };
+      int ih;
+      char cd_card[ 81 ];
+
+      astBegin;
+      AstFitsChan *cdfc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      for( ih = 0; cd_head[ ih ]; ih++ ) astPutFits( cdfc, cd_head[ ih ], 0 );
+      astClear( cdfc, "Card" );
+      AstObject *cdfs = astRead( cdfc );
+      if( !cdfs ) {
+         stopit( 12360, "GetCDMatrix: header not read", status );
+      } else if( astWrite( cdfc, cdfs ) != 1 ) {
+         stopit( 12361, "GetCDMatrix: write failed", status );
+      } else {
+         astClear( cdfc, "Card" );
+         if( !astFindFits( cdfc, "RADESYS", cd_card, 1 ) ||
+             !astFindFits( cdfc, "%f", cd_card, 0 ) ||
+             strncmp( cd_card, "MJD-OBS", 7 ) ) {
+            stopit( 12362, "GetCDMatrix: MJD-OBS does not follow RADESYS",
+                    status );
+         }
+      }
+      astEnd;
+   }
+
+   /* MJD-OBS survives a read. FITS-AIPS, FITS-AIPS++, FITS-IRAF and
+      FITS-CLASS write only DATE-OBS, and must update that MJD-OBS so that
+      it agrees, but add none to a header that had none. */
+   if( *status == 0 ) {
+      const char *md_sky[] = { "NAXIS   = 2", "NAXIS1  = 10", "NAXIS2  = 10",
+         "CRPIX1  = 5", "CRPIX2  = 5", "CRVAL1  = 10", "CRVAL2  = 20",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CTYPE1  = 'RA---TAN'",
+         "CTYPE2  = 'DEC--TAN'", "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      const char *md_class[] = { "NAXIS   = 3", "NAXIS1  = 20", "NAXIS2  = 10",
+         "NAXIS3  = 10", "CRPIX1  = 10", "CRPIX2  = 5", "CRPIX3  = 5",
+         "CRVAL1  = 1.102E11", "CRVAL2  = 40.738", "CRVAL3  = 62.933",
+         "CDELT1  = 39062.5", "CDELT2  = -0.01", "CDELT3  = 0.01",
+         "CTYPE1  = 'FREQ'", "CTYPE2  = 'RA---TAN'", "CTYPE3  = 'DEC--TAN'",
+         "CUNIT1  = 'Hz'", "SPECSYS = 'SOURCE'", "RESTFRQ = 1.10201354E11",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      const char *md_enc[] = { "FITS-AIPS", "FITS-AIPS++", "FITS-IRAF",
+                               "FITS-CLASS", NULL };
+      int ienc, ih, withmjd;
+      double md_mjd;
+
+      astBegin;
+      for( ienc = 0; md_enc[ ienc ] && *status == 0; ienc++ ) {
+         const char **md_head = ( ienc == 3 ) ? md_class : md_sky;
+         for( withmjd = 0; withmjd < 2 && *status == 0; withmjd++ ) {
+            AstFitsChan *mdfc = astFitsChan( NULL, NULL, " " );
+            for( ih = 0; md_head[ ih ]; ih++ ) astPutFits( mdfc, md_head[ ih ], 0 );
+            astPutFits( mdfc, "DATE-OBS= '2002-05-19T14:09:36.000'", 0 );
+            if( withmjd ) astPutFits( mdfc, "MJD-OBS = 52413.59", 0 );
+            astClear( mdfc, "Card" );
+            AstObject *mdfs = astRead( mdfc );
+            if( !mdfs ) {
+               stopit( 12356, "MJD-OBS: header not read", status );
+               break;
+            }
+            astSetC( mdfs, "Epoch", "MJD 55000" );
+            astSet( mdfc, "Encoding=%s", md_enc[ ienc ] );
+            if( astWrite( mdfc, mdfs ) != 1 ) {
+               stopit( 12357, "MJD-OBS: write failed", status );
+               break;
+            }
+            astClear( mdfc, "Card" );
+            if( !withmjd ) {
+               if( astGetFitsF( mdfc, "MJD-OBS", &md_mjd ) ) {
+                  stopit( 12358, "MJD-OBS: added to a header without one",
+                          status );
+               }
+            } else if( !astGetFitsF( mdfc, "MJD-OBS", &md_mjd ) ||
+                       fabs( md_mjd - 55000.0 ) > 0.01 ) {
+               stopit( 12359, "MJD-OBS: not updated to agree with DATE-OBS",
+                       status );
+            }
+         }
+      }
+      astEnd;
+   }
+
+   /* IsMapLinear: a spectral axis of 20 channels at 1.1E11 Hz is linear in
+      Hz, so FITS-WCS writes it in Hz, with CRPIX and CRVAL at the channel
+      nearest the middle of the axis. */
+   if( *status == 0 ) {
+      const char *lm_head[] = { "NAXIS   = 3", "NAXIS1  = 20", "NAXIS2  = 10",
+         "NAXIS3  = 10", "CRPIX1  = 10", "CRPIX2  = 5", "CRPIX3  = 5",
+         "CRVAL1  = 1.102E11", "CRVAL2  = 40.738", "CRVAL3  = 62.933",
+         "CDELT1  = 39062.5", "CDELT2  = -0.01", "CDELT3  = 0.01",
+         "CTYPE1  = 'FREQ'", "CTYPE2  = 'RA---TAN'", "CTYPE3  = 'DEC--TAN'",
+         "CUNIT1  = 'Hz'", "SPECSYS = 'SOURCE'", "RESTFRQ = 1.10201354E11",
+         "RADESYS = 'FK5'", "EQUINOX = 2000.0", NULL };
+      int ih;
+      char *lm_unit;
+      double lm_crpix;
+
+      astBegin;
+      AstFitsChan *lmfc = astFitsChan( NULL, NULL, " " );
+      for( ih = 0; lm_head[ ih ]; ih++ ) astPutFits( lmfc, lm_head[ ih ], 0 );
+      astClear( lmfc, "Card" );
+      AstObject *lmfs = astRead( lmfc );
+      if( !lmfs ) {
+         stopit( 12352, "IsMapLinear: header not read", status );
+      } else {
+         AstFitsChan *lmwc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+         astPutFits( lmwc, "NAXIS1  = 20", 0 );
+         if( astWrite( lmwc, lmfs ) != 1 ) {
+            stopit( 12353, "IsMapLinear: FITS-WCS write failed", status );
+         }
+         astClear( lmwc, "Card" );
+         if( !astGetFitsS( lmwc, "CUNIT1", &lm_unit ) || strncmp( lm_unit, "Hz", 2 ) ) {
+            stopit( 12354, "IsMapLinear: spectral axis not written in Hz", status );
+         }
+         astClear( lmwc, "Card" );
+         if( !astGetFitsF( lmwc, "CRPIX1", &lm_crpix ) || lm_crpix != 11.0 ) {
+            stopit( 12355, "IsMapLinear: CRPIX1 not 11", status );
+         }
+      }
+      astEnd;
+   }
+
+   /* PCFromStore alternates: an alternate description sharing the primary
+      one's PC matrix is written with C<n>ELT<i> etc.; one with a different
+      PC matrix is not. The primary description has an MJD-OBS, which an
+      alternate one shares. */
+   if( *status == 0 ) {
+      const char *pa_head[] = { "NAXIS   = 2", "NAXIS1  = 10", "NAXIS2  = 10",
+         "CRPIX1  = 5", "CRPIX2  = 5", "CRVAL1  = 10", "CRVAL2  = 20",
+         "CDELT1  = -0.001", "CDELT2  = 0.001", "CTYPE1  = 'RA---TAN'",
+         "CTYPE2  = 'DEC--TAN'", "RADESYS = 'FK5'", "EQUINOX = 2000.0",
+         "MJD-OBS = 51000.0",
+         "CRPIX1A = 5", "CRPIX2A = 5", "CRVAL1A = 10", "CRVAL2A = 20",
+         "CDELT1A = -0.002", "CDELT2A = 0.002", "CTYPE1A = 'RA---TAN'",
+         "CTYPE2A = 'DEC--TAN'", "RADESYSA= 'FK5'", "EQUINOXA= 2000.0",
+         "CRPIX1B = 5", "CRPIX2B = 5", "CRVAL1B = 10", "CRVAL2B = 20",
+         "CDELT1B = -0.001", "CDELT2B = 0.001", "CTYPE1B = 'RA---TAN'",
+         "CTYPE2B = 'DEC--TAN'", "PC1_1B  = 0.8660254037844387",
+         "PC1_2B  = -0.5", "PC2_1B  = 0.5", "PC2_2B  = 0.8660254037844387",
+         "RADESYSB= 'FK5'", "EQUINOXB= 2000.0", NULL };
+      int ih;
+      char pa_card[ 81 ];
+
+      astBegin;
+      AstFitsChan *pafc = astFitsChan( NULL, NULL, " " );
+      for( ih = 0; pa_head[ ih ]; ih++ ) astPutFits( pafc, pa_head[ ih ], 0 );
+      astClear( pafc, "Card" );
+      AstObject *pafs = astRead( pafc );
+      if( !pafs ) {
+         stopit( 12348, "PC alternates: header not read", status );
+      } else {
+         AstFitsChan *papc = astFitsChan( NULL, NULL, "Encoding=FITS-PC" );
+         if( astWrite( papc, pafs ) != 1 ) {
+            stopit( 12349, "PC alternates: FITS-PC write failed", status );
+         }
+         astClear( papc, "Card" );
+         if( !astFindFits( papc, "C1ELT1", pa_card, 0 ) ) {
+            stopit( 12350, "PC alternates: alternate A not written", status );
+         }
+         astClear( papc, "Card" );
+         if( astFindFits( papc, "C2ELT1", pa_card, 0 ) ) {
+            stopit( 12351, "PC alternates: rotated alternate B written", status );
+         }
+      }
       astEnd;
    }
 

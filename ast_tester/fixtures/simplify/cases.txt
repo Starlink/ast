@@ -290,6 +290,63 @@ spec_run_inverted_mid     | simplify/spec_run_inverted_mid.map     | simplify/sp
 spec_run4_identity        | simplify/spec_run4_identity.map        | simplify/spec_run4_identity.simp        |
 time_run_identity         | simplify/time_run_identity.map         | simplify/time_run_identity.simp         |
 wcsconv_gappt_iwc_residue | simplify/wcsconv_gappt_iwc_residue.map | simplify/wcsconv_gappt_iwc_residue.simp |
+# The Mapping from WCS through pixel to IWC coordinates that astRead makes
+# with Iwc set, for a header with RA---TAN, DEC--TAN and FREQ axes, captured
+# from WcsFrame before and after astSimplify.
+fitschan_iwc_spectral     | simplify/fitschan_iwc_spectral.map     | simplify/fitschan_iwc_spectral.simp     |
+
+# The Mapping from pixel to WCS coordinates that astRead makes for a header
+# with RA---TAN, DEC--TAN and FREQ-TAB axes, the last a -TAB look-up in a
+# FITS binary table, captured from WcsFrame before and after astSimplify.
+fitschan_tab_spectral     | simplify/fitschan_tab_spectral.map     | simplify/fitschan_tab_spectral.simp     |
+
+# The Mapping from WCS through pixel to IWC coordinates that astRead makes
+# with Iwc set, for a header whose RA---TAB and DEC--TAB axes are look-ups in
+# a FITS binary table, captured from WcsFrame before and after astSimplify.
+fitschan_tab_celestial_iwc | simplify/fitschan_tab_celestial_iwc.map | simplify/fitschan_tab_celestial_iwc.simp |
+
+# The Mapping from pixel to WCS coordinates that astRead makes for an
+# alternate axis description of linear axes whose CDELT values include one a
+# few units in the last place from 1, written by a FITS-WCS write of
+# sparse.ast, captured from WcsFrame before and after astSimplify.
+fitschan_alt_diagonal_cdelt | simplify/fitschan_alt_diagonal_cdelt.map | simplify/fitschan_alt_diagonal_cdelt.simp |
+
+# A MatrixMap built in diagonal form is a unit MatrixMap when every diagonal
+# element equals 1 within astEQUAL, where one built in full form needs each to
+# be exactly 1. These merges build diagonal MatrixMaps from values a few parts
+# in 1e11 from 1 (zoommap.c and winmap.c MapMerge, WinMat and MatWin, the
+# zero-off-diagonal branch of matrixmap.c MapMerge, and MatZoom), and the
+# matzoom rows pin MatZoom, the product of a MatrixMap and a diagonal
+# MatrixMap of the zoom factor, with the ZoomMap on either side and the
+# MatrixMap inverted or not.
+diag_unit_zoom_parallel             | simplify/diag_unit_zoom_parallel.map | simplify/diag_unit_zoom_parallel.simp |
+diag_unit_win_zero_shift            | simplify/diag_unit_win_zero_shift.map | simplify/diag_unit_win_zero_shift.simp |
+diag_unit_win_then_matrix           | simplify/diag_unit_win_then_matrix.map | simplify/diag_unit_win_then_matrix.simp |
+diag_unit_matrix_then_win           | simplify/diag_unit_matrix_then_win.map | simplify/diag_unit_matrix_then_win.simp |
+diag_unit_full_matrix               | simplify/diag_unit_full_matrix.map | simplify/diag_unit_full_matrix.simp |
+diag_unit_matrix_then_zoom          | simplify/diag_unit_matrix_then_zoom.map | simplify/diag_unit_matrix_then_zoom.simp |
+diag_unit_zoom_parallel_then_matrix | simplify/diag_unit_zoom_parallel_then_matrix.map | simplify/diag_unit_zoom_parallel_then_matrix.simp |
+diag_unit_win_then_diagonal_matrix  | simplify/diag_unit_win_then_diagonal_matrix.map | simplify/diag_unit_win_then_diagonal_matrix.simp |
+matzoom_inverted_matrix             | simplify/matzoom_inverted_matrix.map | simplify/matzoom_inverted_matrix.simp |
+matzoom_zoom_then_matrix            | simplify/matzoom_zoom_then_matrix.map | simplify/matzoom_zoom_then_matrix.simp |
+matzoom_zoom_then_inverted_matrix   | simplify/matzoom_zoom_then_inverted_matrix.map | simplify/matzoom_zoom_then_inverted_matrix.simp |
+
+# The Mapping FrameSet integrity forms when SkyRefIs is set to Origin
+# through a FrameSet read from a RA---TAN, DEC--TAN header: the pixel to
+# sky Mapping followed by the conversion astConvert gives from the
+# SkyFrame before the change to the SkyFrame after it.  It needs the wider
+# tolerance: the simplified MatrixMap is MtrMult's product of the two rotation
+# matrices, and its off-diagonal elements (about 1e-3) are sums of products
+# near 1 that nearly cancel, so contracting the dot product into fused
+# multiply-adds moves them by some 50 ULP (M0 is -9.3745024080166273e-4
+# without contraction and -9.3745024080165091e-4 with it, as on arm64).
+offset_skyref_integrity | simplify/offset_skyref_integrity.map | simplify/offset_skyref_integrity.simp | astequal
+
+# An inverted SwitchMap followed by its forward copy, with different
+# forward and inverse selectors, cancels to a UnitMap (switchmap.c MapMerge
+# compares the SwitchMap with its inverted neighbour). testswitchmap.c
+# section 1, Error 26.
+switchmap_inverse_cancel_distinct_selectors | simplify/switchmap_inverse_cancel_distinct_selectors.map | simplify/switchmap_inverse_cancel_distinct_selectors.simp |
 
 # Captured differential-coverage fixtures (2026-06-29, auto-selected).
 cap_cmpmap_01            | simplify/cap_cmpmap_01.map | simplify/cap_cmpmap_01.simp |

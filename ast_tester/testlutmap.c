@@ -83,6 +83,35 @@ int main( void ) {
    x[4] = y[4];
    if( mismatch_range( x, y, 3, 7 ) ) stopit( status, "Error 12" );
 
+   /* Inverse of values beyond the first table value. There is no lower
+      table value to compare with, so a nearest-neighbour inverse is bad
+      unless the value equals the first table value, and a linear inverse
+      extrapolates from the first two good values even when they were next
+      to a bad value. */
+   {
+      double lut2[] = { 1.0, AST__BAD, 3.0 };
+      double lut3[] = { 1.0, 2.0, 4.0, 8.0 };
+      double lut4[] = { 8.0, 4.0, 2.0, 1.0 };
+      double in[ 2 ], out[ 2 ];
+
+      lm = astLutMap( 3, lut2, 1.0, 1.0, " " );
+      in[ 0 ] = -0.5;
+      astTran1( lm, 1, in, 0, out );
+      if( out[ 0 ] != 0.25 ) stopit( status, "Error 13" );
+
+      lm = astLutMap( 4, lut3, 1.0, 1.0, "LutInterp=1" );
+      in[ 0 ] = -0.5;
+      astTran1( lm, 1, in, 0, out );
+      if( out[ 0 ] != AST__BAD ) stopit( status, "Error 14" );
+
+      lm = astLutMap( 4, lut4, 1.0, 1.0, "LutInterp=1" );
+      in[ 0 ] = 8.0;
+      in[ 1 ] = 10.0;
+      astTran1( lm, 2, in, 0, out );
+      if( out[ 0 ] != 1.0 ) stopit( status, "Error 15" );
+      if( out[ 1 ] != AST__BAD ) stopit( status, "Error 16" );
+   }
+
    astEnd;
    astFlushMemory( 1 );
 

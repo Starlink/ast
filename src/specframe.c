@@ -164,6 +164,11 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *         explicitly.
 *     27-APR-2020 (DSB):
 *         Correct "Heliographic" to "heliocentric".
+*     6-OCT-2026 (TIMJ):
+*        In MakeSpecMapping, when aligning in the offset system, use the
+*        origin from the result frame if the target's zero point has no
+*        value in the result system (e.g. zero wavelength), rather than
+*        shifting by the negated AST__BAD value.
 *class--
 */
 
@@ -2953,6 +2958,14 @@ static int MakeSpecMapping( AstSpecFrame *target, AstSpecFrame *result,
    if( astGetAlignSpecOffset( target ) && astGetAlignSpecOffset( result ) ) {
       result_origin = 0.0;
       astTran1( map1, 1, &result_origin, 1, &result_origin );
+
+/* The target's zero point may have no value in the result system (zero
+   wavelength has no frequency, for instance), and then there is no offset
+   system to align in. Use the origin from the result frame, as when not
+   aligning offsets, rather than shifting by the negated AST__BAD value. */
+      if( result_origin == AST__BAD ) {
+         result_origin = GetSpecOriginCur( result, status );
+      }
    } else {
       result_origin = GetSpecOriginCur( result, status );
    }

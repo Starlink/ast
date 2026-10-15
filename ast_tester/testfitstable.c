@@ -385,6 +385,116 @@ int main( void ) {
 
    table2 = astCopy( table );
 
+   /* A null value stored in any element of a cell is found. */
+   {  int ivals[6] = { 1, 2, 3, 4, 5, 9 };
+      table2 = astFitsTable( NULL, " " );
+      astAddColumn( table2, "SCALAR", AST__INTTYPE, 0, NULL, " " );
+      astMapPut0I( table2, "SCALAR(1)", 5, " " );
+      astMapPut0I( table2, "SCALAR(2)", 7, " " );
+      astColumnNullK( table2, "SCALAR", 1, 7, &wasset, &hasnull );
+      if( !hasnull ) stopit( status, "error 31" );
+
+      dims[0] = 2; dims[1] = 3;
+      astAddColumn( table2, "ARRAY", AST__INTTYPE, 2, dims, " " );
+      astMapPut1I( table2, "ARRAY(1)", 6, ivals, " " );
+      astMapPut1I( table2, "ARRAY(2)", 6, ivals, " " );
+      astColumnNullK( table2, "ARRAY", 1, 9, &wasset, &hasnull );
+      if( !hasnull ) stopit( status, "error 32" );
+   }
+
+   /* The default null value avoids the values in cells that follow an
+      empty cell. */
+   {  unsigned char ends[2] = { 0, 255 };
+      table2 = astFitsTable( NULL, " " );
+      dims[0] = 2;
+      astAddColumn( table2, "GAP", AST__BYTETYPE, 1, dims, " " );
+      astMapPut1B( table2, "GAP(2)", 2, ends, " " );
+      null = astColumnNullK( table2, "GAP", 0, 0, &wasset, &hasnull );
+      if( null != 254 ) stopit( status, "error 32a" );
+      if( !hasnull ) stopit( status, "error 32b" );
+   }
+
+   /* When every value allowed by the column type is in use, the default
+      null value is zero if there are no empty cells, and an error
+      otherwise. */
+   {  unsigned char allbytes[256];
+      int i;
+      for( i = 0; i < 256; i++ ) allbytes[i] = i;
+      table2 = astFitsTable( NULL, " " );
+      dims[0] = 256;
+      astAddColumn( table2, "ALL", AST__BYTETYPE, 1, dims, " " );
+      astMapPut1B( table2, "ALL(1)", 256, allbytes, " " );
+      null = astColumnNullK( table2, "ALL", 0, 0, &wasset, &hasnull );
+      if( null != 0 ) stopit( status, "error 33" );
+      if( hasnull ) stopit( status, "error 34" );
+
+      astMapPut1B( table2, "ALL(3)", 256, allbytes, " " );
+      if( astOK ) {
+         astColumnNullK( table2, "ALL", 0, 0, &wasset, &hasnull );
+         if( astStatus == AST__BADNULL ) {
+            astClearStatus;
+         } else {
+            stopit( status, "error 35" );
+         }
+      }
+   }
+
+   /* Column definitions read from a FITS header. */
+   if( astOK ) {
+      const char *cards[] = {
+         "XTENSION= 'BINTABLE'",
+         "TFIELDS =                    3",
+         "TFORM1  = '1J      '",
+         "TTYPE1  = 'SCALED  '",
+         "TSCAL1  =                  1.0",
+         "TFORM2  = '10A     '",
+         "TTYPE2  = 'NAME    '",
+         "TFORM3  = '6J      '",
+         "TTYPE3  = 'ARRAY   '",
+         "TDIM3   = '2,3     '"
+      };
+      int i;
+
+      /* A unit scale is accepted, a string column with no TDIM holds
+         scalar strings, and TDIM may omit the parentheses. */
+      header = astFitsChan( NULL, NULL, " " );
+      for( i = 0; i < 10; i++ ) astPutFits( header, cards[ i ], 0 );
+      table2 = astFitsTable( header, " " );
+      if( !astOK ) {
+         stopit( status, "error 36" );
+      } else {
+         if( astGetI( table2, "ColumnNdim(NAME)" ) != 0 ) stopit( status, "error 37" );
+         if( astGetI( table2, "ColumnType(NAME)" ) != AST__STRINGTYPE ) stopit( status, "error 38" );
+         if( astGetI( table2, "ColumnNdim(ARRAY)" ) != 2 ) stopit( status, "error 39" );
+         if( astGetI( table2, "ColumnLength(ARRAY)" ) != 6 ) stopit( status, "error 40" );
+      }
+
+      /* A non-zero offset is rejected. */
+      if( astOK ) {
+         astSetFitsF( header, "TZERO1", 5.0, NULL, 0 );
+         table2 = astFitsTable( header, " " );
+         if( astStatus == AST__BDFTS ) {
+            astClearStatus;
+         } else {
+            stopit( status, "error 41" );
+         }
+      }
+
+      /* A missing TFORM keyword is reported. */
+      if( astOK ) {
+         header = astFitsChan( NULL, NULL, " " );
+         astPutFits( header, "XTENSION= 'BINTABLE'", 0 );
+         astPutFits( header, "TFIELDS =                    1", 0 );
+         astPutFits( header, "TTYPE1  = 'NOFORM  '", 0 );
+         table2 = astFitsTable( header, " " );
+         if( astStatus == AST__NOFTS ) {
+            astClearStatus;
+         } else {
+            stopit( status, "error 42" );
+         }
+      }
+   }
+
    astEnd;
    astFlushMemory( 1 );
 

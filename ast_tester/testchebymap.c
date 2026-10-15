@@ -288,6 +288,30 @@ int main( void ) {
    if( fabs( dubnd[0] - 1.568 ) > 1.0e-6 ) stopit( 35, status );
    if( fabs( dubnd[1] - 1.9991836 ) > 1.0e-6 ) stopit( 36, status );
 
+   /* An inverted ChebyMap's domains are the uninverted one's swapped,
+      including one found by MapBox because the ChebyMap has no inverse
+      bounding box. */
+   {
+      double fc[] = { 1.0, 1, 1, 0,  1.0, 2, 0, 1,  0.25, 2, 1, 1 };
+      double flb[] = { 0.0, -1.0 }, fub[] = { 1.0, 2.0 };
+      double ilb[ 2 ], iub[ 2 ];
+      AstChebyMap *fcm = astChebyMap( 2, 2, 3, fc, 0, NULL, flb, fub, NULL,
+                                      NULL, " " );
+      astChebyDomain( fcm, 0, ilb, iub );
+      astInvert( fcm );
+      astChebyDomain( fcm, 1, dlbnd, dubnd );
+      for( i = 0; i < 2; i++ ) {
+         if( fabs( dlbnd[ i ] - ilb[ i ] ) > 1.0e-6 ) stopit( 800, status );
+         if( fabs( dubnd[ i ] - iub[ i ] ) > 1.0e-6 ) stopit( 801, status );
+      }
+      astChebyDomain( fcm, 0, dlbnd, dubnd );
+      for( i = 0; i < 2; i++ ) {
+         if( fabs( dlbnd[ i ] - flb[ i ] ) > 1.0e-6 ) stopit( 802, status );
+         if( fabs( dubnd[ i ] - fub[ i ] ) > 1.0e-6 ) stopit( 803, status );
+      }
+      fcm = astAnnul( fcm );
+   }
+
    /* astRate at x0=0 for a ChebyMap defined only over [-1,1]. The
     * derivative is well defined there, but a too-large initial search
     * interval used to push the sample points outside the domain, making

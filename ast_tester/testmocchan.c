@@ -30,6 +30,87 @@ static const char *source( void ) {
    return NULL;
 }
 
+static void sink( const char *line );
+static char dump[MXLINE][LINELEN];
+static int ndump;
+
+static void dumpsink( const char *line ) {
+   if( ndump < MXLINE && line ) {
+      strncpy( dump[ndump], line, LINELEN - 1 );
+      dump[ndump][LINELEN - 1] = '\0';
+      ndump++;
+   }
+}
+
+static const char *dumpsource( void ) {
+   if( iline < ndump ) {
+      return dump[iline++];
+   }
+   return NULL;
+}
+
+/* A MocChan with a STRING or JSON MocFormat is dumped with that MocEnc
+   name and loaded with that MocFormat. */
+static void checkDumpFormat( const char *format, int *status ) {
+   AstMocChan *mch;
+   AstChannel *dch;
+   AstObject *obj;
+   char want[ 40 ];
+   int i, found;
+
+   if( *status != 0 ) return;
+   mch = astMocChan( NULL, NULL, "MocFormat=%s", format );
+   dch = astChannel( dumpsource, dumpsink, " " );
+   ndump = 0;
+   astWrite( dch, mch );
+   sprintf( want, "MocEnc = \"%s\"", format );
+   found = 0;
+   for( i = 0; i < ndump; i++ ) {
+      if( strstr( dump[i], want ) ) found = 1;
+   }
+   if( !found ) stopit( "Error dump 1", status );
+   iline = 0;
+   obj = astRead( dch );
+   if( !obj || strcmp( astGetC( obj, "MocFormat" ), format ) )
+      stopit( "Error dump 2", status );
+}
+
+/* A MocChan read from a dump holding a negative MocLLn has a MocLineLen
+   of zero, as setting a negative value gives. */
+static void checkLoadNegativeLineLen( int *status ) {
+   AstChannel *dch;
+   AstObject *obj;
+
+   if( *status != 0 ) return;
+   strcpy( dump[ 0 ], " Begin MocChan" );
+   strcpy( dump[ 1 ], "    MocLLn = -3" );
+   strcpy( dump[ 2 ], " End MocChan" );
+   ndump = 3;
+   dch = astChannel( dumpsource, NULL, " " );
+   iline = 0;
+   obj = astRead( dch );
+   if( !obj || astGetI( obj, "MocLineLen" ) != 0 )
+      stopit( "Error load 1", status );
+}
+
+/* A MocLineLen of zero, which any negative value becomes, is too short
+   for any value and is reported rather than crashing. */
+static void checkZeroLineLen( int *status ) {
+   AstMocChan *mch;
+   AstMoc *moc;
+   int ret;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddCell( moc, AST__OR, 3, (int64_t)5 );
+   mch = astMocChan( NULL, sink, "MocLineLen=-5" );
+   if( astGetI( mch, "MocLineLen" ) != 0 ) stopit( "Error zero 1", status );
+   filelen = 0;
+   ret = astWrite( mch, moc );
+   if( astStatus != AST__SMBUF || ret != 0 ) stopit( "Error zero 2", status );
+   astClearStatus;
+}
+
 static void sink( const char *line ) {
    if( filelen < MXLINE && line && line[0] ) {
       strncpy( files[filelen], line, LINELEN - 1 );
@@ -147,6 +228,11 @@ int main( void ) {
 
    if( obj && !astEqual( obj, moc ) )
       stopit( "Error 18", status );
+
+   checkDumpFormat( "STRING", status );
+   checkDumpFormat( "JSON", status );
+   checkZeroLineLen( status );
+   checkLoadNegativeLineLen( status );
 
    astEnd;
 

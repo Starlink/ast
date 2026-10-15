@@ -116,6 +116,10 @@ f     - AST_TIMEADD: Add a time coordinate conversion to an TimeMap
 *        constant was 4.2131700 (copied from the 1968 era) instead of the
 *        4.3131700 used by the matching forward branch, leaking ~0.1 s on
 *        round trip at MJD 39500.
+*     7-OCT-2026 (TIMJ):
+*        The rate of change of an inverted TimeMap is the reciprocal of the
+*        product of the slopes, which is the slope of the inverse
+*        transformation, where it was the forward slope.
 *class--
 */
 
@@ -2568,6 +2572,10 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2, int *status 
          break;
       }
    }
+
+/* The product of the slopes is the slope of the forward transformation, so
+   the slope of an inverted TimeMap, that of its inverse, is its reciprocal. */
+   if( result != AST__BAD && astGetInvert( this ) ) result = 1.0/result;
 
 /* If this is non-linear TimeMap, use the astRate method inherited from the
    parent Mapping class. */

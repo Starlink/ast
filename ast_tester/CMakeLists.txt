@@ -370,6 +370,7 @@ ast_add_test(testswitchmap_c  SOURCES testswitchmap.c)
 ast_add_test(testtime_c       SOURCES testtime.c)
 ast_add_test(testkeymap_c     SOURCES testkeymap.c)
 ast_add_test(testmocchan_c    SOURCES testmocchan.c)
+ast_add_test(testpointset_c   SOURCES testpointset.c)
 ast_add_test(testxmlchan_c SOURCES testxmlchan.c)
 ast_add_test(testtable_c SOURCES testtable.c)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
@@ -967,7 +968,7 @@ if(PLPLOT_FOUND)
         SOURCES testplotter.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
-        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.ps"
+        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.pdf"
     )
     target_include_directories(testplotter PRIVATE ${PLPLOT_INCLUDE_DIRS})
     target_link_directories(testplotter PRIVATE ${PLPLOT_LIBRARY_DIRS})

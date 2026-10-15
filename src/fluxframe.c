@@ -3200,7 +3200,11 @@ static AstSystemType SystemCode( AstFrame *this, const char *system, int *status
    }else if ( astChrMatch( "SFCBR", system ) ) {
       result = AST__SBRIGHT;
 
-   } else if ( astChrMatch( "SRCBR", system ) ) {
+/* "SFCBRW" is the name FluxSystemString gives AST__SBRIGHTW, and so the
+   one written and documented. "SRCBR" is accepted too, for settings that
+   use it. */
+   } else if ( astChrMatch( "SFCBRW", system ) ||
+               astChrMatch( "SRCBR", system ) ) {
       result = AST__SBRIGHTW;
 
    }

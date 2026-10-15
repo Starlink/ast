@@ -237,6 +237,12 @@ f     The WcsMap class does not define any new routines beyond those
 *        limits and at the lower longitude limit, so that the validity of a
 *        WCS does not depend on whether the compiler contracts a multiply
 *        and an add into a single FMA instruction.
+*     7-OCT-2026 (TIMJ):
+*        Equal compares each projection parameter, unset in both or set in
+*        both to equal values. It compared none when only one WcsMap had
+*        any stored, so a WcsMap with projection parameters equalled one
+*        without, and compared the lengths of the stored arrays, so a
+*        parameter set and then cleared made two WcsMaps differ.
 *class--
 */
 
@@ -1494,9 +1500,13 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 /* Local Variables: */
    AstWcsMap *that;
    AstWcsMap *this;
+   double vthat;
+   double vthis;
    int i, j;
    int nin;
    int nout;
+   int nthat;
+   int nthis;
    int result;
 
 /* Initialise. */
@@ -1531,34 +1541,23 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 
                result = 1;
 
-               if( this->np && that->np ){
-
-                  for( i = 0; i < nout && result; i++ ) {
-
-                     if( (this->np)[ i ] != (that->np)[ i ] ) {
+/* Compare the projection parameters on each axis. A parameter is
+   unset (AST__BAD) beyond the end of an axis's stored values, or on
+   every axis of a WcsMap that has stored none, so how far each
+   WcsMap's arrays have grown does not matter, and an unset parameter
+   differs from one set to zero. */
+               for( i = 0; i < nout && result; i++ ) {
+                  nthis = ( this->np && (this->p)[ i ] ) ? (this->np)[ i ] : 0;
+                  nthat = ( that->np && (that->p)[ i ] ) ? (that->np)[ i ] : 0;
+                  for( j = 0; j < nthis || j < nthat; j++ ) {
+                     vthis = ( j < nthis ) ? (this->p)[ i ][ j ] : AST__BAD;
+                     vthat = ( j < nthat ) ? (that->p)[ i ][ j ] : AST__BAD;
+                     if( !astEQUAL( vthis, vthat ) ) {
                         result = 0;
-
-                     } else if( (this->p)[ i ] && !(this->p)[ i ] ) {
-                        result = 0;
-
-                     } else if( !(this->p)[ i ] && (this->p)[ i ] ) {
-                        result = 0;
-
-                     } else if( (this->p)[ i ] && (this->p)[ i ] ) {
-
-                        for( j = 0; j < (this->np)[ i ]; j++ ) {
-                           if( !astEQUAL( (this->p)[ i ][ j ],
-                                          (that->p)[ i ][ j ] ) ) {
-                              result = 0;
-                              break;
-                           }
-                        }
+                        break;
                      }
                   }
                }
-
-            } else if( this->np || that->np ){
-               result = 0;
             }
 
 /* If the Invert flags for the two WcsMaps differ, the attributes of the two

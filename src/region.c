@@ -279,6 +279,19 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        astEQUAL applies near zero. The width was 1.0E-6 of the axis
 *        value, which is zero there, and a zero-width uncertainty made a
 *        PointList report its own points as outside.
+*     8-OCT-2026 (TIMJ):
+*        RegSetAttrib: Lower-case only the attribute name in the setting,
+*        not its value, so that a string attribute set on a Region that
+*        is not Adaptive (for instance Label or Title) keeps its case.
+*     9-OCT-2026 (TIMJ):
+*        Dump: write Adapt as set when it has been set explicitly, as
+*        well as when it is non-zero. A Region whose Adaptive attribute
+*        was set to zero wrote it commented out, so reading the dump back
+*        gave a Region whose Adaptive attribute was the default of 1.
+*        Load: give an uncertainty Region that was dumped without a
+*        Frame the base Frame of a Region read with a FrameSet, as is
+*        done for a Region read with a single Frame. It kept the dummy
+*        Frame it was read with, losing its Domain, System and so on.
 *class--
 
 *  Implementation Notes:
@@ -10004,10 +10017,13 @@ static void RegSetAttrib( AstRegion *this, const char *asetting,
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Produce a lower case version of the setting string */
+/* Produce a copy of the setting string with the attribute name in lower
+   case. The value is copied unchanged, since a string attribute such as
+   Label or Title keeps the case it is given. */
    nc = strlen( asetting );
    setting = astMalloc( nc + 1 );
-   for( i = 0; i < nc; i++ ) setting[ i ] = tolower( asetting[ i ] );
+   for( i = 0; i < nc && asetting[ i ] != '='; i++ ) setting[ i ] = tolower( asetting[ i ] );
+   for( ; i < nc; i++ ) setting[ i ] = asetting[ i ];
    setting[ nc ] = 0;
 
 /* Apply the setting to the current Frame in the encapsulated FrameSet.
@@ -13094,7 +13110,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* -------- */
    set = TestAdaptive( this, status );
    ival = set ? GetAdaptive( this, status ) : astGetAdaptive( this );
-   astWriteInt( channel, "Adapt", (ival != 0), 0, ival,
+   astWriteInt( channel, "Adapt", ( ival != 0 ) || set, 0, ival,
                 ival ? "Region adapts to coord sys changes" : "Region does not adapt to coord sys changes" );
 
 /* FrameSet */
@@ -13595,6 +13611,16 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
    unknown and so we must read it from an attribute as normal. */
             new->regionfs = astReadInt( channel, "regfs", 1 );
             if ( TestRegionFS( new, status ) ) SetRegionFS( new, new->regionfs, status );
+
+/* An uncertainty Region dumped without a Frame (because its RegionFS
+   attribute is zero) has been read with a dummy FrameSet. Its Frame is
+   the base Frame of this Region, so give it that, as astSetRegFS does
+   when a single Frame is read. */
+            if( new->unc && !astGetRegionFS( new->unc ) ) {
+               f1 = astGetFrame( new->frameset, AST__BASE );
+               astSetRegFS( new->unc, f1 );
+               f1 = astAnnul( f1 );
+            }
 
          } else {
             nax = 0;
