@@ -334,8 +334,13 @@ matzoom_zoom_then_inverted_matrix   | simplify/matzoom_zoom_then_inverted_matrix
 # The Mapping FrameSet integrity forms when SkyRefIs is set to Origin
 # through a FrameSet read from a RA---TAN, DEC--TAN header: the pixel to
 # sky Mapping followed by the conversion astConvert gives from the
-# SkyFrame before the change to the SkyFrame after it.
-offset_skyref_integrity | simplify/offset_skyref_integrity.map | simplify/offset_skyref_integrity.simp |
+# SkyFrame before the change to the SkyFrame after it.  It needs the wider
+# tolerance: the simplified MatrixMap is MtrMult's product of the two rotation
+# matrices, and its off-diagonal elements (about 1e-3) are sums of products
+# near 1 that nearly cancel, so contracting the dot product into fused
+# multiply-adds moves them by some 50 ULP (M0 is -9.3745024080166273e-4
+# without contraction and -9.3745024080165091e-4 with it, as on arm64).
+offset_skyref_integrity | simplify/offset_skyref_integrity.map | simplify/offset_skyref_integrity.simp | astequal
 
 # An inverted SwitchMap followed by its forward copy, with different
 # forward and inverse selectors, cancels to a UnitMap (switchmap.c MapMerge
