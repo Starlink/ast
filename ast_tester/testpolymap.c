@@ -330,6 +330,48 @@ int main( void ) {
       if( !astEqual( pwcopy, pw ) ) stopit( 8024, status );
    }
 
+   /* A bad input makes bad only the outputs whose terms use it with a
+      power above zero. Here the second output depends only on the second
+      input, so a point whose first input alone is bad keeps a good second
+      output. The point count is well above any threshold at which an
+      implementation might switch to a vectorized loop, so such a loop must
+      follow the same rule. */
+   {
+      /* out1 = 0.5 + 1.25*x + y, out2 = 2*y - 0.5*y*y */
+      double cf_dep[ 20 ] = { 0.5,  1, 0, 0,
+                              1.25, 1, 1, 0,
+                              1.0,  1, 0, 1,
+                              2.0,  2, 0, 1,
+                             -0.5,  2, 0, 2 };
+      double xd[ 100 ], yd[ 100 ], out1[ 100 ], out2[ 100 ], want;
+      AstPolyMap *pd;
+      int ip, np = 100;
+
+      for( ip = 0; ip < np; ip++ ) {
+         xd[ ip ] = ( ip % 7 == 0 ) ? AST__BAD : 0.25*ip - 10.0;
+         yd[ ip ] = ( ip % 11 == 0 ) ? AST__BAD : 3.0 - 0.0625*ip;
+      }
+      pd = astPolyMap( 2, 2, 5, cf_dep, 0, NULL, " " );
+      astTran2( pd, np, xd, yd, 1, out1, out2 );
+      for( ip = 0; ip < np && astOK; ip++ ) {
+         if( xd[ ip ] == AST__BAD || yd[ ip ] == AST__BAD ) {
+            if( out1[ ip ] != AST__BAD ) stopit( 8029, status );
+         } else {
+            want = 0.5 + 1.25*xd[ ip ] + yd[ ip ];
+            if( fabs( out1[ ip ] - want ) > 1.0E-10 ) stopit( 8030, status );
+         }
+         if( yd[ ip ] == AST__BAD ) {
+            if( out2[ ip ] != AST__BAD ) stopit( 8031, status );
+         } else if( out2[ ip ] == AST__BAD ) {
+            /* The second output does not use the first input. */
+            stopit( 8032, status );
+         } else {
+            want = 2.0*yd[ ip ] - 0.5*yd[ ip ]*yd[ ip ];
+            if( fabs( out2[ ip ] - want ) > 1.0E-10 ) stopit( 8033, status );
+         }
+      }
+   }
+
    astEnd;
    astFlushMemory( 1 );
 
