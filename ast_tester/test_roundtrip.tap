@@ -58,8 +58,14 @@ while IFS='|' read -r name input reference rest; do
     test "$reference" = "$input" || echo "$reference" >> "$listfile"
 done < "$cases"
 
+# Historical MocChan dumps retain the original writer's MocEnc comments,
+# which the current writer changes.  testmocchan_c checks their compatibility;
+# exclude them from byte comparisons, as the CMake round-trip suite does.
 ( cd "$fixtures" && find programs serialisation wcsconv/framesets \
-    -type f -name '*.ast' 2>/dev/null ) >> "$listfile"
+    -type f -name '*.ast' \
+    ! -path 'programs/testmocchan/backcompat_string.ast' \
+    ! -path 'programs/testmocchan/backcompat_json.ast' \
+    2>/dev/null ) >> "$listfile"
 
 n=$(grep -c . "$listfile" || true)
 if [ "$n" -eq 0 ]; then
