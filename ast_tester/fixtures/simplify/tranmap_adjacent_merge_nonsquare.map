@@ -1,0 +1,73 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    Nout = 4 	# Number of output coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin TranMap 	# Compound Transformation Mapping
+          Nin = 2 	# Number of input coordinates
+          Nout = 3 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# Mapping for forward transformation
+             Begin PermMap 	# Coordinate permutation
+                Nin = 2 	# Number of input coordinates
+                Nout = 3 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                Out2 = 2 	# Output coordinate 2 = input coordinate 2
+                Out3 = -1 	# Output coordinate 3 = constant no. 1
+                In1 = 1 	# Input coordinate 1 = output coordinate 1
+                In2 = 2 	# Input coordinate 2 = output coordinate 2
+                Nconst = 1 	# Number of constants
+                Con1 = 5 	# Constant number 1
+             End PermMap
+          MapB = 	# Mapping for inverse transformation
+             Begin PermMap 	# Coordinate permutation
+                Nin = 2 	# Number of input coordinates
+                Nout = 3 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Out1 = 2 	# Output coordinate 1 = input coordinate 2
+                Out2 = 1 	# Output coordinate 2 = input coordinate 1
+                Out3 = -1 	# Output coordinate 3 = constant no. 1
+                In1 = 2 	# Input coordinate 1 = output coordinate 2
+                In2 = 1 	# Input coordinate 2 = output coordinate 1
+                Nconst = 1 	# Number of constants
+                Con1 = 6 	# Constant number 1
+             End PermMap
+       End TranMap
+    MapB = 	# Second component Mapping
+       Begin TranMap 	# Compound Transformation Mapping
+          Nin = 3 	# Number of input coordinates
+          Nout = 4 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          MapA = 	# Mapping for forward transformation
+             Begin PermMap 	# Coordinate permutation
+                Nin = 3 	# Number of input coordinates
+                Nout = 4 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                Out2 = 2 	# Output coordinate 2 = input coordinate 2
+                Out3 = 3 	# Output coordinate 3 = input coordinate 3
+                Out4 = -1 	# Output coordinate 4 = constant no. 1
+                In1 = 1 	# Input coordinate 1 = output coordinate 1
+                In2 = 2 	# Input coordinate 2 = output coordinate 2
+                In3 = 3 	# Input coordinate 3 = output coordinate 3
+                Nconst = 1 	# Number of constants
+                Con1 = 5 	# Constant number 1
+             End PermMap
+          MapB = 	# Mapping for inverse transformation
+             Begin PermMap 	# Coordinate permutation
+                Nin = 3 	# Number of input coordinates
+                Nout = 4 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Out1 = 3 	# Output coordinate 1 = input coordinate 3
+                Out2 = 2 	# Output coordinate 2 = input coordinate 2
+                Out3 = 1 	# Output coordinate 3 = input coordinate 1
+                Out4 = -1 	# Output coordinate 4 = constant no. 1
+                In1 = 3 	# Input coordinate 1 = output coordinate 3
+                In2 = 2 	# Input coordinate 2 = output coordinate 2
+                In3 = 1 	# Input coordinate 3 = output coordinate 1
+                Nconst = 1 	# Number of constants
+                Con1 = 6 	# Constant number 1
+             End PermMap
+       End TranMap
+ End CmpMap

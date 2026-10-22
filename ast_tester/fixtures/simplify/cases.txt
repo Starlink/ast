@@ -145,6 +145,11 @@ pcd_zoom_swap_cancel    | simplify/pcd_zoom_swap_cancel.map    | simplify/pcd_zo
 switchmap_invert_normalize | simplify/switchmap_invert_normalize.map | simplify/switchmap_invert_normalize.simp |
 switchmap_internal_simplify | simplify/switchmap_internal_simplify.map | simplify/switchmap_internal_simplify.simp |
 tranmap_adjacent_merge  | simplify/tranmap_adjacent_merge.map  | simplify/tranmap_adjacent_merge.simp  |
+# Two adjacent TranMaps merge by combining their inverse Mappings in series,
+# lower first (tranmap.c MapMerge): non-commuting 2x2 inverse matrices pin the
+# order, and TranMaps of 2->3 then 3->4 Mappings only combine in that order.
+tranmap_adjacent_merge_inverse_order | simplify/tranmap_adjacent_merge_inverse_order.map | simplify/tranmap_adjacent_merge_inverse_order.simp |
+tranmap_adjacent_merge_nonsquare | simplify/tranmap_adjacent_merge_nonsquare.map | simplify/tranmap_adjacent_merge_nonsquare.simp |
 tranmap_invert_in_list  | simplify/tranmap_invert_in_list.map  | simplify/tranmap_invert_in_list.simp  |
 tranmap_equal_components_in_list | simplify/tranmap_equal_components_in_list.map | simplify/tranmap_equal_components_in_list.simp |
 matrix_swap_past_win    | simplify/matrix_swap_past_win.map    | simplify/matrix_swap_past_win.simp    |

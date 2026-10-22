@@ -1,0 +1,26 @@
+ Begin TranMap 	# Compound Transformation Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# Mapping for forward transformation
+       Begin UnitMap 	# Unit (null) Mapping
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+       End UnitMap
+    MapB = 	# Mapping for inverse transformation
+       Begin MatrixMap 	# Matrix transformation
+          Nin = 2 	# Number of input coordinates
+          IsSimp = 1 	# Mapping has been simplified
+       IsA Mapping 	# Mapping between coordinate systems
+          M0 = 7 	# Forward matrix value
+          M1 = 3 	# Forward matrix value
+          M2 = 2 	# Forward matrix value
+          M3 = 1 	# Forward matrix value
+          IM0 = 0.99999999999999956 	# Inverse matrix value
+          IM1 = -2.9999999999999987 	# Inverse matrix value
+          IM2 = -1.9999999999999991 	# Inverse matrix value
+          IM3 = 6.9999999999999973 	# Inverse matrix value
+          Form = "Full" 	# Matrix storage form
+       End MatrixMap
+ End TranMap
