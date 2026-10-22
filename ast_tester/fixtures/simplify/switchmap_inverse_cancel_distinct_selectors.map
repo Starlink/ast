@@ -1,0 +1,148 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 1 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    InvA = 1 	# First Mapping used in inverse direction
+    MapA = 	# First component Mapping
+       Begin SwitchMap 	# Alternate regionalised Mapping
+          Nin = 2 	# Number of input coordinates
+          Nout = 1 	# Number of output coordinates
+          Invert = 1 	# Mapping inverted
+       IsA Mapping 	# Mapping between coordinate systems
+          FSMap = 	# Forward selector Mapping
+             Begin PermMap 	# Coordinate permutation
+                Nin = 2 	# Number of input coordinates
+                Nout = 1 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Out1 = 2 	# Output coordinate 1 = input coordinate 2
+                In1 = 0 	# Input coordinate 1 is "bad"
+                In2 = 1 	# Input coordinate 2 = output coordinate 1
+             End PermMap
+          ISMap = 	# Inverse selector Mapping
+             Begin MathMap 	# Transformation using mathematical functions
+                Nin = 1 	# Number of input coordinates
+                Fwd = 0 	# Forward transformation not defined
+             IsA Mapping 	# Mapping between coordinate systems
+                Fwd1 = "y" 	# Forward function 1
+                Inv1 = "x=qif(y>1800,2,1)" 	# Inverse function 1
+             End MathMap
+          RMap1 = 	# Route Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+                Nout = 1 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin PermMap 	# Coordinate permutation
+                      Nin = 2 	# Number of input coordinates
+                      Nout = 1 	# Number of output coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                      In1 = 1 	# Input coordinate 1 = output coordinate 1
+                      In2 = -1 	# Input coordinate 2 = constant no. 1
+                      Nconst = 1 	# Number of constants
+                      Con1 = 1 	# Constant number 1
+                   End PermMap
+                MapB = 	# Second component Mapping
+                   Begin WinMap 	# Map one window on to another
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Sft1 = 990 	# Shift for axis 1
+                      Scl1 = 10 	# Scale factor for axis 1
+                   End WinMap
+             End CmpMap
+          RMap2 = 	# Route Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+                Nout = 1 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin PermMap 	# Coordinate permutation
+                      Nin = 2 	# Number of input coordinates
+                      Nout = 1 	# Number of output coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                      In1 = 1 	# Input coordinate 1 = output coordinate 1
+                      In2 = -1 	# Input coordinate 2 = constant no. 1
+                      Nconst = 1 	# Number of constants
+                      Con1 = 2 	# Constant number 1
+                   End PermMap
+                MapB = 	# Second component Mapping
+                   Begin WinMap 	# Map one window on to another
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Sft1 = 1589 	# Shift for axis 1
+                      Scl1 = 11 	# Scale factor for axis 1
+                   End WinMap
+             End CmpMap
+       End SwitchMap
+    MapB = 	# Second component Mapping
+       Begin SwitchMap 	# Alternate regionalised Mapping
+          Nin = 2 	# Number of input coordinates
+          Nout = 1 	# Number of output coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          FSMap = 	# Forward selector Mapping
+             Begin PermMap 	# Coordinate permutation
+                Nin = 2 	# Number of input coordinates
+                Nout = 1 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Out1 = 2 	# Output coordinate 1 = input coordinate 2
+                In1 = 0 	# Input coordinate 1 is "bad"
+                In2 = 1 	# Input coordinate 2 = output coordinate 1
+             End PermMap
+          ISMap = 	# Inverse selector Mapping
+             Begin MathMap 	# Transformation using mathematical functions
+                Nin = 1 	# Number of input coordinates
+                Fwd = 0 	# Forward transformation not defined
+             IsA Mapping 	# Mapping between coordinate systems
+                Fwd1 = "y" 	# Forward function 1
+                Inv1 = "x=qif(y>1800,2,1)" 	# Inverse function 1
+             End MathMap
+          RMap1 = 	# Route Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+                Nout = 1 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin PermMap 	# Coordinate permutation
+                      Nin = 2 	# Number of input coordinates
+                      Nout = 1 	# Number of output coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                      In1 = 1 	# Input coordinate 1 = output coordinate 1
+                      In2 = -1 	# Input coordinate 2 = constant no. 1
+                      Nconst = 1 	# Number of constants
+                      Con1 = 1 	# Constant number 1
+                   End PermMap
+                MapB = 	# Second component Mapping
+                   Begin WinMap 	# Map one window on to another
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Sft1 = 990 	# Shift for axis 1
+                      Scl1 = 10 	# Scale factor for axis 1
+                   End WinMap
+             End CmpMap
+          RMap2 = 	# Route Mapping
+             Begin CmpMap 	# Compound Mapping
+                Nin = 2 	# Number of input coordinates
+                Nout = 1 	# Number of output coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                MapA = 	# First component Mapping
+                   Begin PermMap 	# Coordinate permutation
+                      Nin = 2 	# Number of input coordinates
+                      Nout = 1 	# Number of output coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Out1 = 1 	# Output coordinate 1 = input coordinate 1
+                      In1 = 1 	# Input coordinate 1 = output coordinate 1
+                      In2 = -1 	# Input coordinate 2 = constant no. 1
+                      Nconst = 1 	# Number of constants
+                      Con1 = 2 	# Constant number 1
+                   End PermMap
+                MapB = 	# Second component Mapping
+                   Begin WinMap 	# Map one window on to another
+                      Nin = 1 	# Number of input coordinates
+                   IsA Mapping 	# Mapping between coordinate systems
+                      Sft1 = 1589 	# Shift for axis 1
+                      Scl1 = 11 	# Scale factor for axis 1
+                   End WinMap
+             End CmpMap
+       End SwitchMap
+ End CmpMap

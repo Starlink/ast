@@ -8,6 +8,7 @@
  */
 #include "ast.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MXLINE 500
@@ -28,6 +29,125 @@ static const char *source( void ) {
       return files[iline++];
    }
    return NULL;
+}
+
+static void sink( const char *line );
+static char dump[MXLINE][LINELEN];
+static int ndump;
+
+static void dumpsink( const char *line ) {
+   if( ndump < MXLINE && line ) {
+      strncpy( dump[ndump], line, LINELEN - 1 );
+      dump[ndump][LINELEN - 1] = '\0';
+      ndump++;
+   }
+}
+
+static const char *dumpsource( void ) {
+   if( iline < ndump ) {
+      return dump[iline++];
+   }
+   return NULL;
+}
+
+/* Preserve the reversed MocEnc names used by older writers and readers.
+   Explain the actual format when comments are enabled, and round-trip
+   with or without comments. */
+static void checkDumpFormat( const char *format, const char *encoded,
+                             int comments, int *status ) {
+   AstMocChan *mch;
+   AstChannel *dch;
+   AstObject *obj;
+   char want[ 40 ];
+   char explanation[ 80 ];
+   int i, found;
+
+   if( *status != 0 ) return;
+   mch = astMocChan( NULL, NULL, "MocFormat=%s", format );
+   dch = astChannel( dumpsource, dumpsink, "Comment=%d", comments );
+   ndump = 0;
+   astWrite( dch, mch );
+   snprintf( want, sizeof( want ), "MocEnc = \"%s\"", encoded );
+   snprintf( explanation, sizeof( explanation ),
+             "%s means %s (backwards compatibility)", encoded, format );
+   found = 0;
+   for( i = 0; i < ndump; i++ ) {
+      if( strstr( dump[i], want ) ) {
+         found = 1;
+         if( comments && !strstr( dump[i], explanation ) )
+            stopit( "Error dump comment", status );
+      }
+      if( !comments && strchr( dump[i], '#' ) )
+         stopit( "Error dump no comment", status );
+   }
+   if( !found ) stopit( "Error dump 1", status );
+   iline = 0;
+   obj = astRead( dch );
+   if( !obj || strcmp( astGetC( obj, "MocFormat" ), format ) )
+      stopit( "Error dump 2", status );
+}
+
+/* These fixtures were written by master at
+   3dc9d49a88377864447c7b048139b3f5dddbc5b6 using astWrite on MocChans
+   constructed with MocFormat=STRING and MocFormat=JSON respectively.
+   Keep the original dumps: a round-trip using only the current library
+   cannot establish compatibility with the historical reversed names. */
+static void checkLoadMasterDump( const char *file, const char *format,
+                                 int *status ) {
+   AstChannel *ch;
+   AstObject *obj;
+   const char *srcdir;
+
+   if( *status != 0 ) return;
+   srcdir = getenv( "srcdir" );
+   if( !srcdir ) srcdir = ".";
+   ch = astChannel( NULL, NULL,
+                    "SourceFile=%s/fixtures/programs/testmocchan/%s",
+                    srcdir, file );
+   obj = astRead( ch );
+   if( !obj || !astIsAMocChan( obj ) ||
+       !astTest( obj, "MocFormat" ) ||
+       strcmp( astGetC( obj, "MocFormat" ), format ) ) {
+      stopit( "Error loading master MocChan dump", status );
+   }
+   if( obj ) obj = astAnnul( obj );
+   ch = astAnnul( ch );
+}
+
+/* A MocChan read from a dump holding a negative MocLLn has a MocLineLen
+   of zero, as setting a negative value gives. */
+static void checkLoadNegativeLineLen( int *status ) {
+   AstChannel *dch;
+   AstObject *obj;
+
+   if( *status != 0 ) return;
+   strcpy( dump[ 0 ], " Begin MocChan" );
+   strcpy( dump[ 1 ], "    MocLLn = -3" );
+   strcpy( dump[ 2 ], " End MocChan" );
+   ndump = 3;
+   dch = astChannel( dumpsource, NULL, " " );
+   iline = 0;
+   obj = astRead( dch );
+   if( !obj || astGetI( obj, "MocLineLen" ) != 0 )
+      stopit( "Error load 1", status );
+}
+
+/* A MocLineLen of zero, which any negative value becomes, is too short
+   for any value and is reported rather than crashing. */
+static void checkZeroLineLen( int *status ) {
+   AstMocChan *mch;
+   AstMoc *moc;
+   int ret;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddCell( moc, AST__OR, 3, (int64_t)5 );
+   mch = astMocChan( NULL, sink, "MocLineLen=-5" );
+   if( astGetI( mch, "MocLineLen" ) != 0 ) stopit( "Error zero 1", status );
+   filelen = 0;
+   ret = astWrite( mch, moc );
+   if( astStatus != AST__SMBUF || ret != 0 ) stopit( "Error zero 2", status );
+   astClearStatus;
 }
 
 static void sink( const char *line ) {
@@ -147,6 +267,15 @@ int main( void ) {
 
    if( obj && !astEqual( obj, moc ) )
       stopit( "Error 18", status );
+
+   checkDumpFormat( "STRING", "JSON", 1, status );
+   checkDumpFormat( "JSON", "STRING", 1, status );
+   checkDumpFormat( "STRING", "JSON", 0, status );
+   checkDumpFormat( "JSON", "STRING", 0, status );
+   checkLoadMasterDump( "backcompat_string.ast", "STRING", status );
+   checkLoadMasterDump( "backcompat_json.ast", "JSON", status );
+   checkZeroLineLen( status );
+   checkLoadNegativeLineLen( status );
 
    astEnd;
 

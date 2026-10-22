@@ -1,0 +1,3 @@
+ Begin MocChan 	# STC-S I/O Channel
+    MocEnc = "JSON" 	# Format
+ End MocChan

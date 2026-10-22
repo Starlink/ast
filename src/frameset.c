@@ -274,6 +274,13 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        instead.
 *     11-DEC-2017 (DSB):
 *        Added method astGetNode.
+*     6-OCT-2026 (TIMJ):
+*        In astLoadFrameSet, treat a Current index below 1 as unset, as is
+*        done for Base. The check repeated the one for Base instead.
+*     12-OCT-2026 (TIMJ):
+*        In AddVariant and SetVariant, clear the Domain of the current
+*        Frame after changing it temporarily if it was not set before,
+*        instead of setting it to the default value it had.
 *class--
 */
 
@@ -1723,6 +1730,7 @@ f     AST_MIRRORVARIANTS routine
    AstMapping *map3;
    char *myname;
    const char *dom;
+   int dom_set;
    int icur;
    int ifrm;
    int new;
@@ -1796,11 +1804,16 @@ f     AST_MIRRORVARIANTS routine
    current Frame in "this". Temporarily match the Domains so that
    astConvert can work. */
          vfrm = astGetFrame( vfs, AST__CURRENT );
+         dom_set = astTestDomain( frm );
          dom = astGetDomain( frm );
          if( dom ) dom = astStore( NULL, dom, strlen( dom ) + 1 );
          astSetDomain( frm, astGetDomain( vfrm ) );
          tfs = astConvert( vfrm, frm, "" );
-         astSetDomain( frm, dom );
+         if( dom_set ) {
+            astSetDomain( frm, dom );
+         } else {
+            astClearDomain( frm );
+         }
          if( tfs ) {
             map1 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
             tfs = astAnnul( tfs );
@@ -9940,6 +9953,7 @@ static void SetVariant( AstFrameSet *this, const char *variant, int *status ) {
    AstMapping *map1;
    char *myvar;
    const char *dom;
+   int dom_set;
    int icur;
    int ifrm;
    int inode;
@@ -10003,11 +10017,16 @@ static void SetVariant( AstFrameSet *this, const char *variant, int *status ) {
    variant is already selected. */
          } else if( ifrm + 1 != astGetCurrent( vfs ) ){
             vfrm = astGetFrame( vfs, AST__CURRENT );
+            dom_set = astTestDomain( frm );
             dom = astGetDomain( frm );
             if( dom ) dom = astStore( NULL, dom, strlen( dom ) + 1 );
             astSetDomain( frm, astGetDomain( vfrm ) );
             tfs = astConvert( frm, vfrm, "" );
-            astSetDomain( frm, dom );
+            if( dom_set ) {
+               astSetDomain( frm, dom );
+            } else {
+               astClearDomain( frm );
+            }
             if( tfs ) {
                map1 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
                tfs = astAnnul( tfs );
@@ -10021,7 +10040,11 @@ static void SetVariant( AstFrameSet *this, const char *variant, int *status ) {
                vfrm = astGetFrame( vfs, ifrm + 1 );
                astSetDomain( frm, astGetDomain( vfrm ) );
                tfs = astConvert( vfrm, frm, "" );
-               astSetDomain( frm, dom );
+               if( dom_set ) {
+                  astSetDomain( frm, dom );
+               } else {
+                  astClearDomain( frm );
+               }
                if( tfs ) {
                   map3 = astGetMapping( tfs, AST__BASE, AST__CURRENT );
                   tfs = astAnnul( tfs );
@@ -13212,7 +13235,7 @@ AstFrameSet *astLoadFrameSet_( void *mem, size_t size,
 /* Current. */
 /* -------- */
          new->current = astReadInt( channel, "currnt", -INT_MAX );
-         if ( new->base < 1 ) new->base = -INT_MAX;
+         if ( new->current < 1 ) new->current = -INT_MAX;
       }
 
 /* If an error occurred, clean up by deleting the new FrameSet. */

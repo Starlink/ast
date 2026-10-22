@@ -203,13 +203,13 @@ function(ast_add_test name)
     endif()
     add_executable(${name} ${T_SOURCES})
     target_include_directories(${name} PRIVATE ${TEST_INCLUDES})
-    
+
     if(T_NO_DEFAULT_GRF_LIBS)
         set(TARGET_LIBS ast $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_err-static> ${T_EXTRA_LIBS} m)
     else()
         set(TARGET_LIBS ${TEST_LIBS} ${T_EXTRA_LIBS})
     endif()
-    
+
     target_link_libraries(${name} PRIVATE ${TARGET_LIBS})
     target_compile_definitions(${name} PRIVATE HAVE_CONFIG_H)
     # A test that reaches the protected Mapping flags through the internal
@@ -370,6 +370,7 @@ ast_add_test(testswitchmap_c  SOURCES testswitchmap.c)
 ast_add_test(testtime_c       SOURCES testtime.c)
 ast_add_test(testkeymap_c     SOURCES testkeymap.c)
 ast_add_test(testmocchan_c    SOURCES testmocchan.c)
+ast_add_test(testpointset_c   SOURCES testpointset.c)
 ast_add_test(testxmlchan_c SOURCES testxmlchan.c)
 ast_add_test(testtable_c SOURCES testtable.c)
 ast_add_test(teststcschan_c SOURCES teststcschan.c)
@@ -804,6 +805,12 @@ file(GLOB_RECURSE _ast_native_fixtures CONFIGURE_DEPENDS
      "${AST_FIXTURE_SOURCE_ROOT}/programs/*.ast"
      "${AST_FIXTURE_SOURCE_ROOT}/serialisation/*.ast"
      "${AST_FIXTURE_SOURCE_ROOT}/wcsconv/framesets/*.ast")
+# These historical dumps retain master's original comments. The current
+# writer explains the reversed MocEnc names, so byte comparison is not
+# appropriate. testmocchan_c checks that both load with their original format.
+list(REMOVE_ITEM _ast_native_fixtures
+     "programs/testmocchan/backcompat_string.ast"
+     "programs/testmocchan/backcompat_json.ast")
 foreach(_fixture IN LISTS _ast_native_fixtures)
     string(REGEX REPLACE "[/.]" "_" _rt_name "${_fixture}")
     add_roundtrip_test(NAME ${_rt_name} FIXTURE ${_fixture})
@@ -967,7 +974,7 @@ if(PLPLOT_FOUND)
         SOURCES testplotter.c plplotutil.c
         NO_DEFAULT_GRF_LIBS
         EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_plplot> $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_plplot> ${PLPLOT_LIBRARIES}
-        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.ps"
+        TEST_ARGS "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/wcsconv/inputs/lsst.fits-wcs" " " " " "testplotter.pdf"
     )
     target_include_directories(testplotter PRIVATE ${PLPLOT_INCLUDE_DIRS})
     target_link_directories(testplotter PRIVATE ${PLPLOT_LIBRARY_DIRS})

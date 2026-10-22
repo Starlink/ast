@@ -116,6 +116,12 @@ f     The CmpRegion class does not define any new routines beyond those
 *     21-NOV-2012 (DSB):
 *        Map the regions returned by RegSplit into the current Frame of the
 *        CmpRegion.
+*     9-OCT-2026 (TIMJ):
+*        CmpRegionList: add a component CmpRegion that is equivalent to an
+*        XOR as a single Region. Its stored operator is OR, so an OR
+*        CmpRegion containing it used to merge its two XORed Regions into
+*        its own OR list, so that "A OR (B XOR C)" was listed as
+*        "A OR B OR C".
 *class--
 */
 
@@ -359,11 +365,14 @@ int CmpRegionList( AstCmpRegion *this, int *nreg, AstRegion ***reg_list,
 
 /* If the first component of the supplied CmpRegion is itself a CmpRegion
    that uses the same boolean operator as "this", call this function
-   recursively to add its component Regions to the returned list. */
+   recursively to add its component Regions to the returned list. A
+   CmpRegion equivalent to an XOR is stored as an OR, but it does not use
+   the OR operator of "this", so it is added as a single Region. */
       add = 1;
       if( astIsACmpRegion( this->region1 ) ) {
          cmpreg = (AstCmpRegion *) this->region1;
-         if( cmpreg->oper == this->oper ) {
+         XORCheck( cmpreg, status );
+         if( cmpreg->oper == this->oper && !cmpreg->xor1 ) {
             (void) CmpRegionList( cmpreg, nreg, reg_list, status );
             add = 0;
          }
@@ -383,7 +392,8 @@ int CmpRegionList( AstCmpRegion *this, int *nreg, AstRegion ***reg_list,
       add = 1;
       if( astIsACmpRegion( this->region2 ) ) {
          cmpreg = (AstCmpRegion *) this->region2;
-         if( cmpreg->oper == this->oper ) {
+         XORCheck( cmpreg, status );
+         if( cmpreg->oper == this->oper && !cmpreg->xor1 ) {
             (void) CmpRegionList( cmpreg, nreg, reg_list, status );
             add = 0;
          }

@@ -85,6 +85,11 @@ f     The Prism class does not define any new routines beyond those
 *        within the class virtual function table.
 *     28-JAN-2021 (DSB):
 *        GetRegionBounds: Take account of axis permutation in the Prism's FrameSet.
+*     8-OCT-2026 (TIMJ):
+*        Overlap: Pass the Regions to the inherited OverlapX in the order
+*        it takes them, (that, this). The fallback used when the Prism's
+*        components cannot be compared separately returned 3 for a Prism
+*        inside the other Region, and 2 for the other Region inside it.
 *class--
 */
 
@@ -1906,8 +1911,9 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
 /* If overlap could not be determined using the above implementation, try
    using the implementation inherited from the parent Region class. Use
    OverlapX rather than Overlap since a) it is OverlapX that does the work,
-   and b) calling Overlap could end us in an infinite loop. */
-   if( !result ) result = (*parent_overlapx)( this, that, status );
+   and b) calling Overlap could end us in an infinite loop. OverlapX
+   takes the two Regions in the opposite order to Overlap. */
+   if( !result ) result = (*parent_overlapx)( that, this, status );
 
 /* If not OK, return zero. */
    if( !astOK ) result = 0;

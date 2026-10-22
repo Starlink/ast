@@ -114,6 +114,7 @@ f     - AST_REMOVEROW: Remove a row from a Table
 
 *  Authors:
 *     DSB: David S. Berry (Starlink)
+*     TIMJ: Tim Jenness (Rubin Observatory)
 
 *  History:
 *     22-NOV-2010 (DSB):
@@ -124,6 +125,10 @@ f     - AST_REMOVEROW: Remove a row from a Table
 *        Fix bug in forming keys in GetColumnLenC.
 *     25-SEP-2024 (DSB):
 *        Added support for int64_t values.
+*     12-OCT-2026 (TIMJ):
+*        In PurgeRows, skip the values of global parameters when counting
+*        the values in each row. A Table holding a parameter value could
+*        not be purged.
 *class--
 */
 
@@ -3746,6 +3751,9 @@ f        The global status.
       reset = 1;
       while( ( key = astMapIterate( this, reset ) ) && astOK ) {
          reset = 0;
+
+/* The value of a global parameter is not in any row. */
+         if( astHasParameter( this, key ) ) continue;
 
 /* Extract the row number from the key. */
          op = strchr( key, '(' );

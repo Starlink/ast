@@ -23,10 +23,12 @@ CRPIX1B =                150.5 / Reference pixel
 CRPIX2B =                150.5 / Reference pixel                                
 CD1_1   =                -0.01 / Transformation matrix element                  
 CD2_2   =                 0.01 / Transformation matrix element                  
+MJD-OBS =            51544.499 / Modified Julian Date of observation            
+DATE-OBS= '2000-01-01T11:58:55.816' / Date of observation                       
 CD1_1A  =                -0.01 / Transformation matrix element                  
 CD2_2A  =                 0.01 / Transformation matrix element                  
 RADESYSA= 'ICRS    '           / Reference frame for RA/DEC values              
 CD1_1B  =                -0.01 / Transformation matrix element                  
 CD2_2B  =                 0.01 / Transformation matrix element                  
-EQUINOXB=              51544.5 / [yr] Epoch of reference equinox                
+EQUINOXB=               2000.0 / [yr] Epoch of reference equinox                
 END                                                                             

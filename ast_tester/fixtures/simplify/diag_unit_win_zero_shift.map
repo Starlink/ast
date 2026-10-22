@@ -1,0 +1,6 @@
+ Begin WinMap 	# Map one window on to another
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    Scl1 = 1.00000000004 	# Scale factor for axis 1
+    Scl2 = 0.99999999996 	# Scale factor for axis 2
+ End WinMap

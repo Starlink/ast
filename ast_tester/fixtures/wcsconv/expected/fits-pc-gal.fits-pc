@@ -10,6 +10,6 @@ CDELT1  =                -0.01 / Degrees/pixel
 CDELT2  =                 0.01 / Degrees/pixel                                  
 EQUINOX =               2000.0 / Equinox                                        
 RADECSYS= 'FK5     '           / Reference frame for RA/DEC values              
-MJD-OBS =            33281.923 / Modified Julian Date of observation            
-DATE-OBS= '31/12/49'           / Date of observation                            
+MJD-OBS =            51544.499 / Modified Julian Date of observation            
+DATE-OBS= '2000-01-01T11:58:55.816' / Date of observation                       
 END                                                                             

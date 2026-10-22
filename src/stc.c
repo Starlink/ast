@@ -75,6 +75,12 @@ f     - AST_GETSTCNCOORD: Returns the number of AstroCoords elements in an Stc
 *        Override astGetObjSize.
 *     13-MAR-2009 (DSB):
 *        Over-ride astRegBasePick.
+*     9-OCT-2026 (TIMJ):
+*        GetRegion: return the Negated value of the encapsulated Region
+*        unchanged. The Stc's own Negated attribute is read from, and
+*        set on, the encapsulated Region, so inverting the value again
+*        when the Stc was negated cancelled the negation, and a negated
+*        Stc covered the same points as the un-negated one.
 *class--
 */
 
@@ -1024,9 +1030,9 @@ static void GetRegion( AstStc *this, AstRegion **reg, int *neg, int *status ) {
    structure. */
    if( neg ) *neg = astGetNegated( this->region );
 
-/* If the Stc has been inverted, we modify the boolean operator and
-   negation flags so that they reflect the inverted Stc. */
-   if( astGetNegated( this ) && neg ) *neg = *neg ? 0 : 1;
+/* The Negated attribute of the Stc is read from, and set on, the
+   encapsulated Region (see GetNegated and SetNegated), so the value
+   obtained above already reflects any negation of the Stc. */
 }
 
 static const char *GetRegionClass( AstStc *this, int *status ){

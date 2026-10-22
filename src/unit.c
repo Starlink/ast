@@ -99,6 +99,16 @@
 *        - Check the allocations made while parsing and formatting a units
 *          expression, so that a failure reports an error rather than
 *          dereferencing a null pointer.
+*     30-SEP-2026 (TIMJ):
+*        - InvertConstants inverts a constant numerator as well as a
+*          constant denominator, so that "2/m" is converted as "2 per
+*          metre" rather than as "0.5 per metre".
+*        - astUnitNormaliser only returns a blank string when the whole
+*          normalised string is a constant, rather than when it starts
+*          with one (so "2*m" is no longer normalised to "").
+*        - ModifyPrefix no longer reports a change to an unchanged
+*          "constant/unit" node, which made MakeExp recurse without end
+*          (for instance when normalising "2/m").
 */
 
 /* Module Macros. */
@@ -2557,14 +2567,19 @@ static void InvertConstants( UnitNode **node, int *status ) {
                }
             }
 
-/* Likewise, check for division nodes in which the denominator is
-   constant. */
+/* Likewise, check for division nodes in which either argument is
+   constant. A constant numerator is a coefficient just as a constant
+   factor is: "2/m" means "each unit is 2 per metre", the same as
+   "2*m**-1", so it is inverted too. A constant denominator is the
+   reciprocal of a coefficient, and inverting it has the same effect. */
          } else if( op == OP_DIV ) {
-            if( (*node)->arg[ 1 ]->con != AST__BAD ) {
-               if( (*node)->arg[ 1 ]->con != 0.0 ) {
-                  (*node)->arg[ 1 ]->con = 1.0/(*node)->arg[ 1 ]->con;
-               } else {
-                  astError( AST__BADUN, "Illegal zero constant encountered." , status);
+            for( i = 0; i < 2; i++ ) {
+               if( (*node)->arg[ i ]->con != AST__BAD ) {
+                  if( (*node)->arg[ i ]->con != 0.0 ) {
+                     (*node)->arg[ i ]->con = 1.0/(*node)->arg[ i ]->con;
+                  } else {
+                     astError( AST__BADUN, "Illegal zero constant encountered." , status);
+                  }
                }
             }
 
@@ -4387,9 +4402,14 @@ static UnitNode *ModifyPrefix( UnitNode *old, int *status ) {
             changed = 1;
          }
 
+/* In the reciprocal case the LDCON node holds the numerator, not the
+   constant found above, so whether it has changed is only known once the
+   numerator has been recomputed below. Setting "changed" here would report
+   a change for an unmodified node, and MakeExp, which formats the returned
+   node by calling itself on it, would then recurse without end. */
          if( ldcon->con != con ) {
             ldcon->con = con;
-            changed = 1;
+            if( !recip ) changed = 1;
          }
 
 /* Unless the node is proportional to the reciprocal of the variable, the
@@ -5887,6 +5907,7 @@ const char *astUnitNormaliser_( const char *in, int *status ){
 /* Local Variables: */
    UnitNode *in_tree;
    double dval;
+   int nc;
    const char *result;
 
 /* Initialise */
@@ -5914,8 +5935,11 @@ const char *astUnitNormaliser_( const char *in, int *status ){
 /* Convert the tree into string form. */
       result = MakeExp( in_tree, 2, 1, status );
 
-/* If the result is a constant value, return a blank string. */
-      if( result && 1 == astSscanf( result, "%lg", &dval ) ) {
+/* If the result is a constant value, return a blank string. The whole
+   string must be consumed, since "%lg" alone also matches a units string
+   that merely starts with a number, such as "2*m". */
+      if( result && 1 == astSscanf( result, " %lg %n", &dval, &nc ) &&
+          nc >= (int) strlen( result ) ) {
          *((char *) result) = 0;
       }
 

@@ -80,6 +80,13 @@ f     The MocChan class does not define any new routines beyond those
 *        Original version.
 *     8-APR-2026 (TIMJ):
 *        Fix copying of non-null-terminated output lines supplied to Sink1.
+*     9-OCT-2026 (TIMJ):
+*        Dump: explain the historically reversed MocEnc names in the
+*        comments, retaining the encoding for backwards compatibility
+*        with existing dumps and readers.
+*        astLoadMocChan: apply MocLineLen through its setter, as every
+*        other attribute is, so that a negative value read from a dump
+*        becomes zero rather than a huge buffer length.
 *class--
 */
 
@@ -128,7 +135,10 @@ f     The MocChan class does not define any new routines beyond those
 
 /* Module Variables. */
 /* ================= */
-/* Text values used to represent MocFormat values externally. */
+/* Text values used to represent MocFormat in native dumps. These names
+   were historically reversed in both Dump and astLoadMocChan, so the
+   two mistakes cancelled out. Preserve this order for compatibility
+   with existing dumps and readers; the public MocFormat is unaffected. */
 static const char *xencod[8] = { JSON_STRING, STRING_STRING };
 
 /* Pointers to parent class methods which are extended by this class. */
@@ -1277,7 +1287,10 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    set = TestMocFormat( this, status );
    ival = set ? GetMocFormat( this, status ) : astGetMocFormat( this );
    if( ival > UNKNOWN_FORMAT && ival <= MAX_FORMAT ) {
-      astWriteString( channel, "MocEnc", set, 1, xencod[ival], "Format" );
+      astWriteString( channel, "MocEnc", set, 1, xencod[ival],
+                      ival == STRING_FORMAT ?
+                      "JSON means STRING (backwards compatibility)" :
+                      "STRING means JSON (backwards compatibility)" );
    } else {
       astWriteString( channel, "MocEnc", set, 1, UNKNOWN_STRING, "Format" );
    }
@@ -2055,6 +2068,8 @@ AstMocChan *astLoadMocChan_( void *mem, size_t size,
 /* MocLineLen */
 /* --------- */
       new->moclinelen = astReadInt( channel, "moclln", -INT_MAX );
+      if ( TestMocLineLen( new, status ) ) SetMocLineLen( new,
+                                                      new->moclinelen, status );
    }
 
 /* If an error occurred, clean up by deleting the new MocChan. */

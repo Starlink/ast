@@ -465,6 +465,54 @@ static void testpcdzoominverted( int *status ) {
    }
 }
 
+/* astPolyCoeffs returns the coefficients of the transformation asked for,
+   relative to the Invert flag, so for an inverted PolyMap with two inputs
+   and one output, the forward transformation's are the original inverse
+   transformation's: two polynomials of one input. */
+static void testpolycoeffsinverted( int *status ) {
+   double fwd[] = { 2.0, 1, 1, 0,  3.0, 1, 0, 1 };
+   double inv[] = { 0.5, 1, 1,  0.25, 2, 1 };
+   double got[ 6 ];
+   int i, ncoeff;
+   AstPolyMap *pm;
+   if( *status != 0 || !astOK ) return;
+   pm = astPolyMap( 2, 1, 2, fwd, 2, inv, " " );
+   astInvert( pm );
+   astPolyCoeffs( pm, 1, 6, got, &ncoeff );
+   if( !astOK || ncoeff != 2 ) {
+      stopit( status, "Error polycoeffsinverted-1" );
+   } else {
+      for( i = 0; i < 6; i++ ) {
+         if( got[ i ] != inv[ i ] ) stopit( status, "Error polycoeffsinverted-2" );
+      }
+   }
+   pm = astAnnul( pm );
+}
+
+/* WcsMaps are equal when each projection parameter is unset in both or set
+   in both to equal values, however their stored parameter arrays grew. */
+static void testwcsmapequal( int *status ) {
+   AstWcsMap *plain, *a, *b;
+   if( *status != 0 || !astOK ) return;
+   plain = astWcsMap( 2, AST__SIN, 1, 2, " " );
+   a = astWcsMap( 2, AST__SIN, 1, 2, "PV2_1=0.5" );
+   if( astEqual( a, plain ) || astEqual( plain, a ) )
+      stopit( status, "Error wcsmapequal-1" );
+   b = astWcsMap( 2, AST__SIN, 1, 2, "PV2_1=0.0" );
+   if( astEqual( b, plain ) ) stopit( status, "Error wcsmapequal-2" );
+   b = astAnnul( b );
+   b = astWcsMap( 2, AST__SIN, 1, 2, "PV2_1=0.5,PV2_2=1.0" );
+   astClear( b, "PV2_2" );
+   if( !astEqual( a, b ) || !astEqual( b, a ) )
+      stopit( status, "Error wcsmapequal-3" );
+   b = astAnnul( b );
+   b = astWcsMap( 2, AST__SIN, 1, 2, "PV2_1=0.5" );
+   if( !astEqual( a, b ) ) stopit( status, "Error wcsmapequal-4" );
+   plain = astAnnul( plain );
+   a = astAnnul( a );
+   b = astAnnul( b );
+}
+
 static void testselfsimplifyafterset( int *status ) {
    double centre[ 2 ] = { 0.0, 0.0 };
    AstMapping *input;
@@ -625,6 +673,8 @@ int main( void ) {
 
    testselfsimplifyafterset( status );
    testpcdzoominverted( status );
+   testwcsmapequal( status );
+   testpolycoeffsinverted( status );
 
    astEnd;
 

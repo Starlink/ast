@@ -4,11 +4,11 @@
 *
 *  Purpose:
 *     Plots a standard grid from the specified fits header file, using
-*     the specified attributes, and sends postscript output to the
-*     specified ps file.
+*     the specified attributes, and sends the output to the specified
+*     file or interactive device.
 *
 *  Usage:
-*     testplotter <fits file> <attr1> <attr2> <ps file> [<xlo> <ylo> <xhi> <yhi>]
+*     testplotter <fits file> <attr1> <attr2> <output> [<xlo> <ylo> <xhi> <yhi>]
 *
 *     The fourth argument specifies the output file or interactive device:
 *     - File ending in ".pdf": generates a PDF file (pdfcairo device).
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     AstFitsChan *fc;
     AstFrameSet *fs;
     AstPlot *pl;
-    char *file, *attr1, *attr2, *psfile;
+    char *file, *attr1, *attr2, *outfile;
     FILE *fp;
     /* Buffer must exceed 80 so the 80-char FITS card plus its line
        terminator fits in a single fgets() call.  An 81-byte buffer
@@ -50,14 +50,14 @@ int main(int argc, char **argv) {
     astWatch(&status);
 
     if (argc < 5) {
-        printf("Usage: testplotter <fits file> <attrs> <fattrs> <ps file> [<xlo> <ylo> <xhi> <yhi>]\n");
+        printf("Usage: testplotter <fits file> <attrs> <fattrs> <output> [<xlo> <ylo> <xhi> <yhi>]\n");
         return 1;
     }
 
     file = argv[1];
     attr1 = argv[2]; /* Plot attributes */
     attr2 = argv[3]; /* FitsChan attributes */
-    psfile = argv[4];
+    outfile = argv[4];
 
     /* Note: In plotter.f it uses argument 3 (attr2) for FitsChan */
     fc = astFitsChan(NULL, NULL, "%s", attr2);
@@ -113,10 +113,10 @@ int main(int argc, char **argv) {
     }
 
     if (astOK) {
-        remove(psfile);
+        remove(outfile);
 
         /* Setup PLplot device based on file extension or interactive name */
-        (void)astPlSetupDevice( psfile );
+        (void)astPlSetupDevice( outfile );
 
         /* Initialize PLplot */
         c_plinit();

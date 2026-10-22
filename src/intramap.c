@@ -100,6 +100,10 @@ f     The IntraMap class does not define any new routines beyond those
 *        Report an error if the IntraFlag is set or cleared once the IntraMap
 *        has been cloned, as SUN/210 says AST does for the attributes of any
 *        Mapping. Use the guarded astMAKE_SET1 and astMAKE_CLEAR1 macros.
+*     12-OCT-2026 (TIMJ):
+*        In Dump, write an unset IntraFlag as a blank string.  Its value is
+*        a NULL pointer, which a Channel with Full set to 1 dereferenced,
+*        since it writes unset values that are not helpful.
 *class--
 */
 
@@ -2266,7 +2270,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* ----------------- */
    set = TestIntraFlag( this, status );
    sval = set ? GetIntraFlag( this, status ) : astGetIntraFlag( this );
-   astWriteString( channel, "Iflag", set, 0, sval,
+   astWriteString( channel, "Iflag", set, 0, sval ? sval : "",
                    "IntraMap identification string" );
 
 /* Purpose string. */

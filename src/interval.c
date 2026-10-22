@@ -88,6 +88,12 @@ f     The Interval class does not define any new routines beyond those
 *        GetDefUnc: give an axis whose limits are both zero a non-zero
 *        uncertainty width, using the absolute floor astEQUAL applies near
 *        zero.
+*     9-OCT-2026 (TIMJ):
+*        RegCentre: return the centre in the Frame requested by "ifrm".
+*        The query always asked the equivalent Box for its base Frame
+*        centre, so an Interval whose current Frame differs from its base
+*        Frame reported a base Frame centre when asked for its current
+*        Frame centre, as Prism and SetUnc ask for it.
 *class--
 */
 
@@ -2577,7 +2583,7 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
 /* If the centre is not being changed, just invoke the method on the
    equivalent box. */
       } else {
-         result = astRegCentre( box, NULL, NULL, 0, AST__BASE );
+         result = astRegCentre( box, NULL, NULL, 0, ifrm );
       }
 
 /* If the Interval is not equivalent to a Box, report an error */

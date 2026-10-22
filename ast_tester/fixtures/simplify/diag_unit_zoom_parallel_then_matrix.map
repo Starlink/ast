@@ -1,0 +1,36 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin CmpMap 	# Compound Mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Series = 0 	# Component Mappings applied in parallel
+          MapA = 	# First component Mapping
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 1.00000000004 	# Zoom factor
+             End ZoomMap
+          MapB = 	# Second component Mapping
+             Begin ZoomMap 	# Zoom about the origin
+                Nin = 1 	# Number of input coordinates
+             IsA Mapping 	# Mapping between coordinate systems
+                Zoom = 0.99999999996 	# Zoom factor
+             End ZoomMap
+       End CmpMap
+    MapB = 	# Second component Mapping
+       Begin MatrixMap 	# Matrix transformation
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          M0 = 2 	# Forward matrix value
+          M1 = 1 	# Forward matrix value
+          M2 = -1 	# Forward matrix value
+          M3 = 3 	# Forward matrix value
+          IM0 = 0.4285714285714286 	# Inverse matrix value
+          IM1 = -0.14285714285714285 	# Inverse matrix value
+          IM2 = 0.14285714285714285 	# Inverse matrix value
+          IM3 = 0.2857142857142857 	# Inverse matrix value
+          Form = "Full" 	# Matrix storage form
+       End MatrixMap
+ End CmpMap

@@ -70,6 +70,10 @@ f     The TranMap class does not define any new routines beyond those
 *        Override astGetObjSize.
 *     10-MAY-2006 (DSB):
 *        Override astEqual.
+*     7-OCT-2026 (TIMJ):
+*        RemoveRegions returns a UnitMap with the TranMap's number of
+*        axes, not the sum of its two components', when both become
+*        UnitMaps.
 *class--
 */
 
@@ -1378,10 +1382,10 @@ static AstMapping *RemoveRegions( AstMapping *this_mapping, int *status ) {
          unit2 = astIsAUnitMap( newmap2 );
       }
 
-/* If both new Mappings are UnitMaps, return an equivalent UnitMap. */
+/* If both new Mappings are UnitMaps, return an equivalent UnitMap. Both
+   act on the TranMap's own inputs, so it has as many axes as either. */
       if( unit1 && unit2 ) {
-         result = (AstMapping *) astUnitMap( astGetNin( newmap1 ) +
-                                             astGetNin( newmap2 ), " ",
+         result = (AstMapping *) astUnitMap( astGetNin( newmap1 ), " ",
                                              status );
 
 /* Otherwise, return a new TranMap containing the two new Mappings. */
