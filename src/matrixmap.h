@@ -182,6 +182,7 @@ typedef struct AstMatrixMap {
    double *i_matrix;             /* Pointer to inverse matrix */
    int form;                     /* Matrix storage form */
    double det;                   /* Determinant */
+   int use_simd;                 /* Use SIMD-vectorised transform? (-1=unset/default) */
 } AstMatrixMap;
 
 /* Virtual function table. */
@@ -204,6 +205,9 @@ typedef struct AstMatrixMapVtab {
    int (* MtrEuler)( AstMatrixMap *, int, double[3], int * );
    double *(* MtrGet)( AstMatrixMap *, int, int, int *, int * );
    int (* IsDiagonal)( AstMatrixMap *, int * );
+
+   void (*TransformLoop)( AstMapping *, int, int, int, int,
+                          double **, double **, int * );
 } AstMatrixMapVtab;
 
 #if defined(THREAD_SAFE)
@@ -214,6 +218,7 @@ typedef struct AstMatrixMapVtab {
 typedef struct AstMatrixMapGlobals {
    AstMatrixMapVtab Class_Vtab;
    int Class_Init;
+   char GetAttrib_Buff[ 32 ];
 } AstMatrixMapGlobals;
 
 
@@ -262,6 +267,7 @@ AstMatrixMap *astMtrZoom_( AstMatrixMap *,  double, int * );
 int astMtrEuler_( AstMatrixMap *, int, double[3], int * );
 double *astMtrGet_( AstMatrixMap *, int, int, int *, int * );
 int astIsDiagonal_( AstMatrixMap *, int * );
+
 #endif
 
 /* Function interfaces. */

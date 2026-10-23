@@ -219,6 +219,7 @@ typedef struct AstSphMap {
 /* Attributes specific to objects in this class. */
    double polarlong;             /* Longitude to assign to either pole */
    int unitradius;               /* Are input vectors always of unit length? */
+   int use_simd;                 /* Use SIMD-vectorised transform? (-1=unset/default) */
 } AstSphMap;
 
 /* Virtual function table. */
@@ -244,6 +245,9 @@ typedef struct AstSphMapVtab {
    int (* TestPolarLong)( AstSphMap *, int * );
    void (* ClearPolarLong)( AstSphMap *, int * );
    void (* SetPolarLong)( AstSphMap *, double, int * );
+
+   void (*TransformLoop)( AstMapping *, int, int, int, int,
+                          double **, double **, int * );
 } AstSphMapVtab;
 
 #if defined(THREAD_SAFE)
@@ -305,6 +309,7 @@ double astGetPolarLong_( AstSphMap *, int * );
 int astTestPolarLong_( AstSphMap *, int * );
 void astClearPolarLong_( AstSphMap *, int * );
 void astSetPolarLong_( AstSphMap *, double, int * );
+
 #endif
 
 /* Function interfaces. */
@@ -364,6 +369,7 @@ astINVOKE(O,astLoadSphMap_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PT
 #define astGetPolarLong(this)       astINVOKE(V,astGetPolarLong_(astCheckSphMap(this),STATUS_PTR))
 #define astSetPolarLong(this,value) astINVOKE(V,astSetPolarLong_(astCheckSphMap(this),value,STATUS_PTR))
 #define astTestPolarLong(this)      astINVOKE(V,astTestPolarLong_(astCheckSphMap(this),STATUS_PTR))
+
 #endif
 
 #endif
