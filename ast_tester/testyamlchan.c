@@ -1550,7 +1550,6 @@ cleanup:
    remove( "testyamlchan_bad.yaml" );
 }
 
-#endif /* YAML_BACKEND */
 void test_healpix_projections( int *status ){
 /* Both HEALPix projections must be recognised as sky projections. They are
    in none of the six families IsASkyProjection() tests, so without their
@@ -1816,3 +1815,5 @@ void test_ndarray_1_2( int *status ){
    if( *status != SAI__OK )
       printf( "core/ndarray-1.2.0 regression test failed\n" );
 }
+
+#endif /* YAML_BACKEND */
