@@ -1,0 +1,36 @@
+#ASDF 1.0.0
+%YAML 1.1
+%TAG ! tag:stsci.edu:asdf/
+--- !core/asdf-1.1.0
+wcs: !<tag:stsci.edu:gwcs/wcs-1.4.0>
+  name: ''
+  steps:
+  - !<tag:stsci.edu:gwcs/step-1.3.0>
+    frame: !<tag:stsci.edu:gwcs/frame2d-1.2.0>
+      axes_names: [x, y]
+      axes_order: [0, 1]
+      axis_physical_types: ['custom:x', 'custom:y']
+      name: detector
+      unit: [!unit/unit-1.0.0 pixel, !unit/unit-1.0.0 pixel]
+    transform: !transform/affine-1.4.0
+      matrix: !core/ndarray-1.2.0
+        data:
+        - [2.0, 0.0]
+        - [0.0, 3.0]
+        datatype: float64
+        byteorder: little
+        shape: [2, 2]
+      translation: !core/ndarray-1.2.0
+        data: [5.0, 7.0]
+        datatype: float64
+        byteorder: little
+        shape: [2]
+  - !<tag:stsci.edu:gwcs/step-1.3.0>
+    frame: !<tag:stsci.edu:gwcs/frame2d-1.2.0>
+      axes_names: [u, v]
+      axes_order: [0, 1]
+      axis_physical_types: ['custom:u', 'custom:v']
+      name: output
+      unit: [!unit/unit-1.0.0 pixel, !unit/unit-1.0.0 pixel]
+    transform: null
+...
