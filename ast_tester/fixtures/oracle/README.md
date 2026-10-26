@@ -58,6 +58,10 @@ image the iteration need not converge, and a default 1..1000 range over a
 256-pixel image produced round-trip errors above 100 pixels that said nothing
 about the library.  The same mappings round-trip cleanly over their own grid.
 
+Any other `.ast` dump can declare its domain in its leading comment block, one
+`# oracle-bounds: lo hi` line per input axis in axis order; otherwise defaults
+to sampling over 1..1000 on every axis.
+
 ### Checks that are disabled, and why
 
 `transform_oracle_overrides.txt` carries them, each with its reason.  Two entries

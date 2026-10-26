@@ -118,6 +118,36 @@ static void head_bounds( const char *root, const char *relpath,
     if ( !astOK ) astClearStatus;
 }
 
+/* Fill lo[]/hi[] from the "# oracle-bounds: lo hi" lines in the leading
+   comment block of a .ast fixture, one line per input axis in axis order.
+
+   Returns 1 if the block supplies all naxis pairs, else 0. */
+static int frameset_comment_bounds( const char *root, const char *relpath,
+                                    int naxis, double *lo, double *hi ) {
+    static const char tag[] = "# oracle-bounds:";
+    char path[1024];
+    snprintf( path, sizeof path, "%s/%s", root, relpath );
+    FILE *fp = fopen( path, "r" );
+    if ( !fp ) return 0;
+    char line[256];
+    int a = 0;
+    double l, h;
+    while ( a < naxis && fgets( line, (int) sizeof line, fp ) &&
+            line[0] == '#' ) {
+        if ( strncmp( line, tag, sizeof tag - 1 ) ) continue;
+        if ( sscanf( line + sizeof tag - 1, "%lf %lf", &l, &h ) != 2 ) continue;
+        lo[a] = l;
+        hi[a] = h;
+        a++;
+    }
+    fclose( fp );
+    if ( a > 0 && a < naxis ) {
+        fprintf( stderr, "%s: expected %d oracle-bounds lines, found %d\n",
+                 relpath, naxis, a );
+    }
+    return a == naxis;
+}
+
 /* Sampling-domain kind for a fixture, chosen from its file extension. */
 enum { DOM_NATIVE, DOM_HEAD, DOM_FRAMESET };
 
@@ -129,14 +159,19 @@ static int path_kind( const char *relpath ) {
 
 /* Fill lo[]/hi[] for naxis input axes.  FITS headers use their pixel grid
    (NAXISj).  FrameSet dumps (.ast) have a GRID base frame but carry no
-   NAXIS, so use a default positive pixel range.  Native dumps have no
-   declared domain, so use a fixed symmetric range.  Sampling outside a
-   map's valid domain merely yields AST__BAD, which the golden comparison
-   records and matches faithfully. */
+   NAXIS, so use their oracle-bounds comments if they have them, else the
+   pixel grid of the header they were read from, else a default positive
+   pixel range.
+   Native dumps have no declared domain, so use a fixed symmetric range.
+   Sampling outside a map's valid domain merely yields AST__BAD, which the
+   golden comparison records and matches faithfully. */
 static void axis_bounds( const char *root, const char *relpath, int kind,
                          int naxis, double *lo, double *hi ) {
     if ( kind == DOM_HEAD ) {
         head_bounds( root, relpath, naxis, lo, hi );
+    } else if ( kind == DOM_FRAMESET &&
+                frameset_comment_bounds( root, relpath, naxis, lo, hi ) ) {
+        /* lo/hi filled from the fixture's oracle-bounds comments */
     } else if ( kind == DOM_FRAMESET ) {
 /* A fixture under wcsconv/framesets/ is the dump of the object read from one
    wcsconv input, and its name is that input's filename with each "." replaced by
