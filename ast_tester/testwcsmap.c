@@ -172,6 +172,22 @@ int main( void ) {
               -170.0, -5.0E-5, -169.99999999993526, -0.0002700860857957293,
               1.0E-12 );
 
+/* COP at the poles.  The pole on the same side of the equator as the
+   standard parallels is the apex of the cone, r = 0, and is returned
+   exactly; the other pole is on the far side of the projection and is
+   bad. */
+   check_fwd( "cop opposite pole, north parallels", AST__COP,
+              "PV2_1=60,PV2_2=0", -180.0, -90.0, AST__BAD, AST__BAD, 0.0 );
+   check_fwd( "cop opposite pole, south parallels", AST__COP,
+              "PV2_1=-45,PV2_2=5", 0.0, 90.0, AST__BAD, AST__BAD, 0.0 );
+   check_fwd( "cop apex, north parallels", AST__COP, "PV2_1=60,PV2_2=0",
+              37.0, 90.0, 0.0, 33.079733725307534, 0.0 );
+   check_rev( "cop apex, north parallels, reverse", AST__COP,
+              "PV2_1=60,PV2_2=0", 0.0, 33.079733725307534, 0.0, 90.0,
+              1.0E-12 );
+   check_fwd( "cop apex, south parallels", AST__COP, "PV2_1=-45,PV2_2=5",
+              30.0, -90.0, 0.0, -57.077751773966277, 0.0 );
+
    if( !failed && astOK ) {
       printf( " All WcsMap tests passed\n" );
       return 0;

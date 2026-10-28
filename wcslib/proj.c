@@ -2570,6 +2570,7 @@ int astCOPfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
 
 {
    double a, r, s, t;
+   int bad;
 
    if (abs(prj->flag) != WCS__COP) {
       if (astCOPset(prj)) return 1;
@@ -2581,13 +2582,23 @@ int astCOPfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
       return 2;
    }
 
+   if (fabs(theta) == 90.0) {
+      /* Return an exact value at the poles (upstream 4.22): the pole on
+         the same side as the standard parallels is the apex of the cone,
+         and the other is on the far side. */
+      r = 0.0;
+      bad = (theta < 0.0) != (prj->p[1] < 0.0);
+   } else {
+      r = prj->w[2] - prj->w[3]*astSind(t)/s;
+      bad = r*prj->w[0] < 0.0;
+   }
+
    a = prj->w[0]*phi;
-   r = prj->w[2] - prj->w[3]*astSind(t)/s;
 
    *x =             r*astSind(a);
    *y = prj->w[2] - r*astCosd(a);
 
-   if (prj->flag > 0 && r*prj->w[0] < 0.0) {
+   if (prj->flag > 0 && bad) {
       return 2;
    }
 
