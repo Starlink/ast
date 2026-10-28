@@ -163,6 +163,15 @@ int main( void ) {
               "PV2_1=1.27118,PV2_2=-0.210643", 5.4085552, -89.2063216,
               AST__BAD, AST__BAD, 0.0 );
 
+/* PCO within 1e-4 degrees of the equator: cot(theta) is huge and
+   1 - cos(phi*sin(theta)) cancels, so y must come from a series instead
+   (upstream 4.22). */
+   check_fwd( "pco near equator", AST__PCO, "", 90.0, 1.0E-9,
+              90.0, 2.2337005501361701e-09, 1.0E-15 );
+   check_fwd( "pco near equator, far from the meridian", AST__PCO, "",
+              -170.0, -5.0E-5, -169.99999999993526, -0.0002700860857957293,
+              1.0E-12 );
+
    if( !failed && astOK ) {
       printf( " All WcsMap tests passed\n" );
       return 0;

@@ -3108,6 +3108,7 @@ int astBONrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
 *      prj->w[0]    r0*(pi/180)
 *      prj->w[1]    1/r0
 *      prj->w[2]    2*r0
+*      prj->w[3]    (pi/180)/(2*r0)
 *      prj->astPRJfwd  Pointer to astPCOfwd().
 *      prj->astPRJrev  Pointer to astPCOrev().
 *===========================================================================*/
@@ -3130,6 +3131,7 @@ int astPCOset(struct AstPrjPrm *prj)
       prj->w[1] = 1.0/prj->w[0];
       prj->w[2] = 2.0*prj->r0;
    }
+   prj->w[3] = D2R/prj->w[2];
 
    prj->astPRJfwd = astPCOfwd;
    prj->astPRJrev = astPCOrev;
@@ -3155,6 +3157,10 @@ int astPCOfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
    if (sthe == 0.0) {
       *x = prj->w[0]*phi;
       *y = 0.0;
+   } else if (fabs(theta) < 1.0e-4) {
+      /* To avoid cot(theta) blowing up near theta == 0 (upstream 4.22). */
+      *x = prj->w[0]*phi*cthe;
+      *y = (prj->w[0] + prj->w[3]*(*x)*(*x))*theta;
    } else {
       cotthe = cthe/sthe;
       *x = prj->r0*cotthe*astSind(a);
