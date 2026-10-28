@@ -48,10 +48,15 @@
 #include "transform_oracle.h"
 
 #include <dirent.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 static double **alloc_cols( int ncol, int nrow ) {
     double **c = malloc( sizeof(double *) * (size_t) ncol );
@@ -65,29 +70,16 @@ static void free_cols( double **c, int ncol ) {
     free( c );
 }
 
-/* Return 1 if <root>/<relpath> can be opened for reading. */
+/* Return 1 if <root>/<relpath> can be opened for reading.  A path too long
+   for PATH_MAX could not be opened anyway, so it counts as absent. */
 static int file_exists( const char *root, const char *relpath ) {
-    char path[1024];
-    snprintf( path, sizeof path, "%s/%s", root, relpath );
+    char path[PATH_MAX];
+    if ( snprintf( path, sizeof path, "%s/%s", root, relpath )
+         >= (int) sizeof path )
+        return 0;
     FILE *fp = fopen( path, "r" );
     if ( fp ) { fclose( fp ); return 1; }
     return 0;
-}
-
-/* Return 1 if any line of <root>/<relpath> contains needle. */
-static int file_contains( const char *root, const char *relpath,
-                          const char *needle ) {
-    char path[1024];
-    snprintf( path, sizeof path, "%s/%s", root, relpath );
-    FILE *fp = fopen( path, "r" );
-    if ( !fp ) return 0;
-    int found = 0;
-    char line[1024];
-    while ( fgets( line, (int) sizeof line, fp ) ) {
-        if ( strstr( line, needle ) ) { found = 1; break; }
-    }
-    fclose( fp );
-    return found;
 }
 
 /* Fill lo[]/hi[] for the naxis input axes of a FITS-header fixture from
@@ -95,10 +87,16 @@ static int file_contains( const char *root, const char *relpath,
    fall back to a small [1,2] range. */
 static void head_bounds( const char *root, const char *relpath,
                          int naxis, double *lo, double *hi ) {
-    char path[1024];
-    snprintf( path, sizeof path, "%s/%s", root, relpath );
+    char path[PATH_MAX];
+    FILE *fp = NULL;
+    if ( snprintf( path, sizeof path, "%s/%s", root, relpath )
+         < (int) sizeof path ) {
+        fp = fopen( path, "r" );
+    } else {
+        fprintf( stderr, "gen_transform_oracle: path too long, using default "
+                         "bounds: %s/%s\n", root, relpath );
+    }
     AstFitsChan *fc = astFitsChan( NULL, NULL, " " );
-    FILE *fp = fopen( path, "r" );
     if ( fp ) {
         char line[256];
         while ( fgets( line, (int) sizeof line, fp ) ) {
@@ -120,6 +118,36 @@ static void head_bounds( const char *root, const char *relpath,
     if ( !astOK ) astClearStatus;
 }
 
+/* Fill lo[]/hi[] from the "# oracle-bounds: lo hi" lines in the leading
+   comment block of a .ast fixture, one line per input axis in axis order.
+
+   Returns 1 if the block supplies all naxis pairs, else 0. */
+static int frameset_comment_bounds( const char *root, const char *relpath,
+                                    int naxis, double *lo, double *hi ) {
+    static const char tag[] = "# oracle-bounds:";
+    char path[1024];
+    snprintf( path, sizeof path, "%s/%s", root, relpath );
+    FILE *fp = fopen( path, "r" );
+    if ( !fp ) return 0;
+    char line[256];
+    int a = 0;
+    double l, h;
+    while ( a < naxis && fgets( line, (int) sizeof line, fp ) &&
+            line[0] == '#' ) {
+        if ( strncmp( line, tag, sizeof tag - 1 ) ) continue;
+        if ( sscanf( line + sizeof tag - 1, "%lf %lf", &l, &h ) != 2 ) continue;
+        lo[a] = l;
+        hi[a] = h;
+        a++;
+    }
+    fclose( fp );
+    if ( a > 0 && a < naxis ) {
+        fprintf( stderr, "%s: expected %d oracle-bounds lines, found %d\n",
+                 relpath, naxis, a );
+    }
+    return a == naxis;
+}
+
 /* Sampling-domain kind for a fixture, chosen from its file extension. */
 enum { DOM_NATIVE, DOM_HEAD, DOM_FRAMESET };
 
@@ -131,14 +159,19 @@ static int path_kind( const char *relpath ) {
 
 /* Fill lo[]/hi[] for naxis input axes.  FITS headers use their pixel grid
    (NAXISj).  FrameSet dumps (.ast) have a GRID base frame but carry no
-   NAXIS, so use a default positive pixel range.  Native dumps have no
-   declared domain, so use a fixed symmetric range.  Sampling outside a
-   map's valid domain merely yields AST__BAD, which the golden comparison
-   records and matches faithfully. */
+   NAXIS, so use their oracle-bounds comments if they have them, else the
+   pixel grid of the header they were read from, else a default positive
+   pixel range.
+   Native dumps have no declared domain, so use a fixed symmetric range.
+   Sampling outside a map's valid domain merely yields AST__BAD, which the
+   golden comparison records and matches faithfully. */
 static void axis_bounds( const char *root, const char *relpath, int kind,
                          int naxis, double *lo, double *hi ) {
     if ( kind == DOM_HEAD ) {
         head_bounds( root, relpath, naxis, lo, hi );
+    } else if ( kind == DOM_FRAMESET &&
+                frameset_comment_bounds( root, relpath, naxis, lo, hi ) ) {
+        /* lo/hi filled from the fixture's oracle-bounds comments */
     } else if ( kind == DOM_FRAMESET ) {
 /* A fixture under wcsconv/framesets/ is the dump of the object read from one
    wcsconv input, and its name is that input's filename with each "." replaced by
@@ -151,7 +184,7 @@ static void axis_bounds( const char *root, const char *relpath, int kind,
    256-pixel image reports round-trip errors of 100 pixels and more that say
    nothing about the library.  The same mappings round-trip cleanly when sampled
    over their own NAXIS grid, which is what the .head sections already do. */
-        char origin[ 1024 ];
+        char origin[ PATH_MAX ];
         const char *base = strrchr( relpath, '/' );
         base = base ? base + 1 : relpath;
         if ( !strncmp( relpath, "wcsconv/framesets/", 18 ) &&
@@ -302,7 +335,7 @@ static void *xalloc( void *p, size_t size, const char *what ) {
 static void scan_tree_into( const char *root, const char *subdir,
                             const char *suffix, char ***list, size_t *n,
                             size_t *cap ) {
-    char path[1024];
+    char path[PATH_MAX];
     if ( snprintf( path, sizeof path, "%s%s%s",
                    root, subdir[0] ? "/" : "", subdir )
          >= (int) sizeof path ) {
@@ -318,8 +351,8 @@ static void scan_tree_into( const char *root, const char *subdir,
         if ( strcmp( e->d_name, "." ) == 0 ||
              strcmp( e->d_name, ".." ) == 0 ) continue;
 
-        char rel[1024];
-        char child[1024];
+        char rel[PATH_MAX];
+        char child[PATH_MAX];
         /* Truncation would leave a path that no longer names the fixture, so
            report it instead of letting the stat() below quietly drop it. */
         if ( snprintf( rel, sizeof rel, "%s%s%s", subdir,
@@ -400,13 +433,14 @@ int main( int argc, char *argv[] ) {
     char **maps = scan_tree( root, "simplify", ".map", &nmap );
     int nwritten = 0;
     for ( int i = 0; i < nmap; i++ ) {
-        char simp[1024];
+        char simp[PATH_MAX];
         size_t L = strlen( maps[i] );
-        snprintf( simp, sizeof simp, "%.*s.simp", (int)(L - 4), maps[i] );
         nwritten += emit_fixture( fs, root, maps[i] );
         /* "neg_*" fixtures (and any other already-simple map) have no .simp
            partner; only emit one when the file exists. */
-        if ( file_exists( root, simp ) ) nwritten += emit_fixture( fs, root, simp );
+        if ( snprintf( simp, sizeof simp, "%.*s.simp", (int)(L - 4), maps[i] )
+             < (int) sizeof simp && file_exists( root, simp ) )
+            nwritten += emit_fixture( fs, root, simp );
         free( maps[i] );
     }
     free( maps );
