@@ -188,6 +188,12 @@ int main( void ) {
    check_fwd( "cop apex, south parallels", AST__COP, "PV2_1=-45,PV2_2=5",
               30.0, -90.0, 0.0, -57.077751773966277, 0.0 );
 
+/* MER close to the pole, where y = ln(tan(45 + theta/2)) magnifies any
+   error in theta: wcslib's D2R must be (PI/180.0), so that theta*D2R is
+   theta*(pi/180) rather than (theta*pi)/180. */
+   check_fwd( "mer near pole", AST__MER, "", 0.0, 89.999999,
+              0.0, 1063.2311737965763, 0.0 );
+
    if( !failed && astOK ) {
       printf( " All WcsMap tests passed\n" );
       return 0;

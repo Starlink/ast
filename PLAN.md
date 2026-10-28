@@ -100,7 +100,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testwcsmap — WcsMap projections at the points where AST's wcslib fork has
   differed from upstream wcslib 8.10: QSC near a face centre, HPX poles, facet
   edges and non-default H and K, the ZPN far side for a degree-2 polynomial,
-  PCO near the equator, and COP at the poles. Wanted values are upstream's output for the same projection and
+  PCO near the equator, COP at the poles, and MER near the pole (the D2R
+  macro's parentheses). Wanted values are upstream's output for the same projection and
   parameters.
 
 **Optional manual stress test:**
