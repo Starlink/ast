@@ -81,7 +81,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 
 **New C-only regression tests (no Fortran original):**
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
-  argument must return AST__BAD outputs rather than NaN.
+  argument must return AST__BAD outputs rather than NaN; FK45Z and FK54Z agree
+  with ERFA's eraFk45z and eraFk54z, including FK54Z away from B1950.
 - testimmutable — every Mapping class with a publicly settable attribute must
   allow the change while its reference count is one and report AST__IMMUT once
   it has been cloned, as SUN/210 requires, for both setting and clearing. Also

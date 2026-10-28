@@ -457,7 +457,10 @@ ERFA_FILES = \
     erfa/fasa03.c \
     erfa/faur03.c \
     erfa/fave03.c \
+    erfa/fk45z.c \
+    erfa/fk524.c \
     erfa/fk52h.c \
+    erfa/fk54z.c \
     erfa/fk5hip.c \
     erfa/fk5hz.c \
     erfa/fw2m.c \

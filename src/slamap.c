@@ -123,6 +123,13 @@ f     - AST_SLAADD: Add a celestial coordinate conversion to an SlaMap
 *        Transform now returns AST__BAD for every point of a conversion
 *        that has an undefined (AST__BAD) argument, instead of propagating
 *        NaN values from the underlying PAL routines.
+*     27-OCT-2026 (TIMJ):
+*        Call ERFA's eraFk45z and eraFk54z for the FK45Z and FK54Z
+*        conversions, in place of PAL's palFk45z and palFk54z.  eraFk54z
+*        applies the fictitious FK4 proper motion by stepping the unit
+*        vector, as SLALIB's sla_FK54Z did through sla_PM, where PAL
+*        stepped RA and Dec linearly; results change away from B1950 for
+*        points the motion carries close to a pole.
 
 *class--
 */
@@ -183,6 +190,7 @@ f     - AST_SLAADD: Add a celestial coordinate conversion to an SlaMap
 /* Interface definitions. */
 /* ---------------------- */
 #include "pal.h"              /* SLALIB interface */
+#include "erfa.h"             /* ERFA functions */
 
 #include "globals.h"             /* Thread-safe global data access */
 #include "error.h"               /* Error reporting facilities */
@@ -3768,7 +3776,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Apply the conversion to each point. */
 	    case AST__SLA_FK45Z:
                if ( forward ) {
-                  TRAN_ARRAY(palFk45z( alpha[ point ], delta[ point ],
+                  TRAN_ARRAY(eraFk45z( alpha[ point ], delta[ point ],
                                        args[ 0 ],
                                        alpha + point, delta + point );)
 
@@ -3777,7 +3785,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 	       } else {
                   double dr1950;
                   double dd1950;
-                  TRAN_ARRAY(palFk54z( alpha[ point ], delta[ point ],
+                  TRAN_ARRAY(eraFk54z( alpha[ point ], delta[ point ],
                                        args[ 0 ],
                                        alpha + point, delta + point,
                                        &dr1950, &dd1950 );)
@@ -3792,12 +3800,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                if ( forward ) {
                   double dr1950;
                   double dd1950;
-                  TRAN_ARRAY(palFk54z( alpha[ point ], delta[ point ],
+                  TRAN_ARRAY(eraFk54z( alpha[ point ], delta[ point ],
                                        args[ 0 ],
                                        alpha + point, delta + point,
                                        &dr1950, &dd1950 );)
 	       } else {
-                  TRAN_ARRAY(palFk45z( alpha[ point ], delta[ point ],
+                  TRAN_ARRAY(eraFk45z( alpha[ point ], delta[ point ],
                                        args[ 0 ],
                                        alpha + point, delta + point );)
                }

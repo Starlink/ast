@@ -70,6 +70,9 @@
 #define eraEpj	   astEraEpj
 #define eraEpj2jd  astEraEpj2jd
 #define eraEpv00   astEraEpv00
+#define eraFk45z   astEraFk45z
+#define eraFk524   astEraFk524
+#define eraFk54z   astEraFk54z
 #define eraFk5hz   astEraFk5hz
 #define eraGd2gc   astEraGd2gc
 #define eraGmst06  astEraGmst06
