@@ -63,6 +63,8 @@
 *        been conditioned differently to the WCSLIB code in order to improve
 *        accuracy of the floor function for arguments very slightly below an
 *        integer value.
+*     -  astHPXrev: Take y within 1e-12 degrees of the pole's as the pole,
+*        not only y exactly at it.
 
 *=============================================================================
 *
@@ -4291,7 +4293,7 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
 
 {
    double absy, sigma, t, yr, xc;
-   int hodd;
+   int hodd, pole;
 
    if (prj->flag != WCS__HPX) {
       if (astHPXset(prj)) return 1;
@@ -4313,7 +4315,7 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
 /* Polar zone */
 /* The polar zone extends to (K+1)/2 facets of 180/H degrees (upstream
    wcslib 4.7). */
-   } else if( absy <= prj->w[4]*prj->w[6] ){
+   } else if( absy <= prj->w[4]*prj->w[6] + 1.0e-12 ){
 
 
 /* DSB - The expression for xc is conditioned differently to the
@@ -4333,8 +4335,15 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
    on the sphere: upstream wcslib (4.3) divides by 1e-9 in place of sigma
    there, so x within 1e-9 of a facet half-width of xc is accepted.  A
    point is on the facet if (x - xc)/sigma is less than a facet half-width,
-   with a margin of 1e-12 degrees for rounding (upstream 4.7 and 4.20). */
-      if( sigma == 0.0 ) {
+   with a margin of 1e-12 degrees for rounding (upstream 4.7 and 4.20).
+
+   Upstream takes only sigma == 0 as the pole.  Here y within 1e-12
+   degrees of the pole's, on either side, is the pole, since converting
+   x and y to radians and back, as a WcsMap does, moves the pole's y by a
+   few ULP for some H and K, and dividing by the resulting sigma of about
+   1e-16 rejects it. */
+      pole = fabs( sigma )*prj->w[6] <= 1.0e-12;
+      if( pole ) {
          t = ( x - xc )*1.0e9;
       } else {
          t = ( x - xc )/sigma;
@@ -4345,7 +4354,7 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
          return 2;
       }
 
-      if( sigma == 0.0 ) {
+      if( pole ) {
          *theta = 90.0;
       } else {
          t = 1.0 - sigma*sigma/prj->p[2];

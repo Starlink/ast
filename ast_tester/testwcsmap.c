@@ -158,6 +158,44 @@ static void check_round_trip( const char *label, int type, const char *pv,
    astEnd;
 }
 
+/* Forward then reverse at a pole, as check_round_trip.  The longitude of a
+   pole is arbitrary, so only theta is compared; phi must not be bad. */
+static void check_pole_round_trip( const char *label, int type,
+                                   const char *pv, double phi_deg,
+                                   double theta_deg, double tol ) {
+   AstWcsMap *map;
+   double ain, bin, x, y, aout, bout;
+
+   astBegin;
+   map = astWcsMap( 2, type, 1, 2, "%s", pv );
+   if( !astOK ) {
+      astClearStatus;
+      fail( "testwcsmap: could not create the WcsMap" );
+      printf( "   (case: %s)\n", label );
+      astEnd;
+      return;
+   }
+
+   ain = phi_deg*AST__DD2R;
+   bin = theta_deg*AST__DD2R;
+   astTran2( map, 1, &ain, &bin, 1, &x, &y );
+   astTran2( map, 1, &x, &y, 0, &aout, &bout );
+   if( !astOK ) {
+      astClearStatus;
+      fail( "testwcsmap: round trip failed" );
+      printf( "   (case: %s)\n", label );
+   } else if( x == AST__BAD || y == AST__BAD ) {
+      fail( "testwcsmap: round trip: the forward projection was bad" );
+      printf( "   (case: %s)\n", label );
+   } else if( aout == AST__BAD ) {
+      fail( "testwcsmap: round trip: phi at the pole is bad" );
+      printf( "   (case: %s)\n", label );
+   } else {
+      check_value( label, "theta", bout, theta_deg, tol );
+   }
+   astEnd;
+}
+
 int main( void ) {
    astWatch( &status );
 
@@ -213,6 +251,18 @@ int main( void ) {
               135.0, -90.0, 1.0E-10 );
    check_rev( "hpx pole phi=90 reverse", AST__HPX, "", 135.0, -90.0,
               135.0, -90.0, 1.0E-10 );
+
+/* HPX pole through a WcsMap, which converts x and y to radians and back:
+   for these H and K that leaves y a few ULP from the pole's, so sigma is
+   about 1e-16 rather than 0, or y is just beyond the polar zone. */
+   check_pole_round_trip( "hpx H=3 K=3 north pole", AST__HPX,
+                          "PV2_1=3,PV2_2=3", 60.0, 90.0, 1.0E-10 );
+   check_pole_round_trip( "hpx H=3 K=1 south pole", AST__HPX,
+                          "PV2_1=3,PV2_2=1", -120.0, -90.0, 1.0E-10 );
+   check_pole_round_trip( "hpx H=3 K=6 north pole", AST__HPX,
+                          "PV2_1=3,PV2_2=6", 0.0, 90.0, 1.0E-10 );
+   check_pole_round_trip( "hpx H=6 K=1 north pole", AST__HPX,
+                          "PV2_1=6,PV2_2=1", 30.0, 90.0, 1.0E-10 );
 
 /* HPX polar zone at native longitude +180, which palDrange leaves at +180:
    the facet arithmetic puts it beyond x = 180, and wcslib (8.10) folds it

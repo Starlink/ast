@@ -45,6 +45,9 @@ Main Changes in this Version
   and sets it to the edge. Previously such points, which arise from rounding
   on the -180 degree meridian of projections such as PAR, MOL and PCO and at
   the antipode of zenithal projections such as ARC, were returned as bad.
+  Likewise the HPX reverse projection takes a point within 1e-12 degrees of
+  the pole as the pole, which previously returned bad for some values of H
+  and K.
 
 - The ERFA library included in AST has been updated to version 2.0.1
   (SOFA 20231011).
