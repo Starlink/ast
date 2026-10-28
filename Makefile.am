@@ -355,23 +355,15 @@ STAR_PAL_FILES = \
     pal/palAmpqk.c \
     pal/palCaldj.c \
     pal/palDat.c \
-    pal/palDe2h.c \
     pal/palDeuler.c \
-    pal/palDh2e.c \
     pal/palDjcal.c \
     pal/palDmat.c \
     pal/palDrange.c \
-    pal/palDs2tp.c \
-    pal/palDtp2s.c \
-    pal/palDtps2c.c \
     pal/palDtt.c \
     pal/palEcmat.c \
     pal/palEqgal.c \
     pal/palEtrms.c \
     pal/palEvp.c \
-    pal/palFk45z.c \
-    pal/palFk524.c \
-    pal/palFk54z.c \
     pal/palGaleq.c \
     pal/palGalsup.c \
     pal/palMappa.c \
