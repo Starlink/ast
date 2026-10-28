@@ -67,7 +67,8 @@ static void check_value( const char *label, const char *which, double got,
    non-zero, and check both outputs. */
 static void check_tran( const char *label, int type, const char *pv,
                         int forward, double a_deg, double b_deg,
-                        double a_want, double b_want, double tol,
+                        double a_want, double b_want, double a_tol,
+                        double b_tol,
                         const char *a_name, const char *b_name ) {
    AstWcsMap *map;
    double ain, bin, aout, bout;
@@ -90,8 +91,8 @@ static void check_tran( const char *label, int type, const char *pv,
       fail( "testwcsmap: astTran2 failed" );
       printf( "   (case: %s)\n", label );
    } else {
-      check_value( label, a_name, aout, a_want, tol );
-      check_value( label, b_name, bout, b_want, tol );
+      check_value( label, a_name, aout, a_want, a_tol );
+      check_value( label, b_name, bout, b_want, b_tol );
    }
    astEnd;
 }
@@ -101,7 +102,15 @@ static void check_fwd( const char *label, int type, const char *pv,
                        double phi_deg, double theta_deg, double x_want,
                        double y_want, double tol ) {
    check_tran( label, type, pv, 1, phi_deg, theta_deg, x_want, y_want, tol,
-               "x", "y" );
+               tol, "x", "y" );
+}
+
+/* As check_fwd, with separate tolerances on x and y. */
+static void check_fwd_xy( const char *label, int type, const char *pv,
+                          double phi_deg, double theta_deg, double x_want,
+                          double x_tol, double y_want, double y_tol ) {
+   check_tran( label, type, pv, 1, phi_deg, theta_deg, x_want, y_want, x_tol,
+               y_tol, "x", "y" );
 }
 
 /* Projection plane (x, y) to native spherical (phi, theta). */
@@ -109,7 +118,7 @@ static void check_rev( const char *label, int type, const char *pv,
                        double x_deg, double y_deg, double phi_want,
                        double theta_want, double tol ) {
    check_tran( label, type, pv, 0, x_deg, y_deg, phi_want, theta_want, tol,
-               "phi", "theta" );
+               tol, "phi", "theta" );
 }
 
 /* Forward then reverse, passing the forward's radians straight back, and
@@ -245,19 +254,23 @@ int main( void ) {
               "PV2_1=60,PV2_2=0", -180.0, -90.0, AST__BAD, AST__BAD, 0.0 );
    check_fwd( "cop opposite pole, south parallels", AST__COP,
               "PV2_1=-45,PV2_2=5", 0.0, 90.0, AST__BAD, AST__BAD, 0.0 );
-   check_fwd( "cop apex, north parallels", AST__COP, "PV2_1=60,PV2_2=0",
-              37.0, 90.0, 0.0, 33.079733725307534, 0.0 );
+/* At the apex r is exactly zero, so x is exactly zero on any platform;
+   y = Y0 depends on libm and is given a margin of a few hundred ULP. */
+   check_fwd_xy( "cop apex, north parallels", AST__COP, "PV2_1=60,PV2_2=0",
+                 37.0, 90.0, 0.0, 0.0, 33.079733725307534, 1.0E-12 );
    check_rev( "cop apex, north parallels, reverse", AST__COP,
               "PV2_1=60,PV2_2=0", 0.0, 33.079733725307534, 0.0, 90.0,
               1.0E-12 );
-   check_fwd( "cop apex, south parallels", AST__COP, "PV2_1=-45,PV2_2=5",
-              30.0, -90.0, 0.0, -57.077751773966277, 0.0 );
+   check_fwd_xy( "cop apex, south parallels", AST__COP, "PV2_1=-45,PV2_2=5",
+                 30.0, -90.0, 0.0, 0.0, -57.077751773966277, 1.0E-12 );
 
 /* MER close to the pole, where y = ln(tan(45 + theta/2)) magnifies any
    error in theta: wcslib's D2R must be (PI/180.0), so that theta*D2R is
-   theta*(pi/180) rather than (theta*pi)/180. */
+   theta*(pi/180) rather than (theta*pi)/180.  Without the parentheses y is
+   1.5e-6 larger; the tolerance allows for libm differences between
+   platforms. */
    check_fwd( "mer near pole", AST__MER, "", 0.0, 89.999999,
-              0.0, 1063.2311737965763, 0.0 );
+              0.0, 1063.2311737965763, 1.0E-9 );
 
 /* Native coordinates a little past a limit.  wcslib sets a longitude or
    latitude within a per-projection tolerance of a limit to the limit, and
