@@ -30,6 +30,33 @@ Main Changes in this Version
   blank string, and a SkyFrame axis reports its Unit value unchanged.
   Code that recorded the old NormUnit values will see different results.
 
+- Fixes from upstream wcslib (up to version 8.10) have been applied to the
+  projection code used by WcsMap: QSC near the centre of face 4, HPX with
+  non-default H or K, at the poles and on facet edges, ZPN far-side points
+  for a quadratic polynomial, PCO within 1e-4 degrees of the equator, and
+  COP at the poles. The D2R and R2D constants are now parenthesised, which
+  changes the last bit of many projected values; close to a pole the
+  difference can be magnified (about 1.5e-6 degrees for MER one micro-degree
+  from the pole).
+
+- A WcsMap now accepts a native longitude or latitude that a reverse
+  projection returns slightly beyond the edge of the valid range, by up to
+  the tolerance used by wcslib for that projection (1e-13 to 1e-11 degrees),
+  and sets it to the edge. Previously such points, which arise from rounding
+  on the -180 degree meridian of projections such as PAR, MOL and PCO and at
+  the antipode of zenithal projections such as ARC, were returned as bad.
+
+- The ERFA library included in AST has been updated to version 2.0.1
+  (SOFA 20231011).
+
+- Conversions from FK5 to FK4 at a Besselian epoch other than B1950 now
+  apply the fictitious FK4 proper motion as the original SLALIB routine did,
+  by way of ERFA's eraFk54z, rather than linearly in RA and Dec. The results
+  change little except for positions that the fictitious motion (at most
+  5 milli-arcseconds a year) carries close to a celestial pole, where the
+  linear step was wrong by up to the size of the motion itself: 28
+  milli-arcseconds at B1980 and 0.3 arcseconds at B2050.
+
 Bug fixes
 ---------
 
