@@ -4277,6 +4277,9 @@ int astHPXfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
       *y = prj->w[9] * ( prj->w[4] - sigma );
       if( theta < 0 ) *y = -*y;
 
+/* Put the phi = 180 meridian in the expected place (upstream 4.7). */
+      if( 180.0 < *x ) *x = 360.0 - *x;
+
    }
 
    return 0;

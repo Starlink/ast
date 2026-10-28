@@ -205,6 +205,22 @@ int main( void ) {
    check_rev( "hpx pole phi=90 reverse", AST__HPX, "", 135.0, -90.0,
               135.0, -90.0, 1.0E-10 );
 
+/* HPX polar zone at native longitude +180, which palDrange leaves at +180:
+   the facet arithmetic puts it beyond x = 180, and wcslib (8.10) folds it
+   back to 360 - x so that it lands on the facet it belongs to. */
+   check_fwd( "hpx phi=+180 north pole", AST__HPX, "", 180.0, 90.0,
+              135.0, 90.0, 1.0E-10 );
+   check_fwd( "hpx phi=+180 north", AST__HPX, "", 180.0, 60.0,
+              163.52885682970026, 61.471143170299726, 1.0E-10 );
+   check_fwd( "hpx phi=+180 south", AST__HPX, "", 180.0, -60.0,
+              163.52885682970026, -61.471143170299726, 1.0E-10 );
+   check_fwd( "hpx phi=+180 south pole", AST__HPX, "", 180.0, -90.0,
+              135.0, -90.0, 1.0E-10 );
+   check_fwd( "hpx H=3 K=3 phi=+180", AST__HPX, "PV2_1=3,PV2_2=3", 180.0,
+              60.0, 158.03847577293368, 81.961524227066306, 1.0E-10 );
+   check_fwd( "hpx H=4 K=4 phi=+180", AST__HPX, "PV2_1=4,PV2_2=4", 180.0,
+              -60.0, 180.0, -79.55771365940052, 1.0E-10 );
+
 /* ZPN with a degree-2 polynomial: beyond the turning point of r(theta)
    the projection folds back on itself, and the point is on the far side.
    wcslib 8.10 reports it as bad at every degree. */
