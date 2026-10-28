@@ -70,6 +70,11 @@ Bug fixes
 - Allocation failures while normalising a units string are now reported as
   errors rather than crashing the library.
 
+- astSpecAdd no longer reads one element past the end of the supplied
+  argument array for the conversions to and from heliocentric frequency
+  (USF2HL, TPF2HL, GEF2HL, BYF2HL, LKF2HL, LDF2HL, LGF2HL, GLF2HL and their
+  inverses).
+
 Build system changes
 --------------------
 

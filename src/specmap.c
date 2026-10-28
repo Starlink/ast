@@ -117,6 +117,11 @@ f     - AST_SPECADD: Add a spectral coordinate conversion to an SpecMap
 *        In TopoVel, convert the observer velocity from palPvobs back to
 *        km/s with ERFA_DAU, the AU palPvobs itself uses (the IAU 2012
 *        value since ERFA 2.0), so the topocentric correction is unchanged.
+*     27-OCT-2026 (TIMJ):
+*        In AddSpecCvt, copy only the user-supplied arguments. It copied
+*        the whole argument array, which for the conversions to and from
+*        heliocentric frequency has one more element than the caller
+*        supplies, so it read past the end of the caller's array.
 
 *class--
 */
@@ -695,11 +700,14 @@ static void AddSpecCvt( AstSpecMap *this, int cvttype, int narg,
       this->cvtargs = (double **) astGrow( this->cvtargs, ncvt + 1,
                                            sizeof( double * ) );
 
-/* If OK, allocate memory and store a copy of the argument list,
-   putting a pointer to the copy into the SpecMap. */
+/* If OK, allocate memory for the argument array, putting a pointer to it
+   into the SpecMap, and copy the user-supplied arguments into it. The
+   array may be longer than the supplied arguments. */
       if ( astOK ) {
-         this->cvtargs[ ncvt ] = astStore( NULL, args,
-                                           sizeof( double ) * (size_t) szargs );
+         this->cvtargs[ ncvt ] = astMalloc( sizeof( double ) * (size_t) szargs );
+      }
+      if ( astOK ) {
+         for( i = 0; i < nargs; i++ ) this->cvtargs[ ncvt ][ i ] = args[ i ];
       }
 
 /* Store the conversion type and increment the conversion count. Also put

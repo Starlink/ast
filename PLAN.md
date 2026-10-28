@@ -83,6 +83,9 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
   argument must return AST__BAD outputs rather than NaN; FK45Z and FK54Z agree
   with ERFA's eraFk45z and eraFk54z, including FK54Z away from B1950.
+- testspecmap — astSpecAdd reads only the arguments the caller supplies:
+  TPF2HL's six documented arguments in a six-element array, which
+  AddressSanitizer checks.
 - testimmutable — every Mapping class with a publicly settable attribute must
   allow the change while its reference count is one and report AST__IMMUT once
   it has been cloned, as SUN/210 requires, for both setting and clearing. Also
