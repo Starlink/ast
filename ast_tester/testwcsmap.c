@@ -116,6 +116,46 @@ int main( void ) {
               270.00573448754045, 0.0047579971900078627, -89.995, 0.004,
               1.0E-9 );
 
+/* HPX polar zone with an odd H: the facet centre was computed with
+   floor(... + 1/2), an integer division that added nothing. */
+   check_fwd( "hpx H=3 K=3 south pole", AST__HPX, "PV2_1=3,PV2_2=3",
+              -180.0, -90.0, -120.0, -120.0, 1.0E-10 );
+   check_fwd( "hpx H=4 K=4 south pole", AST__HPX, "PV2_1=4,PV2_2=4",
+              -131.9, -90.0, -90.0, -112.5, 1.0E-10 );
+
+/* HPX reverse: the polar zone extends to (K+1)/2 facets of 180/H degrees,
+   not to a fixed 90 degrees, which is only right for H = 4. */
+   check_rev( "hpx H=3 K=3 polar zone", AST__HPX, "PV2_1=3,PV2_2=3",
+              -0.4, -119.5, -48.000000000000171, -89.610150847356522,
+              1.0E-9 );
+
+/* HPX reverse: a point on a facet edge, where (x - x_c)/sigma reaches
+   180/H only up to rounding. */
+   check_fwd( "hpx facet edge", AST__HPX, "", 90.0, -89.26,
+              134.28818979161747, -89.288189791617469, 1.0E-10 );
+   check_rev( "hpx facet edge reverse", AST__HPX, "",
+              134.28818979161747, -89.288189791617469, 90.0, -89.26,
+              1.0E-9 );
+
+/* HPX at the pole: the forward projection puts it at the apex of the
+   facet, and the reverse must accept it rather than reject sigma = 0. */
+   check_fwd( "hpx pole phi=-180", AST__HPX, "", -180.0, -90.0,
+              -135.0, -90.0, 1.0E-10 );
+   check_rev( "hpx pole phi=-180 reverse", AST__HPX, "", -135.0, -90.0,
+              -135.0, -90.0, 1.0E-10 );
+   check_fwd( "hpx pole phi=-45", AST__HPX, "", -45.0, -90.0,
+              -45.0, -90.0, 1.0E-10 );
+   check_rev( "hpx pole phi=-45 reverse", AST__HPX, "", -45.0, -90.0,
+              -45.0, -90.0, 1.0E-10 );
+   check_fwd( "hpx pole phi=0", AST__HPX, "", 0.0, -90.0,
+              45.0, -90.0, 1.0E-10 );
+   check_rev( "hpx pole phi=0 reverse", AST__HPX, "", 45.0, -90.0,
+              45.0, -90.0, 1.0E-10 );
+   check_fwd( "hpx pole phi=90", AST__HPX, "", 90.0, -90.0,
+              135.0, -90.0, 1.0E-10 );
+   check_rev( "hpx pole phi=90 reverse", AST__HPX, "", 135.0, -90.0,
+              135.0, -90.0, 1.0E-10 );
+
    if( !failed && astOK ) {
       printf( " All WcsMap tests passed\n" );
       return 0;

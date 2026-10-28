@@ -4249,7 +4249,7 @@ int astHPXfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
       hodd =  ((int)prj->p[1]) % 2;
       if( !prj->n && theta <= 0.0 ) hodd = 1 - hodd;
       if( hodd ) {
-         phic = -180.0 + (2.0*floor( prj->w[7] * phi + 1/2 ) + prj->p[1] ) * prj->w[6];
+         phic = -180.0 + (2.0*floor( prj->w[7] * phi + 0.5 ) + prj->p[1] ) * prj->w[6];
       } else {
          phic = -180.0 + (2.0*floor( prj->w[7] * phi ) +  prj->p[1] + 1 ) * prj->w[6];
       }
@@ -4292,7 +4292,9 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
       }
 
 /* Polar zone */
-   } else if( absy <= 90 ){
+/* The polar zone extends to (K+1)/2 facets of 180/H degrees (upstream
+   wcslib 4.7). */
+   } else if( absy <= prj->w[4]*prj->w[6] ){
 
 
 /* DSB - The expression for xc is conditioned differently to the
@@ -4301,32 +4303,40 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
       hodd =  ((int)prj->p[1]) % 2;
       if( !prj->n && yr <= 0.0 ) hodd = 1 - hodd;
       if( hodd ) {
-         xc = -180.0 + (2.0*floor( prj->w[7] * x + 1/2 ) + prj->p[1] ) * prj->w[6];
+         xc = -180.0 + (2.0*floor( prj->w[7] * x + 0.5 ) + prj->p[1] ) * prj->w[6];
       } else {
          xc = -180.0 + (2.0*floor( prj->w[7] * x ) +  prj->p[1] + 1 ) * prj->w[6];
       }
 
       sigma = prj->w[4] - absy / prj->w[6];
 
+/* At the pole sigma is zero and only the apex of the facet, x = xc, is
+   on the sphere: upstream wcslib (4.3) divides by 1e-9 in place of sigma
+   there, so x within 1e-9 of a facet half-width of xc is accepted.  A
+   point is on the facet if (x - xc)/sigma is less than a facet half-width,
+   with a margin of 1e-12 degrees for rounding (upstream 4.7 and 4.20). */
       if( sigma == 0.0 ) {
-         return 2;
+         t = ( x - xc )*1.0e9;
       } else {
-
          t = ( x - xc )/sigma;
-         if( fabs( t ) <= prj->w[6] ) {
-            *phi = prj->w[1] *( xc + t );
-         } else {
+      }
+      if( fabs( t ) < prj->w[6] + 1.0e-12 ) {
+         *phi = prj->w[1] *( xc + t );
+      } else {
+         return 2;
+      }
+
+      if( sigma == 0.0 ) {
+         *theta = 90.0;
+      } else {
+         t = 1.0 - sigma*sigma/prj->p[2];
+         if( t < -1.0 || t > 1.0 ) {
             return 2;
+         } else {
+            *theta = astASind( t );
          }
       }
-
-      t = 1.0 - sigma*sigma/prj->p[2];
-      if( t < -1.0 || t > 1.0 ) {
-         return 2;
-      } else {
-         *theta = astASind( t );
-         if( y < 0 ) *theta = -*theta;
-      }
+      if( y < 0 ) *theta = -*theta;
 
    } else {
       return 2;
