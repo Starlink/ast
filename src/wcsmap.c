@@ -243,6 +243,13 @@ f     The WcsMap class does not define any new routines beyond those
 *        any stored, so a WcsMap with projection parameters equalled one
 *        without, and compared the lengths of the stored arrays, so a
 *        parameter set and then cleared made two WcsMaps differ.
+*     27-OCT-2026 (TIMJ):
+*        In function Map, accept native coordinates past a limit by up to
+*        wcslib's tolerance for the projection (1e-13 to 1e-11 degrees),
+*        setting them to the limit, in place of the one-ULP allowance.
+*        Rounding left 8-22% of the reverse projections of points on the
+*        -180 meridian of PAR, MOL and PCO, and points just past the
+*        antipode of ARC, rejected where wcslib accepts them.
 *class--
 */
 
@@ -679,6 +686,7 @@ typedef struct PrjData {
    int (* WcsRev)(double, double, struct AstPrjPrm *, double *, double *);
                                 /* Pointer to reverse projection function */
    double theta0;               /* Default native latitude of fiducial point */
+   double tol;                  /* Tolerance on native coords at a limit (deg) */
 } PrjData;
 
 /* Module Variables. */
@@ -701,38 +709,38 @@ static int *(* parent_mapsplit)( AstMapping *, int, const int *, AstMapping **, 
    projections. The last entry in the list should be for the AST__WCSBAD
    projection. This marks the end of the list. */
 static PrjData PrjInfo[] = {
-   { AST__AZP,  2, 4, "zenithal perspective", "-AZP", astAZPfwd, astAZPrev, AST__DPIBY2 },
-   { AST__SZP,  3, 4, "slant zenithal perspective", "-SZP", astSZPfwd, astSZPrev, AST__DPIBY2 },
-   { AST__TAN,  0, 4, "gnomonic", "-TAN",  astTANfwd, astTANrev, AST__DPIBY2 },
-   { AST__STG,  0, 4, "stereographic", "-STG",  astSTGfwd, astSTGrev, AST__DPIBY2 },
-   { AST__SIN,  2, 4, "orthographic", "-SIN",  astSINfwd, astSINrev, AST__DPIBY2 },
-   { AST__ARC,  0, 4, "zenithal equidistant", "-ARC",  astARCfwd, astARCrev, AST__DPIBY2 },
-   { AST__ZPN,  WCSLIB_MXPAR, 4, "zenithal polynomial", "-ZPN",  astZPNfwd, astZPNrev, AST__DPIBY2 },
-   { AST__ZEA,  0, 4, "zenithal equal area", "-ZEA",  astZEAfwd, astZEArev, AST__DPIBY2 },
-   { AST__AIR,  1, 4, "Airy", "-AIR",  astAIRfwd, astAIRrev, AST__DPIBY2 },
-   { AST__CYP,  2, 4, "cylindrical perspective", "-CYP",  astCYPfwd, astCYPrev, 0.0 },
-   { AST__CEA,  1, 4, "cylindrical equal area", "-CEA",  astCEAfwd, astCEArev, 0.0 },
-   { AST__CAR,  0, 4, "Cartesian", "-CAR",  astCARfwd, astCARrev, 0.0 },
-   { AST__MER,  0, 4, "Mercator", "-MER",  astMERfwd, astMERrev, 0.0 },
-   { AST__SFL,  0, 4, "Sanson-Flamsteed", "-SFL",  astSFLfwd, astSFLrev, 0.0 },
-   { AST__PAR,  0, 4, "parabolic", "-PAR",  astPARfwd, astPARrev, 0.0 },
-   { AST__MOL,  0, 4, "Mollweide", "-MOL",  astMOLfwd, astMOLrev, 0.0 },
-   { AST__AIT,  0, 4, "Hammer-Aitoff", "-AIT",  astAITfwd, astAITrev, 0.0 },
-   { AST__COP,  2, 4, "conical perspective", "-COP",  astCOPfwd, astCOPrev, AST__BAD },
-   { AST__COE,  2, 4, "conical equal area", "-COE",  astCOEfwd, astCOErev, AST__BAD },
-   { AST__COD,  2, 4, "conical equidistant", "-COD",  astCODfwd, astCODrev, AST__BAD },
-   { AST__COO,  2, 4, "conical orthomorphic", "-COO",  astCOOfwd, astCOOrev, AST__BAD },
-   { AST__BON,  1, 4, "Bonne's equal area", "-BON",  astBONfwd, astBONrev, 0.0 },
-   { AST__PCO,  0, 4, "polyconic", "-PCO",  astPCOfwd, astPCOrev, 0.0 },
-   { AST__TSC,  0, 4, "tangential spherical cube", "-TSC",  astTSCfwd, astTSCrev, 0.0 },
-   { AST__CSC,  0, 4, "cobe quadrilateralized spherical cube", "-CSC", astCSCfwd, astCSCrev, 0.0 },
-   { AST__QSC,  0, 4, "quadrilateralized spherical cube", "-QSC",  astQSCfwd, astQSCrev, 0.0 },
-   { AST__NCP,  2, 4, "AIPS north celestial pole", "-NCP",  NULL,   NULL, 0.0 },
-   { AST__GLS,  0, 4, "sinusoidal", "-GLS",  astSFLfwd, astSFLrev, 0.0 },
-   { AST__HPX,  2, 4, "HEALPix", "-HPX",  astHPXfwd, astHPXrev, 0.0 },
-   { AST__XPH,  0, 4, "polar HEALPix", "-XPH",  astXPHfwd, astXPHrev, AST__DPIBY2 },
-   { AST__TPN,  WCSLIB_MXPAR, WCSLIB_MXPAR, "gnomonic polynomial", "-TPN",  astTPNfwd, astTPNrev, AST__DPIBY2 },
-   { AST__WCSBAD, 0, 4, "<null>",   "    ",  NULL,   NULL, 0.0 } };
+   { AST__AZP,  2, 4, "zenithal perspective", "-AZP", astAZPfwd, astAZPrev, AST__DPIBY2, 1.0E-13 },
+   { AST__SZP,  3, 4, "slant zenithal perspective", "-SZP", astSZPfwd, astSZPrev, AST__DPIBY2, 2.0E-13 },
+   { AST__TAN,  0, 4, "gnomonic", "-TAN",  astTANfwd, astTANrev, AST__DPIBY2, 1.0E-13 },
+   { AST__STG,  0, 4, "stereographic", "-STG",  astSTGfwd, astSTGrev, AST__DPIBY2, 1.0E-13 },
+   { AST__SIN,  2, 4, "orthographic", "-SIN",  astSINfwd, astSINrev, AST__DPIBY2, 1.0E-13 },
+   { AST__ARC,  0, 4, "zenithal equidistant", "-ARC",  astARCfwd, astARCrev, AST__DPIBY2, 1.0E-13 },
+   { AST__ZPN,  WCSLIB_MXPAR, 4, "zenithal polynomial", "-ZPN",  astZPNfwd, astZPNrev, AST__DPIBY2, 1.0E-13 },
+   { AST__ZEA,  0, 4, "zenithal equal area", "-ZEA",  astZEAfwd, astZEArev, AST__DPIBY2, 1.0E-13 },
+   { AST__AIR,  1, 4, "Airy", "-AIR",  astAIRfwd, astAIRrev, AST__DPIBY2, 1.0E-13 },
+   { AST__CYP,  2, 4, "cylindrical perspective", "-CYP",  astCYPfwd, astCYPrev, 0.0, 1.0E-13 },
+   { AST__CEA,  1, 4, "cylindrical equal area", "-CEA",  astCEAfwd, astCEArev, 0.0, 1.0E-13 },
+   { AST__CAR,  0, 4, "Cartesian", "-CAR",  astCARfwd, astCARrev, 0.0, 1.0E-13 },
+   { AST__MER,  0, 4, "Mercator", "-MER",  astMERfwd, astMERrev, 0.0, 1.0E-13 },
+   { AST__SFL,  0, 4, "Sanson-Flamsteed", "-SFL",  astSFLfwd, astSFLrev, 0.0, 1.0E-12 },
+   { AST__PAR,  0, 4, "parabolic", "-PAR",  astPARfwd, astPARrev, 0.0, 1.0E-12 },
+   { AST__MOL,  0, 4, "Mollweide", "-MOL",  astMOLfwd, astMOLrev, 0.0, 1.0E-11 },
+   { AST__AIT,  0, 4, "Hammer-Aitoff", "-AIT",  astAITfwd, astAITrev, 0.0, 1.0E-13 },
+   { AST__COP,  2, 4, "conical perspective", "-COP",  astCOPfwd, astCOPrev, AST__BAD, 1.0E-13 },
+   { AST__COE,  2, 4, "conical equal area", "-COE",  astCOEfwd, astCOErev, AST__BAD, 1.0E-13 },
+   { AST__COD,  2, 4, "conical equidistant", "-COD",  astCODfwd, astCODrev, AST__BAD, 1.0E-13 },
+   { AST__COO,  2, 4, "conical orthomorphic", "-COO",  astCOOfwd, astCOOrev, AST__BAD, 1.0E-13 },
+   { AST__BON,  1, 4, "Bonne's equal area", "-BON",  astBONfwd, astBONrev, 0.0, 1.0E-11 },
+   { AST__PCO,  0, 4, "polyconic", "-PCO",  astPCOfwd, astPCOrev, 0.0, 1.0E-12 },
+   { AST__TSC,  0, 4, "tangential spherical cube", "-TSC",  astTSCfwd, astTSCrev, 0.0, 1.0E-13 },
+   { AST__CSC,  0, 4, "cobe quadrilateralized spherical cube", "-CSC", astCSCfwd, astCSCrev, 0.0, 1.0E-13 },
+   { AST__QSC,  0, 4, "quadrilateralized spherical cube", "-QSC",  astQSCfwd, astQSCrev, 0.0, 1.0E-13 },
+   { AST__NCP,  2, 4, "AIPS north celestial pole", "-NCP",  NULL,   NULL, 0.0, 0.0 },
+   { AST__GLS,  0, 4, "sinusoidal", "-GLS",  astSFLfwd, astSFLrev, 0.0, 1.0E-12 },
+   { AST__HPX,  2, 4, "HEALPix", "-HPX",  astHPXfwd, astHPXrev, 0.0, 1.0E-12 },
+   { AST__XPH,  0, 4, "polar HEALPix", "-XPH",  astXPHfwd, astXPHrev, AST__DPIBY2, 1.0E-12 },
+   { AST__TPN,  WCSLIB_MXPAR, WCSLIB_MXPAR, "gnomonic polynomial", "-TPN",  astTPNfwd, astTPNrev, AST__DPIBY2, 1.0E-13 },
+   { AST__WCSBAD, 0, 4, "<null>",   "    ",  NULL,   NULL, 0.0, 0.0 } };
 
 /* Define macros for accessing each item of thread specific global data. */
 #ifdef THREAD_SAFE
@@ -2891,41 +2899,33 @@ static int Map( AstWcsMap *this, int forward, int npoint, double *in0,
             if( wcs_status == 0 ){
                abslat = fabs( latitude );
 
-/* Absorb a one-ULP rounding error at a limit of the accepted range.  For
-   instance, a WinMap used by a FITS CAR mapping may evaluate the expression
-
-      -0.5 degree + 181*0.5 degree
-
-   as exactly 90 degrees when the compiler emits a fused multiply-add, but
-   as 90.00000000000001 degrees in older compiler modes that do not enable
-   FMA.  Thus arm64 and x86-64-v3 builds can accept the header while a
-   baseline x86-64 build rejects it.  The latter value is one representable
-   double above 90 and describes the same valid pole, rather than a point
-   outside the projection.  Clamp such values so that the validity of a WCS
-   does not depend on the compiler's contraction or target architecture.  Do
-   not admit the next representable value, which differs by more than
-   90*DBL_EPSILON.
+/* A longitude or latitude a little past a limit of the accepted range is
+   set to the limit, and one further past is rejected below.  This is
+   wcslib's rule (prjbchk): rounding in a reverse projection can land a
+   point on the boundary, such as the antipode of a zenithal projection or
+   the -180 meridian of a pseudo-cylindrical one, slightly outside it, and
+   how far depends on the projection's arithmetic.  The tolerance is
+   wcslib's for each projection, in degrees.  It also absorbs the one-ULP
+   difference that a fused multiply-add makes, for instance a WinMap used
+   by a FITS CAR mapping that evaluates -0.5 + 181*0.5 degrees as exactly
+   90 when the compiler contracts it and 90.00000000000001 when it does
+   not, so the validity of a WCS does not depend on the target
+   architecture.
 
    Both latitude limits need this, because the accepted latitude range is
    closed and so both -90 and +90 are inside it. */
-               if( abslat > 90.0 &&
-                   abslat - 90.0 <= 90.0*DBL_EPSILON ) {
+               if( abslat > 90.0 && abslat - 90.0 <= prjdata->tol ) {
                   latitude = latitude < 0.0 ? -90.0 : 90.0;
                   abslat = 90.0;
                }
 
 /* The accepted longitude range is half-open, [longlo,longhi), so only its
-   lower limit needs the same treatment.  Perturbing a longitude strictly
-   below longhi by one ULP leaves it strictly below longhi, so the upper
-   limit does not decide acceptance differently on the two builds; a value
-   at or above longhi is the wrap of longlo and is clipped deliberately, to
-   stop a whole-sky grid mapping two pixels to the same meridian.
-
-   LongRange returns either [-180,180) or [0,360), so the width of the
-   range is the scale at which a longitude computed anywhere within it
-   rounds. */
+   lower limit is treated in the same way.  Unlike wcslib, a value at or
+   above longhi is not set to longhi: it is the wrap of longlo and is
+   clipped deliberately, to stop a whole-sky grid mapping two pixels to the
+   same meridian. */
                if( docheck && !cyclic && longitude < longlo &&
-                   longlo - longitude <= ( longhi - longlo )*DBL_EPSILON ) {
+                   longlo - longitude <= prjdata->tol ) {
                   longitude = longlo;
                }
 

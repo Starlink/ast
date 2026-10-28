@@ -28,10 +28,15 @@ static void fail( const char *text ) {
 }
 
 /* Compare one output (radians, or AST__BAD) with a wanted value (degrees,
-   or AST__BAD to require a bad output). */
+   or AST__BAD to require a bad output).  A zero tolerance asks for the
+   converted value to equal the wanted one.  That is tested with "!=" rather
+   than as a zero difference, because a compiler may fuse got*AST__DR2D - want
+   into one multiply-add, which skips the rounding of the product and leaves
+   a difference of an ULP or less where the rounded value is exact. */
 static void check_value( const char *label, const char *which, double got,
                          double want, double tol ) {
    char text[ 200 ];
+   int bad;
 
    if( want == AST__BAD ) {
       if( got != AST__BAD ) {
@@ -43,11 +48,18 @@ static void check_value( const char *label, const char *which, double got,
       snprintf( text, sizeof text, "testwcsmap: %s: %s is bad, wanted %.17g",
                 label, which, want );
       fail( text );
-   } else if( fabs( got*AST__DR2D - want ) > tol ) {
-      snprintf( text, sizeof text, "testwcsmap: %s: %s is %.17g, wanted "
-                "%.17g (tolerance %g)", label, which, got*AST__DR2D, want,
-                tol );
-      fail( text );
+   } else {
+      if( tol == 0.0 ) {
+         bad = ( got*AST__DR2D != want );
+      } else {
+         bad = ( fabs( got*AST__DR2D - want ) > tol );
+      }
+      if( bad ) {
+         snprintf( text, sizeof text, "testwcsmap: %s: %s is %.17g, wanted "
+                   "%.17g (tolerance %g)", label, which, got*AST__DR2D, want,
+                   tol );
+         fail( text );
+      }
    }
 }
 
@@ -98,6 +110,43 @@ static void check_rev( const char *label, int type, const char *pv,
                        double theta_want, double tol ) {
    check_tran( label, type, pv, 0, x_deg, y_deg, phi_want, theta_want, tol,
                "phi", "theta" );
+}
+
+/* Forward then reverse, passing the forward's radians straight back, and
+   check the reverse's (phi, theta). */
+static void check_round_trip( const char *label, int type, const char *pv,
+                              double phi_deg, double theta_deg,
+                              double phi_want, double theta_want,
+                              double tol ) {
+   AstWcsMap *map;
+   double ain, bin, x, y, aout, bout;
+
+   astBegin;
+   map = astWcsMap( 2, type, 1, 2, "%s", pv );
+   if( !astOK ) {
+      astClearStatus;
+      fail( "testwcsmap: could not create the WcsMap" );
+      printf( "   (case: %s)\n", label );
+      astEnd;
+      return;
+   }
+
+   ain = phi_deg*AST__DD2R;
+   bin = theta_deg*AST__DD2R;
+   astTran2( map, 1, &ain, &bin, 1, &x, &y );
+   astTran2( map, 1, &x, &y, 0, &aout, &bout );
+   if( !astOK ) {
+      astClearStatus;
+      fail( "testwcsmap: round trip failed" );
+      printf( "   (case: %s)\n", label );
+   } else if( x == AST__BAD || y == AST__BAD ) {
+      fail( "testwcsmap: round trip: the forward projection was bad" );
+      printf( "   (case: %s)\n", label );
+   } else {
+      check_value( label, "phi", aout, phi_want, tol );
+      check_value( label, "theta", bout, theta_want, tol );
+   }
+   astEnd;
 }
 
 int main( void ) {
@@ -193,6 +242,29 @@ int main( void ) {
    theta*(pi/180) rather than (theta*pi)/180. */
    check_fwd( "mer near pole", AST__MER, "", 0.0, 89.999999,
               0.0, 1063.2311737965763, 0.0 );
+
+/* Native coordinates a little past a limit.  wcslib sets a longitude or
+   latitude within a per-projection tolerance of a limit to the limit, and
+   rejects one beyond it; the tolerance is 1e-13 degrees for ARC, 1e-12 for
+   PAR and 1e-11 for MOL.  Wanted values are wcslib 8.10's prjx2s results
+   with bounds checking on. */
+
+/* ARC beyond the antipode: r = 180 + 6e-14 gives a latitude 4 ULP below
+   -90, which is the pole; r = 180 + 2e-13 is beyond the tolerance. */
+   check_rev( "arc 4 ulp past the antipode", AST__ARC, "",
+              -180.00000000000006, 0.0, -90.0, -90.0, 0.0 );
+   check_rev( "arc 2e-13 past the antipode", AST__ARC, "",
+              -180.0000000000002, 0.0, AST__BAD, AST__BAD, 0.0 );
+
+/* PAR and MOL at phi = -180: the reverse of the forward lands about
+   9e-14 degrees below -180, three ULP, through rounding alone. */
+   check_round_trip( "par round trip at -180", AST__PAR, "", -180.0, -58.68,
+                     -180.0, -58.68, 1.0E-9 );
+   check_round_trip( "mol round trip at -180", AST__MOL, "", -180.0, -59.76,
+                     -180.0, -59.76, 1.0E-9 );
+   check_rev( "par 5.5e-12 below -180", AST__PAR, "",
+              -99.29743646562997, -60.262885419193012, AST__BAD, AST__BAD,
+              0.0 );
 
    if( !failed && astOK ) {
       printf( " All WcsMap tests passed\n" );
