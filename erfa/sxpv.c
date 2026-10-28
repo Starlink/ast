@@ -16,24 +16,26 @@ void eraSxpv(double s, double pv[2][3], double spv[2][3])
 **     spv     double[2][3]    s * pv
 **
 **  Note:
-**     It is permissible for pv and spv to be the same array
+**     It is permissible for pv and spv to be the same array.
 **
 **  Called:
 **     eraS2xpv     multiply pv-vector by two scalars
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
    eraS2xpv(s, s, pv, spv);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

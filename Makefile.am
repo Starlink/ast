@@ -391,8 +391,9 @@ STAR_PAL_FILES = \
     pal/palmac.h
 
 ERFA_FILES = \
-    erfa/00READ.ME \
     erfa/erfa.h \
+    erfa/erfadatextra.h \
+    erfa/erfaextra.h \
     erfa/erfam.h \
     erfa/a2af.c \
     erfa/a2tf.c \
@@ -441,6 +442,7 @@ ERFA_FILES = \
     erfa/epv00.c \
     erfa/eqeq94.c \
     erfa/era00.c \
+    erfa/erfadatextra.c \
     erfa/fad03.c \
     erfa/fae03.c \
     erfa/faf03.c \

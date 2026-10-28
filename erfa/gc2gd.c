@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraGc2gd ( int n, double xyz[3],
                double *elong, double *phi, double *height )
@@ -51,7 +52,9 @@ int eraGc2gd ( int n, double xyz[3],
 **     eraEform     Earth reference ellipsoids
 **     eraGc2gde    geocentric to geodetic transformation, general
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -78,11 +81,13 @@ int eraGc2gd ( int n, double xyz[3],
 /* Return the status. */
    return j;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

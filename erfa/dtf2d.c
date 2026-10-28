@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 #include <string.h>
 
 int eraDtf2d(const char *scale, int iy, int im, int id,
@@ -75,7 +76,9 @@ int eraDtf2d(const char *scale, int iy, int im, int id,
 **     eraDat       delta(AT) = TAI-UTC
 **     eraJd2cal    JD to Gregorian calendar
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 May 6
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -122,7 +125,7 @@ int eraDtf2d(const char *scale, int iy, int im, int id,
 /* Validate the time. */
    if ( ihr >= 0 && ihr <= 23 ) {
       if ( imn >= 0 && imn <= 59 ) {
-         if ( sec >= 0 ) {
+         if ( sec >= 0.0 ) {
             if ( sec >= seclim ) {
                js += 2;
             }
@@ -147,11 +150,13 @@ int eraDtf2d(const char *scale, int iy, int im, int id,
 /* Status. */
    return js;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

@@ -22,20 +22,22 @@ void eraPvmpv(double a[2][3], double b[2][3], double amb[2][3])
 **  Called:
 **     eraPmp       p-vector minus p-vector
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
    eraPmp(a[0], b[0], amb[0]);
    eraPmp(a[1], b[1], amb[1]);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

@@ -52,7 +52,9 @@ void eraC2teqx(double rbpn[3][3], double gst, double rpom[3][3],
 **     McCarthy, D. D., Petit, G. (eds.), IERS Conventions (2003),
 **     IERS Technical Note No. 32, BKG (2004)
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -64,13 +66,13 @@ void eraC2teqx(double rbpn[3][3], double gst, double rpom[3][3],
    eraRz(gst, r);
    eraRxr(rpom, r, rc2t);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

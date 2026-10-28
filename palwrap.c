@@ -48,6 +48,9 @@
 *  History:
 *     16-FEB-2012 (DSB):
 *        Original version.
+*     27-OCT-2026 (TIMJ):
+*        Include erfadatextra.c, which holds ERFA 2.0's leap-second
+*        table, and the ERFA files for the FK4/FK5 routines SlaMap calls.
 */
 
 /* Include configuration results in order to get any definition for the
@@ -155,6 +158,7 @@
 #include "erfa/epv00.c"
 #include "erfa/eqeq94.c"
 #include "erfa/era00.c"
+#include "erfa/erfadatextra.c"
 #include "erfa/fad03.c"
 #include "erfa/fae03.c"
 #include "erfa/faf03.c"

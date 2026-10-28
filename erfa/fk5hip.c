@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 void eraFk5hip(double r5h[3][3], double s5h[3])
 /*
@@ -15,8 +16,8 @@ void eraFk5hip(double r5h[3][3], double s5h[3])
 **  Notes:
 **
 **  1) This function models the FK5 to Hipparcos transformation as a
-**     pure rotation and spin;  zonal errors in the FK5 catalogue are
-**     not taken into account.
+**     pure rotation and spin;  zonal errors in the FK5 catalog are not
+**     taken into account.
 **
 **  2) The r-matrix r5h operates in the sense:
 **
@@ -34,9 +35,11 @@ void eraFk5hip(double r5h[3][3], double s5h[3])
 **
 **  Reference:
 **
-**     F.Mignard & M.Froeschle, Astron. Astrophys. 354, 732-739 (2000).
+**     F.Mignard & M.Froeschle, Astron.Astrophys., 354, 732-739 (2000).
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 March 6
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -68,13 +71,13 @@ void eraFk5hip(double r5h[3][3], double s5h[3])
    s5h[1] = omy;
    s5h[2] = omz;
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

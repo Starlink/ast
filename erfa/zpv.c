@@ -9,25 +9,27 @@ void eraZpv(double pv[2][3])
 **  Zero a pv-vector.
 **
 **  Returned:
-**     pv       double[2][3]      pv-vector
+**     pv       double[2][3]      zero pv-vector
 **
 **  Called:
 **     eraZp        zero p-vector
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
    eraZp(pv[0]);
    eraZp(pv[1]);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

@@ -12,18 +12,18 @@ void eraAtci13(double rc, double dc,
 **  Transform ICRS star data, epoch J2000.0, to CIRS.
 **
 **  Given:
-**     rc     double   ICRS right ascension at J2000.0 (radians, Note 1)
-**     dc     double   ICRS declination at J2000.0 (radians, Note 1)
-**     pr     double   RA proper motion (radians/year; Note 2)
-**     pd     double   Dec proper motion (radians/year)
-**     px     double   parallax (arcsec)
-**     rv     double   radial velocity (km/s, +ve if receding)
-**     date1  double   TDB as a 2-part...
-**     date2  double   ...Julian Date (Note 3)
+**     rc     double  ICRS right ascension at J2000.0 (radians, Note 1)
+**     dc     double  ICRS declination at J2000.0 (radians, Note 1)
+**     pr     double  RA proper motion (radians/year, Note 2)
+**     pd     double  Dec proper motion (radians/year)
+**     px     double  parallax (arcsec)
+**     rv     double  radial velocity (km/s, +ve if receding)
+**     date1  double  TDB as a 2-part...
+**     date2  double  ...Julian Date (Note 3)
 **
 **  Returned:
-**     ri,di  double*  CIRS geocentric RA,Dec (radians)
-**     eo     double*  equation of the origins (ERA-GST, Note 5)
+**     ri,di  double* CIRS geocentric RA,Dec (radians)
+**     eo     double* equation of the origins (ERA-GST, radians, Note 5)
 **
 **  Notes:
 **
@@ -35,12 +35,12 @@ void eraAtci13(double rc, double dc,
 **
 **  3) The TDB date date1+date2 is a Julian Date, apportioned in any
 **     convenient way between the two arguments.  For example,
-**     JD(TDB)=2450123.8g could be expressed in any of these ways, among
+**     JD(TDB)=2450123.7 could be expressed in any of these ways, among
 **     others:
 **
 **            date1          date2
 **
-**         2450123.8g           0.0       (JD method)
+**         2450123.7           0.0       (JD method)
 **         2451545.0       -1421.3       (J2000 method)
 **         2400000.5       50123.2       (MJD method)
 **         2450123.5           0.2       (date & time method)
@@ -78,7 +78,9 @@ void eraAtci13(double rc, double dc,
 **     eraApci13    astrometry parameters, ICRS-CIRS, 2013
 **     eraAtciq     quick ICRS to CIRS
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:   2022 May 3
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -98,7 +100,7 @@ void eraAtci13(double rc, double dc,
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

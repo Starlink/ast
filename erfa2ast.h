@@ -50,6 +50,10 @@
 *  History:
 *     16-FEB-2012 (DSB):
 *        Original version.
+*     27-OCT-2026 (TIMJ):
+*        Rename the functions added with ERFA 2.0.1 that AST now builds:
+*        the leap-second table functions in erfadatextra.c, and the
+*        FK4/FK5 routines SlaMap calls.
 */
 
 /* Rename all ERFA functions called directlty from PAL. */
@@ -123,6 +127,7 @@
 #define eraCpv	   astEraCpv
 #define eraCr	   astEraCr
 #define eraD2dtf   astEraD2dtf
+#define eraDatini  astEraDatini
 #define eraDtdb	   astEraDtdb
 #define eraDtf2d   astEraDtf2d
 #define eraEe00	   astEraEe00
@@ -153,6 +158,7 @@
 #define eraFw2m	   astEraFw2m
 #define eraFw2xy   astEraFw2xy
 #define eraGc2gd   astEraGc2gd
+#define eraGetLeapSeconds astEraGetLeapSeconds
 #define eraGc2gde  astEraGc2gde
 #define eraGd2gce  astEraGd2gce
 #define eraGmst00  astEraGmst00
@@ -215,6 +221,7 @@
 #define eraS2p	   astEraS2p
 #define eraS2pv	   astEraS2pv
 #define eraS2xpv   astEraS2xpv
+#define eraSetLeapSeconds astEraSetLeapSeconds
 #define eraSp00	   astEraSp00
 #define eraStarpm  astEraStarpm
 #define eraStarpv  astEraStarpv

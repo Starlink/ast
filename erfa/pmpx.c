@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 void eraPmpx(double rc, double dc, double pr, double pd,
              double px, double rv, double pmt, double pob[3],
@@ -12,7 +13,7 @@ void eraPmpx(double rc, double dc, double pr, double pd,
 **
 **  Given:
 **     rc,dc  double     ICRS RA,Dec at catalog epoch (radians)
-**     pr     double     RA proper motion (radians/year; Note 1)
+**     pr     double     RA proper motion (radians/year, Note 1)
 **     pd     double     Dec proper motion (radians/year)
 **     px     double     parallax (arcsec)
 **     rv     double     radial velocity (km/s, +ve if receding)
@@ -46,7 +47,9 @@ void eraPmpx(double rc, double dc, double pr, double pd,
 **     eraPdp       scalar product of two p-vectors
 **     eraPn        decompose p-vector into modulus and direction
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:   2021 April 3
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -92,7 +95,7 @@ void eraPmpx(double rc, double dc, double pr, double pd,
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

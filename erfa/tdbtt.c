@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraTdbtt(double tdb1, double tdb2, double dtr,
              double *tt1, double *tt2 )
@@ -45,7 +46,9 @@ int eraTdbtt(double tdb1, double tdb2, double dtr,
 **
 **     IAU 2006 Resolution 3
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -54,7 +57,7 @@ int eraTdbtt(double tdb1, double tdb2, double dtr,
 
 /* Result, safeguarding precision. */
    dtrd = dtr / ERFA_DAYSEC;
-   if ( tdb1 > tdb2 ) {
+   if ( fabs(tdb1) > fabs(tdb2) ) {
       *tt1 = tdb1;
       *tt2 = tdb2 - dtrd;
    } else {
@@ -65,11 +68,13 @@ int eraTdbtt(double tdb1, double tdb2, double dtr,
 /* Status (always OK). */
    return 0;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

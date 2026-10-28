@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 void eraLd(double bm, double p[3], double q[3], double e[3],
            double em, double dlim, double p1[3])
@@ -68,7 +69,9 @@ void eraLd(double bm, double p[3], double q[3], double e[3],
 **     eraPdp       scalar product of two p-vectors
 **     eraPxp       vector product of two p-vectors
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:   2021 February 24
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -100,7 +103,7 @@ void eraLd(double bm, double p[3], double q[3], double e[3],
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

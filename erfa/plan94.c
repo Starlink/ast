@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraPlan94(double date1, double date2, int np, double pv[2][3])
 /*
@@ -6,9 +7,11 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
 **   e r a P l a n 9 4
 **  - - - - - - - - - -
 **
-**  Approximate heliocentric position and velocity of a nominated major
+**  Approximate heliocentric position and velocity of a nominated
 **  planet:  Mercury, Venus, EMB, Mars, Jupiter, Saturn, Uranus or
 **  Neptune (but not the Earth itself).
+**
+**  n.b. Not IAU-endorsed and without canonical status.
 **
 **  Given:
 **     date1  double       TDB date part A (Note 1)
@@ -17,7 +20,7 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
 **                             5=Jupiter, 6=Saturn, 7=Uranus, 8=Neptune)
 **
 **  Returned (argument):
-**     pv     double[2][3] planet p,v (heliocentric, J2000.0, AU,AU/d)
+**     pv     double[2][3] planet p,v (heliocentric, J2000.0, au,au/d)
 **
 **  Returned (function value):
 **            int          status: -1 = illegal NP (outside 1-8)
@@ -51,18 +54,18 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
 **  2) If an np value outside the range 1-8 is supplied, an error status
 **     (function value -1) is returned and the pv vector set to zeroes.
 **
-**  3) For np=3 the result is for the Earth-Moon Barycenter.  To obtain
-**     the heliocentric position and velocity of the Earth, use instead
-**     the ERFA function eraEpv00.
+**  3) For np=3 the result is for the Earth-Moon barycenter (EMB).  To
+**     obtain the heliocentric position and velocity of the Earth, use
+**     instead the ERFA function eraEpv00.
 **
 **  4) On successful return, the array pv contains the following:
 **
 **        pv[0][0]   x      }
-**        pv[0][1]   y      } heliocentric position, AU
+**        pv[0][1]   y      } heliocentric position, au
 **        pv[0][2]   z      }
 **
 **        pv[1][0]   xdot   }
-**        pv[1][1]   ydot   } heliocentric velocity, AU/d
+**        pv[1][1]   ydot   } heliocentric velocity, au/d
 **        pv[1][2]   zdot   }
 **
 **     The reference frame is equatorial and is with respect to the
@@ -104,8 +107,8 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
 **        Neptune         158000              14.4
 **
 **     Comparisons against DE200 over the interval 1800-2100 gave the
-**     following maximum absolute differences.  (The results using
-**     DE406 were essentially the same.)
+**     following maximum absolute differences (the results using
+**     DE406 were essentially the same):
 **
 **                   L (arcsec)   B (arcsec)     R (km)   Rdot (m/s)
 **
@@ -151,13 +154,15 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
 **     which in turn takes precedence over the remote date warning.
 **
 **  Called:
-**     eraAnp       normalize angle into range 0 to 2pi
+**     eraAnpm      normalize angle into range +/- pi
 **
 **  Reference:  Simon, J.L, Bretagnon, P., Chapront, J.,
 **              Chapront-Touze, M., Francou, G., and Laskar, J.,
-**              Astron. Astrophys. 282, 663 (1994).
+**              Astron.Astrophys., 282, 663 (1994).
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 May 5
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -189,7 +194,7 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
 /*
 ** Tables giving the mean Keplerian elements, limited to t^2 terms:
 **
-**   a       semi-major axis (AU)
+**   a       semi-major axis (au)
 **   dlm     mean longitude (degree and arcsecond)
 **   e       eccentricity
 **   pi      longitude of the perihelion (degree and arcsecond)
@@ -335,7 +340,7 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
     { -47645, 11647, 2166, 3194,  679,    0,-244,  -419, -2531,    48 }
    };
 
-/*--------------------------------------------------------------------*/
+/* ------------------------------------------------------------------ */
 
 /* Validate the planet number. */
    if ((np < 1) || (np > 8)) {
@@ -416,7 +421,7 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
       at = 2.0 * atan2(sqrt((1.0 + de) / (1.0 - de)) * sin(ae2),
                                                        cos(ae2));
 
-   /* Distance (AU) and speed (radians per day). */
+   /* Distance (au) and speed (radians per day). */
       r = da * (1.0 - de * cos(ae));
       v = GK * sqrt((1.0 + 1.0 / amas[np]) / (da * da * da));
 
@@ -433,7 +438,7 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
       xmc = (de * cos(dp) + xcw) * xf;
       xpxq2 = 2 * xp * xq;
 
-   /* Position (J2000.0 ecliptic x,y,z in AU). */
+   /* Position (J2000.0 ecliptic x,y,z in au). */
       x = r * (xcw - xm2 * xp);
       y = r * (xsw + xm2 * xq);
       z = r * (-xm2 * ci2);
@@ -443,7 +448,7 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
       pv[0][1] = y * COSEPS - z * SINEPS;
       pv[0][2] = y * SINEPS + z * COSEPS;
 
-   /* Velocity (J2000.0 ecliptic xdot,ydot,zdot in AU/d). */
+   /* Velocity (J2000.0 ecliptic xdot,ydot,zdot in au/d). */
       x = v * (( -1.0 + 2.0 * xp * xp) * xms + xpxq2 * xmc);
       y = v * ((  1.0 - 2.0 * xq * xq) * xmc - xpxq2 * xms);
       z = v * (2.0 * ci2 * (xp * xms + xq * xmc));
@@ -458,11 +463,13 @@ int eraPlan94(double date1, double date2, int np, double pv[2][3])
 /* Return the status. */
    return jstat;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

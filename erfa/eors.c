@@ -11,10 +11,10 @@ double eraEors(double rnpb[3][3], double s)
 **
 **  Given:
 **     rnpb  double[3][3]  classical nutation x precession x bias matrix
-**     s     double        the quantity s (the CIO locator)
+**     s     double        the quantity s (the CIO locator) in radians
 **
 **  Returned (function value):
-**           double        the equation of the origins in radians.
+**           double        the equation of the origins in radians
 **
 **  Notes:
 **
@@ -33,7 +33,9 @@ double eraEors(double rnpb[3][3], double s)
 **
 **     Wallace, P. & Capitaine, N., 2006, Astron.Astrophys. 459, 981
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 May 6
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -48,15 +50,17 @@ double eraEors(double rnpb[3][3], double s)
    zs = -x;
    p = rnpb[0][0] * xs + rnpb[0][1] * ys + rnpb[0][2] * zs;
    q = rnpb[1][0] * xs + rnpb[1][1] * ys + rnpb[1][2] * zs;
-   eo = ((p != 0) || (q != 0)) ? s - atan2(q, p) : s;
+   eo = ((p != 0.0) || (q != 0.0)) ? s - atan2(q, p) : s;
 
    return eo;
+
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

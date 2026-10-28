@@ -50,7 +50,7 @@ void eraPn00b(double date1, double date2,
 **      longitude and obliquity are in radians and with respect to the
 **      equinox and ecliptic of date.  For more accurate results, but
 **      at the cost of increased computation, use the eraPn00a function.
-**      For the utmost accuracy, use the eraPn00  function, where the
+**      For the utmost accuracy, use the eraPn00 function, where the
 **      nutation components are caller-specified.
 **
 **  3)  The mean obliquity is consistent with the IAU 2000 precession.
@@ -95,7 +95,9 @@ void eraPn00b(double date1, double date2,
 **     n.b. The celestial ephemeris origin (CEO) was renamed "celestial
 **          intermediate origin" (CIO) by IAU 2006 Resolution 2.
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -105,13 +107,13 @@ void eraPn00b(double date1, double date2,
 /* Remaining results. */
    eraPn00(date1, date2, *dpsi, *deps, epsa, rb, rp, rbp, rn, rbpn);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

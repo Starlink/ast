@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraUt1tai(double ut11, double ut12, double dta,
               double *tai1, double *tai2)
@@ -35,7 +36,9 @@ int eraUt1tai(double ut11, double ut12, double dta,
 **     Explanatory Supplement to the Astronomical Almanac,
 **     P. Kenneth Seidelmann (ed), University Science Books (1992)
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -44,7 +47,7 @@ int eraUt1tai(double ut11, double ut12, double dta,
 
 /* Result, safeguarding precision. */
    dtad = dta / ERFA_DAYSEC;
-   if ( ut11 > ut12 ) {
+   if ( fabs(ut11) > fabs(ut12) ) {
       *tai1 = ut11;
       *tai2 = ut12 - dtad;
    } else {
@@ -55,11 +58,13 @@ int eraUt1tai(double ut11, double ut12, double dta,
 /* Status (always OK). */
    return 0;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

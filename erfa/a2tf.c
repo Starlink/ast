@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 void eraA2tf(int ndp, double angle, char *sign, int ihmsf[4])
 /*
@@ -13,11 +14,8 @@ void eraA2tf(int ndp, double angle, char *sign, int ihmsf[4])
 **     angle   double  angle in radians
 **
 **  Returned:
-**     sign    char    '+' or '-'
+**     sign    char*   '+' or '-'
 **     ihmsf   int[4]  hours, minutes, seconds, fraction
-**
-**  Called:
-**     eraD2tf      decompose days to hms
 **
 **  Notes:
 **
@@ -51,20 +49,25 @@ void eraA2tf(int ndp, double angle, char *sign, int ihmsf[4])
 **     case where angle is very nearly 2pi and rounds up to 24 hours,
 **     by testing for ihmsf[0]=24 and setting ihmsf[0-3] to zero.
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Called:
+**     eraD2tf      decompose days to hms
+**
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
 /* Scale then use days to h,m,s function. */
    eraD2tf(ndp, angle/ERFA_D2PI, sign, ihmsf);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

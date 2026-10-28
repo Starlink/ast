@@ -28,20 +28,22 @@ void eraPvu(double dt, double pv[2][3], double upv[2][3])
 **     eraPpsp      p-vector plus scaled p-vector
 **     eraCp        copy p-vector
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
    eraPpsp(pv[0], dt, pv[1], upv[0]);
    eraCp(pv[1], upv[1]);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

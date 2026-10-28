@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraTcbtdb(double tcb1, double tcb2, double *tdb1, double *tdb2)
 /*
@@ -47,7 +48,9 @@ int eraTcbtdb(double tcb1, double tcb2, double *tdb1, double *tdb2)
 **
 **     IAU 2006 Resolution B3
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -63,7 +66,7 @@ int eraTcbtdb(double tcb1, double tcb2, double *tdb1, double *tdb2)
 
 
 /* Result, safeguarding precision. */
-   if ( tcb1 > tcb2 ) {
+   if ( fabs(tcb1) > fabs(tcb2) ) {
       d = tcb1 - t77td;
       *tdb1 = tcb1;
       *tdb2 = tcb2 + tdb0 - ( d + ( tcb2 - t77tf ) ) * ERFA_ELB;
@@ -76,11 +79,13 @@ int eraTcbtdb(double tcb1, double tcb2, double *tdb1, double *tdb2)
 /* Status (always OK). */
    return 0;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

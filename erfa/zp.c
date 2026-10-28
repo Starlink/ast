@@ -9,9 +9,11 @@ void eraZp(double p[3])
 **  Zero a p-vector.
 **
 **  Returned:
-**     p        double[3]      p-vector
+**     p        double[3]      zero p-vector
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -19,13 +21,13 @@ void eraZp(double p[3])
    p[1] = 0.0;
    p[2] = 0.0;
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

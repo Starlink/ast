@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraUt1utc(double ut11, double ut12, double dut1,
               double *utc1, double *utc2)
@@ -38,8 +39,8 @@ int eraUt1utc(double ut11, double ut12, double dut1,
 **
 **  3) JD cannot unambiguously represent UTC during a leap second unless
 **     special measures are taken.  The convention in the present
-**     function is that the returned quasi JD day UTC1+UTC2 represents
-**     UTC days whether the length is 86399, 86400 or 86401 SI seconds.
+**     function is that the returned quasi-JD UTC1+UTC2 represents UTC
+**     days whether the length is 86399, 86400 or 86401 SI seconds.
 **
 **  4) The function eraD2dtf can be used to transform the UTC quasi-JD
 **     into calendar date and clock time, including UTC leap second
@@ -62,7 +63,9 @@ int eraUt1utc(double ut11, double ut12, double dut1,
 **     Explanatory Supplement to the Astronomical Almanac,
 **     P. Kenneth Seidelmann (ed), University Science Books (1992)
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 May 6
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -75,7 +78,7 @@ int eraUt1utc(double ut11, double ut12, double dut1,
    duts = dut1;
 
 /* Put the two parts of the UT1 into big-first order. */
-   big1 = ( ut11 >= ut12 );
+   big1 = ( fabs(ut11) >= fabs(ut12) );
    if ( big1 ) {
       u1 = ut11;
       u2 = ut12;
@@ -97,7 +100,7 @@ int eraUt1utc(double ut11, double ut12, double dut1,
       if ( fabs(ddats) >= 0.5 ) {
 
       /* Yes, leap second nearby: ensure UT1-UTC is "before" value. */
-         if ( ddats * duts >= 0 ) duts -= ddats;
+         if ( ddats*duts >= 0.0 ) duts -= ddats;
 
       /* UT1 for the start of the UTC day that ends in a leap. */
          if ( eraCal2jd(iy, im, id, &d1, &d2) ) return -1;
@@ -107,7 +110,7 @@ int eraUt1utc(double ut11, double ut12, double dut1,
       /* Is the UT1 after this point? */
          du = u1 - us1;
          du += u2 - us2;
-         if ( du > 0 ) {
+         if ( du > 0.0 ) {
 
          /* Yes:  fraction of the current UTC day that has elapsed. */
             fd = du * ERFA_DAYSEC / ( ERFA_DAYSEC + ddats );
@@ -137,11 +140,13 @@ int eraUt1utc(double ut11, double ut12, double dut1,
 /* Status. */
    return js;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International
