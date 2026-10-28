@@ -111,6 +111,7 @@ C_TESTS = \
     testtrangrid_c \
     testunitnorm \
     testunitnormmap_c \
+    testwcsmap_c \
     testxmlchan_c \
     testxphmap_c \
     testzoommap_c
@@ -296,6 +297,10 @@ testhuge_c_LDADD       = $(CTEST_LDADD)
 testxmlchan_c_SOURCES  = testxmlchan.c
 testxmlchan_c_CFLAGS   = $(AM_CFLAGS)
 testxmlchan_c_LDADD    = $(CTEST_LDADD)
+
+testwcsmap_c_SOURCES   = testwcsmap.c
+testwcsmap_c_CFLAGS    = $(AM_CFLAGS)
+testwcsmap_c_LDADD     = $(CTEST_LDADD)
 
 testxphmap_c_SOURCES   = testxphmap.c
 testxphmap_c_CFLAGS    = $(AM_CFLAGS)

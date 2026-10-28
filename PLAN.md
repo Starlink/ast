@@ -97,6 +97,9 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   unavailable on Darwin, and every test here suppresses leak reports because
   AST's memory system caches freed blocks. Running this test under
   `ASAN_OPTIONS=detect_leaks=1` on Linux is the manual check.
+- testwcsmap — WcsMap projections at the points where AST's wcslib fork has
+  differed from upstream wcslib 8.10: QSC near a face centre. Wanted values are
+  upstream's output for the same projection and parameters.
 
 **Optional manual stress test:**
 - testhuge_c

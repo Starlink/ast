@@ -3922,7 +3922,7 @@ int astQSCfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
          t = theta*D2R;
          p = fmod(phi,360.0);
          if (p > 180.0) p -= 360.0;
-         p *= (90.0 + p)*D2R;
+         p = (90.0 + p)*D2R;
          rhu = (p*p + t*t)/2.0;
       }
       x0  =  6;
