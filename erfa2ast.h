@@ -54,6 +54,7 @@
 *        Rename the functions added with ERFA 2.0.1 that AST now builds:
 *        the leap-second table functions in erfadatextra.c, and the
 *        FK4/FK5 routines SlaMap calls.
+*        Rename eraZr to astEraZr, not astEranZr.
 */
 
 /* Rename all ERFA functions called directlty from PAL. */
@@ -253,6 +254,6 @@
 #define eraXys06a  astEraXys06a
 #define eraZp	   astEraZp
 #define eraZpv	   astEraZpv
-#define eraZr      astEranZr
+#define eraZr      astEraZr
 
 #endif
