@@ -156,6 +156,13 @@ int main( void ) {
    check_rev( "hpx pole phi=90 reverse", AST__HPX, "", 135.0, -90.0,
               135.0, -90.0, 1.0E-10 );
 
+/* ZPN with a degree-2 polynomial: beyond the turning point of r(theta)
+   the projection folds back on itself, and the point is on the far side.
+   wcslib 8.10 reports it as bad at every degree. */
+   check_fwd( "zpn degree 2 far side", AST__ZPN,
+              "PV2_1=1.27118,PV2_2=-0.210643", 5.4085552, -89.2063216,
+              AST__BAD, AST__BAD, 0.0 );
+
    if( !failed && astOK ) {
       printf( " All WcsMap tests passed\n" );
       return 0;

@@ -50,7 +50,6 @@
 *        in other modules imported as part of other software systems (e.g.
 *        SkyCat).
 *     -  astZPNfwd: Loop from prj->n to zero, not from MAXPAR to zero.
-*     -  astZPNfwd: Only return "2" if prj->n is larger than 2.
 *     -  Lots of variables are initialised to null values in order to
 *        avoid "use of uninitialised variable" messages from compilers which
 *        are not clever enough to work out that the uninitialised variable is
@@ -1353,7 +1352,7 @@ int astZPNfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
    *x =  r*astSind(phi);
    *y = -r*astCosd(phi);
 
-   if (prj->flag > 0 && s > prj->w[0] && prj->n > 2 ) {
+   if (prj->flag > 0 && s > prj->w[0]) {
       return 2;
    }
 

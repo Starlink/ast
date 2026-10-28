@@ -99,8 +99,9 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   `ASAN_OPTIONS=detect_leaks=1` on Linux is the manual check.
 - testwcsmap — WcsMap projections at the points where AST's wcslib fork has
   differed from upstream wcslib 8.10: QSC near a face centre, HPX poles, facet
-  edges and non-default H and K. Wanted values are upstream's output for the
-  same projection and parameters.
+  edges and non-default H and K, and the ZPN far side for a degree-2
+  polynomial. Wanted values are upstream's output for the same projection and
+  parameters.
 
 **Optional manual stress test:**
 - testhuge_c
