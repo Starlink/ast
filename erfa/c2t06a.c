@@ -8,8 +8,8 @@ void eraC2t06a(double tta, double ttb, double uta, double utb,
 **  - - - - - - - - - -
 **
 **  Form the celestial to terrestrial matrix given the date, the UT1 and
-**  the polar motion, using the IAU 2006 precession and IAU 2000A
-**  nutation models.
+**  the polar motion, using the IAU 2006/2000A precession-nutation
+**  model.
 **
 **  Given:
 **     tta,ttb  double         TT as a 2-part Julian Date (Note 1)
@@ -22,8 +22,8 @@ void eraC2t06a(double tta, double ttb, double uta, double utb,
 **  Notes:
 **
 **  1) The TT and UT1 dates tta+ttb and uta+utb are Julian Dates,
-**     apportioned in any convenient way between the arguments uta and
-**     utb.  For example, JD(UT1)=2450123.7 could be expressed in any of
+**     apportioned in any convenient way between the two arguments.  For
+**     example, JD(UT1)=2450123.7 could be expressed in any of
 **     these ways, among others:
 **
 **             uta            utb
@@ -45,7 +45,7 @@ void eraC2t06a(double tta, double ttb, double uta, double utb,
 **  2) The arguments xp and yp are the coordinates (in radians) of the
 **     Celestial Intermediate Pole with respect to the International
 **     Terrestrial Reference System (see IERS Conventions 2003),
-**     measured along the meridians to 0 and 90 deg west respectively.
+**     measured along the meridians 0 and 90 deg west respectively.
 **
 **  3) The matrix rc2t transforms from celestial to terrestrial
 **     coordinates:
@@ -72,7 +72,9 @@ void eraC2t06a(double tta, double ttb, double uta, double utb,
 **     McCarthy, D. D., Petit, G. (eds.), 2004, IERS Conventions (2003),
 **     IERS Technical Note No. 32, BKG
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 January 18
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -94,13 +96,13 @@ void eraC2t06a(double tta, double ttb, double uta, double utb,
 /* Combine to form the celestial-to-terrestrial matrix. */
    eraC2tcio(rc2i, era, rpom, rc2t);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

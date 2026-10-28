@@ -3,9 +3,9 @@
 void eraAticqn(double ri, double di, eraASTROM *astrom,
                int n, eraLDBODY b[], double *rc, double *dc)
 /*
-**  - - - - - - - - -
+**  - - - - - - - - - -
 **   e r a A t i c q n
-**  - - - - - - - - -
+**  - - - - - - - - - -
 **
 **  Quick CIRS to ICRS astrometric place transformation, given the star-
 **  independent astrometry parameters plus a list of light-deflecting
@@ -39,11 +39,11 @@ void eraAticqn(double ri, double di, eraASTROM *astrom,
 **      eral   double       "local" Earth rotation angle (radians)
 **      refa   double       refraction constant A (radians)
 **      refb   double       refraction constant B (radians)
-**      n     int           number of bodies (Note 3)
-**      b     eraLDBODY[n] data for each of the n bodies (Notes 3,4):
-**       bm    double       mass of the body (solar masses, Note 5)
-**       dl    double       deflection limiter (Note 6)
-**       pv    [2][3]       barycentric PV of the body (au, au/day)
+**     n      int          number of bodies (Note 3)
+**     b      eraLDBODY[n] data for each of the n bodies (Notes 3,4):
+**      bm     double       mass of the body (solar masses, Note 5)
+**      dl     double       deflection limiter (Note 6)
+**      pv     [2][3]       barycentric PV of the body (au, au/day)
 **
 **  Returned:
 **     rc,dc  double     ICRS astrometric RA,Dec (radians)
@@ -97,7 +97,9 @@ void eraAticqn(double ri, double di, eraASTROM *astrom,
 **     eraC2s       p-vector to spherical
 **     eraAnp       normalize angle into range +/- pi
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:   2021 January 6
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -176,7 +178,7 @@ void eraAticqn(double ri, double di, eraASTROM *astrom,
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

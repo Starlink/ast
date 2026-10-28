@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 void eraHfk5z(double rh, double dh, double date1, double date2,
               double *r5, double *d5, double *dr5, double *dd5)
@@ -18,7 +19,7 @@ void eraHfk5z(double rh, double dh, double date1, double date2,
 **  Returned (all FK5, equinox J2000.0, date date1+date2):
 **     r5            double    RA (radians)
 **     d5            double    Dec (radians)
-**     dr5           double    FK5 RA proper motion (rad/year, Note 4)
+**     dr5           double    RA proper motion (rad/year, Note 4)
 **     dd5           double    Dec proper motion (rad/year, Note 4)
 **
 **  Notes:
@@ -45,7 +46,7 @@ void eraHfk5z(double rh, double dh, double date1, double date2,
 **  2) The proper motion in RA is dRA/dt rather than cos(Dec)*dRA/dt.
 **
 **  3) The FK5 to Hipparcos transformation is modeled as a pure rotation
-**     and spin;  zonal errors in the FK5 catalogue are not taken into
+**     and spin;  zonal errors in the FK5 catalog are not taken into
 **     account.
 **
 **  4) It was the intention that Hipparcos should be a close
@@ -57,7 +58,7 @@ void eraHfk5z(double rh, double dh, double date1, double date2,
 **  5) The position returned by this function is in the FK5 J2000.0
 **     reference system but at date date1+date2.
 **
-**  6) See also eraFk52h, eraH2fk5, eraFk5zhz.
+**  6) See also eraFk52h, eraH2fk5, eraFk5hz.
 **
 **  Called:
 **     eraS2c       spherical coordinates to unit vector
@@ -74,7 +75,9 @@ void eraHfk5z(double rh, double dh, double date1, double date2,
 **
 **     F.Mignard & M.Froeschle, 2000, Astron.Astrophys. 354, 732-739.
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 March 7
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -117,13 +120,13 @@ void eraHfk5z(double rh, double dh, double date1, double date2,
    eraPv2s(pv5e, &w, d5, &r, dr5, dd5, &v);
    *r5 = eraAnp(w);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

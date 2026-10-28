@@ -1,12 +1,13 @@
 #include "erfa.h"
+#include "erfadatextra.h"
 
-int eraDat(int iy, int im, int id, double fd, double *deltat )
+int eraDat(int iy, int im, int id, double fd, double *deltat)
 /*
 **  - - - - - - -
 **   e r a D a t
 **  - - - - - - -
 **
-**  For a given UTC date, calculate delta(AT) = TAI-UTC.
+**  For a given UTC date, calculate Delta(AT) = TAI-UTC.
 **
 **     :------------------------------------------:
 **     :                                          :
@@ -77,9 +78,9 @@ int eraDat(int iy, int im, int id, double fd, double *deltat )
 **     so early that JD could not be computed.
 **
 **  2) If the specified date is for a day which ends with a leap second,
-**     the UTC-TAI value returned is for the period leading up to the
+**     the TAI-UTC value returned is for the period leading up to the
 **     leap second.  If the date is for a day which begins as a leap
-**     second ends, the UTC-TAI returned is for the period following the
+**     second ends, the TAI-UTC returned is for the period following the
 **     leap second.
 **
 **  3) The day number must be in the normal calendar range, for example
@@ -115,12 +116,14 @@ int eraDat(int iy, int im, int id, double fd, double *deltat )
 **  Called:
 **     eraCal2jd    Gregorian calendar to JD
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 January 17
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
 /* Release year for this version of eraDat */
-   enum { IYV = 2016};
+   enum { IYV = 2023};
 
 /* Reference dates (MJD) and drift rates (s/day), pre leap seconds */
    static const double drift[][2] = {
@@ -144,10 +147,7 @@ int eraDat(int iy, int im, int id, double fd, double *deltat )
    enum { NERA1 = (int) (sizeof drift / sizeof (double) / 2) };
 
 /* Dates and Delta(AT)s */
-   static const struct {
-      int iyear, month;
-      double delat;
-   } changes[] = {
+   static const eraLEAPSECOND _changes[] = {
       { 1960,  1,  1.4178180 },
       { 1961,  1,  1.4228180 },
       { 1961,  8,  1.3728180 },
@@ -193,7 +193,13 @@ int eraDat(int iy, int im, int id, double fd, double *deltat )
    };
 
 /* Number of Delta(AT) changes */
-   enum { NDAT = (int) (sizeof changes / sizeof changes[0]) };
+   enum { _NDAT = (int) (sizeof _changes / sizeof _changes[0]) };
+
+/* Get/initialise leap-second if needed */
+   int NDAT;
+   eraLEAPSECOND *changes;
+
+   NDAT = eraDatini(_changes, _NDAT, &changes);
 
 /* Miscellaneous local variables */
    int j, i, m;
@@ -241,11 +247,13 @@ int eraDat(int iy, int im, int id, double fd, double *deltat )
 /* Return the status. */
    return j;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

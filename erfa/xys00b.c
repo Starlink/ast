@@ -16,7 +16,7 @@ void eraXys00b(double date1, double date2,
 **
 **  Returned:
 **     x,y          double   Celestial Intermediate Pole (Note 2)
-**     s            double   the CIO locator s (Note 2)
+**     s            double   the CIO locator s (Note 3)
 **
 **  Notes:
 **
@@ -59,7 +59,9 @@ void eraXys00b(double date1, double date2,
 **     McCarthy, D. D., Petit, G. (eds.), IERS Conventions (2003),
 **     IERS Technical Note No. 32, BKG (2004)
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -75,13 +77,13 @@ void eraXys00b(double date1, double date2,
 /* Obtain s. */
    *s = eraS00(date1, date2, *x, *y);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraTcgtt(double tcg1, double tcg2, double *tt1, double *tt2)
 /*
@@ -27,12 +28,14 @@ int eraTcgtt(double tcg1, double tcg2, double *tt1, double *tt2)
 **
 **  References:
 **
-**     McCarthy, D. D., Petit, G. (eds.), IERS Conventions (2003),.
+**     McCarthy, D. D., Petit, G. (eds.), IERS Conventions (2003),
 **     IERS Technical Note No. 32, BKG (2004)
 **
 **     IAU 2000 Resolution B1.9
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -42,7 +45,7 @@ int eraTcgtt(double tcg1, double tcg2, double *tt1, double *tt2)
 
 
 /* Result, safeguarding precision. */
-   if ( tcg1 > tcg2 ) {
+   if ( fabs(tcg1) > fabs(tcg2) ) {
       *tt1 = tcg1;
       *tt2 = tcg2 - ( ( tcg1 - ERFA_DJM0 ) + ( tcg2 - t77t ) ) * ERFA_ELG;
    } else {
@@ -53,11 +56,13 @@ int eraTcgtt(double tcg1, double tcg2, double *tt1, double *tt2)
 /* OK status. */
    return 0;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

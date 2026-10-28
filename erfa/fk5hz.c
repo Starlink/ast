@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 void eraFk5hz(double r5, double d5, double date1, double date2,
               double *rh, double *dh)
@@ -8,7 +9,7 @@ void eraFk5hz(double r5, double d5, double date1, double date2,
 **  - - - - - - - - -
 **
 **  Transform an FK5 (J2000.0) star position into the system of the
-**  Hipparcos catalogue, assuming zero Hipparcos proper motion.
+**  Hipparcos catalog, assuming zero Hipparcos proper motion.
 **
 **  Given:
 **     r5           double   FK5 RA (radians), equinox J2000.0, at date
@@ -47,7 +48,7 @@ void eraFk5hz(double r5, double d5, double date1, double date2,
 **     are both good compromises between resolution and convenience.
 **
 **  3) The FK5 to Hipparcos transformation is modeled as a pure
-**     rotation and spin;  zonal errors in the FK5 catalogue are not
+**     rotation and spin;  zonal errors in the FK5 catalog are not
 **     taken into account.
 **
 **  4) The position returned by this function is in the Hipparcos
@@ -69,7 +70,9 @@ void eraFk5hz(double r5, double d5, double date1, double date2,
 **
 **     F.Mignard & M.Froeschle, 2000, Astron.Astrophys. 354, 732-739.
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2023 March 6
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -102,13 +105,13 @@ void eraFk5hz(double r5, double d5, double date1, double date2,
    eraC2s(ph, &w, dh);
    *rh = eraAnp(w);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

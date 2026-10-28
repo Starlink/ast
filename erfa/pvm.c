@@ -18,7 +18,9 @@ void eraPvm(double pv[2][3], double *r, double *s)
 **  Called:
 **     eraPm        modulus of p-vector
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -28,13 +30,13 @@ void eraPvm(double pv[2][3], double *r, double *s)
 /* Speed. */
    *s = eraPm(pv[1]);
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

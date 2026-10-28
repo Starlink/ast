@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 void eraLdn(int n, eraLDBODY b[], double ob[3], double sc[3],
             double sn[3])
@@ -78,11 +79,13 @@ void eraLdn(int n, eraLDBODY b[], double ob[3], double sc[3],
 **     eraPn        decompose p-vector into modulus and direction
 **     eraLd        light deflection by a solar-system body
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:   2021 February 24
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
-/* Light time for 1 AU (days) */
+/* Light time for 1 au (days) */
    const double CR = ERFA_AULT/ERFA_DAYSEC;
 
    int i;
@@ -122,7 +125,7 @@ void eraLdn(int n, eraLDBODY b[], double ob[3], double sc[3],
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

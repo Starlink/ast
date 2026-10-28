@@ -19,7 +19,9 @@ void eraPmp(double a[3], double b[3], double amb[3])
 **     It is permissible to re-use the same array for any of the
 **     arguments.
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -27,13 +29,13 @@ void eraPmp(double a[3], double b[3], double amb[3])
    amb[1] = a[1] - b[1];
    amb[2] = a[2] - b[2];
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

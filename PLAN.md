@@ -81,7 +81,11 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 
 **New C-only regression tests (no Fortran original):**
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
-  argument must return AST__BAD outputs rather than NaN.
+  argument must return AST__BAD outputs rather than NaN; FK45Z and FK54Z agree
+  with ERFA's eraFk45z and eraFk54z, including FK54Z away from B1950.
+- testspecmap — astSpecAdd reads only the arguments the caller supplies:
+  TPF2HL's six documented arguments in a six-element array, which
+  AddressSanitizer checks.
 - testimmutable — every Mapping class with a publicly settable attribute must
   allow the change while its reference count is one and report AST__IMMUT once
   it has been cloned, as SUN/210 requires, for both setting and clearing. Also
@@ -97,6 +101,13 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   unavailable on Darwin, and every test here suppresses leak reports because
   AST's memory system caches freed blocks. Running this test under
   `ASAN_OPTIONS=detect_leaks=1` on Linux is the manual check.
+- testwcsmap — WcsMap projections at the points where AST's wcslib fork has
+  differed from upstream wcslib 8.10: QSC near a face centre, HPX poles, facet
+  edges and non-default H and K, the ZPN far side for a degree-2 polynomial,
+  PCO near the equator, COP at the poles, MER near the pole (the D2R macro's
+  parentheses), and native coordinates a little past a limit, which wcslib's
+  per-projection tolerance accepts. Wanted values are upstream's output for the
+  same projection and parameters.
 
 **Optional manual stress test:**
 - testhuge_c

@@ -19,7 +19,9 @@ void eraPxp(double a[3], double b[3], double axb[3])
 **     It is permissible to re-use the same array for any of the
 **     arguments.
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -36,13 +38,13 @@ void eraPxp(double a[3], double b[3], double axb[3])
    axb[1] = za*xb - xa*zb;
    axb[2] = xa*yb - ya*xb;
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

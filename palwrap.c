@@ -48,6 +48,11 @@
 *  History:
 *     16-FEB-2012 (DSB):
 *        Original version.
+*     27-OCT-2026 (TIMJ):
+*        Include erfadatextra.c, which holds ERFA 2.0's leap-second
+*        table, and the ERFA files for the FK4/FK5 routines SlaMap calls.
+*        Remove the PAL routines AST does not call: palDe2h, palDh2e,
+*        palDs2tp, palDtp2s, palDtps2c, palFk45z, palFk524 and palFk54z.
 */
 
 /* Include configuration results in order to get any definition for the
@@ -73,23 +78,15 @@
 #include "pal/palAmpqk.c"
 #include "pal/palCaldj.c"
 #include "pal/palDat.c"
-#include "pal/palDe2h.c"
 #include "pal/palDeuler.c"
-#include "pal/palDh2e.c"
 #include "pal/palDjcal.c"
 #include "pal/palDmat.c"
 #include "pal/palDrange.c"
-#include "pal/palDs2tp.c"
-#include "pal/palDtp2s.c"
-#include "pal/palDtps2c.c"
 #include "pal/palDtt.c"
 #include "pal/palEcmat.c"
 #include "pal/palEqgal.c"
 #include "pal/palEtrms.c"
 #include "pal/palEvp.c"
-#include "pal/palFk45z.c"
-#include "pal/palFk524.c"
-#include "pal/palFk54z.c"
 #include "pal/palGaleq.c"
 #include "pal/palGalsup.c"
 #include "pal/palGeoc.c"
@@ -155,6 +152,7 @@
 #include "erfa/epv00.c"
 #include "erfa/eqeq94.c"
 #include "erfa/era00.c"
+#include "erfa/erfadatextra.c"
 #include "erfa/fad03.c"
 #include "erfa/fae03.c"
 #include "erfa/faf03.c"
@@ -169,7 +167,10 @@
 #include "erfa/fasa03.c"
 #include "erfa/faur03.c"
 #include "erfa/fave03.c"
+#include "erfa/fk45z.c"
+#include "erfa/fk524.c"
 #include "erfa/fk52h.c"
+#include "erfa/fk54z.c"
 #include "erfa/fk5hip.c"
 #include "erfa/fk5hz.c"
 #include "erfa/fw2m.c"

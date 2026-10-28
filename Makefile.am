@@ -355,23 +355,15 @@ STAR_PAL_FILES = \
     pal/palAmpqk.c \
     pal/palCaldj.c \
     pal/palDat.c \
-    pal/palDe2h.c \
     pal/palDeuler.c \
-    pal/palDh2e.c \
     pal/palDjcal.c \
     pal/palDmat.c \
     pal/palDrange.c \
-    pal/palDs2tp.c \
-    pal/palDtp2s.c \
-    pal/palDtps2c.c \
     pal/palDtt.c \
     pal/palEcmat.c \
     pal/palEqgal.c \
     pal/palEtrms.c \
     pal/palEvp.c \
-    pal/palFk45z.c \
-    pal/palFk524.c \
-    pal/palFk54z.c \
     pal/palGaleq.c \
     pal/palGalsup.c \
     pal/palMappa.c \
@@ -391,8 +383,9 @@ STAR_PAL_FILES = \
     pal/palmac.h
 
 ERFA_FILES = \
-    erfa/00READ.ME \
     erfa/erfa.h \
+    erfa/erfadatextra.h \
+    erfa/erfaextra.h \
     erfa/erfam.h \
     erfa/a2af.c \
     erfa/a2tf.c \
@@ -441,6 +434,7 @@ ERFA_FILES = \
     erfa/epv00.c \
     erfa/eqeq94.c \
     erfa/era00.c \
+    erfa/erfadatextra.c \
     erfa/fad03.c \
     erfa/fae03.c \
     erfa/faf03.c \
@@ -455,7 +449,10 @@ ERFA_FILES = \
     erfa/fasa03.c \
     erfa/faur03.c \
     erfa/fave03.c \
+    erfa/fk45z.c \
+    erfa/fk524.c \
     erfa/fk52h.c \
+    erfa/fk54z.c \
     erfa/fk5hip.c \
     erfa/fk5hz.c \
     erfa/fw2m.c \

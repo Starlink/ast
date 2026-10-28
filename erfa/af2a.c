@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 #include <stdlib.h>
 
 int eraAf2a(char s, int ideg, int iamin, double asec, double *rad)
@@ -34,7 +35,9 @@ int eraAf2a(char s, int ideg, int iamin, double asec, double *rad)
 **  3)  If there are multiple errors, the status value reflects only the
 **      first, the smallest taking precedence.
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -51,11 +54,13 @@ int eraAf2a(char s, int ideg, int iamin, double asec, double *rad)
    if ( asec < 0.0 || asec >= 60.0 ) return 3;
    return 0;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

@@ -50,6 +50,10 @@
 *  History:
 *     16-FEB-2012 (DSB):
 *        Original version.
+*     27-OCT-2026 (TIMJ):
+*        Remove the renames for palDe2h, palDh2e, palDs2tp, palDtp2s,
+*        palDtps2c, palFk45z, palFk524 and palFk54z, which AST no longer
+*        includes.
 */
 
 /* Rename all PAL functions */
@@ -57,22 +61,14 @@
 #define palAmpqk   astPalAmpqk
 #define palCaldj   astPalCaldj
 #define palDat	   astPalDat
-#define palDe2h	   astPalDe2h
 #define palDeuler  astPalDeuler
-#define palDh2e	   astPalDh2e
 #define palDjcal   astPalDjcal
 #define palDmat	   astPalDmat
-#define palDs2tp   astPalDs2tp
-#define palDtp2s   astPalDtp2s
-#define palDtps2c  astPalDtps2c
 #define palDtt	   astPalDtt
 #define palEcmat   astPalEcmat
 #define palEqgal   astPalEqgal
 #define palEtrms   astPalEtrms
 #define palEvp	   astPalEvp
-#define palFk45z   astPalFk45z
-#define palFk524   astPalFk524
-#define palFk54z   astPalFk54z
 #define palGaleq   astPalGaleq
 #define palGalsup  astPalGalsup
 #define palMappa   astPalMappa

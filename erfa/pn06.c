@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 void eraPn06(double date1, double date2, double dpsi, double deps,
              double *epsa,
@@ -23,7 +24,7 @@ void eraPn06(double date1, double date2, double dpsi, double deps,
 **     rp           double[3][3]    precession matrix (Note 5)
 **     rbp          double[3][3]    bias-precession matrix (Note 6)
 **     rn           double[3][3]    nutation matrix (Note 7)
-**     rbpn         double[3][3]    GCRS-to-true matrix (Note 8)
+**     rbpn         double[3][3]    GCRS-to-true matrix (Notes 8,9)
 **
 **  Notes:
 **
@@ -93,7 +94,9 @@ void eraPn06(double date1, double date2, double dpsi, double deps,
 **
 **     Wallace, P.T. & Capitaine, N., 2006, Astron.Astrophys. 459, 981
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -129,13 +132,13 @@ void eraPn06(double date1, double date2, double dpsi, double deps,
 /* Obliquity, mean of date. */
    *epsa = eps;
 
-   return;
+/* Finished. */
 
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

@@ -50,7 +50,6 @@
 *        in other modules imported as part of other software systems (e.g.
 *        SkyCat).
 *     -  astZPNfwd: Loop from prj->n to zero, not from MAXPAR to zero.
-*     -  astZPNfwd: Only return "2" if prj->n is larger than 2.
 *     -  Lots of variables are initialised to null values in order to
 *        avoid "use of uninitialised variable" messages from compilers which
 *        are not clever enough to work out that the uninitialised variable is
@@ -64,6 +63,8 @@
 *        been conditioned differently to the WCSLIB code in order to improve
 *        accuracy of the floor function for arguments very slightly below an
 *        integer value.
+*     -  astHPXrev: Take y within 1e-12 degrees of the pole's as the pole,
+*        not only y exactly at it.
 
 *=============================================================================
 *
@@ -1353,7 +1354,7 @@ int astZPNfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
    *x =  r*astSind(phi);
    *y = -r*astCosd(phi);
 
-   if (prj->flag > 0 && s > prj->w[0] && prj->n > 2 ) {
+   if (prj->flag > 0 && s > prj->w[0]) {
       return 2;
    }
 
@@ -2571,6 +2572,7 @@ int astCOPfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
 
 {
    double a, r, s, t;
+   int bad;
 
    if (abs(prj->flag) != WCS__COP) {
       if (astCOPset(prj)) return 1;
@@ -2582,13 +2584,23 @@ int astCOPfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
       return 2;
    }
 
+   if (fabs(theta) == 90.0) {
+      /* Return an exact value at the poles (upstream 4.22): the pole on
+         the same side as the standard parallels is the apex of the cone,
+         and the other is on the far side. */
+      r = 0.0;
+      bad = (theta < 0.0) != (prj->p[1] < 0.0);
+   } else {
+      r = prj->w[2] - prj->w[3]*astSind(t)/s;
+      bad = r*prj->w[0] < 0.0;
+   }
+
    a = prj->w[0]*phi;
-   r = prj->w[2] - prj->w[3]*astSind(t)/s;
 
    *x =             r*astSind(a);
    *y = prj->w[2] - r*astCosd(a);
 
-   if (prj->flag > 0 && r*prj->w[0] < 0.0) {
+   if (prj->flag > 0 && bad) {
       return 2;
    }
 
@@ -3109,6 +3121,7 @@ int astBONrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
 *      prj->w[0]    r0*(pi/180)
 *      prj->w[1]    1/r0
 *      prj->w[2]    2*r0
+*      prj->w[3]    (pi/180)/(2*r0)
 *      prj->astPRJfwd  Pointer to astPCOfwd().
 *      prj->astPRJrev  Pointer to astPCOrev().
 *===========================================================================*/
@@ -3131,6 +3144,7 @@ int astPCOset(struct AstPrjPrm *prj)
       prj->w[1] = 1.0/prj->w[0];
       prj->w[2] = 2.0*prj->r0;
    }
+   prj->w[3] = D2R/prj->w[2];
 
    prj->astPRJfwd = astPCOfwd;
    prj->astPRJrev = astPCOrev;
@@ -3156,6 +3170,10 @@ int astPCOfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
    if (sthe == 0.0) {
       *x = prj->w[0]*phi;
       *y = 0.0;
+   } else if (fabs(theta) < 1.0e-4) {
+      /* To avoid cot(theta) blowing up near theta == 0 (upstream 4.22). */
+      *x = prj->w[0]*phi*cthe;
+      *y = (prj->w[0] + prj->w[3]*(*x)*(*x))*theta;
    } else {
       cotthe = cthe/sthe;
       *x = prj->r0*cotthe*astSind(a);
@@ -3922,7 +3940,7 @@ int astQSCfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
          t = theta*D2R;
          p = fmod(phi,360.0);
          if (p > 180.0) p -= 360.0;
-         p *= (90.0 + p)*D2R;
+         p = (90.0 + p)*D2R;
          rhu = (p*p + t*t)/2.0;
       }
       x0  =  6;
@@ -4249,7 +4267,7 @@ int astHPXfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
       hodd =  ((int)prj->p[1]) % 2;
       if( !prj->n && theta <= 0.0 ) hodd = 1 - hodd;
       if( hodd ) {
-         phic = -180.0 + (2.0*floor( prj->w[7] * phi + 1/2 ) + prj->p[1] ) * prj->w[6];
+         phic = -180.0 + (2.0*floor( prj->w[7] * phi + 0.5 ) + prj->p[1] ) * prj->w[6];
       } else {
          phic = -180.0 + (2.0*floor( prj->w[7] * phi ) +  prj->p[1] + 1 ) * prj->w[6];
       }
@@ -4260,6 +4278,9 @@ int astHPXfwd(double phi, double theta, struct AstPrjPrm *prj, double *x, double
 
       *y = prj->w[9] * ( prj->w[4] - sigma );
       if( theta < 0 ) *y = -*y;
+
+/* Put the phi = 180 meridian in the expected place (upstream 4.7). */
+      if( 180.0 < *x ) *x = 360.0 - *x;
 
    }
 
@@ -4272,7 +4293,7 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
 
 {
    double absy, sigma, t, yr, xc;
-   int hodd;
+   int hodd, pole;
 
    if (prj->flag != WCS__HPX) {
       if (astHPXset(prj)) return 1;
@@ -4292,7 +4313,9 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
       }
 
 /* Polar zone */
-   } else if( absy <= 90 ){
+/* The polar zone extends to (K+1)/2 facets of 180/H degrees (upstream
+   wcslib 4.7). */
+   } else if( absy <= prj->w[4]*prj->w[6] + 1.0e-12 ){
 
 
 /* DSB - The expression for xc is conditioned differently to the
@@ -4301,32 +4324,47 @@ int astHPXrev(double x, double y, struct AstPrjPrm *prj, double *phi, double *th
       hodd =  ((int)prj->p[1]) % 2;
       if( !prj->n && yr <= 0.0 ) hodd = 1 - hodd;
       if( hodd ) {
-         xc = -180.0 + (2.0*floor( prj->w[7] * x + 1/2 ) + prj->p[1] ) * prj->w[6];
+         xc = -180.0 + (2.0*floor( prj->w[7] * x + 0.5 ) + prj->p[1] ) * prj->w[6];
       } else {
          xc = -180.0 + (2.0*floor( prj->w[7] * x ) +  prj->p[1] + 1 ) * prj->w[6];
       }
 
       sigma = prj->w[4] - absy / prj->w[6];
 
-      if( sigma == 0.0 ) {
-         return 2;
-      } else {
+/* At the pole sigma is zero and only the apex of the facet, x = xc, is
+   on the sphere: upstream wcslib (4.3) divides by 1e-9 in place of sigma
+   there, so x within 1e-9 of a facet half-width of xc is accepted.  A
+   point is on the facet if (x - xc)/sigma is less than a facet half-width,
+   with a margin of 1e-12 degrees for rounding (upstream 4.7 and 4.20).
 
+   Upstream takes only sigma == 0 as the pole.  Here y within 1e-12
+   degrees of the pole's, on either side, is the pole, since converting
+   x and y to radians and back, as a WcsMap does, moves the pole's y by a
+   few ULP for some H and K, and dividing by the resulting sigma of about
+   1e-16 rejects it. */
+      pole = fabs( sigma )*prj->w[6] <= 1.0e-12;
+      if( pole ) {
+         t = ( x - xc )*1.0e9;
+      } else {
          t = ( x - xc )/sigma;
-         if( fabs( t ) <= prj->w[6] ) {
-            *phi = prj->w[1] *( xc + t );
-         } else {
+      }
+      if( fabs( t ) < prj->w[6] + 1.0e-12 ) {
+         *phi = prj->w[1] *( xc + t );
+      } else {
+         return 2;
+      }
+
+      if( pole ) {
+         *theta = 90.0;
+      } else {
+         t = 1.0 - sigma*sigma/prj->p[2];
+         if( t < -1.0 || t > 1.0 ) {
             return 2;
+         } else {
+            *theta = astASind( t );
          }
       }
-
-      t = 1.0 - sigma*sigma/prj->p[2];
-      if( t < -1.0 || t > 1.0 ) {
-         return 2;
-      } else {
-         *theta = astASind( t );
-         if( y < 0 ) *theta = -*theta;
-      }
+      if( y < 0 ) *theta = -*theta;
 
    } else {
       return 2;

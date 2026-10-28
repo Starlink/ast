@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraTtut1(double tt1, double tt2, double dt,
              double *ut11, double *ut12)
@@ -34,7 +35,9 @@ int eraTtut1(double tt1, double tt2, double dt,
 **     Explanatory Supplement to the Astronomical Almanac,
 **     P. Kenneth Seidelmann (ed), University Science Books (1992)
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -43,7 +46,7 @@ int eraTtut1(double tt1, double tt2, double dt,
 
 /* Result, safeguarding precision. */
    dtd = dt / ERFA_DAYSEC;
-   if ( tt1 > tt2 ) {
+   if ( fabs(tt1) > fabs(tt2) ) {
       *ut11 = tt1;
       *ut12 = tt2 - dtd;
    } else {
@@ -54,11 +57,13 @@ int eraTtut1(double tt1, double tt2, double dt,
 /* Status (always OK). */
    return 0;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International

@@ -1,4 +1,5 @@
 #include "erfa.h"
+#include "erfam.h"
 
 int eraTaitt(double tai1, double tai2, double *tt1, double *tt2)
 /*
@@ -33,7 +34,9 @@ int eraTaitt(double tai1, double tai2, double *tt1, double *tt2)
 **     Explanatory Supplement to the Astronomical Almanac,
 **     P. Kenneth Seidelmann (ed), University Science Books (1992)
 **
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  This revision:  2021 May 11
+**
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  Derived, with permission, from the SOFA library.  See notes at end of file.
 */
 {
@@ -43,7 +46,7 @@ int eraTaitt(double tai1, double tai2, double *tt1, double *tt2)
 
 
 /* Result, safeguarding precision. */
-   if ( tai1 > tai2 ) {
+   if ( fabs(tai1) > fabs(tai2) ) {
       *tt1 = tai1;
       *tt2 = tai2 + dtat;
    } else {
@@ -54,11 +57,13 @@ int eraTaitt(double tai1, double tai2, double *tt1, double *tt2)
 /* Status (always OK). */
    return 0;
 
+/* Finished. */
+
 }
 /*----------------------------------------------------------------------
 **  
 **  
-**  Copyright (C) 2013-2016, NumFOCUS Foundation.
+**  Copyright (C) 2013-2023, NumFOCUS Foundation.
 **  All rights reserved.
 **  
 **  This library is derived, with permission, from the International
