@@ -113,6 +113,10 @@ f     - AST_SPECADD: Add a spectral coordinate conversion to an SpecMap
 *        velocity helpers. The pal routines are double precision; the casts
 *        were a hangover from the single-precision SLALIB REAL signatures
 *        and lost ~20 mas of angular precision (~1 mm/s of velocity).
+*     27-OCT-2026 (TIMJ):
+*        In TopoVel, convert the observer velocity from palPvobs back to
+*        km/s with ERFA_DAU, the AU palPvobs itself uses (the IAU 2012
+*        value since ERFA 2.0), so the topocentric correction is unchanged.
 
 *class--
 */
@@ -178,6 +182,7 @@ f     - AST_SPECADD: Add a spectral coordinate conversion to an SpecMap
 /* Interface definitions. */
 /* ---------------------- */
 #include "pal.h"              /* SLALIB interface */
+#include "erfam.h"            /* ERFA constants */
 
 #include "globals.h"             /* Thread-safe global data access */
 #include "error.h"               /* Error reporting facilities */
@@ -2844,8 +2849,9 @@ static double Rverot( double phi, double h, double ra, double da,
    palPvobs( phi, h, st, pv );
 
 /* Return the component of the observer's velocity away from the sky
-   position, and convert from AU/s to km/s. */
-   return -palDvdv( v, pv + 3 )*149.597870E6;
+   position, and convert from AU/s to km/s.  palPvobs converts metres to
+   AU with ERFA_DAU, so the same value is used here. */
+   return -palDvdv( v, pv + 3 )*( ERFA_DAU/1000.0 );
 }
 
 static void SpecAdd( AstSpecMap *this, const char *cvt, int narg,
