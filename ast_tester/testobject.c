@@ -177,12 +177,96 @@ static void TestActiveObjects( void ) {
    astEnd;
 }
 
+/* The number of error messages reported while RecordError is installed
+   as the error handler using astSetPutErr, and the last of them. */
+#define MAX_MESSAGE_LEN 400
+static int nmessage = 0;
+static char last_message[ MAX_MESSAGE_LEN ];
+
+static void RecordError( int status_value, const char *message ) {
+   (void) status_value;
+   nmessage++;
+   snprintf( last_message, sizeof( last_message ), "%s", message );
+}
+
+/* astClone does not require the Object to be locked by the calling
+   thread, but it must still reject a pointer that does not identify an
+   Object, such as one that has been annulled, returning a null pointer
+   and reporting an error. */
+static void TestCloneInvalid( void ) {
+   static const char *expected = "This pointer has been annulled, or the "
+                                 "associated Object deleted.";
+   AstFrame *bf;
+   AstFrame *stale;
+   AstObject *clone;
+   int status_value;
+
+   bf = astFrame( 2, " " );
+   stale = bf;
+   bf = astAnnul( bf );
+
+   nmessage = 0;
+   astSetPutErr( RecordError );
+   clone = astClone( stale );
+   status_value = astStatus;
+   astClearStatus;
+   astSetPutErr( NULL );
+
+   if( clone && astOK ) {
+      astError( AST__INTER, "TestCloneInvalid: astClone returned a pointer.\n" );  /* LCOV_EXCL_LINE */
+   }
+   if( status_value != AST__OBJIN && astOK ) {
+      astError( AST__INTER, "TestCloneInvalid: status is %d, expected AST__OBJIN (%d).\n", status_value, AST__OBJIN );  /* LCOV_EXCL_LINE */
+   }
+   if( ( !nmessage || strcmp( last_message, expected ) ) && astOK ) {
+      astError( AST__INTER, "TestCloneInvalid: last error message is '%s'.\n", nmessage ? last_message : "<none>" );  /* LCOV_EXCL_LINE */
+   }
+}
+
+/* Like other AST functions, astClone must do nothing if the error status
+   is already set: it must return a null pointer, leave the Object's
+   reference count and the error status unchanged, and report nothing. */
+static void TestCloneStatusSet( void ) {
+   AstFrame *bf;
+   AstObject *clone;
+   int refcount;
+   int status_value;
+
+   bf = astFrame( 2, " " );
+   refcount = astGetI( bf, "RefCount" );
+
+   nmessage = 0;
+   astSetPutErr( RecordError );
+   astSetStatus( AST__ATTIN );  /* Arbitrary status not set by astClone itself */
+   clone = astClone( bf );
+   status_value = astStatus;
+   astClearStatus;
+   astSetPutErr( NULL );
+
+   if( clone && astOK ) {
+      astError( AST__INTER, "TestCloneStatusSet: astClone returned a pointer.\n" );  /* LCOV_EXCL_LINE */
+   }
+   if( status_value != AST__ATTIN && astOK ) {
+      astError( AST__INTER, "TestCloneStatusSet: status is %d, expected it unchanged (%d).\n", status_value, AST__ATTIN );  /* LCOV_EXCL_LINE */
+   }
+   if( nmessage && astOK ) {  /* Should not be any message */
+      astError( AST__INTER, "TestCloneStatusSet: astClone reported '%s'.\n", last_message );  /* LCOV_EXCL_LINE */
+   }
+   if( astGetI( bf, "RefCount" ) != refcount && astOK ) {
+      astError( AST__INTER, "TestCloneStatusSet: RefCount changed from %d to %d.\n", refcount, astGetI( bf, "RefCount" ) );  /* LCOV_EXCL_LINE */
+   }
+
+   bf = astAnnul( bf );
+}
+
 int main( void ){
    astBegin;
 
    TestCheckToString();
    TestCreatedAt();
    TestActiveObjects();
+   TestCloneInvalid();
+   TestCloneStatusSet();
 
    astEnd;
 

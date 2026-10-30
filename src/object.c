@@ -246,6 +246,13 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        may be associated with any Object for storing extra internal data.
 *        The companion astHasKeyMap method tests whether an Object already has
 *        an associated KeyMap without creating one.
+*     30-SEP-2026 (EMB):
+*        - Allow astClone to be used on an Object that is not locked by the
+*        running thread, so that a thread can obtain an identifier of its
+*        own for an Object and then wait for it using astLock.
+*        - Make astMakeId use the globals of the running thread rather than
+*        those of the Object, so that a new handle belongs to the thread
+*        that created it even when another thread has the Object locked.
 *class--
 */
 
@@ -1286,6 +1293,12 @@ f     AST_CLONE = INTEGER
 *        This function applies to all Objects.
 
 *  Notes:
+c     - This function can be used with a pointer for an Object that is
+c     not currently locked by the calling thread, including one that is
+c     locked by another thread (see astLock). The returned pointer
+c     belongs to the calling thread, which can then pass it to astLock to
+c     wait until the Object is available. Cloning a pointer does not lock
+c     the Object.
 *     - A null Object pointer (AST__NULL) will be returned if this
 c     function is invoked with the AST error status set, or if it
 f     function is invoked with STATUS set to an error value, or if it
@@ -6518,6 +6531,69 @@ MYSTATIC void AnnulHandle( int ihandle, int *status ) {
    }
 }
 
+AstObject *astCloneId_( AstObject *this_id, int *status ) {
+/*
+*+
+*  Name:
+*     astCloneId
+
+*  Purpose:
+*     Clone an external Object identifier.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "object.h"
+*     AstObject *astCloneId( AstObject *this )
+
+*  Class Membership:
+*     Object member function.
+
+*  Description:
+*     This function implements the external (public) interface to the
+*     astClone method. It returns a new identifier for the Object
+*     supplied, incrementing the Object's reference count.
+
+*  Parameters:
+*     this
+*        The Object identifier to be cloned.
+
+*  Returned Value:
+*     A new identifier for the same Object.
+
+*  Notes:
+*     - The Object need not be locked by the running thread. This is how a
+*     thread obtains an identifier of its own for an Object locked by
+*     another thread, which it needs in order to wait for the Object using
+*     astLock. Cloning only increments the Object's reference count, which
+*     does not require the Object lock, just as astAnnulId only decrements
+*     it.
+*     - A NULL pointer is returned if this function is invoked with the AST
+*     error status set, or if it should fail for any reason.
+*-
+*/
+
+/* Local Variables: */
+   AstObject *this;              /* Pointer to the Object */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Obtain the Object pointer from the ID supplied and validate the
+   pointer to ensure it identifies a valid Object (this generates an
+   error if it doesn't). Note, we use "astMakePointer_NoLockCheck",
+   rather than the usual "astMakePointer", for the reason given above. */
+   if ( !astIsAObject( this = astMakePointer_NoLockCheck( this_id ) ) ) {
+      return NULL;
+   }
+
+/* Increment the Object's reference count and return the pointer. The
+   astINVOKE(O,...) macro used by the astClone macro converts this into a
+   new identifier belonging to the running thread. */
+   return astClone_( this, status );
+}
+
 AstObject *astAnnulId_( AstObject *this_id, int *status ) {
 /*
 *+
@@ -7607,9 +7683,14 @@ c++
 *        This function applies to all Objects.
 
 *  Notes:
-*     - The astAnnul function is exceptional in that it can be used on
-*     pointers for Objects that are not currently locked by the calling
-*     thread. All other AST functions will report an error.
+*     - The astAnnul and astClone functions are exceptional in that they
+*     can be used on pointers for Objects that are not currently locked by
+*     the calling thread. All other AST functions will report an error.
+*     - An Object pointer belongs to the thread that obtained it, and no
+*     other thread can use it, even with this function, until that thread
+*     passes it to astUnlock. To wait for an Object that is locked by
+*     another thread, first use astClone to obtain a pointer of your own,
+*     and then pass that pointer to this function.
 *     - The Locked object will belong to the current AST context.
 *     - This function returns without action if the Object is already
 *     locked by the calling thread.
@@ -8133,8 +8214,12 @@ AstObject *astMakeId_( AstObject *this, int *status ) {
 /* Check the global error status. */
    if ( astOK ) {
 
-/* Get a pointer to Thread-specific global data. */
-      astGET_GLOBALS(this);
+/* Get a pointer to Thread-specific global data. Use the globals of the
+   running thread rather than those stored in "*this": the new handle
+   belongs to the thread creating it, which is not necessarily the thread
+   that currently has the Object locked (astClone may be used on an Object
+   locked by another thread). */
+      astGET_GLOBALS(NULL);
 
 /* Gain exclusive access to the handles array. */
       LOCK_MUTEX2;
