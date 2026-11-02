@@ -1,0 +1,30 @@
+#ASDF 1.0.0
+%YAML 1.1
+%TAG ! tag:stsci.edu:asdf/
+--- !core/asdf-1.1.0
+wcs: !<tag:stsci.edu:gwcs/wcs-1.0.0>
+  name: ''
+  steps:
+  - !<tag:stsci.edu:gwcs/step-1.0.0>
+    frame: !<tag:stsci.edu:gwcs/frame2d-1.0.0>
+      axes_names: [x, y]
+      axes_order: [0, 1]
+      axis_physical_types: ['custom:x', 'custom:y']
+      name: input
+      unit: [!unit/unit-1.0.0 deg, !unit/unit-1.0.0 deg]
+    transform: !transform/ortho_polynomial-1.0.0
+      polynomial_type: chebyshev
+      coefficients: !core/ndarray-1.0.0
+        data:
+        - [10.0, 0.0, 0.0]
+        - [0.0, 0.0, 0.0]
+        - [1.0, 0.0, 0.0]
+        datatype: float64
+        byteorder: little
+        shape: [3, 3]
+  - !<tag:stsci.edu:gwcs/step-1.0.0>
+    frame: !<tag:stsci.edu:gwcs/frame-1.0.0>
+      axes_names: [z]
+      axes_order: [0]
+      name: output
+    transform: null
