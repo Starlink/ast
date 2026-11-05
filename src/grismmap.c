@@ -86,6 +86,12 @@ f     The GrismMap class does not define any new routines beyond those
 *        Override astRate with the analytical derivative of the dispersion
 *        equation. The numerical derivative inherited from the Mapping
 *        class was accurate only to about 1E-9.
+*        In CanMerge, cancel a GrismMap with an inverted GrismMap only if
+*        their GrismM values are equal, as for every other attribute. It
+*        required them to differ, so a GrismMap followed by its own inverse
+*        was not simplified, and one followed by the inverse of a GrismMap
+*        of a different order was replaced by a UnitMap although the pair
+*        is not the identity.
 *class--
 */
 
@@ -508,7 +514,7 @@ static AstMapping *CanMerge( AstMapping *map1, int inv1, AstMapping *map2,
              astEQUAL( astGetGrismWaveR( gmap ), astGetGrismWaveR( gmap2 )) &&
              astEQUAL( astGetGrismAlpha( gmap ), astGetGrismAlpha( gmap2 )) &&
              astEQUAL( astGetGrismG( gmap ), astGetGrismG( gmap2 )) &&
-             astGetGrismM( gmap ) != astGetGrismM( gmap2 ) &&
+             astGetGrismM( gmap ) == astGetGrismM( gmap2 ) &&
              astEQUAL( astGetGrismEps( gmap ), astGetGrismEps( gmap2 )) &&
              astEQUAL( astGetGrismTheta( gmap ), astGetGrismTheta( gmap2 )) ){
 

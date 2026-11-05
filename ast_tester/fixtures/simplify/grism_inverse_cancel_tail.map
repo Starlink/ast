@@ -29,7 +29,7 @@
                 GrmWR = 5000 	# Ref. wavelength
                 GrmAlp = 0.10000000000000001 	# Angle of incidence of incoming light
                 GrmG = 0.00020000000000000001 	# Grating ruling density
-                GrmM = -1 	# The interference order
+                GrmM = 1 	# The interference order
                 GrmEps = 0.02 	# Angle between grating normal and dispersion plane
                 GrmTh = 0.029999999999999999 	# Angle between detector normal and reference ray
              End GrismMap
