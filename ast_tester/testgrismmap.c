@@ -40,6 +40,9 @@
 static int status = 0;
 static int failed = 0;
 
+static void fail( const char *fmt, ... )
+   __attribute__((format(printf, 1, 2)));
+
 /* Report a failed check. */
 static void fail( const char *fmt, ... ) {
    va_list ap;
