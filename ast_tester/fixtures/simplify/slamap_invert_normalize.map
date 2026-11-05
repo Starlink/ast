@@ -4,23 +4,23 @@
  IsA Mapping 	# Mapping between coordinate systems
     Nsla = 10 	# Number of conversion steps
     Sla1 = "FK54Z" 	# FK5 J2000.0 to FK4 (no PM or parallax)
-    Sla1a = 2000 	# Besselian epoch of FK4 system
+    Sla1a = 1950 	# Besselian epoch of FK4 system
     Sla2 = "FK5HZ" 	# J2000.0 FK5 to ICRS (no PM or parallax)
     Sla2a = 2000 	# Julian epoch of FK5 coordinates
     Sla3 = "AMP" 	# Geocentric apparent to mean place (FK5)
-    Sla3a = 2000 	# TDB of apparent place (as MJD)
+    Sla3a = 58849 	# TDB of apparent place (as MJD)
     Sla3b = 2000 	# Julian epoch of mean equinox (FK5)
     Sla4 = "ADDET" 	# Add E-terms of aberration
-    Sla4a = 2000 	# Besselian epoch of mean equinox (FK4)
+    Sla4a = 1950 	# Besselian epoch of mean equinox (FK4)
     Sla5 = "ECLEQ" 	# Ecliptic (IAU 1980) to J2000.0 equatorial (FK5)
-    Sla5a = 2000 	# TDB of mean ecliptic (as MJD)
+    Sla5a = 58849 	# TDB of mean ecliptic (as MJD)
     Sla6 = "GALEQ" 	# Galactic (IAU 1958) to J2000.0 equatorial (FK5)
     Sla7 = "GALSUP" 	# Galactic (IAU 1958) to supergalactic
     Sla8 = "H2E" 	# Horizon to equatorial
-    Sla8a = 2000 	# Geodetic latitude of observer
-    Sla8b = 2000 	# Magnitude of diurnal aberration vector
+    Sla8a = 0.34999999999999998 	# Geodetic latitude of observer
+    Sla8b = 1.3999999999999999e-06 	# Magnitude of diurnal aberration vector
     Sla9 = "R2H" 	# RA to Hour Angle
-    Sla9a = 2000 	# Local apparent sidereal time (radians)
+    Sla9a = 1.2 	# Local apparent sidereal time (radians)
     Sla10 = "HEEQ" 	# Helio-ecliptic to equatorial
-    Sla10a = 2000 	# Modified Julian Date of observation
+    Sla10a = 58849 	# Modified Julian Date of observation
  End SlaMap

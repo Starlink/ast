@@ -537,6 +537,71 @@ static void gen_slamap_fixtures(const char *dir) {
         write_fixture(dir, "sla_prec_merge", (AstMapping*)sm);
         sm = astAnnul(sm);
     }
+
+    /* slamap-26 and slamap-27: a run of three SlaMaps.  GALEQ cancels
+       EQGAL, and EQECL cancels ECLEQ for the same date (MJD 58849), so the
+       first run is an identity; without the final EQECL only ECLEQ is
+       left. */
+    {
+        double date[] = {58849.0};
+        AstSlaMap *s1 = astSlaMap(0, " ");
+        AstSlaMap *s2 = astSlaMap(0, " ");
+        AstSlaMap *s3 = astSlaMap(0, " ");
+        astSlaAdd(s1, "EQGAL", 0, NULL);
+        astSlaAdd(s2, "GALEQ", 0, NULL);
+        astSlaAdd(s2, "ECLEQ", 1, date);
+        astSlaAdd(s3, "EQECL", 1, date);
+        AstCmpMap *c12 = astCmpMap(s1, s2, 1, " ");
+        AstCmpMap *cm = astCmpMap(c12, s3, 1, " ");
+        write_fixture(dir, "sla_run_identity", (AstMapping*)cm);
+        cm = astAnnul(cm); c12 = astAnnul(c12);
+        s2 = astAnnul(s2); s3 = astAnnul(s3);
+
+        AstSlaMap *p2 = astSlaMap(0, " ");
+        AstSlaMap *p3 = astSlaMap(0, " ");
+        astSlaAdd(p2, "GALEQ", 0, NULL);
+        astSlaAdd(p3, "ECLEQ", 1, date);
+        c12 = astCmpMap(s1, p2, 1, " ");
+        cm = astCmpMap(c12, p3, 1, " ");
+        write_fixture(dir, "sla_run_partial", (AstMapping*)cm);
+        cm = astAnnul(cm); c12 = astAnnul(c12);
+        s1 = astAnnul(s1); p2 = astAnnul(p2); p3 = astAnnul(p3);
+    }
+}
+
+/* ===== SplineMap fixtures ===== */
+
+static void gen_splinemap_fixtures(const char *dir) {
+    printf("SplineMap fixtures:\n");
+
+    /* splinemap-01 and splinemap-02: a SplineMap followed by its inverse
+       cancels to a UnitMap.  The splines are bilinear (order 2) with knots
+       at +/-1100, covering the sampled inputs, and give
+       u = x + 1.0e-4*x*y and v = y + 5.0e-5*x*y, which increase with x and
+       y respectively as the iterative inverse requires.  A bilinear spline
+       reproduces a bilinear function exactly from its values at the four
+       knot corners, which are its coefficients.  InvTol is tightened so
+       that the pair is an identity to rounding rather than to the default
+       1e-6. */
+    {
+        double t[] = {-1100.0, -1100.0, 1100.0, 1100.0};
+        double corner[] = {-1100.0, 1100.0};
+        double cu[4], cv[4];
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                double x = corner[i], y = corner[j];
+                cu[i*2 + j] = x + 1.0e-4*x*y;
+                cv[i*2 + j] = y + 5.0e-5*x*y;
+            }
+        }
+        AstSplineMap *s1 = astSplineMap(2, 2, 2, 2, t, t, cu, cv,
+                                        "InvTol=1.0E-14,InvNiter=20");
+        AstSplineMap *s2 = astCopy(s1);
+        astInvert(s2);
+        AstCmpMap *cm = astCmpMap(s1, s2, 1, " ");
+        write_fixture(dir, "spline_inverse_cancel", (AstMapping*)cm);
+        cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
+    }
 }
 
 /* ===== SpecMap fixtures ===== */
@@ -4653,6 +4718,7 @@ int main(void) {
     gen_tranmap_fixtures(dir);
     gen_ratemap_fixtures(dir);
     gen_slamap_fixtures(dir);
+    gen_splinemap_fixtures(dir);
     gen_specmap_fixtures(dir);
     gen_timemap_fixtures(dir);
     gen_permmap_fixtures(dir);
