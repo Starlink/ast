@@ -1551,6 +1551,15 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In WcsOthers, use a UnitMap for a non-spectral "-LOG" axis with
 *        a zero CRVAL, for which LogWcs returns NULL. It passed the NULL
 *        pointer to astCmpMap, so astRead crashed.
+*     5-NOV-2026 (TIMJ):
+*        In GrismSpecWcs, evaluate the rate of change of grism parameter
+*        with respect to wavelength at the reference point analytically
+*        (FITS-WCS paper III eq. (81)), and take the grism parameter at the
+*        reference point to be -tan(theta) (eq. (76)). Both had been found
+*        numerically from the GrismMap: the derivative was accurate only to
+*        about 1E-9, giving errors of order 1E-6 pixels far from the
+*        reference pixel, and both differed between builds with and without
+*        fused multiply-add.
 *class--
 */
 
@@ -14491,11 +14500,24 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
    AstMapping *ret;
    AstMapping *smap;
    AstSpecFrame *wfrm;
+   double alpha;
+   double cosbeta_r;
+   double coseps;
+   double costheta;
    double crv;
    double dg;
+   double dgdwave;
+   double dwave;
+   double eps;
    double gcrv;
+   double grism_g;
+   double nr;
+   double nrp;
    double pv;
+   double sinbeta_r;
+   double theta;
    double wcrv;
+   int order;
 
 /* Check the global status. */
    ret = NULL;
@@ -14524,29 +14546,36 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
 /* Convert it to the wavelength system (vacuum or air) in metres. */
       astTran1( smap, 1, &crv, 1, &wcrv );
 
-/* Create a GrismMap, and then use the projection parameters stored in
-   the FitsStore to set its attributes (convert degrees values to radians
-   and supply the defaults specified in FITS-WCS paper III). The FITS
-   paper specifies units in which these parameters should be stored in a
-   FITS header - distances are in metres and angles in degrees. */
-      gmap = (AstMapping *) astGrismMap( "", status );
+/* Get the projection parameters stored in the FitsStore (convert degrees
+   values to radians and supply the defaults specified in FITS-WCS paper
+   III). The FITS paper specifies units in which these parameters should
+   be stored in a FITS header - distances are in metres and angles in
+   degrees. */
       pv = GetItem( &(store->pv), i, 0, s, NULL, method, class, status );
-      astSetGrismG( gmap, ( pv != AST__BAD )?pv:0.0 );
+      grism_g = ( pv != AST__BAD )?pv:0.0;
       pv = GetItem( &(store->pv), i, 1, s, NULL, method, class, status );
-      astSetGrismM( gmap, ( pv != AST__BAD )?(int) round( pv ):0);
+      order = ( pv != AST__BAD )?(int) round( pv ):0;
       pv = GetItem( &(store->pv), i, 2, s, NULL, method, class, status );
-      astSetGrismAlpha( gmap, ( pv != AST__BAD )?pv*AST__DD2R:0.0 );
+      alpha = ( pv != AST__BAD )?pv*AST__DD2R:0.0;
       pv = GetItem( &(store->pv), i, 3, s, NULL, method, class, status );
-      astSetGrismNR( gmap, ( pv != AST__BAD )?pv:1.0 );
+      nr = ( pv != AST__BAD )?pv:1.0;
       pv = GetItem( &(store->pv), i, 4, s, NULL, method, class, status );
-      astSetGrismNRP( gmap, ( pv != AST__BAD )?pv:0.0 );
+      nrp = ( pv != AST__BAD )?pv:0.0;
       pv = GetItem( &(store->pv), i, 5, s, NULL, method, class, status );
-      astSetGrismEps( gmap, ( pv != AST__BAD )?pv*AST__DD2R:0.0 );
+      eps = ( pv != AST__BAD )?pv*AST__DD2R:0.0;
       pv = GetItem( &(store->pv), i, 6, s, NULL, method, class, status );
-      astSetGrismTheta( gmap, ( pv != AST__BAD )?pv*AST__DD2R:0.0 );
+      theta = ( pv != AST__BAD )?pv*AST__DD2R:0.0;
 
-/* Store the reference wavelength found above as an attribute of the
-   GrismMap. */
+/* Create a GrismMap holding these parameters and the reference
+   wavelength found above. */
+      gmap = (AstMapping *) astGrismMap( "", status );
+      astSetGrismG( gmap, grism_g );
+      astSetGrismM( gmap, order );
+      astSetGrismAlpha( gmap, alpha );
+      astSetGrismNR( gmap, nr );
+      astSetGrismNRP( gmap, nrp );
+      astSetGrismEps( gmap, eps );
+      astSetGrismTheta( gmap, theta );
       astSetGrismWaveR( gmap, wcrv );
 
 /* Invert the GrismMap to get the (Wavelength -> grism parameter) Mapping, and
@@ -14555,12 +14584,49 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
       astInvert( gmap );
       map1 = (AstMapping *) astCmpMap( smap, gmap, 1, "", status );
 
-/* Convert the reference point value from wavelength to grism parameter. */
-      astTran1( gmap, 1, &wcrv, 1, &gcrv );
+/* The grism parameter at the reference point is -tan(theta) (FITS-WCS
+   paper III eq. (76)). Transforming the reference wavelength with the
+   GrismMap gives the same value only to within rounding, because it
+   subtracts two nearly equal angles, beta_r + theta and asin of the
+   GrismMap's own (differently rounded) value of sin(beta_r). */
+      gcrv = -tan( theta );
 
-/* Find the rate of change of grism parameter with respect to the S
-   system at the reference point, dg/dS. */
-      dg = astRate( map1, &crv, 0, 0 );
+/* Find the rate of change of grism parameter with respect to wavelength
+   at the reference point. Differentiating the inverse GrismMap
+   transformation and evaluating it at the reference wavelength gives
+   FITS-WCS paper III eq. (81):
+
+      dg/dwave = ( G*m/cos(eps) - nrp*sin(alpha) )/( cos(beta_r)*cos(theta)^2 )
+
+   where sin(beta_r) = G*m*wave_r/cos(eps) - nr*sin(alpha). The analytical
+   form is used because a numerical derivative of the GrismMap is accurate
+   only to about 1E-9, which, multiplied by the distance from the reference
+   pixel, gives errors of order 1E-6 pixels in the final Mapping. cos(beta_r)
+   is non-negative because the GrismMap finds beta_r with asin. */
+      dgdwave = AST__BAD;
+      coseps = cos( eps );
+      costheta = cos( theta );
+      if( wcrv != AST__BAD && coseps != 0.0 && costheta != 0.0 ) {
+         sinbeta_r = grism_g*order*wcrv/coseps - nr*sin( alpha );
+         if( sinbeta_r > -1.0 && sinbeta_r < 1.0 ) {
+            cosbeta_r = sqrt( ( 1.0 - sinbeta_r )*( 1.0 + sinbeta_r ) );
+            dgdwave = ( grism_g*order/coseps - nrp*sin( alpha ) )/
+                      ( cosbeta_r*costheta*costheta );
+         }
+      }
+
+/* Find the rate of change of wavelength with respect to the S system at
+   the reference point, and so the rate of change of grism parameter with
+   respect to the S system, dg/dS (FITS-WCS paper III eq. (82)). The S
+   system may be any spectral system, so the Mapping from S to wavelength
+   has no general analytical derivative and astRate is used for it. When S
+   is the wavelength system used by the grism, this Mapping is linear. */
+      dwave = astRate( smap, &crv, 0, 0 );
+      if( dgdwave != AST__BAD && dwave != AST__BAD ) {
+         dg = dgdwave*dwave;
+      } else {
+         dg = AST__BAD;
+      }
       if( dg != AST__BAD && dg != 0.0 ) {
 
 /* FITS-WCS paper II requires headers to be constructed so that dS/dw = 1.0
