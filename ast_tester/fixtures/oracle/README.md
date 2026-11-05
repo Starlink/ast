@@ -80,11 +80,12 @@ The grism headers below were also checked against an independent source, so thei
 
 `wcsconv/inputs/awav-gra-coude.head`, `awav-gra-hydra.head` and `awav-gra-mars.head` are the KPNO examples printed with Figs. 3-5 of FITS-WCS Paper III (Greisen et al. 2006, A&A 446, 747).
 `wave-gra.head` and `awav-gri.head` use the Fig. 5 grism parameters, plus a non-zero epsilon and theta, on an axis in vacuum wavelength for a grism in air and the reverse.
+`grism.head` is a `WAVE-GRI` axis for a 300 lines/mm grating.
 
 Their sections, and those of the matching dumps under `wcsconv/framesets/`, were compared with a direct implementation of Paper III eqs. (64)-(83) written independently of this library.
 That implementation finds an air wavelength by inverting eq. (64) exactly, as this library does, rather than with the approximation of eq. (67).
-The two agree to within 2e-11 pixels for the three `AWAV-GRA` headers and 2e-8 pixels for the other two, where the difference is the numerical derivative of the air-vacuum conversion.
-The three `AWAV-GRA` headers also agree with WCSLIB 8.6 to within 2e-11 pixels, and their departures from a linear axis match the curves plotted in Paper III.
+The two agree to within 2e-11 pixels for `grism.head` and the three `AWAV-GRA` headers, and 2e-8 pixels for the other two, where the difference is the numerical derivative of the air-vacuum conversion.
+The same four headers also agree with WCSLIB 8.6 to within 2e-11 pixels, and the departures of the three `AWAV-GRA` headers from a linear axis match the curves plotted in Paper III.
 
 WCSLIB differs from the other two headers by about 0.003 pixels.
 It converts between air and vacuum wavelengths with the Edlén (1953) relation, the IAU standard, whereas Paper III eq. (65), which this library uses, is the IUGG (1999) relation; WCSLIB's `spx.h` explains the choice.
