@@ -1515,7 +1515,7 @@ C  Now test sorting existing entries in a KeyMap.
          call stopit( status, 'Error case 4b' )
       end if
 
-      call ast_setl( map, 'KeyCase', 0, status );
+      call ast_setl( map, 'KeyCase', .false., status )
 
       if( status .eq. sai__ok ) then
          call ast_clear( map, 'KeyCase', status )
