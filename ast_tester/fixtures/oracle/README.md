@@ -66,6 +66,10 @@ name the same object twice, once as the header and once as the dump under
 no inverse at all, its TNX Chebyshev distortion building a ChebyMap that cannot
 represent its own Jacobian.
 
+A simplify fixture's `.map` and `.simp` are compared only where their recorded outputs agree, so a pair that agrees nowhere would never be compared.
+Such a pair fails the check unless the overrides file accepts it with `equiv off`, and an accepted pair that is compared after all fails too, so the list cannot go stale.
+The pairs accepted are those whose common domain the -1000 to +1000 sampling misses, and one whose inverse is a fitted approximation; the overrides file says how each was checked instead.
+
 ### Values
 
 The recorded values are this library's, on the host that generated them.  Ports

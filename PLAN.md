@@ -312,8 +312,10 @@ work (SIMD kernels, refactors) can be checked for unintended changes.  See
   `transform_oracle_framesets`.  `test_oracle_util` unit-tests the helpers.
 - Checks: golden forward and golden inverse (every fixture; the inverse
   section's inputs are the forward outputs); `.map`/`.simp` equivalence gated on
-  stored agreement; and, for the GRID-domain corpora, round-trip accuracy
-  (`inverse(forward(P)) ~= P`) to an absolute pixel tolerance.
+  stored agreement, with a pair whose stored values agree nowhere, and so would
+  never be compared, failing unless the overrides file accepts it; and, for the
+  GRID-domain corpora, round-trip accuracy (`inverse(forward(P)) ~= P`) to an
+  absolute pixel tolerance.
 - `oracle/transform_oracle_overrides.txt` records per-fixture round-trip
   exceptions (currently `tsc.head` and `tnx-cheb.head`, whose inverses do not
   recover the pixel and are flagged for investigation), and per-row golden
