@@ -211,6 +211,7 @@ neg_spec_2arg_mismatch  | simplify/neg_spec_2arg_mismatch.map  | simplify/neg_sp
 neg_spec_3arg_mismatch  | simplify/neg_spec_3arg_mismatch.map  | simplify/neg_spec_3arg_mismatch.map  | yes
 neg_time_3arg_mismatch  | simplify/neg_time_3arg_mismatch.map  | simplify/neg_time_3arg_mismatch.map  | yes
 neg_grism_different_attrs | simplify/neg_grism_different_attrs.map | simplify/neg_grism_different_attrs.map | yes
+neg_grism_different_order | simplify/neg_grism_different_order.map | simplify/neg_grism_different_order.map | yes
 neg_normmap_different_frames | simplify/neg_normmap_different_frames.map | simplify/neg_normmap_different_frames.map | yes
 neg_wcs_different_params | simplify/neg_wcs_different_params.map | simplify/neg_wcs_different_params.map | yes
 neg_sla_lone_forward    | simplify/neg_sla_lone_forward.map    | simplify/neg_sla_lone_forward.map    | yes

@@ -864,16 +864,31 @@ static void gen_grismmap_fixtures(const char *dir) {
         cm = astAnnul(cm); gm = astAnnul(gm); zm = astAnnul(zm);
     }
 
-    /* grismmap-02: forward GrismMap + inverted GrismMap (opposite GrmM) → cancel */
+    /* grismmap-01: forward GrismMap + its inverse → cancel to UnitMap.
+       The _tail variant adds a trailing ZoomMap, which is shuffled down
+       into the place of the cancelled pair. */
     {
         AstGrismMap *g1 = astGrismMap(GRISM_PARAMS);
-        AstGrismMap *g2 = astGrismMap(
-            "GrismNR=1.5,GrismNRP=-1e-6,GrismWaveR=5000,"
-            "GrismAlpha=0.1,GrismG=2e-4,GrismM=-1,"
-            "GrismEps=0.02,GrismTheta=0.03");
+        AstGrismMap *g2 = astGrismMap(GRISM_PARAMS);
         astInvert(g2);
         AstCmpMap *cm = astCmpMap(g1, g2, 1, " ");
         write_fixture(dir, "grism_inverse_cancel", (AstMapping*)cm);
+        AstZoomMap *zm = astZoomMap(1, 3.0, " ");
+        AstCmpMap *tail = astCmpMap(cm, zm, 1, " ");
+        write_fixture(dir, "grism_inverse_cancel_tail", (AstMapping*)tail);
+        tail = astAnnul(tail); zm = astAnnul(zm);
+        cm = astAnnul(cm); g1 = astAnnul(g1); g2 = astAnnul(g2);
+    }
+
+    /* grismmap-07: forward GrismMap + inverse of a GrismMap of a different
+       order → not cancelled, since the pair is not the identity. */
+    {
+        AstGrismMap *g1 = astGrismMap(GRISM_PARAMS);
+        AstGrismMap *g2 = astGrismMap(GRISM_PARAMS);
+        astSetI(g2, "GrismM", -1);
+        astInvert(g2);
+        AstCmpMap *cm = astCmpMap(g1, g2, 1, " ");
+        write_negative_fixture(dir, "neg_grism_different_order", (AstMapping*)cm);
         cm = astAnnul(cm); g1 = astAnnul(g1); g2 = astAnnul(g2);
     }
 }
