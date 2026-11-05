@@ -62,6 +62,39 @@ static void test_within_tol_wrap(void) {
                                  ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
 }
 
+static void test_axis_tol(void) {
+    /* The scale is the largest finite |value|, ignoring BAD. */
+    double wave[] = { 4.95e-7, -5.05e-7, AST__BAD, INFINITY };
+    CHECK(oracle_axis_scale(wave, 4) == 5.05e-7);
+    double zeros[] = { 0.0, -0.0, AST__BAD };
+    CHECK(oracle_axis_scale(zeros, 3) == 0.0);
+    double bad[] = { AST__BAD };
+    CHECK(oracle_axis_scale(bad, 1) == 0.0);
+
+    /* Below a scale of 1 the absolute tolerance is relative to the scale;
+       from 1 upwards, and on an axis with no non-zero value, it is atol. */
+    CHECK(oracle_axis_atol(1e-7, 5e-7) == 1e-7 * 5e-7);
+    CHECK(oracle_axis_atol(1e-7, 1.0) == 1e-7);
+    CHECK(oracle_axis_atol(1e-7, 3.0) == 1e-7);
+    CHECK(oracle_axis_atol(1e-7, 0.0) == 1e-7);
+
+    /* A wavelength in metres that is 0.2% wrong is a mismatch, though it
+       differs by only 1e-9; one that differs in the 12th digit is not. */
+    double atol = oracle_axis_atol(ORACLE_DEF_ATOL, 5.05e-7);
+    CHECK(oracle_within_tol(5.01e-7, 5.0e-7, ORACLE_DEF_RTOL, atol) == 0);
+    CHECK(oracle_within_tol(5.0e-7 * (1.0 + 1e-12), 5.0e-7,
+                            ORACLE_DEF_RTOL, atol) == 1);
+
+    /* An energy in joules that is 5% wrong is a mismatch. */
+    atol = oracle_axis_atol(ORACLE_DEF_ATOL, 9.92e-25);
+    CHECK(oracle_within_tol(9.92e-25, 9.425e-25, ORACLE_DEF_RTOL, atol) == 0);
+
+    /* On an axis in radians a value that cancels to 1e-17 on one platform
+       and 0 on another still matches. */
+    atol = oracle_axis_atol(ORACLE_DEF_ATOL, 3.1);
+    CHECK(oracle_within_tol(1e-17, 0.0, ORACLE_DEF_RTOL, atol) == 1);
+}
+
 static void test_halton(void) {
     /* Known radical-inverse base-2 values: 1->1/2, 2->1/4, 3->3/4. */
     CHECK(fabs(oracle_halton(1, 2) - 0.5)  < 1e-15);
@@ -137,6 +170,7 @@ static void test_load_mapping(void) {
 int main(void) {
     test_within_tol();
     test_within_tol_wrap();
+    test_axis_tol();
     test_halton();
     test_sample_points();
     test_format_parse();

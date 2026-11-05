@@ -13,7 +13,14 @@
    relative).  ARM vs x86 `libm` differences reach ~5e-9 for transcendental
    inverses sampled near a singularity (e.g. a relativistic spectral
    inverse at beta ~ 1), well above the ~2e-12 seen merely across compilers
-   on one machine. */
+   on one machine.
+
+   The absolute term is for values that cancel toward zero, whose noise is
+   proportional to the magnitude of the values on their axis rather than to
+   1.  Every comparison therefore passes it through oracle_axis_atol, which
+   scales it down for an axis whose recorded values are all smaller than 1:
+   without that, an axis in metres (a wavelength of 5e-7) would be allowed an
+   error of 20%, and one in joules (1e-24) any error at all. */
 #define ORACLE_DEF_RTOL        1e-7
 #define ORACLE_DEF_ATOL        1e-7
 
@@ -44,6 +51,17 @@ int oracle_within_tol( double got, double ref, double rtol, double atol );
    architectures or normalization conventions.  Use for angle-bearing
    outputs (golden, equivalence); not for pixel comparisons (round-trip). */
 int oracle_within_tol_wrap( double got, double ref, double rtol, double atol );
+
+/* Largest |value| among the n values of one axis, ignoring AST__BAD and
+   non-finite values; 0 if there is none.  Callers pass recorded values, so
+   that the tolerance does not depend on the output being checked. */
+double oracle_axis_scale( const double *v, int n );
+
+/* The absolute tolerance for an axis of the given scale: atol*scale when the
+   scale is below 1, so that the tolerance is relative to the axis's own
+   magnitude, and atol otherwise.  An axis whose recorded values are all zero
+   has no magnitude to measure against and also gets atol. */
+double oracle_axis_atol( double atol, double scale );
 
 double oracle_halton( unsigned index, unsigned base );
 int    oracle_sample_axis_count( void );

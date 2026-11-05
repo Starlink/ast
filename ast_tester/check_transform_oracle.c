@@ -162,6 +162,8 @@ static int axis_match( double got, double ref, double rtol, double atol,
 }
 
 /* Compare two equal-shape output sets; report and count mismatches.
+   The absolute tolerance on each axis is scaled to that axis's recorded
+   values (see oracle_axis_atol).
    is_ang[a] != 0 marks output axis a as angular (wrap-aware comparison).
    skip_rows is a bitmap of row indices to leave uncompared, for rows whose
    recorded value sits on a mathematical singularity (see load_overrides). */
@@ -170,6 +172,9 @@ static int compare_outputs( const char *label, const char *relpath,
                             double rtol, double atol, const int *is_ang,
                             uint64_t skip_rows ) {
     int fails = 0;
+    double *axis_atol = malloc( sizeof(double) * (size_t) ncol );
+    for ( int a = 0; a < ncol; a++ )
+        axis_atol[a] = oracle_axis_atol( atol, oracle_axis_scale( ref[a], npoint ) );
     for ( int p = 0; p < npoint; p++ ) {
         if ( p < 64 && ( skip_rows >> p ) & 1u ) {
             fprintf( stderr, "SKIP [%s] %s row=%d (overrides file)\n",
@@ -177,7 +182,8 @@ static int compare_outputs( const char *label, const char *relpath,
             continue;
         }
         for ( int a = 0; a < ncol; a++ ) {
-            if ( !axis_match( got[a][p], ref[a][p], rtol, atol, is_ang[a] ) ) {
+            if ( !axis_match( got[a][p], ref[a][p], rtol, axis_atol[a],
+                              is_ang[a] ) ) {
                 double d = fabs( got[a][p] - ref[a][p] );
                 double rel = ref[a][p] != 0.0 ? d / fabs( ref[a][p] ) : d;
                 fprintf( stderr,
@@ -187,6 +193,7 @@ static int compare_outputs( const char *label, const char *relpath,
             }
         }
     }
+    free( axis_atol );
     return fails;
 }
 
@@ -197,7 +204,8 @@ static int compare_outputs( const char *label, const char *relpath,
    two forms legitimately diverge (out-of-domain inputs) are excluded, while
    a future simplification regression at a previously-agreeing point is still
    caught.  *ncompared is set to the number of values compared, which is
-   zero when the recorded values agree nowhere. */
+   zero when the recorded values agree nowhere.  The absolute tolerance on
+   each axis is scaled to the larger of the two forms' recorded values. */
 static int compare_equiv( const char *relpath,
                           double **map_live, double **simp_live,
                           double **map_ref,  double **simp_ref,
@@ -205,12 +213,19 @@ static int compare_equiv( const char *relpath,
                           const int *is_ang, int *ncompared ) {
     int fails = 0;
     *ncompared = 0;
+    double *axis_atol = malloc( sizeof(double) * (size_t) ncol );
+    for ( int a = 0; a < ncol; a++ )
+        axis_atol[a] = oracle_axis_atol( atol,
+                                         fmax( oracle_axis_scale( map_ref[a], npoint ),
+                                               oracle_axis_scale( simp_ref[a], npoint ) ) );
     for ( int p = 0; p < npoint; p++ ) {
         for ( int a = 0; a < ncol; a++ ) {
-            if ( !axis_match( map_ref[a][p], simp_ref[a][p], rtol, atol, is_ang[a] ) )
+            if ( !axis_match( map_ref[a][p], simp_ref[a][p], rtol, axis_atol[a],
+                              is_ang[a] ) )
                 continue;   /* out of shared domain at generation time */
             (*ncompared)++;
-            if ( !axis_match( map_live[a][p], simp_live[a][p], rtol, atol, is_ang[a] ) ) {
+            if ( !axis_match( map_live[a][p], simp_live[a][p], rtol, axis_atol[a],
+                              is_ang[a] ) ) {
                 double d = fabs( map_live[a][p] - simp_live[a][p] );
                 double rel = simp_live[a][p] != 0.0 ? d / fabs( simp_live[a][p] ) : d;
                 fprintf( stderr,
@@ -220,6 +235,7 @@ static int compare_equiv( const char *relpath,
             }
         }
     }
+    free( axis_atol );
     return fails;
 }
 
@@ -374,6 +390,10 @@ static int compare_rtrip( AstMapping *map, const Section *fwd,
               1, fwd->nout, sky2 );
     int have_sky2 = astOK;
     if ( !astOK ) astClearStatus;
+    double *sky_atol = malloc( sizeof(double) * (size_t) fwd->nout );
+    for ( int b = 0; b < fwd->nout; b++ )
+        sky_atol[b] = oracle_axis_atol( ORACLE_DEF_ATOL,
+                                        oracle_axis_scale( fwd->out[b], fwd->npoint ) );
 
     for ( int p = 0; p < fwd->npoint; p++ ) {
         int fbad = 0;
@@ -392,7 +412,7 @@ static int compare_rtrip( AstMapping *map, const Section *fwd,
             int alias = 1;
             for ( int b = 0; b < fwd->nout; b++ )
                 if ( !oracle_within_tol_wrap( sky2[b][p], fwd->out[b][p],
-                                              ORACLE_DEF_RTOL, ORACLE_DEF_ATOL ) )
+                                              ORACLE_DEF_RTOL, sky_atol[b] ) )
                     { alias = 0; break; }
             if ( alias ) continue;
         }
@@ -411,6 +431,7 @@ static int compare_rtrip( AstMapping *map, const Section *fwd,
         }
     }
     free_cols( sky2, fwd->nout );
+    free( sky_atol );
     return fails;
 }
 
@@ -489,6 +510,20 @@ static int selftest( void ) {
         ok = ok && compare_equiv( "selftest", mlive, slive, mref, sref_none,
                                   1, 3, 1e-9, 1e-9, ang, &ncomp ) == 0 &&
              ncomp == 0;
+    }
+
+    /* compare_outputs scales the absolute tolerance per axis.  Each axis
+       below is out by 1e-9: that is a mismatch on the axis in metres, where
+       it is 0.2% of the value, but not on the axis in radians. */
+    {
+        double rad_ref[] = { 0.0, 1.5 }, rad_got[] = { 1e-9, 1.5 };
+        double m_ref[] = { 5.0e-7, 5.05e-7 }, m_got[] = { 5.01e-7, 5.05e-7 };
+        double *ref[] = { rad_ref, m_ref }, *got[] = { rad_got, m_got };
+        int ang[] = { 1, 0 };
+        fprintf( stderr, "selftest: expect one MISMATCH, on axis 1\n" );
+        ok = ok && compare_outputs( "selftest", "selftest", got, ref, 2, 2,
+                                    ORACLE_DEF_RTOL, ORACLE_DEF_ATOL, ang,
+                                    0 ) == 1;
     }
 
     printf( "selftest: %s\n", ok ? "ok" : "FAIL" );
