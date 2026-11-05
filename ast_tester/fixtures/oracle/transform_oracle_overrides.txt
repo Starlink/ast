@@ -21,6 +21,15 @@
 # architecture-stable; every skip needs a comment explaining why.  Prefer a row
 # list over a whole-direction "off": it leaves the rest of the section pinned.
 #
+# Equivalence lines.  A simplify fixture's .map and .simp forward outputs are
+# compared only at sampled points where their recorded values agree, so a pair
+# whose recorded values agree nowhere would never be compared at all.  Such a
+# pair fails unless it is listed here, keyed on its .map relpath:
+#   <relpath> equiv off        accept a pair that is never compared
+# A listed pair that is compared somewhere also fails, so that the list does not
+# outlive its reason.  Every entry needs a comment saying why the sampled points
+# miss the pair's common domain and how its equivalence was checked instead.
+#
 # Blank lines and lines starting with '#' are ignored.
 
 # KNOWN ROUND-TRIP FAILURE -- INVESTIGATE.  The golden checks still pin the
@@ -70,3 +79,33 @@ wcsconv/framesets/tnx-cheb-head.ast   off
 # -march=native and arm64 all fuse.  Only these two rows are skipped; every
 # other row of the inverse section stays pinned.
 simplify/neg_unitnormmap_inv_fwd_diffcentre.map   golden-inv-rows 2,3
+
+# Simplify pairs whose recorded .map and .simp outputs agree at no sampled
+# point.  Native fixtures are sampled over -1000 to +1000 on each axis, which
+# misses where these Mappings are defined or are the identity.  Each was checked
+# instead by comparing the .map with its .simp and with a live astSimplify at
+# random points over each scale from 1e-3 to 1e3 (and, for cap_xphmap_01, over
+# its pixel grid).
+#
+# Sky projections and their inverses, which are the identity only for angles
+# within their principal range: they agree to better than 1e-9 for inputs
+# within 1 rad and differ by wrapped angles from about 3 rad.
+simplify/wcs_inverse_cancel.map        equiv off
+simplify/wcsmap_perm_swap_cancel.map   equiv off
+
+# XphMap pairs, defined only on the HEALPix pixel plane.  xph_inverse_cancel
+# agrees wherever it is defined at those scales; cap_xphmap_01 is defined only
+# for inputs of order 1e3 to 1e5, where it agrees to 6e-15.
+simplify/xph_inverse_cancel.map        equiv off
+simplify/cap_xphmap_01.map             equiv off
+
+# SwitchMap pairs, defined only inside their selector regions: they agree
+# wherever they are defined at those scales.
+simplify/switchmap_inverse_cancel.map        equiv off
+simplify/switchmap_inverse_cancel_tail.map   equiv off
+
+# y = x^2 followed by an inverse fitted with astPolyTran over x in [1, 1.1].
+# The pair is the identity only within that range and only to the fit's
+# accuracy, 4.5e-8, which is coarser than the equivalence tolerance of 1e-9;
+# that astSimplify cancels it to a UnitMap is by design.
+simplify/poly_fitted_inverse_cancel.map   equiv off
