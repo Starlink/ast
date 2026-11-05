@@ -1,10 +1,11 @@
 # WCS converter regression tests -- pipe-delimited
 # Fields: name | input | reference | encoding | attrs | skip_string_compare
-# Four rows below carry a source velocity or a shift-and-PV chain whose value is
-# amplified by cancellation, so it moves by more than a few ulp once the compiler
-# contracts a multiply and an add -- which clang does by default and gcc does at
-# -march=x86-64-v3.  They need astEQUAL rather than the default tolerance:
-# tnx-cheb, jan_fits-class_ast, multi-wcs-spec, class-noproj.
+# Five rows below carry a source velocity, a shift-and-PV chain or a grism scale
+# whose value is amplified by cancellation, so it moves by more than a few ulp
+# once the compiler contracts a multiply and an add -- which clang does by
+# default and gcc does at -march=x86-64-v3.  They need astEQUAL rather than the
+# default tolerance: tnx-cheb, jan_fits-class_ast, multi-wcs-spec, class-noproj,
+# awav-gra-hydra_native.
 #
 # skip_string_compare: blank    = compare the output against the reference, with
 #                                 numeric tokens equal to within 4 ULP.  The
@@ -86,9 +87,14 @@ grism_fits-wcs | wcsconv/inputs/grism.head | wcsconv/expected/grism.fits-wcs | f
 # FITS-WCS Paper III.  wave-gra and awav-gri use the Fig. 5 grism parameters
 # with a vacuum S system on an air grism and the reverse, so that the
 # air/vacuum conversion sits inside the grism chain.
+# awav-gra-hydra_native: an order-11 echelle at 64.8 degrees incidence.  The
+# grism scale depends on cos(beta_r), found from sin(beta_r) = k2*wave_r - k1,
+# a difference of terms near 1.79 and 0.90 that is about 0.88, so a contracted
+# multiply-add moves the scale, and the WinMap terms derived from it, by about
+# 5 ulp.
 awav-gra-coude_native | wcsconv/inputs/awav-gra-coude.head | wcsconv/expected/awav-gra-coude.native | native |  |
 awav-gra-coude_fits-wcs | wcsconv/inputs/awav-gra-coude.head | wcsconv/expected/awav-gra-coude.fits-wcs | fits-wcs | FitsDigits=8 |
-awav-gra-hydra_native | wcsconv/inputs/awav-gra-hydra.head | wcsconv/expected/awav-gra-hydra.native | native |  |
+awav-gra-hydra_native | wcsconv/inputs/awav-gra-hydra.head | wcsconv/expected/awav-gra-hydra.native | native |  | astequal
 awav-gra-hydra_fits-wcs | wcsconv/inputs/awav-gra-hydra.head | wcsconv/expected/awav-gra-hydra.fits-wcs | fits-wcs | FitsDigits=8 |
 awav-gra-mars_native | wcsconv/inputs/awav-gra-mars.head | wcsconv/expected/awav-gra-mars.native | native |  |
 awav-gra-mars_fits-wcs | wcsconv/inputs/awav-gra-mars.head | wcsconv/expected/awav-gra-mars.fits-wcs | fits-wcs | FitsDigits=8 |
