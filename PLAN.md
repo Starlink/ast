@@ -86,6 +86,17 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testspecmap — astSpecAdd reads only the arguments the caller supplies:
   TPF2HL's six documented arguments in a six-element array, which
   AddressSanitizer checks.
+- testgrismmap — GrismMap against FITS-WCS Paper III, for the KPNO MARS grism
+  (with a non-zero epsilon and theta), the Hydra echelle in order 11 and an
+  order -1 grating: attribute defaults; wavelengths satisfying the grating
+  equation in its implicit form (eqs. (68) and (69)); g = -tan(theta) at the
+  reference wavelength (eq. (76)); round trips; AST__BAD for bad input, an
+  undispersed wavelength and a GrismMap with no dispersion; astRate in both
+  directions against numerical derivatives, each other and eq. (81);
+  astSimplify cancelling a GrismMap with its own inverse but not with the
+  inverse of one of a different order, and absorbing a ZoomMap, always
+  transforming as the unsimplified Mapping does; astEqual, astCopy and native
+  serialization.
 - testimmutable — every Mapping class with a publicly settable attribute must
   allow the change while its reference count is one and report AST__IMMUT once
   it has been cloned, as SUN/210 requires, for both setting and clearing. Also
