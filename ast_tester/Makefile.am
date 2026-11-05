@@ -612,12 +612,12 @@ ast_astequal_LDADD   = $(CTEST_LDADD)
 compare_dumps_SOURCES = compare_dumps.c
 compare_dumps_LDADD   = -lm
 
-# The comparator's own self-test, built from the same source with -DSELFTEST.
-# A comparator nobody checks is how a gate quietly stops being one.
+# The comparator's own self-test, which includes compare_dumps.c to test its
+# static helpers.  A comparator nobody checks is how a gate quietly stops being
+# one.
 check_PROGRAMS += compare_dumps_selftest
 TESTS += compare_dumps_selftest
-compare_dumps_selftest_SOURCES = compare_dumps.c
-compare_dumps_selftest_CFLAGS  = $(AM_CFLAGS) -DSELFTEST
+compare_dumps_selftest_SOURCES = compare_dumps_selftest.c
 compare_dumps_selftest_LDADD   = -lm
 
 # testgrid exercises astGrid using the logging GRF module (libast_grf_log),
