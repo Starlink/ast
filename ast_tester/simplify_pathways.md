@@ -889,7 +889,7 @@ into wavelength parameters (forward GrismMap+Zoom or Zoom+inverse GrismMap).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| grismmap-01 | grism_inverse_cancel.map | focused | `+` | Two GrismMaps with matching attributes and opposite invert cancel to UnitMap | CmpMap(GrismMap, Inverse(GrismMap)), Series=1 |
+| grismmap-01 | grism_inverse_cancel.map, grism_inverse_cancel_tail.map | focused | `+` | Two GrismMaps with matching attributes and opposite invert cancel to UnitMap | CmpMap(GrismMap, Inverse(GrismMap)), Series=1; `_tail` adds a trailing ZoomMap for the shuffle-down loop |
 | grismmap-02 | grism_zoom_merge.map | focused | `+` | Forward GrismMap + ZoomMap: zoom absorbed into wavelength params | CmpMap(GrismMap(fwd), ZoomMap), Series=1 |
 | grismmap-03 | grism_zoom_inv_merge.map | focused | `+` | ZoomMap + Inverse(GrismMap): zoom absorbed into wavelength params | CmpMap(ZoomMap, GrismMap(inv)), Series=1 |
 
@@ -900,7 +900,7 @@ into wavelength parameters (forward GrismMap+Zoom or Zoom+inverse GrismMap).
 | grismmap-04 | neg_grism_parallel.map | focused | `+` | Parallel mode: refused | GrismMaps in parallel |
 | grismmap-05 | -- | focused | `- (no fixture)` | No mergeable neighbour found | Single GrismMap with non-mergeable neighbours |
 | grismmap-06 | neg_grism_different_attrs.map | focused | `+` | Two GrismMaps with differing attributes (NR, NRP, WaveR, etc.) | GrismMaps with different parameters |
-| grismmap-07 | -- | focused | `- (no fixture)` | GrismM values equal: merge blocked | Two GrismMaps with same M |
+| grismmap-07 | neg_grism_different_order.map | focused | `+` | GrismM values differ: merge blocked | GrismMap + Inverse(GrismMap) with otherwise identical attributes but a different order |
 | grismmap-08 | neg_grism_same_direction.map | focused | `+` | Same invert flag (same direction) | Two forward GrismMaps in series |
 | grismmap-09 | neg_grism_inv_then_zoom.map | focused | `+` | First GrismMap is inverted: ZoomMap merge N/A | Inverse(GrismMap) + ZoomMap |
 | grismmap-10 | neg_grism_fwd_then_nonzoom.map | focused | `+` | First is forward GrismMap but second not ZoomMap | GrismMap(fwd) + ShiftMap |
@@ -1149,7 +1149,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | grismmap-04 | Parallel mode refused |
 | grismmap-05 | No mergeable neighbour |
 | grismmap-06 | Differing GrismMap attributes |
-| grismmap-07 | GrismM values equal: merge blocked |
+| grismmap-07 | GrismM values differ: merge blocked |
 | grismmap-08 | Same invert flag |
 | grismmap-09 | First GrismMap inverted: ZoomMap merge N/A |
 | grismmap-10 | Second not ZoomMap after forward GrismMap |

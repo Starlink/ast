@@ -196,17 +196,20 @@ static int compare_outputs( const char *label, const char *relpath,
    Generation-time agreement marks the shared valid domain; points where the
    two forms legitimately diverge (out-of-domain inputs) are excluded, while
    a future simplification regression at a previously-agreeing point is still
-   caught. */
+   caught.  *ncompared is set to the number of values compared, which is
+   zero when the recorded values agree nowhere. */
 static int compare_equiv( const char *relpath,
                           double **map_live, double **simp_live,
                           double **map_ref,  double **simp_ref,
                           int ncol, int npoint, double rtol, double atol,
-                          const int *is_ang ) {
+                          const int *is_ang, int *ncompared ) {
     int fails = 0;
+    *ncompared = 0;
     for ( int p = 0; p < npoint; p++ ) {
         for ( int a = 0; a < ncol; a++ ) {
             if ( !axis_match( map_ref[a][p], simp_ref[a][p], rtol, atol, is_ang[a] ) )
                 continue;   /* out of shared domain at generation time */
+            (*ncompared)++;
             if ( !axis_match( map_live[a][p], simp_live[a][p], rtol, atol, is_ang[a] ) ) {
                 double d = fabs( map_live[a][p] - simp_live[a][p] );
                 double rel = simp_live[a][p] != 0.0 ? d / fabs( simp_live[a][p] ) : d;
@@ -227,9 +230,11 @@ static int compare_equiv( const char *relpath,
    direction(s), and "relpath golden-fwd-rows <list>" /
    "relpath golden-inv-rows <list>" skip only the listed rows, where <list>
    is comma-separated 0-based row indices below 64.  A row list is the
-   preferred form: it leaves the rest of the section pinned.  A fixture may
-   have both a round-trip and a golden line; the two kinds are looked up
-   independently. */
+   preferred form: it leaves the rest of the section pinned.  Equivalence
+   lines: "relpath equiv off", keyed on a .map relpath, accepts a .map/.simp
+   pair whose recorded outputs agree at no sampled point, so that its
+   equivalence is never checked.  A fixture may have lines of each kind;
+   they are looked up independently. */
 typedef struct {
     char relpath[1024];
     int rtrip;                  /* round-trip entry?  else golden entry */
@@ -239,6 +244,7 @@ typedef struct {
     int golden_inv_off;         /* golden: skip inverse sections */
     uint64_t golden_fwd_rows;   /* golden: forward rows to leave uncompared */
     uint64_t golden_inv_rows;   /* golden: inverse rows to leave uncompared */
+    int equiv_off;              /* equivalence: never-compared pair accepted */
 } Override;
 static Override *g_over = NULL;
 static int g_nover = 0;
@@ -280,6 +286,10 @@ static void load_overrides( const char *path ) {
             uint64_t rows = parse_row_list( list );
             if ( strcmp( what, "golden-fwd-rows" ) == 0 ) o->golden_fwd_rows = rows;
             else                                         o->golden_inv_rows = rows;
+        } else if ( strcmp( what, "equiv" ) == 0 ) {
+            char arg[64] = "";
+            sscanf( line, "%*s %*s %63s", arg );
+            o->equiv_off = ( strcmp( arg, "off" ) == 0 );
         } else if ( strncmp( what, "golden", 6 ) == 0 ) {
             o->golden_fwd_off = ( strcmp( what, "golden" ) == 0 ||
                                   strcmp( what, "golden-fwd" ) == 0 );
@@ -305,6 +315,16 @@ static int rtrip_tol( const char *relpath, double *rtol, double *atol ) {
         }
     }
     return 1;
+}
+
+/* Is a .map fixture accepted although its recorded .map and .simp outputs
+   agree at no sampled point? */
+static int equiv_off( const char *relpath ) {
+    for ( int i = 0; i < g_nover; i++ ) {
+        if ( g_over[i].equiv_off && strcmp( g_over[i].relpath, relpath ) == 0 )
+            return 1;
+    }
+    return 0;
 }
 
 /* Is the golden comparison disabled for this fixture and direction? */
@@ -423,7 +443,9 @@ static int selftest( void ) {
            "both.map golden off\n"
            "fwdonly.map golden-fwd off\n"
            "rows.map golden-inv-rows 2,3\n"
-           "rows.map golden-fwd-rows 0\n", fp );
+           "rows.map golden-fwd-rows 0\n"
+           "waived.map equiv off\n"
+           "notoff.map equiv on\n", fp );
     fclose( fp );
     load_overrides( tmpov );
     double rtol, atol;
@@ -444,6 +466,30 @@ static int selftest( void ) {
     ok = ok && parse_row_list( "" ) == 0u;
     ok = ok && parse_row_list( "0,63" ) == ( 1ull | ( 1ull << 63 ) );
     ok = ok && parse_row_list( "64,-1" ) == 0u;
+
+    /* An equivalence line affects neither round-trip nor golden lookups,
+       and only "off" waives the check. */
+    ok = ok && equiv_off( "waived.map" ) && !equiv_off( "noisy.map" );
+    ok = ok && !equiv_off( "notoff.map" );
+    ok = ok && rtrip_tol( "waived.map", &rtol, &atol ) &&
+         rtol == ORACLE_DEF_RTRIP_RTOL && atol == ORACLE_DEF_RTRIP_ATOL;
+    ok = ok && !golden_off( "waived.map", 1 ) && !golden_off( "waived.map", 0 );
+
+    /* compare_equiv counts only the values whose recorded .map and .simp
+       outputs agree. */
+    {
+        double r0[] = { 1.0, 2.0, 3.0 }, r1[] = { 1.0, 9.0, AST__BAD };
+        double *mref[] = { r0 }, *sref[] = { r1 };
+        double *mlive[] = { r0 }, *slive[] = { r0 };
+        int ang[] = { 0 }, ncomp = -1;
+        ok = ok && compare_equiv( "selftest", mlive, slive, mref, sref,
+                                  1, 3, 1e-9, 1e-9, ang, &ncomp ) == 0 &&
+             ncomp == 1;
+        double *sref_none[] = { ( double[] ) { 5.0, 9.0, AST__BAD } };
+        ok = ok && compare_equiv( "selftest", mlive, slive, mref, sref_none,
+                                  1, 3, 1e-9, 1e-9, ang, &ncomp ) == 0 &&
+             ncomp == 0;
+    }
 
     printf( "selftest: %s\n", ok ? "ok" : "FAIL" );
     return ok ? 0 : 1;
@@ -570,11 +616,35 @@ int main( int argc, char *argv[] ) {
             path_stem( s->relpath, stem_s, sizeof stem_s );
             path_stem( prev_map->relpath, stem_m, sizeof stem_m );
             if ( strcmp( stem_s, stem_m ) == 0 ) {
+                int ncompared;
                 total_fail += compare_equiv( s->relpath, prev_map_live, live,
                                              prev_map->out, s->out,
                                              s->nout, s->npoint,
                                              ORACLE_DEF_EQUIV_RTOL,
-                                             ORACLE_DEF_EQUIV_ATOL, is_ang );
+                                             ORACLE_DEF_EQUIV_ATOL, is_ang,
+                                             &ncompared );
+
+                /* A pair whose recorded outputs agree nowhere is never
+                   compared at all, so it fails unless the overrides file
+                   accepts it, and an override for a pair that is compared
+                   is stale.  Both depend only on the recorded values. */
+                int waived = equiv_off( prev_map->relpath );
+                if ( ncompared == 0 && !waived ) {
+                    fprintf( stderr,
+                        "MISMATCH [equiv-never] %s: the recorded .map and "
+                        ".simp outputs agree at no sampled point, so their "
+                        "equivalence is never checked\n", prev_map->relpath );
+                    total_fail++;
+                } else if ( ncompared == 0 ) {
+                    fprintf( stderr, "SKIP [equiv] %s (overrides file)\n",
+                             prev_map->relpath );
+                } else if ( waived ) {
+                    fprintf( stderr,
+                        "MISMATCH [equiv-override] %s: compared at %d "
+                        "values, so its \"equiv off\" override is stale\n",
+                        prev_map->relpath, ncompared );
+                    total_fail++;
+                }
             }
         }
 

@@ -142,6 +142,20 @@ f     The WinMap class does not define any new routines beyond those
 *        ulp behind on a build that contracts a multiply and an add, and a
 *        ShiftMap writes a Sft card only for a non-zero shift -- so the residue
 *        decided how many lines the dump had.
+*     5-NOV-2026 (TIMJ):
+*        Stop treating a term below 1.0E-12 as zero, or as equal to any other
+*        such term. astEQUAL has an absolute floor of 1.0E-12, but a WinMap's
+*        terms carry the units of its axes, so a WinMap with a legitimate
+*        shift of 1.5E-14 (a spectral axis in metres) was replaced by a
+*        diagonal MatrixMap without it. Terms are now compared with astEQUAL's
+*        relative tolerance alone (WIN_EQUAL), and a shift is tested against
+*        zero exactly. A shift formed by adding terms that may cancel -- when
+*        merging with a WinMap or a ShiftMap, or moving past a full MatrixMap
+*        -- is instead set to zero where it is formed if it is no larger than
+*        the rounding error of the sum (SnapResidue). This replaces the check
+*        made when merging two WinMaps, which compared the residue with the
+*        geometric mean of the original shifts rather than with the terms
+*        added, and the astEQUAL test of 4-SEP-2026.
 *class--
 */
 
@@ -185,6 +199,18 @@ f     The WinMap class does not define any new routines beyond those
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+
+/* Local Macros. */
+/* ============= */
+/* Test two WinMap terms for equality to within the relative tolerance of
+   astEQUAL, but without its absolute floor of 1.0E-12. A WinMap's terms
+   carry the units of its axes, so a legitimate shift may be far smaller
+   than 1.0E-12, and astEQUAL would then take it to equal zero, or any
+   other shift of similar size. */
+#define WIN_EQUAL(aa,bb) \
+   ( ( (aa) == AST__BAD || (bb) == AST__BAD ) ? \
+     ( (aa) == AST__BAD && (bb) == AST__BAD ) : \
+     ( fabs( (aa) - (bb) ) <= 1.0E5*( fabs( aa ) + fabs( bb ) )*DBL_EPSILON ) )
 
 /* Module Variables. */
 /* ================= */
@@ -248,6 +274,7 @@ static AstWinMap *WinZoom( AstWinMap *, AstZoomMap *, int, int, int, int, int * 
 static size_t GetObjSize( AstObject *, int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
 static double Rate( AstMapping *, double *, int, int, int * );
+static double SnapResidue( double, double, int );
 static int CanSwap( AstMapping *, AstMapping *, int, int, int *, int * );
 static int Equal( AstObject *, AstObject *, int * );
 static int GetIsLinear( AstMapping *, int * );
@@ -573,8 +600,8 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 /* Compare the shift and scale terms from both WinMaps ignoring the
    setting of the Invert flag for the moment. */
          for( i = 0; i < nin; i++ ) {
-            if( !astEQUAL( this->a[ i ], that->a[ i ] ) ||
-                !astEQUAL( this->b[ i ], that->b[ i ] ) ) {
+            if( !WIN_EQUAL( this->a[ i ], that->a[ i ] ) ||
+                !WIN_EQUAL( this->b[ i ], that->b[ i ] ) ) {
                result = 0;
                break;
             }
@@ -597,8 +624,8 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
             result = 1;
 
             for( i = 0; i < nin; i++ ) {
-               if( !astEQUAL( a_this[ i ], a_that[ i ] ) ||
-                   !astEQUAL( b_this[ i ], b_that[ i ] ) ) {
+               if( !WIN_EQUAL( a_this[ i ], a_that[ i ] ) ||
+                   !WIN_EQUAL( b_this[ i ], b_that[ i ] ) ) {
                   result = 0;
                   break;
                }
@@ -1094,11 +1121,13 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* ======================================================================*/
 /* If the shift terms in the WinMap are all zero, the WinMap can be
    replaced by a diagonal MatrixMap (which is faster to compute). Check the
-   shift terms. */
+   shift terms. Only an exact zero will do: a shift in the units of its
+   axis may legitimately be very small, and a rounding residue left by
+   merging has already been set to zero where it arose (see SnapResidue). */
    diag = 1;
    newwm = (AstWinMap *) ( *map_list )[ where ];
    for( i = 0; i < nin; i++ ){
-      if( !astEQUAL( ( newwm->a )[ i ], 0.0 ) ){
+      if( ( newwm->a )[ i ] != 0.0 ){
          diag = 0;
          break;
       }
@@ -1831,7 +1860,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    if( result == -1 ){
       isshift = 1;
       for( i = 0; i < nin; i++ ){
-         if( !astEQUAL( ( oldwm->b )[ i ], 1.0 ) ){
+         if( !WIN_EQUAL( ( oldwm->b )[ i ], 1.0 ) ){
             isshift = 0;
             break;
          }
@@ -1848,27 +1877,11 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Get a copy of the shift terms from the WinMap. */
          astWinTerms( oldwm, 0, &a, NULL );
 
-/* A shift that is zero to the same tolerance the scale terms were just tested
-   against is zero.  The scale test above accepts 1.0 within astEQUAL, so
-   accepting 0.0 within astEQUAL here is the same tolerance, not a new one.
-
-   It matters because these terms can carry a rounding residue.  A shift merged
-   past a full MatrixMap is obtained by transforming it through that MatrixMap
-   (WinMat below), so it is accumulated by the general matrix product in
-   matrixmap.c, and where a row cancels -- (-c)*x + c*x -- the result is exactly
-   zero only if both products round the same way.  A compiler that contracts a
-   multiply and an add computes the second exactly and leaves half an ulp of the
-   operands behind: about 1e-16 against terms of order one.  A ShiftMap writes a
-   Sft card only for a non-zero shift, so that residue decides how many lines its
-   dump has, and the same Mapping serialises differently depending on whether the
-   compiler emitted a fused multiply-add.  Snapping it here keeps the dump a
-   property of the Mapping.
-
-   The transform itself is deliberately left alone: one rounding instead of two is
-   more accurate, and a coordinate is not a defining parameter. */
-         for( i = 0; i < nin; i++ ){
-            if( astEQUAL( a[ i ], 0.0 ) ) a[ i ] = 0.0;
-         }
+/* The shift terms are used as they are. A rounding residue left where
+   terms cancelled when WinMaps were merged has already been set to zero
+   where it arose (see SnapResidue), so a shift here is either exactly zero
+   or significant, and a ShiftMap writes an Sft card only for a non-zero
+   shift. */
 
 /* Construct the equivalent ShiftMap. */
          simp1 = (AstMapping *) astShiftMap( nin, a, " ", status );
@@ -2344,6 +2357,54 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
    method for further interpretation. */
    (*parent_setattrib)( this_object, setting, status );
 
+}
+
+static double SnapResidue( double sum, double size, int nterm ) {
+/*
+*  Name:
+*     SnapResidue
+
+*  Purpose:
+*     Return zero for a sum that is no larger than its rounding error.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "winmap.h"
+*     double SnapResidue( double sum, double size, int nterm )
+
+*  Class Membership:
+*     WinMap member function
+
+*  Description:
+*     This function is used when a shift term of a merged WinMap is
+*     formed by adding together terms that may cancel. If the sum is no
+*     larger than the rounding error of adding "nterm" terms whose
+*     absolute values total "size", it has no significant digits: its
+*     value depends only on the order and rounding of the operations
+*     (for instance on whether the compiler contracts a multiply and an
+*     add), so it is returned as zero. Any larger sum is returned
+*     unchanged, however small it is in absolute terms, since a WinMap's
+*     terms carry the units of its axes.
+
+*  Parameters:
+*     sum
+*        The computed sum.
+*     size
+*        The sum of the absolute values of the terms added together to
+*        form "sum".
+*     nterm
+*        The number of terms added together.
+
+*  Returned Value:
+*     Zero if "sum" is within the rounding error, otherwise "sum". AST__BAD
+*     is returned unchanged, and nothing is changed if "size" is AST__BAD.
+*/
+
+   if( sum != AST__BAD && size != AST__BAD &&
+       fabs( sum ) <= nterm*DBL_EPSILON*size ) return 0.0;
+   return sum;
 }
 
 static int TestAttrib( AstObject *this_object, const char *attrib, int *status ) {
@@ -2871,16 +2932,22 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
    AstMatrixMap *mm;             /* Pointer to the supplied MatrixMap */
    AstPointSet *pset1;           /* Shift terms from supplied WinMap */
    AstPointSet *pset2;           /* Shift terms for returned WinMap */
+   AstPointSet *pset3;           /* Each supplied shift term on its own axis */
+   AstPointSet *pset4;           /* Contribution of each term to each shift */
    AstWinMap *w1;                /* Pointer to the returned WinMap */
    AstWinMap *sw1;               /* Pointer to the simplified returned WinMap */
    AstWinMap *wm;                /* Pointer to the supplied WinMap */
    double **ptr1;                /* Pointer to pset1 data */
    double **ptr2;                /* Pointer to pset2 data */
+   double **ptr3;                /* Pointer to pset3 data */
+   double **ptr4;                /* Pointer to pset4 data */
    double *a;                    /* Array of shift terms from supplied WinMap */
    double *aa;                   /* Pointer to next shift term */
    double *b;                    /* Array of scale terms from supplied WinMap */
    double *bb;                   /* Pointer to next scale term */
+   double size;                  /* Sum of absolute contributions to a shift */
    int i;                        /* Axis count */
+   int j;                        /* Index of supplied shift term */
    int nin;                      /* No. of axes in supplied WinMap */
    int nout;                     /* No. of axes in returned WinMap */
    int old_minv;                 /* Invert value for the supplied MatrixMap */
@@ -2918,6 +2985,19 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
       for( i = 0; i < nin; i++ ) ptr1[ i ][ 0 ] = *(aa++);
    }
 
+/* Also create a PointSet in which point "j" holds the "j"th shift term on
+   axis "j" and zero on every other axis. Transforming it in the same way
+   as the single position above gives the separate contribution of each
+   shift term to each new shift term, from which the size of the rounding
+   error in each new shift term is found. */
+   pset3 = astPointSet( nin, nin, "", status );
+   ptr3 = astGetPoints( pset3 );
+   if( astOK ){
+      for( i = 0; i < nin; i++ ) {
+         for( j = 0; j < nin; j++ ) ptr3[ i ][ j ] = ( i == j ) ? a[ j ] : 0.0;
+      }
+   }
+
 /* First deal with cases when the WinMap is applied first, followed by
    the MatrixMap. */
    if( iwm == 0 ){
@@ -2931,6 +3011,7 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
    WinMap using the supplied MatrixMap to get the shift terms for
    the returned WinMap. */
       pset2 = astTransform( mm, pset1, 1, NULL );
+      pset4 = astTransform( mm, pset3, 1, NULL );
 
 /* Now deal with cases when the MatrixMap is applied first, followed by
    the WinMap. */
@@ -2945,6 +3026,7 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
    WinMap using the inverse of the returned MatrixMap to get the shift
    terms for the returned WinMap. */
       pset2 = astTransform( m2, pset1, 0, NULL );
+      pset4 = astTransform( m2, pset3, 0, NULL );
 
    }
 
@@ -2955,6 +3037,7 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
 
 /* Get pointers to the shift terms for the returned WinMap. */
    ptr2 = astGetPoints( pset2 );
+   ptr4 = astGetPoints( pset4 );
 
 /* Create the returned WinMap, initially with undefined corners. The number of
    axes in the WinMap must equal the number of shift terms. */
@@ -2962,13 +3045,20 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
    w1 = astWinMap( nout, NULL, NULL, NULL, NULL, "", status );
 
 /* If succesful, store the scale and shift terms in the WinMap. The scale
-   terms are always unity. */
+   terms are always unity. Each shift term is a sum of the contributions of
+   the supplied shift terms, and is set to zero if it is no larger than the
+   rounding error of that sum. */
    if( astOK ){
       bb = w1->b;
       aa = w1->a;
       for( i = 0; i < nout; i++ ) {
+         size = 0.0;
+         for( j = 0; j < nin && size != AST__BAD; j++ ) {
+            size = ( ptr4[ i ][ j ] != AST__BAD ) ?
+                   size + fabs( ptr4[ i ][ j ] ) : AST__BAD;
+         }
          *(bb++) = 1.0;
-         *(aa++) = ptr2[ i ][ 0 ];
+         *(aa++) = SnapResidue( ptr2[ i ][ 0 ], size, nin );
       }
 
 /* Replace the supplied Mappings and invert flags with the ones found
@@ -2995,6 +3085,8 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
    m1 = astAnnul( m1 );
    pset1 = astAnnul( pset1 );
    pset2 = astAnnul( pset2 );
+   pset3 = astAnnul( pset3 );
+   pset4 = astAnnul( pset4 );
 
 /* Free the copies of the scale and shift terms from the supplied WinMap. */
    b = (double *) astFree( (void *) b );
@@ -3395,7 +3487,9 @@ static AstWinMap *WinShift( AstWinMap *wm, AstShiftMap *sm, int winv,
          for( i = 0; i < ninw; i++ ){
 
             if( *aa != AST__BAD && *bb != AST__BAD && *ss != AST__BAD ){
-               *aa += win1 ? (*ss) : (*bb)*(*ss);
+               *aa = SnapResidue( win1 ? *aa + (*ss) : *aa + (*bb)*(*ss),
+                                  fabs( *aa ) +
+                                  fabs( win1 ? (*ss) : (*bb)*(*ss) ), 2 );
             } else {
                *bb = AST__BAD;
                *aa = AST__BAD;
@@ -3987,7 +4081,6 @@ static AstWinMap *WinWin( AstMapping *map1, AstMapping *map2, int inv1,
    double *b0;                   /* Pointer to next scale term from WinMap 1 */
    double *b1;                   /* Pointer to next scale term from WinMap 2 */
    double *br;                   /* Pointer to next scale term in result */
-   double amean;                 /* Geometric mean of the offset terms */
    int cancel;                   /* Do the two WinMaps cancel out? */
    int i;                        /* Axis index */
    int invert[ 2 ];              /* Array of invert flags */
@@ -4030,8 +4123,8 @@ static AstWinMap *WinWin( AstMapping *map1, AstMapping *map2, int inv1,
          if( ( inv1 == 0 ) != ( inv2 == 0 ) ) {
             cancel = 1;
             for( i = 0; i < nin[ 0 ]; i++ ){
-               if( !astEQUAL( (wm1->a)[ i ], (wm2->a)[ i ] ) ||
-                   !astEQUAL( (wm1->b)[ i ], (wm2->b)[ i ] ) ) {
+               if( !WIN_EQUAL( (wm1->a)[ i ], (wm2->a)[ i ] ) ||
+                   !WIN_EQUAL( (wm1->b)[ i ], (wm2->b)[ i ] ) ) {
                   cancel = 0;
                   break;
                }
@@ -4064,13 +4157,11 @@ static AstWinMap *WinWin( AstMapping *map1, AstMapping *map2, int inv1,
                if( *a0 != AST__BAD && *b0 != AST__BAD &&
                    *a1 != AST__BAD && *b1 != AST__BAD ){
 
-                  amean = sqrt(fabs((*a0)*(*a1)));
-
                   *a0 *= (*b1);
-                  *a0 += (*a1);
+                  *a0 = SnapResidue( *a0 + (*a1), fabs( *a0 ) + fabs( *a1 ),
+                                     2 );
                   *b0 *= (*b1);
 
-                  if( fabs( *a0 ) < amean*1E-15 ) *a0 = 0.0;
                   if( fabs( *b0 - 1.0 ) < 1E-15 ) *b0 = 1.0;
 
                } else {

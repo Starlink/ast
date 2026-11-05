@@ -389,6 +389,9 @@ ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
 # --- New C-only regression tests (no Fortran original) ---
 ast_add_test(testslamap)
 ast_add_test(testspecmap)
+ast_add_test(testgrismmap)
+set_target_properties(testgrismmap PROPERTIES C_STANDARD 11)
+ast_add_test(testwinmap)
 
 # --- wcsconverter: regression-diff harness ported from wcsconverter.f ---
 add_executable(wcsconverter wcsconverter.c)
@@ -593,8 +596,11 @@ target_link_libraries(compare_dumps PRIVATE m)
 set_target_properties(compare_dumps PROPERTIES C_STANDARD 11)
 ast_apply_dev_options(compare_dumps)
 
-add_executable(compare_dumps_selftest compare_dumps.c)
-target_compile_definitions(compare_dumps_selftest PRIVATE SELFTEST)
+# The selftest includes compare_dumps.c from its own source file rather than
+# compiling it with a define that swaps main.  A source file built into two
+# programs must define the same functions at the same lines in both, or lcov
+# rejects the coverage data for it.
+add_executable(compare_dumps_selftest compare_dumps_selftest.c)
 target_link_libraries(compare_dumps_selftest PRIVATE m)
 set_target_properties(compare_dumps_selftest PROPERTIES C_STANDARD 11)
 ast_apply_dev_options(compare_dumps_selftest)

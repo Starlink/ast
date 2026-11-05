@@ -28,6 +28,12 @@
 *     returned. The matrix is in the sense  V(EP1)  =  RMATP * V(EP0).
 *     The epochs are TDB (loosely TT) Julian epochs.
 *
+*     The matrix is formed from the IAU 2006 bias-precession matrices
+*     for the two epochs, from GCRS to the mean equator and equinox of
+*     each, as  RMATP = PB(EP1) * transpose( PB(EP0) ).  The frame bias
+*     cancels, so the result is precession alone, and the identity
+*     matrix when the two epochs are equal.
+*
 *     Though the matrix method itself is rigorous, the precession
 *     angles are expressed through canonical polynomials which are
 *     valid only for a limited time span of a few hundred years around
@@ -36,12 +42,21 @@
 *  Authors:
 *     PTW: Pat Wallace (STFC)
 *     DSB: David Berry (JAC, Hawaii)
+*     TIMJ: Tim Jenness (Rubin Observatory)
 *     {enter_new_authors_here}
 
 *  History:
 *     2012-02-10 (DSB):
 *        Initial version with documentation taken from Fortran SLA
 *        Adapted with permission from the Fortran SLALIB library.
+*     2026-11-05 (TIMJ):
+*        Always form PB(EP1) * transpose( PB(EP0) ).  When either epoch
+*        was exactly 2000.0 the bias-precession matrix of the other was
+*        returned on its own, so the frame bias (up to 23 mas) was
+*        applied, and the matrix for 2000.0 to 2000.0 was not the
+*        identity.  For other epochs the two matrices were multiplied
+*        in the reverse order, giving errors of up to 6 mas between
+*        1950 and 2050, and 47 mas between 1900 and 2100.
 *     {enter_further_changes_here}
 
 *  Copyright:
@@ -84,24 +99,16 @@ void palPrec( double ep0, double ep1, double rmatp[3][3] ){
    ep0_days = ( ep0 - 2000.0 )*ERFA_DJY;
    ep1_days = ( ep1 - 2000.0 )*ERFA_DJY;
 
-/* If beginning epoch is J2000, just return the rotation matrix from
-   J2000 to EP1. */
-   if( ep0 == 2000.0 ) {
-      eraPmat06( ERFA_DJ00, ep1_days, rmatp );
+/* Get the bias-precession matrices from GCRS to the mean equator and
+   equinox of each epoch. Each includes the frame bias, which is all of
+   the matrix at J2000. */
+   eraPmat06( ERFA_DJ00, ep0_days, rmatq );
+   eraPmat06( ERFA_DJ00, ep1_days, rmatp );
 
-/* If end epoch is J2000, get the rotation matrix from J2000 to EP0 and
-   then transpose it to get the rotation matrix from EP0 to J2000. */
-   } else if( ep1 == 2000.0 ) {
-      eraPmat06( ERFA_DJ00, ep0_days, rmatp );
-      eraTr( rmatp, rmatp );
-
-/* Otherwise. get the two matrices used above and multiply them
-   together. */
-   } else {
-      eraPmat06( ERFA_DJ00, ep0_days, rmatp );
-      eraTr( rmatp, rmatp );
-      eraPmat06( ERFA_DJ00, ep1_days, rmatq );
-      eraRxr( rmatp, rmatq, rmatp );
-   }
+/* Rotate from the mean of EP0 to GCRS (the transpose of the first
+   matrix) and then from GCRS to the mean of EP1. The frame bias
+   cancels. */
+   eraTr( rmatq, rmatq );
+   eraRxr( rmatp, rmatq, rmatp );
 
 }
