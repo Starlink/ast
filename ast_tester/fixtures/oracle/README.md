@@ -77,6 +77,12 @@ compare against them with a tolerance -- last-bit differences between platforms'
 maths libraries are expected, and an angular axis may legitimately come out as 0
 where another platform gives 2*pi, or -pi where another gives +pi.
 
+The checker accepts `|got - ref| <= atol + rtol*|ref|`, with the `rtol` and `atol` in each file's `# tol:` line.
+`atol` is for values that cancel toward zero, so it is measured against the size of the values on that axis rather than against 1.
+On an axis whose largest recorded |value| is below 1, the checker uses `atol` times that value.
+Otherwise, including on an axis whose recorded values are all zero, it uses `atol` as written.
+Without that, an axis in metres, such as a wavelength of 5e-7, would be allowed an error of 20%, and an axis in joules any error at all.
+
 ### Grism values checked against FITS-WCS Paper III
 
 Most sections record what this library does and nothing more.

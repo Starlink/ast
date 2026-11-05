@@ -35,6 +35,19 @@ int oracle_within_tol_wrap( double got, double ref, double rtol, double atol ) {
     return fabs( fabs( got - ref ) - twopi ) <= atol + rtol * fabs( ref );
 }
 
+double oracle_axis_scale( const double *v, int n ) {
+    double scale = 0.0;
+    for ( int i = 0; i < n; i++ ) {
+        if ( v[i] == AST__BAD || !isfinite( v[i] ) ) continue;
+        if ( fabs( v[i] ) > scale ) scale = fabs( v[i] );
+    }
+    return scale;
+}
+
+double oracle_axis_atol( double atol, double scale ) {
+    return ( scale > 0.0 && scale < 1.0 ) ? atol * scale : atol;
+}
+
 /* Number of sampled points per fixture (tunable). */
 #define ORACLE_NPOINT 24
 
