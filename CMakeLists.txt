@@ -1268,6 +1268,12 @@ if(BUILD_TESTING)
                 set(AST_COVERAGE_DIR "${CMAKE_CURRENT_BINARY_DIR}/coverage")
                 set(AST_COVERAGE_FULL_INFO "${AST_COVERAGE_DIR}/coverage.full.info")
                 set(AST_COVERAGE_INFO "${AST_COVERAGE_DIR}/lcov.info")
+                # lcov's consistency checks reject some of the line and branch
+                # data gcc records: a condition joined by && or || across
+                # several lines can leave a line executed while none of its
+                # branches were taken, and every function a macro defines
+                # shares the line of the macro's invocation.  "inconsistent"
+                # reports these as warnings rather than failing the report.
                 add_custom_target(coverage-report
                     COMMAND ${CMAKE_COMMAND} -E make_directory "${AST_COVERAGE_DIR}"
                     COMMAND ${LCOV_EXECUTABLE} --directory "${CMAKE_BINARY_DIR}" --zerocounters
@@ -1276,14 +1282,14 @@ if(BUILD_TESTING)
                         --capture
                         --directory "${CMAKE_BINARY_DIR}"
                         --output-file "${AST_COVERAGE_FULL_INFO}"
-                        --ignore-errors negative
+                        --ignore-errors negative,inconsistent
                         --rc branch_coverage=1
                     COMMAND ${LCOV_EXECUTABLE}
                         --extract "${AST_COVERAGE_FULL_INFO}"
                             "${CMAKE_SOURCE_DIR}/src/*"
                             "${CMAKE_SOURCE_DIR}/ast_tester/*"
                         --output-file "${AST_COVERAGE_INFO}"
-                        --ignore-errors unused,negative
+                        --ignore-errors unused,negative,inconsistent
                         --rc branch_coverage=1
                     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
                     COMMENT "Running tests and generating LCOV report in ${AST_COVERAGE_DIR}"
@@ -1295,6 +1301,7 @@ if(BUILD_TESTING)
                         COMMAND ${GENHTML_EXECUTABLE}
                             --branch-coverage
                             --legend
+                            --ignore-errors inconsistent
                             --output-directory "${AST_COVERAGE_DIR}/html"
                             "${AST_COVERAGE_INFO}"
                         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
