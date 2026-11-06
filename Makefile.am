@@ -895,10 +895,14 @@ if !STARLINK_BUILD
 if PREDIST_BUILD
 AST_MESSGEN = star_compat/messgen
 CLEANFILES += $(AST_MESSGEN)
+# messgen.c is vendored upstream code; suppress its -Wformat-overflow
+# -Wunused-value warnings
+MESSGEN_CFLAGS = -Wno-format-overflow -Wno-unused-value
 
 $(AST_MESSGEN): $(srcdir)/star_compat/messgen.c
 	$(AM_V_at)$(MKDIR_P) star_compat
 	$(AM_V_GEN)$(CC_FOR_BUILD) $(CFLAGS_FOR_BUILD) $(LDFLAGS_FOR_BUILD) \
+	$(MESSGEN_CFLAGS) \
 	    -o $@ $(srcdir)/star_compat/messgen.c
 
 ast_err.h AST_ERR: $(srcdir)/ast_err.msg $(AST_MESSGEN)

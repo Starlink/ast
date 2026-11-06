@@ -68,7 +68,10 @@ static void free_cols( double **c, int ncol ) {
 /* Return 1 if <root>/<relpath> can be opened for reading. */
 static int file_exists( const char *root, const char *relpath ) {
     char path[1024];
-    snprintf( path, sizeof path, "%s/%s", root, relpath );
+    if ( snprintf( path, sizeof path, "%s/%s", root, relpath ) >=
+         (int) sizeof path ) {
+        return 0;
+    }
     FILE *fp = fopen( path, "r" );
     if ( fp ) { fclose( fp ); return 1; }
     return 0;
@@ -78,7 +81,10 @@ static int file_exists( const char *root, const char *relpath ) {
 static int file_contains( const char *root, const char *relpath,
                           const char *needle ) {
     char path[1024];
-    snprintf( path, sizeof path, "%s/%s", root, relpath );
+    if ( snprintf( path, sizeof path, "%s/%s", root, relpath ) >=
+         (int) sizeof path ) {
+        return 0;
+    }
     FILE *fp = fopen( path, "r" );
     if ( !fp ) return 0;
     int found = 0;
