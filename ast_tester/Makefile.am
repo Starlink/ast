@@ -83,6 +83,7 @@ C_TESTS = \
     testfitstable_c \
     testflux_c \
     testframe \
+    testframeperm \
     testframeset_c \
     testissimp \
     testkeymap_c \
@@ -140,6 +141,9 @@ testerror_LDADD        = $(CTEST_LDADD)
 
 testframe_SOURCES      = testframe.c
 testframe_LDADD        = $(CTEST_LDADD)
+
+testframeperm_SOURCES  = testframeperm.c
+testframeperm_LDADD    = $(CTEST_LDADD)
 
 testobject_SOURCES     = testobject.c
 testobject_LDADD       = $(CTEST_LDADD)

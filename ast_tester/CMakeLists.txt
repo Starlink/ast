@@ -335,6 +335,7 @@ ast_add_test(testissimp INTERNAL_HEADERS)
 # --- Tests needing SAE_PAR stub ---
 ast_add_test(testaxis)
 ast_add_test(testframe)
+ast_add_test(testframeperm)
 ast_add_test(testunitnorm)
 ast_add_test(testobjectkeymap)
 
