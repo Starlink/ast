@@ -313,6 +313,14 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        FluxFrame all do - has a NormUnit that is a simplification of the
 *        units it reports. A Unit set on the Axis itself is still
 *        normalised by the Axis method.
+*     6-NOV-2026 (TIMJ):
+*        Validate the axis permutation array read by astLoadFrame. The
+*        values were stored from the dump with no range check, so a dump
+*        holding an out-of-range or repeated index could make Dump use it
+*        as a write index past the end of an array sized to the number of
+*        axes. The check uses the loaded axis count directly rather than
+*        astGetNaxes, which a sub-class such as CmpFrame over-rides with a
+*        count that is not yet available while its base Frame is loaded.
 *class--
 */
 
@@ -15306,6 +15314,37 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 
 /* Quit looping if an error occurs. */
             if ( !astOK ) break;
+         }
+
+/* Validate the loaded axis permutation array before it can be used as a
+   write index (for example by Dump, which inverts it into an array of
+   "naxes" elements). astReadInt applies no range check, so an invalid
+   dump could otherwise leave an out-of-range or repeated entry here. The
+   check uses the axis count already read for this Frame rather than
+   astGetNaxes, because the latter is over-ridden by classes such as
+   CmpFrame whose axis count is not yet available while their base Frame
+   is being loaded. */
+         if ( astOK ) {
+            int *there = astMalloc( sizeof( int ) * (size_t) new->naxes );
+            if ( astOK ) {
+               int valid = 1;
+               for ( axis = 0; axis < new->naxes; axis++ ) there[ axis ] = 0;
+               for ( axis = 0; axis < new->naxes; axis++ ) {
+                  int p = new->perm[ axis ];
+                  if ( p < 0 || p >= new->naxes || there[ p ] ) {
+                     valid = 0;
+                     break;
+                  }
+                  there[ p ] = 1;
+               }
+               if ( !valid ) {
+                  astError( AST__PRMIN, "astLoadFrame(%s): Invalid axis "
+                            "permutation array: each axis index should lie "
+                            "in the range 1 to %d and should occur only "
+                            "once.", status, astGetClass( new ), new->naxes );
+               }
+            }
+            there = astFree( there );
          }
 
 /* The remaining values are not associated with particular axes... */
