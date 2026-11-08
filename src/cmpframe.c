@@ -208,6 +208,14 @@ f     The CmpFrame class does not define any new routines beyond those
 *        data pointers astGetPoints returns, which belong to the PointSet,
 *        and advanced the second component's by npoint2*sizeof(double)
 *        elements, so the grid held garbage and was written out of bounds.
+*     8-NOV-2026 (TIMJ):
+*        Validate the axis permutation array read by astLoadCmpFrame. The
+*        values were stored from the dump with no range check, so a dump
+*        holding an out-of-range or repeated index could make a later
+*        operation such as astResolve or astAngle use it as an index past
+*        the end of an array sized to the number of axes. The component
+*        Frames are read before the permutation, so the axis count is
+*        available directly.
 *class--
 */
 
@@ -11069,6 +11077,36 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
 /* Quit looping if an error occurs. */
             if ( !astOK ) break;
          }
+      }
+
+/* Validate the loaded axis permutation array before it can be used as an
+   index into an array sized to the number of axes. Many CmpFrame methods
+   (for example Resolve and Angle) scatter values using "perm" as a write
+   index, and MatchAxes reads through it. astReadInt applies no range check,
+   so an invalid dump could otherwise leave an out-of-range or repeated entry
+   here. The component Frames have already been read above, so the axis count
+   is available directly. */
+      if ( astOK ) {
+         int *there = astMalloc( sizeof( int ) * (size_t) naxes );
+         if ( astOK ) {
+            int valid = 1;
+            for ( axis = 0; axis < naxes; axis++ ) there[ axis ] = 0;
+            for ( axis = 0; axis < naxes; axis++ ) {
+               int p = new->perm[ axis ];
+               if ( p < 0 || p >= naxes || there[ p ] ) {
+                  valid = 0;
+                  break;
+               }
+               there[ p ] = 1;
+            }
+            if ( !valid ) {
+               astError( AST__PRMIN, "astLoadCmpFrame(%s): Invalid axis "
+                         "permutation array: each axis index should lie in "
+                         "the range 1 to %d and should occur only once.",
+                         status, astGetClass( new ), naxes );
+            }
+         }
+         there = astFree( there );
       }
 
 /* If an error occurred, clean up by deleting the new CmpFrame. */
