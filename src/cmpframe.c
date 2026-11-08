@@ -215,7 +215,8 @@ f     The CmpFrame class does not define any new routines beyond those
 *        operation such as astResolve or astAngle use it as an index past
 *        the end of an array sized to the number of axes. The component
 *        Frames are read before the permutation, so the axis count is
-*        available directly.
+*        available directly and is passed to the shared astCheckPermArray
+*        function.
 *class--
 */
 
@@ -11085,29 +11086,8 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
    index, and MatchAxes reads through it. astReadInt applies no range check,
    so an invalid dump could otherwise leave an out-of-range or repeated entry
    here. The component Frames have already been read above, so the axis count
-   is available directly. */
-      if ( astOK ) {
-         int *there = astMalloc( sizeof( int ) * (size_t) naxes );
-         if ( astOK ) {
-            int valid = 1;
-            for ( axis = 0; axis < naxes; axis++ ) there[ axis ] = 0;
-            for ( axis = 0; axis < naxes; axis++ ) {
-               int p = new->perm[ axis ];
-               if ( p < 0 || p >= naxes || there[ p ] ) {
-                  valid = 0;
-                  break;
-               }
-               there[ p ] = 1;
-            }
-            if ( !valid ) {
-               astError( AST__PRMIN, "astLoadCmpFrame(%s): Invalid axis "
-                         "permutation array: each axis index should lie in "
-                         "the range 1 to %d and should occur only once.",
-                         status, astGetClass( new ), naxes );
-            }
-         }
-         there = astFree( there );
-      }
+   is passed explicitly rather than relying on astGetNaxes. */
+      astCheckPermArray( (AstFrame *) new, new->perm, naxes, "astLoadCmpFrame" );
 
 /* If an error occurred, clean up by deleting the new CmpFrame. */
       if ( !astOK ) new = astDelete( new );

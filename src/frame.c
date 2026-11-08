@@ -321,6 +321,10 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        axes. The check uses the loaded axis count directly rather than
 *        astGetNaxes, which a sub-class such as CmpFrame over-rides with a
 *        count that is not yet available while its base Frame is loaded.
+*     8-NOV-2026 (TIMJ):
+*        Move the permutation-array check into a new protected function
+*        astCheckPermArray, which takes the axis count explicitly. CheckPerm
+*        and the astLoadFrame and astLoadCmpFrame loaders now all share it.
 *class--
 */
 
@@ -1924,6 +1928,122 @@ static double Centre( AstFrame *this, int axis, double value, double gap, int *s
    return result;
 }
 
+void astCheckPermArray_( AstFrame *this, const int *perm, int naxes,
+                         const char *method, int *status ) {
+/*
+*+
+*  Name:
+*     astCheckPermArray
+
+*  Purpose:
+*     Check that an array contains a valid axis permutation.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "frame.h"
+*     void astCheckPermArray( AstFrame *this, const int *perm, int naxes,
+*                             const char *method )
+
+*  Class Membership:
+*     Frame method.
+
+*  Description:
+*     This function checks the validity of a permutation array that will be
+*     used to permute the order of "naxes" axes. If the permutation is not
+*     valid, an error is reported and the global error status is set.
+*     Otherwise, the function returns without further action.
+*
+*     It behaves like astCheckPerm except that the number of axes is supplied
+*     explicitly rather than obtained from astGetNaxes. This allows it to be
+*     used while an object is being loaded from a Channel, before a sub-class
+*     axis count (such as that of a CmpFrame) is available.
+
+*  Parameters:
+*     this
+*        Pointer to the Frame. This is used only for constructing error
+*        messages.
+*     perm
+*        Pointer to an array of "naxes" integers. For each axis, the value
+*        gives the (zero based) axis index to be used for that axis. To be
+*        valid, the values should all lie in the range zero to (naxes-1)
+*        inclusive, and each should occur exactly once.
+*     naxes
+*        The number of axes, and so the number of elements in "perm".
+*     method
+*        Pointer to a constant null-terminated character string containing
+*        the name of the method that invoked this function. This is used
+*        solely for constructing error messages.
+
+*  Notes:
+*     - Error messages issued by this function refer to the external
+*     (public) one-based axis numbering, whereas zero-based axis indices are
+*     used internally.
+*-
+*/
+
+/* Local Variables: */
+   int *there;                   /* Pointer to temporary array */
+   int axis;                     /* Loop counter for axes */
+   int valid;                    /* Permutation array is valid? */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Initialise. */
+   valid = 1;
+
+/* Allocate a temporary array of integers with one element per axis. */
+   there = astMalloc( sizeof( int ) * (size_t) naxes );
+   if ( astOK ) {
+
+/* Initialise the temporary array to zero. */
+      for ( axis = 0; axis < naxes; axis++ ) there[ axis ] = 0;
+
+/* Scan the permutation array, checking that each permuted axis index it
+   contains is within the correct range. Note an error and quit checking
+   if an invalid value is found. */
+      for ( axis = 0; axis < naxes; axis++ ) {
+         if ( ( perm[ axis ] < 0 ) || ( perm[ axis ] >= naxes ) ) {
+            valid = 0;
+            break;
+
+/* Use the temporary array to count how many times each valid axis index
+   occurs. */
+         } else {
+            there[ perm[ axis ] ]++;
+         }
+      }
+
+/* If all the axis indices were within range, check to ensure that each value
+   occurred only once. */
+      if ( valid ) {
+         for ( axis = 0; axis < naxes; axis++ ) {
+
+/* Note an error and quit checking if any value did not occur exactly once. */
+            if ( there[ axis ] != 1 ) {
+               valid = 0;
+               break;
+            }
+         }
+      }
+   }
+
+/* Free the temporary array. */
+   there = astFree( there );
+
+/* If an invalid permutation was detected and no other error has
+   occurred, then report an error (note we convert to one-based axis
+   numbering in the error message). */
+   if ( !valid && astOK ) {
+      astError( AST__PRMIN, "%s(%s): Invalid axis permutation array.", status,
+                method, astGetClass( this ) );
+      astError( AST__PRMIN, "Each axis index should lie in the range 1 to %d "
+                "and should occur only once.", status, naxes );
+   }
+}
+
 static void CheckPerm( AstFrame *this, const int *perm, const char *method, int *status ) {
 /*
 *+
@@ -1975,68 +2095,12 @@ static void CheckPerm( AstFrame *this, const int *perm, const char *method, int 
 *-
 */
 
-/* Local Variables: */
-   int *there;                   /* Pointer to temporary array */
-   int axis;                     /* Loop counter for axes */
-   int naxes;                    /* Number of Frame axes */
-   int valid;                    /* Permutation array is valid? */
-
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Initialise. */
-   valid = 1;
-
-/* Obtain the number of Frame axes and allocate a temporary array of integers
-   with the same number of elements. */
-   naxes = astGetNaxes( this );
-   there = astMalloc( sizeof( int ) * (size_t) naxes );
-   if ( astOK ) {
-
-/* Initialise the temporary array to zero. */
-      for ( axis = 0; axis < naxes; axis++ ) there[ axis ] = 0;
-
-/* Scan the permutation array, checking that each permuted axis index it
-   contains is within the correct range. Note an error and quit checking
-   if an invalid value is found. */
-      for ( axis = 0; axis < naxes; axis++ ) {
-         if ( ( perm[ axis ] < 0 ) || ( perm[ axis ] >= naxes ) ) {
-            valid = 0;
-            break;
-
-/* Use the temporary array to count how many times each valid axis index
-   occurs. */
-	 } else {
-            there[ perm[ axis ] ]++;
-	 }
-      }
-
-/* If all the axis indices were within range, check to ensure that each value
-   occurred only once. */
-      if ( valid ) {
-         for ( axis = 0; axis < naxes; axis++ ) {
-
-/* Note an error and quit checking if any value did not occur exactly once. */
-            if ( there[ axis ] != 1 ) {
-               valid = 0;
-               break;
-	    }
-	 }
-      }
-   }
-
-/* Free the temporary array. */
-   there = astFree( there );
-
-/* If an invalid permutation was detected and no other error has
-   occurred, then report an error (note we convert to one-based axis
-   numbering in the error message). */
-   if ( !valid && astOK ) {
-      astError( AST__PRMIN, "%s(%s): Invalid axis permutation array.", status,
-                method, astGetClass( this ) );
-      astError( AST__PRMIN, "Each axis index should lie in the range 1 to %d "
-                "and should occur only once.", status, naxes );
-   }
+/* Validate the permutation array, obtaining the number of axes from this
+   Frame (a count which a sub-class may over-ride). */
+   astCheckPermArray( this, perm, astGetNaxes( this ), method );
 }
 
 static void CleanAttribs( AstObject *this_object, int *status ) {
@@ -15318,34 +15382,12 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 
 /* Validate the loaded axis permutation array before it can be used as a
    write index (for example by Dump, which inverts it into an array of
-   "naxes" elements). astReadInt applies no range check, so an invalid
-   dump could otherwise leave an out-of-range or repeated entry here. The
-   check uses the axis count already read for this Frame rather than
-   astGetNaxes, because the latter is over-ridden by classes such as
-   CmpFrame whose axis count is not yet available while their base Frame
-   is being loaded. */
-         if ( astOK ) {
-            int *there = astMalloc( sizeof( int ) * (size_t) new->naxes );
-            if ( astOK ) {
-               int valid = 1;
-               for ( axis = 0; axis < new->naxes; axis++ ) there[ axis ] = 0;
-               for ( axis = 0; axis < new->naxes; axis++ ) {
-                  int p = new->perm[ axis ];
-                  if ( p < 0 || p >= new->naxes || there[ p ] ) {
-                     valid = 0;
-                     break;
-                  }
-                  there[ p ] = 1;
-               }
-               if ( !valid ) {
-                  astError( AST__PRMIN, "astLoadFrame(%s): Invalid axis "
-                            "permutation array: each axis index should lie "
-                            "in the range 1 to %d and should occur only "
-                            "once.", status, astGetClass( new ), new->naxes );
-               }
-            }
-            there = astFree( there );
-         }
+   "naxes" elements). astReadInt applies no range check, so an invalid dump
+   could otherwise leave an out-of-range or repeated entry here. The axis
+   count already read for this Frame is passed explicitly rather than using
+   astGetNaxes, which a sub-class such as CmpFrame over-rides with a count
+   that is not yet available while its base Frame is being loaded. */
+         astCheckPermArray( new, new->perm, new->naxes, "astLoadFrame" );
 
 /* The remaining values are not associated with particular axes... */
 
