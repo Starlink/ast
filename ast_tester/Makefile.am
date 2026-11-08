@@ -84,6 +84,7 @@ C_TESTS = \
     testflux_c \
     testframe \
     testframeperm \
+    testframesetload \
     testframeset_c \
     testissimp \
     testkeymap_c \
@@ -144,6 +145,8 @@ testframe_LDADD        = $(CTEST_LDADD)
 
 testframeperm_SOURCES  = testframeperm.c
 testframeperm_LDADD    = $(CTEST_LDADD)
+testframesetload_SOURCES  = testframesetload.c
+testframesetload_LDADD    = $(CTEST_LDADD)
 
 testobject_SOURCES     = testobject.c
 testobject_LDADD       = $(CTEST_LDADD)
