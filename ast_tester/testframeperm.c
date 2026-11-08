@@ -20,6 +20,11 @@
 *     Frame is being loaded, to confirm the validation does not disturb the
 *     loading of a class that over-rides astGetNaxes.
 
+*     A CmpFrame carries its own axis permutation array (keyword "Axp"),
+*     read by the same unchecked path and used as a write index by methods
+*     such as astNorm.  The test checks that an invalid CmpFrame array is
+*     rejected and that a valid permuted CmpFrame loads and stays usable.
+
 *  Notes:
 *     - This is a native C test with no Fortran original.
 *     - Public C API only.  Errors expected from a deliberately invalid
@@ -123,6 +128,63 @@ int main( void ) {
       obj = check_accepted( "CmpFrame", dump, "CmpFrame" );
       if ( obj ) obj = astAnnul( obj ); else nfail++;
       dump = astFree( dump );
+   }
+
+/* A CmpFrame carries its own axis permutation array (keyword "Axp"), read
+   by the same unchecked path as the Frame class.  A valid non-identity
+   permutation must load, round-trip unchanged and remain usable - astNorm
+   scatters coordinates through the array as a write index - while an
+   out-of-range entry must be rejected rather than producing an object that
+   writes out of bounds when used. */
+   {
+      AstCmpFrame *cmp = astCmpFrame( astFrame( 1, "Domain=A" ),
+                                      astFrame( 1, "Domain=B" ), " " );
+      int perm[ 2 ] = { 2, 1 };
+      char *dump1;
+      AstObject *obj;
+
+      astPermAxes( cmp, perm );
+      dump1 = astToString( cmp );
+      cmp = astAnnul( cmp );
+
+      obj = check_accepted( "permuted CmpFrame", dump1, "CmpFrame" );
+      if ( obj ) {
+         char *dump2 = astToString( obj );
+         double point[ 2 ] = { 0.1, 0.2 };
+         if ( astOK && strcmp( dump1, dump2 ) != 0 ) {
+            fprintf( stderr, "testframeperm: permuted CmpFrame did not "
+                     "round-trip unchanged\n" );
+            nfail++;
+         }
+         astNorm( (AstFrame *) obj, point );
+         if ( !astOK ) {
+            fprintf( stderr, "testframeperm: astNorm failed on a valid "
+                     "permuted CmpFrame\n" );
+            nfail++;
+         }
+         dump2 = astFree( dump2 );
+         obj = astAnnul( obj );
+      } else {
+         nfail++;
+      }
+
+/* Corrupt the first permutation value to an out-of-range index. */
+      {
+         char *bad = astStore( NULL, dump1, strlen( dump1 ) + 1 );
+         if ( astOK ) {
+            char *axp = strstr( bad, "Axp1 = " );
+            if ( axp ) {
+               axp[ strlen( "Axp1 = " ) ] = '9';
+               nfail += check_rejected( "out-of-range CmpFrame Axp", bad );
+            } else {
+               fprintf( stderr, "testframeperm: could not find Axp1 in the "
+                        "CmpFrame dump\n" );
+               nfail++;
+            }
+         }
+         bad = astFree( bad );
+      }
+      dump1 = astFree( dump1 );
    }
    {
       AstFrameSet *fs = astFrameSet( astFrame( 2, " " ), " " );
