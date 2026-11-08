@@ -281,6 +281,14 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        In AddVariant and SetVariant, clear the Domain of the current
 *        Frame after changing it temporarily if it was not set before,
 *        instead of setting it to the default value it had.
+*     8-NOV-2026 (TIMJ):
+*        Validate the node graph read by astLoadFrameSet. The Frame node,
+*        link, variants and Base/Current indices were stored from the dump
+*        with no range check, so a corrupt dump could make astGetFrame or
+*        astGetMapping read or write outside the Frame or node arrays.
+*        ValidateFrameIndex now also range-checks the Base and Current
+*        indices it returns, and GetVarFrm stops walking the variants chain
+*        if it finds a cycle, so neither can act on a corrupt value.
 *class--
 */
 
@@ -6035,15 +6043,23 @@ static int GetVarFrm( AstFrameSet *this, int iframe, int *status ) {
    result = iframe;
 
 /* If the nominated Frame is mirroring another Frame, return the index of
-   the mirrored Frame. Walk up the chain until we reach a Frame which is
-   not a mirror for another Frame. */
-   while( this->varfrm[ result - 1 ] > 0 ) {
-      if( this->varfrm[ result - 1 ] == result ) {
-         astError( AST__INTER, "GetVarFrm(FrameSet): FrameSet is corrupt "
-                   "(internal programming error).", status );
-         break;
-      } else {
-         result = this->varfrm[ result - 1 ];
+   the mirrored Frame. Walk up the chain until we reach a Frame which is not
+   a mirror for another Frame. A valid chain visits each Frame at most once,
+   so stop and report corruption if a step points outside the valid range or
+   if more than "nframe" steps are taken - which can only happen if the chain
+   contains a cycle, as a FrameSet read from a corrupt dump might. */
+   {
+      int nframe = astGetNframe( this );
+      int nstep = 0;
+      while( astOK && this->varfrm[ result - 1 ] > 0 ) {
+         int next = this->varfrm[ result - 1 ];
+         if( next == result || next < 1 || next > nframe || ++nstep > nframe ) {
+            astError( AST__FRSIN, "astGetVarFrm(%s): Invalid or corrupt "
+                      "FrameSet - the chain of mirrored Frames is not valid.",
+                      status, astGetClass( this ) );
+            break;
+         }
+         result = next;
       }
    }
 
@@ -11723,29 +11739,38 @@ static int ValidateFrameIndex( AstFrameSet *this, int iframe,
    if ( !astOK ) return result;
 
 /* Check if the base or current Frame was specified and retrieve the
-   required Frame index from the FrameSet. */
+   required Frame index from the FrameSet. Otherwise use the supplied index
+   directly. */
    if ( iframe == AST__BASE ) {
       result = astGetBase( this );
    } else if ( iframe == AST__CURRENT ) {
       result = astGetCurrent( this );
-
-/* Otherwise, determine how many Frames there are in the FrameSet. */
    } else {
-      nframe = astGetNframe( this );
-      if ( astOK ) {
+      result = iframe;
+   }
 
-/* Check that the supplied index is within range and report an error
-   if it is not. */
-         if ( ( iframe < 1 ) || ( iframe > nframe ) ) {
+/* Determine how many Frames there are in the FrameSet. */
+   nframe = astGetNframe( this );
+   if ( astOK ) {
+
+/* Check that the index is within range and report an error if it is not.
+   The index may have come from the Base or Current attribute rather than
+   the caller, so this also guards the Frame array against an out-of-range
+   value left by a corrupt FrameSet (for example one read from a dump). */
+      if ( ( result < 1 ) || ( result > nframe ) ) {
+         if ( iframe == AST__BASE || iframe == AST__CURRENT ) {
+            astError( AST__FRMIN, "%s(%s): Invalid or corrupt FrameSet - the "
+                      "%s Frame index (%d) is outside the range 1 to %d.",
+                      status, method, astGetClass( this ),
+                      ( iframe == AST__BASE ) ? "Base" : "Current",
+                      result, nframe );
+         } else {
             astError( AST__FRMIN, "%s(%s): Invalid Frame index (%d) given.", status,
                       method, astGetClass( this ), iframe );
             astError( AST__FRMIN, "This value should be in the range 1 to "
                       "%d (or AST__CURRENT or AST__BASE).", status, nframe );
-
-/* If OK, return the validated index value. */
-         } else {
-            result = iframe;
          }
+         result = 0;
       }
    }
 
@@ -13236,6 +13261,37 @@ AstFrameSet *astLoadFrameSet_( void *mem, size_t size,
 /* -------- */
          new->current = astReadInt( channel, "currnt", -INT_MAX );
          if ( new->current < 1 ) new->current = -INT_MAX;
+
+/* Validate the graph read from the dump before any of it can be used as an
+   array index. astReadInt applies no range check, so a corrupt dump could
+   otherwise leave an out-of-range node, link, variants or Base/Current index
+   that would be used to read or write outside the Frame or node arrays (for
+   example by astGetFrame or astGetMapping). A valid FrameSet always has at
+   least one Frame, every Frame sits at an existing node and may mirror
+   another Frame's variants, every node but the first is derived from an
+   existing node, and Base/Current are either unset or a valid Frame index. */
+         if ( astOK ) {
+            int ok = ( new->nframe >= 1 );
+            for ( ifr = 0; ok && ifr < new->nframe; ifr++ ) {
+               if ( new->node[ ifr ] < 0 || new->node[ ifr ] >= new->nnode ||
+                    new->varfrm[ ifr ] < 0 ||
+                    new->varfrm[ ifr ] > new->nframe ) ok = 0;
+            }
+            for ( inode = 1; ok && inode < new->nnode; inode++ ) {
+               if ( new->link[ inode - 1 ] < 0 ||
+                    new->link[ inode - 1 ] >= new->nnode ) ok = 0;
+            }
+            if ( ok && new->base != -INT_MAX &&
+                 ( new->base < 1 || new->base > new->nframe ) ) ok = 0;
+            if ( ok && new->current != -INT_MAX &&
+                 ( new->current < 1 || new->current > new->nframe ) ) ok = 0;
+            if ( !ok ) {
+               astError( AST__FRSIN, "astLoadFrameSet(%s): Invalid or corrupt "
+                         "FrameSet read from the dump - a Frame, node, "
+                         "variants or Base/Current index is out of range.",
+                         status, astGetClass( new ) );
+            }
+         }
       }
 
 /* If an error occurred, clean up by deleting the new FrameSet. */
