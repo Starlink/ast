@@ -1366,7 +1366,7 @@ static void testgrismorder( int errbase, double morder, int *status ) {
 
    if( !astOK ) return;
 
-   fc = astFitsChan( NULL, NULL, "" );
+   fc = astFitsChan( NULL, NULL, " " );
    astPutFits( fc, "CTYPE1  = 'WAVE-GRI'", 0 );
    astPutFits( fc, "CRVAL1  =            5.0E-7", 0 );
    astPutFits( fc, "CRPIX1  =                1.0", 0 );

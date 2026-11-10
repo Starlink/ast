@@ -41,12 +41,17 @@ jobs:
             fortran: OFF
             sanitizers: OFF
             c_flags: '-march=x86-64-v3'
-          # Add a Fortran build on each platform (shared only)
+          # Add a Fortran build on each platform (shared only).  The Linux
+          # one also writes GCC's diagnostics as SARIF, alongside the usual
+          # text output, for the "Annotate compiler diagnostics" step.  It
+          # builds the most code with GCC, which is the only compiler here
+          # that can do both at once.
           - os: ubuntu-latest
             build_type: Release
             shared_libs: ON
             fortran: ON
             sanitizers: OFF
+            c_flags: '-fdiagnostics-add-output=sarif'
           - os: macos-latest
             build_type: Release
             shared_libs: ON
@@ -139,6 +144,31 @@ jobs:
 
       - name: Build
         run: cmake --build build --parallel
+
+      #  Turn the SARIF files from a build with -fdiagnostics-add-output=sarif
+      #  into workflow annotations, so a new warning shows up on the run and
+      #  the pull request without failing anything.  GCC writes one file per
+      #  source file into the compiler's working directory; CMakeScratch holds
+      #  configure-time probes, some of which are meant to fail.  A header's
+      #  warnings repeat for every file that includes it, hence sort -u.  Jobs
+      #  that do not pass the flag have no SARIF files, and the step prints
+      #  nothing.
+      - name: Annotate compiler diagnostics
+        if: ${{ !cancelled() }}
+        run: |
+          find build -name '*.sarif' -not -path '*/CMakeScratch/*' \
+            -exec jq -r --arg ws "$GITHUB_WORKSPACE/" '
+            .runs[].results[]
+            | select(.level == "error" or .level == "warning")
+            | .locations[0].physicalLocation as $loc
+            | "::\(.level) file=\($loc.artifactLocation.uri
+                                  | sub("^file://"; "") | ltrimstr($ws)),"
+              + "line=\($loc.region.startLine),"
+              + "col=\($loc.region.startColumn),"
+              + "title=\(.ruleId // .level)::"
+              + (.message.text
+                 | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A"))
+          ' {} \; | sort -u
 
       - name: Test
         run: ctest --test-dir build --output-on-failure --output-junit build/junit.xml

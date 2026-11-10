@@ -75,7 +75,7 @@ c      call ast_watchmemory(483)
          call stopit( status, 'Table error 3' )
       endif
 
-      call ast_mapput0r( table, 'Fred(2)', 123, 'com 1', status )
+      call ast_mapput0r( table, 'Fred(2)', 123.0, 'com 1', status )
       if( status .eq. AST__BADTYP ) then
          call err_annul( status )
       else if( status .eq. sai__ok ) then

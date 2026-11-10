@@ -175,6 +175,13 @@ if test -n "$F77"; then
     FFLAGS=$ast_save_FFLAGS
   done
   AC_LANG_POP([Fortran 77])
+dnl  The F77 tests routinely pass %VAL pointers, array elements and dummy
+dnl  scalars to arguments of other types or ranks.  gfortran still reports
+dnl  every such call under -fallow-argument-mismatch, and -w is the only
+dnl  way to turn those reports off.
+  case " $AST_FFLAGS_EXTRA " in
+    *" -fallow-argument-mismatch "*) AST_FFLAGS_EXTRA="$AST_FFLAGS_EXTRA -w" ;;
+  esac
 fi
 AC_SUBST([AST_FFLAGS_EXTRA])
 fi

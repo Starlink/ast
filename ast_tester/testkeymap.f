@@ -785,7 +785,7 @@ C  Test ast_mapcopy
       if( .not. ast_mapget0a( map, 'aa3', aval, status ) ) then
          call stopit( status, 'Error MAPCOPY_5' )
       else if( .not. ast_isakeymap( aval, status ) ) then
-         write(*,*) ast_getc( aval, 'Class' )
+         write(*,*) ast_getc( aval, 'Class', status )
          call stopit( status, 'Error MAPCOPY_6' )
 
          if( .not. ast_mapget0i( aval, 'a1', ival, status ) ) then
@@ -820,7 +820,7 @@ C  Test ast_mapcopy
       if( .not. ast_mapget0a( map, 'bb3', aval, status ) ) then
          call stopit( status, 'Error MAPCOPY_15' )
       else if( .not. ast_isakeymap( aval, status ) ) then
-         write(*,*) ast_getc( aval, 'Class' )
+         write(*,*) ast_getc( aval, 'Class', status )
          call stopit( status, 'Error MAPCOPY_16' )
 
          if( .not. ast_mapget0i( aval, 'b1', ival, status ) ) then
@@ -891,7 +891,7 @@ C  Test ast_mapcopy
       if( .not. ast_mapget0a( map, 'aa3', aval, status ) ) then
          call stopit( status, 'Error MAPCOPY_28' )
       else if( .not. ast_isakeymap( aval, status ) ) then
-         write(*,*) ast_getc( aval, 'Class' )
+         write(*,*) ast_getc( aval, 'Class', status )
          call stopit( status, 'Error MAPCOPY_29' )
 
          if( .not. ast_mapget0i( aval, 'a1', ival, status ) ) then
@@ -1515,7 +1515,7 @@ C  Now test sorting existing entries in a KeyMap.
          call stopit( status, 'Error case 4b' )
       end if
 
-      call ast_setl( map, 'KeyCase', 0, status );
+      call ast_setl( map, 'KeyCase', .false., status )
 
       if( status .eq. sai__ok ) then
          call ast_clear( map, 'KeyCase', status )

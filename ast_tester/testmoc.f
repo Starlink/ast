@@ -328,8 +328,8 @@ c      call ast_watchmemory( 2276565 )
 
 
       moc = ast_moc( ' ', status )
-      call ast_addmocstring( moc, AST__OR, 0, -1, len(mocstr1), mocstr1,
-     :                       json, status )
+      call ast_addmocstring( moc, AST__OR, .false., -1, len(mocstr1),
+     :                       mocstr1, json, status )
       call ast_getmocstring( moc, .FALSE., 0, ' ', size, status )
       if( size .ne. 27 ) then
          call stopit( 'Error 33', status )
@@ -343,7 +343,7 @@ c      call ast_watchmemory( 2276565 )
       end if
 
       moc2 = ast_moc( ' ', status )
-      call ast_addmocstring( moc2, AST__OR, 0, -1, len(mocstr2),
+      call ast_addmocstring( moc2, AST__OR, .false., -1, len(mocstr2),
      :                       mocstr2, json, status )
       if( .not. ast_equal( moc, moc2, status ) ) then
          call stopit( 'Error 36', status )
@@ -353,7 +353,7 @@ c      call ast_watchmemory( 2276565 )
       end if
 
       moc = ast_moc( ' ', status )
-      call ast_addmocstring( moc, AST__OR, 0, -1, len(mocjson1),
+      call ast_addmocstring( moc, AST__OR, .false., -1, len(mocjson1),
      :                       mocjson1, json, status )
       if( .not. json ) then
          call stopit( 'Error 38', status )
