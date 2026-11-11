@@ -22,6 +22,7 @@
 *       - WcsMap:  a latitude axis index beyond the number of axes.
 *       - SplineMap: too few coefficients for the spline order.
 *       - Plot:    a base Frame with more axes than the fixed per-axis arrays.
+*       - Plot3D:  an axis labelled by a non-existent Plot or Plot axis.
 *       - Moc:     ranges present but no MaxOrder.
 
 *  Notes:
@@ -81,6 +82,55 @@ static int check_valid( const char *what, AstObject *obj, const char *class ) {
    }
    if ( obj2 ) obj2 = astAnnul( obj2 );
    dump = astFree( dump );
+   return nfail;
+}
+
+/* Return a copy of "dump" in which the value following "<key> = " (up to the
+   end of that line) is replaced by "newval".  The copy is allocated with
+   astMalloc and should be freed by the caller.  Returns NULL if the key is
+   not found. */
+static char *corrupt_value( const char *dump, const char *key,
+                            const char *newval ) {
+   char needle[ 64 ];
+   const char *pos;
+   const char *valstart;
+   const char *eol;
+   char *out;
+   size_t pre;
+
+   (void) snprintf( needle, sizeof( needle ), "%s = ", key );
+   pos = strstr( dump, needle );
+   if ( !pos ) return NULL;
+   valstart = pos + strlen( needle );
+   eol = strchr( valstart, '\n' );
+   if ( !eol ) return NULL;
+
+   pre = valstart - dump;
+   out = astMalloc( strlen( dump ) + strlen( newval ) + 1 );
+   if ( out ) {
+      memcpy( out, dump, pre );
+      out[ pre ] = '\0';
+      strcat( out, newval );
+      strcat( out, eol );
+   }
+   return out;
+}
+
+/* Build a valid Plot3D, dump it, and confirm that corrupting the named
+   labelling field makes the dump be rejected.  Returns the number of
+   failures. */
+static int check_plot3d_field( const char *dump, const char *what,
+                               const char *key, const char *badval ) {
+   char *bad = corrupt_value( dump, key, badval );
+   int nfail;
+   if ( !bad ) {
+      fprintf( stderr, "testloaderhardening: could not corrupt Plot3D %s\n",
+               key );
+      if ( !astOK ) astClearStatus;
+      return 1;
+   }
+   nfail = check_rejected( what, bad );
+   bad = astFree( bad );
    return nfail;
 }
 
@@ -160,6 +210,33 @@ int main( void ) {
       " Frm2 =\n Begin Frame\n Naxes = 4\n Domain = \"GRID\"\n End Frame\n"
       " Map2 =\n Begin WinMap\n Nin = 4\n IsA Mapping\n End WinMap\n"
       " IsA FrameSet\n End Plot\n" );
+
+/* Plot3D: each 3D axis is labelled using a nominated axis of one of the
+   three encapsulated Plots.  The plane identifier must select one of those
+   Plots and the axis index must be a valid Plot axis.  A full Plot3D dump is
+   too large to write by hand, so build a real one, write it out and corrupt
+   the labelling fields in the text. */
+   {
+      float gbox[ 6 ] = { -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f };
+      double bbox[ 6 ] = { -1.0, -1.0, -1.0, 1.0, 1.0, 1.0 };
+      AstPlot3D *p = astPlot3D( AST__NULL, gbox, bbox, "MinTickLen=0" );
+      char *dump = ( astOK && p ) ? astToString( p ) : NULL;
+      if ( dump ) {
+         nfail += check_plot3d_field( dump, "Plot3D labelling an axis with a "
+            "non-existent Plot", "AxPlX1", "9" );
+         nfail += check_plot3d_field( dump, "Plot3D labelling an axis with an "
+            "out-of-range Plot axis", "AxInX1", "99" );
+         nfail += check_plot3d_field( dump, "Plot3D with an invalid base Plot",
+            "BasePl", "7" );
+         nfail += check_valid( "Plot3D", (AstObject *) p, "Plot3D" );
+         dump = astFree( dump );
+      } else {
+         fprintf( stderr, "testloaderhardening: could not build Plot3D\n" );
+         if ( !astOK ) astClearStatus;
+         nfail += 1;
+      }
+      if ( p ) p = astAnnul( p );
+   }
 
 /* Moc: a Moc that contains any ranges must carry a valid MaxOrder. */
    nfail += check_rejected( "Moc with ranges but no MaxOrder",
