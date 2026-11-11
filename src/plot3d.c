@@ -151,6 +151,10 @@ f    AST_GRIDLINE, AST_POLYCURVE.
 *        established. Also establish the grf routines to be used.
 *     5-OCT-2015 (DSB):
 *        Allow Plot attributes to be set for specific planes.
+*     11-NOV-2026 (TIMJ):
+*        Validate the axis labelling information read by astLoadPlot3D so
+*        that a corrupt dump cannot select a null Plot or an out-of-range
+*        Plot axis.
 *class--
 */
 
@@ -8179,6 +8183,41 @@ AstPlot3D *astLoadPlot3D_( void *mem, size_t size, AstPlot3DVtab *vtab,
 
 /* Plot that spans two connected 3D axes. */
       new->baseplot = astReadInt( channel, "basepl", -1 );
+
+/* Check the axis labelling information read above is usable. Each 3D axis
+   is labelled using a nominated axis of one of the three encapsulated
+   Plots, with a second Plot touching the axis. The constructor only ever
+   stores XY, XZ or YZ as a Plot identifier and 0 or 1 as a Plot axis
+   index, so a hand-crafted dump holding any other value would select a
+   null Plot (via the GET_PLOT macro) or index a Plot axis out of bounds
+   when the Plot3D was subsequently drawn. Reject such a dump here. */
+      for( axis = 0; astOK && axis < 3; axis++ ) {
+         if( ( new->axis_plot1[ axis ] != XY &&
+               new->axis_plot1[ axis ] != XZ &&
+               new->axis_plot1[ axis ] != YZ ) ||
+             ( new->axis_plot2[ axis ] != XY &&
+               new->axis_plot2[ axis ] != XZ &&
+               new->axis_plot2[ axis ] != YZ ) ) {
+            astError( AST__LDERR, "astLoad(Plot3D): Corrupt Plot3D "
+                      "specifies an invalid Plot for labelling 3D axis %d.",
+                      status, axis + 1 );
+         } else if( new->axis_index1[ axis ] < 0 ||
+                    new->axis_index1[ axis ] > 1 ||
+                    new->axis_index2[ axis ] < 0 ||
+                    new->axis_index2[ axis ] > 1 ) {
+            astError( AST__LDERR, "astLoad(Plot3D): Corrupt Plot3D "
+                      "specifies an invalid Plot axis index for labelling "
+                      "3D axis %d.", status, axis + 1 );
+         }
+      }
+
+/* Likewise, the Plot that spans the two connected 3D axes must be one of
+   the three encapsulated Plots. */
+      if( astOK && new->baseplot != XY && new->baseplot != XZ &&
+          new->baseplot != YZ ) {
+         astError( AST__LDERR, "astLoad(Plot3D): Corrupt Plot3D specifies "
+                   "an invalid base Plot.", status );
+      }
 
 /* XY Plot */
       new->plotxy = astReadObject( channel, "plotxy", NULL );
