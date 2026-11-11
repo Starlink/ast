@@ -15,13 +15,13 @@
              Begin ZoomMap 	# Zoom about the origin
                 Nin = 1 	# Number of input coordinates
              IsA Mapping 	# Mapping between coordinate systems
-                Zoom = 2 	# Zoom factor
+                Zoom = 1.6666666666666667 	# Zoom factor
              End ZoomMap
           RMap1 = 	# Route Mapping
              Begin ZoomMap 	# Zoom about the origin
                 Nin = 1 	# Number of input coordinates
              IsA Mapping 	# Mapping between coordinate systems
-                Zoom = 3 	# Zoom factor
+                Zoom = 1.2 	# Zoom factor
              End ZoomMap
        End SwitchMap
     MapB = 	# Second component Mapping
@@ -38,13 +38,13 @@
              Begin ZoomMap 	# Zoom about the origin
                 Nin = 1 	# Number of input coordinates
              IsA Mapping 	# Mapping between coordinate systems
-                Zoom = 2 	# Zoom factor
+                Zoom = 1.3333333333333333 	# Zoom factor
              End ZoomMap
           RMap1 = 	# Route Mapping
              Begin ZoomMap 	# Zoom about the origin
                 Nin = 1 	# Number of input coordinates
              IsA Mapping 	# Mapping between coordinate systems
-                Zoom = 5 	# Zoom factor
+                Zoom = 1.5 	# Zoom factor
              End ZoomMap
        End SwitchMap
  End CmpMap

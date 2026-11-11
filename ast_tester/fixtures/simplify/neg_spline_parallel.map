@@ -6,16 +6,38 @@
        Begin SplineMap 	# Map using a bi-cubic spline
           Nin = 2 	# Number of input coordinates
        IsA Mapping 	# Mapping between coordinate systems
-          KX = 1 	# Polynomial order in X direction
-          KY = 1 	# Polynomial order in Y direction
-          NX = 1 	# No. of coeffs in X direction
-          NY = 1 	# No. of coeffs in Y direction
-          TX1 = 0 	# Knot 1 x position
-          TX2 = 1 	# Knot 2 x position
-          TY1 = 0 	# Knot 1 y position
-          TY2 = 1 	# Knot 2 y position
-          CU1 = 1.5 	# X coeff 1
-          CV1 = 2.5 	# Y coeff 1
+          KX = 2 	# Polynomial order in X direction
+          KY = 2 	# Polynomial order in Y direction
+          NX = 3 	# No. of coeffs in X direction
+          NY = 3 	# No. of coeffs in Y direction
+          TX1 = -1100 	# Knot 1 x position
+          TX2 = -1100 	# Knot 2 x position
+          TX3 = 0 	# Knot 3 x position
+          TX4 = 1100 	# Knot 4 x position
+          TX5 = 1100 	# Knot 5 x position
+          TY1 = -1100 	# Knot 1 y position
+          TY2 = -1100 	# Knot 2 y position
+          TY3 = 0 	# Knot 3 y position
+          TY4 = 1100 	# Knot 4 y position
+          TY5 = 1100 	# Knot 5 y position
+          CU1 = -979 	# X coeff 1
+          CU2 = 0 	# X coeff 2
+          CU3 = 979 	# X coeff 3
+          CU4 = -1100 	# X coeff 4
+          CU5 = 0 	# X coeff 5
+          CU6 = 1100 	# X coeff 6
+          CU7 = -1221 	# X coeff 7
+          CU8 = 0 	# X coeff 8
+          CU9 = 1221 	# X coeff 9
+          CV1 = -1039.5 	# Y coeff 1
+          CV2 = -1100 	# Y coeff 2
+          CV3 = -1160.5 	# Y coeff 3
+          CV4 = 0 	# Y coeff 4
+          CV5 = 0 	# Y coeff 5
+          CV6 = 0 	# Y coeff 6
+          CV7 = 1039.5 	# Y coeff 7
+          CV8 = 1100 	# Y coeff 8
+          CV9 = 1160.5 	# Y coeff 9
        End SplineMap
     MapB = 	# Second component Mapping
        Begin ZoomMap 	# Zoom about the origin
