@@ -123,6 +123,11 @@ f     The LutMap class does not define any new routines beyond those
 *        The inverse transformation no longer reads the element before the
 *        start of the lookup table when the supplied value is beyond the
 *        first table value.
+*     11-NOV-2026 (TIMJ):
+*        astLoadLutMap now checks that the number of lookup table elements
+*        and the increment read from a dump are valid, as the constructor
+*        does. Otherwise a table with fewer than two elements caused the
+*        interpolating transformation to read beyond its ends.
 *class--
 */
 
@@ -2581,6 +2586,20 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
 
 /* Input coordinate value increment. */
       new->inc = astReadDouble( channel, "incr", 1.0 );
+
+/* Check that the number of lookup table elements and the increment read
+   from the dump are valid, applying the same checks used when a LutMap is
+   constructed. A LutMap with fewer than two elements would cause the
+   interpolating transformation to read beyond the ends of the table. */
+      if ( astOK && new->nlut < 2 ) {
+         astError( AST__LUTIN, "astLoadLutMap(%s): Invalid number of lookup "
+                   "table elements (%d).", status, name, new->nlut );
+         astError( AST__LUTIN, "This value should be at least 2.", status );
+      } else if ( astOK && new->inc == 0.0 ) {
+         astError( AST__LUTII, "astLoadLutMap(%s): An input value increment of "
+                   "zero between lookup table elements is not allowed.", status,
+                   name );
+      }
 
 /* Interpolation method */
       new->lutinterp = astReadInt( channel, "lutint", LINEAR );
