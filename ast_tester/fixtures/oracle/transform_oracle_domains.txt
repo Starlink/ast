@@ -1,0 +1,177 @@
+# Sampling domains for simplify fixtures, read by gen_transform_oracle.
+#
+# A native dump carries no domain of its own, so by default each input of a
+# simplify fixture takes either sign with a magnitude spread logarithmically from
+# 1e-3 to 1e3.  A fixture that is defined, or is the identity, only over some
+# other range is given that range here, keyed on its .map relpath:
+#
+#   <relpath> <range>                         the same range on every input axis
+#   <relpath> <range1> ... <rangeN>           one range per input axis
+#
+# where each <range> is two numbers, <lo> <hi>, or one of these names:
+#
+#   lon    a longitude, -pi to +pi
+#   lat    a latitude, -1.5 to +1.5, short of the poles, where longitude is
+#          undefined and close to which it is ill-conditioned
+#
+# The fixture's inputs are then sampled uniformly over the range, and an axis
+# whose <lo> equals its <hi> is held at that value.  Its .simp
+# partner is sampled at the same points, since check_transform_oracle compares
+# the two row by row.  Only the forward inputs are declared: the inverse section
+# is sampled at the forward outputs.
+#
+# The generator fails on an entry that names no fixture, or whose number of
+# ranges is neither one nor the fixture's Nin.  Every entry needs a comment
+# saying what the range is and why the default misses it.
+#
+# Blank lines and lines starting with '#' are ignored.
+
+# Regions used as Mappings, which are the identity inside the Region and
+# AST__BAD outside it.  Each is sampled over its bounding box widened by about
+# half its width on each side, so that points fall both inside and outside.
+simplify/cefit_circle_nonconformal_keep.map   0 10   0 4
+simplify/cefit_circle_to_ellipse.map          12 28  82 118
+simplify/neg_box_asymmetric_2d.map            0 10   0 14
+simplify/neg_circle_cmpframe_sky_second.map   54 56  -0.5 0.5  0.5 1.8
+simplify/regbasepick_circle_permaxes.map      1 3    0 2
+simplify/regbasepick_cmpregion_subset.map     -2 10  -2 20  0 50
+simplify/regbasepick_prism_subset.map         -10 10 -20 20 0 50
+
+# Regions with no extent, or almost none, on some axis.  An axis with no
+# extent is held at its value; one only microns wide is sampled just across it.
+simplify/defunc_interval_point_at_origin.map  -1e-12 1e-12  0 0
+simplify/defunc_interval_unbounded.map        6.499997 6.500003  0 0
+simplify/defunc_pointlist_origin_axis.map     4.999997 5.000003  0 0  3.4999995 3.5000005
+simplify/defunc_prism_box_interval.map        -6e-6 6e-6  -9e-6 9e-6  5 5
+
+# A 2-D Box seen in a 3-D Frame through a PermMap that sets axis 3 to 5, so the
+# Region is the slice z = 5 of the Box, and its simplification is a 3-D Box
+# with no extent on axis 3.  The slice is sampled, since uniform sampling across
+# it would land on it only once.  Off the slice the two forms differ, because the
+# unsimplified Region tests a point by mapping it back to its 2-D base Frame,
+# which discards axis 3; that is a Region defect to be fixed separately, with
+# its own test.
+simplify/cap_box_permmap_const.map            -2 12  -2 22  5 5
+
+# A Box 2.4e-6 rad across, defined in galactic coordinates and seen in ICRS,
+# with time and energy axes.  The range is its bounding box in ICRS.
+simplify/cap_slamap_02.map   1.681396 1.681409  5.232694 5.232700  -5.7e-10 5.7e-10  5.02 5.10
+
+# Spectral conversions whose pairs cancel only for frequencies near their rest
+# frequency.  At the default magnitudes the relativistic velocity of a
+# frequency rounds to the speed of light, so converting it back gives zero.
+simplify/spec_inverse_cancel.map        3.0e11 3.6e11
+simplify/spec_partial_cancel.map        1.0e9 2.0e9
+
+# An inverted run of fifteen spectral conversions, each given the argument
+# 2000, which gives values only for frequencies above about 1e9 Hz.
+simplify/specmap_invert_normalize.map   1.0e9 1.0e12
+
+# An inverse UnitNormMap followed by the forward one is the identity only for
+# inputs that are a unit vector and a positive norm, so the vector is held at
+# (0.6, 0.8) and the norm varies.
+simplify/unitnormmap_inv_fwd_cancel.map   0.6 0.6  0.8 0.8  0.1 100
+
+# SwitchMaps whose selectors pick their one route only in a band: inputs in
+# [0.25, 0.75) for a selector ZoomMap of 2, and [0.5, 1.5) for one of 1.  An
+# inverse pair is defined where the forward route's output also selects it,
+# and neg_switchmap_not_equal's pair where the first route's output selects
+# the second's.  neg_switchmap_series_lower scales its input by 7 first.
+simplify/switchmap_fwdonly_simplify.map       0.26 0.74
+simplify/switchmap_internal_simplify.map      0.5 1.45
+simplify/switchmap_invert_normalize.map       0.5 1.45
+simplify/switchmap_inverse_cancel.map         0.5 0.74
+simplify/switchmap_inverse_cancel_tail.map    0.5 0.74
+simplify/neg_switchmap_not_equal.map          0.26 0.62
+simplify/neg_switchmap_series.map             0.26 0.74
+simplify/neg_switchmap_series_lower.map       0.036 0.106
+
+# XphMaps, defined only on the populated pixels of a HEALPix grid: an order-1
+# XPH grid for xph_inverse_cancel, and an order-14 HPX grid, 81920 pixels
+# across, for cap_xphmap_01.
+simplify/xph_inverse_cancel.map   1 2
+simplify/cap_xphmap_01.map        3.5e4 4.5e4
+
+# Celestial conversions, normalizations and spherical round trips, which take
+# a longitude and a latitude.
+simplify/normmap_inverse_cancel.map         lon lat
+simplify/normmap_inverse_cancel_upper.map   lon lat
+simplify/sla_azel_cancel.map                lon lat
+simplify/sla_ecliptic_cancel.map            lon lat
+simplify/sla_eterms_cancel.map              lon lat
+simplify/sla_fk45_cancel.map                lon lat
+simplify/sla_geocentric_cancel.map          lon lat
+simplify/sla_helioecl_cancel.map            lon lat
+simplify/sla_hpc_cancel.map                 lon lat
+simplify/sla_hpr_cancel.map                 lon lat
+simplify/sla_icrs_cancel.map                lon lat
+simplify/sla_inverse_cancel.map             lon lat
+simplify/sla_j2000_cancel.map               lon lat
+simplify/sla_prec_redundant.map             lon lat
+simplify/sla_run_identity.map               lon lat
+simplify/sla_supergalactic_cancel.map       lon lat
+simplify/slamap_pair_cancel.map             lon lat
+simplify/sph_inverse_cancel.map             lon lat
+simplify/sph_matrix_sandwich.map            lon lat
+simplify/sph_matrix_sandwich_negz.map       lon lat
+
+# TAN projections followed by their inverses.  A WcsMap's forward
+# transformation takes a native longitude and latitude, and TAN projects only
+# the hemisphere above the native equator, so the latitude is kept positive.
+simplify/wcs_inverse_cancel.map         lon 0.1 1.5
+simplify/wcsmap_perm_swap_cancel.map    lon 0.1 1.5
+
+# ChebyMaps are defined only within their bounds: [-1, 1] for
+# chebymap_inverse_cancel and [0, 10] for cheby_linear_lone_reduce.
+simplify/chebymap_inverse_cancel.map    -1 1
+simplify/cheby_linear_lone_reduce.map   0 10
+
+# GRISM_PARAMS's diffracted ray reaches 90 degrees at a grism parameter of
+# about 0.58, beyond which the inverse returns a different parameter.
+simplify/grism_inverse_cancel.map        -0.5 0.5
+simplify/grism_inverse_cancel_tail.map   -0.5 0.5
+
+# A logarithmic unit converted to its quantity and back.  The exponential
+# overflows beyond about +/-300.
+simplify/cap_mathmap_01.map   -100 100
+
+# Spectral conversions given physical values: air wavelengths in Angstrom
+# (cap_specmap_04), frequencies in MHz about the 1420.4 MHz rest frequency of
+# its velocity conversions (cap_specmap_11), and wavenumbers in m^-1, of
+# which zero is an infinite wavelength (spec_run4_identity).
+simplify/cap_specmap_04.map       3000 10000
+simplify/cap_specmap_11.map       1400 1440
+simplify/spec_run4_identity.map   100 1e6
+
+# PointLists sampled at their own points, which are the ends of the range:
+# 1 and 1.21 for cap_zoommap_04 (whose uncertainty's Mapping is x**2, not
+# invertible for negative inputs), and (1, 3) and (2, 4) for
+# pointlist_self_simplify.
+simplify/cap_zoommap_04.map           1 1.2100000000000002
+simplify/pointlist_self_simplify.map  1 2  3 4
+
+# PcdMap's inverse is the approximate formula of SLA_UNPCD, which the class
+# documents as accurate for astrometric fields, where C*R*R is small.  Each
+# pair is sampled where C*R*R is at most about 0.02, within which it agrees
+# with the forward transformation to rounding: radii up to about 4 for a
+# distortion coefficient C of 0.001 (about pcd_inverse_cancel's centre of
+# (1.25, -0.75)), and about 1.4 for pcd_inverse_cancel_tail's 0.01.
+simplify/pcd_inverse_cancel.map        -1.75 4.25  -3.75 2.25
+simplify/pcd_perm_swap_cancel.map      -3 3
+simplify/pcd_zoom_swap_cancel.map      -3 3
+simplify/pcd_inverse_cancel_tail.map   -1 1
+
+# y = x + 0.01*x*x with PolyMap's iterative inverse, which stops at TolInverse
+# (1e-6 by default) and fails close to the turning point at x = -50.  Within
+# [-30, 100] it agrees with the forward transformation to rounding.
+simplify/poly_inverse_cancel.map   -30 100
+
+# Thirty spectral conversions in inverse pairs, each given the argument 2000,
+# so their velocity conversions have a rest frequency of 2000 Hz.  Far above it
+# the relativistic velocity rounds to the speed of light, and converting it
+# back fails, so the frequencies are kept near it.
+simplify/specmap_pair_cancel.map   100 4000
+
+# A PolyMap whose inverse is fitted over x in [1, 1.1], the only range in which
+# it approximates the inverse at all.
+simplify/poly_fitted_inverse_cancel.map   1 1.1

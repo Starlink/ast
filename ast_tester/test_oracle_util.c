@@ -62,6 +62,39 @@ static void test_within_tol_wrap(void) {
                                  ORACLE_DEF_RTOL, ORACLE_DEF_ATOL) == 1);
 }
 
+static void test_axis_tol(void) {
+    /* The scale is the largest finite |value|, ignoring BAD. */
+    double wave[] = { 4.95e-7, -5.05e-7, AST__BAD, INFINITY };
+    CHECK(oracle_axis_scale(wave, 4) == 5.05e-7);
+    double zeros[] = { 0.0, -0.0, AST__BAD };
+    CHECK(oracle_axis_scale(zeros, 3) == 0.0);
+    double bad[] = { AST__BAD };
+    CHECK(oracle_axis_scale(bad, 1) == 0.0);
+
+    /* Below a scale of 1 the absolute tolerance is relative to the scale;
+       from 1 upwards, and on an axis with no non-zero value, it is atol. */
+    CHECK(oracle_axis_atol(1e-7, 5e-7) == 1e-7 * 5e-7);
+    CHECK(oracle_axis_atol(1e-7, 1.0) == 1e-7);
+    CHECK(oracle_axis_atol(1e-7, 3.0) == 1e-7);
+    CHECK(oracle_axis_atol(1e-7, 0.0) == 1e-7);
+
+    /* A wavelength in metres that is 0.2% wrong is a mismatch, though it
+       differs by only 1e-9; one that differs in the 12th digit is not. */
+    double atol = oracle_axis_atol(ORACLE_DEF_ATOL, 5.05e-7);
+    CHECK(oracle_within_tol(5.01e-7, 5.0e-7, ORACLE_DEF_RTOL, atol) == 0);
+    CHECK(oracle_within_tol(5.0e-7 * (1.0 + 1e-12), 5.0e-7,
+                            ORACLE_DEF_RTOL, atol) == 1);
+
+    /* An energy in joules that is 5% wrong is a mismatch. */
+    atol = oracle_axis_atol(ORACLE_DEF_ATOL, 9.92e-25);
+    CHECK(oracle_within_tol(9.92e-25, 9.425e-25, ORACLE_DEF_RTOL, atol) == 0);
+
+    /* On an axis in radians a value that cancels to 1e-17 on one platform
+       and 0 on another still matches. */
+    atol = oracle_axis_atol(ORACLE_DEF_ATOL, 3.1);
+    CHECK(oracle_within_tol(1e-17, 0.0, ORACLE_DEF_RTOL, atol) == 1);
+}
+
 static void test_halton(void) {
     /* Known radical-inverse base-2 values: 1->1/2, 2->1/4, 3->3/4. */
     CHECK(fabs(oracle_halton(1, 2) - 0.5)  < 1e-15);
@@ -91,6 +124,33 @@ static void test_sample_points(void) {
         if (fabs(col[0][i]-hi[0])<1e-12 && fabs(col[1][i]-hi[1])<1e-12) saw_hi = 1;
     }
     CHECK(saw_lo && saw_hi);
+    free(col[0]); free(col[1]);
+}
+
+static void test_sample_points_log(void) {
+    int n = oracle_sample_axis_count();
+    double *col[2];
+    col[0] = malloc(sizeof(double) * (size_t)n);
+    col[1] = malloc(sizeof(double) * (size_t)n);
+    oracle_sample_points_log(2, 1e-3, 1e3, n, col);
+    /* The four deterministic rows. */
+    for (int a = 0; a < 2; a++) {
+        CHECK(col[a][0] == -1e3 && col[a][1] == 1e3 && col[a][2] == 0.0);
+        CHECK(fabs(col[a][3] - 1.0) < 1e-15);
+    }
+    /* The spread rows have magnitudes within [minabs, maxabs], take both
+       signs, and reach both below 1 and above 100 on each axis. */
+    for (int a = 0; a < 2; a++) {
+        int neg = 0, pos = 0, small = 0, large = 0;
+        for (int i = 4; i < n; i++) {
+            double m = fabs(col[a][i]);
+            CHECK(m >= 1e-3 * (1 - 1e-12) && m <= 1e3 * (1 + 1e-12));
+            if (col[a][i] < 0) neg++; else pos++;
+            if (m < 1.0) small++;
+            if (m > 100.0) large++;
+        }
+        CHECK(neg > 0 && pos > 0 && small > 0 && large > 0);
+    }
     free(col[0]); free(col[1]);
 }
 
@@ -137,8 +197,10 @@ static void test_load_mapping(void) {
 int main(void) {
     test_within_tol();
     test_within_tol_wrap();
+    test_axis_tol();
     test_halton();
     test_sample_points();
+    test_sample_points_log();
     test_format_parse();
     test_load_mapping();
     if (failures) { fprintf(stderr, "%d failure(s)\n", failures); return 1; }

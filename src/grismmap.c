@@ -82,6 +82,23 @@ f     The GrismMap class does not define any new routines beyond those
 *        its attributes is set or cleared, since they define the
 *        transformation it performs. Done in the class's own MAKE_SET and
 *        MAKE_CLEAR macros, which every one of its attributes uses.
+*     5-NOV-2026 (TIMJ):
+*        Override astRate with the analytical derivative of the dispersion
+*        equation. The numerical derivative inherited from the Mapping
+*        class was accurate only to about 1E-9.
+*        In CanMerge, cancel a GrismMap with an inverted GrismMap only if
+*        their GrismM values are equal, as for every other attribute. It
+*        required them to differ, so a GrismMap followed by its own inverse
+*        was not simplified, and one followed by the inverse of a GrismMap
+*        of a different order was replaced by a UnitMap although the pair
+*        is not the identity.
+*     11-NOV-2026 (TIMJ):
+*        In Rate, return zero for the inverse transformation of a GrismMap
+*        with no dispersion (GrismM and GrismNRP zero), wherever the
+*        Transform function gives it a value. Such a GrismMap sends every
+*        wavelength to one grism parameter, but if that parameter is for a
+*        grazing ray, the sine of the ray's angle is exactly +/-1 and Rate
+*        returned AST__BAD.
 *class--
 */
 
@@ -369,6 +386,7 @@ static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, 
 static const char *GetAttrib( AstObject *, const char *, int * );
 static AstMapping *CanMerge( AstMapping *, int, AstMapping *, int, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
+static double Rate( AstMapping *, double *, int, int, int * );
 static int TestAttrib( AstObject *, const char *, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
@@ -503,7 +521,7 @@ static AstMapping *CanMerge( AstMapping *map1, int inv1, AstMapping *map2,
              astEQUAL( astGetGrismWaveR( gmap ), astGetGrismWaveR( gmap2 )) &&
              astEQUAL( astGetGrismAlpha( gmap ), astGetGrismAlpha( gmap2 )) &&
              astEQUAL( astGetGrismG( gmap ), astGetGrismG( gmap2 )) &&
-             astGetGrismM( gmap ) != astGetGrismM( gmap2 ) &&
+             astGetGrismM( gmap ) == astGetGrismM( gmap2 ) &&
              astEQUAL( astGetGrismEps( gmap ), astGetGrismEps( gmap2 )) &&
              astEQUAL( astGetGrismTheta( gmap ), astGetGrismTheta( gmap2 )) ){
 
@@ -1041,6 +1059,7 @@ void astInitGrismMapVtab_(  AstGrismMapVtab *vtab, const char *name, int *status
    new member functions implemented here. */
    object->Equal = Equal;
    mapping->MapMerge = MapMerge;
+   mapping->Rate = Rate;
 
 /* Declare the class dump, copy and delete functions.*/
    astSetDump( vtab, Dump, "GrismMap",
@@ -1262,6 +1281,123 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          (*nmap)--;
          result = i1;
 
+      }
+   }
+
+/* Return the result. */
+   return result;
+}
+
+static double Rate( AstMapping *this, double *at, int ax1, int ax2, int *status ){
+/*
+*  Name:
+*     Rate
+
+*  Purpose:
+*     Calculate the rate of change of a Mapping output.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "grismmap.h"
+*     result = Rate( AstMapping *this, double *at, int ax1, int ax2, int *status )
+
+*  Class Membership:
+*     GrismMap member function (overrides the astRate method inherited
+*     from the Mapping class ).
+
+*  Description:
+*     This function returns the rate of change of a specified output of
+*     the supplied Mapping with respect to a specified input, at a
+*     specified input position.
+*
+*     The rate is found by differentiating the dispersion equation used
+*     by the Transform function. For the forward transformation, from
+*     grism parameter g to wavelength,
+*
+*        dwave/dg = cos( atan( g ) + k3 )/( k2*( 1 + g*g ) )
+*
+*     and for the inverse transformation, from wavelength to g,
+*
+*        dg/dwave = k2*( 1 + g*g )/sqrt( 1 - s*s )
+*
+*     where s = k2*wave - k1 is the sine of the angle of the diffracted
+*     ray, and k1, k2 and k3 are the constants set up by UpdateConstants.
+*     At the reference wavelength the second is FITS-WCS paper III eq.
+*     (81). The analytical form is used because the numerical
+*     differentiation implemented by the parent Mapping class is
+*     accurate only to about 1E-9.
+
+*  Parameters:
+*     this
+*        Pointer to the Mapping to be applied.
+*     at
+*        The address of an array holding the axis values at the position
+*        at which the rate of change is to be evaluated. The number of
+*        elements in this array should equal the number of inputs to the
+*        Mapping.
+*     ax1
+*        The index of the Mapping output for which the rate of change is to
+*        be found (output numbering starts at 0 for the first output).
+*     ax2
+*        The index of the Mapping input which is to be varied in order to
+*        find the rate of change (input numbering starts at 0 for the first
+*        input).
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The rate of change of Mapping output "ax1" with respect to input
+*     "ax2", evaluated at "at", or AST__BAD if the value cannot be
+*     calculated.
+
+*/
+
+/* Local Variables: */
+   AstGrismMap *map;
+   double g;
+   double result;
+   double s;
+
+/* Check inherited status */
+   if( !astOK ) return AST__BAD;
+
+/* A GrismMap has one input and one output, and astRate has checked the
+   axis indices, so both are zero. */
+   (void) ax1;
+   (void) ax2;
+
+/* Get a pointer to the GrismMap structure. */
+   map = (AstGrismMap *) this;
+
+/* Return a bad value if the constants or the position are undefined, as
+   the Transform function does. */
+   result = AST__BAD;
+   if( map->k1 != AST__BAD && map->k2 != AST__BAD && map->k3 != AST__BAD &&
+       at[ 0 ] != AST__BAD ) {
+
+/* Forward transformation: "at" is a grism parameter value. */
+      if( !astGetInvert( this ) ) {
+         g = at[ 0 ];
+         if( map->k2 != 0.0 ) {
+            result = cos( atan( g ) + map->k3 )/( map->k2*( 1.0 + g*g ) );
+         }
+
+/* Inverse transformation: "at" is a wavelength. With no dispersion (k2
+   zero) the sine of the angle of the diffracted ray, and so the grism
+   parameter, is the same for every wavelength, so the rate is zero wherever
+   the Transform function gives a grism parameter, including for a grazing
+   ray. Otherwise the sine must lie strictly between -1 and +1, since the
+   rate is infinite at either end. */
+      } else {
+         s = map->k2*at[ 0 ] - map->k1;
+         if( map->k2 == 0.0 ) {
+            if( s >= -1.0 && s <= 1.0 ) result = 0.0;
+         } else if( s > -1.0 && s < 1.0 ) {
+            g = tan( asin( s ) - map->k3 );
+            result = map->k2*( 1.0 + g*g )/sqrt( ( 1.0 - s )*( 1.0 + s ) );
+         }
       }
    }
 

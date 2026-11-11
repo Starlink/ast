@@ -391,6 +391,9 @@ ast_add_test(testfitschanerrors_c SOURCES testfitschanerrors.c)
 # --- New C-only regression tests (no Fortran original) ---
 ast_add_test(testslamap)
 ast_add_test(testspecmap)
+ast_add_test(testgrismmap)
+set_target_properties(testgrismmap PROPERTIES C_STANDARD 11)
+ast_add_test(testwinmap)
 
 # --- wcsconverter: regression-diff harness ported from wcsconverter.f ---
 add_executable(wcsconverter wcsconverter.c)

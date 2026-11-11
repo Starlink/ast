@@ -1,0 +1,22 @@
+SIMPLE  =                    T / Fits standard                                  
+BITPIX  =                  -32 / Bits per pixel                                 
+NAXIS   =                    1 / Number of dimensions                           
+NAXIS1  =                 2048 / Length of axis                                 
+COMMENT Air wavelength axis for a grism operated in vacuum.  Grism parameters   
+COMMENT are those of the KPNO MARS grism in FITS-WCS Paper III Fig. 5, with     
+COMMENT the non-zero epsilon and theta that WCSLIB's tspc.c adds to them.       
+CTYPE1  = 'AWAV-GRI'           / Air wavelength, grism in vacuum                
+CUNIT1  = 'Angstrom'           / Axis units                                     
+CRPIX1  =                719.8 / [pixel] Reference pixel                        
+CRVAL1  =               7245.2 / [Angstrom] Reference air wavelength            
+CDELT1  =                2.956 / [Angstrom/pixel] Dispersion                    
+PV1_0   =             450000.0 / [m^(-1)] G: grating ruling density             
+PV1_1   =                  1.0 / m: diffraction order                           
+PV1_2   =                 27.0 / [deg] alpha: angle of incidence                
+PV1_3   =                1.765 / n_r: refractive index at reference             
+PV1_4   =           -1077000.0 / [m^(-1)] n'_r: dn/dlambda at reference         
+PV1_5   =                  3.0 / [deg] epsilon: grating tilt                    
+PV1_6   =                  5.0 / [deg] theta: detector tilt                     
+SPECSYS = 'HELIOCEN'           / Standard of rest for spectral axis             
+VELOSYS =            29336.889 / [m/s] Topo. apparent velocity of rest frame    
+END                                                                             

@@ -58,6 +58,12 @@ image the iteration need not converge, and a default 1..1000 range over a
 256-pixel image produced round-trip errors above 100 pixels that said nothing
 about the library.  The same mappings round-trip cleanly over their own grid.
 
+A native dump under `simplify/` carries no domain, so by default each of its inputs takes either sign with a magnitude spread logarithmically from 1e-3 to 1e3.
+An angle-based Mapping is then sampled within its principal range as well as far outside it, and a linear one over many scales.
+A fixture that is defined, or is the identity, only over some other range is given that range in `transform_oracle_domains.txt`, keyed on its `.map`, with a comment saying why.
+A range is two numbers, or a name for one whose limits are fixed by what the input is: `lon` for a longitude and `lat` for a latitude short of the poles.
+Its `.simp` is always sampled at the same points as its `.map`, since the two are compared row by row; the checker fails a pair whose inputs differ.
+
 ### Checks that are disabled, and why
 
 `transform_oracle_overrides.txt` carries them, each with its reason.  Two entries
@@ -66,12 +72,45 @@ name the same object twice, once as the header and once as the dump under
 no inverse at all, its TNX Chebyshev distortion building a ChebyMap that cannot
 represent its own Jacobian.
 
+Simplification must not change a Mapping's values, so a simplify fixture's `.map` and `.simp` must agree at every sampled point, both as recorded and as computed by the library under test.
+Each fixture is sampled where it is defined, so a disagreement is a simplification that changes the transform.
+The overrides file can accept a recorded disagreement at listed rows (`equiv-rows`), which is how the Region simplifications that are still to be fixed are carried, or compare a pair whose inverse is itself approximate to a looser tolerance (`equiv-tol`).
+A listed row that comes to agree fails, so the list cannot go stale.
+
+A pair also counts as checked only if it agrees, with a value that is not AST__BAD, at two or more distinct sampled inputs, because nearly every Mapping agrees with its simplification at the origin.
+A pair that falls short fails unless the overrides file accepts it with `equiv off`, and an accepted pair that is checked after all fails too.
+A `.map` with no `.simp` is held to the same rule on its own outputs, with `values off` to accept one.
+The fixtures accepted are Regions that contain a point or none, a SphMap pair that is the identity only on the unit sphere, and negatives built to give no values; the overrides file says how each was checked instead.
+
 ### Values
 
 The recorded values are this library's, on the host that generated them.  Ports
 compare against them with a tolerance -- last-bit differences between platforms'
 maths libraries are expected, and an angular axis may legitimately come out as 0
 where another platform gives 2*pi, or -pi where another gives +pi.
+
+The checker accepts `|got - ref| <= atol + rtol*|ref|`, with the `rtol` and `atol` in each file's `# tol:` line.
+`atol` is for values that cancel toward zero, so it is measured against the size of the values on that axis rather than against 1.
+On an axis whose largest recorded |value| is below 1, the checker uses `atol` times that value.
+Otherwise, including on an axis whose recorded values are all zero, it uses `atol` as written.
+Without that, an axis in metres, such as a wavelength of 5e-7, would be allowed an error of 20%, and an axis in joules any error at all.
+
+### Grism values checked against FITS-WCS Paper III
+
+Most sections record what this library does and nothing more.
+The grism headers below were also checked against an independent source, so their sections can be relied on as correct values rather than only as a record of current behavior.
+
+`wcsconv/inputs/awav-gra-coude.head`, `awav-gra-hydra.head` and `awav-gra-mars.head` are the KPNO examples printed with Figs. 3-5 of FITS-WCS Paper III (Greisen et al. 2006, A&A 446, 747).
+`wave-gra.head` and `awav-gri.head` use the Fig. 5 grism parameters, plus a non-zero epsilon and theta, on an axis in vacuum wavelength for a grism in air and the reverse.
+`grism.head` is a `WAVE-GRI` axis for a 300 lines/mm grating.
+
+Their sections, and those of the matching dumps under `wcsconv/framesets/`, were compared with a direct implementation of Paper III eqs. (64)-(83) written independently of this library.
+That implementation finds an air wavelength by inverting eq. (64) exactly, as this library does, rather than with the approximation of eq. (67).
+The two agree to within 2e-11 pixels for `grism.head` and the three `AWAV-GRA` headers, and 2e-8 pixels for the other two, where the difference is the numerical derivative of the air-vacuum conversion.
+The same four headers also agree with WCSLIB 8.6 to within 2e-11 pixels, and the departures of the three `AWAV-GRA` headers from a linear axis match the curves plotted in Paper III.
+
+WCSLIB differs from the other two headers by about 0.003 pixels.
+It converts between air and vacuum wavelengths with the Edlén (1953) relation, the IAU standard, whereas Paper III eq. (65), which this library uses, is the IUGG (1999) relation; WCSLIB's `spx.h` explains the choice.
 
 ## `keymap_mapsz.txt`
 

@@ -1,0 +1,15 @@
+SIMPLE  =                    T / Fits standard
+BITPIX  =                  -32 / Bits per pixel
+NAXIS   =                    1 / Number of dimensions
+NAXIS1  =                 2048 / Length of axis
+COMMENT FITS-WCS Paper III (Greisen et al. 2006, A&A 446, 747) Fig. 4:
+COMMENT KPNO Hydra Fiber Bench Spectrograph, echelle grating, order 11, 2K CCD.
+CTYPE1  = 'AWAV-GRA'           / Grating dispersion function
+CUNIT1  = 'Angstrom'           / Dispersion units
+CRPIX1  =                944.8 / [pixel] Reference pixel
+CRVAL1  =               5136.8 / [Angstrom] Reference value
+CDELT1  =              -0.1287 / [Angstrom/pixel] Dispersion
+PV1_0   =               3.16E5 / [m^(-1)] Grating density
+PV1_1   =                   11 / Diffraction order
+PV1_2   =                 64.8 / [deg] Incident angle
+END

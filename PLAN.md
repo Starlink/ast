@@ -82,10 +82,29 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 **New C-only regression tests (no Fortran original):**
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
   argument must return AST__BAD outputs rather than NaN; FK45Z and FK54Z agree
-  with ERFA's eraFk45z and eraFk54z, including FK54Z away from B1950.
+  with ERFA's eraFk45z and eraFk54z, including FK54Z away from B1950; PREC and
+  EQECL agree with ERFA's IAU 2006 precession without frame bias, including
+  PREC with an epoch of exactly 2000.0 and from 2000.0 to 2000.0.
 - testspecmap — astSpecAdd reads only the arguments the caller supplies:
   TPF2HL's six documented arguments in a six-element array, which
   AddressSanitizer checks.
+- testwinmap — WinMap simplification with terms smaller than 1e-12, as a
+  spectral axis in joules has: a small shift survives; ShiftMap(-CRPIX),
+  ZoomMap(CDELT), ShiftMap(CRVAL) maps CRPIX to CRVAL; WinMaps whose small
+  shifts differ are neither cancelled nor astEqual; and a shift that cancels to
+  within its rounding error on merging, even between terms of 7.7e6, becomes
+  zero.  Simplified Mappings must transform as the originals do.
+- testgrismmap — GrismMap against FITS-WCS Paper III, for the KPNO MARS grism
+  (with a non-zero epsilon and theta), the Hydra echelle in order 11 and an
+  order -1 grating: attribute defaults; wavelengths satisfying the grating
+  equation in its implicit form (eqs. (68) and (69)); g = -tan(theta) at the
+  reference wavelength (eq. (76)); round trips; AST__BAD for bad input, an
+  undispersed wavelength and a GrismMap with no dispersion; astRate in both
+  directions against numerical derivatives, each other and eq. (81);
+  astSimplify cancelling a GrismMap with its own inverse but not with the
+  inverse of one of a different order, and absorbing a ZoomMap, always
+  transforming as the unsimplified Mapping does; astEqual, astCopy and native
+  serialization.
 - testimmutable — every Mapping class with a publicly settable attribute must
   allow the change while its reference count is one and report AST__IMMUT once
   it has been cloned, as SUN/210 requires, for both setting and clearing. Also
@@ -292,21 +311,31 @@ work (SIMD kernels, refactors) can be checked for unintended changes.  See
   three committed reference files: `simplify_fixtures.oracle` (the
   `simplify/*.map` and `*.simp` native dumps), `headers.oracle` (the
   `*.head` FITS headers) and `framesets.oracle` (the `*.ast` FrameSet dumps).
+  Headers and FrameSet dumps are sampled over their pixel grid.  Simplify
+  dumps take inputs of either sign with magnitudes spread logarithmically from
+  1e-3 to 1e3, unless `oracle/transform_oracle_domains.txt` gives the fixture
+  the range it is defined over (numbers, or `lon`/`lat` for angles); a `.simp`
+  is sampled where its `.map` is.
 - `check_transform_oracle` (the ctest gate) reads an oracle file as its sole
   manifest, reloads each named fixture, re-transforms the recorded inputs and
   compares within tolerance.  Four ctests: `transform_oracle_selftest` (parser),
   `transform_oracle_simplify`, `transform_oracle_headers`,
   `transform_oracle_framesets`.  `test_oracle_util` unit-tests the helpers.
 - Checks: golden forward and golden inverse (every fixture; the inverse
-  section's inputs are the forward outputs); `.map`/`.simp` equivalence gated on
-  stored agreement; and, for the GRID-domain corpora, round-trip accuracy
-  (`inverse(forward(P)) ~= P`) to an absolute pixel tolerance.
+  section's inputs are the forward outputs); `.map`/`.simp` equivalence at
+  every sampled point, since simplification must not change values, with the
+  overrides file accepting listed rows (`equiv-rows`) or a looser tolerance
+  (`equiv-tol`) where needed, and failing a pair that agrees with a value (not
+  AST__BAD) at fewer than two distinct inputs unless it accepts that too, with
+  the same rule for a `.map` with no `.simp`; and, for the
+  GRID-domain corpora, round-trip accuracy (`inverse(forward(P)) ~= P`) to an
+  absolute pixel tolerance.
 - `oracle/transform_oracle_overrides.txt` records per-fixture round-trip
   exceptions (currently `tsc.head` and `tnx-cheb.head`, whose inverses do not
   recover the pixel and are flagged for investigation), and per-row golden
-  exceptions for values that sit on a mathematical singularity (currently rows
-  2 and 3 of `neg_unitnormmap_inv_fwd_diffcentre.map`'s inverse section, which
-  depend on whether the compiler contracts a multiply-add).
+  exceptions for values that sit on a mathematical singularity (currently row
+  2 of `neg_unitnormmap_inv_fwd_diffcentre.map`'s inverse section, which
+  depends on whether the compiler contracts a multiply-add).
 - The recorded values are build-configuration dependent in the last bit or two.
   Regenerating `framesets.oracle` under a Debug sanitizer build reproduces the
   committed file except for about 60 latitude values differing by one ULP from
