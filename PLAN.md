@@ -314,18 +314,20 @@ work (SIMD kernels, refactors) can be checked for unintended changes.  See
   Headers and FrameSet dumps are sampled over their pixel grid.  Simplify
   dumps take inputs of either sign with magnitudes spread logarithmically from
   1e-3 to 1e3, unless `oracle/transform_oracle_domains.txt` gives the fixture
-  the range it is defined over; a `.simp` is sampled where its `.map` is.
+  the range it is defined over (numbers, or `lon`/`lat` for angles); a `.simp`
+  is sampled where its `.map` is.
 - `check_transform_oracle` (the ctest gate) reads an oracle file as its sole
   manifest, reloads each named fixture, re-transforms the recorded inputs and
   compares within tolerance.  Four ctests: `transform_oracle_selftest` (parser),
   `transform_oracle_simplify`, `transform_oracle_headers`,
   `transform_oracle_framesets`.  `test_oracle_util` unit-tests the helpers.
 - Checks: golden forward and golden inverse (every fixture; the inverse
-  section's inputs are the forward outputs); `.map`/`.simp` equivalence gated on
-  stored agreement, with a pair that agrees with a value (not AST__BAD) at fewer
-  than two distinct inputs, and so is barely compared, failing unless the
-  overrides file accepts it, and the same rule for a `.map` with no `.simp` on
-  the inputs at which it has a value; and, for the
+  section's inputs are the forward outputs); `.map`/`.simp` equivalence at
+  every sampled point, since simplification must not change values, with the
+  overrides file accepting listed rows (`equiv-rows`) or a looser tolerance
+  (`equiv-tol`) where needed, and failing a pair that agrees with a value (not
+  AST__BAD) at fewer than two distinct inputs unless it accepts that too, with
+  the same rule for a `.map` with no `.simp`; and, for the
   GRID-domain corpora, round-trip accuracy (`inverse(forward(P)) ~= P`) to an
   absolute pixel tolerance.
 - `oracle/transform_oracle_overrides.txt` records per-fixture round-trip

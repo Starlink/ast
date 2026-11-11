@@ -172,17 +172,33 @@ static void domain_fail( const char *path, int lineno, const char *why ) {
     exit( 1 );
 }
 
+/* Ranges that a domain entry can give by name, for inputs whose valid
+   values are fixed by what they are rather than by the fixture.  A
+   longitude covers a full turn; the checker compares angles modulo 2*pi,
+   so the two ends are the same position.  A latitude stops short of the
+   poles: longitude is undefined at a pole and ill-conditioned close to
+   one, so a Mapping and its simplification may legitimately return
+   different longitudes there for the same position. */
+static const struct {
+    const char *name;
+    double lo, hi;
+} named_ranges[] = {
+    { "lon", -3.14159265358979323846, 3.14159265358979323846 },
+    { "lat", -1.5, 1.5 },
+};
+
 /* Read <root>/oracle/transform_oracle_domains.txt.  Each line that is not
    blank or a '#' comment is
 
-     <relpath> <lo> <hi>                     one range for every input axis
-     <relpath> <lo1> <hi1> ... <loN> <hiN>   one range per input axis
+     <relpath> <range>                   one range for every input axis
+     <relpath> <range1> ... <rangeN>     one range per input axis
 
-   where <relpath> names a simplify .map fixture.  The fixture and its .simp
-   partner are then sampled uniformly over the range instead of over the
-   default logarithmic spread.  An axis whose <lo> equals its <hi> is held
-   at that value.  The file must exist, since without it every declared
-   domain would silently revert to the default; a malformed line, a
+   where <relpath> names a simplify .map fixture and each <range> is either
+   two numbers, <lo> <hi>, or the name of one of named_ranges.  The fixture
+   and its .simp partner are then sampled uniformly over the ranges instead
+   of over the default logarithmic spread.  An axis whose <lo> equals its
+   <hi> is held at that value.  The file must exist, since without it every
+   declared domain would silently revert to the default; a malformed line, a
    duplicate, or an entry that names no fixture stops the program. */
 static Domain *load_domains( const char *root, int *ndom ) {
     char path[1024];
@@ -208,20 +224,40 @@ static Domain *load_domains( const char *root, int *ndom ) {
         p += used;
         double v[64];
         int nv = 0;
+        int half = 0;       /* a <lo> has been read and its <hi> is due */
         for ( ;; ) {
             char *end;
             while ( *p == ' ' || *p == '\t' ) p++;
             if ( *p == '\n' || *p == '\0' || *p == '#' ) break;
-            if ( nv == (int)( sizeof v / sizeof v[0] ) )
-                domain_fail( path, lineno, "too many values" );
-            v[nv] = strtod( p, &end );
-            if ( end == p ) domain_fail( path, lineno, "value is not a number" );
-            nv++;
-            p = end;
+            if ( nv + 2 > (int)( sizeof v / sizeof v[0] ) )
+                domain_fail( path, lineno, "too many ranges" );
+            double x = strtod( p, &end );
+            if ( end != p ) {
+                v[nv++] = x;
+                half = !half;
+                p = end;
+                continue;
+            }
+            char name[32];
+            int len = 0;
+            while ( p[len] && p[len] != ' ' && p[len] != '\t' &&
+                    p[len] != '\n' && p[len] != '#' ) len++;
+            if ( half || len >= (int) sizeof name )
+                domain_fail( path, lineno, "value is not a number" );
+            memcpy( name, p, (size_t) len );
+            name[len] = '\0';
+            size_t k;
+            for ( k = 0; k < sizeof named_ranges / sizeof named_ranges[0]; k++ )
+                if ( !strcmp( name, named_ranges[k].name ) ) break;
+            if ( k == sizeof named_ranges / sizeof named_ranges[0] )
+                domain_fail( path, lineno, "unknown range name" );
+            v[nv++] = named_ranges[k].lo;
+            v[nv++] = named_ranges[k].hi;
+            p += len;
         }
-        if ( nv == 0 || nv % 2 )
+        if ( nv == 0 || half )
             domain_fail( path, lineno,
-                         "need a <lo> <hi> pair for one axis or each axis" );
+                         "need a range for one axis or each axis" );
         for ( int i = 0; i < nv; i += 2 )
             if ( !( v[i] <= v[i+1] ) )
                 domain_fail( path, lineno, "<lo> is above <hi>" );

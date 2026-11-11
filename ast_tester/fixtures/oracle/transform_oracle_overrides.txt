@@ -21,17 +21,28 @@
 # architecture-stable; every skip needs a comment explaining why.  Prefer a row
 # list over a whole-direction "off": it leaves the rest of the section pinned.
 #
-# Equivalence lines.  A simplify fixture's .map and .simp forward outputs are
-# compared only at sampled points where their recorded values agree.  A pair
-# counts as checked only if they agree, with a value that is not AST__BAD, at two
-# or more distinct sampled inputs: one is not enough, because nearly every
-# Mapping agrees with its simplification at the origin.  A pair that falls short
-# fails unless it is listed here, keyed on its .map relpath:
+# Equivalence lines.  Simplification must not change a Mapping's values, so a
+# simplify fixture's .map and .simp forward outputs must agree at every sampled
+# point, as recorded and as computed now; values that are both AST__BAD agree.
+# Each fixture is sampled where it is defined (see transform_oracle_domains.txt),
+# so a disagreement is a simplification that changes the transform.  Lines keyed
+# on the .map relpath relax this:
+#   <relpath> equiv-rows <list>     accept a recorded disagreement at only these
+#                                   rows, which are then not compared
+#   <relpath> equiv-tol <rtol> <atol>   compare to this tolerance instead of
+#                                   1e-9, for a pair whose inverse is itself an
+#                                   approximation
+# A listed row whose recorded outputs agree fails, so that the list does not
+# outlive its reason.  <list> is as for golden rows.
+#
+# A pair also counts as checked only if its outputs agree, with a value that is
+# not AST__BAD, at two or more distinct sampled inputs: one is not enough,
+# because nearly every Mapping agrees with its simplification at the origin.  A
+# pair that falls short fails unless it is listed here:
 #   <relpath> equiv off        accept a pair that is barely compared
-# A listed pair that is checked after all also fails, so that the list does not
-# outlive its reason.  Every entry needs a comment saying why no sampling domain
-# (see transform_oracle_domains.txt) reaches the pair's common domain and how its
-# equivalence was checked instead.
+# A listed pair that is checked after all also fails.  Every entry needs a
+# comment saying why no sampling domain reaches the pair's common domain and how
+# its equivalence was checked instead.
 #
 # Value lines.  A simplify .map with no .simp partner is checked only against its
 # own recorded outputs, so it must have a value that is not AST__BAD at two or
@@ -91,20 +102,18 @@ simplify/neg_unitnormmap_inv_fwd_diffcentre.map   golden-inv-rows 2
 # Simplify pairs that agree, with a value, at fewer than two sampled inputs
 # whatever the sampling domain.
 #
-# Regions that contain only a point or two: PointLists, Boxes and Intervals with
-# no extent on any axis, Prisms of those, and a Circle of zero radius.  Sampling
-# does not land on the points, and holding every axis at one of them gives a
-# single input.  Each pair was checked instead at each of its points, where the
-# .map and .simp agree; elsewhere both are AST__BAD, which the comparisons at
-# the sampled points check.
+# Regions that contain a single point: PointLists, Boxes and Intervals with no
+# extent on any axis, Prisms of those, and a Circle of zero radius.  Sampling
+# does not land on the point, and holding every axis at it gives a single
+# input.  Each pair was checked instead at its point, where the .map and .simp
+# agree; elsewhere both are AST__BAD, which the comparisons at the sampled
+# points check.
 simplify/box_pointlist_merge.map              equiv off
 simplify/cap_pointlist_01.map                 equiv off
 simplify/cap_pointlist_02.map                 equiv off
-simplify/cap_zoommap_04.map                   equiv off
 simplify/defunc_nullregion_2d.map             equiv off
 simplify/interval_pointlist_merge.map         equiv off
 simplify/pointlist_parallel_merge_pair.map    equiv off
-simplify/pointlist_self_simplify.map          equiv off
 simplify/pointlist_unc_fillfactor_merge.map   equiv off
 
 # Regions that contain no point: NullRegions, and Boxes whose Frame mapping
@@ -119,16 +128,19 @@ simplify/nullregion_unc_fillfactor_merge.map  equiv off
 
 # A SphMap with UnitRadius set followed by its inverse sends a vector to the
 # unit vector in its direction, so it is the identity only on the unit sphere,
-# which no box of inputs samples.  Checked instead at the unit vectors
-# (1, 0, 0), (0.48, 0.64, 0.6) and (-0.36, 0.48, -0.8), where the .map and .simp
-# agree.
+# which no box of inputs samples.  Its simplification to a UnitMap assumes the
+# inputs are unit vectors, as UnitRadius declares, and so differs at every
+# sampled point.  Checked instead at the unit vectors (1, 0, 0),
+# (0.48, 0.64, 0.6) and (-0.36, 0.48, -0.8), where the .map and .simp agree.
 simplify/sph_fwd_inv_unitradius_cancel.map    equiv off
+simplify/sph_fwd_inv_unitradius_cancel.map equiv-rows 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23
 
-# y = x^2 followed by an inverse fitted with astPolyTran over x in [1, 1.1].
-# The pair is the identity only within that range and only to the fit's
-# accuracy, 4.5e-8, which is coarser than the equivalence tolerance of 1e-9;
-# that astSimplify cancels it to a UnitMap is by design.
-simplify/poly_fitted_inverse_cancel.map   equiv off
+# y = x^2 followed by an inverse fitted with astPolyTran over x in [1, 1.1],
+# which is sampled there (transform_oracle_domains.txt).  The pair is the
+# identity only to the fit's accuracy, 4.6e-8, which is coarser than the
+# equivalence tolerance of 1e-9; that astSimplify cancels it to a UnitMap is by
+# design, so it is compared to the fit's accuracy instead.
+simplify/poly_fitted_inverse_cancel.map   equiv-tol 1e-7 1e-7
 
 # Negative fixtures that have a value at one sampled input at most, whatever
 # the sampling domain.  neg_nullregion_series is two NullRegions in series, and
@@ -138,3 +150,31 @@ simplify/poly_fitted_inverse_cancel.map   equiv off
 simplify/neg_nullregion_series.map              values off
 simplify/neg_pointlist_series.map               values off
 simplify/neg_wcsmap_perm_disconnect_lower.map   values off
+
+# Region simplifications that change the transform, to be fixed separately.
+# Until then the rows at which the recorded .map and .simp differ are accepted;
+# every other row is still compared, and a listed row that comes to agree fails.
+#
+# A CmpMap that applies Regions in parallel returns each axis's value on its
+# own, so a point inside one Region and outside another keeps the value on the
+# first axis.  astSimplify merges the Regions into one Region of the combined
+# Frame, which makes the whole point AST__BAD.
+simplify/box_nullregion_merge.map          equiv-rows 0,1,7,10,11,14,15,18,19,22,23
+simplify/box_parallel_merge.map            equiv-rows 5,6,7,9,10,12,13,18,19,20,23
+simplify/box_pointlist_merge.map           equiv-rows 3,6,8
+simplify/box_unc_fillfactor_merge.map      equiv-rows 6,7,8,9,10,12,14,17,18,19,20,21,22,23
+simplify/interval_nullregion_merge.map     equiv-rows 0,5,7,9,11,13,15,17,19,21,23
+simplify/interval_parallel_merge.map       equiv-rows 5,6,7,9,10,12,13,18,19,20,23
+simplify/interval_pointlist_merge.map      equiv-rows 3,6
+simplify/interval_unc_fillfactor_merge.map equiv-rows 4,5,6,11,12,16,17,18,19,22,23
+simplify/merge_box_fillfactor_product.map  equiv-rows 5,6,7,9,10,12,13,18,19,20,23
+simplify/merge_box_meshsize_scaled.map     equiv-rows 5,6,7,9,10,12,13,18,19,20,23
+simplify/merge_interval_meshsize_scaled.map equiv-rows 5,6,7,9,11,12,13,17,19,23
+simplify/pointlist_parallel_merge_pair.map equiv-rows 6
+simplify/pointlist_unc_fillfactor_merge.map equiv-rows 6
+
+# A Polygon whose base->current Mapping is the MathMap x' = x + 0.005*y*y has
+# curved edges in its current Frame.  astSimplify replaces it with a Polygon
+# whose straight edges join the transformed vertices and lie up to 0.5 from the
+# curves, so the point at row 8, inside a curve and outside its chord, changes.
+simplify/cap_poly_bend_allowed.map         equiv-rows 8
