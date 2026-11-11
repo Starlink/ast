@@ -127,7 +127,10 @@ f     The LutMap class does not define any new routines beyond those
 *        astLoadLutMap now checks that the number of lookup table elements
 *        and the increment read from a dump are valid, as the constructor
 *        does. Otherwise a table with fewer than two elements caused the
-*        interpolating transformation to read beyond its ends.
+*        interpolating transformation to read beyond its ends. It also
+*        ensures that no inverse transformation is defined for a table
+*        with fewer than two good values, whatever the dump says, since
+*        the inverse read before the start of such a table.
 *class--
 */
 
@@ -2534,6 +2537,7 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
 /* Local Variables: */
    AstLutMap *new;               /* Pointer to the new LutMap */
    char buff[ KEY_LEN + 1 ];     /* Buffer for keyword string */
+   int ngood;                    /* Number of good table values */
    int ilut;                     /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(channel);
 
@@ -2612,11 +2616,13 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
 /* Allocate memory to hold the lookup table elements. */
       new->lut = astMalloc( sizeof( double ) * (size_t) new->nlut );
 
-/* If OK, loop to read each element. */
+/* If OK, loop to read each element, counting the good ones. */
       if ( astOK ) {
+         ngood = 0;
          for ( ilut = 0; ilut < new->nlut; ilut++ ) {
             (void) sprintf( buff, "l%d", ilut + 1 );
             new->lut[ ilut ] = astReadDouble( channel, buff, AST__BAD );
+            if ( !astISBAD( new->lut[ ilut ] ) ) ngood++;
          }
 
 /* Initialise the retained input and output coordinate values. */
@@ -2629,6 +2635,17 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
          (void) GetMonotonic( new->nlut, new->lut, &(new->nluti),
                               &(new->luti), &(new->flagsi), &(new->indexi),
                               status );
+
+/* The inverse transformation interpolates between two good table values,
+   so it reads outside the table if there are fewer than two of them. The
+   constructor defines no inverse for such a table, since it is not
+   monotonic, but the flag read from the dump by the parent Mapping loader
+   is not constrained in this way, so ensure that no inverse is defined.
+   The flag is left alone for other tables that are not monotonic: dumps
+   written by versions of AST that considered every table to be monotonic
+   record an inverse for them, and it can be evaluated safely even though
+   its results are not meaningful. */
+         if ( ngood < 2 ) ( (AstMapping *) new )->tran_inverse = 0;
       }
    }
 
