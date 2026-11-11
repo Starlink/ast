@@ -223,7 +223,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        or out-of-range MaxOrder (which SetMaxOrder does not catch when the
 *        value is absent) made the shift used to form "max_nest" undefined,
 *        which in turn defeated the check that keeps the nested indices in
-*        range.
+*        range. Also reject a negative number of ranges and a negative
+*        lower bound, and extend the array of ranges as each range is read
+*        so that its size does not depend on an unchecked count.
 *class--
 */
 
@@ -10947,8 +10949,14 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
       new->minorder = astReadInt( channel, "minorder", -INT_MAX );
       if ( TestMinOrder( new, status ) ) SetMinOrder( new, new->minorder, status );
 
-/* Get the number of ranges of nested indices stored in the dump. */
+/* Get the number of ranges of nested indices stored in the dump. It cannot
+   be negative. */
       new->nrange = astReadInt( channel, "nrange", 0 );
+      if( astOK && new->nrange < 0 ) {
+         astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.", status );
+         astError( AST__LDERR, "Invalid number of ranges (%d).", status,
+                   new->nrange );
+      }
 
 /* A Moc that contains any ranges must have a valid MaxOrder. It is used
    below both to bound the nested indices read from the dump and to form the
@@ -10969,52 +10977,64 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
       max_nest = ( new->maxorder >= 0 && new->maxorder <= AST__MXORDHPX ) ?
                  12*( ONE << ( 2*new->maxorder ) ) : 0;
 
-/* Initialise other class properties. */
-      new->range = astCalloc( 2*new->nrange, sizeof(*(new->range)) );
-      if( astOK ) {
-         llast = 0;
-         ulast = 0;
+/* Read the ranges. The array holding them is extended as each range is
+   read, rather than being allocated from the stated number of ranges, so
+   that the memory used depends on the ranges actually present in the dump.
+   A range that is missing from the dump reads as [0:0], which is rejected
+   below as overlapping its predecessor. */
+      new->range = NULL;
+      llast = 0;
+      ulast = 0;
+      for( irange = 0; astOK && irange < new->nrange; irange++ ) {
+         new->range = astGrow( new->range, irange + 1,
+                               2*sizeof(*(new->range)) );
+         if( !astOK ) break;
+         pr = new->range + 2*irange;
 
-         pr = new->range;
-         for( irange = 0; irange < new->nrange; irange++,pr += 2 ) {
-            (void) sprintf( buff, "i%d", irange );
-            un.a[0] = astReadInt( channel, buff, 0 );
-            (void) sprintf( buff, "j%d", irange );
-            un.a[1] = astReadInt( channel, buff, 0 );
-            pr[ 0 ] = un.b;
+         (void) sprintf( buff, "i%d", irange );
+         un.a[0] = astReadInt( channel, buff, 0 );
+         (void) sprintf( buff, "j%d", irange );
+         un.a[1] = astReadInt( channel, buff, 0 );
+         pr[ 0 ] = un.b;
 
-            (void) sprintf( buff, "k%d", irange );
-            un.a[0] = astReadInt( channel, buff, 0 );
-            (void) sprintf( buff, "l%d", irange );
-            un.a[1] = astReadInt( channel, buff, 0 );
-            pr[ 1 ] = ( un.b > 0 ) ? un.b : pr[ 0 ];
+         (void) sprintf( buff, "k%d", irange );
+         un.a[0] = astReadInt( channel, buff, 0 );
+         (void) sprintf( buff, "l%d", irange );
+         un.a[1] = astReadInt( channel, buff, 0 );
+         pr[ 1 ] = ( un.b > 0 ) ? un.b : pr[ 0 ];
 
-            if( pr[ 1 ] >= max_nest ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Upper bound (%" PRId64 ") is too high for "
-                         "order %d.", status, pr[ 1 ], new->maxorder );
-               break;
+         if( pr[ 0 ] < 0 ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Lower bound (%" PRId64 ") is negative.",
+                      status, pr[ 0 ] );
+            break;
 
-            } else if( pr[ 0 ] > pr[ 1 ] ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Upper bound (%" PRId64 ") lower than lower "
-                         "bound (%" PRId64 ").", status, pr[ 1 ], pr[ 0 ] );
-               break;
+         } else if( pr[ 1 ] >= max_nest ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Upper bound (%" PRId64 ") is too high for "
+                      "order %d.", status, pr[ 1 ], new->maxorder );
+            break;
 
-            } else if( pr[ 0 ] <= ulast && irange != 0 ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Range [%" PRId64 ":%" PRId64 "] overlaps range "
-                         "[%" PRId64 ":%" PRId64 "].", status, pr[ 0 ], pr[ 1 ], llast,
-                         ulast );
-               break;
-            }
+         } else if( pr[ 0 ] > pr[ 1 ] ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Upper bound (%" PRId64 ") lower than lower "
+                      "bound (%" PRId64 ").", status, pr[ 1 ], pr[ 0 ] );
+            break;
 
-            llast = pr[ 0 ];
-            ulast = pr[ 1 ];
+         } else if( pr[ 0 ] <= ulast && irange != 0 ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Range [%" PRId64 ":%" PRId64 "] overlaps range "
+                      "[%" PRId64 ":%" PRId64 "].", status, pr[ 0 ], pr[ 1 ], llast,
+                      ulast );
+            break;
          }
+
+         llast = pr[ 0 ];
+         ulast = pr[ 1 ];
       }
 
 /* Initialise other values */
