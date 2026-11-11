@@ -250,6 +250,11 @@ f     The WcsMap class does not define any new routines beyond those
 *        Rounding left 8-22% of the reverse projections of points on the
 *        -180 meridian of PAR, MOL and PCO, and points just past the
 *        antipode of ARC, rejected where wcslib accepts them.
+*     11-NOV-2026 (TIMJ):
+*        astLoadWcsMap now validates the longitude and latitude axis indices
+*        read from a dump, as the constructor does. Otherwise an index
+*        outside the range of WcsMap axes made the projection parameter code
+*        access its per-axis arrays out of bounds.
 *class--
 */
 
@@ -6020,6 +6025,7 @@ AstWcsMap *astLoadWcsMap_( void *mem, size_t size,
    int i;                       /* Axis index */
    int m;                       /* Parameter index */
    int mxpar;                   /* Maximum number of PVi_m values */
+   int nin;                     /* Number of WcsMap input axes */
 
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(channel);
@@ -6108,6 +6114,21 @@ AstWcsMap *astLoadWcsMap_( void *mem, size_t size,
       for( axis = 0; axis < 2; axis++ ){
          (void) sprintf( buff, "wcsax%d", axis + 1 );
          new->wcsaxis[ axis ] = astReadInt( channel, buff, axis + 1 ) - 1;
+      }
+
+/* Validate the longitude and latitude axis indices read from the dump, as
+   the constructor does. The projection parameter code below indexes its
+   per-axis arrays using these values, so a corrupt dump supplying an index
+   outside the range of WcsMap axes would otherwise cause an out-of-bounds
+   access. */
+      nin = astGetNin( new );
+      if( astOK && ( new->wcsaxis[ 0 ] < 0 || new->wcsaxis[ 0 ] >= nin ||
+                     new->wcsaxis[ 1 ] < 0 || new->wcsaxis[ 1 ] >= nin ||
+                     new->wcsaxis[ 0 ] == new->wcsaxis[ 1 ] ) ) {
+         astError( AST__WCSAX, "astLoadWcsMap(%s): Invalid longitude and "
+                   "latitude axis indices (%d and %d) read for a WcsMap with "
+                   "%d axes.", status, name, new->wcsaxis[ 0 ] + 1,
+                   new->wcsaxis[ 1 ] + 1, nin );
       }
 
 /* Initialise the pointers to the projection parameter information. */
