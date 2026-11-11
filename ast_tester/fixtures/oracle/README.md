@@ -58,6 +58,11 @@ image the iteration need not converge, and a default 1..1000 range over a
 256-pixel image produced round-trip errors above 100 pixels that said nothing
 about the library.  The same mappings round-trip cleanly over their own grid.
 
+A native dump under `simplify/` carries no domain, so by default each of its inputs takes either sign with a magnitude spread logarithmically from 1e-3 to 1e3.
+An angle-based Mapping is then sampled within its principal range as well as far outside it, and a linear one over many scales.
+A fixture that is defined, or is the identity, only over some other range is given that range in `transform_oracle_domains.txt`, keyed on its `.map`, with a comment saying why.
+Its `.simp` is always sampled at the same points as its `.map`, since the two are compared row by row; the checker fails a pair whose inputs differ.
+
 ### Checks that are disabled, and why
 
 `transform_oracle_overrides.txt` carries them, each with its reason.  Two entries
@@ -66,9 +71,11 @@ name the same object twice, once as the header and once as the dump under
 no inverse at all, its TNX Chebyshev distortion building a ChebyMap that cannot
 represent its own Jacobian.
 
-A simplify fixture's `.map` and `.simp` are compared only where their recorded outputs agree, so a pair that agrees nowhere would never be compared.
-Such a pair fails the check unless the overrides file accepts it with `equiv off`, and an accepted pair that is compared after all fails too, so the list cannot go stale.
-The pairs accepted are those whose common domain the -1000 to +1000 sampling misses, and one whose inverse is a fitted approximation; the overrides file says how each was checked instead.
+A simplify fixture's `.map` and `.simp` are compared only where their recorded outputs agree.
+A pair counts as checked only if they agree, with a value that is not AST__BAD, at two or more distinct sampled inputs, because nearly every Mapping agrees with its simplification at the origin.
+A pair that falls short fails unless the overrides file accepts it with `equiv off`, and an accepted pair that is checked after all fails too, so the list cannot go stale.
+A `.map` with no `.simp` is held to the same rule on its own outputs, with `values off` to accept one.
+The fixtures accepted are Regions that contain a point or two or none, a SphMap pair that is the identity only on the unit sphere, a pair whose inverse is a fitted approximation, and negatives built to give no values; the overrides file says how each was checked instead.
 
 ### Values
 

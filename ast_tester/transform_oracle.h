@@ -68,6 +68,14 @@ int    oracle_sample_axis_count( void );
 void   oracle_sample_points( int naxis, const double *lo, const double *hi,
                              int npoint, double **out );
 
+/* Sample npoint points whose coordinates have either sign and magnitudes
+   spread logarithmically between minabs and maxabs (0 < minabs < maxabs),
+   so that every decade in between is visited.  Rows 0-3 are all -maxabs,
+   all +maxabs, all zero and all +sqrt(minabs*maxabs); the rest are a Halton
+   spread. */
+void   oracle_sample_points_log( int naxis, double minabs, double maxabs,
+                                 int npoint, double **out );
+
 /* Load the mapping for a fixture.  When the fixture is a FrameSet (.head via
    FitsChan, or a .ast FrameSet dump), the base and current Frames are
    returned via out_base/out_cur (each NULL-able; the caller astAnnuls any it

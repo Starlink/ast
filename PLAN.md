@@ -311,6 +311,10 @@ work (SIMD kernels, refactors) can be checked for unintended changes.  See
   three committed reference files: `simplify_fixtures.oracle` (the
   `simplify/*.map` and `*.simp` native dumps), `headers.oracle` (the
   `*.head` FITS headers) and `framesets.oracle` (the `*.ast` FrameSet dumps).
+  Headers and FrameSet dumps are sampled over their pixel grid.  Simplify
+  dumps take inputs of either sign with magnitudes spread logarithmically from
+  1e-3 to 1e3, unless `oracle/transform_oracle_domains.txt` gives the fixture
+  the range it is defined over; a `.simp` is sampled where its `.map` is.
 - `check_transform_oracle` (the ctest gate) reads an oracle file as its sole
   manifest, reloads each named fixture, re-transforms the recorded inputs and
   compares within tolerance.  Four ctests: `transform_oracle_selftest` (parser),
@@ -318,16 +322,18 @@ work (SIMD kernels, refactors) can be checked for unintended changes.  See
   `transform_oracle_framesets`.  `test_oracle_util` unit-tests the helpers.
 - Checks: golden forward and golden inverse (every fixture; the inverse
   section's inputs are the forward outputs); `.map`/`.simp` equivalence gated on
-  stored agreement, with a pair whose stored values agree nowhere, and so would
-  never be compared, failing unless the overrides file accepts it; and, for the
+  stored agreement, with a pair that agrees with a value (not AST__BAD) at fewer
+  than two distinct inputs, and so is barely compared, failing unless the
+  overrides file accepts it, and the same rule for a `.map` with no `.simp` on
+  the inputs at which it has a value; and, for the
   GRID-domain corpora, round-trip accuracy (`inverse(forward(P)) ~= P`) to an
   absolute pixel tolerance.
 - `oracle/transform_oracle_overrides.txt` records per-fixture round-trip
   exceptions (currently `tsc.head` and `tnx-cheb.head`, whose inverses do not
   recover the pixel and are flagged for investigation), and per-row golden
-  exceptions for values that sit on a mathematical singularity (currently rows
-  2 and 3 of `neg_unitnormmap_inv_fwd_diffcentre.map`'s inverse section, which
-  depend on whether the compiler contracts a multiply-add).
+  exceptions for values that sit on a mathematical singularity (currently row
+  2 of `neg_unitnormmap_inv_fwd_diffcentre.map`'s inverse section, which
+  depends on whether the compiler contracts a multiply-add).
 - The recorded values are build-configuration dependent in the last bit or two.
   Regenerating `framesets.oracle` under a Debug sanitizer build reproduces the
   committed file except for about 60 latitude values differing by one ULP from

@@ -90,6 +90,35 @@ void oracle_sample_points( int naxis, const double *lo, const double *hi,
     }
 }
 
+void oracle_sample_points_log( int naxis, double minabs, double maxabs,
+                               int npoint, double **out ) {
+    /* First four rows are deterministic: all -maxabs, all +maxabs, zero, and
+       the geometric mid-point of the magnitudes. */
+    double mid = sqrt( minabs * maxabs );
+    for ( int a = 0; a < naxis; a++ ) {
+        if ( npoint > 0 ) out[a][0] = -maxabs;
+        if ( npoint > 1 ) out[a][1] = maxabs;
+        if ( npoint > 2 ) out[a][2] = 0.0;
+        if ( npoint > 3 ) out[a][3] = mid;
+    }
+    /* Remaining rows: the same Halton spread as oracle_sample_points, with
+       each u in (0,1) mapped to v = 2u-1 in (-1,1), whose sign is the
+       value's sign and whose magnitude places it logarithmically between
+       minabs and maxabs. */
+    int nedge = npoint < 4 ? npoint : 4;
+    double ratio = maxabs / minabs;
+    for ( int a = 0; a < naxis; a++ ) {
+        unsigned base = oracle_primes[ (size_t) a % ( sizeof(oracle_primes)
+                                       / sizeof(oracle_primes[0]) ) ];
+        for ( int i = nedge; i < npoint; i++ ) {
+            double u = oracle_halton( (unsigned)( i - nedge + 1 ), base );
+            double v = 2.0 * u - 1.0;
+            double mag = minabs * pow( ratio, fabs( v ) );
+            out[a][i] = v < 0.0 ? -mag : mag;
+        }
+    }
+}
+
 void oracle_format_double( char *buf, size_t buflen, double v ) {
     if ( v == AST__BAD ) { snprintf( buf, buflen, "%s", ORACLE_BAD_TOKEN ); }
     else                 { snprintf( buf, buflen, "%.17g", v ); }

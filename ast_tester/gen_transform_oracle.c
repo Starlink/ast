@@ -11,6 +11,19 @@
  * component that scans the filesystem; the checker is driven entirely by
  * the files written here.
  *
+ * SAMPLING DOMAINS
+ *
+ * A FITS header is sampled over its NAXIS pixel grid, and a FrameSet dump
+ * over the grid of the header it was read from (see axis_bounds).  A native
+ * dump under simplify/ carries no domain, so by default its inputs take
+ * either sign with magnitudes spread logarithmically from 1e-3 to 1e3: an
+ * angle-based Mapping is then sampled within its principal range as well as
+ * far outside it, and a linear one over many scales.  A fixture that is
+ * defined, or is the identity, only over some other range is given that
+ * range in <root>/oracle/transform_oracle_domains.txt (see load_domains).
+ * Its .simp partner is always sampled at the same points as its .map, since
+ * the checker compares the two row by row.
+ *
  * PLATFORM SENSITIVITY OF THE RECORDED VALUES
  *
  * The oracle files record whatever the generating platform computes, and
@@ -63,6 +76,17 @@ static void free_cols( double **c, int ncol ) {
     if ( !c ) return;
     for ( int a = 0; a < ncol; a++ ) free( c[a] );
     free( c );
+}
+
+/* A fixture missing from an oracle silently stops being tested, so abort
+   rather than carry on with a short manifest. */
+static void *xalloc( void *p, size_t size, const char *what ) {
+    void *q = realloc( p, size );
+    if ( !q ) {
+        fprintf( stderr, "gen_transform_oracle: out of memory for %s\n", what );
+        exit( 1 );
+    }
+    return q;
 }
 
 /* Return 1 if <root>/<relpath> can be opened for reading. */
@@ -129,17 +153,124 @@ static int path_kind( const char *relpath ) {
     return DOM_NATIVE;
 }
 
-/* Fill lo[]/hi[] for naxis input axes.  FITS headers use their pixel grid
-   (NAXISj).  FrameSet dumps (.ast) have a GRID base frame but carry no
-   NAXIS, so use a default positive pixel range.  Native dumps have no
-   declared domain, so use a fixed symmetric range.  Sampling outside a
-   map's valid domain merely yields AST__BAD, which the golden comparison
-   records and matches faithfully. */
+/* Magnitudes between which a native dump with no declared domain is
+   sampled; see oracle_sample_points_log. */
+#define NATIVE_MIN_ABS 1e-3
+#define NATIVE_MAX_ABS 1e3
+
+/* A declared sampling domain for a simplify fixture: one [lo, hi] range for
+   every input axis (naxis == 1) or one per input axis. */
+typedef struct {
+    char relpath[1024];         /* the .map, relative to root */
+    int naxis;
+    double *lo, *hi;
+    int used;                   /* matched a scanned fixture */
+} Domain;
+
+static void domain_fail( const char *path, int lineno, const char *why ) {
+    fprintf( stderr, "gen_transform_oracle: %s:%d: %s\n", path, lineno, why );
+    exit( 1 );
+}
+
+/* Read <root>/oracle/transform_oracle_domains.txt.  Each line that is not
+   blank or a '#' comment is
+
+     <relpath> <lo> <hi>                     one range for every input axis
+     <relpath> <lo1> <hi1> ... <loN> <hiN>   one range per input axis
+
+   where <relpath> names a simplify .map fixture.  The fixture and its .simp
+   partner are then sampled uniformly over the range instead of over the
+   default logarithmic spread.  An axis whose <lo> equals its <hi> is held
+   at that value.  The file must exist, since without it every declared
+   domain would silently revert to the default; a malformed line, a
+   duplicate, or an entry that names no fixture stops the program. */
+static Domain *load_domains( const char *root, int *ndom ) {
+    char path[1024];
+    snprintf( path, sizeof path, "%s/oracle/transform_oracle_domains.txt", root );
+    FILE *fp = fopen( path, "r" );
+    if ( !fp ) {
+        fprintf( stderr, "gen_transform_oracle: cannot read %s\n", path );
+        exit( 1 );
+    }
+    Domain *doms = NULL;
+    int n = 0, cap = 0, lineno = 0;
+    char line[4096];
+    while ( fgets( line, (int) sizeof line, fp ) ) {
+        lineno++;
+        char *p = line;
+        while ( *p == ' ' || *p == '\t' ) p++;
+        if ( *p == '#' || *p == '\n' || *p == '\0' ) continue;
+
+        char rel[1024];
+        int used;
+        if ( sscanf( p, "%1023s%n", rel, &used ) != 1 )
+            domain_fail( path, lineno, "no fixture path" );
+        p += used;
+        double v[64];
+        int nv = 0;
+        for ( ;; ) {
+            char *end;
+            while ( *p == ' ' || *p == '\t' ) p++;
+            if ( *p == '\n' || *p == '\0' || *p == '#' ) break;
+            if ( nv == (int)( sizeof v / sizeof v[0] ) )
+                domain_fail( path, lineno, "too many values" );
+            v[nv] = strtod( p, &end );
+            if ( end == p ) domain_fail( path, lineno, "value is not a number" );
+            nv++;
+            p = end;
+        }
+        if ( nv == 0 || nv % 2 )
+            domain_fail( path, lineno,
+                         "need a <lo> <hi> pair for one axis or each axis" );
+        for ( int i = 0; i < nv; i += 2 )
+            if ( !( v[i] <= v[i+1] ) )
+                domain_fail( path, lineno, "<lo> is above <hi>" );
+        size_t rl = strlen( rel );
+        if ( strncmp( rel, "simplify/", 9 ) || rl < 4 ||
+             strcmp( rel + rl - 4, ".map" ) )
+            domain_fail( path, lineno,
+                         "a domain can only be declared for a simplify/*.map" );
+        for ( int d = 0; d < n; d++ )
+            if ( !strcmp( doms[d].relpath, rel ) )
+                domain_fail( path, lineno, "fixture already has a domain" );
+
+        if ( n == cap ) {
+            cap = cap ? 2 * cap : 32;
+            doms = xalloc( doms, sizeof(Domain) * (size_t) cap, "domain list" );
+        }
+        Domain *d = &doms[n++];
+        snprintf( d->relpath, sizeof d->relpath, "%s", rel );
+        d->naxis = nv / 2;
+        d->lo = xalloc( NULL, sizeof(double) * (size_t) d->naxis, "domain" );
+        d->hi = xalloc( NULL, sizeof(double) * (size_t) d->naxis, "domain" );
+        for ( int a = 0; a < d->naxis; a++ ) {
+            d->lo[a] = v[2*a];
+            d->hi[a] = v[2*a+1];
+        }
+        d->used = 0;
+    }
+    fclose( fp );
+    *ndom = n;
+    return doms;
+}
+
+static Domain *find_domain( Domain *doms, int ndom, const char *relpath ) {
+    for ( int d = 0; d < ndom; d++ )
+        if ( !strcmp( doms[d].relpath, relpath ) ) return &doms[d];
+    return NULL;
+}
+
+/* Fill lo[]/hi[] for naxis input axes of a FITS header or FrameSet dump.
+   FITS headers use their pixel grid (NAXISj).  FrameSet dumps (.ast) have
+   a GRID base frame but carry no NAXIS, so they take the grid of the header
+   they were read from where it can be found, or a default positive pixel
+   range.  Sampling outside a map's valid domain merely yields AST__BAD,
+   which the golden comparison records and matches faithfully. */
 static void axis_bounds( const char *root, const char *relpath, int kind,
                          int naxis, double *lo, double *hi ) {
     if ( kind == DOM_HEAD ) {
         head_bounds( root, relpath, naxis, lo, hi );
-    } else if ( kind == DOM_FRAMESET ) {
+    } else {
 /* A fixture under wcsconv/framesets/ is the dump of the object read from one
    wcsconv input, and its name is that input's filename with each "." replaced by
    "-".  Recover the input and take its pixel grid, so the mapping is sampled over
@@ -171,9 +302,33 @@ static void axis_bounds( const char *root, const char *relpath, int kind,
         } else {
             for ( int a = 0; a < naxis; a++ ) { lo[a] = 1.0; hi[a] = 1000.0; }
         }
-    } else {
-        for ( int a = 0; a < naxis; a++ ) { lo[a] = -1000.0; hi[a] = 1000.0; }
     }
+}
+
+/* Fill in (naxis x np) with the inputs at which to sample a fixture in one
+   direction.  A declared domain, given only for the direction it describes,
+   is sampled uniformly; any other native dump takes the default logarithmic
+   spread, and a FITS header or FrameSet dump its pixel grid. */
+static void sample_inputs( const char *root, const char *relpath, int kind,
+                           const Domain *dom, int naxis, int np,
+                           double **in ) {
+    if ( kind == DOM_NATIVE && !dom ) {
+        oracle_sample_points_log( naxis, NATIVE_MIN_ABS, NATIVE_MAX_ABS, np, in );
+        return;
+    }
+    double *lo = xalloc( NULL, sizeof(double) * (size_t) naxis, "bounds" );
+    double *hi = xalloc( NULL, sizeof(double) * (size_t) naxis, "bounds" );
+    if ( dom ) {
+        for ( int a = 0; a < naxis; a++ ) {
+            int d = dom->naxis == 1 ? 0 : a;
+            lo[a] = dom->lo[d];
+            hi[a] = dom->hi[d];
+        }
+    } else {
+        axis_bounds( root, relpath, kind, naxis, lo, hi );
+    }
+    oracle_sample_points( naxis, lo, hi, np, in );
+    free( lo ); free( hi );
 }
 
 /* Transform pre-sampled inputs `in` (in_n x np) through map in the given
@@ -219,9 +374,13 @@ static int transform_write( FILE *fp, const char *relpath, AstMapping *map,
    forward exists, so they are genuine output-space coordinates (the
    inverse's natural domain); otherwise they are sampled directly.  Both
    are recorded as golden, so neither needs the inputs to be "valid" -- a
-   change in either kernel's output is detected regardless.  Returns the
-   number of sections written. */
-static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
+   change in either kernel's output is detected regardless.
+
+   dom is the declared domain of the fixture's input axes, or NULL.  A .simp
+   is passed the domain of its .map so that the two are sampled at the same
+   points.  Returns the number of sections written. */
+static int emit_fixture( FILE *fp, const char *root, const char *relpath,
+                         const Domain *dom ) {
     int wrote = 0;
     astBegin;
     AstMapping *map = oracle_load_mapping( root, relpath, NULL, NULL );
@@ -233,15 +392,22 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
         int has_fwd = astGetI( map, "TranForward" );
         int has_inv = astGetI( map, "TranInverse" );
 
+        /* A domain describes the forward inputs, so it is an error for a
+           fixture that has none or has a different number of them. */
+        if ( dom && ( !has_fwd || ( dom->naxis != 1 && dom->naxis != nin ) ) ) {
+            fprintf( stderr, "gen_transform_oracle: the domain declared for "
+                     "%s does not describe the forward inputs of %s "
+                     "(%d ranges, Nin=%d, TranForward=%d)\n", dom->relpath,
+                     relpath, dom->naxis, nin, has_fwd );
+            exit( 1 );
+        }
+
         double **fwd_out = NULL;   /* forward outputs, reused as inverse inputs */
 
         if ( has_fwd ) {
-            double *lo = malloc( sizeof(double) * (size_t) nin );
-            double *hi = malloc( sizeof(double) * (size_t) nin );
-            axis_bounds( root, relpath, kind, nin, lo, hi );
             double **in  = alloc_cols( nin, np );
             double **out = alloc_cols( nout, np );
-            oracle_sample_points( nin, lo, hi, np, in );
+            sample_inputs( root, relpath, kind, dom, nin, np, in );
             if ( transform_write( fp, relpath, map, 1, nin, nout, np, in, out ) ) {
                 wrote++;
                 fwd_out = out;            /* keep for inverse inputs */
@@ -249,7 +415,6 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
                 free_cols( out, nout );
             }
             free_cols( in, nin );
-            free( lo ); free( hi );
         }
 
         if ( has_inv ) {
@@ -258,12 +423,8 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
             int own_inv_in;
             if ( fwd_out ) { inv_in = fwd_out; own_inv_in = 0; }
             else {
-                double *lo = malloc( sizeof(double) * (size_t) nout );
-                double *hi = malloc( sizeof(double) * (size_t) nout );
-                axis_bounds( root, relpath, kind, nout, lo, hi );
                 inv_in = alloc_cols( nout, np );
-                oracle_sample_points( nout, lo, hi, np, inv_in );
-                free( lo ); free( hi );
+                sample_inputs( root, relpath, kind, NULL, nout, np, inv_in );
                 own_inv_in = 1;
             }
             double **inv_out = alloc_cols( nin, np );
@@ -284,17 +445,6 @@ static int emit_fixture( FILE *fp, const char *root, const char *relpath ) {
 /* Comparator for qsort of strings, for deterministic file order. */
 static int cmp_str( const void *a, const void *b ) {
     return strcmp( *(const char *const *) a, *(const char *const *) b );
-}
-
-/* A fixture missing from an oracle silently stops being tested, so abort
-   rather than carry on with a short manifest. */
-static void *xalloc( void *p, size_t size, const char *what ) {
-    void *q = realloc( p, size );
-    if ( !q ) {
-        fprintf( stderr, "gen_transform_oracle: out of memory for %s\n", what );
-        exit( 1 );
-    }
-    return q;
 }
 
 /* Recursively collect files below subdir whose names end in suffix.  Every
@@ -379,6 +529,9 @@ int main( int argc, char *argv[] ) {
 
     oracle_register_intramaps( status );
 
+    int ndom = 0;
+    Domain *doms = load_domains( root, &ndom );
+
     /* The tolerance line is informational (the checker takes its tolerances
        from the transform_oracle.h macros); format it from those same macros
        so it cannot drift from what the checker actually applies. */
@@ -403,14 +556,31 @@ int main( int argc, char *argv[] ) {
         char simp[1024];
         size_t L = strlen( maps[i] );
         snprintf( simp, sizeof simp, "%.*s.simp", (int)(L - 4), maps[i] );
-        nwritten += emit_fixture( fs, root, maps[i] );
+        Domain *dom = find_domain( doms, ndom, maps[i] );
+        if ( dom ) dom->used = 1;
+        nwritten += emit_fixture( fs, root, maps[i], dom );
         /* "neg_*" fixtures (and any other already-simple map) have no .simp
            partner; only emit one when the file exists. */
-        if ( file_exists( root, simp ) ) nwritten += emit_fixture( fs, root, simp );
+        if ( file_exists( root, simp ) )
+            nwritten += emit_fixture( fs, root, simp, dom );
         free( maps[i] );
     }
     free( maps );
     fclose( fs );
+
+    /* A domain that names no fixture has outlived it, or names it wrongly. */
+    int stale = 0;
+    for ( int d = 0; d < ndom; d++ ) {
+        if ( !doms[d].used ) {
+            fprintf( stderr, "gen_transform_oracle: a domain is declared for "
+                     "%s, which is not a fixture\n", doms[d].relpath );
+            stale++;
+        }
+        free( doms[d].lo );
+        free( doms[d].hi );
+    }
+    free( doms );
+    if ( stale ) return 1;
 
     /* FITS-header corpus. */
     FILE *fh = fopen( headers_out, "w" );
@@ -419,7 +589,7 @@ int main( int argc, char *argv[] ) {
     int nhead = 0;
     char **heads = scan_tree( root, "", ".head", &nhead );
     for ( int i = 0; i < nhead; i++ ) {
-        nwritten += emit_fixture( fh, root, heads[i] );
+        nwritten += emit_fixture( fh, root, heads[i], NULL );
         free( heads[i] );
     }
     free( heads );
@@ -433,7 +603,7 @@ int main( int argc, char *argv[] ) {
     int nast = 0;
     char **asts = scan_tree( root, "", ".ast", &nast );
     for ( int i = 0; i < nast; i++ ) {
-        nwritten += emit_fixture( ff, root, asts[i] );
+        nwritten += emit_fixture( ff, root, asts[i], NULL );
         free( asts[i] );
     }
     free( asts );
