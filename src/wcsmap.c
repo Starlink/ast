@@ -252,9 +252,11 @@ f     The WcsMap class does not define any new routines beyond those
 *        antipode of ARC, rejected where wcslib accepts them.
 *     11-NOV-2026 (TIMJ):
 *        astLoadWcsMap now validates the longitude and latitude axis indices
-*        read from a dump, as the constructor does. Otherwise an index
+*        read from a dump, using the checks applied by the constructor (so
+*        none are made for a WcsMap of type AST__WCSBAD). Otherwise an index
 *        outside the range of WcsMap axes made the projection parameter code
-*        access its per-axis arrays out of bounds.
+*        access its per-axis arrays out of bounds. It also requires the
+*        numbers of inputs and outputs to be equal.
 *class--
 */
 
@@ -827,6 +829,7 @@ static int LongRange( const PrjData *, struct AstPrjPrm *, double *, double *, i
 static int Map( AstWcsMap *, int, int, double *, double *, double *, double *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int TestAttrib( AstObject *, const char *, int * );
+static void CheckAxes( const char *, const char *, int, int, int, int, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void CopyPV( AstWcsMap *, AstWcsMap *, int * );
@@ -1174,6 +1177,83 @@ static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
 
 /* Return the answer. */
    return astOK ? ret : 0;
+}
+
+static void CheckAxes( const char *method, const char *name, int type,
+                       int ncoord, int lonax, int latax, int *status ) {
+/*
+*  Name:
+*     CheckAxes
+
+*  Purpose:
+*     Check the longitude and latitude axis indices of a WcsMap.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "wcsmap.h"
+*     void CheckAxes( const char *method, const char *name, int type,
+*                     int ncoord, int lonax, int latax, int *status )
+
+*  Class Membership:
+*     WcsMap member function.
+
+*  Description:
+*     This function reports an error if the supplied longitude and
+*     latitude axis indices cannot be used by a WcsMap with the supplied
+*     projection type and number of axes. It is used both when a WcsMap is
+*     constructed and when one is loaded, so that the two apply the same
+*     rules.
+*
+*     No checks are made if the projection type is AST__WCSBAD, since such
+*     a WcsMap performs no projection and so does not use the axis indices.
+
+*  Parameters:
+*     method
+*        The name of the calling function, for use in error messages.
+*     name
+*        The class name, for use in error messages.
+*     type
+*        The projection type.
+*     ncoord
+*        The number of axes in the WcsMap.
+*     lonax
+*        The zero-based index of the longitude axis.
+*     latax
+*        The zero-based index of the latitude axis.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Check the global error status. There is nothing to check unless a
+   genuine FITS-WCS projection has been specified. */
+   if ( !astOK || type == AST__WCSBAD ) return;
+
+/* Check that at least two dimensions are to be mapped. */
+   if ( ncoord < 2 ){
+      astError( AST__WCSNC, "%s(%s): Too few axes (%d) "
+                "specified. Must be at least 2.", status, method, name,
+                ncoord );
+
+/* Report an error if either the longitude or latitude axes are out of
+   bounds. */
+   } else if ( lonax < 0 || lonax >= ncoord ){
+      astError( AST__WCSAX, "%s(%s): Specified longitude axis (%d) "
+                "does not exist within a %d dimensional coordinate system. ",
+                status, method, name, lonax + 1, ncoord );
+
+   } else if ( latax < 0 || latax >= ncoord ){
+      astError( AST__WCSAX, "%s(%s): Specified latitude axis (%d) "
+                "does not exist within a %d dimensional coordinate system. ",
+                status, method, name, latax + 1, ncoord );
+
+/* Report an error if the longitude or latitude axes are the same. */
+   } else if ( lonax == latax ){
+      astError( AST__WCSAX, "%s(%s): The same axis (%d) has been "
+                "given for both the longitude and the latitude axis.", status,
+                method, name, lonax + 1 );
+   }
 }
 
 static void ClearAttrib( AstObject *this_object, const char *attrib, int *status ) {
@@ -5850,36 +5930,15 @@ AstWcsMap *astInitWcsMap_( void *mem, size_t size, int init,
 /* If a genuine FITS-WCS projection has been specified, check the initialisation
    value(s) for validity, reporting an error if necessary. Prefix the error
    report with the name of the function and the class of object being
-   processed. First check that at least two dimensions are to be mapped. */
-   if( type != AST__WCSBAD ){
-      if ( ncin < 2 ){
-         astError( AST__WCSNC, "astInitWcsMap(%s): Too few axes (%d) "
-                   "specified. Must be at least 2.", status, name, ncin );
-
-/* Report an error if either the longitude or latitude axes are out of
-   bounds. */
-      } else if ( lonax < 0 || lonax >= ncin ){
-         astError( AST__WCSAX, "astInitWcsMap(%s): Specified longitude axis (%d) "
-                   "does not exist within a %d dimensional coordinate system. ", status,
-                   name, lonax + 1, ncin );
-
-      } else if ( latax < 0 || latax >= ncin ){
-         astError( AST__WCSAX, "astInitWcsMap(%s): Specified latitude axis (%d) "
-                   "does not exist within a %d dimensional coordinate system. ", status,
-                   name, latax + 1, ncin );
-
-/* Report an error if the longitude or latitude axes are the same. */
-      } else if ( lonax == latax ){
-         astError( AST__WCSAX, "astInitWcsMap(%s): The same axis (%d) has been "
-                   "given for both the longitude and the latitude axis.", status, name,
-                   lonax + 1 );
+   processed. First check the number of axes and the longitude and latitude
+   axis indices. */
+   CheckAxes( "astInitWcsMap", name, type, ncin, lonax, latax, status );
 
 /* Report an error if projection type is unknown. */
-      } else if ( type < 1 || type >= AST__WCSBAD ){
-         astError( AST__WCSTY, "astInitWcsMap(%s): Projection type %d is "
-                   "undefined. Projection types must be in the range 1 to %d.", status,
-                   name, type, AST__WCSBAD - 1 );
-      }
+   if ( astOK && type != AST__WCSBAD && ( type < 1 || type >= AST__WCSBAD ) ){
+      astError( AST__WCSTY, "astInitWcsMap(%s): Projection type %d is "
+                "undefined. Projection types must be in the range 1 to %d.", status,
+                name, type, AST__WCSBAD - 1 );
    }
 
 /* Get a description of the requeste dprojection type. */
@@ -6026,6 +6085,7 @@ AstWcsMap *astLoadWcsMap_( void *mem, size_t size,
    int m;                       /* Parameter index */
    int mxpar;                   /* Maximum number of PVi_m values */
    int nin;                     /* Number of WcsMap input axes */
+   int nout;                    /* Number of WcsMap output axes */
 
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(channel);
@@ -6116,20 +6176,25 @@ AstWcsMap *astLoadWcsMap_( void *mem, size_t size,
          new->wcsaxis[ axis ] = astReadInt( channel, buff, axis + 1 ) - 1;
       }
 
-/* Validate the longitude and latitude axis indices read from the dump, as
-   the constructor does. The projection parameter code below indexes its
-   per-axis arrays using these values, so a corrupt dump supplying an index
-   outside the range of WcsMap axes would otherwise cause an out-of-bounds
-   access. */
+/* A WcsMap always has the same number of inputs and outputs, and the
+   transformation relies on this when it copies each input axis to the
+   corresponding output axis. The numbers read from the dump by the parent
+   Mapping loader are not otherwise constrained, so check them here. */
       nin = astGetNin( new );
-      if( astOK && ( new->wcsaxis[ 0 ] < 0 || new->wcsaxis[ 0 ] >= nin ||
-                     new->wcsaxis[ 1 ] < 0 || new->wcsaxis[ 1 ] >= nin ||
-                     new->wcsaxis[ 0 ] == new->wcsaxis[ 1 ] ) ) {
-         astError( AST__WCSAX, "astLoadWcsMap(%s): Invalid longitude and "
-                   "latitude axis indices (%d and %d) read for a WcsMap with "
-                   "%d axes.", status, name, new->wcsaxis[ 0 ] + 1,
-                   new->wcsaxis[ 1 ] + 1, nin );
+      nout = astGetNout( new );
+      if( astOK && nin != nout ) {
+         astError( AST__LDERR, "astLoadWcsMap(%s): The number of inputs (%d) "
+                   "and outputs (%d) read for a %s differ.", status, name,
+                   nin, nout, name );
       }
+
+/* Validate the longitude and latitude axis indices read from the dump,
+   using the checks applied by the constructor. The transformation and the
+   projection parameter code index per-axis arrays using these values, so
+   an index outside the range of WcsMap axes would otherwise cause an
+   out-of-bounds access. */
+      CheckAxes( "astLoadWcsMap", name, new->type, nin, new->wcsaxis[ 0 ],
+                 new->wcsaxis[ 1 ], status );
 
 /* Initialise the pointers to the projection parameter information. */
       new->p = NULL;
