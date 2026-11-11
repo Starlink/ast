@@ -85,6 +85,7 @@ C_TESTS = \
     testframe \
     testframeperm \
     testframesetload \
+    testloaderhardening \
     testframeset_c \
     testissimp \
     testkeymap_c \
@@ -147,6 +148,8 @@ testframeperm_SOURCES  = testframeperm.c
 testframeperm_LDADD    = $(CTEST_LDADD)
 testframesetload_SOURCES  = testframesetload.c
 testframesetload_LDADD    = $(CTEST_LDADD)
+testloaderhardening_SOURCES  = testloaderhardening.c
+testloaderhardening_LDADD    = $(CTEST_LDADD)
 
 testobject_SOURCES     = testobject.c
 testobject_LDADD       = $(CTEST_LDADD)

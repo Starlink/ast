@@ -337,6 +337,7 @@ ast_add_test(testaxis)
 ast_add_test(testframe)
 ast_add_test(testframeperm)
 ast_add_test(testframesetload)
+ast_add_test(testloaderhardening)
 ast_add_test(testunitnorm)
 ast_add_test(testobjectkeymap)
 
