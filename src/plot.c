@@ -750,6 +750,10 @@ f     - Title: The Plot title drawn using AST_GRID
 *        written beyond the ends of those arrays. It also rejects a
 *        negative number of tick mark values, and clipping information
 *        that does not match a Frame in the Plot.
+*     11-NOV-2026 (TIMJ):
+*        Trans no longer annuls an output PointSet supplied by its caller
+*        when an error occurs. The callers annul the PointSets they supply,
+*        so the PointSet was accessed after it had been freed.
 
 *class--
 */
@@ -28509,8 +28513,13 @@ static AstPointSet *Trans( AstPlot *this, AstFrame *frm, AstMapping *mapping,
 
     }
 
-/* If an error has occurred, annul the result. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. The output PointSet is
+   annulled only if it was created by this function, since a PointSet
+   supplied by the caller remains the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
