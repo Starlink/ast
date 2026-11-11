@@ -217,6 +217,13 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        astGetMocText: report a buffer length of zero as too small,
 *        rather than search for a space or comma from the byte before
 *        the start of a null buffer, which crashed.
+*     11-NOV-2026 (TIMJ):
+*        astLoadMoc: require a valid MaxOrder when a dump contains any
+*        ranges, and only form "max_nest" when MaxOrder is valid. An unset
+*        or out-of-range MaxOrder (which SetMaxOrder does not catch when the
+*        value is absent) made the shift used to form "max_nest" undefined,
+*        which in turn defeated the check that keeps the nested indices in
+*        range.
 *class--
 */
 
@@ -10940,11 +10947,29 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
       new->minorder = astReadInt( channel, "minorder", -INT_MAX );
       if ( TestMinOrder( new, status ) ) SetMinOrder( new, new->minorder, status );
 
-/* Get the maximum number of nested indices at the order in use. */
-      max_nest = 12*( ONE << (2*new->maxorder) );
+/* Get the number of ranges of nested indices stored in the dump. */
+      new->nrange = astReadInt( channel, "nrange", 0 );
+
+/* A Moc that contains any ranges must have a valid MaxOrder. It is used
+   below both to bound the nested indices read from the dump and to form the
+   shift used to calculate "max_nest"; an unset or out-of-range value (the
+   SetMaxOrder call above only rejects an explicitly supplied out-of-range
+   value) would make that shift undefined. Reject such a dump. */
+      if( astOK && new->nrange > 0 &&
+          ( new->maxorder < 0 || new->maxorder > AST__MXORDHPX ) ) {
+         astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.", status );
+         astError( AST__LDERR, "Missing or invalid MaxOrder (%d) for a Moc "
+                   "containing %d range(s).", status, new->maxorder,
+                   new->nrange );
+      }
+
+/* Get the maximum number of nested indices at the order in use. This is
+   only well-defined when MaxOrder is valid, which is guaranteed above
+   whenever any ranges are present. */
+      max_nest = ( new->maxorder >= 0 && new->maxorder <= AST__MXORDHPX ) ?
+                 12*( ONE << ( 2*new->maxorder ) ) : 0;
 
 /* Initialise other class properties. */
-      new->nrange = astReadInt( channel, "nrange", 0 );
       new->range = astCalloc( 2*new->nrange, sizeof(*(new->range)) );
       if( astOK ) {
          llast = 0;
