@@ -18,6 +18,9 @@
  *  - that astRate in each direction agrees with a numerical derivative and
  *    with the reciprocal of the other direction, and at the reference
  *    wavelength with Paper III eq. (81);
+ *  - that a GrismMap with no dispersion, whose inverse sends every
+ *    wavelength to the same grism parameter, has an inverse rate of zero,
+ *    including when that parameter is for a grazing ray;
  *  - that astSimplify cancels a GrismMap with its own inverse, does not
  *    cancel GrismMaps that differ (including only in their order), and
  *    merges a ZoomMap that rescales the wavelength; in every case the
@@ -425,6 +428,62 @@ static void check_simplify( void ) {
    astEnd;
 }
 
+/* With no grating order and no prism dispersion (GrismM and GrismNRP zero)
+   there is no dispersion, so the inverse sends every wavelength to one grism
+   parameter and its rate is zero wherever it gives one, while the forward
+   transformation and its rate are AST__BAD.  The first two sets of
+   parameters have n*sin(alpha) = +/-1, so the diffracted ray grazes the
+   grism and the sine of its angle is -/+1; the third does not.  The
+   grazing cases use alpha = +/-pi/2 and n = 1, because sin(pi/2) is
+   exactly 1 in double precision, whereas n*sin(alpha) for other angles
+   may round to either side of 1 depending on the maths library. */
+static void check_constant_inverse( void ) {
+   static const double alpha[] = { 1.5707963267948966, -1.5707963267948966,
+                                   0.3046926540153975 };
+   static const double nr[] = { 1.0, 1.0, 1.5 };
+   AstGrismMap *map;
+   double wave[ 5 ], g[ 5 ], rate;
+   int i, k;
+
+   astBegin;
+   for( k = 0; k < 3; k++ ) {
+      map = astGrismMap( " " );
+      astSetI( map, "GrismM", 0 );
+      astSetD( map, "GrismNR", nr[ k ] );
+      astSetD( map, "GrismAlpha", alpha[ k ] );
+      astSetD( map, "GrismG", 4.2E5 );
+      astSetD( map, "GrismWaveR", 5.5E-7 );
+
+      for( i = 0; i < 5; i++ ) wave[ i ] = 5.5E-7*( 1.0 + 0.05*( i - 2 ) );
+      astTran1( map, 5, wave, 0, g );
+      for( i = 0; i < 5; i++ ) {
+         if( g[ i ] == AST__BAD || g[ i ] != g[ 0 ] ) {
+            fail( "no dispersion, n*sin(alpha) = %g: wavelength %g gives"
+                  " g = %g", nr[ k ]*sin( alpha[ k ] ), wave[ i ], g[ i ] );
+         }
+      }
+
+      astInvert( map );
+      for( i = 0; i < 5; i++ ) {
+         rate = astRate( map, &wave[ i ], 1, 1 );
+         if( rate != 0.0 ) {
+            fail( "no dispersion, n*sin(alpha) = %g: dg/dwave at %g m is %g,"
+                  " expected 0", nr[ k ]*sin( alpha[ k ] ), wave[ i ], rate );
+         }
+      }
+      astInvert( map );
+      if( astRate( map, &g[ 0 ], 1, 1 ) != AST__BAD ) {
+         fail( "no dispersion, n*sin(alpha) = %g: forward rate is not bad",
+               nr[ k ]*sin( alpha[ k ] ) );
+      }
+   }
+   if( !astOK ) {
+      fail( "AST error while checking a GrismMap with no dispersion" );
+      astClearStatus;
+   }
+   astEnd;
+}
+
 static void check_copy_equal_dump( void ) {
    const Disperser *d = &dispersers[ 1 ];
    AstGrismMap *map, *copy;
@@ -485,6 +544,7 @@ int main( void ) {
       check_rate( &dispersers[ i ] );
    }
    check_bad();
+   check_constant_inverse();
    check_simplify();
    check_copy_equal_dump();
 

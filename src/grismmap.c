@@ -92,6 +92,13 @@ f     The GrismMap class does not define any new routines beyond those
 *        was not simplified, and one followed by the inverse of a GrismMap
 *        of a different order was replaced by a UnitMap although the pair
 *        is not the identity.
+*     11-NOV-2026 (TIMJ):
+*        In Rate, return zero for the inverse transformation of a GrismMap
+*        with no dispersion (GrismM and GrismNRP zero), wherever the
+*        Transform function gives it a value. Such a GrismMap sends every
+*        wavelength to one grism parameter, but if that parameter is for a
+*        grazing ray, the sine of the ray's angle is exactly +/-1 and Rate
+*        returned AST__BAD.
 *class--
 */
 
@@ -1377,11 +1384,17 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2, int *status 
             result = cos( atan( g ) + map->k3 )/( map->k2*( 1.0 + g*g ) );
          }
 
-/* Inverse transformation: "at" is a wavelength. The sine of the angle of
-   the diffracted ray must lie strictly between -1 and +1. */
+/* Inverse transformation: "at" is a wavelength. With no dispersion (k2
+   zero) the sine of the angle of the diffracted ray, and so the grism
+   parameter, is the same for every wavelength, so the rate is zero wherever
+   the Transform function gives a grism parameter, including for a grazing
+   ray. Otherwise the sine must lie strictly between -1 and +1, since the
+   rate is infinite at either end. */
       } else {
          s = map->k2*at[ 0 ] - map->k1;
-         if( s > -1.0 && s < 1.0 ) {
+         if( map->k2 == 0.0 ) {
+            if( s >= -1.0 && s <= 1.0 ) result = 0.0;
+         } else if( s > -1.0 && s < 1.0 ) {
             g = tan( asin( s ) - map->k3 );
             result = map->k2*( 1.0 + g*g )/sqrt( ( 1.0 - s )*( 1.0 + s ) );
          }
