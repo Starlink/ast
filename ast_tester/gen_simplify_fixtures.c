@@ -571,31 +571,43 @@ static void gen_slamap_fixtures(const char *dir) {
 
 /* ===== SplineMap fixtures ===== */
 
+/* A bilinear (order 2) SplineMap over +/-1100 on both axes, which covers
+   the sampled inputs, giving u = x + a*x*y and v = y + b*x*y.  An order-2
+   spline is linear in each variable between its knots, so it reproduces a
+   bilinear function exactly, and its coefficients are the function's values
+   at the knots.  The knots are at the ends of the range and, if zero_knot
+   is set, also at zero, which gives SplineMap's Equal a zero knot to
+   compare.  With |a| and |b| below 1/1100, u increases with x and v with y,
+   as the iterative inverse requires. */
+static AstSplineMap *bilinear_spline(double a, double b, int zero_knot,
+                                     const char *options) {
+    static const double ends[] = {-1100.0, 1100.0};
+    static const double ends_and_zero[] = {-1100.0, 0.0, 1100.0};
+    const double *grid = zero_knot ? ends_and_zero : ends;
+    int n = zero_knot ? 3 : 2;
+    double t[5], cu[9], cv[9];
+    t[0] = grid[0];
+    for (int i = 0; i < n; i++) t[i + 1] = grid[i];
+    t[n + 1] = grid[n - 1];
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            double x = grid[i], y = grid[j];
+            cu[i*n + j] = x + a*x*y;
+            cv[i*n + j] = y + b*x*y;
+        }
+    }
+    return astSplineMap(2, 2, n, n, t, t, cu, cv, "%s", options);
+}
+
 static void gen_splinemap_fixtures(const char *dir) {
     printf("SplineMap fixtures:\n");
 
     /* splinemap-01 and splinemap-02: a SplineMap followed by its inverse
-       cancels to a UnitMap.  The splines are bilinear (order 2) with knots
-       at +/-1100, covering the sampled inputs, and give
-       u = x + 1.0e-4*x*y and v = y + 5.0e-5*x*y, which increase with x and
-       y respectively as the iterative inverse requires.  A bilinear spline
-       reproduces a bilinear function exactly from its values at the four
-       knot corners, which are its coefficients.  InvTol is tightened so
-       that the pair is an identity to rounding rather than to the default
-       1e-6. */
+       cancels to a UnitMap.  InvTol is tightened so that the pair is an
+       identity to rounding rather than to the default 1e-6. */
     {
-        double t[] = {-1100.0, -1100.0, 1100.0, 1100.0};
-        double corner[] = {-1100.0, 1100.0};
-        double cu[4], cv[4];
-        for (int i = 0; i < 2; i++) {
-            for (int j = 0; j < 2; j++) {
-                double x = corner[i], y = corner[j];
-                cu[i*2 + j] = x + 1.0e-4*x*y;
-                cv[i*2 + j] = y + 5.0e-5*x*y;
-            }
-        }
-        AstSplineMap *s1 = astSplineMap(2, 2, 2, 2, t, t, cu, cv,
-                                        "InvTol=1.0E-14,InvNiter=20");
+        AstSplineMap *s1 = bilinear_spline(1.0e-4, 5.0e-5, 0,
+                                           "InvTol=1.0E-14,InvNiter=20");
         AstSplineMap *s2 = astCopy(s1);
         astInvert(s2);
         AstCmpMap *cm = astCmpMap(s1, s2, 1, " ");
@@ -902,17 +914,28 @@ static void gen_unitnormmap_fixtures(const char *dir) {
 
 /* ===== GrismMap fixtures ===== */
 
+/* GrismMap attributes for the fixtures.  A default GrismMap has neither a
+   grating (GrismG and GrismM are zero) nor a prism (GrismNRP and GrismAlpha
+   are zero), which makes its forward transformation AST__BAD everywhere and
+   its inverse a constant, so a fixture built from one is compared at
+   nothing.  GRISM_PARAMS sets every attribute.  GRISM_GRATING is a grating
+   alone and GRISM_PRISM a prism alone, each with the reference wavelength
+   at w = 0; they leave the other attributes at their defaults, so that
+   between them the fixtures also dump and load a GrismMap with each
+   attribute unset. */
 #define GRISM_PARAMS \
     "GrismNR=1.5,GrismNRP=-1e-6,GrismWaveR=5000," \
     "GrismAlpha=0.1,GrismG=2e-4,GrismM=1," \
     "GrismEps=0.02,GrismTheta=0.03"
+#define GRISM_GRATING "GrismG=1e-4,GrismM=1"
+#define GRISM_PRISM "GrismNRP=-5e-6,GrismAlpha=0.1"
 
 static void gen_grismmap_fixtures(const char *dir) {
     printf("GrismMap fixtures:\n");
 
     /* grismmap-03: ZoomMap + inverted GrismMap → absorbed */
     {
-        AstGrismMap *gm = astGrismMap(" ");
+        AstGrismMap *gm = astGrismMap(GRISM_GRATING);
         astInvert(gm);
         AstZoomMap *zm = astZoomMap(1, 2.0, " ");
         AstCmpMap *cm = astCmpMap(zm, gm, 1, " ");
@@ -946,10 +969,13 @@ static void gen_grismmap_fixtures(const char *dir) {
     }
 
     /* grismmap-07: forward GrismMap + inverse of a GrismMap of a different
-       order → not cancelled, since the pair is not the identity. */
+       order → not cancelled, since the pair is not the identity.  A grating
+       alone is used because order -1 of GRISM_PARAMS puts the sine of the
+       reference diffraction angle at -1.15, which makes that GrismMap
+       AST__BAD everywhere. */
     {
-        AstGrismMap *g1 = astGrismMap(GRISM_PARAMS);
-        AstGrismMap *g2 = astGrismMap(GRISM_PARAMS);
+        AstGrismMap *g1 = astGrismMap(GRISM_GRATING);
+        AstGrismMap *g2 = astGrismMap(GRISM_GRATING);
         astSetI(g2, "GrismM", -1);
         astInvert(g2);
         AstCmpMap *cm = astCmpMap(g1, g2, 1, " ");
@@ -1151,6 +1177,31 @@ static void gen_switchmap_fixtures(const char *dir) {
         write_fixture(dir, "switchmap_invert_normalize", (AstMapping*)sw);
         sw = astAnnul(sw); fsel = astAnnul(fsel); isel = astAnnul(isel);
         r1 = astAnnul(r1);
+    }
+
+    /* switchmap-02: two SwitchMaps in series that differ only in their
+       route Mappings, so they are not an equal-and-opposite pair.  The
+       forward selectors pick the route for inputs in [0.25, 0.75), and each
+       inverse selector picks it for that range's image under the route, so
+       each SwitchMap is defined and invertible there.  The first route's
+       factor of 1.2 keeps part of that range inside the second SwitchMap's,
+       so the pair gives values for inputs in [0.25, 0.625). */
+    {
+        AstZoomMap *fsel1 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *isel1 = astZoomMap(1, 2.0/1.2, " ");
+        AstZoomMap *r1 = astZoomMap(1, 1.2, " ");
+        AstZoomMap *fsel2 = astZoomMap(1, 2.0, " ");
+        AstZoomMap *isel2 = astZoomMap(1, 2.0/1.5, " ");
+        AstZoomMap *r2 = astZoomMap(1, 1.5, " ");
+        AstMapping *routes1[] = {(AstMapping*)r1};
+        AstMapping *routes2[] = {(AstMapping*)r2};
+        AstSwitchMap *sw1 = astSwitchMap(fsel1, isel1, 1, (void**)routes1, " ");
+        AstSwitchMap *sw2 = astSwitchMap(fsel2, isel2, 1, (void**)routes2, " ");
+        AstCmpMap *cm = astCmpMap(sw1, sw2, 1, " ");
+        write_negative_fixture(dir, "neg_switchmap_not_equal", (AstMapping*)cm);
+        cm = astAnnul(cm); sw1 = astAnnul(sw1); sw2 = astAnnul(sw2);
+        fsel1 = astAnnul(fsel1); isel1 = astAnnul(isel1); r1 = astAnnul(r1);
+        fsel2 = astAnnul(fsel2); isel2 = astAnnul(isel2); r2 = astAnnul(r2);
     }
 
     /* switchmap-04: SwitchMap internal simplification */
@@ -1782,8 +1833,8 @@ static void gen_negative_fixtures(const char *dir) {
     /* grismmap-08: two GrismMaps same direction — refuses cancel */
     {
         if (!astOK) astClearStatus;
-        AstGrismMap *g1 = astGrismMap(" ");
-        AstGrismMap *g2 = astGrismMap(" ");
+        AstGrismMap *g1 = astGrismMap(GRISM_PRISM);
+        AstGrismMap *g2 = astGrismMap(GRISM_PRISM);
         AstCmpMap *cm = astCmpMap(g1, g2, 1, " ");
         write_negative_fixture(dir, "neg_grism_same_direction", (AstMapping*)cm);
         cm = astAnnul(cm); g1 = astAnnul(g1); g2 = astAnnul(g2);
@@ -1941,10 +1992,8 @@ static void gen_negative_fixtures_2(const char *dir) {
     /* splinemap-06: two SplineMaps same direction — refuses cancel */
     {
         if (!astOK) astClearStatus;
-        double tx[] = {0, 1}, ty[] = {0, 1};
-        double cu[] = {1.5}, cv[] = {2.5};
-        AstSplineMap *s1 = astSplineMap(1, 1, 1, 1, tx, ty, cu, cv, " ");
-        AstSplineMap *s2 = astSplineMap(1, 1, 1, 1, tx, ty, cu, cv, " ");
+        AstSplineMap *s1 = bilinear_spline(1.0e-4, 5.0e-5, 1, " ");
+        AstSplineMap *s2 = bilinear_spline(1.0e-4, 5.0e-5, 1, " ");
         AstCmpMap *cm = astCmpMap(s1, s2, 1, " ");
         write_negative_fixture(dir, "neg_spline_same_direction", (AstMapping*)cm);
         cm = astAnnul(cm); s1 = astAnnul(s1); s2 = astAnnul(s2);
@@ -2256,8 +2305,8 @@ static void gen_negative_fixtures_4(const char *dir) {
     /* grismmap-06: two GrismMaps with different attributes */
     {
         if (!astOK) astClearStatus;
-        AstGrismMap *g1 = astGrismMap("GrismNR=1.0");
-        AstGrismMap *g2 = astGrismMap("GrismNR=1.5");
+        AstGrismMap *g1 = astGrismMap(GRISM_GRATING ",GrismNR=1.0");
+        AstGrismMap *g2 = astGrismMap(GRISM_GRATING ",GrismNR=1.5");
         astInvert(g2);
         AstCmpMap *cm = astCmpMap(g1, g2, 1, " ");
         write_negative_fixture(dir, "neg_grism_different_attrs", (AstMapping*)cm);
@@ -2373,7 +2422,7 @@ static void gen_negative_fixtures_5(const char *dir) {
     /* grismmap-04: GrismMap in parallel — refuses */
     {
         if (!astOK) astClearStatus;
-        AstGrismMap *gm = astGrismMap(" ");
+        AstGrismMap *gm = astGrismMap(GRISM_PRISM);
         AstZoomMap *zm = astZoomMap(1, 2.0, " ");
         AstCmpMap *cm = astCmpMap(gm, zm, 0, " ");
         write_negative_fixture(dir, "neg_grism_parallel", (AstMapping*)cm);
@@ -2383,7 +2432,7 @@ static void gen_negative_fixtures_5(const char *dir) {
     /* grismmap-09: inverted GrismMap followed by ZoomMap — wrong order */
     {
         if (!astOK) astClearStatus;
-        AstGrismMap *gm = astGrismMap(" ");
+        AstGrismMap *gm = astGrismMap(GRISM_GRATING);
         astInvert(gm);
         AstZoomMap *zm = astZoomMap(1, 2.0, " ");
         AstCmpMap *cm = astCmpMap(gm, zm, 1, " ");
@@ -2394,7 +2443,7 @@ static void gen_negative_fixtures_5(const char *dir) {
     /* grismmap-10: forward GrismMap followed by non-ZoomMap */
     {
         if (!astOK) astClearStatus;
-        AstGrismMap *gm = astGrismMap(" ");
+        AstGrismMap *gm = astGrismMap(GRISM_GRATING);
         double shifts[] = {1.0};
         AstShiftMap *sm = astShiftMap(1, shifts, " ");
         AstCmpMap *cm = astCmpMap(gm, sm, 1, " ");
@@ -2439,9 +2488,7 @@ static void gen_negative_fixtures_5(const char *dir) {
     /* splinemap-03: SplineMap in parallel — refuses */
     {
         if (!astOK) astClearStatus;
-        double tx[] = {0, 1}, ty[] = {0, 1};
-        double cu[] = {1.5}, cv[] = {2.5};
-        AstSplineMap *sm = astSplineMap(1, 1, 1, 1, tx, ty, cu, cv, " ");
+        AstSplineMap *sm = bilinear_spline(1.0e-4, 5.0e-5, 1, " ");
         AstZoomMap *zm = astZoomMap(1, 2.0, " ");
         AstCmpMap *cm = astCmpMap(sm, zm, 0, " ");
         write_negative_fixture(dir, "neg_spline_parallel", (AstMapping*)cm);
@@ -2508,9 +2555,7 @@ static void gen_negative_fixtures_6(const char *dir) {
     /* splinemap-05: SplineMap with non-SplineMap neighbour */
     {
         if (!astOK) astClearStatus;
-        double tx[] = {0, 1}, ty[] = {0, 1};
-        double cu[] = {1.5}, cv[] = {2.5};
-        AstSplineMap *sm = astSplineMap(1, 1, 1, 1, tx, ty, cu, cv, " ");
+        AstSplineMap *sm = bilinear_spline(1.0e-4, 5.0e-5, 1, " ");
         AstZoomMap *zm = astZoomMap(2, 2.0, " ");
         AstCmpMap *cm = astCmpMap(sm, zm, 1, " ");
         write_negative_fixture(dir, "neg_spline_nonspline_neighbour", (AstMapping*)cm);
@@ -2691,7 +2736,7 @@ static void gen_negative_fixtures_8(const char *dir) {
     {
         if (!astOK) astClearStatus;
         AstZoomMap *zm = astZoomMap(1, 2.0, " ");
-        AstGrismMap *gm = astGrismMap(" ");
+        AstGrismMap *gm = astGrismMap(GRISM_GRATING);
         AstCmpMap *cm = astCmpMap(zm, gm, 1, " ");
         write_negative_fixture(dir, "neg_grism_zoom_before_fwd", (AstMapping*)cm);
         cm = astAnnul(cm); zm = astAnnul(zm); gm = astAnnul(gm);
@@ -2702,7 +2747,7 @@ static void gen_negative_fixtures_8(const char *dir) {
         if (!astOK) astClearStatus;
         double shifts[] = {1.0};
         AstShiftMap *sm = astShiftMap(1, shifts, " ");
-        AstGrismMap *gm = astGrismMap(" ");
+        AstGrismMap *gm = astGrismMap(GRISM_GRATING);
         astInvert(gm);
         AstCmpMap *cm = astCmpMap(sm, gm, 1, " ");
         write_negative_fixture(dir, "neg_grism_nonzoom_before_inv", (AstMapping*)cm);
@@ -3169,14 +3214,14 @@ static void gen_negative_fixtures_9(const char *dir) {
         pm = astAnnul(pm);
     }
 
-    /* splinemap-07: two different SplineMaps in opposite directions — astEqual fails */
+    /* splinemap-07: two different SplineMaps in opposite directions — astEqual
+       fails.  The second one's inverse is evaluated, so its InvTol is
+       tightened for a result that is reproducible to rounding. */
     {
         if (!astOK) astClearStatus;
-        double tx[] = {0, 1}, ty[] = {0, 1};
-        double cu1[] = {1.5}, cv1[] = {2.5};
-        double cu2[] = {3.0}, cv2[] = {4.0};
-        AstSplineMap *s1 = astSplineMap(1, 1, 1, 1, tx, ty, cu1, cv1, " ");
-        AstSplineMap *s2 = astSplineMap(1, 1, 1, 1, tx, ty, cu2, cv2, " ");
+        AstSplineMap *s1 = bilinear_spline(1.0e-4, 5.0e-5, 1, " ");
+        AstSplineMap *s2 = bilinear_spline(2.0e-4, 1.0e-4, 1,
+                                           "InvTol=1.0E-14,InvNiter=20");
         astInvert(s2);
         AstCmpMap *cm = astCmpMap(s1, s2, 1, " ");
         write_negative_fixture(dir, "neg_spline_different_coeffs", (AstMapping*)cm);

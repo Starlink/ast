@@ -12,8 +12,9 @@
  *    the rearranged form the GrismMap evaluates;
  *  - that g is -tan(theta) at the reference wavelength (eq. (76)), and that
  *    wavelength -> g -> wavelength recovers the wavelength;
- *  - that a bad input, an undispersed wavelength and a GrismMap whose
- *    parameters give no dispersion all produce AST__BAD;
+ *  - that a bad input, an undispersed wavelength, an undispersed reference
+ *    wavelength and a GrismMap whose parameters give no dispersion all
+ *    produce AST__BAD;
  *  - that astRate in each direction agrees with a numerical derivative and
  *    with the reciprocal of the other direction, and at the reference
  *    wavelength with Paper III eq. (81);
@@ -240,6 +241,20 @@ static void check_bad( void ) {
    astInvert( map );
    if( astRate( map, &in, 1, 1 ) != AST__BAD ) {
       fail( "rate at an undispersed wavelength is not bad" );
+   }
+
+/* Nor is a reference wavelength of 10 microns, and without a reference ray
+   no wavelength has a position, so both directions give AST__BAD. */
+   map = make_grismmap( d );
+   astSetD( map, "GrismWaveR", 1.0E-5 );
+   in = 0.1;
+   astTran1( map, 1, &in, 1, &out );
+   if( out != AST__BAD ) {
+      fail( "undispersed reference wavelength gives wavelength %g", out );
+   }
+   astTran1( map, 1, &d->waver, 0, &out );
+   if( out != AST__BAD ) {
+      fail( "undispersed reference wavelength gives g = %g", out );
    }
 
 /* With the default GrismG and GrismM there is no dispersion, so no
