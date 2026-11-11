@@ -20,7 +20,10 @@ f     AST_SPLINEMAP
 *     same knot positions, but have coefficients that are specified separately.
 *     No extrapolation is performed - input positions that are outside the
 *     area covered by the supplied knots cannot be transformed (but see
-*     attribute OutUnit).
+*     attribute OutUnit). On each axis, a spline of order K with N
+*     coefficients covers the range from knot K to knot N+1 (counting from
+*     one). This is the full range of the knots if the first K knots are
+*     coincident and the last K knots are coincident, as is usual.
 *
 *     An iterative method is used to evaluate the inverse transformation based
 *     on the forward transformation (see attributes InvTol and InvNiter). This
@@ -124,6 +127,11 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        would have rejected. It also requires two inputs and two outputs.
 *        Both the constructor and the loader now reject coefficient counts
 *        so large that the size of the coefficient arrays overflows.
+*     11-NOV-2026 (TIMJ):
+*        Db2val now evaluates the spline only within the basic interval of
+*        each knot sequence (knot k-1 to knot n, zero-based). Elsewhere it
+*        read coefficients from outside the coefficient array when the first
+*        or last k knots in the Y direction were not coincident.
 *class--
 */
 
@@ -511,7 +519,8 @@ static double Db2val( double def, double xval, double yval, int idx, int idy,
 *  Parameters:
 *     def
 *        The value to return if the supplied (xval,yval) position is outside
-*        the bounding box of the supplied knots.
+*        the region in which the spline is defined. This region extends
+*        from tx[kx-1] to tx[nx] in x and from ty[ky-1] to ty[ny] in y.
 *     xval
 *        X coordinate of evaluation point.
 *     yval
@@ -566,13 +575,23 @@ static double Db2val( double def, double xval, double yval, int idx, int idy,
 /* Check inherited status */
    if( !astOK ) return AST__BAD;
 
-   if( xval < tx[0] || xval > tx[nx + kx - 1] ||
-       yval < ty[0] || yval > ty[ny + ky - 1] ) return def;
+/* The B-representation defines the spline only within the basic interval
+   of each knot sequence, which runs from knot k-1 to knot n. This is the
+   whole extent of the knots when the first k and the last k knots are
+   coincident (as they are for knots chosen by the CMLIB routine db2ink),
+   but is smaller otherwise. A position outside it has no spline value, and
+   would select columns of coefficients that do not exist. */
+   if( xval < tx[ kx - 1 ] || xval > tx[ nx ] ||
+       yval < ty[ ky - 1 ] || yval > ty[ ny ] ) return def;
 
    iloy = 0;
    inbvx = 0;
 
-   Dintrv( ty, ny + ky, yval, &iloy, &lefty, &mflag );
+/* Find "lefty" such that ty[lefty] <= yval < ty[lefty+1]. As in Dbvalu,
+   only the knots up to the end of the basic interval are searched, so that
+   a position on the upper limit of that interval is flagged by "mflag"
+   whatever the multiplicity of the final knots. */
+   Dintrv( ty, ny + 1, yval, &iloy, &lefty, &mflag );
 
 /* Following code commented out by DSB in order to ensure good
    output values for input positions on the upper Y limit
