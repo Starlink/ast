@@ -117,6 +117,12 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        The rate of change of an inverted SplineMap is that of its inverse
 *        transformation, found numerically by the parent Rate, where it was
 *        the derivative of the forward spline.
+*     11-NOV-2026 (TIMJ):
+*        astLoadSplineMap now applies the same validation of the spline
+*        orders, coefficient counts and knot ordering that the constructor
+*        applies, so that a dump cannot create a SplineMap the constructor
+*        would have rejected. This is defensive: the evaluator already clamps
+*        its inputs, so no out-of-bounds access was demonstrated.
 *class--
 */
 
@@ -3635,6 +3641,29 @@ AstSplineMap *astLoadSplineMap_( void *mem, size_t size,
       new->ky = astReadInt( channel, "ky", 0 );
       new->nx = astReadInt( channel, "nx", 0 );
       new->ny = astReadInt( channel, "ny", 0 );
+
+/* Check the spline orders and coefficient counts read from the dump, as the
+   constructor does. The transformation uses these to size and index the
+   knot and coefficient arrays, so invalid values would cause out-of-bounds
+   access. */
+      if( astOK && ( new->kx < 1 || new->kx > MAX_K ) ) {
+         astError( AST__ATTIN, "astLoadSplineMap(%s): Invalid spline order in "
+                   "the X direction (%d) - it must be in the range [1,%d].",
+                   status, name, new->kx, MAX_K );
+      } else if( astOK && ( new->ky < 1 || new->ky > MAX_K ) ) {
+         astError( AST__ATTIN, "astLoadSplineMap(%s): Invalid spline order in "
+                   "the Y direction (%d) - it must be in the range [1,%d].",
+                   status, name, new->ky, MAX_K );
+      } else if( astOK && new->nx < new->kx ) {
+         astError( AST__ATTIN, "astLoadSplineMap(%s): The number of "
+                   "coefficients in the X direction (%d) is too small - it "
+                   "must be at least %d.", status, name, new->nx, new->kx );
+      } else if( astOK && new->ny < new->ky ) {
+         astError( AST__ATTIN, "astLoadSplineMap(%s): The number of "
+                   "coefficients in the Y direction (%d) is too small - it "
+                   "must be at least %d.", status, name, new->ny, new->ky );
+      }
+
       new->tx = astMalloc( (new->nx+new->kx)*sizeof(double) );
       new->ty = astMalloc( (new->ny+new->ky)*sizeof(double) );
       nc = new->nx*new->ny;
@@ -3649,6 +3678,26 @@ AstSplineMap *astLoadSplineMap_( void *mem, size_t size,
             (void) sprintf( buff, "ty%d", i + 1 );
             (new->ty)[ i ] = astReadDouble( channel, buff, AST__BAD );
          }
+
+/* Check that the knots read from the dump are monotonic increasing, as the
+   constructor requires. The transformation locates the knot interval
+   containing each input value assuming this ordering, and would otherwise
+   index the coefficient arrays out of bounds. */
+         for( i = 1; astOK && i < new->nx+new->kx; i++ ){
+            if( (new->tx)[ i-1 ] > (new->tx)[ i ] ) {
+               astError( AST__ATTIN, "astLoadSplineMap(%s): The knots in the X "
+                         "direction are not monotonic increasing.", status,
+                         name );
+            }
+         }
+         for( i = 1; astOK && i < new->ny+new->ky; i++ ){
+            if( (new->ty)[ i-1 ] > (new->ty)[ i ] ) {
+               astError( AST__ATTIN, "astLoadSplineMap(%s): The knots in the Y "
+                         "direction are not monotonic increasing.", status,
+                         name );
+            }
+         }
+
          for( i = 0; i < nc; i++ ){
             (void) sprintf( buff, "cu%d", i + 1 );
             (new->cu)[ i ] = astReadDouble( channel, buff, AST__BAD );
