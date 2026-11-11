@@ -922,13 +922,17 @@ static void gen_unitnormmap_fixtures(const char *dir) {
    alone and GRISM_PRISM a prism alone, each with the reference wavelength
    at w = 0; they leave the other attributes at their defaults, so that
    between them the fixtures also dump and load a GrismMap with each
-   attribute unset. */
+   attribute unset.  GRISM_PRISM is in metres, with a glass's dispersion of
+   -0.05 per micron: neg_grism_same_direction feeds one GrismMap's
+   wavelength to another as its grism parameter, and a wavelength in
+   Angstrom is so large there that the second GrismMap barely depends on
+   it, which makes inverting the pair lose most of its precision. */
 #define GRISM_PARAMS \
     "GrismNR=1.5,GrismNRP=-1e-6,GrismWaveR=5000," \
     "GrismAlpha=0.1,GrismG=2e-4,GrismM=1," \
     "GrismEps=0.02,GrismTheta=0.03"
 #define GRISM_GRATING "GrismG=1e-4,GrismM=1"
-#define GRISM_PRISM "GrismNRP=-5e-6,GrismAlpha=0.1"
+#define GRISM_PRISM "GrismNRP=-5e4,GrismAlpha=0.1,GrismWaveR=5e-7"
 
 static void gen_grismmap_fixtures(const char *dir) {
     printf("GrismMap fixtures:\n");
