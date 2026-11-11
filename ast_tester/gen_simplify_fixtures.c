@@ -1354,9 +1354,13 @@ static void gen_slamap_extra_fixtures(const char *dir) {
         sm = astAnnul(sm);
     }
 
-    /* slamap-17: 2-arg AzEl (H2E+E2H) */
+    /* slamap-17: 2-arg AzEl (H2E+E2H), for an observer at latitude 0.9 rad
+       with a diurnal aberration of 1.4e-6 rad.  E2H inverts H2E only to
+       first order in the aberration, so a much larger one (0.001 is several
+       hundred times the Earth's) leaves the pair 5e-7 rad from the identity
+       that it simplifies to. */
     {
-        double args[] = {0.9, 0.001};
+        double args[] = {0.9, 1.4e-6};
         AstSlaMap *sm = astSlaMap(0, " ");
         astSlaAdd(sm, "H2E", 2, args);
         astSlaAdd(sm, "E2H", 2, args);
