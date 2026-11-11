@@ -195,7 +195,9 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        astLoadPolyMap now checks that the axis powers read from a dump do
 *        not exceed the maximum powers that are also read from the dump.
 *        Otherwise a corrupt dump could make the transformation index its
-*        work array out of bounds.
+*        work array out of bounds. It also rejects a negative coefficient
+*        count or maximum power, which were used to size arrays without
+*        being checked.
 *class--
 */
 
@@ -319,6 +321,7 @@ static int MPFunc2D( void *, int, int, const double *, double *, double *, int, 
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int ReplaceTransformation( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static void AddCoeff( int, int, double, int *, int *, double **, int ***, int *, int * );
+static void CheckLoadedCounts( const char *, const char *, int, int, const int *, const int *, int * );
 static void CheckLoadedPowers( const char *, int, int, const int *, int ***, const int *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void CopyArrays( int, int, int *, double **, int ***, int *, int **, double ***, int ****, int **, int * );
@@ -7236,6 +7239,87 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
    return new;
 }
 
+static void CheckLoadedCounts( const char *name, const char *dir, int npoly,
+                               int nax, const int *ncoeff, const int *mxpow,
+                               int *status ){
+/*
+*  Name:
+*     CheckLoadedCounts
+
+*  Purpose:
+*     Validate the array sizes read for one transformation from a dump.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void CheckLoadedCounts( const char *name, const char *dir, int npoly,
+*                             int nax, const int *ncoeff, const int *mxpow,
+*                             int *status )
+
+*  Class Membership:
+*     PolyMap member function.
+
+*  Description:
+*     The loader uses the number of coefficients read for each 1D
+*     polynomial to size the coefficient and power arrays, and the
+*     astTransform method uses the maximum power read for each axis to
+*     size its work arrays. The constructor never stores a negative value
+*     for either, but the loader reads both directly from the dump. This
+*     function reports an error if any of the loaded values is negative,
+*     and should be called before the values are used to allocate memory.
+
+*  Parameters:
+*     name
+*        The class name to use in error messages.
+*     dir
+*        The direction of the transformation ("forward" or "inverse"),
+*        for use in error messages.
+*     npoly
+*        The number of 1D polynomials (one per output for the forward
+*        transformation, or per input for the inverse transformation).
+*     nax
+*        The number of axes for which a maximum power is stored.
+*     ncoeff
+*        Pointer to an array holding the number of coefficients for each
+*        1D polynomial.
+*     mxpow
+*        Pointer to an array holding the maximum power for each axis.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   int iax;                      /* Axis index */
+   int ipoly;                    /* Polynomial index */
+
+/* Check the global error status and the supplied arrays. */
+   if( !astOK || !ncoeff || !mxpow ) return;
+
+/* Check the maximum power of each axis. */
+   for( iax = 0; iax < nax; iax++ ){
+      if( mxpow[ iax ] < 0 ){
+         astError( AST__LDERR, "astLoadPolyMap(%s): Illegal maximum power "
+                   "(%d) read for axis %d of the %s transformation - it "
+                   "should not be negative.", status, name, mxpow[ iax ],
+                   iax + 1, dir );
+         return;
+      }
+   }
+
+/* Check the number of coefficients in each 1D polynomial. */
+   for( ipoly = 0; ipoly < npoly; ipoly++ ){
+      if( ncoeff[ ipoly ] < 0 ){
+         astError( AST__LDERR, "astLoadPolyMap(%s): Illegal number of "
+                   "coefficients (%d) read for polynomial %d of the %s "
+                   "transformation - it should not be negative.", status,
+                   name, ncoeff[ ipoly ], ipoly + 1, dir );
+         return;
+      }
+   }
+}
+
 static void CheckLoadedPowers( const char *name, int npoly, int nax,
                                const int *ncoeff, int ***power,
                                const int *mxpow, int *status ){
@@ -7478,6 +7562,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
             if( (new->ncoeff_f)[ i ] == INT_MAX ) undef = 1;
          }
 
+/* Reject negative maximum powers and coefficient counts before they are
+   used to size the arrays allocated below and in the forward
+   transformation. */
+         if( !undef ) CheckLoadedCounts( name, "forward", nout, nin,
+                                         new->ncoeff_f, new->mxpow_f, status );
+
 /* Get the coefficient values used by the forward transformation. This
    uses new style vectorised key names if available. Otherwise it uses
    old style indexed names (which were superceded by vectorised names
@@ -7564,6 +7654,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
             (new->ncoeff_i)[ i ] = astReadInt( channel, buff, INT_MAX );
             if( (new->ncoeff_i)[ i ] == INT_MAX ) undef = 1;
          }
+
+/* Reject negative maximum powers and coefficient counts before they are
+   used to size the arrays allocated below and in the inverse
+   transformation. */
+         if( !undef ) CheckLoadedCounts( name, "inverse", nin, nout,
+                                         new->ncoeff_i, new->mxpow_i, status );
 
 /* Get the coefficient values used by the inverse transformation. */
          iv = 0;
