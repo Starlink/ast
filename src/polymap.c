@@ -191,6 +191,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        from the PolyMap as inverted, so for an inverted PolyMap with
 *        different numbers of inputs and outputs it read beyond the
 *        coefficient arrays.
+*     11-NOV-2026 (TIMJ):
+*        astLoadPolyMap now checks that the axis powers read from a dump do
+*        not exceed the maximum powers that are also read from the dump.
+*        Otherwise a corrupt dump could make the transformation index its
+*        work array out of bounds.
 *class--
 */
 
@@ -314,6 +319,7 @@ static int MPFunc2D( void *, int, int, const double *, double *, double *, int, 
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int ReplaceTransformation( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static void AddCoeff( int, int, double, int *, int *, double **, int ***, int *, int * );
+static void CheckLoadedPowers( const char *, int, int, const int *, int ***, const int *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void CopyArrays( int, int, int *, double **, int ***, int *, int **, double ***, int ****, int **, int * );
 static void Delete( AstObject *obj, int * );
@@ -7230,6 +7236,87 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
    return new;
 }
 
+static void CheckLoadedPowers( const char *name, int npoly, int nax,
+                               const int *ncoeff, int ***power,
+                               const int *mxpow, int *status ){
+/*
+*  Name:
+*     CheckLoadedPowers
+
+*  Purpose:
+*     Validate the axis powers read for one transformation from a dump.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void CheckLoadedPowers( const char *name, int npoly, int nax,
+*                             const int *ncoeff, int ***power,
+*                             const int *mxpow, int *status )
+
+*  Class Membership:
+*     PolyMap member function.
+
+*  Description:
+*     The astTransform method precomputes the required powers of each axis
+*     value in a work array that is sized using the corresponding "mxpow"
+*     value, and then indexes that array using the "power" values. The
+*     constructor guarantees that each power lies in the range zero to the
+*     stated maximum power, but the loader reads both the powers and the
+*     maximum powers directly from the dump. This function checks that the
+*     loaded powers honour that invariant, so that a corrupt dump cannot
+*     cause the transformation to read beyond the end of the work array.
+
+*  Parameters:
+*     name
+*        The class name to use in error messages.
+*     npoly
+*        The number of 1D polynomials (one per output for the forward
+*        transformation, or per input for the inverse transformation).
+*     nax
+*        The number of axis powers describing each coefficient.
+*     ncoeff
+*        Pointer to an array holding the number of coefficients for each
+*        1D polynomial.
+*     power
+*        The array of axis powers to check.
+*     mxpow
+*        Pointer to an array holding the maximum power allowed for each
+*        axis.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   int icoeff;                   /* Coefficient index */
+   int iax;                      /* Axis index */
+   int ipoly;                    /* Polynomial index */
+   int pow;                      /* Power value read from the dump */
+
+/* Check the global error status and the supplied arrays. */
+   if( !astOK || !ncoeff || !power || !mxpow ) return;
+
+/* Check the power of each axis used by each coefficient of each 1D
+   polynomial. */
+   for( ipoly = 0; ipoly < npoly; ipoly++ ){
+      if( !power[ ipoly ] ) continue;
+      for( icoeff = 0; icoeff < ncoeff[ ipoly ]; icoeff++ ){
+         if( !power[ ipoly ][ icoeff ] ) continue;
+         for( iax = 0; iax < nax; iax++ ){
+            pow = power[ ipoly ][ icoeff ][ iax ];
+            if( pow < 0 || pow > mxpow[ iax ] ){
+               astError( AST__BADPW, "astLoadPolyMap(%s): Illegal power (%d) "
+                         "read for axis %d of coefficient %d - it should be "
+                         "in the range 0 to %d.", status, name, pow, iax + 1,
+                         icoeff + 1, mxpow[ iax ] );
+               return;
+            }
+         }
+      }
+   }
+}
+
 AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
                              AstPolyMapVtab *vtab, const char *name,
                              AstChannel *channel, int *status ) {
@@ -7435,6 +7522,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
             }
          }
 
+/* Validate the loaded forward powers against the maximum powers, rejecting
+   a corrupt dump before it can cause an out-of-bounds access within the
+   forward transformation. */
+         if( !undef ) CheckLoadedPowers( name, nout, nin, new->ncoeff_f,
+                                         new->power_f, new->mxpow_f, status );
+
 /* Free the arrays if the forward transformation is undefined. */
          if( undef ) {
             new->ncoeff_f = astFree( new->ncoeff_f );
@@ -7512,6 +7605,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
                }
             }
          }
+
+/* Validate the loaded inverse powers against the maximum powers, rejecting
+   a corrupt dump before it can cause an out-of-bounds access within the
+   inverse transformation. */
+         if( !undef ) CheckLoadedPowers( name, nin, nout, new->ncoeff_i,
+                                         new->power_i, new->mxpow_i, status );
 
 /* Free the arrays if the inverse transformation is undefined. */
          if( undef ) {
