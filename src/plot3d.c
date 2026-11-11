@@ -154,7 +154,8 @@ f    AST_GRIDLINE, AST_POLYCURVE.
 *     11-NOV-2026 (TIMJ):
 *        Validate the axis labelling information read by astLoadPlot3D so
 *        that a corrupt dump cannot select a null Plot or an out-of-range
-*        Plot axis.
+*        Plot axis. Also check that each of the three encapsulated Plots
+*        was read from the dump and is a 2D Plot.
 *class--
 */
 
@@ -8076,6 +8077,7 @@ AstPlot3D *astLoadPlot3D_( void *mem, size_t size, AstPlot3DVtab *vtab,
 /* Local Variables: */
    astDECLARE_GLOBALS
    AstPlot3D *new;
+   AstPlot *plot;
    char key[ KEY_LEN + 1 ];
    char *text;
    int axis;
@@ -8227,6 +8229,21 @@ AstPlot3D *astLoadPlot3D_( void *mem, size_t size, AstPlot3DVtab *vtab,
 
 /* YZ Plot */
       new->plotyz = astReadObject( channel, "plotyz", NULL );
+
+/* The rest of this class uses the three encapsulated Plots without
+   further checks, so each one must have been read from the dump and must
+   be a Plot that maps a 2D base Frame onto a 2D current Frame, like those
+   created by the constructor. */
+      for( i = 0; astOK && i < 3; i++ ) {
+         plot = ( i == 0 ) ? new->plotxy :
+                ( ( i == 1 ) ? new->plotxz : new->plotyz );
+         if( !plot || !astIsAPlot( plot ) || astGetNin( plot ) != 2 ||
+             astGetNout( plot ) != 2 ) {
+            astError( AST__LDERR, "astLoad(Plot3D): Corrupt Plot3D has a "
+                      "missing or invalid %s Plot.", status,
+                      ( i == 0 ) ? "XY" : ( ( i == 1 ) ? "XZ" : "YZ" ) );
+         }
+      }
 
 /* The index within the Plot3D FrameSet, of the original base Frame in
    the FrameSet supplied when the Plot3D was constructed. */
