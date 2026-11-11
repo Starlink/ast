@@ -61,6 +61,7 @@ about the library.  The same mappings round-trip cleanly over their own grid.
 A native dump under `simplify/` carries no domain, so by default each of its inputs takes either sign with a magnitude spread logarithmically from 1e-3 to 1e3.
 An angle-based Mapping is then sampled within its principal range as well as far outside it, and a linear one over many scales.
 A fixture that is defined, or is the identity, only over some other range is given that range in `transform_oracle_domains.txt`, keyed on its `.map`, with a comment saying why.
+A range is two numbers, or a name for one whose limits are fixed by what the input is: `lon` for a longitude and `lat` for a latitude short of the poles.
 Its `.simp` is always sampled at the same points as its `.map`, since the two are compared row by row; the checker fails a pair whose inputs differ.
 
 ### Checks that are disabled, and why
@@ -71,11 +72,15 @@ name the same object twice, once as the header and once as the dump under
 no inverse at all, its TNX Chebyshev distortion building a ChebyMap that cannot
 represent its own Jacobian.
 
-A simplify fixture's `.map` and `.simp` are compared only where their recorded outputs agree.
-A pair counts as checked only if they agree, with a value that is not AST__BAD, at two or more distinct sampled inputs, because nearly every Mapping agrees with its simplification at the origin.
-A pair that falls short fails unless the overrides file accepts it with `equiv off`, and an accepted pair that is checked after all fails too, so the list cannot go stale.
+Simplification must not change a Mapping's values, so a simplify fixture's `.map` and `.simp` must agree at every sampled point, both as recorded and as computed by the library under test.
+Each fixture is sampled where it is defined, so a disagreement is a simplification that changes the transform.
+The overrides file can accept a recorded disagreement at listed rows (`equiv-rows`), which is how the Region simplifications that are still to be fixed are carried, or compare a pair whose inverse is itself approximate to a looser tolerance (`equiv-tol`).
+A listed row that comes to agree fails, so the list cannot go stale.
+
+A pair also counts as checked only if it agrees, with a value that is not AST__BAD, at two or more distinct sampled inputs, because nearly every Mapping agrees with its simplification at the origin.
+A pair that falls short fails unless the overrides file accepts it with `equiv off`, and an accepted pair that is checked after all fails too.
 A `.map` with no `.simp` is held to the same rule on its own outputs, with `values off` to accept one.
-The fixtures accepted are Regions that contain a point or two or none, a SphMap pair that is the identity only on the unit sphere, a pair whose inverse is a fitted approximation, and negatives built to give no values; the overrides file says how each was checked instead.
+The fixtures accepted are Regions that contain a point or none, a SphMap pair that is the identity only on the unit sphere, and negatives built to give no values; the overrides file says how each was checked instead.
 
 ### Values
 
