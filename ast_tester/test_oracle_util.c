@@ -127,6 +127,33 @@ static void test_sample_points(void) {
     free(col[0]); free(col[1]);
 }
 
+static void test_sample_points_log(void) {
+    int n = oracle_sample_axis_count();
+    double *col[2];
+    col[0] = malloc(sizeof(double) * (size_t)n);
+    col[1] = malloc(sizeof(double) * (size_t)n);
+    oracle_sample_points_log(2, 1e-3, 1e3, n, col);
+    /* The four deterministic rows. */
+    for (int a = 0; a < 2; a++) {
+        CHECK(col[a][0] == -1e3 && col[a][1] == 1e3 && col[a][2] == 0.0);
+        CHECK(fabs(col[a][3] - 1.0) < 1e-15);
+    }
+    /* The spread rows have magnitudes within [minabs, maxabs], take both
+       signs, and reach both below 1 and above 100 on each axis. */
+    for (int a = 0; a < 2; a++) {
+        int neg = 0, pos = 0, small = 0, large = 0;
+        for (int i = 4; i < n; i++) {
+            double m = fabs(col[a][i]);
+            CHECK(m >= 1e-3 * (1 - 1e-12) && m <= 1e3 * (1 + 1e-12));
+            if (col[a][i] < 0) neg++; else pos++;
+            if (m < 1.0) small++;
+            if (m > 100.0) large++;
+        }
+        CHECK(neg > 0 && pos > 0 && small > 0 && large > 0);
+    }
+    free(col[0]); free(col[1]);
+}
+
 static void test_format_parse(void) {
     char buf[64];
     int ok = 0;
@@ -173,6 +200,7 @@ int main(void) {
     test_axis_tol();
     test_halton();
     test_sample_points();
+    test_sample_points_log();
     test_format_parse();
     test_load_mapping();
     if (failures) { fprintf(stderr, "%d failure(s)\n", failures); return 1; }

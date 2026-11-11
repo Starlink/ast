@@ -22,13 +22,22 @@
 # list over a whole-direction "off": it leaves the rest of the section pinned.
 #
 # Equivalence lines.  A simplify fixture's .map and .simp forward outputs are
-# compared only at sampled points where their recorded values agree, so a pair
-# whose recorded values agree nowhere would never be compared at all.  Such a
-# pair fails unless it is listed here, keyed on its .map relpath:
-#   <relpath> equiv off        accept a pair that is never compared
-# A listed pair that is compared somewhere also fails, so that the list does not
-# outlive its reason.  Every entry needs a comment saying why the sampled points
-# miss the pair's common domain and how its equivalence was checked instead.
+# compared only at sampled points where their recorded values agree.  A pair
+# counts as checked only if they agree, with a value that is not AST__BAD, at two
+# or more distinct sampled inputs: one is not enough, because nearly every
+# Mapping agrees with its simplification at the origin.  A pair that falls short
+# fails unless it is listed here, keyed on its .map relpath:
+#   <relpath> equiv off        accept a pair that is barely compared
+# A listed pair that is checked after all also fails, so that the list does not
+# outlive its reason.  Every entry needs a comment saying why no sampling domain
+# (see transform_oracle_domains.txt) reaches the pair's common domain and how its
+# equivalence was checked instead.
+#
+# Value lines.  A simplify .map with no .simp partner is checked only against its
+# own recorded outputs, so it must have a value that is not AST__BAD at two or
+# more distinct sampled inputs in the same way, unless it is listed here:
+#   <relpath> values off       accept such a fixture that falls short
+# A listed fixture that has values after all also fails.
 #
 # Blank lines and lines starting with '#' are ignored.
 
@@ -52,11 +61,10 @@ wcsconv/framesets/tnx-cheb-head.ast   off
 #  image wider than the quad-cube period, now accepted by the alias-aware
 #  round-trip check -- inverse(forward(P)) forward-maps back to the same sky.)
 
-# neg_unitnormmap_inv_fwd_diffcentre.map rows 2 and 3: the fixture is
-# UnitNormMap(centre A)^-1 then UnitNormMap(centre B).  Rows 2 and 3 are both
-# the all-zero sample (for the +/-1000 sampling range "zero" and "mid"
-# coincide), and a zero norm leaves the forward direction unconstrained, so
-# the composition is not invertible there.  The inverse chain reconstructs
+# neg_unitnormmap_inv_fwd_diffcentre.map row 2: the fixture is
+# UnitNormMap(centre A)^-1 then UnitNormMap(centre B).  Row 2 is the all-zero
+# sample, and a zero norm leaves the forward direction unconstrained, so the
+# composition is not invertible there.  The inverse chain reconstructs
 # centre A as B + |A-B| * (A-B)/|A-B|, and how close that lands to A depends
 # on whether the compiler contracts the reconstruction's multiply-add:
 #
@@ -76,36 +84,57 @@ wcsconv/framesets/tnx-cheb-head.ast   off
 # Which value a build produces is not an architecture property.  With
 # -std=gnu11 (contraction permitted) it follows the target: this repo's
 # -march=nocona has no FMA instruction and computes BAD, while -march=haswell,
-# -march=native and arm64 all fuse.  Only these two rows are skipped; every
-# other row of the inverse section stays pinned.
-simplify/neg_unitnormmap_inv_fwd_diffcentre.map   golden-inv-rows 2,3
+# -march=native and arm64 all fuse.  Only this row is skipped; every other row
+# of the inverse section stays pinned.
+simplify/neg_unitnormmap_inv_fwd_diffcentre.map   golden-inv-rows 2
 
-# Simplify pairs whose recorded .map and .simp outputs agree at no sampled
-# point.  Native fixtures are sampled over -1000 to +1000 on each axis, which
-# misses where these Mappings are defined or are the identity.  Each was checked
-# instead by comparing the .map with its .simp and with a live astSimplify at
-# random points over each scale from 1e-3 to 1e3 (and, for cap_xphmap_01, over
-# its pixel grid).
+# Simplify pairs that agree, with a value, at fewer than two sampled inputs
+# whatever the sampling domain.
 #
-# Sky projections and their inverses, which are the identity only for angles
-# within their principal range: they agree to better than 1e-9 for inputs
-# within 1 rad and differ by wrapped angles from about 3 rad.
-simplify/wcs_inverse_cancel.map        equiv off
-simplify/wcsmap_perm_swap_cancel.map   equiv off
+# Regions that contain only a point or two: PointLists, Boxes and Intervals with
+# no extent on any axis, Prisms of those, and a Circle of zero radius.  Sampling
+# does not land on the points, and holding every axis at one of them gives a
+# single input.  Each pair was checked instead at each of its points, where the
+# .map and .simp agree; elsewhere both are AST__BAD, which the comparisons at
+# the sampled points check.
+simplify/box_pointlist_merge.map              equiv off
+simplify/cap_pointlist_01.map                 equiv off
+simplify/cap_pointlist_02.map                 equiv off
+simplify/cap_zoommap_04.map                   equiv off
+simplify/defunc_nullregion_2d.map             equiv off
+simplify/interval_pointlist_merge.map         equiv off
+simplify/pointlist_parallel_merge_pair.map    equiv off
+simplify/pointlist_self_simplify.map          equiv off
+simplify/pointlist_unc_fillfactor_merge.map   equiv off
 
-# XphMap pairs, defined only on the HEALPix pixel plane.  xph_inverse_cancel
-# agrees wherever it is defined at those scales; cap_xphmap_01 is defined only
-# for inputs of order 1e3 to 1e5, where it agrees to 6e-15.
-simplify/xph_inverse_cancel.map        equiv off
-simplify/cap_xphmap_01.map             equiv off
+# Regions that contain no point: NullRegions, and Boxes whose Frame mapping
+# sends every point outside them, which simplify to NullRegions.  Both forms are
+# AST__BAD at every input, which the comparisons at the sampled points check.
+simplify/cap_box_permmap_null.map             equiv off
+simplify/cap_box_permmap_null_first.map       equiv off
+simplify/nullregion_merge_tail.map            equiv off
+simplify/nullregion_parallel_merge_pair.map   equiv off
+simplify/nullregion_self_simplify.map         equiv off
+simplify/nullregion_unc_fillfactor_merge.map  equiv off
 
-# SwitchMap pairs, defined only inside their selector regions: they agree
-# wherever they are defined at those scales.
-simplify/switchmap_inverse_cancel.map        equiv off
-simplify/switchmap_inverse_cancel_tail.map   equiv off
+# A SphMap with UnitRadius set followed by its inverse sends a vector to the
+# unit vector in its direction, so it is the identity only on the unit sphere,
+# which no box of inputs samples.  Checked instead at the unit vectors
+# (1, 0, 0), (0.48, 0.64, 0.6) and (-0.36, 0.48, -0.8), where the .map and .simp
+# agree.
+simplify/sph_fwd_inv_unitradius_cancel.map    equiv off
 
 # y = x^2 followed by an inverse fitted with astPolyTran over x in [1, 1.1].
 # The pair is the identity only within that range and only to the fit's
 # accuracy, 4.5e-8, which is coarser than the equivalence tolerance of 1e-9;
 # that astSimplify cancels it to a UnitMap is by design.
 simplify/poly_fitted_inverse_cancel.map   equiv off
+
+# Negative fixtures that have a value at one sampled input at most, whatever
+# the sampling domain.  neg_nullregion_series is two NullRegions in series, and
+# neg_pointlist_series two PointLists of the single point 1.
+# neg_wcsmap_perm_disconnect_lower's PermMap leaves its first output "bad", so
+# the WcsMap after it never receives a usable coordinate.
+simplify/neg_nullregion_series.map              values off
+simplify/neg_pointlist_series.map               values off
+simplify/neg_wcsmap_perm_disconnect_lower.map   values off
