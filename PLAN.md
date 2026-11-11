@@ -108,6 +108,9 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   parentheses), and native coordinates a little past a limit, which wcslib's
   per-projection tolerance accepts. Wanted values are upstream's output for the
   same projection and parameters.
+- testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
+  For PolyMap, LutMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
+  It also checks that objects built by the constructors survive a dump and load (including a WcsMap of type AST__WCSBAD, whose axis indices are not checked), that a LutMap loaded with fewer than two good table values has no inverse, that a SplineMap whose end knots are not coincident gives AST__BAD outside the interval over which its spline is defined, and that astMalloc, astCalloc, astRealloc and astGrow report an error for a size that overflows.
 
 **Optional manual stress test:**
 - testhuge_c
