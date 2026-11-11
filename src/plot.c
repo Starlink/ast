@@ -747,7 +747,9 @@ f     - Title: The Plot title drawn using AST_GRID
 *        astLoadPlot now rejects a dump whose base Frame has more axes than
 *        the fixed-length per-axis arrays in the Plot structure can hold.
 *        Otherwise the per-axis attributes read from such a dump were
-*        written beyond the ends of those arrays.
+*        written beyond the ends of those arrays. It also rejects a
+*        negative number of tick mark values, and clipping information
+*        that does not match a Frame in the Plot.
 
 *class--
 */
@@ -31291,6 +31293,7 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
 
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
+   AstFrame *fr;                 /* Pointer to the clipping Frame */
    AstPlot *new;                 /* Pointer to the new Plot */
    char buff[ KEY_LEN + 1 ];     /* Buffer for keyword string */
    char *text;                   /* Textual version of integer value */
@@ -31299,6 +31302,7 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
    int i;                        /* Loop count */
    int itick;                    /* Tick mark index */
    int nax;                      /* Number of base Frame axes */
+   int nclip;                    /* Number of axes in the clipping Frame */
    int ntick;                    /* Total number of ticks */
 
 /* Initialise. */
@@ -31721,6 +31725,32 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
 /* The index of the clipping Frame within the Plot. */
       new->clip_frame = astReadInt( channel, "clpfrm", AST__NOFRAME );
 
+/* When clipping is in use, astClip ensures that the clipping Frame is one
+   of the Frames in the Plot and that there is one pair of bounds for each
+   of its axes. Check that the values read from the dump honour this before
+   the number of bounds is used to size the bounds arrays. */
+      if( astOK && new->clip_axes > 0 ){
+         if( new->clip_frame < 1 || new->clip_frame > astGetNframe( new ) ){
+            astError( AST__LDERR, "astLoadPlot(%s): Invalid clipping Frame "
+                      "index (%d) read for a %s containing %d Frames.",
+                      status, name, new->clip_frame, name,
+                      astGetNframe( new ) );
+         } else {
+            fr = astGetFrame( new, new->clip_frame );
+            nclip = astGetNaxes( fr );
+            fr = astAnnul( fr );
+            if( astOK && nclip != new->clip_axes ){
+               astError( AST__LDERR, "astLoadPlot(%s): Clipping bounds were "
+                         "read for %d axes, but the clipping Frame has %d "
+                         "axes.", status, name, new->clip_axes, nclip );
+            }
+         }
+
+/* Without any bounds there is no clipping, and so no clipping Frame. */
+      } else {
+         new->clip_frame = AST__NOFRAME;
+      }
+
 /* If necessary, allocate memory to hold the bounds of the clipping volume. */
       if( new->clip_axes > 0 ){
          new->clip_lbnd = astMalloc( sizeof( double ) * (size_t) new->clip_axes );
@@ -31789,14 +31819,22 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
       new->gat = NULL;
       new->ngat = 0;
 
-/* Arrays holding user-specified major and minot tick mark values. */
+/* Arrays holding user-specified major and minor tick mark values. The
+   number of values is used to size each array, so a negative count is
+   rejected, and nothing is stored if an array could not be allocated. */
       for( axis = 0; axis < 3; axis++ ) {
          sprintf( buff, "nmjtk%d", axis + 1 );
          ntick = astReadInt( channel, buff, 0 );
+         if( astOK && ntick < 0 ) {
+            astError( AST__LDERR, "astLoadPlot(%s): Invalid number of major "
+                      "tick mark values (%d) read for axis %d.", status, name,
+                      ntick, axis + 1 );
+            ntick = 0;
+         }
          new->nmajtickval[ axis ] = ntick;
          new->majtickval[ axis ] = astMalloc( ntick*sizeof( double ) );
 
-         for( itick = 0; itick < ntick; itick++ ) {
+         for( itick = 0; astOK && itick < ntick; itick++ ) {
             sprintf( buff, "mjtk%d_%d", axis + 1, itick + 1 );
             new->majtickval[ axis ][ itick ] = astReadDouble( channel, buff,
                                                               AST__BAD );
@@ -31804,10 +31842,16 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
 
          sprintf( buff, "nmntk%d", axis + 1 );
          ntick = astReadInt( channel, buff, 0 );
+         if( astOK && ntick < 0 ) {
+            astError( AST__LDERR, "astLoadPlot(%s): Invalid number of minor "
+                      "tick mark values (%d) read for axis %d.", status, name,
+                      ntick, axis + 1 );
+            ntick = 0;
+         }
          new->nmintickval[ axis ] = ntick;
          new->mintickval[ axis ] = astMalloc( ntick*sizeof( double ) );
 
-         for( itick = 0; itick < ntick; itick++ ) {
+         for( itick = 0; astOK && itick < ntick; itick++ ) {
             sprintf( buff, "mntk%d_%d", axis + 1, itick + 1 );
             new->mintickval[ axis ][ itick ] = astReadDouble( channel, buff,
                                                               AST__BAD );
