@@ -743,6 +743,11 @@ f     - Title: The Plot title drawn using AST_GRID
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for logarithmic gap rounding
 *        to avoid platform-dependent results.
+*     11-NOV-2026 (TIMJ):
+*        astLoadPlot now rejects a dump whose base Frame has more axes than
+*        the fixed-length per-axis arrays in the Plot structure can hold.
+*        Otherwise the per-axis attributes read from such a dump were
+*        written beyond the ends of those arrays.
 
 *class--
 */
@@ -31332,6 +31337,19 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
 /* Get the number of graphics (base) frame axes - 2 for a Plot, 3 for a
    Plot3D. */
    nax = astGetNin( new );
+
+/* The per-axis arrays within the Plot structure have a fixed length, large
+   enough for the base Frame of a Plot3D. The loaded base Frame is not
+   otherwise constrained here, so a corrupt dump could specify one with more
+   axes, which would make the per-axis loops below write beyond the ends of
+   those arrays. Reject such a dump, and clamp the axis count used by those
+   loops so they remain within bounds while the object is discarded. */
+   if( astOK && nax > (int) ( sizeof( new->gap ) / sizeof( new->gap[ 0 ] ) ) ) {
+      astError( AST__NAXIN, "astLoadPlot(%s): The base Frame of the %s read "
+                "from the dump has too many axes (%d).", status, name, name,
+                nax );
+      nax = sizeof( new->gap ) / sizeof( new->gap[ 0 ] );
+   }
 
 /* Read input data. */
 /* ================ */
