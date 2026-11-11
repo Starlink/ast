@@ -4,8 +4,8 @@
     Nsla = 2 	# Number of conversion steps
     Sla1 = "H2E" 	# Horizon to equatorial
     Sla1a = 0.90000000000000002 	# Geodetic latitude of observer
-    Sla1b = 0.001 	# Magnitude of diurnal aberration vector
+    Sla1b = 1.3999999999999999e-06 	# Magnitude of diurnal aberration vector
     Sla2 = "E2H" 	# Equatorial to horizon
     Sla2a = 0.90000000000000002 	# Geodetic latitude of observer
-    Sla2b = 0.001 	# Magnitude of diurnal aberration vector
+    Sla2b = 1.3999999999999999e-06 	# Magnitude of diurnal aberration vector
  End SlaMap
