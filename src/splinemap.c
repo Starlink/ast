@@ -121,8 +121,9 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        astLoadSplineMap now applies the same validation of the spline
 *        orders, coefficient counts and knot ordering that the constructor
 *        applies, so that a dump cannot create a SplineMap the constructor
-*        would have rejected. This is defensive: the evaluator already clamps
-*        its inputs, so no out-of-bounds access was demonstrated.
+*        would have rejected. It also requires two inputs and two outputs.
+*        Both the constructor and the loader now reject coefficient counts
+*        so large that the size of the coefficient arrays overflows.
 *class--
 */
 
@@ -236,6 +237,8 @@ static int GetSplineNx( AstSplineMap *, int * );
 static int GetSplineNy( AstSplineMap *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static size_t GetObjSize( AstObject *, int * );
+static void CheckKnots( const char *, const char *, int, const double *, int * );
+static void CheckSizes( const char *, int, int, int, int, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *, int * );
 static void Dintrv( const double *, int, double, int *, int *, int * );
@@ -344,6 +347,135 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
    method for further interpretation. */
    } else {
       (*parent_clearattrib)( this_object, attrib, status );
+   }
+}
+
+static void CheckKnots( const char *method, const char *dir, int nknot,
+                        const double *t, int *status ) {
+/*
+*  Name:
+*     CheckKnots
+
+*  Purpose:
+*     Check that a sequence of knots is monotonic increasing.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "splinemap.h"
+*     void CheckKnots( const char *method, const char *dir, int nknot,
+*                      const double *t, int *status )
+
+*  Class Membership:
+*     SplineMap member function
+
+*  Description:
+*     This function reports an error if any knot in the supplied sequence
+*     is smaller than the preceding knot. It is used both when a SplineMap
+*     is constructed and when one is loaded, so that the two apply the same
+*     rules.
+
+*  Parameters:
+*     method
+*        The name of the calling function, for use in error messages.
+*     dir
+*        The direction to which the knots refer ("X" or "Y"), for use in
+*        error messages.
+*     nknot
+*        The number of knots.
+*     t
+*        Pointer to the sequence of knots.
+*     status
+*        Pointer to global error status.
+*/
+
+/* Local Variables: */
+   int i;
+
+/* Check inherited status */
+   if( !astOK ) return;
+
+   for( i = 1; i < nknot; i++ ){
+      if( t[ i-1 ] > t[ i ] ){
+         astError( AST__ATTIN, "%s: The supplied knots in the %s "
+                   "direction are not monotonic increasing.", status, method,
+                   dir );
+         break;
+      }
+   }
+}
+
+static void CheckSizes( const char *method, int kx, int ky, int nx, int ny,
+                        int *status ) {
+/*
+*  Name:
+*     CheckSizes
+
+*  Purpose:
+*     Check the orders and coefficient counts of a SplineMap.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "splinemap.h"
+*     void CheckSizes( const char *method, int kx, int ky, int nx, int ny,
+*                      int *status )
+
+*  Class Membership:
+*     SplineMap member function
+
+*  Description:
+*     This function reports an error if the supplied spline orders and
+*     coefficient counts cannot be used by a SplineMap. It is used both
+*     when a SplineMap is constructed and when one is loaded, so that the
+*     two apply the same rules.
+*
+*     The values are used to size and index the knot and coefficient
+*     arrays, using "int" arithmetic. So as well as checking each value,
+*     this function checks that the number of knots in each direction
+*     (nx+kx and ny+ky) and the number of coefficients (nx*ny) can be
+*     represented by an "int".
+
+*  Parameters:
+*     method
+*        The name of the calling function, for use in error messages.
+*     kx
+*        Order of polynomial pieces in x.
+*     ky
+*        Order of polynomial pieces in y.
+*     nx
+*        The number of B-spline coefficients in x.
+*     ny
+*        The number of B-spline coefficients in y.
+*     status
+*        Pointer to global error status.
+*/
+
+/* Check inherited status */
+   if( !astOK ) return;
+
+   if( kx < 1 || kx > MAX_K ){
+      astError( AST__ATTIN, "%s: The supplied spline order in "
+                "the X direction (%d) is invalid - it must be in the range [1,%d].",
+                status, method, kx, MAX_K );
+   } else if( ky < 1 || ky > MAX_K ){
+      astError( AST__ATTIN, "%s: The supplied spline order in "
+                "the Y direction (%d) is invalid - it must be in the range [1,%d].",
+                status, method, ky, MAX_K );
+   } else if( nx < kx ){
+      astError( AST__ATTIN, "%s: The supplied number of coefficients "
+                "in the X direction (%d) is too small - it must be larger "
+                "than or equal to %d.", status, method, nx, kx );
+   } else if( ny < ky ){
+      astError( AST__ATTIN, "%s: The supplied number of coefficients "
+                "in the Y direction (%d) is too small - it must be larger "
+                "than or equal to %d.", status, method, ny, ky );
+   } else if( nx > INT_MAX - kx || ny > INT_MAX - ky || nx > INT_MAX/ny ){
+      astError( AST__ATTIN, "%s: The supplied numbers of coefficients "
+                "in the X and Y directions (%d and %d) are too large.",
+                status, method, nx, ny );
    }
 }
 
@@ -3433,45 +3565,15 @@ AstSplineMap *astInitSplineMap_( void *mem, size_t size, int init,
 
 /* Local Variables: */
    AstSplineMap *new;
-   int i;
 
 /* Check the global status. */
    if ( !astOK ) return NULL;
 
 /* Validate the supplied values. */
-   if( kx < 1 || kx > MAX_K ){
-      astError( AST__ATTIN, "astSplineMap: The supplied spline order in "
-                "the X direction (%d) is invalid - it must be in the range [1,%d].",
-                status, kx, MAX_K );
-   } else if( ky < 1 || ky > MAX_K ){
-      astError( AST__ATTIN, "astSplineMap: The supplied spline order in "
-                "the Y direction (%d) is invalid - it must be in the range [1,%d].",
-                status, ky, MAX_K );
-   } else if( nx < kx ){
-      astError( AST__ATTIN, "astSplineMap: The supplied number of coefficients "
-                "in the X direction (%d) is too small - it must be larger "
-                "than or equal to %d.", status, nx, kx );
-   } else if( ny < ky ){
-      astError( AST__ATTIN, "astSplineMap: The supplied number of coefficients "
-                "in the Y direction (%d) is too small - it must be larger "
-                "than or equal to %d.", status, ny, ky );
-   } else {
-      for( i = 1; i < nx+kx; i++ ){
-         if( tx[ i-1 ] > tx[ i ] ){
-            astError( AST__ATTIN, "astSplineMap: The supplied knots in the X "
-                      "direction are not monotonic increasing.", status );
-            break;
-         }
-      }
-      if( astOK ) {
-         for( i = 1; i < ny+ky; i++ ){
-            if( ty[ i-1 ] > ty[ i ] ){
-               astError( AST__ATTIN, "astSplineMap: The supplied knots in the Y "
-                         "direction are not monotonic increasing.", status );
-               break;
-            }
-         }
-      }
+   CheckSizes( "astSplineMap", kx, ky, nx, ny, status );
+   if( astOK ) {
+      CheckKnots( "astSplineMap", "X", nx + kx, tx, status );
+      CheckKnots( "astSplineMap", "Y", ny + ky, ty, status );
    }
 
 /* If necessary, initialise the virtual function table. */
@@ -3642,33 +3744,38 @@ AstSplineMap *astLoadSplineMap_( void *mem, size_t size,
       new->nx = astReadInt( channel, "nx", 0 );
       new->ny = astReadInt( channel, "ny", 0 );
 
-/* Check the spline orders and coefficient counts read from the dump, as the
-   constructor does. The transformation uses these to size and index the
-   knot and coefficient arrays, so invalid values would cause out-of-bounds
-   access. */
-      if( astOK && ( new->kx < 1 || new->kx > MAX_K ) ) {
-         astError( AST__ATTIN, "astLoadSplineMap(%s): Invalid spline order in "
-                   "the X direction (%d) - it must be in the range [1,%d].",
-                   status, name, new->kx, MAX_K );
-      } else if( astOK && ( new->ky < 1 || new->ky > MAX_K ) ) {
-         astError( AST__ATTIN, "astLoadSplineMap(%s): Invalid spline order in "
-                   "the Y direction (%d) - it must be in the range [1,%d].",
-                   status, name, new->ky, MAX_K );
-      } else if( astOK && new->nx < new->kx ) {
-         astError( AST__ATTIN, "astLoadSplineMap(%s): The number of "
-                   "coefficients in the X direction (%d) is too small - it "
-                   "must be at least %d.", status, name, new->nx, new->kx );
-      } else if( astOK && new->ny < new->ky ) {
-         astError( AST__ATTIN, "astLoadSplineMap(%s): The number of "
-                   "coefficients in the Y direction (%d) is too small - it "
-                   "must be at least %d.", status, name, new->ny, new->ky );
+/* A SplineMap always has two inputs and two outputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them
+   here. */
+      if( astOK && ( astGetNin( new ) != 2 || astGetNout( new ) != 2 ) ) {
+         astError( AST__LDERR, "astLoadSplineMap(%s): Invalid number of "
+                   "inputs (%d) or outputs (%d) read for a %s - both must "
+                   "be 2.", status, name, astGetNin( new ),
+                   astGetNout( new ), name );
       }
 
-      new->tx = astMalloc( (new->nx+new->kx)*sizeof(double) );
-      new->ty = astMalloc( (new->ny+new->ky)*sizeof(double) );
-      nc = new->nx*new->ny;
-      new->cu = astMalloc( nc*sizeof(double) );
-      new->cv = astMalloc( nc*sizeof(double) );
+/* Check the spline orders and coefficient counts read from the dump, using
+   the checks applied by the constructor. The transformation uses these to
+   size and index the knot and coefficient arrays, so invalid values would
+   cause out-of-bounds access. */
+      CheckSizes( "astLoadSplineMap", new->kx, new->ky, new->nx, new->ny,
+                  status );
+
+/* Allocate the knot and coefficient arrays, but only if the sizes are
+   known to be usable. */
+      new->tx = NULL;
+      new->ty = NULL;
+      new->cu = NULL;
+      new->cv = NULL;
+      nc = 0;
+      if( astOK ) {
+         nc = new->nx*new->ny;
+         new->tx = astMalloc( (new->nx+new->kx)*sizeof(double) );
+         new->ty = astMalloc( (new->ny+new->ky)*sizeof(double) );
+         new->cu = astMalloc( nc*sizeof(double) );
+         new->cv = astMalloc( nc*sizeof(double) );
+      }
       if( astOK ) {
          for( i = 0; i < new->nx+new->kx; i++ ){
             (void) sprintf( buff, "tx%d", i + 1 );
@@ -3683,20 +3790,10 @@ AstSplineMap *astLoadSplineMap_( void *mem, size_t size,
    constructor requires. The transformation locates the knot interval
    containing each input value assuming this ordering, and would otherwise
    index the coefficient arrays out of bounds. */
-         for( i = 1; astOK && i < new->nx+new->kx; i++ ){
-            if( (new->tx)[ i-1 ] > (new->tx)[ i ] ) {
-               astError( AST__ATTIN, "astLoadSplineMap(%s): The knots in the X "
-                         "direction are not monotonic increasing.", status,
-                         name );
-            }
-         }
-         for( i = 1; astOK && i < new->ny+new->ky; i++ ){
-            if( (new->ty)[ i-1 ] > (new->ty)[ i ] ) {
-               astError( AST__ATTIN, "astLoadSplineMap(%s): The knots in the Y "
-                         "direction are not monotonic increasing.", status,
-                         name );
-            }
-         }
+         CheckKnots( "astLoadSplineMap", "X", new->nx + new->kx, new->tx,
+                     status );
+         CheckKnots( "astLoadSplineMap", "Y", new->ny + new->ky, new->ty,
+                     status );
 
          for( i = 0; i < nc; i++ ){
             (void) sprintf( buff, "cu%d", i + 1 );
