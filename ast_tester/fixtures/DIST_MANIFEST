@@ -24,6 +24,12 @@ DIST_MANIFEST
 # Inputs for the C and Fortran test programs.
 programs/
 
+# The one dump of a DssMap, which testdssmap reads.  A DssMap cannot be made
+# through the public interface, so the test has no other way to get one, and
+# the file stays in the serialisation corpus because the round-trip tests and
+# the FrameSet oracle use it there too.
+serialisation/c_dssmap.ast
+
 # The 20 grid tests: their manifest and their SVG references.  Their head files
 # come from wcsconv/inputs/ below.
 plot/cases.txt
