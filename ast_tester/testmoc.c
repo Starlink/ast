@@ -204,6 +204,25 @@ static void checkEmptyTransform( int *status ) {
    moc = astAnnul( moc );
 }
 
+/* Check that a Moc holds the cells given by a string MOC. */
+static void checkCells( AstMoc *moc, const char *expected, const char *text,
+                        int *status ) {
+   AstMoc *want;
+   int json;
+
+   if( *status != 0 ) return;
+   want = astMoc( "MaxOrder=%d", astGetI( moc, "MaxOrder" ) );
+   astAddMocString( want, AST__OR, 0, -1, strlen( expected ), expected,
+                    &json );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( text, status );
+   } else if( !astEqual( moc, want ) ) {
+      stopit( text, status );
+   }
+   want = astAnnul( want );
+}
+
 /* A Moc of the whole sky contains every position. These are on the
    meridians that divide the polar facets of the HEALPix grid and at the
    poles, where the cell that holds a position is easily taken to be one
@@ -241,25 +260,78 @@ static void checkEdgePositions( int *status ) {
    }
 }
 
-/* Adding a Region to a Moc whose MaxOrder is zero leaves no lower order
-   to start from, and is an error, as it is for a pixel mask. */
-static void checkAddRegionOrderZero( int *status ) {
+/* A Moc can have a MaxOrder of zero, which leaves no lower order at which
+   to start looking for the cells of a Region or pixel mask. Each of the
+   twelve cells is then in the Moc if its centre is in the Region or on a
+   selected pixel. The centre of cell zero is at RA 45 degrees, Dec
+   arcsin(2/3). */
+static void checkOrderZero( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *iwcs;
    AstMoc *moc;
    AstCircle *circle;
-   double centre[ 2 ] = { 1.2, 0.3 }, radius = 0.2;
+   AstDim dims[ 2 ] = { 20, 20 };
+   const double d2r = AST__DPI/180.0;
+   double centre[ 2 ], radius;
+   float data[ 400 ];
+   int i;
 
    if( *status != 0 ) return;
+
+/* A Circle that holds only the centre of cell zero. */
+   centre[ 0 ] = 45.0*d2r;
+   centre[ 1 ] = asin( 2.0/3.0 );
+   radius = 30.0*d2r;
    circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
                        NULL, " " );
    moc = astMoc( "MaxOrder=0" );
    astAddRegion( moc, AST__OR, circle );
-   if( astStatus == AST__INVAR ) {
-      astClearStatus;
-   } else {
-      stopit( "checkAddRegionOrderZero: no AST__INVAR error", status );
-   }
+   checkCells( moc, "0/0", "checkOrderZero: wrong cells for a small Circle",
+               status );
    moc = astAnnul( moc );
    circle = astAnnul( circle );
+
+/* A Circle about the north pole that holds the centres of the four cells
+   around that pole and the four on the equator. */
+   centre[ 0 ] = 0.0;
+   centre[ 1 ] = 90.0*d2r;
+   radius = 100.0*d2r;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc = astMoc( "MaxOrder=0" );
+   astAddRegion( moc, AST__OR, circle );
+   checkCells( moc, "0/0-7", "checkOrderZero: wrong cells for a large Circle",
+               status );
+   moc = astAnnul( moc );
+   circle = astAnnul( circle );
+
+/* An image two degrees across, centred on the centre of cell zero, with
+   every pixel selected. */
+   fc = astFitsChan( NULL, NULL, " " );
+   astSetFitsF( fc, "CRVAL1", 45.0, " ", 1 );
+   astSetFitsF( fc, "CRVAL2", asin( 2.0/3.0 )/d2r, " ", 1 );
+   astSetFitsF( fc, "CRPIX1", 10.5, " ", 1 );
+   astSetFitsF( fc, "CRPIX2", 10.5, " ", 1 );
+   astSetFitsF( fc, "CDELT1", -0.1, " ", 1 );
+   astSetFitsF( fc, "CDELT2", 0.1, " ", 1 );
+   astSetFitsS( fc, "CTYPE1", "RA---TAN", " ", 1 );
+   astSetFitsS( fc, "CTYPE2", "DEC--TAN", " ", 1 );
+   astClear( fc, "Card" );
+   iwcs = (AstFrameSet *) astRead( fc );
+   for( i = 0; i < 400; i++ ) data[ i ] = 1.0f;
+   moc = astMoc( "MaxOrder=0" );
+   astAddPixelMask8F( moc, AST__OR, iwcs, 0.0f, AST__GT, 0, 0.0f, data,
+                      dims );
+   checkCells( moc, "0/0", "checkOrderZero: wrong cells for a pixel mask",
+               status );
+   moc = astAnnul( moc );
+   iwcs = astAnnul( iwcs );
+   fc = astAnnul( fc );
+
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkOrderZero: error making a Moc of order zero", status );
+   }
 }
 
 /* A negated Region added to a Moc whose MinOrder exceeds its MaxOrder
@@ -648,7 +720,7 @@ int main( void ) {
    checkMeshTieBreak( status );
    checkEmptyTransform( status );
    checkEdgePositions( status );
-   checkAddRegionOrderZero( status );
+   checkOrderZero( status );
    checkOversampleNegate( status );
    checkMocStringErrors( status );
    checkEmptyJson( status );

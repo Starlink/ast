@@ -235,6 +235,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        side of the edge is now used (new function PosToNested).
 *        XyToNested: reject a negative cell index, which the division that
 *        gives the facet index rounded into the first facet.
+*     12-NOV-2026 (TIMJ):
+*        AddRegion, AddPixelMask<X>: accept a MaxOrder of zero, starting at
+*        order zero since there is no lower order to start at, rather than
+*        report an error.
 *class--
 */
 
@@ -2142,11 +2146,11 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
       maxorder = minorder; \
       minorder = maxorder - 1; \
    } \
-   if( minorder < 0 && astOK ) { \
-      astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid value " \
-                "(%d) supplied for parameter 'MinOrder'.", status,  \
-                astGetClass(this), minorder ); \
-   } \
+\
+/* A maximum order of zero leaves no lower order at which to start, so \
+   start at order zero. Each of the twelve cells is then tested only at \
+   its centre. */ \
+   if( minorder < 0 ) minorder = 0; \
 \
 /* Invert the WCS FrameSet for the picked (i.e. sky) axes, so that the \
    current Frame represents grid coords in the array and the base Frame \
@@ -2671,16 +2675,10 @@ f        The global status.
             minorder = maxorder - 1;
          }
 
-/* A MaxOrder of zero leaves no lower order at which to start. */
-         if( minorder < 0 ) {
-            if( astOK ) {
-               astError( AST__INVAR, "astAddRegion(%s): Invalid value (%d) "
-                         "supplied for parameter 'MinOrder'.", status,
-                         astGetClass(this), minorder );
-            }
-            picked = astAnnul( picked );
-            return;
-         }
+/* A maximum order of zero leaves no lower order at which to start, so
+   start at order zero. Each of the twelve cells is then tested only at
+   its centre. */
+         if( minorder < 0 ) minorder = 0;
 
 /* Get a pointer to the Frame in which the Region is defined. We use this
    with astConvert below, rather than the original Region, so that the

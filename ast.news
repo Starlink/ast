@@ -91,6 +91,9 @@ Bug fixes
   41.8 degrees north or south, could be reported as being outside a Moc
   that contains it.
 
+- astAddRegion and astAddPixelMask<X> now accept a Moc with a MaxOrder of
+  zero. They reported an error.
+
 Build system changes
 --------------------
 
