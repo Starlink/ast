@@ -226,6 +226,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        range. Also reject a negative number of ranges and a negative
 *        lower bound, and extend the array of ranges as each range is read
 *        so that its size does not depend on an unchecked count.
+*     12-NOV-2026 (TIMJ):
+*        astAddMocText: hold a range in a string MOC as a range rather than
+*        as each of its values, of which there can be very many.
 *     13-NOV-2026 (TIMJ):
 *        Where a longitude is brought into range by removing one turn at
 *        a time, remove whole turns with fmod first if it is far out of
@@ -397,9 +400,12 @@ typedef struct SourceData {
    size_t mxsize;
 } SourceData;
 
+/* The cells read from a text MOC at one order. Each element is a range
+   of NPIX values, held as a pair of values in "values": the first and
+   the last NPIX value in the range. */
 typedef struct List {
-   int64_t nval;
-   size_t *values;
+   int64_t nval;            /* Number of ranges */
+   size_t *values;          /* Two values for each range */
 } List;
 
 typedef struct EndPoint {
@@ -1254,7 +1260,6 @@ void astAddMocText_( AstMoc *this, int maxorder,
    int64_t ihigh;
    int64_t ilow;
    int64_t ipix;
-   int64_t nadd;
    int64_t npix0;
    int64_t npix;
    int64_t nval;
@@ -1471,10 +1476,11 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   if( state != 6 ) {
                      nval = orders[ order ].nval;
                      if( nval == 0 && order > mxord ) mxord = order;
-                     nbyte = ( nval + 1 )*sizeof( size_t );
+                     nbyte = ( 2*nval + 2 )*sizeof( size_t );
                      values = astGrow( orders[ order ].values, 1, nbyte );
                      if( astOK ) {
-                        values[ nval ] = npix;
+                        values[ 2*nval ] = npix;
+                        values[ 2*nval + 1 ] = npix;
                         orders[ order ].values = values;
                         orders[ order ].nval = nval + 1;
                      }
@@ -1579,10 +1585,8 @@ void astAddMocText_( AstMoc *this, int maxorder,
 
                      if( !isrange ) {
                         npix0 = npix;
-                        nadd = 1;
                      } else if( npix >= npix0 ){
                         isrange = 0;
-                        nadd = npix - npix0 + 1;
                      } else {
                         astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
                                   status, method, astGetClass( this ), text );
@@ -1591,16 +1595,17 @@ void astAddMocText_( AstMoc *this, int maxorder,
                         break;
                      }
 
+/* Record the range, which is a single value if no range was given. A
+   range is not expanded into its values, of which there can be very
+   many. */
                      nval = orders[ order ].nval;
-                     nbyte = ( nval + nadd )*sizeof( size_t );
+                     nbyte = ( 2*nval + 2 )*sizeof( size_t );
                      values = astGrow( orders[ order ].values, 1, nbyte );
                      if( astOK ) {
-                        for( ; npix0 <= npix; npix0++ ) {
-                           values[ nval++ ] = npix0;
-                        }
-
+                        values[ 2*nval ] = npix0;
+                        values[ 2*nval + 1 ] = npix;
                         orders[ order ].values = values;
-                        orders[ order ].nval = nval;
+                        orders[ order ].nval = nval + 1;
                      }
 
                      state = 1;
@@ -1691,37 +1696,34 @@ void astAddMocText_( AstMoc *this, int maxorder,
             } else {
                if( !isrange ) {
                   npix0 = npix;
-                  nadd = 1;
                } else {
                   isrange = 0;
-                  nadd = npix - npix0 + 1;
                }
 
                nval = orders[ order ].nval;
-               nbyte = ( nval + nadd )*sizeof( size_t );
+               nbyte = ( 2*nval + 2 )*sizeof( size_t );
                values = astGrow( orders[ order ].values, 1, nbyte );
                if( astOK ) {
-                  for( ; npix0 <= npix; npix0++ ) {
-                     values[ nval++ ] = npix0;
-                  }
-
+                  values[ 2*nval ] = npix0;
+                  values[ 2*nval + 1 ] = npix;
                   orders[ order ].values = values;
-                  orders[ order ].nval = nval;
+                  orders[ order ].nval = nval + 1;
                }
             }
          }
 
 /* Check every NPIX value is a cell at its order, of which there are
-   12*4^order, before the Moc is changed. */
+   12*4^order, before the Moc is changed. A range does not end before it
+   starts, so only its last value needs to be checked. */
          for( order = 0; order <= AST__MXORDHPX && astOK; order++ ) {
             for( ipix = 0; ipix < orders[ order ].nval; ipix++ ) {
-               if( orders[ order ].values[ ipix ] >=
+               if( orders[ order ].values[ 2*ipix + 1 ] >=
                    (size_t) ( 12*( ONE << ( 2*order ) ) ) ) {
                   astError( AST__INMOC, "%s(%s): Invalid NPIX value (%zu) "
                             "for order %d in the supplied MOC - there are "
                             "%" PRId64 " cells at that order.", status,
                             method, astGetClass( this ),
-                            orders[ order ].values[ ipix ], order,
+                            orders[ order ].values[ 2*ipix + 1 ], order,
                             12*( ONE << ( 2*order ) ) );
                   break;
                }
@@ -1749,23 +1751,24 @@ void astAddMocText_( AstMoc *this, int maxorder,
             astSetMaxOrder( this, maxorder );
          }
 
-/* For each order and NPIX value found during the parsing of the text
-   (except for any that have an order greater than 'maxorder', which are
-   ignored), get the upper and lower bounds of the cells at maxorder
-   contained within this cell, and append this as a new range to the Moc. */
+/* For each order and range of NPIX values found during the parsing of
+   the text (except for any that have an order greater than 'maxorder',
+   which are ignored), get the upper and lower bounds of the cells at
+   maxorder contained within the range, and append this as a new range to
+   the Moc. */
          for( order = 0; order <= astMAX( maxorder, mxord ); order++ ) {
             nval = orders[ order ].nval;
             values = orders[ order ].values;
             shift = 2*( maxorder - order );
 
-            for( ipix = 0; ipix < nval; ipix++,values++ ){
+            for( ipix = 0; ipix < nval; ipix++,values += 2 ){
 
                if( shift > 0 ) {
-                  ilow = ( *values << shift );
-                  ihigh = ( (*values + 1 ) << shift ) - 1;
+                  ilow = ( values[ 0 ] << shift );
+                  ihigh = ( ( values[ 1 ] + 1 ) << shift ) - 1;
                } else {
-                  ilow = ( *values >> -shift );
-                  ihigh = ( *values >> -shift );
+                  ilow = ( values[ 0 ] >> -shift );
+                  ihigh = ( values[ 1 ] >> -shift );
                }
 
 /* Count the new range only once there is room for it, and add none if

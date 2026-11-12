@@ -224,6 +224,10 @@ Bug fixes
   because the replacement was calculated from CDELT rather than CRVAL.
   This changes the pixel size of a degenerate axis of such a header.
 
+- A range of cells in a string MOC is no longer expanded into its individual
+  cells as it is read, which for a large range took a long time and could
+  exhaust memory.
+
 Build system changes
 --------------------
 
