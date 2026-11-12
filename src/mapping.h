@@ -772,6 +772,8 @@ void astMapSplitId_( AstMapping *, int, const int *, int *, AstMapping **, int *
 
 #if defined(astCLASS)            /* Protected */
 int astRateState_( int, int * );
+void astCheckLoadedCoords_( AstMapping *, const char *, int, int, int * );
+void astCheckLoadedMap_( void *, int, const char *, const char *, int *, int *, int * );
 AstPointSet *astTransform_( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 int astGetInvert_( AstMapping *, int * );
 int astGetIsSimple_( AstMapping *, int * );
@@ -1008,6 +1010,10 @@ astINVOKE(V,astMapSplitId_(astCheckMapping(this),nin,in,out,map,STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astRateState(disabled) astRateState_(disabled,STATUS_PTR)
+#define astCheckLoadedCoords(this,name,nin,nout) \
+astCheckLoadedCoords_((AstMapping *)(this),name,nin,nout,STATUS_PTR)
+#define astCheckLoadedMap(map,invert,name,item,nin,nout) \
+astCheckLoadedMap_(map,invert,name,item,nin,nout,STATUS_PTR)
 #define astClearInvert(this) \
 astINVOKE(V,astClearInvert_(astCheckMapping(this),STATUS_PTR))
 #define astClearReport(this) \
