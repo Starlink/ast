@@ -89,6 +89,11 @@
 
 #define AST__MXPRJHPX 3          /* Highest projection type */
 
+/* A position within this distance, in degrees, of the edge of the sky in
+   the plane of an HPX projection is on the edge. This is the margin that
+   the projection itself allows for rounding (see astHPXrev in proj.c). */
+#define AST__HPXTOL 1.0E-12
+
 #endif
 
 /* The maximum MOC order supported by this class. It's value, 27, is lower

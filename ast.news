@@ -78,6 +78,15 @@ Bug fixes
   (USF2HL, TPF2HL, GEF2HL, BYF2HL, LKF2HL, LDF2HL, LGF2HL, GLF2HL and their
   inverses).
 
+- astAddRegion could not add to a Moc a Region centred on, or with a vertex
+  at, a position where the HEALPix projections used by the Moc class are
+  cut: a position at RA=0 with a Dec between -41.8 and +41.8 degrees, a
+  position at an RA of 6, 12 or 18 hours with a Dec outside that range, or a
+  pole given with an RA of 6 hours or more. It reported that the Region
+  "cannot be mapped to HEALPix coordinates". It could also leave out of the
+  Moc of any Region some cells that touch the meridians at RA 0, 6, 12 and
+  18 hours. Both are fixed.
+
 Build system changes
 --------------------
 
