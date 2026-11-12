@@ -132,6 +132,13 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        each knot sequence (knot k-1 to knot n, zero-based). Elsewhere it
 *        read coefficients from outside the coefficient array when the first
 *        or last k knots in the Y direction were not coincident.
+*     11-NOV-2026 (TIMJ):
+*        The search for the last knot interval of non-zero width, used for
+*        a position on an upper limit, now follows the CMLIB original in
+*        Db2val and Dbvalu: it fails only if every interval has zero width.
+*        Db2val gave bad values along the upper Y limit of a spline with a
+*        single knot interval in Y, and Dbvalu gave NaN for knots that were
+*        all equal.
 *class--
 */
 
@@ -593,35 +600,31 @@ static double Db2val( double def, double xval, double yval, int idx, int idy,
    whatever the multiplicity of the final knots. */
    Dintrv( ty, ny + 1, yval, &iloy, &lefty, &mflag );
 
-/* Following code commented out by DSB in order to ensure good
-   output values for input positions on the upper Y limit
-   if( mflag != 0 ) return AST__BAD; */
-
-
-
-/* ------------------------------------------------------------
-   Following code added by DSB to ensure good output values for
-   input positions on the upper Y limit. */
+/* The CMLIB routine db2val gives no value for a position on the upper
+   limit of the basic interval (a non-zero "mflag"). Instead, step back to
+   the last knot interval of non-zero width, as the CMLIB routine dbvalu
+   does for its own knots, so that the value returned is the limit
+   approached from below. As in dbvalu, no value can be obtained if the
+   first interval is reached and it too has zero width. */
    if( mflag != 0 ) {
       if( yval > ty[ lefty ] ) return AST__BAD;
 
-      while( lefty != ky - 1 ) {
+      do {
+         if( lefty == ky - 1 ) return AST__BAD;
          lefty--;
-         if( yval != ty[ lefty ] ) break;
-      }
-
-      if( lefty == ky - 1 ) return AST__BAD;
+      } while( yval == ty[ lefty ] );
    }
-/* ------------------------------------------------------------*/
 
-
-
+/* Evaluate the spline in x for each of the columns of coefficients that
+   contribute at "yval". Dbvalu gives no value if none of the knot
+   intervals in x has a non-zero width. */
    iw = ky;
    kcol = lefty - ky;
    for (k = 0; k < ky; k++) {
       kcol++;
       work[ k ] = Dbvalu( tx, bcoef + nx*kcol, nx, kx, idx, xval,
                           inbvx, work + iw, status );
+      if( work[ k ] == AST__BAD ) return AST__BAD;
    }
 
    inbv = 0;
@@ -743,14 +746,13 @@ static double Dbvalu( const double *t, const double *a, int n, int k, int ideriv
    if( mflag != 0 ) {
       if( x > t[ i ] ) return AST__BAD;
 
-      while( i != k - 1 ) {
+/* Step back to the last knot interval of non-zero width. A left limiting
+   value cannot be obtained if the first interval is reached and it too
+   has zero width. */
+      do {
+         if( i == k - 1 ) return AST__BAD;
          i--;
-         if( x != t[ i ] ) break;
-      }
-
-/* Following line commented out by DSB in order to generate good output values
-   for input positions on the upper Y limit.
-      if( i == k - 1 ) return AST__BAD; */
+      } while( x == t[ i ] );
    }
 
 /* Difference the coefficients ideriv times.
