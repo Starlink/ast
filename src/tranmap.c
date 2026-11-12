@@ -74,6 +74,10 @@ f     The TranMap class does not define any new routines beyond those
 *        RemoveRegions returns a UnitMap with the TranMap's number of
 *        axes, not the sum of its two components', when both become
 *        UnitMaps.
+*     11-NOV-2026 (TIMJ):
+*        astLoadTranMap now checks that both component Mappings were read
+*        from the dump and are Mappings, that they have the same numbers of
+*        inputs and outputs, and that the TranMap shares them.
 *class--
 */
 
@@ -2238,6 +2242,10 @@ AstTranMap *astLoadTranMap_( void *mem, size_t size,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstTranMap *new;               /* Pointer to the new TranMap */
+   int nin1;                     /* No. of inputs of first component */
+   int nin2;                     /* No. of inputs of second component */
+   int nout1;                    /* No. of outputs of first component */
+   int nout2;                    /* No. of outputs of second component */
 
 /* Initialise. */
    new = NULL;
@@ -2303,6 +2311,24 @@ AstTranMap *astLoadTranMap_( void *mem, size_t size,
 /* Second Mapping. */
 /* --------------- */
       new->map2 = astReadObject( channel, "mapb", NULL );
+
+/* The component Mappings are used without further checks, so each must
+   have been read from the dump and must be a Mapping. Get the numbers of
+   inputs and outputs that each has when inverted as required. */
+      astCheckLoadedMap( new->map1, new->invert1, name,
+                         "first component Mapping", &nin1, &nout1 );
+      astCheckLoadedMap( new->map2, new->invert2, name,
+                         "second component Mapping", &nin2, &nout2 );
+
+/* The two components must have the same numbers of inputs and outputs, and
+   the TranMap must share them, as when a TranMap is constructed. */
+      if ( astOK && ( nin1 != nin2 || nout1 != nout2 ) ) {
+         astError( AST__LDERR, "astLoad(%s): The component Mappings read for "
+                   "a %s have different numbers of inputs (%d and %d) or "
+                   "outputs (%d and %d).", status, name, name, nin1, nin2,
+                   nout1, nout2 );
+      }
+      astCheckLoadedCoords( new, name, nin1, nout1 );
 
 /* If an error occurred, clean up by deleting the new TranMap. */
       if ( !astOK ) new = astDelete( new );
