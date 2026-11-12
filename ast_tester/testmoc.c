@@ -363,6 +363,24 @@ static void checkOrderZero( int *status ) {
    }
 }
 
+/* A range in a string MOC is read as a range, however many cells it
+   holds: this one is the whole sky at the largest order. */
+static void checkLargeRange( int *status ) {
+   const char *text = "27/0-216172782113783807";
+   AstMoc *moc;
+   int json;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddMocString( moc, AST__OR, 0, -1, strlen( text ), text, &json );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkLargeRange: could not read a large range", status );
+   }
+   checkCells( moc, "0/0-11 27/", "checkLargeRange: wrong cells", status );
+   moc = astAnnul( moc );
+}
+
 /* A negated Region added to a Moc whose MinOrder exceeds its MaxOrder
    covers no more than the whole sky. */
 static void checkOversampleNegate( int *status ) {
@@ -753,6 +771,7 @@ int main( void ) {
    checkEdgePositions( status );
    checkOrderZero( status );
    checkLargeRegion( status );
+   checkLargeRange( status );
    checkOversampleNegate( status );
    checkMocStringErrors( status );
    checkEmptyJson( status );

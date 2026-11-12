@@ -108,6 +108,10 @@ Bug fixes
   which other MOC libraries do not accept. A string MOC with either is still
   read.
 
+- A range of cells in a string MOC is no longer expanded into its individual
+  cells as it is read, which for a large range took a long time and could
+  exhaust memory.
+
 Build system changes
 --------------------
 
