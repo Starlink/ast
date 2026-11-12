@@ -204,6 +204,43 @@ static void checkEmptyTransform( int *status ) {
    moc = astAnnul( moc );
 }
 
+/* A Moc of the whole sky contains every position. These are on the
+   meridians that divide the polar facets of the HEALPix grid and at the
+   poles, where the cell that holds a position is easily taken to be one
+   that is off the sky. */
+static void checkEdgePositions( int *status ) {
+   static const int orders[ 4 ] = { 0, 3, 13, 27 };
+   static const double lon[ 6 ] = { 90.0, 225.0, 0.0, 180.0, 270.0, 0.0 };
+   static const double lat[ 6 ] = { 60.0, 90.0, -75.0, 89.9999999, -60.0,
+                                    -90.0 };
+   const double d2r = AST__DPI/180.0;
+   AstMoc *moc;
+   double x[ 6 ], y[ 6 ], xout[ 6 ], yout[ 6 ];
+   int i, io, json;
+
+   for( io = 0; io < 4 && *status == 0; io++ ) {
+      moc = astMoc( "MaxOrder=%d", orders[ io ] );
+      astAddMocString( moc, AST__OR, 0, -1, 6, "0/0-11", &json );
+      for( i = 0; i < 6; i++ ) {
+         x[ i ] = lon[ i ]*d2r;
+         y[ i ] = lat[ i ]*d2r;
+      }
+      astTran2( moc, 6, x, y, 1, xout, yout );
+      for( i = 0; i < 6 && astOK; i++ ) {
+         if( xout[ i ] == AST__BAD || yout[ i ] == AST__BAD ) {
+            printf( "Order %d: (%g,%g) is outside a Moc of the whole sky\n",
+                    orders[ io ], lon[ i ], lat[ i ] );
+            stopit( "checkEdgePositions: position not in the Moc", status );
+         }
+      }
+      if( !astOK ) {
+         astClearStatus;
+         stopit( "checkEdgePositions: error testing positions", status );
+      }
+      moc = astAnnul( moc );
+   }
+}
+
 /* Adding a Region to a Moc whose MaxOrder is zero leaves no lower order
    to start from, and is an error, as it is for a pixel mask. */
 static void checkAddRegionOrderZero( int *status ) {
@@ -610,6 +647,7 @@ int main( void ) {
    checkPinsMask( status );
    checkMeshTieBreak( status );
    checkEmptyTransform( status );
+   checkEdgePositions( status );
    checkAddRegionOrderZero( status );
    checkOversampleNegate( status );
    checkMocStringErrors( status );

@@ -87,6 +87,10 @@ Bug fixes
   Moc of any Region some cells that touch the meridians at RA 0, 6, 12 and
   18 hours. Both are fixed.
 
+- A position at a pole, or at an RA of 0, 6, 12 or 18 hours and a Dec beyond
+  41.8 degrees north or south, could be reported as being outside a Moc
+  that contains it.
+
 Build system changes
 --------------------
 
