@@ -68,6 +68,10 @@ f     The UnitMap class does not define any new routines beyond those
 *     17-FEB-2012 (DSB):
 *        In Transform, do not copy the coordinate values if the input and
 *        output array are the same.
+*     11-NOV-2026 (TIMJ):
+*        astLoadUnitMap now checks that the numbers of inputs and outputs read
+*        from a dump are equal. The transformation read or wrote beyond the
+*        coordinate arrays otherwise.
 *class--
 */
 
@@ -1397,6 +1401,11 @@ AstUnitMap *astLoadUnitMap_( void *mem, size_t size,
 
 /* There are no values to read. */
 /* ---------------------------- */
+
+/* A UnitMap has the same number of outputs as inputs, and the transformation
+   relies on this. The numbers read from the dump by the parent Mapping
+   loader are not otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, astGetNin( new ), astGetNin( new ) );
 
 /* If an error occurred, clean up by deleting the new UnitMap. */
       if ( !astOK ) new = astDelete( new );

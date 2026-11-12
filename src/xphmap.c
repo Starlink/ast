@@ -68,6 +68,10 @@
 *        Original version.
 *     8-SEP-2026 (TIMJ):
 *        Free the projection type string read by astLoadXphMap.
+*     11-NOV-2026 (TIMJ):
+*        astLoadXphMap now checks that the dump describes a Mapping with two inputs and two outputs.
+*        The transformation read or wrote beyond the coordinate arrays
+*        otherwise.
 *class-
 */
 
@@ -1680,6 +1684,11 @@ AstXphMap *astLoadXphMap_( void *mem, size_t size, AstXphMapVtab *vtab,
 
 /* Free the string returned by astReadString. */
       text = astFree( text );
+
+/* An XphMap always has two inputs and two outputs, and the transformation relies on this.
+   The numbers read from the dump by the parent Mapping loader are not
+   otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, 2, 2 );
 
 /* If an error occurred, clean up by deleting the new XphMap. */
       if ( !astOK ) new = astDelete( new );

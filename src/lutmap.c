@@ -131,6 +131,10 @@ f     The LutMap class does not define any new routines beyond those
 *        ensures that no inverse transformation is defined for a table
 *        with fewer than two good values, whatever the dump says, since
 *        the inverse read before the start of such a table.
+*     11-NOV-2026 (TIMJ):
+*        astLoadLutMap now checks that the dump describes a Mapping with one input and one output.
+*        The transformation read or wrote beyond the coordinate arrays
+*        otherwise.
 *class--
 */
 
@@ -2648,6 +2652,11 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
          if ( ngood < 2 ) ( (AstMapping *) new )->tran_inverse = 0;
       }
    }
+
+/* A LutMap always has one input and one output, and the transformation relies on this.
+   The numbers read from the dump by the parent Mapping loader are not
+   otherwise constrained, so check them. */
+   astCheckLoadedCoords( new, name, 1, 1 );
 
 /* If an error occurred, clean up by deleting the new LutMap. */
    if ( !astOK ) new = astDelete( new );

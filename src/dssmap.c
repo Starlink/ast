@@ -102,6 +102,10 @@ f     The DssMap class does not define any new routines beyond those
 *        Equal(): use astEQUAL for the WorldCoor double-precision fields
 *        instead of raw == / != so platform ulp drift in FITS-derived
 *        header values does not cause spurious inequality.
+*     11-NOV-2026 (TIMJ):
+*        astLoadDssMap now checks that the dump describes a Mapping with two inputs and two outputs.
+*        The transformation read or wrote beyond the coordinate arrays
+*        otherwise.
 *class--
 */
 
@@ -1945,6 +1949,11 @@ AstDssMap *astLoadDssMap_( void *mem, size_t size,
             }
          }
       }
+
+/* A DssMap always has two inputs and two outputs, and the transformation relies on this.
+   The numbers read from the dump by the parent Mapping loader are not
+   otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, 2, 2 );
 
 /* If an error occurred, clean up by deleting the new DssMap. */
       if ( !astOK ) new = astDelete( new );

@@ -110,6 +110,10 @@ f     The UnitNormMap class does not define any new routines beyond those
 *        Record that both transformations are discontinuous at the centre,
 *        and that a composition which reconstructs a position on another
 *        UnitNormMap's centre is sensitive to floating-point contraction.
+*     11-NOV-2026 (TIMJ):
+*        astLoadUnitNormMap now checks that the dump describes a Mapping
+*        with one more output than it has inputs. The transformation read or
+*        wrote beyond the coordinate arrays otherwise.
 *class--
 */
 
@@ -1768,6 +1772,11 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
          (void) sprintf( buff, "ctr%d", axis + 1 );
          (new->centre)[ axis ] = astReadDouble( channel, buff, 0.0 );
       }
+
+/* A UnitNormMap has one more output than it has inputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, ncoord, ncoord + 1 );
    }
 
 /* If an error occurred, clean up by deleting the new UnitNormMap. */

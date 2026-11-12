@@ -82,6 +82,10 @@ f     The GrismMap class does not define any new routines beyond those
 *        its attributes is set or cleared, since they define the
 *        transformation it performs. Done in the class's own MAKE_SET and
 *        MAKE_CLEAR macros, which every one of its attributes uses.
+*     11-NOV-2026 (TIMJ):
+*        astLoadGrismMap now checks that the dump describes a Mapping with one input and one output.
+*        The transformation read or wrote beyond the coordinate arrays
+*        otherwise.
 *class--
 */
 
@@ -2573,6 +2577,11 @@ AstGrismMap *astLoadGrismMap_( void *mem, size_t size,
 /* Set up the other required derived constants. */
       UpdateConstants( new, status );
    }
+
+/* A GrismMap always has one input and one output, and the transformation relies on this.
+   The numbers read from the dump by the parent Mapping loader are not
+   otherwise constrained, so check them. */
+   astCheckLoadedCoords( new, name, 1, 1 );
 
 /* If an error occurred, clean up by deleting the new GrismMap. */
    if ( !astOK ) new = astDelete( new );

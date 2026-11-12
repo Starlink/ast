@@ -120,6 +120,10 @@ f     - AST_TIMEADD: Add a time coordinate conversion to an TimeMap
 *        The rate of change of an inverted TimeMap is the reciprocal of the
 *        product of the slopes, which is the slope of the inverse
 *        transformation, where it was the forward slope.
+*     11-NOV-2026 (TIMJ):
+*        astLoadTimeMap now checks that the dump describes a Mapping with one input and one output.
+*        The transformation read or wrote beyond the coordinate arrays
+*        otherwise.
 *class--
 */
 
@@ -5316,6 +5320,11 @@ AstTimeMap *astLoadTimeMap_( void *mem, size_t size,
             if ( !astOK ) break;
          }
       }
+
+/* A TimeMap always has one input and one output, and the transformation relies on this.
+   The numbers read from the dump by the parent Mapping loader are not
+   otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, 1, 1 );
 
 /* If an error occurred, clean up by deleting the new TimeMap. */
       if ( !astOK ) new = astDelete( new );

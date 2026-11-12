@@ -123,6 +123,10 @@ f     - AST_SPECADD: Add a spectral coordinate conversion to an SpecMap
 *        heliocentric frequency has one more element than the caller
 *        supplies, so it read past the end of the caller's array.
 
+*     11-NOV-2026 (TIMJ):
+*        astLoadSpecMap now checks that the dump describes a Mapping with
+*        one input and one output, or three of each. The transformation
+*        read or wrote beyond the coordinate arrays otherwise.
 *class--
 */
 
@@ -4553,6 +4557,7 @@ AstSpecMap *astLoadSpecMap_( void *mem, size_t size,
    int iarg;                     /* Loop counter for arguments */
    int icvt;                     /* Loop counter for conversion steps */
    int nargs;                    /* Number of user-supplied arguments */
+   int ncoord;                   /* Required number of inputs and outputs */
    int szargs;                   /* Number of stored arguments */
 
 /* Get a pointer to the thread specific global data structure. */
@@ -4682,6 +4687,12 @@ AstSpecMap *astLoadSpecMap_( void *mem, size_t size,
             if ( !astOK ) break;
          }
       }
+
+/* A SpecMap has either one input and one output, or three of each, and
+   the transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
+      ncoord = ( astGetNin( new ) == 3 ) ? 3 : 1;
+      astCheckLoadedCoords( new, name, ncoord, ncoord );
 
 /* If an error occurred, clean up by deleting the new SpecMap. */
       if ( !astOK ) new = astDelete( new );
