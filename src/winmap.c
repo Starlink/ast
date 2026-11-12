@@ -142,6 +142,10 @@ f     The WinMap class does not define any new routines beyond those
 *        ulp behind on a build that contracts a multiply and an add, and a
 *        ShiftMap writes a Sft card only for a non-zero shift -- so the residue
 *        decided how many lines the dump had.
+*     11-NOV-2026 (TIMJ):
+*        astLoadWinMap now checks that the numbers of inputs and outputs read
+*        from a dump are equal. The transformation read or wrote beyond the
+*        coordinate arrays otherwise.
 *class--
 */
 
@@ -5077,6 +5081,11 @@ AstWinMap *astLoadWinMap_( void *mem, size_t size,
          (new->b)[ axis ] = astReadDouble( channel, buff, 1.0 );
       }
    }
+
+/* A WinMap has the same number of outputs as inputs, and the transformation
+   relies on this. The numbers read from the dump by the parent Mapping
+   loader are not otherwise constrained, so check them. */
+   astCheckLoadedCoords( new, name, astGetNin( new ), astGetNin( new ) );
 
 /* If an error occurred, clean up by deleting the new WinMap. */
    if ( !astOK ) new = astDelete( new );

@@ -79,6 +79,10 @@ f     The ZoomMap class does not define any new routines beyond those
 *        UnitMap without reference to any neighbour, so a ZoomMap simplified
 *        before Zoom was changed could report that there was nothing left to
 *        do.
+*     11-NOV-2026 (TIMJ):
+*        astLoadZoomMap now checks that the numbers of inputs and outputs read
+*        from a dump are equal. The transformation read or wrote beyond the
+*        coordinate arrays otherwise.
 *class--
 */
 
@@ -2237,6 +2241,11 @@ AstZoomMap *astLoadZoomMap_( void *mem, size_t size,
 /* ----- */
       new->zoom = astReadDouble( channel, "zoom", 0.0 );
       if ( TestZoom( new, status ) ) SetZoom( new, new->zoom, status );
+
+/* A ZoomMap has the same number of outputs as inputs, and the transformation
+   relies on this. The numbers read from the dump by the parent Mapping
+   loader are not otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, astGetNin( new ), astGetNin( new ) );
 
 /* If an error occurred, clean up by deleting the new ZoomMap. */
       if ( !astOK ) new = astDelete( new );
