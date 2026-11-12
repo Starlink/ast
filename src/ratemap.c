@@ -69,6 +69,11 @@ f     The RateMap class does not define any new routines beyond those
 *        Override astGetObjSize.
 *     10-MAY-2006 (DSB):
 *        Override astEqual.
+*     11-NOV-2026 (TIMJ):
+*        astLoadRateMap now checks that the encapsulated Mapping was read
+*        from the dump and is a Mapping, that the axis indices select one of
+*        its inputs and one of its outputs, and that the RateMap has the
+*        same number of inputs and a single output.
 *class--
 */
 
@@ -1922,6 +1927,8 @@ AstRateMap *astLoadRateMap_( void *mem, size_t size,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstRateMap *new;               /* Pointer to the new RateMap */
+   int nin;                      /* No. of inputs of encapsulated Mapping */
+   int nout;                     /* No. of outputs of encapsulated Mapping */
 
 /* Initialise. */
    new = NULL;
@@ -1983,6 +1990,29 @@ AstRateMap *astLoadRateMap_( void *mem, size_t size,
 /* Mapping. */
 /* -------- */
       new->map = astReadObject( channel, "map", NULL );
+
+/* The encapsulated Mapping is used without further checks, so it must have
+   been read from the dump and must be a Mapping. Get the numbers of inputs
+   and outputs that it has when inverted as required. */
+      astCheckLoadedMap( new->map, new->invert, name, "encapsulated Mapping",
+                         &nin, &nout );
+
+/* The axis indices must select an input and an output of that Mapping, as
+   they do when a RateMap is constructed. */
+      if ( astOK && ( new->iin < 0 || new->iin >= nin ) ) {
+         astError( AST__LDERR, "astLoad(%s): The input axis (%d) read for a "
+                   "%s is out of range - it should be in the range 1 to %d.",
+                   status, name, new->iin + 1, name, nin );
+
+      } else if ( astOK && ( new->iout < 0 || new->iout >= nout ) ) {
+         astError( AST__LDERR, "astLoad(%s): The output axis (%d) read for a "
+                   "%s is out of range - it should be in the range 1 to %d.",
+                   status, name, new->iout + 1, name, nout );
+      }
+
+/* A RateMap has the inputs of the encapsulated Mapping and a single
+   output. */
+      astCheckLoadedCoords( new, name, nin, 1 );
 
 /* If an error occurred, clean up by deleting the new RateMap. */
       if ( !astOK ) new = astDelete( new );

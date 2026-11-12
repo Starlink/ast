@@ -85,6 +85,11 @@ f     The SelectorMap class does not define any new routines beyond those
 *        where it required either, and so compared a SelectorMap holding
 *        fewer Regions equal to one holding more, or read beyond the shorter
 *        list of Regions.
+*     11-NOV-2026 (TIMJ):
+*        astLoadSelectorMap now checks that each object read from a dump as
+*        one of its Regions is a Region, that there is at least one, and
+*        that the SelectorMap has an input for each of their axes and a
+*        single output.
 *class--
 */
 
@@ -1785,6 +1790,16 @@ AstSelectorMap *astLoadSelectorMap_( void *mem, size_t size,
       while( astOK ) {
          sprintf( buf, "reg%d", i + 1 );
          reg = astReadObject( channel, buf, NULL );
+
+/* Each object is used as a Region without further checks, so report an
+   error if it is anything else. */
+         if( reg && !astIsARegion( reg ) ) {
+            astError( AST__LDERR, "astLoad(%s): Region number %d read for a "
+                      "%s is a %s, which is not a Region.", status, name,
+                      i + 1, name, astGetClass( reg ) );
+            reg = astAnnul( reg );
+         }
+
          if( reg ) {
             new->reg = astGrow( new->reg, i + 1, sizeof( AstRegion *) );
             if( astOK ) {
@@ -1806,10 +1821,21 @@ AstSelectorMap *astLoadSelectorMap_( void *mem, size_t size,
          }
       }
 
-      fs = astAnnul( fs );
+      if( fs ) fs = astAnnul( fs );
 
 /* Number of Regions. */
       new->nreg = i;
+
+/* There must be at least one Region. A SelectorMap has an input for each
+   axis of its Regions and a single output, and the transformation relies
+   on this, so check the numbers read from the dump by the parent Mapping
+   loader. */
+      if( astOK && new->nreg < 1 ) {
+         astError( AST__LDERR, "astLoad(%s): No Regions were read for a %s.",
+                   status, name, name );
+      }
+      astCheckLoadedCoords( new, name,
+                            astOK ? astGetNin( new->reg[ 0 ] ) : 0, 1 );
 
 
 /* BadVal. */

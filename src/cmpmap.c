@@ -176,6 +176,12 @@ f     The CmpMap class does not define any new routines beyond those
 *        resulting components so their Invert values can be set without
 *        modifying shared Mappings. Reached by any CmpMap for which
 *        astDoNotSimplify is true, such as one carrying an Ident.
+*     11-NOV-2026 (TIMJ):
+*        astLoadCmpMap now checks that both component Mappings were read
+*        from the dump and are Mappings, and that the numbers of inputs and
+*        outputs of the CmpMap are those implied by its components. The
+*        transformation passed the wrong number of coordinates to the
+*        components otherwise.
 *class--
 */
 
@@ -4957,6 +4963,10 @@ AstCmpMap *astLoadCmpMap_( void *mem, size_t size,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstCmpMap *new;               /* Pointer to the new CmpMap */
+   int nin1;                     /* No. of inputs of first component */
+   int nin2;                     /* No. of inputs of second component */
+   int nout1;                    /* No. of outputs of first component */
+   int nout2;                    /* No. of outputs of second component */
 
 /* Initialise. */
    new = NULL;
@@ -5027,6 +5037,31 @@ AstCmpMap *astLoadCmpMap_( void *mem, size_t size,
 /* Second Mapping. */
 /* --------------- */
       new->map2 = astReadObject( channel, "mapb", NULL );
+
+/* The component Mappings are used without further checks, so each must
+   have been read from the dump and must be a Mapping. Get the numbers of
+   inputs and outputs that each has when inverted as required. */
+      astCheckLoadedMap( new->map1, new->invert1, name,
+                         "first component Mapping", &nin1, &nout1 );
+      astCheckLoadedMap( new->map2, new->invert2, name,
+                         "second component Mapping", &nin2, &nout2 );
+
+/* The numbers of inputs and outputs of the CmpMap must be those implied by
+   its components, as they are when a CmpMap is constructed, since the
+   transformation passes coordinates to the components on that basis. For
+   components applied in series, the outputs of the first must also match
+   the inputs of the second. */
+      if ( new->series ) {
+         if ( astOK && nout1 != nin2 ) {
+            astError( AST__LDERR, "astLoad(%s): The number of outputs (%d) "
+                      "of the first component Mapping read for a %s does "
+                      "not match the number of inputs (%d) of the second.",
+                      status, name, nout1, name, nin2 );
+         }
+         astCheckLoadedCoords( new, name, nin1, nout2 );
+      } else {
+         astCheckLoadedCoords( new, name, nin1 + nin2, nout1 + nout2 );
+      }
 
 /* If an error occurred, clean up by deleting the new CmpMap. */
       if ( !astOK ) new = astDelete( new );
