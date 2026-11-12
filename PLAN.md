@@ -111,7 +111,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
   For PolyMap, LutMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
   For each class of Mapping that can only have particular numbers of inputs and outputs, it changes Nin and Nout in the dump of a valid Mapping and requires the result to be rejected, and it checks that a Mapping, Frame or Region encapsulated by another Mapping cannot be left out of a dump or replaced by an object of another class.
-  The DssMap check has no case, because a DssMap has no public constructor and its dump is too long to write by hand.
+  The DssMap check is made by testdssmap, since a DssMap has no public constructor.
   It also checks that objects built by the constructors survive a dump and load (including a WcsMap of type AST__WCSBAD, whose axis indices are not checked), that a LutMap loaded with fewer than two good table values has no inverse, that a SplineMap whose end knots are not coincident gives AST__BAD outside the interval over which its spline is defined, and that astMalloc, astCalloc, astRealloc and astGrow report an error for a size that overflows.
 - testplotclip — a Plot must report an error raised while transforming positions into its clipping Frame without annulling the PointSet that its caller supplied.
   The clipping Frame is reached through an IntraMap that fails on request.
@@ -124,6 +124,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testsplinemapedge — SplineMap values on the edges of the area covered by its knots.
   A bilinear and a constant SplineMap with a single knot interval on each axis, and SplineMaps with one interval on one axis and two on the other, must give the exact spline value on every edge and corner, and AST__BAD just outside.
   A SplineMap whose knots are all equal on one axis covers no area and must give AST__BAD rather than NaN.
+- testdssmap — the DssMap class, which AST no longer creates and which can only be reached by loading a dump written by an older version.
+  Using the dump in fixtures/serialisation/c_dssmap.ast, it checks the sky positions of pixels on the plate and the return trip, that sky positions on the far side of the sky from the plate centre and positions too large for the plate solution give AST__BAD, and that a dump is rejected if a required value is missing, if it does not have two inputs and two outputs, or if its plate centre or pixel offsets are too large for the DSS FITS keywords.
+  It also checks that a DssMap absorbs a neighbouring WinMap on simplification only when the new pixel offsets are whole numbers of pixels that an integer can hold.
+  The conversion of an oversized pixel offset to an integer was undefined, which the test can only detect under UndefinedBehaviorSanitizer.
 
 **Optional manual stress test:**
 - testhuge_c

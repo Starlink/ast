@@ -90,6 +90,7 @@ C_TESTS = \
     testplotcopy \
     testpolymapinv \
     testsplinemapedge \
+    testdssmap \
     testframeset_c \
     testissimp \
     testkeymap_c \
@@ -162,6 +163,8 @@ testpolymapinv_SOURCES = testpolymapinv.c
 testpolymapinv_LDADD   = $(CTEST_LDADD)
 testsplinemapedge_SOURCES = testsplinemapedge.c
 testsplinemapedge_LDADD = $(CTEST_LDADD)
+testdssmap_SOURCES     = testdssmap.c
+testdssmap_LDADD       = $(CTEST_LDADD)
 
 testobject_SOURCES     = testobject.c
 testobject_LDADD       = $(CTEST_LDADD)
