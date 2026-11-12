@@ -198,6 +198,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        work array out of bounds. It also rejects a negative coefficient
 *        count or maximum power, which were used to size arrays without
 *        being checked.
+*     11-NOV-2026 (TIMJ):
+*        An iterative inverse is no longer offered by default, and cannot
+*        be requested, for a PolyMap that has no forward transformation.
+*        The iterative inverse evaluates the forward transformation, so
+*        using it for such a PolyMap read the missing coefficient arrays.
 *class--
 */
 
@@ -2568,6 +2573,13 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
       astError( AST__INTER, "astTransform(%s): Supplied %s has unequal numbers"
                 " of inputs and outputs and therefore an iterative inverse "
                 "cannot be used (internal AST Programming errpr).", status,
+                astGetClass(this), astGetClass(this) );
+
+/* Check it has the forward transformation that is to be inverted. */
+   } else if( !this->ncoeff_f ) {
+      astError( AST__INTER, "astTransform(%s): Supplied %s has no forward "
+                "transformation and therefore an iterative inverse cannot "
+                "be used (internal AST Programming error).", status,
                 astGetClass(this), astGetClass(this) );
    }
 
@@ -6353,9 +6365,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     approximation that uses the forward transformation to transform
 *     candidate input positions until an output position is found which
 *     is close to the required output position. By default, an iterative
-*     inverse is provided if, and only if, no inverse polynomial was supplied
-*     when the PolyMap was constructed and the PolyMap has equal numbers of
-*     inputs and outputs (an iterative inverse cannot be used otherwise).
+*     inverse is provided if, and only if, a forward polynomial but no
+*     inverse polynomial was supplied when the PolyMap was constructed and
+*     the PolyMap has equal numbers of inputs and outputs (an iterative
+*     inverse cannot be used otherwise).
 *
 *     Note, the term "inverse transformation" here refers to the inverse
 *     transformation of the original PolyMap, ignoring any subsequent
@@ -6402,22 +6415,27 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     forward transformation.
 *     - An iterative inverse can only be used if the PolyMap has equal
 *     numbers of inputs and outputs, as given by the Nin and Nout
-*     attributes. An error will be reported if IterInverse is set non-zero
-*     for a PolyMap that does not meet this requirement.
+*     attributes, and a forward polynomial was supplied when it was
+*     constructed. An error will be reported if IterInverse is set non-zero
+*     for a PolyMap that does not meet these requirements.
 
 *att--
 */
 astMAKE_CLEAR1(PolyMap,IterInverse,iterinverse,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PolyMap,IterInverse,int,0,( ( this->iterinverse == -INT_MAX ) ?
                                           ( this->ncoeff_i == 0 &&
+                                            this->ncoeff_f != 0 &&
                                             astGetNin( this ) == astGetNout( this ) ) :
                                           this->iterinverse ))
 astMAKE_SET1(PolyMap,IterInverse,int,iterinverse,
-  (((astGetNin(this)==astGetNout(this))||!value)?
+  ((((astGetNin(this)==astGetNout(this))&&this->ncoeff_f)||!value)?
   (( (value?1:0) != this->iterinverse ) ? astClearIsSimple(this) : (void)0,(value?1:0)):
-  (astError(AST__ATTIN,"astSetIterInverse(%s):"
-  "Cannot use an iterative inverse because the %s has unequal numbers of "
-  "inputs and outputs.", status, astGetClass(this),astGetClass(this)),this->iterinverse)))
+  (astError(AST__ATTIN,"astSetIterInverse(%s): "
+  "Cannot use an iterative inverse because the %s %s.", status,
+  astGetClass(this),astGetClass(this),
+  this->ncoeff_f?"has unequal numbers of inputs and outputs":
+                 "was created without a forward transformation"),
+  this->iterinverse)))
 astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 
 /* NiterInverse. */

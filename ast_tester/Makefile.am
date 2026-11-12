@@ -88,6 +88,7 @@ C_TESTS = \
     testloaderhardening \
     testplotclip \
     testplotcopy \
+    testpolymapinv \
     testframeset_c \
     testissimp \
     testkeymap_c \
@@ -156,6 +157,8 @@ testplotclip_SOURCES   = testplotclip.c
 testplotclip_LDADD     = $(CTEST_LDADD)
 testplotcopy_SOURCES   = testplotcopy.c
 testplotcopy_LDADD     = $(CTEST_LDADD)
+testpolymapinv_SOURCES = testpolymapinv.c
+testpolymapinv_LDADD   = $(CTEST_LDADD)
 
 testobject_SOURCES     = testobject.c
 testobject_LDADD       = $(CTEST_LDADD)
