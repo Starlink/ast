@@ -247,6 +247,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        can be the area outside its boundary in the projection used, and
 *        its cells outside the box were left out of the Moc.
 *     12-NOV-2026 (TIMJ):
+*        astGetMocText: separate the cells of a string MOC with spaces, as
+*        the MOC recommendation requires, rather than commas.
+*     12-NOV-2026 (TIMJ):
 *        astAddMocText: hold a range in a string MOC as a range rather than
 *        as each of its values, of which there can be very many.
 *     13-NOV-2026 (TIMJ):
@@ -5197,8 +5200,9 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
                TOKEN_WRITE;
             }
 
-/* Then write the (potential) start of the new range. */
-            nc = sprintf( token, ",%" PRId64, npix );
+/* Then write the (potential) start of the new range. The MOC
+   recommendation separates the elements of a string MOC with spaces. */
+            nc = sprintf( token, " %" PRId64, npix );
             TOKEN_WRITE;
             npix_start = npix;
          }
