@@ -239,6 +239,12 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        AddRegion, AddPixelMask<X>: accept a MaxOrder of zero, starting at
 *        order zero since there is no lower order to start at, rather than
 *        report an error.
+*     12-NOV-2026 (TIMJ):
+*        AddRegion: check that the Region does not extend beyond the box
+*        that bounds its boundary, and use the whole grid if it does (new
+*        function RegionBeyondBox). A Region that covers about half the sky
+*        or more can be the area outside its boundary in the projection
+*        used, and its cells outside the box were left out of the Moc.
 *class--
 */
 
@@ -527,6 +533,7 @@ static int ResToOrder( double );
 static int log2_32( int );
 static int log2_64( int64_t );
 static int TestCell( AstMoc *, int, int64_t, int, int * );
+static int RegionBeyondBox( AstRegion *, AstMapping *, const AstDim[ 2 ], const AstDim[ 2 ], int * );
 static int64_t PosToNested( int, double, double );
 static int64_t XyToNested( int, int, int );
 static void AddCell( AstMoc *, int, int, int64_t, int * );
@@ -2824,6 +2831,23 @@ f        The global status.
          gubnd_min[ 0 ] = (AstDim)round( outa[ 1 ] ) + 1;
          gubnd_min[ 1 ] = (AstDim)round( outb[ 1 ] ) + 1;
          tempmap2 = astAnnul( tempmap2 );
+
+/* The box found above bounds the boundary of the Region, and so bounds
+   the Region only if the Region is the area inside its boundary. A
+   Region that covers more than about half the sky can instead be the
+   area outside its boundary in the chosen projection. If the Region
+   extends beyond the box, use the whole grid of the projection (four
+   facets along each axis for an XPH projection and five for an HPX
+   projection). */
+         if( RegionBeyondBox( mapped_min, maps[ minorder ], glbnd_min,
+                              gubnd_min, status ) ) {
+            glbnd_min[ 0 ] = 1;
+            glbnd_min[ 1 ] = 1;
+            gubnd_min[ 0 ] = ( ( iproj_min == AST__XPHN ||
+                                 iproj_min == AST__XPHS ) ? 4 : 5 )*
+                             ( ( (AstDim) 1 ) << minorder );
+            gubnd_min[ 1 ] = gubnd_min[ 0 ];
+         }
 
 /* Initialise a CellList structure holding the grid coords of the cells
    to add into the Moc at each order. This also holds Mappings from
@@ -7455,6 +7479,135 @@ static void PutCell( AstMoc *this, AstMapping **map, AstDim ncell, AstDim *ix,
 
 /* Free the array of inside flags */
    inside = astFree( inside );
+}
+
+static int RegionBeyondBox( AstRegion *region, AstMapping *map,
+                            const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+                            int *status ){
+/*
+*  Name:
+*     RegionBeyondBox
+
+*  Purpose:
+*     See if a Region extends beyond a box that bounds its boundary.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     int RegionBeyondBox( AstRegion *region, AstMapping *map,
+*                          const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+*                          int *status )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function is given a box of grid cells that contains the whole
+*     of the boundary of a Region, with a margin of at least one cell,
+*     and determines whether the Region extends beyond the box.
+*
+*     Since no part of the boundary is outside the box, each connected
+*     part of the sky outside the box is either all inside or all outside
+*     the Region, and each such part adjoins the box. So the Region
+*     extends beyond the box if, and only if, it contains positions in
+*     the ring of cells that surrounds the box. Each cell in the ring is
+*     tested at its corners, edge-centres and centre.
+
+*  Parameters:
+*     region
+*        Pointer to the Region.
+*     map
+*        Pointer to a Mapping from the grid coordinates in which the box
+*        is defined to the Frame represented by the Region.
+*     lbnd
+*        The one-based indices of the first cell in the box on each axis.
+*     ubnd
+*        The one-based indices of the last cell in the box on each axis.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the Region extends beyond the box. Zero if it does not,
+*     or if an error occurs.
+*/
+
+/* Local Variables: */
+   AstDim i;                /* X coordinate of test point, in half cells */
+   AstDim ihi;              /* Last value of "i" */
+   AstDim ilo;              /* First value of "i" */
+   AstDim j;                /* Y coordinate of test point, in half cells */
+   AstDim jhi;              /* Last value of "j" */
+   AstDim jlo;              /* First value of "j" */
+   AstDim npoint;           /* Number of test points */
+   AstPointSet *ps1;        /* Test points in grid coords */
+   AstPointSet *ps2;        /* Test points in the Frame of the Region */
+   AstPointSet *ps3;        /* Test points masked by the Region */
+   double **ptr1;           /* Pointers to grid coords */
+   double **ptr3;           /* Pointers to masked values */
+   double *px;              /* Pointer to next X value */
+   double *py;              /* Pointer to next Y value */
+   int result;              /* Returned flag */
+
+/* Initialise */
+   result = 0;
+
+/* Check the global error status. */
+   if( !astOK ) return result;
+
+/* The test points are spaced half a cell apart. In units of half a cell,
+   the outer edge of the box is at ( 2*lbnd - 1 ) and ( 2*ubnd + 1 ), and
+   the outer edge of the ring of cells around the box is one cell further
+   out. */
+   ilo = 2*lbnd[ 0 ] - 3;
+   ihi = 2*ubnd[ 0 ] + 3;
+   jlo = 2*lbnd[ 1 ] - 3;
+   jhi = 2*ubnd[ 1 ] + 3;
+
+/* The test points are those on or outside the outer edge of the box:
+   three complete rows below the box and three above it, and three points
+   at each end of each of the rows between. */
+   npoint = 6*( ihi - ilo + 1 ) + 6*( jhi - jlo - 5 );
+
+/* Store the grid coords of the test points. */
+   ps1 = astPointSet( npoint, 2, "", status );
+   ptr1 = astGetPoints( ps1 );
+   if( astOK ) {
+      px = ptr1[ 0 ];
+      py = ptr1[ 1 ];
+      for( j = jlo; j <= jhi; j++ ) {
+         for( i = ilo; i <= ihi; i++ ) {
+            if( j < jlo + 3 || j > jhi - 3 || i < ilo + 3 || i > ihi - 3 ) {
+               *(px++) = 0.5*i;
+               *(py++) = 0.5*j;
+            } else {
+               i = ihi - 3;
+            }
+         }
+      }
+
+/* Transform them into the Frame of the Region, and then use the Region
+   to set bad those that are outside the Region. A test point that is not
+   on the sky is already bad. */
+      ps2 = astTransform( map, ps1, 1, NULL );
+      ps3 = astTransform( region, ps2, 1, NULL );
+      ptr3 = astGetPoints( ps3 );
+      if( astOK ) {
+         px = ptr3[ 0 ];
+         for( i = 0; i < npoint; i++ ) {
+            if( *(px++) != AST__BAD ) {
+               result = 1;
+               break;
+            }
+         }
+      }
+      ps3 = astAnnul( ps3 );
+      ps2 = astAnnul( ps2 );
+   }
+   ps1 = astAnnul( ps1 );
+
+   return result;
 }
 
 static void RegBaseBox( AstRegion *this_region, double *lbnd,

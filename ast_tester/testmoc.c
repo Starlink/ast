@@ -260,6 +260,35 @@ static void checkEdgePositions( int *status ) {
    }
 }
 
+/* A Region that covers more than half the sky is the area outside its
+   boundary in every projection that could be used to look for its cells.
+   The expected cells of this Circle, of radius 150 degrees about the south
+   pole, are those with centres south of Dec +60, as given by the CDS
+   HEALPix library. */
+static void checkLargeRegion( int *status ) {
+   AstMoc *moc;
+   AstCircle *circle;
+   const double d2r = AST__DPI/180.0;
+   double centre[ 2 ], radius;
+
+   if( *status != 0 ) return;
+   centre[ 0 ] = 0.0;
+   centre[ 1 ] = -90.0*d2r;
+   radius = 150.0*d2r;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc = astMoc( "MaxOrder=2,MinOrder=2" );
+   astAddRegion( moc, AST__OR, circle );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkLargeRegion: error making the Moc", status );
+   }
+   checkCells( moc, "0/4-11 1/0-2 4-6 8-10 12-14 2/12 28 44 60",
+               "checkLargeRegion: wrong cells", status );
+   moc = astAnnul( moc );
+   circle = astAnnul( circle );
+}
+
 /* A Moc can have a MaxOrder of zero, which leaves no lower order at which
    to start looking for the cells of a Region or pixel mask. Each of the
    twelve cells is then in the Moc if its centre is in the Region or on a
@@ -721,6 +750,7 @@ int main( void ) {
    checkEmptyTransform( status );
    checkEdgePositions( status );
    checkOrderZero( status );
+   checkLargeRegion( status );
    checkOversampleNegate( status );
    checkMocStringErrors( status );
    checkEmptyJson( status );

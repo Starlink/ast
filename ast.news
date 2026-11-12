@@ -100,6 +100,9 @@ Bug fixes
 - astAddRegion and astAddPixelMask<X> now accept a Moc with a MaxOrder of
   zero. They reported an error.
 
+- astAddRegion left cells out of the Moc of a Region that covers about half
+  the sky or more, such as a Circle with a radius of 90 degrees or more.
+
 Build system changes
 --------------------
 
