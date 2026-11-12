@@ -87,6 +87,7 @@ C_TESTS = \
     testframesetload \
     testloaderhardening \
     testplotclip \
+    testplotcopy \
     testframeset_c \
     testissimp \
     testkeymap_c \
@@ -153,6 +154,8 @@ testloaderhardening_SOURCES  = testloaderhardening.c
 testloaderhardening_LDADD    = $(CTEST_LDADD)
 testplotclip_SOURCES   = testplotclip.c
 testplotclip_LDADD     = $(CTEST_LDADD)
+testplotcopy_SOURCES   = testplotcopy.c
+testplotcopy_LDADD     = $(CTEST_LDADD)
 
 testobject_SOURCES     = testobject.c
 testobject_LDADD       = $(CTEST_LDADD)

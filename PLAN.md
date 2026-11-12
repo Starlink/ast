@@ -114,6 +114,9 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testplotclip — a Plot must report an error raised while transforming positions into its clipping Frame without annulling the PointSet that its caller supplied.
   The clipping Frame is reached through an IntraMap that fails on request.
   The double annul is a use of freed memory, so the test is only decisive under AddressSanitizer.
+- testplotcopy — a copy of a Plot must own its graphics context KeyMap: it starts with the original's contents, changes independently, and is released separately.
+  It also copies a Plot3D and annuls the original and the copy in either order.
+  Releasing the KeyMap twice is a use of freed memory, so that part of the test is only decisive under AddressSanitizer.
 
 **Optional manual stress test:**
 - testhuge_c
