@@ -102,7 +102,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   AST's memory system caches freed blocks. Running this test under
   `ASAN_OPTIONS=detect_leaks=1` on Linux is the manual check.
   For every projection type, at orders 0 to 3 and in both directions, it also checks that the number of pixel centres in the grid that are transformed is the number of HEALPix pixels on the sky, and that each makes the return trip.
-  Positions too far from the grid for the index of a grid cell to fit in an integer, and positions that are not finite, must give AST__BAD, except that the forward transformation of an XPH projection does not test a position against the outer edges of its grid and is only required to give finite values for a far position.
+  Positions too far from the grid for the index of a grid cell to fit in an integer, and positions that are not finite, must give AST__BAD.
+  So must every position outside the grid of an XPH projection in the forward direction, which a scan of the grid and its surroundings at orders 0 to 3 checks, along with a position just beyond the grid at order 27.
   An Order outside the range 0 to 27 must be rejected by the loader with AST__LDERR, and pixels at both ends of the grid must be transformed at order 27.
   The conversion of the index of a far grid cell to an integer was undefined, which the test can mostly only detect under UndefinedBehaviorSanitizer.
 - testwcsmap — WcsMap projections at the points where AST's wcslib fork has

@@ -9,11 +9,11 @@
 *     XphMap transforms must be the number of pixels on the sky, and each
 *     must come back through the opposite transformation.  Positions too far
 *     from the grid for the index of a grid cell to be held in an integer,
-*     and positions that are not finite, must not give values that are not
-*     finite, and must give bad values wherever the transformation tests a
-*     position against the extent of the grid.  An Order that the constructor
-*     would not accept must be rejected by the loader, and the largest Order
-*     must work.
+*     and positions that are not finite, must give bad values.  So must every
+*     position outside the grid of an XPH projection, however near, because a
+*     gore of that projection ends at the edge of the grid.  An Order that
+*     the constructor would not accept must be rejected by the loader, and
+*     the largest Order must work.
 *
 *  Notes:
 *     - Public C API only, with astWatch/astOK for error checking.  XphMap has
@@ -283,20 +283,13 @@ static void check_coverage( const char *type, int order, int forward ) {
    and positions that are not finite.  Each far value is tried on both axes,
    with every other far value and with a position inside the grid on the
    other axis, since the quadrant of an XPH grid that a position falls in
-   selects the arithmetic used.
-
-   A position that is not finite must give bad values.  So must any far
-   position, wherever the transformation tests a position against the extent
-   of the grid.  The forward transformation of an XPH projection does not:
-   it tests a position against the sides of a gore but not against the
-   outer edges of the grid, so a far position in line with a gore gives
-   good values, and those are only required to be finite. */
+   selects the arithmetic used.  Every one must give bad values. */
 static void check_far_positions( const char *type, int order ) {
    AstMapping *map;
    char dump[ 256 ];
    double far[ 8 ];
    double xin[ 80 ], yin[ 80 ], xout[ 80 ], yout[ 80 ];
-   int forward, i, j, n, bounded, wantbad;
+   int forward, i, j, n;
    int nfar = 0;
 
    if( status != 0 ) return;
@@ -329,16 +322,13 @@ static void check_far_positions( const char *type, int order ) {
    map = astFromString( dump );
 
    for( forward = 1; forward >= 0 && status == 0; forward-- ) {
-      bounded = !( forward && type[ 0 ] == 'X' );
       astTran2( map, n, xin, yin, forward, xout, yout );
       if( !astOK ) {
          fail( "testxphmap: astTran2 failed for far positions" );
          break;
       }
       for( i = 0; i < n; i++ ) {
-         wantbad = bounded || !isfinite( xin[ i ] ) || !isfinite( yin[ i ] );
-         if( wantbad ? ( xout[ i ] != AST__BAD || yout[ i ] != AST__BAD )
-                     : ( !isfinite( xout[ i ] ) || !isfinite( yout[ i ] ) ) ) {
+         if( xout[ i ] != AST__BAD || yout[ i ] != AST__BAD ) {
             printf( "testxphmap: type %s order %d %s: (%g,%g) gave (%g,%g)\n",
                     type, order, forward ? "forward" : "inverse", xin[ i ],
                     yin[ i ], xout[ i ], yout[ i ] );
@@ -349,6 +339,78 @@ static void check_far_positions( const char *type, int order ) {
    }
 
    astEnd;
+}
+
+/* The grid of an XPH projection is four facets wide, and each of its four
+   gores runs diagonally from the centre of the grid to a corner, where it
+   ends.  Scan every quarter of a pixel over the grid and a margin wider than
+   the grid on every side, so that the scan crosses the line of each gore
+   beyond its corner.  The forward transformation must give bad values for
+   every position outside the grid.  The edges of the grid are part of it. */
+static void check_outside_grid( const char *type, int order ) {
+#define XPH_MAXROW 640
+   static double xin[ XPH_MAXROW ], yin[ XPH_MAXROW ];
+   static double xout[ XPH_MAXROW ], yout[ XPH_MAXROW ];
+   AstMapping *map;
+   char dump[ 256 ];
+   double hi = 4.0*( 1 << order ) + 0.5;
+   double lo = 0.5;
+   double margin = 5.0*( 1 << order );
+   int i, j, n, ninside, noutside;
+
+   if( status != 0 ) return;
+   astBegin;
+
+   make_dump( dump, sizeof dump, order, type );
+   map = astFromString( dump );
+
+   n = (int)( ( hi - lo + 2.0*margin )*4.0 ) + 1;
+   if( n > XPH_MAXROW ) {
+      fail( "testxphmap: the scan of the surroundings of a grid is too big" );
+      n = 0;
+   }
+
+   ninside = 0;
+   noutside = 0;
+   for( j = 0; j < n && status == 0; j++ ) {
+      for( i = 0; i < n; i++ ) {
+         xin[ i ] = lo - margin + 0.25*i;
+         yin[ i ] = lo - margin + 0.25*j;
+      }
+      astTran2( map, n, xin, yin, 1, xout, yout );
+      if( !astOK ) {
+         fail( "testxphmap: astTran2 failed around the grid" );
+         break;
+      }
+      for( i = 0; i < n; i++ ) {
+         if( xin[ i ] >= lo && xin[ i ] <= hi &&
+             yin[ i ] >= lo && yin[ i ] <= hi ) {
+            if( xout[ i ] != AST__BAD && yout[ i ] != AST__BAD ) ninside++;
+         } else {
+            noutside++;
+            if( xout[ i ] != AST__BAD || yout[ i ] != AST__BAD ) {
+               printf( "testxphmap: type %s order %d: (%g,%g) is outside the "
+                       "grid but gave (%g,%g)\n", type, order, xin[ i ],
+                       yin[ i ], xout[ i ], yout[ i ] );
+               fail( "testxphmap: a position outside the grid was "
+                     "transformed" );
+               break;
+            }
+         }
+      }
+   }
+
+/* Guard against a scan that missed the grid or its surroundings, which
+   would make the loop above vacuous. */
+   if( status == 0 && ( ninside < 12 || noutside < 12 ) ) {
+      printf( "testxphmap: type %s order %d: the scan transformed %d "
+              "positions inside the grid and tried %d outside it\n", type,
+              order, ninside, noutside );
+      fail( "testxphmap: the scan around the grid is not a test" );
+   }
+
+   astEnd;
+#undef XPH_MAXROW
 }
 
 /* The transformation uses the order as a shift count, so the loader must
@@ -396,8 +458,9 @@ static void check_point( AstMapping *map, const char *what, double x,
    }
 }
 
-/* At the largest order an HPX grid is 5*2^27 pixels wide.  Check pixels at
-   both ends of the grid, and positions a facet or more beyond them. */
+/* At the largest order an HPX grid is 5*2^27 pixels wide and an XPH grid is
+   4*2^27.  Check pixels at both ends of the grid, and positions beyond
+   them. */
 static void check_max_order( void ) {
    AstMapping *map;
    char dump[ 256 ];
@@ -419,6 +482,7 @@ static void check_max_order( void ) {
    make_dump( dump, sizeof dump, 27, "XPHN" );
    map = astFromString( dump );
    check_point( map, "last XPHN column", 4.0*n, 1.0, 2.0*n, 1.0 );
+   check_point( map, "after the XPHN grid", 4.0*n + 1.0, 1.0, AST__BAD, 0.0 );
 
    astEnd;
 }
@@ -448,6 +512,13 @@ int main( void ) {
       check_far_positions( types[ itype ], 0 );
       check_far_positions( types[ itype ], 3 );
       check_far_positions( types[ itype ], 27 );
+   }
+
+/* Both XPH projections, at the same orders. */
+   for( itype = 2; itype < 4; itype++ ) {
+      for( order = 0; order <= 3; order++ ) {
+         check_outside_grid( types[ itype ], order );
+      }
    }
 
    check_bad_order( -1 );
