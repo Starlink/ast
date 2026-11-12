@@ -132,9 +132,9 @@ f     - AST_SLAADD: Add a celestial coordinate conversion to an SlaMap
 *        points the motion carries close to a pole.
 
 *     11-NOV-2026 (TIMJ):
-*        astLoadSlaMap now checks that the dump describes a Mapping with two inputs and two outputs.
-*        The transformation read or wrote beyond the coordinate arrays
-*        otherwise.
+*        astLoadSlaMap now checks that the dump describes a Mapping with
+*        two inputs and two outputs. The transformation read or wrote beyond
+*        the coordinate arrays otherwise.
 *class--
 */
 
@@ -5037,9 +5037,9 @@ AstSlaMap *astLoadSlaMap_( void *mem, size_t size,
          }
       }
 
-/* An SlaMap always has two inputs and two outputs, and the transformation relies on this.
-   The numbers read from the dump by the parent Mapping loader are not
-   otherwise constrained, so check them. */
+/* An SlaMap always has two inputs and two outputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
       astCheckLoadedCoords( new, name, 2, 2 );
 
 /* If an error occurred, clean up by deleting the new SlaMap. */
