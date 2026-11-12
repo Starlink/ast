@@ -754,6 +754,11 @@ f     - Title: The Plot title drawn using AST_GRID
 *        Trans no longer annuls an output PointSet supplied by its caller
 *        when an error occurs. The callers annul the PointSets they supply,
 *        so the PointSet was accessed after it had been freed.
+*     11-NOV-2026 (TIMJ):
+*        The copy constructor now gives the new Plot a copy of the graphics
+*        context KeyMap. The two Plots shared a single KeyMap without
+*        holding a reference each, so it was annulled twice once both had
+*        been deleted.
 
 *class--
 */
@@ -29971,6 +29976,8 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    out->clip_ubnd = NULL;
    out->gat = NULL;
    out->ngat = 0;
+   out->grfcontext = NULL;
+   out->grfcontextID = NULL;
 
    for( axis = 0; axis < 3; axis++ ) {
       out->majtickgx[ axis ] = NULL;
@@ -29994,6 +30001,16 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
 /* Copy the Grf function stack */
    out->grfstack = (AstGrfPtrs *) astStore( NULL, (void *) in->grfstack,
                                   sizeof(AstGrfPtrs)*(size_t)(in->grfnstack ));
+
+/* If the input Plot has a graphics context KeyMap, give the output Plot a
+   copy of it, together with a public identifier for the copy like the one
+   created by astGrfConID. Each Plot annuls its own KeyMap and identifier
+   when it is deleted. */
+   if( in->grfcontext ) {
+      out->grfcontext = astCopy( in->grfcontext );
+      out->grfcontextID = astMakeId( astClone( out->grfcontext ) );
+      astExempt( out->grfcontextID );
+   }
 
 /* Copy the information about drawn tick marks. */
    for( axis = 0; axis < 3; axis++ ) {
@@ -30027,6 +30044,12 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
       out->clip_lbnd = (double *) astFree( out->clip_lbnd );
       out->clip_ubnd = (double *) astFree( out->clip_ubnd );
       out->grfstack = (AstGrfPtrs *) astFree( out->grfstack );
+      if( out->grfcontext ) {
+         out->grfcontext = astAnnul( out->grfcontext );
+         if( out->grfcontextID ) {
+            out->grfcontextID = astAnnulId( out->grfcontextID );
+         }
+      }
       SaveTick( out, -1, 0.0, 0.0, 0, status );
     }
 }
