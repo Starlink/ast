@@ -72,6 +72,14 @@
 *        astLoadXphMap now checks that the dump describes a Mapping with
 *        two inputs and two outputs. The transformation read or wrote beyond
 *        the coordinate arrays otherwise.
+*     11-NOV-2026 (TIMJ):
+*        - The transformation now holds grid cell and facet indices in
+*        doubles. They were held in integers, and for a position far from
+*        the grid the conversion of the index to an integer, or the sum or
+*        difference of two indices, was undefined. The result for a
+*        position within range of an integer is unchanged.
+*        - astLoadXphMap now rejects an Order outside the range accepted by
+*        the constructor. The transformation uses it as a shift count.
 *class-
 */
 
@@ -674,11 +682,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    double *px_out;               /* Pointer to next output X value */
    double *py_in;                /* Pointer to next input Y value */
    double *py_out;               /* Pointer to next output Y value */
-   int d;                        /* Difference between x and y grid indices */
-   int fx;                       /* Facet offset along X axis */
-   int fy;                       /* Facet offset along Y axis */
-   int ix;                       /* Nearest integer to X value */
-   int iy;                       /* Nearest integer to Y value */
+   double d;                     /* Difference between x and y grid indices */
+   double fx;                    /* Facet offset along X axis */
+   double fy;                    /* Facet offset along Y axis */
+   double ix;                    /* Nearest integer to X value */
+   double iy;                    /* Nearest integer to Y value */
+   double s;                     /* Sum of x and y grid indices */
    int n2;                       /* Two times nppf */
    int n3;                       /* Three times nppf */
    int n4;                       /* Four times nppf */
@@ -689,7 +698,6 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    int npoint;                   /* Number of points */
    int nppf;                     /* No. of pixels per facet */
    int point;                    /* Loop counter for points */
-   int s;                        /* Sum of x and y grid indices */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
@@ -729,6 +737,18 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* Perform coordinate arithmetic. */
 /* ------------------------------ */
+/* The indices of grid cells and facets, and their sums and differences,
+   are whole numbers but are held in doubles. An input position can be
+   any distance from the grid, and an integer could not hold the index
+   of every cell. All these values are exact in a double until they are
+   far too large to be within the grid.
+
+   The facet index of a cell is its index divided by the facet size and
+   rounded towards zero, so a position less than one facet below the
+   lower edge of the grid has a facet index of zero and is not rejected
+   by the test on the facet indices. The Moc class depends on this: a sky
+   position on the lower edge of an HPX12 grid can be placed marginally
+   outside the grid by rounding errors. */
    if ( astOK ) {
       px_in = ptr_in[ 0 ];
       py_in = ptr_in[ 1 ];
@@ -760,12 +780,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* Get the zero-based facet (x,y) indices - offsets from the bottom left
    facet. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
+                  fx = trunc( ix/nppf );
+                  fy = trunc( iy/nppf );
 
 /* Check that the facet indices are legal. */
                   if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
+                      fabs( fx - fy ) <= 1 ) {
 
 /* Get the sum of the zero-based x and y grid indices, plus one. */
                      s = ix + iy + 1;
@@ -809,10 +829,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                   iy = ceil( *py_in - 1.5 );
 
 /* Get the facet indices and check they are legal. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
+                  fx = trunc( ix/nppf );
+                  fy = trunc( iy/nppf );
                   if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
+                      fabs( fx - fy ) <= 1 ) {
 
 /* Get the sum of the zero-based x and y grid indices, plus one. */
                      s = ix + iy + 1;
@@ -1033,12 +1053,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* Get the zero-based facet (x,y) indices - offsets from the bottom left
    facet in Calabretta & Roukema 2005 Fig 3. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
+                  fx = trunc( ix/nppf );
+                  fy = trunc( iy/nppf );
 
 /* Check that the facet indices are legal. */
                   if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
+                      fabs( fx - fy ) <= 1 ) {
 
 /* Get the sum of the zero-based x and y grid indices, plus one. */
                      s = ix + iy + 1;
@@ -1082,10 +1102,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                   iy = ceil( *py_in - 1.5 );
 
 /* Get the facet indices and check they are legal. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
+                  fx = trunc( ix/nppf );
+                  fy = trunc( iy/nppf );
                   if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
+                      fabs( fx - fy ) <= 1 ) {
 
 /* Get the sum of the zero-based x and y grid indices, plus one. */
                      s = ix + iy + 1;
@@ -1135,10 +1155,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                   iy = ceil( *py_in - 1.5 );
 
 /* Get the facet indices and check they are legal. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
+                  fx = trunc( ix/nppf );
+                  fy = trunc( iy/nppf );
                   if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
+                      fabs( fx - fy ) <= 1 ) {
 
 /* Get the sum of the zero-based x and y grid indices, plus one. */
                      s = ix + iy + 1;
@@ -1192,10 +1212,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                   iy = ceil( *py_in - 1.5 );
 
 /* Get the facet indices and check they are legal. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
+                  fx = trunc( ix/nppf );
+                  fy = trunc( iy/nppf );
                   if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
+                      fabs( fx - fy ) <= 1 ) {
 
 /* Get the sum of the x and y grid indices, plus one. */
                      s = ix + iy + 1;
@@ -1669,6 +1689,16 @@ AstXphMap *astLoadXphMap_( void *mem, size_t size, AstXphMapVtab *vtab,
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */
       new->order = astReadInt( channel, "order", 19 );
+
+/* The transformation uses the order as a shift count and holds multiples
+   of the shifted value in integers, so the order must be in the range
+   accepted by the constructor. */
+      if( ( new->order < 0 || new->order > AST__MXORDHPX ) && astOK ) {
+         astError( AST__LDERR, "astLoad(%s): The HEALPix order read for a "
+                   "%s (%d) is not in the range 0 to %d.", status, name,
+                   name, new->order, AST__MXORDHPX );
+      }
+
       text = astReadString( channel, "type", proj_name[AST__HPX12] );
 
 /* COnvert the projection name into an integer projection identifier. */
