@@ -1,0 +1,21 @@
+ Begin CmpMap 	# Compound Mapping
+    Nin = 2 	# Number of input coordinates
+    IsSimp = 1 	# Mapping has been simplified
+ IsA Mapping 	# Mapping between coordinate systems
+    MapA = 	# First component Mapping
+       Begin WinMap 	# Map one window on to another
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Sft1 = 30.5 	# Shift for axis 1
+          Scl1 = 0.029499999999999998 	# Scale factor for axis 1
+          Sft2 = 30.5 	# Shift for axis 2
+          Scl2 = 0.029499999999999998 	# Scale factor for axis 2
+       End WinMap
+    MapB = 	# Second component Mapping
+       Begin XphMap 	# HPX variant mapping
+          Nin = 2 	# Number of input coordinates
+       IsA Mapping 	# Mapping between coordinate systems
+          Order = 7 	# HEALPix order
+          Type = "HPX12" 	# HPX projection centred on RA=12h
+       End XphMap
+ End CmpMap
