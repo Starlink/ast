@@ -80,6 +80,12 @@
 *        position within range of an integer is unchanged.
 *        - astLoadXphMap now rejects an Order outside the range accepted by
 *        the constructor. The transformation uses it as a shift count.
+*     11-NOV-2026 (TIMJ):
+*        The forward transformation of the XPHN and XPHS types now gives
+*        bad values for a position outside the grid. Each gore was tested
+*        against its sides but not against the edge of the grid where it
+*        ends, so a position beyond the grid but in line with a gore was
+*        transformed to a position outside the HPX12 grid.
 *class-
 */
 
@@ -872,6 +878,15 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
                if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
                   *px_out = AST__BAD;
                   *py_out = AST__BAD;
+
+/* Each gore ends at a corner of the grid, and the tests below check a
+   position against the sides of a gore but not against its end. So
+   reject positions outside the grid here. The edges of the grid are part
+   of the grid. The test is written so that it also rejects a NaN. */
+               } else if( !( *px_in >= 0.5 && *px_in <= n4 + 0.5 &&
+                             *py_in >= 0.5 && *py_in <= n4 + 0.5 ) ) {
+                  *px_out = AST__BAD;
+                  *py_out = AST__BAD;
                } else {
 
 /* The transformation depends on the gore containing the supplied position.
@@ -949,6 +964,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* Check for bad input coordinates */
                if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
+                  *px_out = AST__BAD;
+                  *py_out = AST__BAD;
+
+/* Reject positions outside the grid, as for XPHN. */
+               } else if( !( *px_in >= 0.5 && *px_in <= n4 + 0.5 &&
+                             *py_in >= 0.5 && *py_in <= n4 + 0.5 ) ) {
                   *px_out = AST__BAD;
                   *py_out = AST__BAD;
                } else {
