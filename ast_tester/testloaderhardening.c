@@ -35,6 +35,14 @@
 *       - Moc: ranges without a MaxOrder, a negative number of ranges, a
 *         negative lower bound, and more ranges claimed than are present.
 *
+*     Most classes of Mapping can only have particular numbers of inputs
+*     and outputs, either fixed by the class or implied by the objects that
+*     the Mapping encapsulates.  For each such class, the test changes the
+*     numbers in the dump of a valid Mapping and checks that the result is
+*     rejected.  It also checks that a Mapping, Frame or Region that is
+*     encapsulated by another Mapping cannot be left out of a dump or
+*     replaced by an object of another class.
+*
 *     Two things that the loaders depend on are checked as well.  The memory
 *     allocation functions must report an error for a size that cannot be
 *     represented, rather than return a smaller block.  A SplineMap whose
@@ -206,6 +214,61 @@ static char *set_object( const char *dump, const char *key,
    end = start ? strstr( start, endline ) : NULL;
    if ( !end ) return NULL;
    return splice( dump, start, end + strlen( endline ), text );
+}
+
+/* Return a copy of "dump" in which the first Mapping described has "nin"
+   inputs and "nout" outputs.  Returns NULL if the dump does not start with
+   the description of a Mapping. */
+static char *set_coords( const char *dump, int nin, int nout ) {
+   char lines[ 64 ];
+   const char *pnin = dump ? strstr( dump, " Nin = " ) : NULL;
+   const char *isa = dump ? strstr( dump, " IsA Mapping" ) : NULL;
+   const char *pnout;
+   char *tmp;
+   char *out;
+
+   if ( !pnin || !isa || pnin > isa ) return NULL;
+
+/* Remove any existing Nout line, which follows the Nin line. */
+   pnout = strstr( pnin, " Nout = " );
+   if ( pnout && pnout < isa ) {
+      tmp = splice( dump, pnout, strchr( pnout, '\n' ) + 1, "" );
+   } else {
+      tmp = splice( dump, dump, dump, "" );
+   }
+   if ( !tmp ) return NULL;
+
+/* Replace the Nin line with new Nin and Nout lines. */
+   (void) snprintf( lines, sizeof( lines ), " Nin = %d\n Nout = %d\n", nin,
+                    nout );
+   pnin = strstr( tmp, " Nin = " );
+   out = splice( tmp, pnin, strchr( pnin, '\n' ) + 1, lines );
+   tmp = astFree( tmp );
+   return out;
+}
+
+/* Check that a valid Mapping survives a dump and load, and that its dump
+   is rejected once it has been changed to describe a Mapping with "nin"
+   inputs and "nout" outputs.  Returns the number of failures. */
+static int check_coords( AstMapping *map, const char *class, int nin,
+                         int nout ) {
+   char what[ 80 ];
+   char *dump;
+   int nfail;
+
+   if ( !astOK || !map ) {
+      fprintf( stderr, "testloaderhardening: could not build %s\n", class );
+      if ( !astOK ) astClearStatus;
+      return 1;
+   }
+   nfail = check_valid( class, (AstObject *) map, class );
+   dump = astToString( map );
+   (void) snprintf( what, sizeof( what ), "%s with %d input(s) and %d "
+                    "output(s)", class, nin, nout );
+   nfail += check_rejected_free( what, set_coords( dump, nin, nout ),
+                                 AST__LDERR );
+   dump = astFree( dump );
+   return nfail;
 }
 
 /* Check that a memory allocation function reported AST__NOMEM and returned
@@ -595,6 +658,167 @@ int main( void ) {
       astAddCell( m, AST__OR, 2, 5 );
       nfail += check_valid( "Moc", (AstObject *) m, "Moc" );
       if ( m ) m = astAnnul( m );
+   }
+
+/* Numbers of inputs and outputs: the loader of the parent Mapping class
+   takes them from the dump as they are, but most classes of Mapping only
+   work with particular numbers.  Change the numbers in the dump of a valid
+   Mapping of each such class to ones that the class cannot have. */
+   astBegin;
+   {
+      double shift[ 2 ] = { 1.0, 2.0 };
+      double ina[ 2 ] = { 0.0, 0.0 };
+      double inb[ 2 ] = { 1.0, 1.0 };
+      double outa[ 2 ] = { 2.0, 2.0 };
+      double outb[ 2 ] = { 4.0, 5.0 };
+      double lut[ 4 ] = { 1.0, 2.0, 4.0, 8.0 };
+      double pcdcen[ 2 ] = { 0.0, 0.0 };
+      double args[ 2 ] = { 2000.0, 0.0 };
+      double centre[ 2 ] = { 0.5, 0.5 };
+      double p1[ 2 ] = { 0.0, 0.0 };
+      double p2[ 2 ] = { 1.0, 1.0 };
+      double p3[ 2 ] = { 2.0, 2.0 };
+      double p4[ 2 ] = { 3.0, 3.0 };
+      const char *sfwd[ 1 ] = { "y=1+qif(x>0.5,1,0)" };
+      const char *sinv[ 1 ] = { "x" };
+      AstFrame *frame = astFrame( 2, " " );
+      AstSlaMap *slamap = astSlaMap( 0, " " );
+      AstSpecMap *specmap1 = astSpecMap( 1, 0, " " );
+      AstSpecMap *specmap3 = astSpecMap( 3, 0, " " );
+      AstTimeMap *timemap = astTimeMap( 0, " " );
+      AstCmpMap *series;
+      AstCmpMap *parallel;
+      AstNormMap *normmap;
+      AstRateMap *ratemap;
+      AstSelectorMap *selector;
+      void *regs[ 2 ];
+      void *routes[ 2 ];
+      char *dump;
+
+/* Classes with the same number of outputs as inputs. */
+      nfail += check_coords( (AstMapping *) astUnitMap( 2, " " ), "UnitMap",
+                             2, 3 );
+      nfail += check_coords( (AstMapping *) astZoomMap( 2, 2.0, " " ),
+                             "ZoomMap", 3, 2 );
+      nfail += check_coords( (AstMapping *) astShiftMap( 2, shift, " " ),
+                             "ShiftMap", 2, 3 );
+      nfail += check_coords( (AstMapping *) astWinMap( 2, ina, inb, outa,
+                                                       outb, " " ),
+                             "WinMap", 3, 2 );
+
+/* Classes with fixed numbers of inputs and outputs. */
+      nfail += check_coords( (AstMapping *) astLutMap( 4, lut, 0.0, 1.0,
+                                                       " " ), "LutMap", 1, 2 );
+      nfail += check_coords( (AstMapping *) astPcdMap( 0.01, pcdcen, " " ),
+                             "PcdMap", 1, 2 );
+      astSlaAdd( slamap, "FK45Z", 1, args );
+      nfail += check_coords( (AstMapping *) slamap, "SlaMap", 2, 1 );
+      nfail += check_coords( (AstMapping *) astSphMap( " " ), "SphMap", 2,
+                             2 );
+      astTimeAdd( timemap, "MJDTOJD", 2, args );
+      nfail += check_coords( (AstMapping *) timemap, "TimeMap", 1, 2 );
+      nfail += check_coords( (AstMapping *) astGrismMap( " " ), "GrismMap",
+                             2, 1 );
+
+/* A SpecMap has one input and one output, or three of each. */
+      astSpecAdd( specmap1, "WVTOFR", 0, args );
+      nfail += check_coords( (AstMapping *) specmap1, "SpecMap", 2, 2 );
+      astSpecAdd( specmap3, "WVTOFR", 0, args );
+      nfail += check_coords( (AstMapping *) specmap3, "SpecMap", 3, 2 );
+
+/* A UnitNormMap has one more output than inputs. */
+      nfail += check_coords( (AstMapping *) astUnitNormMap( 2, centre, " " ),
+                             "UnitNormMap", 2, 2 );
+
+/* An XphMap has no public constructor, so start from a dump. */
+      nfail += check_accepted( "crafted XphMap",
+         " Begin XphMap\n Nin = 2\n IsA Mapping\n Order = 8\n"
+         " Type = \"HPX12\"\n End XphMap\n", "XphMap" );
+      nfail += check_rejected( "XphMap with three outputs",
+         " Begin XphMap\n Nin = 2\n Nout = 3\n IsA Mapping\n Order = 8\n"
+         " Type = \"HPX12\"\n End XphMap\n", AST__LDERR );
+
+/* A NormMap has an input and an output for each axis of its Frame, which
+   must be present and must be a Frame. */
+      normmap = astNormMap( astSkyFrame( " " ), " " );
+      nfail += check_coords( (AstMapping *) normmap, "NormMap", 3, 3 );
+      dump = astToString( normmap );
+      nfail += check_rejected_free( "NormMap with no Frame",
+         set_object( dump, "Frame", " End SkyFrame\n", "" ), AST__LDERR );
+      nfail += check_rejected_free( "NormMap with a UnitMap as its Frame",
+         set_object( dump, "Frame", " End SkyFrame\n",
+                     " Frame =\n Begin UnitMap\n Nin = 2\n IsA Mapping\n"
+                     " End UnitMap\n" ), AST__LDERR );
+      dump = astFree( dump );
+
+/* A CmpMap has the inputs and outputs implied by its two components, which
+   must both be present and must be Mappings.  In series, the outputs of
+   the first component must match the inputs of the second. */
+      series = astCmpMap( astShiftMap( 2, shift, " " ),
+                          astZoomMap( 2, 2.0, " " ), 1, " " );
+      nfail += check_coords( (AstMapping *) series, "CmpMap", 2, 3 );
+      parallel = astCmpMap( astUnitMap( 1, " " ), astZoomMap( 2, 2.0, " " ),
+                            0, " " );
+      nfail += check_coords( (AstMapping *) parallel, "CmpMap", 4, 3 );
+      dump = astToString( series );
+      nfail += check_rejected_free( "CmpMap with no second component",
+         set_object( dump, "MapB", " End ZoomMap\n", "" ), AST__LDERR );
+      nfail += check_rejected_free( "CmpMap with a KeyMap as a component",
+         set_object( dump, "MapB", " End ZoomMap\n",
+                     " MapB =\n Begin KeyMap\n End KeyMap\n" ),
+         AST__LDERR );
+      nfail += check_rejected_free( "series CmpMap with mismatched components",
+         set_object( dump, "MapB", " End ZoomMap\n",
+                     " MapB =\n Begin ZoomMap\n Nin = 3\n IsA Mapping\n"
+                     " Zoom = 2\n End ZoomMap\n" ), AST__LDERR );
+      dump = astFree( dump );
+
+/* A TranMap has the inputs and outputs of both of its components. */
+      nfail += check_coords( (AstMapping *) astTranMap( astUnitMap( 2, " " ),
+                                                        astZoomMap( 2, 3.0,
+                                                                    " " ),
+                                                        " " ),
+                             "TranMap", 2, 3 );
+
+/* A RateMap has the inputs of its Mapping and one output, and its axis
+   indices must select an input and an output of that Mapping. */
+      ratemap = astRateMap( astZoomMap( 2, 2.0, " " ), 1, 1, " " );
+      nfail += check_coords( (AstMapping *) ratemap, "RateMap", 2, 2 );
+      dump = astToString( ratemap );
+      nfail += check_rejected_free( "RateMap with an out-of-range input axis",
+         add_lines( dump, " IIn = 7\n" ), AST__LDERR );
+      nfail += check_rejected_free( "RateMap with an out-of-range output "
+         "axis", add_lines( dump, " IOut = -1\n" ), AST__LDERR );
+      nfail += check_rejected_free( "RateMap with no Mapping",
+         set_object( dump, "Map", " End ZoomMap\n", "" ), AST__LDERR );
+      dump = astFree( dump );
+
+/* A SelectorMap has an input for each axis of its Regions and one output,
+   and each of the objects it holds must be a Region. */
+      regs[ 0 ] = astBox( frame, 1, p1, p2, NULL, " " );
+      regs[ 1 ] = astBox( frame, 1, p3, p4, NULL, " " );
+      selector = astSelectorMap( 2, regs, AST__BAD, " " );
+      nfail += check_coords( (AstMapping *) selector, "SelectorMap", 2, 2 );
+      dump = astToString( selector );
+      nfail += check_rejected_free( "SelectorMap with a UnitMap as a Region",
+         set_object( dump, "Reg1", " End Box\n",
+                     " Reg1 =\n Begin UnitMap\n Nin = 2\n IsA Mapping\n"
+                     " End UnitMap\n" ), AST__LDERR );
+      dump = astFree( dump );
+
+/* A SwitchMap has the inputs and outputs of its route Mappings. */
+      routes[ 0 ] = astUnitMap( 1, " " );
+      routes[ 1 ] = astZoomMap( 1, 2.0, " " );
+      nfail += check_coords( (AstMapping *) astSwitchMap(
+                                astMathMap( 1, 1, 1, sfwd, 1, sinv, " " ),
+                                NULL, 2, routes, " " ), "SwitchMap", 1, 2 );
+   }
+   astEnd;
+   if ( !astOK ) {
+      fprintf( stderr, "testloaderhardening: error while checking the "
+               "numbers of inputs and outputs\n" );
+      astClearStatus;
+      nfail++;
    }
 
 /* Memory allocation: a count read from a dump is turned into a size in
