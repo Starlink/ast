@@ -469,6 +469,10 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        card in a dump therefore depended on which of them had been
 *        inspected, and two Mappings reported as equal by astEqual could
 *        dump differently as a result.
+*     11-NOV-2026 (TIMJ):
+*        Added protected functions astCheckLoadedCoords and astCheckLoadedMap
+*        for use by the loaders of classes that restrict their numbers of
+*        inputs and outputs, or encapsulate other Mappings.
 *class--
 */
 
@@ -24164,6 +24168,163 @@ AstMapping *astLoadMapping_( void *mem, size_t size,
 
 /* Return the new Mapping pointer. */
    return new;
+}
+
+void astCheckLoadedCoords_( AstMapping *this, const char *name, int nin,
+                            int nout, int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoadedCoords
+
+*  Purpose:
+*     Check the numbers of inputs and outputs of a newly loaded Mapping.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     void astCheckLoadedCoords( AstMapping *this, const char *name, int nin,
+*                                int nout )
+
+*  Class Membership:
+*     Mapping member function.
+
+*  Description:
+*     astLoadMapping takes the numbers of input and output coordinates of
+*     a Mapping from a dump without restriction. Many classes of Mapping
+*     can only have particular numbers, which their constructors ensure
+*     and their other functions rely on. The loader for such a class
+*     should call this function, once it has loaded the rest of the
+*     object, to report an error if the numbers read from the dump are
+*     not the ones that the class requires.
+
+*  Parameters:
+*     this
+*        Pointer to the Mapping.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     nin
+*        The number of input coordinates that the Mapping must have,
+*        ignoring any inversion of the Mapping.
+*     nout
+*        The number of output coordinates that the Mapping must have,
+*        ignoring any inversion of the Mapping.
+
+*  Notes:
+*     - An error with status AST__LDERR is reported if either number
+*     differs from the one supplied.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Compare the stored numbers, which describe the Mapping before any
+   inversion, with the required numbers. */
+   if ( this->nin != nin || this->nout != nout ) {
+      astError( AST__LDERR, "astLoad(%s): Invalid numbers of inputs (%d) and "
+                "outputs (%d) read for a %s - there should be %d and %d.",
+                status, name, this->nin, this->nout, name, nin, nout );
+   }
+}
+
+void astCheckLoadedMap_( void *map_void, int invert, const char *name,
+                         const char *item, int *nin, int *nout,
+                         int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoadedMap
+
+*  Purpose:
+*     Check a component Mapping of a newly loaded object.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     void astCheckLoadedMap( void *map, int invert, const char *name,
+*                             const char *item, int *nin, int *nout )
+
+*  Class Membership:
+*     Mapping member function.
+
+*  Description:
+*     This function is for use by the loader of a class that encapsulates
+*     other Mappings, each stored with the value that its Invert attribute
+*     should have whenever it is used. It reports an error if the supplied
+*     pointer, which will usually have been returned by astReadObject, is
+*     NULL or does not identify a Mapping. Otherwise, it returns the
+*     numbers of input and output coordinates that the component has when
+*     its Invert attribute has the supplied value. The component itself is
+*     not changed.
+
+*  Parameters:
+*     map
+*        Pointer to the component. This may be NULL.
+*     invert
+*        The value that the Invert attribute of the component has when
+*        the component is used.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     item
+*        A description of the component, such as "first component
+*        Mapping", for use in error messages.
+*     nin
+*        Pointer to an int in which to return the number of input
+*        coordinates.
+*     nout
+*        Pointer to an int in which to return the number of output
+*        coordinates.
+
+*  Notes:
+*     - An error with status AST__LDERR is reported if the component is
+*     missing or is not a Mapping.
+*     - Zero is returned for both numbers if an error has already
+*     occurred, or if this function should fail for any reason.
+*-
+*/
+
+/* Local Variables: */
+   AstMapping *map;              /* Pointer to the component Mapping */
+
+/* Initialise. */
+   *nin = 0;
+   *nout = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Report an error if the component is missing, or is not a Mapping. */
+   if ( !map_void ) {
+      astError( AST__LDERR, "astLoad(%s): The %s is missing from the %s "
+                "read.", status, name, item, name );
+
+   } else if ( !astIsAMapping( map_void ) ) {
+      astError( AST__LDERR, "astLoad(%s): The %s read for a %s is a %s, "
+                "which is not a Mapping.", status, name, item, name,
+                astGetClass( map_void ) );
+
+/* Otherwise, get the numbers of inputs and outputs. Inverting a Mapping
+   swaps them, so swap them if the Mapping is not currently inverted in the
+   way required. */
+   } else {
+      map = (AstMapping *) map_void;
+      if ( ( astGetInvert( map ) != 0 ) == ( invert != 0 ) ) {
+         *nin = astGetNin( map );
+         *nout = astGetNout( map );
+      } else {
+         *nin = astGetNout( map );
+         *nout = astGetNin( map );
+      }
+      if ( !astOK ) {
+         *nin = 0;
+         *nout = 0;
+      }
+   }
 }
 
 /* Virtual function interfaces. */
