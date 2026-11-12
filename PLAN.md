@@ -119,6 +119,9 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   Releasing the KeyMap twice is a use of freed memory, so that part of the test is only decisive under AddressSanitizer.
 - testpolymapinv — a PolyMap must only offer an iterative inverse when it has a forward transformation to iterate.
   It checks the IterInverse default and TranInverse for PolyMaps with no coefficients, with inverse coefficients only and with forward coefficients only, that asking for an iterative inverse without a forward transformation is an error (through the attribute, the constructor options and a dump), and that the iterative inverse of a forward-only PolyMap still inverts it.
+- testsplinemapedge — SplineMap values on the edges of the area covered by its knots.
+  A bilinear and a constant SplineMap with a single knot interval on each axis, and SplineMaps with one interval on one axis and two on the other, must give the exact spline value on every edge and corner, and AST__BAD just outside.
+  A SplineMap whose knots are all equal on one axis covers no area and must give AST__BAD rather than NaN.
 
 **Optional manual stress test:**
 - testhuge_c

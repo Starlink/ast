@@ -341,6 +341,7 @@ ast_add_test(testloaderhardening)
 ast_add_test(testplotclip)
 ast_add_test(testplotcopy)
 ast_add_test(testpolymapinv)
+ast_add_test(testsplinemapedge)
 ast_add_test(testunitnorm)
 ast_add_test(testobjectkeymap)
 
