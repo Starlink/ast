@@ -117,6 +117,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testplotcopy — a copy of a Plot must own its graphics context KeyMap: it starts with the original's contents, changes independently, and is released separately.
   It also copies a Plot3D and annuls the original and the copy in either order.
   Releasing the KeyMap twice is a use of freed memory, so that part of the test is only decisive under AddressSanitizer.
+- testpolymapinv — a PolyMap must only offer an iterative inverse when it has a forward transformation to iterate.
+  It checks the IterInverse default and TranInverse for PolyMaps with no coefficients, with inverse coefficients only and with forward coefficients only, that asking for an iterative inverse without a forward transformation is an error (through the attribute, the constructor options and a dump), and that the iterative inverse of a forward-only PolyMap still inverts it.
 
 **Optional manual stress test:**
 - testhuge_c
