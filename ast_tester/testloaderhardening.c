@@ -302,6 +302,7 @@ static int check_spline_values( const char *what, AstSplineMap *map ) {
    double vout[ 5 ];
    int i;
    int nfail = 0;
+   int ok;
 
    astTran2( map, 5, xin, yin, 1, uout, vout );
    if ( !astOK ) {
@@ -311,10 +312,13 @@ static int check_spline_values( const char *what, AstSplineMap *map ) {
       return 1;
    }
    for ( i = 0; i < 5; i++ ) {
-      if ( ( uexp[ i ] == AST__BAD ) ? ( uout[ i ] != AST__BAD ||
-                                         vout[ i ] != AST__BAD )
-                                     : ( fabs( uout[ i ] - uexp[ i ] ) > 1e-12 ||
-                                         fabs( vout[ i ] - vexp[ i ] ) > 1e-12 ) ) {
+      if ( uexp[ i ] == AST__BAD ) {
+         ok = ( uout[ i ] == AST__BAD && vout[ i ] == AST__BAD );
+      } else {
+         ok = ( fabs( uout[ i ] - uexp[ i ] ) <= 1e-12 &&
+                fabs( vout[ i ] - vexp[ i ] ) <= 1e-12 );
+      }
+      if ( !ok ) {
          fprintf( stderr, "testloaderhardening: %s at Y=%g gave (%g,%g), "
                   "expected (%g,%g)\n", what, yin[ i ], uout[ i ], vout[ i ],
                   uexp[ i ], vexp[ i ] );
