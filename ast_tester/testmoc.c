@@ -697,8 +697,10 @@ int main( void ) {
    if( astTestCell( moc, 8, (int64_t)123456, 0 ) )
       stopit( "Error 32", status );
 
-   /* String MOC round-trip. */
-   {  const char *mocstr1 = "1/1-2,4 2/12-14,21,23,25 8/";
+   /* String MOC round-trip. The cells of a string MOC are separated by
+      spaces when written, as the MOC recommendation requires, and may be
+      separated by spaces or commas when read. */
+   {  const char *mocstr1 = "1/1-2 4 2/12-14 21 23 25 8/";
       const char *mocstr2 = " 1/1,2,4   2/12-14, 21,23,25 8/ ";
       moc = astMoc( " " );
       astAddMocString( moc, AST__OR, 0, -1, strlen(mocstr1), mocstr1, &json );

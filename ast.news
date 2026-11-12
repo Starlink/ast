@@ -103,6 +103,11 @@ Bug fixes
 - astAddRegion left cells out of the Moc of a Region that covers about half
   the sky or more, such as a Circle with a radius of 90 degrees or more.
 
+- A string MOC written by astGetMocString or a MocChan now has spaces
+  between its cells, as the MOC recommendation requires, rather than commas,
+  which other MOC libraries do not accept. A string MOC with either is still
+  read.
+
 Build system changes
 --------------------
 
