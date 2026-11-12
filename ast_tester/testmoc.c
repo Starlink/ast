@@ -260,6 +260,90 @@ static void checkEdgePositions( int *status ) {
    }
 }
 
+/* A Region that covers more than half the sky is the area outside its
+   boundary in every projection that could be used to look for its cells.
+   The expected cells of this Circle, of radius 150 degrees about the south
+   pole, are those with centres south of Dec +60, as given by the CDS
+   HEALPix library. */
+static void checkLargeRegion( int *status ) {
+   AstMoc *moc;
+   AstCircle *circle;
+   const double d2r = AST__DPI/180.0;
+   double centre[ 2 ], radius;
+
+   if( *status != 0 ) return;
+   centre[ 0 ] = 0.0;
+   centre[ 1 ] = -90.0*d2r;
+   radius = 150.0*d2r;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc = astMoc( "MaxOrder=2,MinOrder=2" );
+   astAddRegion( moc, AST__OR, circle );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkLargeRegion: error making the Moc", status );
+   }
+   checkCells( moc, "0/4-11 1/0-2 4-6 8-10 12-14 2/12 28 44 60",
+               "checkLargeRegion: wrong cells", status );
+   moc = astAnnul( moc );
+   circle = astAnnul( circle );
+}
+
+/* The cells of a Region that is the area outside its boundary are found by
+   searching for the cells of its complement and negating them, so the
+   search covers only the box round the boundary, however large the Region
+   is and however fine the grid at MinOrder. This Circle of radius 170
+   degrees has the same cells as the complement of the Circle of radius 10
+   degrees about the opposite point, except where a cell centre is so close
+   to the shared boundary that rounding puts it on different sides in the
+   two calculations. Before the search of the complement, this Moc needed
+   the whole grid at order 11, which is a hundred million cells. */
+static void checkLargeRegionHighOrder( int *status ) {
+   AstMoc *moc, *moc2;
+   AstCircle *circle;
+   const double d2r = AST__DPI/180.0;
+   double centre[ 2 ], radius, cell, area;
+   int json;
+
+   if( *status != 0 ) return;
+
+   centre[ 0 ] = 20.0*d2r;
+   centre[ 1 ] = 30.0*d2r;
+   radius = 170.0*d2r;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc = astMoc( "MaxOrder=16" );
+   astAddRegion( moc, AST__OR, circle );
+   circle = astAnnul( circle );
+
+   centre[ 0 ] = 200.0*d2r;
+   centre[ 1 ] = -30.0*d2r;
+   radius = 10.0*d2r;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc2 = astMoc( "MaxOrder=16" );
+   astAddMocString( moc2, AST__OR, 0, -1, 6, "0/0-11", &json );
+   astAddRegion( moc2, AST__XOR, circle );
+   circle = astAnnul( circle );
+
+/* The area of the symmetric difference of the two Mocs, in cells at order
+   16, must be no more than a handful of the cells along the boundary. */
+   astAddRegion( moc, AST__XOR, moc2 );
+   cell = 4.0*AST__DPI*AST__DR2D*AST__DR2D*3600.0*3600.0/
+          ( 12.0*pow( 4.0, 16.0 ) );
+   area = astGetD( moc, "MocArea" )/cell;
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkLargeRegionHighOrder: error making the Mocs", status );
+   } else if( area > 100.0 ) {
+      printf( "checkLargeRegionHighOrder: the Mocs differ by %g cells\n",
+              area );
+      stopit( "checkLargeRegionHighOrder: wrong cells", status );
+   }
+   moc = astAnnul( moc );
+   moc2 = astAnnul( moc2 );
+}
+
 /* A Moc can have a MaxOrder of zero, which leaves no lower order at which
    to start looking for the cells of a Region or pixel mask. Each of the
    twelve cells is then in the Moc if its centre is in the Region or on a
@@ -739,6 +823,8 @@ int main( void ) {
    checkEmptyTransform( status );
    checkEdgePositions( status );
    checkOrderZero( status );
+   checkLargeRegion( status );
+   checkLargeRegionHighOrder( status );
    checkLargeRange( status );
    checkOversampleNegate( status );
    checkMocStringErrors( status );
