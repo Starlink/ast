@@ -137,6 +137,11 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   Using the dump in fixtures/serialisation/c_dssmap.ast, it checks the sky positions of pixels on the plate and the return trip, that sky positions on the far side of the sky from the plate centre and positions too large for the plate solution give AST__BAD, and that a dump is rejected if a required value is missing, if it does not have two inputs and two outputs, or if its plate centre or pixel offsets are too large for the DSS FITS keywords.
   It also checks that a DssMap absorbs a neighbouring WinMap on simplification only when the new pixel offsets are whole numbers of pixels that an integer can hold.
   The conversion of an oversized pixel offset to an integer was undefined, which the test can only detect under UndefinedBehaviorSanitizer.
+- testmoccds — the Moc class against the CDS HEALPix library.
+  The expected values were computed with cdshealpix 0.10.1 as used by cds-moc 0.19.3, the library that MOCPy is built on, and are held in tables in the test.
+  It checks the cell that holds each of 20 sky positions at six orders from 0 to 27, many of them on a cell boundary, on a meridian where the HEALPix projections used by the Moc class are cut, or at a pole.
+  It checks the cells of the Mocs of 65 Circles, including Circles centred on such positions, Circles that cover more than half the sky and Mocs with a MaxOrder of zero, and of the Mocs of 12 Polygons.
+  It checks that string and JSON MOCs written by cds-moc are read correctly, and that AST writes a string MOC with spaces between its cells.
 
 **Optional manual stress test:**
 - testhuge_c
