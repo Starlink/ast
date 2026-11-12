@@ -368,6 +368,15 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *     22-SEP-2026 (TIMJ):
 *         NormBox: treat the pole test as failed if astTran2 reports an
 *         error, rather than reading the values it did not write.
+*     12-NOV-2026 (TIMJ):
+*         LineIncludes: treat a point at the end of a line as outside the
+*         line whichever way its distance from the start has been rounded,
+*         as a point at the start is treated as inside, and keep the cosine
+*         of that distance within range. A point at the join of two lines
+*         could be found in both or in neither, so a line that passed
+*         through a vertex of a Polygon was counted as crossing its
+*         boundary twice or not at all, and a position beyond the vertex
+*         was taken to be inside the Polygon.
 *class--
 */
 
@@ -5807,6 +5816,7 @@ static int LineIncludes( SkyLineDef *l, double point[3], double *dist,
 
 /* Local Variables: */
    double t1, t2, t3;
+   double tol;
    int result;
 
 /* Initialise */
@@ -5816,8 +5826,15 @@ static int LineIncludes( SkyLineDef *l, double point[3], double *dist,
    if ( !astOK ) return 0;
 
 /* Get the unsigned distance of the point in radians from the start of the
-   line, in the range 0 - 180 degs (t2). */
+   line, in the range 0 - 180 degs (t2). Rounding can leave the cosine of
+   the distance marginally outside the range -1 to 1 for a point at the
+   start of the line or opposite it. */
    t1 = palDvdv( l->start, point );
+   if( t1 > 1.0 ) {
+      t1 = 1.0;
+   } else if( t1 < -1.0 ) {
+      t1 = -1.0;
+   }
    t2 = acos( t1 );
 
 /* Get the cosine of the distance in radians from the point to the line's
@@ -5838,9 +5855,18 @@ static int LineIncludes( SkyLineDef *l, double point[3], double *dist,
       result = 1;
 
 /* If the line is not infinite, check the distance from the start of the
-   line to the point is less than the line length. */
+   line to the point is less than the line length. The test above treats
+   a point that is up to 1.0E-10 radians before the start of the line as
+   being at the start, and so within the line. So that the end of the line
+   is treated in the same way, a point within that distance of the end is
+   taken to be at the end, and so outside the line. Where two lines are
+   joined end to start, as the edges of a Polygon are, a point at the join
+   is then within one of them and not the other, however its distance
+   along each has been rounded. A line that is too short for this is
+   tested as it stands. */
    } else {
-      result = ((l->length > 0) ? t2 < l->length : t2 == 0.0 );
+      tol = ( l->length > 2.0E-10 ) ? 1.0E-10 : 0.0;
+      result = ((l->length > 0) ? t2 < l->length - tol : t2 == 0.0 );
    }
 
    if( dist ) *dist = t2;

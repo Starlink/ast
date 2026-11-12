@@ -78,6 +78,12 @@ Bug fixes
   (USF2HL, TPF2HL, GEF2HL, BYF2HL, LKF2HL, LDF2HL, LGF2HL, GLF2HL and their
   inverses).
 
+- A position could be reported as inside a Polygon on the sky when it is
+  outside it, if the line to the position from the middle of the Polygon
+  passes exactly through a vertex. For instance a square about the north
+  pole with vertices at an RA of 0, 6, 12 and 18 hours was reported to
+  contain positions in the southern hemisphere at those RAs.
+
 - astAddRegion could not add to a Moc a Region centred on, or with a vertex
   at, a position where the HEALPix projections used by the Moc class are
   cut: a position at RA=0 with a Dec between -41.8 and +41.8 degrees, a

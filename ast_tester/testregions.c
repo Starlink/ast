@@ -25,6 +25,7 @@ static void generalChecks( int *status );
 static void checkCmpRegion( int *status );
 static void checkPointList( int *status );
 static void checkPolygonMaskLargeLobe( int *status );
+static void checkPolygonThroughVertex( int *status );
 static void checkPrismOverlapFallback( int *status );
 static void checkNonAdaptiveSettingCase( int *status );
 static void checkPointListMaskOutside( int *status );
@@ -65,6 +66,7 @@ int main(void) {
    checkCmpRegion( status );
    checkPointList( status );
    checkPolygonMaskLargeLobe( status );
+   checkPolygonThroughVertex( status );
    checkPrismOverlapFallback( status );
    checkNonAdaptiveSettingCase( status );
    checkPointListMaskOutside( status );
@@ -3351,6 +3353,66 @@ static void obsdump_sink( const char *line ) {
 
 static const char *obsdump_source( void ) {
    return ( obsdump_next < obsdump_nline ) ? obsdump_lines[ obsdump_next++ ] : NULL;
+}
+
+/* Whether a position is inside a Polygon is decided by counting the
+   edges crossed by a line to it from a point inside the Polygon. If the
+   line passes through a vertex, it crosses the boundary once, where two
+   edges join. A square about a pole with its vertices on the meridians at
+   RA 0, 6, 12 and 18 hours has its inside point at the pole, so the line
+   to every position on those meridians passes through a vertex. Such a
+   position is inside the Polygon only if it is nearer the pole than the
+   vertices are. */
+static void checkPolygonThroughVertex( int *status ) {
+   static const double dec[ 9 ] = { 89.0, 80.0, 61.0, 59.0, 30.0, 0.0, -30.0,
+                                    -60.0, -89.0 };
+   const double d2r = AST__DPI/180.0;
+   AstPolygon *poly;
+   AstSkyFrame *sky;
+   double points[ 8 ], x[ 36 ], y[ 36 ], xout[ 36 ], yout[ 36 ];
+   int i, inside, ipole, j, n, want;
+
+   if( *status != 0 ) return;
+   astBegin;
+
+   sky = astSkyFrame( "System=ICRS" );
+   for( ipole = 0; ipole < 2 && *status == 0; ipole++ ) {
+
+/* The vertices are in the order that puts the pole inside the Polygon. */
+      for( i = 0; i < 4; i++ ) {
+         points[ i ] = ( ipole ? i : 3 - i )*90.0*d2r;
+         points[ 4 + i ] = ( ipole ? -60.0 : 60.0 )*d2r;
+      }
+      poly = astPolygon( sky, 4, 4, points, NULL, " " );
+
+      n = 0;
+      for( j = 0; j < 4; j++ ) {
+         for( i = 0; i < 9; i++ ) {
+            x[ n ] = j*90.0*d2r;
+            y[ n ] = ( ipole ? -dec[ i ] : dec[ i ] )*d2r;
+            n++;
+         }
+      }
+      astTran2( poly, n, x, y, 1, xout, yout );
+
+      for( i = 0; i < n && astOK; i++ ) {
+         inside = ( xout[ i ] != AST__BAD );
+         want = ( fabs( y[ i ] ) > 60.5*d2r ) && ( ( y[ i ] < 0.0 ) == ipole );
+         if( inside != want ) {
+            printf( "(%g,%g) is %s a square about the %s pole\n", x[ i ]/d2r,
+                    y[ i ]/d2r, inside ? "inside" : "outside",
+                    ipole ? "south" : "north" );
+            stopit( status, "checkPolygonThroughVertex: wrong side of "
+                    "the boundary" );
+            break;
+         }
+      }
+   }
+   if( !astOK ) {
+      stopit( status, "checkPolygonThroughVertex: error testing positions" );
+   }
+
+   astEnd;
 }
 
 /* An StcObsDataLocation with no observatory position can be written and
