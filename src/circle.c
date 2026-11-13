@@ -65,6 +65,9 @@ f     - AST_CIRCLEPARS: Get the geometric parameters of the Circle
 *     13-NOV-2026 (TIMJ):
 *        In astLoadCircle, check that the dump supplied the points that
 *        define the Circle, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -2110,8 +2113,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
    pset_tmp = astAnnul( pset_tmp );
    frm = astAnnul( frm );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;

@@ -260,6 +260,9 @@ f     The WcsMap class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        In astLoadWcsMap, do not use the projection type string if it
 *        could not be read because of an earlier error.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not delete an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -4443,8 +4446,13 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
       }
    }
 
-/* If an error has occurred, attempt to delete the results PointSet. */
-   if ( !astOK ) result = astDelete( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astDelete( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;

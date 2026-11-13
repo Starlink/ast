@@ -128,6 +128,9 @@ f     The Box class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        In astLoadBox, check that the dump supplied the points that
 *        define the Box, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -4291,8 +4294,13 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    lo = astFree( lo );
    hi = astFree( hi );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;

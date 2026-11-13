@@ -759,6 +759,9 @@ f     - Title: The Plot title drawn using AST_GRID
 *        context KeyMap. The two Plots shared a single KeyMap without
 *        holding a reference each, so it was annulled twice once both had
 *        been deleted.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 
 *class--
 */
@@ -28613,8 +28616,13 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Annul the mapping. */
    map = astAnnul( map );
 
-/* If an error has occurred, annul the result. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
