@@ -90,6 +90,9 @@ f     The Prism class does not define any new routines beyond those
 *        it takes them, (that, this). The fallback used when the Prism's
 *        components cannot be compared separately returned 3 for a Prism
 *        inside the other Region, and 2 for the other Region inside it.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadPrism, check that the dump supplied two component
+*        Regions that together have the axes of the Prism.
 *class--
 */
 
@@ -4404,10 +4407,27 @@ AstPrism *astLoadPrism_( void *mem, size_t size, AstPrismVtab *vtab,
 /* First Region. */
 /* -------------- */
       new->region1 = astReadObject( channel, "regiona", NULL );
+      astCheckLoaded( new->region1, Region, 1, name,
+                      "first component Region" );
 
 /* Second Region. */
 /* --------------- */
       new->region2 = astReadObject( channel, "regionb", NULL );
+      astCheckLoaded( new->region2, Region, 1, name,
+                      "second component Region" );
+
+/* The base Frame of a Prism is made by joining the Frames of its two
+   component Regions, so it has all the axes of both. */
+      if( astOK ) {
+         nax1 = astGetNaxes( new->region1 );
+         nax2 = astGetNaxes( new->region2 );
+         if( nax1 + nax2 != astGetNin( ((AstRegion *) new)->frameset ) ) {
+            astError( AST__LDERR, "astLoadPrism(%s): The component Regions "
+                      "read for a %s have %d and %d axes, but the %s has "
+                      "%d.", status, name, name, nax1, nax2, name,
+                      astGetNin( ((AstRegion *) new)->frameset ) );
+         }
+      }
 
 /* Either component Region may currently contain a dummy FrameSet rather than
    the correct FrameSet (see the Dump function for this class). In this case,

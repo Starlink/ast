@@ -122,6 +122,9 @@ f     The CmpRegion class does not define any new routines beyond those
 *        CmpRegion containing it used to merge its two XORed Regions into
 *        its own OR list, so that "A OR (B XOR C)" was listed as
 *        "A OR B OR C".
+*     13-NOV-2026 (TIMJ):
+*        In astLoadCmpRegion, check that the dump supplied a valid operator
+*        and two component Regions that have the axes of the CmpRegion.
 *class--
 */
 
@@ -4983,6 +4986,7 @@ AstCmpRegion *astLoadCmpRegion_( void *mem, size_t size,
    AstRegion *creg;              /* Pointer to component Region */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    int i;                        /* Loop count */
+   int nax;                      /* No. of axes in the base Frame */
    int oper;                     /* The operator to include in the dump */
 
 /* Initialise. */
@@ -5039,10 +5043,28 @@ AstCmpRegion *astLoadCmpRegion_( void *mem, size_t size,
 /* First Region. */
 /* -------------- */
       reg1 = astReadObject( channel, "regiona", NULL );
+      astCheckLoaded( reg1, Region, 1, name, "first component Region" );
 
 /* Second Region. */
 /* --------------- */
       reg2 = astReadObject( channel, "regionb", NULL );
+      astCheckLoaded( reg2, Region, 1, name, "second component Region" );
+
+/* Check the operator, and that both component Regions have the axes of
+   the base Frame of the CmpRegion, in which they are both defined. */
+      if( astOK ) {
+         nax = astGetNin( ((AstRegion *) new)->frameset );
+         if( oper != AST__AND && oper != AST__OR && oper != AST__XOR ) {
+            astError( AST__LDERR, "astLoadCmpRegion(%s): Illegal boolean "
+                      "operator value (%d) read for a %s.", status, name,
+                      oper, name );
+         } else if( astGetNaxes( reg1 ) != nax || astGetNaxes( reg2 ) != nax ) {
+            astError( AST__LDERR, "astLoadCmpRegion(%s): The component "
+                      "Regions read for a %s have %d and %d axes, but the "
+                      "%s has %d.", status, name, name, astGetNaxes( reg1 ),
+                      astGetNaxes( reg2 ), name, nax );
+         }
+      }
 
 /* Initialised cached values to show they have not yet been found. */
       for( i = 0; i < 2; i++ ) {

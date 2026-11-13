@@ -94,6 +94,9 @@ f     The Interval class does not define any new routines beyond those
 *        centre, so an Interval whose current Frame differs from its base
 *        Frame reported a base Frame centre when asked for its current
 *        Frame centre, as Prism and SetUnc ask for it.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadInterval, check that the dump supplied the points that
+*        define the Interval, and the right number of them.
 *class--
 */
 
@@ -4630,6 +4633,9 @@ AstInterval *astLoadInterval_( void *mem, size_t size, AstIntervalVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Interval" );
+
+/* Check that the parent Region supplied the points that a Interval needs. */
+      astCheckLoadedPoints( new, name, 2, 2, 0 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */
