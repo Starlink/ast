@@ -112,6 +112,14 @@ Bug fixes
   cells as it is read, which for a large range took a long time and could
   exhaust memory.
 
+- A Mapping can now have no more than AST__MXAXES (65536) inputs or
+  outputs, and a Frame no more than that number of axes. A constructor
+  asked for more reports an error, as does astRead if it is given an object
+  that has more. No real coordinate system comes close to the limit. It
+  exists to prevent a denial of service when a maliciously crafted file
+  declares an axis count of billions, which made AST allocate memory and
+  loop in proportion to that count.
+
 Build system changes
 --------------------
 

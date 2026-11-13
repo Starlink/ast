@@ -325,6 +325,9 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        Move the permutation-array check into a new protected function
 *        astCheckPermArray, which takes the axis count explicitly. CheckPerm
 *        and the astLoadFrame and astLoadCmpFrame loaders now all share it.
+*     13-NOV-2026 (TIMJ):
+*        Limit a Frame to AST__MXAXES axes, in the constructor and in
+*        astLoadFrame.
 *class--
 */
 
@@ -15054,6 +15057,11 @@ AstFrame *astInitFrame_( void *mem, size_t size, int init,
       astError( AST__NAXIN, "astInitFrame(%s): Number of axes (%d) is "
                 "invalid - this number should not be negative.", status, name, naxes );
 
+   } else if ( naxes > AST__MXAXES ) {
+      astError( AST__NAXIN, "astInitFrame(%s): Number of axes (%d) is "
+                "invalid - this number should not exceed %d.", status, name,
+                naxes, AST__MXAXES );
+
 /* Initialise a Mapping structure (the parent class) as the first
    component within the Frame structure, allocating memory if
    necessary. Set the number of input/output coordinates to zero (the
@@ -15270,13 +15278,20 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
    which hold axis information. */
       new->naxes = astReadInt( channel, "naxes", 0 );
       if ( new->naxes < 0 ) new->naxes = 0;
+      if ( astOK && new->naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astLoadFrame(%s): Number of axes (%d) read "
+                   "from the dump is invalid - this number should not "
+                   "exceed %d.", status, name, new->naxes, AST__MXAXES );
+      }
       new->perm = astMalloc( sizeof( int ) * (size_t) new->naxes );
       new->axis = astMalloc( sizeof( AstAxis * ) * (size_t) new->naxes );
 
-/* If an error occurred, ensure that any allocated memory is freed. */
+/* If an error occurred, ensure that any allocated memory is freed, and
+   that the Frame does not claim to have axes that it has no memory for. */
       if ( !astOK ) {
          new->perm = astFree( new->perm );
          new->axis = astFree( new->axis );
+         new->naxes = 0;
 
 /* Otherwise, initialise the array of Axis pointers. */
       } else {

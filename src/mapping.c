@@ -473,6 +473,10 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        Added protected functions astCheckLoadedCoords and astCheckLoadedMap
 *        for use by the loaders of classes that restrict their numbers of
 *        inputs and outputs, or encapsulate other Mappings.
+*     13-NOV-2026 (TIMJ):
+*        Limit a Mapping to AST__MXAXES inputs and AST__MXAXES outputs, in
+*        the constructor and in astLoadMapping, so that a file cannot make
+*        AST allocate memory and loop in proportion to an absurd count.
 *class--
 */
 
@@ -23956,6 +23960,16 @@ AstMapping *astInitMapping_( void *mem, size_t size, int init,
       astError( AST__BADNO, "astInitMapping(%s): Bad number of output "
                 "coordinates (%d).", status, name, nout );
       astError( AST__BADNI, "This number should be zero or more." , status);
+   } else if ( nin > AST__MXAXES ) {
+      astError( AST__BADNI, "astInitMapping(%s): Bad number of input "
+                "coordinates (%d).", status, name, nin );
+      astError( AST__BADNI, "This number should not exceed %d." , status,
+                AST__MXAXES );
+   } else if ( nout > AST__MXAXES ) {
+      astError( AST__BADNO, "astInitMapping(%s): Bad number of output "
+                "coordinates (%d).", status, name, nout );
+      astError( AST__BADNO, "This number should not exceed %d." , status,
+                AST__MXAXES );
    }
 
 /* Initialise an Object structure (the parent class) as the first component
@@ -24128,6 +24142,19 @@ AstMapping *astLoadMapping_( void *mem, size_t size,
 /* ----- */
       new->nout = astReadInt( channel, "nout", new->nin );
       if ( new->nout < 0 ) new->nout = 0;
+
+/* No Mapping can have more than AST__MXAXES inputs or outputs. */
+      if ( astOK && new->nin > AST__MXAXES ) {
+         astError( AST__BADNI, "astLoadMapping(%s): Bad number of input "
+                   "coordinates (%d) read from the dump - this number "
+                   "should not exceed %d.", status, name, new->nin,
+                   AST__MXAXES );
+      } else if ( astOK && new->nout > AST__MXAXES ) {
+         astError( AST__BADNO, "astLoadMapping(%s): Bad number of output "
+                   "coordinates (%d) read from the dump - this number "
+                   "should not exceed %d.", status, name, new->nout,
+                   AST__MXAXES );
+      }
 
 /* Invert. */
 /* ------- */
