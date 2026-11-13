@@ -9551,7 +9551,11 @@ static int DSSFromStore( AstFitsChan *this, FitsStore *store,
    val = GetItem( &(store->crval), 1, 0, ' ', NULL, method, class, status );
    if( val == AST__BAD ) return ret;
 
-/* Ensure it is in the range -180 to +180 */
+/* Ensure it is in the range -180 to +180. Remove whole turns first if the
+   value is far out of range, as removing one turn at a time would take a
+   time in proportion to the value, and would never end for a value that is
+   too large to be changed by one turn. */
+   if( fabs( val ) > 1.0E8 ) val = fmod( val, 360.0 );
    while( val < -180.0 ) val += 360.0;
    while( val >= 180.0 ) val -= 360.0;
 

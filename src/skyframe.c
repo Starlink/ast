@@ -383,6 +383,13 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *        permutation array as it was loaded. Replace an axis that is not a
 *        SkyAxis, as it is if the dump does not describe it, with a
 *        SkyAxis. SubFrame invoked SkyAxis methods on it regardless.
+*     13-NOV-2026 (TIMJ):
+*        GetCachedLAST and NormalPoints brought a value into range by
+*        removing one turn at a time, which never ended for a very large
+*        value such as the LAST for an Epoch of 1.0E11. Remove whole turns
+*        with fmod first.
+*        CalcLAST no longer converts the Epoch to an int, which was
+*        undefined for an Epoch beyond the range of an int.
 *class--
 */
 
@@ -1323,12 +1330,12 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
 
 /* For better accuracy, use this integer part of the epoch as the origin of
    the two TimeFrames. */
-      astSetTimeOrigin( tdbframe, (int) epoch );
-      astSetTimeOrigin( lastframe, (int) epoch );
+      astSetTimeOrigin( tdbframe, trunc( epoch ) );
+      astSetTimeOrigin( lastframe, trunc( epoch ) );
 
 /* Convert the absolute Epoch value to an offset from the above origin. */
       epoch0 = epoch;
-      epoch -= (int) epoch;
+      epoch -= trunc( epoch );
 
 /* Store the observers position in the two TimeFrames. */
       astSetObsLon( tdbframe, obslon );
@@ -1362,7 +1369,7 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
       fs = astAnnul( fs );
 
 /* Convert the LAST offset from days to radians. */
-      result = ( epoch - (int) epoch )*2*AST__DPI;
+      result = ( epoch - trunc( epoch ) )*2*AST__DPI;
 
 /* Cache the new LAST value in the SkyFrame virtual function table. */
       SetCachedLAST( this, result, epoch0, obslon, obslat, obsalt, dut1, dtai,
@@ -3168,6 +3175,12 @@ static double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
 
 /* Ensure the returned value is within the range 0 - 2.PI. */
    if( result != AST__BAD ) {
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+      if( fabs( result ) > 1.0E6 ) result = fmod( result, 2*AST__DPI );
       while( result > 2*AST__DPI ) result -= 2*AST__DPI;
       while( result < 0.0 ) result += 2*AST__DPI;
    }
@@ -7605,6 +7618,14 @@ static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int con
          ptr_long =  ptr_out[  perm[ 0 ] ];
          for( point = 0; point < npoint; point++, ptr_long++ ){
             if ( *ptr_long != AST__BAD  ) {
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+               if( fabs( *ptr_long ) > 1.0E6 ) {
+                  *ptr_long = fmod( *ptr_long, 2*AST__DPI );
+               }
                while( *ptr_long < lo ) *ptr_long += 2*AST__DPI;
                while( *ptr_long > hi ) *ptr_long -= 2*AST__DPI;
             }

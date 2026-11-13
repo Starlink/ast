@@ -251,6 +251,10 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *     12-NOV-2026 (TIMJ):
 *        astAddMocText: hold a range in a string MOC as a range rather than
 *        as each of its values, of which there can be very many.
+*     13-NOV-2026 (TIMJ):
+*        Where a longitude is brought into range by removing one turn at
+*        a time, remove whole turns with fmod first if it is far out of
+*        range. The loops never ended for a very large value.
 *class--
 */
 
@@ -3559,6 +3563,8 @@ static int Comp_corner( const void *a, const void *b ){
 
 /* If required, shift the RA values from [0,2.PI[ to [-PI,+PI[. */
    if( Comp_Corner_Loop != 0 ) {
+      if( fabs( ra1 ) > 1.0E6 ) ra1 = fmod( ra1, 2*AST__DPI );
+      if( fabs( ra2 ) > 1.0E6 ) ra2 = fmod( ra2, 2*AST__DPI );
       while( ra1 < -AST__DPI ) ra1 += 2*AST__DPI;
       while( ra2 < -AST__DPI ) ra2 += 2*AST__DPI;
       while( ra1 >= AST__DPI ) ra1 -= 2*AST__DPI;
@@ -6308,6 +6314,12 @@ static void MakeCorners( AstMoc *this, int order, Cell *cell_foot,
                break;
             }
 
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+            if( fabs( *p0 ) > 1.0E6 ) *p0 = fmod( *p0, 2*AST__DPI );
             while( *p0 >= 2*AST__DPI ) *p0 -= 2*AST__DPI;
             while( *p0 < 0 ) *p0 += 2*AST__DPI;
 
@@ -7732,12 +7744,19 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd,
            if( *pdec > maxdec ) maxdec = *pdec;
 
            ra12 = *pra;
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+           if( fabs( ra12 ) > 1.0E6 ) ra12 = fmod( ra12, 2*AST__DPI );
            while( ra12 < 0.0 ) ra12 += 2*AST__DPI;
            while( ra12 > 2*AST__DPI ) ra12 -= 2*AST__DPI;
            if( ra12 < minra12 ) minra12 = ra12;
            if( ra12 > maxra12 ) maxra12 = ra12;
 
            ra0 = *pra;
+           if( fabs( ra0 ) > 1.0E6 ) ra0 = fmod( ra0, 2*AST__DPI );
            while( ra0 < -AST__DPI ) ra0 += 2*AST__DPI;
            while( ra0 > AST__DPI ) ra0 -= 2*AST__DPI;
            if( ra0 < minra0 ) minra0 = ra0;
@@ -8887,6 +8906,7 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
             if( *pdec_mesh2 > dec_high ) break;
 
             dra = *pra_mesh2 - ra_pin;
+            if( fabs( dra ) > 1.0E6 ) dra = fmod( dra, 2*AST__DPI );
             while( dra >= AST__DPI ) dra -= 2*AST__DPI;
             while( dra < -AST__DPI ) dra += 2*AST__DPI;
             dra += ra_pin;
