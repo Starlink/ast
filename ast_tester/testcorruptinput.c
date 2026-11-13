@@ -42,8 +42,9 @@
 *         format or to bring into range one turn at a time.
 *       - FITS headers: a WCSAXES value that is not a usable number of
 *         axes, CTYPE values of fewer than three characters, an IRAF WAT
-*         card with no string value, and a header whose transformation
-*         fails part of the way through a compound Mapping.
+*         card with no string value, a header whose transformation fails
+*         part of the way through a compound Mapping, and a pixel size so
+*         small that its reciprocal is infinite.
 
 *  Notes:
 *     - This is a native C test with no Fortran original.
@@ -665,10 +666,12 @@ static AstObject *read_header( const char *cards[], int ncard ) {
 }
 
 /* Read a FITS header that need only be handled without a memory fault,
-   transform a position with the result if there is one, and write it out
-   again.  Any error reported is cleared.  Always returns 0, since a fault
-   stops the test. */
+   and in a reasonable time.  Transform a position with the result if
+   there is one, and write it out again as a dump and as a FITS header.
+   Any error reported is cleared.  Always returns 0, since a fault or a
+   time limit stops the test. */
 static int check_survives( const char *cards[], int ncard ) {
+   AstFitsChan *fc;
    AstObject *obj = read_header( cards, ncard );
    char *dump;
    double xin = 10.0;
@@ -685,6 +688,10 @@ static int check_survives( const char *cards[], int ncard ) {
    if ( obj ) {
       dump = astToString( obj );
       dump = astFree( dump );
+      if ( !astOK ) astClearStatus;
+      fc = astFitsChan( NULL, NULL, " " );
+      astWrite( fc, obj );
+      fc = astAnnul( fc );
       obj = astAnnul( obj );
    }
    if ( !astOK ) astClearStatus;
@@ -791,6 +798,16 @@ static int test_fits( void ) {
       "CRPIX2  =                  1.0",
       "CDELT1  =                 -1.0",
       "CDELT2  =                  1.0" };
+/* A header with a pixel size so small that its reciprocal is infinite.
+   Writing it never returned, because the simplification of a Mapping
+   stops when a step leaves the Mapping equal to what it was, and two
+   Mappings that hold the same infinite value did not compare equal. */
+   const char *tiny[] = {
+      "CTYPE1  = 'WAVE'",
+      "CRVAL1  =               5.5E-7",
+      "CRPIX1  =                513.0",
+      "CDELT1  =               1e-320",
+      "CUNIT1  = 'm'" };
    const char *bigeqx[] = {
       "CTYPE1  = 'RA---TAN'",
       "CTYPE2  = 'DEC--TAN'",
@@ -823,6 +840,7 @@ static int test_fits( void ) {
    nfail += check_survives( lon2, NCARD( lon2 ) );
    nfail += check_survives( bigval, NCARD( bigval ) );
    nfail += check_survives( bigeqx, NCARD( bigeqx ) );
+   nfail += check_survives( tiny, NCARD( tiny ) );
    return nfail;
 }
 
