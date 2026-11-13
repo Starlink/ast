@@ -477,6 +477,9 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        Limit a Mapping to AST__MXAXES inputs and AST__MXAXES outputs, in
 *        the constructor and in astLoadMapping, so that a file cannot make
 *        AST allocate memory and loop in proportion to an absurd count.
+*     13-NOV-2026 (TIMJ):
+*        astRate: never returned if the position was so close to zero
+*        that the initial interval, a fraction of the position, was zero.
 *class--
 */
 
@@ -9055,6 +9058,11 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2,
    letting the loop below grow the interval as needed works for both
    restricted and unrestricted Mappings. */
       h0 = ( x0 != 0.0 ) ? DBL_EPSILON*1.0E9*fabs( x0 ) : DBL_EPSILON*1.0E9;
+
+/* For a very small "x0" this fraction is too small to be represented and
+   so is zero, which the loop below would multiply by ten for ever. Use the
+   smallest normal number instead, which the loop can increase. */
+      if( h0 < DBL_MIN ) h0 = DBL_MIN;
 
 /* Attempt to find the mean gradient, and the range of gradients, within
    an interval of size "h0" centred on "x0". If this cannot be done,
