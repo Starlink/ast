@@ -166,6 +166,11 @@ f     The StcsChan class does not define any new routines beyond those
 *     8-APR-2026 (TIMJ):
 *        Preserve formatted ERROR values when writing time, spectral and
 *        redshift uncertainties.
+*     13-NOV-2026 (TIMJ):
+*        When writing the position angle of an Ellipse or Box, remove
+*        whole turns with fmod from a value that is far out of range,
+*        before removing the rest one turn at a time, which never ended for
+*        a very large value.
 *class--
 */
 
@@ -1590,6 +1595,12 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
    format and store. */
          angle *= AST__DR2D;
          if( !issky )  angle = 90 - angle;
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+         if( fabs( angle ) > 1.0E8 ) angle = fmod( angle, 360.0 );
          while( angle < 0.0 ) angle += 360.0;
          while( angle >= 360.0 ) angle -= 360.0;
 
