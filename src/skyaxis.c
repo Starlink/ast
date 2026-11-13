@@ -128,6 +128,11 @@ f     only within textual output (e.g. from AST_WRITE).
 *        each axis it picks out of a SkyFrame, so that the axis of
 *        astPickAxes( skyframe, ... ) does not report "hh mm ss" as
 *        "hh*mm*s".
+*     13-NOV-2026 (TIMJ):
+*        DHmsFormat: do not write beyond the end of the buffer when the
+*        value has more degrees or hours than the buffer has room for, as
+*        a value of 1.0E300 radians does. Such a value is now formatted as
+*        a bad value.
 *class--
 */
 
@@ -263,6 +268,7 @@ static const char *GetAxisLabel( AstAxis *, int * );
 static const char *GetAxisNormUnit( AstAxis *, int * );
 static const char *GetAxisSymbol( AstAxis *, int * );
 static const char *GetAxisUnit( AstAxis *, int * );
+static int AddText( char *, int, const char *, ... )__attribute__((format(printf,3,4)));
 static const char *DHmsFormat( const char *, int, double, int * );
 static const char *DHmsUnit( const char *, int, int, int *, int * );
 static double AxisGap( AstAxis *, double, int *, int * );
@@ -1564,6 +1570,67 @@ static void ClearAxisFormat( AstAxis *this_axis, int *status ) {
    this->skyformat = astFree( this->skyformat );
 }
 
+static int AddText( char *buff, int pos, const char *fmt, ... ) {
+/*
+*  Name:
+*     AddText
+
+*  Purpose:
+*     Append formatted text to the buffer used by DHmsFormat.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "skyaxis.h"
+*     int AddText( char *buff, int pos, const char *fmt, ... )
+
+*  Class Membership:
+*     SkyAxis member function.
+
+*  Description:
+*     This function formats its arguments as "sprintf" does and writes the
+*     text into a buffer, starting at a given position, without writing
+*     beyond the end of the buffer.
+
+*  Parameters:
+*     buff
+*        Pointer to the buffer, which must have room for
+*        AST__SKYAXIS_DHMSFORMAT_BUFF_LEN characters and a terminating
+*        null.
+*     pos
+*        The index within the buffer at which to write the text. Nothing
+*        is written if this is negative.
+*     fmt
+*        Pointer to a null-terminated "printf" format string.
+*     ...
+*        The values to be formatted.
+
+*  Returned Value:
+*     The index of the terminating null written after the text, at which
+*     any further text should be added. A value of -1 is returned if the
+*     buffer is too small to hold the text, or if "pos" is negative.
+*/
+
+/* Local Variables: */
+   int nc;                       /* Number of characters needed */
+   va_list args;                 /* Variable argument list pointer */
+
+/* Do nothing if an earlier call found the buffer to be too small. */
+   if ( pos < 0 ) return -1;
+
+/* Write as much of the text as there is room for. */
+   va_start( args, fmt );
+   nc = vsnprintf( buff + pos,
+                   (size_t) ( AST__SKYAXIS_DHMSFORMAT_BUFF_LEN + 1 - pos ),
+                   fmt, args );
+   va_end( args );
+
+/* Indicate if there was not room for all of it. */
+   if ( nc < 0 || nc > AST__SKYAXIS_DHMSFORMAT_BUFF_LEN - pos ) return -1;
+   return pos + nc;
+}
+
 static const char *DHmsFormat( const char *fmt, int digs, double value, int *status ) {
 /*
 *  Name:
@@ -1878,32 +1945,35 @@ static const char *DHmsFormat( const char *fmt, int digs, double value, int *sta
          }
 
 /* Use "pos" to identify where the next character should be
-   added. Insert a leading '+' or '-' sign if required. */
+   added. Insert a leading '+' or '-' sign if required. AddText sets "pos"
+   to -1 if the buffer is too small for the text, as it is for a value
+   with a very large number of degrees or hours. */
          pos = 0;
+         dhmsformat_buff[ 0 ] = '\0';
          if ( !positive ) {
-            dhmsformat_buff[ pos++ ] = '-';
+            pos = AddText( dhmsformat_buff, pos, "%c", '-' );
          } else if ( plus ) {
-            dhmsformat_buff[ pos++ ] = '+';
+            pos = AddText( dhmsformat_buff, pos, "%c", '+' );
          }
 
-/* Use "sprintf" to format the degrees/hours field, if required. Set
+/* Use "AddText" to format the degrees/hours field, if required. Set
    the minimum field width according to whether padding with leading
    zeros is required and whether the value represents hours (2 digits)
    or degrees (3 digits). */
          if ( dh ) {
-            pos += sprintf( dhmsformat_buff + pos, "%0*.0f",
+            pos = AddText( dhmsformat_buff, pos, "%0*.0f",
                             lead_zero ? ( as_time ? 2 : 3 ) : 1, idh );
 
 /* If letters are being used as field separators, and there are more
    fields to follow, append "d" or "h" as necessary. */
             if ( min || sec ) {
                if ( sep == 'l' ) {
-                  dhmsformat_buff[ pos++ ] = ( as_time ? 'h' : 'd' );
+                  pos = AddText( dhmsformat_buff, pos, "%c", ( as_time ? 'h' : 'd' ) );
                } else if( sep == 'g' ) {
                   astTuneC( as_time ? "hrdel":"dgdel", NULL, tbuf,
                             sizeof( tbuf ) );
                   term = tbuf;
-                  pos += sprintf( dhmsformat_buff + pos, "%s", term );
+                  pos = AddText( dhmsformat_buff, pos, "%s", term );
                }
             }
          }
@@ -1911,23 +1981,23 @@ static const char *DHmsFormat( const char *fmt, int digs, double value, int *sta
 /* If a minutes field is required, first add an appropriate non-letter
    field separator if needed. */
          if ( min ) {
-            if ( ( sep != 'l' && sep != 'g' ) && dh ) dhmsformat_buff[ pos++ ] = sep;
+            if ( ( sep != 'l' && sep != 'g' ) && dh ) pos = AddText( dhmsformat_buff, pos, "%c", sep );
 
 /* Then format the minutes field with a leading zero to make it two
    digits if necessary. */
-            pos += sprintf( dhmsformat_buff + pos, "%0*.0f", ( dh || lead_zero ) ? 2 : 1,
+            pos = AddText( dhmsformat_buff, pos, "%0*.0f", ( dh || lead_zero ) ? 2 : 1,
                             imin );
 
 /* If letters are being used as field separators, and there is another
    field to follow, append the separator. */
             if ( sec ) {
                if ( sep == 'l' ) {
-                  dhmsformat_buff[ pos++ ] = 'm';
+                  pos = AddText( dhmsformat_buff, pos, "%c", 'm' );
                } else if( sep == 'g' ) {
                   astTuneC( as_time ? "mndel":"amdel", NULL, tbuf,
                             sizeof( tbuf ) );
                   term = tbuf;
-                  pos += sprintf( dhmsformat_buff + pos, "%s", term );
+                  pos = AddText( dhmsformat_buff, pos, "%s", term );
                }
             }
          }
@@ -1935,11 +2005,11 @@ static const char *DHmsFormat( const char *fmt, int digs, double value, int *sta
 /* Similarly, if a seconds field is required, first add an appropriate
    non-letter field separator if needed. */
          if ( sec ) {
-            if ( ( sep != 'l' && sep != 'g' ) && ( dh || min ) ) dhmsformat_buff[ pos++ ] = sep;
+            if ( ( sep != 'l' && sep != 'g' ) && ( dh || min ) ) pos = AddText( dhmsformat_buff, pos, "%c", sep );
 
 /* Then format the seconds field with a leading zero to make it two
    digits if necessary. */
-            pos += sprintf( dhmsformat_buff + pos, "%0*.0f",
+            pos = AddText( dhmsformat_buff, pos, "%0*.0f",
                             ( dh || min || lead_zero ) ? 2 : 1, isec );
          }
 
@@ -1947,26 +2017,26 @@ static const char *DHmsFormat( const char *fmt, int digs, double value, int *sta
    integer representation of the correctly rounded fractional part,
    padded with leading zeros if necessary. */
          if ( ndp > 0 ) {
-            dhmsformat_buff[ pos++ ] = '.';
-            pos += sprintf( dhmsformat_buff + pos, "%0*.0f", ndp, ifract );
+            pos = AddText( dhmsformat_buff, pos, "%c", '.' );
+            pos = AddText( dhmsformat_buff, pos, "%0*.0f", ndp, ifract );
          }
 
 /* If letters are being used as separators, append the appropriate one
    to the final field. */
          if ( sep == 'l' ) {
-            dhmsformat_buff[ pos++ ] = ( sec ? 's' : ( min ? 'm' :
-                                                  ( as_time ? 'h' : 'd' ) ) );
+            pos = AddText( dhmsformat_buff, pos, "%c", ( sec ? 's' : ( min ? 'm' :
+                                                  ( as_time ? 'h' : 'd' ) ) ) );
          } else if ( sep == 'g' ) {
             astTuneC( as_time ? ( sec ? "scdel" : ( min ? "mndel" : "hrdel" ) ) :
                       ( sec ? "asdel" : ( min ? "amdel" : "dgdel" ) ),
                       NULL, tbuf, sizeof( tbuf ) );
             term = tbuf;
-            pos += sprintf( dhmsformat_buff + pos, "%s", term );
+            pos = AddText( dhmsformat_buff, pos, "%s", term );
          }
 
-/* Terminate the result string and return a pointer to it. */
-         dhmsformat_buff[ pos ] = '\0';
-         result = dhmsformat_buff;
+/* Return a pointer to the result string, or to the string used for a bad
+   value if the buffer was too small to hold the formatted value. */
+         result = ( pos < 0 ) ? "<bad>" : dhmsformat_buff;
       }
    }
 
