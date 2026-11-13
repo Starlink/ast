@@ -261,6 +261,9 @@ f     The WcsMap class does not define any new routines beyond those
 *        In astLoadWcsMap, do not use the projection type string if it
 *        could not be read because of an earlier error.
 *     13-NOV-2026 (TIMJ):
+*        In astLoadWcsMap, avoid an integer overflow when converting an
+*        axis index of INT_MIN to a zero-based index.
+*     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not delete an output PointSet that
 *        was supplied by the caller, who goes on to use it.
 *class--
@@ -6184,7 +6187,12 @@ AstWcsMap *astLoadWcsMap_( void *mem, size_t size,
 /* -------------- */
       for( axis = 0; axis < 2; axis++ ){
          (void) sprintf( buff, "wcsax%d", axis + 1 );
-         new->wcsaxis[ axis ] = astReadInt( channel, buff, axis + 1 ) - 1;
+
+/* Convert to a zero-based index. Every value that is not a valid
+   one-based index becomes -1, which is rejected below, so that the
+   subtraction cannot overflow. */
+         i = astReadInt( channel, buff, axis + 1 );
+         new->wcsaxis[ axis ] = ( i > 0 ) ? i - 1 : -1;
       }
 
 /* A WcsMap always has the same number of inputs and outputs, and the
