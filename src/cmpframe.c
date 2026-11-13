@@ -217,6 +217,9 @@ f     The CmpFrame class does not define any new routines beyond those
 *        Frames are read before the permutation, so the axis count is
 *        available directly and is passed to the shared astCheckPermArray
 *        function.
+*     13-NOV-2026 (TIMJ):
+*        Limit a CmpFrame to AST__MXAXES axes, in the constructor and in
+*        astLoadCmpFrame.
 *class--
 */
 
@@ -10903,8 +10906,15 @@ AstCmpFrame *astInitCmpFrame_( void *mem, size_t size, int init,
       new->frame1 = astClone( frame1 );
       new->frame2 = astClone( frame2 );
 
-/* Determine the number of CmpFrame axes. */
+/* Determine the number of CmpFrame axes. Neither component can have more
+   than AST__MXAXES axes, so the sum cannot overflow. */
       naxes = astGetNaxes( frame1 ) + astGetNaxes( frame2 );
+      if ( astOK && naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astInitCmpFrame(%s): Number of axes (%d) is "
+                   "invalid - this number should not exceed %d.", status,
+                   name, naxes, AST__MXAXES );
+         naxes = 0;
+      }
 
 /* Allocate memory to hold the axis permutation array and initialise
    this array. */
@@ -11062,8 +11072,15 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
 /* Axis permutation array. */
 /* ----------------------- */
 /* Obtain the number of CmpFrame axes and allocate memory to hold the
-   axis permutation array. */
+   axis permutation array. Neither component can have more than
+   AST__MXAXES axes, but the two together can. */
       naxes = GetNaxes( (AstFrame *) new, status );
+      if ( astOK && naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astLoadCmpFrame(%s): Number of axes (%d) "
+                   "read from the dump is invalid - this number should not "
+                   "exceed %d.", status, name, naxes, AST__MXAXES );
+         naxes = 0;
+      }
       new->perm = astMalloc( sizeof( int ) * (size_t) naxes );
 
 /* If OK, loop to read the array value for each axis. */

@@ -352,6 +352,15 @@
 
 /* Resampling flags. */
 /* ----------------- */
+/* The largest number of input or output coordinates that a Mapping can
+   have. A Frame is a Mapping, so this is also the largest number of axes
+   that a Frame can have. AST has no need of a limit for its own purposes,
+   and this one is far larger than any real coordinate system requires. It
+   exists to prevent a catastrophic denial of service when a maliciously
+   crafted file declares an axis count of billions, which would otherwise
+   make AST allocate memory and loop in proportion to that count. */
+#define AST__MXAXES 65536
+
 /* These macros define flag values which may be passed to
    astResample<X> (via the "flags" argument) to provide control over
    resampling operations. */
