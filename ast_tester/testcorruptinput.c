@@ -32,6 +32,14 @@
 *       - FrameSets: more Frames or nodes claimed than are present, node
 *         links that form a loop, and Mappings and Frames that disagree
 *         about the number of axes.
+*       - Frames: the wrong number of axes for a SkyFrame, SpecFrame,
+*         TimeFrame or FluxFrame, a SkyFrame whose axes are not described,
+*         and the wrong components for a SpecFluxFrame.
+*       - Mappings: a loader that carries on after an error, a PermMap that
+*         refers to a constant it does not have, and a KeyMap that asks for
+*         a huge hash table.
+*       - Large values: a sky position or an Epoch that is too large to
+*         format or to bring into range one turn at a time.
 
 *  Notes:
 *     - This is a native C test with no Fortran original.
@@ -498,6 +506,147 @@ static int test_framesets( void ) {
    return nfail;
 }
 
+/* Frames that always have a particular number of axes. */
+static int test_frames( void ) {
+   AstFrame *frm;
+   const char *text;
+   int nfail = 0;
+
+   nfail += check_rejected( "SkyFrame with one axis",
+      " Begin SkyFrame\n Naxes = 1\n IsA Frame\n End SkyFrame\n",
+      AST__LDERR );
+   nfail += check_rejected( "SkyFrame with a negative number of axes",
+      " Begin SkyFrame\n Naxes = -2\n IsA Frame\n End SkyFrame\n",
+      AST__LDERR );
+   nfail += check_rejected( "SkyFrame with three axes",
+      " Begin SkyFrame\n Naxes = 3\n IsA Frame\n End SkyFrame\n",
+      AST__LDERR );
+   nfail += check_rejected( "SpecFrame with two axes",
+      " Begin SpecFrame\n Naxes = 2\n IsA Frame\n End SpecFrame\n",
+      AST__LDERR );
+   nfail += check_rejected( "TimeFrame with no axes",
+      " Begin TimeFrame\n Naxes = 0\n IsA Frame\n End TimeFrame\n",
+      AST__LDERR );
+   nfail += check_rejected( "FluxFrame with two axes",
+      " Begin FluxFrame\n Naxes = 2\n IsA Frame\n End FluxFrame\n",
+      AST__LDERR );
+   nfail += check_rejected( "SpecFluxFrame made from two simple Frames",
+      " Begin SpecFluxFrame\n IsA Frame\n FrameA =\n" FRAME1 " FrameB =\n"
+      FRAME1 " IsA CmpFrame\n End SpecFluxFrame\n", AST__LDERR );
+
+/* A SkyFrame read from a dump that does not describe its axes still has
+   sky axes, so it formats a value as hours, minutes and seconds. */
+   frm = (AstFrame *) astFromString( " Begin SkyFrame\n Naxes = 2\n"
+                                     " IsA Frame\n End SkyFrame\n" );
+   text = frm ? astFormat( frm, 1, 1.0 ) : NULL;
+   if ( !astOK || !text || !strchr( text, ':' ) ) {
+      fprintf( stderr, "testcorruptinput: a SkyFrame read without its axes "
+               "formatted a longitude as \"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   if ( frm ) frm = astAnnul( frm );
+   return nfail;
+}
+
+/* Mappings. */
+static int test_mappings( void ) {
+   int nfail = 0;
+
+/* A loader must not use what it failed to read. Here the parent loader
+   fails because the dump ends with the wrong class name. */
+   nfail += check_rejected( "WcsMap that ends as a WinMap",
+      " Begin WcsMap\n Nin = 2\n IsA Mapping\n End WinMap\n",
+      AST__BADIN );
+   nfail += check_rejected( "UnitNormMap that ends as an Axis",
+      " Begin UnitNormMap\n End Axis\n", AST__BADIN );
+   nfail += check_rejected( "UnitNormMap with no inputs",
+      " Begin UnitNormMap\n Nin = 0\n Nout = 1\n IsA Mapping\n"
+      " End UnitNormMap\n", AST__LDERR );
+
+/* A PermMap refers to its constants by number. */
+#define PERMMAP( extra ) " Begin PermMap\n Nin = 2\n IsA Mapping\n" \
+   " Out1 = -1\n Out2 = 1\n In1 = 2\n In2 = 0\n" extra " End PermMap\n"
+   nfail += check_accepted( "PermMap with one constant",
+                            PERMMAP( " Nconst = 1\n Con1 = 5\n" ) );
+   nfail += check_accepted( "PermMap with no constants", PERMMAP( "" ) );
+   nfail += check_rejected( "PermMap that refers to a second constant",
+      " Begin PermMap\n Nin = 2\n IsA Mapping\n Out1 = -2\n Out2 = 1\n"
+      " In1 = 2\n In2 = 0\n Nconst = 1\n Con1 = 5\n End PermMap\n",
+      AST__LDERR );
+   nfail += check_rejected( "PermMap that refers to constant INT_MAX + 1",
+      " Begin PermMap\n Nin = 2\n IsA Mapping\n Out1 = -1\n Out2 = 1\n"
+      " In1 = -2147483648\n In2 = 0\n End PermMap\n", AST__LDERR );
+   nfail += check_rejected( "PermMap with INT_MAX constants",
+                            PERMMAP( " Nconst = 2147483647\n" ), AST__LDERR );
+#undef PERMMAP
+
+/* The size of the hash table of a KeyMap is not taken on trust. */
+   nfail += check_accepted( "KeyMap that asks for a table of INT_MAX",
+      " Begin KeyMap\n MapSz = 2147483647\n End KeyMap\n" );
+   nfail += check_accepted( "KeyMap with a size guess of INT_MAX",
+      " Begin KeyMap\n SzGss = 2147483647\n End KeyMap\n" );
+   return nfail;
+}
+
+/* Values too large to treat one turn at a time. */
+static int test_large_values( void ) {
+   AstFrameSet *fs;
+   AstSkyFrame *azel;
+   AstSkyFrame *sky = astSkyFrame( " " );
+   char symbol[ 201 ];
+   char *dump;
+   const char *text;
+   double xin = 1.0;
+   double xout;
+   double yin = 0.5;
+   double yout;
+   int nfail = 0;
+
+/* A sky position of 1.0E300 radians has far more hours than the format
+   buffer has room for. */
+   text = astFormat( sky, 1, 1.0E300 );
+   if ( !astOK || !text || strcmp( text, "<bad>" ) ) {
+      fprintf( stderr, "testcorruptinput: a longitude of 1.0E300 was "
+               "formatted as \"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+   text = astFormat( sky, 2, -1.0E300 );
+   if ( !astOK || !text || strcmp( text, "<bad>" ) ) {
+      fprintf( stderr, "testcorruptinput: a latitude of -1.0E300 was "
+               "formatted as \"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+   text = astFormat( sky, 1, 1.0 );
+   if ( !astOK || !text || strcmp( text, "3:49:11.0" ) ) {
+      fprintf( stderr, "testcorruptinput: a longitude of 1.0 was formatted "
+               "as \"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+
+/* The comments that a SkyFrame adds to its dump include the Symbol of
+   each axis and the formatted reference position. */
+   memset( symbol, 'x', sizeof( symbol ) - 1 );
+   symbol[ sizeof( symbol ) - 1 ] = '\0';
+   astSetC( sky, "Symbol(1)", symbol );
+   astSetD( sky, "SkyRef(1)", 1.0 );
+   astSetD( sky, "SkyRef(2)", 0.5 );
+   astSetD( sky, "SkyRefP(1)", 2.0 );
+   astSetD( sky, "SkyRefP(2)", 0.25 );
+   dump = astToString( sky );
+   nfail += check_accepted( "SkyFrame with a long Symbol", dump );
+   dump = astFree( dump );
+
+/* The local apparent sidereal time for an Epoch far in the future is a
+   very large number of turns. */
+   azel = astSkyFrame( "System=AZEL,Epoch=99999999999" );
+   fs = astConvert( azel, sky, " " );
+   if ( fs ) astTran2( fs, 1, &xin, &yin, 1, &xout, &yout );
+   if ( !astOK ) astClearStatus;
+
+   return nfail;
+}
+
 int main( void ) {
    int status = SAI__OK;
    int nfail = 0;
@@ -509,6 +658,9 @@ int main( void ) {
    nfail += test_components();
    nfail += test_regions();
    nfail += test_framesets();
+   nfail += test_frames();
+   nfail += test_mappings();
+   nfail += test_large_values();
 
    astEnd;
    if ( !astOK ) astClearStatus;
