@@ -113,6 +113,11 @@ f     The PermMap class does not define any new routines beyond those
 *        MapSplit returns no Mapping for an input index out of range. It
 *        checked the indices but went on regardless, reading the
 *        permutation arrays beyond their ends.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadPermMap, check that each constant referred to by the
+*        permutation arrays is one of the constants read. A dump that
+*        referred to a later one made astTransform read beyond the end of
+*        the array of constants.
 *class--
 */
 
@@ -3020,6 +3025,7 @@ AstPermMap *astLoadPermMap_( void *mem, size_t size,
 /* Local Constants: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
 #define KEY_LEN 50               /* Maximum length of a keyword */
+#define MXLOADCON 99999          /* Most constants a dump can name */
 
 /* Local Variables: */
    AstPermMap *new;              /* Pointer to the new PermMap */
@@ -3030,6 +3036,7 @@ AstPermMap *astLoadPermMap_( void *mem, size_t size,
    int invert;                   /* Invert attribute value */
    int ival;                     /* Integer value */
    int nconst;                   /* Number of constants */
+   int neg;                      /* Most negative permutation index */
    int nin;                      /* Number of input coordinates */
    int nout;                     /* Number of output coordinates */
    int out_cpy;                  /* Output coordinates obtained by copying? */
@@ -3176,6 +3183,43 @@ AstPermMap *astLoadPermMap_( void *mem, size_t size,
    them. */
          nconst = astReadInt( channel, "nconst", 0 );
          if ( nconst < 0 ) nconst = 0;
+
+/* Find the most negative value in either permutation array. A value of
+   "-n" refers to the n'th constant. */
+         neg = 0;
+         if ( new->inperm ) {
+            for ( coord = 0; coord < nin; coord++ ) {
+               if ( new->inperm[ coord ] < neg ) neg = new->inperm[ coord ];
+            }
+         }
+         if ( new->outperm ) {
+            for ( coord = 0; coord < nout; coord++ ) {
+               if ( new->outperm[ coord ] < neg ) neg = new->outperm[ coord ];
+            }
+         }
+
+/* Check that every constant referred to exists. A PermMap with no
+   constants can refer to them, and uses AST__BAD for each. Otherwise the
+   references index the array of constants read below, so all must be
+   within it. No constant has the number that -INT_MAX-1 would refer to,
+   and negating it to find the number would overflow. A dump names the
+   constants "Con1", "Con2", and so on, and a name in a dump can have no
+   more than eight characters, so no dump holds more than MXLOADCON
+   constants and one that claims more was not written by AST. */
+         if ( neg < -INT_MAX ) {
+            astError( AST__LDERR, "astLoadPermMap(%s): The PermMap read "
+                      "has an invalid coordinate permutation index (%d).",
+                      status, name, neg );
+         } else if ( nconst > MXLOADCON ) {
+            astError( AST__LDERR, "astLoadPermMap(%s): The PermMap read "
+                      "has %d constants, but a dump cannot hold more than "
+                      "%d.", status, name, nconst, MXLOADCON );
+            nconst = 0;
+         } else if ( nconst > 0 && neg < -nconst ) {
+            astError( AST__LDERR, "astLoadPermMap(%s): The PermMap read "
+                      "refers to constant number %d, but the number of "
+                      "constants is %d.", status, name, -neg, nconst );
+         }
          new->constant = astMalloc( sizeof( double ) * (size_t) nconst );
          if ( astOK ) {
 
@@ -3199,6 +3243,7 @@ AstPermMap *astLoadPermMap_( void *mem, size_t size,
 
 /* Undefine macros local to this function. */
 #undef KEY_LEN
+#undef MXLOADCON
 }
 
 /* Virtual function interfaces. */
