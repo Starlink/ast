@@ -86,6 +86,7 @@ C_TESTS = \
     testframeperm \
     testframesetload \
     testloaderhardening \
+    testcorruptinput \
     testplotclip \
     testplotcopy \
     testpolymapinv \
@@ -156,6 +157,8 @@ testframesetload_SOURCES  = testframesetload.c
 testframesetload_LDADD    = $(CTEST_LDADD)
 testloaderhardening_SOURCES  = testloaderhardening.c
 testloaderhardening_LDADD    = $(CTEST_LDADD)
+testcorruptinput_SOURCES  = testcorruptinput.c
+testcorruptinput_LDADD    = $(CTEST_LDADD)
 testplotclip_SOURCES   = testplotclip.c
 testplotclip_LDADD     = $(CTEST_LDADD)
 testplotcopy_SOURCES   = testplotcopy.c

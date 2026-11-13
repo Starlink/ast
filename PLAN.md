@@ -117,6 +117,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   parentheses), and native coordinates a little past a limit, which wcslib's
   per-projection tolerance accepts. Wanted values are upstream's output for the
   same projection and parameters.
+- testcorruptinput — corrupt or malicious input must be rejected without a crash, memory corruption, or a run time or memory use out of proportion to its size.
+  Each case is a small dump or FITS header of the kind a fuzzer produces by changing one value of a valid input, and each made the library do one of those things.
+  It covers integers too large for an int, and the AST__MXAXES limit on the inputs, outputs and axes of a Mapping or Frame, in constructors and loaders.
+  Run it with the sanitizers enabled, which is how most of the faults are detected.
 - testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
   For PolyMap, LutMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
   For each class of Mapping that can only have particular numbers of inputs and outputs, it changes Nin and Nout in the dump of a valid Mapping and requires the result to be rejected, and it checks that a Mapping, Frame or Region encapsulated by another Mapping cannot be left out of a dump or replaced by an object of another class.
