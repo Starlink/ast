@@ -277,6 +277,10 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 *        Report failure from astMapGetElemA for an undefined entry, so
 *        that it agrees with astMapGetElem<X> for the other data types
 *        rather than reporting success without storing a value.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadKeyMap, limit the size of the hash table that a dump
+*        can ask for, and do not create a table from the SizeGuess value.
+*        A dump that stated a table size of INT_MAX used 24 GB.
 *class--
 */
 
@@ -293,6 +297,12 @@ f     - AST_MAPTYPE: Return the data type of a named entry in a map
 /* The maximum number of entries per element of the hash table. If this
    value is exceeded the hash table will be doubled in size. */
 #define MAX_ENTRIES_PER_TABLE_ENTRY 10
+
+/* The largest hash table that the loader will create at the request of a
+   dump. A dump names its entries "Key1", "Key2", and so on, and a name in a
+   dump can have no more than eight characters, so a dump holds fewer than
+   100000 entries. This is more than one table element for each. */
+#define MAX_LOAD_TABLE_SIZE 131072
 
 /* Integer values to represent the different values of the SortBy attribute. */
 #define SORTBY_NONE 0
@@ -11286,8 +11296,10 @@ AstKeyMap *astLoadKeyMap_( void *mem, size_t size, AstKeyMapVtab *vtab,
 
 /* SizeGuess. */
 /* ---------- */
+/* SetSizeGuess is not used to set the value, as it would create a hash
+   table of a size derived from it, and the table is created below with
+   the size that it had when the KeyMap was written. */
       new->sizeguess = astReadInt( channel, "szgss", INT_MAX );
-      if ( TestSizeGuess( new, status ) ) SetSizeGuess( new, new->sizeguess, status );
 
 /* KeyCase. */
 /* --------- */
@@ -11311,7 +11323,13 @@ AstKeyMap *astLoadKeyMap_( void *mem, size_t size, AstKeyMapVtab *vtab,
 
 /* MapSize. */
 /* -------- */
+/* The size of the hash table affects only the speed of the KeyMap, and
+   the table is enlarged automatically as entries are added to it. So do
+   not let the dump demand a table larger than any KeyMap that it could
+   hold would need, which would let a few bytes of input use any amount
+   of memory. */
       mapsize = astReadInt( channel, "mapsz", MIN_TABLE_SIZE );
+      if( mapsize > MAX_LOAD_TABLE_SIZE ) mapsize = MAX_LOAD_TABLE_SIZE;
       NewTable( new, mapsize, status );
 
 /* Entries... */
