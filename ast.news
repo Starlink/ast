@@ -120,6 +120,42 @@ Bug fixes
   declares an axis count of billions, which made AST allocate memory and
   loop in proportion to that count.
 
+- Reading a corrupt or maliciously crafted object dump or FITS header could
+  crash AST, corrupt memory, or keep it busy without limit. Fuzzing the
+  dumps and headers used by the test suite found some sixty distinct
+  faults, which are fixed. astRead now reports an error for, among other
+  things: an integer too large for an int (which used to wrap round to
+  another value); a component object that is missing or of the wrong class;
+  a FrameSet that states more Frames or Mappings than it holds, whose node
+  links form a loop, or whose Mappings and Frames disagree about the number
+  of axes; a Region without the points that define it; a SkyFrame,
+  SpecFrame, TimeFrame or FluxFrame with the wrong number of axes; a
+  PermMap that refers to a constant it does not have; and a PointSet that
+  claims more values than a dump can hold.
+
+- A FITS header is rejected if its WCSAXES value is not between 1 and 999.
+  The value used to be taken as the number of axes whatever it was. Other
+  faults in reading FITS headers are fixed: CTYPE values of fewer than
+  three characters, an IRAF WAT card without a string value, and a SIP
+  distortion in a header that states fewer than two WCS axes.
+
+- A SkyFrame read from a dump that does not describe its two axes now has
+  proper sky axes, and so formats values as sexagesimal strings. It was
+  given two simple axes.
+
+- astFormat returns "<bad>" for a celestial longitude or latitude that has
+  too many digits to format, such as 1.0E300 radians, rather than writing
+  beyond the end of its buffer.
+
+- astSimplify, and so astWrite to a FitsChan, never returned for a Mapping
+  that held an infinite coefficient, as the inverse of a WinMap with a
+  scale of 1e-320 does. Several functions that bring an angle into range
+  never returned for a very large angle, such as the sidereal time for an
+  Epoch of 1.0E11.
+
+- If a transformation failed, several classes freed an output PointSet
+  that had been supplied by the caller, which a CmpMap then used.
+
 Build system changes
 --------------------
 
