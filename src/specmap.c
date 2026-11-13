@@ -127,6 +127,12 @@ f     - AST_SPECADD: Add a spectral coordinate conversion to an SpecMap
 *        astLoadSpecMap now checks that the dump describes a Mapping with
 *        one input and one output, or three of each. The transformation
 *        read or wrote beyond the coordinate arrays otherwise.
+*     13-NOV-2026 (TIMJ):
+*        astLoadSpecMap now reads the conversion steps one at a time and
+*        stops at the first that is missing, growing its arrays as it goes.
+*        It sized them from the count in the dump, so a count of INT_MAX
+*        made it allocate and clear tens of gigabytes before it noticed
+*        that the first step was missing.
 *class--
 */
 
@@ -4556,6 +4562,7 @@ AstSpecMap *astLoadSpecMap_( void *mem, size_t size,
    int argra;                    /* Index of RA argument */
    int iarg;                     /* Loop counter for arguments */
    int icvt;                     /* Loop counter for conversion steps */
+   int ncvt;                     /* Number of conversion steps in the dump */
    int nargs;                    /* Number of user-supplied arguments */
    int ncoord;                   /* Required number of inputs and outputs */
    int szargs;                   /* Number of stored arguments */
@@ -4611,24 +4618,26 @@ AstSpecMap *astLoadSpecMap_( void *mem, size_t size,
 /* --------------------------- */
 /* Read the number of conversion steps and allocate memory to hold
    data for each step. */
-      new->ncvt = astReadInt( channel, "nspec", 0 );
-      if ( new->ncvt < 0 ) new->ncvt = 0;
-      new->cvttype = astMalloc( sizeof( int ) * (size_t) new->ncvt );
-      new->cvtargs = astMalloc( sizeof( double * ) * (size_t) new->ncvt );
+      ncvt = astReadInt( channel, "nspec", 0 );
+      if ( ncvt < 0 ) ncvt = 0;
 
-/* If an error occurred, ensure that all allocated memory is freed. */
-      if ( !astOK ) {
-         new->cvttype = astFree( new->cvttype );
-         new->cvtargs = astFree( new->cvtargs );
-
-/* Otherwise, initialise the argument pointer array. */
-      } else {
-         for ( icvt = 0; icvt < new->ncvt; icvt++ ) {
+/* A dump holds every conversion step, so read each in turn and stop at
+   the first that is missing. The arrays that describe the steps grow as
+   they are read, so that they are never larger than the dump justifies,
+   and the number of steps stored in the SpecMap is always the number
+   read so far, so that it can be deleted at any time. */
+      new->ncvt = 0;
+      new->cvttype = NULL;
+      new->cvtargs = NULL;
+      if ( astOK ) {
+         for ( icvt = 0; astOK && icvt < ncvt; icvt++ ) {
+            new->cvttype = astGrow( new->cvttype, icvt + 1, sizeof( int ) );
+            new->cvtargs = astGrow( new->cvtargs, icvt + 1,
+                                    sizeof( double * ) );
+            if ( !astOK ) break;
+            new->cvttype[ icvt ] = AST__SPEC_NULL;
             new->cvtargs[ icvt ] = NULL;
-         }
-
-/* Read in data for each conversion step... */
-         for ( icvt = 0; icvt < new->ncvt; icvt++ ) {
+            new->ncvt = icvt + 1;
 
 /* Conversion type. */
 /* ---------------- */
