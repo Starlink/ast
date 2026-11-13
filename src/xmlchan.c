@@ -101,6 +101,9 @@ f     The XmlChan class does not define any new routines beyond those
 *        a stack buffer overflow when the positional frame has more
 *        than one axis (e.g. a SkyFrame).
 *        Fix astFree of static buffer in xmlchan.c Report function.
+*     13-NOV-2026 (TIMJ):
+*        In ReadInt and ReadInt64, report an error for an integer that is
+*        too large for the type.
 *class--
 
 * Further STC work:
@@ -7352,7 +7355,6 @@ static int ReadInt( AstChannel *this_channel, const char *name, int def, int *st
    AstXmlElement *element;       /* Pointer to element holding required value */
    const char *value;            /* Pointer to attribute value */
    int result;                   /* Value to be returned */
-   int nc;                       /* Number of characters read by astSscanf */
 
 /* Initialise. */
    result = 0;
@@ -7377,9 +7379,7 @@ static int ReadInt( AstChannel *this_channel, const char *name, int def, int *st
    if( element ) {
       value = astXmlGetAttributeValue( element, VALUE );
       if( value ) {
-         nc = 0;
-         if ( !( ( 1 == astSscanf( value, " %d %n", &result, &nc ) )
-                 && ( nc >= (int) strlen( value ) ) ) ) {
+         if ( !astChanStr2Int( value, &result ) ) {
             astError( AST__BADIN,
                       "astRead(XmlChan): The value \"%s = %s\" cannot "
                       "be read as an integer.", status, name, value );
@@ -7465,7 +7465,6 @@ static int64_t ReadInt64( AstChannel *this_channel, const char *name,
    AstXmlElement *element;       /* Pointer to element holding required value */
    const char *value;            /* Pointer to attribute value */
    int64_t result;               /* Value to be returned */
-   int nc;                       /* Number of characters read by astSscanf */
 
 /* Initialise. */
    result = 0;
@@ -7490,9 +7489,7 @@ static int64_t ReadInt64( AstChannel *this_channel, const char *name,
    if( element ) {
       value = astXmlGetAttributeValue( element, VALUE );
       if( value ) {
-         nc = 0;
-         if ( !( ( 1 == astSscanf( value, " %" SCNd64 " %n", &result, &nc ) )
-                 && ( nc >= (int) strlen( value ) ) ) ) {
+         if ( !astChanStr2Int64( value, &result ) ) {
             astError( AST__BADIN,
                       "astRead(XmlChan): The value \"%s = %s\" cannot "
                       "be read as an integer.", status, name, value );
