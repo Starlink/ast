@@ -257,6 +257,9 @@ f     The WcsMap class does not define any new routines beyond those
 *        outside the range of WcsMap axes made the projection parameter code
 *        access its per-axis arrays out of bounds. It also requires the
 *        numbers of inputs and outputs to be equal.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadWcsMap, do not use the projection type string if it
+*        could not be read because of an earlier error.
 *class--
 */
 
@@ -6159,7 +6162,7 @@ AstWcsMap *astLoadWcsMap_( void *mem, size_t size,
 /* WcsType */
 /* ------- */
       text = astReadString( channel, "type", " " );
-      if( strcmp( text, " " ) ){
+      if( text && strcmp( text, " " ) ){
          char tmp[ 10 ];
          (void) sprintf( tmp, "-%.8s", text );
          new->type = astWcsPrjType( tmp );

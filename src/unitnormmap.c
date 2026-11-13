@@ -114,6 +114,10 @@ f     The UnitNormMap class does not define any new routines beyond those
 *        astLoadUnitNormMap now checks that the dump describes a Mapping
 *        with one more output than it has inputs. The transformation read or
 *        wrote beyond the coordinate arrays otherwise.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadUnitNormMap, do not use the new UnitNormMap if the
+*        parent loader failed to supply one, and delete it rather than
+*        leak it if it has no axes.
 *class--
 */
 
@@ -1741,21 +1745,23 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
                          channel );
 
 /* Get the length of the centre array = the number of inputs in the
-   forward direction. */
+   forward direction. The parent loader returns no Mapping if it fails. */
    ncoord = 0;
-   if ( astGetInvert( (AstMapping *) new ) ){
-      ncoord = astGetNout( (AstMapping *) new );
-   } else {
-      ncoord = astGetNin( (AstMapping *) new );
-   }
-   if( ncoord <= 0 && astOK ){
-      astError( AST__LDERR, "The UnitNormMap has %d axes - it must have at least one.",
-                status, ncoord );
-      return NULL;
-   }
+   if( astOK ) {
+      if ( astGetInvert( (AstMapping *) new ) ){
+         ncoord = astGetNout( (AstMapping *) new );
+      } else {
+         ncoord = astGetNin( (AstMapping *) new );
+      }
+      if( ncoord <= 0 && astOK ){
+         astError( AST__LDERR, "astLoadUnitNormMap(%s): The UnitNormMap "
+                   "read has %d axes - it must have at least one.", status,
+                   name, ncoord );
+      }
 
 /* Allocate memory to hold the centre. */
-   new->centre = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
+      new->centre = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
+   }
 
 /* Read input data. */
 /* ================ */
