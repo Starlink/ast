@@ -86,6 +86,79 @@ Bug fixes
   declares an axis count of billions, which made AST allocate memory and
   loop in proportion to that count.
 
+- Reading a corrupt or maliciously crafted object dump or FITS header could
+  crash AST, corrupt memory, or keep it busy without limit. Fuzzing the
+  dumps and headers used by the test suite found about sixty distinct
+  faults of this kind, and all those that crashed or corrupted memory are
+  fixed. astRead now reports an error for, among other things: an integer
+  too large for an int (which used to wrap round to another value); a
+  component object that is missing or of the wrong class; a FrameSet that
+  states more Frames or Mappings than it holds, whose node links form a
+  loop, or whose Mappings and Frames disagree about the number of axes; a
+  Region without the points that define it; a SkyFrame, SpecFrame,
+  TimeFrame or FluxFrame with the wrong number of axes; a PermMap that
+  refers to a constant it does not have; a SpecMap, SlaMap or TimeMap that
+  states more conversion steps than it holds; and a PointSet or MatrixMap
+  that claims more values than a dump can hold.
+
+- A FITS header is rejected if its WCSAXES value is not between 1 and 999.
+  The value used to be taken as the number of axes whatever it was. Other
+  faults in reading FITS headers are fixed: CTYPE values of fewer than
+  three characters, an IRAF WAT card without a string value, and a SIP
+  distortion in a header that states fewer than two WCS axes.
+
+- A SkyFrame read from a dump that does not describe its two axes now has
+  proper sky axes, and so formats values as sexagesimal strings. It was
+  given two simple axes.
+
+- astFormat returns "<bad>" for a celestial longitude or latitude that has
+  too many digits to format, such as 1.0E300 radians, rather than writing
+  beyond the end of its buffer.
+
+- astSimplify, and so astWrite to a FitsChan, never returned for a Mapping
+  that held an infinite coefficient, as the inverse of a WinMap with a
+  scale of 1e-320 does. Several functions that bring an angle into range
+  never returned for a very large angle, such as the sidereal time for an
+  Epoch of 1.0E11. astRate never returned for a position within about
+  1e-301 of zero.
+
+- astMatrixMap reports an error if asked for a full matrix with more
+  elements than an int can hold.
+
+- astGetFitsI and astGetFitsK no longer convert a floating point keyword
+  value that is too large for the integer type. They report that the
+  value cannot be converted, as they do for a string that is not a number.
+
+- If a transformation failed, several classes freed an output PointSet
+  that had been supplied by the caller, which a CmpMap then used.
+
+- A Format attribute value is a "printf" format for a single axis value,
+  and it was given to sprintf without being checked. A Format that asked
+  for anything else, such as "%s" or "%n", made astFormat read or write
+  through a wild pointer, and one can be supplied by a file. astFormat now
+  reports an error unless the Format has at most one conversion
+  specification, for a floating point or integer value, with any field
+  width and precision given as digits.
+
+- Reporting an error could overflow the stack. astError formatted each
+  message into a buffer of 1024 characters without a check, and many
+  messages quote text from the data being read. Warnings issued by a
+  Channel had the same fault with a buffer of 201 characters. Messages
+  that do not fit are now truncated, and warnings are stored in full.
+
+- The default Domain of a CmpFrame, the default Title of a FluxFrame or
+  SpecFluxFrame, the default Label of a SpecFrame with a SpecOrigin, and a
+  value formatted with a wide Format, could each be written beyond the end
+  of a fixed buffer. They are now truncated to fit, and astFormat reports
+  an error for a value that does not fit.
+
+- Writing a FrameSet to a FitsChan could take a time that grew faster than
+  the factorial of the number of WCS axes when two of the axes were
+  coupled by a rotation or a celestial projection, as they are in any
+  header with more WCS axes than pixel axes. A header with WCSAXES = 9 and
+  two rotated pixel axes took minutes, and now takes a fraction of a
+  second. astMapSplit had the same cost for such a Mapping.
+
 Build system changes
 --------------------
 
