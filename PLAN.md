@@ -123,6 +123,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   It covers component objects that are missing from a dump or belong to the wrong class, Regions whose defining points are missing or the wrong number or whose components have the wrong number of axes, and a PointSet that claims more values than a dump can hold.
   For a FrameSet it covers more Frames or nodes claimed than are present, node links that form a loop, and Mappings and Frames that disagree about the number of axes.
   It covers Frames with the wrong number of axes for their class, a SkyFrame whose axes are not described, loaders that carry on after an error, a PermMap that refers to a constant it does not have, a KeyMap that asks for a huge hash table, and sky positions and Epochs too large to format or to bring into range one turn at a time.
+  For FITS headers it covers a WCSAXES value that is not a usable number of axes, CTYPE values of fewer than three characters, an IRAF WAT card with no string value, and a header whose transformation fails part of the way through a compound Mapping.
   Run it with the sanitizers enabled, which is how most of the faults are detected.
 - testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
   For PolyMap, LutMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.

@@ -40,6 +40,10 @@
 *         a huge hash table.
 *       - Large values: a sky position or an Epoch that is too large to
 *         format or to bring into range one turn at a time.
+*       - FITS headers: a WCSAXES value that is not a usable number of
+*         axes, CTYPE values of fewer than three characters, an IRAF WAT
+*         card with no string value, and a header whose transformation
+*         fails part of the way through a compound Mapping.
 
 *  Notes:
 *     - This is a native C test with no Fortran original.
@@ -212,22 +216,22 @@ static int test_axis_limit( void ) {
    if ( !astOK ) astClearStatus;
 
 /* Loaders do the same. */
-   sprintf( dump, " Begin UnitMap\n Nin = %d\n IsA Mapping\n End UnitMap\n",
-            AST__MXAXES );
+   snprintf( dump, sizeof( dump ), " Begin UnitMap\n Nin = %d\n"
+             " IsA Mapping\n End UnitMap\n", AST__MXAXES );
    nfail += check_accepted( "UnitMap dump with AST__MXAXES inputs", dump );
-   sprintf( dump, " Begin UnitMap\n Nin = %d\n IsA Mapping\n End UnitMap\n",
-            AST__MXAXES + 1 );
+   snprintf( dump, sizeof( dump ), " Begin UnitMap\n Nin = %d\n"
+             " IsA Mapping\n End UnitMap\n", AST__MXAXES + 1 );
    nfail += check_rejected( "UnitMap dump with too many inputs", dump,
                             AST__BADNI );
-   sprintf( dump, " Begin PermMap\n Nin = 1\n Nout = %d\n IsA Mapping\n"
-            " End PermMap\n", AST__MXAXES + 1 );
+   snprintf( dump, sizeof( dump ), " Begin PermMap\n Nin = 1\n Nout = %d\n"
+             " IsA Mapping\n End PermMap\n", AST__MXAXES + 1 );
    nfail += check_rejected( "PermMap dump with too many outputs", dump,
                             AST__BADNO );
    nfail += check_rejected( "ShiftMap dump with INT_MAX inputs",
       " Begin ShiftMap\n Nin = 2147483647\n IsA Mapping\n End ShiftMap\n",
       AST__BADNI );
-   sprintf( dump, " Begin Frame\n Naxes = %d\n End Frame\n",
-            AST__MXAXES + 1 );
+   snprintf( dump, sizeof( dump ), " Begin Frame\n Naxes = %d\n End Frame\n",
+             AST__MXAXES + 1 );
    nfail += check_rejected( "Frame dump with too many axes", dump,
                             AST__NAXIN );
    nfail += check_rejected( "Frame dump with INT_MAX axes",
@@ -647,6 +651,181 @@ static int test_large_values( void ) {
    return nfail;
 }
 
+/* Read an object from a FITS header given as an array of "ncard" cards.
+   Returns NULL if nothing could be read. */
+static AstObject *read_header( const char *cards[], int ncard ) {
+   AstFitsChan *fc = astFitsChan( NULL, NULL, " " );
+   AstObject *obj;
+   int i;
+   for ( i = 0; i < ncard; i++ ) astPutFits( fc, cards[ i ], 0 );
+   astClear( fc, "Card" );
+   obj = astRead( fc );
+   fc = astAnnul( fc );
+   return obj;
+}
+
+/* Read a FITS header that need only be handled without a memory fault,
+   transform a position with the result if there is one, and write it out
+   again.  Any error reported is cleared.  Always returns 0, since a fault
+   stops the test. */
+static int check_survives( const char *cards[], int ncard ) {
+   AstObject *obj = read_header( cards, ncard );
+   char *dump;
+   double xin = 10.0;
+   double xout;
+   double yin = 20.0;
+   double yout;
+   if ( obj && astOK && astIsAMapping( obj ) &&
+        astGetI( obj, "Nin" ) == 2 && astGetI( obj, "Nout" ) == 2 ) {
+      astTran2( obj, 1, &xin, &yin, 1, &xout, &yout );
+      if ( !astOK ) astClearStatus;
+      astTran2( obj, 1, &xin, &yin, 0, &xout, &yout );
+   }
+   if ( !astOK ) astClearStatus;
+   if ( obj ) {
+      dump = astToString( obj );
+      dump = astFree( dump );
+      obj = astAnnul( obj );
+   }
+   if ( !astOK ) astClearStatus;
+   return 0;
+}
+
+#define NCARD( cards ) ( (int) ( sizeof( cards )/sizeof( cards[ 0 ] ) ) )
+
+/* FITS headers. */
+static int test_fits( void ) {
+   int nfail = 0;
+
+/* A celestial header to which one card is added. */
+   const char *sky[] = {
+      "CTYPE1  = 'RA---TAN'",
+      "CTYPE2  = 'DEC--TAN'",
+      "CRVAL1  =                180.0",
+      "CRVAL2  =                 45.0",
+      "CRPIX1  =                256.5",
+      "CRPIX2  =                256.5",
+      "CDELT1  =              -0.0003",
+      "CDELT2  =               0.0003",
+      NULL };
+   const int nsky = NCARD( sky ) - 1;
+
+/* WCSAXES values that are not a number of axes that FITS can describe.
+   These were used as the number of axes of several Frames. */
+   const char *badaxes[] = {
+      "WCSAXES =           2147483647",
+      "WCSAXES =                 1000",
+      "WCSAXES =              1.0E300",
+      "WCSAXES =                    0",
+      "WCSAXES =                   -3" };
+
+/* A SIP header that states one WCS axis, where the distortion needs
+   two. */
+   const char *sip[] = {
+      "WCSAXES =                    1",
+      "CTYPE1  = 'RA---TAN-SIP'",
+      "CTYPE2  = 'DEC--TAN-SIP'",
+      "CRVAL1  =                180.0",
+      "CRVAL2  =                 45.0",
+      "CRPIX1  =                256.5",
+      "CRPIX2  =                256.5",
+      "CD1_1   =              -0.0003",
+      "CD2_2   =               0.0003",
+      "A_ORDER =                    2",
+      "A_2_0   =               1.0E-6",
+      "B_ORDER =                    2",
+      "B_0_2   =               1.0E-6" };
+
+/* CTYPE values that are too short to hold a celestial axis type. */
+   const char *ctype0[] = {
+      "CTYPE1  = ''",
+      "CRVAL1  =                  1.0",
+      "CRPIX1  =                  1.0",
+      "CDELT1  =                  1.0" };
+   const char *ctype1[] = {
+      "CTYPE1  = 'X'",
+      "CRVAL1  =                  1.0",
+      "CRPIX1  =                  1.0",
+      "CDELT1  =                  1.0" };
+
+/* An IRAF TNX header in which a WAT card has no value, or a value that is
+   not a string. */
+   const char *tnx[] = {
+      "CTYPE1  = 'RA---TNX'",
+      "CTYPE2  = 'DEC--TNX'",
+      "CRVAL1  =                110.5",
+      "CRVAL2  =                 55.8",
+      "CRPIX1  =               4189.8",
+      "CRPIX2  =                -30.1",
+      "CD1_1   =              -7.6E-7",
+      "CD2_1   =              -1.2E-4",
+      "CD1_2   =               1.2E-4",
+      "CD2_2   =              -1.3E-6",
+      "WAT0_001= 'system=image'",
+      "WAT1_001= 'wtype=tnx axtype=ra lngcor = \"3. 2. 2. 2. 0.005 0.49 '",
+      NULL,
+      "WAT1_003= '0.25 0.49 -0.2 0.005 -0.001 \"'",
+      "WAT2_001= 'wtype=tnx axtype=dec latcor = \"3. 2. 2. 2. 0.005 0.49 '",
+      "WAT2_002= '0.25 0.49 0.15 -0.003 6.5E-4 \"'" };
+
+/* A header with two longitude axes, which is rejected. */
+   const char *lon2[] = {
+      "CTYPE1  = 'RA---NCP'",
+      "CTYPE2  = 'DEC--NCP'",
+      "CTYPE3  = 'RA---TAN'",
+      "CRVAL1  =                180.0",
+      "CRVAL2  =                 45.0",
+      "CRPIX1  =                256.5",
+      "CRPIX2  =                256.5",
+      "CDELT1  =              -0.0003",
+      "CDELT2  =               0.0003" };
+
+/* A header with a reference latitude that has 302 digits of degrees, and
+   one with an equinox that puts the sidereal time far out of range. */
+   const char *bigval[] = {
+      "CTYPE1  = 'RA---CAR'",
+      "CTYPE2  = 'DEC--CAR'",
+      "CRVAL1  =                  0.0",
+      "CRVAL2  =              1.0E300",
+      "CRPIX1  =                  1.0",
+      "CRPIX2  =                  1.0",
+      "CDELT1  =                 -1.0",
+      "CDELT2  =                  1.0" };
+   const char *bigeqx[] = {
+      "CTYPE1  = 'RA---TAN'",
+      "CTYPE2  = 'DEC--TAN'",
+      "CRVAL1  =                180.0",
+      "CRVAL2  =                 45.0",
+      "CRPIX1  =                256.5",
+      "CRPIX2  =                256.5",
+      "CDELT1  =              -0.0003",
+      "CDELT2  =               0.0003",
+      "RADESYS = 'FK5'",
+      "EQUINOX =           2147483647" };
+   int i;
+
+   sky[ nsky ] = "WCSAXES =                    2";
+   nfail += check_made( "FITS header with WCSAXES = 2",
+                        read_header( sky, nsky + 1 ) );
+   for ( i = 0; i < NCARD( badaxes ); i++ ) {
+      sky[ nsky ] = badaxes[ i ];
+      nfail += check_failed( badaxes[ i ], read_header( sky, nsky + 1 ),
+                             AST__BDFTS );
+   }
+
+   nfail += check_survives( sip, NCARD( sip ) );
+   nfail += check_survives( ctype0, NCARD( ctype0 ) );
+   nfail += check_survives( ctype1, NCARD( ctype1 ) );
+   tnx[ 12 ] = "WAT1_002=";
+   nfail += check_survives( tnx, NCARD( tnx ) );
+   tnx[ 12 ] = "WAT1_002=                    5";
+   nfail += check_survives( tnx, NCARD( tnx ) );
+   nfail += check_survives( lon2, NCARD( lon2 ) );
+   nfail += check_survives( bigval, NCARD( bigval ) );
+   nfail += check_survives( bigeqx, NCARD( bigeqx ) );
+   return nfail;
+}
+
 int main( void ) {
    int status = SAI__OK;
    int nfail = 0;
@@ -661,6 +840,7 @@ int main( void ) {
    nfail += test_frames();
    nfail += test_mappings();
    nfail += test_large_values();
+   nfail += test_fits();
 
    astEnd;
    if ( !astOK ) astClearStatus;
