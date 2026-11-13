@@ -268,7 +268,7 @@ static const char *GetAxisLabel( AstAxis *, int * );
 static const char *GetAxisNormUnit( AstAxis *, int * );
 static const char *GetAxisSymbol( AstAxis *, int * );
 static const char *GetAxisUnit( AstAxis *, int * );
-static int AddText( char *, int, const char *, ... );
+static int AddText( char *, int, const char *, ... )__attribute__((format(printf,3,4)));
 static const char *DHmsFormat( const char *, int, double, int * );
 static const char *DHmsUnit( const char *, int, int, int *, int * );
 static double AxisGap( AstAxis *, double, int *, int * );
