@@ -390,6 +390,10 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *        with fmod first.
 *        CalcLAST no longer converts the Epoch to an int, which was
 *        undefined for an Epoch beyond the range of an int.
+*     13-NOV-2026 (TIMJ):
+*        Dump: do not write beyond the end of the comment buffer when the
+*        Symbol of an axis, or the formatted SkyRef or SkyRefP value, is
+*        long.
 *class--
 */
 
@@ -12209,8 +12213,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
       set = TestSkyRef( this, axis, status );
       dval = set ? GetSkyRef( this, axis, status ) : astGetSkyRef( this, axis );
-      sprintf( buf, "Ref. pos. %s %s", astGetSymbol( this, axis ),
-               astFormat( this, axis, dval ) );
+      snprintf( buf, sizeof( buf ), "Ref. pos. %s %s",
+                astGetSymbol( this, axis ), astFormat( this, axis, dval ) );
       sprintf( key, "SRef%d", axis_p + 1 );
       astWriteDouble( channel, key, set, 0, dval, buf );
    }
@@ -12222,8 +12226,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
       set = TestSkyRefP( this, axis, status );
       dval = set ? GetSkyRefP( this, axis, status ) : astGetSkyRefP( this, axis );
-      sprintf( buf, "Ref. north %s %s", astGetSymbol( this, axis ),
-               astFormat( this, axis, dval ) );
+      snprintf( buf, sizeof( buf ), "Ref. north %s %s",
+                astGetSymbol( this, axis ), astFormat( this, axis, dval ) );
       sprintf( key, "SRefP%d", axis_p + 1 );
       astWriteDouble( channel, key, set, 0, dval, buf );
    }
