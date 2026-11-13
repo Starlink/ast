@@ -103,6 +103,9 @@ f     - AST_PUTTABLEHEADER: Store FITS headers within a FitsTable
 *        strings (and free its memory correctly), read no more TDIMn
 *        values than there is room for, and check TZEROn rather than
 *        TSCALn a second time.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFitsTable, check that the dump supplied a FitsChan to
+*        hold the headers.
 *class--
 */
 
@@ -3153,6 +3156,8 @@ AstFitsTable *astLoadFitsTable_( void *mem, size_t size, AstFitsTableVtab *vtab,
 
 /* FitsChan holding table headers. */
       new->header = astReadObject( channel, "header", NULL );
+      astCheckLoaded( new->header, FitsChan, 1, name,
+                      "FitsChan holding the headers" );
 
 /* If an error occurred, clean up by deleting the new FitsTable. */
       if ( !astOK ) new = astDelete( new );

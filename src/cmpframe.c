@@ -220,6 +220,10 @@ f     The CmpFrame class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        Limit a CmpFrame to AST__MXAXES axes, in the constructor and in
 *        astLoadCmpFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadCmpFrame, check that the two components are Frames, and
+*        avoid an integer overflow when converting a permutation index of
+*        INT_MIN to a zero-based index.
 *class--
 */
 
@@ -11010,6 +11014,7 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
    AstCmpFrame *new;             /* Pointer to the new CmpFrame */
    char key[ KEY_LEN + 1 ];      /* Buffer for keywords */
    int axis;                     /* Loop counter for axes */
+   int ival;                     /* Integer value read from the dump */
    int naxes;                    /* Number of CmpFrame axes */
 
 /* Get a pointer to the thread specific global data structure. */
@@ -11064,9 +11069,11 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
 /* Read both component Frames, supplying a default 1-dimensional Frame
    if necessary. */
       new->frame1 = astReadObject( channel, "framea", NULL );
+      astCheckLoaded( new->frame1, Frame, 0, name, "first component Frame" );
       if ( !new->frame1 ) new->frame1 = astFrame( 1, "", status );
 
       new->frame2 = astReadObject( channel, "frameb", NULL );
+      astCheckLoaded( new->frame2, Frame, 0, name, "second component Frame" );
       if ( !new->frame2 ) new->frame2 = astFrame( 1, "", status );
 
 /* Axis permutation array. */
@@ -11088,9 +11095,12 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
          for ( axis = 0; axis < naxes; axis++ ) {
 
 /* Convert from 1-based to zero-based axis numbering at this
-   point. The default is the "un-permuted" value. */
+   point. The default is the "un-permuted" value. Every value that is not
+   a valid 1-based index becomes -1, which is rejected below, so that the
+   subtraction cannot overflow. */
             sprintf( key, "axp%d", axis + 1 );
-            new->perm[ axis ] = astReadInt( channel, key, axis + 1 ) - 1;
+            ival = astReadInt( channel, key, axis + 1 );
+            new->perm[ axis ] = ( ival > 0 ) ? ival - 1 : -1;
 
 /* Quit looping if an error occurs. */
             if ( !astOK ) break;

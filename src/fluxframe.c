@@ -83,6 +83,9 @@ f     The FluxFrame class does not define any new routines beyond those
 *     29-APR-2011 (DSB):
 *        Prevent astFindFrame from matching a subclass template against a
 *        superclass target.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFluxFrame, check that the SpecFrame read from a dump is
+*        a SpecFrame.
 *class--
 */
 
@@ -4224,6 +4227,7 @@ AstFluxFrame *astLoadFluxFrame_( void *mem, size_t size, AstFluxFrameVtab *vtab,
 /* SpecFrame  */
 /* ---------- */
       new->specframe = astReadObject( channel, "spcfr", NULL );
+      astCheckLoaded( new->specframe, SpecFrame, 0, name, "SpecFrame" );
 
 /* SpecVal */
 /* ------- */

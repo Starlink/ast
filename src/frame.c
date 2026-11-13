@@ -328,6 +328,11 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *     13-NOV-2026 (TIMJ):
 *        Limit a Frame to AST__MXAXES axes, in the constructor and in
 *        astLoadFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFrame, check that each Axis read is an Axis and that
+*        the variants are held in a FrameSet, and avoid an integer overflow
+*        when converting a permutation index of INT_MIN to a zero-based
+*        index.
 *class--
 */
 
@@ -15311,6 +15316,7 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Read the Axis object. If none was read, provide a default Axis
    instead. */
             new->axis[ axis ] = astReadObject( channel, key, NULL );
+            astCheckLoaded( new->axis[ axis ], Axis, 0, name, "Axis" );
             if ( !new->axis[ axis ] ) new->axis[ axis ] = astAxis( "", status );
 
 /* Label. */
@@ -15389,7 +15395,8 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Convert from 1-based to zero-based axis numbering at this
    point. The default is the "un-permuted" value. */
             sprintf( key, "prm%d", axis + 1 );
-            new->perm[ axis ] = astReadInt( channel, key, axis + 1 ) - 1;
+            ival = astReadInt( channel, key, axis + 1 );
+            new->perm[ axis ] = ( ival > 0 ) ? ival - 1 : -1;
 
 /* Quit looping if an error occurs. */
             if ( !astOK ) break;
@@ -15535,6 +15542,8 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Variants. */
 /* -------- */
          new->variants = astReadObject( channel, "vrnts", NULL );
+         astCheckLoaded( new->variants, FrameSet, 0, name,
+                         "FrameSet of variant Mappings" );
       }
 
 /* If an error occurred, clean up by deleting the new Frame. */
