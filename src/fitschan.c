@@ -1567,6 +1567,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        convert such a floating point value to an integer type,
 *        GrismSpecWcs reports an error for such a diffraction order, and
 *        SpecTrans adds one to an image dimension as a double.
+*     13-NOV-2026 (TIMJ):
+*        LogWcs: make room for a negative CRVAL with a three digit
+*        exponent, which overflowed the expression buffers by one
+*        character. MakeFitsFrameSet: do not pass a NULL FrameSet to
+*        AddEncodingFrame when no reference point could be found for the
+*        celestial axes of a spectral cube.
 *class--
 */
 
@@ -21084,8 +21090,8 @@ static AstMapping *LogWcs( FitsStore *store, int i, char s,
 
 /* Local Variables: */
    AstMapping *ret;
-   char forexp[ 12 + AST__DBL_WIDTH*2 ];
-   char invexp[ 12 + AST__DBL_WIDTH*2 ];
+   char forexp[ 20 + ( AST__DBL_DIG + 8 )*2 ];
+   char invexp[ 20 + ( AST__DBL_DIG + 8 )*2 ];
    const char *fexps[ 1 ];
    const char *iexps[ 1 ];
    double crv;
@@ -21100,8 +21106,10 @@ static AstMapping *LogWcs( FitsStore *store, int i, char s,
 
 /* Create the MathMap, if possible. */
    if( crv != 0.0 ) {
-      sprintf( forexp, "s=%.*g*exp(w/%.*g)", AST__DBL_DIG, crv, AST__DBL_DIG, crv );
-      sprintf( invexp, "w=%.*g*log(s/%.*g)", AST__DBL_DIG, crv, AST__DBL_DIG, crv );
+      snprintf( forexp, sizeof( forexp ), "s=%.*g*exp(w/%.*g)",
+                AST__DBL_DIG, crv, AST__DBL_DIG, crv );
+      snprintf( invexp, sizeof( invexp ), "w=%.*g*log(s/%.*g)",
+                AST__DBL_DIG, crv, AST__DBL_DIG, crv );
       fexps[ 0 ] = forexp;
       iexps[ 0 ] = invexp;
       ret = (AstMapping *) astMathMap( 1, 1, 1, fexps, 1, iexps, "simpfi=1,simpif=1", status );
@@ -21942,11 +21950,15 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
 
 /* Add a new current Frame into the FrameSet which increases the chances of
    the requested encoding being usable. The index of the original current
-   Frame is returned, or AST__NOFRAME if no new Frame was added. */
-   icurr = AddEncodingFrame( this, ret, encoding, method, class, status );
+   Frame is returned, or AST__NOFRAME if no new Frame was added.
+   There is no FrameSet to add it to if a reference point could not be
+   found for the celestial axes above. */
+   if( ret ) {
+      icurr = AddEncodingFrame( this, ret, encoding, method, class, status );
 
 /* If a new Frame was added, remove the original current Frame. */
-   if( icurr != AST__NOFRAME ) astRemoveFrame( ret, icurr );
+      if( icurr != AST__NOFRAME ) astRemoveFrame( ret, icurr );
+   }
 
 /* Free resources. */
    if( specfrm ) specfrm = astAnnul( specfrm );
