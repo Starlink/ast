@@ -135,6 +135,12 @@ f     - AST_SLAADD: Add a celestial coordinate conversion to an SlaMap
 *        astLoadSlaMap now checks that the dump describes a Mapping with
 *        two inputs and two outputs. The transformation read or wrote beyond
 *        the coordinate arrays otherwise.
+*     13-NOV-2026 (TIMJ):
+*        astLoadSlaMap now reads the conversion steps one at a time and
+*        stops at the first that is missing, growing its arrays as it goes.
+*        It sized them from the count in the dump, so a count of INT_MAX
+*        made it allocate and clear tens of gigabytes before it noticed
+*        that the first step was missing.
 *class--
 */
 
@@ -4904,6 +4910,7 @@ AstSlaMap *astLoadSlaMap_( void *mem, size_t size,
    const char *comment;          /* Pointer to comment string */
    int iarg;                     /* Loop counter for arguments */
    int icvt;                     /* Loop counter for conversion steps */
+   int ncvt;                     /* Number of conversion steps in the dump */
    int nargs;                    /* Number of conversion arguments */
 
 /* Get a pointer to the thread specific global data structure. */
@@ -4957,27 +4964,30 @@ AstSlaMap *astLoadSlaMap_( void *mem, size_t size,
 /* --------------------------- */
 /* Read the number of conversion steps and allocate memory to hold
    data for each step. */
-      new->ncvt = astReadInt( channel, "nsla", 0 );
-      if ( new->ncvt < 0 ) new->ncvt = 0;
-      new->cvttype = astMalloc( sizeof( int ) * (size_t) new->ncvt );
-      new->cvtargs = astMalloc( sizeof( double * ) * (size_t) new->ncvt );
-      new->cvtextra = astMalloc( sizeof( double * ) * (size_t) new->ncvt );
+      ncvt = astReadInt( channel, "nsla", 0 );
+      if ( ncvt < 0 ) ncvt = 0;
 
-/* If an error occurred, ensure that all allocated memory is freed. */
-      if ( !astOK ) {
-         new->cvttype = astFree( new->cvttype );
-         new->cvtargs = astFree( new->cvtargs );
-         new->cvtextra = astFree( new->cvtextra );
-
-/* Otherwise, initialise the argument pointer array. */
-      } else {
-         for ( icvt = 0; icvt < new->ncvt; icvt++ ) {
+/* A dump holds every conversion step, so read each in turn and stop at
+   the first that is missing. The arrays that describe the steps grow as
+   they are read, so that they are never larger than the dump justifies,
+   and the number of steps stored in the SlaMap is always the number
+   read so far, so that it can be deleted at any time. */
+      new->ncvt = 0;
+      new->cvttype = NULL;
+      new->cvtargs = NULL;
+      new->cvtextra = NULL;
+      if ( astOK ) {
+         for ( icvt = 0; astOK && icvt < ncvt; icvt++ ) {
+            new->cvttype = astGrow( new->cvttype, icvt + 1, sizeof( int ) );
+            new->cvtargs = astGrow( new->cvtargs, icvt + 1,
+                                    sizeof( double * ) );
+            new->cvtextra = astGrow( new->cvtextra, icvt + 1,
+                                     sizeof( double * ) );
+            if ( !astOK ) break;
+            new->cvttype[ icvt ] = AST__SLA_NULL;
             new->cvtargs[ icvt ] = NULL;
             new->cvtextra[ icvt ] = NULL;
-         }
-
-/* Read in data for each conversion step... */
-         for ( icvt = 0; icvt < new->ncvt; icvt++ ) {
+            new->ncvt = icvt + 1;
 
 /* Conversion type. */
 /* ---------------- */
