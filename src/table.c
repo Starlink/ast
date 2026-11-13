@@ -129,6 +129,9 @@ f     - AST_REMOVEROW: Remove a row from a Table
 *        In PurgeRows, skip the values of global parameters when counting
 *        the values in each row. A Table holding a parameter value could
 *        not be purged.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadTable, check that the column and parameter definitions
+*        read from a dump are held in KeyMaps.
 *class--
 */
 
@@ -5172,9 +5175,13 @@ AstTable *astLoadTable_( void *mem, size_t size, AstTableVtab *vtab,
 
 /* KeyMap holding columns definitions. */
       new->columns = astReadObject( channel, "columns", NULL );
+      astCheckLoaded( new->columns, KeyMap, 0, name,
+                      "KeyMap of column definitions" );
 
 /* KeyMap holding parameter definitions. */
       new->parameters = astReadObject( channel, "params", NULL );
+      astCheckLoaded( new->parameters, KeyMap, 0, name,
+                      "KeyMap of parameter definitions" );
 
 /* If an error occurred, clean up by deleting the new Table. */
       if ( !astOK ) new = astDelete( new );
