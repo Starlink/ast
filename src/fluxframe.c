@@ -86,6 +86,8 @@ f     The FluxFrame class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        In astLoadFluxFrame, check that the SpecFrame read from a dump is
 *        a SpecFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFluxFrame, check that the dump supplied one axis.
 *class--
 */
 
@@ -4205,6 +4207,9 @@ AstFluxFrame *astLoadFluxFrame_( void *mem, size_t size, AstFluxFrameVtab *vtab,
    new = astLoadFrame( mem, size, (AstFrameVtab *) vtab, name,
                        channel );
    if ( astOK ) {
+
+/* A FluxFrame always has one axis, which the rest of this class relies on. */
+      astCheckLoadedNaxes( new, name, 1 );
 
 /* Read input data. */
 /* ================ */
