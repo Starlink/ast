@@ -75,6 +75,12 @@
 *        in the VTAB initialiser. The VTAB initialiser is not called
 *        until the first PointSet is created, but ast_nan/f values may be
 *        needed before then.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadPointSet, report an error for a PointSet that claims
+*        to hold more coordinate values than a dump can name, rather than
+*        allocating and filling an array of the stated size. Also
+*        initialise every earlier element of the accuracy array when the
+*        first accuracy is read, where the last of them was missed.
 */
 
 /* Module Macros. */
@@ -3117,6 +3123,7 @@ AstPointSet *astLoadPointSet_( void *mem, size_t size,
 /* Local Constants: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
 #define KEY_LEN 50               /* Maximum length of a keyword */
+#define MXLOADVAL 9999999        /* Most values a dump can name */
 
 /* Local Variables: */
    AstPointSet *new;             /* Pointer to the new PointSet */
@@ -3188,6 +3195,21 @@ AstPointSet *astLoadPointSet_( void *mem, size_t size,
       new->ncoord = astReadInt( channel, "ncoord", 1 );
       if ( new->ncoord < 1 ) new->ncoord = 1;
 
+/* A dump names the coordinate values "X1", "X2", and so on, and a name in
+   a dump can have no more than eight characters. So no dump can supply
+   more than MXLOADVAL values, and a PointSet that claims to hold more
+   cannot have been written by AST. Without this check, a few bytes of
+   input could make this function allocate and fill an array of any size. */
+      if ( astOK && ( new->ncoord > MXLOADVAL ||
+                      new->npoint > MXLOADVAL/new->ncoord ) ) {
+         astError( AST__LDERR, "astLoadPointSet(%s): The PointSet read has %"
+                   AST__DIMFMT " points with %d coordinates each, but a "
+                   "dump cannot hold more than %d coordinate values.",
+                   status, name, new->npoint, new->ncoord, MXLOADVAL );
+         new->npoint = 1;
+         new->ncoord = 1;
+      }
+
 /* Axis Acuracies. */
 /* --------------- */
       new->acc = NULL;
@@ -3197,7 +3219,7 @@ AstPointSet *astLoadPointSet_( void *mem, size_t size,
          if( !new->acc && acc != AST__BAD ) {
             new->acc = astMalloc( sizeof( double )*(size_t) new->ncoord );
             if( new->acc ) {
-               for( i = 0; i < coord - 1; i++ ) new->acc[ i ] = AST__BAD;
+               for( i = 0; i < coord; i++ ) new->acc[ i ] = AST__BAD;
             }
          }
          if( new->acc ) new->acc[ coord ] = acc;
@@ -3253,6 +3275,7 @@ AstPointSet *astLoadPointSet_( void *mem, size_t size,
 
 /* Undefine macros local to this function. */
 #undef KEY_LEN
+#undef MXLOADVAL
 }
 
 /* Virtual function interfaces. */
