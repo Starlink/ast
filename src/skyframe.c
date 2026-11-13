@@ -394,6 +394,9 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *        Dump: do not write beyond the end of the comment buffer when the
 *        Symbol of an axis, or the formatted SkyRef or SkyRefP value, is
 *        long.
+*     13-NOV-2026 (TIMJ):
+*        ResolvePoints: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -8846,8 +8849,13 @@ static AstPointSet *ResolvePoints( AstFrame *this_frame, const double point1[],
       }
    }
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;

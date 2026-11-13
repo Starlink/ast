@@ -224,6 +224,9 @@ f     The CmpFrame class does not define any new routines beyond those
 *        In astLoadCmpFrame, check that the two components are Frames, and
 *        avoid an integer overflow when converting a permutation index of
 *        INT_MIN to a zero-based index.
+*     13-NOV-2026 (TIMJ):
+*        NormalPoints and ResolvePoints: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -5847,8 +5850,13 @@ static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int con
    in1 = astAnnul( in1 );
    in2 = astAnnul( in2 );
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -8296,8 +8304,13 @@ static AstPointSet *ResolvePoints( AstFrame *this_frame, const double point1[],
    supplied PointSet. */
    astPermPoints( in, 1, perm );
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;

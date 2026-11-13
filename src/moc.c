@@ -255,6 +255,9 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        Where a longitude is brought into range by removing one turn at
 *        a time, remove whole turns with fmod first if it is far out of
 *        range. The loops never ended for a very large value.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -10096,8 +10099,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
    }
    pset_tmp = astAnnul( pset_tmp );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
