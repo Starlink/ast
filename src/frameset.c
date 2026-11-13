@@ -289,6 +289,15 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        ValidateFrameIndex now also range-checks the Base and Current
 *        indices it returns, and GetVarFrm stops walking the variants chain
 *        if it finds a cycle, so neither can act on a corrupt value.
+*     13-NOV-2026 (TIMJ):
+*        astLoadFrameSet now reads the Frames and Mappings one at a time,
+*        and stops at the first that is missing or of the wrong class. It
+*        used to size its arrays from the counts in the dump and leave a
+*        NULL pointer for each object that was missing, so a large count
+*        used a huge amount of memory and time, and a missing object was
+*        dereferenced later. It also checks that the links between the
+*        nodes form a tree, and that the Mappings and Frames agree about
+*        the number of axes at every node.
 *class--
 */
 
@@ -13122,12 +13131,20 @@ AstFrameSet *astLoadFrameSet_( void *mem, size_t size,
 
 /* Local Variables: */
    AstFrameSet *new;             /* Pointer to the new FrameSet */
+   AstObject *obj;               /* Pointer to an Object read from the dump */
    char key[ KEY_LEN + 1 ];      /* Buffer for keyword string */
-   int ifr;                      /* Get a pointer to the thread specific global data structure. */
-
-/* Loop counter for Frames */
+   int *work;                    /* Work array with an element for each node */
+   int ifr;                      /* Loop counter for Frames */
    int inode;                    /* Loop counter for nodes */
+   int ival;                     /* Integer value read from the dump */
+   int jnode;                    /* Index of another node */
+   int nframe;                   /* Number of Frames stated in the dump */
+   int nin;                      /* Number of Mapping inputs */
+   int nnode;                    /* Number of nodes stated in the dump */
+   int nout;                     /* Number of Mapping outputs */
+   int nstep;                    /* Number of links followed */
 
+/* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(channel);
 
 /* Initialise. */
@@ -13176,91 +13193,112 @@ AstFrameSet *astLoadFrameSet_( void *mem, size_t size,
 
 /* Nframe. */
 /* ------- */
-      new->nframe = astReadInt( channel, "nframe", 1 );
-      if ( new->nframe < 0 ) new->nframe = 1;
+      nframe = astReadInt( channel, "nframe", 1 );
+      if ( nframe < 0 ) nframe = 1;
 
 /* Number of nodes. */
 /* ---------------- */
-      new->nnode = astReadInt( channel, "nnode", new->nframe );
-      if ( new->nnode < 1 ) new->nnode = 1;
+      nnode = astReadInt( channel, "nnode", nframe );
+      if ( nnode < 1 ) nnode = 1;
 
-/* Allocate memory to hold Frame and node information. */
-      new->frame = astMalloc( sizeof( AstFrame *) * (size_t) new->nframe );
-      new->node = astMalloc( sizeof( int ) * (size_t) new->nframe );
-      new->varfrm = astMalloc( sizeof( int ) * (size_t) new->nframe );
-      new->link = astMalloc( sizeof( int ) * (size_t) ( new->nnode - 1 ) );
-      new->invert = astMalloc( sizeof( int ) * (size_t) ( new->nnode - 1 ) );
-      new->map = astMalloc( sizeof( AstMapping * ) *
-                            (size_t) ( new->nnode - 1 ) );
-
-/* If an error occurs, ensure that all allocated memory is freed. */
-      if ( !astOK ) {
-         new->frame = astFree( new->frame );
-         new->node = astFree( new->node );
-         new->varfrm = astFree( new->varfrm );
-         new->link = astFree( new->link );
-         new->invert = astFree( new->invert );
-         new->map = astFree( new->map );
-
-/* Otherwise, initialise the arrays which will hold Object pointers. */
-      } else {
-         for ( ifr = 1; ifr <= new->nframe; ifr++ ) {
-            new->frame[ ifr - 1 ] = NULL;
-         }
-         for ( inode = 1; inode < new->nnode; inode++ ) {
-            new->map[ inode - 1 ] = NULL;
-         }
+/* A dump holds every Frame and every Mapping of a FrameSet, so read each
+   in turn and stop at the first that is missing. The arrays that hold them
+   grow as they are read, so that they are never larger than the dump
+   justifies. The numbers of Frames and nodes stored in the FrameSet are
+   always the numbers read so far, so that it can be deleted at any time. */
+      new->nframe = 0;
+      new->nnode = 1;
 
 /* Read Frame data... */
-         for ( ifr = 1; ifr <= new->nframe; ifr++ ) {
+      for ( ifr = 0; astOK && ifr < nframe; ifr++ ) {
 
 /* Frame objects. */
 /* -------------- */
 /* Create the required keyword and then read the Frame. */
-            (void) sprintf( key, "frm%d", ifr );
-            new->frame[ ifr - 1 ] = astReadObject( channel, key, NULL );
+         (void) sprintf( key, "frm%d", ifr + 1 );
+         obj = astReadObject( channel, key, NULL );
+         if ( !astCheckLoaded( obj, Frame, 1, name, "Frame" ) ) {
+            if ( obj ) obj = astAnnul( obj );
+            break;
+         }
+
+/* Extend the arrays and store the Frame. */
+         new->frame = astGrow( new->frame, ifr + 1, sizeof( AstFrame * ) );
+         new->node = astGrow( new->node, ifr + 1, sizeof( int ) );
+         new->varfrm = astGrow( new->varfrm, ifr + 1, sizeof( int ) );
+         if ( !astOK ) {
+            obj = astAnnul( obj );
+            break;
+         }
+         new->frame[ ifr ] = (AstFrame *) obj;
+         new->node[ ifr ] = 0;
+         new->varfrm[ ifr ] = 0;
+         new->nframe = ifr + 1;
 
 /* Node index for each Frame. */
 /* -------------------------- */
-            (void) sprintf( key, "nod%d", ifr );
-            new->node[ ifr - 1 ] = astReadInt( channel, key, ifr ) - 1;
+/* Convert to a zero-based index. Every value that is not a valid one-based
+   index becomes -1, which is rejected below, so that the subtraction
+   cannot overflow. */
+         (void) sprintf( key, "nod%d", ifr + 1 );
+         ival = astReadInt( channel, key, ifr + 1 );
+         new->node[ ifr ] = ( ival > 0 ) ? ival - 1 : -1;
 
 /* Index of variants Frame. */
 /* ------------------------ */
-            (void) sprintf( key, "vfr%d", ifr );
-            new->varfrm[ ifr - 1 ] = astReadInt( channel, key, 0 );
-         }
+         (void) sprintf( key, "vfr%d", ifr + 1 );
+         new->varfrm[ ifr ] = astReadInt( channel, key, 0 );
+      }
 
 /* Read node data... */
-         for ( inode = 1; inode < new->nnode; inode++ ) {
-
-/* Links between nodes. */
-/* -------------------- */
-            (void) sprintf( key, "lnk%d", inode + 1 );
-            new->link[ inode - 1 ] = astReadInt( channel, key, 0 ) - 1;
-
-/* Inversion flags. */
-/* ---------------- */
-            (void) sprintf( key, "inv%d", inode + 1 );
-            new->invert[ inode - 1 ] = astReadInt( channel, key, 0 );
+      for ( inode = 1; astOK && inode < nnode; inode++ ) {
 
 /* Mapping objects. */
 /* ---------------- */
-            (void) sprintf( key, "map%d", inode + 1 );
-            new->map[ inode - 1 ] = astReadObject( channel, key, NULL );
+         (void) sprintf( key, "map%d", inode + 1 );
+         obj = astReadObject( channel, key, NULL );
+         if ( !astCheckLoaded( obj, Mapping, 1, name, "Mapping" ) ) {
+            if ( obj ) obj = astAnnul( obj );
+            break;
          }
+
+/* Extend the arrays and store the Mapping. */
+         new->map = astGrow( new->map, inode, sizeof( AstMapping * ) );
+         new->link = astGrow( new->link, inode, sizeof( int ) );
+         new->invert = astGrow( new->invert, inode, sizeof( int ) );
+         if ( !astOK ) {
+            obj = astAnnul( obj );
+            break;
+         }
+         new->map[ inode - 1 ] = (AstMapping *) obj;
+         new->link[ inode - 1 ] = 0;
+         new->invert[ inode - 1 ] = 0;
+         new->nnode = inode + 1;
+
+/* Links between nodes. */
+/* -------------------- */
+/* Convert to a zero-based index as for the Frame nodes above. */
+         (void) sprintf( key, "lnk%d", inode + 1 );
+         ival = astReadInt( channel, key, 0 );
+         new->link[ inode - 1 ] = ( ival > 0 ) ? ival - 1 : -1;
+
+/* Inversion flags. */
+/* ---------------- */
+         (void) sprintf( key, "inv%d", inode + 1 );
+         new->invert[ inode - 1 ] = ( astReadInt( channel, key, 0 ) != 0 );
+      }
 
 /* Read remaining data... */
 
 /* Base. */
 /* ----- */
-         new->base = astReadInt( channel, "base", -INT_MAX );
-         if ( new->base < 1 ) new->base = -INT_MAX;
+      new->base = astReadInt( channel, "base", -INT_MAX );
+      if ( new->base < 1 ) new->base = -INT_MAX;
 
 /* Current. */
 /* -------- */
-         new->current = astReadInt( channel, "currnt", -INT_MAX );
-         if ( new->current < 1 ) new->current = -INT_MAX;
+      new->current = astReadInt( channel, "currnt", -INT_MAX );
+      if ( new->current < 1 ) new->current = -INT_MAX;
 
 /* Validate the graph read from the dump before any of it can be used as an
    array index. astReadInt applies no range check, so a corrupt dump could
@@ -13270,29 +13308,93 @@ AstFrameSet *astLoadFrameSet_( void *mem, size_t size,
    least one Frame, every Frame sits at an existing node and may mirror
    another Frame's variants, every node but the first is derived from an
    existing node, and Base/Current are either unset or a valid Frame index. */
-         if ( astOK ) {
-            int ok = ( new->nframe >= 1 );
-            for ( ifr = 0; ok && ifr < new->nframe; ifr++ ) {
-               if ( new->node[ ifr ] < 0 || new->node[ ifr ] >= new->nnode ||
-                    new->varfrm[ ifr ] < 0 ||
-                    new->varfrm[ ifr ] > new->nframe ) ok = 0;
+      if ( astOK ) {
+         int ok = ( new->nframe >= 1 );
+         for ( ifr = 0; ok && ifr < new->nframe; ifr++ ) {
+            if ( new->node[ ifr ] < 0 || new->node[ ifr ] >= new->nnode ||
+                 new->varfrm[ ifr ] < 0 ||
+                 new->varfrm[ ifr ] > new->nframe ) ok = 0;
+         }
+         for ( inode = 1; ok && inode < new->nnode; inode++ ) {
+            if ( new->link[ inode - 1 ] < 0 ||
+                 new->link[ inode - 1 ] >= new->nnode ) ok = 0;
+         }
+         if ( ok && new->base != -INT_MAX &&
+              ( new->base < 1 || new->base > new->nframe ) ) ok = 0;
+         if ( ok && new->current != -INT_MAX &&
+              ( new->current < 1 || new->current > new->nframe ) ) ok = 0;
+         if ( !ok ) {
+            astError( AST__FRSIN, "astLoadFrameSet(%s): Invalid or corrupt "
+                      "FrameSet read from the dump - a Frame, node, "
+                      "variants or Base/Current index is out of range.",
+                      status, astGetClass( new ) );
+         }
+      }
+
+/* The nodes of a valid FrameSet form a tree with the first node at its
+   root, so following the links from any node leads to the first node. The
+   functions that find a path between two nodes rely on this, and would
+   never return if the links formed a loop. Work along the links from each
+   node until a node known to lead to the first node is reached, which
+   takes more steps than there are nodes only if there is a loop. */
+      work = astCalloc( new->nnode, sizeof( int ) );
+      if ( astOK ) {
+         work[ 0 ] = 1;
+         for ( inode = 1; inode < new->nnode; inode++ ) {
+            jnode = inode;
+            for ( nstep = 0; !work[ jnode ] && nstep < new->nnode; nstep++ ) {
+               jnode = new->link[ jnode - 1 ];
             }
-            for ( inode = 1; ok && inode < new->nnode; inode++ ) {
-               if ( new->link[ inode - 1 ] < 0 ||
-                    new->link[ inode - 1 ] >= new->nnode ) ok = 0;
+            if ( !work[ jnode ] ) {
+               astError( AST__FRSIN, "astLoadFrameSet(%s): Invalid or "
+                         "corrupt FrameSet read from the dump - the links "
+                         "between its nodes form a loop.", status,
+                         astGetClass( new ) );
+               break;
             }
-            if ( ok && new->base != -INT_MAX &&
-                 ( new->base < 1 || new->base > new->nframe ) ) ok = 0;
-            if ( ok && new->current != -INT_MAX &&
-                 ( new->current < 1 || new->current > new->nframe ) ) ok = 0;
-            if ( !ok ) {
-               astError( AST__FRSIN, "astLoadFrameSet(%s): Invalid or corrupt "
-                         "FrameSet read from the dump - a Frame, node, "
-                         "variants or Base/Current index is out of range.",
-                         status, astGetClass( new ) );
+            for ( jnode = inode; !work[ jnode ];
+                  jnode = new->link[ jnode - 1 ] ) work[ jnode ] = 1;
+         }
+      }
+
+/* The Mapping at each node converts positions at the node it is derived
+   from into positions at its own node, so it fixes the number of
+   coordinates at both. Check that the Mappings agree with each other about
+   this number for every node, and with the number of axes of every Frame at
+   the node. Otherwise a position passed from one to the next would have the
+   wrong number of coordinates. A node with no Mapping to fix its number of
+   coordinates is flagged by a value of -1. */
+      if ( astOK ) {
+         for ( inode = 0; inode < new->nnode; inode++ ) work[ inode ] = -1;
+         for ( inode = 1; astOK && inode < new->nnode; inode++ ) {
+            astCheckLoadedMap( new->map[ inode - 1 ],
+                               new->invert[ inode - 1 ], name, "Mapping",
+                               &nin, &nout );
+            jnode = new->link[ inode - 1 ];
+            if ( work[ jnode ] == -1 ) work[ jnode ] = nin;
+            if ( work[ inode ] == -1 ) work[ inode ] = nout;
+            if ( astOK && ( work[ jnode ] != nin ||
+                            work[ inode ] != nout ) ) {
+               astError( AST__FRSIN, "astLoadFrameSet(%s): Invalid or "
+                         "corrupt FrameSet read from the dump - the Mapping "
+                         "for node %d has %d inputs and %d outputs, which "
+                         "the other Mappings do not allow.", status,
+                         astGetClass( new ), inode + 1, nin, nout );
+            }
+         }
+         for ( ifr = 0; astOK && ifr < new->nframe; ifr++ ) {
+            nin = work[ new->node[ ifr ] ];
+            nout = astGetNaxes( new->frame[ ifr ] );
+            if ( astOK && nin != -1 && nin != nout ) {
+               astError( AST__FRSIN, "astLoadFrameSet(%s): Invalid or "
+                         "corrupt FrameSet read from the dump - Frame %d "
+                         "has %d axes but the Mappings that connect it to "
+                         "the other Frames need it to have %d.", status,
+                         astGetClass( new ), ifr + 1, nout, nin );
             }
          }
       }
+      work = astFree( work );
 
 /* If an error occurred, clean up by deleting the new FrameSet. */
       if ( !astOK ) new = astDelete( new );
