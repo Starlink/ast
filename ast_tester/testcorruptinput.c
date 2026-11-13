@@ -36,15 +36,19 @@
 *         TimeFrame or FluxFrame, a SkyFrame whose axes are not described,
 *         and the wrong components for a SpecFluxFrame.
 *       - Mappings: a loader that carries on after an error, a PermMap that
-*         refers to a constant it does not have, and a KeyMap that asks for
-*         a huge hash table.
+*         refers to a constant it does not have, a full MatrixMap with more
+*         elements than can be counted or named, a LutMap given an input
+*         far beyond its table, and a KeyMap that asks for a huge hash
+*         table.
 *       - Large values: a sky position or an Epoch that is too large to
 *         format or to bring into range one turn at a time.
 *       - FITS headers: a WCSAXES value that is not a usable number of
 *         axes, CTYPE values of fewer than three characters, an IRAF WAT
 *         card with no string value, a header whose transformation fails
-*         part of the way through a compound Mapping, and a pixel size so
-*         small that its reciprocal is infinite.
+*         part of the way through a compound Mapping, a pixel size so
+*         small that its reciprocal is infinite, a rest frequency so small
+*         that a fraction of it is zero, and a floating point value that is
+*         too large to convert to an integer.
 
 *  Notes:
 *     - This is a native C test with no Fortran original.
@@ -556,6 +560,11 @@ static int test_frames( void ) {
 
 /* Mappings. */
 static int test_mappings( void ) {
+   AstLutMap *lutmap;
+   double element = 1.0;
+   double far[ 2 ] = { 1.0E308, -1.0E308 };
+   double farout[ 2 ];
+   double lut[ 3 ] = { 1.0, 2.0, 4.0 };
    int nfail = 0;
 
 /* A loader must not use what it failed to read. Here the parent loader
@@ -585,6 +594,51 @@ static int test_mappings( void ) {
    nfail += check_rejected( "PermMap with INT_MAX constants",
                             PERMMAP( " Nconst = 2147483647\n" ), AST__LDERR );
 #undef PERMMAP
+
+/* A count of conversion steps far larger than the number of steps in the
+   dump. The arrays that describe the steps were sized from the count. */
+   nfail += check_rejected( "SpecMap with INT_MAX steps stated",
+      " Begin SpecMap\n Nin = 1\n IsA Mapping\n Nspec = 2147483647\n"
+      " End SpecMap\n", AST__BADIN );
+   nfail += check_rejected( "SlaMap with INT_MAX steps stated",
+      " Begin SlaMap\n Nin = 2\n IsA Mapping\n Nsla = 2147483647\n"
+      " End SlaMap\n", AST__BADIN );
+   nfail += check_rejected( "TimeMap with INT_MAX steps stated",
+      " Begin TimeMap\n Nin = 1\n IsA Mapping\n Ntime = 2147483647\n"
+      " End TimeMap\n", AST__BADIN );
+   nfail += check_accepted( "SlaMap with one step",
+      " Begin SlaMap\n Nin = 2\n IsA Mapping\n Nsla = 1\n"
+      " Sla1 = \"FK45Z\"\n Sla1a = 1950\n End SlaMap\n" );
+
+/* The elements of a full matrix are counted with an int, and a dump can
+   name fewer than ten million of them. */
+   nfail += check_accepted( "MatrixMap with four elements",
+      " Begin MatrixMap\n Nin = 2\n IsA Mapping\n M0 = 1\n M1 = 2\n"
+      " M2 = 3\n M3 = 4\n Form = \"Full\"\n End MatrixMap\n" );
+   nfail += check_rejected( "MatrixMap with 2**32 elements",
+      " Begin MatrixMap\n Nin = 65536\n IsA Mapping\n Form = \"Full\"\n"
+      " End MatrixMap\n", AST__LDERR );
+   nfail += check_rejected( "MatrixMap with sixteen million elements",
+      " Begin MatrixMap\n Nin = 4000\n IsA Mapping\n Form = \"Full\"\n"
+      " End MatrixMap\n", AST__LDERR );
+   nfail += check_failed( "astMatrixMap with 2**32 elements",
+                          astMatrixMap( 65536, 65536, 0, &element, " " ),
+                          AST__TOOBG );
+   nfail += check_made( "astMatrixMap with 65536 diagonal elements",
+                        astMatrixMap( 65536, 65536, 2, NULL, " " ) );
+
+/* An axis index that cannot be converted to a zero-based index. */
+   nfail += check_rejected( "WcsMap with the smallest int as an axis",
+      " Begin WcsMap\n Nin = 2\n IsA Mapping\n Type = \"TAN\"\n"
+      " WcsAx1 = -2147483648\n End WcsMap\n", AST__WCSAX );
+
+/* A LutMap finds a table index from its input, which can be far beyond
+   the range of an int. */
+   lutmap = astLutMap( 3, lut, 0.0, 1.0, " " );
+   astTran1( lutmap, 2, far, 1, farout );
+   astSet( lutmap, "LutInterp=1" );
+   astTran1( lutmap, 2, far, 1, farout );
+   nfail += check_made( "LutMap given inputs of 1.0E308", lutmap );
 
 /* The size of the hash table of a KeyMap is not taken on trust. */
    nfail += check_accepted( "KeyMap that asks for a table of INT_MAX",
@@ -808,6 +862,45 @@ static int test_fits( void ) {
       "CRPIX1  =                513.0",
       "CDELT1  =               1e-320",
       "CUNIT1  = 'm'" };
+/* A logarithmic axis with a negative reference value that has a three
+   digit exponent, which needs one more character than was allowed for
+   in the text of the expression used to describe the axis. */
+   const char *logax[] = {
+      "CTYPE1  = 'FREQ-LOG'",
+      "CRVAL1  = -1.2345678901234567E-300",
+      "CRPIX1  =                512.5",
+      "CDELT1  =                  1.0",
+      "CUNIT1  = 'Hz'" };
+
+/* A spectral axis with a rest frequency so small that the first step
+   used to find a rate of change, a fraction of it, is zero. Reading it
+   never returned. */
+   const char *tinyrf[] = {
+      "CTYPE1  = 'BETA-FRQ'",
+      "CRVAL1  =               1.0E-6",
+      "CRPIX1  =                512.5",
+      "CDELT1  =               1.0E-8",
+      "RESTFRQ =               1e-320",
+      "SPECSYS = 'BARYCENT'" };
+
+/* A cube with two spectral axes, for which no reference point can be
+   found when it is written out as a FITS header. */
+   const char *spec2[] = {
+      "CTYPE1  = 'FREQ'",
+      "CTYPE2  = 'PIXEL'",
+      "CTYPE3  = 'FREQ-F2W'",
+      "CRVAL1  =             1.4204E9",
+      "CRVAL2  =                  0.0",
+      "CRVAL3  =                  0.0",
+      "CRPIX1  =                513.0",
+      "CRPIX2  =                 50.0",
+      "CRPIX3  =                 50.0",
+      "CDELT1  =           2147483648",
+      "CDELT2  =                  1.0",
+      "CDELT3  =                  1.0",
+      "CUNIT1  = 'Hz'",
+      "SPECSYS = 'BARYCENT'",
+      "RESTFRQ =             1.4204E9" };
    const char *bigeqx[] = {
       "CTYPE1  = 'RA---TAN'",
       "CTYPE2  = 'DEC--TAN'",
@@ -819,7 +912,9 @@ static int test_fits( void ) {
       "CDELT2  =               0.0003",
       "RADESYS = 'FK5'",
       "EQUINOX =           2147483647" };
+   AstFitsChan *fc;
    int i;
+   int ival;
 
    sky[ nsky ] = "WCSAXES =                    2";
    nfail += check_made( "FITS header with WCSAXES = 2",
@@ -841,6 +936,31 @@ static int test_fits( void ) {
    nfail += check_survives( bigval, NCARD( bigval ) );
    nfail += check_survives( bigeqx, NCARD( bigeqx ) );
    nfail += check_survives( tiny, NCARD( tiny ) );
+   nfail += check_survives( logax, NCARD( logax ) );
+   nfail += check_survives( tinyrf, NCARD( tinyrf ) );
+   nfail += check_survives( spec2, NCARD( spec2 ) );
+
+/* A floating point keyword value that an int cannot hold is not
+   converted to one. */
+   fc = astFitsChan( NULL, NULL, " " );
+   astPutFits( fc, "NAXIS1  =              -1.0E300", 0 );
+   astPutFits( fc, "NAXIS2  =                100.0", 0 );
+   astClear( fc, "Card" );
+   ival = 0;
+   if ( astGetFitsI( fc, "NAXIS2", &ival ) != 1 || ival != 100 || !astOK ) {
+      fprintf( stderr, "testcorruptinput: NAXIS2 = 100.0 was not read as "
+               "the integer 100\n" );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   ival = 0;
+   if ( astGetFitsI( fc, "NAXIS1", &ival ) && astOK ) {
+      fprintf( stderr, "testcorruptinput: NAXIS1 = -1.0E300 was read as "
+               "the integer %d\n", ival );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   fc = astAnnul( fc );
    return nfail;
 }
 
