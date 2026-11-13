@@ -203,6 +203,12 @@ f     The MatrixMap class does not define any new routines beyond those
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
 *        negative values.
+*     13-NOV-2026 (TIMJ):
+*        Report an error when asked for a full matrix with more elements
+*        than an int can hold, in the constructor, and with more elements
+*        than a dump can name, in astLoadMatrixMap. The number of elements
+*        was calculated as an int, which overflows for a matrix of 46341
+*        rows and columns.
 *class--
 */
 
@@ -248,7 +254,9 @@ f     The MatrixMap class does not define any new routines beyond those
 /* C header files. */
 /* --------------- */
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6036,9 +6044,18 @@ AstMatrixMap *astInitMatrixMap_( void *mem, size_t size, int init,
 
 /* If a full MatrixMap is being created, then memory is needed to hold
    all the terms. */
+/* The elements of a matrix are counted and indexed with ints throughout
+   this class, so a matrix cannot have more of them than an int can hold. */
          } else {
-            nel = nin*nout ;
             used_form = FULL;
+            if( (int64_t) nin*(int64_t) nout > INT_MAX ) {
+               astError( AST__TOOBG, "astInitMatrixMap(%s): A full matrix "
+                         "with %d rows and %d columns has too many "
+                         "elements.", status, name, nout, nin );
+               nel = 0;
+            } else {
+               nel = nin*nout;
+            }
          }
 
 /* Allocate memory for the forward matrix, storing the supplied matrix
@@ -6162,6 +6179,7 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
 */
 
 #define KEY_LEN 50               /* Maximum length of a keyword */
+#define MXLOADEL 9999999         /* Most elements a dump can name */
 
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
 /* Local Variables: */
@@ -6225,7 +6243,25 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
       nout = astGetNout( (AstMapping *) new );
 
       if( new->form == FULL ){
-         nel = nin*nout;
+
+/* A dump names the elements of the matrix "M0", "M1", and so on, and a
+   name in a dump can have no more than eight characters. So no dump can
+   supply more than MXLOADEL elements, and a full matrix that claims to
+   have more was not written by AST. Without this check, a few bytes of
+   input could make this function allocate and fill two arrays of the
+   square of the largest number of axes that a Mapping can have, a size
+   that does not even fit in the int used to hold it. */
+         if( (int64_t) nin*(int64_t) nout > MXLOADEL ) {
+            if( astOK ) {
+               astError( AST__LDERR, "astLoadMatrixMap(%s): The full matrix "
+                         "read has %d rows and %d columns, but a dump cannot "
+                         "hold more than %d elements.", status, name, nout,
+                         nin, MXLOADEL );
+            }
+            nel = 0;
+         } else {
+            nel = nin*nout;
+         }
 
       } else if( new->form == DIAGONAL ){
          nel = astMIN( nin, nout );
@@ -6296,6 +6332,7 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
 
 /* Undefine macros local to this function. */
 #undef KEY_LEN
+#undef MXLOADEL
 }
 
 /* Virtual function interfaces. */
