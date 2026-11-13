@@ -1561,6 +1561,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        type. In ConcatWAT, ignore a WAT card that has no string value.
 *        In DSSFromStore, do not loop for ever bringing a very large
 *        reference declination into range.
+*     13-NOV-2026 (TIMJ):
+*        Avoid three conversions and one addition that were undefined for
+*        a keyword value that an int cannot hold: CnvType now fails to
+*        convert such a floating point value to an integer type,
+*        GrismSpecWcs reports an error for such a diffraction order, and
+*        SpecTrans adds one to an image dimension as a double.
 *class--
 */
 
@@ -7850,18 +7856,33 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
                strcpy( cnvtype_text, BAD_STRING );
             }
             *( (char **) buff ) = cnvtype_text;
+
+/* A value that the integer type cannot hold cannot be converted. The
+   tests are written so that they also fail for a NaN value. */
          } else if( type == AST__INT      ){
-            *( (int *) buff ) = (int) odouble;
+            if( odouble >= INT_MIN && odouble <= INT_MAX ) {
+               *( (int *) buff ) = (int) odouble;
+            } else {
+               ret = 0;
+            }
          } else if( type == AST__KINT     ){
-            *( (int64_t *) buff ) = (int64_t) odouble;
+            if( odouble >= -9.2E18 && odouble <= 9.2E18 ) {
+               *( (int64_t *) buff ) = (int64_t) odouble;
+            } else {
+               ret = 0;
+            }
          } else if( type == AST__LOGICAL  ){
             *( (int *) buff ) = ( odouble == 0.0 ) ? 0 : 1;
          } else if( type == AST__COMPLEXF ){
             ( (double *) buff )[ 0 ] = odouble;
             ( (double *) buff )[ 1 ] = 0.0;
          } else if( type == AST__COMPLEXI ){
-            ( (int *) buff )[ 0 ] = (int) odouble;
-            ( (int *) buff )[ 1 ] = 0;
+            if( odouble >= INT_MIN && odouble <= INT_MAX ) {
+               ( (int *) buff )[ 0 ] = (int) odouble;
+               ( (int *) buff )[ 1 ] = 0;
+            } else {
+               ret = 0;
+            }
          } else if( astOK ){
             ret = 0;
             astError( AST__INTER, "CnvType: AST internal programming error - "
@@ -14633,6 +14654,12 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
       pv = GetItem( &(store->pv), i, 0, s, NULL, method, class, status );
       astSetGrismG( gmap, ( pv != AST__BAD )?pv:0.0 );
       pv = GetItem( &(store->pv), i, 1, s, NULL, method, class, status );
+      if( pv != AST__BAD && !( fabs( pv ) < INT_MAX ) && astOK ) {
+         astError( AST__BDFTS, "%s(%s): The FITS keyword PV%d_1%c has an "
+                   "invalid value (%g) for the diffraction order of a "
+                   "grism.", status, method, class, i + 1, s, pv );
+         pv = AST__BAD;
+      }
       astSetGrismM( gmap, ( pv != AST__BAD )?(int) round( pv ):0);
       pv = GetItem( &(store->pv), i, 2, s, NULL, method, class, status );
       astSetGrismAlpha( gmap, ( pv != AST__BAD )?pv*AST__DD2R:0.0 );
@@ -32594,7 +32621,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
             }
 
             if( cdelti != 0.0 ) {
-               double offset = 0.5*( dim + 1 );
+               double offset = 0.5*( (double) dim + 1.0 );
                dval = offset + AST__DR2D*palDrange( AST__DD2R*( dval - offset )*cdelti )/cdelti;
                SetValue( ret, FormatKey( "CRPIX", axlon + 1, -1, s, status ),
                          (void *) &dval, AST__FLOAT, CardComm( this, status ), status );

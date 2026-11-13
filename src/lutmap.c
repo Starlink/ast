@@ -135,6 +135,10 @@ f     The LutMap class does not define any new routines beyond those
 *        astLoadLutMap now checks that the dump describes a Mapping with
 *        one input and one output. The transformation read or wrote beyond
 *        the coordinate arrays otherwise.
+*     13-NOV-2026 (TIMJ):
+*        Transform: do not convert a table index to an int if it is too
+*        large for one, which is undefined. An input far beyond the table
+*        gave such an index.
 *class--
 */
 
@@ -1567,7 +1571,11 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
             } else if( near ){
                x = ( value_in - map->start ) * scale;
                xi = floor( x + 0.5 );
-               ix = (int) xi;
+
+/* Convert it to an int. An index beyond either end of the table is put
+   just beyond that end, since converting a value that an int cannot hold
+   is undefined. */
+               ix = ( xi < 0.0 ) ? -1 : ( ( xi < nlut ) ? (int) xi : nlut );
                if ( ix < 0 || ix >= nlut ) {
                   value_out = AST__BAD;
                } else {
@@ -1579,7 +1587,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
             } else {
                x = ( value_in - map->start ) * scale;
                xi = floor( x );
-               ix = (int) xi;
+               ix = ( xi < 0.0 ) ? -1 : ( ( xi < nlut ) ? (int) xi : nlut );
 
 /* If the input value lies below the first lookup table entry,
    extrapolate using the first two table values. */
