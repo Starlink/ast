@@ -333,6 +333,9 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        the variants are held in a FrameSet, and avoid an integer overflow
 *        when converting a permutation index of INT_MIN to a zero-based
 *        index.
+*     13-NOV-2026 (TIMJ):
+*        Added the protected function astCheckLoadedNaxes, for the loaders
+*        of classes that always have a particular number of axes.
 *class--
 */
 
@@ -15555,6 +15558,59 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 
 /* Undefine macros local to this function. */
 #undef KEY_LEN
+}
+
+void astCheckLoadedNaxes_( AstFrame *this, const char *name, int naxes,
+                           int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoadedNaxes
+
+*  Purpose:
+*     Check the number of axes of a Frame read from a dump.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "frame.h"
+*     void astCheckLoadedNaxes( AstFrame *this, const char *name, int naxes )
+
+*  Class Membership:
+*     Frame member function.
+
+*  Description:
+*     astLoadFrame takes the number of axes of a Frame from a dump. Some
+*     classes of Frame always have a particular number of axes, which
+*     their constructors ensure and their other functions rely on. The
+*     loader for such a class should call this function, as soon as it
+*     has loaded its parent Frame structure, to report an error if the
+*     number read from the dump is not the one that the class requires.
+
+*  Parameters:
+*     this
+*        Pointer to the Frame.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     naxes
+*        The number of axes that the Frame must have.
+
+*  Notes:
+*     - An error with status AST__LDERR is reported if the Frame has a
+*     different number of axes.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Report an error if the number of axes is wrong. */
+   if ( astGetNaxes( this ) != naxes ) {
+      astError( AST__LDERR, "astLoad(%s): The %s read has %d axes, but a %s "
+                "must have %d.", status, name, name, astGetNaxes( this ),
+                name, naxes );
+   }
 }
 
 /* Virtual function interfaces. */

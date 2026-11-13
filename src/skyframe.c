@@ -377,6 +377,12 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *         through a vertex of a Polygon was counted as crossing its
 *         boundary twice or not at all, and a position beyond the vertex
 *         was taken to be inside the Polygon.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadSkyFrame, check that the dump supplied two axes. A
+*        SkyFrame with one axis, or none, read beyond the end of its axis
+*        permutation array as it was loaded. Replace an axis that is not a
+*        SkyAxis, as it is if the dump does not describe it, with a
+*        SkyAxis. SubFrame invoked SkyAxis methods on it regardless.
 *class--
 */
 
@@ -12496,6 +12502,8 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
 */
 
 /* Local Variables: */
+   AstAxis *ax;                  /* Pointer to an Axis of the SkyFrame */
+   AstSkyAxis *skyax;            /* Pointer to a new SkyAxis */
    AstSkyFrame *new;             /* Pointer to the new SkyFrame */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    char *sval;                   /* Pointer to string value */
@@ -12537,6 +12545,23 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
 
    if ( astOK ) {
 
+/* A SkyFrame always has two axes, each described by a SkyAxis, and the
+   rest of this class relies on both. astLoadFrame supplies a simple Axis
+   for an axis that the dump does not describe, so replace any Axis that
+   is not a SkyAxis with a SkyAxis that has the same attribute values, as
+   the constructor replaces the axes of the Frame that it starts with. */
+      astCheckLoadedNaxes( new, name, 2 );
+      for( axis = 0; astOK && axis < 2; axis++ ) {
+         ax = astGetAxis( new, axis );
+         if( !astIsASkyAxis( ax ) ) {
+            skyax = astSkyAxis( "", status );
+            astAxisOverlay( ax, skyax );
+            astSetAxis( new, axis, skyax );
+            skyax = astAnnul( skyax );
+         }
+         ax = astAnnul( ax );
+      }
+
 /* Get a pointer to the SkyFrame's axis permutation array (using a method,
    to allow for any over-ride by a derived class). */
       perm = astGetPerm( new );
@@ -12547,8 +12572,15 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
    correspond with a particular internal value (i.e. instance variable)
    relating to an axis. This step is needed so that the effect of any
    axis permutation can be un-done before values are written out, as
-   output values are written by this function in un-permuted order. */
-      for( axis = 0; axis < 2; axis++ ) invperm[ perm[ axis ] ] = axis;
+   output values are written by this function in un-permuted order. There
+   is no permutation array to use if an error has occurred. */
+      for( axis = 0; axis < 2; axis++ ) {
+         if( astOK ) {
+            invperm[ perm[ axis ] ] = axis;
+         } else {
+            invperm[ axis ] = axis;
+         }
+      }
 
 /* Read input data. */
 /* ================ */
