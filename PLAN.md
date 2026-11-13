@@ -120,6 +120,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testcorruptinput — corrupt or malicious input must be rejected without a crash, memory corruption, or a run time or memory use out of proportion to its size.
   Each case is a small dump or FITS header of the kind a fuzzer produces by changing one value of a valid input, and each made the library do one of those things.
   It covers integers too large for an int, and the AST__MXAXES limit on the inputs, outputs and axes of a Mapping or Frame, in constructors and loaders.
+  It covers component objects that are missing from a dump or belong to the wrong class, Regions whose defining points are missing or the wrong number or whose components have the wrong number of axes, and a PointSet that claims more values than a dump can hold.
+  For a FrameSet it covers more Frames or nodes claimed than are present, node links that form a loop, and Mappings and Frames that disagree about the number of axes.
   Run it with the sanitizers enabled, which is how most of the faults are detected.
 - testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
   For PolyMap, LutMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
