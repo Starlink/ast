@@ -125,6 +125,9 @@ f     The Box class does not define any new routines beyond those
 *        RegBaseMesh: The mesh of a Box occupying a single point now has
 *        that point's value on each axis, rather than the first axis's
 *        value on every axis.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadBox, check that the dump supplied the points that
+*        define the Box, and the right number of them.
 *class--
 */
 
@@ -5042,6 +5045,9 @@ AstBox *astLoadBox_( void *mem, size_t size, AstBoxVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Box" );
+
+/* Check that the parent Region supplied the points that a Box needs. */
+      astCheckLoadedPoints( new, name, 2, 2, 0 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

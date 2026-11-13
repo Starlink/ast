@@ -82,6 +82,9 @@ f     - AST_ELLIPSEPARS: Get the geometric parameters of the Ellipse
 *        about axis 2, not axis 1. astAxDistance dispatches to the Axis, so on
 *        a Frame whose two axes normalise differently the axis 2 limits were
 *        measured by axis 1's rule. Circle and Polygon already pass 1 and 2.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadEllipse, check that the dump supplied the points that
+*        define the Ellipse, and the right number of them.
 *class--
 */
 
@@ -2999,6 +3002,9 @@ AstEllipse *astLoadEllipse_( void *mem, size_t size, AstEllipseVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Ellipse" );
+
+/* Check that the parent Region supplied the points that a Ellipse needs. */
+      astCheckLoadedPoints( new, name, 3, 3, 2 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

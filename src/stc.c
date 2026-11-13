@@ -81,6 +81,12 @@ f     - AST_GETSTCNCOORD: Returns the number of AstroCoords elements in an Stc
 *        set on, the encapsulated Region, so inverting the value again
 *        when the Stc was negated cancelled the negation, and a negated
 *        Stc covered the same points as the un-negated one.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadStc, check that the dump supplied an encapsulated Region
+*        with the axes of the Stc, and that each AstroCoords is described
+*        by a KeyMap holding Regions. The array of KeyMaps now grows as
+*        they are read, rather than being sized by a count taken from the
+*        dump without question.
 *class--
 */
 
@@ -3552,6 +3558,7 @@ AstStc *astLoadStc_( void *mem, size_t size, AstStcVtab *vtab,
    char key[ KEY_LEN + 1 ];      /* Buffer for keyword string */
    int ico;                      /* Loop counter for AstroCoords */
    int ikey;                     /* Index of KeyMap */
+   int ncoord;                   /* Number of AstroCoords in the dump */
 
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(channel);
@@ -3603,6 +3610,16 @@ AstStc *astLoadStc_( void *mem, size_t size, AstStcVtab *vtab,
 /* Encapsulated Region. */
 /* -------------------- */
       new->region = astReadObject( channel, "region", NULL );
+      astCheckLoaded( new->region, Region, 1, name, "encapsulated Region" );
+
+/* The encapsulated Region is defined in the base Frame of the Stc. */
+      if( astOK && astGetNaxes( new->region ) !=
+                   astGetNin( ((AstRegion *) new)->frameset ) ) {
+         astError( AST__LDERR, "astLoadStc(%s): The Region encapsulated by "
+                   "the %s read has %d axes, but the %s has %d.", status,
+                   name, name, astGetNaxes( new->region ), name,
+                   astGetNin( ((AstRegion *) new)->frameset ) );
+      }
 
 /* Get a pointer to the base Frame in the FrameSet encapsulated by the
    parent Region structure. */
@@ -3624,26 +3641,44 @@ AstStc *astLoadStc_( void *mem, size_t size, AstStcVtab *vtab,
 /* AstroCoords info */
 /* ---------------- */
 /* The number of AstroCoords described in the new Stc. */
-      new->ncoord = astReadInt( channel, "ncoord", 0 );
-      if( new->ncoord < 0 ) new->ncoord = 0;
+      ncoord = astReadInt( channel, "ncoord", 0 );
+      if( ncoord < 0 ) ncoord = 0;
 
-/* Read back each KeyMap describing these AstroCoords. */
-      new->coord = astMalloc( sizeof( AstKeyMap *) * (size_t) new->ncoord );
-      for( ico = 1; ico <= new->ncoord; ico++ ) {
-         (void) sprintf( key, "coord%d", ico );
-         new->coord[ ico - 1 ] = astReadObject( channel, key, NULL );
+/* Read back each KeyMap describing these AstroCoords. The dump holds
+   every one of them, so stop at the first that cannot be read. The array
+   grows as they are read, so that it is never larger than the dump
+   justifies. */
+      new->ncoord = 0;
+      new->coord = NULL;
+      for( ico = 0; astOK && ico < ncoord; ico++ ) {
+         (void) sprintf( key, "coord%d", ico + 1 );
+         obj = astReadObject( channel, key, NULL );
+         if( !astCheckLoaded( obj, KeyMap, 1, name, "AstroCoords KeyMap" ) ) {
+            if( obj ) obj = astAnnul( obj );
+            break;
+         }
+         new->coord = astGrow( new->coord, ico + 1, sizeof( AstKeyMap * ) );
+         if( !astOK ) {
+            obj = astAnnul( obj );
+            break;
+         }
+         new->coord[ ico ] = (AstKeyMap *) obj;
+         new->ncoord = ico + 1;
 
 /* Ensure the Regions within the KeyMap do not have dummy FrameSets. */
-         if( new->coord[ ico - 1 ] && !astRegDummyFS( new ) ) {
+         if( !astRegDummyFS( new ) ) {
             for( ikey = 0; ikey < NREG; ikey++ ) {
-               if( astMapGet0A( new->coord[ ico - 1 ], regkey[ ikey ], &obj ) ){
-                  creg = (AstRegion *) obj;
-                  if( astRegDummyFS( creg ) ) {
-                     astSetRegFS( creg, f1 );
-                     astMapPut0A( new->coord[ ico - 1 ], regkey[ ikey ], creg,
-                                  regcom[ ikey ] );
+               if( astMapGet0A( new->coord[ ico ], regkey[ ikey ], &obj ) ){
+                  if( astCheckLoaded( obj, Region, 1, name,
+                                      "Region in an AstroCoords KeyMap" ) ) {
+                     creg = (AstRegion *) obj;
+                     if( astRegDummyFS( creg ) ) {
+                        astSetRegFS( creg, f1 );
+                        astMapPut0A( new->coord[ ico ], regkey[ ikey ], creg,
+                                     regcom[ ikey ] );
+                     }
                   }
-                  creg = astAnnul( creg );
+                  obj = astAnnul( obj );
                }
             }
          }
