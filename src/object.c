@@ -246,6 +246,10 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        may be associated with any Object for storing extra internal data.
 *        The companion astHasKeyMap method tests whether an Object already has
 *        an associated KeyMap without creating one.
+*     13-NOV-2026 (TIMJ):
+*        Added the protected function astCheckLoaded, for a loader to check
+*        the class of a component Object that it has read from a dump, and
+*        used it in astLoadObject to check the associated KeyMap.
 *class--
 */
 
@@ -5869,6 +5873,87 @@ AstObject *astInitObject_( void *mem, size_t size, int init,
    return new;
 }
 
+int astCheckLoaded_( void *obj, int isa, int needed, const char *type,
+                     const char *name, const char *item, int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoaded
+
+*  Purpose:
+*     Check the class of an Object read by a loader.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "object.h"
+*     int astCheckLoaded( void *obj, class, int needed, const char *name,
+*                         const char *item )
+
+*  Class Membership:
+*     Object member function.
+
+*  Description:
+*     astReadObject returns whatever Object a dump supplies for a named
+*     item, or NULL if the dump supplies none. A loader that stores such
+*     an Object as a component of the Object it is loading should call
+*     this function first. It reports an error if the component belongs
+*     to the wrong class, since invoking the methods of the expected class
+*     on it would use a virtual function table that does not have them.
+*     It can also report an error if the component is missing.
+
+*  Parameters:
+*     obj
+*        The pointer returned by astReadObject, which may be NULL.
+*     class
+*        The name of the class that the component must belong to, given
+*        without quotes (for instance, Frame). The interface to this
+*        class must have been included.
+*     needed
+*        If non-zero, an error is reported if "obj" is NULL.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     item
+*        A description of the component, for use in error messages.
+
+*  Returned Value:
+*     Non-zero if "obj" is an Object of the required class, and zero
+*     otherwise.
+
+*  Notes:
+*     - This is a macro. It invokes the function astCheckLoaded_, which
+*     takes the result of the class membership test in place of the
+*     class.
+*     - An error with status AST__LDERR is reported if the component
+*     belongs to the wrong class, or is missing when it is needed.
+*     - Zero is returned if an error has already occurred.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* A missing component is an error only if it is needed. */
+   if ( !obj ) {
+      if ( needed ) {
+         astError( AST__LDERR, "astLoad(%s): The %s is missing from the %s "
+                   "read.", status, name, item, name );
+      }
+      return 0;
+   }
+
+/* Report an error if the component belongs to the wrong class. */
+   if ( !isa ) {
+      astError( AST__LDERR, "astLoad(%s): The %s read for a %s is a %s, "
+                "which is not a %s.", status, name, item, name,
+                astGetClass( obj ), type );
+      return 0;
+   }
+
+   return 1;
+}
+
 AstObject *astLoadObject_( void *mem, size_t size,
                            AstObjectVtab *vtab, const char *name,
                            AstChannel *channel, int *status ) {
@@ -6001,6 +6086,7 @@ AstObject *astLoadObject_( void *mem, size_t size,
 /* Read any associated KeyMap. This will be a NULL pointer if the external
    representation did not include one (the usual case). */
       new->keymap = astReadObject( channel, "keymap", NULL );
+      astCheckLoaded( new->keymap, KeyMap, 0, name, "associated KeyMap" );
 
 /* If an error occurred, clean up by deleting the new Object. */
       if ( !astOK ) new = astDelete( new );
