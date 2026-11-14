@@ -171,6 +171,9 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *        shifting by the negated AST__BAD value.
 *     13-NOV-2026 (TIMJ):
 *        In astLoadSpecFrame, check that the dump supplied one axis.
+*     13-NOV-2026 (TIMJ):
+*        GetLabel: do not write beyond the end of the buffer when the
+*        formatted SpecOrigin value is long.
 *class--
 */
 
@@ -1603,8 +1606,9 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
 /* If a non-zero SpecOrigin has been specified, include the offset now. */
          orig = GetSpecOriginCur( (AstSpecFrame *) this, status );
          if( orig != 0.0 ) {
-            sprintf( getlabel_buff + strlen( getlabel_buff ), " offset from %s",
-                     astFormat( this, 0, orig ) );
+            snprintf( getlabel_buff + strlen( getlabel_buff ),
+                      sizeof( getlabel_buff ) - strlen( getlabel_buff ),
+                      " offset from %s", astFormat( this, 0, orig ) );
          }
 
 /* Modify this default to take account of the current value of the Unit

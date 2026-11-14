@@ -72,6 +72,9 @@ f     The SpecFluxFrame class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        In astLoadSpecFluxFrame, check that the components read from a
 *        dump are a SpecFrame and a FluxFrame.
+*     13-NOV-2026 (TIMJ):
+*        GetTitle: do not write beyond the end of the buffer when the
+*        Labels of the two component Frames are long.
 *class--
 */
 
@@ -408,8 +411,8 @@ static const char *GetTitle( AstFrame *this_frame, int *status ) {
       sf = GetSpecFrame( this, 0, status );
 
       if( astOK ) {
-         sprintf( gettitle_buff, "%s versus %s", astGetLabel( ff, 0 ),
-                  astGetLabel( sf, 0 ) );
+         snprintf( gettitle_buff, sizeof( gettitle_buff ), "%s versus %s",
+                   astGetLabel( ff, 0 ), astGetLabel( sf, 0 ) );
          gettitle_buff[ 0 ] = toupper( gettitle_buff[ 0 ] );
          result = gettitle_buff;
       }
