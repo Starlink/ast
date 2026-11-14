@@ -166,6 +166,33 @@ Bug fixes
 - If a transformation failed, several classes freed an output PointSet
   that had been supplied by the caller, which a CmpMap then used.
 
+- A Format attribute value is a "printf" format for a single axis value,
+  and it was given to sprintf without being checked. A Format that asked
+  for anything else, such as "%s" or "%n", made astFormat read or write
+  through a wild pointer, and one can be supplied by a file. astFormat now
+  reports an error unless the Format has at most one conversion
+  specification, for a floating point or integer value, with any field
+  width and precision given as digits.
+
+- Reporting an error could overflow the stack. astError formatted each
+  message into a buffer of 1024 characters without a check, and many
+  messages quote text from the data being read. Warnings issued by a
+  Channel had the same fault with a buffer of 201 characters. Messages
+  that do not fit are now truncated, and warnings are stored in full.
+
+- The default Domain of a CmpFrame, the default Title of a FluxFrame or
+  SpecFluxFrame, the default Label of a SpecFrame with a SpecOrigin, and a
+  value formatted with a wide Format, could each be written beyond the end
+  of a fixed buffer. They are now truncated to fit, and astFormat reports
+  an error for a value that does not fit.
+
+- Writing a FrameSet to a FitsChan could take a time that grew faster than
+  the factorial of the number of WCS axes when two of the axes were
+  coupled by a rotation or a celestial projection, as they are in any
+  header with more WCS axes than pixel axes. A header with WCSAXES = 9 and
+  two rotated pixel axes took minutes, and now takes a fraction of a
+  second. astMapSplit had the same cost for such a Mapping.
+
 Build system changes
 --------------------
 
