@@ -138,6 +138,12 @@
 *        than at link-time.
 *     17-OCT-2017 (DSB):
 *        Added astGetAt.
+*     13-NOV-2026 (TIMJ):
+*        astError and astErrorPublic: do not write beyond the end of the
+*        message buffer. The message was formatted with vsprintf into
+*        1024 characters on the stack, and it often quotes text from the
+*        data being read, so a long value in a corrupt file overflowed
+*        the stack while the error about it was being reported.
 */
 
 /* Define the astCLASS macro (even although this is not a class
@@ -578,17 +584,22 @@ void astErrorPublic_( int status_value, const char *fmt, ... ) {
    then construct an error context message. */
    if ( astOK &&
         ( current_routine || current_file || current_line ) ) {
-      nc = sprintf( buff, "AST: Error" );
-      if ( current_routine ) {
-         nc += sprintf( buff + nc, " in routine %s", current_routine );
+      nc = snprintf( buff, sizeof( buff ), "AST: Error" );
+      if ( current_routine && nc < BUFF_LEN ) {
+         nc += snprintf( buff + nc, sizeof( buff ) - nc, " in routine %s",
+                         current_routine );
       }
-      if ( current_line ) {
-         nc += sprintf( buff + nc, " at line %d", current_line );
+      if ( current_line && nc < BUFF_LEN ) {
+         nc += snprintf( buff + nc, sizeof( buff ) - nc, " at line %d",
+                         current_line );
       }
-      if ( current_file ) {
-         nc += sprintf( buff + nc, " in file %s", current_file );
+      if ( current_file && nc < BUFF_LEN ) {
+         nc += snprintf( buff + nc, sizeof( buff ) - nc, " in file %s",
+                         current_file );
       }
-      nc += sprintf( buff + nc, "." );
+      if ( nc < BUFF_LEN ) {
+         nc += snprintf( buff + nc, sizeof( buff ) - nc, "." );
+      }
 
 /* Deliver the error message unless reporting has been switched off using
    astReporting. In which case store them in a static array. */
@@ -606,8 +617,10 @@ void astErrorPublic_( int status_value, const char *fmt, ... ) {
       astSetStatus( status_value );
    }
 
-/* Write the error message supplied to the formatting buffer. */
-   nc = vsprintf( buff, fmt, args );
+/* Write the error message supplied to the formatting buffer. The message
+   often quotes text taken from the data being read, which can be any
+   length, so it is truncated if it does not fit. */
+   nc = vsnprintf( buff, sizeof( buff ), fmt, args );
 
 /* Tidy up the argument pointer. */
    va_end( args );
@@ -705,17 +718,22 @@ void astError_( int status_value, const char *fmt, int *status, ... ) {
    then construct an error context message. */
    if ( astOK &&
         ( current_routine || current_file || current_line ) ) {
-      nc = sprintf( buff, "AST: Error" );
-      if ( current_routine ) {
-         nc += sprintf( buff + nc, " in routine %s", current_routine );
+      nc = snprintf( buff, sizeof( buff ), "AST: Error" );
+      if ( current_routine && nc < BUFF_LEN ) {
+         nc += snprintf( buff + nc, sizeof( buff ) - nc, " in routine %s",
+                         current_routine );
       }
-      if ( current_line ) {
-         nc += sprintf( buff + nc, " at line %d", current_line );
+      if ( current_line && nc < BUFF_LEN ) {
+         nc += snprintf( buff + nc, sizeof( buff ) - nc, " at line %d",
+                         current_line );
       }
-      if ( current_file ) {
-         nc += sprintf( buff + nc, " in file %s", current_file );
+      if ( current_file && nc < BUFF_LEN ) {
+         nc += snprintf( buff + nc, sizeof( buff ) - nc, " in file %s",
+                         current_file );
       }
-      nc += sprintf( buff + nc, "." );
+      if ( nc < BUFF_LEN ) {
+         nc += snprintf( buff + nc, sizeof( buff ) - nc, "." );
+      }
 
 /* Deliver the error message unless reporting has been switched off using
    astReporting. In which case store them in a static array. */
@@ -733,8 +751,10 @@ void astError_( int status_value, const char *fmt, int *status, ... ) {
       astSetStatus( status_value );
    }
 
-/* Write the error message supplied to the formatting buffer. */
-   nc = vsprintf( buff, fmt, args );
+/* Write the error message supplied to the formatting buffer. The message
+   often quotes text taken from the data being read, which can be any
+   length, so it is truncated if it does not fit. */
+   nc = vsnprintf( buff, sizeof( buff ), fmt, args );
 
 /* Tidy up the argument pointer. */
    va_end( args );

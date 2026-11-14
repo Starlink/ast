@@ -128,6 +128,11 @@ f     - AST_WRITE: Write an Object to a Channel
 *        that is too large for the type, instead of returning whatever
 *        value the conversion wraps round to. Both now return zero when
 *        the text cannot be read.
+*     13-NOV-2026 (TIMJ):
+*        astAddWarning: format the message in a buffer of the size it
+*        needs. It was written with vsprintf into 201 characters on the
+*        stack, which a warning that quoted a long value from the data
+*        being read overflowed.
 *class--
 */
 
@@ -6940,7 +6945,7 @@ void astWriteFlush_( AstChannel *this, int *status ){
 void astAddWarning_( void *this_void, int level, const char *fmt,
                      const char *method, int *status, ... ) {
    AstChannel *this;
-   char buff[ 201 ];
+   char *buff;
    va_list args;
    int nc;
 
@@ -6948,15 +6953,20 @@ void astAddWarning_( void *this_void, int level, const char *fmt,
 
    if( fmt ) {
       if( astOK ) {
+
+/* A warning often quotes text taken from the data being read, which can
+   be any length. So find how long the message is, and then format it in a
+   buffer of that size. */
          va_start( args, status );
-         nc = vsprintf( buff, fmt, args );
+         nc = vsnprintf( NULL, 0, fmt, args );
          va_end( args );
-         if( nc > 200 ) {
-            astError( AST__INTER, "astAddWarning(%s): Message buffer size "
-                      "exceeded (internal AST programming error).",
-                      status, astGetClass( this ) );
-         } else {
+         buff = ( nc >= 0 ) ? astMalloc( (size_t) nc + 1 ) : NULL;
+         if( buff ) {
+            va_start( args, status );
+            (void) vsnprintf( buff, (size_t) nc + 1, fmt, args );
+            va_end( args );
             (**astMEMBER(this,Channel,AddWarning))( this, level, buff, method, status );
+            buff = astFree( buff );
          }
       }
    } else {
