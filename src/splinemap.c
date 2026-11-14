@@ -139,6 +139,12 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        Db2val gave bad values along the upper Y limit of a spline with a
 *        single knot interval in Y, and Dbvalu gave NaN for knots that were
 *        all equal.
+*     13-NOV-2026 (TIMJ):
+*        Db2val and Dbvalu: treat a NaN as outside the interval over which
+*        the spline is defined. The tests for that were written so that a
+*        NaN passed them, and it then selected coefficients beyond the end
+*        of the array. The iterative inverse can produce a NaN when the
+*        coefficients are very large.
 *class--
 */
 
@@ -587,9 +593,10 @@ static double Db2val( double def, double xval, double yval, int idx, int idy,
    whole extent of the knots when the first k and the last k knots are
    coincident (as they are for knots chosen by the CMLIB routine db2ink),
    but is smaller otherwise. A position outside it has no spline value, and
-   would select columns of coefficients that do not exist. */
-   if( xval < tx[ kx - 1 ] || xval > tx[ nx ] ||
-       yval < ty[ ky - 1 ] || yval > ty[ ny ] ) return def;
+   would select columns of coefficients that do not exist. The test is
+   written so that a NaN, which is inside no interval, fails it too. */
+   if( !( xval >= tx[ kx - 1 ] && xval <= tx[ nx ] &&
+          yval >= ty[ ky - 1 ] && yval <= ty[ ny ] ) ) return def;
 
    iloy = 0;
    inbvx = 0;
@@ -735,7 +742,7 @@ static double Dbvalu( const double *t, const double *a, int n, int k, int ideriv
    flag its points as singular, yielding AST__BAD outputs. */
    if( ideriv >= k ) return 0.0;
 
-   if( x < t[ k - 1 ] ) return AST__BAD;
+   if( !( x >= t[ k - 1 ] ) ) return AST__BAD;
    kmider = k - ideriv;
 
 /* Find i in (k-1,n-1) such that
