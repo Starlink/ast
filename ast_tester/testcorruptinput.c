@@ -38,8 +38,8 @@
 *       - Mappings: a loader that carries on after an error, a PermMap that
 *         refers to a constant it does not have, a full MatrixMap with more
 *         elements than can be counted or named, a LutMap given an input
-*         far beyond its table, and a KeyMap that asks for a huge hash
-*         table.
+*         far beyond its table, a SplineMap given a position that is not a
+*         number, and a KeyMap that asks for a huge hash table.
 *       - Large values: a sky position or an Epoch that is too large to
 *         format or to bring into range one turn at a time.
 *       - Text of any length: values, Labels, Domains and Units that are
@@ -66,6 +66,7 @@
 *       counted and reported at the end.
 */
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "sae_par.h"
@@ -569,11 +570,23 @@ static int test_frames( void ) {
 /* Mappings. */
 static int test_mappings( void ) {
    AstLutMap *lutmap;
+   AstMapping *spline;
+   double nanx[ 3 ];
+   double nany[ 3 ];
+   double nanout[ 6 ];
+   int i;
    double element = 1.0;
    double far[ 2 ] = { 1.0E308, -1.0E308 };
    double farout[ 2 ];
    double lut[ 3 ] = { 1.0, 2.0, 4.0 };
    int nfail = 0;
+
+   nanx[ 0 ] = nan( "" );
+   nany[ 0 ] = 0.25;
+   nanx[ 1 ] = 0.25;
+   nany[ 1 ] = nan( "" );
+   nanx[ 2 ] = HUGE_VAL;
+   nany[ 2 ] = -HUGE_VAL;
 
 /* A loader must not use what it failed to read. Here the parent loader
    fails because the dump ends with the wrong class name. */
@@ -647,6 +660,27 @@ static int test_mappings( void ) {
    astSet( lutmap, "LutInterp=1" );
    astTran1( lutmap, 2, far, 1, farout );
    nfail += check_made( "LutMap given inputs of 1.0E308", lutmap );
+
+/* A position that is not a number is outside the knots of a SplineMap,
+   and used to select coefficients beyond the end of the array. */
+   spline = (AstMapping *) astFromString(
+      " Begin SplineMap\n Nin = 2\n IsA Mapping\n KX = 1\n KY = 1\n"
+      " NX = 2\n NY = 2\n TX1 = 0\n TX2 = 0.5\n TX3 = 1\n TY1 = 0\n"
+      " TY2 = 0.5\n TY3 = 1\n CU1 = 0\n CU2 = 1\n CU3 = 2\n CU4 = 3\n"
+      " CV1 = 0\n CV2 = 1\n CV3 = 2\n CV4 = 3\n End SplineMap\n" );
+   if ( spline ) {
+      astTran2( spline, 3, nanx, nany, 1, nanout, nanout + 3 );
+      for ( i = 0; i < 6 && astOK; i++ ) {
+         if ( nanout[ i ] != AST__BAD ) {
+            fprintf( stderr, "testcorruptinput: a SplineMap gave %g for a "
+                     "position that is not a number\n", nanout[ i ] );
+            nfail++;
+            break;
+         }
+      }
+   }
+   nfail += check_made( "SplineMap given positions that are not numbers",
+                        spline );
 
 /* The size of the hash table of a KeyMap is not taken on trust. */
    nfail += check_accepted( "KeyMap that asks for a table of INT_MAX",
