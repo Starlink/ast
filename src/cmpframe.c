@@ -227,6 +227,11 @@ f     The CmpFrame class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        NormalPoints and ResolvePoints: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     13-NOV-2026 (TIMJ):
+*        GetDomain: do not write beyond the end of the buffer that holds
+*        the default Domain, which is made from the Domains of the two
+*        component Frames and so can be any length. A CmpFrame of twenty
+*        Frames read from a FITS header was enough to overflow it.
 *class--
 */
 
@@ -3642,7 +3647,8 @@ static const char *GetDomain( AstFrame *this_frame, int *status ) {
    copies of them. This is necessary because the component Frames may
    themselves be CmpFrames, resulting in this function being called
    recursively and so causing the static "getdomain_buff" array to be used in
-   multiple contexts. */
+   multiple contexts. The two values can be any length, so the default
+   value is truncated if it does not fit in the array. */
       t = astGetDomain( this->frame1 );
       dom1 = t ? astStore( NULL, t, strlen(t) + 1 ) : NULL;
       t = astGetDomain( this->frame2 );
@@ -3650,7 +3656,8 @@ static const char *GetDomain( AstFrame *this_frame, int *status ) {
 
       if( dom2 ) {
          if( strlen( dom1 ) > 0 || strlen( dom2 ) > 0 ) {
-            sprintf( (char *) getdomain_buff, "%s-%s", dom1, dom2 );
+            snprintf( (char *) getdomain_buff, sizeof( getdomain_buff ),
+                      "%s-%s", dom1, dom2 );
             result = getdomain_buff;
          } else {
             result = "CMP";
