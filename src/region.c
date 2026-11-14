@@ -292,6 +292,15 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        Frame the base Frame of a Region read with a FrameSet, as is
 *        done for a Region read with a single Frame. It kept the dummy
 *        Frame it was read with, losing its Domain, System and so on.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadRegion, check the classes of the uncertainty Region,
+*        Frame and FrameSet read from a dump, and that the uncertainty
+*        Region has the same number of axes as the base Frame. Added the
+*        protected function astCheckLoadedPoints for the loaders of derived
+*        classes to check the points that define them. SystemCode no longer
+*        uses the encapsulated FrameSet before it has been loaded. SetRegFS
+*        reports an error if the Frame does not have an axis for each
+*        coordinate of the points that define the Region.
 *class--
 
 *  Implementation Notes:
@@ -10740,6 +10749,20 @@ static void SetRegFS( AstRegion *this, AstFrame *frm, int *status ) {
 /* Check the global error status. */
    if ( !astOK ) return;
 
+/* The points that define the Region are positions in the base Frame of
+   its FrameSet, so the Frame must have an axis for each coordinate of a
+   point. A Region read from a dump without its Frame is given the Frame
+   of the Region that contains it, which a corrupt dump can make the wrong
+   one. */
+   if( this->points && astGetNcoord( this->points ) != astGetNaxes( frm ) ) {
+      astError( AST__REGIN, "astSetRegFS(%s): The %s is defined by points "
+                "with %d coordinate value(s), so it cannot be given a %s "
+                "with %d axes.", status, astGetClass( this ),
+                astGetClass( this ), astGetNcoord( this->points ),
+                astGetClass( frm ), astGetNaxes( frm ) );
+      return;
+   }
+
 /* Take a copy of the supplied Frame. */
    f1 = astCopy( frm );
 
@@ -11531,6 +11554,12 @@ static AstSystemType SystemCode( AstFrame *this_frame, const char *system, int *
 
 /* Obtain a pointer to the FrameSet structure. */
    this = (AstRegion *) this_frame;
+
+/* A Region has no encapsulated FrameSet while astLoadFrame is loading its
+   parent Frame structure, which is the only time that it can lack one. The
+   dump of a Region holds no System value at that level, so one found there
+   is not recognised. */
+   if ( !this->frameset ) return result;
 
 /* Obtain a pointer to the Region's encapsulated Frame and invoke the
    astSystemCode method for this Frame. Annul the Frame pointer afterwards. */
@@ -13584,6 +13613,7 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
 /* Uncertainty */
 /* ----------- */
       new->unc = astReadObject( channel, "unc", NULL );
+      astCheckLoaded( new->unc, Region, 0, name, "uncertainty Region" );
       new->defunc = NULL;
 
 /* FrameSet */
@@ -13594,6 +13624,7 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
       new->nomap = 0;
       new->frameset = NULL;
       f1 = astReadObject( channel, "frm", NULL );
+      astCheckLoaded( f1, Frame, 0, name, "Frame" );
       if( f1 ) {
          new->regionfs = 1;
          nax = astGetNaxes( f1 );
@@ -13604,6 +13635,7 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
    of axes spanning its base Frame ("Nin"). */
       } else {
          new->frameset = astReadObject( channel, "frmset", NULL );
+         astCheckLoaded( new->frameset, FrameSet, 0, name, "FrameSet" );
          if( new->frameset ) {
             nax = astGetNin( new->frameset );
 
@@ -13649,6 +13681,14 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
                    "for each point.", status, astGetClass( new ), nax );
       }
 
+/* The uncertainty Region is defined within the base Frame of the FrameSet,
+   so it must have the same number of axes. */
+      if ( astOK && new->unc && ( astGetNaxes( new->unc ) != nax ) ) {
+         astError( AST__LDERR, "astLoadRegion(%s): The uncertainty Region "
+                   "read for a %s has %d axes, but the %s has %d.", status,
+                   name, name, astGetNaxes( new->unc ), name, nax );
+      }
+
 /* Initialise other fields which are used as caches for values derived
    from the attributes set above. */
       new->basemesh = NULL;
@@ -13663,6 +13703,87 @@ AstRegion *astLoadRegion_( void *mem, size_t size,
 
 /* Undefine macros local to this function. */
 #undef KEY_LEN
+}
+
+void astCheckLoadedPoints_( AstRegion *this, const char *name, int minpt,
+                            int maxpt, int naxes, int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoadedPoints
+
+*  Purpose:
+*     Check the points that define a Region read from a dump.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "region.h"
+*     void astCheckLoadedPoints( AstRegion *this, const char *name,
+*                                int minpt, int maxpt, int naxes )
+
+*  Class Membership:
+*     Region member function.
+
+*  Description:
+*     astLoadRegion reads the PointSet that defines a Region from a dump,
+*     and checks only that it has a coordinate for each axis of the base
+*     Frame of the Region. Most classes of Region need a particular number
+*     of points, which their constructors ensure and their other functions
+*     rely on. The loader for such a class should call this function,
+*     before it uses the points, to report an error if the dump did not
+*     supply what the class needs.
+
+*  Parameters:
+*     this
+*        Pointer to the Region.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     minpt
+*        The smallest number of points that the Region can have.
+*     maxpt
+*        The largest number of points that the Region can have, or a
+*        negative value if there is no upper limit.
+*     naxes
+*        The number of axes that the Region must have, or zero if it can
+*        have any number.
+
+*  Notes:
+*     - An error with status AST__LDERR is reported if the PointSet is
+*     missing, or holds an unusable number of points, or the Region has
+*     the wrong number of axes.
+*-
+*/
+
+/* Local Variables: */
+   AstDim np;                    /* Number of points read */
+   int nax;                      /* Number of base Frame axes */
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Check the number of axes in the base Frame, which is the number of
+   coordinates that astLoadRegion requires each point to have. */
+   nax = astGetNin( this->frameset );
+   if ( naxes > 0 && nax != naxes ) {
+      astError( AST__LDERR, "astLoad(%s): The %s read has %d axes, but a %s "
+                "must have %d.", status, name, name, nax, name, naxes );
+
+/* Check that there are some points. */
+   } else if ( !this->points ) {
+      astError( AST__LDERR, "astLoad(%s): The points that define the %s are "
+                "missing from the %s read.", status, name, name, name );
+
+/* Check the number of points. */
+   } else {
+      np = astGetNpoint( this->points );
+      if ( np < minpt || ( maxpt >= 0 && np > maxpt ) ) {
+         astError( AST__LDERR, "astLoad(%s): The %s read is defined by %"
+                   AST__DIMFMT " points, which is not a number that a %s "
+                   "can have.", status, name, name, np, name );
+      }
+   }
 }
 
 /* Virtual function interfaces. */

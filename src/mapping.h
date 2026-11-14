@@ -352,6 +352,15 @@
 
 /* Resampling flags. */
 /* ----------------- */
+/* The largest number of input or output coordinates that a Mapping can
+   have. A Frame is a Mapping, so this is also the largest number of axes
+   that a Frame can have. AST has no need of a limit for its own purposes,
+   and this one is far larger than any real coordinate system requires. It
+   exists to prevent a catastrophic denial of service when a maliciously
+   crafted file declares an axis count of billions, which would otherwise
+   make AST allocate memory and loop in proportion to that count. */
+#define AST__MXAXES 65536
+
 /* These macros define flag values which may be passed to
    astResample<X> (via the "flags" argument) to provide control over
    resampling operations. */
@@ -772,6 +781,8 @@ void astMapSplitId_( AstMapping *, int, const int *, int *, AstMapping **, int *
 
 #if defined(astCLASS)            /* Protected */
 int astRateState_( int, int * );
+void astCheckLoadedCoords_( AstMapping *, const char *, int, int, int * );
+void astCheckLoadedMap_( void *, int, const char *, const char *, int *, int *, int * );
 AstPointSet *astTransform_( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 int astGetInvert_( AstMapping *, int * );
 int astGetIsSimple_( AstMapping *, int * );
@@ -1008,6 +1019,10 @@ astINVOKE(V,astMapSplitId_(astCheckMapping(this),nin,in,out,map,STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astRateState(disabled) astRateState_(disabled,STATUS_PTR)
+#define astCheckLoadedCoords(this,name,nin,nout) \
+astCheckLoadedCoords_((AstMapping *)(this),name,nin,nout,STATUS_PTR)
+#define astCheckLoadedMap(map,invert,name,item,nin,nout) \
+astCheckLoadedMap_(map,invert,name,item,nin,nout,STATUS_PTR)
 #define astClearInvert(this) \
 astINVOKE(V,astClearInvert_(astCheckMapping(this),STATUS_PTR))
 #define astClearReport(this) \

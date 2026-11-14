@@ -82,6 +82,12 @@ f     - AST_ELLIPSEPARS: Get the geometric parameters of the Ellipse
 *        about axis 2, not axis 1. astAxDistance dispatches to the Axis, so on
 *        a Frame whose two axes normalise differently the axis 2 limits were
 *        measured by axis 1's rule. Circle and Polygon already pass 1 and 2.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadEllipse, check that the dump supplied the points that
+*        define the Ellipse, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -2232,8 +2238,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
    pset_res = astAnnul( pset_res );
    frm = astAnnul( frm );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -2999,6 +3010,9 @@ AstEllipse *astLoadEllipse_( void *mem, size_t size, AstEllipseVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Ellipse" );
+
+/* Check that the parent Region supplied the points that a Ellipse needs. */
+      astCheckLoadedPoints( new, name, 3, 3, 2 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

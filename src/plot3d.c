@@ -151,6 +151,14 @@ f    AST_GRIDLINE, AST_POLYCURVE.
 *        established. Also establish the grf routines to be used.
 *     5-OCT-2015 (DSB):
 *        Allow Plot attributes to be set for specific planes.
+*     11-NOV-2026 (TIMJ):
+*        Validate the axis labelling information read by astLoadPlot3D so
+*        that a corrupt dump cannot select a null Plot or an out-of-range
+*        Plot axis. Also check that each of the three encapsulated Plots
+*        was read from the dump and is a 2D Plot.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -6874,8 +6882,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
 /* Annul the mapping. */
    map = astAnnul( map );
 
-/* If an error has occurred, annul the result. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -8072,6 +8085,7 @@ AstPlot3D *astLoadPlot3D_( void *mem, size_t size, AstPlot3DVtab *vtab,
 /* Local Variables: */
    astDECLARE_GLOBALS
    AstPlot3D *new;
+   AstPlot *plot;
    char key[ KEY_LEN + 1 ];
    char *text;
    int axis;
@@ -8180,6 +8194,41 @@ AstPlot3D *astLoadPlot3D_( void *mem, size_t size, AstPlot3DVtab *vtab,
 /* Plot that spans two connected 3D axes. */
       new->baseplot = astReadInt( channel, "basepl", -1 );
 
+/* Check the axis labelling information read above is usable. Each 3D axis
+   is labelled using a nominated axis of one of the three encapsulated
+   Plots, with a second Plot touching the axis. The constructor only ever
+   stores XY, XZ or YZ as a Plot identifier and 0 or 1 as a Plot axis
+   index, so a hand-crafted dump holding any other value would select a
+   null Plot (via the GET_PLOT macro) or index a Plot axis out of bounds
+   when the Plot3D was subsequently drawn. Reject such a dump here. */
+      for( axis = 0; astOK && axis < 3; axis++ ) {
+         if( ( new->axis_plot1[ axis ] != XY &&
+               new->axis_plot1[ axis ] != XZ &&
+               new->axis_plot1[ axis ] != YZ ) ||
+             ( new->axis_plot2[ axis ] != XY &&
+               new->axis_plot2[ axis ] != XZ &&
+               new->axis_plot2[ axis ] != YZ ) ) {
+            astError( AST__LDERR, "astLoad(Plot3D): Corrupt Plot3D "
+                      "specifies an invalid Plot for labelling 3D axis %d.",
+                      status, axis + 1 );
+         } else if( new->axis_index1[ axis ] < 0 ||
+                    new->axis_index1[ axis ] > 1 ||
+                    new->axis_index2[ axis ] < 0 ||
+                    new->axis_index2[ axis ] > 1 ) {
+            astError( AST__LDERR, "astLoad(Plot3D): Corrupt Plot3D "
+                      "specifies an invalid Plot axis index for labelling "
+                      "3D axis %d.", status, axis + 1 );
+         }
+      }
+
+/* Likewise, the Plot that spans the two connected 3D axes must be one of
+   the three encapsulated Plots. */
+      if( astOK && new->baseplot != XY && new->baseplot != XZ &&
+          new->baseplot != YZ ) {
+         astError( AST__LDERR, "astLoad(Plot3D): Corrupt Plot3D specifies "
+                   "an invalid base Plot.", status );
+      }
+
 /* XY Plot */
       new->plotxy = astReadObject( channel, "plotxy", NULL );
 
@@ -8188,6 +8237,21 @@ AstPlot3D *astLoadPlot3D_( void *mem, size_t size, AstPlot3DVtab *vtab,
 
 /* YZ Plot */
       new->plotyz = astReadObject( channel, "plotyz", NULL );
+
+/* The rest of this class uses the three encapsulated Plots without
+   further checks, so each one must have been read from the dump and must
+   be a Plot that maps a 2D base Frame onto a 2D current Frame, like those
+   created by the constructor. */
+      for( i = 0; astOK && i < 3; i++ ) {
+         plot = ( i == 0 ) ? new->plotxy :
+                ( ( i == 1 ) ? new->plotxz : new->plotyz );
+         if( !plot || !astIsAPlot( plot ) || astGetNin( plot ) != 2 ||
+             astGetNout( plot ) != 2 ) {
+            astError( AST__LDERR, "astLoad(Plot3D): Corrupt Plot3D has a "
+                      "missing or invalid %s Plot.", status,
+                      ( i == 0 ) ? "XY" : ( ( i == 1 ) ? "XZ" : "YZ" ) );
+         }
+      }
 
 /* The index within the Plot3D FrameSet, of the original base Frame in
    the FrameSet supplied when the Plot3D was constructed. */

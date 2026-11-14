@@ -204,25 +204,181 @@ static void checkEmptyTransform( int *status ) {
    moc = astAnnul( moc );
 }
 
-/* Adding a Region to a Moc whose MaxOrder is zero leaves no lower order
-   to start from, and is an error, as it is for a pixel mask. */
-static void checkAddRegionOrderZero( int *status ) {
-   AstMoc *moc;
-   AstCircle *circle;
-   double centre[ 2 ] = { 1.2, 0.3 }, radius = 0.2;
+/* Check that a Moc holds the cells given by a string MOC. */
+static void checkCells( AstMoc *moc, const char *expected, const char *text,
+                        int *status ) {
+   AstMoc *want;
+   int json;
 
    if( *status != 0 ) return;
+   want = astMoc( "MaxOrder=%d", astGetI( moc, "MaxOrder" ) );
+   astAddMocString( want, AST__OR, 0, -1, strlen( expected ), expected,
+                    &json );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( text, status );
+   } else if( !astEqual( moc, want ) ) {
+      stopit( text, status );
+   }
+   want = astAnnul( want );
+}
+
+/* A Moc of the whole sky contains every position. These are on the
+   meridians that divide the polar facets of the HEALPix grid and at the
+   poles, where the cell that holds a position is easily taken to be one
+   that is off the sky. */
+static void checkEdgePositions( int *status ) {
+   static const int orders[ 4 ] = { 0, 3, 13, 27 };
+   static const double lon[ 6 ] = { 90.0, 225.0, 0.0, 180.0, 270.0, 0.0 };
+   static const double lat[ 6 ] = { 60.0, 90.0, -75.0, 89.9999999, -60.0,
+                                    -90.0 };
+   const double d2r = AST__DPI/180.0;
+   AstMoc *moc;
+   double x[ 6 ], y[ 6 ], xout[ 6 ], yout[ 6 ];
+   int i, io, json;
+
+   for( io = 0; io < 4 && *status == 0; io++ ) {
+      moc = astMoc( "MaxOrder=%d", orders[ io ] );
+      astAddMocString( moc, AST__OR, 0, -1, 6, "0/0-11", &json );
+      for( i = 0; i < 6; i++ ) {
+         x[ i ] = lon[ i ]*d2r;
+         y[ i ] = lat[ i ]*d2r;
+      }
+      astTran2( moc, 6, x, y, 1, xout, yout );
+      for( i = 0; i < 6 && astOK; i++ ) {
+         if( xout[ i ] == AST__BAD || yout[ i ] == AST__BAD ) {
+            printf( "Order %d: (%g,%g) is outside a Moc of the whole sky\n",
+                    orders[ io ], lon[ i ], lat[ i ] );
+            stopit( "checkEdgePositions: position not in the Moc", status );
+         }
+      }
+      if( !astOK ) {
+         astClearStatus;
+         stopit( "checkEdgePositions: error testing positions", status );
+      }
+      moc = astAnnul( moc );
+   }
+}
+
+/* A Region that covers more than half the sky is the area outside its
+   boundary in every projection that could be used to look for its cells.
+   The expected cells of this Circle, of radius 150 degrees about the south
+   pole, are those with centres south of Dec +60, as given by the CDS
+   HEALPix library. */
+static void checkLargeRegion( int *status ) {
+   AstMoc *moc;
+   AstCircle *circle;
+   const double d2r = AST__DPI/180.0;
+   double centre[ 2 ], radius;
+
+   if( *status != 0 ) return;
+   centre[ 0 ] = 0.0;
+   centre[ 1 ] = -90.0*d2r;
+   radius = 150.0*d2r;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc = astMoc( "MaxOrder=2,MinOrder=2" );
+   astAddRegion( moc, AST__OR, circle );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkLargeRegion: error making the Moc", status );
+   }
+   checkCells( moc, "0/4-11 1/0-2 4-6 8-10 12-14 2/12 28 44 60",
+               "checkLargeRegion: wrong cells", status );
+   moc = astAnnul( moc );
+   circle = astAnnul( circle );
+}
+
+/* A Moc can have a MaxOrder of zero, which leaves no lower order at which
+   to start looking for the cells of a Region or pixel mask. Each of the
+   twelve cells is then in the Moc if its centre is in the Region or on a
+   selected pixel. The centre of cell zero is at RA 45 degrees, Dec
+   arcsin(2/3). */
+static void checkOrderZero( int *status ) {
+   AstFitsChan *fc;
+   AstFrameSet *iwcs;
+   AstMoc *moc;
+   AstCircle *circle;
+   AstDim dims[ 2 ] = { 20, 20 };
+   const double d2r = AST__DPI/180.0;
+   double centre[ 2 ], radius;
+   float data[ 400 ];
+   int i;
+
+   if( *status != 0 ) return;
+
+/* A Circle that holds only the centre of cell zero. */
+   centre[ 0 ] = 45.0*d2r;
+   centre[ 1 ] = asin( 2.0/3.0 );
+   radius = 30.0*d2r;
    circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
                        NULL, " " );
    moc = astMoc( "MaxOrder=0" );
    astAddRegion( moc, AST__OR, circle );
-   if( astStatus == AST__INVAR ) {
-      astClearStatus;
-   } else {
-      stopit( "checkAddRegionOrderZero: no AST__INVAR error", status );
-   }
+   checkCells( moc, "0/0", "checkOrderZero: wrong cells for a small Circle",
+               status );
    moc = astAnnul( moc );
    circle = astAnnul( circle );
+
+/* A Circle about the north pole that holds the centres of the four cells
+   around that pole and the four on the equator. */
+   centre[ 0 ] = 0.0;
+   centre[ 1 ] = 90.0*d2r;
+   radius = 100.0*d2r;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+   moc = astMoc( "MaxOrder=0" );
+   astAddRegion( moc, AST__OR, circle );
+   checkCells( moc, "0/0-7", "checkOrderZero: wrong cells for a large Circle",
+               status );
+   moc = astAnnul( moc );
+   circle = astAnnul( circle );
+
+/* An image two degrees across, centred on the centre of cell zero, with
+   every pixel selected. */
+   fc = astFitsChan( NULL, NULL, " " );
+   astSetFitsF( fc, "CRVAL1", 45.0, " ", 1 );
+   astSetFitsF( fc, "CRVAL2", asin( 2.0/3.0 )/d2r, " ", 1 );
+   astSetFitsF( fc, "CRPIX1", 10.5, " ", 1 );
+   astSetFitsF( fc, "CRPIX2", 10.5, " ", 1 );
+   astSetFitsF( fc, "CDELT1", -0.1, " ", 1 );
+   astSetFitsF( fc, "CDELT2", 0.1, " ", 1 );
+   astSetFitsS( fc, "CTYPE1", "RA---TAN", " ", 1 );
+   astSetFitsS( fc, "CTYPE2", "DEC--TAN", " ", 1 );
+   astClear( fc, "Card" );
+   iwcs = (AstFrameSet *) astRead( fc );
+   for( i = 0; i < 400; i++ ) data[ i ] = 1.0f;
+   moc = astMoc( "MaxOrder=0" );
+   astAddPixelMask8F( moc, AST__OR, iwcs, 0.0f, AST__GT, 0, 0.0f, data,
+                      dims );
+   checkCells( moc, "0/0", "checkOrderZero: wrong cells for a pixel mask",
+               status );
+   moc = astAnnul( moc );
+   iwcs = astAnnul( iwcs );
+   fc = astAnnul( fc );
+
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkOrderZero: error making a Moc of order zero", status );
+   }
+}
+
+/* A range in a string MOC is read as a range, however many cells it
+   holds: this one is the whole sky at the largest order. */
+static void checkLargeRange( int *status ) {
+   const char *text = "27/0-216172782113783807";
+   AstMoc *moc;
+   int json;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddMocString( moc, AST__OR, 0, -1, strlen( text ), text, &json );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkLargeRange: could not read a large range", status );
+   }
+   checkCells( moc, "0/0-11 27/", "checkLargeRange: wrong cells", status );
+   moc = astAnnul( moc );
 }
 
 /* A negated Region added to a Moc whose MinOrder exceeds its MaxOrder
@@ -559,8 +715,10 @@ int main( void ) {
    if( astTestCell( moc, 8, (int64_t)123456, 0 ) )
       stopit( "Error 32", status );
 
-   /* String MOC round-trip. */
-   {  const char *mocstr1 = "1/1-2,4 2/12-14,21,23,25 8/";
+   /* String MOC round-trip. The cells of a string MOC are separated by
+      spaces when written, as the MOC recommendation requires, and may be
+      separated by spaces or commas when read. */
+   {  const char *mocstr1 = "1/1-2 4 2/12-14 21 23 25 8/";
       const char *mocstr2 = " 1/1,2,4   2/12-14, 21,23,25 8/ ";
       moc = astMoc( " " );
       astAddMocString( moc, AST__OR, 0, -1, strlen(mocstr1), mocstr1, &json );
@@ -610,7 +768,10 @@ int main( void ) {
    checkPinsMask( status );
    checkMeshTieBreak( status );
    checkEmptyTransform( status );
-   checkAddRegionOrderZero( status );
+   checkEdgePositions( status );
+   checkOrderZero( status );
+   checkLargeRegion( status );
+   checkLargeRange( status );
    checkOversampleNegate( status );
    checkMocStringErrors( status );
    checkEmptyJson( status );

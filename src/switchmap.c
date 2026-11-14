@@ -119,6 +119,12 @@ f     The SwitchMap class does not define any new routines beyond those
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for selector index rounding
 *        to avoid platform-dependent results near half-integer values.
+*     11-NOV-2026 (TIMJ):
+*        astLoadSwitchMap now applies the checks made when a SwitchMap is
+*        constructed to the selector and route Mappings read from a dump:
+*        each must be a Mapping, the route Mappings must share their numbers
+*        of inputs and outputs with each other and with the SwitchMap, and
+*        the selector Mappings must match them.
 *class--
 */
 
@@ -2764,7 +2770,11 @@ AstSwitchMap *astLoadSwitchMap_( void *mem, size_t size,
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstSwitchMap *new;
    AstMapping *rmap;
+   int cnin;
+   int cnout;
    int i;
+   int nin;
+   int nout;
    char buf[ 20 ];
 
 /* Initialise. */
@@ -2850,6 +2860,65 @@ AstSwitchMap *astLoadSwitchMap_( void *mem, size_t size,
 
 /* Number of route Mappings. */
       new->nroute = i;
+
+/* The route Mappings are used without further checks, so each must be a
+   Mapping, and they must all have the same numbers of inputs and outputs
+   when inverted as required, as when a SwitchMap is constructed. */
+      nin = 0;
+      nout = 0;
+      for( i = 0; i < new->nroute; i++ ) {
+         astCheckLoadedMap( new->routemap[ i ], new->routeinv[ i ], name,
+                            "route Mapping", &cnin, &cnout );
+         if( i == 0 ) {
+            nin = cnin;
+            nout = cnout;
+         } else if( astOK && ( cnin != nin || cnout != nout ) ) {
+            astError( AST__LDERR, "astLoad(%s): Route Mapping number %d read "
+                      "for a %s has %d input(s) and %d output(s) but the "
+                      "first route Mapping has %d and %d.", status, name,
+                      i + 1, name, cnin, cnout, nin, nout );
+         }
+      }
+      if( astOK && new->nroute < 1 ) {
+         astError( AST__LDERR, "astLoad(%s): No route Mappings were read for "
+                   "a %s.", status, name, name );
+      }
+
+/* A forward selector Mapping must take the inputs of the SwitchMap and
+   give a single output. */
+      if( new->fsmap ) {
+         astCheckLoadedMap( new->fsmap, new->fsinv, name,
+                            "forward selector Mapping", &cnin, &cnout );
+         if( astOK && ( cnin != nin || cnout != 1 ) ) {
+            astError( AST__LDERR, "astLoad(%s): The forward selector Mapping "
+                      "read for a %s has %d input(s) and %d output(s) but "
+                      "should have %d and 1.", status, name, name, cnin,
+                      cnout, nin );
+         }
+      }
+
+/* An inverse selector Mapping must give the outputs of the SwitchMap from
+   a single input. */
+      if( new->ismap ) {
+         astCheckLoadedMap( new->ismap, new->isinv, name,
+                            "inverse selector Mapping", &cnin, &cnout );
+         if( astOK && ( cnin != 1 || cnout != nout ) ) {
+            astError( AST__LDERR, "astLoad(%s): The inverse selector Mapping "
+                      "read for a %s has %d input(s) and %d output(s) but "
+                      "should have 1 and %d.", status, name, name, cnin,
+                      cnout, nout );
+         }
+      }
+
+/* There must be at least one selector Mapping. */
+      if( astOK && !new->fsmap && !new->ismap ) {
+         astError( AST__LDERR, "astLoad(%s): No selector Mappings were read "
+                   "for a %s.", status, name, name );
+      }
+
+/* The SwitchMap has the numbers of inputs and outputs of its route
+   Mappings. */
+      astCheckLoadedCoords( new, name, nin, nout );
 
 /* If an error occurred, clean up by deleting the new SwitchMap. */
       if ( !astOK ) new = astDelete( new );

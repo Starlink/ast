@@ -191,6 +191,18 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        from the PolyMap as inverted, so for an inverted PolyMap with
 *        different numbers of inputs and outputs it read beyond the
 *        coefficient arrays.
+*     11-NOV-2026 (TIMJ):
+*        astLoadPolyMap now checks that the axis powers read from a dump do
+*        not exceed the maximum powers that are also read from the dump.
+*        Otherwise a corrupt dump could make the transformation index its
+*        work array out of bounds. It also rejects a negative coefficient
+*        count or maximum power, which were used to size arrays without
+*        being checked.
+*     11-NOV-2026 (TIMJ):
+*        An iterative inverse is no longer offered by default, and cannot
+*        be requested, for a PolyMap that has no forward transformation.
+*        The iterative inverse evaluates the forward transformation, so
+*        using it for such a PolyMap read the missing coefficient arrays.
 *class--
 */
 
@@ -314,6 +326,8 @@ static int MPFunc2D( void *, int, int, const double *, double *, double *, int, 
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int ReplaceTransformation( AstPolyMap *, int, double, double, int, const double *, const double *, int * );
 static void AddCoeff( int, int, double, int *, int *, double **, int ***, int *, int * );
+static void CheckLoadedCounts( const char *, const char *, int, int, const int *, const int *, int * );
+static void CheckLoadedPowers( const char *, int, int, const int *, int ***, const int *, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void CopyArrays( int, int, int *, double **, int ***, int *, int **, double ***, int ****, int **, int * );
 static void Delete( AstObject *obj, int * );
@@ -2559,6 +2573,13 @@ static void IterInverse( AstPolyMap *this, AstPointSet *out, AstPointSet *result
       astError( AST__INTER, "astTransform(%s): Supplied %s has unequal numbers"
                 " of inputs and outputs and therefore an iterative inverse "
                 "cannot be used (internal AST Programming errpr).", status,
+                astGetClass(this), astGetClass(this) );
+
+/* Check it has the forward transformation that is to be inverted. */
+   } else if( !this->ncoeff_f ) {
+      astError( AST__INTER, "astTransform(%s): Supplied %s has no forward "
+                "transformation and therefore an iterative inverse cannot "
+                "be used (internal AST Programming error).", status,
                 astGetClass(this), astGetClass(this) );
    }
 
@@ -6344,9 +6365,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     approximation that uses the forward transformation to transform
 *     candidate input positions until an output position is found which
 *     is close to the required output position. By default, an iterative
-*     inverse is provided if, and only if, no inverse polynomial was supplied
-*     when the PolyMap was constructed and the PolyMap has equal numbers of
-*     inputs and outputs (an iterative inverse cannot be used otherwise).
+*     inverse is provided if, and only if, a forward polynomial but no
+*     inverse polynomial was supplied when the PolyMap was constructed and
+*     the PolyMap has equal numbers of inputs and outputs (an iterative
+*     inverse cannot be used otherwise).
 *
 *     Note, the term "inverse transformation" here refers to the inverse
 *     transformation of the original PolyMap, ignoring any subsequent
@@ -6393,22 +6415,27 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 *     forward transformation.
 *     - An iterative inverse can only be used if the PolyMap has equal
 *     numbers of inputs and outputs, as given by the Nin and Nout
-*     attributes. An error will be reported if IterInverse is set non-zero
-*     for a PolyMap that does not meet this requirement.
+*     attributes, and a forward polynomial was supplied when it was
+*     constructed. An error will be reported if IterInverse is set non-zero
+*     for a PolyMap that does not meet these requirements.
 
 *att--
 */
 astMAKE_CLEAR1(PolyMap,IterInverse,iterinverse,(astClearIsSimple(this),-INT_MAX))
 astMAKE_GET(PolyMap,IterInverse,int,0,( ( this->iterinverse == -INT_MAX ) ?
                                           ( this->ncoeff_i == 0 &&
+                                            this->ncoeff_f != 0 &&
                                             astGetNin( this ) == astGetNout( this ) ) :
                                           this->iterinverse ))
 astMAKE_SET1(PolyMap,IterInverse,int,iterinverse,
-  (((astGetNin(this)==astGetNout(this))||!value)?
+  ((((astGetNin(this)==astGetNout(this))&&this->ncoeff_f)||!value)?
   (( (value?1:0) != this->iterinverse ) ? astClearIsSimple(this) : (void)0,(value?1:0)):
-  (astError(AST__ATTIN,"astSetIterInverse(%s):"
-  "Cannot use an iterative inverse because the %s has unequal numbers of "
-  "inputs and outputs.", status, astGetClass(this),astGetClass(this)),this->iterinverse)))
+  (astError(AST__ATTIN,"astSetIterInverse(%s): "
+  "Cannot use an iterative inverse because the %s %s.", status,
+  astGetClass(this),astGetClass(this),
+  this->ncoeff_f?"has unequal numbers of inputs and outputs":
+                 "was created without a forward transformation"),
+  this->iterinverse)))
 astMAKE_TEST(PolyMap,IterInverse,( this->iterinverse != -INT_MAX ))
 
 /* NiterInverse. */
@@ -7230,6 +7257,168 @@ AstPolyMap *astInitPolyMap_( void *mem, size_t size, int init,
    return new;
 }
 
+static void CheckLoadedCounts( const char *name, const char *dir, int npoly,
+                               int nax, const int *ncoeff, const int *mxpow,
+                               int *status ){
+/*
+*  Name:
+*     CheckLoadedCounts
+
+*  Purpose:
+*     Validate the array sizes read for one transformation from a dump.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void CheckLoadedCounts( const char *name, const char *dir, int npoly,
+*                             int nax, const int *ncoeff, const int *mxpow,
+*                             int *status )
+
+*  Class Membership:
+*     PolyMap member function.
+
+*  Description:
+*     The loader uses the number of coefficients read for each 1D
+*     polynomial to size the coefficient and power arrays, and the
+*     astTransform method uses the maximum power read for each axis to
+*     size its work arrays. The constructor never stores a negative value
+*     for either, but the loader reads both directly from the dump. This
+*     function reports an error if any of the loaded values is negative,
+*     and should be called before the values are used to allocate memory.
+
+*  Parameters:
+*     name
+*        The class name to use in error messages.
+*     dir
+*        The direction of the transformation ("forward" or "inverse"),
+*        for use in error messages.
+*     npoly
+*        The number of 1D polynomials (one per output for the forward
+*        transformation, or per input for the inverse transformation).
+*     nax
+*        The number of axes for which a maximum power is stored.
+*     ncoeff
+*        Pointer to an array holding the number of coefficients for each
+*        1D polynomial.
+*     mxpow
+*        Pointer to an array holding the maximum power for each axis.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   int iax;                      /* Axis index */
+   int ipoly;                    /* Polynomial index */
+
+/* Check the global error status and the supplied arrays. */
+   if( !astOK || !ncoeff || !mxpow ) return;
+
+/* Check the maximum power of each axis. */
+   for( iax = 0; iax < nax; iax++ ){
+      if( mxpow[ iax ] < 0 ){
+         astError( AST__LDERR, "astLoadPolyMap(%s): Illegal maximum power "
+                   "(%d) read for axis %d of the %s transformation - it "
+                   "should not be negative.", status, name, mxpow[ iax ],
+                   iax + 1, dir );
+         return;
+      }
+   }
+
+/* Check the number of coefficients in each 1D polynomial. */
+   for( ipoly = 0; ipoly < npoly; ipoly++ ){
+      if( ncoeff[ ipoly ] < 0 ){
+         astError( AST__LDERR, "astLoadPolyMap(%s): Illegal number of "
+                   "coefficients (%d) read for polynomial %d of the %s "
+                   "transformation - it should not be negative.", status,
+                   name, ncoeff[ ipoly ], ipoly + 1, dir );
+         return;
+      }
+   }
+}
+
+static void CheckLoadedPowers( const char *name, int npoly, int nax,
+                               const int *ncoeff, int ***power,
+                               const int *mxpow, int *status ){
+/*
+*  Name:
+*     CheckLoadedPowers
+
+*  Purpose:
+*     Validate the axis powers read for one transformation from a dump.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "polymap.h"
+*     void CheckLoadedPowers( const char *name, int npoly, int nax,
+*                             const int *ncoeff, int ***power,
+*                             const int *mxpow, int *status )
+
+*  Class Membership:
+*     PolyMap member function.
+
+*  Description:
+*     The astTransform method precomputes the required powers of each axis
+*     value in a work array that is sized using the corresponding "mxpow"
+*     value, and then indexes that array using the "power" values. The
+*     constructor guarantees that each power lies in the range zero to the
+*     stated maximum power, but the loader reads both the powers and the
+*     maximum powers directly from the dump. This function checks that the
+*     loaded powers honour that invariant, so that a corrupt dump cannot
+*     cause the transformation to read beyond the end of the work array.
+
+*  Parameters:
+*     name
+*        The class name to use in error messages.
+*     npoly
+*        The number of 1D polynomials (one per output for the forward
+*        transformation, or per input for the inverse transformation).
+*     nax
+*        The number of axis powers describing each coefficient.
+*     ncoeff
+*        Pointer to an array holding the number of coefficients for each
+*        1D polynomial.
+*     power
+*        The array of axis powers to check.
+*     mxpow
+*        Pointer to an array holding the maximum power allowed for each
+*        axis.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   int icoeff;                   /* Coefficient index */
+   int iax;                      /* Axis index */
+   int ipoly;                    /* Polynomial index */
+   int pow;                      /* Power value read from the dump */
+
+/* Check the global error status and the supplied arrays. */
+   if( !astOK || !ncoeff || !power || !mxpow ) return;
+
+/* Check the power of each axis used by each coefficient of each 1D
+   polynomial. */
+   for( ipoly = 0; ipoly < npoly; ipoly++ ){
+      if( !power[ ipoly ] ) continue;
+      for( icoeff = 0; icoeff < ncoeff[ ipoly ]; icoeff++ ){
+         if( !power[ ipoly ][ icoeff ] ) continue;
+         for( iax = 0; iax < nax; iax++ ){
+            pow = power[ ipoly ][ icoeff ][ iax ];
+            if( pow < 0 || pow > mxpow[ iax ] ){
+               astError( AST__BADPW, "astLoadPolyMap(%s): Illegal power (%d) "
+                         "read for axis %d of coefficient %d - it should be "
+                         "in the range 0 to %d.", status, name, pow, iax + 1,
+                         icoeff + 1, mxpow[ iax ] );
+               return;
+            }
+         }
+      }
+   }
+}
+
 AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
                              AstPolyMapVtab *vtab, const char *name,
                              AstChannel *channel, int *status ) {
@@ -7391,6 +7580,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
             if( (new->ncoeff_f)[ i ] == INT_MAX ) undef = 1;
          }
 
+/* Reject negative maximum powers and coefficient counts before they are
+   used to size the arrays allocated below and in the forward
+   transformation. */
+         if( !undef ) CheckLoadedCounts( name, "forward", nout, nin,
+                                         new->ncoeff_f, new->mxpow_f, status );
+
 /* Get the coefficient values used by the forward transformation. This
    uses new style vectorised key names if available. Otherwise it uses
    old style indexed names (which were superceded by vectorised names
@@ -7435,6 +7630,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
             }
          }
 
+/* Validate the loaded forward powers against the maximum powers, rejecting
+   a corrupt dump before it can cause an out-of-bounds access within the
+   forward transformation. */
+         if( !undef ) CheckLoadedPowers( name, nout, nin, new->ncoeff_f,
+                                         new->power_f, new->mxpow_f, status );
+
 /* Free the arrays if the forward transformation is undefined. */
          if( undef ) {
             new->ncoeff_f = astFree( new->ncoeff_f );
@@ -7471,6 +7672,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
             (new->ncoeff_i)[ i ] = astReadInt( channel, buff, INT_MAX );
             if( (new->ncoeff_i)[ i ] == INT_MAX ) undef = 1;
          }
+
+/* Reject negative maximum powers and coefficient counts before they are
+   used to size the arrays allocated below and in the inverse
+   transformation. */
+         if( !undef ) CheckLoadedCounts( name, "inverse", nin, nout,
+                                         new->ncoeff_i, new->mxpow_i, status );
 
 /* Get the coefficient values used by the inverse transformation. */
          iv = 0;
@@ -7512,6 +7719,12 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
                }
             }
          }
+
+/* Validate the loaded inverse powers against the maximum powers, rejecting
+   a corrupt dump before it can cause an out-of-bounds access within the
+   inverse transformation. */
+         if( !undef ) CheckLoadedPowers( name, nin, nout, new->ncoeff_i,
+                                         new->power_i, new->mxpow_i, status );
 
 /* Free the arrays if the inverse transformation is undefined. */
          if( undef ) {

@@ -79,6 +79,12 @@ f     The PointList class does not define any new routines beyond those
 *        Mask<X>: Ignore a point whose pixel lies outside the supplied
 *        array, rather than writing beyond the array, and count only the
 *        points inside it in the returned number of pixels set.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadPointList, check that the dump supplied the points that
+*        define the PointList, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 
 *  Implementation Deficiencies:
@@ -2596,8 +2602,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
    if( ps2 ) ps2 = astAnnul( ps2 );
    if( ps1 ) ps1 = astAnnul( ps1 );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -3353,6 +3364,9 @@ AstPointList *astLoadPointList_( void *mem, size_t size, AstPointListVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "PointList" );
+
+/* Check that the parent Region supplied the points that a PointList needs. */
+      astCheckLoadedPoints( new, name, 1, -1, 0 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

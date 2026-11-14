@@ -458,6 +458,8 @@ char *astSourceWrap_( const char *(*)( void ), int * );
 void astSinkWrap_( void (*)( const char * ), const char *, int * );
 
 # if defined(astCLASS)           /* Protected */
+int astChanStr2Int_( const char *, int * );
+int astChanStr2Int64_( const char *, int64_t * );
 void astStoreChannelData_( AstChannel *, int * );
 AstObject *astReadObject_( AstChannel *, const char *, AstObject *, int * );
 char *astGetNextText_( AstChannel *, int * );
@@ -580,6 +582,8 @@ astINVOKE(O,astWarnings_(astCheckChannel(this),STATUS_PTR))
 
 #if defined(astCLASS)            /* Protected */
 #define astAddWarning astAddWarning_
+#define astChanStr2Int astChanStr2Int_
+#define astChanStr2Int64 astChanStr2Int64_
 #define astStoreChannelData(this) \
 astStoreChannelData_(astCheckChannel(this),STATUS_PTR)
 

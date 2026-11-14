@@ -75,6 +75,11 @@ f     The NormMap class does not define any new routines beyond those
 *        a single NormMap.
 *        - Allow a NormMap that contains a basic Frame to be simplified
 *        to a UnitMap.
+*     11-NOV-2026 (TIMJ):
+*        astLoadNormMap now checks that the Frame was read from the dump
+*        and is a Frame, and that the NormMap has one input and one output
+*        for each of its axes. The transformation read or wrote beyond the
+*        coordinate arrays otherwise.
 *class--
 */
 
@@ -1643,6 +1648,7 @@ AstNormMap *astLoadNormMap_( void *mem, size_t size,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstNormMap *new;              /* Pointer to the new NormMap */
+   int naxes;                    /* Number of axes in the Frame */
 
 /* Initialise. */
    new = NULL;
@@ -1694,6 +1700,17 @@ AstNormMap *astLoadNormMap_( void *mem, size_t size,
 /* Frame. */
 /* ------ */
       new->frame = astReadObject( channel, "frame", NULL );
+
+/* The Frame is used without further checks, so it must have been read from
+   the dump and must be a Frame. A NormMap has one input and one output for
+   each axis of the Frame, and the transformation relies on this, so check
+   the numbers read from the dump by the parent Mapping loader. */
+      if ( astOK && ( !new->frame || !astIsAFrame( new->frame ) ) ) {
+         astError( AST__LDERR, "astLoad(%s): The Frame is missing from the "
+                   "%s read, or is not a Frame.", status, name, name );
+      }
+      naxes = astOK ? astGetNaxes( new->frame ) : 0;
+      astCheckLoadedCoords( new, name, naxes, naxes );
 
 /* If an error occurred, clean up by deleting the new NormMap. */
       if ( !astOK ) new = astDelete( new );

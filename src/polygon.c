@@ -139,6 +139,12 @@ f     - AST_OUTLINE<X>: Create a Polygon outlining values in a pixel array
 *     8-SEP-2026 (TIMJ):
 *        Simplify: check the second axis of each transformed vertex for
 *        AST__BAD, as the first axis has always been checked.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadPolygon, check that the dump supplied the points that
+*        define the Polygon, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 
 *class--
 */
@@ -6462,8 +6468,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
    in_base = astAnnul( in_base );
    frm = astAnnul( frm );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -7293,6 +7304,9 @@ AstPolygon *astLoadPolygon_( void *mem, size_t size, AstPolygonVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Polygon" );
+
+/* Check that the parent Region supplied the points that a Polygon needs. */
+      astCheckLoadedPoints( new, name, 1, -1, 2 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

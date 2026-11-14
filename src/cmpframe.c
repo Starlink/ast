@@ -217,6 +217,21 @@ f     The CmpFrame class does not define any new routines beyond those
 *        Frames are read before the permutation, so the axis count is
 *        available directly and is passed to the shared astCheckPermArray
 *        function.
+*     13-NOV-2026 (TIMJ):
+*        Limit a CmpFrame to AST__MXAXES axes, in the constructor and in
+*        astLoadCmpFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadCmpFrame, check that the two components are Frames, and
+*        avoid an integer overflow when converting a permutation index of
+*        INT_MIN to a zero-based index.
+*     13-NOV-2026 (TIMJ):
+*        NormalPoints and ResolvePoints: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
+*     13-NOV-2026 (TIMJ):
+*        GetDomain: do not write beyond the end of the buffer that holds
+*        the default Domain, which is made from the Domains of the two
+*        component Frames and so can be any length. A CmpFrame of twenty
+*        Frames read from a FITS header was enough to overflow it.
 *class--
 */
 
@@ -3632,7 +3647,8 @@ static const char *GetDomain( AstFrame *this_frame, int *status ) {
    copies of them. This is necessary because the component Frames may
    themselves be CmpFrames, resulting in this function being called
    recursively and so causing the static "getdomain_buff" array to be used in
-   multiple contexts. */
+   multiple contexts. The two values can be any length, so the default
+   value is truncated if it does not fit in the array. */
       t = astGetDomain( this->frame1 );
       dom1 = t ? astStore( NULL, t, strlen(t) + 1 ) : NULL;
       t = astGetDomain( this->frame2 );
@@ -3640,7 +3656,8 @@ static const char *GetDomain( AstFrame *this_frame, int *status ) {
 
       if( dom2 ) {
          if( strlen( dom1 ) > 0 || strlen( dom2 ) > 0 ) {
-            sprintf( (char *) getdomain_buff, "%s-%s", dom1, dom2 );
+            snprintf( (char *) getdomain_buff, sizeof( getdomain_buff ),
+                      "%s-%s", dom1, dom2 );
             result = getdomain_buff;
          } else {
             result = "CMP";
@@ -5840,8 +5857,13 @@ static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int con
    in1 = astAnnul( in1 );
    in2 = astAnnul( in2 );
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -8289,8 +8311,13 @@ static AstPointSet *ResolvePoints( AstFrame *this_frame, const double point1[],
    supplied PointSet. */
    astPermPoints( in, 1, perm );
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -10903,8 +10930,15 @@ AstCmpFrame *astInitCmpFrame_( void *mem, size_t size, int init,
       new->frame1 = astClone( frame1 );
       new->frame2 = astClone( frame2 );
 
-/* Determine the number of CmpFrame axes. */
+/* Determine the number of CmpFrame axes. Neither component can have more
+   than AST__MXAXES axes, so the sum cannot overflow. */
       naxes = astGetNaxes( frame1 ) + astGetNaxes( frame2 );
+      if ( astOK && naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astInitCmpFrame(%s): Number of axes (%d) is "
+                   "invalid - this number should not exceed %d.", status,
+                   name, naxes, AST__MXAXES );
+         naxes = 0;
+      }
 
 /* Allocate memory to hold the axis permutation array and initialise
    this array. */
@@ -11000,6 +11034,7 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
    AstCmpFrame *new;             /* Pointer to the new CmpFrame */
    char key[ KEY_LEN + 1 ];      /* Buffer for keywords */
    int axis;                     /* Loop counter for axes */
+   int ival;                     /* Integer value read from the dump */
    int naxes;                    /* Number of CmpFrame axes */
 
 /* Get a pointer to the thread specific global data structure. */
@@ -11054,16 +11089,25 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
 /* Read both component Frames, supplying a default 1-dimensional Frame
    if necessary. */
       new->frame1 = astReadObject( channel, "framea", NULL );
+      astCheckLoaded( new->frame1, Frame, 0, name, "first component Frame" );
       if ( !new->frame1 ) new->frame1 = astFrame( 1, "", status );
 
       new->frame2 = astReadObject( channel, "frameb", NULL );
+      astCheckLoaded( new->frame2, Frame, 0, name, "second component Frame" );
       if ( !new->frame2 ) new->frame2 = astFrame( 1, "", status );
 
 /* Axis permutation array. */
 /* ----------------------- */
 /* Obtain the number of CmpFrame axes and allocate memory to hold the
-   axis permutation array. */
+   axis permutation array. Neither component can have more than
+   AST__MXAXES axes, but the two together can. */
       naxes = GetNaxes( (AstFrame *) new, status );
+      if ( astOK && naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astLoadCmpFrame(%s): Number of axes (%d) "
+                   "read from the dump is invalid - this number should not "
+                   "exceed %d.", status, name, naxes, AST__MXAXES );
+         naxes = 0;
+      }
       new->perm = astMalloc( sizeof( int ) * (size_t) naxes );
 
 /* If OK, loop to read the array value for each axis. */
@@ -11071,9 +11115,12 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
          for ( axis = 0; axis < naxes; axis++ ) {
 
 /* Convert from 1-based to zero-based axis numbering at this
-   point. The default is the "un-permuted" value. */
+   point. The default is the "un-permuted" value. Every value that is not
+   a valid 1-based index becomes -1, which is rejected below, so that the
+   subtraction cannot overflow. */
             sprintf( key, "axp%d", axis + 1 );
-            new->perm[ axis ] = astReadInt( channel, key, axis + 1 ) - 1;
+            ival = astReadInt( channel, key, axis + 1 );
+            new->perm[ axis ] = ( ival > 0 ) ? ival - 1 : -1;
 
 /* Quit looping if an error occurs. */
             if ( !astOK ) break;

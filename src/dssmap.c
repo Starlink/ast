@@ -102,6 +102,26 @@ f     The DssMap class does not define any new routines beyond those
 *        Equal(): use astEQUAL for the WorldCoor double-precision fields
 *        instead of raw == / != so platform ulp drift in FITS-derived
 *        header values does not cause spurious inequality.
+*     11-NOV-2026 (TIMJ):
+*        astLoadDssMap now checks that the dump describes a Mapping with
+*        two inputs and two outputs. The transformation read or wrote beyond
+*        the coordinate arrays otherwise.
+*     11-NOV-2026 (TIMJ):
+*        - The inverse transformation now gives bad pixel positions for sky
+*        positions 90 degrees or more from the plate centre. It gave them
+*        the pixel positions of the points on the opposite side of the sky.
+*        - Both transformations now give bad values, rather than values
+*        that are not finite numbers, when the plate solution cannot be
+*        evaluated, as for an enormous pixel position or a pixel size of
+*        zero.
+*        - MapMerge no longer converts new pixel offsets that are too large
+*        for an integer, which was undefined, and does not then merge.
+*        - astLoadDssMap now rejects a plate centre or pixel offsets that
+*        are too large to be stored in the DSS FITS keywords, which the
+*        class uses to describe itself when it is simplified.
+*        - BuildWcs no longer reads an uninitialised pointer when looking
+*        for the sign of the plate centre declination after an earlier
+*        keyword was found to be missing.
 *class--
 */
 
@@ -115,6 +135,10 @@ f     The DssMap class does not define any new routines beyond those
 /* Macro which returns the nearest integer to a given floating point
    value. */
 #define NINT(x) (int)((x)+(((x)>0.0)?0.5:-0.5))
+
+/* The magnitude that a floating point value must be less than if the NINT
+   macro is to convert it to an integer. */
+#define MAXNINT ( (double) INT_MAX - 1.0 )
 
 /* Include files. */
 /* ============== */
@@ -140,6 +164,7 @@ f     The DssMap class does not define any new routines beyond those
 /* C header files. */
 /* --------------- */
 #include <float.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -490,16 +515,9 @@ static struct WorldCoor *BuildWcs( AstFitsChan *fits, const char *method,
 
 /* Plate center Dec */
       name = "PLTDECSN";
-      if( !astGetFitsS( fits, name, &ckeyval ) && astOK ){
-         dsign = 1.0;
-
-      } else {
-         if( *ckeyval == '-' ){
-            dsign = -1.0;
-         } else {
-            dsign = 1.0;
-         }
-
+      dsign = 1.0;
+      if( astGetFitsS( fits, name, &ckeyval ) ){
+         if( *ckeyval == '-' ) dsign = -1.0;
       }
 
       decd = 0.0;
@@ -1053,9 +1071,11 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                }
 
 /* The CNPIX1 and CNPIX2 keywords are integer keywords. Therefore, we can
-   only do the simplification if the new values are integer to a good
-   approximation. We use one hundredth of a pixel. */
-               if( fabs( cnpix1 - NINT( cnpix1 ) ) < 0.01 &&
+   only do the simplification if the new values are small enough to be
+   converted to an integer, and are integer to a good approximation. We
+   use one hundredth of a pixel. */
+               if( fabs( cnpix1 ) < MAXNINT && fabs( cnpix2 ) < MAXNINT &&
+                   fabs( cnpix1 - NINT( cnpix1 ) ) < 0.01 &&
                    fabs( cnpix2 - NINT( cnpix2 ) ) < 0.01 ){
 
 /* Get a copy of the FitsChan holding the header cards which define the
@@ -1257,9 +1277,12 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* If the pixel position is transformed succesfully, convert the returned
    RA/DEC from degrees to radians. Otherwise, store bad values. NB,
-   platepos returns zero for success. */
+   platepos returns zero for success. It does not check that the plate
+   solution could be evaluated, so a result that is not a finite number,
+   as given by a pixel position that is too large, is also a failure. */
                if( !platepos( *xx, *yy, (struct WorldCoor *) map->wcs,
-                              aa, bb ) ){
+                              aa, bb ) &&
+                   astISFINITE( *aa ) && astISFINITE( *bb ) ){
                   (*aa) *= AST__DD2R;
                   (*bb) *= AST__DD2R;
 
@@ -1291,7 +1314,8 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
             if( *aa != AST__BAD && *bb != AST__BAD ){
 
                if( platepix( AST__DR2D*(*aa), AST__DR2D*(*bb),
-                             (struct WorldCoor *) map->wcs, xx, yy ) ){
+                             (struct WorldCoor *) map->wcs, xx, yy ) ||
+                   !astISFINITE( *xx ) || !astISFINITE( *yy ) ){
                   *xx = AST__BAD;
                   *yy = AST__BAD;
                }
@@ -1944,7 +1968,26 @@ AstDssMap *astLoadDssMap_( void *mem, size_t size,
                }
             }
          }
+
+/* When a DssMap is simplified it describes itself using the DSS FITS
+   keywords from which a DssMap is built. These hold the pixel offsets, and
+   the hours and degrees of the plate centre, as integers. A DssMap built
+   from them cannot hold values that are too large for them, so a dump that
+   does is not valid. */
+         if( astOK && ( fabs( wcs->x_pixel_offset ) >= MAXNINT ||
+                        fabs( wcs->y_pixel_offset ) >= MAXNINT ||
+                        fabs( wcs->plate_ra/( AST__DD2R*15.0 ) ) >= MAXNINT ||
+                        fabs( wcs->plate_dec/AST__DD2R ) >= MAXNINT ) ) {
+            astError( AST__LDERR, "astLoad(%s): The plate centre or pixel "
+                      "offsets read for a %s are too large to be stored in "
+                      "the DSS FITS keywords.", status, name, name );
+         }
       }
+
+/* A DssMap always has two inputs and two outputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, 2, 2 );
 
 /* If an error occurred, clean up by deleting the new DssMap. */
       if ( !astOK ) new = astDelete( new );
@@ -2156,6 +2199,15 @@ platepix (double xpos, double ypos, struct WorldCoor *wcs,
   sxdiff = sin (xr - wcs->plate_ra);
   cxdiff = cos (xr - wcs->plate_ra);
   div = (sypos * syplate) + (cypos * cyplate * cxdiff);
+
+/* "div" is the cosine of the angle between the supplied position and the
+   plate centre. The plate is a projection of the sky on to the plane that
+   touches it at the plate centre, so only positions less than 90 degrees
+   from the centre appear on it. Any other position has no pixel position:
+   the formulae below would give it the pixel position of the point on the
+   opposite side of the sky. */
+  if (div <= 0.0) return 1;
+
   xi = cypos * sxdiff * conr2s / div;
   eta = ((sypos * cyplate) - (cypos * syplate * cxdiff)) * conr2s / div;
 

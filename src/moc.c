@@ -217,6 +217,47 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        astGetMocText: report a buffer length of zero as too small,
 *        rather than search for a space or comma from the byte before
 *        the start of a null buffer, which crashed.
+*     11-NOV-2026 (TIMJ):
+*        astLoadMoc: require a valid MaxOrder when a dump contains any
+*        ranges, and only form "max_nest" when MaxOrder is valid. An unset
+*        or out-of-range MaxOrder (which SetMaxOrder does not catch when the
+*        value is absent) made the shift used to form "max_nest" undefined,
+*        which in turn defeated the check that keeps the nested indices in
+*        range. Also reject a negative number of ranges and a negative
+*        lower bound, and extend the array of ranges as each range is read
+*        so that its size does not depend on an unchecked count.
+*     12-NOV-2026 (TIMJ):
+*        Transform: find the cell that holds a position that is on the edge
+*        of the sky in the HPX12 projection, as a pole is, and every
+*        position on a meridian that divides two polar facets. The cell with
+*        the nearest centre can then be one that is off the sky, and the
+*        position was reported as outside the Moc. The cell on the other
+*        side of the edge is now used (new function PosToNested).
+*        XyToNested: reject a negative cell index, which the division that
+*        gives the facet index rounded into the first facet.
+*     12-NOV-2026 (TIMJ):
+*        AddRegion, AddPixelMask<X>: accept a MaxOrder of zero, starting at
+*        order zero since there is no lower order to start at, rather than
+*        report an error.
+*     12-NOV-2026 (TIMJ):
+*        AddRegion: check that the Region does not extend beyond the box
+*        that bounds its boundary, and use the whole grid if it does (new
+*        function RegionBeyondBox). A Region that covers about half the sky
+*        or more can be the area outside its boundary in the projection
+*        used, and its cells outside the box were left out of the Moc.
+*     12-NOV-2026 (TIMJ):
+*        astGetMocText: separate the cells of a string MOC with spaces, as
+*        the MOC recommendation requires, rather than commas.
+*     12-NOV-2026 (TIMJ):
+*        astAddMocText: hold a range in a string MOC as a range rather than
+*        as each of its values, of which there can be very many.
+*     13-NOV-2026 (TIMJ):
+*        Where a longitude is brought into range by removing one turn at
+*        a time, remove whole turns with fmod first if it is far out of
+*        range. The loops never ended for a very large value.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -381,9 +422,12 @@ typedef struct SourceData {
    size_t mxsize;
 } SourceData;
 
+/* The cells read from a text MOC at one order. Each element is a range
+   of NPIX values, held as a pair of values in "values": the first and
+   the last NPIX value in the range. */
 typedef struct List {
-   int64_t nval;
-   size_t *values;
+   int64_t nval;            /* Number of ranges */
+   size_t *values;          /* Two values for each range */
 } List;
 
 typedef struct EndPoint {
@@ -505,6 +549,8 @@ static int ResToOrder( double );
 static int log2_32( int );
 static int log2_64( int64_t );
 static int TestCell( AstMoc *, int, int64_t, int, int * );
+static int RegionBeyondBox( AstRegion *, AstMapping *, const AstDim[ 2 ], const AstDim[ 2 ], int * );
+static int64_t PosToNested( int, double, double );
 static int64_t XyToNested( int, int, int );
 static void AddCell( AstMoc *, int, int, int64_t, int * );
 static void AddMocData( AstMoc *, int, int, int, int, int, const void *, int * );
@@ -1238,7 +1284,6 @@ void astAddMocText_( AstMoc *this, int maxorder,
    int64_t ihigh;
    int64_t ilow;
    int64_t ipix;
-   int64_t nadd;
    int64_t npix0;
    int64_t npix;
    int64_t nval;
@@ -1455,10 +1500,11 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   if( state != 6 ) {
                      nval = orders[ order ].nval;
                      if( nval == 0 && order > mxord ) mxord = order;
-                     nbyte = ( nval + 1 )*sizeof( size_t );
+                     nbyte = ( 2*nval + 2 )*sizeof( size_t );
                      values = astGrow( orders[ order ].values, 1, nbyte );
                      if( astOK ) {
-                        values[ nval ] = npix;
+                        values[ 2*nval ] = npix;
+                        values[ 2*nval + 1 ] = npix;
                         orders[ order ].values = values;
                         orders[ order ].nval = nval + 1;
                      }
@@ -1563,10 +1609,8 @@ void astAddMocText_( AstMoc *this, int maxorder,
 
                      if( !isrange ) {
                         npix0 = npix;
-                        nadd = 1;
                      } else if( npix >= npix0 ){
                         isrange = 0;
-                        nadd = npix - npix0 + 1;
                      } else {
                         astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
                                   status, method, astGetClass( this ), text );
@@ -1575,16 +1619,17 @@ void astAddMocText_( AstMoc *this, int maxorder,
                         break;
                      }
 
+/* Record the range, which is a single value if no range was given. A
+   range is not expanded into its values, of which there can be very
+   many. */
                      nval = orders[ order ].nval;
-                     nbyte = ( nval + nadd )*sizeof( size_t );
+                     nbyte = ( 2*nval + 2 )*sizeof( size_t );
                      values = astGrow( orders[ order ].values, 1, nbyte );
                      if( astOK ) {
-                        for( ; npix0 <= npix; npix0++ ) {
-                           values[ nval++ ] = npix0;
-                        }
-
+                        values[ 2*nval ] = npix0;
+                        values[ 2*nval + 1 ] = npix;
                         orders[ order ].values = values;
-                        orders[ order ].nval = nval;
+                        orders[ order ].nval = nval + 1;
                      }
 
                      state = 1;
@@ -1675,37 +1720,34 @@ void astAddMocText_( AstMoc *this, int maxorder,
             } else {
                if( !isrange ) {
                   npix0 = npix;
-                  nadd = 1;
                } else {
                   isrange = 0;
-                  nadd = npix - npix0 + 1;
                }
 
                nval = orders[ order ].nval;
-               nbyte = ( nval + nadd )*sizeof( size_t );
+               nbyte = ( 2*nval + 2 )*sizeof( size_t );
                values = astGrow( orders[ order ].values, 1, nbyte );
                if( astOK ) {
-                  for( ; npix0 <= npix; npix0++ ) {
-                     values[ nval++ ] = npix0;
-                  }
-
+                  values[ 2*nval ] = npix0;
+                  values[ 2*nval + 1 ] = npix;
                   orders[ order ].values = values;
-                  orders[ order ].nval = nval;
+                  orders[ order ].nval = nval + 1;
                }
             }
          }
 
 /* Check every NPIX value is a cell at its order, of which there are
-   12*4^order, before the Moc is changed. */
+   12*4^order, before the Moc is changed. A range does not end before it
+   starts, so only its last value needs to be checked. */
          for( order = 0; order <= AST__MXORDHPX && astOK; order++ ) {
             for( ipix = 0; ipix < orders[ order ].nval; ipix++ ) {
-               if( orders[ order ].values[ ipix ] >=
+               if( orders[ order ].values[ 2*ipix + 1 ] >=
                    (size_t) ( 12*( ONE << ( 2*order ) ) ) ) {
                   astError( AST__INMOC, "%s(%s): Invalid NPIX value (%zu) "
                             "for order %d in the supplied MOC - there are "
                             "%" PRId64 " cells at that order.", status,
                             method, astGetClass( this ),
-                            orders[ order ].values[ ipix ], order,
+                            orders[ order ].values[ 2*ipix + 1 ], order,
                             12*( ONE << ( 2*order ) ) );
                   break;
                }
@@ -1733,23 +1775,24 @@ void astAddMocText_( AstMoc *this, int maxorder,
             astSetMaxOrder( this, maxorder );
          }
 
-/* For each order and NPIX value found during the parsing of the text
-   (except for any that have an order greater than 'maxorder', which are
-   ignored), get the upper and lower bounds of the cells at maxorder
-   contained within this cell, and append this as a new range to the Moc. */
+/* For each order and range of NPIX values found during the parsing of
+   the text (except for any that have an order greater than 'maxorder',
+   which are ignored), get the upper and lower bounds of the cells at
+   maxorder contained within the range, and append this as a new range to
+   the Moc. */
          for( order = 0; order <= astMAX( maxorder, mxord ); order++ ) {
             nval = orders[ order ].nval;
             values = orders[ order ].values;
             shift = 2*( maxorder - order );
 
-            for( ipix = 0; ipix < nval; ipix++,values++ ){
+            for( ipix = 0; ipix < nval; ipix++,values += 2 ){
 
                if( shift > 0 ) {
-                  ilow = ( *values << shift );
-                  ihigh = ( (*values + 1 ) << shift ) - 1;
+                  ilow = ( values[ 0 ] << shift );
+                  ihigh = ( ( values[ 1 ] + 1 ) << shift ) - 1;
                } else {
-                  ilow = ( *values >> -shift );
-                  ihigh = ( *values >> -shift );
+                  ilow = ( values[ 0 ] >> -shift );
+                  ihigh = ( values[ 1 ] >> -shift );
                }
 
 /* Count the new range only once there is room for it, and add none if
@@ -2123,11 +2166,11 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
       maxorder = minorder; \
       minorder = maxorder - 1; \
    } \
-   if( minorder < 0 && astOK ) { \
-      astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid value " \
-                "(%d) supplied for parameter 'MinOrder'.", status,  \
-                astGetClass(this), minorder ); \
-   } \
+\
+/* A maximum order of zero leaves no lower order at which to start, so \
+   start at order zero. Each of the twelve cells is then tested only at \
+   its centre. */ \
+   if( minorder < 0 ) minorder = 0; \
 \
 /* Invert the WCS FrameSet for the picked (i.e. sky) axes, so that the \
    current Frame represents grid coords in the array and the base Frame \
@@ -2652,16 +2695,10 @@ f        The global status.
             minorder = maxorder - 1;
          }
 
-/* A MaxOrder of zero leaves no lower order at which to start. */
-         if( minorder < 0 ) {
-            if( astOK ) {
-               astError( AST__INVAR, "astAddRegion(%s): Invalid value (%d) "
-                         "supplied for parameter 'MinOrder'.", status,
-                         astGetClass(this), minorder );
-            }
-            picked = astAnnul( picked );
-            return;
-         }
+/* A maximum order of zero leaves no lower order at which to start, so
+   start at order zero. Each of the twelve cells is then tested only at
+   its centre. */
+         if( minorder < 0 ) minorder = 0;
 
 /* Get a pointer to the Frame in which the Region is defined. We use this
    with astConvert below, rather than the original Region, so that the
@@ -2807,6 +2844,23 @@ f        The global status.
          gubnd_min[ 0 ] = (AstDim)round( outa[ 1 ] ) + 1;
          gubnd_min[ 1 ] = (AstDim)round( outb[ 1 ] ) + 1;
          tempmap2 = astAnnul( tempmap2 );
+
+/* The box found above bounds the boundary of the Region, and so bounds
+   the Region only if the Region is the area inside its boundary. A
+   Region that covers more than about half the sky can instead be the
+   area outside its boundary in the chosen projection. If the Region
+   extends beyond the box, use the whole grid of the projection (four
+   facets along each axis for an XPH projection and five for an HPX
+   projection). */
+         if( RegionBeyondBox( mapped_min, maps[ minorder ], glbnd_min,
+                              gubnd_min, status ) ) {
+            glbnd_min[ 0 ] = 1;
+            glbnd_min[ 1 ] = 1;
+            gubnd_min[ 0 ] = ( ( iproj_min == AST__XPHN ||
+                                 iproj_min == AST__XPHS ) ? 4 : 5 )*
+                             ( ( (AstDim) 1 ) << minorder );
+            gubnd_min[ 1 ] = gubnd_min[ 0 ];
+         }
 
 /* Initialise a CellList structure holding the grid coords of the cells
    to add into the Moc at each order. This also holds Mappings from
@@ -3512,6 +3566,8 @@ static int Comp_corner( const void *a, const void *b ){
 
 /* If required, shift the RA values from [0,2.PI[ to [-PI,+PI[. */
    if( Comp_Corner_Loop != 0 ) {
+      if( fabs( ra1 ) > 1.0E6 ) ra1 = fmod( ra1, 2*AST__DPI );
+      if( fabs( ra2 ) > 1.0E6 ) ra2 = fmod( ra2, 2*AST__DPI );
       while( ra1 < -AST__DPI ) ra1 += 2*AST__DPI;
       while( ra2 < -AST__DPI ) ra2 += 2*AST__DPI;
       while( ra1 >= AST__DPI ) ra1 -= 2*AST__DPI;
@@ -5144,8 +5200,9 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
                TOKEN_WRITE;
             }
 
-/* Then write the (potential) start of the new range. */
-            nc = sprintf( token, ",%" PRId64, npix );
+/* Then write the (potential) start of the new range. The MOC
+   recommendation separates the elements of a string MOC with spaces. */
+            nc = sprintf( token, " %" PRId64, npix );
             TOKEN_WRITE;
             npix_start = npix;
          }
@@ -6260,6 +6317,12 @@ static void MakeCorners( AstMoc *this, int order, Cell *cell_foot,
                break;
             }
 
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+            if( fabs( *p0 ) > 1.0E6 ) *p0 = fmod( *p0, 2*AST__DPI );
             while( *p0 >= 2*AST__DPI ) *p0 -= 2*AST__DPI;
             while( *p0 < 0 ) *p0 += 2*AST__DPI;
 
@@ -6953,6 +7016,111 @@ static double OrderToRes( int order ){
    return 211076.29/(double)( 1 << order );
 }
 
+static int64_t PosToNested( int order, double x, double y ){
+/*
+*  Name:
+*     PosToNested
+
+*  Purpose:
+*     Get the HEALPix nested index of the cell holding an HPX12 position.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     int64_t PosToNested( int order, double x, double y )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function returns the HEALPix nested index of the cell that
+*     holds a position given in grid coords within the HPX12 projection.
+*
+*     The cell used is the one with the nearest centre. A position on the
+*     edge of the sky - for instance one on a meridian that divides two
+*     polar facets - is on the edge of a cell, and the nearest centre can
+*     then be that of a cell that is off the sky. If so, the cell on the
+*     other side of the edge is used. Rounding errors in the calculation
+*     of the grid coords can move such a position slightly off the edge,
+*     so a position within a small distance of an edge is treated as
+*     being on it. The distance is the margin that the HPX projection
+*     allows for rounding (see AST__HPXTOL).
+
+*  Parameters:
+*     order
+*        The HEALPix order.
+*     x
+*        The grid X coordinate of the position within the HPX12
+*        projection. The centre of the first cell is at 1.0.
+*     y
+*        The grid Y coordinate of the position within the HPX12
+*        projection.
+
+*  Returned Value:
+*     The HEALPix nested index, or INT64_MAX if the position is bad or is
+*     not on the sky.
+*/
+
+/* Local Variables: */
+   double edge;             /* Coordinate of the nearest cell edge */
+   double ix[ 2 ];          /* Candidate one-based cell indices on X axis */
+   double iy[ 2 ];          /* Candidate one-based cell indices on Y axis */
+   double size;             /* Number of cells along each axis of the grid */
+   double tol;              /* Width of the edge of a cell, in pixels */
+   int i;                   /* Index of candidate on the X axis */
+   int j;                   /* Index of candidate on the Y axis */
+   int nx;                  /* Number of candidates on the X axis */
+   int ny;                  /* Number of candidates on the Y axis */
+   int64_t result;          /* Returned index */
+
+/* Initialise the returned index to a "bad" value. */
+   result = INT64_MAX;
+
+/* Check the position is good. */
+   if( x == AST__BAD || y == AST__BAD ) return result;
+
+/* The grid has five facets along each axis. A step of one pixel along
+   either axis changes each coordinate in the plane of the projection by
+   45 degrees divided by the number of pixels along the edge of a facet. */
+   size = 5.0*( 1 << order );
+   tol = AST__HPXTOL*( 1 << order )/45.0;
+
+/* On each axis, get the one-based index of the cell with the nearest
+   centre. The edges of the cells are at half-integer coordinates. If the
+   position is on an edge, also get the index of the cell on the other
+   side of it. */
+   ix[ 0 ] = round( x );
+   nx = 1;
+   edge = floor( x ) + 0.5;
+   if( fabs( x - edge ) <= tol ) {
+      ix[ nx++ ] = ( ix[ 0 ] > edge ) ? edge - 0.5 : edge + 0.5;
+   }
+
+   iy[ 0 ] = round( y );
+   ny = 1;
+   edge = floor( y ) + 0.5;
+   if( fabs( y - edge ) <= tol ) {
+      iy[ ny++ ] = ( iy[ 0 ] > edge ) ? edge - 0.5 : edge + 0.5;
+   }
+
+/* Try each combination, starting with the cell with the nearest centre,
+   until one is found that is on the sky. The check that the cell is
+   within the grid also ensures that its indices can be held in an int,
+   and rejects a position that is not finite. */
+   for( j = 0; j < ny && result == INT64_MAX; j++ ) {
+      for( i = 0; i < nx && result == INT64_MAX; i++ ) {
+         if( ix[ i ] >= 1.0 && ix[ i ] <= size &&
+             iy[ j ] >= 1.0 && iy[ j ] <= size ) {
+            result = XyToNested( order, (int) ix[ i ], (int) iy[ j ] );
+         }
+      }
+   }
+
+   return result;
+}
+
 static void PutCell( AstMoc *this, AstMapping **map, AstDim ncell, AstDim *ix,
                      AstDim *iy, int order, CellList *clist, int regtype,
                      void *data, int cmode, int *inorout, const char *method,
@@ -7335,6 +7503,135 @@ static void PutCell( AstMoc *this, AstMapping **map, AstDim ncell, AstDim *ix,
    inside = astFree( inside );
 }
 
+static int RegionBeyondBox( AstRegion *region, AstMapping *map,
+                            const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+                            int *status ){
+/*
+*  Name:
+*     RegionBeyondBox
+
+*  Purpose:
+*     See if a Region extends beyond a box that bounds its boundary.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     int RegionBeyondBox( AstRegion *region, AstMapping *map,
+*                          const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+*                          int *status )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function is given a box of grid cells that contains the whole
+*     of the boundary of a Region, with a margin of at least one cell,
+*     and determines whether the Region extends beyond the box.
+*
+*     Since no part of the boundary is outside the box, each connected
+*     part of the sky outside the box is either all inside or all outside
+*     the Region, and each such part adjoins the box. So the Region
+*     extends beyond the box if, and only if, it contains positions in
+*     the ring of cells that surrounds the box. Each cell in the ring is
+*     tested at its corners, edge-centres and centre.
+
+*  Parameters:
+*     region
+*        Pointer to the Region.
+*     map
+*        Pointer to a Mapping from the grid coordinates in which the box
+*        is defined to the Frame represented by the Region.
+*     lbnd
+*        The one-based indices of the first cell in the box on each axis.
+*     ubnd
+*        The one-based indices of the last cell in the box on each axis.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the Region extends beyond the box. Zero if it does not,
+*     or if an error occurs.
+*/
+
+/* Local Variables: */
+   AstDim i;                /* X coordinate of test point, in half cells */
+   AstDim ihi;              /* Last value of "i" */
+   AstDim ilo;              /* First value of "i" */
+   AstDim j;                /* Y coordinate of test point, in half cells */
+   AstDim jhi;              /* Last value of "j" */
+   AstDim jlo;              /* First value of "j" */
+   AstDim npoint;           /* Number of test points */
+   AstPointSet *ps1;        /* Test points in grid coords */
+   AstPointSet *ps2;        /* Test points in the Frame of the Region */
+   AstPointSet *ps3;        /* Test points masked by the Region */
+   double **ptr1;           /* Pointers to grid coords */
+   double **ptr3;           /* Pointers to masked values */
+   double *px;              /* Pointer to next X value */
+   double *py;              /* Pointer to next Y value */
+   int result;              /* Returned flag */
+
+/* Initialise */
+   result = 0;
+
+/* Check the global error status. */
+   if( !astOK ) return result;
+
+/* The test points are spaced half a cell apart. In units of half a cell,
+   the outer edge of the box is at ( 2*lbnd - 1 ) and ( 2*ubnd + 1 ), and
+   the outer edge of the ring of cells around the box is one cell further
+   out. */
+   ilo = 2*lbnd[ 0 ] - 3;
+   ihi = 2*ubnd[ 0 ] + 3;
+   jlo = 2*lbnd[ 1 ] - 3;
+   jhi = 2*ubnd[ 1 ] + 3;
+
+/* The test points are those on or outside the outer edge of the box:
+   three complete rows below the box and three above it, and three points
+   at each end of each of the rows between. */
+   npoint = 6*( ihi - ilo + 1 ) + 6*( jhi - jlo - 5 );
+
+/* Store the grid coords of the test points. */
+   ps1 = astPointSet( npoint, 2, "", status );
+   ptr1 = astGetPoints( ps1 );
+   if( astOK ) {
+      px = ptr1[ 0 ];
+      py = ptr1[ 1 ];
+      for( j = jlo; j <= jhi; j++ ) {
+         for( i = ilo; i <= ihi; i++ ) {
+            if( j < jlo + 3 || j > jhi - 3 || i < ilo + 3 || i > ihi - 3 ) {
+               *(px++) = 0.5*i;
+               *(py++) = 0.5*j;
+            } else {
+               i = ihi - 3;
+            }
+         }
+      }
+
+/* Transform them into the Frame of the Region, and then use the Region
+   to set bad those that are outside the Region. A test point that is not
+   on the sky is already bad. */
+      ps2 = astTransform( map, ps1, 1, NULL );
+      ps3 = astTransform( region, ps2, 1, NULL );
+      ptr3 = astGetPoints( ps3 );
+      if( astOK ) {
+         px = ptr3[ 0 ];
+         for( i = 0; i < npoint; i++ ) {
+            if( *(px++) != AST__BAD ) {
+               result = 1;
+               break;
+            }
+         }
+      }
+      ps3 = astAnnul( ps3 );
+      ps2 = astAnnul( ps2 );
+   }
+   ps1 = astAnnul( ps1 );
+
+   return result;
+}
+
 static void RegBaseBox( AstRegion *this_region, double *lbnd,
                         double *ubnd, int *status ){
 /*
@@ -7450,12 +7747,19 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd,
            if( *pdec > maxdec ) maxdec = *pdec;
 
            ra12 = *pra;
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+           if( fabs( ra12 ) > 1.0E6 ) ra12 = fmod( ra12, 2*AST__DPI );
            while( ra12 < 0.0 ) ra12 += 2*AST__DPI;
            while( ra12 > 2*AST__DPI ) ra12 -= 2*AST__DPI;
            if( ra12 < minra12 ) minra12 = ra12;
            if( ra12 > maxra12 ) maxra12 = ra12;
 
            ra0 = *pra;
+           if( fabs( ra0 ) > 1.0E6 ) ra0 = fmod( ra0, 2*AST__DPI );
            while( ra0 < -AST__DPI ) ra0 += 2*AST__DPI;
            while( ra0 > AST__DPI ) ra0 -= 2*AST__DPI;
            if( ra0 < minra0 ) minra0 = ra0;
@@ -8605,6 +8909,7 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
             if( *pdec_mesh2 > dec_high ) break;
 
             dra = *pra_mesh2 - ra_pin;
+            if( fabs( dra ) > 1.0E6 ) dra = fmod( dra, 2*AST__DPI );
             while( dra >= AST__DPI ) dra -= 2*AST__DPI;
             while( dra < -AST__DPI ) dra += 2*AST__DPI;
             dra += ra_pin;
@@ -9753,8 +10058,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       for( ipoint = 0; ipoint < npoint; ipoint++ ) {
 
 /* Convert from grid (x,y) to nested index. */
-         inest = px ? XyToNested( order, (int)round( *(px++) ),
-                                  (int)round( *(py++) ) ) : INT64_MAX;
+         inest = px ? PosToNested( order, *(px++), *(py++) ) : INT64_MAX;
 
 /* Test if this nested index is contained in the Moc. Each pair of
    adjacent values in the "this->range" array are the upper and lower
@@ -9795,8 +10099,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
    }
    pset_tmp = astAnnul( pset_tmp );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -9861,11 +10170,15 @@ static int64_t XyToNested( int order, int ix, int iy ){
 /* Get the number of cells along one edge of a facet.*/
    nppf = ( 1 << order );
 
+/* Convert ix and iy from one-based to zero-based. A negative index is
+   off the grid. This check is needed because the divisions below round
+   towards zero, and so would put such an index in the first facet. */
+   if( --ix < 0 || --iy < 0 ) return result;
+
 /* Get the zero based facet (x,y) indices - offsets from the bottom left
-   facet in Calabretta & Roukema 2005 Fig 3. Convert ix and iy from
-   one-based to zero-based before doing the calculations. */
-   fx = (--ix)/nppf;
-   fy = (--iy)/nppf;
+   facet in Calabretta & Roukema 2005 Fig 3. */
+   fx = ix/nppf;
+   fy = iy/nppf;
 
 /* Get the (x,y) offsets of the cell into the facet, measured from the
    bottom left corner of the facet as shown in Calabretta & Roukema 2005
@@ -10940,56 +11253,92 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
       new->minorder = astReadInt( channel, "minorder", -INT_MAX );
       if ( TestMinOrder( new, status ) ) SetMinOrder( new, new->minorder, status );
 
-/* Get the maximum number of nested indices at the order in use. */
-      max_nest = 12*( ONE << (2*new->maxorder) );
-
-/* Initialise other class properties. */
+/* Get the number of ranges of nested indices stored in the dump. It cannot
+   be negative. */
       new->nrange = astReadInt( channel, "nrange", 0 );
-      new->range = astCalloc( 2*new->nrange, sizeof(*(new->range)) );
-      if( astOK ) {
-         llast = 0;
-         ulast = 0;
+      if( astOK && new->nrange < 0 ) {
+         astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.", status );
+         astError( AST__LDERR, "Invalid number of ranges (%d).", status,
+                   new->nrange );
+      }
 
-         pr = new->range;
-         for( irange = 0; irange < new->nrange; irange++,pr += 2 ) {
-            (void) sprintf( buff, "i%d", irange );
-            un.a[0] = astReadInt( channel, buff, 0 );
-            (void) sprintf( buff, "j%d", irange );
-            un.a[1] = astReadInt( channel, buff, 0 );
-            pr[ 0 ] = un.b;
+/* A Moc that contains any ranges must have a valid MaxOrder. It is used
+   below both to bound the nested indices read from the dump and to form the
+   shift used to calculate "max_nest"; an unset or out-of-range value (the
+   SetMaxOrder call above only rejects an explicitly supplied out-of-range
+   value) would make that shift undefined. Reject such a dump. */
+      if( astOK && new->nrange > 0 &&
+          ( new->maxorder < 0 || new->maxorder > AST__MXORDHPX ) ) {
+         astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.", status );
+         astError( AST__LDERR, "Missing or invalid MaxOrder (%d) for a Moc "
+                   "containing %d range(s).", status, new->maxorder,
+                   new->nrange );
+      }
 
-            (void) sprintf( buff, "k%d", irange );
-            un.a[0] = astReadInt( channel, buff, 0 );
-            (void) sprintf( buff, "l%d", irange );
-            un.a[1] = astReadInt( channel, buff, 0 );
-            pr[ 1 ] = ( un.b > 0 ) ? un.b : pr[ 0 ];
+/* Get the maximum number of nested indices at the order in use. This is
+   only well-defined when MaxOrder is valid, which is guaranteed above
+   whenever any ranges are present. */
+      max_nest = ( new->maxorder >= 0 && new->maxorder <= AST__MXORDHPX ) ?
+                 12*( ONE << ( 2*new->maxorder ) ) : 0;
 
-            if( pr[ 1 ] >= max_nest ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Upper bound (%" PRId64 ") is too high for "
-                         "order %d.", status, pr[ 1 ], new->maxorder );
-               break;
+/* Read the ranges. The array holding them is extended as each range is
+   read, rather than being allocated from the stated number of ranges, so
+   that the memory used depends on the ranges actually present in the dump.
+   A range that is missing from the dump reads as [0:0], which is rejected
+   below as overlapping its predecessor. */
+      new->range = NULL;
+      llast = 0;
+      ulast = 0;
+      for( irange = 0; astOK && irange < new->nrange; irange++ ) {
+         new->range = astGrow( new->range, irange + 1,
+                               2*sizeof(*(new->range)) );
+         if( !astOK ) break;
+         pr = new->range + 2*irange;
 
-            } else if( pr[ 0 ] > pr[ 1 ] ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Upper bound (%" PRId64 ") lower than lower "
-                         "bound (%" PRId64 ").", status, pr[ 1 ], pr[ 0 ] );
-               break;
+         (void) sprintf( buff, "i%d", irange );
+         un.a[0] = astReadInt( channel, buff, 0 );
+         (void) sprintf( buff, "j%d", irange );
+         un.a[1] = astReadInt( channel, buff, 0 );
+         pr[ 0 ] = un.b;
 
-            } else if( pr[ 0 ] <= ulast && irange != 0 ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Range [%" PRId64 ":%" PRId64 "] overlaps range "
-                         "[%" PRId64 ":%" PRId64 "].", status, pr[ 0 ], pr[ 1 ], llast,
-                         ulast );
-               break;
-            }
+         (void) sprintf( buff, "k%d", irange );
+         un.a[0] = astReadInt( channel, buff, 0 );
+         (void) sprintf( buff, "l%d", irange );
+         un.a[1] = astReadInt( channel, buff, 0 );
+         pr[ 1 ] = ( un.b > 0 ) ? un.b : pr[ 0 ];
 
-            llast = pr[ 0 ];
-            ulast = pr[ 1 ];
+         if( pr[ 0 ] < 0 ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Lower bound (%" PRId64 ") is negative.",
+                      status, pr[ 0 ] );
+            break;
+
+         } else if( pr[ 1 ] >= max_nest ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Upper bound (%" PRId64 ") is too high for "
+                      "order %d.", status, pr[ 1 ], new->maxorder );
+            break;
+
+         } else if( pr[ 0 ] > pr[ 1 ] ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Upper bound (%" PRId64 ") lower than lower "
+                      "bound (%" PRId64 ").", status, pr[ 1 ], pr[ 0 ] );
+            break;
+
+         } else if( pr[ 0 ] <= ulast && irange != 0 ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Range [%" PRId64 ":%" PRId64 "] overlaps range "
+                      "[%" PRId64 ":%" PRId64 "].", status, pr[ 0 ], pr[ 1 ], llast,
+                      ulast );
+            break;
          }
+
+         llast = pr[ 0 ];
+         ulast = pr[ 1 ];
       }
 
 /* Initialise other values */

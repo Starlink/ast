@@ -185,7 +185,7 @@ int main( void ) {
    if( astWrite( ch, moc ) != 1 )
       stopit( "Error 1", status );
 
-   if( strcmp( files[0], "6/500 7/997,1000-1002 9/" ) != 0 )
+   if( strcmp( files[0], "6/500 7/997 1000-1002 9/" ) != 0 )
       stopit( "Error 2", status );
 
    if( astTest( ch, "MocFormat" ) )

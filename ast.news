@@ -78,6 +78,121 @@ Bug fixes
   (USF2HL, TPF2HL, GEF2HL, BYF2HL, LKF2HL, LDF2HL, LGF2HL, GLF2HL and their
   inverses).
 
+- A position could be reported as inside a Polygon on the sky when it is
+  outside it, if the line to the position from the middle of the Polygon
+  passes exactly through a vertex. For instance a square about the north
+  pole with vertices at an RA of 0, 6, 12 and 18 hours was reported to
+  contain positions in the southern hemisphere at those RAs.
+
+- astAddRegion could not add to a Moc a Region centred on, or with a vertex
+  at, a position where the HEALPix projections used by the Moc class are
+  cut: a position at RA=0 with a Dec between -41.8 and +41.8 degrees, a
+  position at an RA of 6, 12 or 18 hours with a Dec outside that range, or a
+  pole given with an RA of 6 hours or more. It reported that the Region
+  "cannot be mapped to HEALPix coordinates". It could also leave out of the
+  Moc of any Region some cells that touch the meridians at RA 0, 6, 12 and
+  18 hours. Both are fixed.
+
+- A position at a pole, or at an RA of 0, 6, 12 or 18 hours and a Dec beyond
+  41.8 degrees north or south, could be reported as being outside a Moc
+  that contains it.
+
+- astAddRegion and astAddPixelMask<X> now accept a Moc with a MaxOrder of
+  zero. They reported an error.
+
+- astAddRegion left cells out of the Moc of a Region that covers about half
+  the sky or more, such as a Circle with a radius of 90 degrees or more.
+
+- A string MOC written by astGetMocString or a MocChan now has spaces
+  between its cells, as the MOC recommendation requires, rather than commas,
+  which other MOC libraries do not accept. A string MOC with either is still
+  read.
+
+- A range of cells in a string MOC is no longer expanded into its individual
+  cells as it is read, which for a large range took a long time and could
+  exhaust memory.
+
+- A Mapping can now have no more than AST__MXAXES (65536) inputs or
+  outputs, and a Frame no more than that number of axes. A constructor
+  asked for more reports an error, as does astRead if it is given an object
+  that has more. No real coordinate system comes close to the limit. It
+  exists to prevent a denial of service when a maliciously crafted file
+  declares an axis count of billions, which made AST allocate memory and
+  loop in proportion to that count.
+
+- Reading a corrupt or maliciously crafted object dump or FITS header could
+  crash AST, corrupt memory, or keep it busy without limit. Fuzzing the
+  dumps and headers used by the test suite found about sixty distinct
+  faults of this kind, and all those that crashed or corrupted memory are
+  fixed. astRead now reports an error for, among other things: an integer
+  too large for an int (which used to wrap round to another value); a
+  component object that is missing or of the wrong class; a FrameSet that
+  states more Frames or Mappings than it holds, whose node links form a
+  loop, or whose Mappings and Frames disagree about the number of axes; a
+  Region without the points that define it; a SkyFrame, SpecFrame,
+  TimeFrame or FluxFrame with the wrong number of axes; a PermMap that
+  refers to a constant it does not have; a SpecMap, SlaMap or TimeMap that
+  states more conversion steps than it holds; and a PointSet or MatrixMap
+  that claims more values than a dump can hold.
+
+- A FITS header is rejected if its WCSAXES value is not between 1 and 999.
+  The value used to be taken as the number of axes whatever it was. Other
+  faults in reading FITS headers are fixed: CTYPE values of fewer than
+  three characters, an IRAF WAT card without a string value, and a SIP
+  distortion in a header that states fewer than two WCS axes.
+
+- A SkyFrame read from a dump that does not describe its two axes now has
+  proper sky axes, and so formats values as sexagesimal strings. It was
+  given two simple axes.
+
+- astFormat returns "<bad>" for a celestial longitude or latitude that has
+  too many digits to format, such as 1.0E300 radians, rather than writing
+  beyond the end of its buffer.
+
+- astSimplify, and so astWrite to a FitsChan, never returned for a Mapping
+  that held an infinite coefficient, as the inverse of a WinMap with a
+  scale of 1e-320 does. Several functions that bring an angle into range
+  never returned for a very large angle, such as the sidereal time for an
+  Epoch of 1.0E11. astRate never returned for a position within about
+  1e-301 of zero.
+
+- astMatrixMap reports an error if asked for a full matrix with more
+  elements than an int can hold.
+
+- astGetFitsI and astGetFitsK no longer convert a floating point keyword
+  value that is too large for the integer type. They report that the
+  value cannot be converted, as they do for a string that is not a number.
+
+- If a transformation failed, several classes freed an output PointSet
+  that had been supplied by the caller, which a CmpMap then used.
+
+- A Format attribute value is a "printf" format for a single axis value,
+  and it was given to sprintf without being checked. A Format that asked
+  for anything else, such as "%s" or "%n", made astFormat read or write
+  through a wild pointer, and one can be supplied by a file. astFormat now
+  reports an error unless the Format has at most one conversion
+  specification, for a floating point or integer value, with any field
+  width and precision given as digits.
+
+- Reporting an error could overflow the stack. astError formatted each
+  message into a buffer of 1024 characters without a check, and many
+  messages quote text from the data being read. Warnings issued by a
+  Channel had the same fault with a buffer of 201 characters. Messages
+  that do not fit are now truncated, and warnings are stored in full.
+
+- The default Domain of a CmpFrame, the default Title of a FluxFrame or
+  SpecFluxFrame, the default Label of a SpecFrame with a SpecOrigin, and a
+  value formatted with a wide Format, could each be written beyond the end
+  of a fixed buffer. They are now truncated to fit, and astFormat reports
+  an error for a value that does not fit.
+
+- Writing a FrameSet to a FitsChan could take a time that grew faster than
+  the factorial of the number of WCS axes when two of the axes were
+  coupled by a rotation or a celestial projection, as they are in any
+  header with more WCS axes than pixel axes. A header with WCSAXES = 9 and
+  two rotated pixel axes took minutes, and now takes a fraction of a
+  second. astMapSplit had the same cost for such a Mapping.
+
 Build system changes
 --------------------
 

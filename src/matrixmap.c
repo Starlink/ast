@@ -203,6 +203,16 @@ f     The MatrixMap class does not define any new routines beyond those
 *        Use round() rather than (int)(x+0.5) for rounding, so that the
 *        library uses a single rounding idiom that is correct for
 *        negative values.
+*     13-NOV-2026 (TIMJ):
+*        Report an error when asked for a full matrix with more elements
+*        than an int can hold, in the constructor, and with more elements
+*        than a dump can name, in astLoadMatrixMap. The number of elements
+*        was calculated as an int, which overflows for a matrix of 46341
+*        rows and columns.
+*     13-NOV-2026 (TIMJ):
+*        Added the protected function astMtrSplitInputs, which finds the
+*        inputs that astMapSplit must be given to split off a given set
+*        of outputs.
 *class--
 */
 
@@ -248,7 +258,9 @@ f     The MatrixMap class does not define any new routines beyond those
 /* C header files. */
 /* --------------- */
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6036,9 +6048,18 @@ AstMatrixMap *astInitMatrixMap_( void *mem, size_t size, int init,
 
 /* If a full MatrixMap is being created, then memory is needed to hold
    all the terms. */
+/* The elements of a matrix are counted and indexed with ints throughout
+   this class, so a matrix cannot have more of them than an int can hold. */
          } else {
-            nel = nin*nout ;
             used_form = FULL;
+            if( (int64_t) nin*(int64_t) nout > INT_MAX ) {
+               astError( AST__TOOBG, "astInitMatrixMap(%s): A full matrix "
+                         "with %d rows and %d columns has too many "
+                         "elements.", status, name, nout, nin );
+               nel = 0;
+            } else {
+               nel = nin*nout;
+            }
          }
 
 /* Allocate memory for the forward matrix, storing the supplied matrix
@@ -6162,6 +6183,7 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
 */
 
 #define KEY_LEN 50               /* Maximum length of a keyword */
+#define MXLOADEL 9999999         /* Most elements a dump can name */
 
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
 /* Local Variables: */
@@ -6225,7 +6247,25 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
       nout = astGetNout( (AstMapping *) new );
 
       if( new->form == FULL ){
-         nel = nin*nout;
+
+/* A dump names the elements of the matrix "M0", "M1", and so on, and a
+   name in a dump can have no more than eight characters. So no dump can
+   supply more than MXLOADEL elements, and a full matrix that claims to
+   have more was not written by AST. Without this check, a few bytes of
+   input could make this function allocate and fill two arrays of the
+   square of the largest number of axes that a Mapping can have, a size
+   that does not even fit in the int used to hold it. */
+         if( (int64_t) nin*(int64_t) nout > MXLOADEL ) {
+            if( astOK ) {
+               astError( AST__LDERR, "astLoadMatrixMap(%s): The full matrix "
+                         "read has %d rows and %d columns, but a dump cannot "
+                         "hold more than %d elements.", status, name, nout,
+                         nin, MXLOADEL );
+            }
+            nel = 0;
+         } else {
+            nel = nin*nout;
+         }
 
       } else if( new->form == DIAGONAL ){
          nel = astMIN( nin, nout );
@@ -6296,6 +6336,7 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
 
 /* Undefine macros local to this function. */
 #undef KEY_LEN
+#undef MXLOADEL
 }
 
 /* Virtual function interfaces. */
@@ -6309,6 +6350,183 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
    Note that the member function may not be the one defined here, as it may
    have been over-ridden by a derived class. However, it should still have the
    same interface. */
+
+int *astMtrSplitInputs_( AstMatrixMap *this, int nout, const int *out,
+                         int *nin, int *status ){
+/*
+*+
+*  Name:
+*     astMtrSplitInputs
+
+*  Purpose:
+*     Find the inputs that astMapSplit needs to split off given outputs.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     int *astMtrSplitInputs( AstMatrixMap *this, int nout, const int *out,
+*                             int *nin )
+
+*  Class Membership:
+*     MatrixMap member function.
+
+*  Description:
+*     The astMapSplit method of this class is given a set of inputs. It
+*     fails if any output depends both on a selected input and on an
+*     unselected input. Otherwise it returns a Mapping with every output
+*     that depends on a selected input, in ascending order. An output
+*     depends on an input if the element of the matrix that relates them
+*     is neither zero nor bad.
+*
+*     This function answers the opposite question. It is given a set of
+*     outputs, and finds the smallest set of inputs for which astMapSplit
+*     would return exactly those outputs. That is every input that one of
+*     the outputs depends on, so long as each output depends on at least
+*     one input and no other output depends on any of them. If no other
+*     set of inputs gives exactly those outputs, then any that does has
+*     these inputs plus others on which no output depends.
+*
+*     It allows a caller that would otherwise have to try every set of
+*     inputs in turn to go straight to the only one that can work.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap, taking account of whether it has
+*        been inverted.
+*     nout
+*        The number of outputs.
+*     out
+*        Pointer to an array holding the zero-based indices of the
+*        outputs.
+*     nin
+*        Pointer to an int in which to return the number of inputs
+*        found.
+
+*  Returned Value:
+*     A pointer to a dynamically allocated array holding the zero-based
+*     indices of the inputs, in ascending order. It should be freed using
+*     astFree when no longer needed. A NULL pointer is returned if there is
+*     no set of inputs for which astMapSplit would return exactly the
+*     supplied outputs.
+
+*  Notes:
+*     - astMapSplit can still fail for the inputs returned, since it will
+*     not split off an output that has a bad matrix element for any of
+*     the selected inputs. So the caller should not assume that it works.
+*     - A NULL pointer is returned, and "*nin" is set to zero, if an error
+*     has already occurred or if this function should fail for any reason.
+*-
+*/
+
+/* Local Variables: */
+   char *used;                /* Does a supplied output depend on each input? */
+   char *wanted;              /* Was each output supplied? */
+   double *mat;               /* Pointer to the matrix for this MatrixMap */
+   double el;                 /* A matrix element */
+   int *result;               /* The returned array */
+   int any;                   /* Does the output depend on any input? */
+   int i;                     /* Loop count */
+   int icol;                  /* Column (input) index */
+   int irow;                  /* Row (output) index */
+   int ncol;                  /* Number of columns (inputs) */
+   int nrow;                  /* Number of rows (outputs) */
+   int ok;                    /* Can the outputs be obtained? */
+
+/* Initialise */
+   result = NULL;
+   *nin = 0;
+
+/* Check the global error status. */
+   if( !astOK ) return result;
+
+/* Get the number of inputs and outputs. */
+   ncol = astGetNin( this );
+   nrow = astGetNout( this );
+
+/* Ensure the MatrixMap is stored in full form, and get the matrix that
+   defines the current forward transformation, as astMapSplit does. */
+   ExpandMatrix( this, status );
+   if( astGetInvert( this ) ) {
+      mat = this->i_matrix;
+   } else {
+      mat = this->f_matrix;
+   }
+
+/* Nothing can be split off if the matrix is undefined. */
+   wanted = astCalloc( nrow, sizeof( char ) );
+   used = astCalloc( ncol, sizeof( char ) );
+   if( mat && astOK ) {
+
+/* Flag the supplied outputs, checking that each is a valid index that is
+   given only once. */
+      ok = ( nout > 0 );
+      for( i = 0; i < nout && ok; i++ ) {
+         if( out[ i ] < 0 || out[ i ] >= nrow || wanted[ out[ i ] ] ) {
+            ok = 0;
+         } else {
+            wanted[ out[ i ] ] = 1;
+         }
+      }
+
+/* Flag every input that a supplied output depends on. An output that
+   depends on no input is never returned by astMapSplit. */
+      for( irow = 0; irow < nrow && ok; irow++ ) {
+         if( wanted[ irow ] ) {
+            any = 0;
+            for( icol = 0; icol < ncol; icol++ ) {
+               el = mat[ irow*ncol + icol ];
+               if( el != 0.0 && el != AST__BAD ) {
+                  used[ icol ] = 1;
+                  any = 1;
+               }
+            }
+            if( !any ) ok = 0;
+         }
+      }
+
+/* No other output can depend on any of these inputs. If it depended only
+   on them, astMapSplit would return it as well. If it also depended on
+   another input, astMapSplit would fail. */
+      for( irow = 0; irow < nrow && ok; irow++ ) {
+         if( !wanted[ irow ] ) {
+            for( icol = 0; icol < ncol; icol++ ) {
+               el = mat[ irow*ncol + icol ];
+               if( used[ icol ] && el != 0.0 && el != AST__BAD ) {
+                  ok = 0;
+                  break;
+               }
+            }
+         }
+      }
+
+/* If the outputs can be obtained, return the flagged inputs. */
+      if( ok ) {
+         result = astMalloc( sizeof( int )*(size_t) ncol );
+         if( astOK ) {
+            for( icol = 0; icol < ncol; icol++ ) {
+               if( used[ icol ] ) result[ ( *nin )++ ] = icol;
+            }
+         }
+      }
+   }
+
+/* Free resources. */
+   wanted = astFree( wanted );
+   used = astFree( used );
+
+/* Re-compress the supplied MatrixMap. */
+   CompressMatrix( this, status );
+
+/* Return nothing if an error has occurred. */
+   if( !astOK ) {
+      result = astFree( result );
+      *nin = 0;
+   }
+
+   return result;
+}
 
 AstMatrixMap *astMtrRot_( AstMatrixMap *this, double theta,
                                 const double axis[], int *status ){

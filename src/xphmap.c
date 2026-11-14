@@ -68,6 +68,47 @@
 *        Original version.
 *     8-SEP-2026 (TIMJ):
 *        Free the projection type string read by astLoadXphMap.
+*     11-NOV-2026 (TIMJ):
+*        astLoadXphMap now checks that the dump describes a Mapping with
+*        two inputs and two outputs. The transformation read or wrote beyond
+*        the coordinate arrays otherwise.
+*     11-NOV-2026 (TIMJ):
+*        - The transformation now holds grid cell and facet indices in
+*        doubles. They were held in integers, and for a position far from
+*        the grid the conversion of the index to an integer, or the sum or
+*        difference of two indices, was undefined. The result for a
+*        position within range of an integer is unchanged.
+*        - astLoadXphMap now rejects an Order outside the range accepted by
+*        the constructor. The transformation uses it as a shift count.
+*     11-NOV-2026 (TIMJ):
+*        The forward transformation of the XPHN and XPHS types now gives
+*        bad values for a position outside the grid. Each gore was tested
+*        against its sides but not against the edge of the grid where it
+*        ends, so a position beyond the grid but in line with a gore was
+*        transformed to a position outside the HPX12 grid.
+*     12-NOV-2026 (TIMJ):
+*        - A position on the boundary of a used grid cell is now
+*        transformed, using the transformation of that cell. A cell owns
+*        only its low RA edges, so such a position was given bad values if
+*        the cell on its high RA side is not used. That was so for a pole,
+*        which is the corner of four cells none of which owned it, and for
+*        every position on a meridian that divides two polar facets of an
+*        HPX grid or the two halves of a facet of an XPH grid. The Moc
+*        class uses those positions as test points, and so left out cells
+*        beside such a meridian, and could not handle a Region centred on
+*        such a position.
+*        - A position within the margin that the HPX projection allows for
+*        rounding (AST__HPXTOL degrees) of the boundary of a used cell is
+*        treated as being on the boundary, since the grid coordinates of a
+*        position on the edge of the sky are rarely exact.
+*        - The inverse transformation now accepts a position in the unused
+*        copy of a cell in the bottom left or top right facet of the HPX12
+*        grid, and transforms the equivalent position in the used copy. It
+*        gave bad values, although the sky position RA=0, Dec=0 and others
+*        near that meridian are projected into the unused copy.
+*        - A position less than one facet below or to the left of an HPX
+*        grid now gives bad values. The index of its facet was rounded
+*        towards zero, which put it in the first facet.
 *class-
 */
 
@@ -166,13 +207,91 @@ AstXphMap *astXphMapId_( int, int, const char *, ... );
 /* Prototypes for Private Member Functions. */
 /* ======================================== */
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
+static int EdgeCells( double, double, int, double[ 2 ], double[ 2 ] );
 static int Equal( AstObject *, AstObject *, int * );
+static int FindHpxCell( double *, double *, int, double, int, double * );
+static int FindXphCell( int, double *, double *, int, double );
 static int GetIsLinear( AstMapping *, int * );
+static int HpxCellUsed( double, double, int, int, double * );
+static int XphCellGore( int, double, double, int );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 
 /* Member functions. */
 /* ================= */
+
+static int EdgeCells( double v, double tol, int upper, double cell[ 2 ],
+                      double pos[ 2 ] ) {
+/*
+*  Name:
+*     EdgeCells
+
+*  Purpose:
+*     Find the grid cells that hold a position on one axis.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "xphmap.h"
+*     int EdgeCells( double v, double tol, int upper, double cell[ 2 ],
+*                    double pos[ 2 ] )
+
+*  Class Membership:
+*     XphMap member function
+
+*  Description:
+*     This function returns the index on one axis of the grid cell that
+*     owns a position. If the position is on the edge of the cell, it
+*     also returns the index of the cell on the other side of the edge.
+
+*  Parameters:
+*     v
+*        The grid coordinate of the position on the axis. The centre of
+*        the first cell is at 1.0, and its lower edge is at 0.5.
+*     tol
+*        The position is on the edge of a cell if it is within this
+*        distance of the edge. Must be less than 0.5.
+*     upper
+*        If non-zero, a cell owns its upper edge. If zero, a cell owns its
+*        lower edge.
+*     cell
+*        Returned holding the zero-based indices of the cells. The first
+*        element is the cell that owns the position.
+*     pos
+*        Returned holding the grid coordinate to use with each element of
+*        "cell". The first element is "v". The second is the coordinate of
+*        the edge, so that the position is within the second cell.
+
+*  Returned Value:
+*     The number of cells returned: two if the position is on the edge of
+*     a cell and one otherwise.
+
+*  Notes:
+*     - The indices are whole numbers but are returned as doubles, since
+*     the position can be any distance from the grid.
+*     - A single cell is returned for a value that is not finite.
+*/
+
+/* Local Variables: */
+   double edge;                  /* Coordinate of the nearest cell edge */
+
+/* The cell that owns the position. */
+   cell[ 0 ] = upper ? ceil( v - 1.5 ) : floor( v - 0.5 );
+   pos[ 0 ] = v;
+
+/* The edges of the cells are at half-integer coordinates. Find the edge
+   that is nearest to the position. The cells on either side of it have
+   zero-based indices of ( edge - 1.5 ) and ( edge - 0.5 ). */
+   edge = floor( v ) + 0.5;
+   if( fabs( v - edge ) <= tol ) {
+      cell[ 1 ] = ( cell[ 0 ] < edge - 1.0 ) ? edge - 0.5 : edge - 1.5;
+      pos[ 1 ] = edge;
+      return 2;
+   }
+
+   return 1;
+}
 
 static int Equal( AstObject *this_object, AstObject *that_object, int *status ) {
 /*
@@ -242,6 +361,232 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 
 /* Return the result, */
    return result;
+}
+
+static int FindHpxCell( double *x, double *y, int nppf, double tol, int wrap,
+                        double *s ) {
+/*
+*  Name:
+*     FindHpxCell
+
+*  Purpose:
+*     Find the used cell of an HPX grid that holds a position.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "xphmap.h"
+*     int FindHpxCell( double *x, double *y, int nppf, double tol, int wrap,
+*                      double *s )
+
+*  Class Membership:
+*     XphMap member function
+
+*  Description:
+*     This function finds the used cell that holds a position in the grid
+*     of an HPX projection (either HPX0 or HPX12). A cell owns its low RA
+*     edges, which are its upper edges on both axes. If the cell that
+*     owns the position is not used, the position may be on an edge of
+*     that cell, in which case the cells on the other side of the edge
+*     are tried.
+
+*  Parameters:
+*     x
+*        Pointer to the grid X coordinate of the position.
+*     y
+*        Pointer to the grid Y coordinate of the position.
+*     nppf
+*        The number of pixels along one edge of a facet.
+*     tol
+*        The position is on the edge of a cell if it is within this
+*        distance of the edge.
+*     wrap
+*        If non-zero, a position in the unused copy of a cell is moved to
+*        the equivalent position in the used copy (see HpxCellUsed).
+*     s
+*        Returned holding the sum of the zero-based X and Y indices of the
+*        used cell, plus one.
+
+*  Returned Value:
+*     Non-zero if the position is on the sky. Zero if it is not, in which
+*     case the supplied values are left unchanged.
+
+*  Notes:
+*     - If the used cell is not the cell that owns the position, the
+*     returned position is moved onto the edge of the used cell. It is
+*     otherwise unchanged, unless "wrap" is non-zero and the position was
+*     in an unused copy of a cell.
+*/
+
+/* Local Variables: */
+   double ix[ 2 ];               /* Candidate cell indices on the X axis */
+   double iy[ 2 ];               /* Candidate cell indices on the Y axis */
+   double shift;                 /* Offset to the used copy of a cell */
+   double xs[ 2 ];               /* X coordinate to use with each "ix" */
+   double ys[ 2 ];               /* Y coordinate to use with each "iy" */
+   int i;                        /* Index of candidate on the X axis */
+   int j;                        /* Index of candidate on the Y axis */
+   int nx;                       /* Number of candidates on the X axis */
+   int ny;                       /* Number of candidates on the Y axis */
+
+/* Get the cell that owns the position, and the cell on the other side of
+   any edge that the position is on, for each axis. */
+   nx = EdgeCells( *x, tol, 1, ix, xs );
+   ny = EdgeCells( *y, tol, 1, iy, ys );
+
+/* Try each combination, starting with the cell that owns the position. */
+   for( j = 0; j < ny; j++ ) {
+      for( i = 0; i < nx; i++ ) {
+         if( HpxCellUsed( ix[ i ], iy[ j ], nppf, wrap, &shift ) ) {
+            *x = xs[ i ] + shift;
+            *y = ys[ j ] + shift;
+            *s = ix[ i ] + iy[ j ] + 1 + 2*shift;
+            return 1;
+         }
+      }
+   }
+
+   return 0;
+}
+
+static int FindXphCell( int type, double *x, double *y, int nppf, double tol ) {
+/*
+*  Name:
+*     FindXphCell
+
+*  Purpose:
+*     Find the used cell of an XPH grid that holds a position.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "xphmap.h"
+*     int FindXphCell( int type, double *x, double *y, int nppf, double tol )
+
+*  Class Membership:
+*     XphMap member function
+
+*  Description:
+*     This function finds the used cell that holds a position in the grid
+*     of an XPH projection, and returns the index of the gore that holds
+*     the cell.
+*
+*     The grid is divided into four quadrants that meet at the pole in
+*     the centre of the grid, and each quadrant holds one gore. A gore
+*     contains its low RA boundaries but not its high RA boundaries, and
+*     a cell owns its low RA edges. Which edges these are depends on the
+*     gore. If the cell that owns the position is not a used cell of the
+*     gore, the position may be on an edge of that cell, in which case
+*     the cells on the other side of the edge are tried. A cell in the
+*     same gore is preferred to a cell in a different gore.
+
+*  Parameters:
+*     type
+*        The type of projection: AST__XPHN or AST__XPHS.
+*     x
+*        Pointer to the grid X coordinate of the position.
+*     y
+*        Pointer to the grid Y coordinate of the position.
+*     nppf
+*        The number of pixels along one edge of a facet.
+*     tol
+*        The position is on the edge of a cell if it is within this
+*        distance of the edge.
+
+*  Returned Value:
+*     The index of the gore that holds the used cell, in the range 0 to
+*     3, or -1 if the position is not on the sky. The supplied values are
+*     left unchanged if -1 is returned.
+
+*  Notes:
+*     - If the used cell is not the cell that owns the position, the
+*     returned position is moved onto the edge of the used cell. It is
+*     otherwise unchanged.
+*/
+
+/* Local Variables: */
+   double ix[ 2 ];               /* Candidate cell indices on the X axis */
+   double iy[ 2 ];               /* Candidate cell indices on the Y axis */
+   double mid;                   /* Grid coordinate of the centre of the grid */
+   double xs[ 2 ];               /* X coordinate to use with each "ix" */
+   double ys[ 2 ];               /* Y coordinate to use with each "iy" */
+   int g;                        /* Gore holding a candidate cell */
+   int gore;                     /* Gore holding the position */
+   int i;                        /* Index of candidate on the X axis */
+   int j;                        /* Index of candidate on the Y axis */
+   int nx;                       /* Number of candidates on the X axis */
+   int ny;                       /* Number of candidates on the Y axis */
+   int pass;                     /* Loop counter for passes */
+   int upx;                      /* Does a cell own its upper X edge? */
+   int upy;                      /* Does a cell own its upper Y edge? */
+
+/* Find the gore that holds the position, and so which edges of a cell
+   are its low RA edges. The pole at the centre of the grid is put in
+   gore 1. */
+   mid = 2*nppf + 0.5;
+   if( type == AST__XPHN ) {
+      if( *x < mid && *y >= mid ) {
+         gore = 0;
+         upx = 0;
+         upy = 0;
+      } else if( *x >= mid && *y > mid ) {
+         gore = 3;
+         upx = 0;
+         upy = 1;
+      } else if( *x > mid && *y <= mid ) {
+         gore = 2;
+         upx = 1;
+         upy = 1;
+      } else {
+         gore = 1;
+         upx = 1;
+         upy = 0;
+      }
+
+   } else {
+      if( *x < mid && *y <= mid ) {
+         gore = 0;
+         upx = 0;
+         upy = 1;
+      } else if( *x >= mid && *y < mid ) {
+         gore = 3;
+         upx = 0;
+         upy = 0;
+      } else if( *x > mid && *y >= mid ) {
+         gore = 2;
+         upx = 1;
+         upy = 0;
+      } else {
+         gore = 1;
+         upx = 1;
+         upy = 1;
+      }
+   }
+
+/* Get the cell that owns the position, and the cell on the other side of
+   any edge that the position is on, for each axis. */
+   nx = EdgeCells( *x, tol, upx, ix, xs );
+   ny = EdgeCells( *y, tol, upy, iy, ys );
+
+/* Try each combination, starting with the cell that owns the position.
+   The first pass accepts only a cell in the gore found above, and the
+   second pass accepts a cell in any gore. */
+   for( pass = 0; pass < 2; pass++ ) {
+      for( j = 0; j < ny; j++ ) {
+         for( i = 0; i < nx; i++ ) {
+            g = XphCellGore( type, ix[ i ], iy[ j ], nppf );
+            if( g >= 0 && ( pass || g == gore ) ) {
+               *x = xs[ i ];
+               *y = ys[ j ];
+               return g;
+            }
+         }
+      }
+   }
+
+   return -1;
 }
 
 static int GetIsLinear( AstMapping *this_mapping, int *status ){
@@ -364,6 +709,95 @@ void astInitXphMapVtab_(  AstXphMapVtab *vtab, const char *name, int *status ) {
       class_init = 1;
       astSetVtabClassIdentifier( vtab, &(vtab->id) );
    }
+}
+
+static int HpxCellUsed( double ix, double iy, int nppf, int wrap,
+                        double *shift ) {
+/*
+*  Name:
+*     HpxCellUsed
+
+*  Purpose:
+*     See if a cell of an HPX grid is used.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "xphmap.h"
+*     int HpxCellUsed( double ix, double iy, int nppf, int wrap,
+*                      double *shift )
+
+*  Class Membership:
+*     XphMap member function
+
+*  Description:
+*     This function tests whether a cell in the grid of an HPX projection
+*     (either HPX0 or HPX12) is used.
+*
+*     The grid holds five facets along each axis, as shown in Fig 3 of
+*     Calabretta & Roukema 2005, and the facets on its diagonal and on
+*     either side of the diagonal cover the sky. The bottom left facet
+*     and the top right facet are the same facet. Each of its cells is
+*     in both, and only one copy of each cell is used: the copy in the
+*     top right half of the bottom left facet or in the bottom left half
+*     of the top right facet. The cells on the other diagonal of the
+*     facet, which is the boundary between the two halves, are used in
+*     the top right facet.
+
+*  Parameters:
+*     ix
+*        The zero-based X index of the cell.
+*     iy
+*        The zero-based Y index of the cell.
+*     nppf
+*        The number of pixels along one edge of a facet.
+*     wrap
+*        If non-zero, an unused copy of a cell in the bottom left or top
+*        right facet is accepted in place of the used copy.
+*     shift
+*        Returned holding the value to add to both grid coordinates of a
+*        position in the cell to get the equivalent position in the used
+*        copy of the cell. Zero unless an unused copy has been accepted.
+
+*  Returned Value:
+*     Non-zero if the cell is used, or is an unused copy of a used cell
+*     and "wrap" is non-zero.
+
+*  Notes:
+*     - Zero is returned if either index is not finite.
+*/
+
+/* Local Variables: */
+   double fx;                    /* Facet offset along X axis */
+   double fy;                    /* Facet offset along Y axis */
+   double s;                     /* Sum of x and y cell indices, plus one */
+
+/* Initialise */
+   *shift = 0.0;
+
+/* Get the zero-based facet (x,y) indices - offsets from the bottom left
+   facet - and check that they are legal. */
+   fx = floor( ix/nppf );
+   fy = floor( iy/nppf );
+   if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 && fabs( fx - fy ) <= 1 ) {
+
+/* Get the sum of the zero-based x and y cell indices, plus one. */
+      s = ix + iy + 1;
+
+/* The bottom left half of the bottom left facet and the top right half
+   of the top right facet hold the unused copies. The used copy of each
+   is four facets away on both axes. */
+      if( s > nppf && s <= 9*nppf ) {
+         return 1;
+
+      } else if( wrap ) {
+         *shift = ( s <= nppf ) ? 4*nppf : -4*nppf;
+         return 1;
+      }
+   }
+
+   return 0;
 }
 
 static int MapMerge( AstMapping *this, int where, int series, int *nmap,
@@ -629,8 +1063,10 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 *  Description:
 *     This function takes a XphMap and a set of points encapsulated in a
-*     PointSet and transforms the points so as to apply the required zoom
-*     factor.
+*     PointSet and transforms the points from grid coordinates in one type
+*     of HEALPix projection to grid coordinates in another. A point that is
+*     not on the sky in the projection it is supplied in is given bad
+*     values.
 
 *  Parameters:
 *     this
@@ -666,26 +1102,27 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    AstXphMap *map;               /* Pointer to XphMap to be applied */
    double **ptr_in;              /* Pointer to input coordinate data */
    double **ptr_out;             /* Pointer to output coordinate data */
-   double *px_in;                /* Pointer to next input X value */
-   double *px_out;               /* Pointer to next output X value */
-   double *py_in;                /* Pointer to next input Y value */
-   double *py_out;               /* Pointer to next output Y value */
-   int d;                        /* Difference between x and y grid indices */
-   int fx;                       /* Facet offset along X axis */
-   int fy;                       /* Facet offset along Y axis */
-   int ix;                       /* Nearest integer to X value */
-   int iy;                       /* Nearest integer to Y value */
+   double *px_in;                /* Pointer to input X values */
+   double *px_out;               /* Pointer to output X values */
+   double *py_in;                /* Pointer to input Y values */
+   double *py_out;               /* Pointer to output Y values */
+   double s;                     /* Sum of x and y cell indices, plus one */
+   double tol;                   /* Width of the edge of a cell, in pixels */
+   double x;                     /* X value of the current position */
+   double xin;                   /* X value before transformation */
+   double y;                     /* Y value of the current position */
+   double yin;                   /* Y value before transformation */
+   int gore;                     /* Index of gore holding the position */
    int n2;                       /* Two times nppf */
    int n3;                       /* Three times nppf */
    int n4;                       /* Four times nppf */
    int n5;                       /* Five times nppf */
    int n6;                       /* Six times nppf */
    int n7;                       /* Seven times nppf */
-   int n9;                       /* Nine times nppf */
    int npoint;                   /* Number of points */
    int nppf;                     /* No. of pixels per facet */
+   int ok;                       /* Is the current position on the sky? */
    int point;                    /* Loop counter for points */
-   int s;                        /* Sum of x and y grid indices */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
@@ -721,522 +1158,306 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    n5 = 5*nppf;
    n6 = 6*nppf;
    n7 = 7*nppf;
-   n9 = 9*nppf;
+
+/* Rounding errors in the calculation of its grid coordinates can move a
+   position that is on the edge of the sky to a position that is just off
+   the sky. So a position that is within a small distance of the edge of
+   a grid cell is treated as being on the edge. The distance is the margin
+   that the HPX projection allows for rounding, which is AST__HPXTOL
+   degrees. A step of one pixel along either axis of a grid changes each
+   coordinate in the plane of the projection by 45/nppf degrees. */
+   tol = AST__HPXTOL*nppf/45.0;
 
 /* Perform coordinate arithmetic. */
 /* ------------------------------ */
+/* Each grid is divided into square cells, one pixel across, and only
+   some of the cells are used: each cell of the sky is one cell of each
+   grid. A position is on the sky if it is within a used cell or on its
+   boundary, and the transformation of a position is determined by the
+   used cell that holds it. A position that is in no used cell, or on the
+   boundary of none, is not on the sky and is transformed to bad values.
+
+   A position on the boundary between two cells belongs to the cell on
+   its high RA side. If that cell is not used, the position belongs to a
+   used cell on another side of it. There may be more than one of these,
+   and they give different positions for the same point on the sky. In
+   particular, a pole is a single position in the XPH grid centred on it
+   but is four positions in each of the other grids, one at the corner of
+   each polar facet, and all four are transformed to the single position.
+
+   The indices of cells and facets are whole numbers but are held in
+   doubles. An input position can be any distance from the grid, and an
+   integer could not hold the index of every cell. */
+   if ( astOK && map->type != AST__HPX12 && map->type != AST__HPX0 &&
+        map->type != AST__XPHN && map->type != AST__XPHS ) {
+      astError( AST__INTER, "astTransform(%s): Invalid projection type "
+                "encountered (%d) (internal programming error).", status,
+                astGetClass(this), map->type );
+   }
+
    if ( astOK ) {
       px_in = ptr_in[ 0 ];
       py_in = ptr_in[ 1 ];
       px_out = ptr_out[ 0 ];
       py_out = ptr_out[ 1 ];
 
+      for ( point = 0; point < npoint; point++ ) {
+         x = px_in[ point ];
+         y = py_in[ point ];
+         ok = ( x != AST__BAD && y != AST__BAD );
+
 /* Forward transformation - from "type" to HPX12. */
-      if( forward ) {
+         if( ok && forward ) {
 
 /* Transforming from HPX12 to HPX12 is a unit transformation, except that
-   we need to check for out-of-bounds input positions, which are set bad
-   in the output. */
-         if( map->type == AST__HPX12 ){
-            for ( point = 0; point < npoint; point++,
-                  px_in++,py_in++,px_out++,py_out++ ) {
-
-/* Check the input values are good */
-               if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
-                  *px_out = AST__BAD;
-                  *py_out = AST__BAD;
-
-/* Get the zero-based integer indices of the grid cell containing the
-   input position. The cell boundaries on the low RA edges are considered
-   to be in the cell. Those on the high RA edges are considered to be part
-   of the neigbouring cell. */
-               } else {
-                  ix = ceil( *px_in - 1.5 );
-                  iy = ceil( *py_in - 1.5 );
-
-/* Get the zero-based facet (x,y) indices - offsets from the bottom left
-   facet. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
-
-/* Check that the facet indices are legal. */
-                  if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
-
-/* Get the sum of the zero-based x and y grid indices, plus one. */
-                     s = ix + iy + 1;
-
-/* The bottom left half of the bottom left facet and the top right half
-   of the top right facet are illegal. */
-                     if( s <= nppf || s > n9 ) {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-
-/* Other positions are copied unchanged. */
-                     } else {
-                        *px_out = *px_in;
-                        *py_out = *py_in;
-                     }
-
-                  } else {
-                     *px_out = AST__BAD;
-                     *py_out = AST__BAD;
-                  }
-               }
-            }
+   positions that are not on the sky are set bad. The cells in the bottom
+   left half of the bottom left facet and the top right half of the top
+   right facet of an HPX grid are not used, as each is a second copy of a
+   cell in the other of the two facets. */
+            if( map->type == AST__HPX12 || map->type == AST__HPX0 ){
+               ok = FindHpxCell( &x, &y, nppf, tol, 0, &s );
 
 /* Transforming from HPX0 to HPX12 - swap the top right and bottom left
+   halves of the whole sky map, by adding or subtracting 2*nppf on each
+   axis. */
+               if( ok && map->type == AST__HPX0 ){
+                  if( s <= n5 ) {
+                     x += n2;
+                     y += n2;
+                  } else {
+                     x -= n2;
+                     y -= n2;
+                  }
+               }
+
+/* Transforming from XPHN or XPHS to HPX12. The transformation depends on
+   the gore containing the used cell that holds the position. */
+            } else {
+               gore = FindXphCell( map->type, &x, &y, nppf, tol );
+               ok = ( gore >= 0 );
+               xin = x;
+               yin = y;
+
+               if( ok && map->type == AST__XPHN ){
+                  if( gore == 0 ) {
+                     x = n4 + 1.0 - xin;
+                     y = n6 + 1.0 - yin;
+                  } else if( gore == 3 ) {
+                     x = yin - nppf;
+                     y = n5 + 1.0 - xin;
+                  } else if( gore == 2 ) {
+                     x = xin - n2;
+                     y = yin;
+                  } else {
+                     x = n5 + 1.0 - yin;
+                     y = n3 + xin;
+                  }
+
+               } else if( ok ) {
+                  if( gore == 0 ) {
+                     x = n2 + yin;
+                     y = n4 + 1.0 - xin;
+                  } else if( gore == 3 ) {
+                     x = n5 + 1.0 - xin;
+                     y = n3 + 1.0 - yin;
+                  } else if( gore == 2 ) {
+                     x = n4 + 1.0 - yin;
+                     y = xin - n2;
+                  } else {
+                     x = n3 + xin;
+                     y = nppf + yin;
+                  }
+               }
+            }
+
+/* Inverse transformation - from HPX12 to "type". The supplied position
+   may be in the unused copy of a cell in the bottom left or top right
+   facet, in which case it is first moved to the equivalent position in
+   the used copy of the cell. The transformation then depends on the
+   value of "s" - the sum of the zero-based x and y indices of the used
+   cell that holds the position, plus one. */
+         } else if( ok ) {
+            ok = FindHpxCell( &x, &y, nppf, tol, 1, &s );
+            xin = x;
+            yin = y;
+
+/* Transforming from HPX12 to HPX12 leaves the position unchanged.
+   Transforming from HPX12 to HPX0 - swap the top right and bottom left
    halves of the whole sky map. */
-         } else if( map->type == AST__HPX0 ){
-            for ( point = 0; point < npoint; point++,
-                  px_in++,py_in++,px_out++,py_out++ ) {
-
-/* Check for bad input coordinates */
-               if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
-                  *px_out = AST__BAD;
-                  *py_out = AST__BAD;
+            if( ok && map->type == AST__HPX0 ){
+               if( s <= n5 ) {
+                  x += n2;
+                  y += n2;
                } else {
-
-/* Get the zero-based integer indices of the grid cell containing the
-   input position. The cell boundaries on the low RA edges are considered
-   to be in the cell. Those on the high RA edges are considered to be part
-   of the neigbouring cell. */
-                  ix = ceil( *px_in - 1.5 );
-                  iy = ceil( *py_in - 1.5 );
-
-/* Get the facet indices and check they are legal. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
-                  if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
-
-/* Get the sum of the zero-based x and y grid indices, plus one. */
-                     s = ix + iy + 1;
-
-/* The bottom left half of the bottom left facet and the top right half
-   of the top right facet are illegal. */
-                     if( s <= nppf || s > n9 ) {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-
-/* Other input positions in the bottom left half of the whole-sky map get
-   moved to the top right by adding 2*nppf on each axis. */
-                     } else if( s <= n5 ) {
-                        *px_out = *px_in + n2;
-                        *py_out = *py_in + n2;
-
-/* Other input positions in the rop right half of the whole-sky map get
-   moved to the bottom left by subtracting 2*nppf on each axis. */
-                     } else {
-                        *px_out = *px_in - n2;
-                        *py_out = *py_in - n2;
-                     }
-
-                  } else {
-                     *px_out = AST__BAD;
-                     *py_out = AST__BAD;
-                  }
+                  x -= n2;
+                  y -= n2;
                }
-            }
-
-/* Transforming from XPHN to HPX12 */
-         } else if( map->type == AST__XPHN ){
-            for ( point = 0; point < npoint; point++,
-                  px_in++,py_in++,px_out++,py_out++ ) {
-
-/* Check for bad input coordinates */
-               if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
-                  *px_out = AST__BAD;
-                  *py_out = AST__BAD;
-               } else {
-
-/* The transformation depends on the gore containing the supplied position.
-   A gore contains its low RA boundaries, but not its high RA boundaries.
-   First do gore 0. */
-                  if( *px_in < n2 + 0.5 && *py_in >= n2 + 0.5 ) {
-
-/* Get the zero-based integer indices of the grid cell containing the
-   input position. The cell boundaries on the low RA edges are considered
-   to be in the cell. Those on the high RA edges are considered to be part
-   of the neigbouring cell. */
-                     ix = floor( *px_in - 0.5 );
-                     iy = floor( *py_in - 0.5 );
-
-/* Check that the cell containing the input position is contained with
-   the used part of the gore, and if so, do the appropriate transformation. */
-                     s = ix + iy + 1;
-                     if( s < n5 && s >= n3 ) {
-                        *px_out = n4 + 1.0 - *px_in;
-                        *py_out = n6 + 1.0 - *py_in;
-                     } else {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-                     }
-
-/* Do the same for input positions within gore 3. */
-                  } else if( *px_in >= n2 + 0.5 && *py_in > n2 + 0.5 ) {
-                     ix = floor( *px_in - 0.5 );
-                     iy = ceil( *py_in - 1.5 );
-
-                     d = ix - iy;
-                     if( d >= -nppf && d < nppf ) {
-                        *px_out = *py_in - nppf;
-                        *py_out = n5 + 1.0 - *px_in;
-                     } else {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-                     }
-
-/* Do the same for input positions within gore 2. */
-                  } else if( *px_in > n2 + 0.5 && *py_in <= n2 + 0.5 ) {
-                     ix = ceil( *px_in - 1.5 );
-                     iy = ceil( *py_in - 1.5 );
-
-                     s = ix + iy + 1;
-                     if( s > n3 && s <= n5 ) {
-                        *px_out = *px_in - n2;
-                        *py_out = *py_in;
-                     } else {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-                     }
-
-/* Do the same for input positions within gore 1. */
-                  } else {
-                     ix = ceil( *px_in - 1.5 );
-                     iy = floor( *py_in - 0.5 );
-
-                     d = ix - iy;
-                     if( d > -nppf && d <= nppf ) {
-                        *px_out = n5 + 1.0 - *py_in;
-                        *py_out = n3 + *px_in;
-                     } else {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-                     }
-                  }
-               }
-            }
-
-/* Transforming from XPHS to HPX12 */
-         } else if( map->type == AST__XPHS ){
-            for ( point = 0; point < npoint; point++,
-                  px_in++,py_in++,px_out++,py_out++ ) {
-
-/* Check for bad input coordinates */
-               if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
-                  *px_out = AST__BAD;
-                  *py_out = AST__BAD;
-               } else {
-
-/* The transformation depends on the gore containing the supplied position.
-   A gore contains its low RA boundaries, but not its high RA boundaries.
-   First do gore 0. */
-                  if( *px_in < n2 + 0.5 && *py_in <= n2 + 0.5 ) {
-
-/* Get the zero-based integer indices of the grid cell containing the
-   input position. The cell boundaries on the low RA edges are considered
-   to be in the cell. Those on the high RA edges are considered to be part
-   of the neigbouring cell. */
-                     ix = floor( *px_in - 0.5 );
-                     iy = ceil( *py_in - 1.5 );
-
-/* Check that the cell containing the input position is contained with
-   the used part of the gore, and if so, do the appropriate transformation. */
-                     d = ix - iy;
-                     if( d >= -nppf && d < nppf ) {
-                        *px_out = n2 + *py_in;
-                        *py_out = n4 + 1.0 - *px_in;
-                     } else {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-                     }
-
-/* Do the same for input positions within gore 3. */
-                  } else if( *px_in >= n2 + 0.5 && *py_in < n2 + 0.5 ) {
-                     ix = floor( *px_in - 0.5 );
-                     iy = floor( *py_in - 0.5 );
-
-                     s = ix + iy + 1;
-                     if( s >= n3 && s < n5 ) {
-                        *px_out = n5 + 1.0 - *px_in;
-                        *py_out = n3 + 1.0 - *py_in;
-                     } else {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-                     }
-
-/* Do the same for input positions within gore 2. */
-                  } else if( *px_in > n2 + 0.5 && *py_in >= n2 + 0.5 ) {
-                     ix = ceil( *px_in - 1.5 );
-                     iy = floor( *py_in - 0.5 );
-
-                     d = ix - iy;
-                     if( d <= nppf && d > -nppf ) {
-                        *px_out = n4 + 1 - *py_in;
-                        *py_out = *px_in - n2;
-                     } else {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-                     }
-
-/* Do the same for input positions within gore 1. */
-                  } else {
-                     ix = ceil( *px_in - 1.5 );
-                     iy = ceil( *py_in - 1.5 );
-
-                     s = ix + iy + 1;
-                     if( s <= n5 && s > n3 ) {
-                        *px_out = n3 + *px_in;
-                        *py_out = nppf + *py_in;
-                     } else {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-                     }
-                  }
-               }
-            }
-
-/* Unknown projection code */
-         } else if( astOK ) {
-            astError( AST__INTER, "astTransform(%s): Invalid projection type "
-                      "encountered (%d) (internal programming error).", status,
-                      astGetClass(this), map->type );
-         }
-
-/* Inverse transformation - from HPX12 to "type". */
-      } else {
-
-/* Transforming from HPX12 to HPX12 is a unit transformation, except that
-   we need to check that input positions within a split input facet are
-   moved to the equivalent normalised output positions. */
-         if( map->type == AST__HPX12 ){
-            for ( point = 0; point < npoint; point++,
-                  px_in++,py_in++,px_out++,py_out++ ) {
-
-/* Check the input values are good */
-               if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
-                  *px_out = AST__BAD;
-                  *py_out = AST__BAD;
-
-/* Get the zero-based integer indices of the grid cell containing the
-   input position. The cell boundaries on the low RA edges are considered
-   to be in the cell. Those on the high RA edges are considered to be part
-   of the neigbouring cell. */
-               } else {
-                  ix = ceil( *px_in - 1.5 );
-                  iy = ceil( *py_in - 1.5 );
-
-/* Get the zero-based facet (x,y) indices - offsets from the bottom left
-   facet in Calabretta & Roukema 2005 Fig 3. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
-
-/* Check that the facet indices are legal. */
-                  if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
-
-/* Get the sum of the zero-based x and y grid indices, plus one. */
-                     s = ix + iy + 1;
-
-/* The bottom left half of the bottom left facet and the top right half
-   of the top right facet are illegal. */
-                     if( s <= nppf || s > n9 ) {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-
-/* Other positions are copied unchanged. */
-                     } else {
-                        *px_out = *px_in;
-                        *py_out = *py_in;
-                     }
-
-                  } else {
-                     *px_out = AST__BAD;
-                     *py_out = AST__BAD;
-                  }
-               }
-            }
-
-/* Transforming from HPX12 to HPX0 - swap the top right and bottom left
-   halves of the whole sky map. */
-         } else if( map->type == AST__HPX0 ){
-            for ( point = 0; point < npoint; point++,
-                  px_in++,py_in++,px_out++,py_out++ ) {
-
-               if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
-                  *px_out = AST__BAD;
-                  *py_out = AST__BAD;
-
-               } else {
-
-/* Get the zero-based integer indices of the grid cell containing the
-   input position. The cell boundaries on the low RA edges are considered
-   to be in the cell. Those on the high RA edges are considered to be part
-   of the neigbouring cell. */
-                  ix = ceil( *px_in - 1.5 );
-                  iy = ceil( *py_in - 1.5 );
-
-/* Get the facet indices and check they are legal. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
-                  if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
-
-/* Get the sum of the zero-based x and y grid indices, plus one. */
-                     s = ix + iy + 1;
-
-/* The bottom left half of the bottom left facet and the top right half
-   of the top right facet are illegal. */
-                     if( s <= nppf || s > n9 ) {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
-
-/* Other input positions in the bottom left half of the whole-sky map get
-   moved to the top right by adding 2*nppf on each axis. */
-                     } else if( s <= n5 ) {
-                        *px_out = *px_in + n2;
-                        *py_out = *py_in + n2;
-
-/* Other input positions in the rop right half of the whole-sky map get
-   moved to the bottom left by subtracting 2*nppf on each axis. */
-                     } else {
-                        *px_out = *px_in - n2;
-                        *py_out = *py_in - n2;
-                     }
-
-                  } else {
-                     *px_out = AST__BAD;
-                     *py_out = AST__BAD;
-                  }
-               }
-            }
 
 /* Transforming from HPX12 to XPHN */
-         } else if( map->type == AST__XPHN ){
+            } else if( ok && map->type == AST__XPHN ){
 
-            for ( point = 0; point < npoint; point++,
-                  px_in++,py_in++,px_out++,py_out++ ) {
-
-               if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
-                  *px_out = AST__BAD;
-                  *py_out = AST__BAD;
-               } else {
-
-/* Get the zero-based integer indices of the grid cell containing the
-   input position. The cell boundaries on the low RA edges are considered
-   to be in the cell. Those on the high RA edges are considered to be part
-   of the neigbouring cell. */
-                  ix = ceil( *px_in - 1.5 );
-                  iy = ceil( *py_in - 1.5 );
-
-/* Get the facet indices and check they are legal. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
-                  if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
-
-/* Get the sum of the zero-based x and y grid indices, plus one. */
-                     s = ix + iy + 1;
-
-/* The bottom left half of the bottom left facet and the top right half
-   of the top right facet are illegal. */
-                     if( s <= nppf || s > n9 ) {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
 /* Gore 2 */
-                     } else if( s <= n3 ) {
-                        *px_out = n2 + *px_in;
-                        *py_out = *py_in;
+               if( s <= n3 ) {
+                  x = n2 + xin;
+                  y = yin;
 /* Gore 3 */
-                     } else if( s <= n5 ) {
-                        *px_out = n5 + 1.0 - *py_in;
-                        *py_out = nppf + *px_in;
+               } else if( s <= n5 ) {
+                  x = n5 + 1.0 - yin;
+                  y = nppf + xin;
 /* Gore 0 */
-                     } else if( s <= n7 ) {
-                        *px_out = n4 + 1.0 - *px_in;
-                        *py_out = n6 + 1.0 - *py_in;
+               } else if( s <= n7 ) {
+                  x = n4 + 1.0 - xin;
+                  y = n6 + 1.0 - yin;
 /* Gore 1 */
-                     } else {
-                        *px_out = *py_in - n3;
-                        *py_out = n5 + 1.0 - *px_in;
-                     }
-
-                  } else {
-                     *px_out = AST__BAD;
-                     *py_out = AST__BAD;
-                  }
+               } else {
+                  x = yin - n3;
+                  y = n5 + 1.0 - xin;
                }
-            }
 
 /* Transforming from HPX12 to XPHS */
-         } else if( map->type == AST__XPHS ){
+            } else if( ok && map->type == AST__XPHS ){
 
-            for ( point = 0; point < npoint; point++,
-                  px_in++,py_in++,px_out++,py_out++ ) {
-
-               if ( *px_in == AST__BAD || *py_in == AST__BAD ) {
-                  *px_out = AST__BAD;
-                  *py_out = AST__BAD;
-               } else {
-
-/* Get the zero-based integer indices of the grid cell containing the
-   input position. The cell boundaries on the low RA edges are considered
-   to be in the cell. Those on the high RA edges are considered to be part
-   of the neigbouring cell. */
-                  ix = ceil( *px_in - 1.5 );
-                  iy = ceil( *py_in - 1.5 );
-
-/* Get the facet indices and check they are legal. */
-                  fx = ix/nppf;
-                  fy = iy/nppf;
-                  if( fx >= 0 && fx < 5 && fy >= 0 && fy < 5 &&
-                      abs( fx - fy ) <= 1 ) {
-
-/* Get the sum of the x and y grid indices, plus one. */
-                     s = ix + iy + 1;
-
-/* The bottom left half of the bottom left facet and the top right half
-   of the top right facet are illegal. */
-                     if( s <= nppf || s > n9 ) {
-                        *px_out = AST__BAD;
-                        *py_out = AST__BAD;
 /* Gore 2 */
-                     } else if( s <= n3 ) {
-                        *px_out = n2 + *py_in;
-                        *py_out = n4 + 1.0 - *px_in;
+               if( s <= n3 ) {
+                  x = n2 + yin;
+                  y = n4 + 1.0 - xin;
 /* Gore 3 */
-                     } else if( s <= n5 ) {
-                        *px_out = n5 + 1.0 - *px_in;
-                        *py_out = n3 + 1.0 - *py_in;
+               } else if( s <= n5 ) {
+                  x = n5 + 1.0 - xin;
+                  y = n3 + 1.0 - yin;
 /* Gore 0 */
-                     } else if( s <= n7 ) {
-                        *px_out = n4 + 1.0 - *py_in;
-                        *py_out = *px_in - n2;
+               } else if( s <= n7 ) {
+                  x = n4 + 1.0 - yin;
+                  y = xin - n2;
 /* Gore 1 */
-                     } else {
-                        *px_out = *px_in - n3;
-                        *py_out = *py_in - nppf;
-                     }
-
-                  } else {
-                     *px_out = AST__BAD;
-                     *py_out = AST__BAD;
-                  }
+               } else {
+                  x = xin - n3;
+                  y = yin - nppf;
                }
             }
+         }
 
-/* Unknown projection code */
-         } else if( astOK ) {
-            astError( AST__INTER, "astTransform(%s): Invalid projection type "
-                      "encountered (%d) (internal programming error).", status,
-                      astGetClass(this), map->type );
+/* Store the transformed position, or bad values if the supplied position
+   is bad or is not on the sky. */
+         if( ok ) {
+            px_out[ point ] = x;
+            py_out[ point ] = y;
+         } else {
+            px_out[ point ] = AST__BAD;
+            py_out[ point ] = AST__BAD;
          }
       }
    }
 
 /* Return a pointer to the output PointSet. */
    return result;
+}
+
+static int XphCellGore( int type, double ix, double iy, int nppf ) {
+/*
+*  Name:
+*     XphCellGore
+
+*  Purpose:
+*     Find the gore that holds a cell of an XPH grid.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "xphmap.h"
+*     int XphCellGore( int type, double ix, double iy, int nppf )
+
+*  Class Membership:
+*     XphMap member function
+
+*  Description:
+*     This function returns the index of the gore that holds a cell in
+*     the grid of an XPH projection, if the cell is used.
+*
+*     The grid holds four facets along each axis and is divided into four
+*     quadrants, each of which holds one gore. The used cells of a gore
+*     form a band, two facets wide, that runs along the diagonal of the
+*     quadrant from the centre of the grid to the corner of the grid. The
+*     cells on each edge of the band are cut in half by the boundary
+*     between two gores, and are used in the gore on their low RA side.
+
+*  Parameters:
+*     type
+*        The type of projection: AST__XPHN or AST__XPHS.
+*     ix
+*        The zero-based X index of the cell.
+*     iy
+*        The zero-based Y index of the cell.
+*     nppf
+*        The number of pixels along one edge of a facet.
+
+*  Returned Value:
+*     The index of the gore, in the range 0 to 3, or -1 if the cell is
+*     not used.
+
+*  Notes:
+*     - A value of -1 is returned if either index is not finite.
+*/
+
+/* Local Variables: */
+   double d;                     /* Difference between x and y cell indices */
+   double s;                     /* Sum of x and y cell indices, plus one */
+   int bottom;                   /* Is the cell in the bottom half of the grid? */
+   int gore;                     /* The gore in the quadrant holding the cell */
+   int left;                     /* Is the cell in the left half of the grid? */
+   int n3;                       /* Three times nppf */
+   int n5;                       /* Five times nppf */
+   int used;                     /* Is the cell used? */
+
+/* Check the cell is in the grid. */
+   if( !( ix >= 0 && ix < 4*nppf && iy >= 0 && iy < 4*nppf ) ) return -1;
+
+/* Find the quadrant that holds the cell. */
+   left = ( ix < 2*nppf );
+   bottom = ( iy < 2*nppf );
+
+/* The band of used cells runs along the diagonal on which the sum of the
+   indices is constant in the top left and bottom right quadrants, and
+   along the diagonal on which the difference of the indices is constant
+   in the other two. */
+   n3 = 3*nppf;
+   n5 = 5*nppf;
+   s = ix + iy + 1;
+   d = ix - iy;
+
+   if( type == AST__XPHN ) {
+      if( left && !bottom ) {
+         gore = 0;
+         used = ( s >= n3 && s < n5 );
+      } else if( !left && !bottom ) {
+         gore = 3;
+         used = ( d >= -nppf && d < nppf );
+      } else if( !left && bottom ) {
+         gore = 2;
+         used = ( s > n3 && s <= n5 );
+      } else {
+         gore = 1;
+         used = ( d > -nppf && d <= nppf );
+      }
+
+   } else {
+      if( left && bottom ) {
+         gore = 0;
+         used = ( d >= -nppf && d < nppf );
+      } else if( !left && bottom ) {
+         gore = 3;
+         used = ( s >= n3 && s < n5 );
+      } else if( !left && !bottom ) {
+         gore = 2;
+         used = ( d > -nppf && d <= nppf );
+      } else {
+         gore = 1;
+         used = ( s > n3 && s <= n5 );
+      }
+   }
+
+   return used ? gore : -1;
 }
 
 /* Functions which access class attributes. */
@@ -1665,6 +1886,16 @@ AstXphMap *astLoadXphMap_( void *mem, size_t size, AstXphMapVtab *vtab,
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */
       new->order = astReadInt( channel, "order", 19 );
+
+/* The transformation uses the order as a shift count and holds multiples
+   of the shifted value in integers, so the order must be in the range
+   accepted by the constructor. */
+      if( ( new->order < 0 || new->order > AST__MXORDHPX ) && astOK ) {
+         astError( AST__LDERR, "astLoad(%s): The HEALPix order read for a "
+                   "%s (%d) is not in the range 0 to %d.", status, name,
+                   name, new->order, AST__MXORDHPX );
+      }
+
       text = astReadString( channel, "type", proj_name[AST__HPX12] );
 
 /* COnvert the projection name into an integer projection identifier. */
@@ -1680,6 +1911,11 @@ AstXphMap *astLoadXphMap_( void *mem, size_t size, AstXphMapVtab *vtab,
 
 /* Free the string returned by astReadString. */
       text = astFree( text );
+
+/* An XphMap always has two inputs and two outputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, 2, 2 );
 
 /* If an error occurred, clean up by deleting the new XphMap. */
       if ( !astOK ) new = astDelete( new );

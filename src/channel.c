@@ -123,6 +123,16 @@ f     - AST_WRITE: Write an Object to a Channel
 *        Speed up the reading of large objects (such as MOCs) by using
 *        multiple linked lists accessed via a hash table to store the values
 *        at each nesting level, rather than a single linked list.
+*     13-NOV-2026 (TIMJ):
+*        Report an error if astReadInt or astReadInt64 reads an integer
+*        that is too large for the type, instead of returning whatever
+*        value the conversion wraps round to. Both now return zero when
+*        the text cannot be read.
+*     13-NOV-2026 (TIMJ):
+*        astAddWarning: format the message in a buffer of the size it
+*        needs. It was written with vsprintf into 201 characters on the
+*        stack, which a warning that quoted a long value from the data
+*        being read overflowed.
 *class--
 */
 
@@ -176,6 +186,7 @@ f     - AST_WRITE: Write an Object to a Channel
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -3146,7 +3157,6 @@ static int ReadInt( AstChannel *this, const char *name, int def, int *status ) {
 
 /* Local Variables: */
    AstChannelValue *value;       /* Pointer to required Value structure */
-   int nc;                       /* Number of characters read by astSscanf */
    int result;                   /* Value to be returned */
 
 /* Initialise. */
@@ -3166,13 +3176,10 @@ static int ReadInt( AstChannel *this, const char *name, int def, int *status ) {
          if ( !value->is_object ) {
 
 /* If so, then attempt to decode the string to give an int value,
-   checking that the entire string is read. If this fails, then the
-   wrong name has probably been given, or the input data are corrupt,
-   so report an error. */
-            nc = 0;
-            if ( !( ( 1 == astSscanf( value->ptr.string, " %d %n",
-                                                      &result, &nc ) )
-                    && ( nc >= (int) strlen( value->ptr.string ) ) ) ) {
+   checking that the entire string is read and that the value can be
+   held in an int. If this fails, then the wrong name has probably been
+   given, or the input data are corrupt, so report an error. */
+            if ( !astChanStr2Int( value->ptr.string, &result ) ) {
                astError( AST__BADIN,
                          "astRead(%s): The value \"%s = %s\" cannot "
                          "be read as an integer.", status, astGetClass( this ),
@@ -3258,7 +3265,6 @@ static int64_t ReadInt64( AstChannel *this, const char *name, int64_t def, int *
 
 /* Local Variables: */
    AstChannelValue *value;       /* Pointer to required Value structure */
-   int nc;                       /* Number of characters read by astSscanf */
    int64_t result;               /* Value to be returned */
 
 /* Initialise. */
@@ -3281,10 +3287,7 @@ static int64_t ReadInt64( AstChannel *this, const char *name, int64_t def, int *
    checking that the entire string is read. If this fails, then the
    wrong name has probably been given, or the input data are corrupt,
    so report an error. */
-            nc = 0;
-            if ( !( ( 1 == astSscanf( value->ptr.string, " %" SCNd64 " %n",
-                                                      &result, &nc ) )
-                    && ( nc >= (int) strlen( value->ptr.string ) ) ) ) {
+            if ( !astChanStr2Int64( value->ptr.string, &result ) ) {
                astError( AST__BADIN,
                          "astRead(%s): The value \"%s = %s\" cannot "
                          "be read as a 64 bit integer.", status,
@@ -3833,6 +3836,131 @@ static char *SourceWrap( const char *(* source)( void ), int *status ) {
 
 /* Return the result. */
    return result;
+}
+
+int astChanStr2Int_( const char *str, int *value ) {
+/*
+*+
+*  Name:
+*     astChanStr2Int
+
+*  Purpose:
+*     Read an int from the whole of a string.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "channel.h"
+*     int astChanStr2Int( const char *str, int *value )
+
+*  Class Membership:
+*     Channel member function.
+
+*  Description:
+*     This function reads a decimal integer from a string. Any white space
+*     before or after the integer is ignored, but any other additional
+*     text causes the conversion to fail, as does an integer that cannot
+*     be held in an int.
+
+*  Parameters:
+*     str
+*        Pointer to the null-terminated string to read.
+*     value
+*        Pointer to the int in which to return the value. Zero is
+*        returned if the conversion fails.
+
+*  Returned Value:
+*     Non-zero if the integer was read, and zero otherwise.
+
+*  Notes:
+*     - This function does not use the inherited status and reports no
+*     error.
+*-
+*/
+
+/* Local Variables: */
+   int64_t value64;              /* The integer as a 64 bit value */
+
+/* Initialise. */
+   *value = 0;
+
+/* Read the integer and check that it is within the range of an int. */
+   if ( !astChanStr2Int64_( str, &value64 ) ) return 0;
+   if ( value64 < INT_MIN || value64 > INT_MAX ) return 0;
+   *value = (int) value64;
+   return 1;
+}
+
+int astChanStr2Int64_( const char *str, int64_t *value ) {
+/*
+*+
+*  Name:
+*     astChanStr2Int64
+
+*  Purpose:
+*     Read a 64 bit int from the whole of a string.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "channel.h"
+*     int astChanStr2Int64( const char *str, int64_t *value )
+
+*  Class Membership:
+*     Channel member function.
+
+*  Description:
+*     This function reads a decimal integer from a string. Any white space
+*     before or after the integer is ignored, but any other additional
+*     text causes the conversion to fail, as does an integer that cannot
+*     be held in an int64_t.
+
+*  Parameters:
+*     str
+*        Pointer to the null-terminated string to read.
+*     value
+*        Pointer to the int64_t in which to return the value. Zero is
+*        returned if the conversion fails.
+
+*  Returned Value:
+*     Non-zero if the integer was read, and zero otherwise.
+
+*  Notes:
+*     - This function does not use the inherited status and reports no
+*     error.
+*-
+*/
+
+/* Local Variables: */
+   char *end;                    /* Pointer to the first unread character */
+   int old_errno;                /* Value of errno on entry */
+   int range;                    /* Was the integer out of range? */
+   long long int result;         /* The integer read */
+
+/* Initialise. */
+   *value = 0;
+   if ( !str ) return 0;
+
+/* Read the integer, noting if it is out of range without changing the
+   caller's errno value. */
+   old_errno = errno;
+   errno = 0;
+   result = strtoll( str, &end, 10 );
+   range = ( errno == ERANGE );
+   errno = old_errno;
+
+/* Fail if no digits were read, or the integer cannot be held. */
+   if ( end == str || range ) return 0;
+   if ( result < INT64_MIN || result > INT64_MAX ) return 0;
+
+/* Fail if anything other than white space follows the integer. */
+   while ( isspace( (unsigned char) *end ) ) end++;
+   if ( *end ) return 0;
+
+   *value = (int64_t) result;
+   return 1;
 }
 
 void astStoreChannelData_( AstChannel *this, int *status ) {
@@ -6817,7 +6945,7 @@ void astWriteFlush_( AstChannel *this, int *status ){
 void astAddWarning_( void *this_void, int level, const char *fmt,
                      const char *method, int *status, ... ) {
    AstChannel *this;
-   char buff[ 201 ];
+   char *buff;
    va_list args;
    int nc;
 
@@ -6825,15 +6953,20 @@ void astAddWarning_( void *this_void, int level, const char *fmt,
 
    if( fmt ) {
       if( astOK ) {
+
+/* A warning often quotes text taken from the data being read, which can
+   be any length. So find how long the message is, and then format it in a
+   buffer of that size. */
          va_start( args, status );
-         nc = vsprintf( buff, fmt, args );
+         nc = vsnprintf( NULL, 0, fmt, args );
          va_end( args );
-         if( nc > 200 ) {
-            astError( AST__INTER, "astAddWarning(%s): Message buffer size "
-                      "exceeded (internal AST programming error).",
-                      status, astGetClass( this ) );
-         } else {
+         buff = ( nc >= 0 ) ? astMalloc( (size_t) nc + 1 ) : NULL;
+         if( buff ) {
+            va_start( args, status );
+            (void) vsnprintf( buff, (size_t) nc + 1, fmt, args );
+            va_end( args );
             (**astMEMBER(this,Channel,AddWarning))( this, level, buff, method, status );
+            buff = astFree( buff );
          }
       }
    } else {

@@ -94,6 +94,12 @@ f     The Interval class does not define any new routines beyond those
 *        centre, so an Interval whose current Frame differs from its base
 *        Frame reported a base Frame centre when asked for its current
 *        Frame centre, as Prism and SetUnc ask for it.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadInterval, check that the dump supplied the points that
+*        define the Interval, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -3928,8 +3934,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       if( unc ) unc = astAnnul( unc );
    }
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -4630,6 +4641,9 @@ AstInterval *astLoadInterval_( void *mem, size_t size, AstIntervalVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Interval" );
+
+/* Check that the parent Region supplied the points that a Interval needs. */
+      astCheckLoadedPoints( new, name, 2, 2, 0 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

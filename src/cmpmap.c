@@ -176,6 +176,20 @@ f     The CmpMap class does not define any new routines beyond those
 *        resulting components so their Invert values can be set without
 *        modifying shared Mappings. Reached by any CmpMap for which
 *        astDoNotSimplify is true, such as one carrying an Ident.
+*     11-NOV-2026 (TIMJ):
+*        astLoadCmpMap now checks that both component Mappings were read
+*        from the dump and are Mappings, and that the numbers of inputs and
+*        outputs of the CmpMap are those implied by its components. The
+*        transformation passed the wrong number of coordinates to the
+*        components otherwise.
+*     13-NOV-2026 (TIMJ):
+*        MapSplit2: go straight to the one subset of the outputs of a
+*        MatrixMap or WcsMap that can give the required inputs, rather
+*        than trying every arrangement of every subset. The result is the
+*        same, but for a Mapping that couples two of nine axes the search
+*        took a million calls to find that there was no such subset, which
+*        made writing a FrameSet with that many axes to a FitsChan very
+*        slow.
 *class--
 */
 
@@ -198,6 +212,8 @@ f     The CmpMap class does not define any new routines beyond those
 #include "mapping.h"             /* Coordinate Mappings (parent class) */
 #include "channel.h"             /* I/O channels */
 #include "permmap.h"             /* Coordinate permutation Mappings */
+#include "matrixmap.h"           /* Linear transformations */
+#include "wcsmap.h"              /* FITS-WCS projections */
 #include "unitmap.h"             /* Unit transformations */
 #include "cmpmap.h"              /* Interface definition for this class */
 #include "frameset.h"            /* Interface definition for FrameSets */
@@ -2477,8 +2493,12 @@ static int *MapSplit2( AstMapping *this, int nin, const int *in, AstMapping **ma
    int *out;          /* Selected output indices */
    int *result;       /* Axis order to return */
    int *result2;      /* Axis order for current output subset */
+   int *sel;          /* The outputs to select from a MatrixMap */
+   int first;         /* The smallest subset size to try */
+   int fixed;         /* Is only one subset of outputs to be tried? */
    int i;             /* Loop count */
    int iscmp;         /* Is "this" a CmpMap? */
+   int last;          /* The largest subset size to try */
    int j;             /* Loop count */
    int mout;          /* Number of selected outputs */
    int nin2;          /* Number of inputs fed by current outputs */
@@ -2507,13 +2527,63 @@ static int *MapSplit2( AstMapping *this, int nin, const int *in, AstMapping **ma
 /* Allocate memory to hold the selected output indices. */
    out = astMalloc( nout*sizeof( int ) );
 
+/* Every subset of every useful size is tried, unless the Mapping is of a
+   class for which the only subset that can work is known. */
+   fixed = 0;
+   first = 1;
+   last = nout - 1;
+
+/* The search below asks astMapSplit about every arrangement of every
+   subset of the outputs in turn, which takes a time that grows faster than
+   the factorial of the number of outputs. For a MatrixMap none of that is
+   needed. The astMapSplit method of a MatrixMap returns its outputs in
+   ascending order, so the search can only succeed if the required inputs
+   are in ascending order. And astMtrSplitInputs finds the one subset of
+   the smallest size for which it returns exactly the required inputs, if
+   there is one. The search reaches the subsets of each size with the
+   first index varying fastest, so the first arrangement of that subset
+   that it reaches is the one in descending order. Trying that
+   arrangement alone therefore gives the same result as the search. */
+   if( out && astIsAMatrixMap( this2 ) ) {
+      fixed = 1;
+      first = nout;
+      ok = 1;
+      for( i = 1; i < nin; i++ ) {
+         if( in[ i ] <= in[ i - 1 ] ) ok = 0;
+      }
+      sel = ok ? astMtrSplitInputs( this2, nin, in, &mout ) : NULL;
+      if( sel && mout > 0 && mout < nout ) {
+         for( i = 0; i < mout; i++ ) out[ i ] = sel[ mout - 1 - i ];
+         first = mout;
+         last = mout;
+      }
+      sel = astFree( sel );
+
+/* Nor is the search needed for a WcsMap. The astMapSplit method of a WcsMap
+   returns the inputs that it was given, in the order given, less the
+   longitude or latitude axis if only one of the two was given. So it can
+   only return exactly the required inputs if it is given exactly those
+   inputs in that order, and no smaller subset can do so. Try that subset
+   alone, which again gives the same result as the search. */
+   } else if( out && astIsAWcsMap( this2 ) ) {
+      fixed = 1;
+      first = nout;
+      if( nin > 0 && nin < nout ) {
+         for( i = 0; i < nin; i++ ) out[ i ] = in[ i ];
+         first = nin;
+         last = nin;
+      }
+   }
+
 /* Loop round all useful subset sizes. */
    if( out ) {
-      for( mout = 1; mout < nout && !result; mout++ ) {
+      for( mout = first; mout <= last && !result; mout++ ) {
 
 /* Initialise the first subset of outputs to check at the current subset
    size. */
-         for( i = 0; i < mout; i++ ) out[ i ] = 0;
+         if( !fixed ) {
+            for( i = 0; i < mout; i++ ) out[ i ] = 0;
+         }
 
 /* Loop round all ways of picking a subset of "mout" outputs from the total
    available "nout" outputs. */
@@ -2567,6 +2637,9 @@ static int *MapSplit2( AstMapping *this, int nin, const int *in, AstMapping **ma
                   map2 = astAnnul( map2 );
                }
             }
+
+/* Only the one subset is tried if it was found above. */
+            if( fixed ) break;
 
 /* Increment the first axis index. */
             i = 0;
@@ -4957,6 +5030,10 @@ AstCmpMap *astLoadCmpMap_( void *mem, size_t size,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstCmpMap *new;               /* Pointer to the new CmpMap */
+   int nin1;                     /* No. of inputs of first component */
+   int nin2;                     /* No. of inputs of second component */
+   int nout1;                    /* No. of outputs of first component */
+   int nout2;                    /* No. of outputs of second component */
 
 /* Initialise. */
    new = NULL;
@@ -5027,6 +5104,31 @@ AstCmpMap *astLoadCmpMap_( void *mem, size_t size,
 /* Second Mapping. */
 /* --------------- */
       new->map2 = astReadObject( channel, "mapb", NULL );
+
+/* The component Mappings are used without further checks, so each must
+   have been read from the dump and must be a Mapping. Get the numbers of
+   inputs and outputs that each has when inverted as required. */
+      astCheckLoadedMap( new->map1, new->invert1, name,
+                         "first component Mapping", &nin1, &nout1 );
+      astCheckLoadedMap( new->map2, new->invert2, name,
+                         "second component Mapping", &nin2, &nout2 );
+
+/* The numbers of inputs and outputs of the CmpMap must be those implied by
+   its components, as they are when a CmpMap is constructed, since the
+   transformation passes coordinates to the components on that basis. For
+   components applied in series, the outputs of the first must also match
+   the inputs of the second. */
+      if ( new->series ) {
+         if ( astOK && nout1 != nin2 ) {
+            astError( AST__LDERR, "astLoad(%s): The number of outputs (%d) "
+                      "of the first component Mapping read for a %s does "
+                      "not match the number of inputs (%d) of the second.",
+                      status, name, nout1, name, nin2 );
+         }
+         astCheckLoadedCoords( new, name, nin1, nout2 );
+      } else {
+         astCheckLoadedCoords( new, name, nin1 + nin2, nout1 + nout2 );
+      }
 
 /* If an error occurred, clean up by deleting the new CmpMap. */
       if ( !astOK ) new = astDelete( new );

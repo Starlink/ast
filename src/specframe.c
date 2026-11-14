@@ -169,6 +169,11 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *        origin from the result frame if the target's zero point has no
 *        value in the result system (e.g. zero wavelength), rather than
 *        shifting by the negated AST__BAD value.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadSpecFrame, check that the dump supplied one axis.
+*     13-NOV-2026 (TIMJ):
+*        GetLabel: do not write beyond the end of the buffer when the
+*        formatted SpecOrigin value is long.
 *class--
 */
 
@@ -1601,8 +1606,9 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
 /* If a non-zero SpecOrigin has been specified, include the offset now. */
          orig = GetSpecOriginCur( (AstSpecFrame *) this, status );
          if( orig != 0.0 ) {
-            sprintf( getlabel_buff + strlen( getlabel_buff ), " offset from %s",
-                     astFormat( this, 0, orig ) );
+            snprintf( getlabel_buff + strlen( getlabel_buff ),
+                      sizeof( getlabel_buff ) - strlen( getlabel_buff ),
+                      " offset from %s", astFormat( this, 0, orig ) );
          }
 
 /* Modify this default to take account of the current value of the Unit
@@ -7046,6 +7052,9 @@ AstSpecFrame *astLoadSpecFrame_( void *mem, size_t size,
    new = astLoadFrame( mem, size, (AstFrameVtab *) vtab, name,
                        channel );
    if ( astOK ) {
+
+/* A SpecFrame always has one axis, which the rest of this class relies on. */
+      astCheckLoadedNaxes( new, name, 1 );
 
 /* Read input data. */
 /* ================ */

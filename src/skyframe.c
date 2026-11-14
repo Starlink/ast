@@ -368,6 +368,35 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *     22-SEP-2026 (TIMJ):
 *         NormBox: treat the pole test as failed if astTran2 reports an
 *         error, rather than reading the values it did not write.
+*     12-NOV-2026 (TIMJ):
+*         LineIncludes: treat a point at the end of a line as outside the
+*         line whichever way its distance from the start has been rounded,
+*         as a point at the start is treated as inside, and keep the cosine
+*         of that distance within range. A point at the join of two lines
+*         could be found in both or in neither, so a line that passed
+*         through a vertex of a Polygon was counted as crossing its
+*         boundary twice or not at all, and a position beyond the vertex
+*         was taken to be inside the Polygon.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadSkyFrame, check that the dump supplied two axes. A
+*        SkyFrame with one axis, or none, read beyond the end of its axis
+*        permutation array as it was loaded. Replace an axis that is not a
+*        SkyAxis, as it is if the dump does not describe it, with a
+*        SkyAxis. SubFrame invoked SkyAxis methods on it regardless.
+*     13-NOV-2026 (TIMJ):
+*        GetCachedLAST and NormalPoints brought a value into range by
+*        removing one turn at a time, which never ended for a very large
+*        value such as the LAST for an Epoch of 1.0E11. Remove whole turns
+*        with fmod first.
+*        CalcLAST no longer converts the Epoch to an int, which was
+*        undefined for an Epoch beyond the range of an int.
+*     13-NOV-2026 (TIMJ):
+*        Dump: do not write beyond the end of the comment buffer when the
+*        Symbol of an axis, or the formatted SkyRef or SkyRefP value, is
+*        long.
+*     13-NOV-2026 (TIMJ):
+*        ResolvePoints: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -1308,12 +1337,12 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
 
 /* For better accuracy, use this integer part of the epoch as the origin of
    the two TimeFrames. */
-      astSetTimeOrigin( tdbframe, (int) epoch );
-      astSetTimeOrigin( lastframe, (int) epoch );
+      astSetTimeOrigin( tdbframe, trunc( epoch ) );
+      astSetTimeOrigin( lastframe, trunc( epoch ) );
 
 /* Convert the absolute Epoch value to an offset from the above origin. */
       epoch0 = epoch;
-      epoch -= (int) epoch;
+      epoch -= trunc( epoch );
 
 /* Store the observers position in the two TimeFrames. */
       astSetObsLon( tdbframe, obslon );
@@ -1347,7 +1376,7 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
       fs = astAnnul( fs );
 
 /* Convert the LAST offset from days to radians. */
-      result = ( epoch - (int) epoch )*2*AST__DPI;
+      result = ( epoch - trunc( epoch ) )*2*AST__DPI;
 
 /* Cache the new LAST value in the SkyFrame virtual function table. */
       SetCachedLAST( this, result, epoch0, obslon, obslat, obsalt, dut1, dtai,
@@ -3153,6 +3182,12 @@ static double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
 
 /* Ensure the returned value is within the range 0 - 2.PI. */
    if( result != AST__BAD ) {
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+      if( fabs( result ) > 1.0E6 ) result = fmod( result, 2*AST__DPI );
       while( result > 2*AST__DPI ) result -= 2*AST__DPI;
       while( result < 0.0 ) result += 2*AST__DPI;
    }
@@ -5807,6 +5842,7 @@ static int LineIncludes( SkyLineDef *l, double point[3], double *dist,
 
 /* Local Variables: */
    double t1, t2, t3;
+   double tol;
    int result;
 
 /* Initialise */
@@ -5816,8 +5852,15 @@ static int LineIncludes( SkyLineDef *l, double point[3], double *dist,
    if ( !astOK ) return 0;
 
 /* Get the unsigned distance of the point in radians from the start of the
-   line, in the range 0 - 180 degs (t2). */
+   line, in the range 0 - 180 degs (t2). Rounding can leave the cosine of
+   the distance marginally outside the range -1 to 1 for a point at the
+   start of the line or opposite it. */
    t1 = palDvdv( l->start, point );
+   if( t1 > 1.0 ) {
+      t1 = 1.0;
+   } else if( t1 < -1.0 ) {
+      t1 = -1.0;
+   }
    t2 = acos( t1 );
 
 /* Get the cosine of the distance in radians from the point to the line's
@@ -5838,9 +5881,18 @@ static int LineIncludes( SkyLineDef *l, double point[3], double *dist,
       result = 1;
 
 /* If the line is not infinite, check the distance from the start of the
-   line to the point is less than the line length. */
+   line to the point is less than the line length. The test above treats
+   a point that is up to 1.0E-10 radians before the start of the line as
+   being at the start, and so within the line. So that the end of the line
+   is treated in the same way, a point within that distance of the end is
+   taken to be at the end, and so outside the line. Where two lines are
+   joined end to start, as the edges of a Polygon are, a point at the join
+   is then within one of them and not the other, however its distance
+   along each has been rounded. A line that is too short for this is
+   tested as it stands. */
    } else {
-      result = ((l->length > 0) ? t2 < l->length : t2 == 0.0 );
+      tol = ( l->length > 2.0E-10 ) ? 1.0E-10 : 0.0;
+      result = ((l->length > 0) ? t2 < l->length - tol : t2 == 0.0 );
    }
 
    if( dist ) *dist = t2;
@@ -7573,6 +7625,14 @@ static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int con
          ptr_long =  ptr_out[  perm[ 0 ] ];
          for( point = 0; point < npoint; point++, ptr_long++ ){
             if ( *ptr_long != AST__BAD  ) {
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+               if( fabs( *ptr_long ) > 1.0E6 ) {
+                  *ptr_long = fmod( *ptr_long, 2*AST__DPI );
+               }
                while( *ptr_long < lo ) *ptr_long += 2*AST__DPI;
                while( *ptr_long > hi ) *ptr_long -= 2*AST__DPI;
             }
@@ -8789,8 +8849,13 @@ static AstPointSet *ResolvePoints( AstFrame *this_frame, const double point1[],
       }
    }
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -12156,8 +12221,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
       set = TestSkyRef( this, axis, status );
       dval = set ? GetSkyRef( this, axis, status ) : astGetSkyRef( this, axis );
-      sprintf( buf, "Ref. pos. %s %s", astGetSymbol( this, axis ),
-               astFormat( this, axis, dval ) );
+      snprintf( buf, sizeof( buf ), "Ref. pos. %s %s",
+                astGetSymbol( this, axis ), astFormat( this, axis, dval ) );
       sprintf( key, "SRef%d", axis_p + 1 );
       astWriteDouble( channel, key, set, 0, dval, buf );
    }
@@ -12169,8 +12234,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
       set = TestSkyRefP( this, axis, status );
       dval = set ? GetSkyRefP( this, axis, status ) : astGetSkyRefP( this, axis );
-      sprintf( buf, "Ref. north %s %s", astGetSymbol( this, axis ),
-               astFormat( this, axis, dval ) );
+      snprintf( buf, sizeof( buf ), "Ref. north %s %s",
+                astGetSymbol( this, axis ), astFormat( this, axis, dval ) );
       sprintf( key, "SRefP%d", axis_p + 1 );
       astWriteDouble( channel, key, set, 0, dval, buf );
    }
@@ -12470,6 +12535,8 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
 */
 
 /* Local Variables: */
+   AstAxis *ax;                  /* Pointer to an Axis of the SkyFrame */
+   AstSkyAxis *skyax;            /* Pointer to a new SkyAxis */
    AstSkyFrame *new;             /* Pointer to the new SkyFrame */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    char *sval;                   /* Pointer to string value */
@@ -12511,6 +12578,23 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
 
    if ( astOK ) {
 
+/* A SkyFrame always has two axes, each described by a SkyAxis, and the
+   rest of this class relies on both. astLoadFrame supplies a simple Axis
+   for an axis that the dump does not describe, so replace any Axis that
+   is not a SkyAxis with a SkyAxis that has the same attribute values, as
+   the constructor replaces the axes of the Frame that it starts with. */
+      astCheckLoadedNaxes( new, name, 2 );
+      for( axis = 0; astOK && axis < 2; axis++ ) {
+         ax = astGetAxis( new, axis );
+         if( !astIsASkyAxis( ax ) ) {
+            skyax = astSkyAxis( "", status );
+            astAxisOverlay( ax, skyax );
+            astSetAxis( new, axis, skyax );
+            skyax = astAnnul( skyax );
+         }
+         ax = astAnnul( ax );
+      }
+
 /* Get a pointer to the SkyFrame's axis permutation array (using a method,
    to allow for any over-ride by a derived class). */
       perm = astGetPerm( new );
@@ -12521,8 +12605,15 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
    correspond with a particular internal value (i.e. instance variable)
    relating to an axis. This step is needed so that the effect of any
    axis permutation can be un-done before values are written out, as
-   output values are written by this function in un-permuted order. */
-      for( axis = 0; axis < 2; axis++ ) invperm[ perm[ axis ] ] = axis;
+   output values are written by this function in un-permuted order. There
+   is no permutation array to use if an error has occurred. */
+      for( axis = 0; axis < 2; axis++ ) {
+         if( astOK ) {
+            invperm[ perm[ axis ] ] = axis;
+         } else {
+            invperm[ axis ] = axis;
+         }
+      }
 
 /* Read input data. */
 /* ================ */

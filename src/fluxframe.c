@@ -83,6 +83,14 @@ f     The FluxFrame class does not define any new routines beyond those
 *     29-APR-2011 (DSB):
 *        Prevent astFindFrame from matching a subclass template against a
 *        superclass target.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFluxFrame, check that the SpecFrame read from a dump is
+*        a SpecFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFluxFrame, check that the dump supplied one axis.
+*     13-NOV-2026 (TIMJ):
+*        GetTitle: do not write beyond the end of the buffer when the
+*        formatted spectral value or its Unit is long.
 *class--
 */
 
@@ -1625,7 +1633,8 @@ static const char *GetTitle( AstFrame *this_frame, int *status ) {
          result = gettitle_buff;
 
 /* Begin with the system's default label. */
-         pos = sprintf( gettitle_buff, "%s", SystemLabel( astGetSystem( this ), status ) );
+         pos = snprintf( gettitle_buff, sizeof( gettitle_buff ), "%s",
+                         SystemLabel( astGetSystem( this ), status ) );
          gettitle_buff[ 0 ] = toupper( gettitle_buff[ 0 ] );
 
 /* Append the spectral position, if known. */
@@ -1634,7 +1643,11 @@ static const char *GetTitle( AstFrame *this_frame, int *status ) {
          if( specval != AST__BAD && sf ) {
             sv = astFormat( sf, 0, specval );
             su = astGetUnit( sf, 0 );
-            pos += sprintf( gettitle_buff + pos, " at = %s %s", sv, su );
+            if( pos < (int) sizeof( gettitle_buff ) ) {
+               pos += snprintf( gettitle_buff + pos,
+                                sizeof( gettitle_buff ) - pos, " at = %s %s",
+                                sv, su );
+            }
          }
          sf = astAnnul( sf );
       }
@@ -4203,6 +4216,9 @@ AstFluxFrame *astLoadFluxFrame_( void *mem, size_t size, AstFluxFrameVtab *vtab,
                        channel );
    if ( astOK ) {
 
+/* A FluxFrame always has one axis, which the rest of this class relies on. */
+      astCheckLoadedNaxes( new, name, 1 );
+
 /* Read input data. */
 /* ================ */
 /* Request the input Channel to read all the input data appropriate to
@@ -4224,6 +4240,7 @@ AstFluxFrame *astLoadFluxFrame_( void *mem, size_t size, AstFluxFrameVtab *vtab,
 /* SpecFrame  */
 /* ---------- */
       new->specframe = astReadObject( channel, "spcfr", NULL );
+      astCheckLoaded( new->specframe, SpecFrame, 0, name, "SpecFrame" );
 
 /* SpecVal */
 /* ------- */

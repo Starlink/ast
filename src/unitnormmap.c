@@ -110,6 +110,14 @@ f     The UnitNormMap class does not define any new routines beyond those
 *        Record that both transformations are discontinuous at the centre,
 *        and that a composition which reconstructs a position on another
 *        UnitNormMap's centre is sensitive to floating-point contraction.
+*     11-NOV-2026 (TIMJ):
+*        astLoadUnitNormMap now checks that the dump describes a Mapping
+*        with one more output than it has inputs. The transformation read or
+*        wrote beyond the coordinate arrays otherwise.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadUnitNormMap, do not use the new UnitNormMap if the
+*        parent loader failed to supply one, and delete it rather than
+*        leak it if it has no axes.
 *class--
 */
 
@@ -1737,21 +1745,23 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
                          channel );
 
 /* Get the length of the centre array = the number of inputs in the
-   forward direction. */
+   forward direction. The parent loader returns no Mapping if it fails. */
    ncoord = 0;
-   if ( astGetInvert( (AstMapping *) new ) ){
-      ncoord = astGetNout( (AstMapping *) new );
-   } else {
-      ncoord = astGetNin( (AstMapping *) new );
-   }
-   if( ncoord <= 0 && astOK ){
-      astError( AST__LDERR, "The UnitNormMap has %d axes - it must have at least one.",
-                status, ncoord );
-      return NULL;
-   }
+   if( astOK ) {
+      if ( astGetInvert( (AstMapping *) new ) ){
+         ncoord = astGetNout( (AstMapping *) new );
+      } else {
+         ncoord = astGetNin( (AstMapping *) new );
+      }
+      if( ncoord <= 0 && astOK ){
+         astError( AST__LDERR, "astLoadUnitNormMap(%s): The UnitNormMap "
+                   "read has %d axes - it must have at least one.", status,
+                   name, ncoord );
+      }
 
 /* Allocate memory to hold the centre. */
-   new->centre = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
+      new->centre = (double *) astMalloc( sizeof(double)*(size_t)ncoord );
+   }
 
 /* Read input data. */
 /* ================ */
@@ -1768,6 +1778,11 @@ AstUnitNormMap *astLoadUnitNormMap_( void *mem, size_t size,
          (void) sprintf( buff, "ctr%d", axis + 1 );
          (new->centre)[ axis ] = astReadDouble( channel, buff, 0.0 );
       }
+
+/* A UnitNormMap has one more output than it has inputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, ncoord, ncoord + 1 );
    }
 
 /* If an error occurred, clean up by deleting the new UnitNormMap. */

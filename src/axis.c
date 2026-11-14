@@ -98,6 +98,13 @@ f     only within textual output (e.g. from AST_WRITE).
 *        attribute when no simplification can be performed, and it covers
 *        both a blank Unit and the sexagesimal formats used by some Axis
 *        classes.
+*     13-NOV-2026 (TIMJ):
+*        Check that a Format string asks "sprintf" for nothing but the
+*        axis value, and report an error if not. The string can come from
+*        a file, and was used as given, so a "%s" in it made astFormat
+*        read through a wild pointer and a "%n" made it write through
+*        one. Also stop AxisFormat writing beyond the end of its buffer
+*        when the formatted value is too long for it.
 *class--
 */
 
@@ -218,6 +225,7 @@ static const char *GetAxisInternalUnit( AstAxis *, int * );
 static const char *GetAxisNormUnit( AstAxis *, int * );
 static const char *GetDefaultFormat( AstAxis *, int * );
 static char *ParseAxisFormat( const char *, int, int *, int *, int *, int *, int * );
+static int ValidAxisFormat( const char *, int * );
 static double AxisDistance( AstAxis *, double, double, int * );
 static double AxisCentre( AstAxis *, double, double, int * );
 static double AxisGap( AstAxis *, double, int *, int * );
@@ -779,7 +787,8 @@ static const char *AxisFormat( AstAxis *this, double value, int *status ) {
                log_del = log_txt;
             }
 
-            nc += sprintf( axisformat_buff + nc, "%s", log_del );
+            nc += snprintf( axisformat_buff + nc,
+                            sizeof( axisformat_buff ) - nc, "%s", log_del );
 
 /* Round small exponents to zero. */
             if( fabs( x ) < 1.0E-10 ) x = 0.0;
@@ -790,17 +799,28 @@ static const char *AxisFormat( AstAxis *this, double value, int *status ) {
    a standard "sprintf" format. */
       if ( astOK ) {
          errno = 0;
-         if( integ ) {
-            ncc = sprintf( axisformat_buff + nc, fmt, (int) x );
+         if( nc > AST__AXIS_AXISFORMAT_BUFF_LEN ) {
+            ncc = 0;
+         } else if( integ ) {
+            ncc = snprintf( axisformat_buff + nc,
+                            sizeof( axisformat_buff ) - nc, fmt, (int) x );
          } else {
-            ncc = sprintf( axisformat_buff + nc, fmt, x );
+            ncc = snprintf( axisformat_buff + nc,
+                            sizeof( axisformat_buff ) - nc, fmt, x );
          }
          nc += ncc;
 
 /* If log format is being used, terminate the string with an escape
    sequence which resets the graphical attributes to what they were at the
    start of the string. */
-         if( log ) nc += sprintf( axisformat_buff + nc, "%%+" );
+         if( log ) {
+            if( nc < AST__AXIS_AXISFORMAT_BUFF_LEN ) {
+               nc += snprintf( axisformat_buff + nc,
+                               sizeof( axisformat_buff ) - nc, "%%+" );
+            } else {
+               nc += 2;
+            }
+         }
 
 /* The possibilities for error detection are limited here, but check if an
    error value was returned and report an error. Include information from
@@ -823,9 +843,8 @@ static const char *AxisFormat( AstAxis *this, double value, int *status ) {
                       AST__DBL_DIG, value, stat? " - " : "", errstat );
             astError( AST__FMTER, "The format string was \"%s\".", status, fmt );
 
-/* Also check that the result buffer did not overflow. If it did, memory will
-   probably have been corrupted but this cannot be prevented with "sprintf".
-   Report the error and abort. */
+/* Also check that the whole result fitted into the buffer. "nc" is the
+   length that it would have had. Report an error if it did not. */
          } else if ( nc > AST__AXIS_AXISFORMAT_BUFF_LEN ) {
             astError( AST__FMTER, "astAxisFormat(%s): Internal buffer "
                       "overflow while formatting a coordinate value of %1.*G "
@@ -2243,9 +2262,101 @@ static char *ParseAxisFormat( const char *fmt0, int digs, int *log, int *sign,
       }
    }
 
+/* The string that is left is used as a "printf" format with the axis value
+   as the only argument, so it must not ask for any other argument, nor
+   for one of a different type. A Format string can come from a file. One
+   that had a "%s" in it would read from wherever the bits of the value
+   happened to point, and one with a "%n" would write there. */
+   if( result && astOK && !ValidAxisFormat( result, status ) ) {
+      astError( AST__FMTER, "astFormat: The Format string \"%s\" cannot be "
+                "used to format an axis value. It should have no more than "
+                "one conversion specification, for a floating point or "
+                "integer value.", status, fmt0 );
+      result = astFree( result );
+   }
+
 /* Return the result. */
    return result;
 
+}
+
+static int ValidAxisFormat( const char *fmt, int *status ) {
+/*
+*  Name:
+*     ValidAxisFormat
+
+*  Purpose:
+*     Check that a string can safely be used to format an axis value.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "axis.h"
+*     int ValidAxisFormat( const char *fmt, int *status )
+
+*  Class Membership:
+*     Axis member function.
+
+*  Description:
+*     This function checks a string that is to be given to "sprintf" as
+*     the format for a single axis value, which is passed as a double, or
+*     as an int if ParseAxisFormat finds an integer conversion code. The
+*     string can hold any text, with each literal percent sign written as
+*     "%%", and no more than one conversion specification. That
+*     specification can have flags, a field width and a precision, each
+*     given as digits rather than as "*", followed by one of the
+*     floating point conversion codes (e, E, f, F, g, G, a or A,
+*     optionally preceded by "l") or one of the integer conversion codes
+*     (d, i, u, o, x, X or c).
+
+*  Parameters:
+*     fmt
+*        Pointer to the null-terminated format string.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the string is safe to use, and zero otherwise.
+*/
+
+/* Local Variables: */
+   const char *p;                /* Pointer to the next character */
+   int nconv;                    /* Number of conversion specifications */
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* Look at each percent sign in turn. */
+   nconv = 0;
+   p = fmt;
+   while( ( p = strchr( p, '%' ) ) ) {
+      p++;
+
+/* A second percent sign makes a literal percent sign. */
+      if( *p == '%' ) {
+         p++;
+
+/* Otherwise skip any flags, field width and precision. */
+      } else {
+         while( *p && strchr( "-+ #0'", *p ) ) p++;
+         while( isdigit( (unsigned char) *p ) ) p++;
+         if( *p == '.' ) {
+            p++;
+            while( isdigit( (unsigned char) *p ) ) p++;
+         }
+
+/* What follows must be a conversion code for the type of value that is
+   passed. An "l" before a floating point code changes nothing. */
+         if( *p == 'l' && p[ 1 ] && strchr( "eEfFgGaA", p[ 1 ] ) ) p++;
+         if( !*p || !strchr( "eEfFgGaAdiuoxXc", *p ) ) return 0;
+         p++;
+         nconv++;
+      }
+   }
+
+/* There can be only one value to convert. */
+   return ( nconv <= 1 );
 }
 
 static void SetAttrib( AstObject *this_object, const char *setting, int *status ) {

@@ -123,6 +123,22 @@ f     The LutMap class does not define any new routines beyond those
 *        The inverse transformation no longer reads the element before the
 *        start of the lookup table when the supplied value is beyond the
 *        first table value.
+*     11-NOV-2026 (TIMJ):
+*        astLoadLutMap now checks that the number of lookup table elements
+*        and the increment read from a dump are valid, as the constructor
+*        does. Otherwise a table with fewer than two elements caused the
+*        interpolating transformation to read beyond its ends. It also
+*        ensures that no inverse transformation is defined for a table
+*        with fewer than two good values, whatever the dump says, since
+*        the inverse read before the start of such a table.
+*     11-NOV-2026 (TIMJ):
+*        astLoadLutMap now checks that the dump describes a Mapping with
+*        one input and one output. The transformation read or wrote beyond
+*        the coordinate arrays otherwise.
+*     13-NOV-2026 (TIMJ):
+*        Transform: do not convert a table index to an int if it is too
+*        large for one, which is undefined. An input far beyond the table
+*        gave such an index.
 *class--
 */
 
@@ -1555,7 +1571,11 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
             } else if( near ){
                x = ( value_in - map->start ) * scale;
                xi = floor( x + 0.5 );
-               ix = (int) xi;
+
+/* Convert it to an int. An index beyond either end of the table is put
+   just beyond that end, since converting a value that an int cannot hold
+   is undefined. */
+               ix = ( xi < 0.0 ) ? -1 : ( ( xi < nlut ) ? (int) xi : nlut );
                if ( ix < 0 || ix >= nlut ) {
                   value_out = AST__BAD;
                } else {
@@ -1567,7 +1587,7 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
             } else {
                x = ( value_in - map->start ) * scale;
                xi = floor( x );
-               ix = (int) xi;
+               ix = ( xi < 0.0 ) ? -1 : ( ( xi < nlut ) ? (int) xi : nlut );
 
 /* If the input value lies below the first lookup table entry,
    extrapolate using the first two table values. */
@@ -2529,6 +2549,7 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
 /* Local Variables: */
    AstLutMap *new;               /* Pointer to the new LutMap */
    char buff[ KEY_LEN + 1 ];     /* Buffer for keyword string */
+   int ngood;                    /* Number of good table values */
    int ilut;                     /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(channel);
 
@@ -2582,6 +2603,20 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
 /* Input coordinate value increment. */
       new->inc = astReadDouble( channel, "incr", 1.0 );
 
+/* Check that the number of lookup table elements and the increment read
+   from the dump are valid, applying the same checks used when a LutMap is
+   constructed. A LutMap with fewer than two elements would cause the
+   interpolating transformation to read beyond the ends of the table. */
+      if ( astOK && new->nlut < 2 ) {
+         astError( AST__LUTIN, "astLoadLutMap(%s): Invalid number of lookup "
+                   "table elements (%d).", status, name, new->nlut );
+         astError( AST__LUTIN, "This value should be at least 2.", status );
+      } else if ( astOK && new->inc == 0.0 ) {
+         astError( AST__LUTII, "astLoadLutMap(%s): An input value increment of "
+                   "zero between lookup table elements is not allowed.", status,
+                   name );
+      }
+
 /* Interpolation method */
       new->lutinterp = astReadInt( channel, "lutint", LINEAR );
       if ( TestLutInterp( new, status ) ) SetLutInterp( new, new->lutinterp, status );
@@ -2593,11 +2628,13 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
 /* Allocate memory to hold the lookup table elements. */
       new->lut = astMalloc( sizeof( double ) * (size_t) new->nlut );
 
-/* If OK, loop to read each element. */
+/* If OK, loop to read each element, counting the good ones. */
       if ( astOK ) {
+         ngood = 0;
          for ( ilut = 0; ilut < new->nlut; ilut++ ) {
             (void) sprintf( buff, "l%d", ilut + 1 );
             new->lut[ ilut ] = astReadDouble( channel, buff, AST__BAD );
+            if ( !astISBAD( new->lut[ ilut ] ) ) ngood++;
          }
 
 /* Initialise the retained input and output coordinate values. */
@@ -2610,8 +2647,24 @@ AstLutMap *astLoadLutMap_( void *mem, size_t size,
          (void) GetMonotonic( new->nlut, new->lut, &(new->nluti),
                               &(new->luti), &(new->flagsi), &(new->indexi),
                               status );
+
+/* The inverse transformation interpolates between two good table values,
+   so it reads outside the table if there are fewer than two of them. The
+   constructor defines no inverse for such a table, since it is not
+   monotonic, but the flag read from the dump by the parent Mapping loader
+   is not constrained in this way, so ensure that no inverse is defined.
+   The flag is left alone for other tables that are not monotonic: dumps
+   written by versions of AST that considered every table to be monotonic
+   record an inverse for them, and it can be evaluated safely even though
+   its results are not meaningful. */
+         if ( ngood < 2 ) ( (AstMapping *) new )->tran_inverse = 0;
       }
    }
+
+/* A LutMap always has one input and one output, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
+   astCheckLoadedCoords( new, name, 1, 1 );
 
 /* If an error occurred, clean up by deleting the new LutMap. */
    if ( !astOK ) new = astDelete( new );

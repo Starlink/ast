@@ -1551,6 +1551,28 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In WcsOthers, use a UnitMap for a non-spectral "-LOG" axis with
 *        a zero CRVAL, for which LogWcs returns NULL. It passed the NULL
 *        pointer to astCmpMap, so astRead crashed.
+*     13-NOV-2026 (TIMJ):
+*        Reading a foreign encoding: report an error if the value of
+*        WCSAXES is not a number of axes that a FITS header can describe,
+*        rather than using it as the size of arrays and Frames. Do not
+*        apply a SIP distortion, which needs two axes, to a header that
+*        states one. In WcsCelestial, do not look beyond the end of a
+*        CTYPE value of fewer than three characters for a latitude axis
+*        type. In ConcatWAT, ignore a WAT card that has no string value.
+*        In DSSFromStore, do not loop for ever bringing a very large
+*        reference declination into range.
+*     13-NOV-2026 (TIMJ):
+*        Avoid three conversions and one addition that were undefined for
+*        a keyword value that an int cannot hold: CnvType now fails to
+*        convert such a floating point value to an integer type,
+*        GrismSpecWcs reports an error for such a diffraction order, and
+*        SpecTrans adds one to an image dimension as a double.
+*     13-NOV-2026 (TIMJ):
+*        LogWcs: make room for a negative CRVAL with a three digit
+*        exponent, which overflowed the expression buffers by one
+*        character. MakeFitsFrameSet: do not pass a NULL FrameSet to
+*        AddEncodingFrame when no reference point could be found for the
+*        celestial axes of a spectral cube.
 *class--
 */
 
@@ -1658,6 +1680,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 #define LATAX              1
 #define NDESC              9
 #define MXCTYPELEN        81
+
+/* The largest value that the WCSAXES keyword can have. This is the largest
+   number of axes that the FITS standard allows an array to have, and the
+   largest axis number that fits in a keyword such as CTYPEn. */
+#define MXWCSAXES         999
 #define ALLWARNINGS       " distortion noequinox noradesys nomjd-obs nolonpole nolatpole tnx zpx badcel noctype badlat badmat badval badctype badpv badkeyname badkeyvalue badalt "
 #define NPFIT             10
 #define SPD               86400.0
@@ -2242,6 +2269,7 @@ static int GetFitsS( AstFitsChan *, const char *, char **, int * );
 static int GetFull( AstChannel *, int * );
 static int GetMaxI( double ****item, char, int * );
 static int GetMaxJM( double ****item, char, int * );
+static int GetWcsAxes( FitsStore *, char, const char *, const char *, int * );
 static int GetMaxJMC( char *****item, char, int * );
 static int GetNcard( AstFitsChan *, int * );
 static int GetNkey( AstFitsChan *, int * );
@@ -7834,18 +7862,33 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
                strcpy( cnvtype_text, BAD_STRING );
             }
             *( (char **) buff ) = cnvtype_text;
+
+/* A value that the integer type cannot hold cannot be converted. The
+   tests are written so that they also fail for a NaN value. */
          } else if( type == AST__INT      ){
-            *( (int *) buff ) = (int) odouble;
+            if( odouble >= INT_MIN && odouble <= INT_MAX ) {
+               *( (int *) buff ) = (int) odouble;
+            } else {
+               ret = 0;
+            }
          } else if( type == AST__KINT     ){
-            *( (int64_t *) buff ) = (int64_t) odouble;
+            if( odouble >= -9.2E18 && odouble <= 9.2E18 ) {
+               *( (int64_t *) buff ) = (int64_t) odouble;
+            } else {
+               ret = 0;
+            }
          } else if( type == AST__LOGICAL  ){
             *( (int *) buff ) = ( odouble == 0.0 ) ? 0 : 1;
          } else if( type == AST__COMPLEXF ){
             ( (double *) buff )[ 0 ] = odouble;
             ( (double *) buff )[ 1 ] = 0.0;
          } else if( type == AST__COMPLEXI ){
-            ( (int *) buff )[ 0 ] = (int) odouble;
-            ( (int *) buff )[ 1 ] = 0;
+            if( odouble >= INT_MIN && odouble <= INT_MAX ) {
+               ( (int *) buff )[ 0 ] = (int) odouble;
+               ( (int *) buff )[ 1 ] = 0;
+            } else {
+               ret = 0;
+            }
          } else if( astOK ){
             ret = 0;
             astError( AST__INTER, "CnvType: AST internal programming error - "
@@ -8321,6 +8364,11 @@ static char *ConcatWAT( AstFitsChan *this, int iaxis, const char *method,
       }
 
       wat = (char *) CardData( this, &size, status );
+
+/* The value of a WAT card is a string. Ignore this card, and any that
+   follow it, if it has any other sort of value or none. */
+      if( CardType( this, status ) != AST__STRING || !wat || size < 1 ) break;
+
       result = (char *) astRealloc( (void *) result,
                                     watlen - 1 + size );
       if( result ) {
@@ -9031,7 +9079,7 @@ static void DistortMaps( AstFitsChan *this, FitsStore *store, char s,
    is so that later functions do not need to allow for the possibility of a
    distortion code being present in the CTYPE value). */
       ctype = GetItemC( &(store->ctype), 0, 0, s, NULL, method, class, status );
-      if( ctype ){
+      if( ctype && naxes > 1 ){
          nc = astChrLen( ctype ) - 4;
          if( nc >= 0 && !strcmp( ctype + nc, "-SIP" ) ) {
             ctype[ nc ] = 0;
@@ -9551,7 +9599,11 @@ static int DSSFromStore( AstFitsChan *this, FitsStore *store,
    val = GetItem( &(store->crval), 1, 0, ' ', NULL, method, class, status );
    if( val == AST__BAD ) return ret;
 
-/* Ensure it is in the range -180 to +180 */
+/* Ensure it is in the range -180 to +180. Remove whole turns first if the
+   value is far out of range, as removing one turn at a time would take a
+   time in proportion to the value, and would never end for a value that is
+   too large to be changed by one turn. */
+   if( fabs( val ) > 1.0E8 ) val = fmod( val, 360.0 );
    while( val < -180.0 ) val += 360.0;
    while( val >= 180.0 ) val -= 360.0;
 
@@ -10890,7 +10942,6 @@ static int FindLonLatSpecAxes( FitsStore *store, char s, int *axlon, int *axlat,
    char algcode[5];
    char stype[5];
    const char *ctype;
-   double dval;
    int i;
    int wcsaxes;
 
@@ -10905,12 +10956,7 @@ static int FindLonLatSpecAxes( FitsStore *store, char s, int *axlon, int *axlat,
 /* Obtain the number of FITS WCS axes in the header. If the WCSAXES header
    was specified, use it. Otherwise assume it is the same as the number
    of pixel axes. */
-   dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
-   if( dval != AST__BAD ) {
-      wcsaxes = (int) round( dval );
-   } else {
-      wcsaxes = store->naxis;
-   }
+   wcsaxes = GetWcsAxes( store, s, method, class, status );
 
 /* Loop round the FITS WCS axes, getting each CTYPE value. */
    for( i = 0; i < wcsaxes && astOK; i++ ){
@@ -13394,6 +13440,87 @@ static double GetItem( double ****item, int i, int jm, char s, char *name,
    return ret;
 }
 
+static int GetWcsAxes( FitsStore *store, char s, const char *method,
+                       const char *class, int *status ){
+/*
+*  Name:
+*     GetWcsAxes
+
+*  Purpose:
+*     Return the number of WCS axes described by a FitsStore.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     int GetWcsAxes( FitsStore *store, char s, const char *method,
+*                     const char *class, int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     This function returns the number of world coordinate axes in the
+*     description with a given co-ordinate version. This is the value of
+*     the WCSAXES keyword if the header had one, and the number of pixel
+*     axes otherwise.
+
+*  Parameters:
+*     store
+*        The FitsStore.
+*     s
+*        The co-ordinate version character (' ' for the primary axis
+*        descriptions).
+*     method
+*        Pointer to a string holding the name of the calling method.
+*        This is only for use in constructing error messages.
+*     class
+*        Pointer to a string holding the name of the supplied object class.
+*        This is only for use in constructing error messages.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The number of WCS axes. Zero is returned if an error occurs.
+
+*  Notes:
+*     - The value of WCSAXES is taken from the header as it stands, so
+*     an error is reported if it is not a number of axes that a FITS
+*     header can describe. A larger value would otherwise be used as the
+*     size of several arrays and as the number of axes of several Frames.
+*/
+
+/* Local Variables: */
+   double dval;                  /* The WCSAXES value */
+   int ret;                      /* The returned value */
+
+/* Initialise */
+   ret = 0;
+
+/* Check the inherited status. */
+   if( !astOK ) return ret;
+
+/* If the WCSAXES keyword was supplied, check and use it. The test is
+   written so that it also fails for a NaN value. */
+   dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
+   if( dval != AST__BAD ) {
+      if( !( dval >= 1.0 && dval <= MXWCSAXES ) ) {
+         astError( AST__BDFTS, "%s(%s): The FITS keyword WCSAXES%c has an "
+                   "invalid value (%g) - it should be an integer between 1 "
+                   "and %d.", status, method, class, s, dval, MXWCSAXES );
+      } else {
+         ret = (int) round( dval );
+      }
+
+/* Otherwise assume it is the same as the number of pixel axes. */
+   } else {
+      ret = store->naxis;
+   }
+
+   return ret;
+}
+
 static int GetMaxJM( double ****item, char s, int *status ){
 /*
 *  Name:
@@ -14533,6 +14660,12 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
       pv = GetItem( &(store->pv), i, 0, s, NULL, method, class, status );
       astSetGrismG( gmap, ( pv != AST__BAD )?pv:0.0 );
       pv = GetItem( &(store->pv), i, 1, s, NULL, method, class, status );
+      if( pv != AST__BAD && !( fabs( pv ) < INT_MAX ) && astOK ) {
+         astError( AST__BDFTS, "%s(%s): The FITS keyword PV%d_1%c has an "
+                   "invalid value (%g) for the diffraction order of a "
+                   "grism.", status, method, class, i + 1, s, pv );
+         pv = AST__BAD;
+      }
       astSetGrismM( gmap, ( pv != AST__BAD )?(int) round( pv ):0);
       pv = GetItem( &(store->pv), i, 2, s, NULL, method, class, status );
       astSetGrismAlpha( gmap, ( pv != AST__BAD )?pv*AST__DD2R:0.0 );
@@ -20957,8 +21090,8 @@ static AstMapping *LogWcs( FitsStore *store, int i, char s,
 
 /* Local Variables: */
    AstMapping *ret;
-   char forexp[ 12 + AST__DBL_WIDTH*2 ];
-   char invexp[ 12 + AST__DBL_WIDTH*2 ];
+   char forexp[ 20 + ( AST__DBL_DIG + 8 )*2 ];
+   char invexp[ 20 + ( AST__DBL_DIG + 8 )*2 ];
    const char *fexps[ 1 ];
    const char *iexps[ 1 ];
    double crv;
@@ -20973,8 +21106,10 @@ static AstMapping *LogWcs( FitsStore *store, int i, char s,
 
 /* Create the MathMap, if possible. */
    if( crv != 0.0 ) {
-      sprintf( forexp, "s=%.*g*exp(w/%.*g)", AST__DBL_DIG, crv, AST__DBL_DIG, crv );
-      sprintf( invexp, "w=%.*g*log(s/%.*g)", AST__DBL_DIG, crv, AST__DBL_DIG, crv );
+      snprintf( forexp, sizeof( forexp ), "s=%.*g*exp(w/%.*g)",
+                AST__DBL_DIG, crv, AST__DBL_DIG, crv );
+      snprintf( invexp, sizeof( invexp ), "w=%.*g*log(s/%.*g)",
+                AST__DBL_DIG, crv, AST__DBL_DIG, crv );
       fexps[ 0 ] = forexp;
       iexps[ 0 ] = invexp;
       ret = (AstMapping *) astMathMap( 1, 1, 1, fexps, 1, iexps, "simpfi=1,simpif=1", status );
@@ -21815,11 +21950,15 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
 
 /* Add a new current Frame into the FrameSet which increases the chances of
    the requested encoding being usable. The index of the original current
-   Frame is returned, or AST__NOFRAME if no new Frame was added. */
-   icurr = AddEncodingFrame( this, ret, encoding, method, class, status );
+   Frame is returned, or AST__NOFRAME if no new Frame was added.
+   There is no FrameSet to add it to if a reference point could not be
+   found for the celestial axes above. */
+   if( ret ) {
+      icurr = AddEncodingFrame( this, ret, encoding, method, class, status );
 
 /* If a new Frame was added, remove the original current Frame. */
-   if( icurr != AST__NOFRAME ) astRemoveFrame( ret, icurr );
+      if( icurr != AST__NOFRAME ) astRemoveFrame( ret, icurr );
+   }
 
 /* Free resources. */
    if( specfrm ) specfrm = astAnnul( specfrm );
@@ -32494,7 +32633,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
             }
 
             if( cdelti != 0.0 ) {
-               double offset = 0.5*( dim + 1 );
+               double offset = 0.5*( (double) dim + 1.0 );
                dval = offset + AST__DR2D*palDrange( AST__DD2R*( dval - offset )*cdelti )/cdelti;
                SetValue( ret, FormatKey( "CRPIX", axlon + 1, -1, s, status ),
                          (void *) &dval, AST__FLOAT, CardComm( this, status ), status );
@@ -34006,12 +34145,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
 /* Obtain the number of physical axes in the header. If the WCSAXES header
    was specified, use it. Otherwise assume it is the same as the number
    of pixel axes. */
-   dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
-   if( dval != AST__BAD ) {
-      wcsaxes = (int) round( dval );
-   } else {
-      wcsaxes = store->naxis;
-   }
+   wcsaxes = GetWcsAxes( store, s, method, class, status );
 
 /* If the FitsChan does not support the -TAB algorithm, return a NULL
    pointer. */
@@ -36251,11 +36385,13 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
          } else if( !strcmp( ctype, "EL" ) || !strncmp( ctype, "EL--", 4 ) ){
             strcpy( wcscelestial_type, "AZL" );
             gotax = 1;
-         } else if( !strcmp( ctype + 1, "LAT" ) || !strncmp( ctype + 1, "LAT-", 4 ) ){
+         } else if( nc > 1 && ( !strcmp( ctype + 1, "LAT" ) ||
+                                !strncmp( ctype + 1, "LAT-", 4 ) ) ){
             wcscelestial_type[ 0 ] = ctype[ 0 ];
             wcscelestial_type[ 1 ] = 0;
             gotax = 1;
-         } else if( !strcmp( ctype + 2, "LT" ) || !strncmp( ctype + 2, "LT-", 3 ) ){
+         } else if( nc > 2 && ( !strcmp( ctype + 2, "LT" ) ||
+                                !strncmp( ctype + 2, "LT-", 3 ) ) ){
             wcscelestial_type[ 0 ] = ctype[ 0 ];
             wcscelestial_type[ 1 ] = ctype[ 1 ];
             wcscelestial_type[ 2 ] = 0;
@@ -38250,7 +38386,6 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
    const char *cc;           /* Pointer to Domain */
    double dtai;              /* TAI-UTC correction in seconds */
    double dut1;              /* UT1-UTC correction in days */
-   double dval;              /* Temporary double value */
    double reflat;            /* Reference celestial latitude */
    double reflon;            /* Reference celestial longitude */
    int *tabaxis;             /* Flags indicating -TAB axes */
@@ -38273,12 +38408,7 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
 /* Obtain the number of physical axes in the header. If the WCSAXES header
    was specified, use it. Otherwise assume it is the same as the number
    of pixel axes. */
-   dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
-   if( dval != AST__BAD ) {
-      wcsaxes = (int) round( dval );
-   } else {
-      wcsaxes = store->naxis;
-   }
+   wcsaxes = GetWcsAxes( store, s, method, class, status );
 
 /* Create a simple Frame to represent IWC coords. */
    iwcfrm = astFrame( wcsaxes, "Title=FITS Intermediate World Coordinates", status );

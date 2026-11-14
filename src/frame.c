@@ -325,6 +325,20 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        Move the permutation-array check into a new protected function
 *        astCheckPermArray, which takes the axis count explicitly. CheckPerm
 *        and the astLoadFrame and astLoadCmpFrame loaders now all share it.
+*     13-NOV-2026 (TIMJ):
+*        Limit a Frame to AST__MXAXES axes, in the constructor and in
+*        astLoadFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFrame, check that each Axis read is an Axis and that
+*        the variants are held in a FrameSet, and avoid an integer overflow
+*        when converting a permutation index of INT_MIN to a zero-based
+*        index.
+*     13-NOV-2026 (TIMJ):
+*        Added the protected function astCheckLoadedNaxes, for the loaders
+*        of classes that always have a particular number of axes.
+*     13-NOV-2026 (TIMJ):
+*        ResolvePoints: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -9962,8 +9976,13 @@ static AstPointSet *ResolvePoints( AstFrame *this, const double point1[],
 /* Free resources */
    basisv = astFree( basisv );
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -15054,6 +15073,11 @@ AstFrame *astInitFrame_( void *mem, size_t size, int init,
       astError( AST__NAXIN, "astInitFrame(%s): Number of axes (%d) is "
                 "invalid - this number should not be negative.", status, name, naxes );
 
+   } else if ( naxes > AST__MXAXES ) {
+      astError( AST__NAXIN, "astInitFrame(%s): Number of axes (%d) is "
+                "invalid - this number should not exceed %d.", status, name,
+                naxes, AST__MXAXES );
+
 /* Initialise a Mapping structure (the parent class) as the first
    component within the Frame structure, allocating memory if
    necessary. Set the number of input/output coordinates to zero (the
@@ -15270,13 +15294,20 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
    which hold axis information. */
       new->naxes = astReadInt( channel, "naxes", 0 );
       if ( new->naxes < 0 ) new->naxes = 0;
+      if ( astOK && new->naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astLoadFrame(%s): Number of axes (%d) read "
+                   "from the dump is invalid - this number should not "
+                   "exceed %d.", status, name, new->naxes, AST__MXAXES );
+      }
       new->perm = astMalloc( sizeof( int ) * (size_t) new->naxes );
       new->axis = astMalloc( sizeof( AstAxis * ) * (size_t) new->naxes );
 
-/* If an error occurred, ensure that any allocated memory is freed. */
+/* If an error occurred, ensure that any allocated memory is freed, and
+   that the Frame does not claim to have axes that it has no memory for. */
       if ( !astOK ) {
          new->perm = astFree( new->perm );
          new->axis = astFree( new->axis );
+         new->naxes = 0;
 
 /* Otherwise, initialise the array of Axis pointers. */
       } else {
@@ -15296,6 +15327,7 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Read the Axis object. If none was read, provide a default Axis
    instead. */
             new->axis[ axis ] = astReadObject( channel, key, NULL );
+            astCheckLoaded( new->axis[ axis ], Axis, 0, name, "Axis" );
             if ( !new->axis[ axis ] ) new->axis[ axis ] = astAxis( "", status );
 
 /* Label. */
@@ -15374,7 +15406,8 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Convert from 1-based to zero-based axis numbering at this
    point. The default is the "un-permuted" value. */
             sprintf( key, "prm%d", axis + 1 );
-            new->perm[ axis ] = astReadInt( channel, key, axis + 1 ) - 1;
+            ival = astReadInt( channel, key, axis + 1 );
+            new->perm[ axis ] = ( ival > 0 ) ? ival - 1 : -1;
 
 /* Quit looping if an error occurs. */
             if ( !astOK ) break;
@@ -15520,6 +15553,8 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Variants. */
 /* -------- */
          new->variants = astReadObject( channel, "vrnts", NULL );
+         astCheckLoaded( new->variants, FrameSet, 0, name,
+                         "FrameSet of variant Mappings" );
       }
 
 /* If an error occurred, clean up by deleting the new Frame. */
@@ -15531,6 +15566,59 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 
 /* Undefine macros local to this function. */
 #undef KEY_LEN
+}
+
+void astCheckLoadedNaxes_( AstFrame *this, const char *name, int naxes,
+                           int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoadedNaxes
+
+*  Purpose:
+*     Check the number of axes of a Frame read from a dump.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "frame.h"
+*     void astCheckLoadedNaxes( AstFrame *this, const char *name, int naxes )
+
+*  Class Membership:
+*     Frame member function.
+
+*  Description:
+*     astLoadFrame takes the number of axes of a Frame from a dump. Some
+*     classes of Frame always have a particular number of axes, which
+*     their constructors ensure and their other functions rely on. The
+*     loader for such a class should call this function, as soon as it
+*     has loaded its parent Frame structure, to report an error if the
+*     number read from the dump is not the one that the class requires.
+
+*  Parameters:
+*     this
+*        Pointer to the Frame.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     naxes
+*        The number of axes that the Frame must have.
+
+*  Notes:
+*     - An error with status AST__LDERR is reported if the Frame has a
+*     different number of axes.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Report an error if the number of axes is wrong. */
+   if ( astGetNaxes( this ) != naxes ) {
+      astError( AST__LDERR, "astLoad(%s): The %s read has %d axes, but a %s "
+                "must have %d.", status, name, name, astGetNaxes( this ),
+                name, naxes );
+   }
 }
 
 /* Virtual function interfaces. */

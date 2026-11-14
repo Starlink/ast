@@ -357,6 +357,11 @@
 *        multiplier in astEQUALS. Applying the multiplier first overflows
 *        to infinity for operands near the top of the range, which made
 *        every comparison against such a value report equality.
+*     13-NOV-2026 (TIMJ):
+*        Added the protected macro astCheckLoaded. Made astEQUALS report
+*        two identical values, or two NaNs, as equal. It did not find an
+*        infinite or NaN value equal to itself, so astSimplify never
+*        finished for a Mapping that held one.
 */
 
 /* Include files. */
@@ -1473,8 +1478,13 @@ int astTest##attribute##_( Ast##class *this, int *status ) { \
    when the relative comparison was applied to values of order
    DBL_EPSILON itself. The operands are scaled down by DBL_EPSILON before
    the multiplier is applied, since multiplying first overflows to
-   infinity for operands near the top of the range. */
-#define astEQUALS(aa,bb,tol) (((aa)==AST__BAD)?(((bb)==AST__BAD)?1:0):(((bb)==AST__BAD)?0:(fabs((aa)-(bb))<=astMAX((tol)*((fabs(aa)+fabs(bb))*DBL_EPSILON),1.0E-12))))
+   infinity for operands near the top of the range. Two values that are
+   identical are always equal, as are two NaNs. This matters for infinite
+   and NaN values, which the tolerance test never finds equal to anything,
+   themselves included, since their difference is a NaN. A function that
+   repeats a step until its result is equal to the previous one would
+   otherwise never stop once it had such a value. */
+#define astEQUALS(aa,bb,tol) ((((aa)==(bb))||(isnan(aa)&&isnan(bb)))?1:(((aa)==AST__BAD)?(((bb)==AST__BAD)?1:0):(((bb)==AST__BAD)?0:(fabs((aa)-(bb))<=astMAX((tol)*((fabs(aa)+fabs(bb))*DBL_EPSILON),1.0E-12)))))
 #define astEQUAL(aa,bb) astEQUALS(aa,bb,1.0E5)
 
 
@@ -1721,6 +1731,10 @@ void astInitObjectVtab_( AstObjectVtab *, const char *, int * );
 AstObject *astLoadObject_( void *, size_t, AstObjectVtab *,
                            const char *, AstChannel *channel, int * );
 
+/* Check on an Object read by a loader. */
+int astCheckLoaded_( void *, int, int, const char *, const char *,
+                     const char *, int * );
+
 #if defined(THREAD_SAFE)
 void astInitObjectGlobals_( AstObjectGlobals * );
 #endif
@@ -1864,6 +1878,12 @@ astINVOKE(O,astInitObject_(mem,size,init,vtab,name,STATUS_PTR))
 /* Loader. */
 #define astLoadObject(mem,size,vtab,name,channel) \
 astINVOKE(O,astLoadObject_(mem,size,vtab,name,astCheckChannel(channel),STATUS_PTR))
+
+/* Check that an Object read by a loader as a component of another Object
+   belongs to class "class" (given without quotes). See astCheckLoaded_ for
+   the other arguments. */
+#define astCheckLoaded(obj,class,needed,name,item) \
+astCheckLoaded_(obj,(obj)?astIsA##class(obj):0,needed,#class,name,item,STATUS_PTR)
 #endif
 
 /* Interfaces to other class functions. */

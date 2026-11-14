@@ -182,6 +182,8 @@ f     - AST_CURRENTTIME: Return the current system time
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for MJD day rounding
 *        to avoid platform-dependent results.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadTimeFrame, check that the dump supplied one axis.
 *class--
 */
 
@@ -7184,6 +7186,9 @@ AstTimeFrame *astLoadTimeFrame_( void *mem, size_t size,
    new = astLoadFrame( mem, size, (AstFrameVtab *) vtab, name,
                        channel );
    if ( astOK ) {
+
+/* A TimeFrame always has one axis, which the rest of this class relies on. */
+      astCheckLoadedNaxes( new, name, 1 );
 
 /* Read input data. */
 /* ================ */

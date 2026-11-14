@@ -101,6 +101,15 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   unavailable on Darwin, and every test here suppresses leak reports because
   AST's memory system caches freed blocks. Running this test under
   `ASAN_OPTIONS=detect_leaks=1` on Linux is the manual check.
+  For every projection type, at orders 0 to 3 and in both directions, it also checks that the number of pixel centres in the grid that are transformed is the number of HEALPix pixels on the sky, and that each makes the return trip.
+  The inverse transformation must also accept the unused second copy of each pixel of the facet that an HPX grid splits between its two ends, and return it as the used copy.
+  Positions too far from the grid for the index of a grid cell to fit in an integer, and positions that are not finite, must give AST__BAD.
+  So must every position outside the grid being transformed, for every type and direction, which a scan of the grid and its surroundings at orders 0 to 3 checks, along with positions just beyond the grid at order 27.
+  A position on the boundary of a used cell must be transformed to the position that continues the transformation of that cell or of another used cell that it bounds, and a position that bounds no used cell must give AST__BAD, which a scan of every cell corner and edge centre at orders 0 to 2 checks.
+  Every position of a pole (the centre or the corners of an XPH grid, and the outer corner of each polar facet of an HPX grid) must be transformed to a position of the same pole, at orders 0, 1, 3 and 27.
+  A position displaced off the edge of the sky by less than the margin the HPX projection allows for rounding must be transformed as the position on the edge is, and one displaced by much more must give AST__BAD.
+  An Order outside the range 0 to 27 must be rejected by the loader with AST__LDERR, and pixels at both ends of the grid must be transformed at order 27.
+  The conversion of the index of a far grid cell to an integer was undefined, which the test can mostly only detect under UndefinedBehaviorSanitizer.
 - testwcsmap — WcsMap projections at the points where AST's wcslib fork has
   differed from upstream wcslib 8.10: QSC near a face centre, HPX poles, facet
   edges and non-default H and K, the ZPN far side for a degree-2 polynomial,
@@ -108,6 +117,42 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   parentheses), and native coordinates a little past a limit, which wcslib's
   per-projection tolerance accepts. Wanted values are upstream's output for the
   same projection and parameters.
+- testcorruptinput — corrupt or malicious input must be rejected without a crash, memory corruption, or a run time or memory use out of proportion to its size.
+  Each case is a small dump or FITS header of the kind a fuzzer produces by changing one value of a valid input, and each made the library do one of those things.
+  It covers integers too large for an int, and the AST__MXAXES limit on the inputs, outputs and axes of a Mapping or Frame, in constructors and loaders.
+  It covers component objects that are missing from a dump or belong to the wrong class, Regions whose defining points are missing or the wrong number or whose components have the wrong number of axes, and a PointSet that claims more values than a dump can hold.
+  For a FrameSet it covers more Frames or nodes claimed than are present, node links that form a loop, and Mappings and Frames that disagree about the number of axes.
+  It covers Frames with the wrong number of axes for their class, a SkyFrame whose axes are not described, loaders that carry on after an error, a PermMap that refers to a constant it does not have, a full MatrixMap with more elements than can be counted or named, a SplineMap given a position that is not a number, a KeyMap that asks for a huge hash table, and sky positions and Epochs too large to format or to bring into range one turn at a time.
+  For FITS headers it covers a WCSAXES value that is not a usable number of axes, CTYPE values of fewer than three characters, an IRAF WAT card with no string value, a header whose transformation fails part of the way through a compound Mapping, and a pixel size so small that its reciprocal is infinite.
+  It covers text of any length (values, Labels, Domains and Units far longer than the fixed buffers that error messages, warnings, titles and formatted values are written into), and a Format string that asks `sprintf` for values that are not there.
+  It covers astMapSplit on a compound Mapping in which a MatrixMap or WcsMap couples two of twelve axes, and FITS headers with twenty WCS axes and two pixel axes, both of which used to take a time that grew faster than the factorial of the number of axes.
+  Run it with the sanitizers enabled, which is how most of the faults are detected.
+  Some of the buffer overflows are inside a larger structure when AST is built thread-safe, where the sanitizers cannot see them; an optimized build with `_FORTIFY_SOURCE` traps on those.
+- testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
+  For PolyMap, LutMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
+  For each class of Mapping that can only have particular numbers of inputs and outputs, it changes Nin and Nout in the dump of a valid Mapping and requires the result to be rejected, and it checks that a Mapping, Frame or Region encapsulated by another Mapping cannot be left out of a dump or replaced by an object of another class.
+  The DssMap check is made by testdssmap, since a DssMap has no public constructor.
+  It also checks that objects built by the constructors survive a dump and load (including a WcsMap of type AST__WCSBAD, whose axis indices are not checked), that a LutMap loaded with fewer than two good table values has no inverse, that a SplineMap whose end knots are not coincident gives AST__BAD outside the interval over which its spline is defined, and that astMalloc, astCalloc, astRealloc and astGrow report an error for a size that overflows.
+- testplotclip — a Plot must report an error raised while transforming positions into its clipping Frame without annulling the PointSet that its caller supplied.
+  The clipping Frame is reached through an IntraMap that fails on request.
+  The double annul is a use of freed memory, so the test is only decisive under AddressSanitizer.
+- testplotcopy — a copy of a Plot must own its graphics context KeyMap: it starts with the original's contents, changes independently, and is released separately.
+  It also copies a Plot3D and annuls the original and the copy in either order.
+  Releasing the KeyMap twice is a use of freed memory, so that part of the test is only decisive under AddressSanitizer.
+- testpolymapinv — a PolyMap must only offer an iterative inverse when it has a forward transformation to iterate.
+  It checks the IterInverse default and TranInverse for PolyMaps with no coefficients, with inverse coefficients only and with forward coefficients only, that asking for an iterative inverse without a forward transformation is an error (through the attribute, the constructor options and a dump), and that the iterative inverse of a forward-only PolyMap still inverts it.
+- testsplinemapedge — SplineMap values on the edges of the area covered by its knots.
+  A bilinear and a constant SplineMap with a single knot interval on each axis, and SplineMaps with one interval on one axis and two on the other, must give the exact spline value on every edge and corner, and AST__BAD just outside.
+  A SplineMap whose knots are all equal on one axis covers no area and must give AST__BAD rather than NaN.
+- testdssmap — the DssMap class, which AST no longer creates and which can only be reached by loading a dump written by an older version.
+  Using the dump in fixtures/serialisation/c_dssmap.ast, it checks the sky positions of pixels on the plate and the return trip, that sky positions on the far side of the sky from the plate centre and positions too large for the plate solution give AST__BAD, and that a dump is rejected if a required value is missing, if it does not have two inputs and two outputs, or if its plate centre or pixel offsets are too large for the DSS FITS keywords.
+  It also checks that a DssMap absorbs a neighbouring WinMap on simplification only when the new pixel offsets are whole numbers of pixels that an integer can hold.
+  The conversion of an oversized pixel offset to an integer was undefined, which the test can only detect under UndefinedBehaviorSanitizer.
+- testmoccds — the Moc class against the CDS HEALPix library.
+  The expected values were computed with cdshealpix 0.10.1 as used by cds-moc 0.19.3, the library that MOCPy is built on, and are held in tables in the test.
+  It checks the cell that holds each of 20 sky positions at six orders from 0 to 27, many of them on a cell boundary, on a meridian where the HEALPix projections used by the Moc class are cut, or at a pole.
+  It checks the cells of the Mocs of 65 Circles, including Circles centred on such positions, Circles that cover more than half the sky and Mocs with a MaxOrder of zero, and of the Mocs of 12 Polygons.
+  It checks that string and JSON MOCs written by cds-moc are read correctly, and that AST writes a string MOC with spaces between its cells.
 
 **Optional manual stress test:**
 - testhuge_c
