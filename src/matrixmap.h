@@ -259,6 +259,7 @@ AstMatrixMap *astLoadMatrixMap_( void *, size_t, AstMatrixMapVtab *,
 AstMatrixMap *astMtrRot_( AstMatrixMap *, double, const double[], int * );
 AstMatrixMap *astMtrMult_( AstMatrixMap *, AstMatrixMap *, int * );
 AstMatrixMap *astMtrZoom_( AstMatrixMap *,  double, int * );
+int *astMtrSplitInputs_( AstMatrixMap *, int, const int *, int *, int * );
 int astMtrEuler_( AstMatrixMap *, int, double[3], int * );
 double *astMtrGet_( AstMatrixMap *, int, int, int *, int * );
 int astIsDiagonal_( AstMatrixMap *, int * );
@@ -319,6 +320,9 @@ astINVOKE(O,astMtrMult_(astCheckMatrixMap(this),astCheckMatrixMap(a),STATUS_PTR)
 
 #define astMtrZoom(this,zoom) \
 astINVOKE(O,astMtrZoom_(astCheckMatrixMap(this),zoom,STATUS_PTR))
+
+#define astMtrSplitInputs(this,nout,out,nin) \
+astINVOKE(V,astMtrSplitInputs_(astCheckMatrixMap(this),nout,out,nin,STATUS_PTR))
 
 #define astMtrEuler(this,order,euler) \
 astINVOKE(V,astMtrEuler_(astCheckMatrixMap(this),order,euler,STATUS_PTR))
