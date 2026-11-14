@@ -42,6 +42,14 @@
 *         table.
 *       - Large values: a sky position or an Epoch that is too large to
 *         format or to bring into range one turn at a time.
+*       - Text of any length: values, Labels, Domains and Units that are
+*         far longer than the fixed buffers into which error messages,
+*         warnings, titles and formatted values used to be written without
+*         a check, and a Format string that asks "sprintf" for values that
+*         are not there.
+*       - Splitting: a compound Mapping in which a MatrixMap or WcsMap
+*         couples two of many axes, for which astMapSplit used to try
+*         every arrangement of every subset of the axes.
 *       - FITS headers: a WCSAXES value that is not a usable number of
 *         axes, CTYPE values of fewer than three characters, an IRAF WAT
 *         card with no string value, a header whose transformation fails
@@ -706,6 +714,213 @@ static int test_large_values( void ) {
    return nfail;
 }
 
+/* Return a dump made by joining "head", "nfill" copies of the character
+   "fill", and "tail".  It should be freed using astFree. */
+static char *long_dump( const char *head, int nfill, char fill,
+                        const char *tail ) {
+   size_t nh = strlen( head );
+   char *dump = astMalloc( nh + (size_t) nfill + strlen( tail ) + 1 );
+   if ( dump ) {
+      memcpy( dump, head, nh );
+      memset( dump + nh, fill, (size_t) nfill );
+      strcpy( dump + nh + nfill, tail );
+   }
+   return dump;
+}
+
+/* Text that is longer than the buffers it used to be copied into. */
+static int test_long_text( void ) {
+   AstFrame *frm;
+   AstFrame *frm2;
+   AstFrame *cmp;
+   AstObject *obj;
+   char *dump;
+   const char *text;
+   int i;
+   int nfail = 0;
+
+/* A value that cannot be read as an integer is quoted in the error
+   message, which was formatted on the stack in 1024 characters. */
+   dump = long_dump( " Begin Frame\n Naxes = ", 5000, '7', "\n End Frame\n" );
+   nfail += check_rejected( "Frame with 5000 digits as its Naxes", dump,
+                            AST__BADIN );
+   dump = astFree( dump );
+   dump = long_dump( " Begin Frame\n Naxes = 1\n System = \"", 5000, 'S',
+                     "\"\n End Frame\n" );
+   nfail += check_rejected( "Frame with 5000 characters as its System", dump,
+                            AST__ATTIN );
+   dump = astFree( dump );
+
+/* An item that is not recognised is quoted in a warning, which was
+   formatted on the stack in 201 characters. */
+   dump = long_dump( " Begin Frame\n Naxes = 1\n Junk = \"", 5000, 'J',
+                     "\"\n End Frame\n" );
+   obj = astFromString( dump );
+   if ( !astOK ) astClearStatus;
+   if ( obj ) obj = astAnnul( obj );
+   dump = astFree( dump );
+
+/* The default Domain of a CmpFrame joins the Domains of its components,
+   and its default Title and Labels are made in the same way, all in
+   buffers of a fixed size. */
+   dump = long_dump( " Begin Frame\n Naxes = 1\n Domain = \"", 300, 'D',
+                     "\"\n Lbl1 = \"A long label\"\n Uni1 = \"km\"\n"
+                     " End Frame\n" );
+   frm = (AstFrame *) astFromString( dump );
+   dump = astFree( dump );
+   cmp = frm ? (AstFrame *) astCmpFrame( frm, frm, " " ) : NULL;
+   for ( i = 0; i < 4 && cmp; i++ ) {
+      frm2 = (AstFrame *) astCmpFrame( cmp, frm, " " );
+      cmp = astAnnul( cmp );
+      cmp = frm2;
+   }
+   text = cmp ? astGetC( cmp, "Domain" ) : NULL;
+   if ( !astOK || !text || strlen( text ) > 100 || text[ 0 ] != 'D' ) {
+      fprintf( stderr, "testcorruptinput: the Domain of a CmpFrame of Frames "
+               "with long Domains was \"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+   if ( cmp ) {
+      (void) astGetC( cmp, "Title" );
+      (void) astGetC( cmp, "Label(1)" );
+      dump = astToString( cmp );
+      dump = astFree( dump );
+      cmp = astAnnul( cmp );
+   }
+   if ( frm ) frm = astAnnul( frm );
+   if ( !astOK ) astClearStatus;
+
+/* The default Title of a SpecFluxFrame joins the Labels of its
+   components, and that of a FluxFrame includes a Unit. */
+   dump = long_dump( " Begin SpecFluxFrame\n IsA Frame\n FrameA =\n"
+                     " Begin SpecFrame\n Naxes = 1\n Lbl1 = \"", 400, 'L',
+                     "\"\n IsA Frame\n End SpecFrame\n FrameB =\n"
+                     " Begin FluxFrame\n Naxes = 1\n IsA Frame\n"
+                     " End FluxFrame\n IsA CmpFrame\n End SpecFluxFrame\n" );
+   obj = astFromString( dump );
+   dump = astFree( dump );
+   if ( obj ) {
+      (void) astGetC( obj, "Title" );
+      obj = astAnnul( obj );
+   }
+   if ( !astOK ) astClearStatus;
+
+/* A Format is a "printf" format for the one axis value. A Format that asks
+   for anything else is refused when it is used, as is one that needs more
+   room than there is. */
+   frm = astFrame( 1, " " );
+   astSetC( frm, "Format(1)", "%.3lf metres" );
+   text = astFormat( frm, 1, 1.5 );
+   if ( !astOK || !text || strcmp( text, "1.500 metres" ) ) {
+      fprintf( stderr, "testcorruptinput: 1.5 was formatted as \"%s\"\n",
+               text ? text : "" );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   astSetC( frm, "Format(1)", "%5d%%" );
+   text = astFormat( frm, 1, 42.0 );
+   if ( !astOK || !text || strcmp( text, "   42%" ) ) {
+      fprintf( stderr, "testcorruptinput: 42 was formatted as \"%s\"\n",
+               text ? text : "" );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   {
+      const char *bad[] = { "%s", "%n", "%s%s%s%s", "%.2f and %s", "%*d",
+                            "%Lf", "%ld", "%.2f %.2f", "%p", "%.500f",
+                            "%500.1f" };
+      for ( i = 0; i < (int) ( sizeof( bad )/sizeof( bad[ 0 ] ) ); i++ ) {
+         astSetC( frm, "Format(1)", bad[ i ] );
+         if ( !astOK ) astClearStatus;
+         text = astFormat( frm, 1, 1.5 );
+         if ( astOK || astStatus != AST__FMTER ) {
+            fprintf( stderr, "testcorruptinput: the Format \"%s\" gave "
+                     "status %d and \"%s\"\n", bad[ i ], astStatus,
+                     text ? text : "" );
+            nfail++;
+         }
+         if ( !astOK ) astClearStatus;
+      }
+   }
+   frm = astAnnul( frm );
+
+/* The same Format read from a dump. */
+   frm = (AstFrame *) astFromString( " Begin Frame\n Naxes = 1\n"
+                                     " Fmt1 = \"%s%n\"\n End Frame\n" );
+   if ( frm ) {
+      (void) astFormat( frm, 1, 1.5 );
+      nfail += check_failed( "astFormat with a Format of %s%n from a dump",
+                             NULL, AST__FMTER );
+      frm = astAnnul( frm );
+   }
+   if ( !astOK ) astClearStatus;
+   return nfail;
+}
+
+/* Splitting a Mapping in which two of many axes are coupled. */
+static int test_split( void ) {
+#define NAX 12
+   AstCmpMap *cmp;
+   AstMapping *map;
+   AstMapping *part;
+   double matrix[ NAX*NAX ];
+   int inperm[ NAX ];
+   int outperm[ 2 ];
+   int in[ 2 ];
+   int out[ NAX ];
+   int i;
+   int nfail = 0;
+   int which;
+
+/* The first of two Mappings in series has NAX axes, of which the second
+   and third are coupled, and the rest are independent. It is a MatrixMap
+   that rotates them, and then a WcsMap for which they are longitude and
+   latitude. The second Mapping keeps just those two axes. */
+   for ( which = 0; which < 2; which++ ) {
+      if ( which == 0 ) {
+         for ( i = 0; i < NAX*NAX; i++ ) matrix[ i ] = 0.0;
+         for ( i = 0; i < NAX; i++ ) matrix[ i*NAX + i ] = 1.0;
+         matrix[ 1*NAX + 2 ] = 0.5;
+         matrix[ 2*NAX + 1 ] = -0.5;
+         map = (AstMapping *) astMatrixMap( NAX, NAX, 0, matrix, " " );
+      } else {
+         map = (AstMapping *) astWcsMap( NAX, AST__TAN, 2, 3, " " );
+      }
+      for ( i = 0; i < NAX; i++ ) inperm[ i ] = 0;
+      inperm[ 1 ] = 1;
+      inperm[ 2 ] = 2;
+      outperm[ 0 ] = 2;
+      outperm[ 1 ] = 3;
+      cmp = astCmpMap( map, astPermMap( NAX, inperm, 2, outperm, NULL, " " ),
+                       1, " " );
+
+/* Neither coupled axis can be split off alone. */
+      in[ 0 ] = 2;
+      astMapSplit( cmp, 1, in, out, &part );
+      if ( part || !astOK ) {
+         fprintf( stderr, "testcorruptinput: astMapSplit split one of two "
+                  "coupled axes from a %s\n", astGetC( map, "Class" ) );
+         nfail++;
+         if ( part ) part = astAnnul( part );
+      }
+
+/* The two can be split off together, and feed both outputs. */
+      in[ 0 ] = 2;
+      in[ 1 ] = 3;
+      astMapSplit( cmp, 2, in, out, &part );
+      if ( !part || !astOK || astGetI( part, "Nout" ) != 2 ||
+           out[ 0 ] != 1 || out[ 1 ] != 2 ) {
+         fprintf( stderr, "testcorruptinput: astMapSplit did not split two "
+                  "coupled axes from a %s\n", astGetC( map, "Class" ) );
+         nfail++;
+      }
+      if ( part ) part = astAnnul( part );
+      if ( !astOK ) astClearStatus;
+   }
+   return nfail;
+#undef NAX
+}
+
 /* Read an object from a FITS header given as an array of "ncard" cards.
    Returns NULL if nothing could be read. */
 static AstObject *read_header( const char *cards[], int ncard ) {
@@ -901,6 +1116,32 @@ static int test_fits( void ) {
       "CUNIT1  = 'Hz'",
       "SPECSYS = 'BARYCENT'",
       "RESTFRQ =             1.4204E9" };
+/* More WCS axes than pixel axes, which FITS allows. The two pixel axes
+   are rotated, or are celestial axes. Writing either out again used to
+   take a time that grew faster than the factorial of the number of WCS
+   axes, and was minutes for nine of them. */
+   const char *rotated[] = {
+      "WCSAXES =                   20",
+      "CTYPE1  = 'PIXEL'",
+      "CTYPE2  = 'PIXEL'",
+      "CRVAL1  =                  0.0",
+      "CRVAL2  =                  0.0",
+      "CRPIX1  =                 50.0",
+      "CRPIX2  =                 50.0",
+      "CD1_1   =                  1.0",
+      "CD1_2   =                  0.5",
+      "CD2_1   =                 -0.5",
+      "CD2_2   =                  1.0" };
+   const char *skyaxes[] = {
+      "WCSAXES =                   20",
+      "CTYPE1  = 'RA---TAN'",
+      "CTYPE2  = 'DEC--TAN'",
+      "CRVAL1  =                180.0",
+      "CRVAL2  =                 45.0",
+      "CRPIX1  =                256.5",
+      "CRPIX2  =                256.5",
+      "CDELT1  =              -0.0003",
+      "CDELT2  =               0.0003" };
    const char *bigeqx[] = {
       "CTYPE1  = 'RA---TAN'",
       "CTYPE2  = 'DEC--TAN'",
@@ -936,6 +1177,8 @@ static int test_fits( void ) {
    nfail += check_survives( bigval, NCARD( bigval ) );
    nfail += check_survives( bigeqx, NCARD( bigeqx ) );
    nfail += check_survives( tiny, NCARD( tiny ) );
+   nfail += check_survives( rotated, NCARD( rotated ) );
+   nfail += check_survives( skyaxes, NCARD( skyaxes ) );
    nfail += check_survives( logax, NCARD( logax ) );
    nfail += check_survives( tinyrf, NCARD( tinyrf ) );
    nfail += check_survives( spec2, NCARD( spec2 ) );
@@ -978,6 +1221,8 @@ int main( void ) {
    nfail += test_frames();
    nfail += test_mappings();
    nfail += test_large_values();
+   nfail += test_long_text();
+   nfail += test_split();
    nfail += test_fits();
 
    astEnd;
