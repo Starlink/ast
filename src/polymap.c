@@ -203,6 +203,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        be requested, for a PolyMap that has no forward transformation.
 *        The iterative inverse evaluates the forward transformation, so
 *        using it for such a PolyMap read the missing coefficient arrays.
+*     14-NOV-2026 (TIMJ):
+*        MapMerge: restore the Invert attribute of a PolyMap that is
+*        cancelled against its own inverse. The PolyMap may be in use
+*        elsewhere, and was left with the value used in the Mapping list.
 *class--
 */
 
@@ -4001,7 +4005,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          if( !ok ) continue;
 
 /* If we get this far, then the nominated PolyMap and the current
-   neighbour cancel each other out, so replace each by a UnitMap. */
+   neighbour cancel each other out, so replace each by a UnitMap. First
+   re-instate the original value of the Invert flag in the nominated
+   PolyMap, since other pointers to it may exist. */
+         astSetInvert( pmap0, oldinv0 );
          pmap0 = astAnnul( pmap0 );
          pmap1 = astAnnul( pmap1 );
          if( i < where ) {
