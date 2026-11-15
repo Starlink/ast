@@ -213,6 +213,30 @@ f     The MatrixMap class does not define any new routines beyond those
 *        Added the protected function astMtrSplitInputs, which finds the
 *        inputs that astMapSplit must be given to split off a given set
 *        of outputs.
+*     14-NOV-2026 (TIMJ):
+*        MapMerge:
+*        - Only merge a diagonal MatrixMap with a WinMap if the matrix is
+*        square. The merged WinMap had the wrong number of axes, and
+*        was made by reading beyond the end of an array.
+*        - Do not merge or swap a MatrixMap if the matrix it applies is
+*        undefined or contains bad values, or if the result would. An
+*        error was reported, so that a Mapping containing (say) the
+*        inverse of a singular matrix could not be simplified at all.
+*        - Keep the direction in which a full matrix is used when it is
+*        replaced by a diagonal one. An inverted full matrix with zero
+*        off-diagonal elements was replaced by its own inverse.
+*        - Do not replace a diagonal matrix by a ZoomMap if the zoom
+*        factor would be bad.
+*        - Only swap a MatrixMap with a following WinMap if the matrix
+*        is square and can be inverted, which is needed to find the
+*        shifts of the new WinMap.
+*        - Do not swap a MatrixMap with a preceding WinMap if the WinMap
+*        shifts an axis that the MatrixMap discards. The inverse
+*        transformation was changed by the swap.
+*        Added the protected functions astMtrProduct, which multiplies
+*        two MatrixMaps only if the product is usable, and astMtrUsable,
+*        which indicates if the matrix applied by a MatrixMap is defined
+*        and free of bad values.
 *class--
 */
 
@@ -318,6 +342,7 @@ static AstMatrixMap *MatMat( AstMapping *, AstMapping *, int, int, int * );
 static AstMatrixMap *MatPerm( AstMatrixMap *, AstPermMap *, int, int, int, int * );
 static AstMatrixMap *MatZoom( AstMatrixMap *, AstZoomMap *, int, int, int * );
 static AstMatrixMap *MtrMult( AstMatrixMap *, AstMatrixMap *, int * );
+static AstMatrixMap *Multiply( AstMatrixMap *, AstMatrixMap *, int, int * );
 static AstMatrixMap *MtrZoom( AstMatrixMap *, double, int * );
 static AstMatrixMap *MtrRot( AstMatrixMap *, double, const double[], int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
@@ -336,6 +361,7 @@ static int GetTranInverse( AstMapping *, int * );
 static int IsDiagonal( AstMatrixMap *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int MtrEuler( AstMatrixMap *, int, double[3], int * );
+static int FwdUsable( AstMatrixMap *, int, int * );
 static int PermOK( AstMapping *, int * );
 static int ScalingRowCol( AstMatrixMap *, int, int * );
 static int Ustrcmp( const char *, const char *, int * );
@@ -345,7 +371,7 @@ static void Delete( AstObject *obj, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void ExpandMatrix( AstMatrixMap *, int * );
 static void MatPermSwap( AstMapping **, int *, int, int * );
-static void MatWin( AstMapping **, int *, int, int * );
+static int MatWin( AstMapping **, int *, int, int * );
 static void PermGet( AstPermMap *, int **, int **, double **, int * );
 static void SMtrMult( int, int, int, const double *, double *, double*, int * );
 
@@ -474,11 +500,12 @@ static int CanSwap( AstMapping *map1, AstMapping *map2, int inv1, int inv2,
       value. */
 
 /* Check the other Mapping is a PermMap, and that the MatrixMap is square
-   and has an inverse. */
+   and has an inverse. Both the matrix and its inverse are used to swap
+   the Mappings, so neither may contain a bad value. */
       } else if( !strcmp( nomat_class, "PermMap" ) &&
-                 nax == astGetNout( mat ) && ( mat->form == UNIT ||
-                 ( mat->i_matrix != NULL &&
-                   mat->f_matrix != NULL ) ) ) {
+                 nax == astGetNout( mat ) &&
+                 FwdUsable( mat, 0, status ) &&
+                 FwdUsable( mat, 1, status ) ) {
 
 /* Get the number of input and output coordinates for the PermMap. */
          nin = astGetNin( nomat );
@@ -1827,8 +1854,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    int i2;               /* Index of last MatrixMap to merge */
    int i;                /* Loop counter */
    int ic[2];            /* Copies of supplied invert flags to swap */
+   int inv2;             /* Should the replacement Mapping be inverted? */
    int invert;           /* Should the inverted Mapping be used? */
    int j;                /* Loop counter */
+   int ngood;            /* Number of good diagonal elements */
    int nin;              /* Number of input coordinates for MatrixMap */
    int nmapt;            /* No. of Mappings in list */
    int nout;             /* Number of output coordinates for MatrixMap */
@@ -1837,6 +1866,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    int result;           /* Result value to return */
    int swaphi;           /* Can MatrixMap be swapped with higher neighbour? */
    int swaplo;           /* Can MatrixMap be swapped with lower neighbour? */
+   int swapped;          /* Were the Mappings swapped? */
    int zoom;             /* Can MatrixMap be replaced by a ZoomMap? */
 
 /* Initialise. */
@@ -1870,6 +1900,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    without reference to the neighbouring Mappings in the list.           */
 /* ======================================================================*/
    map2 = NULL;
+   inv2 = 0;
    mm = (AstMatrixMap *) ( *map_list )[ where ];
 
 /* If the MatrixMap is a square unit matrix, it can be replaced by a
@@ -1900,20 +1931,23 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
             factor = (mm->f_matrix)[ 0 ];
          }
 
-         if( factor != 0.0 ){
+         if( factor != 0.0 && factor != AST__BAD ){
             map2 = (AstMapping *) astZoomMap( nin, factor, "", status );
          }
       }
 
 /* If the MatrixMap is a full matrix but all off-diagonal elements are
-   zero, it can be replaced by a diagonal MatrixMap. */
+   zero, it can be replaced by a diagonal MatrixMap. A diagonal MatrixMap
+   cannot be made from diagonal elements that are all bad. */
    } else if( mm->form == FULL && nin == nout && mm->f_matrix ){
       new_mat = astMalloc( sizeof( double )*nin );
       b = mm->f_matrix;
+      ngood = 0;
       for( i = 0; i < nin && new_mat; i++ ){
          for( j = 0; j < nout; j++,b++ ){
             if( i == j ) {
                new_mat[ i ] = *b;
+               if( *b != AST__BAD ) ngood++;
             } else if( *b != 0.0 ) {
                new_mat = astFree( new_mat );
                break;
@@ -1921,20 +1955,23 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          }
       }
 
-      if( new_mat ) {
+/* The elements are those of the forward matrix, so the new MatrixMap is
+   equivalent to the old one, and is to be used in the same direction. */
+      if( new_mat && ngood > 0 ) {
          map2 = (AstMapping *) astMatrixMap( nin, nout, 1, new_mat, "",
                                              status );
-         new_mat = astFree( new_mat );
+         inv2 = ( *invert_list )[ where ];
       }
+      new_mat = astFree( new_mat );
    }
 
 /* If the MatrixMap can be replaced, annul the MatrixMap pointer in the
-   list and replace it with the new Mapping pointer, and indicate that the
-   forward transformation of the returned Mapping should be used. */
+   list and replace it with the new Mapping pointer, and indicate the
+   direction in which the returned Mapping should be used. */
    if( map2 ){
       (void) astAnnul( ( *map_list )[ where ] );
       ( *map_list )[ where ] = map2;
-      ( *invert_list )[ where ] = 0;
+      ( *invert_list )[ where ] = inv2;
 
 /* Return the index of the first modified element. */
       result = where;
@@ -1982,8 +2019,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          if( nclass && !strcmp( nclass, "PermMap" ) &&
              !PermOK( ( *map_list )[ (i1==where)?i2:i1 ], status ) ) nclass = NULL;
 
-/* If the MatrixMap is diagonal it can also merge with a WinMap. */
-         if( !nclass && mm->form == DIAGONAL) {
+/* If the MatrixMap is diagonal and square it can also merge with a
+   WinMap (a WinMap has equal numbers of inputs and outputs, so the result
+   of merging one with a matrix that is not square cannot be a WinMap). */
+         if( !nclass && mm->form == DIAGONAL && nin == nout ) {
             if( class1 && ( !strcmp( class1, "WinMap" ) ) ){
                nclass = class1;
                i1 = where - 1;
@@ -1994,6 +2033,22 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                i1 = where;
                i2 = where + 1;
 
+            }
+         }
+
+/* All these mergers, except the one with a UnitMap, use the matrix that
+   the MatrixMap applies in the direction in which it is used in the list.
+   A merger with another MatrixMap uses the matrix of that one as well. The
+   merged Mapping cannot be found if such a matrix is undefined (as the
+   inverse of a singular matrix is), and may itself be undefined if the
+   matrix contains bad values, so do not merge in either case. */
+         if( nclass && strcmp( nclass, "UnitMap" ) ) {
+            if( !FwdUsable( mm, ( *invert_list )[ where ], status ) ) {
+               nclass = NULL;
+            } else if( !strcmp( nclass, "MatrixMap" ) ) {
+               i = ( i1 == where ) ? i2 : i1;
+               if( !FwdUsable( (AstMatrixMap *) ( *map_list )[ i ],
+                               ( *invert_list )[ i ], status ) ) nclass = NULL;
             }
          }
 
@@ -2047,8 +2102,9 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                invert = ( *invert_list )[ where ];
             }
 
-/* If succesfull... */
-            if( astOK ){
+/* If succesfull (no merged Mapping is returned if it would not be a
+   faithful replacement for the two supplied)... */
+            if( astOK && newmap ){
 
 /* Annul the first of the two Mappings, and replace it with the merged
    MatrixMap. Also set the invert flag. */
@@ -2185,16 +2241,17 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    bring the MatrixMap closer to the target Mapping. */
             if( nclass ){
 
-/* Swap the Mappings. */
+/* Swap the Mappings. A WinMap cannot always be swapped. */
+               swapped = 1;
                if (!strcmp( nclass, "WinMap" ) ){
-                  MatWin( (*map_list) + i1, (*invert_list) + i1, where - i1, status );
+                  swapped = MatWin( (*map_list) + i1, (*invert_list) + i1, where - i1, status );
 
                } else if( !strcmp( nclass, "PermMap" ) ){
                   MatPermSwap( (*map_list) + i1, (*invert_list) + i1, where - i1, status );
                }
 
-/* And then merge them. */
-               if( where == i1 && where + 1 < *nmap ) {    /* Merging upwards */
+/* And then merge them, if they were swapped. */
+               if( swapped && where == i1 && where + 1 < *nmap ) { /* Merging upwards */
                   map2 = astClone( (*map_list)[ where + 1 ] );
                   nmapt = *nmap - where - 1;
                   maplt = *map_list + where + 1;
@@ -2204,7 +2261,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   map2 = astAnnul( map2 );
                   *nmap = where + 1 + nmapt;
 
-               } else if( where - 2 >= 0 ) {               /* Merging downwards */
+               } else if( swapped && where - 2 >= 0 ) {    /* Merging downwards */
                   map2 = astClone( (*map_list)[ where - 2 ] );
                   nmapt = *nmap - where + 2;
                   maplt = *map_list + where - 2 ;
@@ -2215,7 +2272,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   *nmap = where - 2 + nmapt;
                }
 
-               result = i1;
+               if( swapped ) result = i1;
 
 /* If there is no Mapping available for merging, it may still be
    advantageous to swap with a neighbour because the swapped Mapping may
@@ -2252,20 +2309,23 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                      ic[ 0 ] = ( (*invert_list) + i1 )[0];
                      ic[ 1 ] = ( (*invert_list) + i1 )[1];
 
-/* Swap these Mappings. */
+/* Swap these Mappings. A WinMap cannot always be swapped. */
+                     swapped = 1;
                      if( !strcmp( nclass, "WinMap" ) ){
-                        MatWin( mc, ic, where - i1, status );
+                        swapped = MatWin( mc, ic, where - i1, status );
                      } else if( !strcmp( nclass, "PermMap" ) ){
                         MatPermSwap( mc, ic, where - i1, status );
                      }
 
-/* If neither of the swapped Mappings can be simplified further, then there
-   is no point in swapping the Mappings, so just annul the map copies. */
+/* If the Mappings were not swapped, or neither of the swapped Mappings can
+   be simplified further, then there is no point in swapping the Mappings,
+   so just annul the map copies. */
                      smc0 = astSimplify( mc[0] );
                      smc1 = astSimplify( mc[1] );
 
-                     if( astGetClass( smc0 ) == astGetClass( mc[0] ) &&
-                         astGetClass( smc1 ) == astGetClass( mc[1] ) ) {
+                     if( !swapped ||
+                         ( astGetClass( smc0 ) == astGetClass( mc[0] ) &&
+                           astGetClass( smc1 ) == astGetClass( mc[1] ) ) ) {
 
                         mc[ 0 ] = (AstMapping *) astAnnul( mc[ 0 ] );
                         mc[ 1 ] = (AstMapping *) astAnnul( mc[ 1 ] );
@@ -2622,8 +2682,10 @@ static AstMatrixMap *MatMat( AstMapping *map1, AstMapping *map2, int inv1,
    invert[ 1 ] = astGetInvert( map2 );
    astSetInvert( map2, inv2 );
 
-/* Create a new MatrixMap by multiplying them together. */
-   result = astMtrMult( (AstMatrixMap *) map1, (AstMatrixMap *) map2 );
+/* Create a new MatrixMap by multiplying them together, if the product is
+   usable. */
+   result = Multiply( (AstMatrixMap *) map1, (AstMatrixMap *) map2, 1,
+                      status );
 
 /* Re-instate the original settings of the Invert attributes for the
    supplied MatrixMaps. */
@@ -2759,9 +2821,9 @@ static AstMatrixMap *MatPerm( AstMatrixMap *mm, AstPermMap *pm, int minv,
 /* Create a new MatrixMap equal to the product of the supplied MatrixMap
    and the MatrixMap just created from the PermMap. */
       if( mat1 ){
-         result = astMtrMult( mm, mm2 );
+         result = Multiply( mm, mm2, 1, status );
       } else {
-         result = astMtrMult( mm2, mm );
+         result = Multiply( mm2, mm, 1, status );
       }
 
 /* Free everything. */
@@ -3079,7 +3141,7 @@ static void MatPermSwap( AstMapping **maps, int *inverts, int imm, int *status )
    return;
 }
 
-static void MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
+static int MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
 /*
 *  Name:
 *     MatWin
@@ -3092,7 +3154,7 @@ static void MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
 
 *  Synopsis:
 *     #include "matrixmap.h"
-*     void MatWin( AstMapping **maps, int *inverts, int imm, int *status )
+*     int MatWin( AstMapping **maps, int *inverts, int imm, int *status )
 
 *  Class Membership:
 *     WinMap member function
@@ -3117,6 +3179,22 @@ static void MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
 *     status
 *        Pointer to the inherited status variable.
 
+*  Returned Value:
+*     Non-zero if the Mappings were swapped. Zero if they cannot be
+*     swapped, in which case the supplied Mappings and invert flags are
+*     left unchanged.
+
+*  Notes:
+*     -  The Mappings cannot be swapped if any term of the WinMap is
+*     undefined, or if the matrix applied by the MatrixMap is undefined
+*     or contains a bad value.
+*     -  If the MatrixMap is applied first, the shift terms of the new
+*     WinMap are found using the inverse of the new MatrixMap, so the
+*     Mappings cannot then be swapped unless the matrix is square and
+*     can be inverted.
+*     -  If the WinMap is applied first, the Mappings cannot be swapped
+*     if the WinMap shifts an axis that the MatrixMap discards, or scales
+*     it by zero, unless the MatrixMap has no inverse transformation.
 */
 
 /* Local Variables: */
@@ -3138,11 +3216,24 @@ static void MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
    int i;                        /* Axis count */
    int nin;                      /* No. of axes in supplied WinMap */
    int nout;                     /* No. of axes in returned WinMap */
+   int ok;                       /* Can the Mappings be swapped? */
    int old_minv;                 /* Invert value for the supplied MatrixMap */
    int old_winv;                 /* Invert value for the supplied WinMap */
+   int result;                   /* Returned value */
+
+/* Initialise. */
+   result = 0;
 
 /* Check the global error status. */
-   if ( !astOK ) return;
+   if ( !astOK ) return result;
+
+/* Initialise pointers to the objects created here. */
+   m1 = NULL;
+   m2 = NULL;
+   pset1 = NULL;
+   pset2 = NULL;
+   ptr2 = NULL;
+   nout = 0;
 
 /* Store pointers to the supplied WinMap and the MatrixMap. */
    wm = (AstWinMap *) maps[ 1 - imm ];
@@ -3160,47 +3251,92 @@ static void MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
    also returns the number of axes in the WinMap. */
    nin = astWinTerms( wm, 0, &a, &b );
 
+/* Every one of these terms must have a value. */
+   ok = astOK;
+   for( i = 0; i < nin && ok; i++ ) {
+      if( !astISFINITE( a[ i ] ) || a[ i ] == AST__BAD ||
+          !astISFINITE( b[ i ] ) || b[ i ] == AST__BAD ) ok = 0;
+   }
+
+   if( ok ) {
+
 /* Create a diagonal MatrixMap holding the scale factors from the
    supplied WinMap. */
-   m1 = astMatrixMap( nin, nin, 1, b, "", status );
+      m1 = astMatrixMap( nin, nin, 1, b, "", status );
 
 /* Create a PointSet holding a single position given by the shift terms
    in the supplied WinMap. */
-   pset1 = astPointSet( 1, nin, "", status );
-   ptr1 = astGetPoints( pset1 );
-   if( astOK ){
-      aa = a;
-      for( i = 0; i < nin; i++ ) ptr1[ i ][ 0 ] = *(aa++);
-   }
+      pset1 = astPointSet( 1, nin, "", status );
+      ptr1 = astGetPoints( pset1 );
+      if( astOK ){
+         aa = a;
+         for( i = 0; i < nin; i++ ) ptr1[ i ][ 0 ] = *(aa++);
+      }
 
 /* First deal with cases when the WinMap is applied first, followed by
    the MatrixMap. */
-   if( imm == 1 ){
+      if( imm == 1 ){
+
+/* A MatrixMap with fewer outputs than inputs discards its later inputs,
+   and its inverse transformation (if it has one) supplies zero for each
+   of them. The inverse of the WinMap is then applied to those zeros. Once
+   the Mappings are swapped the WinMap is applied to the outputs of the
+   MatrixMap instead, and the discarded inputs are left as zero. So the
+   inverse transformation is only left unchanged if the inverse of the
+   WinMap gives zero for zero on each discarded axis, which needs a zero
+   shift and a non-zero scale. */
+         if( astGetNin( mm ) > astGetNout( mm ) && astGetTranInverse( mm ) ) {
+            for( i = astGetNout( mm ); i < nin; i++ ) {
+               if( a[ i ] != 0.0 || b[ i ] == 0.0 ) ok = 0;
+            }
+         }
 
 /* Multiply the diagonal matrix holding the WinMap scale factors by the
    supplied matrix. The resulting MatrixMap is the one to return in the
-   map list. */
-      m2 = astMtrMult( m1, mm );
+   map list. No MatrixMap is returned if the product is not usable. */
+         if( ok ) m2 = Multiply( m1, mm, 1, status );
 
 /* Transform the position given by the shift terms from the supplied
    WinMap using the supplied MatrixMap to get the shift terms for
    the returned WinMap. */
-      pset2 = astTransform( mm, pset1, 1, NULL );
+         if( m2 ) pset2 = astTransform( mm, pset1, 1, NULL );
 
 /* Now deal with cases when the MatrixMap is applied first, followed by
    the WinMap. */
-   } else {
+      } else {
 
 /* Multiply the supplied MatrixMap by the diagonal matrix holding scale
    factors from the supplied WinMap. The resulting MatrixMap is the one to
-   return in the map list. */
-      m2 = astMtrMult( mm, m1 );
+   return in the map list. No MatrixMap is returned if the product is not
+   usable. */
+         m2 = Multiply( mm, m1, 1, status );
 
 /* Transform the position given by the shift terms from the supplied
    WinMap using the inverse of the returned MatrixMap to get the shift
-   terms for the returned WinMap. */
-      pset2 = astTransform( m2, pset1, 0, NULL );
+   terms for the returned WinMap. This needs a square matrix that has an
+   inverse. */
+         if( m2 && astGetNin( m2 ) == astGetNout( m2 ) &&
+             astGetTranInverse( m2 ) ) {
+            pset2 = astTransform( m2, pset1, 0, NULL );
+         }
+      }
 
+/* Get pointers to the shift terms for the returned WinMap, and check
+   that every one of them has a value. */
+      if( pset2 ) {
+         ptr2 = astGetPoints( pset2 );
+         nout = astGetNcoord( pset2 );
+         if( astOK ) {
+            for( i = 0; i < nout; i++ ) {
+               if( !astISFINITE( ptr2[ i ][ 0 ] ) ||
+                   ptr2[ i ][ 0 ] == AST__BAD ) ok = 0;
+            }
+         } else {
+            ok = 0;
+         }
+      } else {
+         ok = 0;
+      }
    }
 
 /* Re-instate the original value of the Invert attributes of the supplied
@@ -3208,55 +3344,55 @@ static void MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
    astSetInvert( wm, old_winv );
    astSetInvert( mm, old_minv );
 
-/* Get pointers to the shift terms for the returned WinMap. */
-   ptr2 = astGetPoints( pset2 );
-
-/* Create the returned WinMap, initially with undefined corners. The number of
-   axes in the WinMap must equal the number of shift terms. */
-   nout = astGetNcoord( pset2 );
-   w1 = astWinMap( nout, NULL, NULL, NULL, NULL, "", status );
+/* If the Mappings can be swapped, create the returned WinMap, initially
+   with undefined corners. The number of axes in the WinMap must equal the
+   number of shift terms. */
+   if( ok ) {
+      w1 = astWinMap( nout, NULL, NULL, NULL, NULL, "", status );
 
 /* If succesful, store the scale and shift terms in the WinMap. The scale
    terms are always unity. */
-   if( astOK ){
-      bb = w1->b;
-      aa = w1->a;
-      for( i = 0; i < nout; i++ ) {
-         *(bb++) = 1.0;
-         *(aa++) = ptr2[ i ][ 0 ];
-      }
+      if( astOK ){
+         bb = w1->b;
+         aa = w1->a;
+         for( i = 0; i < nout; i++ ) {
+            *(bb++) = 1.0;
+            *(aa++) = ptr2[ i ][ 0 ];
+         }
 
 /* Replace the supplied Mappings and invert flags with the ones found
    above. Remember that the order of the Mappings is now swapped */
-      (void) astAnnul( maps[ 0 ] );
-      (void) astAnnul( maps[ 1 ] );
+         (void) astAnnul( maps[ 0 ] );
+         (void) astAnnul( maps[ 1 ] );
 
-      sw1 = astSimplify( w1 );
-      w1 = astAnnul( w1 );
+         sw1 = astSimplify( w1 );
+         w1 = astAnnul( w1 );
 
-      maps[ imm ] = (AstMapping *) sw1;
-      inverts[ imm  ] = astGetInvert( sw1 );
+         maps[ imm ] = (AstMapping *) sw1;
+         inverts[ imm  ] = astGetInvert( sw1 );
 
-      sm2 = astSimplify( m2 );
-      m2 = astAnnul( m2 );
+         sm2 = astSimplify( m2 );
+         m2 = astAnnul( m2 );
 
-      maps[ 1 - imm ] = (AstMapping *) sm2;
-      inverts[ 1 - imm  ] = astGetInvert( sm2 );
+         maps[ 1 - imm ] = (AstMapping *) sm2;
+         inverts[ 1 - imm  ] = astGetInvert( sm2 );
 
+         result = 1;
+      }
    }
 
-/* Annul the MatrixMap and PointSet holding the scale and shift terms from the
-   supplied WinMap. */
-   m1 = astAnnul( m1 );
-   pset1 = astAnnul( pset1 );
-   pset2 = astAnnul( pset2 );
+/* Annul the MatrixMaps and PointSets created here. */
+   if( m1 ) m1 = astAnnul( m1 );
+   if( m2 ) m2 = astAnnul( m2 );
+   if( pset1 ) pset1 = astAnnul( pset1 );
+   if( pset2 ) pset2 = astAnnul( pset2 );
 
 /* Free the copies of the scale and shift terms from the supplied WinMap. */
    b = (double *) astFree( (void *) b );
    a = (double *) astFree( (void *) a );
 
 /* Return. */
-   return;
+   return astOK ? result : 0;
 }
 
 static AstWinMap *MatWin2( AstMatrixMap *mm, AstWinMap *wm, int minv,
@@ -3352,6 +3488,8 @@ static AstWinMap *MatWin2( AstMatrixMap *mm, AstWinMap *wm, int minv,
 
 /* Get the scales and shifts implemented by the WinMap. These take into
    account the current Invert attribute of the WinMap. */
+   newscales = NULL;
+   newshifts = NULL;
    nt = astWinTerms( wm, 0, &shifts, &scales );
 
 /* First deal with cases where the MatrixMap is applied first. */
@@ -3539,8 +3677,8 @@ static AstMatrixMap *MatZoom( AstMatrixMap *mm, AstZoomMap *zm, int minv,
    matrix = (double *) astFree( (void *) matrix );
 
 /* Create a new MatrixMap holding the product of the supplied MatrixMap
-   and the diagonal MatrixMap just created. */
-   result = astMtrMult( mm, mm2 );
+   and the diagonal MatrixMap just created, if the product is usable. */
+   result = Multiply( mm, mm2, 1, status );
    mm2 = astAnnul( mm2 );
 
 /* Re-instate the original settings of the Invert attribute for the
@@ -3555,51 +3693,55 @@ static AstMatrixMap *MatZoom( AstMatrixMap *mm, AstZoomMap *zm, int minv,
    return result;
 }
 
-static AstMatrixMap *MtrMult( AstMatrixMap *this, AstMatrixMap *a, int *status ){
+static AstMatrixMap *Multiply( AstMatrixMap *this, AstMatrixMap *a,
+                               int strict, int *status ){
 /*
-*+
 *  Name:
-*     astMtrMult
+*     Multiply
 
 *  Purpose:
 *     Multiply a MatrixMap by another MatrixMap.
 
 *  Type:
-*     Protected virtual function.
+*     Private function.
 
 *  Synopsis:
 *     #include "matrixmap.h"
-*     AstMatrixMap *MtrMult( astMatrixMap *this, astMatrixMap *a )
+*     AstMatrixMap *Multiply( AstMatrixMap *this, AstMatrixMap *a,
+*                             int strict, int *status )
 
 *  Class Membership:
-*     MatrixMap method
+*     MatrixMap member function.
 
 *  Description:
-*     This function multiples the matrices given by "this" and "a", returning
-*     a pointer to a new MatrixMap holding the product "a x this".
-*
-*     The number of columns in the "a" matrix must match the number of
-*     rows in the "this" matrix. The number of rows in the returned
-*     MatrixMap is equal to the number of rows in "a", and the number of
-*     columns is the same as the number of rows in "this".
+*     This function does the work of astMtrMult and astMtrProduct. It
+*     creates the MatrixMap that is equivalent to applying "this" and
+*     then "a", as described for astMtrMult.
 
 *  Parameters:
 *     this
 *        Pointer to the first MatrixMap.
 *     a
 *        Pointer to a second MatrixMap.
+*     strict
+*        If zero, an error is reported if either MatrixMap does not have
+*        a defined forward transformation (as astMtrMult does). If
+*        non-zero, a NULL pointer is returned without error in that
+*        case, and also if either forward matrix contains a bad value
+*        or the product contains a value that cannot be represented (as
+*        astMtrProduct does).
+*     status
+*        Pointer to the inherited status variable.
 
 *  Returned Value:
-*     A pointer to the product MatrixMap.
+*     A pointer to the product MatrixMap, or NULL.
 
 *  Notes:
 *     -  An error is reported if the two MatrixMaps have incompatible
-*     shapes, or if either MatrixMap does not have a defined forward
-*     transformation.
+*     shapes.
 *     - A null Object pointer will also be returned if this function
 *     is invoked with the AST error status set, or if it should fail
 *     for any reason.
-*-
 */
 
 /* Local variables. */
@@ -3623,6 +3765,7 @@ static AstMatrixMap *MtrMult( AstMatrixMap *this, AstMatrixMap *a, int *status )
    int nrow_a;               /* No. of rows in the "a" MatrixMap */
    int nrow_this;            /* No. of rows in the "this" MatrixMap */
    int row;                  /* Current output row number */
+   int usable;               /* Can the product matrix be used? */
 
 /* Return a NULL pointer if an error has already occurred. */
    if ( !astOK ) return NULL;
@@ -3632,6 +3775,11 @@ static AstMatrixMap *MtrMult( AstMatrixMap *this, AstMatrixMap *a, int *status )
 
 /* Initialise */
    new = NULL;
+
+/* If the product is only wanted if it is usable, return without error
+   unless both matrices are defined and free of bad values. */
+   if( strict && !( FwdUsable( this, astGetInvert( this ), status ) &&
+                    FwdUsable( a, astGetInvert( a ), status ) ) ) return NULL;
 
 /* Report an error if eitherof the MatrixMaps doe snot have a defined
    forward transformation.*/
@@ -3774,14 +3922,29 @@ static AstMatrixMap *MtrMult( AstMatrixMap *this, AstMatrixMap *a, int *status )
          }
       }
 
+/* If the product is only wanted if it is usable, check that every element
+   has a value. Elements can lack one here only if they overflowed. */
+      usable = 1;
+      if( strict ) {
+         for( i = 0; i < nrow_a*ncol_this; i++ ){
+            if( !astISFINITE( new_matrix[ i ] ) ||
+                new_matrix[ i ] == AST__BAD ) {
+               usable = 0;
+               break;
+            }
+         }
+      }
+
 /* Create the new MatrixMap. */
-      new = astInitMatrixMap( NULL, sizeof( AstMatrixMap ), !class_init,
-                              &class_vtab, "MatrixMap", ncol_this, nrow_a,
-                              FULL, new_matrix );
+      if( usable ) {
+         new = astInitMatrixMap( NULL, sizeof( AstMatrixMap ), !class_init,
+                                 &class_vtab, "MatrixMap", ncol_this, nrow_a,
+                                 FULL, new_matrix );
 
 /* If possible, compress the new MatrixMap by removing off-diagonal zero
    elements. */
-      CompressMatrix( new, status );
+         CompressMatrix( new, status );
+      }
 
 /* Re-compress the original "this" MatrixMap. */
       CompressMatrix( this, status );
@@ -3793,6 +3956,56 @@ static AstMatrixMap *MtrMult( AstMatrixMap *this, AstMatrixMap *a, int *status )
 
    return new;
 
+}
+
+static AstMatrixMap *MtrMult( AstMatrixMap *this, AstMatrixMap *a, int *status ){
+/*
+*+
+*  Name:
+*     astMtrMult
+
+*  Purpose:
+*     Multiply a MatrixMap by another MatrixMap.
+
+*  Type:
+*     Protected virtual function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     AstMatrixMap *MtrMult( astMatrixMap *this, astMatrixMap *a )
+
+*  Class Membership:
+*     MatrixMap method
+
+*  Description:
+*     This function multiples the matrices given by "this" and "a", returning
+*     a pointer to a new MatrixMap holding the product "a x this".
+*
+*     The number of columns in the "a" matrix must match the number of
+*     rows in the "this" matrix. The number of rows in the returned
+*     MatrixMap is equal to the number of rows in "a", and the number of
+*     columns is the same as the number of rows in "this".
+
+*  Parameters:
+*     this
+*        Pointer to the first MatrixMap.
+*     a
+*        Pointer to a second MatrixMap.
+
+*  Returned Value:
+*     A pointer to the product MatrixMap.
+
+*  Notes:
+*     -  An error is reported if the two MatrixMaps have incompatible
+*     shapes, or if either MatrixMap does not have a defined forward
+*     transformation.
+*     - A null Object pointer will also be returned if this function
+*     is invoked with the AST error status set, or if it should fail
+*     for any reason.
+*-
+*/
+
+   return Multiply( this, a, 0, status );
 }
 
 static AstMatrixMap *MtrRot( AstMatrixMap *this, double theta,
@@ -4903,6 +5116,85 @@ static void SMtrMult( int post, int m, int n, const double *mat1,
 
    return;
 
+}
+
+static int FwdUsable( AstMatrixMap *this, int invert, int *status ) {
+/*
+*  Name:
+*     FwdUsable
+
+*  Purpose:
+*     See if the matrix applied by a MatrixMap is defined and free of bad
+*     values.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     int FwdUsable( AstMatrixMap *this, int invert, int *status )
+
+*  Class Membership:
+*     MatrixMap member function.
+
+*  Description:
+*     This function looks at the matrix that the forward transformation
+*     of a MatrixMap would apply if the Invert attribute of the MatrixMap
+*     had a given value. It indicates if that matrix is defined and every
+*     one of its elements has a value.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+*     invert
+*        The value to assume for the Invert attribute of the MatrixMap.
+*        The current value of the attribute is ignored.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the matrix is defined and contains no bad values, and
+*     zero otherwise. Zero is also returned if an error occurs.
+
+*  Notes:
+*     -  The inverse of a matrix is undefined if the matrix is singular
+*     or is not square, unless it is stored in diagonal form. The inverse
+*     of a matrix stored in diagonal form has a bad value for each
+*     diagonal element that is zero.
+*/
+
+/* Local Variables: */
+   const double *matrix;         /* Pointer to the matrix elements */
+   int i;                        /* Index of matrix element */
+   int nel;                      /* Number of stored matrix elements */
+   int nin;                      /* Number of inputs */
+   int nout;                     /* Number of outputs */
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* A unit matrix is always usable. */
+   if( this->form == UNIT ) return 1;
+
+/* Otherwise, the matrix must be stored. */
+   matrix = invert ? this->i_matrix : this->f_matrix;
+   if( !matrix ) return 0;
+
+/* Find the number of elements stored. */
+   nin = astGetNin( this );
+   nout = astGetNout( this );
+   if( this->form == DIAGONAL ) {
+      nel = astMIN( nin, nout );
+   } else {
+      nel = nin*nout;
+   }
+
+/* Every element must have a value. */
+   for( i = 0; i < nel; i++ ) {
+      if( !astISFINITE( matrix[ i ] ) || matrix[ i ] == AST__BAD ) return 0;
+   }
+
+   return astOK ? 1 : 0;
 }
 
 static int GetTranForward( AstMapping *this, int *status ) {
@@ -6350,6 +6642,99 @@ AstMatrixMap *astLoadMatrixMap_( void *mem, size_t size,
    Note that the member function may not be the one defined here, as it may
    have been over-ridden by a derived class. However, it should still have the
    same interface. */
+
+int astMtrUsable_( AstMatrixMap *this, int invert, int *status ){
+/*
+*+
+*  Name:
+*     astMtrUsable
+
+*  Purpose:
+*     See if the matrix applied by a MatrixMap is defined and free of bad
+*     values.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     int astMtrUsable( AstMatrixMap *this, int invert )
+
+*  Class Membership:
+*     MatrixMap method.
+
+*  Description:
+*     This function looks at the matrix that the forward transformation
+*     of a MatrixMap would apply if the Invert attribute of the MatrixMap
+*     had a given value. It indicates if that matrix is defined and every
+*     one of its elements has a value. It is for use when simplifying
+*     Mappings, to decide if a MatrixMap can be merged with a neighbour.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+*     invert
+*        The value to assume for the Invert attribute of the MatrixMap.
+*        The current value of the attribute is ignored.
+
+*  Returned Value:
+*     Non-zero if the matrix is defined and contains no bad values, and
+*     zero otherwise. Zero is also returned if an error occurs.
+*-
+*/
+   if( !astOK ) return 0;
+   return FwdUsable( this, invert, status );
+}
+
+AstMatrixMap *astMtrProduct_( AstMatrixMap *this, AstMatrixMap *a,
+                              int *status ){
+/*
+*+
+*  Name:
+*     astMtrProduct
+
+*  Purpose:
+*     Multiply a MatrixMap by another MatrixMap, if the product is usable.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     AstMatrixMap *astMtrProduct( AstMatrixMap *this, AstMatrixMap *a )
+
+*  Class Membership:
+*     MatrixMap method.
+
+*  Description:
+*     This function creates the same MatrixMap as astMtrMult (the one
+*     equivalent to applying "this" and then "a"), but only if that
+*     MatrixMap is a faithful replacement for the two supplied. It is
+*     for use when simplifying Mappings, where a product that cannot be
+*     formed means only that the two MatrixMaps are left as they are.
+
+*  Parameters:
+*     this
+*        Pointer to the first MatrixMap.
+*     a
+*        Pointer to a second MatrixMap.
+
+*  Returned Value:
+*     A pointer to the product MatrixMap. A NULL pointer is returned,
+*     without an error being reported, if the forward transformation of
+*     either MatrixMap is undefined, if the matrix it applies contains a
+*     bad value, or if any element of the product has no value.
+
+*  Notes:
+*     -  An error is reported if the two MatrixMaps have incompatible
+*     shapes.
+*     - A NULL pointer will also be returned if this function is invoked
+*     with the AST error status set, or if it should fail for any reason.
+*-
+*/
+   if( !astOK ) return NULL;
+   return Multiply( this, a, 1, status );
+}
 
 int *astMtrSplitInputs_( AstMatrixMap *this, int nout, const int *out,
                          int *nin, int *status ){
