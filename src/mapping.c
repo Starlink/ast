@@ -480,6 +480,11 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *     13-NOV-2026 (TIMJ):
 *        astRate: never returned if the position was so close to zero
 *        that the initial interval, a fraction of the position, was zero.
+*     14-NOV-2026 (TIMJ):
+*        astMapMerge: report an error if the Mappings returned by a class
+*        do not have the numbers of inputs and outputs that the supplied
+*        Mappings had. Such a list was previously used as it stood, and
+*        the Mappings were then applied to the wrong numbers of axes.
 *class--
 */
 
@@ -777,6 +782,7 @@ static int GetReport( AstMapping *, int * );
 static int GetTranForward( AstMapping *, int * );
 static int GetTranInverse( AstMapping *, int * );
 static int LinearApprox( AstMapping *, const double *, const double *, double, double *, int * );
+static int ListAxes( int, int, AstMapping **, int *, int *, int *, int * );
 static int MapList( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static AstDim MaxI( AstDim, AstDim, int * );
@@ -7547,6 +7553,108 @@ static double MapFunction( const MapData *mapdata, const double in[],
 
 /* Return the result. */
    return result;
+}
+
+static int ListAxes( int series, int nmap, AstMapping **map_list,
+                     int *invert_list, int *nin, int *nout, int *status ) {
+/*
+*  Name:
+*     ListAxes
+
+*  Purpose:
+*     Find the numbers of inputs and outputs of a list of Mappings.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     int ListAxes( int series, int nmap, AstMapping **map_list,
+*                   int *invert_list, int *nin, int *nout, int *status )
+
+*  Class Membership:
+*     Mapping member function.
+
+*  Description:
+*     This function finds the number of inputs and the number of outputs
+*     of the compound Mapping that is equivalent to a list of Mappings
+*     applied in series or in parallel, as used by astMapList and
+*     astMapMerge.
+
+*  Parameters:
+*     series
+*        Non-zero if the Mappings are applied in series, zero if they
+*        are applied in parallel.
+*     nmap
+*        The number of Mappings in the list.
+*     map_list
+*        Pointer to an array of "nmap" Mapping pointers.
+*     invert_list
+*        Pointer to an array of "nmap" flags, one for each Mapping. The
+*        Mapping is used as if its Invert attribute had this value.
+*     nin
+*        Address of an int in which to return the number of inputs.
+*     nout
+*        Address of an int in which to return the number of outputs.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the list is self-consistent. A list of Mappings in
+*     series is self-consistent if each Mapping has as many inputs as
+*     the previous Mapping has outputs. A list of Mappings in parallel
+*     is always self-consistent. Zero is returned if an error occurs.
+*/
+
+/* Local Variables: */
+   int i;                     /* Index of Mapping within the list */
+   int ni;                    /* Number of inputs for the current Mapping */
+   int no;                    /* Number of outputs for the current Mapping */
+   int result;                /* Returned value */
+   int swap;                  /* Is the Mapping used the other way round? */
+
+/* Initialise. */
+   *nin = 0;
+   *nout = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* Look at each Mapping in turn. */
+   result = 1;
+   for( i = 0; i < nmap; i++ ) {
+
+/* The Mapping reports its numbers of inputs and outputs for the current
+   value of its Invert attribute, which may not be the one in the list. */
+      swap = ( astGetInvert( map_list[ i ] ) != 0 ) !=
+             ( invert_list[ i ] != 0 );
+      if( swap ) {
+         ni = astGetNout( map_list[ i ] );
+         no = astGetNin( map_list[ i ] );
+      } else {
+         ni = astGetNin( map_list[ i ] );
+         no = astGetNout( map_list[ i ] );
+      }
+
+/* In series, the inputs are those of the first Mapping, the outputs are
+   those of the last, and each Mapping feeds the next. */
+      if( series ) {
+         if( i == 0 ) {
+            *nin = ni;
+         } else if( ni != *nout ) {
+            result = 0;
+         }
+         *nout = no;
+
+/* In parallel, the numbers of inputs and outputs are totals. */
+      } else {
+         *nin += ni;
+         *nout += no;
+      }
+   }
+
+/* Return the result. */
+   return astOK ? result : 0;
 }
 
 static int MapList( AstMapping *this, int series, int invert, int *nmap,
@@ -24443,7 +24551,13 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
    int allset;
    int iin;
    int iout;
+   int nin_new;
+   int nin_old;
    int nmap_old;
+   int nout_new;
+   int nout_old;
+   int ok_new;
+   int ok_old;
    int present;
    int result = -1;
 
@@ -24473,10 +24587,34 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
       clones = NULL;
    }
 
+/* Note the numbers of inputs and outputs of the supplied list. */
+   ok_old = ListAxes( series, *nmap, *map_list, *invert_list, &nin_old,
+                      &nout_old, status );
+
 /* Attempt to the merge the nominated Mapping into its neighbours. */
    result = (**astMEMBER(this,Mapping,MapMerge))( this, where, series, nmap,
                                                   map_list, invert_list,
                                                   status );
+
+/* A merger must leave the list equivalent to the one supplied, so the
+   returned list must have the same numbers of inputs and outputs and, in
+   series, each of its Mappings must feed the next. Anything else is a
+   fault in the class that did the merger. It is reported here because
+   the Mappings would otherwise be applied to the wrong numbers of axes. */
+   if( result >= 0 && ok_old && astOK ) {
+      ok_new = ListAxes( series, *nmap, *map_list, *invert_list, &nin_new,
+                         &nout_new, status );
+      if( astOK && ( !ok_new || nin_new != nin_old || nout_new != nout_old ) ) {
+         astError( AST__INTER, "astMapMerge(%s): The Mappings returned by "
+                   "the %s merger of a %s have %d inputs and %d outputs%s, "
+                   "but those supplied have %d inputs and %d outputs "
+                   "(internal AST programming error).", status,
+                   astGetClass( this ), series ? "series" : "parallel",
+                   astGetClass( this ), nin_new, nout_new,
+                   ok_new ? "" : " and do not feed one another",
+                   nin_old, nout_old );
+      }
+   }
 
 /* If we may be doing a restricted simplify, we now ensure that the
    AllowSimplify flag is propagated appropriately from the input Mapping
