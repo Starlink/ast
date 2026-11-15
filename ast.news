@@ -211,6 +211,19 @@ Bug fixes
   FrameSet with such an axis beside a spectral axis is written to a
   FitsChan, could crash.
 
+- Reading a FITS header in which one axis has a CDELT keyword and another
+  has none, or has one that is not a number, no longer depends on how the
+  library was compiled. The value of the missing keyword was tested
+  without having been set, so the header was read by an optimized build
+  of the library and rejected with an error by an unoptimized one. Such
+  an axis now always has the default CDELT value of 1.0.
+
+- A CDELT value of zero in a FITS header is now replaced by a millionth of
+  the CRVAL value of the same axis, as has always been documented, or by
+  1.0 if CRVAL is zero or absent. It was replaced by 1.0 in every case,
+  because the replacement was calculated from CDELT rather than CRVAL.
+  This changes the pixel size of a degenerate axis of such a header.
+
 Build system changes
 --------------------
 
