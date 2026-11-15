@@ -55,8 +55,10 @@
 *         card with no string value, a header whose transformation fails
 *         part of the way through a compound Mapping, a pixel size so
 *         small that its reciprocal is infinite, a rest frequency so small
-*         that a fraction of it is zero, and a floating point value that is
-*         too large to convert to an integer.
+*         that a fraction of it is zero, a floating point value that is
+*         too large to convert to an integer, an axis with a blank label
+*         beside a spectral axis, and an epoch of observation that has no
+*         calendar date.
 
 *  Notes:
 *     - This is a native C test with no Fortran original.
@@ -1001,6 +1003,43 @@ static int check_survives( const char *cards[], int ncard ) {
    return 0;
 }
 
+/* Read a FrameSet from a FITS header, write it to a new FITS-WCS header
+   and look at the DATE-OBS card in the result.  If "value" is not NULL,
+   the card must be present with a value that starts with that text.  If
+   it is NULL, there must be no such card.  Returns 0 if so, and 1
+   otherwise.  Any error reported is cleared. */
+static int check_dateobs( const char *cards[], int ncard, const char *value ) {
+   AstFitsChan *fc;
+   AstObject *obj = read_header( cards, ncard );
+   char card[ 81 ];
+   int found = 0;
+   int nfail = 0;
+
+   card[ 0 ] = 0;
+   if ( obj && astOK ) {
+      fc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      astWrite( fc, obj );
+      if ( astOK ) {
+         astClear( fc, "Card" );
+         found = astFindFits( fc, "DATE-OBS", card, 0 );
+      }
+      fc = astAnnul( fc );
+   }
+   if ( !astOK ) astClearStatus;
+   if ( obj ) obj = astAnnul( obj );
+   if ( value && ( !found || strncmp( card + 10, value, strlen( value ) ) ) ) {
+      fprintf( stderr, "testcorruptinput: \"%s\" gave the card \"%s\" and "
+               "not a DATE-OBS value starting %s\n", cards[ ncard - 1 ], card,
+               value );
+      nfail++;
+   } else if ( !value && found ) {
+      fprintf( stderr, "testcorruptinput: \"%s\" gave the card \"%s\" but "
+               "has no calendar date\n", cards[ ncard - 1 ], card );
+      nfail++;
+   }
+   return nfail;
+}
+
 #define NCARD( cards ) ( (int) ( sizeof( cards )/sizeof( cards[ 0 ] ) ) )
 
 /* FITS headers. */
@@ -1187,6 +1226,27 @@ static int test_fits( void ) {
       "CDELT2  =               0.0003",
       "RADESYS = 'FK5'",
       "EQUINOX =           2147483647" };
+/* A spectral axis beside an axis that has a blank CTYPE, and so a blank
+   label. Writing this out changes the units of an axis, which also
+   modifies its label, and no modified label could be made from a blank
+   one. */
+   const char *blank[] = {
+      "CTYPE1  = 'WAVE-F2W'",
+      "CTYPE2  = ''",
+      "CTYPE3  = 'GLAT-TAN'",
+      "CRVAL1  =         2.1106114E-1",
+      "CRVAL2  =               45.000",
+      "CRVAL3  =                5.000",
+      "CRPIX1  =              513.000",
+      "CRPIX2  =               50.500",
+      "CRPIX3  =                  NaN",
+      "CDELT1  =         1.4868E-4",
+      "CDELT2  =        -0.00083333",
+      "CDELT3  =         0.00083333",
+      "CUNIT1  = 'm       '",
+      "RESTFRQ =       1.420405752E9",
+      "SPECSYS = 'BARYCENT'",
+      "MJD-OBS =            52413.59" };
    AstFitsChan *fc;
    int i;
    int ival;
@@ -1216,6 +1276,17 @@ static int test_fits( void ) {
    nfail += check_survives( logax, NCARD( logax ) );
    nfail += check_survives( tinyrf, NCARD( tinyrf ) );
    nfail += check_survives( spec2, NCARD( spec2 ) );
+   nfail += check_survives( blank, NCARD( blank ) );
+
+/* DATE-OBS is written for an epoch of observation that has a calendar
+   date, and not for one that is far beyond any date. The second used to
+   be formatted from a date that had not been found. */
+   sky[ nsky ] = "MJD-OBS =              55000.5";
+   nfail += check_dateobs( sky, nsky + 1, "'2009-06-18T1" );
+   sky[ nsky ] = "MJD-OBS =              1.0E300";
+   nfail += check_dateobs( sky, nsky + 1, NULL );
+   sky[ nsky ] = "MJD-OBS =               1.0E10";
+   nfail += check_dateobs( sky, nsky + 1, NULL );
 
 /* A floating point keyword value that an int cannot hold is not
    converted to one. */
