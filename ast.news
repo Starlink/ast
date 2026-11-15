@@ -159,6 +159,56 @@ Bug fixes
   two rotated pixel axes took minutes, and now takes a fraction of a
   second. astMapSplit had the same cost for such a Mapping.
 
+- astSimplify could return a Mapping that did not do the same as the one
+  supplied, report an error, or read or write beyond the end of an array.
+  The faults were all in the code with which each class merges itself
+  with its neighbours in a compound Mapping, or swaps places with them:
+  - A diagonal MatrixMap with different numbers of inputs and outputs was
+    merged with a WinMap, giving a WinMap with the wrong number of axes.
+  - A full MatrixMap with zeros off the diagonal, used in its inverse
+    direction, was replaced by a diagonal MatrixMap used in its forward
+    direction.
+  - A MatrixMap with no inverse, used in its inverse direction, or a
+    WinMap that scales an axis by zero, made astSimplify report an error
+    for any Mapping that contained it beside another MatrixMap or WinMap.
+  - A WinMap in parallel with a unit MatrixMap lost the axes of the
+    MatrixMap, and one in series with a unit MatrixMap was used in the
+    wrong direction.
+  - Moving a WinMap past a MatrixMap that discards an axis changed the
+    inverse transformation.
+  - A PermMap that supplies only constants, followed by two Mappings in
+    parallel, was replaced using arrays that were too small, and the
+    inverse transformation of the result was wrong.
+  - A PermMap moved past a WcsMap was used in the wrong direction if the
+    Invert attribute of the PermMap had been changed since it was put
+    into the compound Mapping.
+  - Two WcsMaps cancelled each other if they differed only in the second
+    having projection parameters that the first did not.
+  - A PolyMap that cancelled with its own inverse was left with a changed
+    Invert attribute, which affected any other use of the same PolyMap.
+  - An inverted PermMap with more inputs than outputs was read beyond the
+    end of its permutation array.
+
+- astSimplify now reports an error if a class returns Mappings that have
+  different numbers of inputs and outputs to those it was given, rather
+  than using them. The Mappings would otherwise be applied to the wrong
+  numbers of axes.
+
+- A PermMap created without an "outperm" array, but with constants, now
+  gives a bad value to each output that has no corresponding input, as
+  documented. The forward transformation used to give such an output the
+  value of the first constant.
+
+- Writing a FrameSet to a FitsChan no longer creates a DATE-OBS keyword for
+  an epoch of observation that has no calendar date (one that is not a
+  number, or is millions of years from the present). The value was
+  formatted from a date that had not been found, and could overflow the
+  buffer it was written to.
+
+- Changing the units of an axis that has a blank label, as happens when a
+  FrameSet with such an axis beside a spectral axis is written to a
+  FitsChan, could crash.
+
 Build system changes
 --------------------
 
