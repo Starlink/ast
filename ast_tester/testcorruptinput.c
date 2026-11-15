@@ -57,8 +57,9 @@
 *         small that its reciprocal is infinite, a rest frequency so small
 *         that a fraction of it is zero, a floating point value that is
 *         too large to convert to an integer, an axis with a blank label
-*         beside a spectral axis, and an epoch of observation that has no
-*         calendar date.
+*         beside a spectral axis, an epoch of observation that has no
+*         calendar date, and an axis whose CDELT value is missing, is not
+*         a number, or is zero.
 
 *  Notes:
 *     - This is a native C test with no Fortran original.
@@ -1040,6 +1041,45 @@ static int check_dateobs( const char *cards[], int ncard, const char *value ) {
    return nfail;
 }
 
+/* Read a FrameSet from a FITS header that describes two linear axes, and
+   find how far each world coordinate moves for a step of one pixel along
+   its own pixel axis.  The two distances must equal the elements of
+   "step".  Returns 0 if so, and 1 otherwise.  Any error reported is
+   cleared. */
+static int check_steps( const char *what, const char *cards[], int ncard,
+                        const double step[ 2 ] ) {
+   AstObject *obj = read_header( cards, ncard );
+   double xin[ 3 ] = { 10.0, 11.0, 10.0 };
+   double xout[ 3 ];
+   double yin[ 3 ] = { 20.0, 20.0, 21.0 };
+   double yout[ 3 ];
+   double got[ 2 ];
+   int nfail = 0;
+
+   if ( obj && astOK && astIsAFrameSet( obj ) &&
+        astGetI( obj, "Nin" ) == 2 && astGetI( obj, "Nout" ) == 2 ) {
+      astTran2( obj, 3, xin, yin, 1, xout, yout );
+      got[ 0 ] = xout[ 1 ] - xout[ 0 ];
+      got[ 1 ] = yout[ 2 ] - yout[ 0 ];
+      if ( !astOK || xout[ 0 ] == AST__BAD || xout[ 1 ] == AST__BAD ||
+           yout[ 0 ] == AST__BAD || yout[ 2 ] == AST__BAD ||
+           fabs( got[ 0 ] - step[ 0 ] ) > 1.0E-6*fabs( step[ 0 ] ) ||
+           fabs( got[ 1 ] - step[ 1 ] ) > 1.0E-6*fabs( step[ 1 ] ) ) {
+         fprintf( stderr, "testcorruptinput: %s gave steps of %g and %g per "
+                  "pixel, and not %g and %g (status %d)\n", what, got[ 0 ],
+                  got[ 1 ], step[ 0 ], step[ 1 ], astStatus );
+         nfail++;
+      }
+   } else {
+      fprintf( stderr, "testcorruptinput: %s could not be read as a FrameSet "
+               "with two axes (status %d)\n", what, astStatus );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   if ( obj ) obj = astAnnul( obj );
+   return nfail;
+}
+
 #define NCARD( cards ) ( (int) ( sizeof( cards )/sizeof( cards[ 0 ] ) ) )
 
 /* FITS headers. */
@@ -1247,6 +1287,20 @@ static int test_fits( void ) {
       "RESTFRQ =       1.420405752E9",
       "SPECSYS = 'BARYCENT'",
       "MJD-OBS =            52413.59" };
+/* Two linear axes, of which the first is given a CDELT card (or none)
+   by each case below. */
+   const char *linear[] = {
+      "CTYPE1  = 'XPOS'",
+      "CTYPE2  = 'YPOS'",
+      "CRVAL1  =               5000.0",
+      "CRVAL2  =                 10.0",
+      "CRPIX1  =                 10.0",
+      "CRPIX2  =                 20.0",
+      "CDELT2  =                  0.5",
+      NULL };
+   const int nlinear = NCARD( linear ) - 1;
+   const double unit_step[ 2 ] = { 1.0, 0.5 };
+   const double small_step[ 2 ] = { 0.005, 0.5 };
    AstFitsChan *fc;
    int i;
    int ival;
@@ -1287,6 +1341,27 @@ static int test_fits( void ) {
    nfail += check_dateobs( sky, nsky + 1, NULL );
    sky[ nsky ] = "MJD-OBS =               1.0E10";
    nfail += check_dateobs( sky, nsky + 1, NULL );
+
+/* An axis with no CDELT card, or one that is not a number, has the
+   default pixel size of 1.0.  Whether such a header could be read used to
+   depend on how the library had been compiled. */
+   nfail += check_steps( "a header with CDELT2 but no CDELT1", linear,
+                         nlinear, unit_step );
+   linear[ nlinear ] = "CDELT1  = 'abc'";
+   nfail += check_steps( "a header with CDELT1 = 'abc'", linear,
+                         nlinear + 1, unit_step );
+
+/* A CDELT of zero is replaced by a millionth of CRVAL, or by 1.0 if CRVAL
+   is zero or absent, so that the axis can be inverted. */
+   linear[ nlinear ] = "CDELT1  =                  0.0";
+   nfail += check_steps( "a header with CDELT1 = 0.0 and CRVAL1 = 5000.0",
+                         linear, nlinear + 1, small_step );
+   linear[ 2 ] = "CRVAL1  =                  0.0";
+   nfail += check_steps( "a header with CDELT1 = 0.0 and CRVAL1 = 0.0",
+                         linear, nlinear + 1, unit_step );
+   linear[ 2 ] = "COMMENT no reference value for axis 1";
+   nfail += check_steps( "a header with CDELT1 = 0.0 and no CRVAL1",
+                         linear, nlinear + 1, unit_step );
 
 /* A floating point keyword value that an int cannot hold is not
    converted to one. */
