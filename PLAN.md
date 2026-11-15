@@ -123,6 +123,14 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   It covers astMapSplit on a compound Mapping in which a MatrixMap or WcsMap couples two of twelve axes, and FITS headers with twenty WCS axes and two pixel axes, both of which used to take a time that grew faster than the factorial of the number of axes.
   Run it with the sanitizers enabled, which is how most of the faults are detected.
   Some of the buffer overflows are inside a larger structure when AST is built thread-safe, where the sanitizers cannot see them; an optimized build with `_FORTIFY_SOURCE` traps on those.
+- testmapmerge — simplifying a Mapping must not change what it does.
+  Each case is a small compound Mapping for which the code that merges one class with its neighbours, or swaps it with them, used to give a Mapping that was not equivalent, report an error, or read or write memory it should not have.
+  Every Mapping is simplified, and must keep its numbers of inputs and outputs and give the same results from its forward and inverse transformations.
+  It covers a PermMap created without one of its permutation arrays, an inverted PermMap with more inputs than outputs, and a PermMap that supplies constants to two Mappings in parallel.
+  It covers WcsMaps that differ only in the number of projection parameters, an inverted PermMap beside a WcsMap, a PolyMap beside its own inverse, and a TimeMap conversion followed by its inverse.
+  It covers a full MatrixMap that is really diagonal and is used inverted, a MatrixMap with no inverse that is used inverted, and diagonal MatrixMaps with different numbers of inputs and outputs beside a WinMap.
+  It covers a WinMap beside a unit MatrixMap, beside two Mappings in parallel, with a scale of zero, and followed by a MatrixMap that discards an axis the WinMap shifts.
+  Run it with the sanitizers enabled, which is how the memory faults are detected.
 - testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
   For PolyMap, LutMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
   For each class of Mapping that can only have particular numbers of inputs and outputs, it changes Nin and Nout in the dump of a valid Mapping and requires the result to be rejected, and it checks that a Mapping, Frame or Region encapsulated by another Mapping cannot be left out of a dump or replaced by an object of another class.
