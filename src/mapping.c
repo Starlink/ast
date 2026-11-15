@@ -485,6 +485,8 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        do not have the numbers of inputs and outputs that the supplied
 *        Mappings had. Such a list was previously used as it stood, and
 *        the Mappings were then applied to the wrong numbers of axes.
+*        Also report an error if the Mappings supplied for merging in
+*        series do not fit together, rather than giving them to a class.
 *class--
 */
 
@@ -24591,6 +24593,21 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
    ok_old = ListAxes( series, *nmap, *map_list, *invert_list, &nin_old,
                       &nout_old, status );
 
+/* The classes assume that Mappings to be merged in series fit together,
+   each having as many inputs as the one before it has outputs, and read
+   and write arrays on that basis. Mappings that do not fit together
+   cannot be used in series at all, so report an error rather than give
+   them to a class. This can happen if a Mapping that changes its number
+   of axes (a FrameSet, say) is modified after being put into a compound
+   Mapping. */
+   if( !ok_old && astOK ) {
+      astError( AST__INNCO, "astMapMerge(%s): The Mappings to be merged in "
+                "series do not fit together; the number of inputs of one "
+                "is not the number of outputs of the one before it.",
+                status, astGetClass( this ) );
+      return result;
+   }
+
 /* Attempt to the merge the nominated Mapping into its neighbours. */
    result = (**astMEMBER(this,Mapping,MapMerge))( this, where, series, nmap,
                                                   map_list, invert_list,
@@ -24601,7 +24618,7 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
    series, each of its Mappings must feed the next. Anything else is a
    fault in the class that did the merger. It is reported here because
    the Mappings would otherwise be applied to the wrong numbers of axes. */
-   if( result >= 0 && ok_old && astOK ) {
+   if( result >= 0 && astOK ) {
       ok_new = ListAxes( series, *nmap, *map_list, *invert_list, &nin_new,
                          &nout_new, status );
       if( astOK && ( !ok_new || nin_new != nin_old || nout_new != nout_old ) ) {
