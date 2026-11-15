@@ -266,6 +266,14 @@ f     The WcsMap class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not delete an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     14-NOV-2026 (TIMJ):
+*        - CanMerge: compare the numbers of projection parameters of the
+*        two WcsMaps. The first was compared with itself, so a WcsMap was
+*        cancelled against the inverse of one that had more parameters.
+*        - WcsPerm: when the supplied PermMap is returned, return the
+*        invert flag that was supplied for it rather than the value of
+*        its Invert attribute. The PermMap was otherwise used in the
+*        wrong direction after being swapped with a WcsMap.
 *class--
 */
 
@@ -937,7 +945,7 @@ static int CanMerge( AstMapping *map1, int inv1, AstMapping *map2, int inv2, int
 
 /* If the two WcsMaps have a different number of parameters for this axes,
    they cannot merge. */
-                  if( GetNP( wcs1, i, status ) != GetNP( wcs1, i, status ) ){
+                  if( GetNP( wcs1, i, status ) != GetNP( wcs2, i, status ) ){
                      ret = 0;
                      break;
 
@@ -4669,6 +4677,7 @@ static void WcsPerm( AstMapping **maps, int *inverts, int iwm, int *status ){
    int npout;                    /* No. of output axes in supplied PermMap */
    int old_pinv;                 /* Invert value for the supplied PermMap */
    int old_winv;                 /* Invert value for the supplied WcsMap */
+   int pinv;                     /* Invert flag for the returned PermMap */
    int type;                     /* Projection type */
    int done;                     /* Have Mappings been swapped? */
    int i;                        /* AXis index */
@@ -4682,6 +4691,7 @@ static void WcsPerm( AstMapping **maps, int *inverts, int iwm, int *status ){
    messages from dumb compilers. */
    newpm = NULL;
    newwm = NULL;
+   done = 0;
 
 /* Store pointers to the supplied WcsMap and the PermMap. */
    wm = (AstWcsMap *) maps[ iwm ];
@@ -4839,9 +4849,12 @@ static void WcsPerm( AstMapping **maps, int *inverts, int iwm, int *status ){
    pm = astAnnul( pm );
    wm = astAnnul( wm );
 
-/* Store the returned Mappings. */
+/* Store the returned Mappings. If the returned PermMap is the supplied
+   PermMap, it is to be used in the direction that was supplied for it,
+   which need not be the one given by its own Invert attribute. */
+   pinv = done ? astGetInvert( newpm ) : inverts[ 1 - iwm ];
    maps[ iwm ] = (AstMapping *) newpm;
-   inverts[ iwm ] = astGetInvert( newpm );
+   inverts[ iwm ] = pinv;
    maps[ 1 - iwm ] = newwm;
    inverts[ 1 - iwm ] = astGetInvert( newwm );
 
