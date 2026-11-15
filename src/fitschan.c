@@ -1586,7 +1586,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        that was read and is zero. The value of an axis with no CDELT
 *        keyword, or with one that is not a number, was tested without
 *        having been set, so whether such a header could be read depended
-*        on how the library had been compiled.
+*        on how the library had been compiled. Also take the replacement
+*        from CRVAL, as documented, rather than from CDELT itself, which
+*        made the replacement 1.0 in every case.
 *class--
 */
 
@@ -31864,8 +31866,11 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
                            AST__FLOAT, (void *) &cdeltj, 0, method, class,
                            status ) && cdeltj == 0.0 ){
 
-               GetValue2( ret, this, FormatKey( "CDELT", j + 1, -1, s, status ), AST__FLOAT,
-                         (void *) &dval, 1, method, class, status );
+/* CRVAL is zero if it is absent, that being its default value. */
+               dval = 0.0;
+               GetValue2( ret, this, FormatKey( "CRVAL", j + 1, -1, s, status ), AST__FLOAT,
+                         (void *) &dval, 0, method, class, status );
+               if( dval == AST__BAD || !astISFINITE( dval ) ) dval = 0.0;
                cdeltj = 1.0E-6*dval;
                if( cdeltj == 0.0 ) cdeltj = 1.0;
                SetValue( ret, FormatKey( "CDELT", j + 1, -1, s, status ), (void *) &cdeltj,

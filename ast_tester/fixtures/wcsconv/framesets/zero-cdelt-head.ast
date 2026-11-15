@@ -98,10 +98,10 @@
              IsA Mapping 	# Mapping between coordinate systems
                 Sft1 = -5.0000000000000001e-09 	# Shift for axis 1
                 Scl1 = 1e-10 	# Scale factor for axis 1
-                Sft2 = -0.0087266462599716477 	# Shift for axis 2
-                Scl2 = 0.017453292519943295 	# Scale factor for axis 2
-                Sft3 = -0.0087266462599716477 	# Shift for axis 3
-                Scl3 = 0.017453292519943295 	# Scale factor for axis 3
+                Sft2 = -1.5707963267948965e-06 	# Shift for axis 2
+                Scl2 = 3.1415926535897929e-06 	# Scale factor for axis 2
+                Sft3 = -3.9269908169872411e-07 	# Shift for axis 3
+                Scl3 = 7.8539816339744823e-07 	# Scale factor for axis 3
              End WinMap
           MapB = 	# Second component Mapping
              Begin CmpMap 	# Compound Mapping
