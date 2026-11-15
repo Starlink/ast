@@ -1573,6 +1573,14 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        character. MakeFitsFrameSet: do not pass a NULL FrameSet to
 *        AddEncodingFrame when no reference point could be found for the
 *        celestial axes of a spectral cube.
+*     14-NOV-2026 (TIMJ):
+*        Added MjdToDateObs to format the value of DATE-OBS, replacing
+*        six copies of the same code. It stores no DATE-OBS keyword for
+*        an epoch that has no calendar equivalent. The copies ignored the
+*        status of the date conversion, so that an epoch that was not a
+*        number, or was outside the range that can be converted, formatted
+*        integers that had not been set into a buffer that they could
+*        overflow.
 *class--
 */
 
@@ -2241,6 +2249,7 @@ static int CnvType( int, void *, size_t, int, int, int, void *, const char *, co
 static int CnvValue( AstFitsChan *, int , int, void *, const char *, int * );
 static int ComBlock( AstFitsChan *, int, const char *, const char *, int * );
 static int CountFields( const char *, char, const char *, const char *, int * );
+static int MjdToDateObs( double, char *, size_t, int * );
 static int DSSFromStore( AstFitsChan *, FitsStore *, const char *, const char *, int * );
 static int EncodeFloat( char *, int, int, int, int, double, int * );
 static int EncodeValue( AstFitsChan *, char *, int, int, const char *, int * );
@@ -3405,7 +3414,6 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char spectype[MXCTYPELEN];/* Spectral axis CTYPE */
    double *cdelt;      /* Pointer to CDELT array */
    double cdl;         /* CDELT term */
@@ -3414,10 +3422,8 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
    double coscro;      /* Cos( CROTA ) */
    double crota;       /* CROTA value to use */
    double epoch;       /* Epoch of reference equinox */
-   double fd;          /* Fraction of a day */
    double latval;      /* CRVAL for latitude axis */
    double lonval;      /* CRVAL for longitude axis */
-   double mjd99;       /* MJD at start of 1999 */
    double p1, p2;      /* Projection parameters */
    double rho_a;       /* First estimate of CROTA */
    double rho_b;       /* Second estimate of CROTA */
@@ -3430,10 +3436,7 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
    int axrot2;         /* Index of second CROTA rotation axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int naxis;          /* No. of axes */
    int ok;             /* Is FitsSTore OK for IRAF encoding? */
    int prj;            /* Projection type */
@@ -3833,26 +3836,14 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
       val = GetItem( &(store->mjdobs), 0, 0, ' ', NULL, method, class, status );
       if( val != AST__BAD ) {
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-         palCaldj( 99, 1, 1, &mjd99, &jj );
-         if( val < mjd99 ) {
-            palDjcal( 0, val, iymdf, &jj );
-            sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                     iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-         } else {
-            palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-            palDd2tf( 3, fd, sign, ihmsf );
-            sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                     iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                     ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+         if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+            cval = combuf;
+            SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                      "Date of observation", status );
          }
-
-/* Now store the formatted string in the FitsChan. */
-         cval = combuf;
-         SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                   "Date of observation", status );
 
 /* A read leaves any MJD-OBS card in the header, since other software
    may use it. Update it so that it agrees with DATE-OBS. */
@@ -3959,7 +3950,6 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char spectype[MXCTYPELEN];/* Spectral axis CTYPE */
    double *cdelt;      /* Pointer to CDELT array */
    double cdl;         /* CDELT term */
@@ -3968,8 +3958,6 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
    double coscro;      /* Cos( CROTA ) */
    double crota;       /* CROTA value to use */
    double epoch;       /* Epoch of reference equinox */
-   double fd;          /* Fraction of a day */
-   double mjd99;       /* MJD at start of 1999 */
    double rho_a;       /* First estimate of CROTA */
    double rho_b;       /* Second estimate of CROTA */
    double sincro;      /* Sin( CROTA ) */
@@ -3981,10 +3969,7 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
    int axrot2;         /* Index of second CROTA rotation axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int m;              /* Projection parameter index */
    int maxm;           /* Max projection parameter index */
    int naxis;          /* No. of axes */
@@ -4372,26 +4357,14 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
       val = GetItem( &(store->mjdobs), 0, 0, ' ', NULL, method, class, status );
       if( val != AST__BAD ) {
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-         palCaldj( 99, 1, 1, &mjd99, &jj );
-         if( val < mjd99 ) {
-            palDjcal( 0, val, iymdf, &jj );
-            sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                     iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-         } else {
-            palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-            palDd2tf( 3, fd, sign, ihmsf );
-            sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                     iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                     ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+         if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+            cval = combuf;
+            SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                      "Date of observation", status );
          }
-
-/* Now store the formatted string in the FitsChan. */
-         cval = combuf;
-         SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                   "Date of observation", status );
 
 /* A read leaves any MJD-OBS card in the header, since other software
    may use it. Update it so that it agrees with DATE-OBS. */
@@ -6654,7 +6627,6 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char spectype[MXCTYPELEN];/* Spectral axis CTYPE */
    double *cdelt;      /* Pointer to CDELT array */
    double aval[ 2 ];   /* General purpose array */
@@ -6663,11 +6635,9 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    double crval[ 3 ];  /* CRVAL values converted to rads, etc */
    double delta;       /* Spectral axis increment */
    double equ;         /* Epoch of reference equinox */
-   double fd;          /* Fraction of a day */
    double latval;      /* CRVAL for latitude axis */
    double lonpole;     /* LONPOLE value */
    double lonval;      /* CRVAL for longitude axis */
-   double mjd99;       /* MJD at start of 1999 */
    double p1, p2;      /* Projection parameters */
    double radec[ 2 ];  /* Reference (lon,lat) values */
    double rf;          /* Rest freq (Hz) */
@@ -6679,10 +6649,7 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    int axlon;          /* Index of longitude FITS WCS axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int naxis2;         /* Length of pixel axis 2 */
    int naxis3;         /* Length of pixel axis 3 */
    int naxis;          /* No. of axes */
@@ -7054,26 +7021,14 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
       val = GetItem( &(store->mjdobs), 0, 0, ' ', NULL, method, class, status );
       if( val != AST__BAD ) {
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-         palCaldj( 99, 1, 1, &mjd99, &jj );
-         if( val < mjd99 ) {
-            palDjcal( 0, val, iymdf, &jj );
-            sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                     iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-         } else {
-            palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-            palDd2tf( 3, fd, sign, ihmsf );
-            sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                     iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                     ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+         if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+            cval = combuf;
+            SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                      "Date of observation", status );
          }
-
-/* Now store the formatted string in the FitsChan. */
-         cval = combuf;
-         SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                   "Date of observation", status );
 
 /* A read leaves any MJD-OBS card in the header, since other software
    may use it. Update it so that it agrees with DATE-OBS. */
@@ -8799,6 +8754,100 @@ static double DateObs( const char *dateobs, int *status ) {
 
 /* Return the result. */
    return ret;
+}
+
+
+static int MjdToDateObs( double mjd, char *buf, size_t len, int *status ) {
+/*
+*  Name:
+*     MjdToDateObs
+
+*  Purpose:
+*     Format a Modified Julian Date as the value of a FITS DATE-OBS keyword.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     int MjdToDateObs( double mjd, char *buf, size_t len, int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     This function creates the string that represents a date as the
+*     value of the FITS keyword DATE-OBS. The format used depends on the
+*     date. For dates before 1999.0, the old "dd/mm/yy" format is used.
+*     Otherwise, the new "ccyy-mm-ddThh:mm:ss[.ssss]" format is used.
+
+*  Parameters:
+*     mjd
+*        The Modified Julian Date.
+*     buf
+*        Pointer to the buffer in which to return the null terminated
+*        string.
+*     len
+*        The length of the buffer. A string that does not fit is truncated.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the string was created. Zero if the date has no
+*     calendar equivalent, either because the supplied value is undefined
+*     or because it is outside the range of dates that can be converted.
+*     The buffer then holds an empty string. Zero is also returned if an
+*     error has already occurred.
+*/
+
+/* Local Variables: */
+   char sign[ 2 ];            /* Sign of the fraction of a day */
+   double fd;                 /* Fraction of a day */
+   double mjd99;              /* MJD at start of 1999 */
+   int ihmsf[ 4 ];            /* Hour, minute, second and fraction */
+   int iymdf[ 4 ];            /* Year, month, day and fraction */
+   int jj;                    /* Status of a date conversion */
+   int result;                /* Returned value */
+
+/* Initialise. */
+   result = 0;
+   if( len > 0 ) buf[ 0 ] = 0;
+
+/* Check the inherited status. */
+   if( !astOK ) return result;
+
+/* A value that is not a number has no calendar equivalent. The date
+   conversion functions do not check for this. */
+   if( !astISFINITE( mjd ) || mjd == AST__BAD ) return result;
+
+/* Find the MJD at the start of 1999. */
+   palCaldj( 99, 1, 1, &mjd99, &jj );
+
+/* Use the old format before then. The conversion fails for a date
+   outside the range it supports, leaving the calendar date undefined. */
+   if( mjd < mjd99 ) {
+      palDjcal( 0, mjd, iymdf, &jj );
+      if( jj == 0 ) {
+         (void) snprintf( buf, len, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ],
+                          iymdf[ 1 ],
+                          iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
+         result = 1;
+      }
+
+/* Otherwise use the new format. */
+   } else {
+      palDjcl( mjd, iymdf, iymdf+1, iymdf+2, &fd, &jj );
+      if( jj == 0 ) {
+         palDd2tf( 3, fd, sign, ihmsf );
+         (void) snprintf( buf, len,
+                          "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
+                          iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
+                          ihmsf[2], ihmsf[3] );
+         result = 1;
+      }
+   }
+
+   return result;
 }
 
 static void DeleteCard( AstFitsChan *this, const char *method,
@@ -19288,20 +19337,14 @@ static int IRAFFromStore( AstFitsChan *this, FitsStore *store,
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    double cdelt;       /* A CDELT value */
-   double fd;          /* Fraction of a day */
-   double mjd99;       /* MJD at start of 1999 */
    double p1, p2;      /* Projection parameters */
    double val;         /* General purpose value */
    int axlat;          /* Index of latitude FITS WCS axis */
    int axlon;          /* Index of longitude FITS WCS axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int naxis;          /* No. of axes */
    int ok;             /* Is FitsSTore OK for IRAF encoding? */
    int prj;            /* Projection type */
@@ -19499,26 +19542,14 @@ static int IRAFFromStore( AstFitsChan *this, FitsStore *store,
    val = GetItem( &(store->mjdobs), 0, 0, ' ', NULL, method, class, status );
    if( val != AST__BAD ) {
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-      palCaldj( 99, 1, 1, &mjd99, &jj );
-      if( val < mjd99 ) {
-         palDjcal( 0, val, iymdf, &jj );
-         sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                  iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-      } else {
-         palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-         palDd2tf( 3, fd, sign, ihmsf );
-         sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                  iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                  ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+      if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+         cval = combuf;
+         SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                   "Date of observation", status );
       }
-
-/* Now store the formatted string in the FitsChan. */
-      cval = combuf;
-      SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                "Date of observation", status );
 
 /* A read leaves any MJD-OBS card in the header, since other software
    may use it. Update it so that it agrees with DATE-OBS. */
@@ -25005,14 +25036,11 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    char primsys[20];   /* Buffer for primnary RADECSYS value */
    char type[MXCTYPELEN];/* Buffer for CTYPE value */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char sup;           /* Upper limit on s */
    double *c;          /* Pointer to next array element */
    double *d;          /* Pointer to next array element */
    double *matrix;     /* Pointer to Frame PC/CD matrix */
    double *primpc;     /* Pointer to primary PC/CD matrix */
-   double fd;          /* Fraction of a day */
-   double mjd99;       /* MJD at start of 1999 */
    double primdt;      /* Primary mjd-obs value */
    double primeq;      /* Primary equinox value */
    double primln;      /* Primary lonpole value */
@@ -25023,11 +25051,8 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    int axlon;          /* Index of longitude FITS WCS axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
    int is;             /* Co-ordinate version index */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int m;              /* Parameter index */
    int maxm;           /* Upper limit on m */
    int naxis;          /* No. of axes */
@@ -25337,26 +25362,14 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
             SetValue( this, "MJD-OBS", &val, AST__FLOAT,
                       "Modified Julian Date of observation", status );
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-            palCaldj( 99, 1, 1, &mjd99, &jj );
-            if( val < mjd99 ) {
-               palDjcal( 0, val, iymdf, &jj );
-               sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                        iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-            } else {
-               palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-               palDd2tf( 3, fd, sign, ihmsf );
-               sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                        iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                        ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+            if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+               cval = combuf;
+               SetValue( this, "DATE-OBS", &cval, AST__STRING,
+                         "Date of observation", status );
             }
-
-/* Now store the formatted string in the FitsChan. */
-            cval = combuf;
-            SetValue( this, "DATE-OBS", &cval, AST__STRING,
-                      "Date of observation", status );
          }
       } else if( val != AST__BAD && !astEQUAL( val, primdt ) ){
          ok = 0;
@@ -37587,21 +37600,15 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    char combuf[80];    /* Buffer for FITS card comment */
    char parprefix[4];  /* Prefix for projection parameter keywords */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char sup;           /* Upper limit on s */
    char type[MXCTYPELEN];/* Buffer for CTYPE value */
    const char *order_kwd; /* Name for SIP max order keyword */
    double ****item;    /* Address of FitsStore item to use */
    double cdl;         /* CDELT value */
-   double fd;          /* Fraction of a day */
-   double mjd99;       /* MJD at start of 1999 */
    double val;         /* General purpose value */
    int *tabaxis;       /* Flags WCS axes that use -TAB algorithm */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int m;              /* Parameter index */
    int maxm;           /* Upper limit on m */
    int naxis;          /* Value of NAXIS keyword */
@@ -37891,26 +37898,14 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
             SetValue( this, FormatKey( "MJD-OBS", -1, -1, s, status ),
                       &val, AST__FLOAT, "Modified Julian Date of observation", status );
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-            palCaldj( 99, 1, 1, &mjd99, &jj );
-            if( val < mjd99 ) {
-               palDjcal( 0, val, iymdf, &jj );
-               sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                        iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-            } else {
-               palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-               palDd2tf( 3, fd, sign, ihmsf );
-               sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                        iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                        ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+            if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+               cval = combuf;
+               SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                         "Date of observation", status );
             }
-
-/* Now store the formatted string in the FitsChan. */
-            cval = combuf;
-            SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                      "Date of observation", status );
          }
          val = GetItem( &(store->mjdavg), 0, 0, ' ', NULL, method, class, status );
          if( val != AST__BAD ) SetValue( this, "MJD-AVG", &val, AST__FLOAT,
