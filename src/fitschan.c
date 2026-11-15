@@ -1581,6 +1581,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        number, or was outside the range that can be converted, formatted
 *        integers that had not been set into a buffer that they could
 *        overflow.
+*     15-NOV-2026 (TIMJ):
+*        In SpecTrans ("Zero CDELT values"), only replace a CDELT value
+*        that was read and is zero. The value of an axis with no CDELT
+*        keyword, or with one that is not a number, was tested without
+*        having been set, so whether such a header could be read depended
+*        on how the library had been compiled.
 *class--
 */
 
@@ -31842,11 +31848,11 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 /* Do each row in the matrix. */
          for( j = 0; j < naxis; j++ ){
 
-/* Get the CDELT value for this row. */
-            GetValue2( ret, this, FormatKey( "CDELT", j + 1, -1, s, status ), AST__FLOAT,
-                       (void *) &cdeltj, 0, method, class, status );
+/* Get the CDELT value for this row. An axis that has no CDELT keyword,
+   or one with a value that is not a number, has no zero to replace, so
+   it is left alone (the default value of CDELT is 1.0).
 
-/* If CDELT is zero, use 1.0E-6 of the corresponding CRVAL value
+   If CDELT is zero, use 1.0E-6 of the corresponding CRVAL value
    instead, or 1.0 if CRVAL is zero. Otherwise, the zeros could cause the
    matrix to be non-invertable. The Mapping could then not be simplified
    or used by a Plot. CDELT values of zero are usually used to indicate
@@ -31854,7 +31860,10 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
    with a single plane with the "redundant" 3rd axis used to specify the
    wavelength of the filter. The actual value used for CDELT shouldn't
    matter since the axis only spans a single pixel anyway. */
-            if( cdeltj == 0.0 ){
+            if( GetValue2( ret, this, FormatKey( "CDELT", j + 1, -1, s, status ),
+                           AST__FLOAT, (void *) &cdeltj, 0, method, class,
+                           status ) && cdeltj == 0.0 ){
+
                GetValue2( ret, this, FormatKey( "CDELT", j + 1, -1, s, status ), AST__FLOAT,
                          (void *) &dval, 1, method, class, status );
                cdeltj = 1.0E-6*dval;
