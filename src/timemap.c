@@ -130,6 +130,11 @@ f     - AST_TIMEADD: Add a time coordinate conversion to an TimeMap
 *        It sized them from the count in the dump, so a count of INT_MAX
 *        made it allocate and clear tens of gigabytes before it noticed
 *        that the first step was missing.
+*     14-NOV-2026 (TIMJ):
+*        MapMerge: treat TDBTOTCB and TCBTOTDB as conversions with one
+*        user-supplied argument when looking for a conversion followed by
+*        its inverse. Three arguments were compared, the third of which
+*        is never set for these conversions.
 *class--
 */
 
@@ -2302,7 +2307,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                if( ( PAIR_CVT2( AST__TAITOTT, AST__TTTOTAI ) ||
                      PAIR_CVT2( AST__UTTOGMST, AST__GMSTTOUT ) ||
                      PAIR_CVT2( AST__TTTOTCG, AST__TCGTOTT ) ||
-                     PAIR_CVT2( AST__TTTOTCG, AST__TCGTOTT ) ||
+                     PAIR_CVT2( AST__TDBTOTCB, AST__TCBTOTDB ) ||
                      PAIR_CVT2( AST__UTTOUTC, AST__UTCTOUT ) ||
                      PAIR_CVT2( AST__LTTOUTC, AST__UTCTOLT ) ) &&
                           astEQUAL( cvtargs[ istep ][ 0 ],
@@ -2334,8 +2339,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   keep = 0;
 
 /* Now check for conversions which have three user-supplied arguments. */
-               } else if( ( PAIR_CVT2( AST__TDBTOTCB, AST__TCBTOTDB ) ||
-                            PAIR_CVT2( AST__GMSTTOLMST, AST__LMSTTOGMST ) ||
+               } else if( ( PAIR_CVT2( AST__GMSTTOLMST, AST__LMSTTOGMST ) ||
                             PAIR_CVT2( AST__LASTTOLMST, AST__LMSTTOLAST ) ) &&
                           astEQUAL( cvtargs[ istep ][ 0 ],
                                  cvtargs[ istep + 1 ][ 0 ] ) &&
