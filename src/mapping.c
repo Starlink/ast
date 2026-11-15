@@ -24597,9 +24597,7 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
    each having as many inputs as the one before it has outputs, and read
    and write arrays on that basis. Mappings that do not fit together
    cannot be used in series at all, so report an error rather than give
-   them to a class. This can happen if a Mapping that changes its number
-   of axes (a FrameSet, say) is modified after being put into a compound
-   Mapping. */
+   them to a class. */
    if( !ok_old && astOK ) {
       astError( AST__INNCO, "astMapMerge(%s): The Mappings to be merged in "
                 "series do not fit together; the number of inputs of one "
