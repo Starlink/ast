@@ -109,6 +109,10 @@
 *        - ModifyPrefix no longer reports a change to an unchanged
 *          "constant/unit" node, which made MakeExp recurse without end
 *          (for instance when normalising "2/m").
+*     14-NOV-2026 (TIMJ):
+*        astUnitMapper: return a blank axis label unchanged. No tree can be
+*        made for a blank label, and the missing tree was put into the tree
+*        that describes the output label, which was then simplified.
 */
 
 /* Module Macros. */
@@ -5820,7 +5824,13 @@ AstMapping *astUnitMapper_( const char *in, const char *out,
 
 /* Create the tree. */
             labtree = MakeLabelTree( exp, nc, status );
-            if( astOK ) {
+
+/* A blank label has no tree. There is nothing in it to modify, so return
+   a copy of it. */
+            if( astOK && !labtree ) {
+               *out_lab = astStore( NULL, in_lab, strlen( in_lab ) + 1 );
+
+            } else if( astOK ) {
 
 /* Concatenate this tree (which goes from "basic label" to "input label")
    with the test tree found above (which goes from "input units" to "output
