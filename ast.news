@@ -189,10 +189,12 @@ Bug fixes
   - An inverted PermMap with more inputs than outputs was read beyond the
     end of its permutation array.
 
-- astSimplify now reports an error if a class returns Mappings that have
-  different numbers of inputs and outputs to those it was given, rather
-  than using them. The Mappings would otherwise be applied to the wrong
-  numbers of axes.
+- astSimplify now reports an error if the Mappings it is asked to merge in
+  series do not fit together (one does not have as many inputs as the one
+  before it has outputs), or if a class returns Mappings that have
+  different numbers of inputs and outputs to those it was given. The
+  Mappings were previously used as they stood, and were applied to the
+  wrong numbers of axes.
 
 - A PermMap created without an "outperm" array, but with constants, now
   gives a bad value to each output that has no corresponding input, as
