@@ -118,6 +118,22 @@ f     The PermMap class does not define any new routines beyond those
 *        permutation arrays is one of the constants read. A dump that
 *        referred to a later one made astTransform read beyond the end of
 *        the array of constants.
+*     14-NOV-2026 (TIMJ):
+*        - A PermMap created without an "inperm" or "outperm" array, but
+*        with constants, gave the first constant to a coordinate that had
+*        no corresponding coordinate to copy, in the forward
+*        transformation, in astMapSplit and when merged with a neighbour.
+*        It now gets a bad value, as documented.
+*        - MapMerge: use the number of coordinates that applies in the
+*        direction in which each Mapping is used when a permutation array
+*        is absent, and do not compare a new permutation array with an
+*        absent one.
+*        - NullPerm: use the lengths of the permutation arrays, which the
+*        Invert attribute does not change. The arrays of an inverted
+*        PermMap with more inputs than outputs were read beyond their
+*        end.
+*        - MapSplit: stop looking at the selected inputs once two of them
+*        are found to be fed by the same output.
 *class--
 */
 
@@ -164,8 +180,14 @@ f     The PermMap class does not define any new routines beyond those
    maximum value allowed in the permutation array (i.e. the number of
    PermMap outputs if "perms" is inperm, or PermMap inputs if "perms" is
    outperm). Use this only when the caller already knows that "i" is within
-   the allocated permutation array bounds. */
-#define PERMVAL( perms, i, maxperm ) ( perms ? perms[ i ] : (  i < maxperm ? i : -1 ))
+   the allocated permutation array bounds.
+
+   If "perms" is NULL and there is no coordinate with index "i" to copy,
+   the value returned is "maxperm". Like any other value that is not the
+   index of a coordinate and is not negative, this indicates a bad
+   coordinate value. A negative value cannot be used for this, since it
+   would refer to an element of the constants array. */
+#define PERMVAL( perms, i, maxperm ) ( perms ? perms[ i ] : (  i < maxperm ? i : maxperm ))
 
 /* Like PERMVAL, but also guards against "i" being outside the allocated
    permutation array length. Use this when comparing or otherwise probing
@@ -1032,7 +1054,6 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    UnitMap), leave the permutation array pointer NULL, which indicates
    a null permutation. */
                   perm = NULL;
-                  maxperm = astGetNout( map );
                   if ( !strcmp( class, "PermMap" ) ) {
                      permmap = (AstPermMap *) map;
                      perm = invert ? permmap->outperm : permmap->inperm;
@@ -1048,6 +1069,9 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                      ncoord_out = invert ? astGetNin( map ) :
                                            astGetNout( map );
                   }
+
+/* The values in the permutation array are indices of these coordinates. */
+                  maxperm = ncoord_out;
 
 /* Loop through the elements of the simplified permutation array to
    accumulate the effects of the current individual Mapping. */
@@ -1224,7 +1248,6 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    UnitMap), leave the permutation array pointer NULL, which indicates
    a null permutation. */
                   perm = NULL;
-                  maxperm = astGetNout( map );
                   if ( !strcmp( class, "PermMap" ) ) {
                      permmap = (AstPermMap *) map;
                      perm = invert ? permmap->outperm : permmap->inperm;
@@ -1244,6 +1267,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                      ncoord_out = invert ? astGetNin( map ) :
                                            astGetNout( map );
                   }
+
+/* The values in the permutation array are indices of the output
+   coordinates. */
+                  maxperm = ncoord_out;
 
 /* Loop through the (effective) input coordinates of the current
    individual Mapping to accumulate their effect on the overall
@@ -1389,7 +1416,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    original and replacement "inperm" arrays (if present) in detail for
    equality.  We declare simplification to have occurred if they
    differ. */
-      if ( !simpler && store_in ) {
+      if ( !simpler && store_in && permmap->inperm ) {
          for ( coord = 0; coord < nin; coord++ ) {
             simpler = ( inperm[ coord ] != permmap->inperm[ coord ] );
             if ( simpler ) break;
@@ -1398,7 +1425,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
 /* Similarly, if necessary, compare the original and replacement
    "outperm" arrays. */
-      if ( !simpler && store_out ) {
+      if ( !simpler && store_out && permmap->outperm ) {
          for ( coord = 0; coord < nout; coord++ ) {
             simpler = ( outperm[ coord ] != permmap->outperm[ coord ] );
             if ( simpler ) break;
@@ -1668,11 +1695,12 @@ static int *MapSplit( AstMapping *this_map, int nin, const int *in, AstMapping *
    selected inputs. */
       result = astMalloc( sizeof( int )*(size_t) nin );
       if( astOK ) {
-         for( i = 0; i < nin; i++ ) {
+         for( i = 0; i < nin && result; i++ ) {
             result[ i ] = PERMVAL( inp, in[ i ], npout );
 
-/* Check the input is not fed by a constant. */
-            if( result[ i ] < 0 ) {
+/* Check the input is fed by an output, rather than by a constant or a
+   bad value. */
+            if( result[ i ] < 0 || result[ i ] >= npout ) {
                result = astFree( result );
                break;
 
@@ -1761,6 +1789,11 @@ static int NullPerm( AstPermMap *this, int forward, int *status ){
 /* Check the global error status. */
    if ( !astOK ) return result;
 
+/* The outperm and inperm arrays describe the PermMap as it was created,
+   and have one element for each output or input it had then. The Invert
+   attribute swaps the numbers of inputs and outputs that the PermMap
+   reports, so allow for it when finding the lengths of the arrays. */
+
 /* First check the forward transformation, given by the outperm array. */
    if( forward ) {
 
@@ -1774,7 +1807,7 @@ static int NullPerm( AstPermMap *this, int forward, int *status ){
    that the output is derived from the input with the saem index. */
       } else {
          result = 1;
-         nout = astGetNout( this );
+         nout = astGetInvert( this ) ? astGetNin( this ) : astGetNout( this );
          for( i = 0; i < nout; i++ ) {
             if( this->outperm[ i ] != i ) {
                result = 0;
@@ -1796,7 +1829,7 @@ static int NullPerm( AstPermMap *this, int forward, int *status ){
    that the input is derived from the output with the same index. */
       } else {
          result = 1;
-         nin = astGetNin( this );
+         nin = astGetInvert( this ) ? astGetNout( this ) : astGetNin( this );
          for( i = 0; i < nin; i++ ) {
             if( this->inperm[ i ] != i ) {
                result = 0;
