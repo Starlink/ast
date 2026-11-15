@@ -190,6 +190,21 @@ f     The CmpMap class does not define any new routines beyond those
 *        took a million calls to find that there was no such subset, which
 *        made writing a FrameSet with that many axes to a FitsChan very
 *        slow.
+*     14-NOV-2026 (TIMJ):
+*        MapMerge, when swapping a PermMap with a following parallel
+*        CmpMap:
+*        - Do not swap them if every PermMap output is constant. The new
+*        PermMap was built from arrays that were too small, or were only
+*        partly filled, and its inverse transformation was wrong.
+*        - Do not swap them if the inverse of the PermMap copies an output
+*        to an input that the forward transformation does not use. This
+*        was reported as an internal programming error.
+*        - Do not read the permutation arrays unless the PermMap has as
+*        many outputs as the CmpMap has inputs.
+*        - Find the numbers of inputs and outputs of the components of
+*        the CmpMap with the Invert values the CmpMap uses them with,
+*        and allow for the CmpMap itself being used in its inverse
+*        direction.
 *class--
 */
 
@@ -2076,6 +2091,21 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          npout = astGetNout( permmap1 );
          npin = astGetNin( permmap1 );
 
+/* Temporarily set the Invert attributes of the component Mappings to the
+   values with which the CmpMap uses them. These are the values they had
+   when the CmpMap was created, or the opposite if the CmpMap is to be used
+   in its inverse direction (the inverse of two Mappings in parallel is
+   their inverses in parallel). */
+         invert2a = astGetInvert( cmpmap2->map1 );
+         invert2b = astGetInvert( cmpmap2->map2 );
+         if( ( *invert_list )[ imap2 ] ) {
+            astSetInvert( cmpmap2->map1, !cmpmap2->invert1 );
+            astSetInvert( cmpmap2->map2, !cmpmap2->invert2 );
+         } else {
+            astSetInvert( cmpmap2->map1, cmpmap2->invert1 );
+            astSetInvert( cmpmap2->map2, cmpmap2->invert2 );
+         }
+
 /* Get the number of inputs and outputs for the two components of the
    nominated parallel CmpMap. */
          nin2a = astGetNin( cmpmap2->map1 );
@@ -2098,37 +2128,46 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    inputs or must be assigned constant values. Also, there must be a
    one-to-one correspondance between inputs and outputs in the PermMap.
    Check that the first block of nin2a PermMap outputs are copied from
-   the last block of nin2a PermMap inputs (and vica-versa) or are constant. */
-         canswap = ( npin == npout );
-         aconstants = ( outperm[ 0 ] < 0 );
+   the last block of nin2a PermMap inputs (and vica-versa) or are constant.
+   If they are constant, the PermMap inputs that would otherwise feed them
+   are not used by the forward transformation, and the inverse
+   transformation must then give each of those inputs a constant or bad
+   value, rather than copying it from a PermMap output. */
+         canswap = ( npin == npout && npout == nin2a + nin2b );
+         aconstants = canswap && ( outperm[ 0 ] < 0 );
 
-         for( i = 0, j = npin - nin2a; i < nin2a; i++, j++ ) {
+         for( i = 0, j = npin - nin2a; i < nin2a && canswap; i++, j++ ) {
             if( aconstants ) {
-               if( outperm[ i ] >= 0 ) {
+               if( outperm[ i ] >= 0 ||
+                   ( inperm[ j ] >= 0 && inperm[ j ] < npout ) ) {
                   canswap = 0;
-                  break;
                }
 
             } else if( outperm[ i ] != j || inperm[ j ] != i ) {
                canswap = 0;
-               break;
             }
          }
 
 /* Check that the first block of nin2b PermMap inputs are copied from
-   the last block of nin2b PermMap outputs, and vica-versa. */
-         bconstants = ( outperm[ nin2a ] < 0 );
-         for( i = 0, j = npout - nin2b; i < nin2b; i++, j++ ) {
+   the last block of nin2b PermMap outputs, and vica-versa, or that those
+   outputs are constant (subject to the same condition as above). */
+         bconstants = canswap && ( outperm[ nin2a ] < 0 );
+         for( i = 0, j = npout - nin2b; i < nin2b && canswap; i++, j++ ) {
             if( bconstants ) {
-               if( outperm[ j ] >= 0 ) {
+               if( outperm[ j ] >= 0 ||
+                   ( inperm[ i ] >= 0 && inperm[ i ] < npout ) ) {
                   canswap = 0;
-                  break;
                }
             } else if( inperm[ i ] != j || outperm[ j ] != i ) {
                canswap = 0;
-               break;
             }
          }
+
+/* If every PermMap output is constant, both components of the CmpMap
+   would be replaced, which the code below does not provide for (it
+   replaces at most one of them with a UnitMap). Leave such Mappings as
+   they are. */
+         if( aconstants && bconstants ) canswap = 0;
 
 /* If the Mappings can be swapped.. */
          new_pm = NULL;
@@ -2136,13 +2175,6 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          qa = NULL;
          qb = NULL;
          if( canswap ) {
-
-/* Temporarily set the Invert attributes of the component Mappings to the
-   values they had when the CmpMap was created. */
-            invert2a = astGetInvert( cmpmap2->map1 );
-            invert2b = astGetInvert( cmpmap2->map2 );
-            astSetInvert( cmpmap2->map1, cmpmap2->invert1 );
-            astSetInvert( cmpmap2->map2, cmpmap2->invert2 );
 
 /* If any PermMap outputs are constant, we will need the results of
    transforming these constants using the CmpMap which follows. */
@@ -2295,12 +2327,11 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                qa = astFree( qa );
                qb = astFree( qb );
             }
+         }
 
 /* Re-instate the original Invert attributes in the component Mappings. */
-            astSetInvert( cmpmap2->map1, invert2a );
-            astSetInvert( cmpmap2->map2, invert2b );
-
-         }
+         astSetInvert( cmpmap2->map1, invert2a );
+         astSetInvert( cmpmap2->map2, invert2b );
 
 /* Release the arrays holding the input and output permutation arrays
    and constants copied from the PermMap. */
