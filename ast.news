@@ -224,6 +224,67 @@ Bug fixes
   because the replacement was calculated from CDELT rather than CRVAL.
   This changes the pixel size of a degenerate axis of such a header.
 
+- Writing a FrameSet to a FitsChan could crash, or read or write beyond the
+  end of an array, in several cases that are now handled:
+  - a compound Mapping that has an Ident, for which the search for a
+    projection never ended;
+  - axes that could only be written as look-up tables (TabOK), where a
+    world axis depends on more than one pixel axis, or the Mapping has no
+    inverse and has more inputs than outputs;
+  - polynomial distortion (SipOK), for a polynomial with a linear term
+    after its last term of higher order, and for celestial axes beside
+    other axes that share a pixel axis;
+  - more Frames needing an alternate axis description than the twenty six
+    letters that can identify one;
+  - an offset sky coordinate system with a long axis Symbol.
+  A FrameSet that cannot be described is not written, as before.
+
+- The absolute description of an offset sky coordinate system (SkyRefIs) is
+  no longer written to a FitsChan under a letter that another Frame has
+  claimed through its Ident attribute. The two descriptions were written
+  under the same letter, giving a header that described neither.
+
+- FITS-PC encoding shares the RADECSYS value, the projection parameters
+  and the PC matrix of the primary axis description with every secondary
+  one. A secondary description is no longer written if it has a
+  RADECSYS value or projection parameters where the primary description
+  has none, or has a different number of axes. Its values were compared
+  with primary values that had not been set, and a secondary description
+  with projection parameters could be written without them.
+
+- WCSNAME is now written to a FitsChan for a Domain that differs from the
+  first axis Symbol only in its last character, and the comment of a
+  string keyword is now replaced when the new value differs from the old
+  only in its last character. The comparison of the two strings ignored
+  the last character of each, and for two blank strings read beyond the
+  end of both.
+
+- Writing a FrameSet with more than three axes, and a single spatial
+  pixel, using FITS-CLASS encoding no longer reports the error "Bad number
+  of input coordinate values". Such a FrameSet is not written.
+
+- A write to a FitsChan that fails no longer removes cards that were in
+  the FitsChan beforehand. If a keyword that the write stored was
+  already present, the existing card was replaced, and the replacement
+  was then removed with the other new cards. The existing card is now
+  put back. The same applies to a secondary axis description that is
+  abandoned while the others are written. The new cards are also now
+  removed if the write fails with an error, when they used to be left.
+
+- Reading a FITS header in which a celestial axis has no partner (for
+  instance a "DEC--GLS" axis with no "RA---GLS" axis) no longer reports an
+  internal error, or an error about a keyword for axis zero. This
+  happened for the projection types that are translated as a header is
+  read (GLS, NCP, ATF, CAR, TPV, ZPX and TNX). Such a header is now
+  rejected with an error that says what is wrong with it, as it is for
+  any other projection type.
+
+- A WcsMap with projection parameter values that its projection cannot
+  use now reports an error each time it is used to transform positions.
+  For the AZP, SZP, ZPN, AIR, CYP, CEA, COP, COE, COD and COO projections
+  an error was reported at most once, and later transformations returned
+  values calculated from quantities that had never been set.
+
 - A range of cells in a string MOC is no longer expanded into its individual
   cells as it is read, which for a large range took a long time and could
   exhaust memory.
