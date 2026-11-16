@@ -39,7 +39,9 @@
 *         refers to a constant it does not have, a full MatrixMap with more
 *         elements than can be counted or named, a LutMap given an input
 *         far beyond its table, a SplineMap given a position that is not a
-*         number, and a KeyMap that asks for a huge hash table.
+*         number, a KeyMap that asks for a huge hash table, and a
+*         projection whose parameters are unusable, which must say so every
+*         time it is used.
 *       - Large values: a sky position or an Epoch that is too large to
 *         format or to bring into range one turn at a time.
 *       - Text of any length: values, Labels, Domains and Units that are
@@ -58,8 +60,8 @@
 *         that a fraction of it is zero, a floating point value that is
 *         too large to convert to an integer, an axis with a blank label
 *         beside a spectral axis, an epoch of observation that has no
-*         calendar date, and an axis whose CDELT value is missing, is not
-*         a number, or is zero.
+*         calendar date, an axis whose CDELT value is missing, is not a
+*         number, or is zero, and a celestial axis that has no partner.
 
 *  Notes:
 *     - This is a native C test with no Fortran original.
@@ -574,15 +576,37 @@ static int test_frames( void ) {
 static int test_mappings( void ) {
    AstLutMap *lutmap;
    AstMapping *spline;
+   AstWcsMap *wcsmap;
    double nanx[ 3 ];
    double nany[ 3 ];
    double nanout[ 6 ];
    int i;
+   int j;
    double element = 1.0;
    double far[ 2 ] = { 1.0E308, -1.0E308 };
    double farout[ 2 ];
    double lut[ 3 ] = { 1.0, 2.0, 4.0 };
+   double xin = 0.1;
+   double xout;
+   double yin = 0.2;
+   double yout;
    int nfail = 0;
+
+/* Projections, each with parameter values that it cannot use. */
+   const struct {
+      int type;
+      const char *name;
+      const char *pars;
+   } badprj[] = {
+      { AST__AZP, "AZP", "PV2_1=0,PV2_2=90" },
+      { AST__ZPN, "ZPN", "PV2_0=0" },
+      { AST__AIR, "AIR", "PV2_1=-90" },
+      { AST__CYP, "CYP", "PV2_1=1,PV2_2=-1" },
+      { AST__CEA, "CEA", "PV2_1=45" },
+      { AST__COP, "COP", "PV2_1=0,PV2_2=0" },
+      { AST__COE, "COE", "PV2_1=0,PV2_2=0" },
+      { AST__COD, "COD", "PV2_1=0,PV2_2=0" },
+      { AST__COO, "COO", "PV2_1=0,PV2_2=0" } };
 
    nanx[ 0 ] = nan( "" );
    nany[ 0 ] = 0.25;
@@ -684,6 +708,26 @@ static int test_mappings( void ) {
    }
    nfail += check_made( "SplineMap given positions that are not numbers",
                         spline );
+
+/* A projection that cannot use its parameter values reports an error each
+   time it is asked to transform a position, in either direction.  After
+   the first attempt, it used to give values worked out from quantities
+   that had never been calculated. */
+   for ( i = 0; i < (int) ( sizeof( badprj )/sizeof( badprj[ 0 ] ) ); i++ ) {
+      wcsmap = astWcsMap( 2, badprj[ i ].type, 1, 2, badprj[ i ].pars );
+      for ( j = 0; j < 4 && wcsmap; j++ ) {
+         astTran2( wcsmap, 1, &xin, &yin, j%2, &xout, &yout );
+         if ( astStatus != AST__WCSPA ) {
+            fprintf( stderr, "testcorruptinput: use %d of the %s projection "
+                     "with %s gave status %d and not %d\n", j + 1,
+                     badprj[ i ].name, badprj[ i ].pars, astStatus,
+                     AST__WCSPA );
+            nfail++;
+         }
+         if ( !astOK ) astClearStatus;
+      }
+      nfail += check_made( "WcsMap with unusable parameters", wcsmap );
+   }
 
 /* The size of the hash table of a KeyMap is not taken on trust. */
    nfail += check_accepted( "KeyMap that asks for a table of INT_MAX",
@@ -1301,6 +1345,37 @@ static int test_fits( void ) {
    const int nlinear = NCARD( linear ) - 1;
    const double unit_step[ 2 ] = { 1.0, 0.5 };
    const double small_step[ 2 ] = { 0.005, 0.5 };
+
+/* Two linear axes and a third axis, which is given a celestial CTYPE by
+   each case below.  No other axis is celestial, so the third axis has no
+   partner.  Each of these projections is one that is translated into
+   another when a header is read.  The cards that follow the first NULL
+   describe the rest of the third axis. */
+   const char *lone[] = {
+      "CTYPE1  = 'XPOS'",
+      "CTYPE2  = 'YPOS'",
+      "CRVAL1  =                 10.0",
+      "CRVAL2  =                 20.0",
+      "CRPIX1  =                 50.0",
+      "CRPIX2  =                100.0",
+      "CDELT1  =                  1.0",
+      "CDELT2  =                  1.0",
+      NULL,
+      "CRVAL3  =                  5.0",
+      "CRPIX3  =                  1.0",
+      "CDELT3  =                  1.0" };
+   const int nlone = NCARD( lone ) - 4;
+   const char *lonetype[] = {
+      "CTYPE3  = 'DEC--GLS'",
+      "CTYPE3  = 'RA---GLS'",
+      "CTYPE3  = 'DEC--ATF'",
+      "CTYPE3  = 'RA---NCP'",
+      "CTYPE3  = 'DEC--NCP'",
+      "CTYPE3  = 'DEC--CAR'",
+      "CTYPE3  = 'RA---CAR'",
+      "CTYPE3  = 'DEC--ZPX'",
+      "CTYPE3  = 'RA---TNX'",
+      "CTYPE3  = 'DEC--TPV'" };
    AstFitsChan *fc;
    int i;
    int ival;
@@ -1362,6 +1437,20 @@ static int test_fits( void ) {
    linear[ 2 ] = "COMMENT no reference value for axis 1";
    nfail += check_steps( "a header with CDELT1 = 0.0 and no CRVAL1",
                          linear, nlinear + 1, unit_step );
+
+/* A celestial axis with no partner is treated in the same way whatever
+   projection its CTYPE names.  A CTYPE card on its own, for an axis that
+   the header does not otherwise describe, is ignored, and a header that
+   describes the whole axis is rejected.  For a projection that is
+   translated into another, both celestial axes used to be rewritten, so
+   the missing one was given a CTYPE for axis zero and the reader reported
+   an internal error, or a required keyword was looked for on axis zero. */
+   for ( i = 0; i < NCARD( lonetype ); i++ ) {
+      lone[ nlone ] = lonetype[ i ];
+      nfail += check_made( lonetype[ i ], read_header( lone, nlone + 1 ) );
+      nfail += check_failed( lonetype[ i ], read_header( lone, nlone + 4 ),
+                             AST__BDFTS );
+   }
 
 /* A floating point keyword value that an int cannot hold is not
    converted to one. */
