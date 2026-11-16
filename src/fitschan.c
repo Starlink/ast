@@ -1630,6 +1630,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *     16-NOV-2026 (TIMJ):
 *        SkySys: limit the comment for the CTYPE of an offset sky axis to
 *        the size of its buffer, which a long axis Symbol overflowed.
+*     16-NOV-2026 (TIMJ):
+*        Similar: compare the last non-blank character of the two strings.
+*        It was ignored, so two strings that differed only there were
+*        considered equivalent, and the comparison of two blank strings
+*        read beyond the end of both.
 *class--
 */
 
@@ -29077,8 +29082,8 @@ static int Similar( const char *str1, const char *str2, int *status ){
 
 /* Get a pointer to the character following the last non-blank character in
    each string. */
-   ea = a + ChrLen( a, status ) - 1;
-   eb = b + ChrLen( b, status ) - 1;
+   ea = a + ChrLen( a, status );
+   eb = b + ChrLen( b, status );
 
 /* Set a flag indicating that spaces before the next non-blank character
    should be ignored. */
