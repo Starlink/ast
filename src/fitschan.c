@@ -1593,6 +1593,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        SplitMap2: do not search a CmpMap that astMapList cannot
 *        decompose, such as one with an Ident. It was searched by calling
 *        SplitMap2 again with the same CmpMap, without end.
+*     16-NOV-2026 (TIMJ):
+*        IsMapTab1D: return a Mapping only if columns were added to the
+*        table. If the requested WCS axis was fed by more than one grid
+*        axis, a Mapping was returned with no table, and the callers then
+*        used a NULL FitsTable pointer.
 *class--
 */
 
@@ -20345,6 +20350,12 @@ static AstMapping *IsMapTab1D( AstMapping *map, double scale, const char *unit,
 /* Free the dynamic arrays. */
       map_list = astFree( map_list );
       invert_list = astFree( invert_list );
+
+/* If the requested output is fed by more than one input, no columns have
+   been added to the table, so annul the Mapping found above. A Mapping is
+   returned only together with its table columns. */
+   } else if( ret ) {
+      ret = astAnnul( ret );
    }
 
 /* Free resources. */
