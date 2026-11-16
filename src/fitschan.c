@@ -1627,6 +1627,9 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        MakeIntWorld: only store PC and CDELT values if the CD matrix was
 *        found and could be split. CDELT values that had not been set were
 *        stored if the Mapping was not linear.
+*     16-NOV-2026 (TIMJ):
+*        SkySys: limit the comment for the CTYPE of an offset sky axis to
+*        the size of its buffer, which a long axis Symbol overflowed.
 *class--
 */
 
@@ -30698,14 +30701,16 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
             sprintf( attr, "Symbol(%d)", lonax + 1 );
             const char *text = astGetC( skyfrm, attr );
             if( skyref && text ) {
-               sprintf( com, "%s offset from %s", text + 1, skyref );
+               snprintf( com, sizeof( com ), "%s offset from %s",
+                         text[ 0 ] ? text + 1 : text, skyref );
                SetItemC( &(store->ctype_com), axlon, 0, s, com, status );
             }
 
             sprintf( attr, "Symbol(%d)", latax + 1 );
             text = astGetC( skyfrm, attr );
             if( skyref && text ) {
-               sprintf( com, "%s offset from %s", text + 1, skyref );
+               snprintf( com, sizeof( com ), "%s offset from %s",
+                         text[ 0 ] ? text + 1 : text, skyref );
                SetItemC( &(store->ctype_com), axlat, 0, s, com, status );
             }
 
