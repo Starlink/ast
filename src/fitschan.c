@@ -1615,6 +1615,14 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        description of an offset sky coordinate system was not checked at
 *        all, so could be one already claimed by the Ident of another
 *        Frame.
+*     16-NOV-2026 (TIMJ):
+*        PCFromStore: initialise the primary RADECSYS and projection
+*        parameter values, which were compared with those of a secondary
+*        axis description without having been set if the primary
+*        description had none. Do not write a secondary description that
+*        has more projection parameters than the primary one, or a
+*        different number of axes, for which the comparison of the PC
+*        matrices could read beyond the end of the primary matrix.
 *class--
 */
 
@@ -25158,6 +25166,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    int naxis;          /* No. of axes */
    int nc;             /* Length of string */
    int ok;             /* Frame written out succesfully? */
+   int primnaxis;      /* No. of axes in the primary axis descriptions */
    int primok;         /* Primary axis descriptions written succesfully? */
    int prj;            /* Projection type */
    int ret;            /* Returned value. */
@@ -25174,11 +25183,16 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    sup = GetMaxS( &(store->crval), status );
    if( sup > 'I' ) return ret;
 
-/* Initialise */
+/* Initialise the primary values with which the values for each secondary
+   axis description are compared. A secondary description may have a value
+   for which the primary description has none. */
    primdt = AST__BAD;
    primeq = AST__BAD;
    primln = AST__BAD;
    primlt = AST__BAD;
+   primnaxis = 0;
+   primsys[ 0 ] = 0;
+   for( m = 0; m < 10; m++ ) primpv[ m ] = AST__BAD;
 
 /* Loop round all co-ordinate versions (0-9) */
    primpc = NULL;
@@ -25221,6 +25235,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
 /* If we are currently processing the primary axis description, take
    a copy of the PC matrix. */
          if( s == ' ' ) {
+            primnaxis = naxis;
             primpc = (double *) astStore(  NULL, (void *) matrix,
                                            sizeof(double)*naxis*naxis );
 
@@ -25251,22 +25266,24 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    to the next Frame. */
          } else {
             if( primpc ){
-               c = matrix;
-               d = primpc;
-               for( i = 0; i < naxis; i++ ){
-                  for( j = 0; j < naxis; j++ ){
-                     if( !astEQUAL( *c, *d ) ){
-                        ok = 0;
-                     } else {
-                        c++;
-                        d++;
-                     }
+
+/* The two matrices can only be the same if they are the same size. */
+               if( naxis != primnaxis ) {
+                  ok = 0;
+               } else {
+                  c = matrix;
+                  d = primpc;
+                  for( i = 0; i < naxis*naxis && ok; i++ ){
+                     if( !astEQUAL( c[ i ], d[ i ] ) ) ok = 0;
                   }
                }
 
 /* Continue with the next Frame if the PC matrix for this Frame is different
    to the primary PC matrix. */
-               if( !ok ) goto next;
+               if( !ok ) {
+                  matrix = (double *) astFree( (void *) matrix );
+                  goto next;
+               }
             }
          }
          matrix = (double *) astFree( (void *) matrix );
@@ -25496,6 +25513,10 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    Pass on if a TAN projection with parameters is found.  The number of
    parameters was limited to 10. Pass on if more than 10 are supplied. */
          maxm = GetMaxJM( &(store->pv), ' ', status );
+         if( s != ' ' ) {
+            m = GetMaxJM( &(store->pv), s, status );
+            if( m > maxm ) maxm = m;
+         }
          for( i = 0; i < naxis; i++ ){
             if( i != axlon ) {
                for( m = 0; m <= maxm; m++ ){
