@@ -207,6 +207,8 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        MapMerge: restore the Invert attribute of a PolyMap that is
 *        cancelled against its own inverse. The PolyMap may be in use
 *        elsewhere, and was left with the value used in the Mapping list.
+*     16-NOV-2026 (TIMJ):
+*        MergeShift: get the number of outputs from Nout rather than Nin.
 *class--
 */
 
@@ -4113,7 +4115,7 @@ static AstPolyMap *MergeShift( AstPolyMap *this, AstShiftMap *shift,
 
 /* Get the number of inputs and outputs. */
    nin = astGetNin( this );
-   nout = astGetNin( this );
+   nout = astGetNout( this );
 
 /* Check the ShiftMap has the required number of inputs and outputs. */
    nshift =  ( before ? nin : nout );
