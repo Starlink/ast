@@ -1623,6 +1623,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        has more projection parameters than the primary one, or a
 *        different number of axes, for which the comparison of the PC
 *        matrices could read beyond the end of the primary matrix.
+*     16-NOV-2026 (TIMJ):
+*        MakeIntWorld: only store PC and CDELT values if the CD matrix was
+*        found and could be split. CDELT values that had not been set were
+*        stored if the Mapping was not linear.
 *class--
 */
 
@@ -22843,21 +22847,24 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
          y = astFree( y );
       }
 
-/* Produce and store PC and CDELT values from the above CD matrix */
-      SplitMat( nout, cdmat, cdelt, status );
-      c = cdmat;
-      d = cdelt;
-      for( i = 0; i < nout; i++ ){
-         for( j = 0; j < nout; j++ ){
-            val = *(c++);
-            if( i == j ){
-               if( astEQUAL( val, 1.0 ) ) val = AST__BAD;
-            } else {
-               if( astEQUAL( val, 0.0 ) ) val = AST__BAD;
+/* Produce and store PC and CDELT values from the above CD matrix. This
+   can only be done if every element of the CD matrix was found. */
+      if( ret && !SplitMat( nout, cdmat, cdelt, status ) ) ret = 0;
+      if( ret ) {
+         c = cdmat;
+         d = cdelt;
+         for( i = 0; i < nout; i++ ){
+            for( j = 0; j < nout; j++ ){
+               val = *(c++);
+               if( i == j ){
+                  if( astEQUAL( val, 1.0 ) ) val = AST__BAD;
+               } else {
+                  if( astEQUAL( val, 0.0 ) ) val = AST__BAD;
+               }
+               if( val != AST__BAD ) SetItem( &(store->pc), i, j, s, val, status );
             }
-            if( val != AST__BAD ) SetItem( &(store->pc), i, j, s, val, status );
+            SetItem( &(store->cdelt), i, 0, s, *(d++), status );
          }
-         SetItem( &(store->cdelt), i, 0, s, *(d++), status );
       }
    }
 
