@@ -1598,6 +1598,16 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        table. If the requested WCS axis was fed by more than one grid
 *        axis, a Mapping was returned with no table, and the callers then
 *        used a NULL FitsTable pointer.
+*     16-NOV-2026 (TIMJ):
+*        Stay within the bounds of four arrays used when writing a
+*        FrameSet. AnalysePoly set the output index of a coefficient
+*        before deciding whether the coefficient was used, so wrote beyond
+*        the end of the new coefficient array. SIPIntWorld now checks that
+*        the axes other than the celestial axes are fed by all the
+*        remaining grid axes. WorldAxes used a grid axis index to index
+*        an array with an element for each WCS axis, and MakeInvertable
+*        read a pixel dimension for a matrix input that corresponds to no
+*        pixel axis.
 *class--
 */
 
@@ -2369,7 +2379,7 @@ static void InsCard( AstFitsChan *, int, const char *, int, void *, const char *
 static void MakeBanner( const char *, const char *, const char *, char [ AST__FITSCHAN_FITSCARDLEN - FITSNAMLEN + 1 ], int * );
 static void MakeIndentedComment( int, char, const char *, const char *, char [ AST__FITSCHAN_FITSCARDLEN - FITSNAMLEN + 1], int * );
 static void MakeIntoComment( AstFitsChan *, const char *, const char *, int * );
-static void MakeInvertable( double **, int, double *, int * );
+static void MakeInvertable( double **, int, double *, int, int * );
 static void MarkAllCards( AstFitsChan *, const char *, const char *, const char *, int * );
 static void MarkCard( AstFitsChan *, int * );
 static void NewCard( AstFitsChan *, const char *, int, const void *, const char *, int, int * );
@@ -4726,14 +4736,14 @@ static int AnalysePoly( AstPolyMap *polymap, AstMapping **map1,
             pv = coeffs_f;
             for( ico = 0; ico < ncoeff_f; ico++,pv += 4 ){
 
-/* Indicate that this coefficient of the new PolyMap refers to its first
-   output. */
-               pw[ 1 ] = 1;    /* A 1-based axis index */
-
 /* Ignore zero coefficients (there shouldn't be any) and the linear terms
    found earlier. */
                if( pv[ 0 ] != 0.0 && ico != a_ico && ico != b_ico
                                   && ico != c_ico && ico != d_ico ){
+
+/* Indicate that this coefficient of the new PolyMap refers to its first
+   output. */
+                  pw[ 1 ] = 1;    /* A 1-based axis index */
 
 /* Scale the coefficient appropriately, depending on whether it refers to
    the first or second output of the original PolyMap. */
@@ -4768,14 +4778,14 @@ static int AnalysePoly( AstPolyMap *polymap, AstMapping **map1,
             pv = coeffs_f;
             for( ico = 0; ico < ncoeff_f; ico++,pv += 4 ){
 
-/* Indicate that this coefficient of the new PolyMap refers to its second
-   output. */
-               pw[ 1 ] = 2;
-
 /* Ignore zero coefficients (there shouldn't be any) and the linear terms
    found earlier. */
                if( pv[ 0 ] != 0.0 && ico != a_ico && ico != b_ico
                                   && ico != c_ico && ico != d_ico ){
+
+/* Indicate that this coefficient of the new PolyMap refers to its second
+   output. */
+                  pw[ 1 ] = 2;
 
 /* Scale the coefficient appropriately, depending on whether it refers to
    the first or second output of the original PolyMap. */
@@ -22515,7 +22525,7 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
 
 /* Check that the full matrix is invertable, and if not, see if there is
    any way to make it invertable. */
-         MakeInvertable( fullmat, nout, dim, status );
+         MakeInvertable( fullmat, nout, dim, nin, status );
 
 /* Set up an array holding index of the Mapping output corresponding to
    each IWC axis (the inverse of "wperm"). Also look for matching pairs of
@@ -22808,7 +22818,8 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
    return ret;
 }
 
-static void MakeInvertable( double **fullmat, int n, double *dim, int *status ){
+static void MakeInvertable( double **fullmat, int n, double *dim, int ndim,
+                            int *status ){
 /*
 *  Name:
 *     MakeInvertable
@@ -22820,7 +22831,8 @@ static void MakeInvertable( double **fullmat, int n, double *dim, int *status ){
 *     Private function.
 
 *  Synopsis:
-*     void MakeInvertable( double **fullmat, int n, double *dim, int *status )
+*     void MakeInvertable( double **fullmat, int n, double *dim, int ndim,
+*                          int *status )
 
 *  Class Membership:
 *     FitsChan
@@ -22841,8 +22853,11 @@ static void MakeInvertable( double **fullmat, int n, double *dim, int *status ){
 *     n
 *        The number of inputs and outputs for the square matrix.
 *     dim
-*        Pointer to an array of "n" input (i.e. pixel) axis dimensions.
+*        Pointer to an array of "ndim" input (i.e. pixel) axis dimensions.
 *        Individual elements will be AST__BAD if dimensions are not known.
+*     ndim
+*        The number of pixel axes. This may be smaller than "n", in which
+*        case the remaining matrix inputs correspond to no pixel axis.
 *     status
 *        Pointer to the inherited status variable.
 */
@@ -22881,7 +22896,7 @@ static void MakeInvertable( double **fullmat, int n, double *dim, int *status ){
 /* If the input is unused, and it is associated with a degenerate pixel
    axis, we can set the corresponding diagonal element of the matrix to
    1.0. */
-      if( unused && dim[ i ] == 1.0 ) fullmat[ i ][ i ] = 1.0;
+      if( unused && i < ndim && dim[ i ] == 1.0 ) fullmat[ i ][ i ] = 1.0;
    }
 }
 #if defined(THREAD_SAFE)
@@ -29521,6 +29536,22 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                      astInvert( map );
                      if( tmap2 ) {
                         astInvert( tmap2 );
+                     } else {
+                        ok = 0;
+                     }
+
+/* The remaining outputs must be fed by all the grid axes that do not feed
+   the celestial axes, and by no others, since the PermMap created below
+   needs each grid axis to be used exactly once. */
+                     if( ok && inax2 ) {
+                        if( astGetNin( tmap2 ) != nin - 2 ) {
+                           ok = 0;
+                        } else {
+                           for( iin = 0; iin < nin - 2; iin++ ) {
+                              if( inax2[ iin ] == inax1[ 0 ] ||
+                                  inax2[ iin ] == inax1[ 1 ] ) ok = 0;
+                           }
+                        }
                      } else {
                         ok = 0;
                      }
@@ -40863,7 +40894,7 @@ static int WorldAxes( AstFitsChan *this, AstMapping *cmap, double *dim, int *per
 
 /* Choose the occurrence to retain. If the output with the same index as
    the input is one of them, use it. Otherwise, use the first occurrence. */
-               if( perm[ j ] == j ) {
+               if( j < nout && perm[ j ] == j ) {
                   retain = j;
                } else {
                   for( i = 0; i < nout; i++ ) {
