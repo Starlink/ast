@@ -1608,6 +1608,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        an array with an element for each WCS axis, and MakeInvertable
 *        read a pixel dimension for a matrix input that corresponds to no
 *        pixel axis.
+*     16-NOV-2026 (TIMJ):
+*        FsetToStore: added FreeVersion to find the next unused
+*        co-ordinate version letter. The search ran beyond 'Z' when all
+*        twenty six letters had been assigned. The letter for the absolute
+*        description of an offset sky coordinate system was not checked at
+*        all, so could be one already claimed by the Ident of another
+*        Frame.
 *class--
 */
 
@@ -2238,6 +2245,7 @@ static FitsCard *GetLink( FitsCard *, int, const char *, const char *, int * );
 static FitsStore *FitsToStore( AstFitsChan *, int, const char *, const char *, int * );
 static FitsStore *FreeStore( FitsStore *, int * );
 static FitsStore *FsetToStore( AstFitsChan *, AstFrameSet *, int, double *, int, const char *, const char *, int * );
+static char FreeVersion( const int *, char );
 static char *CardComm( AstFitsChan *, int * );
 static char *CardName( AstFitsChan *, int * );
 static char *ConcatWAT( AstFitsChan *, int, const char *, const char *, int * );
@@ -12376,6 +12384,50 @@ static AstObject *FsetFromStore( AstFitsChan *this, FitsStore *store,
    return (AstObject *) ret;
 }
 
+static char FreeVersion( const int *frms, char s ){
+/*
+*  Name:
+*     FreeVersion
+
+*  Purpose:
+*     Find the next co-ordinate version letter that has not been assigned.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     char FreeVersion( const int *frms, char s )
+
+*  Class Membership:
+*     FitsChan
+
+*  Description:
+*     This function searches upwards from the letter following "s" for a
+*     co-ordinate version letter that has not yet been assigned to a
+*     Frame.
+
+*  Parameters:
+*     frms
+*        An array indexed by character code, in which the elements for
+*        'A' to 'Z' hold the index of the Frame to which each letter has
+*        been assigned, or zero if the letter has not been assigned.
+*     s
+*        The letter after which to start the search. A value of 'A' - 1
+*        starts the search at 'A'.
+
+*  Returned Value:
+*     The first unassigned letter after "s", or 'Z' + 1 if every later
+*     letter has been assigned.
+*/
+
+/* Search upwards, stopping after 'Z'. */
+   while( s <= 'Z' ) {
+      s++;
+      if( s > 'Z' || frms[ (int) s ] == 0 ) break;
+   }
+   return s;
+}
+
 static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
                                double *dim, int encoding, const char *class,
                                const char *method, int *status ){
@@ -12570,7 +12622,7 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
                   sid[ ifrm ] = 1;
                } else {
                   id = astGetIdent( frame );
-                  if( strlen( id ) == 1 && isupper( id[ 0 ] ) ) {
+                  if( strlen( id ) == 1 && id[ 0 ] >= 'A' && id[ 0 ] <= 'Z' ) {
                      if( frms[ (int) id[ 0 ] ] == 0 ) {
                         frms[ (int) id[ 0 ] ] = ifrm;
                         sid[ ifrm ] = id[ 0 ];
@@ -12592,7 +12644,7 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
             for( ifrm = 1; ifrm <= nfrm; ifrm++ ){
                if( ifrm != icurr && ifrm != ibase && sid[ ifrm ] != 1 ) {
                   if( sid[ ifrm ] == 0 ){
-                     while( frms[ (int) ++s ] != 0 );
+                     s = FreeVersion( frms, s );
                      if( s <= 'Z' ) {
                         sid[ ifrm ] = s;
                         frms[ (int) s ] = ifrm;
@@ -12603,10 +12655,15 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
          }
 
 /* If the primary headers describe offset coordinates, create an alternate
-   axis description for the correspondsing absolute coordinate system. */
-         if( isoff && ++s <= 'Z' ) {
-            (void) AddVersion( this, fset, ibase, icurr, ret, dim,
-                               s, encoding, -1, method, class, status );
+   axis description for the correspondsing absolute coordinate system, using
+   the next version letter that has not been assigned. */
+         if( isoff ) {
+            s = FreeVersion( frms, s );
+            if( s <= 'Z' ) {
+               frms[ (int) s ] = icurr;
+               (void) AddVersion( this, fset, ibase, icurr, ret, dim,
+                                  s, encoding, -1, method, class, status );
+            }
          }
 
 /* Now go through all the other Frames in the FrameSet, attempting to
@@ -12623,10 +12680,15 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
                                   s0, encoding, isoff, method, class, status );
 
 /* If the Frame is offset, create an extra alternate axis description for
-   the correspondsing absolute coordinate system. */
-               if( isoff && ++s <= 'Z' ) {
-                  (void) AddVersion( this, fset, ibase, ifrm, ret, dim,
-                                     s, encoding, -1, method, class, status );
+   the correspondsing absolute coordinate system, using the next version
+   letter that has not been assigned. */
+               if( isoff ) {
+                  s = FreeVersion( frms, s );
+                  if( s <= 'Z' ) {
+                     frms[ (int) s ] = ifrm;
+                     (void) AddVersion( this, fset, ibase, ifrm, ret, dim,
+                                        s, encoding, -1, method, class, status );
+                  }
                }
             }
          }
