@@ -1646,6 +1646,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        pixel, transform as many coordinates as the FrameSet has, rather
 *        than three, and find the longitude and latitude values from the
 *        axes of the current Frame before testing them.
+*     16-NOV-2026 (TIMJ):
+*        FixNew: do the work even if an error has been reported, as its
+*        prologue has always said it does. Write re-instates the original
+*        current card in the same way. The cards added by a write that
+*        failed with an error were left in the FitsChan, still marked as
+*        new.
 *class--
 */
 
@@ -16907,9 +16913,21 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
    int *flags;             /* Pointer to flags mask for the current card */
    int icard;              /* Index of current card on entry */
    int ndeleted;           /* Number of cards deleted by this call */
+   int old_report;         /* Original error reporting flag */
+   int old_status;         /* Error status on entry */
 
 /* Return if no FitsChan was supplied, or if the FitsChan is empty. */
    if ( !this || !this->head ) return;
+
+/* If an error has already occurred, clear the error status so that the
+   cards can still be examined, and defer the reporting of any further
+   errors. The original status is re-instated before returning. */
+   old_status = astStatus;
+   old_report = 0;
+   if( !astOK ) {
+      old_report = astReporting( 0 );
+      astClearStatus;
+   }
 
 /* Save the current card index, and rewind the FitsChan. */
    icard = astGetCard( this );
@@ -16952,6 +16970,14 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
 /* If no cards were removed, we can safely re-instate the original
    current card. Otherwise, the current card is left at "end-of-file". */
    if( ndeleted == 0 ) astSetCard( this, icard );
+
+/* If there was an error status on entry to this function, re-instate it.
+   Otherwise, allow any new error status to remain. */
+   if( old_status ){
+      if( !astOK ) astClearStatus;
+      astSetStatus( old_status );
+      astReporting( old_report );
+   }
 
 /* Return */
    return;
@@ -41131,6 +41157,8 @@ static int Write( AstChannel *this_channel, AstObject *object, int *status ) {
    int encoding;                 /* FITS encoding scheme to use */
    int i;                        /* Axis index */
    int naxis;                    /* No. of pixel axes */
+   int old_report;               /* Original error reporting flag */
+   int old_status;               /* Error status before clean-up */
    int ret;                      /* Number of objects read */
 
 /* Initialise. */
@@ -41293,8 +41321,22 @@ static int Write( AstChannel *this_channel, AstObject *object, int *status ) {
    by the SinkFile attribute. */
    astWriteFlush( this );
 
-/* If no object was written, re-instate the original current card. */
-   if( !ret ) astSetCard( this, card0 );
+/* If no object was written, re-instate the original current card. This
+   is done even if an error has occurred, in which case the error status
+   is cleared while the card is set and then re-instated. */
+   if( !ret ) {
+      old_status = astStatus;
+      if( !astOK ) {
+         old_report = astReporting( 0 );
+         astClearStatus;
+         astSetCard( this, card0 );
+         if( !astOK ) astClearStatus;
+         astSetStatus( old_status );
+         astReporting( old_report );
+      } else {
+         astSetCard( this, card0 );
+      }
+   }
 
 /* Return the answer. */
    return ret;
