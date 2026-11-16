@@ -274,6 +274,14 @@ f     The WcsMap class does not define any new routines beyond those
 *        invert flag that was supplied for it rather than the value of
 *        its Invert attribute. The PermMap was otherwise used in the
 *        wrong direction after being swapped with a WcsMap.
+*     16-NOV-2026 (TIMJ):
+*        LongRange: only compare the two positions used to see if a
+*        projection is cyclic if both could be projected, and give the
+*        latitude at which they are projected a value if no test position
+*        could be deprojected. The values were used without having been
+*        set if the projection functions failed, as they do every time for
+*        unusable projection parameters now that the WCSLIB set-up
+*        functions no longer record a failed set-up as done.
 *class--
 */
 
@@ -2780,6 +2788,10 @@ static int LongRange( const PrjData *prjdata, struct AstPrjPrm *params,
 /* Check the global error status. */
    if ( !astOK ) return 0;
 
+/* The latitude used below is that of the last point that can be
+   projected. Use zero if none of them can. */
+   bb = 0.0;
+
 /* Project each of the points. If any longitude value is found which is
    greater than 180 degrees, return [0,360] as the longitude range. */
    for( point = 0; point < 4; point++ ){
@@ -2793,11 +2805,14 @@ static int LongRange( const PrjData *prjdata, struct AstPrjPrm *params,
    }
 
 /* See if the projection is cyclic. Transform the sky positions [90,bb] and
-   [450,bb] into cartesian positions and see if they are the same. */
-   prjdata->WcsFwd( 90.0, bb, params, xxx, yyy );
-   prjdata->WcsFwd( 450.0, bb, params, xxx + 1, yyy + 1 );
-   cyclic = ( fabs( xxx[ 0 ] - xxx[ 1 ] ) < 1.0E-10 &&
-              fabs( yyy[ 0 ] - yyy[ 1 ] ) < 1.0E-10 );
+   [450,bb] into cartesian positions and see if they are the same. The
+   projection is not cyclic if either position cannot be transformed. */
+   cyclic = 0;
+   if( !prjdata->WcsFwd( 90.0, bb, params, xxx, yyy ) &&
+       !prjdata->WcsFwd( 450.0, bb, params, xxx + 1, yyy + 1 ) ) {
+      cyclic = ( fabs( xxx[ 0 ] - xxx[ 1 ] ) < 1.0E-10 &&
+                 fabs( yyy[ 0 ] - yyy[ 1 ] ) < 1.0E-10 );
+   }
 
 /* Return. */
    return cyclic;
