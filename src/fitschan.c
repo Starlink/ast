@@ -1641,6 +1641,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        with no partner, the CTYPE of the missing axis was set from a
 *        buffer that had not been filled, and keywords were looked for on
 *        axis zero.
+*     16-NOV-2026 (TIMJ):
+*        CLASSFromStore: when finding the sky position of a single spatial
+*        pixel, transform as many coordinates as the FrameSet has, rather
+*        than three, and find the longitude and latitude values from the
+*        axes of the current Frame before testing them.
 *class--
 */
 
@@ -6704,8 +6709,8 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    double rf;          /* Rest freq (Hz) */
    double specfactor;  /* Factor for converting internal spectral units */
    double val;         /* General purpose value */
-   double xin[ 3 ];    /* Grid coords at centre of first pixel */
-   double xout[ 3 ];   /* WCS coords at centre of first pixel */
+   double *xin;        /* Grid coords at centre of first pixel */
+   double *xout;       /* WCS coords at centre of first pixel */
    int axlat;          /* Index of latitude FITS WCS axis */
    int axlon;          /* Index of longitude FITS WCS axis */
    int axspec;         /* Index of spectral FITS WCS axis */
@@ -6714,6 +6719,8 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    int naxis2;         /* Length of pixel axis 2 */
    int naxis3;         /* Length of pixel axis 3 */
    int naxis;          /* No. of axes */
+   int nin;            /* No. of pixel axes in the FrameSet */
+   int nout;           /* No. of WCS axes in the FrameSet */
    int ok;             /* Is FitsSTore OK for IRAF encoding? */
    int prj;            /* Projection type */
 
@@ -6750,17 +6757,24 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    pixel), modify the CRPIX and CRVAL values in the FitsStore to put
    the reference point at the centre of the one and only spatial pixel. */
       if( store->naxis >= 3 && dim[ axlon ] == 1.0 && dim[ axlat ] == 1.0 ){
-         xin[ 0 ] = 1.0;
-         xin[ 1 ] = 1.0;
-         xin[ 2 ] = 1.0;
-         astTranN( fs, 1, 3, 1, xin, 1, 3, 1, xout );
-         if( xout[ axlon ] != AST__BAD && xout[ axlat ] != AST__BAD ) {
+
+/* Transform the centre of the first pixel, using as many coordinates as
+   the FrameSet has pixel axes and WCS axes. */
+         nin = astGetNin( fs );
+         nout = astGetNout( fs );
+         xin = astMalloc( sizeof( *xin )*(size_t) nin );
+         xout = astMalloc( sizeof( *xout )*(size_t) nout );
+         if( astOK ) {
+            for( i = 0; i < nin; i++ ) xin[ i ] = 1.0;
+            astTranN( fs, 1, nin, 1, xin, 1, nout, 1, xout );
 
 /* The indices of the spatial axes in the FITS header may not be the same
    as the indices of the spatial axes in the WCS Frame of the supplied
    FrameSet. So search the current Frame for longitude and latitude axes,
-   and store the corresponding elements of the "xout" array for later use. */
-            for( i = 0; i < 3; i++ ) {
+   and note the corresponding elements of the "xout" array. */
+            lonval = AST__BAD;
+            latval = AST__BAD;
+            for( i = 0; i < nout; i++ ) {
                sprintf( attbuf, "IsLonAxis(%d)", i + 1 );
                if( astHasAttribute( curfrm, attbuf ) ) {
                   if( astGetI( curfrm, attbuf ) ) {
@@ -6771,12 +6785,16 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
                }
             }
 
-/* Store them in the FitsStore. */
-            SetItem( &(store->crval), axlon, 0, ' ', lonval*AST__DR2D, status );
-            SetItem( &(store->crval), axlat, 0, ' ', latval*AST__DR2D, status );
-            SetItem( &(store->crpix), 0, axlon, ' ', 1.0, status );
-            SetItem( &(store->crpix), 0, axlat, ' ', 1.0, status );
+/* If both were found, store them in the FitsStore. */
+            if( lonval != AST__BAD && latval != AST__BAD ) {
+               SetItem( &(store->crval), axlon, 0, ' ', lonval*AST__DR2D, status );
+               SetItem( &(store->crval), axlat, 0, ' ', latval*AST__DR2D, status );
+               SetItem( &(store->crpix), 0, axlon, ' ', 1.0, status );
+               SetItem( &(store->crpix), 0, axlat, ' ', 1.0, status );
+            }
          }
+         xin = astFree( xin );
+         xout = astFree( xout );
       }
 
 /* Get the CRVAL values for both spatial axes. */
