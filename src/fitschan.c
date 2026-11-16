@@ -1652,6 +1652,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        current card in the same way. The cards added by a write that
 *        failed with an error were left in the FitsChan, still marked as
 *        new.
+*     16-NOV-2026 (TIMJ):
+*        Added SaveReplaced and FixReplaced. SetValue now keeps a copy of
+*        each card that astWrite replaces, and FixNew puts the card back if
+*        the cards that replaced it are removed. A write that was abandoned
+*        used to remove such keywords from the FitsChan altogether.
 *class--
 */
 
@@ -1895,6 +1900,20 @@ typedef struct FitsCard {
    struct FitsCard *prev;     /* Pointer to previous structure in list. */
 } FitsCard;
 
+/* Structure used to hold a card that astWrite has replaced with a new
+   card, so that the original card can be put back if the Object turns out
+   not to be writable. */
+typedef struct ReplacedCard {
+   char name[ FITSNAMLEN + 1 ];/* Keyword name (plus terminating null). */
+   int type;                  /* Data type. */
+   void *data;                /* Pointer to the keyword's data value. */
+   char *comment;             /* Pointer to a comment for the keyword. */
+   int flags;                 /* Flags for the original card */
+   size_t size;               /* Size of data value */
+   int pending;               /* NEW flags still set in the replacement */
+   struct ReplacedCard *next; /* Pointer to the card replaced before it. */
+} ReplacedCard;
+
 /* Structure used to store information derived from the FITS WCS keyword
    values in a form more convenient to further processing. Conventions
    for units, etc, for values in a FitsStore follow FITS-WCS (e.g. angular
@@ -2005,6 +2024,7 @@ static int int_dig;
    globals->Current_Indent = 0; \
    globals->Ignore_Used = 1; \
    globals->Mark_New = 0; \
+   globals->Replaced_Cards = NULL; \
    globals->CnvType_Text[ 0 ] = 0; \
    globals->CnvType_Text0[ 0 ] = 0; \
    globals->CnvType_Text1[ 0 ] = 0; \
@@ -2035,6 +2055,7 @@ astMAKE_INITGLOBALS(FitsChan)
 #define current_indent astGLOBAL(FitsChan,Current_Indent)
 #define ignore_used astGLOBAL(FitsChan,Ignore_Used)
 #define mark_new astGLOBAL(FitsChan,Mark_New)
+#define replaced_cards astGLOBAL(FitsChan,Replaced_Cards)
 #define cnvtype_text astGLOBAL(FitsChan,CnvType_Text)
 #define cnvtype_text0 astGLOBAL(FitsChan,CnvType_Text0)
 #define cnvtype_text1 astGLOBAL(FitsChan,CnvType_Text1)
@@ -2098,6 +2119,12 @@ static int ignore_used = 1;
    marked with both the NEW1 and NEW2 flags (see above). If zero then
    new cards will not be marked with either NEW1 or NEW2. */
 static int mark_new = 0;
+
+/* Replaced_Cards: The head of a list of ReplacedCard structures, each
+   holding a card that has been replaced by a "new" card (see Mark_New)
+   during the current invocation of astWrite. The list is empty at all
+   other times. */
+static void *replaced_cards = NULL;
 
 /* Number of characters used for encoding */
 static int createkeyword_seq_nchars = -1;
@@ -2413,6 +2440,8 @@ static void Dump( AstObject *, AstChannel *, int * );
 static void EmptyFits( AstFitsChan *, int * );
 static void FindWcs( AstFitsChan *, int, int, int, const char *, const char *, int * );
 static void FixNew( AstFitsChan *, int, int, const char *, const char *, int * );
+static void FixReplaced( AstFitsChan *, int, int, int * );
+static void SaveReplaced( AstFitsChan *, int * );
 static void FixUsed( AstFitsChan *, int, int, int, const char *, const char *, int * );
 static void FormatCard( AstFitsChan *, char *, const char *, int * );
 static void FreeItem( double ****, int * );
@@ -16916,8 +16945,8 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
    int old_report;         /* Original error reporting flag */
    int old_status;         /* Error status on entry */
 
-/* Return if no FitsChan was supplied, or if the FitsChan is empty. */
-   if ( !this || !this->head ) return;
+/* Return if no FitsChan was supplied. */
+   if ( !this ) return;
 
 /* If an error has already occurred, clear the error status so that the
    cards can still be examined, and defer the reporting of any further
@@ -16929,6 +16958,12 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
       astClearStatus;
    }
 
+/* Deal with any cards that were replaced by the cards marked with the
+   supplied flag. If the marked cards are to be removed, each of them that
+   replaced an earlier card is changed back into that card, so that it is
+   not removed below. */
+   FixReplaced( this, flag, remove, status );
+
 /* Save the current card index, and rewind the FitsChan. */
    icard = astGetCard( this );
    astClearCard( this );
@@ -16937,8 +16972,8 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
    ndeleted = 0;
 
 /* Loop through the list of FitsCards in the FitsChan until the final
-   card is reached. */
-   while( astOK && this->card ){
+   card is reached. Nothing is done if the FitsChan is empty. */
+   while( astOK && this->head && this->card ){
 
 /* Get a pointer to the flags mask for this card. */
       flags = CardFlags( this, status );
@@ -16969,7 +17004,7 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
 
 /* If no cards were removed, we can safely re-instate the original
    current card. Otherwise, the current card is left at "end-of-file". */
-   if( ndeleted == 0 ) astSetCard( this, icard );
+   if( ndeleted == 0 && this->head ) astSetCard( this, icard );
 
 /* If there was an error status on entry to this function, re-instate it.
    Otherwise, allow any new error status to remain. */
@@ -16981,6 +17016,156 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
 
 /* Return */
    return;
+}
+
+static void FixReplaced( AstFitsChan *this, int flag, int restore,
+                         int *status ){
+
+/*
+*
+*  Name:
+*     FixReplaced
+
+*  Purpose:
+*     Put back, or forget, the cards that were replaced by "new" cards.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+
+*     void FixReplaced( AstFitsChan *this, int flag, int restore,
+*                       int *status )
+
+*  Class Membership:
+*     FitsChan method.
+
+*  Description:
+*     When astWrite stores a keyword that is already in the FitsChan, the
+*     existing card is replaced by a new card, and function SaveReplaced
+*     keeps a copy of the existing card. This function deals with the
+*     copies for which the replacement card is still marked as new using
+*     the supplied flag (NEW1 or NEW2).
+*
+*     If "restore" is non-zero, the cards marked with the flag are about
+*     to be removed from the FitsChan, so each replacement card is changed
+*     back into the card that it replaced (which is then no longer marked
+*     with the flag). If "restore" is zero, the flag is about to be
+*     cleared in the replacement cards, and the copy is discarded once
+*     neither flag remains.
+
+*  Parameters:
+*     this
+*        Pointer to the FitsChan.
+*     flag
+*        The flag to use; NEW1 or NEW2.
+*     restore
+*        Put the replaced cards back into the FitsChan?
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     - The copies are dealt with starting with the most recent, so that
+*     a keyword that was replaced more than once ends up as it started.
+*     - If the FitsChan no longer holds any card for the keyword, the card
+*     that was replaced is appended to the end of the FitsChan.
+*     - If the FitsChan holds a card for the keyword, but none that is
+*     marked with the flag, then the card was not in fact replaced and so
+*     nothing is put back.
+*-
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS      /* Declare the thread specific global data */
+   FitsCard *card;         /* Pointer to a card in the FitsChan */
+   FitsCard *card0;        /* Pointer to the original current card */
+   FitsCard *newcard;      /* Pointer to the replacement card */
+   ReplacedCard **link;    /* Address of the pointer to the current copy */
+   ReplacedCard *rep;      /* Pointer to the current copy */
+   int nkey;               /* Number of cards found for the keyword */
+
+/* Check a FitsChan was supplied. */
+   if( !this ) return;
+
+/* Get a pointer to the structure holding thread-specific global data. */
+   astGET_GLOBALS(this);
+
+/* Note the current card so that it can be re-instated. */
+   card0 = (FitsCard *) this->card;
+
+/* Loop round the copies, most recent first. */
+   link = (ReplacedCard **) &replaced_cards;
+   while( *link ) {
+      rep = *link;
+
+/* Skip copies for which the replacement card no longer has the flag. */
+      if( !( rep->pending & flag ) ) {
+         link = &( rep->next );
+         continue;
+      }
+
+/* If the cards marked with the flag are to be retained, just note that
+   the replacement card no longer has the flag. */
+      if( !restore ) {
+         rep->pending &= ~flag;
+
+/* Otherwise, search the FitsChan for the replacement card. This is the
+   card for the same keyword that is marked with the flag. Also count the
+   cards that hold the keyword. */
+      } else {
+         newcard = NULL;
+         nkey = 0;
+         card = (FitsCard *) this->head;
+         while( card ) {
+            if( !strcmp( card->name, rep->name ) ) {
+               nkey++;
+               if( card->flags & flag ) {
+                  newcard = card;
+                  break;
+               }
+            }
+            card = card->next;
+            if( card == (FitsCard *) this->head ) card = NULL;
+         }
+
+/* If the FitsChan no longer holds the keyword at all, append an empty
+   card for the keyword to the end of the FitsChan. */
+         if( !newcard && nkey == 0 ) {
+            this->card = NULL;
+            NewCard( this, rep->name, AST__UNDEF, NULL, NULL, 0, status );
+            if( astOK ) newcard = ( (FitsCard *) this->head )->prev;
+         }
+
+/* Change the card back into the card that was replaced, transferring the
+   ownership of the data value and comment held by the copy. */
+         if( newcard ) {
+            (void) astFree( newcard->data );
+            (void) astFree( (void *) newcard->comment );
+            newcard->type = rep->type;
+            newcard->data = rep->data;
+            newcard->size = rep->size;
+            newcard->comment = rep->comment;
+            newcard->flags = rep->flags;
+            rep->data = NULL;
+            rep->comment = NULL;
+         }
+         rep->pending = 0;
+      }
+
+/* Remove the copy from the list and free it if it is no longer needed. */
+      if( !rep->pending ) {
+         *link = rep->next;
+         (void) astFree( rep->data );
+         (void) astFree( (void *) rep->comment );
+         (void) astFree( (void *) rep );
+      } else {
+         link = &( rep->next );
+      }
+   }
+
+/* Re-instate the original current card. */
+   this->card = (void *) card0;
 }
 
 static void FixUsed( AstFitsChan *this, int reset, int used, int remove,
@@ -27807,6 +27992,85 @@ static AstPolyMap *ScalePolyInputs( AstPolyMap *polymap, double *scales,
    return result;
 }
 
+static void SaveReplaced( AstFitsChan *this, int *status ){
+
+/*
+*  Name:
+*     SaveReplaced
+
+*  Purpose:
+*     Keep a copy of the current card, which is about to be replaced.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     void SaveReplaced( AstFitsChan *this, int *status )
+
+*  Class Membership:
+*     FitsChan
+
+*  Description:
+*     This function is called when astWrite is about to replace the
+*     current card with a new card for the same keyword. It adds a copy
+*     of the current card to the list of replaced cards, so that function
+*     FixReplaced can put the card back if the axis descriptions being
+*     written are abandoned.
+*
+*     Nothing is done if the current card was itself created while writing
+*     the current set of axis descriptions (i.e. if it is marked with the
+*     NEW2 flag), since it will be removed together with its replacement.
+
+*  Parameters:
+*     this
+*        A pointer to the FitsChan.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS     /* Declare the thread specific global data */
+   FitsCard *card;        /* Pointer to the current card */
+   ReplacedCard *rep;     /* Pointer to the copy */
+
+/* Check the global status, and that there is a current card. */
+   if( !astOK || !this->card ) return;
+
+/* Get a pointer to the structure holding thread-specific global data. */
+   astGET_GLOBALS(this);
+
+/* Nothing needs to be kept if the card was created while writing the
+   current set of axis descriptions. */
+   card = (FitsCard *) this->card;
+   if( card->flags & NEW2 ) return;
+
+/* Create the copy. */
+   rep = astMalloc( sizeof( *rep ) );
+   if( astOK ) {
+      strcpy( rep->name, card->name );
+      rep->type = card->type;
+      rep->size = card->size;
+      rep->flags = card->flags;
+      rep->data = card->data ? astStore( NULL, card->data, card->size ) : NULL;
+      rep->comment = card->comment ? astStore( NULL, card->comment,
+                                               strlen( card->comment ) + 1 ) : NULL;
+
+/* Its replacement will be marked with both NEW flags. */
+      rep->pending = NEW1 | NEW2;
+
+/* Add it to the head of the list. */
+      if( astOK ) {
+         rep->next = (ReplacedCard *) replaced_cards;
+         replaced_cards = (void *) rep;
+      } else {
+         (void) astFree( rep->data );
+         (void) astFree( (void *) rep->comment );
+         rep = astFree( rep );
+      }
+   }
+}
+
 static int SearchCard( AstFitsChan *this, const char *name,
                        const char *method, const char *class, int *status ){
 
@@ -28838,6 +29102,11 @@ static void SetValue( AstFitsChan *this, const char *keyname, void *value,
    over-written, we will need to take account of this when re-instating the
    original current card. Make a note of this. */
          newcard = ( card == (FitsCard *) this->card );
+
+/* If this card was in the FitsChan before the current astWrite call
+   started on the axis descriptions it is now writing, keep a copy of it
+   so that it can be put back if those descriptions are abandoned. */
+         if( mark_new ) SaveReplaced( this, status );
 
 /* Replace the current card with a card holding the supplied information. */
          SetFits( this, keyname, value, type, comment, 1, status );
@@ -41316,6 +41585,10 @@ static int Write( AstChannel *this_channel, AstObject *object, int *status ) {
 /* Indicate that all cards added to the FitsChan from now on should not be
    marked as "new". */
    mark_new = 0;
+
+/* The calls above deal with every card that was replaced by a new card.
+   Ensure that none is left for a later invocation to put back. */
+   FixReplaced( this, NEW1 | NEW2, 0, status );
 
 /* Ensure all output is flushed to any associated output file specified
    by the SinkFile attribute. */
