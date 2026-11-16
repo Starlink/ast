@@ -1589,6 +1589,10 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        on how the library had been compiled. Also take the replacement
 *        from CRVAL, as documented, rather than from CDELT itself, which
 *        made the replacement 1.0 in every case.
+*     16-NOV-2026 (TIMJ):
+*        SplitMap2: do not search a CmpMap that astMapList cannot
+*        decompose, such as one with an Ident. It was searched by calling
+*        SplitMap2 again with the same CmpMap, without end.
 *class--
 */
 
@@ -33633,6 +33637,7 @@ static int SplitMap2( AstMapping *map, int invert, AstMapping **map1,
    int m;                  /* Parameter index */
    int nax;                /* No. of axes in Mapping */
    int nmap;               /* Number of Mappings in the list */
+   int nsearch;            /* Number of parallel Mappings to search */
    int ret;                /* Was a non-linear Mapping found? */
    int wcsaxis;            /* Index of first WcsMap axis */
 
@@ -33721,9 +33726,15 @@ static int SplitMap2( AstMapping *map, int invert, AstMapping **map1,
    parallel and an associated list of Invert flags. */
          astMapList( map, 0, invert, &nmap, &map_list, &invert_list );
 
+/* A CmpMap that cannot be decomposed (for instance, one with an Ident,
+   which astMapList leaves whole) is returned as the only Mapping in the
+   list. Searching it would call this function again with the same
+   Mapping, so it is taken to contain no usable WcsMap. */
+         nsearch = ( nmap > 1 ) ? nmap : 0;
+
 /* Process each parallel Mapping. */
          axis = 0;
-         for( imap = 0; imap < nmap && astOK; imap++ ){
+         for( imap = 0; imap < nsearch && astOK; imap++ ){
 
 /* See if this Mapping contains a usable WcsMap. Only do the search
    if no such WcsMap has already been found, since only the first is usable. */
