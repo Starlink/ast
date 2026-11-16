@@ -1635,6 +1635,12 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        It was ignored, so two strings that differed only there were
 *        considered equivalent, and the comparison of two blank strings
 *        read beyond the end of both.
+*     16-NOV-2026 (TIMJ):
+*        SpecTrans: only translate a non-standard projection if both a
+*        longitude and a latitude axis were found. For a celestial axis
+*        with no partner, the CTYPE of the missing axis was set from a
+*        buffer that had not been filled, and keywords were looked for on
+*        axis zero.
 *class--
 */
 
@@ -31958,6 +31964,12 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
             j++;
          }
       }
+
+/* The projection translations below change the CTYPE values of both
+   celestial axes, and use other keywords of both. They can only be used
+   if a longitude axis and a latitude axis were both found, so if either
+   is missing indicate that there is no projection to translate. */
+      if( axlon == -1 || axlat == -1 ) prj[ 0 ] = 0;
 
 /* RADECSYS keywords
    ----------------- */
