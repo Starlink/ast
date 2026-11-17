@@ -159,6 +159,10 @@ f    AST_GRIDLINE, AST_POLYCURVE.
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     16-NOV-2026 (TIMJ):
+*        ClearAttrib, GetAttrib, SetAttrib and TestAttrib: limit the lengths
+*        of the attribute name and the plane read from a name such as
+*        "Colour_XY" to the sizes of the buffers that receive them.
 *class--
 */
 
@@ -2371,7 +2375,7 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* ..._XY etc */
 /* ---------- */
    } else if ( nc = 0,
-               ( 2 == astSscanf( attrib, "%[a-z]_%[xyz]%n", attname, spec,
+               ( 2 == astSscanf( attrib, "%49[a-z]_%9[xyz]%n", attname, spec,
                  &nc ) ) ) {
 
       if( !strcmp( spec, "xy" ) || !strcmp( spec, "yx" ) ) {
@@ -2385,7 +2389,7 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
       }
 
       if( plot ) {
-         sprintf( patt, "%s%s", attname, attrib + nc );
+         snprintf( patt, sizeof( patt ), "%s%s", attname, attrib + nc );
          astClearAttrib( plot, patt );
 
       } else {
@@ -3269,7 +3273,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 /* ..._XY etc */
 /* ---------- */
    } else if ( nc = 0,
-               ( 2 == astSscanf( attrib, "%[a-z]_%[xyz]%n", attname, spec,
+               ( 2 == astSscanf( attrib, "%49[a-z]_%9[xyz]%n", attname, spec,
                  &nc ) ) ) {
 
       if( !strcmp( spec, "xy" ) || !strcmp( spec, "yx" ) ) {
@@ -3283,7 +3287,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
       }
 
       if( plot ) {
-         sprintf( patt, "%s%s", attname, attrib + nc );
+         snprintf( patt, sizeof( patt ), "%s%s", attname, attrib + nc );
          result = astGetAttrib( plot, patt );
 
       } else {
@@ -5652,7 +5656,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* ..._XY etc */
 /* ---------- */
    } else if ( nc = 0,
-               ( 1 == astSscanf( setting, "%*[a-z]_%[xyz]%n", spec, &nc ) ) ) {
+               ( 1 == astSscanf( setting, "%*[a-z]_%9[xyz]%n", spec, &nc ) ) ) {
 
       if( !strcmp( spec, "xy" ) || !strcmp( spec, "yx" ) ) {
          plot = this->plotxy;
@@ -5665,7 +5669,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
       }
 
       if( plot ) {
-         sprintf( pat, ".*(_%s).*", spec );
+         snprintf( pat, sizeof( pat ), ".*(_%s).*", spec );
          psetting = astChrSub( setting, pat, &null, 1 );
          astSetAttrib( plot, psetting );
          psetting = astFree( (void *) psetting );
@@ -6564,7 +6568,7 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* ..._XY etc */
 /* ---------- */
    } else if ( nc = 0,
-               ( 2 == astSscanf( attrib, "%[a-z]_%[xyz]%n", attname, spec,
+               ( 2 == astSscanf( attrib, "%49[a-z]_%9[xyz]%n", attname, spec,
                  &nc ) ) ) {
 
       if( !strcmp( spec, "xy" ) || !strcmp( spec, "yx" ) ) {
@@ -6578,7 +6582,7 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
       }
 
       if( plot ) {
-         sprintf( patt, "%s%s", attname, attrib + nc );
+         snprintf( patt, sizeof( patt ), "%s%s", attname, attrib + nc );
          result = astTestAttrib( plot, patt );
 
       } else {

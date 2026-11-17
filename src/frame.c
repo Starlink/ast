@@ -339,6 +339,10 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *     13-NOV-2026 (TIMJ):
 *        ResolvePoints: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     16-NOV-2026 (TIMJ):
+*        ClearAttrib, GetAttrib, SetAttrib and TestAttrib: do not write
+*        beyond the end of the buffer that holds the attribute name passed
+*        on to the primary Frame of an axis.
 *class--
 */
 
@@ -2523,7 +2527,8 @@ L1:
 
 /* Modify the attribute name to refer to the axis numbering of the
    primary frame. */
-               sprintf( pfrm_attrib, "%s(%d)", axis_attrib, paxis + 1 );
+               snprintf( pfrm_attrib, sizeof( pfrm_attrib ),
+                         "%s(%d)", axis_attrib, paxis + 1 );
 
 /* Attempt to clear the attribute as an attribute of the primary Frame. */
                astClearAttrib( pfrm, pfrm_attrib );
@@ -5302,7 +5307,8 @@ L1:
 
 /* Modify the attribute name to refer to the axis numbering of the
    primary frame. */
-               sprintf( pfrm_attrib, "%s(%d)", axis_attrib, paxis + 1 );
+               snprintf( pfrm_attrib, sizeof( pfrm_attrib ),
+                         "%s(%d)", axis_attrib, paxis + 1 );
 
 /* Attempt to use the Axis astGetAttrib method to obtain the result. */
                result = astGetAttrib( pfrm, pfrm_attrib );
@@ -10615,7 +10621,8 @@ L1:
 
 /* Modify the attribute name to refer to the axis numbering of the
    primary frame. */
-                  sprintf( pfrm_attrib, "%.*s(%d)", axis_nc, setting, paxis + 1 );
+                  snprintf( pfrm_attrib, sizeof( pfrm_attrib ),
+                            "%.*s(%d)", axis_nc, setting, paxis + 1 );
 
 /* Create a setting string in which the attribute name refers to the axis
    numbering of the primary frame. */
@@ -11748,7 +11755,8 @@ L1:
 
 /* Modify the attribute name to refer to the axis numbering of the
    primary frame. */
-               sprintf( pfrm_attrib, "%s(%d)", axis_attrib, paxis + 1 );
+               snprintf( pfrm_attrib, sizeof( pfrm_attrib ),
+                         "%s(%d)", axis_attrib, paxis + 1 );
 
 /* Attempt to test the attribute as an attribute of the primary Frame. */
                result = astTestAttrib( pfrm, pfrm_attrib );

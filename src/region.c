@@ -306,6 +306,10 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        before comparing it with that of another class. No object of the
 *        Region class itself is ever created, so the table was never set
 *        up, and casting a Region used a table full of zeros.
+*     16-NOV-2026 (TIMJ):
+*        RegClearAttrib and RegSetAttrib: limit the length of the attribute
+*        name read from a name or setting that has an axis index to the
+*        size of the buffer that receives it.
 *class--
 
 *  Implementation Notes:
@@ -8613,7 +8617,7 @@ static void RegClearAttrib( AstRegion *this, const char *aattrib,
    (since the base<->current Mapping may permute the axes). First parse the
    supplied attribute name to locate any axis index. */
    len = strlen( attrib );
-   if( nc = 0, ( 2 == astSscanf( attrib, "%[^(](%d) %n", buf1, &axis,
+   if( nc = 0, ( 2 == astSscanf( attrib, "%99[^(](%d) %n", buf1, &axis,
                                  &nc ) ) && ( nc >= len ) ) {
 
 /* If found, convert the axis index from one-based to zero-based. */
@@ -10063,7 +10067,7 @@ static void RegSetAttrib( AstRegion *this, const char *asetting,
    (since the base<->current Mapping may permute the axes). First parse the
    supplied attribute setting to locate any axis index. */
    len = strlen( setting );
-   if( nc = 0, ( 2 == astSscanf( setting, "%[^(](%d)= %n%*s %n", buf1, &axis,
+   if( nc = 0, ( 2 == astSscanf( setting, "%99[^(](%d)= %n%*s %n", buf1, &axis,
                                  &value, &nc ) ) && ( nc >= len ) ) {
 
 /* If found, convert the axis index from one-based to zero-based. */

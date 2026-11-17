@@ -93,6 +93,12 @@ f     The Prism class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        In astLoadPrism, check that the dump supplied two component
 *        Regions that together have the axes of the Prism.
+*     16-NOV-2026 (TIMJ):
+*        RegClearAttrib and RegSetAttrib: limit the length of the attribute
+*        name read from a name or setting that has an axis index to the
+*        size of the buffer that receives it. RegSetAttrib now allocates
+*        memory for the setting it passes to a component Region, which was
+*        written in 255 characters whatever the length of the value.
 *class--
 */
 
@@ -2954,7 +2960,7 @@ static void RegClearAttrib( AstRegion *this_region, const char *attrib,
    Region which defines the axis. First parse the base Frame attribute setting
    to locate any axis index. */
    len = strlen( batt );
-   if( nc = 0, ( 2 == astSscanf( batt, "%[^(](%d) %n", buf1, &axis,
+   if( nc = 0, ( 2 == astSscanf( batt, "%99[^(](%d) %n", buf1, &axis,
                                  &nc ) ) && ( nc >= len ) ) {
 
 /* If found, convert the axis index from one-based to zero-based. */
@@ -3056,8 +3062,8 @@ static void RegSetAttrib( AstRegion *this_region, const char *setting,
    AstPrism *this;
    AstRegion *creg;
    char *bset;
+   char *cset;
    char buf1[ 100 ];
-   char buf2[ 255 ];
    int axis;
    int len;
    int nax1;
@@ -3087,7 +3093,7 @@ static void RegSetAttrib( AstRegion *this_region, const char *setting,
    Region which defines the axis. First parse the base Frame attribute setting
    to locate any axis index. */
    len = strlen( bset );
-   if( nc = 0, ( 2 == astSscanf( bset, "%[^(](%d)= %n%*s %n", buf1, &axis,
+   if( nc = 0, ( 2 == astSscanf( bset, "%99[^(](%d)= %n%*s %n", buf1, &axis,
                                  &value, &nc ) ) && ( nc >= len ) ) {
 
 /* If found, convert the axis index from one-based to zero-based. */
@@ -3103,10 +3109,14 @@ static void RegSetAttrib( AstRegion *this_region, const char *setting,
          creg = this->region2;
          axis -= nax1;
       }
-      sprintf( buf2, "%s(%d)=%s", buf1, axis + 1, bset + value );
+      cset = astMalloc( strlen( bset ) + 15 );
+      if( cset ) {
+         sprintf( cset, "%s(%d)=%s", buf1, axis + 1, bset + value );
 
 /* Apply the setting to the relevant component Region. */
-      astRegSetAttrib( creg, buf2, NULL );
+         astRegSetAttrib( creg, cset, NULL );
+         cset = astFree( cset );
+      }
 
 /* If the setting is not qualified by an axis index, apply it to both
    component Regions. */

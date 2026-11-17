@@ -237,6 +237,10 @@ f     The CmpFrame class does not define any new routines beyond those
 *        before comparing it with that of another class. It is not set up
 *        until a CmpFrame is created, so casting an object of a sub-class
 *        such as SpecFluxFrame before then used a table full of zeros.
+*     16-NOV-2026 (TIMJ):
+*        ClearAttrib, GetAttrib, SetAttrib and TestAttrib: limit the length
+*        of the attribute name read from a name or setting that has an axis
+*        index to the size of the buffer that receives it.
 *class--
 */
 
@@ -1650,7 +1654,7 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* If the attribute is qualified by an axis index, try accessing it as an
    attribute of the primary Frame containing the specified index. */
          if ( nc = 0,
-             ( 2 == astSscanf( attrib, "%[^(](%d)%n", buf1, &axis, &nc ) )
+             ( 2 == astSscanf( attrib, "%99[^(](%d)%n", buf1, &axis, &nc ) )
              && ( nc >= len ) ) {
 
 /* Find the primary Frame containing the specified axis. */
@@ -1666,7 +1670,7 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 
 /* Create a new attribute with the same name but with the axis index
    appropriate to the primary Frame. */
-               sprintf( buf2, "%s(%d)", buf1, paxis + 1 );
+               snprintf( buf2, sizeof( buf2 ), "%s(%d)", buf1, paxis + 1 );
 
 /* Attempt to access the attribute. */
                astClearAttrib( pfrm, buf2 );
@@ -3325,7 +3329,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 /* If the attribute is qualified by an axis index, try accessing it as an
    attribute of the primary Frame containing the specified index. */
       if ( nc = 0,
-          ( 2 == astSscanf( attrib, "%[^(](%d)%n", buf1, &axis, &nc ) )
+          ( 2 == astSscanf( attrib, "%99[^(](%d)%n", buf1, &axis, &nc ) )
           && ( nc >= len ) ) {
 
 /* Find the primary Frame containing the specified axis. */
@@ -3341,7 +3345,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 
 /* Create a new attribute with the same name but with the axis index
    appropriate to the primary Frame. */
-            sprintf( buf2, "%s(%d)", buf1, paxis + 1 );
+            snprintf( buf2, sizeof( buf2 ), "%s(%d)", buf1, paxis + 1 );
 
 /* Attempt to access the attribute. */
             result = astGetAttrib( pfrm, buf2 );
@@ -8592,7 +8596,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* If the attribute is qualified by an axis index, try accessing it as an
    attribute of the primary Frame containing the specified index. */
          if ( nc = 0,
-             ( 2 == astSscanf( setting, "%[^(=](%d)= %n%*s %n", buf1, &axis,
+             ( 2 == astSscanf( setting, "%1033[^(=](%d)= %n%*s %n", buf1, &axis,
                                &value, &nc ) ) && ( nc >= len ) ) {
 
 /* Find the primary Frame containing the specified axis. */
@@ -8622,7 +8626,8 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* Otherwise clear the status value, and try again without any axis index. */
                   } else {
                      astClearStatus;
-                     sprintf( buf2, "%s=%s", buf1, setting+value );
+                     snprintf( buf2, sizeof( buf2 ),
+                               "%s=%s", buf1, setting+value );
                      astSetAttrib( pfrm, buf2 );
 
 /* Indicate success, or clear the status value. */
@@ -9898,7 +9903,7 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* If the attribute is qualified by an axis index, try accessing it as an
    attribute of the primary Frame containing the specified index. */
          if ( nc = 0,
-             ( 2 == astSscanf( attrib, "%[^(](%d)%n", buf1, &axis, &nc ) )
+             ( 2 == astSscanf( attrib, "%79[^(](%d)%n", buf1, &axis, &nc ) )
              && ( nc >= len ) ) {
 
 /* Find the primary Frame containing the specified axis. */
@@ -9914,7 +9919,7 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 
 /* Create a new attribute with the same name but with the axis index
    appropriate to the primary Frame. */
-               sprintf( buf2, "%s(%d)", buf1, paxis + 1 );
+               snprintf( buf2, sizeof( buf2 ), "%s(%d)", buf1, paxis + 1 );
 
 /* Attempt to access the attribute. */
                result = astTestAttrib( pfrm, buf2 );
