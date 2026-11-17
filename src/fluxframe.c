@@ -91,6 +91,10 @@ f     The FluxFrame class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        GetTitle: do not write beyond the end of the buffer when the
 *        formatted spectral value or its Unit is long.
+*     16-NOV-2026 (TIMJ):
+*        Dump: do not write beyond the end of the buffer that holds the
+*        comment for a preferred unit. The comment for the SFCBRW System
+*        was longer than the buffer.
 *class--
 */
 
@@ -3804,7 +3808,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* Local Variables: */
    AstFluxFrame *this;           /* Pointer to the FluxFrame structure */
    char buff[ 20 ];              /* Buffer for item name */
-   char comm[ 50 ];              /* Buffer for comment */
+   char comm[ 80 ];              /* Buffer for comment */
    double dval;                  /* Double value */
    int i;                        /* Loop count */
    int j;                        /* Loop count */
@@ -3859,7 +3863,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
          if( this->usedunits[ i ] ) {
             sprintf( buff, "U%s", astSystemString( this, (AstSystemType) i ));
             for( j = 2; j < strlen( buff ); j++ ) buff[ j ] = tolower( buff[ j ] );
-            sprintf( comm, "Preferred units for %s", SystemLabel( (AstSystemType) i, status ) );
+            snprintf( comm, sizeof( comm ), "Preferred units for %s",
+                      SystemLabel( (AstSystemType) i, status ) );
             astWriteString( channel, buff, 1, 0, this->usedunits[ i ], comm );
          }
       }
