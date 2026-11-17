@@ -131,6 +131,11 @@ f     The YamlChan class does not define any new routines beyond those
 *        Add support for reading and writing the gwcs/fitswcs_imaging
 *        transform. A fitswcs_imaging that was read from ASDF is written
 *        back out as a fitswcs_imaging; other Mappings are not.
+*     16-NOV-2026 (TIMJ):
+*        PutIntoKeyMap: allocate memory for the name under which a repeated
+*        key is stored, which was made in 100 characters whatever the
+*        length of the key. GetTime: do not write beyond the end of the
+*        buffer when a prefix is added to an epoch value.
 *class--
 */
 
@@ -4973,19 +4978,19 @@ static double GetTime( AstKeyMap *km, const char *name, AstFrame *frm,
    if( format ) {
       if( !strcmp( format, "byear" ) &&
           strncasecmp( format, "B", 1 ) ){
-         sprintf( vbuf, "B%s", value );
+         snprintf( vbuf, sizeof( vbuf ), "B%s", value );
          value = vbuf;
       } else if( !strcmp( format, "jyear" ) &&
                  strncasecmp( format, "J", 1 ) ){
-         sprintf( vbuf, "J%s", value );
+         snprintf( vbuf, sizeof( vbuf ), "J%s", value );
          value = vbuf;
       } else if( !strcmp( format, "jd" ) &&
                  strncasecmp( format, "JD", 2 ) ){
-         sprintf( vbuf, "JD %s", value );
+         snprintf( vbuf, sizeof( vbuf ), "JD %s", value );
          value = vbuf;
       } else if( !strcmp( format, "mjd" ) &&
                  strncasecmp( format, "MJD", 2 ) ){
-         sprintf( vbuf, "MJD %s", value );
+         snprintf( vbuf, sizeof( vbuf ), "MJD %s", value );
          value = vbuf;
       }
    }
@@ -6655,7 +6660,7 @@ static void PutIntoKeyMap( AstKeyMap *km, const char *id, int type,
 */
 
 /* Local Variables: */
-   char buf[ 100 ];
+   char *buf;
    const char *key;
    const char *pkey;
    int index;
@@ -6697,7 +6702,10 @@ static void PutIntoKeyMap( AstKeyMap *km, const char *id, int type,
    it as "Fred%1%" instead, etc. */
       key = id;
       index = 1;
+      buf = NULL;
       while( astMapHasKey( km, key ) ) {
+         if( !buf ) buf = astMalloc( strlen( id ) + 15 );
+         if( !buf ) break;
          sprintf( buf, "%s%%%d%%", id, index++ );
          key = buf;
       }
@@ -6730,6 +6738,9 @@ static void PutIntoKeyMap( AstKeyMap *km, const char *id, int type,
 /* Store the new key in the KeyMap so that it can be used next time this
    function is called. */
       astMapPut0C( km, "PREVIOUS_KEY", key, NULL );
+
+/* Free the memory that holds any modified key. */
+      buf = astFree( buf );
 
 /* If the new value has the same id as the previously added value, assume
    we are reading a yaml sequence and so append the new value to the end of
