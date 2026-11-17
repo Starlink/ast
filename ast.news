@@ -285,6 +285,43 @@ Bug fixes
   an error was reported at most once, and later transformations returned
   values calculated from quantities that had never been set.
 
+- The default Label and Symbol of a SpecFrame, FluxFrame, TimeFrame or
+  DSBSpecFrame axis are changed to match the Unit of the axis, and were
+  then copied into a buffer of a fixed size without a check. A Symbol
+  longer than twenty characters (for instance that of a wave number axis
+  with a Unit of "nm"), or a Label longer than two hundred, wrote beyond
+  the buffer, and aborted the program in a build with _FORTIFY_SOURCE.
+  The buffers for the Symbol now hold two hundred characters, and a Label
+  or Symbol that is longer than its buffer is cut short. Dumping a
+  FluxFrame that describes surface brightness per unit wavelength also
+  wrote beyond a buffer.
+
+- astConvert and astFindFrame no longer crash when given a CmpFrame that
+  holds a Region as one of its component Frames, or when given two
+  SpecFluxFrames with different Domains before any CmpFrame has been
+  created.
+
+- Setting the Unit of a FluxFrame to a value for which the search for a
+  Mapping from the default Unit fails (for instance six nested "log"
+  functions) now reports the error alone. It used to crash.
+
+- The "iso.n" Format of a TimeFrame gives at most nine decimal places in
+  the seconds field, however large "n" is. Larger values gave the wrong
+  time of day, and a value of eighty or more wrote beyond a buffer. A
+  time that is too far from the present to have a calendar date is now
+  formatted as "<bad>". It was formatted as a date made from values that
+  had never been set.
+
+- The default Label of a TimeFrame that describes Local Time is now made
+  without copying a string onto itself, the result of which is not
+  defined by the C standard.
+
+- Reading a FITS-CLASS header that has no CRVAL keyword for the axis that
+  AST takes to be the spectral axis no longer uses a value that was never
+  set as the frequency of the reference channel when it calculates the
+  source velocity. The frequency is taken to be zero, which is what
+  happened in practice.
+
 - A range of cells in a string MOC is no longer expanded into its individual
   cells as it is read, which for a large range took a long time and could
   exhaust memory.
