@@ -322,6 +322,47 @@ Bug fixes
   source velocity. The frequency is taken to be zero, which is what
   happened in practice.
 
+- astSetC, and astSet with a "%s" format specifier, no longer write beyond
+  the end of an internal buffer when the attribute value is longer than
+  about a thousand characters. The buffer is now made as large as the
+  setting needs.
+
+- An attribute name of a hundred characters or more that ends with an axis
+  index, such as "xxx...(1)", no longer writes beyond the end of a buffer
+  when it is given to astSet, astGet, astClear or astTest for a CmpFrame,
+  Prism, Region, Plot3D, or a FrameSet that holds one. Nor does a Plot3D
+  attribute name that has a long name or plane (such as "colour_xyxyxy...").
+  An error is reported, as for any other unknown attribute.
+
+- A FitsChan no longer writes beyond the end of a header card when it
+  formats a floating point value with a FitsDigits value that asks for
+  more digits than a card has room for. This happened for values of 31
+  or more with a complex value, and for larger values with a real value.
+  The cards produced are unchanged wherever they were produced correctly
+  before.
+
+- Reading a FITS header no longer writes beyond the end of a buffer when
+  a string keyword such as TIMESYS has a value longer than a header card,
+  which is possible if the value was stored using astSetFitsS. Writing a
+  FrameSet that holds a SpecFrame with a Unit of twenty characters or
+  more no longer does so either.
+
+- Writing a Region with an StcsChan no longer writes beyond the end of a
+  buffer if the Digits attribute of its Frame asks for a hundred digits
+  or more. A value that cannot be formatted with the requested number of
+  digits is written with the number that a double can hold.
+
+- Reading an STC document with an XmlChan no longer writes beyond the end
+  of a message buffer when the document has long text where a unit, a
+  time scale, a time or a name is expected. Reading a YAML document with
+  a YamlChan no longer does so when a mapping repeats a key of a hundred
+  characters or more.
+
+- A Table read from a dump is now rejected if the name of a column is
+  longer than the hundred characters that astAddColumn allows. Such a
+  name wrote beyond the end of the buffer that holds the key of a cell
+  when rows or columns were removed.
+
 - A range of cells in a string MOC is no longer expanded into its individual
   cells as it is read, which for a large range took a long time and could
   exhaust memory.
