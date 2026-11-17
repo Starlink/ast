@@ -50,8 +50,17 @@
 *         far longer than the fixed buffers into which error messages,
 *         warnings, titles, default Labels and Symbols, dump comments and
 *         formatted values used to be written without a check, a Unit for
-*         which the search for a Mapping fails, and a Format string that
-*         asks "sprintf" for values that are not there.
+*         which the search for a Mapping fails, a Table column name longer
+*         than astAddColumn allows, and a Format string that asks "sprintf"
+*         for values that are not there.
+*       - Attributes: a string value of thousands of characters given to
+*         astSetC or astSet, and an attribute name of hundreds of
+*         characters given to a CmpFrame, Prism, FrameSet or Plot3D, each
+*         of which copies the name to find the axis or plane it refers to.
+*       - Documents in other formats: a floating point FITS keyword value
+*         or an STC-S position written with hundreds of digits, an STC XML
+*         document with long text where a unit, a time scale or a time is
+*         expected, and a YAML mapping that repeats a long key.
 *       - Splitting: a compound Mapping in which a MatrixMap or WcsMap
 *         couples two of many axes, for which astMapSplit used to try
 *         every arrangement of every subset of the axes.
@@ -913,6 +922,29 @@ static int test_long_text( void ) {
    if ( obj ) obj = astAnnul( obj );
    dump = astFree( dump );
 
+/* The name of a Table column is put in the key of each of its cells, and
+   astAddColumn does not accept a name of more than a hundred characters. */
+   {
+      AstTable *table = astTable( " " );
+      char *edited = NULL;
+      astAddColumn( table, "COLNAME", AST__INTTYPE, 0, NULL, " " );
+      astMapPut0I( table, "COLNAME(1)", 1, NULL );
+      astMapPut0I( table, "COLNAME(3)", 3, NULL );
+      dump = astToString( table );
+      table = astAnnul( table );
+      while ( dump && strstr( dump, "COLNAME" ) ) {
+         char longname[ 151 ];
+         memset( longname, 'N', sizeof( longname ) - 1 );
+         longname[ sizeof( longname ) - 1 ] = '\0';
+         edited = edit( dump, "COLNAME", longname );
+         dump = astFree( dump );
+         dump = edited;
+      }
+      nfail += check_rejected( "Table with a column name of 150 characters",
+                               dump, AST__LDERR );
+      dump = astFree( dump );
+   }
+
 /* The default Domain of a CmpFrame joins the Domains of its components,
    and its default Title and Labels are made in the same way, all in
    buffers of a fixed size. */
@@ -1081,6 +1113,341 @@ static int test_long_text( void ) {
                              NULL, AST__FMTER );
       frm = astAnnul( frm );
    }
+   if ( !astOK ) astClearStatus;
+   return nfail;
+}
+
+/* Check that using the attribute name or setting "text" with "obj" in the
+   way selected by "how" (0 to clear, 1 to get, 2 to test, 3 to set) reports
+   an unknown attribute.  Returns 0 if so, and 1 otherwise. */
+static int check_badatt( const char *what, void *obj, int how,
+                         const char *text ) {
+   static const char *verb[] = { "clearing", "getting", "testing", "setting" };
+   int code;
+   if ( how == 0 ) {
+      astClear( obj, text );
+   } else if ( how == 1 ) {
+      (void) astGetC( obj, text );
+   } else if ( how == 2 ) {
+      (void) astTest( obj, text );
+   } else {
+      astSet( obj, "%s", text );
+   }
+   code = astStatus;
+   if ( !astOK ) astClearStatus;
+   if ( code != AST__BADAT ) {
+      fprintf( stderr, "testcorruptinput: %s a long attribute name of %s "
+               "gave status %d\n", verb[ how ], what, code );
+      return 1;
+   }
+   return 0;
+}
+
+/* Attribute names and values that are longer than the buffers they used to
+   be copied into. */
+static int test_attributes( void ) {
+   AstFrame *cmp;
+   AstFrame *frm;
+   AstFrameSet *fs;
+   AstPlot3D *plot;
+   AstPrism *prism;
+   char name[ 400 ];
+   char *value;
+   const char *text;
+   double basebox[ 6 ] = { 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 };
+   double centre[ 2 ] = { 0.0, 0.0 };
+   double hi = 1.0;
+   double lo = 0.0;
+   double radius = 1.0;
+   float graphbox[ 6 ] = { 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
+   int how;
+   int i;
+   int nfail = 0;
+
+/* A string value is put into the attribute setting that astSet is given,
+   which used to be expanded in a buffer of about a thousand characters. */
+   value = astMalloc( 5001 );
+   if ( !value ) return 1;
+   memset( value, 'v', 5000 );
+   value[ 5000 ] = '\0';
+   frm = astFrame( 1, " " );
+   astSetC( frm, "Title", value );
+   text = astGetC( frm, "Title" );
+   if ( !astOK || !text || strcmp( text, value ) ) {
+      fprintf( stderr, "testcorruptinput: a Title of 5000 characters set "
+               "with astSetC was read back with %d characters (status %d)\n",
+               text ? (int) strlen( text ) : 0, astStatus );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   astSet( frm, "Domain=%s,Title=%s", "D", value );
+   text = astGetC( frm, "Title" );
+   if ( !astOK || !text || strcmp( text, value ) ) {
+      fprintf( stderr, "testcorruptinput: a Title of 5000 characters set "
+               "with astSet was read back with %d characters (status %d)\n",
+               text ? (int) strlen( text ) : 0, astStatus );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   frm = astAnnul( frm );
+
+/* The same value as the Label of each axis of a CmpFrame and of a Prism,
+   which pass the setting on to the object that owns the axis. */
+   cmp = (AstFrame *) astCmpFrame( astSkyFrame( " " ), astSpecFrame( " " ),
+                                   " " );
+   prism = astPrism( astCircle( astFrame( 2, " " ), 1, centre, &radius, NULL,
+                                " " ),
+                     astInterval( astFrame( 1, " " ), &lo, &hi, NULL, " " ),
+                     " " );
+   for ( i = 1; i <= 3; i++ ) {
+      snprintf( name, sizeof( name ), "Label(%d)", i );
+      astSetC( cmp, name, value );
+      text = astGetC( cmp, name );
+      if ( !astOK || !text || strcmp( text, value ) ) {
+         fprintf( stderr, "testcorruptinput: %s of a CmpFrame set to 5000 "
+                  "characters was read back with %d characters (status "
+                  "%d)\n", name, text ? (int) strlen( text ) : 0, astStatus );
+         nfail++;
+      }
+      if ( !astOK ) astClearStatus;
+      astSetC( prism, name, value );
+      text = astGetC( prism, name );
+      if ( !astOK || !text || strcmp( text, value ) ) {
+         fprintf( stderr, "testcorruptinput: %s of a Prism set to 5000 "
+                  "characters was read back with %d characters (status "
+                  "%d)\n", name, text ? (int) strlen( text ) : 0, astStatus );
+         nfail++;
+      }
+      if ( !astOK ) astClearStatus;
+   }
+   value = astFree( value );
+
+/* An attribute name that ends with an axis index is split into the name
+   and the index, and the name was copied into a buffer of a hundred
+   characters or fewer.  No attribute has a name of 300 characters. */
+   memset( name, 'x', 300 );
+   strcpy( name + 300, "(1)" );
+   fs = astFrameSet( cmp, " " );
+   plot = astPlot3D( astFrame( 3, " " ), graphbox, basebox, " " );
+   for ( how = 0; how < 4; how++ ) {
+      if ( how == 3 ) strcpy( name + 300, "(1)=1" );
+      nfail += check_badatt( "a CmpFrame", cmp, how, name );
+      nfail += check_badatt( "a Prism", prism, how, name );
+      nfail += check_badatt( "a FrameSet", fs, how, name );
+      nfail += check_badatt( "a Plot3D", plot, how, name );
+   }
+
+/* A Plot3D attribute can name one of its three planes, and both the name
+   and the plane were copied into short buffers. */
+   strcpy( name + 300, "_xy" );
+   nfail += check_badatt( "a Plot3D plane", plot, 0, name );
+   nfail += check_badatt( "a Plot3D plane", plot, 1, name );
+   nfail += check_badatt( "a Plot3D plane", plot, 2, name );
+   strcpy( name, "colour_xyzxyzxyzxyzxyzxyzxyzxyzxyzxyz" );
+   nfail += check_badatt( "a Plot3D plane", plot, 0, name );
+   nfail += check_badatt( "a Plot3D plane", plot, 1, name );
+   nfail += check_badatt( "a Plot3D plane", plot, 2, name );
+   strcat( name, "=1" );
+   nfail += check_badatt( "a Plot3D plane", plot, 3, name );
+
+   plot = astAnnul( plot );
+   fs = astAnnul( fs );
+   prism = astAnnul( prism );
+   cmp = astAnnul( cmp );
+   if ( !astOK ) astClearStatus;
+   return nfail;
+}
+
+/* The lines of a document for the function below, and the next to read. */
+static const char **doc_lines;
+static int doc_next;
+
+/* A Channel source function that returns the lines of "doc_lines". */
+static const char *doc_source( void ) {
+   return doc_lines[ doc_next ] ? doc_lines[ doc_next++ ] : NULL;
+}
+
+/* Check that reading the document "lines" (an array of lines that ends
+   with a NULL pointer) through the Channel "chan" gives no object and the
+   error "expected".  Returns 0 if so, and 1 otherwise. */
+static int check_document( const char *what, void *chan, const char *lines[],
+                           int expected ) {
+   doc_lines = lines;
+   doc_next = 0;
+   return check_failed( what, astRead( chan ), expected );
+}
+
+/* The message buffer for a sink function, and a sink that discards its
+   text. */
+static void null_sink( const char *text ) {
+   (void) text;
+}
+
+/* Numbers and text in the documents read and written by the Channels for
+   other formats. */
+static int test_documents( void ) {
+   AstCircle *circle;
+   AstFitsChan *fc;
+   AstSkyFrame *sky;
+   AstStcsChan *stcs;
+   AstXmlChan *xml;
+   char card[ 81 ];
+   char *line;
+   char *longtext;
+   double centre[ 2 ] = { 1.0E-300, 1.0/3.0 };
+   double cval[ 2 ] = { -1.0/3.0, 1.0E-300 };
+   double radius = 1.0E-3;
+   int i;
+   int nfail = 0;
+   const char *stc[] = {
+      "<STCResourceProfile xmlns=\"http://www.ivoa.net/xml/STC/stc-v1.20.xsd\">",
+      "<AstroCoordSystem ID=\"SYS\">",
+      "<TimeFrame><Name>Time</Name><TimeScale>TAI</TimeScale><TOPOCENTER/>"
+         "</TimeFrame>",
+      "<SpaceFrame><Name>Space</Name><ICRS/><TOPOCENTER/>"
+         "<SPHERICAL coord_naxes=\"2\"/></SpaceFrame>",
+      "<SpectralFrame><Name>Energy</Name><TOPOCENTER/></SpectralFrame>",
+      "</AstroCoordSystem>",
+      "<AstroCoords coord_system_id=\"SYS\">",
+      "<Time unit=\"s\"><Name>Time</Name><Error>0.0001</Error></Time>",
+      "<Position2D unit=\"arcsec\"><Name>Position</Name>"
+         "<Error2>1.0 1.0</Error2></Position2D>",
+      "<Spectral unit=\"keV\"><Name>Energy</Name><Error>0.1</Error>"
+         "</Spectral>",
+      "</AstroCoords>",
+      "<AstroCoordArea ID=\"AREA\" coord_system_id=\"SYS\">",
+      "<TimeInterval><StartTime><ISOTime>1999-07-23T16:00:00</ISOTime>"
+         "</StartTime></TimeInterval>",
+      "<AllSky/>",
+      "<SpectralInterval unit=\"keV\"><LoLimit>0.12</LoLimit>"
+         "<HiLimit>10.0</HiLimit></SpectralInterval>",
+      "</AstroCoordArea>",
+      "</STCResourceProfile>",
+      NULL };
+   const char *yaml[] = {
+      "%YAML 1.1",
+      "--- !core/asdf-1.1.0",
+      "wcs: !<tag:stsci.edu:gwcs/wcs-1.0.0>",
+      "  name: ''",
+      NULL, "  other: 2", NULL, "  another: 4", NULL,
+      "...",
+      NULL };
+
+/* A floating point value is formatted for a FITS card with the number of
+   digits given by the FitsDigits attribute, in what is left of the card.
+   More digits than there is room for used to be written beyond it. */
+   fc = astFitsChan( NULL, NULL, "FitsDigits=-300" );
+   astSetFitsF( fc, "VAL", 1.0E-300, NULL, 0 );
+   astClear( fc, "Card" );
+   if ( !astFindFits( fc, "VAL", card, 0 ) || !astOK ||
+        !strstr( card, "1.0E-300" ) ) {
+      fprintf( stderr, "testcorruptinput: 1.0E-300 formatted with 300 digits "
+               "gave the card \"%s\" (status %d)\n", card, astStatus );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   fc = astAnnul( fc );
+
+/* The two parts of a complex value share the card. */
+   fc = astFitsChan( NULL, NULL, "FitsDigits=40" );
+   astSetFitsCF( fc, "CVAL", cval, NULL, 0 );
+   astClear( fc, "Card" );
+   card[ 0 ] = '\0';
+   (void) astFindFits( fc, "CVAL", card, 0 );
+   if ( !astOK ) astClearStatus;
+   fc = astAnnul( fc );
+
+/* A positive FitsDigits value must be used as it is, so a value that needs
+   more room than the card has cannot be written. */
+   fc = astFitsChan( NULL, NULL, "FitsDigits=300" );
+   astSetFitsF( fc, "VAL", 1.0E-20/3.0, NULL, 0 );
+   astClear( fc, "Card" );
+   (void) astFindFits( fc, "VAL", card, 0 );
+   nfail += check_failed( "formatting 1.0E-20/3 with 300 digits", NULL,
+                          AST__BDFTS );
+   fc = astAnnul( fc );
+
+/* The positions that define a Region are written as STC-S with the number
+   of digits given by the Digits attribute of its Frame. */
+   sky = astSkyFrame( "System=ICRS,Digits=300" );
+   circle = astCircle( sky, 1, centre, &radius, NULL, " " );
+   stcs = astStcsChan( NULL, null_sink, " " );
+   if ( astWrite( stcs, circle ) != 1 || !astOK ) {
+      fprintf( stderr, "testcorruptinput: a Circle in a Frame with 300 "
+               "Digits was not written as STC-S (status %d)\n", astStatus );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   stcs = astAnnul( stcs );
+   circle = astAnnul( circle );
+   sky = astAnnul( sky );
+
+/* Text from an STC document is quoted in the message that says why the
+   document cannot be read.  Check the document is read as it stands, then
+   put a long string in place of its spectral unit, its time scale and its
+   start time in turn. */
+   xml = astXmlChan( doc_source, NULL, " " );
+   doc_lines = stc;
+   doc_next = 0;
+   nfail += check_made( "reading an STC document", astRead( xml ) );
+   xml = astAnnul( xml );
+
+   longtext = astMalloc( 301 );
+   line = astMalloc( 700 );
+   if ( longtext && line ) {
+      memset( longtext, 'x', 300 );
+      longtext[ 300 ] = '\0';
+
+      snprintf( line, 700, "<Spectral unit=\"%s\"><Name>Energy</Name>"
+                "<Error>0.1</Error></Spectral>", longtext );
+      stc[ 9 ] = line;
+      xml = astXmlChan( doc_source, NULL, " " );
+      nfail += check_document( "an STC document with a long spectral unit",
+                               xml, stc, AST__BADIN );
+      xml = astAnnul( xml );
+      stc[ 9 ] = "<Spectral unit=\"keV\"><Name>Energy</Name>"
+                 "<Error>0.1</Error></Spectral>";
+
+      snprintf( line, 700, "<TimeFrame><Name>Time</Name><TimeScale>%s"
+                "</TimeScale><TOPOCENTER/></TimeFrame>", longtext );
+      stc[ 2 ] = line;
+      xml = astXmlChan( doc_source, NULL, " " );
+      nfail += check_document( "an STC document with a long time scale",
+                               xml, stc, AST__BADIN );
+      xml = astAnnul( xml );
+      stc[ 2 ] = "<TimeFrame><Name>Time</Name><TimeScale>TAI</TimeScale>"
+                 "<TOPOCENTER/></TimeFrame>";
+
+      snprintf( line, 700, "<TimeInterval><StartTime><ISOTime>%s</ISOTime>"
+                "</StartTime></TimeInterval>", longtext );
+      stc[ 12 ] = line;
+      xml = astXmlChan( doc_source, NULL, " " );
+      nfail += check_document( "an STC document with a long start time",
+                               xml, stc, AST__BADIN );
+      xml = astAnnul( xml );
+
+/* A YAML mapping that uses the same key more than once.  The later uses
+   are stored under a name made from the key, in a buffer of a hundred
+   characters. */
+      memset( longtext, 'k', 150 );
+      longtext[ 150 ] = '\0';
+      for ( i = 4; i <= 8; i += 2 ) {
+         char *entry = astMalloc( 200 );
+         if ( entry ) snprintf( entry, 200, "  %s: %d", longtext, i );
+         yaml[ i ] = entry;
+      }
+      if ( astOK ) {
+         AstYamlChan *ychan = astYamlChan( doc_source, NULL, " " );
+         doc_lines = yaml;
+         doc_next = 0;
+         (void) astRead( ychan );
+         if ( !astOK ) astClearStatus;
+         ychan = astAnnul( ychan );
+      }
+      for ( i = 4; i <= 8; i += 2 ) yaml[ i ] = astFree( (void *) yaml[ i ] );
+   }
+   line = astFree( line );
+   longtext = astFree( longtext );
    if ( !astOK ) astClearStatus;
    return nfail;
 }
@@ -1638,6 +2005,8 @@ int main( void ) {
    nfail += test_mappings();
    nfail += test_large_values();
    nfail += test_long_text();
+   nfail += test_attributes();
+   nfail += test_documents();
    nfail += test_split();
    nfail += test_fits();
 
