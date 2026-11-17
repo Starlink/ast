@@ -171,6 +171,11 @@ f     The StcsChan class does not define any new routines beyond those
 *        whole turns with fmod from a value that is far out of range,
 *        before removing the rest one turn at a time, which never ended for
 *        a very large value.
+*     16-NOV-2026 (TIMJ):
+*        Added FormatValue, which formats a numerical property value
+*        without writing beyond the end of its buffer when the Digits
+*        attribute of the Frame asks for a great many digits. GetFmt limits
+*        the number of digits it puts in a format specifier.
 *class--
 */
 
@@ -355,6 +360,7 @@ static int Write( AstChannel *, AstObject *, int * );
 static int WriteRegion( AstStcsChan *, AstRegion *, AstKeyMap *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void FreeContext( WordContext *, int * );
+static void FormatValue( char *, size_t, const char *, double, int * );
 static void GetFmt( const char *, AstKeyMap *, int, int, char *, int * );
 static void MapPut0C( AstKeyMap *, const char *, const char *, const char *, int, int * );
 static void MapPut0D( AstKeyMap *, const char *, double, double, int, int * );
@@ -994,6 +1000,58 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 
 }
 
+static void FormatValue( char *buf, size_t len, const char *fmt, double value,
+                         int *status ){
+/*
+*  Name:
+*     FormatValue
+
+*  Purpose:
+*     Format a numerical STC-S property value.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "stcschan.h"
+*     void FormatValue( char *buf, size_t len, const char *fmt, double value,
+*                       int *status )
+
+*  Class Membership:
+*     StcsChan member function
+
+*  Description:
+*     This function formats the supplied value using a format specifier
+*     created by GetFmt. If the result does not fit in the supplied
+*     buffer, which happens if the specifier asks for a great many digits
+*     or the value is very large and is formatted without an exponent, the
+*     value is instead formatted with the number of significant digits
+*     that a double can hold.
+
+*  Parameters:
+*     buf
+*        Pointer to the buffer in which to return the formatted value.
+*     len
+*        The length of the buffer, including room for the terminating
+*        null.
+*     fmt
+*        The format specifier.
+*     value
+*        The value to format.
+*     status
+*        Pointer to the inherited status variable.
+
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Format the value, and see how much room the whole result needs. */
+   if( (size_t) snprintf( buf, len, fmt, value ) >= len ) {
+      snprintf( buf, len, "%.*g", AST__DBL_DIG, value );
+   }
+}
+
 static void GetFmt( const char *key, AstKeyMap *props, int i, int defdigs,
                     char *fmt, int *status ){
 /*
@@ -1052,6 +1110,9 @@ static void GetFmt( const char *key, AstKeyMap *props, int i, int defdigs,
    int exp0;              /* Was an exponent found in first word? */
    int exp;               /* Was an exponent found in current word? */
    int j;                 /* Index of current word */
+
+/* The largest number of digits that can be asked for. */
+#define MAXDIGS 99999
 
 /* Check the global error status. */
    if ( !astOK ) return;
@@ -1120,12 +1181,18 @@ static void GetFmt( const char *key, AstKeyMap *props, int i, int defdigs,
       }
    }
 
+/* The buffer for the format specifier has room for a precision of five
+   digits. */
+   if( before > MAXDIGS ) before = MAXDIGS;
+   if( after > MAXDIGS - before ) after = MAXDIGS - before;
+
    if( exp ) {
       sprintf( fmt, "%%.%dg", before + after );
    } else {
       sprintf( fmt, "%%.%df", after );
    }
 }
+#undef MAXDIGS
 
 static int GetIndent( AstChannel *this, int *status ) {
 /*
@@ -1469,7 +1536,7 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
       for( i = 0; i < nspace; i++ ) {
          if( centre[ i ] != AST__BAD ) {
             GetFmt( "CENTRE", spprops, i, defdigs, fmt, status );
-            (void) sprintf( buf, fmt, scale*centre[ i ] );
+            FormatValue( buf, sizeof( buf ), fmt, scale*centre[ i ], status );
             prop = astAppendString( prop, &nc, buf );
             prop = astAppendString( prop, &nc, " " );
 
@@ -1489,7 +1556,7 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
 /* Scale, format and store the radius. */
       if( a != AST__BAD ) {
          GetFmt( "RADIUS", spprops, 0, defdigs, fmt, status );
-         (void) sprintf( buf, fmt, scale*a );
+         FormatValue( buf, sizeof( buf ), fmt, scale*a, status );
          astMapPut0C( spprops, "RADIUS", buf, NULL );
       } else {
          ok = 0;
@@ -1518,7 +1585,7 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
             break;
          } else {
             GetFmt( "LOLIMIT", spprops, i, defdigs, fmt, status );
-            (void) sprintf( buf, fmt, scale*lbnd[ i ] );
+            FormatValue( buf, sizeof( buf ), fmt, scale*lbnd[ i ], status );
             prop = astAppendString( prop, &nc, buf );
             prop = astAppendString( prop, &nc, " " );
          }
@@ -1539,7 +1606,7 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
             break;
          } else {
             GetFmt( "HILIMIT", spprops, i, defdigs, fmt, status );
-            (void) sprintf( buf, fmt, scale*ubnd[ i ] );
+            FormatValue( buf, sizeof( buf ), fmt, scale*ubnd[ i ], status );
             prop = astAppendString( prop, &nc, buf );
             prop = astAppendString( prop, &nc, " " );
          }
@@ -1564,7 +1631,7 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
       for( i = 0; i < nspace; i++ ) {
          if( centre[ i ] != AST__BAD ) {
             GetFmt( "CENTRE", spprops, i, defdigs, fmt, status );
-            (void) sprintf( buf, fmt, scale*centre[ i ] );
+            FormatValue( buf, sizeof( buf ), fmt, scale*centre[ i ], status );
             prop = astAppendString( prop, &nc, buf );
             prop = astAppendString( prop, &nc, " " );
 
@@ -1584,11 +1651,11 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
 /* Scale, format and store the two radii. */
       if( a != AST__BAD && b != AST__BAD && angle != AST__BAD ) {
          GetFmt( "RADIUS1", spprops, 0, defdigs, fmt, status );
-         (void) sprintf( buf, fmt, scale*a );
+         FormatValue( buf, sizeof( buf ), fmt, scale*a, status );
          astMapPut0C( spprops, "RADIUS1", buf, NULL );
 
          GetFmt( "RADIUS2", spprops, 0, defdigs, fmt, status );
-         (void) sprintf( buf, fmt, scale*b );
+         FormatValue( buf, sizeof( buf ), fmt, scale*b, status );
          astMapPut0C( spprops, "RADIUS2", buf, NULL );
 
 /* Convert the angle to degrees in the direction required by STC-S,
@@ -1605,7 +1672,7 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
          while( angle >= 360.0 ) angle -= 360.0;
 
          GetFmt( "POSANGLE", spprops, 0, defdigs, fmt, status );
-         (void) sprintf( buf, fmt, angle );
+         FormatValue( buf, sizeof( buf ), fmt, angle, status );
          astMapPut0C( spprops, "POSANGLE", buf, NULL );
 
       } else {
@@ -1634,7 +1701,7 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
          p = points + j;
          for( i = 0; i < nspace; i++ ) {
             if( *p != AST__BAD ) {
-               (void) sprintf( buf, fmt, scale*(*p) );
+               FormatValue( buf, sizeof( buf ), fmt, scale*(*p), status );
                prop = astAppendString( prop, &nc, buf );
                prop = astAppendString( prop, &nc, " " );
                p += np;
@@ -1678,7 +1745,7 @@ static int GetRegionProps( AstStcsChan *this, AstRegion *spreg,
          for( i = 0; i < nspace; i++ ) {
             if( centre[ i ] != AST__BAD ) {
                GetFmt( "POSITION", spprops, i, defdigs, fmt, status );
-               (void) sprintf( buf, fmt, scale*centre[ i ] );
+               FormatValue( buf, sizeof( buf ), fmt, scale*centre[ i ], status );
                prop = astAppendString( prop, &nc, buf );
                prop = astAppendString( prop, &nc, " " );
 
@@ -6788,7 +6855,7 @@ static int WriteRegion( AstStcsChan *this, AstRegion *reg, AstKeyMap *props,
             error = 0.5*( ubnd[ 0 ] - lbnd[ 0 ] );
             defdigs = astGetDigits( unca );
             GetFmt( "ERROR", spprops, 0, defdigs, fmt, status );
-            (void) sprintf( buf, fmt, error );
+            FormatValue( buf, sizeof( buf ), fmt, error, status );
             astMapPut0C( spprops, "ERROR", buf, NULL );
             astMapPut1D( spprops, "DERROR", 1, &error, NULL );
 
@@ -7130,7 +7197,7 @@ static int WriteRegion( AstStcsChan *this, AstRegion *reg, AstKeyMap *props,
                      }
 
                      GetFmt( "ERROR", spprops, i, defdigs, fmt, status );
-                     (void) sprintf( buf, fmt, scale*error );
+                     FormatValue( buf, sizeof( buf ), fmt, scale*error, status );
                      prop = astAppendString( prop, &nc, buf );
                      prop = astAppendString( prop, &nc, " " );
 
@@ -7359,7 +7426,7 @@ static int WriteRegion( AstStcsChan *this, AstRegion *reg, AstKeyMap *props,
             error = 0.5*( ubnd[ 0 ] - lbnd[ 0 ] );
             defdigs = astGetDigits( spfrm );
             GetFmt( "ERROR", spprops, 0, defdigs, fmt, status );
-            (void) sprintf( buf, fmt, error );
+            FormatValue( buf, sizeof( buf ), fmt, error, status );
             astMapPut0C( spprops, "ERROR", buf, NULL );
             astMapPut1D( spprops, "DERROR", 1, &error, NULL );
 
@@ -7581,7 +7648,7 @@ static int WriteRegion( AstStcsChan *this, AstRegion *reg, AstKeyMap *props,
             error = 0.5*( ubnd[ 0 ] - lbnd[ 0 ] );
             defdigs = astGetDigits( spfrm );
             GetFmt( "ERROR", spprops, 0, defdigs, fmt, status );
-            (void) sprintf( buf, fmt, error );
+            FormatValue( buf, sizeof( buf ), fmt, error, status );
             astMapPut0C( spprops, "ERROR", buf, NULL );
             astMapPut1D( spprops, "DERROR", 1, &error, NULL );
 
