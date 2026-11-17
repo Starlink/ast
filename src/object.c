@@ -250,6 +250,13 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        Added the protected function astCheckLoaded, for a loader to check
 *        the class of a component Object that it has read from a dump, and
 *        used it in astLoadObject to check the associated KeyMap.
+*     16-NOV-2026 (TIMJ):
+*        astVSet: format the expanded settings string with vsnprintf, and
+*        allocate a larger buffer if it does not fit. The buffer was twice
+*        the length of the string before expansion, or 1024 characters if
+*        that is more, so a string value longer than that, as passed on by
+*        astSetC, was written beyond the end of it. Use a copy of the
+*        argument list each time it is read.
 *class--
 */
 
@@ -4853,6 +4860,7 @@ static void VSet( AstObject *this, const char *settings, char **text,
    int quoted;                   /* Are we in a quoted string? */
    int stat;                     /* Value of errno after an error */
    int tq;                       /* Test if the next non-space is a quote? */
+   va_list args2;                /* Copy of the variable argument list */
 
 /* Initialise */
    if( text ) *text = NULL;
@@ -4876,8 +4884,12 @@ static void VSet( AstObject *this, const char *settings, char **text,
 
 /* Expand the supplied string using a fixed-length buffer. This writes at
    most MIN_BUFF_LEN characters to "buf", but returns the number of
-   characters that would have been needed to write the whole string. */
-         len =  vsnprintf( setting_buf, sizeof(setting_buf), settings, args );
+   characters that would have been needed to write the whole string. A
+   copy of the argument list is used, since the list cannot be used again
+   once "vsnprintf" has read it. */
+         va_copy( args2, args );
+         len =  vsnprintf( setting_buf, sizeof(setting_buf), settings, args2 );
+         va_end( args2 );
 
 /* If the fixed-length buffer is too short, use a dynamically allocated
    buffer instead. */
@@ -4934,13 +4946,27 @@ static void VSet( AstObject *this, const char *settings, char **text,
          buff2 = astMalloc( (size_t) ( buff_len + 1 ) );
          if ( astOK ) {
 
-/* Use "vsprintf" to substitute values for any format specifiers in
+/* Use "vsnprintf" to substitute values for any format specifiers in
    the "settings" string, writing the resulting string into the second
-   buffer. If the "settings" string has already been expanded, then just
-   copy it. */
+   buffer. This returns the number of characters needed to hold the whole
+   string, so if the buffer is too small, allocate one of that size and
+   write the string again. A copy of the argument list is used each time,
+   since the list cannot be used again once "vsnprintf" has read it. If
+   the "settings" string has already been expanded, then just copy it. */
             errno = 0;
             if( !expanded ) {
-               nc = vsprintf( buff2, buff1, args );
+               nc = 0;
+               do {
+                  if( nc > buff_len ) {
+                     buff_len = nc;
+                     buff2 = astFree( buff2 );
+                     buff2 = astMalloc( (size_t) buff_len + 1 );
+                     if( !astOK ) break;
+                  }
+                  va_copy( args2, args );
+                  nc = vsnprintf( buff2, (size_t) buff_len + 1, buff1, args2 );
+                  va_end( args2 );
+               } while( nc > buff_len );
             } else {
                strcpy( buff2, buff1 );
                nc = strlen( buff1 );
@@ -4983,23 +5009,9 @@ static void VSet( AstObject *this, const char *settings, char **text,
                             settings );
                }
 
-/* Also check that the result buffer did not overflow. If it did,
-   memory will probably have been corrupted but this cannot be
-   prevented with "vsprintf" (although we try and make the buffer
-   large enough). Report the error and abort. */
-            } else if ( nc > buff_len ) {
-               if( astOK ) {
-                  astError( AST__ATSER, "astVSet(%s): Internal buffer overflow "
-                            "while formatting an attribute setting - the result "
-                            "exceeds %d characters.", status, astGetClass( this ),
-                            buff_len );
-                  astError( AST__ATSER, "The setting string was \"%s\".", status,
-                            settings );
-               }
-
 /* If all is OK, loop to process each formatted attribute assignment
    (these are now separated by '\n' characters). */
-	    } else {
+	    } else if( astOK ) {
                assign = buff2;
                while ( assign ) {
 
