@@ -298,6 +298,9 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        dereferenced later. It also checks that the links between the
 *        nodes form a tree, and that the Mappings and Frames agree about
 *        the number of axes at every node.
+*     16-NOV-2026 (TIMJ):
+*        GetAllVariants: do not write to the byte before the buffer if the
+*        Domain of the first variant is too long to be stored in it.
 *class--
 */
 
@@ -6996,8 +6999,9 @@ static const char *GetAllVariants( AstFrameSet *this, int *status ) {
          vfrm = astAnnul( vfrm );
       }
 
-/* Remove the final space. */
-      getallvariants_buff[ nc - 1 ] = 0;
+/* Remove the final space. Nothing was stored if the first Domain did
+   not fit. */
+      getallvariants_buff[ ( nc > 0 ) ? nc - 1 : 0 ] = 0;
 
 /* Return a pointer to the buffer. */
       result = getallvariants_buff;
