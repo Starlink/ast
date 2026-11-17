@@ -132,6 +132,11 @@ f     - AST_REMOVEROW: Remove a row from a Table
 *     13-NOV-2026 (TIMJ):
 *        In astLoadTable, check that the column and parameter definitions
 *        read from a dump are held in KeyMaps.
+*     16-NOV-2026 (TIMJ):
+*        astLoadTable: reject a column name that is longer than
+*        astAddColumn allows. The key of each cell is made from the column
+*        name in a buffer of a fixed size, which a longer name overflowed.
+*        The keys are now made with snprintf.
 *class--
 */
 
@@ -1384,7 +1389,8 @@ static int GetColumnLenC( AstTable *this, const char *column, int *status ) {
       for( irow = 1; irow <= nrow; irow++ ) {
 
 /* Format the cell name. */
-         sprintf( key, "%.*s(%d)", (int) astChrLen(column), column, irow );
+         snprintf( key, sizeof( key ), "%.*s(%d)", (int) astChrLen(column),
+                   column, irow );
 
 /* Get the maximum length needed to format a string in the current
    row/column. */
@@ -3791,8 +3797,8 @@ f        The global status.
                if( iold != inew++ ) {
 
 /* For the old and new cell names */
-                  sprintf( oldkey, "%s(%d)", col, iold + 1 );
-                  sprintf( newkey, "%s(%d)", col, inew );
+                  snprintf( oldkey, sizeof( oldkey ), "%s(%d)", col, iold + 1 );
+                  snprintf( newkey, sizeof( newkey ), "%s(%d)", col, inew );
 
 /* Rename the KeyMap entry. */
                   astMapRename( this, oldkey, newkey );
@@ -3885,7 +3891,7 @@ f        The global status.
 
 /* Remove any column cells with defined values from the parent KeyMap. */
       for( irow = 1; irow <= nrow; irow++ ) {
-         sprintf( key, "%.*s(%d)", namlen, name, irow );
+         snprintf( key, sizeof( key ), "%.*s(%d)", namlen, name, irow );
          (*parent_mapremove)( (AstKeyMap *) this, key, status );
       }
    }
@@ -4026,7 +4032,7 @@ f        The global status.
          col = astMapKey( cols, icol );
 
 /* Remove the cell of the current column at the requested row. */
-         sprintf( key, "%s(%d)", col, index );
+         snprintf( key, sizeof( key ), "%s(%d)", col, index );
          (*parent_mapremove)( (AstKeyMap *) this, key, status );
       }
       cols = astAnnul( cols );
@@ -5127,6 +5133,9 @@ AstTable *astLoadTable_( void *mem, size_t size, AstTableVtab *vtab,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstTable *new;                /* Pointer to the new Table */
+   const char *colname;          /* Pointer to a column name */
+   int icol;                     /* Index of a column */
+   int ncol;                     /* Number of columns */
 
 /* Initialise. */
    new = NULL;
@@ -5177,6 +5186,21 @@ AstTable *astLoadTable_( void *mem, size_t size, AstTableVtab *vtab,
       new->columns = astReadObject( channel, "columns", NULL );
       astCheckLoaded( new->columns, KeyMap, 0, name,
                       "KeyMap of column definitions" );
+
+/* A column name is used to make the key of each cell in the column, so it
+   cannot be longer than astAddColumn allows. */
+      if( astOK && new->columns ) {
+         ncol = astMapSize( new->columns );
+         for( icol = 0; icol < ncol && astOK; icol++ ) {
+            colname = astMapKey( new->columns, icol );
+            if( colname && astChrLen( colname ) > AST__MXCOLNAMLEN ) {
+               astError( AST__LDERR, "astLoad(%s): The name of column %d "
+                         "read for a %s is too long (it must have no more "
+                         "than %d characters).", status, name, icol + 1,
+                         name, AST__MXCOLNAMLEN );
+            }
+         }
+      }
 
 /* KeyMap holding parameter definitions. */
       new->parameters = astReadObject( channel, "params", NULL );
