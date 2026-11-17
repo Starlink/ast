@@ -95,6 +95,10 @@ f     The FluxFrame class does not define any new routines beyond those
 *        Dump: do not write beyond the end of the buffer that holds the
 *        comment for a preferred unit. The comment for the SFCBRW System
 *        was longer than the buffer.
+*     16-NOV-2026 (TIMJ):
+*        GetLabel and GetSymbol: do not write beyond the end of the buffer
+*        when the Label or Symbol made by astUnitMapper is long. The Symbol
+*        buffer now holds 200 characters.
 *class--
 */
 
@@ -112,7 +116,7 @@ f     The FluxFrame class does not define any new routines beyond those
 /* Define other numerical constants for use in this module. */
 #define GETATTRIB_BUFF_LEN 50
 #define GETLABEL_BUFF_LEN 200
-#define GETSYMBOL_BUFF_LEN 20
+#define GETSYMBOL_BUFF_LEN 200
 #define GETTITLE_BUFF_LEN 200
 
 /* Header files. */
@@ -1205,7 +1209,8 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
                                  astGetUnit( this, axis ), result,
                                  &new_lab );
             if( new_lab ) {
-               result = strcpy( getlabel_buff, new_lab );
+               snprintf( getlabel_buff, sizeof( getlabel_buff ), "%s", new_lab );
+               result = getlabel_buff;
                new_lab = astFree( new_lab );
             }
 
@@ -1392,7 +1397,8 @@ static const char *GetSymbol( AstFrame *this, int axis, int *status ) {
                                  astGetUnit( this, axis ), result,
                                  &new_sym );
             if( new_sym ) {
-               result = strcpy( getsymbol_buff, new_sym );
+               snprintf( getsymbol_buff, sizeof( getsymbol_buff ), "%s", new_sym );
+               result = getsymbol_buff;
                new_sym = astFree( new_sym );
             }
 

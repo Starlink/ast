@@ -184,6 +184,12 @@ f     - AST_CURRENTTIME: Return the current system time
 *        to avoid platform-dependent results.
 *     13-NOV-2026 (TIMJ):
 *        In astLoadTimeFrame, check that the dump supplied one axis.
+*     16-NOV-2026 (TIMJ):
+*        GetLabel and GetSymbol: do not write beyond the end of the buffer
+*        when the Label or Symbol made by astUnitMapper is long. The Symbol
+*        buffer now holds 200 characters. The offset from UTC of a Local
+*        Time is appended to the Label in the buffer, which used to be
+*        formatted into itself.
 *class--
 */
 
@@ -2630,6 +2636,7 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
    double orig;                  /* Time origin (seconds) */
    int fmtSet;                   /* Was Format attribute set? */
    int ndp;                      /* Number of decimal places for seconds field */
+   size_t nc;                    /* Number of characters in the buffer */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
@@ -2714,7 +2721,8 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
                                     astGetUnit( this, axis ), result,
                                     &new_lab );
                if( new_lab ) {
-                  result = strcpy( getlabel_buff, new_lab );
+                  snprintf( getlabel_buff, sizeof( getlabel_buff ), "%s", new_lab );
+                  result = getlabel_buff;
                   new_lab = astFree( new_lab );
                }
 
@@ -2724,13 +2732,21 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
          }
       }
 
-/* If the time is a Local Time, indicate the offset from UTC. */
+/* If the time is a Local Time, indicate the offset from UTC. The label
+   found above may already be in the buffer, in which case the offset is
+   appended to it in place. */
       if( astGetTimeScale( this ) == AST__LT ) {
          ltoff = astGetLTOffset( this );
+         if( result != getlabel_buff ) {
+            snprintf( getlabel_buff, sizeof( getlabel_buff ), "%s", result );
+         }
+         nc = strlen( getlabel_buff );
          if( ltoff >= 0.0 ) {
-            sprintf( getlabel_buff, "%s (UTC+%g)", result, ltoff );
+            snprintf( getlabel_buff + nc, sizeof( getlabel_buff ) - nc,
+                      " (UTC+%g)", ltoff );
          } else {
-            sprintf( getlabel_buff, "%s (UTC-%g)", result, -ltoff );
+            snprintf( getlabel_buff + nc, sizeof( getlabel_buff ) - nc,
+                      " (UTC-%g)", -ltoff );
          }
          result = getlabel_buff;
       }
@@ -2842,7 +2858,8 @@ static const char *GetSymbol( AstFrame *this, int axis, int *status ) {
                                  astGetUnit( this, axis ), result,
                                  &new_sym );
             if( new_sym ) {
-               result = strcpy( getsymbol_buff, new_sym );
+               snprintf( getsymbol_buff, sizeof( getsymbol_buff ), "%s", new_sym );
+               result = getsymbol_buff;
                new_sym = astFree( new_sym );
             }
 
