@@ -301,6 +301,10 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *     16-NOV-2026 (TIMJ):
 *        GetAllVariants: do not write to the byte before the buffer if the
 *        Domain of the first variant is too long to be stored in it.
+*     16-NOV-2026 (TIMJ):
+*        Cast: initialise the virtual function table of the FrameSet class
+*        before comparing it with that of another class, in case only
+*        objects of sub-classes have been created so far.
 *class--
 */
 
@@ -2449,6 +2453,14 @@ static AstObject *Cast( AstObject *this_object, AstObject *obj, int *status ) {
 
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(NULL);
+
+/* The virtual function table for this class is compared with that of
+   "obj" below. It has not yet been initialised if the only objects
+   created so far belong to sub-classes of FrameSet, so do it now. */
+   if( !class_init ) {
+      astInitFrameSetVtab( &class_vtab, "FrameSet" );
+      class_init = 1;
+   }
 
 /* See how many steps up the class inheritance ladder it is from "obj"
    to this class (FrameSet). A positive value is returned if FrameSet

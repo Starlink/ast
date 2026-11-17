@@ -301,6 +301,11 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        uses the encapsulated FrameSet before it has been loaded. SetRegFS
 *        reports an error if the Frame does not have an axis for each
 *        coordinate of the points that define the Region.
+*     16-NOV-2026 (TIMJ):
+*        Cast: initialise the virtual function table of the Region class
+*        before comparing it with that of another class. No object of the
+*        Region class itself is ever created, so the table was never set
+*        up, and casting a Region used a table full of zeros.
 *class--
 
 *  Implementation Notes:
@@ -2030,6 +2035,14 @@ static AstObject *Cast( AstObject *this_object, AstObject *obj, int *status ) {
 
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(NULL);
+
+/* The virtual function table for this class is compared with that of
+   "obj" below. It has not yet been initialised if the only objects
+   created so far belong to sub-classes of Region, so do it now. */
+   if( !class_init ) {
+      astInitRegionVtab( &class_vtab, "Region" );
+      class_init = 1;
+   }
 
 /* See how many steps up the class inheritance ladder it is from "obj"
    to this class (Region). A positive value is returned if Region is

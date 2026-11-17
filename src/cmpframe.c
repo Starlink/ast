@@ -232,6 +232,11 @@ f     The CmpFrame class does not define any new routines beyond those
 *        the default Domain, which is made from the Domains of the two
 *        component Frames and so can be any length. A CmpFrame of twenty
 *        Frames read from a FITS header was enough to overflow it.
+*     16-NOV-2026 (TIMJ):
+*        Cast: initialise the virtual function table of the CmpFrame class
+*        before comparing it with that of another class. It is not set up
+*        until a CmpFrame is created, so casting an object of a sub-class
+*        such as SpecFluxFrame before then used a table full of zeros.
 *class--
 */
 
@@ -1342,6 +1347,14 @@ static AstObject *Cast( AstObject *this_object, AstObject *obj, int *status ) {
 
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(NULL);
+
+/* The virtual function table for this class is compared with that of
+   "obj" below. It has not yet been initialised if the only objects
+   created so far belong to sub-classes of CmpFrame, so do it now. */
+   if( !class_init ) {
+      astInitCmpFrameVtab( &class_vtab, "CmpFrame" );
+      class_init = 1;
+   }
 
 /* See how many steps up the class inheritance ladder it is from "obj"
    to this class (CmpFrame). A positive value is returned if CmpFrame
