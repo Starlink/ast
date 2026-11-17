@@ -190,6 +190,13 @@ f     - AST_CURRENTTIME: Return the current system time
 *        buffer now holds 200 characters. The offset from UTC of a Local
 *        Time is appended to the Label in the buffer, which used to be
 *        formatted into itself.
+*     16-NOV-2026 (TIMJ):
+*        DateFormat: use at most 9 decimal places for the seconds field of
+*        a date. More than that overflowed the int that holds the fraction
+*        of a second, and 80 or more overflowed the buffer for the time.
+*        Format: format a time that has no calendar date as "<bad>". The
+*        status from palDjcl was ignored, and the date was formatted from
+*        values that had not been set.
 *class--
 */
 
@@ -884,6 +891,10 @@ static int DateFormat( const char *fmt, int *ndp, char *sep, int *status ){
       if( !strncmp( c, "iso", 3 ) ) {
          result = 1;
          if( astSscanf( c, "iso.%d%n", ndp, &nc ) == 1 ) {
+
+/* The fraction of a second is handled as an int, which limits the
+   seconds field to 9 decimal places. */
+            if( *ndp > 9 ) *ndp = 9;
 
 /* Check the separate character (if any) at the end of the format string.
    Only "T" is allowed. A space is used if no separator is given. */
@@ -1715,32 +1726,40 @@ static const char *Format( AstFrame *this_frame, int axis, double value, int *st
 /* If no time fields will be produced, round to the nearest day. */
             if( ndp < 0 ) mjd = round( mjd );
 
-/* Convert the MJD into a set of numeric date fields, plus day fraction,
-   and format them. */
-            palDjcl( mjd, &iy, &im, &id, &fd, &j );
-            d = format_buff;
-            d += sprintf( d, "%4d-%2.2d-%2.2d", iy, im, id );
+/* Convert the MJD into a set of numeric date fields, plus day fraction.
+   A value that is outside the range of the calendar has no date, and is
+   formatted in the same way as a bad value. */
+            j = -1;
+            if( isfinite( mjd ) ) palDjcl( mjd, &iy, &im, &id, &fd, &j );
+            if( j != 0 ) {
+               result = "<bad>";
+
+/* Otherwise, format the date fields. */
+            } else {
+               d = format_buff;
+               d += sprintf( d, "%4d-%2.2d-%2.2d", iy, im, id );
 
 /* If required, convert the day fraction into a set of numerical time
    fields. */
-            if( ndp >= 0 ) {
-               palDd2tf( ndp, fd, sign, ihmsf );
+               if( ndp >= 0 ) {
+                  palDd2tf( ndp, fd, sign, ihmsf );
 
 /* Format the time fields. */
-               if( ndp > 0 ) {
-                  (void) sprintf( tbuf, "%c%2.2d:%2.2d:%2.2d.%*.*d", sep,
-                                  ihmsf[0], ihmsf[1], ihmsf[2], ndp, ndp,
-                                  ihmsf[3] );
-               } else {
-                  (void) sprintf( tbuf, "%c%2.2d:%2.2d:%2.2d", sep, ihmsf[0],
-                                  ihmsf[1], ihmsf[2] );
-               }
+                  if( ndp > 0 ) {
+                     (void) sprintf( tbuf, "%c%2.2d:%2.2d:%2.2d.%*.*d", sep,
+                                     ihmsf[0], ihmsf[1], ihmsf[2], ndp, ndp,
+                                     ihmsf[3] );
+                  } else {
+                     (void) sprintf( tbuf, "%c%2.2d:%2.2d:%2.2d", sep, ihmsf[0],
+                                     ihmsf[1], ihmsf[2] );
+                  }
 
 /* Add in the formatted time. */
-               d += sprintf( d, "%s", tbuf );
+                  d += sprintf( d, "%s", tbuf );
 
+               }
+               result = format_buff;
             }
-            result = format_buff;
          }
       }
    }
