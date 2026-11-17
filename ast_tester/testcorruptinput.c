@@ -43,12 +43,15 @@
 *         projection whose parameters are unusable, which must say so every
 *         time it is used.
 *       - Large values: a sky position or an Epoch that is too large to
-*         format or to bring into range one turn at a time.
+*         format or to bring into range one turn at a time, a time that
+*         has no calendar date, and a date Format that asks for more
+*         decimal places than there can be.
 *       - Text of any length: values, Labels, Domains and Units that are
 *         far longer than the fixed buffers into which error messages,
-*         warnings, titles and formatted values used to be written without
-*         a check, and a Format string that asks "sprintf" for values that
-*         are not there.
+*         warnings, titles, default Labels and Symbols, dump comments and
+*         formatted values used to be written without a check, a Unit for
+*         which the search for a Mapping fails, and a Format string that
+*         asks "sprintf" for values that are not there.
 *       - Splitting: a compound Mapping in which a MatrixMap or WcsMap
 *         couples two of many axes, for which astMapSplit used to try
 *         every arrangement of every subset of the axes.
@@ -742,6 +745,7 @@ static int test_large_values( void ) {
    AstFrameSet *fs;
    AstSkyFrame *azel;
    AstSkyFrame *sky = astSkyFrame( " " );
+   AstTimeFrame *tfrm;
    char symbol[ 201 ];
    char *dump;
    const char *text;
@@ -785,6 +789,39 @@ static int test_large_values( void ) {
    nfail += check_accepted( "SkyFrame with a long Symbol", dump );
    dump = astFree( dump );
 
+/* A time is formatted as a date with at most nine decimal places in the
+   seconds field, however many the Format asks for. */
+   tfrm = astTimeFrame( "System=MJD,Format=iso.200" );
+   text = astFormat( tfrm, 1, 55000.25 );
+   if ( !astOK || !text || strcmp( text, "2009-06-18 06:00:00.000000000" ) ) {
+      fprintf( stderr, "testcorruptinput: MJD 55000.25 was formatted with "
+               "200 decimal places as \"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+
+/* A time that is too far from the present to have a calendar date. */
+   text = astFormat( tfrm, 1, 1.0E300 );
+   if ( !astOK || !text || strcmp( text, "<bad>" ) ) {
+      fprintf( stderr, "testcorruptinput: MJD 1.0E300 was formatted as "
+               "\"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   tfrm = astAnnul( tfrm );
+
+/* The default Label of a local time has the offset from UTC added to the
+   Label of its System. */
+   tfrm = astTimeFrame( "System=MJD,TimeScale=LT,LTOffset=2" );
+   text = astGetC( tfrm, "Label(1)" );
+   if ( !astOK || !text || strcmp( text, "Modified Julian Date (UTC+2)" ) ) {
+      fprintf( stderr, "testcorruptinput: the Label of a local time was "
+               "\"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   tfrm = astAnnul( tfrm );
+
 /* The local apparent sidereal time for an Epoch far in the future is a
    very large number of turns. */
    azel = astSkyFrame( "System=AZEL,Epoch=99999999999" );
@@ -809,6 +846,40 @@ static char *long_dump( const char *head, int nfill, char fill,
    return dump;
 }
 
+/* Return a unit in which "unit" is the argument of "nlog" nested "log"
+   functions.  It should be freed using astFree. */
+static char *nested_unit( const char *unit, int nlog ) {
+   size_t nu = strlen( unit );
+   char *result = astMalloc( 5*(size_t) nlog + nu + 1 );
+   int i;
+   if ( result ) {
+      for ( i = 0; i < nlog; i++ ) memcpy( result + 4*i, "log(", 4 );
+      memcpy( result + 4*nlog, unit, nu );
+      memset( result + 4*nlog + nu, ')', (size_t) nlog );
+      result[ 5*nlog + nu ] = '\0';
+   }
+   return result;
+}
+
+/* Check that the attribute "attrib" of "frm" has a value that starts with
+   "start" and has between "minlen" and "maxlen" characters.  Returns 0 if
+   so, and 1 otherwise.  Any raised status is cleared before returning. */
+static int check_text( const char *what, void *frm, const char *attrib,
+                       const char *start, size_t minlen, size_t maxlen ) {
+   const char *text = astGetC( frm, attrib );
+   size_t len = text ? strlen( text ) : 0;
+   int nfail = 0;
+   if ( !astOK || !text || len < minlen || len > maxlen ||
+        strncmp( text, start, strlen( start ) ) ) {
+      fprintf( stderr, "testcorruptinput: the %s of %s has %d characters "
+               "and is \"%s\" (status %d)\n", attrib, what, (int) len,
+               text ? text : "", astStatus );
+      nfail = 1;
+   }
+   if ( !astOK ) astClearStatus;
+   return nfail;
+}
+
 /* Text that is longer than the buffers it used to be copied into. */
 static int test_long_text( void ) {
    AstFrame *frm;
@@ -816,6 +887,7 @@ static int test_long_text( void ) {
    AstFrame *cmp;
    AstObject *obj;
    char *dump;
+   char *unit;
    const char *text;
    int i;
    int nfail = 0;
@@ -885,6 +957,81 @@ static int test_long_text( void ) {
       obj = astAnnul( obj );
    }
    if ( !astOK ) astClearStatus;
+
+/* The default Label and Symbol of a spectral, flux or time axis are
+   changed to match its Unit, so a long Unit gives a long Label and Symbol.
+   Each is cut short to fit its buffer. */
+   unit = nested_unit( "Hz", 40 );
+   frm = (AstFrame *) astSpecFrame( "System=FREQ" );
+   astSetC( frm, "Unit(1)", unit );
+   nfail += check_text( "a SpecFrame with a long Unit", frm, "Label(1)",
+                        "log(log(", 100, 200 );
+   nfail += check_text( "a SpecFrame with a long Unit", frm, "Symbol(1)",
+                        "log(log(", 100, 200 );
+   frm = astAnnul( frm );
+   frm = (AstFrame *) astDSBSpecFrame( "System=FREQ" );
+   astSetC( frm, "Unit(1)", unit );
+   nfail += check_text( "a DSBSpecFrame with a long Unit", frm, "Label(1)",
+                        "log(log(", 90, 100 );
+   frm = astAnnul( frm );
+   unit = astFree( unit );
+
+   unit = nested_unit( "d", 40 );
+   frm = (AstFrame *) astTimeFrame( "System=MJD" );
+   astSetC( frm, "Unit(1)", unit );
+   nfail += check_text( "a TimeFrame with a long Unit", frm, "Label(1)",
+                        "log(log(", 100, 200 );
+   nfail += check_text( "a TimeFrame with a long Unit", frm, "Symbol(1)",
+                        "log(log(", 100, 200 );
+   frm = astAnnul( frm );
+   unit = astFree( unit );
+
+   unit = nested_unit( "Jy", 4 );
+   frm = (AstFrame *) astFluxFrame( AST__BAD, NULL, "System=FLXDN" );
+   astSetC( frm, "Unit(1)", unit );
+   nfail += check_text( "a FluxFrame with a long Unit", frm, "Label(1)",
+                        "log(log(log(log( Flux density ))))", 34, 34 );
+   nfail += check_text( "a FluxFrame with a long Unit", frm, "Symbol(1)",
+                        "log(log(log(log( S_nu ))))", 26, 26 );
+   frm = astAnnul( frm );
+   unit = astFree( unit );
+
+/* A wave number in units of wavelength has a Symbol that includes the
+   scale factor, and is longer than the twenty characters that every
+   Symbol once had to fit in. */
+   frm = (AstFrame *) astSpecFrame( "System=WAVN,Unit=nm" );
+   nfail += check_text( "a SpecFrame for wave number in nm", frm, "Symbol(1)",
+                        "", 21, 200 );
+   text = astGetC( frm, "Symbol(1)" );
+   if ( !astOK || !text || !strstr( text, "WAVN" ) ) {
+      fprintf( stderr, "testcorruptinput: the Symbol of a SpecFrame for "
+               "wave number in nm is \"%s\"\n", text ? text : "" );
+      nfail++;
+   }
+   if ( !astOK ) astClearStatus;
+   frm = astAnnul( frm );
+
+/* A Unit for which no Mapping from the default Unit can be found, because
+   the logarithm of a value that is not positive is needed to find it, is
+   refused. */
+   unit = nested_unit( "Jy", 6 );
+   frm = (AstFrame *) astFluxFrame( AST__BAD, NULL, "System=FLXDN" );
+   astSetC( frm, "Unit(1)", unit );
+   nfail += check_failed( "setting a FluxFrame Unit of six nested logs", NULL,
+                          AST__BADUN );
+   frm = astAnnul( frm );
+   unit = astFree( unit );
+
+/* When a FluxFrame is dumped, a comment is made for each of its preferred
+   units that names the System the unit belongs to.  The longest System
+   name is that of surface brightness per unit wavelength. */
+   frm = (AstFrame *) astFluxFrame( 1.0E10, NULL, "System=SFCBRW,"
+                                    "Unit=W/m^2/Angstrom/arcsec^2" );
+   dump = astToString( frm );
+   nfail += check_accepted( "FluxFrame for surface brightness per wavelength",
+                            dump );
+   dump = astFree( dump );
+   frm = astAnnul( frm );
 
 /* A Format is a "printf" format for the one axis value. A Format that asks
    for anything else is refused when it is used, as is one that needs more

@@ -89,6 +89,7 @@ C_TESTS = \
     testcorruptinput \
     testmapmerge \
     testfitswrite \
+    testcast \
     testplotclip \
     testplotcopy \
     testpolymapinv \
@@ -164,6 +165,8 @@ testmapmerge_SOURCES  = testmapmerge.c
 testmapmerge_LDADD    = $(CTEST_LDADD)
 testfitswrite_SOURCES  = testfitswrite.c
 testfitswrite_LDADD    = $(CTEST_LDADD)
+testcast_SOURCES  = testcast.c
+testcast_LDADD    = $(CTEST_LDADD)
 testplotclip_SOURCES   = testplotclip.c
 testplotclip_LDADD     = $(CTEST_LDADD)
 testplotcopy_SOURCES   = testplotcopy.c
