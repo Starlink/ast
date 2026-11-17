@@ -1657,6 +1657,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        each card that astWrite replaces, and FixNew puts the card back if
 *        the cards that replaced it are removed. A write that was abandoned
 *        used to remove such keywords from the FitsChan altogether.
+*     16-NOV-2026 (TIMJ):
+*        ClassTrans: take the frequency at the reference channel to be zero
+*        if the header has no CRVAL for the spectral axis. A value that had
+*        not been set was used to calculate the source velocity.
+*        CLASSFromStore: require a reference pixel for each of the three
+*        axes, and only create the keywords that use the CRVAL values if
+*        all of those values were found.
 *class--
 */
 
@@ -6953,6 +6960,9 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    WCS axes 0, 1 and 2. */
    if( naxis > 3 ) naxis = 3;
 
+/* Each of those three axes needs a reference pixel. */
+   if( naxis < 3 ) ok = 0;
+
 /* Allocate memory to store the CDELT values */
    if( ok ) {
       cdelt = (double *) astMalloc( sizeof(double)*naxis );
@@ -7119,6 +7129,11 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
             ok = 0;
          }
       }
+   }
+
+/* The remaining keywords use the values found above, so they can only be
+   created if all of those values were available. */
+   if( ok ) {
 
 /* CDELT values */
       if( axspec != -1 ) cdelt[ axspec ] *= specfactor;
@@ -7365,6 +7380,10 @@ static void ClassTrans( AstFitsChan *this, AstFitsChan *ret, int axlat,
    } else {
       axspec = 1;
    }
+
+/* The frequency at the reference channel is taken to be zero if the
+   header does not give one for the axis selected above. */
+   crval = 0.0;
 
 /* Get the spectral CTYPE value */
    if( GetValue2( ret, this, FormatKey( "CTYPE", axspec + 1, -1, ' ', status ),
