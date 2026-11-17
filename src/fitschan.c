@@ -1669,6 +1669,13 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        card if it fits. It was formatted in what was left of the card
 *        with the number of digits given by FitsDigits, so a large
 *        FitsDigits value wrote beyond the end of the card.
+*     16-NOV-2026 (TIMJ):
+*        Do not write beyond the end of a fixed buffer when copying or
+*        formatting a string of any length: a keyword value or name quoted
+*        in a warning, a CTYPE value copied so that its projection code can
+*        be changed, and an axis Symbol, CTYPE or WCSNAME value used as a
+*        CTYPE value, Label or Title. SpectralAxes now allocates memory
+*        for the Unit of the SpecFrame, which it kept in 20 characters.
 *class--
 */
 
@@ -3586,14 +3593,14 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
       if( !cval ) {
          ok = 0;
       } else {
-         strcpy( lontype, cval );
+         snprintf( lontype, sizeof( lontype ), "%s", cval );
       }
       cval = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
       if( !cval ) {
          ok = 0;
          prj = AST__WCSBAD;
       } else {
-         strcpy( lattype, cval );
+         snprintf( lattype, sizeof( lattype ), "%s", cval );
          prj = astWcsPrjType( cval + 4 );
       }
 
@@ -4119,14 +4126,14 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
       if( !cval ) {
          ok = 0;
       } else {
-         strcpy( lontype, cval );
+         snprintf( lontype, sizeof( lontype ), "%s", cval );
       }
       cval = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
       if( !cval ) {
          ok = 0;
          prj = AST__WCSBAD;
       } else {
-         strcpy( lattype, cval );
+         snprintf( lattype, sizeof( lattype ), "%s", cval );
          prj = astWcsPrjType( cval + 4 );
       }
 
@@ -6301,15 +6308,17 @@ static int CheckFitsName( AstFitsChan *this, const char *name,
                                "card.", status, method, class, FITSNAMLEN + 1 );
 
                   } else if( *c < ' ' ) {
-                     sprintf( buf, "The FITS keyword name ('%s') contains an "
-                              "illegal non-printing character (ascii value "
-                              "%d).", name, *c );
+                     snprintf( buf, sizeof( buf ),
+                               "The FITS keyword name ('%s') contains an "
+                               "illegal non-printing character (ascii value "
+                               "%d).", name, *c );
                      Warn( this, "badkeyname", buf, method, class, status );
 
 
                   } else if( *c > ' ' ) {
-                     sprintf( buf, "The FITS keyword name ('%s') contains an "
-                              "illegal character ('%c').", name, *c );
+                     snprintf( buf, sizeof( buf ),
+                               "The FITS keyword name ('%s') contains an "
+                               "illegal character ('%c').", name, *c );
                      Warn( this, "badkeyname", buf, method, class, status );
                   }
                   break;
@@ -6856,14 +6865,14 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
       if( !cval ) {
          ok = 0;
       } else {
-         strcpy( lontype, cval );
+         snprintf( lontype, sizeof( lontype ), "%s", cval );
       }
       cval = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
       if( !cval ) {
          ok = 0;
          prj = AST__WCSBAD;
       } else {
-         strcpy( lattype, cval );
+         snprintf( lattype, sizeof( lattype ), "%s", cval );
          prj = astWcsPrjType( cval + 4 );
       }
 
@@ -9303,10 +9312,11 @@ static void DistortMaps( AstFitsChan *this, FitsStore *store, char s,
             if( nc >= 0 && !strcmp( ctype + nc, "-SIP" ) ) {
                if( !warned ){
                   warned = 1;
-                  sprintf( msgbuf, "The \"-SIP\" distortion code can only be "
-                           "used on axes 1 and 2, but was found in keyword "
-                           "%s (='%s'). The distortion will be ignored.",
-                           FormatKey( "CTYPE", i + 1, -1, ' ', status ),  ctype );
+                  snprintf( msgbuf, sizeof( msgbuf ),
+                            "The \"-SIP\" distortion code can only be "
+                            "used on axes 1 and 2, but was found in keyword "
+                            "%s (='%s'). The distortion will be ignored.",
+                            FormatKey( "CTYPE", i + 1, -1, ' ', status ),  ctype );
                   Warn( this, "distortion", msgbuf, method, class, status );
                }
                ctype[ nc ] = 0;
@@ -9387,12 +9397,13 @@ static void DistortMaps( AstFitsChan *this, FitsStore *store, char s,
    multiple warnings about the same distortion code in multiple CTYPE values). */
                if( !warned ){
                   warned = 1;
-                  sprintf( msgbuf, "The header contains CTYPE values (e.g. "
-                           "%s = '%s') which "
-                           "include a distortion code \"-%s\". AST "
-                           "currently ignores this distortion. The code "
-                           "has been removed from the CTYPE values.",
-                           FormatKey( "CTYPE", i + 1, -1, ' ', status ),  ctype, dist );
+                  snprintf( msgbuf, sizeof( msgbuf ),
+                            "The header contains CTYPE values (e.g. "
+                            "%s = '%s') which "
+                            "include a distortion code \"-%s\". AST "
+                            "currently ignores this distortion. The code "
+                            "has been removed from the CTYPE values.",
+                            FormatKey( "CTYPE", i + 1, -1, ' ', status ),  ctype, dist );
                   Warn( this, "distortion", msgbuf, method, class, status );
                }
 
@@ -19757,10 +19768,10 @@ static int IRAFFromStore( AstFitsChan *this, FitsStore *store,
 /* Get the CTYPE values for both axes. */
       cval = GetItemC( &(store->ctype), axlon, 0, s, NULL, method, class, status );
       if( !cval ) return ret;
-      strcpy( lontype, cval );
+      snprintf( lontype, sizeof( lontype ), "%s", cval );
       cval = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
       if( !cval ) return ret;
-      strcpy( lattype, cval );
+      snprintf( lattype, sizeof( lattype ), "%s", cval );
 
 /* Extract the projection type as specified by the last 4 characters
    in the CTYPE keyword value. */
@@ -24582,8 +24593,9 @@ static AstMapping *NonLinSpecWcs( AstFitsChan *this, char *algcode,
       if( algcode[ 3 ] != pc ) {
          const char *text = astGetC( specfrm, "System" );
          if( text ) {
-            sprintf( buf, "The spectral CTYPE value %s%s is not legal - using"
-                     " %s%.3s%c instead.", text, algcode, text, algcode, pc );
+            snprintf( buf, sizeof( buf ),
+                      "The spectral CTYPE value %s%s is not legal - using"
+                      " %s%.3s%c instead.", text, algcode, text, algcode, pc );
             Warn( this, "badctype", buf, method, class, status );
          }
       }
@@ -25312,7 +25324,7 @@ static AstMapping *OtherAxes( AstFitsChan *this, AstFrameSet *fs, double *dim,
 /* The axis symbols are taken as the CTYPE values. Append "-LOG" or "-TAB" if
    the axis is logarithmic or tabular. */
             if( sym && strlen( sym ) ) {
-               (void) sprintf( buf, "%s", sym );
+               (void) snprintf( buf, sizeof( buf ), "%s", sym );
             } else {
                (void) sprintf( buf, "AXIS%d", iax + 1 );
             }
@@ -25670,7 +25682,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
 
 /* Change the new SFL projection code to to the older equivalent GLS */
          if( prj == AST__SFL ) {
-            strcpy( type, cval );
+            snprintf( type, sizeof( type ), "%s", cval );
             (void) strcpy( type + 4, "-GLS" );
             cval = type;
          }
@@ -25707,7 +25719,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
       cval = GetItemC( &(store->radesys), 0, 0, s, NULL, method, class, status );
       if( cval ) {
          if( s == ' ' ) {
-            strcpy( primsys, cval );
+            snprintf( primsys, sizeof( primsys ), "%s", cval );
             SetValue( this, "RADECSYS", &cval, AST__STRING,
                       "Reference frame for RA/DEC values", status );
          } else if( strcmp( cval, primsys ) ) {
@@ -30144,7 +30156,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                   cval = GetItemC( &(store->ctype), latax, 0, s, NULL, method,
                                    class, status );
                   if( cval ){
-                     strcpy( buf, cval );
+                     snprintf( buf, sizeof( buf ), "%s", cval );
                      strcpy( buf + 8, "-SIP" );
                      SetItemC( &(store->ctype), latax, 0, s, buf, status );
                   }
@@ -30152,7 +30164,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                   cval = GetItemC( &(store->ctype), lonax, 0, s, NULL, method,
                                    class, status );
                   if( cval ){
-                     strcpy( buf, cval );
+                     snprintf( buf, sizeof( buf ), "%s", cval );
                      strcpy( buf + 8, "-SIP" );
                      SetItemC( &(store->ctype), lonax, 0, s, buf, status );
                   }
@@ -31341,7 +31353,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    AstSpecFrame *specfrm;  /* The SpecFrame defining current WCS axis */
    char *cname;            /* Pointer to CNAME value */
    char ctype[ MXCTYPELEN ]; /* The value for the FITS CTYPE keyword */
-   char lin_unit[ 20 ];    /* Linear spectral Units being used */
+   char *lin_unit;         /* Linear spectral Units being used */
    char orig_system[ 40 ]; /* Value of System attribute for current WCS axis */
    char system_attr[ 20 ]; /* Name of System attribute for current WCS axis */
    char unit_attr[ 20 ];   /* Name of Unit attribute for current WCS axis */
@@ -31384,6 +31396,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
 
 /* Initialise */
    ret = NULL;
+   lin_unit = NULL;
 
 /* Check the inherited status. */
    if( !astOK ) return ret;
@@ -31496,7 +31509,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
 
 /* Note the linear spectral Unit currently in use. */
             cval = astGetUnit( specfrm, 0 );
-            if( cval ) strcpy( lin_unit, cval );
+            if( cval ) lin_unit = astStore( lin_unit, cval, strlen( cval ) + 1 );
 
 /* For some of the algorithms, the reference value CRVAL is arbitrary.
    For these algorithms we choose to use the supplied default CRVAL value.
@@ -31994,6 +32007,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
 /* Release resources. */
    lbnd_p = astFree( lbnd_p );
    ubnd_p = astFree( ubnd_p );
+   lin_unit = astFree( lin_unit );
    wcsfrm = astAnnul( wcsfrm );
 
 /* If we have a Mapping to return, simplify it. Otherwise, create
@@ -32301,7 +32315,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
                      }
                   }
                   if( *sprj ) {
-                     strcpy( spectype, cval );
+                     snprintf( spectype, sizeof( spectype ), "%s", cval );
                      if( sprj[ 1 ] == sprj[ 3 ] ) {
                         strcpy( sprj, strlen( cval ) > 8 ? "----" : "    " );
                      } else {
@@ -34939,7 +34953,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
    the CRVAL values are defined when using -TAB). The psi axes will then
    be mapping into the CS axes using the Mappign returned by this function. */
                   strncpy( name, ctype, 4 );
-                  strcpy( name + 4, ctype + 8 );
+                  snprintf( name + 4, sizeof( name ) - 4, "%s", ctype + 8 );
                   SetItemC( &(store->ctype), iaxis, 0, s, name, status );
 
 /* Set the returned flag for this axis. */
@@ -35809,9 +35823,10 @@ static AstTimeScaleType TimeSysToAst( AstFitsChan *this, const char *timesys,
       result = AST__TCB;
    } else {
       result = AST__UTC;
-      sprintf( buf, "The original FITS header contained a value of %s for "
-               "keyword TIMESYS. AST does not support this timescale so "
-               "UTC will be used instead.", timesys );
+      snprintf( buf, sizeof( buf ),
+                "The original FITS header contained a value of %s for "
+                "keyword TIMESYS. AST does not support this timescale so "
+                "UTC will be used instead.", timesys );
       Warn( this, "badval", buf, method, class, status );
    }
 
@@ -36909,7 +36924,7 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
                axlon = i;
                strcpy( lontype, wcscelestial_type );
                strcpy( lonkey, keyname );
-               strcpy( lonctype, ctype );
+               snprintf( lonctype, sizeof( lonctype ), "%s", ctype );
                lonprj = prj;
 
 /* If another longitude axis has already been found, report an error. */
@@ -36963,7 +36978,7 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
                axlat = i;
                strcpy( lattype, wcscelestial_type );
                strcpy( latkey, keyname );
-               strcpy( latctype, ctype );
+               snprintf( latctype, sizeof( latctype ), "%s", ctype );
                latprj = prj;
             } else {
                astError( AST__BDFTS, "%s(%s): FITS keywords '%s' (='%s') "
@@ -37125,9 +37140,10 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
                if( m <= mxpar_lat ) {
                   astSetPV( map2, axlat, m, pv );
                } else {
-                  sprintf( buf, "Projection parameter PV%d_%d found, "
-                           "but is not used by %s projections.", axlat + 1,
-                           m, astWcsPrjName( astGetWcsType( map2 ) ) );
+                  snprintf( buf, sizeof( buf ),
+                            "Projection parameter PV%d_%d found, "
+                            "but is not used by %s projections.", axlat + 1,
+                            m, astWcsPrjName( astGetWcsType( map2 ) ) );
                   Warn( this, "badpv", buf, method, class, status );
                }
             }
@@ -37136,9 +37152,10 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
                if( m <= mxpar_lon ) {
                   astSetPV( map2, axlon, m, pv );
                } else {
-                  sprintf( buf, "Projection parameter PV%d_%d found, "
-                           "but is not used by %s projections.", axlon + 1,
-                           m, astWcsPrjName( astGetWcsType( map2 ) ) );
+                  snprintf( buf, sizeof( buf ),
+                            "Projection parameter PV%d_%d found, "
+                            "but is not used by %s projections.", axlon + 1,
+                            m, astWcsPrjName( astGetWcsType( map2 ) ) );
                   Warn( this, "badpv", buf, method, class, status );
                }
             }
@@ -38061,10 +38078,11 @@ static void WcsFcRead( AstFitsChan *fc, AstFitsChan *fc2, FitsStore *store,
 
 /* First check that the keyword is not included in "fc2". */
             if( !HasCard( fc2, keynam, method, class, status ) ) {
-               sprintf( buf, "The original FITS header contained a value for "
-                        "keyword %s which could not be converted to a %s.",
-                        keynam, ( type==AST__FLOAT ? "floating point number":
-                        "character string" ) );
+               snprintf( buf, sizeof( buf ),
+                         "The original FITS header contained a value for "
+                         "keyword %s which could not be converted to a %s.",
+                         keynam, ( type==AST__FLOAT ? "floating point number":
+                         "character string" ) );
                Warn( fc, "badval", buf, "astRead", "FitsChan", status );
             }
          }
@@ -38278,7 +38296,7 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    parameters from "PV" to "QV". AST will do the inverse conversions when
    reading such a header. Non-AST software will simply ignore the QV
    terms and interpret the header as a simple TAN projection. */
-         if( prj == AST__TPN ) {
+         if( prj == AST__TPN && nc < (int) sizeof( type ) ) {
             strcpy( parprefix, "QV" );
             strcpy( type, cval );
             (void) strcpy( type + nc - 4, "-TAN" );
@@ -39383,10 +39401,11 @@ static AstMapping *WcsNative( AstFitsChan *this, FitsStore *store, char s,
          delta0 = -AST__DPIBY2;
       }
       if( alphap != delta0 ) {
-         sprintf( buf, "The original FITS header specified a fiducial "
-                  "point with latitude %.*g. A value of %.*g is being used "
-                  "instead. ", AST__DBL_DIG, alphap*AST__DR2D, AST__DBL_DIG,
-                  delta0*AST__DR2D );
+         snprintf( buf, sizeof( buf ),
+                   "The original FITS header specified a fiducial "
+                   "point with latitude %.*g. A value of %.*g is being used "
+                   "instead. ", AST__DBL_DIG, alphap*AST__DR2D, AST__DBL_DIG,
+                   delta0*AST__DR2D );
          Warn( this, "badlat", buf, method, class, status );
       }
 
@@ -40012,7 +40031,7 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
             len = strlen( ckeyval );
             if( len > 3 && !strcmp( ckeyval + len - 4, "-LOG" ) ){
                map1 = LogWcs( store, i, s, method, class, status );
-               sprintf( buf2, "%.*s", len - 4, ckeyval );
+               snprintf( buf2, sizeof( buf2 ), "%.*s", len - 4, ckeyval );
 
 /* A zero CRVAL has no logarithmic form, so LogWcs returns NULL. Use a
    UnitMap, as WcsSpectral does for a spectral axis. */
@@ -40021,7 +40040,7 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
 /* Otherwise, assume the axis is linearly spaced. */
             } else {
                map1 = LinearWcs( store, i, s, method, class, status );
-               sprintf( buf2, "%.*s", len, ckeyval );
+               snprintf( buf2, sizeof( buf2 ), "%.*s", len, ckeyval );
             }
 
 /* Append the CTYPE value to the final Domain value for the primary Frame. */
@@ -40091,7 +40110,7 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
       ckeyval = GetItemC( &(store->wcsname), 0, 0, s, NULL, method, class, status );
       if( ckeyval ){
          astSetDomain( *frm, ckeyval );
-         sprintf( buf, "%s coordinates", ckeyval );
+         snprintf( buf, sizeof( buf ), "%s coordinates", ckeyval );
          astSetTitle( *frm, buf );
       }
    }
@@ -40356,9 +40375,10 @@ static AstSkyFrame *WcsSkyFrame( AstFitsChan *this, FitsStore *store, char s,
 /* If an equatorial system is being used, give a warning that a default RADESYS
    value is being used. */
          if( !strcmp( sys, "EQU" ) ){
-            sprintf( buf, "The original FITS header did not specify the "
-                     "RA/DEC reference frame. A default value of %s was "
-                     "assumed.", ( radesys == FK4 ) ? "FK4" : "FK5" );
+            snprintf( buf, sizeof( buf ),
+                      "The original FITS header did not specify the "
+                      "RA/DEC reference frame. A default value of %s was "
+                      "assumed.", ( radesys == FK4 ) ? "FK4" : "FK5" );
             Warn( this, "noradesys", buf, method, class, status );
          }
       }
@@ -40386,9 +40406,10 @@ static AstSkyFrame *WcsSkyFrame( AstFitsChan *this, FitsStore *store, char s,
             radesys = ICRS;
          }
          if( !strcmp( sys, "EQU" ) ){
-            sprintf( buf, "The original FITS header did not specify the "
-                     "RA/DEC reference frame. A default value of %s was "
-                     "assumed.", ( radesys == FK4 ) ? "FK4" : "ICRS" );
+            snprintf( buf, sizeof( buf ),
+                      "The original FITS header did not specify the "
+                      "RA/DEC reference frame. A default value of %s was "
+                      "assumed.", ( radesys == FK4 ) ? "FK4" : "ICRS" );
             Warn( this, "noradesys", buf, method, class, status );
          }
       }
@@ -40490,10 +40511,11 @@ static AstSkyFrame *WcsSkyFrame( AstFitsChan *this, FitsStore *store, char s,
          lontype = GetItemC( &(store->ctype), axlon, 0, s, NULL, method, class, status );
          lattype = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
          if( lontype && lattype ){
-            sprintf( buf, "This FITS header contains references to an unknown "
-                     "spherical co-ordinate system specified in the values "
-                     "%s and %s. It may not be possible to convert to "
-                     "other standard co-ordinate systems.", lontype, lattype );
+            snprintf( buf, sizeof( buf ),
+                      "This FITS header contains references to an unknown "
+                      "spherical co-ordinate system specified in the values "
+                      "%s and %s. It may not be possible to convert to "
+                      "other standard co-ordinate systems.", lontype, lattype );
             Warn( this, "badcel", buf, method, class, status );
          }
       }
