@@ -282,6 +282,9 @@ f     The WcsMap class does not define any new routines beyond those
 *        set if the projection functions failed, as they do every time for
 *        unusable projection parameters now that the WCSLIB set-up
 *        functions no longer record a failed set-up as done.
+*     16-NOV-2026 (TIMJ):
+*        Dump: use snprintf to format the comment that names the
+*        projection.
 *class--
 */
 
@@ -5506,7 +5509,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* -------- */
    ival = GetWcsType( this, status );
    prjdata = FindPrjData( ival, status );
-   (void) sprintf( comment_buff, "%s projection", prjdata->desc );
+   (void) snprintf( comment_buff, sizeof( comment_buff ),
+                    "%s projection", prjdata->desc );
    comment_buff[ 0 ] = toupper( comment_buff[ 0 ] );
    astWriteString( channel, "Type", 1, 1, prjdata->ctype + 1, comment_buff );
 

@@ -257,6 +257,9 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        that is more, so a string value longer than that, as passed on by
 *        astSetC, was written beyond the end of it. Use a copy of the
 *        argument list each time it is read.
+*     16-NOV-2026 (TIMJ):
+*        EnvSet: use snprintf to format the name of the environment
+*        variable.
 *class--
 */
 
@@ -1899,7 +1902,7 @@ static void EnvSet( AstObject *this, int *status ) {
 
 /* Form the upper-case name of the environment variable. */
       if( class ) {
-         sprintf( varname, "%s_OPTIONS", class );
+         snprintf( varname, sizeof( varname ), "%s_OPTIONS", class );
          astChrCase( NULL, varname, 1, sizeof( varname ) );
 
 /* Get the value of the environment variable. */

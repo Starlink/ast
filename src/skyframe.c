@@ -388,6 +388,10 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *     13-NOV-2026 (TIMJ):
 *        ResolvePoints: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     16-NOV-2026 (TIMJ):
+*        GetAttrib and GetTitle: do not write beyond the end of the buffer
+*        when the two formatted values of SkyRef or SkyRefP are joined.
+*        GetLabel and GetSymbol: use snprintf.
 *class--
 */
 
@@ -2777,10 +2781,14 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "skyref" ) ) {
       cval = astFormat( this, 0, astGetSkyRef( this, 0 ) );
       if ( astOK ) {
-         nc = sprintf( getattrib_buff, "%s, ", cval );
+         nc = snprintf( getattrib_buff, sizeof( getattrib_buff ), "%s, ", cval );
+         if( nc >= (int) sizeof( getattrib_buff ) ) {
+            nc = (int) sizeof( getattrib_buff ) - 1;
+         }
          cval = astFormat( this, 1, astGetSkyRef( this, 1 ) );
          if ( astOK ) {
-            (void) sprintf( getattrib_buff + nc, "%s", cval );
+            (void) snprintf( getattrib_buff + nc, sizeof( getattrib_buff ) - nc,
+                             "%s", cval );
             result = getattrib_buff;
          }
       }
@@ -2801,10 +2809,14 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "skyrefp" ) ) {
       cval = astFormat( this, 0, astGetSkyRefP( this, 0 ) );
       if ( astOK ) {
-         nc = sprintf( getattrib_buff, "%s, ", cval );
+         nc = snprintf( getattrib_buff, sizeof( getattrib_buff ), "%s, ", cval );
+         if( nc >= (int) sizeof( getattrib_buff ) ) {
+            nc = (int) sizeof( getattrib_buff ) - 1;
+         }
          cval = astFormat( this, 1, astGetSkyRefP( this, 1 ) );
          if ( astOK ) {
-            (void) sprintf( getattrib_buff + nc, "%s", cval );
+            (void) snprintf( getattrib_buff + nc, sizeof( getattrib_buff ) - nc,
+                             "%s", cval );
             result = getattrib_buff;
          }
       }
@@ -3712,7 +3724,8 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
 /* If the SkyRef attribute has a set value, append " offset" to the label. */
          if( astGetSkyRefIs( this ) != AST__IGNORED_REF &&
              ( astTestSkyRef( this, 0 ) || astTestSkyRef( this, 1 ) ) ) {
-            sprintf( getlabel_buff, "%s offset", result );
+            snprintf( getlabel_buff, sizeof( getlabel_buff ),
+                      "%s offset", result );
             result = getlabel_buff;
          }
       }
@@ -4302,7 +4315,7 @@ static const char *GetSymbol( AstFrame *this, int axis, int *status ) {
    Symbol. */
          if( astGetSkyRefIs( this ) != AST__IGNORED_REF &&
              ( astTestSkyRef( this, 0 ) || astTestSkyRef( this, 1 ) ) ) {
-            sprintf( getsymbol_buff, "D%s", result );
+            snprintf( getsymbol_buff, sizeof( getsymbol_buff ), "D%s", result );
             result = getsymbol_buff;
          }
       }
@@ -4759,10 +4772,18 @@ static const char *GetTitle( AstFrame *this_frame, int *status ) {
    coordinate system. */
             if( offset ){
                word = ( astGetSkyRefIs( this ) == AST__POLE_REF )?"pole":"origin";
-               lextra = sprintf( gettitle_buff2, "%s at %s ", word,
-                           astFormat( this, 0, astGetSkyRef( this, 0 ) ) );
-               lextra += sprintf( gettitle_buff2 + lextra, "%s",
-                           astFormat( this, 1, astGetSkyRef( this, 1 ) ) );
+               lextra = snprintf( gettitle_buff2, sizeof( gettitle_buff2 ),
+                                  "%s at %s ", word,
+                                  astFormat( this, 0, astGetSkyRef( this, 0 ) ) );
+               if( lextra >= (int) sizeof( gettitle_buff2 ) ) {
+                  lextra = (int) sizeof( gettitle_buff2 ) - 1;
+               }
+               lextra += snprintf( gettitle_buff2 + lextra,
+                                   sizeof( gettitle_buff2 ) - lextra, "%s",
+                                   astFormat( this, 1, astGetSkyRef( this, 1 ) ) );
+               if( lextra >= (int) sizeof( gettitle_buff2 ) ) {
+                  lextra = (int) sizeof( gettitle_buff2 ) - 1;
+               }
                extra = gettitle_buff2;
 
 /* Otherwise, get the sky projection description. */

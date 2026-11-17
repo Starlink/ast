@@ -99,6 +99,9 @@ f     The FluxFrame class does not define any new routines beyond those
 *        GetLabel and GetSymbol: do not write beyond the end of the buffer
 *        when the Label or Symbol made by astUnitMapper is long. The Symbol
 *        buffer now holds 200 characters.
+*     16-NOV-2026 (TIMJ):
+*        Dump and astLoadFluxFrame: use snprintf to format the name of the
+*        item that holds the preferred units for a System.
 *class--
 */
 
@@ -3867,7 +3870,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    if( this->usedunits ) {
       for( i = 0; i < this->nuunits; i++ ) {
          if( this->usedunits[ i ] ) {
-            sprintf( buff, "U%s", astSystemString( this, (AstSystemType) i ));
+            snprintf( buff, sizeof( buff ),
+                      "U%s", astSystemString( this, (AstSystemType) i ));
             for( j = 2; j < strlen( buff ); j++ ) buff[ j ] = tolower( buff[ j ] );
             snprintf( comm, sizeof( comm ), "Preferred units for %s",
                       SystemLabel( (AstSystemType) i, status ) );
@@ -4263,7 +4267,8 @@ AstFluxFrame *astLoadFluxFrame_( void *mem, size_t size, AstFluxFrameVtab *vtab,
       new->nuunits = 0;
       new->usedunits = NULL;
       for( sys = FIRST_SYSTEM; sys <= LAST_SYSTEM; sys++ ) {
-         sprintf( buff, "u%s", astSystemString( new, (AstSystemType) sys ));
+         snprintf( buff, sizeof( buff ),
+                   "u%s", astSystemString( new, (AstSystemType) sys ));
          for( j = 0; j < strlen( buff ); j++ ) buff[ j ] = tolower( buff[ j ] );
          sval = astReadString( channel, buff, NULL );
          if( sval ) {

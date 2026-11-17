@@ -144,6 +144,8 @@
 *        1024 characters on the stack, and it often quotes text from the
 *        data being read, so a long value in a corrupt file overflowed
 *        the stack while the error about it was being reported.
+*     16-NOV-2026 (TIMJ):
+*        astBacktrace: use snprintf to format each line.
 */
 
 /* Define the astCLASS macro (even although this is not a class
@@ -396,7 +398,7 @@ c-
    if( strings ) {
       PutErr( astStatus, " " );
       for( j = 1; j < np; j++ ) {
-         sprintf( buf, "%d: %s", j, strings[j] );
+         snprintf( buf, sizeof( buf ), "%d: %s", j, strings[j] );
          PutErr( astStatus, buf );
       }
       free( strings );

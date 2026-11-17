@@ -343,6 +343,9 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        ClearAttrib, GetAttrib, SetAttrib and TestAttrib: do not write
 *        beyond the end of the buffer that holds the attribute name passed
 *        on to the primary Frame of an axis.
+*     16-NOV-2026 (TIMJ):
+*        GetAttrib and Dump: use snprintf to format the ObsLat and ObsLon
+*        values and the comment that holds the label of the axis units.
 *class--
 */
 
@@ -5192,9 +5195,11 @@ L1:
 
 /* Display absolute value preceded by "N" or "S" as appropriate. */
          if( dval < 0 ) {
-            (void) sprintf( getattrib_buff, "S%s",  astFormat( skyframe, 1, -dval ) );
+            (void) snprintf( getattrib_buff, sizeof( getattrib_buff ),
+                             "S%s",  astFormat( skyframe, 1, -dval ) );
          } else {
-            (void) sprintf( getattrib_buff, "N%s",  astFormat( skyframe, 1, dval ) );
+            (void) snprintf( getattrib_buff, sizeof( getattrib_buff ),
+                             "N%s",  astFormat( skyframe, 1, dval ) );
          }
          result = getattrib_buff;
       }
@@ -5218,9 +5223,11 @@ L1:
 
 /* Display absolute value preceded by "E" or "W" as appropriate. */
          if( dval < 0 ) {
-            (void) sprintf( getattrib_buff, "W%s",  astFormat( skyframe, 1, -dval ) );
+            (void) snprintf( getattrib_buff, sizeof( getattrib_buff ),
+                             "W%s",  astFormat( skyframe, 1, -dval ) );
          } else {
-            (void) sprintf( getattrib_buff, "E%s",  astFormat( skyframe, 1, dval ) );
+            (void) snprintf( getattrib_buff, sizeof( getattrib_buff ),
+                             "E%s",  astFormat( skyframe, 1, dval ) );
          }
          result = getattrib_buff;
 
@@ -14653,7 +14660,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* Construct a comment including the above label (but only if it is not
    the same as the unit string) . */
          if( lab && strcmp( lab, sval ) ) {
-            (void) sprintf( comment, "Units for axis %d (%s)", axis + 1, lab );
+            (void) snprintf( comment, sizeof( comment ),
+                             "Units for axis %d (%s)", axis + 1, lab );
          } else {
             (void) sprintf( comment, "Units for axis %d", axis + 1 );
          }

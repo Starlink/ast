@@ -179,6 +179,9 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *        when the Label or Symbol made by astUnitMapper is long. The Symbol
 *        buffer now holds 200 characters, since a Symbol such as that of a
 *        wave number axis with a Unit of "nm" has more than 20.
+*     16-NOV-2026 (TIMJ):
+*        Dump: use snprintf to format the name and comment of the item that
+*        holds the preferred units for a System.
 *class--
 */
 
@@ -6709,9 +6712,11 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    if( this->usedunits ) {
       for( i = 0; i < this->nuunits; i++ ) {
          if( this->usedunits[ i ] ) {
-            sprintf( buff, "U%s", astSystemString( this, (AstSystemType) i ));
+            snprintf( buff, sizeof( buff ),
+                      "U%s", astSystemString( this, (AstSystemType) i ));
             for( j = 2; j < strlen( buff ); j++ ) buff[ j ] = tolower( buff[ j ] );
-            sprintf( comm, "Preferred units for %s", SystemLabel( (AstSystemType) i, status ) );
+            snprintf( comm, sizeof( comm ),
+                      "Preferred units for %s", SystemLabel( (AstSystemType) i, status ) );
             astWriteString( channel, buff, 1, 0, this->usedunits[ i ], comm );
          }
       }

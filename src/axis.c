@@ -105,6 +105,9 @@ f     only within textual output (e.g. from AST_WRITE).
 *        read through a wild pointer and a "%n" made it write through
 *        one. Also stop AxisFormat writing beyond the end of its buffer
 *        when the formatted value is too long for it.
+*     16-NOV-2026 (TIMJ):
+*        Dump: use snprintf to format the comment that holds the label of
+*        the axis units.
 *class--
 */
 
@@ -3048,7 +3051,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* Construct a comment including the above label (but only if it is not
    the same as the unit string) . */
    if( lab && strcmp( lab, sval ) ) {
-      (void) sprintf( comment, "Axis units (%s)", lab );
+      (void) snprintf( comment, sizeof( comment ), "Axis units (%s)", lab );
    } else {
       (void) sprintf( comment, "Axis units" );
    }
