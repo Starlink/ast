@@ -1664,6 +1664,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        CLASSFromStore: require a reference pixel for each of the three
 *        axes, and only create the keywords that use the CRVAL values if
 *        all of those values were found.
+*     16-NOV-2026 (TIMJ):
+*        EncodeFloat: format the value in a work buffer and copy it to the
+*        card if it fits. It was formatted in what was left of the card
+*        with the number of digits given by FitsDigits, so a large
+*        FitsDigits value wrote beyond the end of the card.
 *class--
 */
 
@@ -10254,6 +10259,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 /* Local Variables: */
    char *c;
    char *w, *r;
+   char work[ 2*AST__FITSCHAN_FITSCARDLEN ];
    int i;
    int ldigits;
    int n;
@@ -10263,8 +10269,12 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    if ( !astOK ) return 0;
 
 /* The supplied value of "digits" may be negative. Obtain the positive
-   value giving the initial number of decimal digits to use. */
+   value giving the initial number of decimal digits to use. A value with
+   more digits than the field has room for cannot be written whatever it
+   is, so there is no point in asking for more than that. This also
+   ensures that the formatted value fits in the work buffer. */
    ldigits = ( digits > 0 ) ? digits : -digits;
+   if( ldigits > maxwidth ) ldigits = maxwidth;
 
 /* Loop until a suitably encoded value has been obtained. */
    while( 1 ){
@@ -10283,22 +10293,29 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    is significant with the E specifier, and so we only need (ldigits-1)
    significant digits to the right of the decimal point. */
       if( value > -0.001 && value < -0.0001 ) {
-         (void) sprintf( buf, "%*.*E", width, ldigits - 1, value );
+         n = snprintf( work, sizeof( work ), "%*.*E", width, ldigits - 1,
+                       value );
       } else {
-         (void) sprintf( buf, "%*.*G", width, ldigits, value );
+         n = snprintf( work, sizeof( work ), "%*.*G", width, ldigits, value );
+      }
+
+/* The value cannot be written if it does not fit in the work buffer. */
+      if( n < 0 || n >= (int) sizeof( work ) ) {
+         ret = 0;
+         break;
       }
 
 /* Check that the value zero is not encoded with a minus sign (e.g. "-0.").
    This also rounds out long sequences of zeros or nines.  */
-      CheckZero( buf, value, width, fitsrnd, status );
+      CheckZero( work, value, width, fitsrnd, status );
 
 /* If the formatted value includes an exponent, it will have 2 digits.
    If the exponent includes a leading zero, remove it. */
-      if( ( w = strstr( buf, "E-0" ) ) ) {
+      if( ( w = strstr( work, "E-0" ) ) ) {
          w += 2;
-      } else if( ( w = strstr( buf, "E+0" ) ) ){
+      } else if( ( w = strstr( work, "E+0" ) ) ){
          w += 2;
-      } else if( ( w = strstr( buf, "E0" ) ) ){
+      } else if( ( w = strstr( work, "E0" ) ) ){
          w += 1;
       }
 
@@ -10309,9 +10326,9 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    desired field width. Otherwise there is no padding to consume, so
    close the gap instead and let the string shorten. */
       if( w ) {
-         if( buf[ 0 ] == ' ' ) {
+         if( work[ 0 ] == ' ' ) {
             r = w - 1 ;
-            while( w != buf ) *(w--) = *(r--);
+            while( w != work ) *(w--) = *(r--);
             *w = ' ';
          } else {
             memmove( w, w + 1, strlen( w + 1 ) + 1 );
@@ -10320,7 +10337,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 
 /* If the used field width was too large, reduce it and try again, so
    long as we are allowed to change the number of digits being used. */
-      ret = strlen( buf );
+      ret = strlen( work );
       if( ret > width && digits < 0 ){
          ldigits -= ( ret - width );
 
@@ -10337,7 +10354,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    if( ret ){
 
 /* Get a pointer to the first digit in the buffer. */
-      c = strpbrk( buf, "0123456789" );
+      c = strpbrk( work, "0123456789" );
 
 /* Something funny is going on if there are no digits in the buffer,
    so return a zero field width. */
@@ -10356,16 +10373,16 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 /* If there are two or more leading spaces, move the start of the string
    two character to the left, and insert ".0" in the gap created. This
    keeps the field right justified within the desired field width. */
-            if( buf[ 0 ] == ' ' && buf[ 1 ] == ' ' ){
-               for( i = 2; i < c - buf + n; i++ ) buf[ i - 2 ] = buf[ i ];
+            if( work[ 0 ] == ' ' && work[ 1 ] == ' ' ){
+               for( i = 2; i < c - work + n; i++ ) work[ i - 2 ] = work[ i ];
                c[ n - 2 ] = '.';
                c[ n - 1 ] = '0';
 
 /* If there is just one leading space, move the start of the string
    one character to the left, and insert "." in the gap created. This
    keeps the field right justified within the desired field width. */
-            } else if( buf[ 0 ] == ' ' ){
-               for( i = 1; i < c - buf + n; i++ ) buf[ i - 1 ] = buf[ i ];
+            } else if( work[ 0 ] == ' ' ){
+               for( i = 1; i < c - work + n; i++ ) work[ i - 1 ] = work[ i ];
                c[ n - 1 ] = '.';
 
 /* If there are no leading spaces we need to move the end of the string
@@ -10387,6 +10404,10 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
          }
       }
    }
+
+/* If a formatted value was obtained, copy it into the supplied buffer. It
+   is no longer than the maximum field width. */
+   if( ret ) memcpy( buf, work, (size_t) ret + 1 );
 
 /* Return the field width. */
    return ret;
