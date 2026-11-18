@@ -74,6 +74,13 @@ f     The RateMap class does not define any new routines beyond those
 *        from the dump and is a Mapping, that the axis indices select one of
 *        its inputs and one of its outputs, and that the RateMap has the
 *        same number of inputs and a single output.
+*     18-NOV-2026 (TIMJ):
+*        astTransform now does nothing more if the parent method has
+*        reported an error. It used to look for the output values in a
+*        PointSet that had not been created, which happened when a
+*        SwitchMap used a RateMap as a route in the direction the RateMap
+*        does not define, and it replaced the error reported for an
+*        undefined inverse transformation with an internal error.
 *class--
 */
 
@@ -1162,8 +1169,13 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    direction specified and whether the Mapping has been inverted. */
    if ( astGetInvert( map ) ) forward = !forward;
 
+/* If the parent method failed there is no output PointSet to fill. This
+   happens when the RateMap is used in the direction it does not define,
+   which the parent method has already reported. */
+   if( !astOK ) {
+
 /* The RateMap class does not have an inverse transformation. */
-   if( !forward ) {
+   } else if( !forward ) {
       astError( AST__INTER, "astTransform(%s): The %s class does not have "
                 "an inverse transformation (AST internal programming error).", status,
                 astGetClass( this ), astGetClass( this ) );
@@ -1192,8 +1204,8 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 
 /* Get a pointer to the axis values in the results PointSet. */
       ptr2 = astGetPoints( result );
-      pout = ptr2[ 0 ];
       if( astOK ) {
+         pout = ptr2[ 0 ];
 
 /* Loop round each point in the supplied PointSet. */
          for( ipoint = 0; ipoint < npoint; ipoint++ ) {
