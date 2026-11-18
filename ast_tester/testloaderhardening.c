@@ -22,6 +22,9 @@
 *       - LutMap: fewer than two lookup table elements, a zero increment,
 *         and an inverse transformation claimed for a table with fewer than
 *         two good values (which is loaded, but without the inverse).
+*       - MathMap: fewer forward functions than outputs or inverse
+*         functions than inputs, a negative number of functions, and a
+*         function that is missing from the dump.
 *       - WcsMap: longitude and latitude axis indices that are out of range
 *         or equal, and differing numbers of inputs and outputs.
 *       - SplineMap: too few coefficients for the spline order, knots that
@@ -439,6 +442,37 @@ int main( void ) {
       nfail += check_valid( "LutMap", (AstObject *) m, "LutMap" );
       if ( m ) m = astAnnul( m );
    }
+
+/* MathMap: there must be a forward function for each output and an
+   inverse function for each input, since the last of them are taken to
+   define the outputs and the inputs.  Every function that is counted must
+   be present. */
+#define MATHMAP( nin, nout, items ) " Begin MathMap\n Nin = " #nin "\n" \
+   " Nout = " #nout "\n IsA Mapping\n" items " End MathMap\n"
+   nfail += check_accepted( "crafted MathMap",
+      MATHMAP( 1, 1, " Fwd1 = \"y=x\"\n Inv1 = \"x=y\"\n" ), "MathMap" );
+   nfail += check_accepted( "crafted MathMap with an intermediate function",
+      MATHMAP( 1, 1, " Nfwd = 2\n Fwd1 = \"a=x+1\"\n Fwd2 = \"y=a*a\"\n"
+               " Inv1 = \"x\"\n" ), "MathMap" );
+   nfail += check_rejected( "MathMap with fewer forward functions than "
+      "outputs", MATHMAP( 1, 3, " Nfwd = 1\n Fwd1 = \"y1=x\"\n"
+                          " Inv1 = \"x=y1\"\n" ), AST__LDERR );
+   nfail += check_rejected( "MathMap with fewer inverse functions than "
+      "inputs", MATHMAP( 2, 1, " Fwd1 = \"y=x1\"\n Ninv = 1\n"
+                         " Inv1 = \"x1=y\"\n" ), AST__LDERR );
+   nfail += check_rejected( "MathMap with no forward functions",
+      MATHMAP( 1, 1, " Nfwd = 0\n Inv1 = \"x=y\"\n" ), AST__LDERR );
+   nfail += check_rejected( "MathMap with a negative number of inverse "
+      "functions", MATHMAP( 1, 1, " Fwd1 = \"y=x\"\n Ninv = -5\n" ),
+      AST__LDERR );
+   nfail += check_rejected( "MathMap with its second forward function "
+      "missing", MATHMAP( 1, 1, " Nfwd = 3\n Fwd1 = \"a=x\"\n"
+                          " Fwd3 = \"y=a\"\n Inv1 = \"x\"\n" ),
+      AST__LDERR );
+   nfail += check_rejected( "MathMap with its last inverse function missing",
+      MATHMAP( 2, 2, " Fwd1 = \"y1=x1\"\n Fwd2 = \"y2=x2\"\n"
+               " Inv1 = \"x1=y1\"\n" ), AST__LDERR );
+#undef MATHMAP
 
 /* WcsMap: the longitude and latitude axis indices must be distinct axes of
    the WcsMap, or the transformation and the projection parameter code

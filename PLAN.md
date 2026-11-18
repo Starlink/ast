@@ -124,6 +124,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   It covers a string attribute value of thousands of characters given to astSetC or astSet, and attribute names of hundreds of characters given to a CmpFrame, Prism, FrameSet or Plot3D.
   It covers a floating point FITS keyword value and an STC-S position written with hundreds of digits, an STC XML document with long text where a unit, a time scale or a time is expected, and a YAML mapping that repeats a long key.
   It covers astMapSplit on a compound Mapping in which a MatrixMap or WcsMap couples two of twelve axes, and FITS headers with twenty WCS axes and two pixel axes, both of which used to take a time that grew faster than the factorial of the number of axes.
+  It covers a MathMap dump that states billions of functions and holds one, and a RateMap that a SwitchMap uses as a route in the direction the RateMap does not define.
   Run it with the sanitizers enabled, which is how most of the faults are detected.
   Some of the buffer overflows are inside a larger structure when AST is built thread-safe, where the sanitizers cannot see them; an optimized build with `_FORTIFY_SOURCE` traps on those.
 - testmapmerge — simplifying a Mapping must not change what it does.
@@ -133,6 +134,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   It covers WcsMaps that differ only in the number of projection parameters, an inverted PermMap beside a WcsMap, a PolyMap beside its own inverse, and a TimeMap conversion followed by its inverse.
   It covers a full MatrixMap that is really diagonal and is used inverted, a MatrixMap with no inverse that is used inverted, and diagonal MatrixMaps with different numbers of inputs and outputs beside a WinMap.
   It covers a WinMap beside a unit MatrixMap, beside two Mappings in parallel, with a scale of zero, and followed by a MatrixMap that discards an axis the WinMap shifts.
+  It covers astEqual for MathMaps whose functions differ only in their last operation or are a single constant, since astEqual decides whether a Mapping cancels with the inverse of its neighbour, and a SwitchMap followed by the inverse of a SwitchMap with a different route.
   Run it with the sanitizers enabled, which is how the memory faults are detected.
 - testfitswrite — an unusual FrameSet must be written to a FITS header without harm.
   A FrameSet that a foreign encoding cannot describe must simply not be written: astWrite returns zero, reports no error and leaves the FitsChan as it found it.
@@ -145,7 +147,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   astConvert casts a template that does not match into the class of the target, and the CmpFrame, Region and FrameSet classes did so using a virtual function table that was only set up when an object of exactly that class was created.
   It covers two SpecFluxFrames with different Domains before any plain CmpFrame exists (so that case must stay first in the program), and a CmpFrame that holds a Region.
 - testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
-  For PolyMap, LutMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
+  For PolyMap, LutMap, MathMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
+  For a MathMap the variants have fewer forward functions than outputs or inverse functions than inputs, a negative number of functions, and a function that is missing from the dump.
   For each class of Mapping that can only have particular numbers of inputs and outputs, it changes Nin and Nout in the dump of a valid Mapping and requires the result to be rejected, and it checks that a Mapping, Frame or Region encapsulated by another Mapping cannot be left out of a dump or replaced by an object of another class.
   The DssMap check is made by testdssmap, since a DssMap has no public constructor.
   It also checks that objects built by the constructors survive a dump and load (including a WcsMap of type AST__WCSBAD, whose axis indices are not checked), that a LutMap loaded with fewer than two good table values has no inverse, that a SplineMap whose end knots are not coincident gives AST__BAD outside the interval over which its spline is defined, and that astMalloc, astCalloc, astRealloc and astGrow report an error for a size that overflows.

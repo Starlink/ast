@@ -39,9 +39,11 @@
 *         refers to a constant it does not have, a full MatrixMap with more
 *         elements than can be counted or named, a LutMap given an input
 *         far beyond its table, a SplineMap given a position that is not a
-*         number, a KeyMap that asks for a huge hash table, and a
-*         projection whose parameters are unusable, which must say so every
-*         time it is used.
+*         number, a KeyMap that asks for a huge hash table, a projection
+*         whose parameters are unusable, which must say so every time it is
+*         used, a MathMap that states far more functions than it has, and
+*         a RateMap that a SwitchMap uses in the direction it does not
+*         define.
 *       - Large values: a sky position or an Epoch that is too large to
 *         format or to bring into range one turn at a time, a time that
 *         has no calendar date, and a date Format that asks for more
@@ -587,8 +589,12 @@ static int test_frames( void ) {
 /* Mappings. */
 static int test_mappings( void ) {
    AstLutMap *lutmap;
+   AstMapping *routes[ 1 ];
    AstMapping *spline;
+   AstSwitchMap *switchmap;
    AstWcsMap *wcsmap;
+   const char *none[] = { "a" };
+   const char *pick[] = { "r=1" };
    double nanx[ 3 ];
    double nany[ 3 ];
    double nanout[ 6 ];
@@ -670,6 +676,16 @@ static int test_mappings( void ) {
       " Begin SlaMap\n Nin = 2\n IsA Mapping\n Nsla = 1\n"
       " Sla1 = \"FK45Z\"\n Sla1a = 1950\n End SlaMap\n" );
 
+/* A count of functions far larger than the number of functions in the
+   dump.  The array that holds the functions was sized from the count and
+   a string was made for each function, present or not. */
+   nfail += check_rejected( "MathMap with INT_MAX forward functions stated",
+      " Begin MathMap\n Nin = 1\n IsA Mapping\n Nfwd = 2147483647\n"
+      " Fwd1 = \"y=x\"\n Inv1 = \"x=y\"\n End MathMap\n", AST__LDERR );
+   nfail += check_rejected( "MathMap with INT_MAX inverse functions stated",
+      " Begin MathMap\n Nin = 1\n IsA Mapping\n Fwd1 = \"y=x\"\n"
+      " Ninv = 2147483647\n Inv1 = \"x=y\"\n End MathMap\n", AST__LDERR );
+
 /* The elements of a full matrix are counted with an int, and a dump can
    name fewer than ten million of them. */
    nfail += check_accepted( "MatrixMap with four elements",
@@ -739,6 +755,34 @@ static int test_mappings( void ) {
          if ( !astOK ) astClearStatus;
       }
       nfail += check_made( "WcsMap with unusable parameters", wcsmap );
+   }
+
+/* A SwitchMap uses its route Mappings without asking which transformations
+   they define, so a route is asked for a transformation it does not have.
+   A RateMap has no inverse, and used an output array that did not exist
+   when it was asked for one as a route.  The route must report that the
+   transformation is not defined, each time. */
+   for ( i = 0; i < 2; i++ ) {
+      routes[ 0 ] = (AstMapping *) astRateMap( astZoomMap( 1, 2.0, " " ), 1,
+                                               1, " " );
+      if ( i ) astInvert( routes[ 0 ] );
+      switchmap = astSwitchMap( astMathMap( 1, 1, 1, pick, 1, none, " " ),
+                                astMathMap( 1, 1, 1, none, 1, pick, " " ),
+                                1, (void **) routes, " " );
+      for ( j = 0; j < 2 && switchmap; j++ ) {
+         astTran1( switchmap, 1, &xin, i, &xout );
+         if ( astStatus != AST__TRNND ) {
+            fprintf( stderr, "testcorruptinput: use %d of %s RateMap as a "
+                     "route in the direction it does not define gave status "
+                     "%d and not %d\n", j + 1, i ? "an inverted" : "a",
+                     astStatus, AST__TRNND );
+            nfail++;
+         }
+         if ( !astOK ) astClearStatus;
+      }
+      astTran1( switchmap, 1, &xin, !i, &xout );
+      nfail += check_made( "SwitchMap with a RateMap as its route",
+                           switchmap );
    }
 
 /* The size of the hash table of a KeyMap is not taken on trust. */

@@ -35,6 +35,11 @@
 *       - WinMaps: beside a unit MatrixMap, beside two Mappings in
 *         parallel, with a scale of zero, and followed by a MatrixMap
 *         that discards an axis the WinMap shifts.
+*       - MathMaps: astEqual, which decides whether a Mapping and the
+*         inverse of its neighbour cancel, for MathMaps whose functions
+*         differ only in their last operation or are a single constant,
+*         and a SwitchMap followed by the inverse of a SwitchMap with a
+*         different route.
 
 *  Notes:
 *     - This is a native C test with no Fortran original.
@@ -540,6 +545,126 @@ static int test_winmap( void ) {
    return nfail;
 }
 
+/* Return a MathMap with one input and one output that has the forward
+   function "fwd" and the inverse function "inv". */
+static AstMapping *mathmap( const char *fwd, const char *inv ) {
+   const char *fwdfun[ 1 ];
+   const char *invfun[ 1 ];
+   fwdfun[ 0 ] = fwd;
+   invfun[ 0 ] = inv;
+   return (AstMapping *) astMathMap( 1, 1, 1, fwdfun, 1, invfun, " " );
+}
+
+/* Return a SwitchMap with one input and one output that always uses
+   "route", its only route Mapping. */
+static AstMapping *switchmap( AstMapping *route ) {
+   const char *pick[] = { "r=1" };
+   const char *none[] = { "a" };
+   AstMapping *routes[ 1 ];
+   routes[ 0 ] = route;
+   return (AstMapping *) astSwitchMap( astMathMap( 1, 1, 1, pick, 1, none,
+                                                   " " ),
+                                       astMathMap( 1, 1, 1, none, 1, pick,
+                                                   " " ),
+                                       1, (void **) routes, " " );
+}
+
+/* Check that astEqual gives "expected" for the Mappings "a" and "b", in
+   either order.  Both are annulled.  Returns the number of failures. */
+static int check_equal( const char *what, AstMapping *a, AstMapping *b,
+                        int expected ) {
+   int nfail = 0;
+   int ab;
+   int ba;
+
+   if ( !astOK || !a || !b ) {
+      fprintf( stderr, "testmapmerge: %s: the Mappings could not be made "
+               "(status %d)\n", what, astStatus );
+      if ( !astOK ) astClearStatus;
+      return 1;
+   }
+   ab = astEqual( a, b );
+   ba = astEqual( b, a );
+   if ( !astOK ) {
+      fprintf( stderr, "testmapmerge: %s: astEqual gave status %d\n", what,
+               astStatus );
+      astClearStatus;
+      nfail++;
+   } else if ( ab != expected || ba != expected ) {
+      fprintf( stderr, "testmapmerge: %s: astEqual gave %d and %d but %d "
+               "was expected\n", what, ab, ba, expected );
+      nfail++;
+   }
+   a = astAnnul( a );
+   b = astAnnul( b );
+   return nfail;
+}
+
+/* MathMaps that are nearly the same. */
+static int test_mathmap( void ) {
+   AstMapping *first;
+   AstMapping *second;
+   int nfail = 0;
+
+/* Two MathMaps are equal if their functions compile to the same operations
+   and constants.  The last operation of each function used not to be
+   compared, so MathMaps that ended in different operations were equal. */
+   nfail += check_equal( "the same MathMap twice",
+                         mathmap( "y=x+1", "x=y-1" ),
+                         mathmap( "y=x+1", "x=y-1" ), 1 );
+   nfail += check_equal( "MathMaps that add and subtract",
+                         mathmap( "y=x+1", "x=y-1" ),
+                         mathmap( "y=x-1", "x=y+1" ), 0 );
+   nfail += check_equal( "MathMaps that multiply and divide",
+                         mathmap( "y=x*2", "x=y/2" ),
+                         mathmap( "y=x/2", "x=y*2" ), 0 );
+   nfail += check_equal( "MathMaps that take a sine and a cosine",
+                         mathmap( "y=sin(x)", "x" ),
+                         mathmap( "y=cos(x)", "x" ), 0 );
+   nfail += check_equal( "MathMaps that add different constants",
+                         mathmap( "y=x+1", "x=y-1" ),
+                         mathmap( "y=x+2", "x=y-2" ), 0 );
+   nfail += check_equal( "MathMaps that take a maximum and a minimum",
+                         mathmap( "y=max(x,1,2)", "x" ),
+                         mathmap( "y=min(x,1,2)", "x" ), 0 );
+   nfail += check_equal( "MathMaps that take different maxima",
+                         mathmap( "y=max(x,1,2)", "x" ),
+                         mathmap( "y=max(x,1,3)", "x" ), 0 );
+   nfail += check_equal( "MathMaps that take the same maximum",
+                         mathmap( "y=max(x,1,2)", "x" ),
+                         mathmap( "y=max(x,1,2)", "x" ), 1 );
+
+/* An inverted MathMap is compared through the functions it then uses in
+   each direction. */
+   first = mathmap( "y=x+1", "x=y-1" );
+   second = mathmap( "y=x-1", "x=y+1" );
+   astInvert( second );
+   nfail += check_equal( "a MathMap and the inverse of its opposite", first,
+                         second, 1 );
+
+/* A function that is a single constant has one operation and no list of
+   constants.  A list was read for it all the same. */
+   nfail += check_equal( "MathMaps that give the same constant",
+                         mathmap( "y=<pi>", "x" ), mathmap( "y=<pi>", "x" ),
+                         1 );
+   nfail += check_equal( "MathMaps that give different constants",
+                         mathmap( "y=<pi>", "x" ), mathmap( "y=<e>", "x" ),
+                         0 );
+   nfail += check_equal( "a MathMap that copies its input and one that "
+                         "gives a constant", mathmap( "y=x", "x=y" ),
+                         mathmap( "y=<pi>", "x=y" ), 0 );
+
+/* A SwitchMap followed by the inverse of an equal SwitchMap is removed
+   when the pair is simplified.  SwitchMaps whose routes are MathMaps that
+   differ only in their last operations were removed in the same way. */
+   first = switchmap( mathmap( "y=x+1", "x=y-1" ) );
+   second = switchmap( mathmap( "y=x-1", "x=y+1" ) );
+   astInvert( second );
+   nfail += check( "SwitchMap, then the inverse of a different SwitchMap",
+                   astCmpMap( first, second, 1, " " ), NULL, NULL, NULL );
+   return nfail;
+}
+
 int main( void ) {
    int status = SAI__OK;
    int nfail = 0;
@@ -553,6 +678,7 @@ int main( void ) {
    nfail += test_timemap();
    nfail += test_matrixmap();
    nfail += test_winmap();
+   nfail += test_mathmap();
 
    astEnd;
    if ( !astOK ) astClearStatus;
