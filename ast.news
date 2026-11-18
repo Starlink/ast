@@ -363,6 +363,27 @@ Bug fixes
   name wrote beyond the end of the buffer that holds the key of a cell
   when rows or columns were removed.
 
+- astEqual now compares every operation in the functions of two MathMaps.
+  It used to leave out the last operation of each function, so that two
+  MathMaps which differed only there (such as "y=x+1" and "y=x-1", or
+  "y=sin(x)" and "y=cos(x)") were reported to be equal, and it could crash
+  if a function was a single constant such as "y=<pi>". As a result,
+  astSimplify no longer removes a SwitchMap that is followed by the inverse
+  of a SwitchMap whose route Mappings are different MathMaps.
+
+- A MathMap read from a dump is now rejected if the dump holds fewer forward
+  functions than the MathMap has outputs, or fewer inverse functions than
+  it has inputs, or if any of its functions is missing. Such a dump used to
+  read beyond the end of the list of functions, and a dump that claimed to
+  hold a very large number of functions took a long time and a great deal
+  of memory to read.
+
+- A RateMap that is used in the direction it does not define, which can
+  happen when it is a route Mapping in a SwitchMap, now reports that the
+  transformation is not defined. An inverted RateMap used to crash, and a
+  RateMap that was not inverted used to report an internal programming
+  error.
+
 - A range of cells in a string MOC is no longer expanded into its individual
   cells as it is read, which for a large range took a long time and could
   exhaust memory.
