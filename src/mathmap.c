@@ -103,6 +103,12 @@ f     The MathMap class does not define any new routines beyond those
 *        MathMap has been cloned, as SUN/210 says AST does for the attributes
 *        of any Mapping. Use the guarded astMAKE_SET1 and astMAKE_CLEAR1
 *        macros.
+*     18-NOV-2026 (TIMJ):
+*        - astEqual now compares every operation of each function. It used
+*        to treat the count of operations as the first of them and to leave
+*        out the last, so that MathMaps which differed only in their final
+*        operation were equal, and a function that was a single constant
+*        had a list of constants read for it that it does not have.
 *class--
 */
 
@@ -1730,11 +1736,11 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
                ncode_that = that_code ? that_code[ ifun ][ 0 ] : 0;
                if( ncode != ncode_that ) result = 0;
 
-/* Compare the following opcodes. Some opcodes consume constants from the
-   list of constants associated with the MathMap. Compare the constants
-   for such opcodes. */
+/* Compare the opcodes, which are held in the "ncode" elements that follow
+   the count. Some opcodes consume constants from the list of constants
+   associated with the MathMap. Compare the constants for such opcodes. */
                icon = 0;
-               for( icode = 0; icode < ncode && result; icode++ ){
+               for( icode = 1; icode <= ncode && result; icode++ ){
                   code = this_code[ ifun ][ icode ];
                   if( that_code[ ifun ][ icode ] != code ) {
                      result = 0;
