@@ -326,6 +326,11 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        can be the Mapping supplied by the caller, use the supplied Region
 *        if the axes picked from it are not a Region, and re-instate the
 *        Invert attribute of the supplied Mapping even if an error occurs.
+*     19-NOV-2026 (TIMJ):
+*        OverlapX: find the bounds of the second Region in the current
+*        Frame of the first Region, which is where astBndBaseMesh needs
+*        them. They were found in its base Frame, and then read and doubled
+*        as if they had an element for each current Frame axis.
 *class--
 
 *  Implementation Notes:
@@ -7149,6 +7154,7 @@ static int OverlapX( AstRegion *that, AstRegion *this, int *status ){
    AstPointSet *ps3;              /* Mesh covering first Region */
    AstPointSet *ps4;              /* Mesh covering first Region */
    AstPointSet *ps5;              /* Another PointSet */
+   AstPointSet *ps6;              /* Second Region mesh in "reg1" current Frame */
    AstPointSet *reg2_mesh;        /* Mesh covering second Region */
    AstPointSet *reg2_submesh;     /* Second Region mesh minus boundary points */
    AstRegion *reg1;               /* Region to use as the first Region */
@@ -7156,6 +7162,7 @@ static int OverlapX( AstRegion *that, AstRegion *this, int *status ){
    AstRegion *unc1;               /* "unc" mapped into Frame of first Region */
    AstRegion *unc;                /* Uncertainty in second Region */
    double **ptr1;                 /* Pointer to mesh axis values */
+   double **ptr6;                 /* Pointer to "ps6" axis values */
    double **ptr;                  /* Pointer to pointset data */
    double *lbnd;                  /* Lower bounds of reg2 bounding box */
    double *p;                     /* Pointer to next axis value */
@@ -7173,7 +7180,9 @@ static int OverlapX( AstRegion *that, AstRegion *this, int *status ){
    int ip;                        /* Index of point */
    int j;                         /* Mesh point index */
    int nc;                        /* Number of axis values per point */
+   int nc6;                       /* Number of axis values per point in "ps6" */
    int np;                        /* Number of points in mesh */
+   int np6;                       /* Number of points in "ps6" */
    int rep;                       /* Deliver error reports immediately? */
    int result;                    /* Value to return */
    int touch;                     /* Do the Regions touch? */
@@ -7246,23 +7255,17 @@ L1:
 /* Transform the mesh into the base Frame of the first Region. */
       ps1 = astTransform( map, reg2_mesh, 1, NULL );
 
-/* Check there are some good points in the transformed pointset.
-   Also find the bounds of the mesh. */
+/* Check there are some good points in the transformed pointset. */
       good = 0;
       np = astGetNpoint( ps1 );
       nc = astGetNcoord( ps1 );
       ptr1 = astGetPoints( ps1 );
-      lbnd = astGrow( lbnd, nc, sizeof(double) );
-      ubnd = astGrow( ubnd, nc, sizeof(double) );
       if( astOK ) {
-         for( i = 0; i < nc; i++ ) {
-            lbnd[ i ] = DBL_MAX;
-            ubnd[ i ] = -DBL_MAX;
+         for( i = 0; i < nc && !good; i++ ) {
             for( j = 0; j < np; j++ ) {
                if( ptr1[ i ][ j ] != AST__BAD ) {
                   good = 1;
-                  if( ptr1[ i ][ j ] > ubnd[ i ] ) ubnd[ i ] = ptr1[ i ][ j ];
-                  if( ptr1[ i ][ j ] < lbnd[ i ] ) lbnd[ i ] = ptr1[ i ][ j ];
+                  break;
                }
             }
          }
@@ -7440,12 +7443,32 @@ L1:
    unbounded, then attempt to get a mesh of points covering the part of the
    boundary of the first Region that overlaps a box twice the size of the
    second region's bounding box. This is again in the base FRame of the
-   first Region. */
+   first Region. The box itself is needed in the current Frame of the
+   first Region, so first find the bounds of the mesh covering the second
+   Region within that Frame. */
                if( !ps3 ) {
-                  for( i = 0; i < nc; i++ ) {
-                     lbnd[ i ] *= 2.0;
-                     ubnd[ i ] *= 2.0;
+                  ps6 = astTransform( cmap, reg2_mesh, 1, NULL );
+                  np6 = astGetNpoint( ps6 );
+                  nc6 = astGetNcoord( ps6 );
+                  ptr6 = astGetPoints( ps6 );
+                  lbnd = astGrow( lbnd, nc6, sizeof(double) );
+                  ubnd = astGrow( ubnd, nc6, sizeof(double) );
+                  if( astOK ) {
+                     for( i = 0; i < nc6; i++ ) {
+                        lbnd[ i ] = DBL_MAX;
+                        ubnd[ i ] = -DBL_MAX;
+                        for( j = 0; j < np6; j++ ) {
+                           if( ptr6[ i ][ j ] != AST__BAD ) {
+                              if( ptr6[ i ][ j ] > ubnd[ i ] ) ubnd[ i ] = ptr6[ i ][ j ];
+                              if( ptr6[ i ][ j ] < lbnd[ i ] ) lbnd[ i ] = ptr6[ i ][ j ];
+                           }
+                        }
+                        lbnd[ i ] *= 2.0;
+                        ubnd[ i ] *= 2.0;
+                     }
                   }
+                  ps6 = astAnnul( ps6 );
+
                   rep = astReporting( 0 );
                   ps3 = astBndBaseMesh( reg1, lbnd, ubnd );
                   if( !astOK ) astClearStatus;
