@@ -153,6 +153,11 @@ f     - AST_OUTLINE<X>: Create a Polygon outlining values in a pixel array
 *        axes, as astInitPolygon does. Cache: report an error for an edge
 *        that has no description, rather than using it, and leave the
 *        cached values marked as stale if they cannot be found.
+*     19-NOV-2026 (TIMJ):
+*        Polywidth: stop looking for a line across the Polygon when its
+*        length can be halved no further, or an error occurs, and begin
+*        with the largest finite length if five times the length of the
+*        edge is not finite. The search otherwise had no end.
 
 *class--
 */
@@ -4141,6 +4146,7 @@ static double Polywidth( AstFrame *frm, AstLineDef **edges, int i, int nv,
    double result;
    double start[ 2 ];
    int j;
+   int usable;
 
 /* Check the global error status. */
    result = AST__BAD;
@@ -4161,20 +4167,34 @@ static double Polywidth( AstFrame *frm, AstLineDef **edges, int i, int nv,
    point is the requested distance from the start point, and if not, we
    halve the length of the line and try again. */
    l2 = 10.0*l1;
-   while( 1 ) {
+   if( l2 > DBL_MAX ) l2 = DBL_MAX;
+   usable = 0;
+   while( astOK && l2 > 0.0 ) {
       astLineOffset( frm, edges[ i ], l1, l2, end );
       d = astDistance( frm, start, end );
-      if( d != AST__BAD && fabs( d - l2 ) < 1.0E-6*l2 ) break;
+      if( d != AST__BAD && fabs( d - l2 ) < 1.0E-6*l2 ) {
+         usable = 1;
+         break;
+      }
       l2 *= 0.5;
+   }
+
+/* If no line of any length passed the above check, the width cannot be
+   determined. Return the mid point of the edge as the representative
+   position. */
+   if( !usable ) {
+      cen[ 0 ] = start[ 0 ];
+      cen[ 1 ] = start[ 1 ];
+      return result;
    }
 
 /* Create a description of the required line, indicating that it extends
    from the start for an infinite distance. */
    line = astLineDef( frm, start, end );
-   line->infinite = 1;
+   if( line ) line->infinite = 1;
 
 /* Loop round every edge, except for the supplied edge. */
-   for( j = 0; j < nv; j++ ) {
+   for( j = 0; line && j < nv; j++ ) {
       if( j != i ) {
 
 /* Find the position at which the line created above crosses the current
