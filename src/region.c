@@ -320,6 +320,12 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        integers. The upper bound of a Region with no upper limit is too
 *        large for an int, and every pixel was then taken to be outside the
 *        Region.
+*     19-NOV-2026 (TIMJ):
+*        MapRegion: when the new Frame has fewer axes, do not annul the
+*        Mapping returned by astMapSplit twice, invert a copy of it since it
+*        can be the Mapping supplied by the caller, use the supplied Region
+*        if the axes picked from it are not a Region, and re-instate the
+*        Invert attribute of the supplied Mapping even if an error occurs.
 *class--
 
 *  Implementation Notes:
@@ -5495,6 +5501,7 @@ static AstRegion *MapRegion( AstRegion *this, AstMapping *map0,
 
 /* Local Variables: */
    AstFrame *frame;
+   AstFrame *picked;
    AstFrameSet *fs;
    AstMapping *tmap;
    AstMapping *usemap;
@@ -5520,6 +5527,9 @@ static AstRegion *MapRegion( AstRegion *this, AstMapping *map0,
    int np;
    int ntotal;
    int ok;
+   int old_report;
+   int old_status;
+   int oldinv;
 
 /* Initialise returned value. */
    result = NULL;
@@ -5653,7 +5663,9 @@ static AstRegion *MapRegion( AstRegion *this, AstMapping *map0,
    if( nnew < nold ) {
 
 /* First invert the Mapping since astMapSplit only allows selection of
-   inputs, and we want to select outputs. */
+   inputs, and we want to select outputs. Note the original value of its
+   Invert attribute, so that it can be re-instated afterwards. */
+      oldinv = astGetInvert( map );
       astInvert( map );
 
 /* Create an array holding the indices of the required inputs. */
@@ -5712,20 +5724,26 @@ static AstRegion *MapRegion( AstRegion *this, AstMapping *map0,
 
 /* The values in the "outax" array will hold the zero-based indices of
    the original old axes that are retained by the new Mapping. We need to
-   create a copy of the supplied Region that includes only these axes. */
-            usethis = astAnnul( usethis );
-            usethis = astPickAxes( this, nkept, outax, NULL );
+   create a copy of the supplied Region that includes only these axes.
+   The selected axes need not form a Region (one axis of a Circle does
+   not, for instance), in which case a Frame is returned, and the
+   supplied Region and Mapping are used unchanged. */
+            picked = astPickAxes( this, nkept, outax, NULL );
+            if( picked && astIsARegion( picked ) ) {
+               usethis = astAnnul( usethis );
+               usethis = (AstRegion *) picked;
 
 /* Use the temportary Mapping returned by astMapSplit in place of the
    supplied Mapping (remember to invert to undo the inversion performed
-   above). */
-            usemap = astAnnul( usemap );
-            usemap = astClone( tmap );
-            astInvert( usemap );
+   above). A copy is inverted, since astMapSplit may have returned the
+   supplied Mapping itself, or a part of it. */
+               usemap = astAnnul( usemap );
+               usemap = astCopy( tmap );
+               astInvert( usemap );
 
-/* Free temporary resources. */
-            tmap = astAnnul( tmap );
-            outax = astFree( outax );
+            } else if( picked ) {
+               picked = astAnnul( picked );
+            }
 
 /* If we need to retain some extra axes because they generate good values
    (even though they are independent of the new Frame axes)... */
@@ -5741,23 +5759,46 @@ static AstRegion *MapRegion( AstRegion *this, AstMapping *map0,
 
             outax = astMapSplit( map, ntotal, keep, &tmap );
             if( outax ) {
-               usethis = astAnnul( usethis );
-               usethis = astPickAxes( this, ntotal, keep, NULL );
+               picked = astPickAxes( this, ntotal, keep, NULL );
+               if( picked && astIsARegion( picked ) ) {
+                  usethis = astAnnul( usethis );
+                  usethis = (AstRegion *) picked;
 
-               usemap = astAnnul( usemap );
-               usemap = astClone( tmap );
+                  usemap = astAnnul( usemap );
+                  usemap = astClone( tmap );
+
+               } else if( picked ) {
+                  picked = astAnnul( picked );
+               }
             }
 
             astInvert( map );
          }
+
+/* Free temporary resources. There is no Mapping to annul if the second
+   attempt to split the Mapping failed. */
          keep = astFree( keep );
          outax = astFree( outax );
-         tmap = astAnnul( tmap );
+         if( tmap ) tmap = astAnnul( tmap );
       }
       inax = astFree( inax );
 
-/* Invert the Mapping again to bring it back to its original state. */
-      astInvert( map );
+/* Bring the Mapping back to its original state. It is the Mapping that
+   was supplied by the caller, so this is done even if an error has
+   occurred, in which case the error status is cleared while the Mapping
+   is inverted and then re-instated. */
+      old_status = astStatus;
+      old_report = 0;
+      if( !astOK ) {
+         old_report = astReporting( 0 );
+         astClearStatus;
+      }
+      if( astGetInvert( map ) != oldinv ) astInvert( map );
+      if( old_status ) {
+         if( !astOK ) astClearStatus;
+         astSetStatus( old_status );
+         astReporting( old_report );
+      }
    }
 
 /* Take a deep copy of the supplied Region. */
