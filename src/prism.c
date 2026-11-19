@@ -108,6 +108,11 @@ f     The Prism class does not define any new routines beyond those
 *     19-NOV-2026 (TIMJ):
 *        RegCentre: discard the boundary mesh kept by the parent Region when
 *        the Prism is moved.
+*     19-NOV-2026 (TIMJ):
+*        Overlap: use the Regions picked from the second Region un-negated.
+*        They are given its Negated attribute, and the result is changed
+*        afterwards to allow for negation, so the negation of the second
+*        Region was allowed for twice.
 *class--
 */
 
@@ -1844,6 +1849,16 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
             if( bmap && astGetNout( bmap ) == nbase ) {
                that_base = (AstRegion *) astPickAxes( that, nbase, outax, NULL );
                if( astIsARegion( that_base ) ) {
+
+/* The Regions picked from "that" are given its Negated attribute. The
+   overlap of the component Regions is found below as if neither Prism had
+   been negated, and the result is then changed to allow for negation, so
+   the picked Regions must be used un-negated. Otherwise the negation of
+   "that" is allowed for twice. */
+                  if( astGetNegated( that ) ) {
+                     astSetNegated( that_ext, 0 );
+                     astSetNegated( that_base, 0 );
+                  }
 
 /* Map the two Regions picked from "that" into the Frames of the two
    sub-regions within "this". */
