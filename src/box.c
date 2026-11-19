@@ -131,6 +131,9 @@ f     The Box class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        Simplify: do not test or annul the Polygon that could replace the
+*        Box if neither order of its vertices gave one.
 *class--
 */
 
@@ -3922,6 +3925,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    in which the vertices are stored in clockwise order within the
    new coordinate Frame. If the new Polygon is not bounded, use
    anti-clockwise order. */
+            newpoly = NULL;
             for( right_handed = 0; right_handed < 2; right_handed++ ) {
 
                if( right_handed ) {
@@ -3979,7 +3983,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
                }
 
 /* Free resources. */
-               newpoly = astAnnul( newpoly );
+               if( newpoly ) newpoly = astAnnul( newpoly );
                ps2 = astAnnul( ps2 );
             }
 
@@ -3989,8 +3993,10 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
             }
 
 /* See if all points within the Box mesh fall on the boundary of this
-   Polygon, to within the uncertainty of the Region. */
-            if( astRegPins( newpoly, mesh, NULL, NULL ) ) {
+   Polygon, to within the uncertainty of the Region. There is no Polygon
+   to check if neither order of the vertices gave a usable one, in which
+   case the Box is left as it is. */
+            if( newpoly && astRegPins( newpoly, mesh, NULL, NULL ) ) {
 
 /* If so, use the new Polygon in place of the original Box. */
                (void) astAnnul( new );
@@ -3999,7 +4005,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
             }
 
 /* Free resources. */
-            newpoly = astAnnul( newpoly );
+            if( newpoly ) newpoly = astAnnul( newpoly );
          }
 
          ps1 = astAnnul( ps1 );
