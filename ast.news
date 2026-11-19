@@ -451,6 +451,22 @@ Bug fixes
   the bounds of the position that it was moved to, rather than its
   original bounds.
 
+- A date with a month or a year that is not valid, such as "2012-13-01", is
+  no longer accepted by astUnformat or as the value of the Epoch, Equinox
+  or TimeOrigin attribute. The check on the month and year had no effect,
+  and the value of such a date was undefined.
+
+- Fixed several faults in the functions that the Plot class uses to split
+  the formatted value of an axis label into fields. A sky axis value with
+  fewer fields than its Format caused a crash, and a value with leading
+  spaces, or a sky axis value with a leading plus sign, was read beyond its
+  end.
+
+- A Plot of a calendar date axis no longer uses an undefined value as the
+  reference position for its major ticks if the axis crosses the end of a
+  month or a year, and no longer reads beyond the end of a formatted date
+  if the dates either side of a tick are the same.
+
 - A range of cells in a string MOC is no longer expanded into its individual
   cells as it is read, which for a large range took a long time and could
   exhaust memory.
