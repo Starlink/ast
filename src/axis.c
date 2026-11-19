@@ -108,6 +108,11 @@ f     only within textual output (e.g. from AST_WRITE).
 *     16-NOV-2026 (TIMJ):
 *        Dump: use snprintf to format the comment that holds the label of
 *        the axis units.
+*     19-NOV-2026 (TIMJ):
+*        AxisFields: look for the end of a decimal value from the end of the
+*        string. The number of leading spaces was added to it first, so the
+*        search began beyond the end of the string and the length of the
+*        field was too large.
 *class--
 */
 
@@ -625,8 +630,9 @@ static int AxisFields( AstAxis *this, const char *fmt0, const char *str,
             while( *p == ' ' ) p++;
             fields[ 0 ] = (char *) p;
 
-/* Find the last non-blank character. */
-            p += len;
+/* Find the last non-blank character, working back from the end of the
+   string. */
+            p = str + len;
             while( p[ -1 ] == ' ' ) p--;
 
 /* Return the number of characters in the field. */
