@@ -145,6 +145,9 @@ f     - AST_OUTLINE<X>: Create a Polygon outlining values in a pixel array
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        Cache: use the first vertex as the position inside the Polygon if
+*        no edge has any length. The position was not set in that case.
 
 *class--
 */
@@ -673,9 +676,12 @@ static void Cache( AstPolygon *this, int *status ){
 /* We now look for a point that is inside the polygon. We want a point
    that is well within the polygon, since points that are only just inside
    the polygon can give numerical problems. Loop round each edge with
-   non-zero length. */
+   non-zero length. The first vertex is used to begin with, so that there
+   is a position to use even if no edge has any length. */
          maxwid = -1.0;
-         for( i = 0; i < nv; i++ ) {
+         polcen[ 0 ] = ptr[ 0 ][ 0 ];
+         polcen[ 1 ] = ptr[ 1 ][ 0 ];
+         for( i = 0; astOK && i < nv; i++ ) {
             if( this->edges[ i ]->length > 0.0 ) {
 
 /* We define another line perpendicular to the current edge, passing
