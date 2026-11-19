@@ -141,6 +141,10 @@ f     only within textual output (e.g. from AST_WRITE).
 *        text after a plus sign was read from beyond its end. Give the value
 *        read from a field a starting value, since a blank field leaves it
 *        unchanged and for the first field it had not been set.
+*     19-NOV-2026 (TIMJ):
+*        AxisAbbrev: if no first string is supplied and the second has no
+*        fields, return the second string. The element before the first in
+*        the array of fields was returned.
 *class--
 */
 
@@ -396,9 +400,10 @@ static const char *AxisAbbrev( AstAxis *this_axis, const char *fmt,
    nf2 = astAxisFields( this_axis, fmt, str2, 3, fld2, nc2, NULL );
 
 /* If "str1" was not supplied, return a pointer to the final field in
-   "str2". */
+   "str2". If "str2" has no fields, because it does not match the format,
+   the whole of "str2" is returned. */
    if( !str1 ) {
-      result = fld2[ nf2 - 1 ];
+      if( nf2 > 0 ) result = fld2[ nf2 - 1 ];
 
 /* Otherwise, find the fields within the "str1" string. */
    } else {
