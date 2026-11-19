@@ -314,6 +314,12 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        SetAttrib: pass a setting on to the encapsulated FrameSet as the
 *        value for a "%s" specifier. It was passed as the format, so that a
 *        "%" within an attribute value was used as a format specifier.
+*     19-NOV-2026 (TIMJ):
+*        astMask<X>: compare the bounds of the Region with the bounds of the
+*        array as floating point values before they are converted to
+*        integers. The upper bound of a Region with no upper limit is too
+*        large for an int, and every pixel was then taken to be outside the
+*        Region.
 *class--
 
 *  Implementation Notes:
@@ -6039,6 +6045,8 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
    Xtype *tmp_out;               /* Pointer to temporary output array */ \
    double *lbndgd;               /* Pointer to array holding lower grid bounds */ \
    double *ubndgd;               /* Pointer to array holding upper grid bounds */ \
+   double dhi;                   /* Expanded upper bound of Region on an axis */ \
+   double dlo;                   /* Expanded lower bound of Region on an axis */ \
    int idim;                     /* Loop counter for coordinate dimensions */ \
    int nax;                      /* Number of Region axes */ \
    int nin;                      /* Number of Mapping input coordinates */ \
@@ -6137,12 +6145,24 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
       npix = 1; \
       npixg = 1; \
       for ( idim = 0; idim < ndim; idim++ ) { \
+         lbndg[ idim ] = lbnd[ idim ]; \
+         ubndg[ idim ] = ubnd[ idim ]; \
          if( lbndgd[ idim ] != AST__BAD && ubndgd[ idim ] != AST__BAD ) { \
-            lbndg[ idim ] = astMAX( lbnd[ idim ], (int)round( lbndgd[ idim ] ) - 2 ); \
-            ubndg[ idim ] = astMIN( ubnd[ idim ], (int)round( ubndgd[ idim ] ) + 2 ); \
-         } else { \
-            lbndg[ idim ] = lbnd[ idim ]; \
-            ubndg[ idim ] = ubnd[ idim ]; \
+\
+/* The Region may have no limit on this axis, so each expanded bound is \
+   compared with the array bounds as a floating point value, and is only \
+   converted to an integer if it falls within the array. */ \
+            dlo = round( lbndgd[ idim ] ) - 2.0; \
+            dhi = round( ubndgd[ idim ] ) + 2.0; \
+\
+/* If the box does not reach the array on this axis, the bounding box \
+   is null. */ \
+            if( dlo > (double) ubnd[ idim ] || dhi < (double) lbnd[ idim ] ) { \
+               npixg = -1; \
+            } else { \
+               if( dlo > (double) lbnd[ idim ] ) lbndg[ idim ] = (AstDim) dlo; \
+               if( dhi < (double) ubnd[ idim ] ) ubndg[ idim ] = (AstDim) dhi; \
+            } \
          } \
          npix *= ( ubnd[ idim ] - lbnd[ idim ] + 1 ); \
          if( npixg >= 0 ) npixg *= ( ubndg[ idim ] - lbndg[ idim ] + 1 ); \
