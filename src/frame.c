@@ -355,6 +355,12 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        numbers of ticks were infinite or not a number when converted to
 *        an int, and their product could be smaller than the number of
 *        points then stored.
+*     19-NOV-2026 (TIMJ):
+*        astReadDateTime: report an error for a year or month that is not
+*        valid. The status returned by palCaldj was compared with the values
+*        used by SLALIB, which the function no longer returns, so such a
+*        date was accepted and its value had not been set. A day that is
+*        not valid for its month is still accepted.
 *class--
 */
 
@@ -9427,17 +9433,16 @@ double astReadDateTime_( const char *value, int *status ) {
             palCaldj( year, month, iday, &mjd, &stat );
 
 /* Examine the return status from the conversion and report an appropriate
-   error if necessary. */
+   error if necessary. No date is returned for a year or a month that is
+   not valid. A day that is not valid for the month is not an error: the
+   date returned is found by counting days on from the start of the
+   month, and is used. */
             switch ( stat ) {
-            case 1:
+            case -1:
                astError( AST__DTERR, "Year value (%d) is invalid.", status, year );
                break;
-            case 2:
+            case -2:
                astError( AST__DTERR, "Month value (%d) is invalid.", status, month );
-               break;
-            case 3:
-               astError( AST__DTERR, "Day value (%.*g) is invalid.", status, AST__DBL_DIG,
-                         day );
                break;
 
 /* If conversion to MJD was successful, add any fractional part of a day to the
