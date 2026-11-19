@@ -128,6 +128,11 @@ f     The CmpRegion class does not define any new routines beyond those
 *     19-NOV-2026 (TIMJ):
 *        RegBaseMesh: correct the spelling of "because" in two error
 *        messages.
+*     19-NOV-2026 (TIMJ):
+*        GetBounded: the intersection of two Regions that are not bounded is
+*        no longer reported as bounded if one is inside the other or they
+*        are the same. It is then the inner Region, which is not bounded,
+*        and it has no boundary mesh.
 *class--
 */
 
@@ -761,7 +766,6 @@ static int GetBounded( AstRegion *this_region, int *status ) {
    int neg1;                  /* Negated flag to use with first component */
    int neg2;                  /* Negated flag to use with second component */
    int oper;                  /* Combination operator */
-   int overlap;               /* Nature of overlap between components */
    int reg1b;                 /* Is the first component Region bounded?*/
    int reg2b;                 /* Is the second component Region bounded?*/
    int result;                /* Returned result */
@@ -816,15 +820,14 @@ static int GetBounded( AstRegion *this_region, int *status ) {
             result = 1;
 
 /* If neither of the two components is bounded, then the AND region is
-   unbounded if there is partial or no overlap between them and is bounded
-   otherwise. */
+   taken to be unbounded. It is unbounded if one component is inside the
+   other, or they are the same, since it is then the inner component. If
+   the components overlap in part, or not at all, the AND region can in
+   fact be bounded or empty, but neither component has a boundary mesh
+   from which a mesh for it could be made, so it is not reported as
+   bounded. */
          } else {
-            overlap = astOverlap( reg1, reg2 );
-            if( overlap == 1 || overlap == 4 || overlap == 6 ) {
-               result = 0;
-            } else {
-               result = 1;
-            }
+            result = 0;
          }
 
 /* If the regions are ORed... */
