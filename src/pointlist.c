@@ -89,6 +89,9 @@ f     The PointList class does not define any new routines beyond those
 *        RegPins: allocate an int, not a byte, for each element of the
 *        returned mask, and check each point of the PointList in the second
 *        test, not as many points as were supplied.
+*     19-NOV-2026 (TIMJ):
+*        RegBaseBox: use the number of base Frame axes for the size of the
+*        bounds, not the number of current Frame axes.
 *class--
 
 *  Implementation Deficiencies:
@@ -1620,8 +1623,10 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd, double *ubnd, int 
 /* Get a pointer to the PointList structure. */
    this = (AstPointList *) this_region;
 
-/* Calculate the number of bytes in each array. */
-   nb = sizeof( double )*(size_t) astGetNaxes( this );
+/* Calculate the number of bytes in each array. There is one element for
+   each axis of the base Frame, which need not have the same number of
+   axes as the current Frame. */
+   nb = sizeof( double )*(size_t) astGetNin( this_region->frameset );
 
 /* If the base Frame bounding box has not yet been found, find it now and
    store it in the PointList structure. */

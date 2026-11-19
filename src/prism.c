@@ -99,6 +99,10 @@ f     The Prism class does not define any new routines beyond those
 *        size of the buffer that receives it. RegSetAttrib now allocates
 *        memory for the setting it passes to a component Region, which was
 *        written in 255 characters whatever the length of the value.
+*     19-NOV-2026 (TIMJ):
+*        RegBaseMesh: give the mesh an axis for each axis of the base Frame,
+*        not of the current Frame, and report an error if it would have
+*        more points than a PointSet can hold.
 *class--
 */
 
@@ -2234,9 +2238,20 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
          msz2 = astGetNpoint( mesh2 );
          gsz2 = astGetNpoint( grid2 );
 
-/* Create the returned PointSet. */
-         msz = gsz1*msz2 + msz1*gsz2;
-         nax= astGetNaxes( this );
+/* Create the returned PointSet, reporting an error if it would have more
+   points than a PointSet can hold. The mesh is in the base Frame of the
+   Prism, which has an axis for each axis of the two component meshes, and
+   need not have the same number of axes as the current Frame. */
+         if( astOK && (double) gsz1*(double) msz2 +
+                      (double) msz1*(double) gsz2 > (double) INT_MAX ) {
+            msz = 0;
+            astError( AST__INTER, "astRegBaseMesh(%s): The mesh for the %s "
+                      "would have more points than can be created.", status,
+                      astGetClass( this ), astGetClass( this ) );
+         } else {
+            msz = gsz1*msz2 + msz1*gsz2;
+         }
+         nax = astGetNin( this_region->frameset );
          result = astPointSet( msz, nax, "", status );
 
 /* Get pointers to the data in all 5 PointSets. */

@@ -69,6 +69,9 @@ f     The NullRegion class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        GetRegionBounds: return a bound for each axis of the current Frame,
+*        not of the base Frame.
 *class--
 */
 
@@ -1258,13 +1261,14 @@ static void GetRegionBounds( AstRegion *this_region, double *lbnd, double *ubnd,
 
 /* Local Variables: */
    int i;                        /* Axis index */
-   int nc;                       /* No. of axes in base Frame */
+   int nc;                       /* No. of axes in current Frame */
 
 /* Check the global error status. */
    if ( !astOK ) return;
 
-/* Get the number of base Frame axes. */
-   nc = astGetNin( this_region->frameset );
+/* Get the number of current Frame axes, which is the number of elements
+   in each of the supplied arrays. */
+   nc = astGetNout( this_region->frameset );
 
 /* Set the upper bound less than the lower bound to indicate that the region
    contains no points. */
