@@ -310,6 +310,10 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        RegClearAttrib and RegSetAttrib: limit the length of the attribute
 *        name read from a name or setting that has an axis index to the
 *        size of the buffer that receives it.
+*     19-NOV-2026 (TIMJ):
+*        SetAttrib: pass a setting on to the encapsulated FrameSet as the
+*        value for a "%s" specifier. It was passed as the format, so that a
+*        "%" within an attribute value was used as a format specifier.
 *class--
 
 *  Implementation Notes:
@@ -10647,9 +10651,11 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 
 /* If the Region is to adapt to coordinate system chanmges, use the public
    astSet method so that the current Frame in the encapsulated FrameSet will
-   be re-mapped if the attribute changes require it. */
+   be re-mapped if the attribute changes require it. The setting is
+   supplied as the value for a "%s" specifier, so that no part of it is
+   used as a format specifier. */
       if( astGetAdaptive( this ) ) {
-         astSet( this->frameset, setting, status );
+         astSet( this->frameset, "%s", status, setting );
 
 /* If the Region is not to adapt to coordinate system chanmges, use the
    astRegSetAttrib method which assigns the attribute setting to both
