@@ -27,8 +27,9 @@
 *       - Components: an object that is missing from a dump, or belongs
 *         to the wrong class, where another object needs it as a component.
 *       - Regions: defining points that are missing or the wrong number,
-*         components with the wrong number of axes, and a PointSet that
-*         claims more values than a dump can hold.
+*         a Polygon vertex with no value, components with the wrong number
+*         of axes, and a PointSet that claims more values than a dump can
+*         hold.
 *       - FrameSets: more Frames or nodes claimed than are present, node
 *         links that form a loop, and Mappings and Frames that disagree
 *         about the number of axes.
@@ -417,6 +418,19 @@ static int test_regions( void ) {
       " Begin Polygon\n Frm =\n" FRAME1 " Points =\n Begin PointSet\n"
       " Npoint = 3\n Ncoord = 1\n X1 = 0\n X2 = 1\n X3 = 2\n"
       " End PointSet\n IsA Region\n End Polygon\n", AST__LDERR );
+
+/* Every vertex of a Polygon must have a value on both axes, as astPolygon
+   requires, since an edge that ends at an undefined position cannot be
+   described. */
+   nfail += check_accepted( "Polygon read from its points",
+      " Begin Polygon\n Frm =\n" FRAME2 " Points =\n Begin PointSet\n"
+      " Npoint = 3\n Ncoord = 2\n X1 = 0\n X2 = 0\n X3 = 1\n X4 = 0\n"
+      " X5 = 0\n X6 = 1\n End PointSet\n IsA Region\n End Polygon\n" );
+   nfail += check_rejected( "Polygon with an undefined vertex",
+      " Begin Polygon\n Frm =\n" FRAME2 " Points =\n Begin PointSet\n"
+      " Npoint = 3\n Ncoord = 2\n X1 = 0\n X2 = <bad>\n X3 = 1\n X4 = 0\n"
+      " X5 = 0\n X6 = 1\n End PointSet\n IsA Region\n End Polygon\n",
+      AST__LDERR );
 
 /* A Prism has all the axes of both its components. */
    dump = astToString( astPrism( circle, interval, " " ) );
