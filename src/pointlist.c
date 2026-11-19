@@ -92,6 +92,9 @@ f     The PointList class does not define any new routines beyond those
 *     19-NOV-2026 (TIMJ):
 *        RegBaseBox: use the number of base Frame axes for the size of the
 *        bounds, not the number of current Frame axes.
+*     19-NOV-2026 (TIMJ):
+*        astMask<X>: do not use the Region for the grid if an error has
+*        occurred, since there is then no such Region.
 *class--
 
 *  Implementation Deficiencies:
@@ -911,8 +914,9 @@ static AstDim Mask##X( AstRegion *this, AstMapping *map, int inside, int ndim, \
    } \
 \
 /* Get the PointSet in the base Frame of the Region's FrameSet, and \
-   transform to the current (GRID) Frame. */ \
-   pset1 = used_region->points; \
+   transform to the current (GRID) Frame. There is no Region to use if an \
+   error has occurred. */ \
+   pset1 = astOK ? used_region->points : NULL; \
    pset2 = astRegTransform( used_region, pset1, 1, NULL, NULL ); \
    ptr2 =astGetPoints( pset2 ); \
 \
