@@ -96,6 +96,10 @@ f     - AST_ELLIPSEPARS: Get the geometric parameters of the Ellipse
 *        Cache: leave the cached values marked as stale if they cannot be
 *        found, so that the error is reported on each use of the Ellipse
 *        and values that were never stored are not used.
+*     19-NOV-2026 (TIMJ):
+*        astBestEllipse: return NULL if no mesh point is at a defined,
+*        non-zero distance from the centre, rather than reading beyond the
+*        end of the mesh.
 *class--
 */
 
@@ -298,6 +302,7 @@ AstRegion *astBestEllipse_( AstPointSet *mesh, double *cen, AstRegion *unc, int 
 
 /* Initialise */
    result = NULL;
+   ip = 0;
 
 /* Check the global error status. */
    if ( !astOK ) return result;
@@ -334,6 +339,11 @@ AstRegion *astBestEllipse_( AstPointSet *mesh, double *cen, AstRegion *unc, int 
             dist[ ip ] = AST__BAD;
          }
       }
+   }
+
+/* No Ellipse can be found if there is no such point, in which case a NULL
+   pointer is returned without error. */
+   if( astOK && ip < np ) {
 
 /* Find a point which is this distance away from the centre along the second
    axis. This point is used to define zero angle when calling astAngle
