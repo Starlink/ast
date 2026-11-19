@@ -148,6 +148,11 @@ f     - AST_OUTLINE<X>: Create a Polygon outlining values in a pixel array
 *     19-NOV-2026 (TIMJ):
 *        Cache: use the first vertex as the position inside the Polygon if
 *        no edge has any length. The position was not set in that case.
+*     19-NOV-2026 (TIMJ):
+*        In astLoadPolygon, check that every vertex has a value on both
+*        axes, as astInitPolygon does. Cache: report an error for an edge
+*        that has no description, rather than using it, and leave the
+*        cached values marked as stale if they cannot be found.
 
 *class--
 */
@@ -624,6 +629,7 @@ static void Cache( AstPolygon *this, int *status ){
    double polwid;       /* Polygon width perpendicular to current edge */
    double start[ 2 ];   /* Start position for edge */
    int i;               /* Axis index */
+   int j;               /* Index of an edge with no description */
    int nv;              /* Number of vertices in Polygon */
 
 /* Check the global error status. */
@@ -666,6 +672,19 @@ static void Cache( AstPolygon *this, int *status ){
             end[ 0 ] = ptr[ 0 ][ i ];
             end[ 1 ] = ptr[ 1 ][ i ];
             this->edges[ i ] = astLineDef( frm, start, end );
+
+/* No description is returned for an edge that ends at an undefined
+   position. Report an error, and record that the remaining edges have no
+   description either. */
+            if( !this->edges[ i ] ) {
+               if( astOK ) astError( AST__BADIN, "astPolygon(%s): Vertex "
+                                     "number %d or its neighbour has an "
+                                     "undefined axis value.", status,
+                                     astGetClass( this ), i + 1 );
+               for( j = i + 1; j < nv; j++ ) this->edges[ j ] = NULL;
+               break;
+            }
+
             start[ 0 ] = end[ 0 ];
             start[ 1 ] = end[ 1 ];
 
@@ -721,8 +740,9 @@ static void Cache( AstPolygon *this, int *status ){
 /* Free resources */
       frm = astAnnul( frm );
 
-/* Indicate cached information is up to date. */
-      this->stale = 0;
+/* Indicate cached information is up to date, unless it could not be
+   found. */
+      if( astOK ) this->stale = 0;
    }
 }
 
@@ -6410,7 +6430,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
             pos = UNKNOWN;
 
 /* Loop rouind all edges of the polygon. */
-            for( i = 0; i < nv; i++ ) {
+            for( i = 0; astOK && i < nv; i++ ) {
                b = this->edges[ i ];
 
 /* If this point is on the current edge, then we need do no more checks
@@ -7270,6 +7290,10 @@ AstPolygon *astLoadPolygon_( void *mem, size_t size, AstPolygonVtab *vtab,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstPolygon *new;              /* Pointer to the new Polygon */
+   double **ptr;                 /* Pointers to the vertex axis values */
+   int i;                        /* Axis index */
+   int j;                        /* Vertex index */
+   int nv;                       /* Number of vertices */
    int order;                    /* Is the new (STC) order convention used? */
 
 /* Initialise. */
@@ -7313,6 +7337,22 @@ AstPolygon *astLoadPolygon_( void *mem, size_t size, AstPolygonVtab *vtab,
 
 /* Check that the parent Region supplied the points that a Polygon needs. */
       astCheckLoadedPoints( new, name, 1, -1, 2 );
+
+/* Check that every vertex is defined, as astInitPolygon does. */
+      if( astOK ) {
+         ptr = astGetPoints( ((AstRegion *) new)->points );
+         nv = astGetNpoint( ((AstRegion *) new)->points );
+         for( i = 0; i < 2 && astOK; i++ ) {
+            for( j = 0; j < nv; j++ ) {
+               if( ptr[ i ][ j ] == AST__BAD ) {
+                  astError( AST__LDERR, "astLoad(%s): Vertex number %d of "
+                            "the %s read has an undefined value on axis "
+                            "%d.", status, name, j + 1, name, i + 1 );
+                  break;
+               }
+            }
+         }
+      }
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */
