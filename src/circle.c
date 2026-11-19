@@ -71,6 +71,9 @@ f     - AST_CIRCLEPARS: Get the geometric parameters of the Circle
 *     19-NOV-2026 (TIMJ):
 *        Cache: leave the cached values marked as stale if they cannot be
 *        found.
+*     19-NOV-2026 (TIMJ):
+*        RegCentre: discard the boundary mesh kept by the parent Region when
+*        the Circle is moved. The mesh of the old position was still used.
 *class--
 */
 
@@ -1286,6 +1289,13 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
                circum = astFree( circum );
             }
          }
+
+/* Discard the information that the parent Region class keeps about the
+   Circle at its old position, such as its boundary mesh. The bounding box
+   kept in the Circle structure is only used together with that mesh. The
+   centre and radius kept there have been changed above, so they are not
+   marked as stale. */
+         (*parent_resetcache)( this_region, status );
       }
 
 /* Free resources */

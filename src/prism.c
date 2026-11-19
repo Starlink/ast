@@ -105,6 +105,9 @@ f     The Prism class does not define any new routines beyond those
 *        more points than a PointSet can hold.
 *     19-NOV-2026 (TIMJ):
 *        RegBaseMesh: correct the spelling of "because" in an error message.
+*     19-NOV-2026 (TIMJ):
+*        RegCentre: discard the boundary mesh kept by the parent Region when
+*        the Prism is moved.
 *class--
 */
 
@@ -2644,6 +2647,10 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
 /* Set the centre in the two component Regions in their current Frames. */
       astRegCentre( reg1, bc, NULL, 0, AST__CURRENT );
       astRegCentre( reg2, bc + nax1, NULL, 0, AST__CURRENT );
+
+/* Discard the information that the parent Region class keeps about the
+   Prism at its old position, such as its boundary mesh. */
+      astResetCache( this_region );
 
 /* Free resources. */
      if( bc != cen ) bc = astFree( bc );

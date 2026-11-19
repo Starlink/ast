@@ -106,6 +106,10 @@ f     The Interval class does not define any new routines beyond those
 *        cover, and was used as an index into it. The Intervals are now
 *        found to be each other's negation if no other axis has a limit,
 *        and otherwise to have no overlap.
+*     19-NOV-2026 (TIMJ):
+*        RegCentre: change the limits kept in the Interval structure when
+*        the Interval is moved, and discard the boundary mesh kept by the
+*        parent Region. astRegBaseBox went on returning the old bounds.
 *class--
 */
 
@@ -2611,6 +2615,20 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
                bptr[ i ][ 0 ] = lbnd[ i ];
                bptr[ i ][ 1 ] = ubnd[ i ];
             }
+
+/* The Interval structure also keeps a copy of its limits, which for an
+   Interval that is equivalent to a Box are these bounds, so change them
+   to match. The equivalent Box has already been moved. */
+            if( this->lbnd && this->ubnd ) {
+               for( i = 0; i < nax; i++ ) {
+                  this->lbnd[ i ] = lbnd[ i ];
+                  this->ubnd[ i ] = ubnd[ i ];
+               }
+            }
+
+/* Discard the information that the parent Region class keeps about the
+   Interval at its old position, such as its boundary mesh. */
+            (*parent_resetcache)( this_region, status );
          }
 
 /* Free resources. */
