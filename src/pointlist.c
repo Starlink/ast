@@ -85,6 +85,10 @@ f     The PointList class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        RegPins: allocate an int, not a byte, for each element of the
+*        returned mask, and check each point of the PointList in the second
+*        test, not as many points as were supplied.
 *class--
 
 *  Implementation Deficiencies:
@@ -1958,6 +1962,7 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
    int nc;                      /* No. of axes in Box base frame */
    int neg_old;                 /* Original Negated flag for "this" */
    int np;                      /* No. of supplied points */
+   int np3;                     /* No. of points in "this" PointList */
    int result;                  /* Returned flag */
 
 /* Initialise */
@@ -2001,7 +2006,7 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
       if( mask ) {
 
 /* Create the returned mask array. */
-         *mask = astMalloc( np );
+         *mask = astMalloc( sizeof( int )*(size_t) np );
          if( astOK ) {
 
 /* Initialise the mask elements on the basis of the first axis values */
@@ -2056,11 +2061,14 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
          pset3 = astTransform( pl, this_region->points, 1, NULL );
          ptr3 = astGetPoints( pset3 );
 
-/* Check pointers can be used. */
+/* Check pointers can be used. The points to check are those of "this"
+   PointList, which need not be the same in number as the supplied
+   points. */
          if( astOK ) {
+            np3 = astGetNpoint( pset3 );
             for( ic = 0; ic < nc && result; ic++ ){
                p = ptr3[ ic ];
-               for( ip = 0; ip < np; ip++,p++ ){
+               for( ip = 0; ip < np3; ip++,p++ ){
                   if( *p == AST__BAD ) {
                      result = 0;
                      break;
