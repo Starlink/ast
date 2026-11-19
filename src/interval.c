@@ -100,6 +100,12 @@ f     The Interval class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        Overlap: an axis on which one Interval is the negation of the other
+*        gives a code that the table used to combine the axes does not
+*        cover, and was used as an index into it. The Intervals are now
+*        found to be each other's negation if no other axis has a limit,
+*        and otherwise to have no overlap.
 *class--
 */
 
@@ -1888,7 +1894,9 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
    int nc;
    int neg_that;
    int neg_this;
+   int nolim;
    int ov;
+   int prevnolim;
    int result;
    int ub_equal;
 
@@ -1976,6 +1984,7 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
             if( astOK ) {
 
 /* Check the limits on each base Frame axis in turn. */
+               prevnolim = 1;
                for( ic = 0; ic < nc; ic++ ) {
 
 /* Get the widths of the two uncertainty boxes on this axis. */
@@ -2124,16 +2133,38 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
                      }
                   }
 
+/* Note if neither Interval puts any limit on this axis. */
+                  nolim = ( inc_this && inc_that &&
+                            lb_this == -DBL_MAX && ub_this == DBL_MAX &&
+                            lb_that == -DBL_MAX && ub_that == DBL_MAX );
+
 /* The returned value is initialised on the basis of the first axis
    overlap. */
                   if( ic == 0 ) {
                      result = ov;
 
-/* For subsequent axes, combine the old result value with the new ov value
-   to get the new result value. */
+/* If the range of one Interval is the negation of the range of the other
+   on an earlier axis, then the Intervals have no positions in common. Each
+   Interval is the negation of the other only if no other axis has any
+   limit, so check that this axis has none. */
+                  } else if( result == 6 ) {
+                     if( !nolim ) result = 1;
+
+/* Likewise, if the range of one Interval is the negation of the range of
+   the other on this axis, each Interval is the negation of the other only
+   if none of the earlier axes has any limit. Otherwise the Intervals do
+   not overlap. */
+                  } else if( ov == 6 ) {
+                     result = prevnolim ? 6 : 1;
+
+/* For other subsequent axes, combine the old result value with the new ov
+   value to get the new result value. */
                   } else {
                      result = newResult[ result - 1 ][ ov - 1 ];
                   }
+
+/* Note if any axis checked so far has a limit. */
+                  if( !nolim ) prevnolim = 0;
 
 /* If we now know there is no overlap, there is no point in checking any
    remaining axes. */
