@@ -88,6 +88,10 @@ f     - AST_ELLIPSEPARS: Get the geometric parameters of the Ellipse
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        RegCentre: index the axis values of the three defining points by
+*        axis and then by point, and leave them alone if the new centre is
+*        the same as the old one.
 *class--
 */
 
@@ -1367,17 +1371,21 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
          dist = astDistance( frm, this->centre, bc );
 
 /* Shift each point in the parent Region structure by the same length and
-   direction. */
-         for( ip = 0; ip < 3; ip++ ) {
-            a[ 0 ] = rptr[ ip ][ 0 ];
-            a[ 1 ] = rptr[ ip ][ 1 ];
-            astOffset2( frm, a, angle, dist, b );
-            rptr[ ip ][ 0 ] = b[ 0 ];
-            rptr[ ip ][ 1 ] = b[ 1 ];
-         }
+   direction. The axis values are indexed by axis and then by point. There
+   is nothing to do if the new centre is the same as the old centre, in
+   which case the offset has no direction. */
+         if( angle != AST__BAD && dist != AST__BAD && dist != 0.0 ) {
+            for( ip = 0; ip < 3; ip++ ) {
+               a[ 0 ] = rptr[ 0 ][ ip ];
+               a[ 1 ] = rptr[ 1 ][ ip ];
+               astOffset2( frm, a, angle, dist, b );
+               rptr[ 0 ][ ip ] = b[ 0 ];
+               rptr[ 1 ][ ip ] = b[ 1 ];
+            }
 
 /* Indicate that the cache is stale. */
-         astResetCache( this );
+            astResetCache( this );
+         }
 
 /* Free resources */
          frm = astAnnul( frm );
