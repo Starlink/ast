@@ -92,6 +92,10 @@ f     - AST_ELLIPSEPARS: Get the geometric parameters of the Ellipse
 *        RegCentre: index the axis values of the three defining points by
 *        axis and then by point, and leave them alone if the new centre is
 *        the same as the old one.
+*     19-NOV-2026 (TIMJ):
+*        Cache: leave the cached values marked as stale if they cannot be
+*        found, so that the error is reported on each use of the Ellipse
+*        and values that were never stored are not used.
 *class--
 */
 
@@ -703,8 +707,10 @@ static void Cache( AstEllipse *this, int *status ){
       if( point1 ) point1 = astFree( point1 );
       point2 = astFree( point2 );
 
-/* Indicate cached information is up to date. */
-      this->stale = 0;
+/* Indicate cached information is up to date, unless it could not be
+   found. The cache is then left stale so that the error is reported
+   again on each later attempt to use the Ellipse. */
+      if( astOK ) this->stale = 0;
 
    }
 }

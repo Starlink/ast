@@ -68,6 +68,9 @@ f     - AST_CIRCLEPARS: Get the geometric parameters of the Circle
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        Cache: leave the cached values marked as stale if they cannot be
+*        found.
 *class--
 */
 
@@ -388,8 +391,9 @@ static void Cache( AstCircle *this, int *status ){
       lb = astFree( lb );
       ub = astFree( ub );
 
-/* Indicate cached information is up to date. */
-      this->stale = 0;
+/* Indicate cached information is up to date, unless it could not be
+   found. */
+      if( astOK ) this->stale = 0;
    }
 }
 
