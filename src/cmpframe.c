@@ -241,6 +241,9 @@ f     The CmpFrame class does not define any new routines beyond those
 *        ClearAttrib, GetAttrib, SetAttrib and TestAttrib: limit the length
 *        of the attribute name read from a name or setting that has an axis
 *        index to the size of the buffer that receives it.
+*     19-NOV-2026 (TIMJ):
+*        FrameGrid: report an error if the grids of the two component
+*        Frames together need more points than a PointSet can hold.
 *class--
 */
 
@@ -2955,8 +2958,16 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
       npoint2 = astGetNpoint( ps2 );
 
 /* Get the number of points in the returned FrameSet, and then create a
-   PointSet large enough to hold them. */
-      npoint = npoint1*npoint2;
+   PointSet large enough to hold them. Report an error if there are more
+   than a PointSet can hold. */
+      if( astOK && (double) npoint1*(double) npoint2 > (double) INT_MAX ) {
+         npoint = 0;
+         astError( AST__ATTIN, "astFrameGrid(%s): The supplied bounds "
+                   "and grid size (%d) need a grid of more points than "
+                   "can be created.", status, astGetClass( this ), size );
+      } else {
+         npoint = npoint1*npoint2;
+      }
       result = astPointSet( npoint, naxes, " ", status );
       ptr = astGetPoints( result );
       if( astOK ) {

@@ -346,6 +346,15 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *     16-NOV-2026 (TIMJ):
 *        GetAttrib and Dump: use snprintf to format the ObsLat and ObsLon
 *        values and the comment that holds the label of the axis units.
+*     19-NOV-2026 (TIMJ):
+*        FrameGrid: find the number of ticks on each axis, and the total
+*        number of points, as floating point values, and report an error if
+*        there are more points than a PointSet can hold. An axis of zero
+*        length is left out of the geometric mean of the axis lengths and
+*        gets two ticks. Such an axis made the mean zero, so that the
+*        numbers of ticks were infinite or not a number when converted to
+*        an int, and their product could be smaller than the number of
+*        points then stored.
 *class--
 */
 
@@ -4520,6 +4529,9 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
    double **ptr;
    double *gmean;
    double *step;
+   double dnp;
+   double dtick;
+   double width;
    int *maxi;
    int *nsame;
    int *ntick;
@@ -4554,10 +4566,10 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
 
 /* For each axis, find the total number of axes in the Frame that have
    the same unit string. Also, find the product of the lengths of these
-   axes. */
+   axes. An axis of zero length is left out of both, since it would make
+   the product zero whatever the lengths of the other axes. */
       bad = 0;
       for( iax = 0; iax < naxes; iax++ ) {
-         nsame[ iax ] = 1;
 
          if( ubnd[ iax ] == AST__BAD &&
              lbnd[ iax ] == AST__BAD ) {
@@ -4565,13 +4577,24 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
             break;
          }
 
-         gmean[ iax ] = ubnd[ iax ] - lbnd[ iax ];
+         width = ubnd[ iax ] - lbnd[ iax ];
+         if( width != 0.0 ) {
+            nsame[ iax ] = 1;
+            gmean[ iax ] = width;
+         } else {
+            nsame[ iax ] = 0;
+            gmean[ iax ] = 1.0;
+         }
+
          unit = astGetUnit( this, iax );
          for( jax = 0; jax < naxes; jax++ ) {
             if( jax != iax ) {
                if( astOK && !strcmp( unit, astGetUnit( this, jax ) ) ) {
-                  nsame[ iax ]++;
-                  gmean[ iax ] *= ubnd[ jax ] - lbnd[ jax ];
+                  width = ubnd[ jax ] - lbnd[ jax ];
+                  if( width != 0.0 ) {
+                     nsame[ iax ]++;
+                     gmean[ iax ] *= width;
+                  }
                }
             }
          }
@@ -4587,7 +4610,9 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
 
 /* Convert the dimension products into geometric means. */
          for( iax = 0; iax < naxes; iax++ ) {
-            gmean[ iax ] = pow( fabs(gmean[ iax ]), 1.0/(double)nsame[ iax ] );
+            if( nsame[ iax ] > 0 ) {
+               gmean[ iax ] = pow( fabs(gmean[ iax ]), 1.0/(double)nsame[ iax ] );
+            }
          }
 
 /* The number of ticks to use on each axis is equal to the nominal number
@@ -4595,12 +4620,33 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
    axis lengths that sahare the same unit string. This gives more ticks
    on the longer axes within any group of common-unit axes, whilst
    retaining the overall number of ticks (roughly). Also find the total
-   number of points. */
-         np = 1;
+   number of points. The number of ticks is found as a floating point
+   value so that a value that is too large for an int, or is not a number,
+   can be recognised. An axis of zero length gets the minimum of two
+   ticks, as does any axis for which the number is not a number. */
+         dnp = 1.0;
          for( iax = 0; iax < naxes; iax++ ) {
-            ntick[ iax ] = ntick0*( ubnd[ iax ] - lbnd[ iax ] )/gmean[ iax ];
-            if( ntick[ iax ] < 2 ) ntick[ iax ] = 2;
-            np *= ntick[ iax ];
+            width = ubnd[ iax ] - lbnd[ iax ];
+            dtick = ( width != 0.0 ) ? ntick0*width/gmean[ iax ] : 0.0;
+            if( !( dtick >= 2.0 ) ) {
+               ntick[ iax ] = 2;
+            } else if( dtick < (double) INT_MAX ) {
+               ntick[ iax ] = (int) dtick;
+            } else {
+               ntick[ iax ] = INT_MAX;
+            }
+            dnp *= ntick[ iax ];
+         }
+
+/* Report an error if the grid would have more points than a PointSet
+   can hold. */
+         if( dnp > (double) INT_MAX ) {
+            np = 0;
+            astError( AST__ATTIN, "astFrameGrid(%s): The supplied bounds "
+                      "and grid size (%d) need a grid of more points than "
+                      "can be created.", status, astGetClass( this ), size );
+         } else {
+            np = (int) dnp;
          }
 
 /* Create a PointSet large enough to hold this many points. */

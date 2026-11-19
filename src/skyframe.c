@@ -392,6 +392,12 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *        GetAttrib and GetTitle: do not write beyond the end of the buffer
 *        when the two formatted values of SkyRef or SkyRefP are joined.
 *        GetLabel and GetSymbol: use snprintf.
+*     19-NOV-2026 (TIMJ):
+*        FrameGrid: limit the number of parallels to the largest number
+*        that can each be given a sample, and give no samples to a parallel
+*        that has no length. A box of zero width needed an unlimited number
+*        of parallels, which was converted to an int, and the loop over
+*        them could take tens of seconds.
 *class--
 */
 
@@ -2189,6 +2195,8 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
    double box_area;
    double cl;
    double dlon;
+   double dmer;
+   double dpar;
    double hilat;
    double hilon;
    double inclon;
@@ -2198,6 +2206,7 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
    double lolon;
    double lon_size;
    double lolat;
+   double maxpar;
    double totlen;
    int ilat;
    int ilon;
@@ -2252,9 +2261,24 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
       lat_size = sqrt( box_area/size );
 
 /* How many parallels should we use to cover the box? Ensure we use at
-   least two. These parallels pass through the centre of the grid cells. */
-      npar = (int)( 0.5 + ( hilat - lolat )/lat_size );
-      if( npar < 2 ) npar = 2;
+   least two. These parallels pass through the centre of the grid cells.
+   The number is found as a floating point value, since it is not a
+   number for a box with no height and is unlimited for a box with no
+   area. The samples are shared between the parallels in proportion to
+   the cosines of their latitudes, and the mean of these cosines is at
+   least half of the largest, so no parallel gets a sample if there are
+   more than twice as many parallels as samples. There is therefore no
+   need to use more parallels than that. */
+      dpar = 0.5 + ( hilat - lolat )/lat_size;
+      maxpar = 2.0*size + 2.0;
+      if( maxpar > (double) INT_MAX ) maxpar = (double) INT_MAX;
+      if( !( dpar >= 2.0 ) ) {
+         npar = 2;
+      } else if( dpar < maxpar ) {
+         npar = (int) dpar;
+      } else {
+         npar = (int) maxpar;
+      }
 
 /* Find the actual sample size implied by this number of parallels. */
       lat_size = ( hilat - lolat )/npar;
@@ -2274,7 +2298,7 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
 /* Create a PointSet in which to store the grid. Make it bigger than
    necessary in order to leave room for extra samples caused by integer
    truncation. */
-      ipmax = 2*size;
+      ipmax = ( size <= INT_MAX/2 ) ? 2*size : INT_MAX;
       result = astPointSet( ipmax, 2, " ", status );
       ptr = astGetPoints( result );
       if( astOK ) {
@@ -2289,13 +2313,21 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
             inclon = ( cl != 0.0 ) ? lon_size/cl : 0.0;
 
 /* Get the number of longitude samples for this parallel. Reduce it if
-   it would extend beyond the end of the PointSet. */
-            nmer = dlon/inclon;
-            if( ip + nmer >= ipmax ) nmer = ipmax - ip;
+   it would extend beyond the end of the PointSet. A parallel with no
+   length (one at a pole, or any parallel of a box with no width) has a
+   zero increment and gets no samples. */
+            dmer = ( inclon != 0.0 ) ? dlon/inclon : 0.0;
+            if( !( dmer >= 1.0 ) ) {
+               nmer = 0;
+            } else if( dmer < (double)( ipmax - ip ) ) {
+               nmer = (int) dmer;
+            } else {
+               nmer = ipmax - ip;
+            }
 
 /* Adjust the longitude increment to take up any slack caused by the
    above integer division. */
-            inclon = dlon/nmer;
+            if( nmer > 0 ) inclon = dlon/nmer;
 
 /* Produce the samples for the current parallel. */
             lon = lolon + 0.5*inclon;
