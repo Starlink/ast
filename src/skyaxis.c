@@ -133,6 +133,14 @@ f     only within textual output (e.g. from AST_WRITE).
 *        value has more degrees or hours than the buffer has room for, as
 *        a value of 1.0E300 radians does. Such a value is now formatted as
 *        a bad value.
+*     19-NOV-2026 (TIMJ):
+*        AxisFields: do not move on from a separator that was not found. The
+*        null pointer returned by the search was moved on and then used. For
+*        a Format with one field, find the end of the field from its start,
+*        so that a leading plus sign is allowed for as a minus sign was; the
+*        text after a plus sign was read from beyond its end. Give the value
+*        read from a field a starting value, since a blank field leaves it
+*        unchanged and for the first field it had not been set.
 *class--
 */
 
@@ -588,8 +596,10 @@ static int AxisFields( AstAxis *this_axis, const char *fmt, const char *str,
                                    val, status );
    }
 
-/* Initialise. */
+/* Initialise. A field that is empty leaves the value read from it
+   unchanged, so give that value a starting value for the first field. */
    result = 0;
+   dval = 0.0;
    for( ifld = 0; ifld < maxfld; ifld++ ) {
       fields[ ifld ] = NULL;
       nc[ ifld ] = 0;
@@ -655,23 +665,25 @@ static int AxisFields( AstAxis *this_axis, const char *fmt, const char *str,
             }
 
             t = strstr( p, term );
+
+/* If the terminator was found, move on to the first character following
+   it. Otherwise the text does not match the format, and the pointer is
+   left where it is. */
             if( t ) {
                nc[ 0 ] = t - fields[ 0 ];
+               p = t + strlen( term );
             } else {
                ok = 0;
             }
 
-/* Move on to the first character following the terminator. */
-            p = t + strlen( term );
-
 /* In all other cases, the first field is the only field and is not
    terminated. Note its length (ignoring trailing spaces). Move the
-   pointer on by the length of the field, remembering that any leading
-   minus sign has already been skipped. */
+   pointer on to the end of the field. The field starts at any leading
+   sign, which has already been skipped, so the pointer is set from the
+   start of the field. */
          } else {
             nc[ 0 ] = astChrLen( fields[ 0 ] );
-            p += nc[ result ];
-            if( sign == -1 ) p--;
+            p = fields[ 0 ] + nc[ 0 ];
          }
 
 /* Read a numerical value from the first field. */
@@ -713,14 +725,15 @@ static int AxisFields( AstAxis *this_axis, const char *fmt, const char *str,
             }
 
             t = strstr( p, term );
+
+/* If the terminator was found, move on to the first character following
+   it. */
             if( t ) {
                nc[ result ] = t - fields[ result ];
+               p = t + strlen( term );
             } else {
                ok = 0;
             }
-
-/* Move on to the first character following the terminator. */
-            p = t + strlen( term );
 
 /* In all other cases, this field is not terminated. Note its length
    (ignoring trailing spaces). */
@@ -761,14 +774,15 @@ static int AxisFields( AstAxis *this_axis, const char *fmt, const char *str,
             }
 
             t = strstr( p, term );
+
+/* If the terminator was found, move on to the first character following
+   it. */
             if( t ) {
                nc[ result ] = t - fields[ result ];
+               p = t + strlen( term );
             } else {
                ok = 0;
             }
-
-/* Move on to the first character following the terminator. */
-            p = t + strlen( term );
 
 /* In all other cases, this field is not terminated. Note its length
    (ignoring trailing spaces). */
