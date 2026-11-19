@@ -21,8 +21,9 @@
 *       - Grids: the grid of points inside a Box that has no width on an
 *         axis, or is far longer than it is wide, where the number of
 *         points on an axis was unlimited.
-*       - Attributes: a string value that contains a "%" character, given
-*         to a Region that passes the setting on to its FrameSet.
+*       - Attributes: a string value that holds a "%" character, a comma
+*         and an equals sign, or quotes, given to a Region that passes the
+*         setting on to its FrameSet.
 *       - Masks: masking an array with a Region that has no upper limit,
 *         and with a PointList when the grid has the wrong number of
 *         dimensions.
@@ -220,27 +221,71 @@ static int test_grids( void ) {
 }
 
 /* A Region passes the setting for an attribute that it does not recognise
-   to its FrameSet, and used to pass it as the format string for astSet,
-   so that a "%" in the value was taken to be a format specifier. */
+   to its FrameSet with astSet.  It used to pass it as the format string,
+   so that a "%" in the value was taken to be a format specifier.  The
+   setting was also read as a list of settings, so that a comma in a value
+   that also held an equals sign ended the value and began another setting,
+   which was rejected or, if it was a valid setting, applied.  A pair of
+   quotes round the value was removed as well.  A Region must store the
+   value that a Frame stores, and nothing else must change. */
 static int test_attributes( void ) {
+   static const char *values[] = { "50%s done, 100%n to do",
+                                   "Flux, units=Jy",
+                                   "Sky, Domain=NEW",
+                                   "\"\"quoted\"\"",
+                                   "\"open, a=b",
+                                   "  padded  ",
+                                   NULL };
+   AstFrame *frm;
    AstRegion *box;
+   char wanted[ 100 ];
    const char *value;
    double p1[ 2 ] = { 0.0, 0.0 };
    double p2[ 2 ] = { 1.0, 1.0 };
    int adaptive;
+   int i;
    int nfail = 0;
 
    astBegin;
+   for ( i = 0; values[ i ]; i++ ) {
+      frm = astFrame( 2, "Domain=OLD" );
+      astSetC( frm, "Title", values[ i ] );
+      value = astGetC( frm, "Title" );
+      if ( !astOK || strlen( value ) >= sizeof( wanted ) ) {
+         fprintf( stderr, "testregionhardening: The Title of a Frame could "
+                  "not be set to \"%s\"\n", values[ i ] );
+         if ( !astOK ) astClearStatus;
+         nfail++;
+         continue;
+      }
+      strcpy( wanted, value );
+
+      for ( adaptive = 0; adaptive < 2; adaptive++ ) {
+         box = (AstRegion *) astBox( astFrame( 2, "Domain=OLD" ), 1, p1, p2,
+                                     NULL, "Adaptive=%d", adaptive );
+         astSetC( box, "Title", values[ i ] );
+         value = astGetC( box, "Title" );
+         if ( astOK && strcmp( value, wanted ) ) {
+            fprintf( stderr, "testregionhardening: The Title of a Box with "
+                     "Adaptive=%d is \"%s\" but that of a Frame is "
+                     "\"%s\"\n", adaptive, value, wanted );
+            nfail++;
+         }
+         value = astGetC( box, "Domain" );
+         if ( astOK && strcmp( value, "OLD" ) ) {
+            fprintf( stderr, "testregionhardening: Setting the Title of a "
+                     "Box with Adaptive=%d to \"%s\" changed its Domain to "
+                     "\"%s\"\n", adaptive, values[ i ], value );
+            nfail++;
+         }
+         nfail += check_status( "Setting the Title of a Box", SAI__OK );
+      }
+   }
+
+/* A Format is the value most likely to hold a "%". */
    for ( adaptive = 0; adaptive < 2; adaptive++ ) {
       box = (AstRegion *) astBox( astFrame( 2, " " ), 1, p1, p2, NULL,
                                   "Adaptive=%d", adaptive );
-      astSetC( box, "Title", "50%s done, 100%n to do" );
-      value = astGetC( box, "Title" );
-      if ( astOK && strcmp( value, "50%s done, 100%n to do" ) ) {
-         fprintf( stderr, "testregionhardening: The Title of a Box with "
-                  "Adaptive=%d is \"%s\"\n", adaptive, value );
-         nfail++;
-      }
       astSet( box, "%s", "Format(1)=%10.3f" );
       value = astGetC( box, "Format(1)" );
       if ( astOK && strcmp( value, "%10.3f" ) ) {
@@ -248,8 +293,7 @@ static int test_attributes( void ) {
                   "Adaptive=%d is \"%s\"\n", adaptive, value );
          nfail++;
       }
-      nfail += check_status( "Setting the Title and Format(1) of a Box",
-                             SAI__OK );
+      nfail += check_status( "Setting Format(1) of a Box", SAI__OK );
    }
    astEnd;
    return nfail;
