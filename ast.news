@@ -430,6 +430,20 @@ Bug fixes
   never set, and creating a Polygon with an infinite or extremely large
   vertex value no longer loops for ever.
 
+- astOverlap now gives the right result for a Prism and a Region that has
+  been negated, such as the negation of a Box that contains the Prism, or
+  the negation of the Prism itself. The negation used to be allowed for
+  twice.
+
+- The Bounded attribute of a CmpRegion that is the intersection of two
+  Regions that are not bounded is now zero if one of the Regions is inside
+  the other. It used to be non-zero, and astGetRegionBounds then reported
+  an error.
+
+- An Interval that is used as the uncertainty of another Region now reports
+  the bounds of the position that it was moved to, rather than its
+  original bounds.
+
 - A range of cells in a string MOC is no longer expanded into its individual
   cells as it is read, which for a large range took a long time and could
   exhaust memory.
