@@ -162,6 +162,12 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   An Interval given as the uncertainty of a Box must report the bounds of the position it was moved to.
   The overlap of a Prism with a Box that holds it, with the negation of that Box, with an equal Prism and with its own negation must be 2, 1, 5 and 6 (and 3, 1, 5 and 6 with the Regions in the other order).
   The intersection of two half-planes, one inside the other, must not be reported as bounded, and asking for its bounds must not be an error.
+- testfields — astFields, astAbbrev and astCentre, which the Plot class uses on every numerical axis label, must stay within the text they are given and must not use a value that has not been set.
+  They are protected functions, so the test defines astCLASS and uses the protected interface, as testaxis does.
+  It covers a sky axis value with fewer fields than its Format, astAbbrev given a sky axis value that has no fields and nothing to compare it with, a value with leading spaces on a simple axis, and a sky axis value that has a leading plus sign and one field or is blank.
+  For dates it requires astUnformat to refuse a month of zero or thirteen (and the Epoch attribute to reject one), while still reading a day of zero as the day before the first of the month.
+  It requires TimeFrame astCentre to return the same values as before for a gap that changes the day or the time, the value it was given for a gap too small to change the formatted date, and a value within the gap for a gap that crosses the end of a month or year.
+  The text of each case is held in memory of exactly its own size, so that the sanitizers see a read beyond it.
 - testplotclip — a Plot must report an error raised while transforming positions into its clipping Frame without annulling the PointSet that its caller supplied.
   The clipping Frame is reached through an IntraMap that fails on request.
   The double annul is a use of freed memory, so the test is only decisive under AddressSanitizer.

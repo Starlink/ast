@@ -89,6 +89,7 @@ C_TESTS = \
     testcorruptinput \
     testregionhardening \
     testregionlogic \
+    testfields \
     testmapmerge \
     testfitswrite \
     testcast \
@@ -167,6 +168,8 @@ testregionhardening_SOURCES  = testregionhardening.c
 testregionhardening_LDADD    = $(CTEST_LDADD)
 testregionlogic_SOURCES  = testregionlogic.c
 testregionlogic_LDADD    = $(CTEST_LDADD)
+testfields_SOURCES  = testfields.c
+testfields_LDADD    = $(CTEST_LDADD)
 testmapmerge_SOURCES  = testmapmerge.c
 testmapmerge_LDADD    = $(CTEST_LDADD)
 testfitswrite_SOURCES  = testfitswrite.c
