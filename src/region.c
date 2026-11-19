@@ -331,6 +331,11 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        Frame of the first Region, which is where astBndBaseMesh needs
 *        them. They were found in its base Frame, and then read and doubled
 *        as if they had an element for each current Frame axis.
+*     19-NOV-2026 (TIMJ):
+*        BndBaseMesh: report an error if neither the Region nor its negation
+*        is bounded. Such a Region has no boundary mesh, so its intersection
+*        with the box called this function again for the same mesh, without
+*        end.
 *class--
 
 *  Implementation Notes:
@@ -1796,11 +1801,35 @@ static AstPointSet *BndBaseMesh( AstRegion *this, double *lbnd, double *ubnd, in
    AstCmpRegion *cmpreg;
    AstPointSet *result;
    double **ptr;
+   int hasmesh;
    int ic;
    int nc;
 
 /* Check the local error status. */
    if ( !astOK ) return NULL;
+
+/* This implementation takes the mesh from the intersection of the Region
+   and the box, which needs the Region to have a boundary mesh of its own.
+   It has one if either the Region or its negation is bounded. If it has
+   none, the intersection would call this function again to get the same
+   mesh, without end, so report an error instead. A class of Region that
+   can find the part of an unbounded boundary that is within a box
+   over-rides this function. */
+   hasmesh = astGetBounded( this );
+   if( !hasmesh ) {
+      astNegate( this );
+      hasmesh = astGetBounded( this );
+      astNegate( this );
+   }
+   if( !hasmesh ) {
+      if( astOK ) astError( AST__INTER, "astBndBaseMesh(%s): The part of "
+                            "the boundary of the %s that is within a box "
+                            "cannot be found, since neither the %s nor its "
+                            "negation is bounded.", status,
+                            astGetClass( this ), astGetClass( this ),
+                            astGetClass( this ) );
+      return NULL;
+   }
 
 /* Form a Box describing the required box. */
    box = astBox( this, 1, lbnd, ubnd, NULL, "", status );
