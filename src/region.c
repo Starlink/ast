@@ -336,6 +336,12 @@ f     - AST_SHOWMESH: Display a mesh of points on the surface of a Region
 *        is bounded. Such a Region has no boundary mesh, so its intersection
 *        with the box called this function again for the same mesh, without
 *        end.
+*     19-NOV-2026 (TIMJ):
+*        SetAttrib: protect the commas in a setting that is passed on to the
+*        encapsulated FrameSet, and put its value in quotes, so that astSet
+*        does not read it as a list of settings or remove quotes from it. A
+*        value that held a comma and an equals sign was cut short at the
+*        comma, and the rest was taken to be a second setting.
 *class--
 
 *  Implementation Notes:
@@ -10642,7 +10648,10 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 
 /* Local Variables: */
    AstRegion *this;              /* Pointer to the Region structure */
+   char *copy;                   /* Setting to pass to the FrameSet */
+   const char *eq;               /* Pointer to equals sign in setting */
    double dval;                  /* Floating point attribute value */
+   int i;                        /* Index of character in setting */
    int ival;                     /* Integer attribute value */
    int id;                       /* Offset of ID string */
    int len;                      /* Length of setting string */
@@ -10766,9 +10775,34 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
    astSet method so that the current Frame in the encapsulated FrameSet will
    be re-mapped if the attribute changes require it. The setting is
    supplied as the value for a "%s" specifier, so that no part of it is
-   used as a format specifier. */
+   used as a format specifier.
+
+   The setting has already been separated from any others, but astSet
+   reads it as a list of settings: it starts a new setting at a comma if
+   there is more than one equals sign, and it removes a pair of quotes
+   from round the value. So that the setting reaches the FrameSet as it
+   is, each comma in the value is replaced by a carriage return, as astSetC
+   does, and the value is put in quotes. astSet reverses both. */
       if( astGetAdaptive( this ) ) {
-         astSet( this->frameset, "%s", status, setting );
+         eq = strchr( setting, '=' );
+         if( eq ) {
+            nc = (int)( eq - setting ) + 1;
+            copy = astMalloc( (size_t) len + 3 );
+            if( astOK ) {
+               memcpy( copy, setting, (size_t) nc );
+               copy[ nc ] = '"';
+               for( i = nc; i < len; i++ ) {
+                  copy[ i + 1 ] = ( setting[ i ] == ',' ) ? '\r' : setting[ i ];
+               }
+               copy[ len + 1 ] = '"';
+               copy[ len + 2 ] = 0;
+               astSet( this->frameset, "%s", status, copy );
+            }
+            copy = astFree( copy );
+
+         } else {
+            astSet( this->frameset, "%s", status, setting );
+         }
 
 /* If the Region is not to adapt to coordinate system chanmges, use the
    astRegSetAttrib method which assigns the attribute setting to both
