@@ -384,6 +384,52 @@ Bug fixes
   RateMap that was not inverted used to report an internal programming
   error.
 
+- The grid of points inside a Box, as returned by astGetRegionMesh and used
+  when Regions are compared, is now made correctly if the Box has no width
+  on one of its axes. Such a Box used to give an error or, with three or
+  more axes, write beyond the end of an array. A grid that would need more
+  points than can be held is reported as an error, and a Box on the sky
+  that has no width in longitude no longer takes tens of seconds to report
+  that it has no grid.
+
+- A string attribute of a Region, such as its Title or the Format of an
+  axis, can now be set to a value that contains a "%" character. The value
+  used to be taken as a format specification, which could crash.
+
+- astMask<X> now masks correctly with a Region that has no upper limit on
+  an axis, such as an Interval with only a lower limit. Every pixel used to
+  be taken to be outside such a Region. Masking with a PointList no longer
+  crashes if the grid has the wrong number of dimensions.
+
+- astMapRegion no longer fails with an invalid Object pointer error, and
+  leaves the supplied Mapping inverted, when the new Frame has fewer axes
+  than the Region and the Mapping allows the unwanted axes to be removed.
+  astMask<X> failed in the same way when given such a Mapping.
+
+- astOverlap no longer reads or writes beyond the end of an array if one of
+  the Regions is a PointList, if the Regions are Intervals of which one
+  excludes a range of axis values that the other includes, or if one Region
+  has no boundary and its current Frame has more axes than its base Frame.
+  If a Region that is not an Interval has no boundary mesh (a Prism with a
+  component that has no upper limit, for instance), astOverlap now reports
+  that the overlap cannot be determined rather than exhausting the stack.
+
+- The bounds of a PointList or NullRegion, and the mesh of a Prism, no
+  longer overrun an array if the Region has been mapped into a Frame with a
+  different number of axes.
+
+- An Ellipse can now be used as the uncertainty of another Region, which
+  used to read and write through an invalid pointer. An Ellipse made from
+  three points that do not define an ellipse reports that each time it is
+  used, rather than crashing the second time. Simplifying a mapped Circle
+  or Ellipse no longer reads beyond the end of its mesh if no Ellipse can
+  be fitted to it.
+
+- A Polygon read from a dump is rejected if a vertex has no value. A
+  Polygon whose vertices all coincide no longer uses a position that was
+  never set, and creating a Polygon with an infinite or extremely large
+  vertex value no longer loops for ever.
+
 - A range of cells in a string MOC is no longer expanded into its individual
   cells as it is read, which for a large range took a long time and could
   exhaust memory.
