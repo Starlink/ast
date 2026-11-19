@@ -125,6 +125,9 @@ f     The CmpRegion class does not define any new routines beyond those
 *     13-NOV-2026 (TIMJ):
 *        In astLoadCmpRegion, check that the dump supplied a valid operator
 *        and two component Regions that have the axes of the CmpRegion.
+*     19-NOV-2026 (TIMJ):
+*        RegBaseMesh: correct the spelling of "because" in two error
+*        messages.
 *class--
 */
 
@@ -1943,7 +1946,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
 /* If neither Region has a mesh we cannot produce a mesh. */
       if( !hasMesh1 && !hasMesh2 && astOK ) {
          astError( AST__INTER, "astRegBaseMesh(%s): No mesh can be "
-                   "produced for the %s bacause neither of its component "
+                   "produced for the %s because neither of its component "
                    "Regions has a mesh (internal AST programming error).", status,
                    astGetClass( this ), astGetClass( this ) );
 
@@ -1951,7 +1954,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    boolean operator is not OR. */
       } else if( ( !hasMesh1 || !hasMesh2 ) && this->oper == AST__OR && astOK ) {
          astError( AST__INTER, "astRegBaseMesh(%s): No mesh can be produced "
-                   "for the %s bacause one its component Regions has no "
+                   "for the %s because one its component Regions has no "
                    "mesh and the union of the Regions is required (internal "
                    "AST programming error).", status, astGetClass( this ), astGetClass( this ) );
       }

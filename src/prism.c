@@ -103,6 +103,8 @@ f     The Prism class does not define any new routines beyond those
 *        RegBaseMesh: give the mesh an axis for each axis of the base Frame,
 *        not of the current Frame, and report an error if it would have
 *        more points than a PointSet can hold.
+*     19-NOV-2026 (TIMJ):
+*        RegBaseMesh: correct the spelling of "because" in an error message.
 *class--
 */
 
@@ -2175,7 +2177,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    Prism. */
       if( !hasMesh1 || !hasMesh2 ) {
          if( astOK ) astError( AST__INTER, "astRegBaseMesh(%s): No mesh "
-                   "can be produced for the %s bacause one of its component "
+                   "can be produced for the %s because one of its component "
                    "Regions is unbounded.", status, astGetClass( this ), astGetClass( this ) );
 
 /* Otherwise we can create a mesh for the Prism. */
