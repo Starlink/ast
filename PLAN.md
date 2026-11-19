@@ -158,6 +158,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   It covers the bounds of a PointList and a NullRegion, and the mesh of a Prism, after each has been mapped into a Frame with a different number of axes, an Ellipse used as the uncertainty of a Box (which must be moved without changing size), an Ellipse made from three points in a line (which must report the error on every use), and a Circle mapped so that no Ellipse can be fitted to its boundary.
   It covers a Polygon whose vertices all coincide, and Polygons with huge and infinite vertex values, which only have to be created without hanging.
   It maps a Box, a Circle and a PointList into a Frame with fewer axes, and masks with each through the same Mapping, requiring the Mapping to be unchanged afterwards and the Box and PointList masks to be those of the Region projected on to the remaining axis.
+- testregionlogic — results that depend on how Regions keep and combine their state, each of which was wrong without any error being reported.
+  An Interval given as the uncertainty of a Box must report the bounds of the position it was moved to.
+  The overlap of a Prism with a Box that holds it, with the negation of that Box, with an equal Prism and with its own negation must be 2, 1, 5 and 6 (and 3, 1, 5 and 6 with the Regions in the other order).
+  The intersection of two half-planes, one inside the other, must not be reported as bounded, and asking for its bounds must not be an error.
 - testplotclip — a Plot must report an error raised while transforming positions into its clipping Frame without annulling the PointSet that its caller supplied.
   The clipping Frame is reached through an IntraMap that fails on request.
   The double annul is a use of freed memory, so the test is only decisive under AddressSanitizer.
