@@ -197,6 +197,13 @@ f     - AST_CURRENTTIME: Return the current system time
 *        Format: format a time that has no calendar date as "<bad>". The
 *        status from palDjcl was ignored, and the date was formatted from
 *        values that had not been set.
+*     19-NOV-2026 (TIMJ):
+*        Centre: stop comparing the fields of the two formatted dates when
+*        either has no more fields. The search went on beyond the end of
+*        both if no field differed, and could then change characters beyond
+*        the end of the result. If the date made by setting fields to zero
+*        cannot be read, as is the case if its month or year is zero, use
+*        the method of the parent class.
 *class--
 */
 
@@ -676,8 +683,6 @@ static double Centre( AstFrame *this_frame, int axis, double value,
    double result;
    int df;
    int fmod;
-   int nc1;
-   int nc2;
    int ndp;
    int nres;
    int v1;
@@ -708,6 +713,8 @@ static double Centre( AstFrame *this_frame, int axis, double value,
 /* Format time values one gap above the supplied axis value and one gap below
    it. Take copies of each string since the astFormat buffer will be
    over-written by each call. */
+      date1 = NULL;
+      date2 = NULL;
       date = astFormat( this, 0, value - gap );
       if( date ) date1 = astStore( NULL, date, strlen( date ) + 1 );
       date = astFormat( this, 0, value + gap );
@@ -719,95 +726,54 @@ static double Centre( AstFrame *this_frame, int axis, double value,
          nres = strlen( date1 );
          fres = astStore( NULL, date1, nres + 1 );
 
-/* Loop over all characters within the first date. */
+/* Compare each numerical field in the first date with the corresponding
+   field in the second date. */
          fmod = 0;
-         nc1 = 0;
-         f1 = NULL;
          p1 = date1;
-         nc2 = 0;
-         f2 = NULL;
          p2 = date2;
-         while( 1 ) {
+         while( astOK ) {
 
-/* If we have not yet found the length of the next numerical field in
-   date1, continue looking for it. */
-            if( !nc1 ) {
+/* Find the start of the next numerical field in each date. Leave the
+   loop if either date has no more fields. */
+            while( *p1 && !isdigit( (unsigned char) *p1 ) ) p1++;
+            while( *p2 && !isdigit( (unsigned char) *p2 ) ) p2++;
+            if( !*p1 || !*p2 ) break;
 
-/* If we are currently looking for the start of a numerical field, indicate
-   we have found one if the current character is a digit. */
-               if( !f1 ) {
-                  if( isdigit( *p1 ) ) f1 = p1;
+/* Note the start of each field, and find its end. */
+            f1 = p1;
+            while( isdigit( (unsigned char) *p1 ) ) p1++;
+            f2 = p2;
+            while( isdigit( (unsigned char) *p2 ) ) p2++;
 
-/* If we are currently looking for the end of a numeric field, we have
-   found the end if the current character is not a digit. */
-               } else {
-                  if( !isdigit( *p1 ) ) {
-                     nc1 = p1 - f1;
-                  }
-               }
-
-/* Look at the next character */
-               p1++;
-            }
-
-/* If we have not yet found the length of the next numerical field in
-   date2, continue looking for it. */
-            if( !nc2 ) {
-
-/* If we are currently looking for the start of a numerical field, indicate
-   we have found one if the current character is a digit. */
-               if( !f2 ) {
-                  if( isdigit( *p2 ) ) f2 = p2;
-
-/* If we are currently looking for the end of a numeric field, we have
-   found the end if the current character is not a digit. */
-               } else {
-                  if( !isdigit( *p2 ) ) {
-                     nc2 = p2 - f2;
-                  }
-               }
-
-/* Look at the next character */
-               p2++;
-            }
-
-/* If we have found the next numerical field in both dates, convert them
-   to integers. */
-            if( nc1 && nc2 ) {
-               v1 = atoi( f1 );
-               v2 = atoi( f2 );
+/* Convert the fields to integers. */
+            v1 = atoi( f1 );
+            v2 = atoi( f2 );
 
 /* If the values are different, replace this field and all subsequent
    fields with zeros in the formatted version of the returned central
    value, and leave the loop. */
-               if( v1 != v2 ) {
+            if( v1 != v2 ) {
 
-                  pres = fres + ( f1 - date1 ) - 1;
-                  while( *(++pres) ) {
-                     if( isdigit( *pres ) ) *pres = '0';
-                  }
-                  fmod = 1;
-
-                  break;
+               pres = fres + ( f1 - date1 ) - 1;
+               while( *(++pres) ) {
+                  if( isdigit( (unsigned char) *pres ) ) *pres = '0';
                }
+               fmod = 1;
 
-/* Prepare to look for the next numerical field in both strings. */
-               nc1 = nc2 = 0;
-               f1 = f2 = NULL;
-
-/* If either string has been exhausted, leave the loop. */
-               if( !*p1 || !*p2 ) break;
+               break;
             }
          }
 
 /* If the formatted "nice" value was changed, unformatted it to get the
    returned axis value. Otherwise we rettina the returned value set
-   earlier. */
+   earlier. A day of zero is read as the day before the first of the
+   month, but a month or a year of zero is not a date, and the whole of
+   the text is then not read. In that case use the parent astCentre
+   function, as is done if the Format is not a date format. */
          if( fmod ) {
-            if( astUnformat( this, 0, fres, &result ) != nres && astOK ) {
-               astError( AST__INTER, "astCentre(%s): Error unformatting "
-                         "the central time axis value '%s' (internal AST "
-                         "programming error).", status, astClass( this ), fres );
+            if( astUnformat( this, 0, fres, &result ) != nres ) {
+               result = (*parent_centre)( this_frame, axis, value, gap,
+                                          status );
             }
          }
 
