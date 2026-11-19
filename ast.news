@@ -396,6 +396,13 @@ Bug fixes
   axis, can now be set to a value that contains a "%" character. The value
   used to be taken as a format specification, which could crash.
 
+- A string attribute of a Region can now be set to a value that holds both
+  a comma and an equals sign, such as a Title of "Sky, Domain=NEW". The
+  value used to be cut short at the comma and the rest taken to be another
+  attribute setting, which was rejected or, if it was a valid setting,
+  applied. Quotes within the value are also now kept, as they are for a
+  Frame.
+
 - astMask<X> now masks correctly with a Region that has no upper limit on
   an axis, such as an Interval with only a lower limit. Every pixel used to
   be taken to be outside such a Region. Masking with a PointList no longer
