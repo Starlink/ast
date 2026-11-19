@@ -244,6 +244,12 @@ f     The CmpFrame class does not define any new routines beyond those
 *     19-NOV-2026 (TIMJ):
 *        FrameGrid: report an error if the grids of the two component
 *        Frames together need more points than a PointSet can hold.
+*     19-NOV-2026 (TIMJ):
+*        NormBox: give the PermMap that puts a position into external axis
+*        order the inverse permutation as well. Its inverse transformation,
+*        which is used to put the position back into internal axis order,
+*        otherwise left the order of the axes unchanged, so that each
+*        component Frame tested the wrong axes of a permuted CmpFrame.
 *class--
 */
 
@@ -6012,8 +6018,12 @@ static void NormBox( AstFrame *this_frame, double lbnd[], double ubnd[],
 
 /* Create a PermMap with a forward transformation which reorders a position
    which uses internal axis ordering into a position which uses external axis
-   ordering. */
-      pm1 = astPermMap( naxes, NULL, naxes, perm, NULL, "", status );
+   ordering. Its inverse transformation is used below to put a position
+   back into internal axis ordering, so it is given the inverse permutation
+   as well. Without one the inverse transformation would leave the order of
+   the axes unchanged. */
+      for ( axis = 0; axis < naxes; axis++ ) inperm[ perm[ axis ] ] = axis;
+      pm1 = astPermMap( naxes, inperm, naxes, perm, NULL, "", status );
 
 /* Put it in front of the supplied Mapping. The combination transforms an
    input internal position into an output external position.  */
