@@ -143,9 +143,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   It covers more Frames than there are version letters, an offset sky coordinate system beside a Frame that claims a letter through its Ident, and FITS-PC secondary axis descriptions that need a reference frame, projection parameters or a number of axes that the primary description does not have.
   It covers a FITS-CLASS cube with a fourth axis, a sky axis Symbol too long for a keyword comment, a Domain that differs from an axis Symbol only in its last character, and a write that fails after it has replaced cards that were already in the FitsChan (which must be put back).
   Run it with the sanitizers enabled, which is how the memory faults are detected.
-- testcast — a Frame must be comparable with a Frame of an ancestral class before any Frame of an intermediate class has been used.
+- testcast — a Frame must be comparable with a Frame of an ancestral class before any Frame of an intermediate class has been used, and must be cast only into a class that it is an instance of.
   astConvert casts a template that does not match into the class of the target, and the CmpFrame, Region and FrameSet classes did so using a virtual function table that was only set up when an object of exactly that class was created.
   It covers two SpecFluxFrames with different Domains before any plain CmpFrame exists (so that case must stay first in the program), and a CmpFrame that holds a Region.
+  The same three classes copied a Frame as if it were of any class derived from their own, so it also calls the protected astCast to require no result for a Frame that is not an instance of the class asked for (an StcSearchLocation into an StcObsDataLocation, a FrameSet into a Plot, a plain CmpFrame into a SpecFluxFrame), and a Frame of the right class for the casts that are possible.
 - testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
   For PolyMap, LutMap, MathMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
   For a MathMap the variants have fewer forward functions than outputs or inverse functions than inputs, a negative number of functions, and a function that is missing from the dump.

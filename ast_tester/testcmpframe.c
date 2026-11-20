@@ -173,6 +173,39 @@ static int check_resolve_points_permuted( void ) {
    return result;
 }
 
+/* astConvert matches a CmpFrame against another Frame by sharing out the
+   axes of that Frame between the two components of the CmpFrame in every
+   possible way. A component that is itself a CmpFrame can be given no axes
+   at all, and the next way of choosing its axes was then looked for in a
+   list of axes that had no entries. A 1-D Frame has no conversion to or
+   from these three axes. Returns 0 on success, else the failing check. */
+static int check_match_no_axes( void ) {
+   int result = 0;
+   AstFrame *one, *nested;
+   AstFrameSet *fs;
+
+   one = astFrame( 1, " " );
+   nested = (AstFrame *) astCmpFrame( astCmpFrame( astFrame( 1, "Domain=A" ),
+                                                   astFrame( 1, "Domain=B" ),
+                                                   " " ),
+                                      astFrame( 1, "Domain=C" ), " " );
+   fs = astConvert( one, nested, " " );
+   if( !astOK ) {
+      astClearStatus;
+      result = 16;
+   } else if( fs ) {
+      result = 17;
+   }
+   fs = astConvert( nested, one, " " );
+   if( !astOK ) {
+      astClearStatus;
+      if( !result ) result = 16;
+   } else if( fs ) {
+      if( !result ) result = 17;
+   }
+   return result;
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -247,6 +280,11 @@ int main( void ) {
    case 10: stopit( status, "ResolvePoints: failed on a permuted CmpFrame" ); break;
    case 11: stopit( status, "ResolvePoints: parallel distance differs from astResolve" ); break;
    case 12: stopit( status, "ResolvePoints: perpendicular distance differs from astResolve" ); break;
+   }
+
+   switch( check_match_no_axes() ) {
+   case 16: stopit( status, "Match: error converting between a 1-D Frame and a nested CmpFrame" ); break;
+   case 17: stopit( status, "Match: a 1-D Frame was converted to a nested CmpFrame" ); break;
    }
 
    astEnd;
