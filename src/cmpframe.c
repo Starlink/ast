@@ -256,6 +256,10 @@ f     The CmpFrame class does not define any new routines beyond those
 *        of the axes of a target, and the search for the next selection
 *        then read an element of the array of selected axes that had not
 *        been set, or that lay beyond the end of the array.
+*     19-NOV-2026 (TIMJ):
+*        Cast: only cast into a sub-class of CmpFrame if the CmpFrame is an
+*        instance of that sub-class. A plain CmpFrame was copied as if it
+*        were a SpecFluxFrame.
 *class--
 */
 
@@ -1384,11 +1388,19 @@ static AstObject *Cast( AstObject *this_object, AstObject *obj, int *status ) {
    generation_gap = astClassCompare( (AstObjectVtab *) &class_vtab,
                                      astVTAB( obj ) );
 
-/* If "obj" is a CmpFrame or a sub-class of CmpFrame, we can cast by
+/* If "obj" is a CmpFrame or a sub-class of CmpFrame, a cast is
+   possible only if "this" is an instance of the class of "obj" (that is,
+   it is of that class or of a sub-class of it). If so, we can cast by
    truncating the vtab for "this" so that it matches the vtab of "obJ",
-   and then taking a deep copy of "this". */
+   and then taking a deep copy of "this". Otherwise "this" does not hold
+   the components that the class of "obj" needs, and a NULL pointer is
+   returned. */
    if( generation_gap <= 0 && generation_gap != AST__COUSIN ) {
-      new = astCastCopy( this_object, obj );
+      generation_gap = astClassCompare( astVTAB( this_object ),
+                                        astVTAB( obj ) );
+      if( generation_gap >= 0 && generation_gap != AST__COUSIN ) {
+         new = astCastCopy( this_object, obj );
+      }
 
 /* If "obj" is not a CmpFrame or a sub-class of CmpFrame (e.g. it's a
    Frame), we create a basic Frame containing the same axes and attributes

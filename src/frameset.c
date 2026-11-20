@@ -305,6 +305,10 @@ f     - AST_REMOVEFRAME: Remove a Frame from a FrameSet
 *        Cast: initialise the virtual function table of the FrameSet class
 *        before comparing it with that of another class, in case only
 *        objects of sub-classes have been created so far.
+*     19-NOV-2026 (TIMJ):
+*        Cast: only cast into a sub-class of FrameSet if the FrameSet is an
+*        instance of that sub-class. A FrameSet was copied as if it were a
+*        Plot, which read beyond the end of the FrameSet.
 *class--
 */
 
@@ -2471,11 +2475,19 @@ static AstObject *Cast( AstObject *this_object, AstObject *obj, int *status ) {
    generation_gap = astClassCompare( (AstObjectVtab *) &class_vtab,
                                      astVTAB( obj ) );
 
-/* If "obj" is a FrameSet or a sub-class of FrameSet, we can cast by
+/* If "obj" is a FrameSet or a sub-class of FrameSet, a cast is
+   possible only if "this" is an instance of the class of "obj" (that is,
+   it is of that class or of a sub-class of it). If so, we can cast by
    truncating the vtab for "this" so that it matches the vtab of "obJ",
-   and then taking a deep copy of "this". */
+   and then taking a deep copy of "this". Otherwise "this" does not hold
+   the components that the class of "obj" needs, and a NULL pointer is
+   returned. */
    if( generation_gap <= 0 && generation_gap != AST__COUSIN ) {
-      new = astCastCopy( this_object, obj );
+      generation_gap = astClassCompare( astVTAB( this_object ),
+                                        astVTAB( obj ) );
+      if( generation_gap >= 0 && generation_gap != AST__COUSIN ) {
+         new = astCastCopy( this_object, obj );
+      }
 
 /* If "obj" is not a FrameSet or a sub-class of FrameSet (e.g. a Frame or
    some sub-class of Frame), we attempt to cast the current Frame into
