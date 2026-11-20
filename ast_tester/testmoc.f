@@ -13,7 +13,7 @@
      :                      '"8":[]}' )
 
       character mocstr1*27
-      parameter( mocstr1 = '1/1-2,4 2/12-14,21,23,25 8/' )
+      parameter( mocstr1 = '1/1-2 4 2/12-14 21 23 25 8/' )
 
       character mocstr2*32
       parameter( mocstr2 = ' 1/1,2,4   2/12-14, 21,23,25 8/ ' )

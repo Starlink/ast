@@ -227,6 +227,28 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        lower bound, and extend the array of ranges as each range is read
 *        so that its size does not depend on an unchecked count.
 *     12-NOV-2026 (TIMJ):
+*        Transform: find the cell that holds a position that is on the edge
+*        of the sky in the HPX12 projection, as a pole is, and every
+*        position on a meridian that divides two polar facets. The cell with
+*        the nearest centre can then be one that is off the sky, and the
+*        position was reported as outside the Moc. The cell on the other
+*        side of the edge is now used (new function PosToNested).
+*        XyToNested: reject a negative cell index, which the division that
+*        gives the facet index rounded into the first facet.
+*     12-NOV-2026 (TIMJ):
+*        AddRegion, AddPixelMask<X>: accept a MaxOrder of zero, starting at
+*        order zero since there is no lower order to start at, rather than
+*        report an error.
+*     12-NOV-2026 (TIMJ):
+*        AddRegion: check that the Region does not extend beyond the box
+*        that bounds its boundary, and use the whole grid if it does (new
+*        function RegionBeyondBox). A Region that covers about half the sky
+*        or more can be the area outside its boundary in the projection
+*        used, and its cells outside the box were left out of the Moc.
+*     12-NOV-2026 (TIMJ):
+*        astGetMocText: separate the cells of a string MOC with spaces, as
+*        the MOC recommendation requires, rather than commas.
+*     12-NOV-2026 (TIMJ):
 *        astAddMocText: hold a range in a string MOC as a range rather than
 *        as each of its values, of which there can be very many.
 *     13-NOV-2026 (TIMJ):
@@ -527,6 +549,8 @@ static int ResToOrder( double );
 static int log2_32( int );
 static int log2_64( int64_t );
 static int TestCell( AstMoc *, int, int64_t, int, int * );
+static int RegionBeyondBox( AstRegion *, AstMapping *, const AstDim[ 2 ], const AstDim[ 2 ], int * );
+static int64_t PosToNested( int, double, double );
 static int64_t XyToNested( int, int, int );
 static void AddCell( AstMoc *, int, int, int64_t, int * );
 static void AddMocData( AstMoc *, int, int, int, int, int, const void *, int * );
@@ -2142,11 +2166,11 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
       maxorder = minorder; \
       minorder = maxorder - 1; \
    } \
-   if( minorder < 0 && astOK ) { \
-      astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid value " \
-                "(%d) supplied for parameter 'MinOrder'.", status,  \
-                astGetClass(this), minorder ); \
-   } \
+\
+/* A maximum order of zero leaves no lower order at which to start, so \
+   start at order zero. Each of the twelve cells is then tested only at \
+   its centre. */ \
+   if( minorder < 0 ) minorder = 0; \
 \
 /* Invert the WCS FrameSet for the picked (i.e. sky) axes, so that the \
    current Frame represents grid coords in the array and the base Frame \
@@ -2671,16 +2695,10 @@ f        The global status.
             minorder = maxorder - 1;
          }
 
-/* A MaxOrder of zero leaves no lower order at which to start. */
-         if( minorder < 0 ) {
-            if( astOK ) {
-               astError( AST__INVAR, "astAddRegion(%s): Invalid value (%d) "
-                         "supplied for parameter 'MinOrder'.", status,
-                         astGetClass(this), minorder );
-            }
-            picked = astAnnul( picked );
-            return;
-         }
+/* A maximum order of zero leaves no lower order at which to start, so
+   start at order zero. Each of the twelve cells is then tested only at
+   its centre. */
+         if( minorder < 0 ) minorder = 0;
 
 /* Get a pointer to the Frame in which the Region is defined. We use this
    with astConvert below, rather than the original Region, so that the
@@ -2826,6 +2844,23 @@ f        The global status.
          gubnd_min[ 0 ] = (AstDim)round( outa[ 1 ] ) + 1;
          gubnd_min[ 1 ] = (AstDim)round( outb[ 1 ] ) + 1;
          tempmap2 = astAnnul( tempmap2 );
+
+/* The box found above bounds the boundary of the Region, and so bounds
+   the Region only if the Region is the area inside its boundary. A
+   Region that covers more than about half the sky can instead be the
+   area outside its boundary in the chosen projection. If the Region
+   extends beyond the box, use the whole grid of the projection (four
+   facets along each axis for an XPH projection and five for an HPX
+   projection). */
+         if( RegionBeyondBox( mapped_min, maps[ minorder ], glbnd_min,
+                              gubnd_min, status ) ) {
+            glbnd_min[ 0 ] = 1;
+            glbnd_min[ 1 ] = 1;
+            gubnd_min[ 0 ] = ( ( iproj_min == AST__XPHN ||
+                                 iproj_min == AST__XPHS ) ? 4 : 5 )*
+                             ( ( (AstDim) 1 ) << minorder );
+            gubnd_min[ 1 ] = gubnd_min[ 0 ];
+         }
 
 /* Initialise a CellList structure holding the grid coords of the cells
    to add into the Moc at each order. This also holds Mappings from
@@ -5165,8 +5200,9 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
                TOKEN_WRITE;
             }
 
-/* Then write the (potential) start of the new range. */
-            nc = sprintf( token, ",%" PRId64, npix );
+/* Then write the (potential) start of the new range. The MOC
+   recommendation separates the elements of a string MOC with spaces. */
+            nc = sprintf( token, " %" PRId64, npix );
             TOKEN_WRITE;
             npix_start = npix;
          }
@@ -6980,6 +7016,111 @@ static double OrderToRes( int order ){
    return 211076.29/(double)( 1 << order );
 }
 
+static int64_t PosToNested( int order, double x, double y ){
+/*
+*  Name:
+*     PosToNested
+
+*  Purpose:
+*     Get the HEALPix nested index of the cell holding an HPX12 position.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     int64_t PosToNested( int order, double x, double y )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function returns the HEALPix nested index of the cell that
+*     holds a position given in grid coords within the HPX12 projection.
+*
+*     The cell used is the one with the nearest centre. A position on the
+*     edge of the sky - for instance one on a meridian that divides two
+*     polar facets - is on the edge of a cell, and the nearest centre can
+*     then be that of a cell that is off the sky. If so, the cell on the
+*     other side of the edge is used. Rounding errors in the calculation
+*     of the grid coords can move such a position slightly off the edge,
+*     so a position within a small distance of an edge is treated as
+*     being on it. The distance is the margin that the HPX projection
+*     allows for rounding (see AST__HPXTOL).
+
+*  Parameters:
+*     order
+*        The HEALPix order.
+*     x
+*        The grid X coordinate of the position within the HPX12
+*        projection. The centre of the first cell is at 1.0.
+*     y
+*        The grid Y coordinate of the position within the HPX12
+*        projection.
+
+*  Returned Value:
+*     The HEALPix nested index, or INT64_MAX if the position is bad or is
+*     not on the sky.
+*/
+
+/* Local Variables: */
+   double edge;             /* Coordinate of the nearest cell edge */
+   double ix[ 2 ];          /* Candidate one-based cell indices on X axis */
+   double iy[ 2 ];          /* Candidate one-based cell indices on Y axis */
+   double size;             /* Number of cells along each axis of the grid */
+   double tol;              /* Width of the edge of a cell, in pixels */
+   int i;                   /* Index of candidate on the X axis */
+   int j;                   /* Index of candidate on the Y axis */
+   int nx;                  /* Number of candidates on the X axis */
+   int ny;                  /* Number of candidates on the Y axis */
+   int64_t result;          /* Returned index */
+
+/* Initialise the returned index to a "bad" value. */
+   result = INT64_MAX;
+
+/* Check the position is good. */
+   if( x == AST__BAD || y == AST__BAD ) return result;
+
+/* The grid has five facets along each axis. A step of one pixel along
+   either axis changes each coordinate in the plane of the projection by
+   45 degrees divided by the number of pixels along the edge of a facet. */
+   size = 5.0*( 1 << order );
+   tol = AST__HPXTOL*( 1 << order )/45.0;
+
+/* On each axis, get the one-based index of the cell with the nearest
+   centre. The edges of the cells are at half-integer coordinates. If the
+   position is on an edge, also get the index of the cell on the other
+   side of it. */
+   ix[ 0 ] = round( x );
+   nx = 1;
+   edge = floor( x ) + 0.5;
+   if( fabs( x - edge ) <= tol ) {
+      ix[ nx++ ] = ( ix[ 0 ] > edge ) ? edge - 0.5 : edge + 0.5;
+   }
+
+   iy[ 0 ] = round( y );
+   ny = 1;
+   edge = floor( y ) + 0.5;
+   if( fabs( y - edge ) <= tol ) {
+      iy[ ny++ ] = ( iy[ 0 ] > edge ) ? edge - 0.5 : edge + 0.5;
+   }
+
+/* Try each combination, starting with the cell with the nearest centre,
+   until one is found that is on the sky. The check that the cell is
+   within the grid also ensures that its indices can be held in an int,
+   and rejects a position that is not finite. */
+   for( j = 0; j < ny && result == INT64_MAX; j++ ) {
+      for( i = 0; i < nx && result == INT64_MAX; i++ ) {
+         if( ix[ i ] >= 1.0 && ix[ i ] <= size &&
+             iy[ j ] >= 1.0 && iy[ j ] <= size ) {
+            result = XyToNested( order, (int) ix[ i ], (int) iy[ j ] );
+         }
+      }
+   }
+
+   return result;
+}
+
 static void PutCell( AstMoc *this, AstMapping **map, AstDim ncell, AstDim *ix,
                      AstDim *iy, int order, CellList *clist, int regtype,
                      void *data, int cmode, int *inorout, const char *method,
@@ -7360,6 +7501,135 @@ static void PutCell( AstMoc *this, AstMapping **map, AstDim ncell, AstDim *ix,
 
 /* Free the array of inside flags */
    inside = astFree( inside );
+}
+
+static int RegionBeyondBox( AstRegion *region, AstMapping *map,
+                            const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+                            int *status ){
+/*
+*  Name:
+*     RegionBeyondBox
+
+*  Purpose:
+*     See if a Region extends beyond a box that bounds its boundary.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     int RegionBeyondBox( AstRegion *region, AstMapping *map,
+*                          const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+*                          int *status )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function is given a box of grid cells that contains the whole
+*     of the boundary of a Region, with a margin of at least one cell,
+*     and determines whether the Region extends beyond the box.
+*
+*     Since no part of the boundary is outside the box, each connected
+*     part of the sky outside the box is either all inside or all outside
+*     the Region, and each such part adjoins the box. So the Region
+*     extends beyond the box if, and only if, it contains positions in
+*     the ring of cells that surrounds the box. Each cell in the ring is
+*     tested at its corners, edge-centres and centre.
+
+*  Parameters:
+*     region
+*        Pointer to the Region.
+*     map
+*        Pointer to a Mapping from the grid coordinates in which the box
+*        is defined to the Frame represented by the Region.
+*     lbnd
+*        The one-based indices of the first cell in the box on each axis.
+*     ubnd
+*        The one-based indices of the last cell in the box on each axis.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the Region extends beyond the box. Zero if it does not,
+*     or if an error occurs.
+*/
+
+/* Local Variables: */
+   AstDim i;                /* X coordinate of test point, in half cells */
+   AstDim ihi;              /* Last value of "i" */
+   AstDim ilo;              /* First value of "i" */
+   AstDim j;                /* Y coordinate of test point, in half cells */
+   AstDim jhi;              /* Last value of "j" */
+   AstDim jlo;              /* First value of "j" */
+   AstDim npoint;           /* Number of test points */
+   AstPointSet *ps1;        /* Test points in grid coords */
+   AstPointSet *ps2;        /* Test points in the Frame of the Region */
+   AstPointSet *ps3;        /* Test points masked by the Region */
+   double **ptr1;           /* Pointers to grid coords */
+   double **ptr3;           /* Pointers to masked values */
+   double *px;              /* Pointer to next X value */
+   double *py;              /* Pointer to next Y value */
+   int result;              /* Returned flag */
+
+/* Initialise */
+   result = 0;
+
+/* Check the global error status. */
+   if( !astOK ) return result;
+
+/* The test points are spaced half a cell apart. In units of half a cell,
+   the outer edge of the box is at ( 2*lbnd - 1 ) and ( 2*ubnd + 1 ), and
+   the outer edge of the ring of cells around the box is one cell further
+   out. */
+   ilo = 2*lbnd[ 0 ] - 3;
+   ihi = 2*ubnd[ 0 ] + 3;
+   jlo = 2*lbnd[ 1 ] - 3;
+   jhi = 2*ubnd[ 1 ] + 3;
+
+/* The test points are those on or outside the outer edge of the box:
+   three complete rows below the box and three above it, and three points
+   at each end of each of the rows between. */
+   npoint = 6*( ihi - ilo + 1 ) + 6*( jhi - jlo - 5 );
+
+/* Store the grid coords of the test points. */
+   ps1 = astPointSet( npoint, 2, "", status );
+   ptr1 = astGetPoints( ps1 );
+   if( astOK ) {
+      px = ptr1[ 0 ];
+      py = ptr1[ 1 ];
+      for( j = jlo; j <= jhi; j++ ) {
+         for( i = ilo; i <= ihi; i++ ) {
+            if( j < jlo + 3 || j > jhi - 3 || i < ilo + 3 || i > ihi - 3 ) {
+               *(px++) = 0.5*i;
+               *(py++) = 0.5*j;
+            } else {
+               i = ihi - 3;
+            }
+         }
+      }
+
+/* Transform them into the Frame of the Region, and then use the Region
+   to set bad those that are outside the Region. A test point that is not
+   on the sky is already bad. */
+      ps2 = astTransform( map, ps1, 1, NULL );
+      ps3 = astTransform( region, ps2, 1, NULL );
+      ptr3 = astGetPoints( ps3 );
+      if( astOK ) {
+         px = ptr3[ 0 ];
+         for( i = 0; i < npoint; i++ ) {
+            if( *(px++) != AST__BAD ) {
+               result = 1;
+               break;
+            }
+         }
+      }
+      ps3 = astAnnul( ps3 );
+      ps2 = astAnnul( ps2 );
+   }
+   ps1 = astAnnul( ps1 );
+
+   return result;
 }
 
 static void RegBaseBox( AstRegion *this_region, double *lbnd,
@@ -9788,8 +10058,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       for( ipoint = 0; ipoint < npoint; ipoint++ ) {
 
 /* Convert from grid (x,y) to nested index. */
-         inest = px ? XyToNested( order, (int)round( *(px++) ),
-                                  (int)round( *(py++) ) ) : INT64_MAX;
+         inest = px ? PosToNested( order, *(px++), *(py++) ) : INT64_MAX;
 
 /* Test if this nested index is contained in the Moc. Each pair of
    adjacent values in the "this->range" array are the upper and lower
@@ -9901,11 +10170,15 @@ static int64_t XyToNested( int order, int ix, int iy ){
 /* Get the number of cells along one edge of a facet.*/
    nppf = ( 1 << order );
 
+/* Convert ix and iy from one-based to zero-based. A negative index is
+   off the grid. This check is needed because the divisions below round
+   towards zero, and so would put such an index in the first facet. */
+   if( --ix < 0 || --iy < 0 ) return result;
+
 /* Get the zero based facet (x,y) indices - offsets from the bottom left
-   facet in Calabretta & Roukema 2005 Fig 3. Convert ix and iy from
-   one-based to zero-based before doing the calculations. */
-   fx = (--ix)/nppf;
-   fy = (--iy)/nppf;
+   facet in Calabretta & Roukema 2005 Fig 3. */
+   fx = ix/nppf;
+   fy = iy/nppf;
 
 /* Get the (x,y) offsets of the cell into the facet, measured from the
    bottom left corner of the facet as shown in Calabretta & Roukema 2005
