@@ -250,6 +250,12 @@ f     The CmpFrame class does not define any new routines beyond those
 *        which is used to put the position back into internal axis order,
 *        otherwise left the order of the axes unchanged, so that each
 *        component Frame tested the wrong axes of a permuted CmpFrame.
+*     19-NOV-2026 (TIMJ):
+*        GenAxisSelection: return at once if no axes are to be selected. A
+*        component Frame that is itself a CmpFrame can be matched with none
+*        of the axes of a target, and the search for the next selection
+*        then read an element of the array of selected axes that had not
+*        been set, or that lay beyond the end of the array.
 *class--
 */
 
@@ -3502,6 +3508,10 @@ static int GenAxisSelection( int naxes, int nselect, int axes[], int *status ) {
 
 /* Check the global error status. */
    if ( !astOK ) return 0;
+
+/* There is only one way to select no axes, so there is no further
+   selection to return, and the array has no elements to update. */
+   if ( nselect < 1 ) return 0;
 
 /* Start with the first axis index and loop until the selection has
    been updated. */
