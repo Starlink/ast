@@ -105,6 +105,10 @@ f     The PcdMap class does not define any new routines beyond those
 *        the stored factor regardless of Invert, so swapping a PcdMap past an
 *        inverted ZoomMap produced a forward ZoomMap of the original factor
 *        and a PcdMap derived from it, which is not the composition supplied.
+*     11-NOV-2026 (TIMJ):
+*        astLoadPcdMap now checks that the dump describes a Mapping with
+*        two inputs and two outputs. The transformation read or wrote beyond
+*        the coordinate arrays otherwise.
 *class--
 */
 
@@ -3216,6 +3220,11 @@ AstPcdMap *astLoadPcdMap_( void *mem, size_t size,
 /* ------ */
       new->disco = astReadDouble( channel, "disco", AST__BAD );
       if ( TestDisco( new, status ) ) SetDisco( new, new->disco, status );
+
+/* A PcdMap always has two inputs and two outputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
+      astCheckLoadedCoords( new, name, 2, 2 );
 
 /* If an error occurred, clean up by deleting the new PcdMap. */
       if ( !astOK ) new = astDelete( new );

@@ -325,6 +325,42 @@ f     - AST_UNFORMAT: Read a formatted coordinate value for a Frame axis
 *        Move the permutation-array check into a new protected function
 *        astCheckPermArray, which takes the axis count explicitly. CheckPerm
 *        and the astLoadFrame and astLoadCmpFrame loaders now all share it.
+*     13-NOV-2026 (TIMJ):
+*        Limit a Frame to AST__MXAXES axes, in the constructor and in
+*        astLoadFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFrame, check that each Axis read is an Axis and that
+*        the variants are held in a FrameSet, and avoid an integer overflow
+*        when converting a permutation index of INT_MIN to a zero-based
+*        index.
+*     13-NOV-2026 (TIMJ):
+*        Added the protected function astCheckLoadedNaxes, for the loaders
+*        of classes that always have a particular number of axes.
+*     13-NOV-2026 (TIMJ):
+*        ResolvePoints: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
+*     16-NOV-2026 (TIMJ):
+*        ClearAttrib, GetAttrib, SetAttrib and TestAttrib: do not write
+*        beyond the end of the buffer that holds the attribute name passed
+*        on to the primary Frame of an axis.
+*     16-NOV-2026 (TIMJ):
+*        GetAttrib and Dump: use snprintf to format the ObsLat and ObsLon
+*        values and the comment that holds the label of the axis units.
+*     19-NOV-2026 (TIMJ):
+*        FrameGrid: find the number of ticks on each axis, and the total
+*        number of points, as floating point values, and report an error if
+*        there are more points than a PointSet can hold. An axis of zero
+*        length is left out of the geometric mean of the axis lengths and
+*        gets two ticks. Such an axis made the mean zero, so that the
+*        numbers of ticks were infinite or not a number when converted to
+*        an int, and their product could be smaller than the number of
+*        points then stored.
+*     19-NOV-2026 (TIMJ):
+*        astReadDateTime: report an error for a year or month that is not
+*        valid. The status returned by palCaldj was compared with the values
+*        used by SLALIB, which the function no longer returns, so such a
+*        date was accepted and its value had not been set. A day that is
+*        not valid for its month is still accepted.
 *class--
 */
 
@@ -2509,7 +2545,8 @@ L1:
 
 /* Modify the attribute name to refer to the axis numbering of the
    primary frame. */
-               sprintf( pfrm_attrib, "%s(%d)", axis_attrib, paxis + 1 );
+               snprintf( pfrm_attrib, sizeof( pfrm_attrib ),
+                         "%s(%d)", axis_attrib, paxis + 1 );
 
 /* Attempt to clear the attribute as an attribute of the primary Frame. */
                astClearAttrib( pfrm, pfrm_attrib );
@@ -4498,6 +4535,9 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
    double **ptr;
    double *gmean;
    double *step;
+   double dnp;
+   double dtick;
+   double width;
    int *maxi;
    int *nsame;
    int *ntick;
@@ -4532,10 +4572,10 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
 
 /* For each axis, find the total number of axes in the Frame that have
    the same unit string. Also, find the product of the lengths of these
-   axes. */
+   axes. An axis of zero length is left out of both, since it would make
+   the product zero whatever the lengths of the other axes. */
       bad = 0;
       for( iax = 0; iax < naxes; iax++ ) {
-         nsame[ iax ] = 1;
 
          if( ubnd[ iax ] == AST__BAD &&
              lbnd[ iax ] == AST__BAD ) {
@@ -4543,13 +4583,24 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
             break;
          }
 
-         gmean[ iax ] = ubnd[ iax ] - lbnd[ iax ];
+         width = ubnd[ iax ] - lbnd[ iax ];
+         if( width != 0.0 ) {
+            nsame[ iax ] = 1;
+            gmean[ iax ] = width;
+         } else {
+            nsame[ iax ] = 0;
+            gmean[ iax ] = 1.0;
+         }
+
          unit = astGetUnit( this, iax );
          for( jax = 0; jax < naxes; jax++ ) {
             if( jax != iax ) {
                if( astOK && !strcmp( unit, astGetUnit( this, jax ) ) ) {
-                  nsame[ iax ]++;
-                  gmean[ iax ] *= ubnd[ jax ] - lbnd[ jax ];
+                  width = ubnd[ jax ] - lbnd[ jax ];
+                  if( width != 0.0 ) {
+                     nsame[ iax ]++;
+                     gmean[ iax ] *= width;
+                  }
                }
             }
          }
@@ -4565,7 +4616,9 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
 
 /* Convert the dimension products into geometric means. */
          for( iax = 0; iax < naxes; iax++ ) {
-            gmean[ iax ] = pow( fabs(gmean[ iax ]), 1.0/(double)nsame[ iax ] );
+            if( nsame[ iax ] > 0 ) {
+               gmean[ iax ] = pow( fabs(gmean[ iax ]), 1.0/(double)nsame[ iax ] );
+            }
          }
 
 /* The number of ticks to use on each axis is equal to the nominal number
@@ -4573,12 +4626,33 @@ static AstPointSet *FrameGrid( AstFrame *this, int size, const double *lbnd,
    axis lengths that sahare the same unit string. This gives more ticks
    on the longer axes within any group of common-unit axes, whilst
    retaining the overall number of ticks (roughly). Also find the total
-   number of points. */
-         np = 1;
+   number of points. The number of ticks is found as a floating point
+   value so that a value that is too large for an int, or is not a number,
+   can be recognised. An axis of zero length gets the minimum of two
+   ticks, as does any axis for which the number is not a number. */
+         dnp = 1.0;
          for( iax = 0; iax < naxes; iax++ ) {
-            ntick[ iax ] = ntick0*( ubnd[ iax ] - lbnd[ iax ] )/gmean[ iax ];
-            if( ntick[ iax ] < 2 ) ntick[ iax ] = 2;
-            np *= ntick[ iax ];
+            width = ubnd[ iax ] - lbnd[ iax ];
+            dtick = ( width != 0.0 ) ? ntick0*width/gmean[ iax ] : 0.0;
+            if( !( dtick >= 2.0 ) ) {
+               ntick[ iax ] = 2;
+            } else if( dtick < (double) INT_MAX ) {
+               ntick[ iax ] = (int) dtick;
+            } else {
+               ntick[ iax ] = INT_MAX;
+            }
+            dnp *= ntick[ iax ];
+         }
+
+/* Report an error if the grid would have more points than a PointSet
+   can hold. */
+         if( dnp > (double) INT_MAX ) {
+            np = 0;
+            astError( AST__ATTIN, "astFrameGrid(%s): The supplied bounds "
+                      "and grid size (%d) need a grid of more points than "
+                      "can be created.", status, astGetClass( this ), size );
+         } else {
+            np = (int) dnp;
          }
 
 /* Create a PointSet large enough to hold this many points. */
@@ -5173,9 +5247,11 @@ L1:
 
 /* Display absolute value preceded by "N" or "S" as appropriate. */
          if( dval < 0 ) {
-            (void) sprintf( getattrib_buff, "S%s",  astFormat( skyframe, 1, -dval ) );
+            (void) snprintf( getattrib_buff, sizeof( getattrib_buff ),
+                             "S%s",  astFormat( skyframe, 1, -dval ) );
          } else {
-            (void) sprintf( getattrib_buff, "N%s",  astFormat( skyframe, 1, dval ) );
+            (void) snprintf( getattrib_buff, sizeof( getattrib_buff ),
+                             "N%s",  astFormat( skyframe, 1, dval ) );
          }
          result = getattrib_buff;
       }
@@ -5199,9 +5275,11 @@ L1:
 
 /* Display absolute value preceded by "E" or "W" as appropriate. */
          if( dval < 0 ) {
-            (void) sprintf( getattrib_buff, "W%s",  astFormat( skyframe, 1, -dval ) );
+            (void) snprintf( getattrib_buff, sizeof( getattrib_buff ),
+                             "W%s",  astFormat( skyframe, 1, -dval ) );
          } else {
-            (void) sprintf( getattrib_buff, "E%s",  astFormat( skyframe, 1, dval ) );
+            (void) snprintf( getattrib_buff, sizeof( getattrib_buff ),
+                             "E%s",  astFormat( skyframe, 1, dval ) );
          }
          result = getattrib_buff;
 
@@ -5288,7 +5366,8 @@ L1:
 
 /* Modify the attribute name to refer to the axis numbering of the
    primary frame. */
-               sprintf( pfrm_attrib, "%s(%d)", axis_attrib, paxis + 1 );
+               snprintf( pfrm_attrib, sizeof( pfrm_attrib ),
+                         "%s(%d)", axis_attrib, paxis + 1 );
 
 /* Attempt to use the Axis astGetAttrib method to obtain the result. */
                result = astGetAttrib( pfrm, pfrm_attrib );
@@ -9354,17 +9433,16 @@ double astReadDateTime_( const char *value, int *status ) {
             palCaldj( year, month, iday, &mjd, &stat );
 
 /* Examine the return status from the conversion and report an appropriate
-   error if necessary. */
+   error if necessary. No date is returned for a year or a month that is
+   not valid. A day that is not valid for the month is not an error: the
+   date returned is found by counting days on from the start of the
+   month, and is used. */
             switch ( stat ) {
-            case 1:
+            case -1:
                astError( AST__DTERR, "Year value (%d) is invalid.", status, year );
                break;
-            case 2:
+            case -2:
                astError( AST__DTERR, "Month value (%d) is invalid.", status, month );
-               break;
-            case 3:
-               astError( AST__DTERR, "Day value (%.*g) is invalid.", status, AST__DBL_DIG,
-                         day );
                break;
 
 /* If conversion to MJD was successful, add any fractional part of a day to the
@@ -9962,8 +10040,13 @@ static AstPointSet *ResolvePoints( AstFrame *this, const double point1[],
 /* Free resources */
    basisv = astFree( basisv );
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -10596,7 +10679,8 @@ L1:
 
 /* Modify the attribute name to refer to the axis numbering of the
    primary frame. */
-                  sprintf( pfrm_attrib, "%.*s(%d)", axis_nc, setting, paxis + 1 );
+                  snprintf( pfrm_attrib, sizeof( pfrm_attrib ),
+                            "%.*s(%d)", axis_nc, setting, paxis + 1 );
 
 /* Create a setting string in which the attribute name refers to the axis
    numbering of the primary frame. */
@@ -11729,7 +11813,8 @@ L1:
 
 /* Modify the attribute name to refer to the axis numbering of the
    primary frame. */
-               sprintf( pfrm_attrib, "%s(%d)", axis_attrib, paxis + 1 );
+               snprintf( pfrm_attrib, sizeof( pfrm_attrib ),
+                         "%s(%d)", axis_attrib, paxis + 1 );
 
 /* Attempt to test the attribute as an attribute of the primary Frame. */
                result = astTestAttrib( pfrm, pfrm_attrib );
@@ -14626,7 +14711,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* Construct a comment including the above label (but only if it is not
    the same as the unit string) . */
          if( lab && strcmp( lab, sval ) ) {
-            (void) sprintf( comment, "Units for axis %d (%s)", axis + 1, lab );
+            (void) snprintf( comment, sizeof( comment ),
+                             "Units for axis %d (%s)", axis + 1, lab );
          } else {
             (void) sprintf( comment, "Units for axis %d", axis + 1 );
          }
@@ -15054,6 +15140,11 @@ AstFrame *astInitFrame_( void *mem, size_t size, int init,
       astError( AST__NAXIN, "astInitFrame(%s): Number of axes (%d) is "
                 "invalid - this number should not be negative.", status, name, naxes );
 
+   } else if ( naxes > AST__MXAXES ) {
+      astError( AST__NAXIN, "astInitFrame(%s): Number of axes (%d) is "
+                "invalid - this number should not exceed %d.", status, name,
+                naxes, AST__MXAXES );
+
 /* Initialise a Mapping structure (the parent class) as the first
    component within the Frame structure, allocating memory if
    necessary. Set the number of input/output coordinates to zero (the
@@ -15270,13 +15361,20 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
    which hold axis information. */
       new->naxes = astReadInt( channel, "naxes", 0 );
       if ( new->naxes < 0 ) new->naxes = 0;
+      if ( astOK && new->naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astLoadFrame(%s): Number of axes (%d) read "
+                   "from the dump is invalid - this number should not "
+                   "exceed %d.", status, name, new->naxes, AST__MXAXES );
+      }
       new->perm = astMalloc( sizeof( int ) * (size_t) new->naxes );
       new->axis = astMalloc( sizeof( AstAxis * ) * (size_t) new->naxes );
 
-/* If an error occurred, ensure that any allocated memory is freed. */
+/* If an error occurred, ensure that any allocated memory is freed, and
+   that the Frame does not claim to have axes that it has no memory for. */
       if ( !astOK ) {
          new->perm = astFree( new->perm );
          new->axis = astFree( new->axis );
+         new->naxes = 0;
 
 /* Otherwise, initialise the array of Axis pointers. */
       } else {
@@ -15296,6 +15394,7 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Read the Axis object. If none was read, provide a default Axis
    instead. */
             new->axis[ axis ] = astReadObject( channel, key, NULL );
+            astCheckLoaded( new->axis[ axis ], Axis, 0, name, "Axis" );
             if ( !new->axis[ axis ] ) new->axis[ axis ] = astAxis( "", status );
 
 /* Label. */
@@ -15374,7 +15473,8 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Convert from 1-based to zero-based axis numbering at this
    point. The default is the "un-permuted" value. */
             sprintf( key, "prm%d", axis + 1 );
-            new->perm[ axis ] = astReadInt( channel, key, axis + 1 ) - 1;
+            ival = astReadInt( channel, key, axis + 1 );
+            new->perm[ axis ] = ( ival > 0 ) ? ival - 1 : -1;
 
 /* Quit looping if an error occurs. */
             if ( !astOK ) break;
@@ -15520,6 +15620,8 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 /* Variants. */
 /* -------- */
          new->variants = astReadObject( channel, "vrnts", NULL );
+         astCheckLoaded( new->variants, FrameSet, 0, name,
+                         "FrameSet of variant Mappings" );
       }
 
 /* If an error occurred, clean up by deleting the new Frame. */
@@ -15531,6 +15633,59 @@ AstFrame *astLoadFrame_( void *mem, size_t size,
 
 /* Undefine macros local to this function. */
 #undef KEY_LEN
+}
+
+void astCheckLoadedNaxes_( AstFrame *this, const char *name, int naxes,
+                           int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoadedNaxes
+
+*  Purpose:
+*     Check the number of axes of a Frame read from a dump.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "frame.h"
+*     void astCheckLoadedNaxes( AstFrame *this, const char *name, int naxes )
+
+*  Class Membership:
+*     Frame member function.
+
+*  Description:
+*     astLoadFrame takes the number of axes of a Frame from a dump. Some
+*     classes of Frame always have a particular number of axes, which
+*     their constructors ensure and their other functions rely on. The
+*     loader for such a class should call this function, as soon as it
+*     has loaded its parent Frame structure, to report an error if the
+*     number read from the dump is not the one that the class requires.
+
+*  Parameters:
+*     this
+*        Pointer to the Frame.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     naxes
+*        The number of axes that the Frame must have.
+
+*  Notes:
+*     - An error with status AST__LDERR is reported if the Frame has a
+*     different number of axes.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Report an error if the number of axes is wrong. */
+   if ( astGetNaxes( this ) != naxes ) {
+      astError( AST__LDERR, "astLoad(%s): The %s read has %d axes, but a %s "
+                "must have %d.", status, name, name, astGetNaxes( this ),
+                name, naxes );
+   }
 }
 
 /* Virtual function interfaces. */

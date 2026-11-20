@@ -24,7 +24,7 @@
 *  Notes:
 *     - This is a native C test with no Fortran original.
 *     - Public C API only.  Errors expected from a deliberately invalid
-*       dump are caught through astOK and cleared with astClearStatus so the
+*       dump are caught through astStatus and cleared with astClearStatus so the
 *       remaining cases can run; failures of the test itself are counted and
 *       reported at the end.
 */
@@ -33,6 +33,7 @@
 #include <string.h>
 #include "sae_par.h"
 #include "ast.h"
+#include "ast_err.h"
 
 /* Return a newly allocated copy of "src" with the first occurrence of
    "find" replaced by "repl", or NULL if "find" does not occur. */
@@ -73,9 +74,10 @@ static char *dup_insert( const char *src, const char *marker,
    return out;
 }
 
-/* Attempt to load a dump that should be rejected.  Returns 0 if it was
-   rejected cleanly, 1 otherwise.  Frees "dump" and clears any status. */
-static int check_rejected( const char *what, char *dump ) {
+/* Attempt to load a dump that should be rejected with the error code
+   "expected".  Returns 0 if no object was returned and that error was
+   reported, 1 otherwise.  Frees "dump" and clears any status. */
+static int check_rejected( const char *what, char *dump, int expected ) {
    int result = 0;
    if ( !dump ) {
       fprintf( stderr, "testframesetload: could not build the %s dump\n",
@@ -84,12 +86,17 @@ static int check_rejected( const char *what, char *dump ) {
    }
    {
       AstObject *obj = astFromString( dump );
-      int bad_status = !astOK;
-      if ( obj ) obj = astAnnul( obj );
+      int code = astStatus;
+      int loaded = ( obj != NULL );
       if ( !astOK ) astClearStatus;
-      if ( obj != NULL || !bad_status ) {
+      if ( obj ) obj = astAnnul( obj );
+      if ( loaded ) {
          fprintf( stderr, "testframesetload: %s was accepted but should "
                   "have been rejected\n", what );
+         result = 1;
+      } else if ( code != expected ) {
+         fprintf( stderr, "testframesetload: %s was rejected with status %d "
+                  "but status %d was expected\n", what, code, expected );
          result = 1;
       }
    }
@@ -151,15 +158,20 @@ int main( void ) {
 /* Each out-of-range graph value must be rejected at load time. The keyword
    case does not matter to the loader; the Dump writes capitalised forms. */
    nfail += check_rejected( "out-of-range Current",
-                            dup_replace( dump, "Currnt = 2", "Currnt = 99" ) );
+                            dup_replace( dump, "Currnt = 2", "Currnt = 99" ),
+                            AST__FRSIN );
    nfail += check_rejected( "out-of-range Base",
-                            dup_insert( dump, "Nframe = 2\n", " Base = 99\n" ) );
+                            dup_insert( dump, "Nframe = 2\n", " Base = 99\n" ),
+                            AST__FRSIN );
    nfail += check_rejected( "out-of-range node",
-                            dup_insert( dump, "Nframe = 2\n", " Nod1 = 99\n" ) );
+                            dup_insert( dump, "Nframe = 2\n", " Nod1 = 99\n" ),
+                            AST__FRSIN );
    nfail += check_rejected( "out-of-range link",
-                            dup_replace( dump, "Lnk2 = 1", "Lnk2 = 99" ) );
+                            dup_replace( dump, "Lnk2 = 1", "Lnk2 = 99" ),
+                            AST__FRSIN );
    nfail += check_rejected( "out-of-range variants",
-                            dup_insert( dump, "Nframe = 2\n", " Vfr1 = 99\n" ) );
+                            dup_insert( dump, "Nframe = 2\n", " Vfr1 = 99\n" ),
+                            AST__FRSIN );
 
 /* A cycle in the variants chain is in range, so it loads, but walking the
    chain (here through the Variant attribute) must report corruption rather
@@ -175,13 +187,13 @@ int main( void ) {
             if ( !astOK ) astClearStatus;
          } else {
             (void) astGetC( obj, "Variant" );
-            if ( astOK ) {
+            if ( astStatus != AST__FRSIN ) {
                fprintf( stderr, "testframesetload: cyclic variants chain "
-                        "was not detected\n" );
+                        "gave status %d, expected %d\n", astStatus,
+                        AST__FRSIN );
                nfail++;
-            } else {
-               astClearStatus;
             }
+            if ( !astOK ) astClearStatus;
          }
          if ( obj ) obj = astAnnul( obj );
          cyc = astFree( cyc );

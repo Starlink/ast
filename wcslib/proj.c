@@ -65,6 +65,12 @@
 *        integer value.
 *     -  astHPXrev: Take y within 1e-12 degrees of the pole's as the pole,
 *        not only y exactly at it.
+*     -  The set-up functions for the AZP, SZP, ZPN, AIR, CYP, CEA, COP, COE,
+*        COD and COO projections now record that the set-up has been done
+*        only once the projection parameters have been found to be usable.
+*        Previously this was recorded before the parameters were checked, so
+*        that after a failed set-up later calls used values that had never
+*        been calculated.
 
 *=============================================================================
 *
@@ -465,7 +471,6 @@ int astAZPset(struct AstPrjPrm *prj)
 
 {
    strcpy(prj->code, "AZP");
-   prj->flag   = icopysign(WCS__AZP, prj->flag);
    prj->phi0   =  0.0;
    prj->theta0 = 90.0;
 
@@ -496,6 +501,8 @@ int astAZPset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astAZPfwd;
    prj->astPRJrev = astAZPrev;
+
+   prj->flag = icopysign(WCS__AZP, prj->flag);
 
    return 0;
 }
@@ -637,7 +644,6 @@ int astSZPset(struct AstPrjPrm *prj)
 
 {
    strcpy(prj->code, "SZP");
-   prj->flag   = icopysign(WCS__SZP, prj->flag);
    prj->phi0   =  0.0;
    prj->theta0 = 90.0;
 
@@ -665,6 +671,8 @@ int astSZPset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astSZPfwd;
    prj->astPRJrev = astSZPrev;
+
+   prj->flag = icopysign(WCS__SZP, prj->flag);
 
    return 0;
 }
@@ -1253,7 +1261,6 @@ int astZPNset(struct AstPrjPrm *prj)
    const double tol = 1.0e-13;
 
    strcpy(prj->code, "ZPN");
-   prj->flag   = icopysign(WCS__ZPN, prj->flag);
    prj->phi0   =  0.0;
    prj->theta0 = 90.0;
 
@@ -1327,6 +1334,8 @@ int astZPNset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astZPNfwd;
    prj->astPRJrev = astZPNrev;
+
+   prj->flag = icopysign(WCS__ZPN, prj->flag);
 
    return 0;
 }
@@ -1596,7 +1605,6 @@ int astAIRset(struct AstPrjPrm *prj)
    double cxi;
 
    strcpy(prj->code, "AIR");
-   prj->flag   =  WCS__AIR;
    prj->phi0   =  0.0;
    prj->theta0 = 90.0;
 
@@ -1621,6 +1629,8 @@ int astAIRset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astAIRfwd;
    prj->astPRJrev = astAIRrev;
+
+   prj->flag = WCS__AIR;
 
    return 0;
 }
@@ -1758,7 +1768,6 @@ int astCYPset(struct AstPrjPrm *prj)
 
 {
    strcpy(prj->code, "CYP");
-   prj->flag   = WCS__CYP;
    prj->phi0   = 0.0;
    prj->theta0 = 0.0;
 
@@ -1796,6 +1805,8 @@ int astCYPset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astCYPfwd;
    prj->astPRJrev = astCYPrev;
+
+   prj->flag = WCS__CYP;
 
    return 0;
 }
@@ -1883,7 +1894,6 @@ int astCEAset(struct AstPrjPrm *prj)
 
 {
    strcpy(prj->code, "CEA");
-   prj->flag   = WCS__CEA;
    prj->phi0   = 0.0;
    prj->theta0 = 0.0;
 
@@ -1908,6 +1918,8 @@ int astCEAset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astCEAfwd;
    prj->astPRJrev = astCEArev;
+
+   prj->flag = WCS__CEA;
 
    return 0;
 }
@@ -2537,7 +2549,6 @@ int astCOPset(struct AstPrjPrm *prj)
 
 {
    strcpy(prj->code, "COP");
-   prj->flag   = icopysign(WCS__COP, prj->flag);
    prj->phi0   = 0.0;
    prj->theta0 = prj->p[1];
 
@@ -2562,6 +2573,8 @@ int astCOPset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astCOPfwd;
    prj->astPRJrev = astCOPrev;
+
+   prj->flag = icopysign(WCS__COP, prj->flag);
 
    return 0;
 }
@@ -2669,7 +2682,6 @@ int astCOEset(struct AstPrjPrm *prj)
    double theta1, theta2;
 
    strcpy(prj->code, "COE");
-   prj->flag   = WCS__COE;
    prj->phi0   = 0.0;
    prj->theta0 = prj->p[1];
 
@@ -2696,6 +2708,8 @@ int astCOEset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astCOEfwd;
    prj->astPRJrev = astCOErev;
+
+   prj->flag = WCS__COE;
 
    return 0;
 }
@@ -2795,7 +2809,6 @@ int astCODset(struct AstPrjPrm *prj)
 
 {
    strcpy(prj->code, "COD");
-   prj->flag   = WCS__COD;
    prj->phi0   = 0.0;
    prj->theta0 = prj->p[1];
 
@@ -2817,6 +2830,8 @@ int astCODset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astCODfwd;
    prj->astPRJrev = astCODrev;
+
+   prj->flag = WCS__COD;
 
    return 0;
 }
@@ -2901,7 +2916,6 @@ int astCOOset(struct AstPrjPrm *prj)
    double cos1, cos2, tan1, tan2, theta1, theta2;
 
    strcpy(prj->code, "COO");
-   prj->flag   = WCS__COO;
    prj->phi0   = 0.0;
    prj->theta0 = prj->p[1];
 
@@ -2935,6 +2949,8 @@ int astCOOset(struct AstPrjPrm *prj)
 
    prj->astPRJfwd = astCOOfwd;
    prj->astPRJrev = astCOOrev;
+
+   prj->flag = WCS__COO;
 
    return 0;
 }

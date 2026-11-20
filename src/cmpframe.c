@@ -217,6 +217,49 @@ f     The CmpFrame class does not define any new routines beyond those
 *        Frames are read before the permutation, so the axis count is
 *        available directly and is passed to the shared astCheckPermArray
 *        function.
+*     13-NOV-2026 (TIMJ):
+*        Limit a CmpFrame to AST__MXAXES axes, in the constructor and in
+*        astLoadCmpFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadCmpFrame, check that the two components are Frames, and
+*        avoid an integer overflow when converting a permutation index of
+*        INT_MIN to a zero-based index.
+*     13-NOV-2026 (TIMJ):
+*        NormalPoints and ResolvePoints: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
+*     13-NOV-2026 (TIMJ):
+*        GetDomain: do not write beyond the end of the buffer that holds
+*        the default Domain, which is made from the Domains of the two
+*        component Frames and so can be any length. A CmpFrame of twenty
+*        Frames read from a FITS header was enough to overflow it.
+*     16-NOV-2026 (TIMJ):
+*        Cast: initialise the virtual function table of the CmpFrame class
+*        before comparing it with that of another class. It is not set up
+*        until a CmpFrame is created, so casting an object of a sub-class
+*        such as SpecFluxFrame before then used a table full of zeros.
+*     16-NOV-2026 (TIMJ):
+*        ClearAttrib, GetAttrib, SetAttrib and TestAttrib: limit the length
+*        of the attribute name read from a name or setting that has an axis
+*        index to the size of the buffer that receives it.
+*     19-NOV-2026 (TIMJ):
+*        FrameGrid: report an error if the grids of the two component
+*        Frames together need more points than a PointSet can hold.
+*     19-NOV-2026 (TIMJ):
+*        NormBox: give the PermMap that puts a position into external axis
+*        order the inverse permutation as well. Its inverse transformation,
+*        which is used to put the position back into internal axis order,
+*        otherwise left the order of the axes unchanged, so that each
+*        component Frame tested the wrong axes of a permuted CmpFrame.
+*     19-NOV-2026 (TIMJ):
+*        GenAxisSelection: return at once if no axes are to be selected. A
+*        component Frame that is itself a CmpFrame can be matched with none
+*        of the axes of a target, and the search for the next selection
+*        then read an element of the array of selected axes that had not
+*        been set, or that lay beyond the end of the array.
+*     19-NOV-2026 (TIMJ):
+*        Cast: only cast into a sub-class of CmpFrame if the CmpFrame is an
+*        instance of that sub-class. A plain CmpFrame was copied as if it
+*        were a SpecFluxFrame.
 *class--
 */
 
@@ -1328,6 +1371,14 @@ static AstObject *Cast( AstObject *this_object, AstObject *obj, int *status ) {
 /* Get a pointer to the thread specific global data structure. */
    astGET_GLOBALS(NULL);
 
+/* The virtual function table for this class is compared with that of
+   "obj" below. It has not yet been initialised if the only objects
+   created so far belong to sub-classes of CmpFrame, so do it now. */
+   if( !class_init ) {
+      astInitCmpFrameVtab( &class_vtab, "CmpFrame" );
+      class_init = 1;
+   }
+
 /* See how many steps up the class inheritance ladder it is from "obj"
    to this class (CmpFrame). A positive value is returned if CmpFrame
    is a sub-class of "obj". A negative value is returned if "obj" is
@@ -1337,11 +1388,19 @@ static AstObject *Cast( AstObject *this_object, AstObject *obj, int *status ) {
    generation_gap = astClassCompare( (AstObjectVtab *) &class_vtab,
                                      astVTAB( obj ) );
 
-/* If "obj" is a CmpFrame or a sub-class of CmpFrame, we can cast by
+/* If "obj" is a CmpFrame or a sub-class of CmpFrame, a cast is
+   possible only if "this" is an instance of the class of "obj" (that is,
+   it is of that class or of a sub-class of it). If so, we can cast by
    truncating the vtab for "this" so that it matches the vtab of "obJ",
-   and then taking a deep copy of "this". */
+   and then taking a deep copy of "this". Otherwise "this" does not hold
+   the components that the class of "obj" needs, and a NULL pointer is
+   returned. */
    if( generation_gap <= 0 && generation_gap != AST__COUSIN ) {
-      new = astCastCopy( this_object, obj );
+      generation_gap = astClassCompare( astVTAB( this_object ),
+                                        astVTAB( obj ) );
+      if( generation_gap >= 0 && generation_gap != AST__COUSIN ) {
+         new = astCastCopy( this_object, obj );
+      }
 
 /* If "obj" is not a CmpFrame or a sub-class of CmpFrame (e.g. it's a
    Frame), we create a basic Frame containing the same axes and attributes
@@ -1622,7 +1681,7 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 /* If the attribute is qualified by an axis index, try accessing it as an
    attribute of the primary Frame containing the specified index. */
          if ( nc = 0,
-             ( 2 == astSscanf( attrib, "%[^(](%d)%n", buf1, &axis, &nc ) )
+             ( 2 == astSscanf( attrib, "%99[^(](%d)%n", buf1, &axis, &nc ) )
              && ( nc >= len ) ) {
 
 /* Find the primary Frame containing the specified axis. */
@@ -1638,7 +1697,7 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
 
 /* Create a new attribute with the same name but with the axis index
    appropriate to the primary Frame. */
-               sprintf( buf2, "%s(%d)", buf1, paxis + 1 );
+               snprintf( buf2, sizeof( buf2 ), "%s(%d)", buf1, paxis + 1 );
 
 /* Attempt to access the attribute. */
                astClearAttrib( pfrm, buf2 );
@@ -2923,8 +2982,16 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
       npoint2 = astGetNpoint( ps2 );
 
 /* Get the number of points in the returned FrameSet, and then create a
-   PointSet large enough to hold them. */
-      npoint = npoint1*npoint2;
+   PointSet large enough to hold them. Report an error if there are more
+   than a PointSet can hold. */
+      if( astOK && (double) npoint1*(double) npoint2 > (double) INT_MAX ) {
+         npoint = 0;
+         astError( AST__ATTIN, "astFrameGrid(%s): The supplied bounds "
+                   "and grid size (%d) need a grid of more points than "
+                   "can be created.", status, astGetClass( this ), size );
+      } else {
+         npoint = npoint1*npoint2;
+      }
       result = astPointSet( npoint, naxes, " ", status );
       ptr = astGetPoints( result );
       if( astOK ) {
@@ -3297,7 +3364,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 /* If the attribute is qualified by an axis index, try accessing it as an
    attribute of the primary Frame containing the specified index. */
       if ( nc = 0,
-          ( 2 == astSscanf( attrib, "%[^(](%d)%n", buf1, &axis, &nc ) )
+          ( 2 == astSscanf( attrib, "%99[^(](%d)%n", buf1, &axis, &nc ) )
           && ( nc >= len ) ) {
 
 /* Find the primary Frame containing the specified axis. */
@@ -3313,7 +3380,7 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
 
 /* Create a new attribute with the same name but with the axis index
    appropriate to the primary Frame. */
-            sprintf( buf2, "%s(%d)", buf1, paxis + 1 );
+            snprintf( buf2, sizeof( buf2 ), "%s(%d)", buf1, paxis + 1 );
 
 /* Attempt to access the attribute. */
             result = astGetAttrib( pfrm, buf2 );
@@ -3453,6 +3520,10 @@ static int GenAxisSelection( int naxes, int nselect, int axes[], int *status ) {
 
 /* Check the global error status. */
    if ( !astOK ) return 0;
+
+/* There is only one way to select no axes, so there is no further
+   selection to return, and the array has no elements to update. */
+   if ( nselect < 1 ) return 0;
 
 /* Start with the first axis index and loop until the selection has
    been updated. */
@@ -3632,7 +3703,8 @@ static const char *GetDomain( AstFrame *this_frame, int *status ) {
    copies of them. This is necessary because the component Frames may
    themselves be CmpFrames, resulting in this function being called
    recursively and so causing the static "getdomain_buff" array to be used in
-   multiple contexts. */
+   multiple contexts. The two values can be any length, so the default
+   value is truncated if it does not fit in the array. */
       t = astGetDomain( this->frame1 );
       dom1 = t ? astStore( NULL, t, strlen(t) + 1 ) : NULL;
       t = astGetDomain( this->frame2 );
@@ -3640,7 +3712,8 @@ static const char *GetDomain( AstFrame *this_frame, int *status ) {
 
       if( dom2 ) {
          if( strlen( dom1 ) > 0 || strlen( dom2 ) > 0 ) {
-            sprintf( (char *) getdomain_buff, "%s-%s", dom1, dom2 );
+            snprintf( (char *) getdomain_buff, sizeof( getdomain_buff ),
+                      "%s-%s", dom1, dom2 );
             result = getdomain_buff;
          } else {
             result = "CMP";
@@ -5840,8 +5913,13 @@ static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int con
    in1 = astAnnul( in1 );
    in2 = astAnnul( in2 );
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -5962,8 +6040,12 @@ static void NormBox( AstFrame *this_frame, double lbnd[], double ubnd[],
 
 /* Create a PermMap with a forward transformation which reorders a position
    which uses internal axis ordering into a position which uses external axis
-   ordering. */
-      pm1 = astPermMap( naxes, NULL, naxes, perm, NULL, "", status );
+   ordering. Its inverse transformation is used below to put a position
+   back into internal axis ordering, so it is given the inverse permutation
+   as well. Without one the inverse transformation would leave the order of
+   the axes unchanged. */
+      for ( axis = 0; axis < naxes; axis++ ) inperm[ perm[ axis ] ] = axis;
+      pm1 = astPermMap( naxes, inperm, naxes, perm, NULL, "", status );
 
 /* Put it in front of the supplied Mapping. The combination transforms an
    input internal position into an output external position.  */
@@ -8289,8 +8371,13 @@ static AstPointSet *ResolvePoints( AstFrame *this_frame, const double point1[],
    supplied PointSet. */
    astPermPoints( in, 1, perm );
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -8552,7 +8639,7 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* If the attribute is qualified by an axis index, try accessing it as an
    attribute of the primary Frame containing the specified index. */
          if ( nc = 0,
-             ( 2 == astSscanf( setting, "%[^(=](%d)= %n%*s %n", buf1, &axis,
+             ( 2 == astSscanf( setting, "%1033[^(=](%d)= %n%*s %n", buf1, &axis,
                                &value, &nc ) ) && ( nc >= len ) ) {
 
 /* Find the primary Frame containing the specified axis. */
@@ -8582,7 +8669,8 @@ static void SetAttrib( AstObject *this_object, const char *setting, int *status 
 /* Otherwise clear the status value, and try again without any axis index. */
                   } else {
                      astClearStatus;
-                     sprintf( buf2, "%s=%s", buf1, setting+value );
+                     snprintf( buf2, sizeof( buf2 ),
+                               "%s=%s", buf1, setting+value );
                      astSetAttrib( pfrm, buf2 );
 
 /* Indicate success, or clear the status value. */
@@ -9858,7 +9946,7 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 /* If the attribute is qualified by an axis index, try accessing it as an
    attribute of the primary Frame containing the specified index. */
          if ( nc = 0,
-             ( 2 == astSscanf( attrib, "%[^(](%d)%n", buf1, &axis, &nc ) )
+             ( 2 == astSscanf( attrib, "%79[^(](%d)%n", buf1, &axis, &nc ) )
              && ( nc >= len ) ) {
 
 /* Find the primary Frame containing the specified axis. */
@@ -9874,7 +9962,7 @@ static int TestAttrib( AstObject *this_object, const char *attrib, int *status )
 
 /* Create a new attribute with the same name but with the axis index
    appropriate to the primary Frame. */
-               sprintf( buf2, "%s(%d)", buf1, paxis + 1 );
+               snprintf( buf2, sizeof( buf2 ), "%s(%d)", buf1, paxis + 1 );
 
 /* Attempt to access the attribute. */
                result = astTestAttrib( pfrm, buf2 );
@@ -10903,8 +10991,15 @@ AstCmpFrame *astInitCmpFrame_( void *mem, size_t size, int init,
       new->frame1 = astClone( frame1 );
       new->frame2 = astClone( frame2 );
 
-/* Determine the number of CmpFrame axes. */
+/* Determine the number of CmpFrame axes. Neither component can have more
+   than AST__MXAXES axes, so the sum cannot overflow. */
       naxes = astGetNaxes( frame1 ) + astGetNaxes( frame2 );
+      if ( astOK && naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astInitCmpFrame(%s): Number of axes (%d) is "
+                   "invalid - this number should not exceed %d.", status,
+                   name, naxes, AST__MXAXES );
+         naxes = 0;
+      }
 
 /* Allocate memory to hold the axis permutation array and initialise
    this array. */
@@ -11000,6 +11095,7 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
    AstCmpFrame *new;             /* Pointer to the new CmpFrame */
    char key[ KEY_LEN + 1 ];      /* Buffer for keywords */
    int axis;                     /* Loop counter for axes */
+   int ival;                     /* Integer value read from the dump */
    int naxes;                    /* Number of CmpFrame axes */
 
 /* Get a pointer to the thread specific global data structure. */
@@ -11054,16 +11150,25 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
 /* Read both component Frames, supplying a default 1-dimensional Frame
    if necessary. */
       new->frame1 = astReadObject( channel, "framea", NULL );
+      astCheckLoaded( new->frame1, Frame, 0, name, "first component Frame" );
       if ( !new->frame1 ) new->frame1 = astFrame( 1, "", status );
 
       new->frame2 = astReadObject( channel, "frameb", NULL );
+      astCheckLoaded( new->frame2, Frame, 0, name, "second component Frame" );
       if ( !new->frame2 ) new->frame2 = astFrame( 1, "", status );
 
 /* Axis permutation array. */
 /* ----------------------- */
 /* Obtain the number of CmpFrame axes and allocate memory to hold the
-   axis permutation array. */
+   axis permutation array. Neither component can have more than
+   AST__MXAXES axes, but the two together can. */
       naxes = GetNaxes( (AstFrame *) new, status );
+      if ( astOK && naxes > AST__MXAXES ) {
+         astError( AST__NAXIN, "astLoadCmpFrame(%s): Number of axes (%d) "
+                   "read from the dump is invalid - this number should not "
+                   "exceed %d.", status, name, naxes, AST__MXAXES );
+         naxes = 0;
+      }
       new->perm = astMalloc( sizeof( int ) * (size_t) naxes );
 
 /* If OK, loop to read the array value for each axis. */
@@ -11071,9 +11176,12 @@ AstCmpFrame *astLoadCmpFrame_( void *mem, size_t size,
          for ( axis = 0; axis < naxes; axis++ ) {
 
 /* Convert from 1-based to zero-based axis numbering at this
-   point. The default is the "un-permuted" value. */
+   point. The default is the "un-permuted" value. Every value that is not
+   a valid 1-based index becomes -1, which is rejected below, so that the
+   subtraction cannot overflow. */
             sprintf( key, "axp%d", axis + 1 );
-            new->perm[ axis ] = astReadInt( channel, key, axis + 1 ) - 1;
+            ival = astReadInt( channel, key, axis + 1 );
+            new->perm[ axis ] = ( ival > 0 ) ? ival - 1 : -1;
 
 /* Quit looping if an error occurs. */
             if ( !astOK ) break;

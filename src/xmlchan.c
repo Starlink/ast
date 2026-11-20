@@ -101,6 +101,13 @@ f     The XmlChan class does not define any new routines beyond those
 *        a stack buffer overflow when the positional frame has more
 *        than one axis (e.g. a SkyFrame).
 *        Fix astFree of static buffer in xmlchan.c Report function.
+*     13-NOV-2026 (TIMJ):
+*        In ReadInt and ReadInt64, report an error for an integer that is
+*        too large for the type.
+*     16-NOV-2026 (TIMJ):
+*        Format the messages that quote text from the document being read
+*        with snprintf. Long text where a unit, a time scale, a time or an
+*        element name was expected wrote beyond the end of the buffer.
 *class--
 
 * Further STC work:
@@ -1062,8 +1069,8 @@ static AstRegion *AstroCoordAreaReader( AstXmlChan *this, AstXmlElement *elem,
             if( spec_val != AST__BAD && nred > 0 ) {
 
                text = astGetUnit( spec_frame, 0 );
-               if( text ) sprintf( buff, "restfreq= %.*g %s", AST__DBL_DIG,
-                                   spec_val, text );
+               if( text ) snprintf( buff, sizeof( buff ), "restfreq= %.*g %s",
+                                    AST__DBL_DIG, spec_val, text );
 
                if( !red_frame || !astTestRestFreq( red_frame ) ) {
                   for( ired = 0; ired < nred; ired++ ) {
@@ -1449,8 +1456,9 @@ static int AstroCoordsReader( AstXmlChan *this, AstXmlElement *elem,
 /* If the supplied Frame has no sky frame, but we found a Position2D, then
    report a warning and ignore the Position2D. */
       } else if( scan->count[ 0 ] ) {
-         sprintf( buff, "contains a <%s> which is not being used.",
-                  astXmlGetName( scan->el[ 0 ][ 0 ] ) );
+         snprintf( buff, sizeof( buff ),
+                   "contains a <%s> which is not being used.",
+                   astXmlGetName( scan->el[ 0 ][ 0 ] ) );
          Report( this, elem, WARNING, buff, status );
       }
       afrm = astAnnul( afrm );
@@ -2019,8 +2027,9 @@ static double AstronTimeReader( AstXmlChan *this, AstXmlElement *elem,
          iso = astXmlGetValue( scan->el[0][0], 0 );
          astClearTimeOrigin( cfrm );
          if( iso && astUnformat( cfrm, 0, iso, &val ) != strlen( iso ) ) {
-            sprintf( buff, "contains unsupported ISO time format \"%s\"",
-                     iso );
+            snprintf( buff, sizeof( buff ),
+                      "contains unsupported ISO time format \"%s\"",
+                      iso );
             Report( this, elem, FAILURE, buff, status );
          }
 
@@ -2050,8 +2059,9 @@ static double AstronTimeReader( AstXmlChan *this, AstXmlElement *elem,
             astSetD( frm, "TimeOrigin", fval );
             fs = astAnnul( fs );
          } else if( astOK ) {
-            sprintf( buff, "contains inconsistent timescale (%s)",
-                     astGetC( cfrm, "timescale" ) );
+            snprintf( buff, sizeof( buff ),
+                      "contains inconsistent timescale (%s)",
+                      astGetC( cfrm, "timescale" ) );
             Report( this, elem, FAILURE, buff, status );
          }
       }
@@ -2078,8 +2088,9 @@ static double AstronTimeReader( AstXmlChan *this, AstXmlElement *elem,
          astTran1( fs, 1, &offset, 1, &result );
          fs = astAnnul( fs );
       } else if( astOK ) {
-         sprintf( buff, "contains inconsistent timescale (%s)",
-                  astGetC( cfrm, "timescale" ) );
+         snprintf( buff, sizeof( buff ),
+                   "contains inconsistent timescale (%s)",
+                   astGetC( cfrm, "timescale" ) );
          Report( this, elem, FAILURE, buff, status );
       }
 
@@ -2297,7 +2308,8 @@ static double AttrValueD( AstXmlChan *this, AstXmlElement *elem,
       len = strlen( value );
 
       if ( nf != 1 || nc < len ) {
-         sprintf( buff, "contains a bad <%s> value: \"%s\"", name, value );
+         snprintf( buff, sizeof( buff ),
+                   "contains a bad <%s> value: \"%s\"", name, value );
          Report( this, elem, WARNING, buff, status );
       }
    }
@@ -2374,7 +2386,8 @@ static int AttrValueI( AstXmlChan *this, AstXmlElement *elem, const char *name,
       len = strlen( value );
 
       if ( nf != 1 || nc < len ) {
-         sprintf( buff, "contains a bad <%s> value: \"%s\"", name, value );
+         snprintf( buff, sizeof( buff ),
+                   "contains a bad <%s> value: \"%s\"", name, value );
          Report( this, elem, WARNING, buff, status );
       }
    }
@@ -2477,7 +2490,8 @@ static int AttrValueB( AstXmlChan *this, AstXmlElement *elem, const char *name,
 /* If not, report a warning and return the default. */
       if( result == -1 ) {
          result = def;
-         sprintf( buff, "contains a bad <%s> value: \"%s\"", name, value );
+         snprintf( buff, sizeof( buff ),
+                   "contains a bad <%s> value: \"%s\"", name, value );
          Report( this, elem, WARNING, buff, status );
       }
    }
@@ -3625,8 +3639,9 @@ static int ElemListD( AstXmlChan *this, AstXmlElement *elem, int n,
          text = (char *) astXmlFormat( item );
          if( text ) {
             if( strlen( text ) > 30 ) text[ 30 ] = 0;
-            sprintf( buff, "contains the following which is being ignored: \"%s\"",
-                     text );
+            snprintf( buff, sizeof( buff ),
+                      "contains the following which is being ignored: \"%s\"",
+                      text );
             text = astFree( text );
             Report( this, elem, WARNING, buff, status );
          }
@@ -4210,9 +4225,10 @@ static AstXmlElement *FindElement( AstXmlChan *this, AstXmlElement *elem,
 /* Otherwise add a Warning (unles a Warning has already been issued). */
             } else if( !warned ) {
                warned = 1;
-               sprintf( buff, "contains more than one %s element. The "
-                        "second and subsequent such elements will be "
-                        "ignored", name );
+               snprintf( buff, sizeof( buff ),
+                         "contains more than one %s element. The "
+                         "second and subsequent such elements will be "
+                         "ignored", name );
                Report( this, elem, WARNING, buff, status );
             }
          }
@@ -6457,7 +6473,8 @@ static double PosAngleReader( AstXmlChan *this, AstXmlElement *elem, int *status
       result *= AST__DD2R/3600.0;
 
    } else {
-      sprintf( buff, "contains unusable angle units \"%s\"", paunit );
+      snprintf( buff, sizeof( buff ),
+                "contains unusable angle units \"%s\"", paunit );
       Report( this, elem, FAILURE, buff, status );
    }
 
@@ -6471,8 +6488,9 @@ static double PosAngleReader( AstXmlChan *this, AstXmlElement *elem, int *status
       result = AST__DPIBY2 - result;
 
    } else if( Ustrcmp( ref, "Y", status ) && Ustrcmp( ref, "North", status ) ) {
-      sprintf( buff, "contains unusable reference attribute \"%s\" "
-               "(will assume \"Y\" instead)", ref );
+      snprintf( buff, sizeof( buff ),
+                "contains unusable reference attribute \"%s\" "
+                "(will assume \"Y\" instead)", ref );
       Report( this, elem, WARNING, buff, status );
    }
 
@@ -7352,7 +7370,6 @@ static int ReadInt( AstChannel *this_channel, const char *name, int def, int *st
    AstXmlElement *element;       /* Pointer to element holding required value */
    const char *value;            /* Pointer to attribute value */
    int result;                   /* Value to be returned */
-   int nc;                       /* Number of characters read by astSscanf */
 
 /* Initialise. */
    result = 0;
@@ -7377,9 +7394,7 @@ static int ReadInt( AstChannel *this_channel, const char *name, int def, int *st
    if( element ) {
       value = astXmlGetAttributeValue( element, VALUE );
       if( value ) {
-         nc = 0;
-         if ( !( ( 1 == astSscanf( value, " %d %n", &result, &nc ) )
-                 && ( nc >= (int) strlen( value ) ) ) ) {
+         if ( !astChanStr2Int( value, &result ) ) {
             astError( AST__BADIN,
                       "astRead(XmlChan): The value \"%s = %s\" cannot "
                       "be read as an integer.", status, name, value );
@@ -7465,7 +7480,6 @@ static int64_t ReadInt64( AstChannel *this_channel, const char *name,
    AstXmlElement *element;       /* Pointer to element holding required value */
    const char *value;            /* Pointer to attribute value */
    int64_t result;               /* Value to be returned */
-   int nc;                       /* Number of characters read by astSscanf */
 
 /* Initialise. */
    result = 0;
@@ -7490,9 +7504,7 @@ static int64_t ReadInt64( AstChannel *this_channel, const char *name,
    if( element ) {
       value = astXmlGetAttributeValue( element, VALUE );
       if( value ) {
-         nc = 0;
-         if ( !( ( 1 == astSscanf( value, " %" SCNd64 " %n", &result, &nc ) )
-                 && ( nc >= (int) strlen( value ) ) ) ) {
+         if ( !astChanStr2Int64( value, &result ) ) {
             astError( AST__BADIN,
                       "astRead(XmlChan): The value \"%s = %s\" cannot "
                       "be read as an integer.", status, name, value );
@@ -7938,8 +7950,9 @@ static void ReCentreAnc( AstRegion *region, int nanc, AstKeyMap **ancs, int *sta
    the ancillary regions. */
                if( astTestTimeOrigin( (AstTimeFrame *) pfrm ) ) {
                   sprintf( orgatt, "TimeOrigin(%d)", i + 1 );
-                  sprintf( orgset, "TimeOrigin(%d)=%s", i + 1,
-                           astGetC( pfrm, "TimeOrigin" ) );
+                  snprintf( orgset, sizeof( orgset ),
+                            "TimeOrigin(%d)=%s", i + 1,
+                            astGetC( pfrm, "TimeOrigin" ) );
                }
 
 /* If the System attribute is set, save its value. Create strings
@@ -7947,8 +7960,8 @@ static void ReCentreAnc( AstRegion *region, int nanc, AstKeyMap **ancs, int *sta
    the ancillary regions. */
                if( astTestSystem( pfrm ) ) {
                   sprintf( sysatt, "System(%d)", i + 1 );
-                  sprintf( sysset, "System(%d)=%s", i + 1,
-                           astGetC( pfrm, "System" ) );
+                  snprintf( sysset, sizeof( sysset ), "System(%d)=%s", i + 1,
+                            astGetC( pfrm, "System" ) );
                }
 
                time_unit = astGetUnit( pfrm, 0 );
@@ -9183,8 +9196,9 @@ static IVOAScan *ScanIVOAElement( AstXmlChan *this, AstXmlElement *elem, int n,
             text = (char *) astXmlFormat( item );
             if( text ) {
                if( strlen( text ) > 30 ) text[ 30 ] = 0;
-               sprintf( buff, "contains the following which is being ignored: \"%s\"",
-                        text );
+               snprintf( buff, sizeof( buff ),
+                         "contains the following which is being ignored: \"%s\"",
+                         text );
                text = astFree( text );
                Report( this, elem, WARNING, buff, status );
             }
@@ -9198,16 +9212,18 @@ static IVOAScan *ScanIVOAElement( AstXmlChan *this, AstXmlElement *elem, int n,
             if( result->count[ j ] < min[ j ] ) {
                w1 = ( result->count[ j ] == 1 ) ? "element" : "elements";
                w2 = ( min[ j ] == 1 ) ? "is" : "are";
-               sprintf( buff, "contains %d <%s> %s but at least %d %s needed",
-                        result->count[ j ], names[ j ], w1, min[ j ], w2 );
+               snprintf( buff, sizeof( buff ),
+                         "contains %d <%s> %s but at least %d %s needed",
+                         result->count[ j ], names[ j ], w1, min[ j ], w2 );
                Report( this, elem, FAILURE, buff, status );
 
             } else if ( result->count[ j ] > max[ j ] ) {
                w1 = ( result->count[ j ] == 1 ) ? "element" : "elements";
                w2 = ( max[ j ] == 1 ) ? "is" : "are";
-               sprintf( buff, "contains %d <%s> %s but no more than %d %s "
-                        "allowed (only the first will be used)",
-                        result->count[ j ], names[ j ], w1, max[ j ], w2 );
+               snprintf( buff, sizeof( buff ),
+                         "contains %d <%s> %s but no more than %d %s "
+                         "allowed (only the first will be used)",
+                         result->count[ j ], names[ j ], w1, max[ j ], w2 );
                Report( this, elem, WARNING, buff, status );
             }
          }
@@ -9726,7 +9742,8 @@ static AstSystemType SpecSys( AstXmlChan *this, AstXmlElement *elem,
 
 /* Otherwise, report an error if requested. */
             } else if( report ){
-               sprintf( buff, "contains unsupported spectral units \"%s\"", unit );
+               snprintf( buff, sizeof( buff ),
+                         "contains unsupported spectral units \"%s\"", unit );
                Report( this, elem, FAILURE, buff, status );
             }
          }
@@ -10439,8 +10456,9 @@ static AstRegion *SphereReader( AstXmlChan *this, AstXmlElement *elem,
             map = astAnnul( map );
 
          } else if( astOK ) {
-            sprintf( buff, "has inconsistent units attributes \"%s\" and "
-                     "\"%s\"", unit, runit );
+            snprintf( buff, sizeof( buff ),
+                      "has inconsistent units attributes \"%s\" and "
+                      "\"%s\"", unit, runit );
             Report( this, elem, FAILURE, buff, status );
          }
       }
@@ -10617,9 +10635,10 @@ static AstObject *StcMetadataReader( AstXmlChan *this,
    warning and skip the element. */
             if( astMapHasKey( map, id ) ) {
                if( map != map3 ) {
-                  sprintf( buff, "contains two or more %s elements with the "
-                           "same ID (\"%s\"). Only the first one will be used",
-                           name, id );
+                  snprintf( buff, sizeof( buff ),
+                            "contains two or more %s elements with the "
+                            "same ID (\"%s\"). Only the first one will be used",
+                            name, id );
                   Report( this, elem, WARNING, buff, status );
                } else {
                   Report( this, elem, WARNING, "contains two or more AstroCoords "
@@ -10643,8 +10662,9 @@ static AstObject *StcMetadataReader( AstXmlChan *this,
                    !astXmlCheckType( item, AST__XMLWHITE ) ) {
          text = (char *) astXmlFormat( item );
          if( strlen( text ) > 30 ) text[ 30 ] = 0;
-         sprintf( buff, "contains the following which is being ignored: \"%s\"",
-                  text );
+         snprintf( buff, sizeof( buff ),
+                   "contains the following which is being ignored: \"%s\"",
+                   text );
          text = astFree( text );
          Report( this, elem, WARNING, buff, status );
       }
@@ -10693,9 +10713,9 @@ static AstObject *StcMetadataReader( AstXmlChan *this,
 
 /* Report a warning if no AstroCoordSystem with this id is available. */
       } else {
-         sprintf( buff, "refers to an AstroCoordSystem with "
-                 "ID \"%s\", but no such AstroCoordSystem is available "
-                 "within the parent %s", id, stc_class );
+         snprintf( buff, sizeof( buff ), "refers to an AstroCoordSystem with "
+                  "ID \"%s\", but no such AstroCoordSystem is available "
+                  "within the parent %s", id, stc_class );
          Report( this, aca, WARNING, buff, status );
       }
    }
@@ -11653,7 +11673,8 @@ static AstTimeScaleType TimeScaleReader( AstXmlChan *this, AstXmlElement *elem, 
          result = AST__LMST;
 
       } else {
-         sprintf( buff, "contains unsupported timescale %s", tstxt );
+         snprintf( buff, sizeof( buff ),
+                   "contains unsupported timescale %s", tstxt );
          Report( this, elem, FAILURE, buff, status );
          result = AST__BADTS;
       }

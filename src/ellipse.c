@@ -82,6 +82,24 @@ f     - AST_ELLIPSEPARS: Get the geometric parameters of the Ellipse
 *        about axis 2, not axis 1. astAxDistance dispatches to the Axis, so on
 *        a Frame whose two axes normalise differently the axis 2 limits were
 *        measured by axis 1's rule. Circle and Polygon already pass 1 and 2.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadEllipse, check that the dump supplied the points that
+*        define the Ellipse, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        RegCentre: index the axis values of the three defining points by
+*        axis and then by point, and leave them alone if the new centre is
+*        the same as the old one.
+*     19-NOV-2026 (TIMJ):
+*        Cache: leave the cached values marked as stale if they cannot be
+*        found, so that the error is reported on each use of the Ellipse
+*        and values that were never stored are not used.
+*     19-NOV-2026 (TIMJ):
+*        astBestEllipse: return NULL if no mesh point is at a defined,
+*        non-zero distance from the centre, rather than reading beyond the
+*        end of the mesh.
 *class--
 */
 
@@ -284,6 +302,7 @@ AstRegion *astBestEllipse_( AstPointSet *mesh, double *cen, AstRegion *unc, int 
 
 /* Initialise */
    result = NULL;
+   ip = 0;
 
 /* Check the global error status. */
    if ( !astOK ) return result;
@@ -320,6 +339,11 @@ AstRegion *astBestEllipse_( AstPointSet *mesh, double *cen, AstRegion *unc, int 
             dist[ ip ] = AST__BAD;
          }
       }
+   }
+
+/* No Ellipse can be found if there is no such point, in which case a NULL
+   pointer is returned without error. */
+   if( astOK && ip < np ) {
 
 /* Find a point which is this distance away from the centre along the second
    axis. This point is used to define zero angle when calling astAngle
@@ -693,8 +717,10 @@ static void Cache( AstEllipse *this, int *status ){
       if( point1 ) point1 = astFree( point1 );
       point2 = astFree( point2 );
 
-/* Indicate cached information is up to date. */
-      this->stale = 0;
+/* Indicate cached information is up to date, unless it could not be
+   found. The cache is then left stale so that the error is reported
+   again on each later attempt to use the Ellipse. */
+      if( astOK ) this->stale = 0;
 
    }
 }
@@ -1361,17 +1387,21 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
          dist = astDistance( frm, this->centre, bc );
 
 /* Shift each point in the parent Region structure by the same length and
-   direction. */
-         for( ip = 0; ip < 3; ip++ ) {
-            a[ 0 ] = rptr[ ip ][ 0 ];
-            a[ 1 ] = rptr[ ip ][ 1 ];
-            astOffset2( frm, a, angle, dist, b );
-            rptr[ ip ][ 0 ] = b[ 0 ];
-            rptr[ ip ][ 1 ] = b[ 1 ];
-         }
+   direction. The axis values are indexed by axis and then by point. There
+   is nothing to do if the new centre is the same as the old centre, in
+   which case the offset has no direction. */
+         if( angle != AST__BAD && dist != AST__BAD && dist != 0.0 ) {
+            for( ip = 0; ip < 3; ip++ ) {
+               a[ 0 ] = rptr[ 0 ][ ip ];
+               a[ 1 ] = rptr[ 1 ][ ip ];
+               astOffset2( frm, a, angle, dist, b );
+               rptr[ 0 ][ ip ] = b[ 0 ];
+               rptr[ 1 ][ ip ] = b[ 1 ];
+            }
 
 /* Indicate that the cache is stale. */
-         astResetCache( this );
+            astResetCache( this );
+         }
 
 /* Free resources */
          frm = astAnnul( frm );
@@ -2232,8 +2262,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
    pset_res = astAnnul( pset_res );
    frm = astAnnul( frm );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -2999,6 +3034,9 @@ AstEllipse *astLoadEllipse_( void *mem, size_t size, AstEllipseVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Ellipse" );
+
+/* Check that the parent Region supplied the points that a Ellipse needs. */
+      astCheckLoadedPoints( new, name, 3, 3, 2 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

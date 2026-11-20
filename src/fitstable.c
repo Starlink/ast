@@ -103,6 +103,14 @@ f     - AST_PUTTABLEHEADER: Store FITS headers within a FitsTable
 *        strings (and free its memory correctly), read no more TDIMn
 *        values than there is room for, and check TZEROn rather than
 *        TSCALn a second time.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFitsTable, check that the dump supplied a FitsChan to
+*        hold the headers.
+*     16-NOV-2026 (TIMJ):
+*        GenerateColumns: do not write beyond the end of the buffer that
+*        holds a TFORM value quoted in an error message. UpdateHeader: make
+*        the buffer for a TDIM value large enough for a column of strings,
+*        which has one more number than it has dimensions.
 *class--
 */
 
@@ -1261,7 +1269,7 @@ static void GenerateColumns( AstFitsTable *this, AstFitsChan *header,
 
          sprintf( keyword, "TFORM%d", icol + 1 );
          astGetFitsS( header, keyword, &cval );
-         strcpy( buff, cval );
+         snprintf( buff, sizeof( buff ), "%s", cval );
 
          sprintf( keyword, "TDIM%d", icol + 1 );
          if( !astGetFitsS( header, keyword, &cval ) ) cval = " ";
@@ -2509,7 +2517,7 @@ static void UpdateHeader( AstFitsTable *this, const char *method,
 
 /* Array dimensions (only needed for non-scalars). */
          if( ndim > 0 ) {
-            dimbuf = astGrow( dimbuf, ndim, 15 );
+            dimbuf = astGrow( dimbuf, ndim + 1, 15 );
             if( astOK ) {
 
 /* For strings, the first dimension is the length of the fixed-length
@@ -3153,6 +3161,8 @@ AstFitsTable *astLoadFitsTable_( void *mem, size_t size, AstFitsTableVtab *vtab,
 
 /* FitsChan holding table headers. */
       new->header = astReadObject( channel, "header", NULL );
+      astCheckLoaded( new->header, FitsChan, 1, name,
+                      "FitsChan holding the headers" );
 
 /* If an error occurred, clean up by deleting the new FitsTable. */
       if ( !astOK ) new = astDelete( new );

@@ -83,6 +83,25 @@ f     The FluxFrame class does not define any new routines beyond those
 *     29-APR-2011 (DSB):
 *        Prevent astFindFrame from matching a subclass template against a
 *        superclass target.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFluxFrame, check that the SpecFrame read from a dump is
+*        a SpecFrame.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadFluxFrame, check that the dump supplied one axis.
+*     13-NOV-2026 (TIMJ):
+*        GetTitle: do not write beyond the end of the buffer when the
+*        formatted spectral value or its Unit is long.
+*     16-NOV-2026 (TIMJ):
+*        Dump: do not write beyond the end of the buffer that holds the
+*        comment for a preferred unit. The comment for the SFCBRW System
+*        was longer than the buffer.
+*     16-NOV-2026 (TIMJ):
+*        GetLabel and GetSymbol: do not write beyond the end of the buffer
+*        when the Label or Symbol made by astUnitMapper is long. The Symbol
+*        buffer now holds 200 characters.
+*     16-NOV-2026 (TIMJ):
+*        Dump and astLoadFluxFrame: use snprintf to format the name of the
+*        item that holds the preferred units for a System.
 *class--
 */
 
@@ -100,7 +119,7 @@ f     The FluxFrame class does not define any new routines beyond those
 /* Define other numerical constants for use in this module. */
 #define GETATTRIB_BUFF_LEN 50
 #define GETLABEL_BUFF_LEN 200
-#define GETSYMBOL_BUFF_LEN 20
+#define GETSYMBOL_BUFF_LEN 200
 #define GETTITLE_BUFF_LEN 200
 
 /* Header files. */
@@ -1193,7 +1212,8 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
                                  astGetUnit( this, axis ), result,
                                  &new_lab );
             if( new_lab ) {
-               result = strcpy( getlabel_buff, new_lab );
+               snprintf( getlabel_buff, sizeof( getlabel_buff ), "%s", new_lab );
+               result = getlabel_buff;
                new_lab = astFree( new_lab );
             }
 
@@ -1380,7 +1400,8 @@ static const char *GetSymbol( AstFrame *this, int axis, int *status ) {
                                  astGetUnit( this, axis ), result,
                                  &new_sym );
             if( new_sym ) {
-               result = strcpy( getsymbol_buff, new_sym );
+               snprintf( getsymbol_buff, sizeof( getsymbol_buff ), "%s", new_sym );
+               result = getsymbol_buff;
                new_sym = astFree( new_sym );
             }
 
@@ -1625,7 +1646,8 @@ static const char *GetTitle( AstFrame *this_frame, int *status ) {
          result = gettitle_buff;
 
 /* Begin with the system's default label. */
-         pos = sprintf( gettitle_buff, "%s", SystemLabel( astGetSystem( this ), status ) );
+         pos = snprintf( gettitle_buff, sizeof( gettitle_buff ), "%s",
+                         SystemLabel( astGetSystem( this ), status ) );
          gettitle_buff[ 0 ] = toupper( gettitle_buff[ 0 ] );
 
 /* Append the spectral position, if known. */
@@ -1634,7 +1656,11 @@ static const char *GetTitle( AstFrame *this_frame, int *status ) {
          if( specval != AST__BAD && sf ) {
             sv = astFormat( sf, 0, specval );
             su = astGetUnit( sf, 0 );
-            pos += sprintf( gettitle_buff + pos, " at = %s %s", sv, su );
+            if( pos < (int) sizeof( gettitle_buff ) ) {
+               pos += snprintf( gettitle_buff + pos,
+                                sizeof( gettitle_buff ) - pos, " at = %s %s",
+                                sv, su );
+            }
          }
          sf = astAnnul( sf );
       }
@@ -3791,7 +3817,7 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 /* Local Variables: */
    AstFluxFrame *this;           /* Pointer to the FluxFrame structure */
    char buff[ 20 ];              /* Buffer for item name */
-   char comm[ 50 ];              /* Buffer for comment */
+   char comm[ 80 ];              /* Buffer for comment */
    double dval;                  /* Double value */
    int i;                        /* Loop count */
    int j;                        /* Loop count */
@@ -3844,9 +3870,11 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    if( this->usedunits ) {
       for( i = 0; i < this->nuunits; i++ ) {
          if( this->usedunits[ i ] ) {
-            sprintf( buff, "U%s", astSystemString( this, (AstSystemType) i ));
+            snprintf( buff, sizeof( buff ),
+                      "U%s", astSystemString( this, (AstSystemType) i ));
             for( j = 2; j < strlen( buff ); j++ ) buff[ j ] = tolower( buff[ j ] );
-            sprintf( comm, "Preferred units for %s", SystemLabel( (AstSystemType) i, status ) );
+            snprintf( comm, sizeof( comm ), "Preferred units for %s",
+                      SystemLabel( (AstSystemType) i, status ) );
             astWriteString( channel, buff, 1, 0, this->usedunits[ i ], comm );
          }
       }
@@ -4203,6 +4231,9 @@ AstFluxFrame *astLoadFluxFrame_( void *mem, size_t size, AstFluxFrameVtab *vtab,
                        channel );
    if ( astOK ) {
 
+/* A FluxFrame always has one axis, which the rest of this class relies on. */
+      astCheckLoadedNaxes( new, name, 1 );
+
 /* Read input data. */
 /* ================ */
 /* Request the input Channel to read all the input data appropriate to
@@ -4224,6 +4255,7 @@ AstFluxFrame *astLoadFluxFrame_( void *mem, size_t size, AstFluxFrameVtab *vtab,
 /* SpecFrame  */
 /* ---------- */
       new->specframe = astReadObject( channel, "spcfr", NULL );
+      astCheckLoaded( new->specframe, SpecFrame, 0, name, "SpecFrame" );
 
 /* SpecVal */
 /* ------- */
@@ -4235,7 +4267,8 @@ AstFluxFrame *astLoadFluxFrame_( void *mem, size_t size, AstFluxFrameVtab *vtab,
       new->nuunits = 0;
       new->usedunits = NULL;
       for( sys = FIRST_SYSTEM; sys <= LAST_SYSTEM; sys++ ) {
-         sprintf( buff, "u%s", astSystemString( new, (AstSystemType) sys ));
+         snprintf( buff, sizeof( buff ),
+                   "u%s", astSystemString( new, (AstSystemType) sys ));
          for( j = 0; j < strlen( buff ); j++ ) buff[ j ] = tolower( buff[ j ] );
          sval = astReadString( channel, buff, NULL );
          if( sval ) {

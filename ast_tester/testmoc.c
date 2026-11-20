@@ -204,6 +204,25 @@ static void checkEmptyTransform( int *status ) {
    moc = astAnnul( moc );
 }
 
+/* Check that a Moc holds the cells given by a string MOC. */
+static void checkCells( AstMoc *moc, const char *expected, const char *text,
+                        int *status ) {
+   AstMoc *want;
+   int json;
+
+   if( *status != 0 ) return;
+   want = astMoc( "MaxOrder=%d", astGetI( moc, "MaxOrder" ) );
+   astAddMocString( want, AST__OR, 0, -1, strlen( expected ), expected,
+                    &json );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( text, status );
+   } else if( !astEqual( moc, want ) ) {
+      stopit( text, status );
+   }
+   want = astAnnul( want );
+}
+
 /* Adding a Region to a Moc whose MaxOrder is zero leaves no lower order
    to start from, and is an error, as it is for a pixel mask. */
 static void checkAddRegionOrderZero( int *status ) {
@@ -223,6 +242,24 @@ static void checkAddRegionOrderZero( int *status ) {
    }
    moc = astAnnul( moc );
    circle = astAnnul( circle );
+}
+
+/* A range in a string MOC is read as a range, however many cells it
+   holds: this one is the whole sky at the largest order. */
+static void checkLargeRange( int *status ) {
+   const char *text = "27/0-216172782113783807";
+   AstMoc *moc;
+   int json;
+
+   if( *status != 0 ) return;
+   moc = astMoc( " " );
+   astAddMocString( moc, AST__OR, 0, -1, strlen( text ), text, &json );
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkLargeRange: could not read a large range", status );
+   }
+   checkCells( moc, "0/0-11 27/", "checkLargeRange: wrong cells", status );
+   moc = astAnnul( moc );
 }
 
 /* A negated Region added to a Moc whose MinOrder exceeds its MaxOrder
@@ -611,6 +648,7 @@ int main( void ) {
    checkMeshTieBreak( status );
    checkEmptyTransform( status );
    checkAddRegionOrderZero( status );
+   checkLargeRange( status );
    checkOversampleNegate( status );
    checkMocStringErrors( status );
    checkEmptyJson( status );

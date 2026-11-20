@@ -109,6 +109,14 @@
 *        - ModifyPrefix no longer reports a change to an unchanged
 *          "constant/unit" node, which made MakeExp recurse without end
 *          (for instance when normalising "2/m").
+*     14-NOV-2026 (TIMJ):
+*        astUnitMapper: return a blank axis label unchanged. No tree can be
+*        made for a blank label, and the missing tree was put into the tree
+*        that describes the output label, which was then simplified.
+*     16-NOV-2026 (TIMJ):
+*        astUnitMapper: leave the loop over the basic units if an error has
+*        been reported. The trees for the next unit could not be made, and
+*        the NULL pointers were dereferenced.
 */
 
 /* Module Macros. */
@@ -5688,6 +5696,14 @@ AstMapping *astUnitMapper_( const char *in, const char *out,
             SimplifyTree( &intemp, 1, status );
             SimplifyTree( &outtemp, 1, status );
 
+/* There are no trees to compare if an error has occurred. */
+            if( !astOK ) {
+               intemp = FreeTree( intemp, status );
+               outtemp = FreeTree( outtemp, status );
+               testtree = FreeTree( testtree, status );
+               break;
+            }
+
 /* If either of the simplified trees does not depend on the current unit,
    then the node at the head of the simplified tree will have a constant
    value (because all the units other than the current unit have been fixed
@@ -5820,7 +5836,13 @@ AstMapping *astUnitMapper_( const char *in, const char *out,
 
 /* Create the tree. */
             labtree = MakeLabelTree( exp, nc, status );
-            if( astOK ) {
+
+/* A blank label has no tree. There is nothing in it to modify, so return
+   a copy of it. */
+            if( astOK && !labtree ) {
+               *out_lab = astStore( NULL, in_lab, strlen( in_lab ) + 1 );
+
+            } else if( astOK ) {
 
 /* Concatenate this tree (which goes from "basic label" to "input label")
    with the test tree found above (which goes from "input units" to "output

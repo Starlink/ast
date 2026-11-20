@@ -92,6 +92,10 @@ f     The SphMap class does not define any new routines beyond those
 *        Discard the record that the SphMap has been simplified when
 *        UnitRadius or PolarLong is set or cleared, since MapMerge consults
 *        both when deciding whether two SphMaps cancel.
+*     11-NOV-2026 (TIMJ):
+*        astLoadSphMap now checks that the dump describes a Mapping with
+*        three inputs and two outputs. The transformation read or wrote beyond
+*        the coordinate arrays otherwise.
 *class--
 */
 
@@ -2050,6 +2054,11 @@ AstSphMap *astLoadSphMap_( void *mem, size_t size,
       if ( TestPolarLong( new, status ) ) SetPolarLong( new, new->polarlong, status );
 
    }
+
+/* A SphMap always has three inputs and two outputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them. */
+   astCheckLoadedCoords( new, name, 3, 2 );
 
 /* If an error occurred, clean up by deleting the new SphMap. */
    if ( !astOK ) new = astDelete( new );

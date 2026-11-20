@@ -469,6 +469,24 @@ f     - AST_TRANN: Transform N-dimensional coordinates
 *        card in a dump therefore depended on which of them had been
 *        inspected, and two Mappings reported as equal by astEqual could
 *        dump differently as a result.
+*     11-NOV-2026 (TIMJ):
+*        Added protected functions astCheckLoadedCoords and astCheckLoadedMap
+*        for use by the loaders of classes that restrict their numbers of
+*        inputs and outputs, or encapsulate other Mappings.
+*     13-NOV-2026 (TIMJ):
+*        Limit a Mapping to AST__MXAXES inputs and AST__MXAXES outputs, in
+*        the constructor and in astLoadMapping, so that a file cannot make
+*        AST allocate memory and loop in proportion to an absurd count.
+*     13-NOV-2026 (TIMJ):
+*        astRate: never returned if the position was so close to zero
+*        that the initial interval, a fraction of the position, was zero.
+*     14-NOV-2026 (TIMJ):
+*        astMapMerge: report an error if the Mappings returned by a class
+*        do not have the numbers of inputs and outputs that the supplied
+*        Mappings had. Such a list was previously used as it stood, and
+*        the Mappings were then applied to the wrong numbers of axes.
+*        Also report an error if the Mappings supplied for merging in
+*        series do not fit together, rather than giving them to a class.
 *class--
 */
 
@@ -766,6 +784,7 @@ static int GetReport( AstMapping *, int * );
 static int GetTranForward( AstMapping *, int * );
 static int GetTranInverse( AstMapping *, int * );
 static int LinearApprox( AstMapping *, const double *, const double *, double, double *, int * );
+static int ListAxes( int, int, AstMapping **, int *, int *, int *, int * );
 static int MapList( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static AstDim MaxI( AstDim, AstDim, int * );
@@ -7538,6 +7557,108 @@ static double MapFunction( const MapData *mapdata, const double in[],
    return result;
 }
 
+static int ListAxes( int series, int nmap, AstMapping **map_list,
+                     int *invert_list, int *nin, int *nout, int *status ) {
+/*
+*  Name:
+*     ListAxes
+
+*  Purpose:
+*     Find the numbers of inputs and outputs of a list of Mappings.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     int ListAxes( int series, int nmap, AstMapping **map_list,
+*                   int *invert_list, int *nin, int *nout, int *status )
+
+*  Class Membership:
+*     Mapping member function.
+
+*  Description:
+*     This function finds the number of inputs and the number of outputs
+*     of the compound Mapping that is equivalent to a list of Mappings
+*     applied in series or in parallel, as used by astMapList and
+*     astMapMerge.
+
+*  Parameters:
+*     series
+*        Non-zero if the Mappings are applied in series, zero if they
+*        are applied in parallel.
+*     nmap
+*        The number of Mappings in the list.
+*     map_list
+*        Pointer to an array of "nmap" Mapping pointers.
+*     invert_list
+*        Pointer to an array of "nmap" flags, one for each Mapping. The
+*        Mapping is used as if its Invert attribute had this value.
+*     nin
+*        Address of an int in which to return the number of inputs.
+*     nout
+*        Address of an int in which to return the number of outputs.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the list is self-consistent. A list of Mappings in
+*     series is self-consistent if each Mapping has as many inputs as
+*     the previous Mapping has outputs. A list of Mappings in parallel
+*     is always self-consistent. Zero is returned if an error occurs.
+*/
+
+/* Local Variables: */
+   int i;                     /* Index of Mapping within the list */
+   int ni;                    /* Number of inputs for the current Mapping */
+   int no;                    /* Number of outputs for the current Mapping */
+   int result;                /* Returned value */
+   int swap;                  /* Is the Mapping used the other way round? */
+
+/* Initialise. */
+   *nin = 0;
+   *nout = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* Look at each Mapping in turn. */
+   result = 1;
+   for( i = 0; i < nmap; i++ ) {
+
+/* The Mapping reports its numbers of inputs and outputs for the current
+   value of its Invert attribute, which may not be the one in the list. */
+      swap = ( astGetInvert( map_list[ i ] ) != 0 ) !=
+             ( invert_list[ i ] != 0 );
+      if( swap ) {
+         ni = astGetNout( map_list[ i ] );
+         no = astGetNin( map_list[ i ] );
+      } else {
+         ni = astGetNin( map_list[ i ] );
+         no = astGetNout( map_list[ i ] );
+      }
+
+/* In series, the inputs are those of the first Mapping, the outputs are
+   those of the last, and each Mapping feeds the next. */
+      if( series ) {
+         if( i == 0 ) {
+            *nin = ni;
+         } else if( ni != *nout ) {
+            result = 0;
+         }
+         *nout = no;
+
+/* In parallel, the numbers of inputs and outputs are totals. */
+      } else {
+         *nin += ni;
+         *nout += no;
+      }
+   }
+
+/* Return the result. */
+   return astOK ? result : 0;
+}
+
 static int MapList( AstMapping *this, int series, int invert, int *nmap,
                      AstMapping ***map_list, int **invert_list, int *status ) {
 /*
@@ -9047,6 +9168,11 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2,
    letting the loop below grow the interval as needed works for both
    restricted and unrestricted Mappings. */
       h0 = ( x0 != 0.0 ) ? DBL_EPSILON*1.0E9*fabs( x0 ) : DBL_EPSILON*1.0E9;
+
+/* For a very small "x0" this fraction is too small to be represented and
+   so is zero, which the loop below would multiply by ten for ever. Use the
+   smallest normal number instead, which the loop can increase. */
+      if( h0 < DBL_MIN ) h0 = DBL_MIN;
 
 /* Attempt to find the mean gradient, and the range of gradients, within
    an interval of size "h0" centred on "x0". If this cannot be done,
@@ -23952,6 +24078,16 @@ AstMapping *astInitMapping_( void *mem, size_t size, int init,
       astError( AST__BADNO, "astInitMapping(%s): Bad number of output "
                 "coordinates (%d).", status, name, nout );
       astError( AST__BADNI, "This number should be zero or more." , status);
+   } else if ( nin > AST__MXAXES ) {
+      astError( AST__BADNI, "astInitMapping(%s): Bad number of input "
+                "coordinates (%d).", status, name, nin );
+      astError( AST__BADNI, "This number should not exceed %d." , status,
+                AST__MXAXES );
+   } else if ( nout > AST__MXAXES ) {
+      astError( AST__BADNO, "astInitMapping(%s): Bad number of output "
+                "coordinates (%d).", status, name, nout );
+      astError( AST__BADNO, "This number should not exceed %d." , status,
+                AST__MXAXES );
    }
 
 /* Initialise an Object structure (the parent class) as the first component
@@ -24125,6 +24261,19 @@ AstMapping *astLoadMapping_( void *mem, size_t size,
       new->nout = astReadInt( channel, "nout", new->nin );
       if ( new->nout < 0 ) new->nout = 0;
 
+/* No Mapping can have more than AST__MXAXES inputs or outputs. */
+      if ( astOK && new->nin > AST__MXAXES ) {
+         astError( AST__BADNI, "astLoadMapping(%s): Bad number of input "
+                   "coordinates (%d) read from the dump - this number "
+                   "should not exceed %d.", status, name, new->nin,
+                   AST__MXAXES );
+      } else if ( astOK && new->nout > AST__MXAXES ) {
+         astError( AST__BADNO, "astLoadMapping(%s): Bad number of output "
+                   "coordinates (%d) read from the dump - this number "
+                   "should not exceed %d.", status, name, new->nout,
+                   AST__MXAXES );
+      }
+
 /* Invert. */
 /* ------- */
       new->invert = astReadInt( channel, "invert", CHAR_MAX );
@@ -24164,6 +24313,163 @@ AstMapping *astLoadMapping_( void *mem, size_t size,
 
 /* Return the new Mapping pointer. */
    return new;
+}
+
+void astCheckLoadedCoords_( AstMapping *this, const char *name, int nin,
+                            int nout, int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoadedCoords
+
+*  Purpose:
+*     Check the numbers of inputs and outputs of a newly loaded Mapping.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     void astCheckLoadedCoords( AstMapping *this, const char *name, int nin,
+*                                int nout )
+
+*  Class Membership:
+*     Mapping member function.
+
+*  Description:
+*     astLoadMapping takes the numbers of input and output coordinates of
+*     a Mapping from a dump without restriction. Many classes of Mapping
+*     can only have particular numbers, which their constructors ensure
+*     and their other functions rely on. The loader for such a class
+*     should call this function, once it has loaded the rest of the
+*     object, to report an error if the numbers read from the dump are
+*     not the ones that the class requires.
+
+*  Parameters:
+*     this
+*        Pointer to the Mapping.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     nin
+*        The number of input coordinates that the Mapping must have,
+*        ignoring any inversion of the Mapping.
+*     nout
+*        The number of output coordinates that the Mapping must have,
+*        ignoring any inversion of the Mapping.
+
+*  Notes:
+*     - An error with status AST__LDERR is reported if either number
+*     differs from the one supplied.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Compare the stored numbers, which describe the Mapping before any
+   inversion, with the required numbers. */
+   if ( this->nin != nin || this->nout != nout ) {
+      astError( AST__LDERR, "astLoad(%s): Invalid numbers of inputs (%d) and "
+                "outputs (%d) read for a %s - there should be %d and %d.",
+                status, name, this->nin, this->nout, name, nin, nout );
+   }
+}
+
+void astCheckLoadedMap_( void *map_void, int invert, const char *name,
+                         const char *item, int *nin, int *nout,
+                         int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoadedMap
+
+*  Purpose:
+*     Check a component Mapping of a newly loaded object.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "mapping.h"
+*     void astCheckLoadedMap( void *map, int invert, const char *name,
+*                             const char *item, int *nin, int *nout )
+
+*  Class Membership:
+*     Mapping member function.
+
+*  Description:
+*     This function is for use by the loader of a class that encapsulates
+*     other Mappings, each stored with the value that its Invert attribute
+*     should have whenever it is used. It reports an error if the supplied
+*     pointer, which will usually have been returned by astReadObject, is
+*     NULL or does not identify a Mapping. Otherwise, it returns the
+*     numbers of input and output coordinates that the component has when
+*     its Invert attribute has the supplied value. The component itself is
+*     not changed.
+
+*  Parameters:
+*     map
+*        Pointer to the component. This may be NULL.
+*     invert
+*        The value that the Invert attribute of the component has when
+*        the component is used.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     item
+*        A description of the component, such as "first component
+*        Mapping", for use in error messages.
+*     nin
+*        Pointer to an int in which to return the number of input
+*        coordinates.
+*     nout
+*        Pointer to an int in which to return the number of output
+*        coordinates.
+
+*  Notes:
+*     - An error with status AST__LDERR is reported if the component is
+*     missing or is not a Mapping.
+*     - Zero is returned for both numbers if an error has already
+*     occurred, or if this function should fail for any reason.
+*-
+*/
+
+/* Local Variables: */
+   AstMapping *map;              /* Pointer to the component Mapping */
+
+/* Initialise. */
+   *nin = 0;
+   *nout = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return;
+
+/* Report an error if the component is missing, or is not a Mapping. */
+   if ( !map_void ) {
+      astError( AST__LDERR, "astLoad(%s): The %s is missing from the %s "
+                "read.", status, name, item, name );
+
+   } else if ( !astIsAMapping( map_void ) ) {
+      astError( AST__LDERR, "astLoad(%s): The %s read for a %s is a %s, "
+                "which is not a Mapping.", status, name, item, name,
+                astGetClass( map_void ) );
+
+/* Otherwise, get the numbers of inputs and outputs. Inverting a Mapping
+   swaps them, so swap them if the Mapping is not currently inverted in the
+   way required. */
+   } else {
+      map = (AstMapping *) map_void;
+      if ( ( astGetInvert( map ) != 0 ) == ( invert != 0 ) ) {
+         *nin = astGetNin( map );
+         *nout = astGetNout( map );
+      } else {
+         *nin = astGetNout( map );
+         *nout = astGetNin( map );
+      }
+      if ( !astOK ) {
+         *nin = 0;
+         *nout = 0;
+      }
+   }
 }
 
 /* Virtual function interfaces. */
@@ -24247,7 +24553,13 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
    int allset;
    int iin;
    int iout;
+   int nin_new;
+   int nin_old;
    int nmap_old;
+   int nout_new;
+   int nout_old;
+   int ok_new;
+   int ok_old;
    int present;
    int result = -1;
 
@@ -24277,10 +24589,47 @@ int astMapMerge_( AstMapping *this, int where, int series, int *nmap,
       clones = NULL;
    }
 
+/* Note the numbers of inputs and outputs of the supplied list. */
+   ok_old = ListAxes( series, *nmap, *map_list, *invert_list, &nin_old,
+                      &nout_old, status );
+
+/* The classes assume that Mappings to be merged in series fit together,
+   each having as many inputs as the one before it has outputs, and read
+   and write arrays on that basis. Mappings that do not fit together
+   cannot be used in series at all, so report an error rather than give
+   them to a class. */
+   if( !ok_old && astOK ) {
+      astError( AST__INNCO, "astMapMerge(%s): The Mappings to be merged in "
+                "series do not fit together; the number of inputs of one "
+                "is not the number of outputs of the one before it.",
+                status, astGetClass( this ) );
+      return result;
+   }
+
 /* Attempt to the merge the nominated Mapping into its neighbours. */
    result = (**astMEMBER(this,Mapping,MapMerge))( this, where, series, nmap,
                                                   map_list, invert_list,
                                                   status );
+
+/* A merger must leave the list equivalent to the one supplied, so the
+   returned list must have the same numbers of inputs and outputs and, in
+   series, each of its Mappings must feed the next. Anything else is a
+   fault in the class that did the merger. It is reported here because
+   the Mappings would otherwise be applied to the wrong numbers of axes. */
+   if( result >= 0 && astOK ) {
+      ok_new = ListAxes( series, *nmap, *map_list, *invert_list, &nin_new,
+                         &nout_new, status );
+      if( astOK && ( !ok_new || nin_new != nin_old || nout_new != nout_old ) ) {
+         astError( AST__INTER, "astMapMerge(%s): The Mappings returned by "
+                   "the %s merger of a %s have %d inputs and %d outputs%s, "
+                   "but those supplied have %d inputs and %d outputs "
+                   "(internal AST programming error).", status,
+                   astGetClass( this ), series ? "series" : "parallel",
+                   astGetClass( this ), nin_new, nout_new,
+                   ok_new ? "" : " and do not feed one another",
+                   nin_old, nout_old );
+      }
+   }
 
 /* If we may be doing a restricted simplify, we now ensure that the
    AllowSimplify flag is propagated appropriately from the input Mapping

@@ -85,6 +85,19 @@ C_TESTS = \
     testframe \
     testframeperm \
     testframesetload \
+    testloaderhardening \
+    testcorruptinput \
+    testregionhardening \
+    testregionlogic \
+    testfields \
+    testmapmerge \
+    testfitswrite \
+    testcast \
+    testplotclip \
+    testplotcopy \
+    testpolymapinv \
+    testsplinemapedge \
+    testdssmap \
     testframeset_c \
     testissimp \
     testkeymap_c \
@@ -147,6 +160,32 @@ testframeperm_SOURCES  = testframeperm.c
 testframeperm_LDADD    = $(CTEST_LDADD)
 testframesetload_SOURCES  = testframesetload.c
 testframesetload_LDADD    = $(CTEST_LDADD)
+testloaderhardening_SOURCES  = testloaderhardening.c
+testloaderhardening_LDADD    = $(CTEST_LDADD)
+testcorruptinput_SOURCES  = testcorruptinput.c
+testcorruptinput_LDADD    = $(CTEST_LDADD)
+testregionhardening_SOURCES  = testregionhardening.c
+testregionhardening_LDADD    = $(CTEST_LDADD)
+testregionlogic_SOURCES  = testregionlogic.c
+testregionlogic_LDADD    = $(CTEST_LDADD)
+testfields_SOURCES  = testfields.c
+testfields_LDADD    = $(CTEST_LDADD)
+testmapmerge_SOURCES  = testmapmerge.c
+testmapmerge_LDADD    = $(CTEST_LDADD)
+testfitswrite_SOURCES  = testfitswrite.c
+testfitswrite_LDADD    = $(CTEST_LDADD)
+testcast_SOURCES  = testcast.c
+testcast_LDADD    = $(CTEST_LDADD)
+testplotclip_SOURCES   = testplotclip.c
+testplotclip_LDADD     = $(CTEST_LDADD)
+testplotcopy_SOURCES   = testplotcopy.c
+testplotcopy_LDADD     = $(CTEST_LDADD)
+testpolymapinv_SOURCES = testpolymapinv.c
+testpolymapinv_LDADD   = $(CTEST_LDADD)
+testsplinemapedge_SOURCES = testsplinemapedge.c
+testsplinemapedge_LDADD = $(CTEST_LDADD)
+testdssmap_SOURCES     = testdssmap.c
+testdssmap_LDADD       = $(CTEST_LDADD)
 
 testobject_SOURCES     = testobject.c
 testobject_LDADD       = $(CTEST_LDADD)

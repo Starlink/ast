@@ -182,6 +182,28 @@ f     - AST_CURRENTTIME: Return the current system time
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for MJD day rounding
 *        to avoid platform-dependent results.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadTimeFrame, check that the dump supplied one axis.
+*     16-NOV-2026 (TIMJ):
+*        GetLabel and GetSymbol: do not write beyond the end of the buffer
+*        when the Label or Symbol made by astUnitMapper is long. The Symbol
+*        buffer now holds 200 characters. The offset from UTC of a Local
+*        Time is appended to the Label in the buffer, which used to be
+*        formatted into itself.
+*     16-NOV-2026 (TIMJ):
+*        DateFormat: use at most 9 decimal places for the seconds field of
+*        a date. More than that overflowed the int that holds the fraction
+*        of a second, and 80 or more overflowed the buffer for the time.
+*        Format: format a time that has no calendar date as "<bad>". The
+*        status from palDjcl was ignored, and the date was formatted from
+*        values that had not been set.
+*     19-NOV-2026 (TIMJ):
+*        Centre: stop comparing the fields of the two formatted dates when
+*        either has no more fields. The search went on beyond the end of
+*        both if no field differed, and could then change characters beyond
+*        the end of the result. If the date made by setting fields to zero
+*        cannot be read, as is the case if its month or year is zero, use
+*        the method of the parent class.
 *class--
 */
 
@@ -661,8 +683,6 @@ static double Centre( AstFrame *this_frame, int axis, double value,
    double result;
    int df;
    int fmod;
-   int nc1;
-   int nc2;
    int ndp;
    int nres;
    int v1;
@@ -693,6 +713,8 @@ static double Centre( AstFrame *this_frame, int axis, double value,
 /* Format time values one gap above the supplied axis value and one gap below
    it. Take copies of each string since the astFormat buffer will be
    over-written by each call. */
+      date1 = NULL;
+      date2 = NULL;
       date = astFormat( this, 0, value - gap );
       if( date ) date1 = astStore( NULL, date, strlen( date ) + 1 );
       date = astFormat( this, 0, value + gap );
@@ -704,95 +726,54 @@ static double Centre( AstFrame *this_frame, int axis, double value,
          nres = strlen( date1 );
          fres = astStore( NULL, date1, nres + 1 );
 
-/* Loop over all characters within the first date. */
+/* Compare each numerical field in the first date with the corresponding
+   field in the second date. */
          fmod = 0;
-         nc1 = 0;
-         f1 = NULL;
          p1 = date1;
-         nc2 = 0;
-         f2 = NULL;
          p2 = date2;
-         while( 1 ) {
+         while( astOK ) {
 
-/* If we have not yet found the length of the next numerical field in
-   date1, continue looking for it. */
-            if( !nc1 ) {
+/* Find the start of the next numerical field in each date. Leave the
+   loop if either date has no more fields. */
+            while( *p1 && !isdigit( (unsigned char) *p1 ) ) p1++;
+            while( *p2 && !isdigit( (unsigned char) *p2 ) ) p2++;
+            if( !*p1 || !*p2 ) break;
 
-/* If we are currently looking for the start of a numerical field, indicate
-   we have found one if the current character is a digit. */
-               if( !f1 ) {
-                  if( isdigit( *p1 ) ) f1 = p1;
+/* Note the start of each field, and find its end. */
+            f1 = p1;
+            while( isdigit( (unsigned char) *p1 ) ) p1++;
+            f2 = p2;
+            while( isdigit( (unsigned char) *p2 ) ) p2++;
 
-/* If we are currently looking for the end of a numeric field, we have
-   found the end if the current character is not a digit. */
-               } else {
-                  if( !isdigit( *p1 ) ) {
-                     nc1 = p1 - f1;
-                  }
-               }
-
-/* Look at the next character */
-               p1++;
-            }
-
-/* If we have not yet found the length of the next numerical field in
-   date2, continue looking for it. */
-            if( !nc2 ) {
-
-/* If we are currently looking for the start of a numerical field, indicate
-   we have found one if the current character is a digit. */
-               if( !f2 ) {
-                  if( isdigit( *p2 ) ) f2 = p2;
-
-/* If we are currently looking for the end of a numeric field, we have
-   found the end if the current character is not a digit. */
-               } else {
-                  if( !isdigit( *p2 ) ) {
-                     nc2 = p2 - f2;
-                  }
-               }
-
-/* Look at the next character */
-               p2++;
-            }
-
-/* If we have found the next numerical field in both dates, convert them
-   to integers. */
-            if( nc1 && nc2 ) {
-               v1 = atoi( f1 );
-               v2 = atoi( f2 );
+/* Convert the fields to integers. */
+            v1 = atoi( f1 );
+            v2 = atoi( f2 );
 
 /* If the values are different, replace this field and all subsequent
    fields with zeros in the formatted version of the returned central
    value, and leave the loop. */
-               if( v1 != v2 ) {
+            if( v1 != v2 ) {
 
-                  pres = fres + ( f1 - date1 ) - 1;
-                  while( *(++pres) ) {
-                     if( isdigit( *pres ) ) *pres = '0';
-                  }
-                  fmod = 1;
-
-                  break;
+               pres = fres + ( f1 - date1 ) - 1;
+               while( *(++pres) ) {
+                  if( isdigit( (unsigned char) *pres ) ) *pres = '0';
                }
+               fmod = 1;
 
-/* Prepare to look for the next numerical field in both strings. */
-               nc1 = nc2 = 0;
-               f1 = f2 = NULL;
-
-/* If either string has been exhausted, leave the loop. */
-               if( !*p1 || !*p2 ) break;
+               break;
             }
          }
 
 /* If the formatted "nice" value was changed, unformatted it to get the
    returned axis value. Otherwise we rettina the returned value set
-   earlier. */
+   earlier. A day of zero is read as the day before the first of the
+   month, but a month or a year of zero is not a date, and the whole of
+   the text is then not read. In that case use the parent astCentre
+   function, as is done if the Format is not a date format. */
          if( fmod ) {
-            if( astUnformat( this, 0, fres, &result ) != nres && astOK ) {
-               astError( AST__INTER, "astCentre(%s): Error unformatting "
-                         "the central time axis value '%s' (internal AST "
-                         "programming error).", status, astClass( this ), fres );
+            if( astUnformat( this, 0, fres, &result ) != nres ) {
+               result = (*parent_centre)( this_frame, axis, value, gap,
+                                          status );
             }
          }
 
@@ -876,6 +857,10 @@ static int DateFormat( const char *fmt, int *ndp, char *sep, int *status ){
       if( !strncmp( c, "iso", 3 ) ) {
          result = 1;
          if( astSscanf( c, "iso.%d%n", ndp, &nc ) == 1 ) {
+
+/* The fraction of a second is handled as an int, which limits the
+   seconds field to 9 decimal places. */
+            if( *ndp > 9 ) *ndp = 9;
 
 /* Check the separate character (if any) at the end of the format string.
    Only "T" is allowed. A space is used if no separator is given. */
@@ -1707,32 +1692,40 @@ static const char *Format( AstFrame *this_frame, int axis, double value, int *st
 /* If no time fields will be produced, round to the nearest day. */
             if( ndp < 0 ) mjd = round( mjd );
 
-/* Convert the MJD into a set of numeric date fields, plus day fraction,
-   and format them. */
-            palDjcl( mjd, &iy, &im, &id, &fd, &j );
-            d = format_buff;
-            d += sprintf( d, "%4d-%2.2d-%2.2d", iy, im, id );
+/* Convert the MJD into a set of numeric date fields, plus day fraction.
+   A value that is outside the range of the calendar has no date, and is
+   formatted in the same way as a bad value. */
+            j = -1;
+            if( isfinite( mjd ) ) palDjcl( mjd, &iy, &im, &id, &fd, &j );
+            if( j != 0 ) {
+               result = "<bad>";
+
+/* Otherwise, format the date fields. */
+            } else {
+               d = format_buff;
+               d += sprintf( d, "%4d-%2.2d-%2.2d", iy, im, id );
 
 /* If required, convert the day fraction into a set of numerical time
    fields. */
-            if( ndp >= 0 ) {
-               palDd2tf( ndp, fd, sign, ihmsf );
+               if( ndp >= 0 ) {
+                  palDd2tf( ndp, fd, sign, ihmsf );
 
 /* Format the time fields. */
-               if( ndp > 0 ) {
-                  (void) sprintf( tbuf, "%c%2.2d:%2.2d:%2.2d.%*.*d", sep,
-                                  ihmsf[0], ihmsf[1], ihmsf[2], ndp, ndp,
-                                  ihmsf[3] );
-               } else {
-                  (void) sprintf( tbuf, "%c%2.2d:%2.2d:%2.2d", sep, ihmsf[0],
-                                  ihmsf[1], ihmsf[2] );
-               }
+                  if( ndp > 0 ) {
+                     (void) sprintf( tbuf, "%c%2.2d:%2.2d:%2.2d.%*.*d", sep,
+                                     ihmsf[0], ihmsf[1], ihmsf[2], ndp, ndp,
+                                     ihmsf[3] );
+                  } else {
+                     (void) sprintf( tbuf, "%c%2.2d:%2.2d:%2.2d", sep, ihmsf[0],
+                                     ihmsf[1], ihmsf[2] );
+                  }
 
 /* Add in the formatted time. */
-               d += sprintf( d, "%s", tbuf );
+                  d += sprintf( d, "%s", tbuf );
 
+               }
+               result = format_buff;
             }
-            result = format_buff;
          }
       }
    }
@@ -2628,6 +2621,7 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
    double orig;                  /* Time origin (seconds) */
    int fmtSet;                   /* Was Format attribute set? */
    int ndp;                      /* Number of decimal places for seconds field */
+   size_t nc;                    /* Number of characters in the buffer */
 
 /* Check the global error status. */
    if ( !astOK ) return NULL;
@@ -2712,7 +2706,8 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
                                     astGetUnit( this, axis ), result,
                                     &new_lab );
                if( new_lab ) {
-                  result = strcpy( getlabel_buff, new_lab );
+                  snprintf( getlabel_buff, sizeof( getlabel_buff ), "%s", new_lab );
+                  result = getlabel_buff;
                   new_lab = astFree( new_lab );
                }
 
@@ -2722,13 +2717,21 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
          }
       }
 
-/* If the time is a Local Time, indicate the offset from UTC. */
+/* If the time is a Local Time, indicate the offset from UTC. The label
+   found above may already be in the buffer, in which case the offset is
+   appended to it in place. */
       if( astGetTimeScale( this ) == AST__LT ) {
          ltoff = astGetLTOffset( this );
+         if( result != getlabel_buff ) {
+            snprintf( getlabel_buff, sizeof( getlabel_buff ), "%s", result );
+         }
+         nc = strlen( getlabel_buff );
          if( ltoff >= 0.0 ) {
-            sprintf( getlabel_buff, "%s (UTC+%g)", result, ltoff );
+            snprintf( getlabel_buff + nc, sizeof( getlabel_buff ) - nc,
+                      " (UTC+%g)", ltoff );
          } else {
-            sprintf( getlabel_buff, "%s (UTC-%g)", result, -ltoff );
+            snprintf( getlabel_buff + nc, sizeof( getlabel_buff ) - nc,
+                      " (UTC-%g)", -ltoff );
          }
          result = getlabel_buff;
       }
@@ -2840,7 +2843,8 @@ static const char *GetSymbol( AstFrame *this, int axis, int *status ) {
                                  astGetUnit( this, axis ), result,
                                  &new_sym );
             if( new_sym ) {
-               result = strcpy( getsymbol_buff, new_sym );
+               snprintf( getsymbol_buff, sizeof( getsymbol_buff ), "%s", new_sym );
+               result = getsymbol_buff;
                new_sym = astFree( new_sym );
             }
 
@@ -7184,6 +7188,9 @@ AstTimeFrame *astLoadTimeFrame_( void *mem, size_t size,
    new = astLoadFrame( mem, size, (AstFrameVtab *) vtab, name,
                        channel );
    if ( astOK ) {
+
+/* A TimeFrame always has one axis, which the rest of this class relies on. */
+      astCheckLoadedNaxes( new, name, 1 );
 
 /* Read input data. */
 /* ================ */

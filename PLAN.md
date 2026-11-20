@@ -101,6 +101,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   unavailable on Darwin, and every test here suppresses leak reports because
   AST's memory system caches freed blocks. Running this test under
   `ASAN_OPTIONS=detect_leaks=1` on Linux is the manual check.
+  For every projection type, at orders 0 to 3 and in both directions, it also checks that the number of pixel centres in the grid that are transformed is the number of HEALPix pixels on the sky, and that each makes the return trip.
+  Positions too far from the grid for the index of a grid cell to fit in an integer, and positions that are not finite, must give AST__BAD, except that the forward transformation of an XPH projection does not test a position against the outer edges of its grid and is only required to give finite values for a far position.
+  An Order outside the range 0 to 27 must be rejected by the loader with AST__LDERR, and pixels at both ends of the grid must be transformed at order 27.
+  The conversion of the index of a far grid cell to an integer was undefined, which the test can mostly only detect under UndefinedBehaviorSanitizer.
 - testwcsmap — WcsMap projections at the points where AST's wcslib fork has
   differed from upstream wcslib 8.10: QSC near a face centre, HPX poles, facet
   edges and non-default H and K, the ZPN far side for a degree-2 polynomial,
@@ -108,6 +112,78 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   parentheses), and native coordinates a little past a limit, which wcslib's
   per-projection tolerance accepts. Wanted values are upstream's output for the
   same projection and parameters.
+- testcorruptinput — corrupt or malicious input must be rejected without a crash, memory corruption, or a run time or memory use out of proportion to its size.
+  Each case is a small dump or FITS header of the kind a fuzzer produces by changing one value of a valid input, and each made the library do one of those things.
+  It covers integers too large for an int, and the AST__MXAXES limit on the inputs, outputs and axes of a Mapping or Frame, in constructors and loaders.
+  It covers component objects that are missing from a dump or belong to the wrong class, Regions whose defining points are missing or the wrong number or whose components have the wrong number of axes, a Polygon vertex with no value, and a PointSet that claims more values than a dump can hold.
+  For a FrameSet it covers more Frames or nodes claimed than are present, node links that form a loop, and Mappings and Frames that disagree about the number of axes.
+  It covers Frames with the wrong number of axes for their class, a SkyFrame whose axes are not described, loaders that carry on after an error, a PermMap that refers to a constant it does not have, a full MatrixMap with more elements than can be counted or named, a SplineMap given a position that is not a number, a KeyMap that asks for a huge hash table, a projection whose parameters are unusable (which must report an error every time it is used), and sky positions and Epochs too large to format or to bring into range one turn at a time.
+  For FITS headers it covers a WCSAXES value that is not a usable number of axes, CTYPE values of fewer than three characters, an IRAF WAT card with no string value, a header whose transformation fails part of the way through a compound Mapping, a pixel size so small that its reciprocal is infinite, an axis with a blank label beside a spectral axis, an epoch of observation that has no calendar date (for which no DATE-OBS keyword is written), an axis whose CDELT keyword is missing or is not a number (which has the default pixel size of 1.0) or is zero (which is replaced by a millionth of CRVAL), and a celestial axis that has no partner (which is rejected with the same error whatever projection its CTYPE names, or ignored if the header holds nothing but its CTYPE).
+  It covers text of any length (values, Labels, Domains and Units far longer than the fixed buffers that error messages, warnings, titles, default Labels and Symbols, dump comments and formatted values are written into), a Unit for which the search for a Mapping from the default Unit fails, a Table column name longer than astAddColumn allows, and a Format string that asks `sprintf` for values that are not there.
+  It covers a TimeFrame date Format that asks for more decimal places than a seconds field can have, a time that has no calendar date, and the default Label of a local time.
+  It covers a string attribute value of thousands of characters given to astSetC or astSet, and attribute names of hundreds of characters given to a CmpFrame, Prism, FrameSet or Plot3D.
+  It covers a floating point FITS keyword value and an STC-S position written with hundreds of digits, an STC XML document with long text where a unit, a time scale or a time is expected, and a YAML mapping that repeats a long key.
+  It covers astMapSplit on a compound Mapping in which a MatrixMap or WcsMap couples two of twelve axes, and FITS headers with twenty WCS axes and two pixel axes, both of which used to take a time that grew faster than the factorial of the number of axes.
+  It covers a MathMap dump that states billions of functions and holds one, and a RateMap that a SwitchMap uses as a route in the direction the RateMap does not define.
+  Run it with the sanitizers enabled, which is how most of the faults are detected.
+  Some of the buffer overflows are inside a larger structure when AST is built thread-safe, where the sanitizers cannot see them; an optimized build with `_FORTIFY_SOURCE` traps on those.
+- testmapmerge — simplifying a Mapping must not change what it does.
+  Each case is a small compound Mapping for which the code that merges one class with its neighbours, or swaps it with them, used to give a Mapping that was not equivalent, report an error, or read or write memory it should not have.
+  Every Mapping is simplified, and must keep its numbers of inputs and outputs and give the same results from its forward and inverse transformations.
+  It covers a PermMap created without one of its permutation arrays, an inverted PermMap with more inputs than outputs, and a PermMap that supplies constants to two Mappings in parallel.
+  It covers WcsMaps that differ only in the number of projection parameters, an inverted PermMap beside a WcsMap, a PolyMap beside its own inverse, and a TimeMap conversion followed by its inverse.
+  It covers a full MatrixMap that is really diagonal and is used inverted, a MatrixMap with no inverse that is used inverted, and diagonal MatrixMaps with different numbers of inputs and outputs beside a WinMap.
+  It covers a WinMap beside a unit MatrixMap, beside two Mappings in parallel, with a scale of zero, and followed by a MatrixMap that discards an axis the WinMap shifts.
+  It covers astEqual for MathMaps whose functions differ only in their last operation or are a single constant, since astEqual decides whether a Mapping cancels with the inverse of its neighbour, and a SwitchMap followed by the inverse of a SwitchMap with a different route.
+  Run it with the sanitizers enabled, which is how the memory faults are detected.
+- testfitswrite — an unusual FrameSet must be written to a FITS header without harm.
+  A FrameSet that a foreign encoding cannot describe must simply not be written: astWrite returns zero, reports no error and leaves the FitsChan as it found it.
+  Each case is a small FrameSet for which the library used to read or write memory it should not have, call itself without end, report an internal error, or write a header that did not describe the FrameSet.
+  It covers a compound Mapping with an Ident, axes that could only be written as look-up tables where a world axis depends on two pixel axes or the Mapping has no inverse, and polynomial distortion beside axes that share a pixel axis.
+  It covers more Frames than there are version letters, an offset sky coordinate system beside a Frame that claims a letter through its Ident, and FITS-PC secondary axis descriptions that need a reference frame, projection parameters or a number of axes that the primary description does not have.
+  It covers a FITS-CLASS cube with a fourth axis, a sky axis Symbol too long for a keyword comment, a Domain that differs from an axis Symbol only in its last character, and a write that fails after it has replaced cards that were already in the FitsChan (which must be put back).
+  Run it with the sanitizers enabled, which is how the memory faults are detected.
+- testcast — a Frame must be comparable with a Frame of an ancestral class before any Frame of an intermediate class has been used, and must be cast only into a class that it is an instance of.
+  astConvert casts a template that does not match into the class of the target, and the CmpFrame, Region and FrameSet classes did so using a virtual function table that was only set up when an object of exactly that class was created.
+  It covers two SpecFluxFrames with different Domains before any plain CmpFrame exists (so that case must stay first in the program), and a CmpFrame that holds a Region.
+  The same three classes copied a Frame as if it were of any class derived from their own, so it also calls the protected astCast to require no result for a Frame that is not an instance of the class asked for (an StcSearchLocation into an StcObsDataLocation, a FrameSet into a Plot, a plain CmpFrame into a SpecFluxFrame), and a Frame of the right class for the casts that are possible.
+- testloaderhardening — class loaders must enforce the invariants that their constructors guarantee.
+  For PolyMap, LutMap, MathMap, WcsMap, SplineMap, Plot, Plot3D and Moc it loads a valid hand-crafted dump, then variants that each break one invariant, and requires every variant to be rejected with a specific error code.
+  For a MathMap the variants have fewer forward functions than outputs or inverse functions than inputs, a negative number of functions, and a function that is missing from the dump.
+  For each class of Mapping that can only have particular numbers of inputs and outputs, it changes Nin and Nout in the dump of a valid Mapping and requires the result to be rejected, and it checks that a Mapping, Frame or Region encapsulated by another Mapping cannot be left out of a dump or replaced by an object of another class.
+  The DssMap check is made by testdssmap, since a DssMap has no public constructor.
+  It also checks that objects built by the constructors survive a dump and load (including a WcsMap of type AST__WCSBAD, whose axis indices are not checked), that a LutMap loaded with fewer than two good table values has no inverse, that a SplineMap whose end knots are not coincident gives AST__BAD outside the interval over which its spline is defined, and that astMalloc, astCalloc, astRealloc and astGrow report an error for a size that overflows.
+- testregionhardening — a Region made through the public interface must not make the library overrun an array, call a function without end, or loop for ever, whatever its shape or Frames.
+  Each case used to do one of those things, and most do not change a result, so the test is only decisive under the sanitizers.
+  It covers the grid of points inside a Box that has no width on an axis (in a Frame, a CmpFrame and a SkyFrame) or is far longer than it is wide, a string attribute value that holds a "%" character, a comma and an equals sign, or quotes (a Region must store what a Frame stores, and no other attribute may change), masking with a Region that has no upper limit and with a PointList on a grid with the wrong number of dimensions, and the overlap of a PointList, of two Intervals of which one excludes the range that the other includes, of a Region with more current Frame axes than base Frame axes, and of a Prism that has no boundary mesh (which must be reported as an overlap that cannot be determined).
+  It covers the bounds of a PointList and a NullRegion, and the mesh of a Prism, after each has been mapped into a Frame with a different number of axes, an Ellipse used as the uncertainty of a Box (which must be moved without changing size), an Ellipse made from three points in a line (which must report the error on every use), and a Circle mapped so that no Ellipse can be fitted to its boundary.
+  It covers a Polygon whose vertices all coincide, and Polygons with huge and infinite vertex values, which only have to be created without hanging.
+  It maps a Box, a Circle and a PointList into a Frame with fewer axes, and masks with each through the same Mapping, requiring the Mapping to be unchanged afterwards and the Box and PointList masks to be those of the Region projected on to the remaining axis.
+- testregionlogic — results that depend on how Regions keep and combine their state, each of which was wrong without any error being reported.
+  An Interval given as the uncertainty of a Box must report the bounds of the position it was moved to.
+  The overlap of a Prism with a Box that holds it, with the negation of that Box, with an equal Prism and with its own negation must be 2, 1, 5 and 6 (and 3, 1, 5 and 6 with the Regions in the other order).
+  The intersection of two half-planes, one inside the other, must not be reported as bounded, and asking for its bounds must not be an error.
+- testfields — astFields, astAbbrev and astCentre, which the Plot class uses on every numerical axis label, must stay within the text they are given and must not use a value that has not been set.
+  They are protected functions, so the test defines astCLASS and uses the protected interface, as testaxis does.
+  It covers a sky axis value with fewer fields than its Format, astAbbrev given a sky axis value that has no fields and nothing to compare it with, a value with leading spaces on a simple axis, and a sky axis value that has a leading plus sign and one field or is blank.
+  For dates it requires astUnformat to refuse a month of zero or thirteen (and the Epoch attribute to reject one), while still reading a day of zero as the day before the first of the month.
+  It requires TimeFrame astCentre to return the same values as before for a gap that changes the day or the time, the value it was given for a gap too small to change the formatted date, and a value within the gap for a gap that crosses the end of a month or year.
+  The text of each case is held in memory of exactly its own size, so that the sanitizers see a read beyond it.
+- testplotclip — a Plot must report an error raised while transforming positions into its clipping Frame without annulling the PointSet that its caller supplied.
+  The clipping Frame is reached through an IntraMap that fails on request.
+  The double annul is a use of freed memory, so the test is only decisive under AddressSanitizer.
+- testplotcopy — a copy of a Plot must own its graphics context KeyMap: it starts with the original's contents, changes independently, and is released separately.
+  It also copies a Plot3D and annuls the original and the copy in either order.
+  Releasing the KeyMap twice is a use of freed memory, so that part of the test is only decisive under AddressSanitizer.
+- testpolymapinv — a PolyMap must only offer an iterative inverse when it has a forward transformation to iterate.
+  It checks the IterInverse default and TranInverse for PolyMaps with no coefficients, with inverse coefficients only and with forward coefficients only, that asking for an iterative inverse without a forward transformation is an error (through the attribute, the constructor options and a dump), and that the iterative inverse of a forward-only PolyMap still inverts it.
+- testsplinemapedge — SplineMap values on the edges of the area covered by its knots.
+  A bilinear and a constant SplineMap with a single knot interval on each axis, and SplineMaps with one interval on one axis and two on the other, must give the exact spline value on every edge and corner, and AST__BAD just outside.
+  A SplineMap whose knots are all equal on one axis covers no area and must give AST__BAD rather than NaN.
+- testdssmap — the DssMap class, which AST no longer creates and which can only be reached by loading a dump written by an older version.
+  Using the dump in fixtures/serialisation/c_dssmap.ast, it checks the sky positions of pixels on the plate and the return trip, that sky positions on the far side of the sky from the plate centre and positions too large for the plate solution give AST__BAD, and that a dump is rejected if a required value is missing, if it does not have two inputs and two outputs, or if its plate centre or pixel offsets are too large for the DSS FITS keywords.
+  It also checks that a DssMap absorbs a neighbouring WinMap on simplification only when the new pixel offsets are whole numbers of pixels that an integer can hold.
+  The conversion of an oversized pixel offset to an integer was undefined, which the test can only detect under UndefinedBehaviorSanitizer.
 
 **Optional manual stress test:**
 - testhuge_c

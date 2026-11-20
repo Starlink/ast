@@ -177,6 +177,11 @@
 *        astAppendStringf.
 *     22-APR-2026 (EMB):
 *        Fix undefined behavior with pointer arithmetic in astChrSplit.
+*     11-NOV-2026 (TIMJ):
+*        astMalloc, astCalloc, astRealloc and astGrow now report an error
+*        if the total size requested, including the memory header, cannot
+*        be represented by a size_t. Previously the size wrapped round, so
+*        that a block far smaller than requested was returned.
 */
 
 /* Configuration results. */
@@ -1080,14 +1085,23 @@ void *astCalloc_( size_t nmemb, size_t size, int *status ) {
 /* Check the global error status. */
    if ( !astOK ) return result;
 
-/* Attempt to allocate and initialise the required amount of memory. */
-   result = astMallocInit( nmemb*size );
+/* Report an error if the total size is too large to be represented. */
+   if( size != 0 && nmemb > ( (size_t) -1 )/size ) {
+      astError( AST__NOMEM, "Failed to allocate memory for %lu elements, "
+                "each of %lu bytes: the total size is too large.", status,
+                (unsigned long) nmemb, (unsigned long) size );
+
+/* Otherwise, attempt to allocate and initialise the required amount of
+   memory. */
+   } else {
+      result = astMallocInit( nmemb*size );
 
 /* If the above call failed due to failure of the system malloc function,
    issue an extra error giving the number of elements and element size. */
-   if( astStatus == AST__NOMEM ) {
-      astError( AST__NOMEM, "(%lu elements, each of %lu bytes).", status,
-                (unsigned long) nmemb, (unsigned long) size );
+      if( astStatus == AST__NOMEM ) {
+         astError( AST__NOMEM, "(%lu elements, each of %lu bytes).", status,
+                   (unsigned long) nmemb, (unsigned long) size );
+      }
    }
 
 /* Return the result. */
@@ -2762,6 +2776,15 @@ void *astGrow_( void *ptr, size_t n, size_t size, int *status ) {
 /* Initialise. */
    new = ptr;
 
+/* Report an error if the total size of memory needed is too large to be
+   represented. */
+   if( n != 0 && size > ( (size_t) -1 )/n ) {
+      astError( AST__NOMEM, "Failed to allocate memory for %lu elements, "
+                "each of %lu bytes: the total size is too large.", status,
+                (unsigned long) n, (unsigned long) size );
+      return ptr;
+   }
+
 /* Calculate the total size of memory needed. */
    size *= n;
 
@@ -2941,9 +2964,14 @@ void *astMalloc_( size_t size, int init, int *status ) {
 /* Initialise the memory (but not the header) if required. */
          if( init ) (void) memset( (char *) mem + SIZEOF_MEMORY, 0, size );
 
-/* Otherwise, allocate a new memory block using "malloc" or "calloc". */
+/* Otherwise, allocate a new memory block using "malloc" or "calloc". A
+   size so large that it cannot be represented once the header has been
+   added can never be allocated, so treat it as a failed allocation. */
       } else {
-         if( init ) {
+         if( size > ( (size_t) -1 ) - SIZEOF_MEMORY ) {
+            mem = NULL;
+            errno = ENOMEM;
+         } else if( init ) {
             mem = CALLOC( 1, SIZEOF_MEMORY + size );
          } else {
             mem = MALLOC( SIZEOF_MEMORY + size );
@@ -3763,7 +3791,14 @@ void *astRealloc_( void *ptr, size_t size, int *status ) {
                DeIssue( mem, status );
 #endif
 
-               mem = REALLOC( mem, SIZEOF_MEMORY + size );
+/* A size so large that it cannot be represented once the header has been
+   added can never be allocated, so treat it as a failed reallocation. */
+               if( size > ( (size_t) -1 ) - SIZEOF_MEMORY ) {
+                  mem = NULL;
+                  errno = ENOMEM;
+               } else {
+                  mem = REALLOC( mem, SIZEOF_MEMORY + size );
+               }
 
 /* If this failed, report an error and return the original pointer
    value. */

@@ -80,6 +80,9 @@ f     The StcObsDataLocation class does not define any new routines beyond those
 *        astWriteObject dumps the Object it is given, so an
 *        StcObsDataLocation with no observatory position crashed when
 *        it was written.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadStcObsDataLocation, check that the observatory position
+*        read from a dump is a PointList.
 *class--
 */
 
@@ -1027,6 +1030,7 @@ AstStcObsDataLocation *astLoadStcObsDataLocation_( void *mem, size_t size, AstSt
 /* Observatory position. */
 /* --------------------- */
       new->obs = astReadObject( channel, "obsloc", NULL );
+      astCheckLoaded( new->obs, PointList, 0, name, "observatory position" );
 
 /* If an error occurred, clean up by deleting the new StcObsDataLocation. */
       if ( !astOK ) new = astDelete( new );

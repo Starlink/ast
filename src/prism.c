@@ -90,6 +90,29 @@ f     The Prism class does not define any new routines beyond those
 *        it takes them, (that, this). The fallback used when the Prism's
 *        components cannot be compared separately returned 3 for a Prism
 *        inside the other Region, and 2 for the other Region inside it.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadPrism, check that the dump supplied two component
+*        Regions that together have the axes of the Prism.
+*     16-NOV-2026 (TIMJ):
+*        RegClearAttrib and RegSetAttrib: limit the length of the attribute
+*        name read from a name or setting that has an axis index to the
+*        size of the buffer that receives it. RegSetAttrib now allocates
+*        memory for the setting it passes to a component Region, which was
+*        written in 255 characters whatever the length of the value.
+*     19-NOV-2026 (TIMJ):
+*        RegBaseMesh: give the mesh an axis for each axis of the base Frame,
+*        not of the current Frame, and report an error if it would have
+*        more points than a PointSet can hold.
+*     19-NOV-2026 (TIMJ):
+*        RegBaseMesh: correct the spelling of "because" in an error message.
+*     19-NOV-2026 (TIMJ):
+*        RegCentre: discard the boundary mesh kept by the parent Region when
+*        the Prism is moved.
+*     19-NOV-2026 (TIMJ):
+*        Overlap: use the Regions picked from the second Region un-negated.
+*        They are given its Negated attribute, and the result is changed
+*        afterwards to allow for negation, so the negation of the second
+*        Region was allowed for twice.
 *class--
 */
 
@@ -1827,6 +1850,16 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
                that_base = (AstRegion *) astPickAxes( that, nbase, outax, NULL );
                if( astIsARegion( that_base ) ) {
 
+/* The Regions picked from "that" are given its Negated attribute. The
+   overlap of the component Regions is found below as if neither Prism had
+   been negated, and the result is then changed to allow for negation, so
+   the picked Regions must be used un-negated. Otherwise the negation of
+   "that" is allowed for twice. */
+                  if( astGetNegated( that ) ) {
+                     astSetNegated( that_ext, 0 );
+                     astSetNegated( that_base, 0 );
+                  }
+
 /* Map the two Regions picked from "that" into the Frames of the two
    sub-regions within "this". */
                   astInvert( emap );
@@ -2162,7 +2195,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    Prism. */
       if( !hasMesh1 || !hasMesh2 ) {
          if( astOK ) astError( AST__INTER, "astRegBaseMesh(%s): No mesh "
-                   "can be produced for the %s bacause one of its component "
+                   "can be produced for the %s because one of its component "
                    "Regions is unbounded.", status, astGetClass( this ), astGetClass( this ) );
 
 /* Otherwise we can create a mesh for the Prism. */
@@ -2225,9 +2258,20 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
          msz2 = astGetNpoint( mesh2 );
          gsz2 = astGetNpoint( grid2 );
 
-/* Create the returned PointSet. */
-         msz = gsz1*msz2 + msz1*gsz2;
-         nax= astGetNaxes( this );
+/* Create the returned PointSet, reporting an error if it would have more
+   points than a PointSet can hold. The mesh is in the base Frame of the
+   Prism, which has an axis for each axis of the two component meshes, and
+   need not have the same number of axes as the current Frame. */
+         if( astOK && (double) gsz1*(double) msz2 +
+                      (double) msz1*(double) gsz2 > (double) INT_MAX ) {
+            msz = 0;
+            astError( AST__INTER, "astRegBaseMesh(%s): The mesh for the %s "
+                      "would have more points than can be created.", status,
+                      astGetClass( this ), astGetClass( this ) );
+         } else {
+            msz = gsz1*msz2 + msz1*gsz2;
+         }
+         nax = astGetNin( this_region->frameset );
          result = astPointSet( msz, nax, "", status );
 
 /* Get pointers to the data in all 5 PointSets. */
@@ -2619,6 +2663,10 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
       astRegCentre( reg1, bc, NULL, 0, AST__CURRENT );
       astRegCentre( reg2, bc + nax1, NULL, 0, AST__CURRENT );
 
+/* Discard the information that the parent Region class keeps about the
+   Prism at its old position, such as its boundary mesh. */
+      astResetCache( this_region );
+
 /* Free resources. */
      if( bc != cen ) bc = astFree( bc );
    }
@@ -2951,7 +2999,7 @@ static void RegClearAttrib( AstRegion *this_region, const char *attrib,
    Region which defines the axis. First parse the base Frame attribute setting
    to locate any axis index. */
    len = strlen( batt );
-   if( nc = 0, ( 2 == astSscanf( batt, "%[^(](%d) %n", buf1, &axis,
+   if( nc = 0, ( 2 == astSscanf( batt, "%99[^(](%d) %n", buf1, &axis,
                                  &nc ) ) && ( nc >= len ) ) {
 
 /* If found, convert the axis index from one-based to zero-based. */
@@ -3053,8 +3101,8 @@ static void RegSetAttrib( AstRegion *this_region, const char *setting,
    AstPrism *this;
    AstRegion *creg;
    char *bset;
+   char *cset;
    char buf1[ 100 ];
-   char buf2[ 255 ];
    int axis;
    int len;
    int nax1;
@@ -3084,7 +3132,7 @@ static void RegSetAttrib( AstRegion *this_region, const char *setting,
    Region which defines the axis. First parse the base Frame attribute setting
    to locate any axis index. */
    len = strlen( bset );
-   if( nc = 0, ( 2 == astSscanf( bset, "%[^(](%d)= %n%*s %n", buf1, &axis,
+   if( nc = 0, ( 2 == astSscanf( bset, "%99[^(](%d)= %n%*s %n", buf1, &axis,
                                  &value, &nc ) ) && ( nc >= len ) ) {
 
 /* If found, convert the axis index from one-based to zero-based. */
@@ -3100,10 +3148,14 @@ static void RegSetAttrib( AstRegion *this_region, const char *setting,
          creg = this->region2;
          axis -= nax1;
       }
-      sprintf( buf2, "%s(%d)=%s", buf1, axis + 1, bset + value );
+      cset = astMalloc( strlen( bset ) + 15 );
+      if( cset ) {
+         sprintf( cset, "%s(%d)=%s", buf1, axis + 1, bset + value );
 
 /* Apply the setting to the relevant component Region. */
-      astRegSetAttrib( creg, buf2, NULL );
+         astRegSetAttrib( creg, cset, NULL );
+         cset = astFree( cset );
+      }
 
 /* If the setting is not qualified by an axis index, apply it to both
    component Regions. */
@@ -4404,10 +4456,27 @@ AstPrism *astLoadPrism_( void *mem, size_t size, AstPrismVtab *vtab,
 /* First Region. */
 /* -------------- */
       new->region1 = astReadObject( channel, "regiona", NULL );
+      astCheckLoaded( new->region1, Region, 1, name,
+                      "first component Region" );
 
 /* Second Region. */
 /* --------------- */
       new->region2 = astReadObject( channel, "regionb", NULL );
+      astCheckLoaded( new->region2, Region, 1, name,
+                      "second component Region" );
+
+/* The base Frame of a Prism is made by joining the Frames of its two
+   component Regions, so it has all the axes of both. */
+      if( astOK ) {
+         nax1 = astGetNaxes( new->region1 );
+         nax2 = astGetNaxes( new->region2 );
+         if( nax1 + nax2 != astGetNin( ((AstRegion *) new)->frameset ) ) {
+            astError( AST__LDERR, "astLoadPrism(%s): The component Regions "
+                      "read for a %s have %d and %d axes, but the %s has "
+                      "%d.", status, name, name, nax1, nax2, name,
+                      astGetNin( ((AstRegion *) new)->frameset ) );
+         }
+      }
 
 /* Either component Region may currently contain a dummy FrameSet rather than
    the correct FrameSet (see the Dump function for this class). In this case,

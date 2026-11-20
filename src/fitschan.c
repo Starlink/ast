@@ -1551,6 +1551,131 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In WcsOthers, use a UnitMap for a non-spectral "-LOG" axis with
 *        a zero CRVAL, for which LogWcs returns NULL. It passed the NULL
 *        pointer to astCmpMap, so astRead crashed.
+*     13-NOV-2026 (TIMJ):
+*        Reading a foreign encoding: report an error if the value of
+*        WCSAXES is not a number of axes that a FITS header can describe,
+*        rather than using it as the size of arrays and Frames. Do not
+*        apply a SIP distortion, which needs two axes, to a header that
+*        states one. In WcsCelestial, do not look beyond the end of a
+*        CTYPE value of fewer than three characters for a latitude axis
+*        type. In ConcatWAT, ignore a WAT card that has no string value.
+*        In DSSFromStore, do not loop for ever bringing a very large
+*        reference declination into range.
+*     13-NOV-2026 (TIMJ):
+*        Avoid three conversions and one addition that were undefined for
+*        a keyword value that an int cannot hold: CnvType now fails to
+*        convert such a floating point value to an integer type,
+*        GrismSpecWcs reports an error for such a diffraction order, and
+*        SpecTrans adds one to an image dimension as a double.
+*     13-NOV-2026 (TIMJ):
+*        LogWcs: make room for a negative CRVAL with a three digit
+*        exponent, which overflowed the expression buffers by one
+*        character. MakeFitsFrameSet: do not pass a NULL FrameSet to
+*        AddEncodingFrame when no reference point could be found for the
+*        celestial axes of a spectral cube.
+*     14-NOV-2026 (TIMJ):
+*        Added MjdToDateObs to format the value of DATE-OBS, replacing
+*        six copies of the same code. It stores no DATE-OBS keyword for
+*        an epoch that has no calendar equivalent. The copies ignored the
+*        status of the date conversion, so that an epoch that was not a
+*        number, or was outside the range that can be converted, formatted
+*        integers that had not been set into a buffer that they could
+*        overflow.
+*     15-NOV-2026 (TIMJ):
+*        In SpecTrans ("Zero CDELT values"), only replace a CDELT value
+*        that was read and is zero. The value of an axis with no CDELT
+*        keyword, or with one that is not a number, was tested without
+*        having been set, so whether such a header could be read depended
+*        on how the library had been compiled. Also take the replacement
+*        from CRVAL, as documented, rather than from CDELT itself, which
+*        made the replacement 1.0 in every case.
+*     16-NOV-2026 (TIMJ):
+*        SplitMap2: do not search a CmpMap that astMapList cannot
+*        decompose, such as one with an Ident. It was searched by calling
+*        SplitMap2 again with the same CmpMap, without end.
+*     16-NOV-2026 (TIMJ):
+*        IsMapTab1D: return a Mapping only if columns were added to the
+*        table. If the requested WCS axis was fed by more than one grid
+*        axis, a Mapping was returned with no table, and the callers then
+*        used a NULL FitsTable pointer.
+*     16-NOV-2026 (TIMJ):
+*        Stay within the bounds of four arrays used when writing a
+*        FrameSet. AnalysePoly set the output index of a coefficient
+*        before deciding whether the coefficient was used, so wrote beyond
+*        the end of the new coefficient array. SIPIntWorld now checks that
+*        the axes other than the celestial axes are fed by all the
+*        remaining grid axes. WorldAxes used a grid axis index to index
+*        an array with an element for each WCS axis, and MakeInvertable
+*        read a pixel dimension for a matrix input that corresponds to no
+*        pixel axis.
+*     16-NOV-2026 (TIMJ):
+*        FsetToStore: added FreeVersion to find the next unused
+*        co-ordinate version letter. The search ran beyond 'Z' when all
+*        twenty six letters had been assigned. The letter for the absolute
+*        description of an offset sky coordinate system was not checked at
+*        all, so could be one already claimed by the Ident of another
+*        Frame.
+*     16-NOV-2026 (TIMJ):
+*        PCFromStore: initialise the primary RADECSYS and projection
+*        parameter values, which were compared with those of a secondary
+*        axis description without having been set if the primary
+*        description had none. Do not write a secondary description that
+*        has more projection parameters than the primary one, or a
+*        different number of axes, for which the comparison of the PC
+*        matrices could read beyond the end of the primary matrix.
+*     16-NOV-2026 (TIMJ):
+*        MakeIntWorld: only store PC and CDELT values if the CD matrix was
+*        found and could be split. CDELT values that had not been set were
+*        stored if the Mapping was not linear.
+*     16-NOV-2026 (TIMJ):
+*        SkySys: limit the comment for the CTYPE of an offset sky axis to
+*        the size of its buffer, which a long axis Symbol overflowed.
+*     16-NOV-2026 (TIMJ):
+*        Similar: compare the last non-blank character of the two strings.
+*        It was ignored, so two strings that differed only there were
+*        considered equivalent, and the comparison of two blank strings
+*        read beyond the end of both.
+*     16-NOV-2026 (TIMJ):
+*        SpecTrans: only translate a non-standard projection if both a
+*        longitude and a latitude axis were found. For a celestial axis
+*        with no partner, the CTYPE of the missing axis was set from a
+*        buffer that had not been filled, and keywords were looked for on
+*        axis zero.
+*     16-NOV-2026 (TIMJ):
+*        CLASSFromStore: when finding the sky position of a single spatial
+*        pixel, transform as many coordinates as the FrameSet has, rather
+*        than three, and find the longitude and latitude values from the
+*        axes of the current Frame before testing them.
+*     16-NOV-2026 (TIMJ):
+*        FixNew: do the work even if an error has been reported, as its
+*        prologue has always said it does. Write re-instates the original
+*        current card in the same way. The cards added by a write that
+*        failed with an error were left in the FitsChan, still marked as
+*        new.
+*     16-NOV-2026 (TIMJ):
+*        Added SaveReplaced and FixReplaced. SetValue now keeps a copy of
+*        each card that astWrite replaces, and FixNew puts the card back if
+*        the cards that replaced it are removed. A write that was abandoned
+*        used to remove such keywords from the FitsChan altogether.
+*     16-NOV-2026 (TIMJ):
+*        ClassTrans: take the frequency at the reference channel to be zero
+*        if the header has no CRVAL for the spectral axis. A value that had
+*        not been set was used to calculate the source velocity.
+*        CLASSFromStore: require a reference pixel for each of the three
+*        axes, and only create the keywords that use the CRVAL values if
+*        all of those values were found.
+*     16-NOV-2026 (TIMJ):
+*        EncodeFloat: format the value in a work buffer and copy it to the
+*        card if it fits. It was formatted in what was left of the card
+*        with the number of digits given by FitsDigits, so a large
+*        FitsDigits value wrote beyond the end of the card.
+*     16-NOV-2026 (TIMJ):
+*        Do not write beyond the end of a fixed buffer when copying or
+*        formatting a string of any length: a keyword value or name quoted
+*        in a warning, a CTYPE value copied so that its projection code can
+*        be changed, and an axis Symbol, CTYPE or WCSNAME value used as a
+*        CTYPE value, Label or Title. SpectralAxes now allocates memory
+*        for the Unit of the SpecFrame, which it kept in 20 characters.
 *class--
 */
 
@@ -1658,6 +1783,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 #define LATAX              1
 #define NDESC              9
 #define MXCTYPELEN        81
+
+/* The largest value that the WCSAXES keyword can have. This is the largest
+   number of axes that the FITS standard allows an array to have, and the
+   largest axis number that fits in a keyword such as CTYPEn. */
+#define MXWCSAXES         999
 #define ALLWARNINGS       " distortion noequinox noradesys nomjd-obs nolonpole nolatpole tnx zpx badcel noctype badlat badmat badval badctype badpv badkeyname badkeyvalue badalt "
 #define NPFIT             10
 #define SPD               86400.0
@@ -1789,6 +1919,20 @@ typedef struct FitsCard {
    struct FitsCard *prev;     /* Pointer to previous structure in list. */
 } FitsCard;
 
+/* Structure used to hold a card that astWrite has replaced with a new
+   card, so that the original card can be put back if the Object turns out
+   not to be writable. */
+typedef struct ReplacedCard {
+   char name[ FITSNAMLEN + 1 ];/* Keyword name (plus terminating null). */
+   int type;                  /* Data type. */
+   void *data;                /* Pointer to the keyword's data value. */
+   char *comment;             /* Pointer to a comment for the keyword. */
+   int flags;                 /* Flags for the original card */
+   size_t size;               /* Size of data value */
+   int pending;               /* NEW flags still set in the replacement */
+   struct ReplacedCard *next; /* Pointer to the card replaced before it. */
+} ReplacedCard;
+
 /* Structure used to store information derived from the FITS WCS keyword
    values in a form more convenient to further processing. Conventions
    for units, etc, for values in a FitsStore follow FITS-WCS (e.g. angular
@@ -1899,6 +2043,7 @@ static int int_dig;
    globals->Current_Indent = 0; \
    globals->Ignore_Used = 1; \
    globals->Mark_New = 0; \
+   globals->Replaced_Cards = NULL; \
    globals->CnvType_Text[ 0 ] = 0; \
    globals->CnvType_Text0[ 0 ] = 0; \
    globals->CnvType_Text1[ 0 ] = 0; \
@@ -1929,6 +2074,7 @@ astMAKE_INITGLOBALS(FitsChan)
 #define current_indent astGLOBAL(FitsChan,Current_Indent)
 #define ignore_used astGLOBAL(FitsChan,Ignore_Used)
 #define mark_new astGLOBAL(FitsChan,Mark_New)
+#define replaced_cards astGLOBAL(FitsChan,Replaced_Cards)
 #define cnvtype_text astGLOBAL(FitsChan,CnvType_Text)
 #define cnvtype_text0 astGLOBAL(FitsChan,CnvType_Text0)
 #define cnvtype_text1 astGLOBAL(FitsChan,CnvType_Text1)
@@ -1992,6 +2138,12 @@ static int ignore_used = 1;
    marked with both the NEW1 and NEW2 flags (see above). If zero then
    new cards will not be marked with either NEW1 or NEW2. */
 static int mark_new = 0;
+
+/* Replaced_Cards: The head of a list of ReplacedCard structures, each
+   holding a card that has been replaced by a "new" card (see Mark_New)
+   during the current invocation of astWrite. The list is empty at all
+   other times. */
+static void *replaced_cards = NULL;
 
 /* Number of characters used for encoding */
 static int createkeyword_seq_nchars = -1;
@@ -2176,6 +2328,7 @@ static FitsCard *GetLink( FitsCard *, int, const char *, const char *, int * );
 static FitsStore *FitsToStore( AstFitsChan *, int, const char *, const char *, int * );
 static FitsStore *FreeStore( FitsStore *, int * );
 static FitsStore *FsetToStore( AstFitsChan *, AstFrameSet *, int, double *, int, const char *, const char *, int * );
+static char FreeVersion( const int *, char );
 static char *CardComm( AstFitsChan *, int * );
 static char *CardName( AstFitsChan *, int * );
 static char *ConcatWAT( AstFitsChan *, int, const char *, const char *, int * );
@@ -2214,6 +2367,7 @@ static int CnvType( int, void *, size_t, int, int, int, void *, const char *, co
 static int CnvValue( AstFitsChan *, int , int, void *, const char *, int * );
 static int ComBlock( AstFitsChan *, int, const char *, const char *, int * );
 static int CountFields( const char *, char, const char *, const char *, int * );
+static int MjdToDateObs( double, char *, size_t, int * );
 static int DSSFromStore( AstFitsChan *, FitsStore *, const char *, const char *, int * );
 static int EncodeFloat( char *, int, int, int, int, double, int * );
 static int EncodeValue( AstFitsChan *, char *, int, int, const char *, int * );
@@ -2242,6 +2396,7 @@ static int GetFitsS( AstFitsChan *, const char *, char **, int * );
 static int GetFull( AstChannel *, int * );
 static int GetMaxI( double ****item, char, int * );
 static int GetMaxJM( double ****item, char, int * );
+static int GetWcsAxes( FitsStore *, char, const char *, const char *, int * );
 static int GetMaxJMC( char *****item, char, int * );
 static int GetNcard( AstFitsChan *, int * );
 static int GetNkey( AstFitsChan *, int * );
@@ -2304,6 +2459,8 @@ static void Dump( AstObject *, AstChannel *, int * );
 static void EmptyFits( AstFitsChan *, int * );
 static void FindWcs( AstFitsChan *, int, int, int, const char *, const char *, int * );
 static void FixNew( AstFitsChan *, int, int, const char *, const char *, int * );
+static void FixReplaced( AstFitsChan *, int, int, int * );
+static void SaveReplaced( AstFitsChan *, int * );
 static void FixUsed( AstFitsChan *, int, int, int, const char *, const char *, int * );
 static void FormatCard( AstFitsChan *, char *, const char *, int * );
 static void FreeItem( double ****, int * );
@@ -2315,7 +2472,7 @@ static void InsCard( AstFitsChan *, int, const char *, int, void *, const char *
 static void MakeBanner( const char *, const char *, const char *, char [ AST__FITSCHAN_FITSCARDLEN - FITSNAMLEN + 1 ], int * );
 static void MakeIndentedComment( int, char, const char *, const char *, char [ AST__FITSCHAN_FITSCARDLEN - FITSNAMLEN + 1], int * );
 static void MakeIntoComment( AstFitsChan *, const char *, const char *, int * );
-static void MakeInvertable( double **, int, double *, int * );
+static void MakeInvertable( double **, int, double *, int, int * );
 static void MarkAllCards( AstFitsChan *, const char *, const char *, const char *, int * );
 static void MarkCard( AstFitsChan *, int * );
 static void NewCard( AstFitsChan *, const char *, int, const void *, const char *, int, int * );
@@ -3377,7 +3534,6 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char spectype[MXCTYPELEN];/* Spectral axis CTYPE */
    double *cdelt;      /* Pointer to CDELT array */
    double cdl;         /* CDELT term */
@@ -3386,10 +3542,8 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
    double coscro;      /* Cos( CROTA ) */
    double crota;       /* CROTA value to use */
    double epoch;       /* Epoch of reference equinox */
-   double fd;          /* Fraction of a day */
    double latval;      /* CRVAL for latitude axis */
    double lonval;      /* CRVAL for longitude axis */
-   double mjd99;       /* MJD at start of 1999 */
    double p1, p2;      /* Projection parameters */
    double rho_a;       /* First estimate of CROTA */
    double rho_b;       /* Second estimate of CROTA */
@@ -3402,10 +3556,7 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
    int axrot2;         /* Index of second CROTA rotation axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int naxis;          /* No. of axes */
    int ok;             /* Is FitsSTore OK for IRAF encoding? */
    int prj;            /* Projection type */
@@ -3442,14 +3593,14 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
       if( !cval ) {
          ok = 0;
       } else {
-         strcpy( lontype, cval );
+         snprintf( lontype, sizeof( lontype ), "%s", cval );
       }
       cval = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
       if( !cval ) {
          ok = 0;
          prj = AST__WCSBAD;
       } else {
-         strcpy( lattype, cval );
+         snprintf( lattype, sizeof( lattype ), "%s", cval );
          prj = astWcsPrjType( cval + 4 );
       }
 
@@ -3805,26 +3956,14 @@ static int AIPSFromStore( AstFitsChan *this, FitsStore *store,
       val = GetItem( &(store->mjdobs), 0, 0, ' ', NULL, method, class, status );
       if( val != AST__BAD ) {
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-         palCaldj( 99, 1, 1, &mjd99, &jj );
-         if( val < mjd99 ) {
-            palDjcal( 0, val, iymdf, &jj );
-            sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                     iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-         } else {
-            palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-            palDd2tf( 3, fd, sign, ihmsf );
-            sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                     iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                     ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+         if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+            cval = combuf;
+            SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                      "Date of observation", status );
          }
-
-/* Now store the formatted string in the FitsChan. */
-         cval = combuf;
-         SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                   "Date of observation", status );
 
 /* A read leaves any MJD-OBS card in the header, since other software
    may use it. Update it so that it agrees with DATE-OBS. */
@@ -3931,7 +4070,6 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char spectype[MXCTYPELEN];/* Spectral axis CTYPE */
    double *cdelt;      /* Pointer to CDELT array */
    double cdl;         /* CDELT term */
@@ -3940,8 +4078,6 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
    double coscro;      /* Cos( CROTA ) */
    double crota;       /* CROTA value to use */
    double epoch;       /* Epoch of reference equinox */
-   double fd;          /* Fraction of a day */
-   double mjd99;       /* MJD at start of 1999 */
    double rho_a;       /* First estimate of CROTA */
    double rho_b;       /* Second estimate of CROTA */
    double sincro;      /* Sin( CROTA ) */
@@ -3953,10 +4089,7 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
    int axrot2;         /* Index of second CROTA rotation axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int m;              /* Projection parameter index */
    int maxm;           /* Max projection parameter index */
    int naxis;          /* No. of axes */
@@ -3993,14 +4126,14 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
       if( !cval ) {
          ok = 0;
       } else {
-         strcpy( lontype, cval );
+         snprintf( lontype, sizeof( lontype ), "%s", cval );
       }
       cval = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
       if( !cval ) {
          ok = 0;
          prj = AST__WCSBAD;
       } else {
-         strcpy( lattype, cval );
+         snprintf( lattype, sizeof( lattype ), "%s", cval );
          prj = astWcsPrjType( cval + 4 );
       }
 
@@ -4344,26 +4477,14 @@ static int AIPSPPFromStore( AstFitsChan *this, FitsStore *store,
       val = GetItem( &(store->mjdobs), 0, 0, ' ', NULL, method, class, status );
       if( val != AST__BAD ) {
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-         palCaldj( 99, 1, 1, &mjd99, &jj );
-         if( val < mjd99 ) {
-            palDjcal( 0, val, iymdf, &jj );
-            sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                     iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-         } else {
-            palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-            palDd2tf( 3, fd, sign, ihmsf );
-            sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                     iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                     ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+         if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+            cval = combuf;
+            SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                      "Date of observation", status );
          }
-
-/* Now store the formatted string in the FitsChan. */
-         cval = combuf;
-         SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                   "Date of observation", status );
 
 /* A read leaves any MJD-OBS card in the header, since other software
    may use it. Update it so that it agrees with DATE-OBS. */
@@ -4708,14 +4829,14 @@ static int AnalysePoly( AstPolyMap *polymap, AstMapping **map1,
             pv = coeffs_f;
             for( ico = 0; ico < ncoeff_f; ico++,pv += 4 ){
 
-/* Indicate that this coefficient of the new PolyMap refers to its first
-   output. */
-               pw[ 1 ] = 1;    /* A 1-based axis index */
-
 /* Ignore zero coefficients (there shouldn't be any) and the linear terms
    found earlier. */
                if( pv[ 0 ] != 0.0 && ico != a_ico && ico != b_ico
                                   && ico != c_ico && ico != d_ico ){
+
+/* Indicate that this coefficient of the new PolyMap refers to its first
+   output. */
+                  pw[ 1 ] = 1;    /* A 1-based axis index */
 
 /* Scale the coefficient appropriately, depending on whether it refers to
    the first or second output of the original PolyMap. */
@@ -4750,14 +4871,14 @@ static int AnalysePoly( AstPolyMap *polymap, AstMapping **map1,
             pv = coeffs_f;
             for( ico = 0; ico < ncoeff_f; ico++,pv += 4 ){
 
-/* Indicate that this coefficient of the new PolyMap refers to its second
-   output. */
-               pw[ 1 ] = 2;
-
 /* Ignore zero coefficients (there shouldn't be any) and the linear terms
    found earlier. */
                if( pv[ 0 ] != 0.0 && ico != a_ico && ico != b_ico
                                   && ico != c_ico && ico != d_ico ){
+
+/* Indicate that this coefficient of the new PolyMap refers to its second
+   output. */
+                  pw[ 1 ] = 2;
 
 /* Scale the coefficient appropriately, depending on whether it refers to
    the first or second output of the original PolyMap. */
@@ -6187,15 +6308,17 @@ static int CheckFitsName( AstFitsChan *this, const char *name,
                                "card.", status, method, class, FITSNAMLEN + 1 );
 
                   } else if( *c < ' ' ) {
-                     sprintf( buf, "The FITS keyword name ('%s') contains an "
-                              "illegal non-printing character (ascii value "
-                              "%d).", name, *c );
+                     snprintf( buf, sizeof( buf ),
+                               "The FITS keyword name ('%s') contains an "
+                               "illegal non-printing character (ascii value "
+                               "%d).", name, *c );
                      Warn( this, "badkeyname", buf, method, class, status );
 
 
                   } else if( *c > ' ' ) {
-                     sprintf( buf, "The FITS keyword name ('%s') contains an "
-                              "illegal character ('%c').", name, *c );
+                     snprintf( buf, sizeof( buf ),
+                               "The FITS keyword name ('%s') contains an "
+                               "illegal character ('%c').", name, *c );
                      Warn( this, "badkeyname", buf, method, class, status );
                   }
                   break;
@@ -6626,7 +6749,6 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char spectype[MXCTYPELEN];/* Spectral axis CTYPE */
    double *cdelt;      /* Pointer to CDELT array */
    double aval[ 2 ];   /* General purpose array */
@@ -6635,29 +6757,26 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    double crval[ 3 ];  /* CRVAL values converted to rads, etc */
    double delta;       /* Spectral axis increment */
    double equ;         /* Epoch of reference equinox */
-   double fd;          /* Fraction of a day */
    double latval;      /* CRVAL for latitude axis */
    double lonpole;     /* LONPOLE value */
    double lonval;      /* CRVAL for longitude axis */
-   double mjd99;       /* MJD at start of 1999 */
    double p1, p2;      /* Projection parameters */
    double radec[ 2 ];  /* Reference (lon,lat) values */
    double rf;          /* Rest freq (Hz) */
    double specfactor;  /* Factor for converting internal spectral units */
    double val;         /* General purpose value */
-   double xin[ 3 ];    /* Grid coords at centre of first pixel */
-   double xout[ 3 ];   /* WCS coords at centre of first pixel */
+   double *xin;        /* Grid coords at centre of first pixel */
+   double *xout;       /* WCS coords at centre of first pixel */
    int axlat;          /* Index of latitude FITS WCS axis */
    int axlon;          /* Index of longitude FITS WCS axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int naxis2;         /* Length of pixel axis 2 */
    int naxis3;         /* Length of pixel axis 3 */
    int naxis;          /* No. of axes */
+   int nin;            /* No. of pixel axes in the FrameSet */
+   int nout;           /* No. of WCS axes in the FrameSet */
    int ok;             /* Is FitsSTore OK for IRAF encoding? */
    int prj;            /* Projection type */
 
@@ -6694,17 +6813,24 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    pixel), modify the CRPIX and CRVAL values in the FitsStore to put
    the reference point at the centre of the one and only spatial pixel. */
       if( store->naxis >= 3 && dim[ axlon ] == 1.0 && dim[ axlat ] == 1.0 ){
-         xin[ 0 ] = 1.0;
-         xin[ 1 ] = 1.0;
-         xin[ 2 ] = 1.0;
-         astTranN( fs, 1, 3, 1, xin, 1, 3, 1, xout );
-         if( xout[ axlon ] != AST__BAD && xout[ axlat ] != AST__BAD ) {
+
+/* Transform the centre of the first pixel, using as many coordinates as
+   the FrameSet has pixel axes and WCS axes. */
+         nin = astGetNin( fs );
+         nout = astGetNout( fs );
+         xin = astMalloc( sizeof( *xin )*(size_t) nin );
+         xout = astMalloc( sizeof( *xout )*(size_t) nout );
+         if( astOK ) {
+            for( i = 0; i < nin; i++ ) xin[ i ] = 1.0;
+            astTranN( fs, 1, nin, 1, xin, 1, nout, 1, xout );
 
 /* The indices of the spatial axes in the FITS header may not be the same
    as the indices of the spatial axes in the WCS Frame of the supplied
    FrameSet. So search the current Frame for longitude and latitude axes,
-   and store the corresponding elements of the "xout" array for later use. */
-            for( i = 0; i < 3; i++ ) {
+   and note the corresponding elements of the "xout" array. */
+            lonval = AST__BAD;
+            latval = AST__BAD;
+            for( i = 0; i < nout; i++ ) {
                sprintf( attbuf, "IsLonAxis(%d)", i + 1 );
                if( astHasAttribute( curfrm, attbuf ) ) {
                   if( astGetI( curfrm, attbuf ) ) {
@@ -6715,12 +6841,16 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
                }
             }
 
-/* Store them in the FitsStore. */
-            SetItem( &(store->crval), axlon, 0, ' ', lonval*AST__DR2D, status );
-            SetItem( &(store->crval), axlat, 0, ' ', latval*AST__DR2D, status );
-            SetItem( &(store->crpix), 0, axlon, ' ', 1.0, status );
-            SetItem( &(store->crpix), 0, axlat, ' ', 1.0, status );
+/* If both were found, store them in the FitsStore. */
+            if( lonval != AST__BAD && latval != AST__BAD ) {
+               SetItem( &(store->crval), axlon, 0, ' ', lonval*AST__DR2D, status );
+               SetItem( &(store->crval), axlat, 0, ' ', latval*AST__DR2D, status );
+               SetItem( &(store->crpix), 0, axlon, ' ', 1.0, status );
+               SetItem( &(store->crpix), 0, axlat, ' ', 1.0, status );
+            }
          }
+         xin = astFree( xin );
+         xout = astFree( xout );
       }
 
 /* Get the CRVAL values for both spatial axes. */
@@ -6735,14 +6865,14 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
       if( !cval ) {
          ok = 0;
       } else {
-         strcpy( lontype, cval );
+         snprintf( lontype, sizeof( lontype ), "%s", cval );
       }
       cval = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
       if( !cval ) {
          ok = 0;
          prj = AST__WCSBAD;
       } else {
-         strcpy( lattype, cval );
+         snprintf( lattype, sizeof( lattype ), "%s", cval );
          prj = astWcsPrjType( cval + 4 );
       }
 
@@ -6843,6 +6973,9 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
    above code has checked that the spatial and spectral axes are
    WCS axes 0, 1 and 2. */
    if( naxis > 3 ) naxis = 3;
+
+/* Each of those three axes needs a reference pixel. */
+   if( naxis < 3 ) ok = 0;
 
 /* Allocate memory to store the CDELT values */
    if( ok ) {
@@ -7010,6 +7143,11 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
             ok = 0;
          }
       }
+   }
+
+/* The remaining keywords use the values found above, so they can only be
+   created if all of those values were available. */
+   if( ok ) {
 
 /* CDELT values */
       if( axspec != -1 ) cdelt[ axspec ] *= specfactor;
@@ -7026,26 +7164,14 @@ static int CLASSFromStore( AstFitsChan *this, FitsStore *store,
       val = GetItem( &(store->mjdobs), 0, 0, ' ', NULL, method, class, status );
       if( val != AST__BAD ) {
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-         palCaldj( 99, 1, 1, &mjd99, &jj );
-         if( val < mjd99 ) {
-            palDjcal( 0, val, iymdf, &jj );
-            sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                     iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-         } else {
-            palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-            palDd2tf( 3, fd, sign, ihmsf );
-            sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                     iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                     ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+         if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+            cval = combuf;
+            SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                      "Date of observation", status );
          }
-
-/* Now store the formatted string in the FitsChan. */
-         cval = combuf;
-         SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                   "Date of observation", status );
 
 /* A read leaves any MJD-OBS card in the header, since other software
    may use it. Update it so that it agrees with DATE-OBS. */
@@ -7268,6 +7394,10 @@ static void ClassTrans( AstFitsChan *this, AstFitsChan *ret, int axlat,
    } else {
       axspec = 1;
    }
+
+/* The frequency at the reference channel is taken to be zero if the
+   header does not give one for the axis selected above. */
+   crval = 0.0;
 
 /* Get the spectral CTYPE value */
    if( GetValue2( ret, this, FormatKey( "CTYPE", axspec + 1, -1, ' ', status ),
@@ -7834,18 +7964,33 @@ static int CnvType( int otype, void *odata, size_t osize, int type, int undef,
                strcpy( cnvtype_text, BAD_STRING );
             }
             *( (char **) buff ) = cnvtype_text;
+
+/* A value that the integer type cannot hold cannot be converted. The
+   tests are written so that they also fail for a NaN value. */
          } else if( type == AST__INT      ){
-            *( (int *) buff ) = (int) odouble;
+            if( odouble >= INT_MIN && odouble <= INT_MAX ) {
+               *( (int *) buff ) = (int) odouble;
+            } else {
+               ret = 0;
+            }
          } else if( type == AST__KINT     ){
-            *( (int64_t *) buff ) = (int64_t) odouble;
+            if( odouble >= -9.2E18 && odouble <= 9.2E18 ) {
+               *( (int64_t *) buff ) = (int64_t) odouble;
+            } else {
+               ret = 0;
+            }
          } else if( type == AST__LOGICAL  ){
             *( (int *) buff ) = ( odouble == 0.0 ) ? 0 : 1;
          } else if( type == AST__COMPLEXF ){
             ( (double *) buff )[ 0 ] = odouble;
             ( (double *) buff )[ 1 ] = 0.0;
          } else if( type == AST__COMPLEXI ){
-            ( (int *) buff )[ 0 ] = (int) odouble;
-            ( (int *) buff )[ 1 ] = 0;
+            if( odouble >= INT_MIN && odouble <= INT_MAX ) {
+               ( (int *) buff )[ 0 ] = (int) odouble;
+               ( (int *) buff )[ 1 ] = 0;
+            } else {
+               ret = 0;
+            }
          } else if( astOK ){
             ret = 0;
             astError( AST__INTER, "CnvType: AST internal programming error - "
@@ -8321,6 +8466,11 @@ static char *ConcatWAT( AstFitsChan *this, int iaxis, const char *method,
       }
 
       wat = (char *) CardData( this, &size, status );
+
+/* The value of a WAT card is a string. Ignore this card, and any that
+   follow it, if it has any other sort of value or none. */
+      if( CardType( this, status ) != AST__STRING || !wat || size < 1 ) break;
+
       result = (char *) astRealloc( (void *) result,
                                     watlen - 1 + size );
       if( result ) {
@@ -8753,6 +8903,100 @@ static double DateObs( const char *dateobs, int *status ) {
    return ret;
 }
 
+
+static int MjdToDateObs( double mjd, char *buf, size_t len, int *status ) {
+/*
+*  Name:
+*     MjdToDateObs
+
+*  Purpose:
+*     Format a Modified Julian Date as the value of a FITS DATE-OBS keyword.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     int MjdToDateObs( double mjd, char *buf, size_t len, int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     This function creates the string that represents a date as the
+*     value of the FITS keyword DATE-OBS. The format used depends on the
+*     date. For dates before 1999.0, the old "dd/mm/yy" format is used.
+*     Otherwise, the new "ccyy-mm-ddThh:mm:ss[.ssss]" format is used.
+
+*  Parameters:
+*     mjd
+*        The Modified Julian Date.
+*     buf
+*        Pointer to the buffer in which to return the null terminated
+*        string.
+*     len
+*        The length of the buffer. A string that does not fit is truncated.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the string was created. Zero if the date has no
+*     calendar equivalent, either because the supplied value is undefined
+*     or because it is outside the range of dates that can be converted.
+*     The buffer then holds an empty string. Zero is also returned if an
+*     error has already occurred.
+*/
+
+/* Local Variables: */
+   char sign[ 2 ];            /* Sign of the fraction of a day */
+   double fd;                 /* Fraction of a day */
+   double mjd99;              /* MJD at start of 1999 */
+   int ihmsf[ 4 ];            /* Hour, minute, second and fraction */
+   int iymdf[ 4 ];            /* Year, month, day and fraction */
+   int jj;                    /* Status of a date conversion */
+   int result;                /* Returned value */
+
+/* Initialise. */
+   result = 0;
+   if( len > 0 ) buf[ 0 ] = 0;
+
+/* Check the inherited status. */
+   if( !astOK ) return result;
+
+/* A value that is not a number has no calendar equivalent. The date
+   conversion functions do not check for this. */
+   if( !astISFINITE( mjd ) || mjd == AST__BAD ) return result;
+
+/* Find the MJD at the start of 1999. */
+   palCaldj( 99, 1, 1, &mjd99, &jj );
+
+/* Use the old format before then. The conversion fails for a date
+   outside the range it supports, leaving the calendar date undefined. */
+   if( mjd < mjd99 ) {
+      palDjcal( 0, mjd, iymdf, &jj );
+      if( jj == 0 ) {
+         (void) snprintf( buf, len, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ],
+                          iymdf[ 1 ],
+                          iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
+         result = 1;
+      }
+
+/* Otherwise use the new format. */
+   } else {
+      palDjcl( mjd, iymdf, iymdf+1, iymdf+2, &fd, &jj );
+      if( jj == 0 ) {
+         palDd2tf( 3, fd, sign, ihmsf );
+         (void) snprintf( buf, len,
+                          "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
+                          iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
+                          ihmsf[2], ihmsf[3] );
+         result = 1;
+      }
+   }
+
+   return result;
+}
+
 static void DeleteCard( AstFitsChan *this, const char *method,
                         const char *class, int *status ){
 /*
@@ -9031,7 +9275,7 @@ static void DistortMaps( AstFitsChan *this, FitsStore *store, char s,
    is so that later functions do not need to allow for the possibility of a
    distortion code being present in the CTYPE value). */
       ctype = GetItemC( &(store->ctype), 0, 0, s, NULL, method, class, status );
-      if( ctype ){
+      if( ctype && naxes > 1 ){
          nc = astChrLen( ctype ) - 4;
          if( nc >= 0 && !strcmp( ctype + nc, "-SIP" ) ) {
             ctype[ nc ] = 0;
@@ -9068,10 +9312,11 @@ static void DistortMaps( AstFitsChan *this, FitsStore *store, char s,
             if( nc >= 0 && !strcmp( ctype + nc, "-SIP" ) ) {
                if( !warned ){
                   warned = 1;
-                  sprintf( msgbuf, "The \"-SIP\" distortion code can only be "
-                           "used on axes 1 and 2, but was found in keyword "
-                           "%s (='%s'). The distortion will be ignored.",
-                           FormatKey( "CTYPE", i + 1, -1, ' ', status ),  ctype );
+                  snprintf( msgbuf, sizeof( msgbuf ),
+                            "The \"-SIP\" distortion code can only be "
+                            "used on axes 1 and 2, but was found in keyword "
+                            "%s (='%s'). The distortion will be ignored.",
+                            FormatKey( "CTYPE", i + 1, -1, ' ', status ),  ctype );
                   Warn( this, "distortion", msgbuf, method, class, status );
                }
                ctype[ nc ] = 0;
@@ -9152,12 +9397,13 @@ static void DistortMaps( AstFitsChan *this, FitsStore *store, char s,
    multiple warnings about the same distortion code in multiple CTYPE values). */
                if( !warned ){
                   warned = 1;
-                  sprintf( msgbuf, "The header contains CTYPE values (e.g. "
-                           "%s = '%s') which "
-                           "include a distortion code \"-%s\". AST "
-                           "currently ignores this distortion. The code "
-                           "has been removed from the CTYPE values.",
-                           FormatKey( "CTYPE", i + 1, -1, ' ', status ),  ctype, dist );
+                  snprintf( msgbuf, sizeof( msgbuf ),
+                            "The header contains CTYPE values (e.g. "
+                            "%s = '%s') which "
+                            "include a distortion code \"-%s\". AST "
+                            "currently ignores this distortion. The code "
+                            "has been removed from the CTYPE values.",
+                            FormatKey( "CTYPE", i + 1, -1, ' ', status ),  ctype, dist );
                   Warn( this, "distortion", msgbuf, method, class, status );
                }
 
@@ -9551,7 +9797,11 @@ static int DSSFromStore( AstFitsChan *this, FitsStore *store,
    val = GetItem( &(store->crval), 1, 0, ' ', NULL, method, class, status );
    if( val == AST__BAD ) return ret;
 
-/* Ensure it is in the range -180 to +180 */
+/* Ensure it is in the range -180 to +180. Remove whole turns first if the
+   value is far out of range, as removing one turn at a time would take a
+   time in proportion to the value, and would never end for a value that is
+   too large to be changed by one turn. */
+   if( fabs( val ) > 1.0E8 ) val = fmod( val, 360.0 );
    while( val < -180.0 ) val += 360.0;
    while( val >= 180.0 ) val -= 360.0;
 
@@ -10020,6 +10270,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 /* Local Variables: */
    char *c;
    char *w, *r;
+   char work[ 2*AST__FITSCHAN_FITSCARDLEN ];
    int i;
    int ldigits;
    int n;
@@ -10029,8 +10280,12 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    if ( !astOK ) return 0;
 
 /* The supplied value of "digits" may be negative. Obtain the positive
-   value giving the initial number of decimal digits to use. */
+   value giving the initial number of decimal digits to use. A value with
+   more digits than the field has room for cannot be written whatever it
+   is, so there is no point in asking for more than that. This also
+   ensures that the formatted value fits in the work buffer. */
    ldigits = ( digits > 0 ) ? digits : -digits;
+   if( ldigits > maxwidth ) ldigits = maxwidth;
 
 /* Loop until a suitably encoded value has been obtained. */
    while( 1 ){
@@ -10049,22 +10304,29 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    is significant with the E specifier, and so we only need (ldigits-1)
    significant digits to the right of the decimal point. */
       if( value > -0.001 && value < -0.0001 ) {
-         (void) sprintf( buf, "%*.*E", width, ldigits - 1, value );
+         n = snprintf( work, sizeof( work ), "%*.*E", width, ldigits - 1,
+                       value );
       } else {
-         (void) sprintf( buf, "%*.*G", width, ldigits, value );
+         n = snprintf( work, sizeof( work ), "%*.*G", width, ldigits, value );
+      }
+
+/* The value cannot be written if it does not fit in the work buffer. */
+      if( n < 0 || n >= (int) sizeof( work ) ) {
+         ret = 0;
+         break;
       }
 
 /* Check that the value zero is not encoded with a minus sign (e.g. "-0.").
    This also rounds out long sequences of zeros or nines.  */
-      CheckZero( buf, value, width, fitsrnd, status );
+      CheckZero( work, value, width, fitsrnd, status );
 
 /* If the formatted value includes an exponent, it will have 2 digits.
    If the exponent includes a leading zero, remove it. */
-      if( ( w = strstr( buf, "E-0" ) ) ) {
+      if( ( w = strstr( work, "E-0" ) ) ) {
          w += 2;
-      } else if( ( w = strstr( buf, "E+0" ) ) ){
+      } else if( ( w = strstr( work, "E+0" ) ) ){
          w += 2;
-      } else if( ( w = strstr( buf, "E0" ) ) ){
+      } else if( ( w = strstr( work, "E0" ) ) ){
          w += 1;
       }
 
@@ -10075,9 +10337,9 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    desired field width. Otherwise there is no padding to consume, so
    close the gap instead and let the string shorten. */
       if( w ) {
-         if( buf[ 0 ] == ' ' ) {
+         if( work[ 0 ] == ' ' ) {
             r = w - 1 ;
-            while( w != buf ) *(w--) = *(r--);
+            while( w != work ) *(w--) = *(r--);
             *w = ' ';
          } else {
             memmove( w, w + 1, strlen( w + 1 ) + 1 );
@@ -10086,7 +10348,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 
 /* If the used field width was too large, reduce it and try again, so
    long as we are allowed to change the number of digits being used. */
-      ret = strlen( buf );
+      ret = strlen( work );
       if( ret > width && digits < 0 ){
          ldigits -= ( ret - width );
 
@@ -10103,7 +10365,7 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
    if( ret ){
 
 /* Get a pointer to the first digit in the buffer. */
-      c = strpbrk( buf, "0123456789" );
+      c = strpbrk( work, "0123456789" );
 
 /* Something funny is going on if there are no digits in the buffer,
    so return a zero field width. */
@@ -10122,16 +10384,16 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
 /* If there are two or more leading spaces, move the start of the string
    two character to the left, and insert ".0" in the gap created. This
    keeps the field right justified within the desired field width. */
-            if( buf[ 0 ] == ' ' && buf[ 1 ] == ' ' ){
-               for( i = 2; i < c - buf + n; i++ ) buf[ i - 2 ] = buf[ i ];
+            if( work[ 0 ] == ' ' && work[ 1 ] == ' ' ){
+               for( i = 2; i < c - work + n; i++ ) work[ i - 2 ] = work[ i ];
                c[ n - 2 ] = '.';
                c[ n - 1 ] = '0';
 
 /* If there is just one leading space, move the start of the string
    one character to the left, and insert "." in the gap created. This
    keeps the field right justified within the desired field width. */
-            } else if( buf[ 0 ] == ' ' ){
-               for( i = 1; i < c - buf + n; i++ ) buf[ i - 1 ] = buf[ i ];
+            } else if( work[ 0 ] == ' ' ){
+               for( i = 1; i < c - work + n; i++ ) work[ i - 1 ] = work[ i ];
                c[ n - 1 ] = '.';
 
 /* If there are no leading spaces we need to move the end of the string
@@ -10153,6 +10415,10 @@ static int EncodeFloat( char *buf, int digits, int width, int maxwidth,
          }
       }
    }
+
+/* If a formatted value was obtained, copy it into the supplied buffer. It
+   is no longer than the maximum field width. */
+   if( ret ) memcpy( buf, work, (size_t) ret + 1 );
 
 /* Return the field width. */
    return ret;
@@ -10890,7 +11156,6 @@ static int FindLonLatSpecAxes( FitsStore *store, char s, int *axlon, int *axlat,
    char algcode[5];
    char stype[5];
    const char *ctype;
-   double dval;
    int i;
    int wcsaxes;
 
@@ -10905,12 +11170,7 @@ static int FindLonLatSpecAxes( FitsStore *store, char s, int *axlon, int *axlat,
 /* Obtain the number of FITS WCS axes in the header. If the WCSAXES header
    was specified, use it. Otherwise assume it is the same as the number
    of pixel axes. */
-   dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
-   if( dval != AST__BAD ) {
-      wcsaxes = (int) round( dval );
-   } else {
-      wcsaxes = store->naxis;
-   }
+   wcsaxes = GetWcsAxes( store, s, method, class, status );
 
 /* Loop round the FITS WCS axes, getting each CTYPE value. */
    for( i = 0; i < wcsaxes && astOK; i++ ){
@@ -12254,6 +12514,50 @@ static AstObject *FsetFromStore( AstFitsChan *this, FitsStore *store,
    return (AstObject *) ret;
 }
 
+static char FreeVersion( const int *frms, char s ){
+/*
+*  Name:
+*     FreeVersion
+
+*  Purpose:
+*     Find the next co-ordinate version letter that has not been assigned.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     char FreeVersion( const int *frms, char s )
+
+*  Class Membership:
+*     FitsChan
+
+*  Description:
+*     This function searches upwards from the letter following "s" for a
+*     co-ordinate version letter that has not yet been assigned to a
+*     Frame.
+
+*  Parameters:
+*     frms
+*        An array indexed by character code, in which the elements for
+*        'A' to 'Z' hold the index of the Frame to which each letter has
+*        been assigned, or zero if the letter has not been assigned.
+*     s
+*        The letter after which to start the search. A value of 'A' - 1
+*        starts the search at 'A'.
+
+*  Returned Value:
+*     The first unassigned letter after "s", or 'Z' + 1 if every later
+*     letter has been assigned.
+*/
+
+/* Search upwards, stopping after 'Z'. */
+   while( s <= 'Z' ) {
+      s++;
+      if( s > 'Z' || frms[ (int) s ] == 0 ) break;
+   }
+   return s;
+}
+
 static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
                                double *dim, int encoding, const char *class,
                                const char *method, int *status ){
@@ -12448,7 +12752,7 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
                   sid[ ifrm ] = 1;
                } else {
                   id = astGetIdent( frame );
-                  if( strlen( id ) == 1 && isupper( id[ 0 ] ) ) {
+                  if( strlen( id ) == 1 && id[ 0 ] >= 'A' && id[ 0 ] <= 'Z' ) {
                      if( frms[ (int) id[ 0 ] ] == 0 ) {
                         frms[ (int) id[ 0 ] ] = ifrm;
                         sid[ ifrm ] = id[ 0 ];
@@ -12470,7 +12774,7 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
             for( ifrm = 1; ifrm <= nfrm; ifrm++ ){
                if( ifrm != icurr && ifrm != ibase && sid[ ifrm ] != 1 ) {
                   if( sid[ ifrm ] == 0 ){
-                     while( frms[ (int) ++s ] != 0 );
+                     s = FreeVersion( frms, s );
                      if( s <= 'Z' ) {
                         sid[ ifrm ] = s;
                         frms[ (int) s ] = ifrm;
@@ -12481,10 +12785,15 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
          }
 
 /* If the primary headers describe offset coordinates, create an alternate
-   axis description for the correspondsing absolute coordinate system. */
-         if( isoff && ++s <= 'Z' ) {
-            (void) AddVersion( this, fset, ibase, icurr, ret, dim,
-                               s, encoding, -1, method, class, status );
+   axis description for the correspondsing absolute coordinate system, using
+   the next version letter that has not been assigned. */
+         if( isoff ) {
+            s = FreeVersion( frms, s );
+            if( s <= 'Z' ) {
+               frms[ (int) s ] = icurr;
+               (void) AddVersion( this, fset, ibase, icurr, ret, dim,
+                                  s, encoding, -1, method, class, status );
+            }
          }
 
 /* Now go through all the other Frames in the FrameSet, attempting to
@@ -12501,10 +12810,15 @@ static FitsStore *FsetToStore( AstFitsChan *this, AstFrameSet *fset, int naxis,
                                   s0, encoding, isoff, method, class, status );
 
 /* If the Frame is offset, create an extra alternate axis description for
-   the correspondsing absolute coordinate system. */
-               if( isoff && ++s <= 'Z' ) {
-                  (void) AddVersion( this, fset, ibase, ifrm, ret, dim,
-                                     s, encoding, -1, method, class, status );
+   the correspondsing absolute coordinate system, using the next version
+   letter that has not been assigned. */
+               if( isoff ) {
+                  s = FreeVersion( frms, s );
+                  if( s <= 'Z' ) {
+                     frms[ (int) s ] = ifrm;
+                     (void) AddVersion( this, fset, ibase, ifrm, ret, dim,
+                                        s, encoding, -1, method, class, status );
+                  }
                }
             }
          }
@@ -13391,6 +13705,87 @@ static double GetItem( double ****item, int i, int jm, char s, char *name,
       astError( AST__NOFTS, "%s(%s): No value can be found for %s.", status,
                 method, class, name );
    }
+   return ret;
+}
+
+static int GetWcsAxes( FitsStore *store, char s, const char *method,
+                       const char *class, int *status ){
+/*
+*  Name:
+*     GetWcsAxes
+
+*  Purpose:
+*     Return the number of WCS axes described by a FitsStore.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     int GetWcsAxes( FitsStore *store, char s, const char *method,
+*                     const char *class, int *status )
+
+*  Class Membership:
+*     FitsChan member function.
+
+*  Description:
+*     This function returns the number of world coordinate axes in the
+*     description with a given co-ordinate version. This is the value of
+*     the WCSAXES keyword if the header had one, and the number of pixel
+*     axes otherwise.
+
+*  Parameters:
+*     store
+*        The FitsStore.
+*     s
+*        The co-ordinate version character (' ' for the primary axis
+*        descriptions).
+*     method
+*        Pointer to a string holding the name of the calling method.
+*        This is only for use in constructing error messages.
+*     class
+*        Pointer to a string holding the name of the supplied object class.
+*        This is only for use in constructing error messages.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The number of WCS axes. Zero is returned if an error occurs.
+
+*  Notes:
+*     - The value of WCSAXES is taken from the header as it stands, so
+*     an error is reported if it is not a number of axes that a FITS
+*     header can describe. A larger value would otherwise be used as the
+*     size of several arrays and as the number of axes of several Frames.
+*/
+
+/* Local Variables: */
+   double dval;                  /* The WCSAXES value */
+   int ret;                      /* The returned value */
+
+/* Initialise */
+   ret = 0;
+
+/* Check the inherited status. */
+   if( !astOK ) return ret;
+
+/* If the WCSAXES keyword was supplied, check and use it. The test is
+   written so that it also fails for a NaN value. */
+   dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
+   if( dval != AST__BAD ) {
+      if( !( dval >= 1.0 && dval <= MXWCSAXES ) ) {
+         astError( AST__BDFTS, "%s(%s): The FITS keyword WCSAXES%c has an "
+                   "invalid value (%g) - it should be an integer between 1 "
+                   "and %d.", status, method, class, s, dval, MXWCSAXES );
+      } else {
+         ret = (int) round( dval );
+      }
+
+/* Otherwise assume it is the same as the number of pixel axes. */
+   } else {
+      ret = store->naxis;
+   }
+
    return ret;
 }
 
@@ -14533,6 +14928,12 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
       pv = GetItem( &(store->pv), i, 0, s, NULL, method, class, status );
       astSetGrismG( gmap, ( pv != AST__BAD )?pv:0.0 );
       pv = GetItem( &(store->pv), i, 1, s, NULL, method, class, status );
+      if( pv != AST__BAD && !( fabs( pv ) < INT_MAX ) && astOK ) {
+         astError( AST__BDFTS, "%s(%s): The FITS keyword PV%d_1%c has an "
+                   "invalid value (%g) for the diffraction order of a "
+                   "grism.", status, method, class, i + 1, s, pv );
+         pv = AST__BAD;
+      }
       astSetGrismM( gmap, ( pv != AST__BAD )?(int) round( pv ):0);
       pv = GetItem( &(store->pv), i, 2, s, NULL, method, class, status );
       astSetGrismAlpha( gmap, ( pv != AST__BAD )?pv*AST__DD2R:0.0 );
@@ -16592,9 +16993,27 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
    int *flags;             /* Pointer to flags mask for the current card */
    int icard;              /* Index of current card on entry */
    int ndeleted;           /* Number of cards deleted by this call */
+   int old_report;         /* Original error reporting flag */
+   int old_status;         /* Error status on entry */
 
-/* Return if no FitsChan was supplied, or if the FitsChan is empty. */
-   if ( !this || !this->head ) return;
+/* Return if no FitsChan was supplied. */
+   if ( !this ) return;
+
+/* If an error has already occurred, clear the error status so that the
+   cards can still be examined, and defer the reporting of any further
+   errors. The original status is re-instated before returning. */
+   old_status = astStatus;
+   old_report = 0;
+   if( !astOK ) {
+      old_report = astReporting( 0 );
+      astClearStatus;
+   }
+
+/* Deal with any cards that were replaced by the cards marked with the
+   supplied flag. If the marked cards are to be removed, each of them that
+   replaced an earlier card is changed back into that card, so that it is
+   not removed below. */
+   FixReplaced( this, flag, remove, status );
 
 /* Save the current card index, and rewind the FitsChan. */
    icard = astGetCard( this );
@@ -16604,8 +17023,8 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
    ndeleted = 0;
 
 /* Loop through the list of FitsCards in the FitsChan until the final
-   card is reached. */
-   while( astOK && this->card ){
+   card is reached. Nothing is done if the FitsChan is empty. */
+   while( astOK && this->head && this->card ){
 
 /* Get a pointer to the flags mask for this card. */
       flags = CardFlags( this, status );
@@ -16636,10 +17055,168 @@ static void FixNew( AstFitsChan *this, int flag, int remove,
 
 /* If no cards were removed, we can safely re-instate the original
    current card. Otherwise, the current card is left at "end-of-file". */
-   if( ndeleted == 0 ) astSetCard( this, icard );
+   if( ndeleted == 0 && this->head ) astSetCard( this, icard );
+
+/* If there was an error status on entry to this function, re-instate it.
+   Otherwise, allow any new error status to remain. */
+   if( old_status ){
+      if( !astOK ) astClearStatus;
+      astSetStatus( old_status );
+      astReporting( old_report );
+   }
 
 /* Return */
    return;
+}
+
+static void FixReplaced( AstFitsChan *this, int flag, int restore,
+                         int *status ){
+
+/*
+*
+*  Name:
+*     FixReplaced
+
+*  Purpose:
+*     Put back, or forget, the cards that were replaced by "new" cards.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+
+*     void FixReplaced( AstFitsChan *this, int flag, int restore,
+*                       int *status )
+
+*  Class Membership:
+*     FitsChan method.
+
+*  Description:
+*     When astWrite stores a keyword that is already in the FitsChan, the
+*     existing card is replaced by a new card, and function SaveReplaced
+*     keeps a copy of the existing card. This function deals with the
+*     copies for which the replacement card is still marked as new using
+*     the supplied flag (NEW1 or NEW2).
+*
+*     If "restore" is non-zero, the cards marked with the flag are about
+*     to be removed from the FitsChan, so each replacement card is changed
+*     back into the card that it replaced (which is then no longer marked
+*     with the flag). If "restore" is zero, the flag is about to be
+*     cleared in the replacement cards, and the copy is discarded once
+*     neither flag remains.
+
+*  Parameters:
+*     this
+*        Pointer to the FitsChan.
+*     flag
+*        The flag to use; NEW1 or NEW2.
+*     restore
+*        Put the replaced cards back into the FitsChan?
+*     status
+*        Pointer to the inherited status variable.
+
+*  Notes:
+*     - The copies are dealt with starting with the most recent, so that
+*     a keyword that was replaced more than once ends up as it started.
+*     - If the FitsChan no longer holds any card for the keyword, the card
+*     that was replaced is appended to the end of the FitsChan.
+*     - If the FitsChan holds a card for the keyword, but none that is
+*     marked with the flag, then the card was not in fact replaced and so
+*     nothing is put back.
+*-
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS      /* Declare the thread specific global data */
+   FitsCard *card;         /* Pointer to a card in the FitsChan */
+   FitsCard *card0;        /* Pointer to the original current card */
+   FitsCard *newcard;      /* Pointer to the replacement card */
+   ReplacedCard **link;    /* Address of the pointer to the current copy */
+   ReplacedCard *rep;      /* Pointer to the current copy */
+   int nkey;               /* Number of cards found for the keyword */
+
+/* Check a FitsChan was supplied. */
+   if( !this ) return;
+
+/* Get a pointer to the structure holding thread-specific global data. */
+   astGET_GLOBALS(this);
+
+/* Note the current card so that it can be re-instated. */
+   card0 = (FitsCard *) this->card;
+
+/* Loop round the copies, most recent first. */
+   link = (ReplacedCard **) &replaced_cards;
+   while( *link ) {
+      rep = *link;
+
+/* Skip copies for which the replacement card no longer has the flag. */
+      if( !( rep->pending & flag ) ) {
+         link = &( rep->next );
+         continue;
+      }
+
+/* If the cards marked with the flag are to be retained, just note that
+   the replacement card no longer has the flag. */
+      if( !restore ) {
+         rep->pending &= ~flag;
+
+/* Otherwise, search the FitsChan for the replacement card. This is the
+   card for the same keyword that is marked with the flag. Also count the
+   cards that hold the keyword. */
+      } else {
+         newcard = NULL;
+         nkey = 0;
+         card = (FitsCard *) this->head;
+         while( card ) {
+            if( !strcmp( card->name, rep->name ) ) {
+               nkey++;
+               if( card->flags & flag ) {
+                  newcard = card;
+                  break;
+               }
+            }
+            card = card->next;
+            if( card == (FitsCard *) this->head ) card = NULL;
+         }
+
+/* If the FitsChan no longer holds the keyword at all, append an empty
+   card for the keyword to the end of the FitsChan. */
+         if( !newcard && nkey == 0 ) {
+            this->card = NULL;
+            NewCard( this, rep->name, AST__UNDEF, NULL, NULL, 0, status );
+            if( astOK ) newcard = ( (FitsCard *) this->head )->prev;
+         }
+
+/* Change the card back into the card that was replaced, transferring the
+   ownership of the data value and comment held by the copy. */
+         if( newcard ) {
+            (void) astFree( newcard->data );
+            (void) astFree( (void *) newcard->comment );
+            newcard->type = rep->type;
+            newcard->data = rep->data;
+            newcard->size = rep->size;
+            newcard->comment = rep->comment;
+            newcard->flags = rep->flags;
+            rep->data = NULL;
+            rep->comment = NULL;
+         }
+         rep->pending = 0;
+      }
+
+/* Remove the copy from the list and free it if it is no longer needed. */
+      if( !rep->pending ) {
+         *link = rep->next;
+         (void) astFree( rep->data );
+         (void) astFree( (void *) rep->comment );
+         (void) astFree( (void *) rep );
+      } else {
+         link = &( rep->next );
+      }
+   }
+
+/* Re-instate the original current card. */
+   this->card = (void *) card0;
 }
 
 static void FixUsed( AstFitsChan *this, int reset, int used, int remove,
@@ -19155,20 +19732,14 @@ static int IRAFFromStore( AstFitsChan *this, FitsStore *store,
    char lattype[MXCTYPELEN];/* Latitude axis CTYPE */
    char lontype[MXCTYPELEN];/* Longitude axis CTYPE */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    double cdelt;       /* A CDELT value */
-   double fd;          /* Fraction of a day */
-   double mjd99;       /* MJD at start of 1999 */
    double p1, p2;      /* Projection parameters */
    double val;         /* General purpose value */
    int axlat;          /* Index of latitude FITS WCS axis */
    int axlon;          /* Index of longitude FITS WCS axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int naxis;          /* No. of axes */
    int ok;             /* Is FitsSTore OK for IRAF encoding? */
    int prj;            /* Projection type */
@@ -19197,10 +19768,10 @@ static int IRAFFromStore( AstFitsChan *this, FitsStore *store,
 /* Get the CTYPE values for both axes. */
       cval = GetItemC( &(store->ctype), axlon, 0, s, NULL, method, class, status );
       if( !cval ) return ret;
-      strcpy( lontype, cval );
+      snprintf( lontype, sizeof( lontype ), "%s", cval );
       cval = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
       if( !cval ) return ret;
-      strcpy( lattype, cval );
+      snprintf( lattype, sizeof( lattype ), "%s", cval );
 
 /* Extract the projection type as specified by the last 4 characters
    in the CTYPE keyword value. */
@@ -19366,26 +19937,14 @@ static int IRAFFromStore( AstFitsChan *this, FitsStore *store,
    val = GetItem( &(store->mjdobs), 0, 0, ' ', NULL, method, class, status );
    if( val != AST__BAD ) {
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-      palCaldj( 99, 1, 1, &mjd99, &jj );
-      if( val < mjd99 ) {
-         palDjcal( 0, val, iymdf, &jj );
-         sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                  iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-      } else {
-         palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-         palDd2tf( 3, fd, sign, ihmsf );
-         sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                  iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                  ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+      if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+         cval = combuf;
+         SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                   "Date of observation", status );
       }
-
-/* Now store the formatted string in the FitsChan. */
-      cval = combuf;
-      SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                "Date of observation", status );
 
 /* A read leaves any MJD-OBS card in the header, since other software
    may use it. Update it so that it agrees with DATE-OBS. */
@@ -20169,6 +20728,12 @@ static AstMapping *IsMapTab1D( AstMapping *map, double scale, const char *unit,
 /* Free the dynamic arrays. */
       map_list = astFree( map_list );
       invert_list = astFree( invert_list );
+
+/* If the requested output is fed by more than one input, no columns have
+   been added to the table, so annul the Mapping found above. A Mapping is
+   returned only together with its table columns. */
+   } else if( ret ) {
+      ret = astAnnul( ret );
    }
 
 /* Free resources. */
@@ -20957,8 +21522,8 @@ static AstMapping *LogWcs( FitsStore *store, int i, char s,
 
 /* Local Variables: */
    AstMapping *ret;
-   char forexp[ 12 + AST__DBL_WIDTH*2 ];
-   char invexp[ 12 + AST__DBL_WIDTH*2 ];
+   char forexp[ 20 + ( AST__DBL_DIG + 8 )*2 ];
+   char invexp[ 20 + ( AST__DBL_DIG + 8 )*2 ];
    const char *fexps[ 1 ];
    const char *iexps[ 1 ];
    double crv;
@@ -20973,8 +21538,10 @@ static AstMapping *LogWcs( FitsStore *store, int i, char s,
 
 /* Create the MathMap, if possible. */
    if( crv != 0.0 ) {
-      sprintf( forexp, "s=%.*g*exp(w/%.*g)", AST__DBL_DIG, crv, AST__DBL_DIG, crv );
-      sprintf( invexp, "w=%.*g*log(s/%.*g)", AST__DBL_DIG, crv, AST__DBL_DIG, crv );
+      snprintf( forexp, sizeof( forexp ), "s=%.*g*exp(w/%.*g)",
+                AST__DBL_DIG, crv, AST__DBL_DIG, crv );
+      snprintf( invexp, sizeof( invexp ), "w=%.*g*log(s/%.*g)",
+                AST__DBL_DIG, crv, AST__DBL_DIG, crv );
       fexps[ 0 ] = forexp;
       iexps[ 0 ] = invexp;
       ret = (AstMapping *) astMathMap( 1, 1, 1, fexps, 1, iexps, "simpfi=1,simpif=1", status );
@@ -21815,11 +22382,15 @@ static AstFrameSet *MakeFitsFrameSet( AstFitsChan *this, AstFrameSet *fset,
 
 /* Add a new current Frame into the FrameSet which increases the chances of
    the requested encoding being usable. The index of the original current
-   Frame is returned, or AST__NOFRAME if no new Frame was added. */
-   icurr = AddEncodingFrame( this, ret, encoding, method, class, status );
+   Frame is returned, or AST__NOFRAME if no new Frame was added.
+   There is no FrameSet to add it to if a reference point could not be
+   found for the celestial axes above. */
+   if( ret ) {
+      icurr = AddEncodingFrame( this, ret, encoding, method, class, status );
 
 /* If a new Frame was added, remove the original current Frame. */
-   if( icurr != AST__NOFRAME ) astRemoveFrame( ret, icurr );
+      if( icurr != AST__NOFRAME ) astRemoveFrame( ret, icurr );
+   }
 
 /* Free resources. */
    if( specfrm ) specfrm = astAnnul( specfrm );
@@ -22322,7 +22893,7 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
 
 /* Check that the full matrix is invertable, and if not, see if there is
    any way to make it invertable. */
-         MakeInvertable( fullmat, nout, dim, status );
+         MakeInvertable( fullmat, nout, dim, nin, status );
 
 /* Set up an array holding index of the Mapping output corresponding to
    each IWC axis (the inverse of "wperm"). Also look for matching pairs of
@@ -22570,21 +23141,24 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
          y = astFree( y );
       }
 
-/* Produce and store PC and CDELT values from the above CD matrix */
-      SplitMat( nout, cdmat, cdelt, status );
-      c = cdmat;
-      d = cdelt;
-      for( i = 0; i < nout; i++ ){
-         for( j = 0; j < nout; j++ ){
-            val = *(c++);
-            if( i == j ){
-               if( astEQUAL( val, 1.0 ) ) val = AST__BAD;
-            } else {
-               if( astEQUAL( val, 0.0 ) ) val = AST__BAD;
+/* Produce and store PC and CDELT values from the above CD matrix. This
+   can only be done if every element of the CD matrix was found. */
+      if( ret && !SplitMat( nout, cdmat, cdelt, status ) ) ret = 0;
+      if( ret ) {
+         c = cdmat;
+         d = cdelt;
+         for( i = 0; i < nout; i++ ){
+            for( j = 0; j < nout; j++ ){
+               val = *(c++);
+               if( i == j ){
+                  if( astEQUAL( val, 1.0 ) ) val = AST__BAD;
+               } else {
+                  if( astEQUAL( val, 0.0 ) ) val = AST__BAD;
+               }
+               if( val != AST__BAD ) SetItem( &(store->pc), i, j, s, val, status );
             }
-            if( val != AST__BAD ) SetItem( &(store->pc), i, j, s, val, status );
+            SetItem( &(store->cdelt), i, 0, s, *(d++), status );
          }
-         SetItem( &(store->cdelt), i, 0, s, *(d++), status );
       }
    }
 
@@ -22615,7 +23189,8 @@ static int MakeIntWorld( AstMapping *cmap, AstFrame *fr, int *wperm, char s,
    return ret;
 }
 
-static void MakeInvertable( double **fullmat, int n, double *dim, int *status ){
+static void MakeInvertable( double **fullmat, int n, double *dim, int ndim,
+                            int *status ){
 /*
 *  Name:
 *     MakeInvertable
@@ -22627,7 +23202,8 @@ static void MakeInvertable( double **fullmat, int n, double *dim, int *status ){
 *     Private function.
 
 *  Synopsis:
-*     void MakeInvertable( double **fullmat, int n, double *dim, int *status )
+*     void MakeInvertable( double **fullmat, int n, double *dim, int ndim,
+*                          int *status )
 
 *  Class Membership:
 *     FitsChan
@@ -22648,8 +23224,11 @@ static void MakeInvertable( double **fullmat, int n, double *dim, int *status ){
 *     n
 *        The number of inputs and outputs for the square matrix.
 *     dim
-*        Pointer to an array of "n" input (i.e. pixel) axis dimensions.
+*        Pointer to an array of "ndim" input (i.e. pixel) axis dimensions.
 *        Individual elements will be AST__BAD if dimensions are not known.
+*     ndim
+*        The number of pixel axes. This may be smaller than "n", in which
+*        case the remaining matrix inputs correspond to no pixel axis.
 *     status
 *        Pointer to the inherited status variable.
 */
@@ -22688,7 +23267,7 @@ static void MakeInvertable( double **fullmat, int n, double *dim, int *status ){
 /* If the input is unused, and it is associated with a degenerate pixel
    axis, we can set the corresponding diagonal element of the matrix to
    1.0. */
-      if( unused && dim[ i ] == 1.0 ) fullmat[ i ][ i ] = 1.0;
+      if( unused && i < ndim && dim[ i ] == 1.0 ) fullmat[ i ][ i ] = 1.0;
    }
 }
 #if defined(THREAD_SAFE)
@@ -24014,8 +24593,9 @@ static AstMapping *NonLinSpecWcs( AstFitsChan *this, char *algcode,
       if( algcode[ 3 ] != pc ) {
          const char *text = astGetC( specfrm, "System" );
          if( text ) {
-            sprintf( buf, "The spectral CTYPE value %s%s is not legal - using"
-                     " %s%.3s%c instead.", text, algcode, text, algcode, pc );
+            snprintf( buf, sizeof( buf ),
+                      "The spectral CTYPE value %s%s is not legal - using"
+                      " %s%.3s%c instead.", text, algcode, text, algcode, pc );
             Warn( this, "badctype", buf, method, class, status );
          }
       }
@@ -24744,7 +25324,7 @@ static AstMapping *OtherAxes( AstFitsChan *this, AstFrameSet *fs, double *dim,
 /* The axis symbols are taken as the CTYPE values. Append "-LOG" or "-TAB" if
    the axis is logarithmic or tabular. */
             if( sym && strlen( sym ) ) {
-               (void) sprintf( buf, "%s", sym );
+               (void) snprintf( buf, sizeof( buf ), "%s", sym );
             } else {
                (void) sprintf( buf, "AXIS%d", iax + 1 );
             }
@@ -24866,14 +25446,11 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    char primsys[20];   /* Buffer for primnary RADECSYS value */
    char type[MXCTYPELEN];/* Buffer for CTYPE value */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char sup;           /* Upper limit on s */
    double *c;          /* Pointer to next array element */
    double *d;          /* Pointer to next array element */
    double *matrix;     /* Pointer to Frame PC/CD matrix */
    double *primpc;     /* Pointer to primary PC/CD matrix */
-   double fd;          /* Fraction of a day */
-   double mjd99;       /* MJD at start of 1999 */
    double primdt;      /* Primary mjd-obs value */
    double primeq;      /* Primary equinox value */
    double primln;      /* Primary lonpole value */
@@ -24884,16 +25461,14 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    int axlon;          /* Index of longitude FITS WCS axis */
    int axspec;         /* Index of spectral FITS WCS axis */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
    int is;             /* Co-ordinate version index */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int m;              /* Parameter index */
    int maxm;           /* Upper limit on m */
    int naxis;          /* No. of axes */
    int nc;             /* Length of string */
    int ok;             /* Frame written out succesfully? */
+   int primnaxis;      /* No. of axes in the primary axis descriptions */
    int primok;         /* Primary axis descriptions written succesfully? */
    int prj;            /* Projection type */
    int ret;            /* Returned value. */
@@ -24910,11 +25485,16 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    sup = GetMaxS( &(store->crval), status );
    if( sup > 'I' ) return ret;
 
-/* Initialise */
+/* Initialise the primary values with which the values for each secondary
+   axis description are compared. A secondary description may have a value
+   for which the primary description has none. */
    primdt = AST__BAD;
    primeq = AST__BAD;
    primln = AST__BAD;
    primlt = AST__BAD;
+   primnaxis = 0;
+   primsys[ 0 ] = 0;
+   for( m = 0; m < 10; m++ ) primpv[ m ] = AST__BAD;
 
 /* Loop round all co-ordinate versions (0-9) */
    primpc = NULL;
@@ -24957,6 +25537,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
 /* If we are currently processing the primary axis description, take
    a copy of the PC matrix. */
          if( s == ' ' ) {
+            primnaxis = naxis;
             primpc = (double *) astStore(  NULL, (void *) matrix,
                                            sizeof(double)*naxis*naxis );
 
@@ -24987,22 +25568,24 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    to the next Frame. */
          } else {
             if( primpc ){
-               c = matrix;
-               d = primpc;
-               for( i = 0; i < naxis; i++ ){
-                  for( j = 0; j < naxis; j++ ){
-                     if( !astEQUAL( *c, *d ) ){
-                        ok = 0;
-                     } else {
-                        c++;
-                        d++;
-                     }
+
+/* The two matrices can only be the same if they are the same size. */
+               if( naxis != primnaxis ) {
+                  ok = 0;
+               } else {
+                  c = matrix;
+                  d = primpc;
+                  for( i = 0; i < naxis*naxis && ok; i++ ){
+                     if( !astEQUAL( c[ i ], d[ i ] ) ) ok = 0;
                   }
                }
 
 /* Continue with the next Frame if the PC matrix for this Frame is different
    to the primary PC matrix. */
-               if( !ok ) goto next;
+               if( !ok ) {
+                  matrix = (double *) astFree( (void *) matrix );
+                  goto next;
+               }
             }
          }
          matrix = (double *) astFree( (void *) matrix );
@@ -25099,7 +25682,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
 
 /* Change the new SFL projection code to to the older equivalent GLS */
          if( prj == AST__SFL ) {
-            strcpy( type, cval );
+            snprintf( type, sizeof( type ), "%s", cval );
             (void) strcpy( type + 4, "-GLS" );
             cval = type;
          }
@@ -25136,7 +25719,7 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
       cval = GetItemC( &(store->radesys), 0, 0, s, NULL, method, class, status );
       if( cval ) {
          if( s == ' ' ) {
-            strcpy( primsys, cval );
+            snprintf( primsys, sizeof( primsys ), "%s", cval );
             SetValue( this, "RADECSYS", &cval, AST__STRING,
                       "Reference frame for RA/DEC values", status );
          } else if( strcmp( cval, primsys ) ) {
@@ -25198,26 +25781,14 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
             SetValue( this, "MJD-OBS", &val, AST__FLOAT,
                       "Modified Julian Date of observation", status );
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-            palCaldj( 99, 1, 1, &mjd99, &jj );
-            if( val < mjd99 ) {
-               palDjcal( 0, val, iymdf, &jj );
-               sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                        iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-            } else {
-               palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-               palDd2tf( 3, fd, sign, ihmsf );
-               sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                        iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                        ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+            if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+               cval = combuf;
+               SetValue( this, "DATE-OBS", &cval, AST__STRING,
+                         "Date of observation", status );
             }
-
-/* Now store the formatted string in the FitsChan. */
-            cval = combuf;
-            SetValue( this, "DATE-OBS", &cval, AST__STRING,
-                      "Date of observation", status );
          }
       } else if( val != AST__BAD && !astEQUAL( val, primdt ) ){
          ok = 0;
@@ -25244,6 +25815,10 @@ static int PCFromStore( AstFitsChan *this, FitsStore *store,
    Pass on if a TAN projection with parameters is found.  The number of
    parameters was limited to 10. Pass on if more than 10 are supplied. */
          maxm = GetMaxJM( &(store->pv), ' ', status );
+         if( s != ' ' ) {
+            m = GetMaxJM( &(store->pv), s, status );
+            if( m > maxm ) maxm = m;
+         }
          for( i = 0; i < naxis; i++ ){
             if( i != axlon ) {
                for( m = 0; m <= maxm; m++ ){
@@ -27469,6 +28044,85 @@ static AstPolyMap *ScalePolyInputs( AstPolyMap *polymap, double *scales,
    return result;
 }
 
+static void SaveReplaced( AstFitsChan *this, int *status ){
+
+/*
+*  Name:
+*     SaveReplaced
+
+*  Purpose:
+*     Keep a copy of the current card, which is about to be replaced.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "fitschan.h"
+*     void SaveReplaced( AstFitsChan *this, int *status )
+
+*  Class Membership:
+*     FitsChan
+
+*  Description:
+*     This function is called when astWrite is about to replace the
+*     current card with a new card for the same keyword. It adds a copy
+*     of the current card to the list of replaced cards, so that function
+*     FixReplaced can put the card back if the axis descriptions being
+*     written are abandoned.
+*
+*     Nothing is done if the current card was itself created while writing
+*     the current set of axis descriptions (i.e. if it is marked with the
+*     NEW2 flag), since it will be removed together with its replacement.
+
+*  Parameters:
+*     this
+*        A pointer to the FitsChan.
+*     status
+*        Pointer to the inherited status variable.
+*/
+
+/* Local Variables: */
+   astDECLARE_GLOBALS     /* Declare the thread specific global data */
+   FitsCard *card;        /* Pointer to the current card */
+   ReplacedCard *rep;     /* Pointer to the copy */
+
+/* Check the global status, and that there is a current card. */
+   if( !astOK || !this->card ) return;
+
+/* Get a pointer to the structure holding thread-specific global data. */
+   astGET_GLOBALS(this);
+
+/* Nothing needs to be kept if the card was created while writing the
+   current set of axis descriptions. */
+   card = (FitsCard *) this->card;
+   if( card->flags & NEW2 ) return;
+
+/* Create the copy. */
+   rep = astMalloc( sizeof( *rep ) );
+   if( astOK ) {
+      strcpy( rep->name, card->name );
+      rep->type = card->type;
+      rep->size = card->size;
+      rep->flags = card->flags;
+      rep->data = card->data ? astStore( NULL, card->data, card->size ) : NULL;
+      rep->comment = card->comment ? astStore( NULL, card->comment,
+                                               strlen( card->comment ) + 1 ) : NULL;
+
+/* Its replacement will be marked with both NEW flags. */
+      rep->pending = NEW1 | NEW2;
+
+/* Add it to the head of the list. */
+      if( astOK ) {
+         rep->next = (ReplacedCard *) replaced_cards;
+         replaced_cards = (void *) rep;
+      } else {
+         (void) astFree( rep->data );
+         (void) astFree( (void *) rep->comment );
+         rep = astFree( rep );
+      }
+   }
+}
+
 static int SearchCard( AstFitsChan *this, const char *name,
                        const char *method, const char *class, int *status ){
 
@@ -28501,6 +29155,11 @@ static void SetValue( AstFitsChan *this, const char *keyname, void *value,
    original current card. Make a note of this. */
          newcard = ( card == (FitsCard *) this->card );
 
+/* If this card was in the FitsChan before the current astWrite call
+   started on the axis descriptions it is now writing, keep a copy of it
+   so that it can be put back if those descriptions are abandoned. */
+         if( mark_new ) SaveReplaced( this, status );
+
 /* Replace the current card with a card holding the supplied information. */
          SetFits( this, keyname, value, type, comment, 1, status );
          stored = 1;
@@ -28794,8 +29453,8 @@ static int Similar( const char *str1, const char *str2, int *status ){
 
 /* Get a pointer to the character following the last non-blank character in
    each string. */
-   ea = a + ChrLen( a, status ) - 1;
-   eb = b + ChrLen( b, status ) - 1;
+   ea = a + ChrLen( a, status );
+   eb = b + ChrLen( b, status );
 
 /* Set a flag indicating that spaces before the next non-blank character
    should be ignored. */
@@ -29349,6 +30008,22 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                      } else {
                         ok = 0;
                      }
+
+/* The remaining outputs must be fed by all the grid axes that do not feed
+   the celestial axes, and by no others, since the PermMap created below
+   needs each grid axis to be used exactly once. */
+                     if( ok && inax2 ) {
+                        if( astGetNin( tmap2 ) != nin - 2 ) {
+                           ok = 0;
+                        } else {
+                           for( iin = 0; iin < nin - 2; iin++ ) {
+                              if( inax2[ iin ] == inax1[ 0 ] ||
+                                  inax2[ iin ] == inax1[ 1 ] ) ok = 0;
+                           }
+                        }
+                     } else {
+                        ok = 0;
+                     }
                   }
 
                } else if( nout != 2 || nin != 2 ) {
@@ -29481,7 +30156,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                   cval = GetItemC( &(store->ctype), latax, 0, s, NULL, method,
                                    class, status );
                   if( cval ){
-                     strcpy( buf, cval );
+                     snprintf( buf, sizeof( buf ), "%s", cval );
                      strcpy( buf + 8, "-SIP" );
                      SetItemC( &(store->ctype), latax, 0, s, buf, status );
                   }
@@ -29489,7 +30164,7 @@ static AstMapping *SIPIntWorld( AstMapping *map, double tol, int lonax,
                   cval = GetItemC( &(store->ctype), lonax, 0, s, NULL, method,
                                    class, status );
                   if( cval ){
-                     strcpy( buf, cval );
+                     snprintf( buf, sizeof( buf ), "%s", cval );
                      strcpy( buf + 8, "-SIP" );
                      SetItemC( &(store->ctype), lonax, 0, s, buf, status );
                   }
@@ -30402,14 +31077,16 @@ static int SkySys( AstFitsChan *this, AstSkyFrame *skyfrm, int wcstype,
             sprintf( attr, "Symbol(%d)", lonax + 1 );
             const char *text = astGetC( skyfrm, attr );
             if( skyref && text ) {
-               sprintf( com, "%s offset from %s", text + 1, skyref );
+               snprintf( com, sizeof( com ), "%s offset from %s",
+                         text[ 0 ] ? text + 1 : text, skyref );
                SetItemC( &(store->ctype_com), axlon, 0, s, com, status );
             }
 
             sprintf( attr, "Symbol(%d)", latax + 1 );
             text = astGetC( skyfrm, attr );
             if( skyref && text ) {
-               sprintf( com, "%s offset from %s", text + 1, skyref );
+               snprintf( com, sizeof( com ), "%s offset from %s",
+                         text[ 0 ] ? text + 1 : text, skyref );
                SetItemC( &(store->ctype_com), axlat, 0, s, com, status );
             }
 
@@ -30676,7 +31353,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    AstSpecFrame *specfrm;  /* The SpecFrame defining current WCS axis */
    char *cname;            /* Pointer to CNAME value */
    char ctype[ MXCTYPELEN ]; /* The value for the FITS CTYPE keyword */
-   char lin_unit[ 20 ];    /* Linear spectral Units being used */
+   char *lin_unit;         /* Linear spectral Units being used */
    char orig_system[ 40 ]; /* Value of System attribute for current WCS axis */
    char system_attr[ 20 ]; /* Name of System attribute for current WCS axis */
    char unit_attr[ 20 ];   /* Name of Unit attribute for current WCS axis */
@@ -30719,6 +31396,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
 
 /* Initialise */
    ret = NULL;
+   lin_unit = NULL;
 
 /* Check the inherited status. */
    if( !astOK ) return ret;
@@ -30831,7 +31509,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
 
 /* Note the linear spectral Unit currently in use. */
             cval = astGetUnit( specfrm, 0 );
-            if( cval ) strcpy( lin_unit, cval );
+            if( cval ) lin_unit = astStore( lin_unit, cval, strlen( cval ) + 1 );
 
 /* For some of the algorithms, the reference value CRVAL is arbitrary.
    For these algorithms we choose to use the supplied default CRVAL value.
@@ -31329,6 +32007,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
 /* Release resources. */
    lbnd_p = astFree( lbnd_p );
    ubnd_p = astFree( ubnd_p );
+   lin_unit = astFree( lin_unit );
    wcsfrm = astAnnul( wcsfrm );
 
 /* If we have a Mapping to return, simplify it. Otherwise, create
@@ -31636,7 +32315,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
                      }
                   }
                   if( *sprj ) {
-                     strcpy( spectype, cval );
+                     snprintf( spectype, sizeof( spectype ), "%s", cval );
                      if( sprj[ 1 ] == sprj[ 3 ] ) {
                         strcpy( sprj, strlen( cval ) > 8 ? "----" : "    " );
                      } else {
@@ -31652,6 +32331,12 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
             j++;
          }
       }
+
+/* The projection translations below change the CTYPE values of both
+   celestial axes, and use other keywords of both. They can only be used
+   if a longitude axis and a latitude axis were both found, so if either
+   is missing indicate that there is no projection to translate. */
+      if( axlon == -1 || axlat == -1 ) prj[ 0 ] = 0;
 
 /* RADECSYS keywords
    ----------------- */
@@ -31690,11 +32375,11 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
 /* Do each row in the matrix. */
          for( j = 0; j < naxis; j++ ){
 
-/* Get the CDELT value for this row. */
-            GetValue2( ret, this, FormatKey( "CDELT", j + 1, -1, s, status ), AST__FLOAT,
-                       (void *) &cdeltj, 0, method, class, status );
+/* Get the CDELT value for this row. An axis that has no CDELT keyword,
+   or one with a value that is not a number, has no zero to replace, so
+   it is left alone (the default value of CDELT is 1.0).
 
-/* If CDELT is zero, use 1.0E-6 of the corresponding CRVAL value
+   If CDELT is zero, use 1.0E-6 of the corresponding CRVAL value
    instead, or 1.0 if CRVAL is zero. Otherwise, the zeros could cause the
    matrix to be non-invertable. The Mapping could then not be simplified
    or used by a Plot. CDELT values of zero are usually used to indicate
@@ -31702,9 +32387,15 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
    with a single plane with the "redundant" 3rd axis used to specify the
    wavelength of the filter. The actual value used for CDELT shouldn't
    matter since the axis only spans a single pixel anyway. */
-            if( cdeltj == 0.0 ){
-               GetValue2( ret, this, FormatKey( "CDELT", j + 1, -1, s, status ), AST__FLOAT,
-                         (void *) &dval, 1, method, class, status );
+            if( GetValue2( ret, this, FormatKey( "CDELT", j + 1, -1, s, status ),
+                           AST__FLOAT, (void *) &cdeltj, 0, method, class,
+                           status ) && cdeltj == 0.0 ){
+
+/* CRVAL is zero if it is absent, that being its default value. */
+               dval = 0.0;
+               GetValue2( ret, this, FormatKey( "CRVAL", j + 1, -1, s, status ), AST__FLOAT,
+                         (void *) &dval, 0, method, class, status );
+               if( dval == AST__BAD || !astISFINITE( dval ) ) dval = 0.0;
                cdeltj = 1.0E-6*dval;
                if( cdeltj == 0.0 ) cdeltj = 1.0;
                SetValue( ret, FormatKey( "CDELT", j + 1, -1, s, status ), (void *) &cdeltj,
@@ -32494,7 +33185,7 @@ static AstFitsChan *SpecTrans( AstFitsChan *this, int encoding,
             }
 
             if( cdelti != 0.0 ) {
-               double offset = 0.5*( dim + 1 );
+               double offset = 0.5*( (double) dim + 1.0 );
                dval = offset + AST__DR2D*palDrange( AST__DD2R*( dval - offset )*cdelti )/cdelti;
                SetValue( ret, FormatKey( "CRPIX", axlon + 1, -1, s, status ),
                          (void *) &dval, AST__FLOAT, CardComm( this, status ), status );
@@ -33467,6 +34158,7 @@ static int SplitMap2( AstMapping *map, int invert, AstMapping **map1,
    int m;                  /* Parameter index */
    int nax;                /* No. of axes in Mapping */
    int nmap;               /* Number of Mappings in the list */
+   int nsearch;            /* Number of parallel Mappings to search */
    int ret;                /* Was a non-linear Mapping found? */
    int wcsaxis;            /* Index of first WcsMap axis */
 
@@ -33555,9 +34247,15 @@ static int SplitMap2( AstMapping *map, int invert, AstMapping **map1,
    parallel and an associated list of Invert flags. */
          astMapList( map, 0, invert, &nmap, &map_list, &invert_list );
 
+/* A CmpMap that cannot be decomposed (for instance, one with an Ident,
+   which astMapList leaves whole) is returned as the only Mapping in the
+   list. Searching it would call this function again with the same
+   Mapping, so it is taken to contain no usable WcsMap. */
+         nsearch = ( nmap > 1 ) ? nmap : 0;
+
 /* Process each parallel Mapping. */
          axis = 0;
-         for( imap = 0; imap < nmap && astOK; imap++ ){
+         for( imap = 0; imap < nsearch && astOK; imap++ ){
 
 /* See if this Mapping contains a usable WcsMap. Only do the search
    if no such WcsMap has already been found, since only the first is usable. */
@@ -34006,12 +34704,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
 /* Obtain the number of physical axes in the header. If the WCSAXES header
    was specified, use it. Otherwise assume it is the same as the number
    of pixel axes. */
-   dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
-   if( dval != AST__BAD ) {
-      wcsaxes = (int) round( dval );
-   } else {
-      wcsaxes = store->naxis;
-   }
+   wcsaxes = GetWcsAxes( store, s, method, class, status );
 
 /* If the FitsChan does not support the -TAB algorithm, return a NULL
    pointer. */
@@ -34260,7 +34953,7 @@ static AstMapping *TabMapping( AstFitsChan *this, FitsStore *store, char s,
    the CRVAL values are defined when using -TAB). The psi axes will then
    be mapping into the CS axes using the Mappign returned by this function. */
                   strncpy( name, ctype, 4 );
-                  strcpy( name + 4, ctype + 8 );
+                  snprintf( name + 4, sizeof( name ) - 4, "%s", ctype + 8 );
                   SetItemC( &(store->ctype), iaxis, 0, s, name, status );
 
 /* Set the returned flag for this axis. */
@@ -35130,9 +35823,10 @@ static AstTimeScaleType TimeSysToAst( AstFitsChan *this, const char *timesys,
       result = AST__TCB;
    } else {
       result = AST__UTC;
-      sprintf( buf, "The original FITS header contained a value of %s for "
-               "keyword TIMESYS. AST does not support this timescale so "
-               "UTC will be used instead.", timesys );
+      snprintf( buf, sizeof( buf ),
+                "The original FITS header contained a value of %s for "
+                "keyword TIMESYS. AST does not support this timescale so "
+                "UTC will be used instead.", timesys );
       Warn( this, "badval", buf, method, class, status );
    }
 
@@ -36230,7 +36924,7 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
                axlon = i;
                strcpy( lontype, wcscelestial_type );
                strcpy( lonkey, keyname );
-               strcpy( lonctype, ctype );
+               snprintf( lonctype, sizeof( lonctype ), "%s", ctype );
                lonprj = prj;
 
 /* If another longitude axis has already been found, report an error. */
@@ -36251,11 +36945,13 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
          } else if( !strcmp( ctype, "EL" ) || !strncmp( ctype, "EL--", 4 ) ){
             strcpy( wcscelestial_type, "AZL" );
             gotax = 1;
-         } else if( !strcmp( ctype + 1, "LAT" ) || !strncmp( ctype + 1, "LAT-", 4 ) ){
+         } else if( nc > 1 && ( !strcmp( ctype + 1, "LAT" ) ||
+                                !strncmp( ctype + 1, "LAT-", 4 ) ) ){
             wcscelestial_type[ 0 ] = ctype[ 0 ];
             wcscelestial_type[ 1 ] = 0;
             gotax = 1;
-         } else if( !strcmp( ctype + 2, "LT" ) || !strncmp( ctype + 2, "LT-", 3 ) ){
+         } else if( nc > 2 && ( !strcmp( ctype + 2, "LT" ) ||
+                                !strncmp( ctype + 2, "LT-", 3 ) ) ){
             wcscelestial_type[ 0 ] = ctype[ 0 ];
             wcscelestial_type[ 1 ] = ctype[ 1 ];
             wcscelestial_type[ 2 ] = 0;
@@ -36282,7 +36978,7 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
                axlat = i;
                strcpy( lattype, wcscelestial_type );
                strcpy( latkey, keyname );
-               strcpy( latctype, ctype );
+               snprintf( latctype, sizeof( latctype ), "%s", ctype );
                latprj = prj;
             } else {
                astError( AST__BDFTS, "%s(%s): FITS keywords '%s' (='%s') "
@@ -36444,9 +37140,10 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
                if( m <= mxpar_lat ) {
                   astSetPV( map2, axlat, m, pv );
                } else {
-                  sprintf( buf, "Projection parameter PV%d_%d found, "
-                           "but is not used by %s projections.", axlat + 1,
-                           m, astWcsPrjName( astGetWcsType( map2 ) ) );
+                  snprintf( buf, sizeof( buf ),
+                            "Projection parameter PV%d_%d found, "
+                            "but is not used by %s projections.", axlat + 1,
+                            m, astWcsPrjName( astGetWcsType( map2 ) ) );
                   Warn( this, "badpv", buf, method, class, status );
                }
             }
@@ -36455,9 +37152,10 @@ static AstMapping *WcsCelestial( AstFitsChan *this, FitsStore *store, char s,
                if( m <= mxpar_lon ) {
                   astSetPV( map2, axlon, m, pv );
                } else {
-                  sprintf( buf, "Projection parameter PV%d_%d found, "
-                           "but is not used by %s projections.", axlon + 1,
-                           m, astWcsPrjName( astGetWcsType( map2 ) ) );
+                  snprintf( buf, sizeof( buf ),
+                            "Projection parameter PV%d_%d found, "
+                            "but is not used by %s projections.", axlon + 1,
+                            m, astWcsPrjName( astGetWcsType( map2 ) ) );
                   Warn( this, "badpv", buf, method, class, status );
                }
             }
@@ -37380,10 +38078,11 @@ static void WcsFcRead( AstFitsChan *fc, AstFitsChan *fc2, FitsStore *store,
 
 /* First check that the keyword is not included in "fc2". */
             if( !HasCard( fc2, keynam, method, class, status ) ) {
-               sprintf( buf, "The original FITS header contained a value for "
-                        "keyword %s which could not be converted to a %s.",
-                        keynam, ( type==AST__FLOAT ? "floating point number":
-                        "character string" ) );
+               snprintf( buf, sizeof( buf ),
+                         "The original FITS header contained a value for "
+                         "keyword %s which could not be converted to a %s.",
+                         keynam, ( type==AST__FLOAT ? "floating point number":
+                         "character string" ) );
                Warn( fc, "badval", buf, "astRead", "FitsChan", status );
             }
          }
@@ -37451,21 +38150,15 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    char combuf[80];    /* Buffer for FITS card comment */
    char parprefix[4];  /* Prefix for projection parameter keywords */
    char s;             /* Co-ordinate version character */
-   char sign[2];       /* Fraction's sign character */
    char sup;           /* Upper limit on s */
    char type[MXCTYPELEN];/* Buffer for CTYPE value */
    const char *order_kwd; /* Name for SIP max order keyword */
    double ****item;    /* Address of FitsStore item to use */
    double cdl;         /* CDELT value */
-   double fd;          /* Fraction of a day */
-   double mjd99;       /* MJD at start of 1999 */
    double val;         /* General purpose value */
    int *tabaxis;       /* Flags WCS axes that use -TAB algorithm */
    int i;              /* Axis index */
-   int ihmsf[ 4 ];     /* Hour, minute, second, fractional second */
-   int iymdf[ 4 ];     /* Year, month, date, fractional day */
    int j;              /* Axis index */
-   int jj;             /* SlaLib status */
    int m;              /* Parameter index */
    int maxm;           /* Upper limit on m */
    int naxis;          /* Value of NAXIS keyword */
@@ -37603,7 +38296,7 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
    parameters from "PV" to "QV". AST will do the inverse conversions when
    reading such a header. Non-AST software will simply ignore the QV
    terms and interpret the header as a simple TAN projection. */
-         if( prj == AST__TPN ) {
+         if( prj == AST__TPN && nc < (int) sizeof( type ) ) {
             strcpy( parprefix, "QV" );
             strcpy( type, cval );
             (void) strcpy( type + nc - 4, "-TAN" );
@@ -37755,26 +38448,14 @@ static int WcsFromStore( AstFitsChan *this, FitsStore *store,
             SetValue( this, FormatKey( "MJD-OBS", -1, -1, s, status ),
                       &val, AST__FLOAT, "Modified Julian Date of observation", status );
 
-/* The format used for the DATE-OBS keyword depends on the value of the
-   keyword. For DATE-OBS < 1999.0, use the old "dd/mm/yy" format.
-   Otherwise, use the new "ccyy-mm-ddThh:mm:ss[.ssss]" format. */
-            palCaldj( 99, 1, 1, &mjd99, &jj );
-            if( val < mjd99 ) {
-               palDjcal( 0, val, iymdf, &jj );
-               sprintf( combuf, "%2.2d/%2.2d/%2.2d", iymdf[ 2 ], iymdf[ 1 ],
-                        iymdf[ 0 ] - ( ( iymdf[ 0 ] > 1999 ) ? 2000 : 1900 ) );
-            } else {
-               palDjcl( val, iymdf, iymdf+1, iymdf+2, &fd, &jj );
-               palDd2tf( 3, fd, sign, ihmsf );
-               sprintf( combuf, "%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3d",
-                        iymdf[0], iymdf[1], iymdf[2], ihmsf[0], ihmsf[1],
-                        ihmsf[2], ihmsf[3] );
+/* Format the date as the value of the DATE-OBS keyword, and store the
+   formatted string in the FitsChan. No DATE-OBS keyword is stored if the
+   date has no calendar equivalent. */
+            if( MjdToDateObs( val, combuf, sizeof( combuf ), status ) ) {
+               cval = combuf;
+               SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
+                         "Date of observation", status );
             }
-
-/* Now store the formatted string in the FitsChan. */
-            cval = combuf;
-            SetValue( this, "DATE-OBS", (void *) &cval, AST__STRING,
-                      "Date of observation", status );
          }
          val = GetItem( &(store->mjdavg), 0, 0, ' ', NULL, method, class, status );
          if( val != AST__BAD ) SetValue( this, "MJD-AVG", &val, AST__FLOAT,
@@ -38250,7 +38931,6 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
    const char *cc;           /* Pointer to Domain */
    double dtai;              /* TAI-UTC correction in seconds */
    double dut1;              /* UT1-UTC correction in days */
-   double dval;              /* Temporary double value */
    double reflat;            /* Reference celestial latitude */
    double reflon;            /* Reference celestial longitude */
    int *tabaxis;             /* Flags indicating -TAB axes */
@@ -38273,12 +38953,7 @@ static AstMapping *WcsMapFrm( AstFitsChan *this, FitsStore *store, char s,
 /* Obtain the number of physical axes in the header. If the WCSAXES header
    was specified, use it. Otherwise assume it is the same as the number
    of pixel axes. */
-   dval = GetItem( &(store->wcsaxes), 0, 0, s, NULL, method, class, status );
-   if( dval != AST__BAD ) {
-      wcsaxes = (int) round( dval );
-   } else {
-      wcsaxes = store->naxis;
-   }
+   wcsaxes = GetWcsAxes( store, s, method, class, status );
 
 /* Create a simple Frame to represent IWC coords. */
    iwcfrm = astFrame( wcsaxes, "Title=FITS Intermediate World Coordinates", status );
@@ -38726,10 +39401,11 @@ static AstMapping *WcsNative( AstFitsChan *this, FitsStore *store, char s,
          delta0 = -AST__DPIBY2;
       }
       if( alphap != delta0 ) {
-         sprintf( buf, "The original FITS header specified a fiducial "
-                  "point with latitude %.*g. A value of %.*g is being used "
-                  "instead. ", AST__DBL_DIG, alphap*AST__DR2D, AST__DBL_DIG,
-                  delta0*AST__DR2D );
+         snprintf( buf, sizeof( buf ),
+                   "The original FITS header specified a fiducial "
+                   "point with latitude %.*g. A value of %.*g is being used "
+                   "instead. ", AST__DBL_DIG, alphap*AST__DR2D, AST__DBL_DIG,
+                   delta0*AST__DR2D );
          Warn( this, "badlat", buf, method, class, status );
       }
 
@@ -39355,7 +40031,7 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
             len = strlen( ckeyval );
             if( len > 3 && !strcmp( ckeyval + len - 4, "-LOG" ) ){
                map1 = LogWcs( store, i, s, method, class, status );
-               sprintf( buf2, "%.*s", len - 4, ckeyval );
+               snprintf( buf2, sizeof( buf2 ), "%.*s", len - 4, ckeyval );
 
 /* A zero CRVAL has no logarithmic form, so LogWcs returns NULL. Use a
    UnitMap, as WcsSpectral does for a spectral axis. */
@@ -39364,7 +40040,7 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
 /* Otherwise, assume the axis is linearly spaced. */
             } else {
                map1 = LinearWcs( store, i, s, method, class, status );
-               sprintf( buf2, "%.*s", len, ckeyval );
+               snprintf( buf2, sizeof( buf2 ), "%.*s", len, ckeyval );
             }
 
 /* Append the CTYPE value to the final Domain value for the primary Frame. */
@@ -39434,7 +40110,7 @@ static AstMapping *WcsOthers( AstFitsChan *this, FitsStore *store, char s,
       ckeyval = GetItemC( &(store->wcsname), 0, 0, s, NULL, method, class, status );
       if( ckeyval ){
          astSetDomain( *frm, ckeyval );
-         sprintf( buf, "%s coordinates", ckeyval );
+         snprintf( buf, sizeof( buf ), "%s coordinates", ckeyval );
          astSetTitle( *frm, buf );
       }
    }
@@ -39699,9 +40375,10 @@ static AstSkyFrame *WcsSkyFrame( AstFitsChan *this, FitsStore *store, char s,
 /* If an equatorial system is being used, give a warning that a default RADESYS
    value is being used. */
          if( !strcmp( sys, "EQU" ) ){
-            sprintf( buf, "The original FITS header did not specify the "
-                     "RA/DEC reference frame. A default value of %s was "
-                     "assumed.", ( radesys == FK4 ) ? "FK4" : "FK5" );
+            snprintf( buf, sizeof( buf ),
+                      "The original FITS header did not specify the "
+                      "RA/DEC reference frame. A default value of %s was "
+                      "assumed.", ( radesys == FK4 ) ? "FK4" : "FK5" );
             Warn( this, "noradesys", buf, method, class, status );
          }
       }
@@ -39729,9 +40406,10 @@ static AstSkyFrame *WcsSkyFrame( AstFitsChan *this, FitsStore *store, char s,
             radesys = ICRS;
          }
          if( !strcmp( sys, "EQU" ) ){
-            sprintf( buf, "The original FITS header did not specify the "
-                     "RA/DEC reference frame. A default value of %s was "
-                     "assumed.", ( radesys == FK4 ) ? "FK4" : "ICRS" );
+            snprintf( buf, sizeof( buf ),
+                      "The original FITS header did not specify the "
+                      "RA/DEC reference frame. A default value of %s was "
+                      "assumed.", ( radesys == FK4 ) ? "FK4" : "ICRS" );
             Warn( this, "noradesys", buf, method, class, status );
          }
       }
@@ -39833,10 +40511,11 @@ static AstSkyFrame *WcsSkyFrame( AstFitsChan *this, FitsStore *store, char s,
          lontype = GetItemC( &(store->ctype), axlon, 0, s, NULL, method, class, status );
          lattype = GetItemC( &(store->ctype), axlat, 0, s, NULL, method, class, status );
          if( lontype && lattype ){
-            sprintf( buf, "This FITS header contains references to an unknown "
-                     "spherical co-ordinate system specified in the values "
-                     "%s and %s. It may not be possible to convert to "
-                     "other standard co-ordinate systems.", lontype, lattype );
+            snprintf( buf, sizeof( buf ),
+                      "This FITS header contains references to an unknown "
+                      "spherical co-ordinate system specified in the values "
+                      "%s and %s. It may not be possible to convert to "
+                      "other standard co-ordinate systems.", lontype, lattype );
             Warn( this, "badcel", buf, method, class, status );
          }
       }
@@ -40702,7 +41381,7 @@ static int WorldAxes( AstFitsChan *this, AstMapping *cmap, double *dim, int *per
 
 /* Choose the occurrence to retain. If the output with the same index as
    the input is one of them, use it. Otherwise, use the first occurrence. */
-               if( perm[ j ] == j ) {
+               if( j < nout && perm[ j ] == j ) {
                   retain = j;
                } else {
                   for( i = 0; i < nout; i++ ) {
@@ -40809,6 +41488,8 @@ static int Write( AstChannel *this_channel, AstObject *object, int *status ) {
    int encoding;                 /* FITS encoding scheme to use */
    int i;                        /* Axis index */
    int naxis;                    /* No. of pixel axes */
+   int old_report;               /* Original error reporting flag */
+   int old_status;               /* Error status before clean-up */
    int ret;                      /* Number of objects read */
 
 /* Initialise. */
@@ -40967,12 +41648,30 @@ static int Write( AstChannel *this_channel, AstObject *object, int *status ) {
    marked as "new". */
    mark_new = 0;
 
+/* The calls above deal with every card that was replaced by a new card.
+   Ensure that none is left for a later invocation to put back. */
+   FixReplaced( this, NEW1 | NEW2, 0, status );
+
 /* Ensure all output is flushed to any associated output file specified
    by the SinkFile attribute. */
    astWriteFlush( this );
 
-/* If no object was written, re-instate the original current card. */
-   if( !ret ) astSetCard( this, card0 );
+/* If no object was written, re-instate the original current card. This
+   is done even if an error has occurred, in which case the error status
+   is cleared while the card is set and then re-instated. */
+   if( !ret ) {
+      old_status = astStatus;
+      if( !astOK ) {
+         old_report = astReporting( 0 );
+         astClearStatus;
+         astSetCard( this, card0 );
+         if( !astOK ) astClearStatus;
+         astSetStatus( old_status );
+         astReporting( old_report );
+      } else {
+         astSetCard( this, card0 );
+      }
+   }
 
 /* Return the answer. */
    return ret;

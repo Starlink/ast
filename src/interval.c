@@ -94,6 +94,22 @@ f     The Interval class does not define any new routines beyond those
 *        centre, so an Interval whose current Frame differs from its base
 *        Frame reported a base Frame centre when asked for its current
 *        Frame centre, as Prism and SetUnc ask for it.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadInterval, check that the dump supplied the points that
+*        define the Interval, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        Overlap: an axis on which one Interval is the negation of the other
+*        gives a code that the table used to combine the axes does not
+*        cover, and was used as an index into it. The Intervals are now
+*        found to be each other's negation if no other axis has a limit,
+*        and otherwise to have no overlap.
+*     19-NOV-2026 (TIMJ):
+*        RegCentre: change the limits kept in the Interval structure when
+*        the Interval is moved, and discard the boundary mesh kept by the
+*        parent Region. astRegBaseBox went on returning the old bounds.
 *class--
 */
 
@@ -1882,7 +1898,9 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
    int nc;
    int neg_that;
    int neg_this;
+   int nolim;
    int ov;
+   int prevnolim;
    int result;
    int ub_equal;
 
@@ -1970,6 +1988,7 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
             if( astOK ) {
 
 /* Check the limits on each base Frame axis in turn. */
+               prevnolim = 1;
                for( ic = 0; ic < nc; ic++ ) {
 
 /* Get the widths of the two uncertainty boxes on this axis. */
@@ -2118,16 +2137,38 @@ static int Overlap( AstRegion *this, AstRegion *that, int *status ){
                      }
                   }
 
+/* Note if neither Interval puts any limit on this axis. */
+                  nolim = ( inc_this && inc_that &&
+                            lb_this == -DBL_MAX && ub_this == DBL_MAX &&
+                            lb_that == -DBL_MAX && ub_that == DBL_MAX );
+
 /* The returned value is initialised on the basis of the first axis
    overlap. */
                   if( ic == 0 ) {
                      result = ov;
 
-/* For subsequent axes, combine the old result value with the new ov value
-   to get the new result value. */
+/* If the range of one Interval is the negation of the range of the other
+   on an earlier axis, then the Intervals have no positions in common. Each
+   Interval is the negation of the other only if no other axis has any
+   limit, so check that this axis has none. */
+                  } else if( result == 6 ) {
+                     if( !nolim ) result = 1;
+
+/* Likewise, if the range of one Interval is the negation of the range of
+   the other on this axis, each Interval is the negation of the other only
+   if none of the earlier axes has any limit. Otherwise the Intervals do
+   not overlap. */
+                  } else if( ov == 6 ) {
+                     result = prevnolim ? 6 : 1;
+
+/* For other subsequent axes, combine the old result value with the new ov
+   value to get the new result value. */
                   } else {
                      result = newResult[ result - 1 ][ ov - 1 ];
                   }
+
+/* Note if any axis checked so far has a limit. */
+                  if( !nolim ) prevnolim = 0;
 
 /* If we now know there is no overlap, there is no point in checking any
    remaining axes. */
@@ -2574,6 +2615,20 @@ static double *RegCentre( AstRegion *this_region, double *cen, double **ptr,
                bptr[ i ][ 0 ] = lbnd[ i ];
                bptr[ i ][ 1 ] = ubnd[ i ];
             }
+
+/* The Interval structure also keeps a copy of its limits, which for an
+   Interval that is equivalent to a Box are these bounds, so change them
+   to match. The equivalent Box has already been moved. */
+            if( this->lbnd && this->ubnd ) {
+               for( i = 0; i < nax; i++ ) {
+                  this->lbnd[ i ] = lbnd[ i ];
+                  this->ubnd[ i ] = ubnd[ i ];
+               }
+            }
+
+/* Discard the information that the parent Region class keeps about the
+   Interval at its old position, such as its boundary mesh. */
+            (*parent_resetcache)( this_region, status );
          }
 
 /* Free resources. */
@@ -3928,8 +3983,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       if( unc ) unc = astAnnul( unc );
    }
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -4630,6 +4690,9 @@ AstInterval *astLoadInterval_( void *mem, size_t size, AstIntervalVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Interval" );
+
+/* Check that the parent Region supplied the points that a Interval needs. */
+      astCheckLoadedPoints( new, name, 2, 2, 0 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */
