@@ -301,6 +301,23 @@ Bug fixes
   SpecFluxFrames with different Domains before any CmpFrame has been
   created.
 
+- astConvert no longer reads beyond the end of an array when one of the two
+  Frames is a CmpFrame whose first component Frame is itself a CmpFrame,
+  and the other Frame has a single axis.
+
+- A Region, CmpFrame or FrameSet is no longer copied as if it were an
+  instance of a class that it does not belong to, when the library fails
+  to match it with a Frame of that class and tries to cast it into the
+  class instead. astConvert treated a plain CmpFrame as a SpecFluxFrame in
+  this way, and read beyond the end of an array if that CmpFrame had more
+  than two axes and was a component of another CmpFrame. As a result,
+  astConvert no longer finds a conversion between a SpecFluxFrame and a
+  CmpFrame that does not match it, for instance because a component Frame
+  of the CmpFrame has a different Domain. The same was done for two
+  Regions of different classes, and for a FrameSet and a Plot, which read
+  beyond the end of the smaller object, but no public function is known
+  to reach those cases.
+
 - Setting the Unit of a FluxFrame to a value for which the search for a
   Mapping from the default Unit fails (for instance six nested "log"
   functions) now reports the error alone. It used to crash.
