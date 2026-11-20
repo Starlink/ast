@@ -182,6 +182,11 @@ f     - AST_CURRENTTIME: Return the current system time
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for MJD day rounding
 *        to avoid platform-dependent results.
+*     20-NOV-2026 (TIMJ):
+*        In Centre, set a zeroed month or day field to 01 rather than 00,
+*        so that the central date is a valid one. A zeroed month caused
+*        an uninitialised value to be read back when the gap either side
+*        of the value spanned a month or year boundary.
 *class--
 */
 
@@ -661,9 +666,12 @@ static double Centre( AstFrame *this_frame, int axis, double value,
    double result;
    int df;
    int fmod;
+   int ifld;
+   int infld;
    int nc1;
    int nc2;
    int ndp;
+   int nfld;
    int nres;
    int v1;
    int v2;
@@ -706,6 +714,7 @@ static double Centre( AstFrame *this_frame, int axis, double value,
 
 /* Loop over all characters within the first date. */
          fmod = 0;
+         nfld = 0;
          nc1 = 0;
          f1 = NULL;
          p1 = date1;
@@ -768,8 +777,21 @@ static double Centre( AstFrame *this_frame, int axis, double value,
                if( v1 != v2 ) {
 
                   pres = fres + ( f1 - date1 ) - 1;
+                  ifld = nfld;
+                  infld = 0;
                   while( *(++pres) ) {
-                     if( isdigit( *pres ) ) *pres = '0';
+                     if( isdigit( *pres ) ) {
+                        *pres = '0';
+                        infld = 1;
+
+/* The month and day fields (the second and third) start from one, so end
+   them with a "1" to keep the central date valid. */
+                        if( ( ifld == 1 || ifld == 2 ) &&
+                            !isdigit( pres[ 1 ] ) ) *pres = '1';
+                     } else if( infld ) {
+                        infld = 0;
+                        ifld++;
+                     }
                   }
                   fmod = 1;
 
@@ -777,6 +799,7 @@ static double Centre( AstFrame *this_frame, int axis, double value,
                }
 
 /* Prepare to look for the next numerical field in both strings. */
+               nfld++;
                nc1 = nc2 = 0;
                f1 = f2 = NULL;
 
