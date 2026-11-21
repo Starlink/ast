@@ -204,6 +204,9 @@
 *     Protected:
 *        astEQUAL
 *           Compare two doubles for equality.
+*        astEQUALREL
+*           Compare two doubles for equality using a relative tolerance
+*           alone.
 *        astMAX
 *           Return maximum of two values.
 *        astMIN
@@ -362,6 +365,11 @@
 *        two identical values, or two NaNs, as equal. It did not find an
 *        infinite or NaN value equal to itself, so astSimplify never
 *        finished for a Mapping that held one.
+*     21-NOV-2026 (TIMJ):
+*        Added astEQUALREL, which applies the relative tolerance of
+*        astEQUAL without its absolute floor of 1.0e-12, for values that
+*        carry the units of a coordinate axis and so may legitimately be
+*        far smaller than the floor.
 */
 
 /* Include files. */
@@ -1486,6 +1494,17 @@ int astTest##attribute##_( Ast##class *this, int *status ) { \
    otherwise never stop once it had such a value. */
 #define astEQUALS(aa,bb,tol) ((((aa)==(bb))||(isnan(aa)&&isnan(bb)))?1:(((aa)==AST__BAD)?(((bb)==AST__BAD)?1:0):(((bb)==AST__BAD)?0:(fabs((aa)-(bb))<=astMAX((tol)*((fabs(aa)+fabs(bb))*DBL_EPSILON),1.0E-12)))))
 #define astEQUAL(aa,bb) astEQUALS(aa,bb,1.0E5)
+
+/* Check for equality of floating point values that carry the units of a
+   coordinate axis, such as the terms of a WinMap, the factor of a ZoomMap
+   or a wavelength in meters. Such a value may legitimately be far smaller
+   than the absolute floor of astEQUAL (an energy in joules is of order
+   1.0e-26), and astEQUAL then finds it equal to zero, and to any other
+   value of similar size. This macro applies the relative tolerance of
+   astEQUAL alone, so zero is equal only to zero. Two identical values are
+   always equal (including two bad values), as are two NaNs. A value that
+   is not finite is not equal to any other value. */
+#define astEQUALREL(aa,bb) ((((aa)==(bb))||(((aa)!=(aa))&&((bb)!=(bb))))?1:((((aa)==AST__BAD)||((bb)==AST__BAD))?0:((fabs((aa)-(bb))<=DBL_MAX)&&(fabs((aa)-(bb))<=1.0E5*((fabs(aa)+fabs(bb))*DBL_EPSILON)))))
 
 
 /* AST__NULL. */
