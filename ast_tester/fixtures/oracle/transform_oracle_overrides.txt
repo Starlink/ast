@@ -73,7 +73,7 @@ wcsconv/framesets/tnx-cheb-head.ast   off
 #  round-trip check -- inverse(forward(P)) forward-maps back to the same sky.)
 
 # neg_unitnormmap_inv_fwd_diffcentre.map row 2: the fixture is
-# UnitNormMap(centre A)^-1 then UnitNormMap(centre B).  Row 2 is the all-zero
+# UnitNormMap(center A)^-1 then UnitNormMap(center B).  Row 2 is the all-zero
 # sample, and a zero norm leaves the forward direction unconstrained, so the
 # composition is not invertible there.  The inverse chain reconstructs
 # centre A as B + |A-B| * (A-B)/|A-B|, and how close that lands to A depends

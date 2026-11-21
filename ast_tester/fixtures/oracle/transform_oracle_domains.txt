@@ -157,7 +157,7 @@ simplify/pointlist_self_simplify.map  1 2  3 4
 # documents as accurate for astrometric fields, where C*R*R is small.  Each
 # pair is sampled where C*R*R is at most about 0.02, within which it agrees
 # with the forward transformation to rounding: radii up to about 4 for a
-# distortion coefficient C of 0.001 (about pcd_inverse_cancel's centre of
+# distortion coefficient C of 0.001 (about pcd_inverse_cancel's center of
 # (1.25, -0.75)), and about 1.4 for pcd_inverse_cancel_tail's 0.01.
 simplify/pcd_inverse_cancel.map        -1.75 4.25  -3.75 2.25
 simplify/pcd_perm_swap_cancel.map      -3 3

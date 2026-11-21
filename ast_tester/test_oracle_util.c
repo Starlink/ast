@@ -78,7 +78,7 @@ static void test_axis_tol(void) {
     CHECK(oracle_axis_atol(1e-7, 3.0) == 1e-7);
     CHECK(oracle_axis_atol(1e-7, 0.0) == 1e-7);
 
-    /* A wavelength in metres that is 0.2% wrong is a mismatch, though it
+    /* A wavelength in meters that is 0.2% wrong is a mismatch, though it
        differs by only 1e-9; one that differs in the 12th digit is not. */
     double atol = oracle_axis_atol(ORACLE_DEF_ATOL, 5.05e-7);
     CHECK(oracle_within_tol(5.01e-7, 5.0e-7, ORACLE_DEF_RTOL, atol) == 0);

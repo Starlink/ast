@@ -32,7 +32,7 @@
  *
  * Three parameter sets are used: the KPNO MARS grism of Paper III Fig. 5
  * with a non-zero epsilon and theta, the KPNO Hydra echelle of Fig. 4 in
- * order 11, and a grating used in order -1.  Lengths are in metres and
+ * order 11, and a grating used in order -1.  Lengths are in meters and
  * angles in radians.
  */
 #include "ast.h"

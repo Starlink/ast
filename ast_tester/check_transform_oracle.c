@@ -725,7 +725,7 @@ static int selftest( void ) {
     }
 
     /* compare_outputs scales the absolute tolerance per axis.  Each axis
-       below is out by 1e-9: that is a mismatch on the axis in metres, where
+       below is out by 1e-9: that is a mismatch on the axis in meters, where
        it is 0.2% of the value, but not on the axis in radians. */
     {
         double rad_ref[] = { 0.0, 1.5 }, rad_got[] = { 1e-9, 1.5 };

@@ -922,7 +922,7 @@ static void gen_unitnormmap_fixtures(const char *dir) {
    alone and GRISM_PRISM a prism alone, each with the reference wavelength
    at w = 0; they leave the other attributes at their defaults, so that
    between them the fixtures also dump and load a GrismMap with each
-   attribute unset.  GRISM_PRISM is in metres, with a glass's dispersion of
+   attribute unset.  GRISM_PRISM is in meters, with a glass's dispersion of
    -0.05 per micron: neg_grism_same_direction feeds one GrismMap's
    wavelength to another as its grism parameter, and a wavelength in
    Angstrom is so large there that the second GrismMap barely depends on
@@ -958,7 +958,7 @@ static void gen_grismmap_fixtures(const char *dir) {
 
     /* grismmap-01: forward GrismMap + its inverse → cancel to UnitMap.
        The _tail variant adds a trailing ZoomMap, which is shuffled down
-       into the place of the cancelled pair. */
+       into the place of the canceled pair. */
     {
         AstGrismMap *g1 = astGrismMap(GRISM_PARAMS);
         AstGrismMap *g2 = astGrismMap(GRISM_PARAMS);
@@ -973,7 +973,7 @@ static void gen_grismmap_fixtures(const char *dir) {
     }
 
     /* grismmap-07: forward GrismMap + inverse of a GrismMap of a different
-       order → not cancelled, since the pair is not the identity.  A grating
+       order → not canceled, since the pair is not the identity.  A grating
        alone is used because order -1 of GRISM_PARAMS puts the sine of the
        reference diffraction angle at -1.15, which makes that GrismMap
        AST__BAD everywhere. */

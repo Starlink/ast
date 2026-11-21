@@ -94,7 +94,7 @@ int main( int argc, char **argv ) {
    BUILD( astSpecMap(1,0,""), astSpecAdd, spec,
           "specmap_invert_normalize.map", "specmap_pair_cancel.map" );
 
-/* SlaMap arguments that are physically meaningful, so that the cancelled
+/* SlaMap arguments that are physically meaningful, so that the canceled
    pairs are inverses and the fixtures can be checked numerically: Besselian
    epoch 1950 for the FK4 conversions; the date MJD 58849 (2020 January 1)
    and the J2000 equinox for AMP and MAP, which take them in opposite order;

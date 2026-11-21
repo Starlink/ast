@@ -189,7 +189,7 @@ static void check_residue( void ) {
       fail( "x + 1.1 then 7e6*x - 7.7e6 simplifies to a WinMap with a"
             " shift" );
    }
-   check_same( map, simp, 3, in, "cancelling shifts" );
+   check_same( map, simp, 3, in, "canceling shifts" );
    astEnd;
 }
 

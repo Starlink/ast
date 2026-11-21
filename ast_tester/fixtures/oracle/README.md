@@ -93,7 +93,7 @@ The checker accepts `|got - ref| <= atol + rtol*|ref|`, with the `rtol` and `ato
 `atol` is for values that cancel toward zero, so it is measured against the size of the values on that axis rather than against 1.
 On an axis whose largest recorded |value| is below 1, the checker uses `atol` times that value.
 Otherwise, including on an axis whose recorded values are all zero, it uses `atol` as written.
-Without that, an axis in metres, such as a wavelength of 5e-7, would be allowed an error of 20%, and an axis in joules any error at all.
+Without that, an axis in meters, such as a wavelength of 5e-7, would be allowed an error of 20%, and an axis in joules any error at all.
 
 ### Grism values checked against FITS-WCS Paper III
 

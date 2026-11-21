@@ -19,7 +19,7 @@
    proportional to the magnitude of the values on their axis rather than to
    1.  Every comparison therefore passes it through oracle_axis_atol, which
    scales it down for an axis whose recorded values are all smaller than 1:
-   without that, an axis in metres (a wavelength of 5e-7) would be allowed an
+   without that, an axis in meters (a wavelength of 5e-7) would be allowed an
    error of 20%, and one in joules (1e-24) any error at all. */
 #define ORACLE_DEF_RTOL        1e-7
 #define ORACLE_DEF_ATOL        1e-7
