@@ -36,6 +36,7 @@
  * angles in radians.
  */
 #include "ast.h"
+#include <float.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -279,10 +280,22 @@ static void check_bad( void ) {
    astEnd;
 }
 
+/* The relative tolerance for a rate that is found analytically in two
+   ways, for a ray diffracted at angle "beta".  Each rate depends on the
+   cosine of that angle, which the inverse transformation has to find from
+   its sine.  The rounding error of the sine is then magnified by
+   1/cos^2(beta), which is 27 for the last ray sampled for the Hydra
+   echelle.  The errors seen are about one unit in the last place times
+   that factor, for every ray, so sixteen times that is allowed. */
+static double rate_tol( double beta ) {
+   double c = cos( beta );
+   return 16.0*DBL_EPSILON/( c*c );
+}
+
 static void check_rate( const Disperser *d ) {
    AstGrismMap *map;
    double g[ NG ], wave[ NG ];
-   double dwdg, dgdw, num, h;
+   double beta, dwdg, dgdw, num, h;
    int i;
 
    astBegin;
@@ -308,7 +321,8 @@ static void check_rate( const Disperser *d ) {
       }
       astInvert( map );
 
-      if( !close_rel( dwdg*dgdw, 1.0, 1.0E-14 ) ) {
+      beta = atan( g[ i ] ) + ref_gamma( d ) + d->theta;
+      if( !close_rel( dwdg*dgdw, 1.0, rate_tol( beta ) ) ) {
          fail( "%s: rates at g = %g are not reciprocal (product %.17g)",
                d->name, g[ i ], dwdg*dgdw );
       }
@@ -318,7 +332,7 @@ static void check_rate( const Disperser *d ) {
    double waver = d->waver;
    astInvert( map );
    dgdw = astRate( map, &waver, 1, 1 );
-   if( !close_rel( dgdw, eq81( d ), 1.0E-14 ) ) {
+   if( !close_rel( dgdw, eq81( d ), rate_tol( ref_gamma( d ) ) ) ) {
       fail( "%s: dg/dwave at the reference wavelength is %.17g, eq. (81)"
             " gives %.17g", d->name, dgdw, eq81( d ) );
    }
