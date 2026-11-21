@@ -237,6 +237,16 @@ f     The MatrixMap class does not define any new routines beyond those
 *        two MatrixMaps only if the product is usable, and astMtrUsable,
 *        which indicates if the matrix applied by a MatrixMap is defined
 *        and free of bad values.
+*     21-NOV-2026 (TIMJ):
+*        Stop treating matrix elements below 1.0E-12 as equal to each
+*        other. The elements carry the units of the axes, so they may all
+*        be far smaller than the absolute floor of astEQUAL. A diagonal
+*        matrix with elements 1.0E-26 and 3.0E-26 was replaced by a ZoomMap
+*        with a factor of 1.0E-26, and astEqual found two such matrices
+*        equal whatever their elements. astMapMerge now compares the
+*        diagonal elements with astEQUALREL, and astEqual allows a
+*        difference that is small beside the other elements in the same
+*        row and column, rather than one that is below 1.0E-12.
 *class--
 */
 
@@ -359,6 +369,7 @@ static int GetIsLinear( AstMapping *, int * );
 static int GetTranForward( AstMapping *, int * );
 static int GetTranInverse( AstMapping *, int * );
 static int IsDiagonal( AstMatrixMap *, int * );
+static int SameMatrix( int, int, const double *, const double *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int MtrEuler( AstMatrixMap *, int, double[3], int * );
 static int FwdUsable( AstMatrixMap *, int, int * );
@@ -918,9 +929,10 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    AstMatrixMap *this;
    double *that_matrix;
    double *this_matrix;
-   int i;
+   int ncol;
    int nin;
    int nout;
+   int nrow;
    int result;
 
 /* Initialise. */
@@ -964,9 +976,17 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
             that_matrix = that->f_matrix;
          }
 
+/* These matrices have a row for each output and a column for each
+   input. */
+         nrow = nout;
+         ncol = nin;
+
 /* If either of the above arrays is not available, try to get the inverse
-   matrix arrays. */
+   matrix arrays, which have a row for each input and a column for each
+   output. */
          if( !this_matrix || !that_matrix ) {
+            nrow = nin;
+            ncol = nout;
             if( astGetInvert( this ) ) {
                this_matrix = this->f_matrix;
             } else {
@@ -982,13 +1002,8 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 
 /* If both arrays are now available compare their elements. */
          if( this_matrix && that_matrix ) {
-            result = 1;
-            for( i = 0; i < nin*nout; i++ ) {
-               if( !astEQUAL( this_matrix[ i ], that_matrix[ i ] ) ){
-                  result = 0;
-                  break;
-               }
-            }
+            result = SameMatrix( nrow, ncol, this_matrix, that_matrix,
+                                 status );
          }
 
 /* Ensure the supplied MatrixMaps are stored back in compressed form. */
@@ -1910,14 +1925,16 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
 /* If the MatrixMap is a square diagonal matrix with equal diagonal
    terms, then it can be replaced by a ZoomMap, so long as the
-   diagonal elements are not all zero. */
+   diagonal elements are not all zero. The terms carry the units of the
+   axes, and may all be very small, so they are compared using a relative
+   tolerance alone. */
    } else if( mm->form == DIAGONAL && nin == nout &&
               mm->f_matrix && mm->i_matrix &&
              (mm->f_matrix)[ 0 ] != AST__BAD ){
       zoom = 1;
       b = mm->f_matrix + 1;
       for( i = 1; i < nin; i++ ){
-         if( !astEQUAL( *b, *( b - 1 ) ) ){
+         if( !astEQUALREL( *b, *( b - 1 ) ) ){
             zoom = 0;
             break;
          }
@@ -4969,6 +4986,128 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2, int *status 
 
 /* Return the result. */
    return result;
+}
+
+static int SameMatrix( int nrow, int ncol, const double *mat1,
+                       const double *mat2, int *status ){
+/*
+*  Name:
+*     SameMatrix
+
+*  Purpose:
+*     Test if two matrices are equal.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     int SameMatrix( int nrow, int ncol, const double *mat1,
+*                     const double *mat2, int *status )
+
+*  Class Membership:
+*     MatrixMap member function.
+
+*  Description:
+*     This function compares corresponding elements of two matrices of
+*     the same shape. Two elements are equal if they are both AST__BAD,
+*     or if they differ by no more than the relative tolerance used by
+*     astEQUAL.
+*
+*     They are also equal if their difference is insignificant beside
+*     the other elements in the same row and in the same column. This
+*     allows for an element that should be zero, but which holds rounding
+*     noise (for instance an off-diagonal element of the inverse of a
+*     matrix), since no relative tolerance finds such an element equal to
+*     zero. The limit is 1.0E-12 times the largest absolute value in the
+*     same row of either matrix, or in the same column if that gives a
+*     smaller limit. It is not an absolute value such as the floor of
+*     1.0E-12 used by astEQUAL, since the elements carry the units of the
+*     axes of the MatrixMap: a matrix that converts pixels to joules has
+*     elements of order 1.0E-26, and they are not all equal.
+
+*  Parameters:
+*     nrow
+*        The number of rows in each matrix.
+*     ncol
+*        The number of columns in each matrix.
+*     mat1
+*        The first matrix, stored row by row.
+*     mat2
+*        The second matrix, stored row by row.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if the matrices are equal, zero otherwise. Zero is returned if
+*     an error has already occurred, or if this function fails.
+*/
+
+/* Local Variables: */
+   const double *mats[ 2 ];   /* The two matrices */
+   double *colmax;            /* Largest absolute value in each column */
+   double *rowmax;            /* Largest absolute value in each row */
+   double limit;              /* Largest insignificant difference */
+   double mval;               /* Absolute value of an element */
+   int i;                     /* Element index */
+   int imat;                  /* Matrix index */
+   int j;                     /* Column index */
+   int k;                     /* Row index */
+   int result;                /* Returned value */
+
+/* Initialize. */
+   result = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Find the largest absolute value in each row and column of either
+   matrix. */
+   rowmax = astMalloc( sizeof( double )*(size_t) nrow );
+   colmax = astMalloc( sizeof( double )*(size_t) ncol );
+   if( astOK ) {
+      for( k = 0; k < nrow; k++ ) rowmax[ k ] = 0.0;
+      for( j = 0; j < ncol; j++ ) colmax[ j ] = 0.0;
+
+      mats[ 0 ] = mat1;
+      mats[ 1 ] = mat2;
+      for( imat = 0; imat < 2; imat++ ) {
+         i = 0;
+         for( k = 0; k < nrow; k++ ) {
+            for( j = 0; j < ncol; j++, i++ ) {
+               mval = mats[ imat ][ i ];
+               if( mval != AST__BAD ) {
+                  mval = fabs( mval );
+                  if( mval > rowmax[ k ] ) rowmax[ k ] = mval;
+                  if( mval > colmax[ j ] ) colmax[ j ] = mval;
+               }
+            }
+         }
+      }
+
+/* Compare the elements. */
+      result = 1;
+      i = 0;
+      for( k = 0; k < nrow && result; k++ ) {
+         for( j = 0; j < ncol; j++, i++ ) {
+            if( !astEQUALREL( mat1[ i ], mat2[ i ] ) ) {
+               limit = 1.0E-12*astMIN( rowmax[ k ], colmax[ j ] );
+               if( mat1[ i ] == AST__BAD || mat2[ i ] == AST__BAD ||
+                   !( fabs( mat1[ i ] - mat2[ i ] ) <= limit ) ) {
+                  result = 0;
+                  break;
+               }
+            }
+         }
+      }
+   }
+
+/* Free resources. */
+   rowmax = astFree( rowmax );
+   colmax = astFree( colmax );
+
+/* Return the result. */
+   return astOK ? result : 0;
 }
 
 static void SMtrMult( int post, int m, int n, const double *mat1,

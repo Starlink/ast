@@ -12,6 +12,10 @@
  *  - does not cancel a WinMap against the inverse of one whose shift
  *    differs, however small both shifts are; and that astEqual tells such
  *    WinMaps apart;
+ *  - does not replace a WinMap or a diagonal MatrixMap whose small scale
+ *    terms differ with a ZoomMap; and that astEqual tells apart ShiftMaps,
+ *    ZoomMaps and MatrixMaps whose small terms differ, while still finding
+ *    two matrices equal if they differ by rounding noise;
  *  - still sets to zero a shift that cancels to within its rounding error
  *    when two WinMaps are merged, including when the terms are large
  *    (x + 1.1 followed by 7e6*x - 7.7e6 is 7e6*x), so that the result has
@@ -159,6 +163,72 @@ static void check_residue( void ) {
    astEnd;
 }
 
+/* Terms that carry the units of an axis are compared using a relative
+   tolerance alone by each of the classes that a WinMap is simplified to. */
+static void check_small_terms( void ) {
+   AstMapping *simp;
+   AstWinMap *wm;
+   double scl[ 2 ] = { 1.0E-26, 3.0E-26 };
+   double ina[ 2 ] = { 0.0, 0.0 }, inb[ 2 ] = { 1.0, 1.0 };
+   double xin = 50.0, yin = 50.0, xout, yout;
+   double sh1 = 1.5E-14, sh2 = 2.5E-14;
+   double full1[ 4 ] = { 1.0, 1.0E-7, 0.0, 1.0 };
+   double full2[ 4 ] = { 1.0, 1.000005E-7, 0.0, 1.0 };
+   double tiny1[ 4 ] = { 1.0E-26, 1.0E-33, 0.0, 1.0E-26 };
+   double tiny2[ 4 ] = { 1.0E-26, 1.000005E-33, 0.0, 1.0E-26 };
+   double tiny3[ 4 ] = { 1.0E-26, 3.0E-33, 0.0, 1.0E-26 };
+   int pass;
+
+   astBegin;
+
+/* x -> 1e-26*x, y -> 3e-26*y is not a ZoomMap, whether it is given as a
+   WinMap or as a diagonal MatrixMap. */
+   for( pass = 0; pass < 2; pass++ ) {
+      if( pass ) {
+         simp = astSimplify( astMatrixMap( 2, 2, 1, scl, " " ) );
+      } else {
+         wm = astWinMap( 2, ina, inb, ina, scl, " " );
+         simp = astSimplify( wm );
+      }
+      astTran2( simp, 1, &xin, &yin, 1, &xout, &yout );
+      if( astIsAZoomMap( simp ) || fabs( xout - 5.0E-25 ) > 1.0E-37 ||
+          fabs( yout - 1.5E-24 ) > 1.0E-36 ) {
+         fail( "scales of 1e-26 and 3e-26 in a %s simplify to a %s that"
+               " maps (50,50) to (%.17g,%.17g)", pass ? "MatrixMap" :
+               "WinMap", astGetC( simp, "Class" ), xout, yout );
+      }
+   }
+
+   if( astEqual( astZoomMap( 1, scl[ 0 ], " " ),
+                 astZoomMap( 1, scl[ 1 ], " " ) ) ) {
+      fail( "ZoomMaps with factors 1e-26 and 3e-26 are equal" );
+   }
+   if( astEqual( astShiftMap( 1, &sh1, " " ), astShiftMap( 1, &sh2, " " ) ) ) {
+      fail( "ShiftMaps with shifts 1.5e-14 and 2.5e-14 are equal" );
+   }
+   if( astEqual( astMatrixMap( 1, 1, 1, &scl[ 0 ], " " ),
+                 astMatrixMap( 1, 1, 1, &scl[ 1 ], " " ) ) ) {
+      fail( "MatrixMaps with elements 1e-26 and 3e-26 are equal" );
+   }
+
+/* Two matrices are still equal if they differ by an amount that is
+   negligible beside the other elements in the same row and column,
+   whatever the size of the elements. */
+   if( !astEqual( astMatrixMap( 2, 2, 0, full1, " " ),
+                  astMatrixMap( 2, 2, 0, full2, " " ) ) ) {
+      fail( "matrices of order one that differ by 5e-13 are not equal" );
+   }
+   if( !astEqual( astMatrixMap( 2, 2, 0, tiny1, " " ),
+                  astMatrixMap( 2, 2, 0, tiny2, " " ) ) ) {
+      fail( "matrices of order 1e-26 that differ by 5e-39 are not equal" );
+   }
+   if( astEqual( astMatrixMap( 2, 2, 0, tiny1, " " ),
+                 astMatrixMap( 2, 2, 0, tiny3, " " ) ) ) {
+      fail( "matrices of order 1e-26 that differ by 2e-33 are equal" );
+   }
+   astEnd;
+}
+
 int main( void ) {
    astWatch( &status );
    astBegin;
@@ -167,6 +237,7 @@ int main( void ) {
    check_joules();
    check_distinct_shifts();
    check_residue();
+   check_small_terms();
 
    if( !astOK ) {
       fail( "AST error" );
