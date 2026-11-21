@@ -62,7 +62,7 @@ A native dump under `simplify/` carries no domain, so by default each of its inp
 An angle-based Mapping is then sampled within its principal range as well as far outside it, and a linear one over many scales.
 A fixture that is defined, or is the identity, only over some other range is given that range in `transform_oracle_domains.txt`, keyed on its `.map`, with a comment saying why.
 A range is two numbers, or a name for one whose limits are fixed by what the input is: `lon` for a longitude and `lat` for a latitude short of the poles.
-Its `.simp` is always sampled at the same points as its `.map`, since the two are compared row by row; the checker fails a pair whose inputs differ.
+Its `.simp` is always sampled at the same points as its `.map`, since the two are compared row by row; the checker fails a pair whose inputs differ, or whose numbers of outputs differ.
 
 ### Checks that are disabled, and why
 

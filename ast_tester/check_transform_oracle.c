@@ -575,6 +575,14 @@ static int compare_rtrip( AstMapping *map, const Section *fwd,
     return fails;
 }
 
+/* How a .simp forward section relates to the .map forward section that
+   comes before it in the oracle: they are not the two forms of one
+   fixture; they are, but have different numbers of outputs, so their
+   outputs cannot be compared; they are, but were not sampled at the same
+   inputs, so their rows cannot be paired; or they can be compared. */
+enum { PAIR_NONE, PAIR_SHAPE, PAIR_INPUTS, PAIR_OK };
+static int pair_state( const Section *map, const Section *simp );
+
 static int selftest( void ) {
     const char *tmp = "/tmp/oracle_selftest.txt";
     FILE *fp = fopen( tmp, "w" );
@@ -730,6 +738,33 @@ static int selftest( void ) {
                                     0 ) == 1;
     }
 
+    /* pair_state finds the .simp of a .map by its name, and says whether
+       the two can be compared row by row.  A pair that cannot be must be
+       told apart from two sections that are not a pair, since the first
+       is a failure and the second is not. */
+    fp = fopen( tmp, "w" );
+    fputs( "[same.map  nin=1 nout=1 dir=forward]\n  1  3\n  2  4\n\n"
+           "[same.simp  nin=1 nout=1 dir=forward]\n  1  3\n  2  4\n\n"
+           "[nout.simp  nin=1 nout=2 dir=forward]\n  1  3 0\n  2  4 0\n\n"
+           "[npoint.simp  nin=1 nout=1 dir=forward]\n  1  3\n\n"
+           "[where.simp  nin=1 nout=1 dir=forward]\n  1  3\n  5  4\n\n"
+           "[nin.simp  nin=2 nout=1 dir=forward]\n  1 0  3\n  2 0  4\n\n", fp );
+    fclose( fp );
+    s = NULL; n = 0;
+    if ( oracle_read_file( tmp, &s, &n ) || n != 6 ) {
+        fprintf( stderr, "selftest: parse of pair sections failed\n" );
+        return 1;
+    }
+    ok = ok && pair_state( &s[0], &s[1] ) == PAIR_OK;
+    ok = ok && pair_state( NULL, &s[1] ) == PAIR_NONE;
+    ok = ok && pair_state( &s[0], &s[2] ) == PAIR_NONE;
+    for ( int i = 2; i < 6; i++ ) strcpy( s[i].relpath, "same.simp" );
+    ok = ok && pair_state( &s[0], &s[2] ) == PAIR_SHAPE;
+    ok = ok && pair_state( &s[0], &s[3] ) == PAIR_INPUTS;
+    ok = ok && pair_state( &s[0], &s[4] ) == PAIR_INPUTS;
+    ok = ok && pair_state( &s[0], &s[5] ) == PAIR_INPUTS;
+    free_sections( s, n );
+
     printf( "selftest: %s\n", ok ? "ok" : "FAIL" );
     return ok ? 0 : 1;
 }
@@ -766,6 +801,17 @@ static int same_inputs( const Section *a, const Section *b ) {
         for ( int p = 0; p < a->npoint; p++ )
             if ( a->in[i][p] != b->in[i][p] ) return 0;
     return 1;
+}
+
+static int pair_state( const Section *map, const Section *simp ) {
+    char stem_m[1024], stem_s[1024];
+    if ( !map ) return PAIR_NONE;
+    path_stem( map->relpath, stem_m, sizeof stem_m );
+    path_stem( simp->relpath, stem_s, sizeof stem_s );
+    if ( strcmp( stem_m, stem_s ) != 0 ) return PAIR_NONE;
+    if ( map->nout != simp->nout ) return PAIR_SHAPE;
+    if ( !same_inputs( map, simp ) ) return PAIR_INPUTS;
+    return PAIR_OK;
 }
 
 int main( int argc, char *argv[] ) {
@@ -869,22 +915,27 @@ int main( int argc, char *argv[] ) {
         if ( s->forward ) prev_fwd = s;
 
         /* Equivalence check C: this section is a .simp forward whose stem
-           matches the cached preceding .map forward. */
+           matches the cached preceding .map forward.  A pair that cannot
+           be compared fails, since it would otherwise pass whatever its
+           simplification did. */
         int is_fwd = s->forward;
-        if ( is_fwd && has_ext( s->relpath, ".simp" ) && prev_map &&
-             prev_map->nout == s->nout && prev_map->npoint == s->npoint ) {
-            char stem_s[1024], stem_m[1024];
-            path_stem( s->relpath, stem_s, sizeof stem_s );
-            path_stem( prev_map->relpath, stem_m, sizeof stem_m );
-            if ( strcmp( stem_s, stem_m ) == 0 &&
-                 !same_inputs( prev_map, s ) ) {
+        if ( is_fwd && has_ext( s->relpath, ".simp" ) ) {
+            int pair = pair_state( prev_map, s );
+            if ( pair == PAIR_SHAPE ) {
+                fprintf( stderr,
+                    "MISMATCH [equiv-shape] %s: the .map section has %d "
+                    "output(s) and the .simp section has %d, so the two "
+                    "cannot be compared\n", prev_map->relpath,
+                    prev_map->nout, s->nout );
+                total_fail++;
+            } else if ( pair == PAIR_INPUTS ) {
                 /* The comparison pairs rows by index, so it means nothing
                    unless the two forms were sampled at the same points. */
                 fprintf( stderr,
                     "MISMATCH [equiv-inputs] %s: the .map and .simp sections "
                     "were sampled at different inputs\n", prev_map->relpath );
                 total_fail++;
-            } else if ( strcmp( stem_s, stem_m ) == 0 ) {
+            } else if ( pair == PAIR_OK ) {
                 int nagree, nstale;
                 double ertol, eatol;
                 equiv_tol( prev_map->relpath, &ertol, &eatol );
