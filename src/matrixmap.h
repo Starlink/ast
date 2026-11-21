@@ -64,6 +64,8 @@
 *           Multiply a MatrixMap by another MatrixMap.
 *        astMtrRot
 *           Rotate a MatrixMap.
+*        astMtrTranShift
+*           Transform the shift terms of a WinMap.
 
 *  Other Class Functions:
 *     Public:
@@ -138,6 +140,8 @@
 *        astMtrMult and astMtrRot made protected instead of public.
 *     8-JAN-2003 (DSB):
 *        Added protected astInitMatrixMapVtab method.
+*     21-NOV-2026 (TIMJ):
+*        Added protected function astMtrTranShift.
 *-
 */
 
@@ -265,6 +269,7 @@ int *astMtrSplitInputs_( AstMatrixMap *, int, const int *, int *, int * );
 int astMtrEuler_( AstMatrixMap *, int, double[3], int * );
 double *astMtrGet_( AstMatrixMap *, int, int, int *, int * );
 int astIsDiagonal_( AstMatrixMap *, int * );
+AstPointSet *astMtrTranShift_( AstMatrixMap *, AstPointSet *, int, int * );
 #endif
 
 /* Function interfaces. */
@@ -340,6 +345,9 @@ astINVOKE(V,astMtrGet_(astCheckMatrixMap(this),fwd,expand,form,STATUS_PTR))
 
 #define astIsDiagonal(this) \
 astINVOKE(V,astIsDiagonal_(astCheckMatrixMap(this),STATUS_PTR))
+
+#define astMtrTranShift(this,in,forward) \
+astINVOKE(O,astMtrTranShift_(astCheckMatrixMap(this),astCheckPointSet(in),forward,STATUS_PTR))
 
 #endif
 #endif

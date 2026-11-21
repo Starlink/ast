@@ -116,12 +116,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testspecmap — astSpecAdd reads only the arguments the caller supplies:
   TPF2HL's six documented arguments in a six-element array, which
   AddressSanitizer checks.
-- testwinmap — WinMap simplification with terms smaller than 1e-12, as a
-  spectral axis in joules has: a small shift survives; ShiftMap(-CRPIX),
-  ZoomMap(CDELT), ShiftMap(CRVAL) maps CRPIX to CRVAL; WinMaps whose small
-  shifts differ are neither cancelled nor astEqual; and a shift that cancels to
-  within its rounding error on merging, even between terms of 7.7e6, becomes
-  zero.  Simplified Mappings must transform as the originals do.
+- testwinmap — WinMap simplification with terms smaller than 1e-12, as a spectral axis in joules has: a small shift survives; ShiftMap(-CRPIX), ZoomMap(CDELT), ShiftMap(CRVAL) maps CRPIX to CRVAL; WinMaps whose small shifts differ are neither canceled nor astEqual; and scales of 1e-26 and 3e-26 are not replaced by a ZoomMap, nor are ShiftMaps, ZoomMaps and MatrixMaps with such terms astEqual.
+  A shift that cancels to within its rounding error becomes zero where it is formed: on merging, even between terms of 7.7e6, or across a series of ShiftMaps whose larger shifts cancel first; on moving past a full MatrixMap; and in a WinMap built from the corners of two windows that differ only in scale.
+  The difference between two large shifts that are four or more units in the last place apart is kept.
+  Simplified Mappings must transform as the originals do.
 - testgrismmap — GrismMap against FITS-WCS Paper III, for the KPNO MARS grism
   (with a non-zero epsilon and theta), the Hydra echelle in order 11 and an
   order -1 grating: attribute defaults; wavelengths satisfying the grating

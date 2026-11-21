@@ -250,6 +250,7 @@ with same classes.
 | winmap-35 | win_diagmatrix_parallel_merge_rev.map | focused | `+` | Diagonal MatrixMap + WinMap in parallel merged (MatrixMap first) | CmpMap(DiagMatrixMap, WinMap), Series=0 |
 | winmap-36 | win_unit_parallel_merge.map | focused | `+` | WinMap + UnitMap in parallel merged (WinMap first) | CmpMap(WinMap, UnitMap), Series=0 |
 | winmap-37 | win_unit_parallel_merge_rev.map | focused | `+` | UnitMap + WinMap in parallel merged (UnitMap first) | CmpMap(UnitMap, WinMap), Series=0 |
+| winmap-39 | -- | cascade | `- (no fixture)` | WinMap merged with a series of WinMaps and ShiftMaps in one invocation, and a shift that is zero but for rounding set to zero | ShiftMaps of 1023.5, 0.3, -1023.5 and -0.3 in series; checked by testwinmap |
 
 ### Negative branches
 
@@ -1474,6 +1475,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | winmap-36 | WinMap + UnitMap parallel merged |
 | winmap-37 | UnitMap + WinMap parallel merged |
 | winmap-38 | Neither parallel neighbour mergeable |
+| winmap-39 | Series of WinMaps and ShiftMaps merged in one invocation |
 | xphmap-01 | Parallel mode refused |
 | xphmap-02 | No adjacent XphMap |
 | xphmap-03 | Not equal-and-opposite |

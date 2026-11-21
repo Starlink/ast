@@ -238,7 +238,7 @@ f     The MatrixMap class does not define any new routines beyond those
 *        which indicates if the matrix applied by a MatrixMap is defined
 *        and free of bad values.
 *     21-NOV-2026 (TIMJ):
-*        Stop treating matrix elements below 1.0E-12 as equal to each
+*        - Stop treating matrix elements below 1.0E-12 as equal to each
 *        other. The elements carry the units of the axes, so they may all
 *        be far smaller than the absolute floor of astEQUAL. A diagonal
 *        matrix with elements 1.0E-26 and 3.0E-26 was replaced by a ZoomMap
@@ -247,6 +247,11 @@ f     The MatrixMap class does not define any new routines beyond those
 *        diagonal elements with astEQUALREL, and astEqual allows a
 *        difference that is small beside the other elements in the same
 *        row and column, rather than one that is below 1.0E-12.
+*        - Added the protected function astMtrTranShift, which transforms
+*        the shift terms of a WinMap and sets to zero any that is zero but
+*        for rounding. MatWin uses it, as does the WinMap class, so that the
+*        shift terms no longer depend on which of the two classes swaps
+*        the Mappings.
 *class--
 */
 
@@ -3315,8 +3320,9 @@ static int MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
 
 /* Transform the position given by the shift terms from the supplied
    WinMap using the supplied MatrixMap to get the shift terms for
-   the returned WinMap. */
-         if( m2 ) pset2 = astTransform( mm, pset1, 1, NULL );
+   the returned WinMap. A shift term that is zero but for rounding is
+   returned as zero. */
+         if( m2 ) pset2 = astMtrTranShift( mm, pset1, 1 );
 
 /* Now deal with cases when the MatrixMap is applied first, followed by
    the WinMap. */
@@ -3331,10 +3337,11 @@ static int MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
 /* Transform the position given by the shift terms from the supplied
    WinMap using the inverse of the returned MatrixMap to get the shift
    terms for the returned WinMap. This needs a square matrix that has an
-   inverse. */
+   inverse. A shift term that is zero but for rounding is returned as
+   zero. */
          if( m2 && astGetNin( m2 ) == astGetNout( m2 ) &&
              astGetTranInverse( m2 ) ) {
-            pset2 = astTransform( m2, pset1, 0, NULL );
+            pset2 = astMtrTranShift( m2, pset1, 0 );
          }
       }
 
@@ -7056,6 +7063,151 @@ AstMatrixMap *astMtrRot_( AstMatrixMap *this, double theta,
                                 const double axis[], int *status ){
    if( !astOK ) return NULL;
    return (**astMEMBER(this,MatrixMap,MtrRot))( this, theta, axis, status );
+}
+
+AstPointSet *astMtrTranShift_( AstMatrixMap *this, AstPointSet *in,
+                               int forward, int *status ){
+/*
+*+
+*  Name:
+*     astMtrTranShift
+
+*  Purpose:
+*     Transform the shift terms of a WinMap using a MatrixMap.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     AstPointSet *astMtrTranShift( AstMatrixMap *this, AstPointSet *in,
+*                                   int forward )
+
+*  Class Membership:
+*     MatrixMap function.
+
+*  Description:
+*     When a WinMap is moved to the other side of a MatrixMap, the shift
+*     terms of the new WinMap are found by transforming the shift terms
+*     of the old one using a MatrixMap. This function does that, as
+*     astTransform would, and then sets to zero each new shift term that
+*     is zero but for rounding.
+*
+*     Each new shift term is the sum of the old shift terms, each
+*     multiplied by an element of the matrix. If these products cancel,
+*     the sum is not exactly zero in general, and what is left depends on
+*     the order of the operations and on how each was rounded (for
+*     instance on whether the compiler contracts a multiply and an add),
+*     and not on the Mappings. So the uncertainty of the sum is found,
+*     taking each shift term, each matrix element, each product and each
+*     partial sum to be good to one unit in its last place, and the sum
+*     is set to zero if it is no larger than that. One unit is allowed,
+*     rather than the half unit of a correctly rounded value, because the
+*     shift terms and the elements of an inverse matrix have themselves
+*     been calculated, and are not correctly rounded.
+*
+*     No other test is made for a shift term that is negligible. The
+*     terms of a WinMap carry the units of its axes, so a shift may be
+*     significant however small it is.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+*     in
+*        Pointer to a PointSet holding a single position, the axis values
+*        of which are the shift terms.
+*     forward
+*        Non-zero to use the forward transformation of the MatrixMap, and
+*        zero to use the inverse transformation.
+
+*  Returned Value:
+*     Pointer to a new PointSet holding a single position, the axis
+*     values of which are the transformed shift terms.
+
+*  Notes:
+*     - A NULL pointer is returned if an error has already occurred, or
+*     if this function should fail for any reason.
+*-
+*/
+
+/* Local Variables: */
+   AstPointSet *pset1;        /* Each shift term on its own axis */
+   AstPointSet *pset2;        /* Contribution of each term to each sum */
+   AstPointSet *result;       /* Returned PointSet */
+   double **ptr1;             /* Pointer to pset1 data */
+   double **ptr2;             /* Pointer to pset2 data */
+   double **ptr_in;           /* Pointer to the supplied shift terms */
+   double **ptr_out;          /* Pointer to the returned shift terms */
+   double size;               /* Sum of the absolute values of the products */
+   double unc;                /* Uncertainty of a returned shift term */
+   int i;                     /* Axis index */
+   int j;                     /* Index of supplied shift term */
+   int nin;                   /* Number of supplied shift terms */
+   int nout;                  /* Number of returned shift terms */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Transform the shift terms. */
+   result = astTransform( this, in, forward, NULL );
+
+/* Create a PointSet in which point "j" holds the "j"th shift term on
+   axis "j" and zero on every other axis. Transforming it in the same way
+   gives each of the products that are added together to form each of the
+   returned shift terms. */
+   nin = astGetNcoord( in );
+   ptr_in = astGetPoints( in );
+   pset1 = astPointSet( nin, nin, "", status );
+   ptr1 = astGetPoints( pset1 );
+   if( astOK ){
+      for( i = 0; i < nin; i++ ) {
+         for( j = 0; j < nin; j++ ) {
+            ptr1[ i ][ j ] = ( i == j ) ? ptr_in[ j ][ 0 ] : 0.0;
+         }
+      }
+   }
+   pset2 = astTransform( this, pset1, forward, NULL );
+
+/* Check each returned shift term. */
+   ptr_out = astGetPoints( result );
+   ptr2 = astGetPoints( pset2 );
+   if( astOK ){
+      nout = astGetNcoord( result );
+      for( i = 0; i < nout; i++ ) {
+
+/* Add up the absolute values of the products. The shift term is left as
+   it is if any of them is undefined. */
+         size = 0.0;
+         for( j = 0; j < nin; j++ ) {
+            if( ptr2[ i ][ j ] == AST__BAD ) break;
+            size += fabs( ptr2[ i ][ j ] );
+         }
+
+/* Each product is uncertain by one unit in its last place on account of
+   each of its two factors, and again because it is rounded. Each partial
+   sum is rounded too, other than the last, and is no larger than the sum
+   of the absolute values of the products. The factor of one unit in the
+   last place is applied when the test is made. */
+         if( j == nin && ptr_out[ i ][ 0 ] != AST__BAD ) {
+            unc = 3.0*size;
+            if( nin > 2 ) unc += ( nin - 2 )*size;
+            if( unc <= DBL_MAX &&
+                fabs( ptr_out[ i ][ 0 ] ) <= DBL_EPSILON*unc ) {
+               ptr_out[ i ][ 0 ] = 0.0;
+            }
+         }
+      }
+   }
+
+/* Free resources. */
+   pset1 = astAnnul( pset1 );
+   pset2 = astAnnul( pset2 );
+
+/* If an error occurred, annul the returned PointSet. */
+   if( !astOK ) result = astAnnul( result );
+
+/* Return the result. */
+   return result;
 }
 
 AstMatrixMap *astMtrMult_( AstMatrixMap *this, AstMatrixMap *a, int *status ){
