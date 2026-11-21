@@ -907,6 +907,7 @@ into wavelength parameters (forward GrismMap+Zoom or Zoom+inverse GrismMap).
 | grismmap-11 | neg_grism_zoom_before_fwd.map | focused | `+` | Second GrismMap not inverted: pre-ZoomMap merge N/A | ZoomMap + GrismMap(fwd) |
 | grismmap-12 | neg_grism_nonzoom_before_inv.map | focused | `+` | Second is inverted GrismMap but first not ZoomMap | ShiftMap + Inverse(GrismMap) |
 | grismmap-13 | -- | focused | `- (no fixture)` | ZoomMap zoom factor is zero | GrismMap(fwd) + ZoomMap(0) |
+| grismmap-14 | -- | focused | `- (no fixture)` | GrismMaps match and are opposite, but give no values: merge blocked | GrismMap with no dispersion, or whose reference ray is not diffracted, + Inverse(GrismMap); checked by testgrismmap |
 
 ---
 
@@ -1156,6 +1157,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | grismmap-11 | Second GrismMap not inverted |
 | grismmap-12 | First not ZoomMap before inverse GrismMap |
 | grismmap-13 | ZoomMap factor is zero |
+| grismmap-14 | Matching GrismMaps give no values: merge blocked |
 | interval-01 | Interval self-simplification succeeds |
 | interval-02 | No self-simplification, series mode |
 | interval-03 | Parallel merge with lower Region |

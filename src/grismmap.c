@@ -103,6 +103,18 @@ f     The GrismMap class does not define any new routines beyond those
 *        wavelength to one grism parameter, but if that parameter is for a
 *        grazing ray, the sine of the ray's angle is exactly +/-1 and Rate
 *        returned AST__BAD.
+*     21-NOV-2026 (TIMJ):
+*        - Compare two GrismMaps in the same way in CanMerge and Equal, using
+*        a relative tolerance alone. astEQUAL has an absolute floor of
+*        1.0E-12, far larger than the difference between two wavelengths
+*        in meters, so a GrismMap followed by the inverse of one with a
+*        different GrismWaveR was replaced by a UnitMap. CanMerge also
+*        ignored the constants derived from the attributes, which Equal
+*        compares.
+*        - In CanMerge, do not cancel a GrismMap with its inverse if it
+*        has no dispersion, or if its reference ray is not diffracted. Such
+*        a pair gives AST__BAD for every input, and was replaced by a
+*        UnitMap.
 *class--
 */
 
@@ -395,6 +407,7 @@ static int TestAttrib( AstObject *, const char *, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static int Equal( AstObject *, AstObject *, int * );
+static int SameGrism( AstGrismMap *, AstGrismMap *, int * );
 static void SetAttrib( AstObject *, const char *, int * );
 static void UpdateConstants( AstGrismMap *, int * );
 
@@ -519,19 +532,21 @@ static AstMapping *CanMerge( AstMapping *map1, int inv1, AstMapping *map2,
       if( !strcmp( "GrismMap", astGetClass( map2 ) ) ) {
          gmap2 = (AstGrismMap *) map2;
 
-/* Check that the two GrismMaps have the same attribute values. */
-         if( astEQUAL( astGetGrismNR( gmap ), astGetGrismNR( gmap2 )) &&
-             astEQUAL( astGetGrismNRP( gmap ), astGetGrismNRP( gmap2 )) &&
-             astEQUAL( astGetGrismWaveR( gmap ), astGetGrismWaveR( gmap2 )) &&
-             astEQUAL( astGetGrismAlpha( gmap ), astGetGrismAlpha( gmap2 )) &&
-             astEQUAL( astGetGrismG( gmap ), astGetGrismG( gmap2 )) &&
-             astGetGrismM( gmap ) == astGetGrismM( gmap2 ) &&
-             astEQUAL( astGetGrismEps( gmap ), astGetGrismEps( gmap2 )) &&
-             astEQUAL( astGetGrismTheta( gmap ), astGetGrismTheta( gmap2 )) ){
+/* Check that the two GrismMaps describe the same grism, and that they
+   are applied in opposite senses. */
+         if( inv1 != inv2 && SameGrism( gmap, gmap2, status ) ) {
 
-/* If so, check that the GrismMaps are applied in opposite senses. If so
-   we can cancel the two GrismMaps, so return a UnitMap. */
-            if( inv1 != inv2 ) ret = (AstMapping *) astUnitMap( 1, "", status );
+/* If so, each undoes the other wherever the first of them gives a value,
+   so the two can be replaced by a UnitMap. That is not so if the first
+   never gives a value, since the two together then give a bad value for
+   every input, and a UnitMap does not. The Transform function gives no
+   values in either direction if any of the constants is undefined (the
+   reference ray is not diffracted, or the grism is seen edge on), and none
+   in the forward direction if there is no dispersion (k2 is zero). */
+            if( gmap->k1 != AST__BAD && gmap->k2 != AST__BAD &&
+                gmap->k3 != AST__BAD && gmap->k2 != 0.0 ) {
+               ret = (AstMapping *) astUnitMap( 1, "", status );
+            }
          }
 
 /* If the first Mapping is a GrismMap but the second one is not... */
@@ -768,20 +783,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    flags are the same. In this case all the attributes of the two GrismMaps
    must be identical. */
          if( astGetInvert( this ) == astGetInvert( that ) ) {
-
-            if( astEQUAL( this->nr, that->nr ) &&
-                astEQUAL( this->nrp, that->nrp ) &&
-                astEQUAL( this->waver, that->waver ) &&
-                astEQUAL( this->alpha, that->alpha ) &&
-                astEQUAL( this->g, that->g ) &&
-                this->m == that->m &&
-                astEQUAL( this->eps, that->eps ) &&
-                astEQUAL( this->theta, that->theta ) &&
-                astEQUAL( this->k1, that->k1 ) &&
-                astEQUAL( this->k2, that->k2 ) &&
-                astEQUAL( this->k3, that->k3 ) ) {
-                result = 1;
-             }
+            result = SameGrism( this, that, status );
 
 /* If the Invert flags for the two GrismMaps differ, the attributes of the two
    GrismMaps must be inversely related to each other. */
@@ -1407,6 +1409,73 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2, int *status 
 
 /* Return the result. */
    return result;
+}
+
+static int SameGrism( AstGrismMap *this, AstGrismMap *that, int *status ) {
+/*
+*  Name:
+*     SameGrism
+
+*  Purpose:
+*     Test if two GrismMaps describe the same grism.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "grismmap.h"
+*     int SameGrism( AstGrismMap *this, AstGrismMap *that, int *status )
+
+*  Class Membership:
+*     GrismMap member function
+
+*  Description:
+*     This function compares the attribute values of two GrismMaps, and
+*     the constants derived from them that are used by the transformation.
+*     The Invert attributes are ignored.
+*
+*     The values are compared using a relative tolerance alone. GrismWaveR
+*     is a wavelength, of order 5.0E-7 if it is in meters, so an absolute
+*     tolerance such as the floor of 1.0E-12 used by astEQUAL would find
+*     two quite different wavelengths equal. The same goes for the
+*     constants, since they are sensitive to changes in the attributes that
+*     are far smaller than that.
+
+*  Parameters:
+*     this
+*        Pointer to the first GrismMap.
+*     that
+*        Pointer to the second GrismMap.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if the GrismMaps describe the same grism, zero otherwise. Zero is
+*     returned if an error has already occurred, or if this function fails.
+*/
+
+/* Local Variables: */
+   int result;
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* Compare the attribute values, using the default value for any that is
+   not set, and then the constants. */
+   result = astEQUALREL( astGetGrismNR( this ), astGetGrismNR( that ) ) &&
+            astEQUALREL( astGetGrismNRP( this ), astGetGrismNRP( that ) ) &&
+            astEQUALREL( astGetGrismWaveR( this ), astGetGrismWaveR( that ) ) &&
+            astEQUALREL( astGetGrismAlpha( this ), astGetGrismAlpha( that ) ) &&
+            astEQUALREL( astGetGrismG( this ), astGetGrismG( that ) ) &&
+            astGetGrismM( this ) == astGetGrismM( that ) &&
+            astEQUALREL( astGetGrismEps( this ), astGetGrismEps( that ) ) &&
+            astEQUALREL( astGetGrismTheta( this ), astGetGrismTheta( that ) ) &&
+            astEQUALREL( this->k1, that->k1 ) &&
+            astEQUALREL( this->k2, that->k2 ) &&
+            astEQUALREL( this->k3, that->k3 );
+
+/* Return the result. */
+   return astOK ? result : 0;
 }
 
 static void SetAttrib( AstObject *this_object, const char *setting, int *status ) {

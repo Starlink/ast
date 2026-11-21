@@ -22,9 +22,11 @@
  *    wavelength to the same grism parameter, has an inverse rate of zero,
  *    including when that parameter is for a grazing ray;
  *  - that astSimplify cancels a GrismMap with its own inverse, does not
- *    cancel GrismMaps that differ (including only in their order), and
- *    merges a ZoomMap that rescales the wavelength; in every case the
- *    simplified Mapping must transform as the original does;
+ *    cancel GrismMaps that differ (including only in their order, or in
+ *    a reference wavelength by less than 1e-12 m), does not cancel a
+ *    GrismMap that gives no values with its inverse, and merges a ZoomMap
+ *    that rescales the wavelength; in every case the simplified Mapping
+ *    must transform as the original does;
  *  - astEqual, astCopy and native serialization with astToString and
  *    astFromString.
  *
@@ -377,11 +379,13 @@ static void check_simplify( void ) {
    check_same_transform( cm, simp, NG, wave, "inverse GrismMap then GrismMap" );
 
 /* GrismMaps that differ only in their order, or only in another
-   attribute, are not inverses of each other, so must not cancel. */
+   attribute, are not inverses of each other, so must not cancel.  The
+   last has a reference wavelength 9e-13 m longer, which moves every grism
+   parameter by about 1e-6. */
    static const char *changes[] = { "GrismM=2", "GrismM=-1", "GrismG=4.6E5",
-      "GrismTheta=0.1" };
+      "GrismTheta=0.1", "GrismWaveR=7.245209E-7" };
    int i;
-   for( i = 0; i < 4; i++ ) {
+   for( i = 0; i < 5; i++ ) {
       g2 = make_grismmap( d );
       astSet( g2, "%s", changes[ i ] );
       astInvert( g2 );
@@ -423,6 +427,49 @@ static void check_simplify( void ) {
 
    if( !astOK ) {
       fail( "AST error while checking simplification" );
+      astClearStatus;
+   }
+   astEnd;
+}
+
+/* A GrismMap that gives no values is not undone by its inverse: the two
+   together give AST__BAD for every input, so they must not be replaced by
+   a UnitMap.  The first GrismMap has the default attributes, and so no
+   dispersion.  The reference ray of the second is not diffracted. */
+static void check_simplify_undefined( void ) {
+   static const char *settings[] = { " ", "GrismG=3.0E6,GrismWaveR=5.0E-7" };
+   AstGrismMap *g1, *g2;
+   AstMapping *cm, *simp;
+   double in[ 3 ] = { 0.1, 4.0E-7, 6.0E-7 }, out[ 3 ];
+   int i, j, k;
+
+   astBegin;
+   for( i = 0; i < 2; i++ ) {
+      g1 = astGrismMap( "%s", settings[ i ] );
+      g2 = astCopy( g1 );
+      astInvert( g2 );
+      for( j = 0; j < 2; j++ ) {
+         cm = (AstMapping *) ( j ? astCmpMap( g2, g1, 1, " " ) :
+                                   astCmpMap( g1, g2, 1, " " ) );
+         astTran1( cm, 3, in, 1, out );
+         for( k = 0; k < 3; k++ ) {
+            if( out[ k ] != AST__BAD ) {
+               fail( "GrismMap \"%s\" %s its inverse gives %.17g at %g, not"
+                     " AST__BAD", settings[ i ], j ? "after" : "before",
+                     out[ k ], in[ k ] );
+            }
+         }
+         simp = astSimplify( cm );
+         if( astIsAUnitMap( simp ) ) {
+            fail( "GrismMap \"%s\" %s its inverse simplifies to a UnitMap",
+                  settings[ i ], j ? "after" : "before" );
+         }
+         check_same_transform( cm, simp, 3, in, "GrismMap with no values" );
+      }
+   }
+
+   if( !astOK ) {
+      fail( "AST error while checking GrismMaps that give no values" );
       astClearStatus;
    }
    astEnd;
@@ -546,6 +593,7 @@ int main( void ) {
    check_bad();
    check_constant_inverse();
    check_simplify();
+   check_simplify_undefined();
    check_copy_equal_dump();
 
    astEnd;
