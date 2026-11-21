@@ -1184,18 +1184,21 @@ static void gen_switchmap_fixtures(const char *dir) {
     }
 
     /* switchmap-02: two SwitchMaps in series that differ only in their
-       route Mappings, so they are not an equal-and-opposite pair.  The
-       forward selectors pick the route for inputs in [0.25, 0.75), and each
-       inverse selector picks it for that range's image under the route, so
-       each SwitchMap is defined and invertible there.  The first route's
-       factor of 1.2 keeps part of that range inside the second SwitchMap's,
-       so the pair gives values for inputs in [0.25, 0.625). */
+       route Mappings, so they are not an equal-and-opposite pair.  A
+       SwitchMap uses the inverse transformation of its inverse selector, so
+       a forward selector ZoomMap of 2 and an inverse selector ZoomMap of 0.5
+       both pick the route for values in [0.25, 0.75).  Each SwitchMap can
+       then be inverted wherever its output is in that range too.  And when
+       one of them is inverted to compare it with the other, its selectors
+       match, so it is the routes that are found to differ.  The first
+       route's factor of 1.2 keeps part of the range inside the second
+       SwitchMap's, so the pair gives values for inputs in [0.25, 0.625). */
     {
         AstZoomMap *fsel1 = astZoomMap(1, 2.0, " ");
-        AstZoomMap *isel1 = astZoomMap(1, 2.0/1.2, " ");
+        AstZoomMap *isel1 = astZoomMap(1, 0.5, " ");
         AstZoomMap *r1 = astZoomMap(1, 1.2, " ");
         AstZoomMap *fsel2 = astZoomMap(1, 2.0, " ");
-        AstZoomMap *isel2 = astZoomMap(1, 2.0/1.5, " ");
+        AstZoomMap *isel2 = astZoomMap(1, 0.5, " ");
         AstZoomMap *r2 = astZoomMap(1, 1.5, " ");
         AstMapping *routes1[] = {(AstMapping*)r1};
         AstMapping *routes2[] = {(AstMapping*)r2};
