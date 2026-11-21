@@ -49,8 +49,8 @@ simplify/defunc_prism_box_interval.map        -6e-6 6e-6  -9e-6 9e-6  5 5
 # with no extent on axis 3.  The slice is sampled, since uniform sampling across
 # it would land on it only once.  Off the slice the two forms differ, because the
 # unsimplified Region tests a point by mapping it back to its 2-D base Frame,
-# which discards axis 3; that is a Region defect to be fixed separately, with
-# its own test.
+# which discards axis 3, so it finds a point inside whatever its third
+# coordinate is.
 simplify/cap_box_permmap_const.map            -2 12  -2 22  5 5
 
 # A Box 2.4e-6 rad across, defined in galactic coordinates and seen in ICRS,

@@ -151,9 +151,9 @@ simplify/neg_nullregion_series.map              values off
 simplify/neg_pointlist_series.map               values off
 simplify/neg_wcsmap_perm_disconnect_lower.map   values off
 
-# Region simplifications that change the transform, to be fixed separately.
-# Until then the rows at which the recorded .map and .simp differ are accepted;
-# every other row is still compared, and a listed row that comes to agree fails.
+# Region simplifications that change the transform.  The rows at which the
+# recorded .map and .simp differ are accepted; every other row is still
+# compared, and a listed row that comes to agree fails.
 #
 # A CmpMap that applies Regions in parallel returns each axis's value on its
 # own, so a point inside one Region and outside another keeps the value on the

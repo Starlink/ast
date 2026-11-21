@@ -74,7 +74,7 @@ represent its own Jacobian.
 
 Simplification must not change a Mapping's values, so a simplify fixture's `.map` and `.simp` must agree at every sampled point, both as recorded and as computed by the library under test.
 Each fixture is sampled where it is defined, so a disagreement is a simplification that changes the transform.
-The overrides file can accept a recorded disagreement at listed rows (`equiv-rows`), which is how the Region simplifications that are still to be fixed are carried, or compare a pair whose inverse is itself approximate to a looser tolerance (`equiv-tol`).
+The overrides file can accept a recorded disagreement at listed rows (`equiv-rows`), as it does for the Region simplifications that change the transform, or compare a pair whose inverse is itself approximate to a looser tolerance (`equiv-tol`).
 A listed row that comes to agree fails, so the list cannot go stale.
 
 A pair also counts as checked only if it agrees, with a value that is not AST__BAD, at two or more distinct sampled inputs, because nearly every Mapping agrees with its simplification at the origin.
