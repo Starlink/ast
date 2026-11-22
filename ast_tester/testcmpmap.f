@@ -10,7 +10,7 @@
       data matrix /-1.0D0, 1.0D0, 2.0D0 /
 
       status = sai__ok
-      call err_mark( status )
+      call err_mark()
       call ast_begin( status )
 
 
@@ -83,7 +83,7 @@
 
 
       call ast_end( status )
-      call err_rlse( status )
+      call err_rlse()
 
 c      call ast_activememory( 'testcmpmap' )
       call ast_flushmemory( 1 )

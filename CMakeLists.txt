@@ -468,6 +468,16 @@ float fred_() {
         endif()
     endforeach()
 
+    # The Fortran tests are F77 that routinely passes %VAL(CNF_PVAL(...))
+    # pointers, array elements and dummy scalars to arguments of other types
+    # or ranks.  gfortran reports every such call even with
+    # -fallow-argument-mismatch, and -w is the only way to turn those
+    # reports off.  Keep them for AST_ENABLE_WARNINGS builds, where they
+    # can still point at genuine mistakes in the tests.
+    if(HAVE_FC_fallow_argument_mismatch AND NOT AST_ENABLE_WARNINGS)
+        list(APPEND AST_FORTRAN_TEST_FLAGS "-w")
+    endif()
+
     # The Fortran test programs are linked by the Fortran driver, which does not
     # pull in the sanitizer runtime of its own accord.  libast and the grf
     # modules they link are compiled with -fsanitize, so without the same flag

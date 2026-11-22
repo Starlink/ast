@@ -41,7 +41,7 @@ int main( void ) {
 
       for( iframe = 0; iframe < 4 && astOK; iframe++ ) {
          for( iaxis = 1; iaxis <= naxes[ iframe ] && astOK; iaxis++ ) {
-            char attr[ 20 ];
+            char attr[ 32 ];
             const char *unit;
             const char *norm;
 
@@ -114,7 +114,7 @@ int main( void ) {
       int i;
 
       for( i = 0; i < 6 && astOK; i++ ) {
-         AstSkyFrame *sf = astSkyFrame( attrs[ i ] );
+         AstSkyFrame *sf = astSkyFrame( "%s", attrs[ i ] );
          const char *unit = astGetC( sf, "Unit(1)" );
          char saved[ 128 ];
 
@@ -153,7 +153,7 @@ int main( void ) {
       int i;
 
       for( i = 0; i < 4 && astOK; i++ ) {
-         AstSkyFrame *sf = astSkyFrame( attrs[ i ] );
+         AstSkyFrame *sf = astSkyFrame( "%s", attrs[ i ] );
          AstFrame *pick = astPickAxes( sf, 1, axes, NULL );
          const char *norm = astGetC( pick, "NormUnit(1)" );
 

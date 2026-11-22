@@ -238,7 +238,7 @@ static void ast_resample_uinterp##X( int ndim, \
                               DOUBLE_ARRAY_ARG(coords[ 0 ]), \
                               DOUBLE_ARRAY_ARG(params), \
                               INTEGER_ARG(&flags), \
-                              Ftype##_ARG(&badval), \
+                              Ftype##_ARG((F77_##Ftype##_TYPE *) &badval), \
                               Ftype##_ARRAY_ARG(out), \
                               Ftype##_ARRAY_ARG(out_var), \
                               INTEGER_ARG(&nbad4), \
@@ -1207,7 +1207,7 @@ static void ast_resample_uinterp8##X( int ndim, \
                               DOUBLE_ARRAY_ARG(coords[ 0 ]), \
                               DOUBLE_ARRAY_ARG(params), \
                               INTEGER_ARG(&flags), \
-                              Ftype##_ARG(&badval), \
+                              Ftype##_ARG((F77_##Ftype##_TYPE *) &badval), \
                               Ftype##_ARRAY_ARG(out), \
                               Ftype##_ARRAY_ARG(out_var), \
                               INTEGER8_ARG(nbad), \

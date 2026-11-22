@@ -1642,7 +1642,7 @@
             FLAGS = FLAGS + AST__REBINEND
          END IF
 
-         CALL AST_REBINSEQR( AST_UNITMAP( NDIM, ' ', STATUS ), 0.0,
+         CALL AST_REBINSEQR( AST_UNITMAP( NDIM, ' ', STATUS ), 0.0D0,
      :                       NDIM, LBND_IN, UBND_IN, IN, 0.0, SPREAD,
      :                       LPARAMS, FLAGS, 0.01D0, 50, VAL__BADR,
      :                       NDIM, LBND_OUT, UBND_OUT, LBND_IN, UBND_IN,
