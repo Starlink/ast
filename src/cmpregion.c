@@ -122,6 +122,17 @@ f     The CmpRegion class does not define any new routines beyond those
 *        CmpRegion containing it used to merge its two XORed Regions into
 *        its own OR list, so that "A OR (B XOR C)" was listed as
 *        "A OR B OR C".
+*     13-NOV-2026 (TIMJ):
+*        In astLoadCmpRegion, check that the dump supplied a valid operator
+*        and two component Regions that have the axes of the CmpRegion.
+*     19-NOV-2026 (TIMJ):
+*        RegBaseMesh: correct the spelling of "because" in two error
+*        messages.
+*     19-NOV-2026 (TIMJ):
+*        GetBounded: the intersection of two Regions that are not bounded is
+*        no longer reported as bounded if one is inside the other or they
+*        are the same. It is then the inner Region, which is not bounded,
+*        and it has no boundary mesh.
 *class--
 */
 
@@ -755,7 +766,6 @@ static int GetBounded( AstRegion *this_region, int *status ) {
    int neg1;                  /* Negated flag to use with first component */
    int neg2;                  /* Negated flag to use with second component */
    int oper;                  /* Combination operator */
-   int overlap;               /* Nature of overlap between components */
    int reg1b;                 /* Is the first component Region bounded?*/
    int reg2b;                 /* Is the second component Region bounded?*/
    int result;                /* Returned result */
@@ -810,15 +820,14 @@ static int GetBounded( AstRegion *this_region, int *status ) {
             result = 1;
 
 /* If neither of the two components is bounded, then the AND region is
-   unbounded if there is partial or no overlap between them and is bounded
-   otherwise. */
+   taken to be unbounded. It is unbounded if one component is inside the
+   other, or they are the same, since it is then the inner component. If
+   the components overlap in part, or not at all, the AND region can in
+   fact be bounded or empty, but neither component has a boundary mesh
+   from which a mesh for it could be made, so it is not reported as
+   bounded. */
          } else {
-            overlap = astOverlap( reg1, reg2 );
-            if( overlap == 1 || overlap == 4 || overlap == 6 ) {
-               result = 0;
-            } else {
-               result = 1;
-            }
+            result = 0;
          }
 
 /* If the regions are ORed... */
@@ -1940,7 +1949,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
 /* If neither Region has a mesh we cannot produce a mesh. */
       if( !hasMesh1 && !hasMesh2 && astOK ) {
          astError( AST__INTER, "astRegBaseMesh(%s): No mesh can be "
-                   "produced for the %s bacause neither of its component "
+                   "produced for the %s because neither of its component "
                    "Regions has a mesh (internal AST programming error).", status,
                    astGetClass( this ), astGetClass( this ) );
 
@@ -1948,7 +1957,7 @@ static AstPointSet *RegBaseMesh( AstRegion *this_region, int *status ){
    boolean operator is not OR. */
       } else if( ( !hasMesh1 || !hasMesh2 ) && this->oper == AST__OR && astOK ) {
          astError( AST__INTER, "astRegBaseMesh(%s): No mesh can be produced "
-                   "for the %s bacause one its component Regions has no "
+                   "for the %s because one its component Regions has no "
                    "mesh and the union of the Regions is required (internal "
                    "AST programming error).", status, astGetClass( this ), astGetClass( this ) );
       }
@@ -4983,6 +4992,7 @@ AstCmpRegion *astLoadCmpRegion_( void *mem, size_t size,
    AstRegion *creg;              /* Pointer to component Region */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    int i;                        /* Loop count */
+   int nax;                      /* No. of axes in the base Frame */
    int oper;                     /* The operator to include in the dump */
 
 /* Initialise. */
@@ -5039,10 +5049,28 @@ AstCmpRegion *astLoadCmpRegion_( void *mem, size_t size,
 /* First Region. */
 /* -------------- */
       reg1 = astReadObject( channel, "regiona", NULL );
+      astCheckLoaded( reg1, Region, 1, name, "first component Region" );
 
 /* Second Region. */
 /* --------------- */
       reg2 = astReadObject( channel, "regionb", NULL );
+      astCheckLoaded( reg2, Region, 1, name, "second component Region" );
+
+/* Check the operator, and that both component Regions have the axes of
+   the base Frame of the CmpRegion, in which they are both defined. */
+      if( astOK ) {
+         nax = astGetNin( ((AstRegion *) new)->frameset );
+         if( oper != AST__AND && oper != AST__OR && oper != AST__XOR ) {
+            astError( AST__LDERR, "astLoadCmpRegion(%s): Illegal boolean "
+                      "operator value (%d) read for a %s.", status, name,
+                      oper, name );
+         } else if( astGetNaxes( reg1 ) != nax || astGetNaxes( reg2 ) != nax ) {
+            astError( AST__LDERR, "astLoadCmpRegion(%s): The component "
+                      "Regions read for a %s have %d and %d axes, but the "
+                      "%s has %d.", status, name, name, astGetNaxes( reg1 ),
+                      astGetNaxes( reg2 ), name, nax );
+         }
+      }
 
 /* Initialised cached values to show they have not yet been found. */
       for( i = 0; i < 2; i++ ) {

@@ -142,6 +142,39 @@ f     The WinMap class does not define any new routines beyond those
 *        ulp behind on a build that contracts a multiply and an add, and a
 *        ShiftMap writes a Sft card only for a non-zero shift -- so the residue
 *        decided how many lines the dump had.
+*     11-NOV-2026 (TIMJ):
+*        astLoadWinMap now checks that the numbers of inputs and outputs read
+*        from a dump are equal. The transformation read or wrote beyond the
+*        coordinate arrays otherwise.
+*     14-NOV-2026 (TIMJ):
+*        MapMerge: merge a WinMap with a MatrixMap only if the MatrixMap
+*        is square as well as diagonal. A diagonal MatrixMap can have
+*        different numbers of inputs and outputs, and merging one gave a
+*        WinMap with the wrong number of axes, after reading beyond the
+*        end of the diagonal. WinDiagMat: for a unit MatrixMap, make the
+*        WinMap as for any other diagonal MatrixMap rather than returning
+*        the supplied WinMap, which lost the axes of a MatrixMap in
+*        parallel and ignored the invert flag supplied for the WinMap.
+*     14-NOV-2026 (TIMJ):
+*        MapMerge:
+*        - Keep the number of axes of the WinMap when it is split to
+*        match a neighbouring parallel CmpMap. The count was overwritten
+*        with the number of axes of the first part, and that was then
+*        used to decide if the WinMap could be replaced by a ShiftMap,
+*        and as the number of axes of the ShiftMap.
+*        - Do not replace a WinMap by a MatrixMap if none of its scale
+*        terms is defined.
+*        - Only swap a WinMap with a MatrixMap if the terms of the WinMap
+*        and the matrix are defined, and - if the MatrixMap comes first -
+*        the matrix is square and can be inverted. An error was reported
+*        otherwise, so the Mapping could not be simplified at all.
+*        - Do not swap a WinMap with a following MatrixMap if the WinMap
+*        shifts an axis that the MatrixMap discards. The inverse
+*        transformation was changed by the swap.
+*        - Do not merge a WinMap with a diagonal MatrixMap that has no
+*        scale factor for some axis in the direction in which it is used
+*        (the inverse of a matrix that scales an axis by zero). The
+*        merged WinMap was undefined in both directions on that axis.
 *class--
 */
 
@@ -244,6 +277,7 @@ static AstWinMap *WinUnit( AstWinMap *, AstUnitMap *, int, int, int * );
 static AstWinMap *WinWin( AstMapping *, AstMapping *, int, int, int, int * );
 static AstWinMap *WinShift( AstWinMap *, AstShiftMap *, int, int, int, int, int * );
 static AstWinMap *WinDiagMat( AstWinMap *, AstMatrixMap *, int, int, int, int, int * );
+static int IsSquareDiagonal( AstMapping *, int, int * );
 static AstWinMap *WinZoom( AstWinMap *, AstZoomMap *, int, int, int, int, int * );
 static size_t GetObjSize( AstObject *, int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
@@ -260,7 +294,7 @@ static void Delete( AstObject *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static void PermGet( AstPermMap *, int **, int **, double **, int * );
 static void SetAttrib( AstObject *, const char *, int * );
-static void WinMat( AstMapping **, int *, int, int * );
+static int WinMat( AstMapping **, int *, int, int * );
 static void WinPerm( AstMapping **, int *, int, int * );
 static void WinWcs( AstMapping **, int *, int, int * );
 static int *MapSplit( AstMapping *, int, const int *, AstMapping **, int * );
@@ -1059,6 +1093,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    int inc[4];           /* Copies of supplied invert flags to merge */
    int invert;           /* Should the inverted Mapping be used? */
    int isshift;          /* Is WinMap equivalent to a ShiftMap? */
+   int nin1;             /* No. of inputs for first component WinMap */
    int nin2;             /* No. of inputs for second component WinMap */
    int nin;              /* Number of coordinates for WinMap */
    int nmapt;            /* No. of Mappings in list */
@@ -1070,6 +1105,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    int simpler;          /* Is the resulting Mapping simpler than original? */
    int swap;             /* Is there an advantage in swapping mappings? */
    int swaphi;           /* Can WinMap be swapped with higher neighbour? */
+   int swapped;          /* Were the Mappings swapped? */
    int swaplo;           /* Can WinMap be swapped with lower neighbour? */
 
 /* Initialise. */
@@ -1105,6 +1141,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    }
 
 /* If all the shift terms are zero... */
+   b = NULL;
    if( diag ){
 
 /* Temporarily set the Invert attribute of the WinMap to the supplied
@@ -1115,11 +1152,26 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Get a copy of the scale terms from the WinMap. */
       astWinTerms( newwm, 0, NULL, &b );
 
-/* Create a diagonal MatrixMap holding the scale terms. */
-      mtr = astMatrixMap( nin, nin, 1, b, "", status );
-
 /* Restore the Invert attribute of the supplied WinMap. */
       astSetInvert( newwm, old_winv );
+
+/* A MatrixMap cannot be created from scale terms that are all undefined,
+   so the WinMap is then left as it is. */
+      diag = 0;
+      for( i = 0; i < nin && astOK; i++ ){
+         if( astISFINITE( b[ i ] ) && b[ i ] != AST__BAD ) {
+            diag = 1;
+            break;
+         }
+      }
+      if( !diag ) b = (double *) astFree( (void *) b );
+   }
+
+/* If the WinMap can be replaced by a diagonal MatrixMap... */
+   if( diag ){
+
+/* Create a diagonal MatrixMap holding the scale terms. */
+      mtr = astMatrixMap( nin, nin, 1, b, "", status );
 
 /* Free the memory used to hold the scale terms. */
       b = (double *) astFree( (void *) b );
@@ -1154,12 +1206,14 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
 /* If either is a MatrixMap, see if the MatrixMap is diagonal. */
        if( class1 && !strcmp( class1, "MatrixMap" ) ) {
-          diag1 = astIsDiagonal( ( *map_list )[ where - 1 ] );
+          diag1 = IsSquareDiagonal( ( *map_list )[ where - 1 ],
+                                    ( *invert_list )[ where - 1 ], status );
        } else {
           diag1 = 0;
        }
        if( class2 && !strcmp( class2, "MatrixMap" ) ) {
-          diag2 = astIsDiagonal( ( *map_list )[ where + 1 ] );
+          diag2 = IsSquareDiagonal( ( *map_list )[ where + 1 ],
+                                    ( *invert_list )[ where + 1 ], status );
        } else {
           diag2 = 0;
        }
@@ -1328,13 +1382,13 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    is equal to either the number of outputs or inputs of the corresponding
    component of the CmpMap, depending on whether the CmpMap is upper or lower
    neighbour. */
-               nin = cmlow ? astGetNout( mc[ 0 ] ):astGetNin( mc[ 0 ] );
-               newwm = astWinMap( nin, NULL, NULL, NULL, NULL, "", status );
+               nin1 = cmlow ? astGetNout( mc[ 0 ] ):astGetNin( mc[ 0 ] );
+               newwm = astWinMap( nin1, NULL, NULL, NULL, NULL, "", status );
                if( astOK ) {
 
-/* Store the first "nin" scale and zero terms from the nominated WinMap
+/* Store the first "nin1" scale and zero terms from the nominated WinMap
    in the new WinMap. */
-                  for( i = 0; i < nin; i++ ) {
+                  for( i = 0; i < nin1; i++ ) {
                      (newwm->a)[ i ] = a[ i ];
                      (newwm->b)[ i ] = b[ i ];
                   }
@@ -1349,8 +1403,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 /* Store the remaining scale and zero terms from the nominated WinMap
    in the new WinMap. */
                   for( i = 0; i < nin2; i++ ) {
-                     (newwm2->a)[ i ] = a[ i + nin ];
-                     (newwm2->b)[ i ] = b[ i + nin ];
+                     (newwm2->a)[ i ] = a[ i + nin1 ];
+                     (newwm2->b)[ i ] = b[ i + nin1 ];
                   }
                }
 
@@ -1469,7 +1523,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                       !strcmp( nclass, "ShiftMap" ) ||
                       !strcmp( nclass, "UnitMap" ) ||
                       ( !strcmp( nclass, "MatrixMap" ) &&
-                        astIsDiagonal( ( *map_list )[ i2 ] ) ) ){
+                        IsSquareDiagonal( ( *map_list )[ i2 ],
+                                          ( *invert_list )[ i2 ], status ) ) ){
                      nstep2 = i2 - where - 1;
                      break;
                   }
@@ -1509,7 +1564,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                       !strcmp( nclass, "ShiftMap" ) ||
                       !strcmp( nclass, "UnitMap" ) ||
                       ( !strcmp( nclass, "MatrixMap" ) &&
-                        astIsDiagonal( ( *map_list )[ i1 ] ) ) ){
+                        IsSquareDiagonal( ( *map_list )[ i1 ],
+                                          ( *invert_list )[ i1 ], status ) ) ){
                      nstep1 = where - 1 - i1;
                      break;
                   }
@@ -1544,9 +1600,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    WinMap closer to the target Mapping. */
             if( nclass ){
 
-/* Swap the Mappings. */
+/* Swap the Mappings. A MatrixMap cannot always be swapped. */
+               swapped = 1;
                if( !strcmp( nclass, "MatrixMap" ) ){
-                  WinMat( (*map_list) + i1, (*invert_list) + i1, where - i1, status );
+                  swapped = WinMat( (*map_list) + i1, (*invert_list) + i1, where - i1, status );
 
                } else if( !strcmp( nclass, "PermMap" ) ){
                   WinPerm( (*map_list) + i1, (*invert_list) + i1, where - i1, status );
@@ -1555,8 +1612,8 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   WinWcs( (*map_list) + i1, (*invert_list) + i1, where - i1, status );
                }
 
-/* And then merge them if possible. */
-               if( where == i1 && where + 1 < *nmap ) {    /* Merging upwards */
+/* And then merge them if possible, if they were swapped. */
+               if( swapped && where == i1 && where + 1 < *nmap ) { /* Merging upwards */
                   map2 = astClone( (*map_list)[ where + 1 ] );
                   nmapt = *nmap - where - 1;
                   maplt = *map_list + where + 1;
@@ -1566,7 +1623,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   map2 = astAnnul( map2 );
                   *nmap = where + 1 + nmapt;
 
-               } else if( where - 2 >= 0 ) {               /* Merging downwards */
+               } else if( swapped && where - 2 >= 0 ) {    /* Merging downwards */
                   map2 = astClone( (*map_list)[ where - 2 ] );
                   nmapt = *nmap - where + 2;
                   maplt = *map_list + where - 2 ;
@@ -1577,7 +1634,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                   *nmap = where - 2 + nmapt;
                }
 
-               result = i1;
+               if( swapped ) result = i1;
 
 /* If there is no Mapping available for merging, it may still be
    advantageous to swap with a neighbour because the swapped Mapping may
@@ -1615,9 +1672,10 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                      ic[ 0 ] = ( (*invert_list) + i1 )[0];
                      ic[ 1 ] = ( (*invert_list) + i1 )[1];
 
-/* Swap these Mappings. */
+/* Swap these Mappings. A MatrixMap cannot always be swapped. */
+                     swapped = 1;
                      if( !strcmp( nclass, "MatrixMap" ) ){
-                        WinMat( mc, ic, where - i1, status );
+                        swapped = WinMat( mc, ic, where - i1, status );
                      } else if( !strcmp( nclass, "PermMap" ) ){
                         WinPerm( mc, ic, where - i1, status );
                      } else if( !strcmp( nclass, "WcsMap" ) ){
@@ -1681,8 +1739,9 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                         smc0 = astAnnul( smc0 );
                      }
 
-/* If there is some point in swapping the Mappings, swap them in the
-   supplied lists. Otherwise annul the swapped Mappings. */
+/* If the Mappings were swapped and there is some point in swapping them,
+   swap them in the supplied lists. Otherwise annul the copies. */
+                     if( !swapped ) swap = 0;
                      if( swap ) {
                         (*map_list)[ i1 ] = astAnnul( (*map_list)[ i1 ] );
                         (*map_list)[ i2 ] = astAnnul( (*map_list)[ i2 ] );
@@ -1828,7 +1887,7 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
 /* If no simplification has taken place, see if the scale terms in the
    WinMap are all 1.0, in which case we can replace it with a ShiftMap. */
-   if( result == -1 ){
+   if( result == -1 && astOK ){
       isshift = 1;
       for( i = 0; i < nin; i++ ){
          if( !astEQUAL( ( oldwm->b )[ i ], 1.0 ) ){
@@ -2586,6 +2645,61 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    return result;
 }
 
+static int IsSquareDiagonal( AstMapping *map, int invert, int *status ){
+/*
+*  Name:
+*     IsSquareDiagonal
+
+*  Purpose:
+*     See if a MatrixMap can be merged with a WinMap.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "winmap.h"
+*     int IsSquareDiagonal( AstMapping *map, int invert, int *status )
+
+*  Class Membership:
+*     WinMap member function
+
+*  Description:
+*     A WinMap scales and shifts each of its axes separately, and has the
+*     same number of outputs as inputs. So the only MatrixMaps that a
+*     WinMap can absorb are those that scale each axis separately and also
+*     have the same number of outputs as inputs. A MatrixMap with a unit
+*     or diagonal matrix scales each axis separately, but it can have
+*     more inputs than outputs, or fewer, and then it also discards axes
+*     or adds axes that are always zero.
+*
+*     The scale factors applied by the MatrixMap must also be defined. The
+*     inverse of a diagonal matrix has no value for an axis that the
+*     matrix scales by zero, and a WinMap made from it would be undefined
+*     in both directions on that axis, whereas the MatrixMap is not.
+
+*  Parameters:
+*     map
+*        Pointer to the MatrixMap.
+*     invert
+*        The value to assume for the Invert attribute of the MatrixMap
+*        (the direction in which it is used in the list of Mappings).
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the MatrixMap has a unit or diagonal matrix, equal
+*     numbers of inputs and outputs, and a defined scale factor for every
+*     axis in the direction in which it is used. Zero otherwise.
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+   return astIsDiagonal( (AstMatrixMap *) map ) &&
+          ( astGetNin( map ) == astGetNout( map ) ) &&
+          astMtrUsable( (AstMatrixMap *) map, invert );
+}
+
 static AstWinMap *WinDiagMat( AstWinMap *wm, AstMatrixMap *mm, int winv,
                               int minv, int win1, int series, int *status ){
 /*
@@ -2684,23 +2798,37 @@ static AstWinMap *WinDiagMat( AstWinMap *wm, AstMatrixMap *mm, int winv,
    old_minv = astGetInvert( mm );
    astSetInvert( mm, minv );
 
+/* Initialise the returned pointer. */
+   result = NULL;
+
 /* Get the diagonal elements of the forward matrix. */
    diag = astMtrGet( mm, 1, 0, &form );
 
-/* Report an error if the matrix is not diagonal. */
-   if( form == 0 ) {
+/* A unit matrix has no stored elements. Its diagonal elements are all
+   one, so make an array of them. The WinMap that is returned must still be
+   made as it is for any other diagonal matrix: it has the axes of both
+   Mappings if they are in parallel, and its forward transformation has to
+   allow for the invert flag supplied for the WinMap. */
+   if( form == 2 ) {
+      ninm = astGetNin( mm );
+      diag = astFree( diag );
+      diag = astMalloc( sizeof( double )*(size_t) ninm );
+      if( astOK ) {
+         for( i = 0; i < ninm; i++ ) diag[ i ] = 1.0;
+      }
+   }
+
+/* Report an error if the matrix is not diagonal, or is not square. A
+   WinMap cannot represent either. */
+   if( form == 0 || astGetNin( mm ) != astGetNout( mm ) ) {
       if( astOK ) {
          astError( AST__INTER, "astSimplify(WinMap): supplied MatrixMap is "
-                   "not diagonal (internal AST programming error).", status );
+                   "not diagonal and square (internal AST programming "
+                   "error).", status );
       }
 
-/* If the MatrixMap is a unit matrix, return a clone of the supplied WinMap. */
-   } else if( form == 2 ) {
-      result = astClone( wm );
-
-/* Otherwise, initialise the returned pointer. */
+/* Otherwise, merge the two. */
    } else {
-      result = NULL;
 
 /* Get copies of the scale and shift terms from the WinMap, together with
    the number of inputs. */
@@ -2824,7 +2952,7 @@ static AstWinMap *WinDiagMat( AstWinMap *wm, AstMatrixMap *mm, int winv,
    return result;
 }
 
-static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
+static int WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
 /*
 *  Name:
 *     WinMat
@@ -2837,7 +2965,7 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
 
 *  Synopsis:
 *     #include "winmap.h"
-*     void WinMat( AstMapping **maps, int *inverts, int iwm, int *status )
+*     int WinMat( AstMapping **maps, int *inverts, int iwm, int *status )
 
 *  Class Membership:
 *     WinMap member function
@@ -2862,6 +2990,22 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
 *     status
 *        Pointer to the inherited status variable.
 
+*  Returned Value:
+*     Non-zero if the Mappings were swapped. Zero if they cannot be
+*     swapped, in which case the supplied Mappings and invert flags are
+*     left unchanged.
+
+*  Notes:
+*     -  The Mappings cannot be swapped if any term of the WinMap is
+*     undefined, or if the matrix applied by the MatrixMap is undefined
+*     or contains a bad value.
+*     -  If the MatrixMap is applied first, the shift terms of the new
+*     WinMap are found using the inverse of the new MatrixMap, so the
+*     Mappings cannot then be swapped unless the matrix is square and
+*     can be inverted.
+*     -  If the WinMap is applied first, the Mappings cannot be swapped
+*     if the WinMap shifts an axis that the MatrixMap discards, or scales
+*     it by zero, unless the MatrixMap has no inverse transformation.
 */
 
 /* Local Variables: */
@@ -2883,11 +3027,24 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
    int i;                        /* Axis count */
    int nin;                      /* No. of axes in supplied WinMap */
    int nout;                     /* No. of axes in returned WinMap */
+   int ok;                       /* Can the Mappings be swapped? */
    int old_minv;                 /* Invert value for the supplied MatrixMap */
    int old_winv;                 /* Invert value for the supplied WinMap */
+   int result;                   /* Returned value */
+
+/* Initialise. */
+   result = 0;
 
 /* Check the global error status. */
-   if ( !astOK ) return;
+   if ( !astOK ) return result;
+
+/* Initialise pointers to the objects created here. */
+   m1 = NULL;
+   m2 = NULL;
+   pset1 = NULL;
+   pset2 = NULL;
+   ptr2 = NULL;
+   nout = 0;
 
 /* Store pointers to the supplied WinMap and the MatrixMap. */
    wm = (AstWinMap *) maps[ iwm ];
@@ -2905,47 +3062,92 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
    also returns the number of axes in the WinMap. */
    nin = astWinTerms( wm, 0, &a, &b );
 
+/* Every one of these terms must have a value. */
+   ok = astOK;
+   for( i = 0; i < nin && ok; i++ ) {
+      if( !astISFINITE( a[ i ] ) || a[ i ] == AST__BAD ||
+          !astISFINITE( b[ i ] ) || b[ i ] == AST__BAD ) ok = 0;
+   }
+
+   if( ok ) {
+
 /* Create a diagonal MatrixMap holding the scale factors from the
    supplied WinMap. */
-   m1 = astMatrixMap( nin, nin, 1, b, "", status );
+      m1 = astMatrixMap( nin, nin, 1, b, "", status );
 
 /* Create a PointSet holding a single position given by the shift terms
    in the supplied WinMap. */
-   pset1 = astPointSet( 1, nin, "", status );
-   ptr1 = astGetPoints( pset1 );
-   if( astOK ){
-      aa = a;
-      for( i = 0; i < nin; i++ ) ptr1[ i ][ 0 ] = *(aa++);
-   }
+      pset1 = astPointSet( 1, nin, "", status );
+      ptr1 = astGetPoints( pset1 );
+      if( astOK ){
+         aa = a;
+         for( i = 0; i < nin; i++ ) ptr1[ i ][ 0 ] = *(aa++);
+      }
 
 /* First deal with cases when the WinMap is applied first, followed by
    the MatrixMap. */
-   if( iwm == 0 ){
+      if( iwm == 0 ){
+
+/* A MatrixMap with fewer outputs than inputs discards its later inputs,
+   and its inverse transformation (if it has one) supplies zero for each
+   of them. The inverse of the WinMap is then applied to those zeros. Once
+   the Mappings are swapped the WinMap is applied to the outputs of the
+   MatrixMap instead, and the discarded inputs are left as zero. So the
+   inverse transformation is only left unchanged if the inverse of the
+   WinMap gives zero for zero on each discarded axis, which needs a zero
+   shift and a non-zero scale. */
+         if( astGetNin( mm ) > astGetNout( mm ) && astGetTranInverse( mm ) ) {
+            for( i = astGetNout( mm ); i < nin; i++ ) {
+               if( a[ i ] != 0.0 || b[ i ] == 0.0 ) ok = 0;
+            }
+         }
 
 /* Multiply the diagonal matrix holding the WinMap scale factors by the
    supplied matrix. The resulting MatrixMap is the one to return in the
-   map list. */
-      m2 = astMtrMult( m1, mm );
+   map list. No MatrixMap is returned if the product is not usable. */
+         if( ok ) m2 = astMtrProduct( m1, mm );
 
 /* Transform the position given by the shift terms from the supplied
    WinMap using the supplied MatrixMap to get the shift terms for
    the returned WinMap. */
-      pset2 = astTransform( mm, pset1, 1, NULL );
+         if( m2 ) pset2 = astTransform( mm, pset1, 1, NULL );
 
 /* Now deal with cases when the MatrixMap is applied first, followed by
    the WinMap. */
-   } else {
+      } else {
 
 /* Multiply the supplied MatrixMap by the diagonal matrix holding scale
    factors from the supplied WinMap. The resulting MatrixMap is the one to
-   return in the map list. */
-      m2 = astMtrMult( mm, m1 );
+   return in the map list. No MatrixMap is returned if the product is not
+   usable. */
+         m2 = astMtrProduct( mm, m1 );
 
 /* Transform the position given by the shift terms from the supplied
    WinMap using the inverse of the returned MatrixMap to get the shift
-   terms for the returned WinMap. */
-      pset2 = astTransform( m2, pset1, 0, NULL );
+   terms for the returned WinMap. This needs a square matrix that has an
+   inverse. */
+         if( m2 && astGetNin( m2 ) == astGetNout( m2 ) &&
+             astGetTranInverse( m2 ) ) {
+            pset2 = astTransform( m2, pset1, 0, NULL );
+         }
+      }
 
+/* Get pointers to the shift terms for the returned WinMap, and check
+   that every one of them has a value. */
+      if( pset2 ) {
+         ptr2 = astGetPoints( pset2 );
+         nout = astGetNcoord( pset2 );
+         if( astOK ) {
+            for( i = 0; i < nout; i++ ) {
+               if( !astISFINITE( ptr2[ i ][ 0 ] ) ||
+                   ptr2[ i ][ 0 ] == AST__BAD ) ok = 0;
+            }
+         } else {
+            ok = 0;
+         }
+      } else {
+         ok = 0;
+      }
    }
 
 /* Re-instate the original value of the Invert attributes of the supplied
@@ -2953,55 +3155,55 @@ static void WinMat( AstMapping **maps, int *inverts, int iwm, int *status ){
    astSetInvert( wm, old_winv );
    astSetInvert( mm, old_minv );
 
-/* Get pointers to the shift terms for the returned WinMap. */
-   ptr2 = astGetPoints( pset2 );
-
-/* Create the returned WinMap, initially with undefined corners. The number of
-   axes in the WinMap must equal the number of shift terms. */
-   nout = astGetNcoord( pset2 );
-   w1 = astWinMap( nout, NULL, NULL, NULL, NULL, "", status );
+/* If the Mappings can be swapped, create the returned WinMap, initially
+   with undefined corners. The number of axes in the WinMap must equal the
+   number of shift terms. */
+   if( ok ) {
+      w1 = astWinMap( nout, NULL, NULL, NULL, NULL, "", status );
 
 /* If succesful, store the scale and shift terms in the WinMap. The scale
    terms are always unity. */
-   if( astOK ){
-      bb = w1->b;
-      aa = w1->a;
-      for( i = 0; i < nout; i++ ) {
-         *(bb++) = 1.0;
-         *(aa++) = ptr2[ i ][ 0 ];
-      }
+      if( astOK ){
+         bb = w1->b;
+         aa = w1->a;
+         for( i = 0; i < nout; i++ ) {
+            *(bb++) = 1.0;
+            *(aa++) = ptr2[ i ][ 0 ];
+         }
 
 /* Replace the supplied Mappings and invert flags with the ones found
    above. Remember that the order of the Mappings is now swapped */
-      (void) astAnnul( maps[ 0 ] );
-      (void) astAnnul( maps[ 1 ] );
+         (void) astAnnul( maps[ 0 ] );
+         (void) astAnnul( maps[ 1 ] );
 
-      sw1 = astSimplify( w1 );
-      w1 = astAnnul( w1 );
+         sw1 = astSimplify( w1 );
+         w1 = astAnnul( w1 );
 
-      maps[ 1 - iwm ] = (AstMapping *) sw1;
-      inverts[ 1 - iwm  ] = astGetInvert( sw1 );
+         maps[ 1 - iwm ] = (AstMapping *) sw1;
+         inverts[ 1 - iwm  ] = astGetInvert( sw1 );
 
-      sm2 = astSimplify( m2 );
-      m2 = astAnnul( m2 );
+         sm2 = astSimplify( m2 );
+         m2 = astAnnul( m2 );
 
-      maps[ iwm ] = (AstMapping *) sm2;
-      inverts[ iwm  ] = astGetInvert( sm2 );
+         maps[ iwm ] = (AstMapping *) sm2;
+         inverts[ iwm  ] = astGetInvert( sm2 );
 
+         result = 1;
+      }
    }
 
-/* Annul the MatrixMap and PointSet holding the scale and shift terms from the
-   supplied WinMap. */
-   m1 = astAnnul( m1 );
-   pset1 = astAnnul( pset1 );
-   pset2 = astAnnul( pset2 );
+/* Annul the MatrixMaps and PointSets created here. */
+   if( m1 ) m1 = astAnnul( m1 );
+   if( m2 ) m2 = astAnnul( m2 );
+   if( pset1 ) pset1 = astAnnul( pset1 );
+   if( pset2 ) pset2 = astAnnul( pset2 );
 
 /* Free the copies of the scale and shift terms from the supplied WinMap. */
    b = (double *) astFree( (void *) b );
    a = (double *) astFree( (void *) a );
 
 /* Return. */
-   return;
+   return astOK ? result : 0;
 }
 
 static void WinPerm( AstMapping **maps, int *inverts, int iwm, int *status ){
@@ -5077,6 +5279,11 @@ AstWinMap *astLoadWinMap_( void *mem, size_t size,
          (new->b)[ axis ] = astReadDouble( channel, buff, 1.0 );
       }
    }
+
+/* A WinMap has the same number of outputs as inputs, and the transformation
+   relies on this. The numbers read from the dump by the parent Mapping
+   loader are not otherwise constrained, so check them. */
+   astCheckLoadedCoords( new, name, astGetNin( new ), astGetNin( new ) );
 
 /* If an error occurred, clean up by deleting the new WinMap. */
    if ( !astOK ) new = astDelete( new );

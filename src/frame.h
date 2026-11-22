@@ -993,6 +993,7 @@ AstSystemType astSystemCode_( AstFrame *, const char *, int * );
 const char *astSystemString_( AstFrame *, AstSystemType, int * );
 void astCheckPerm_( AstFrame *, const int *, const char *, int * );
 void astCheckPermArray_( AstFrame *, const int *, int, const char *, int * );
+void astCheckLoadedNaxes_( AstFrame *, const char *, int, int * );
 void astClearDigits_( AstFrame *, int * );
 void astClearDirection_( AstFrame *, int, int * );
 void astClearDomain_( AstFrame *, int * );
@@ -1204,6 +1205,8 @@ astINVOKE(V,astFields_(astCheckFrame(this),axis,fmt,str,maxfld,fields,nc,val,STA
 astINVOKE(V,astCheckPerm_(astCheckFrame(this),perm,method,STATUS_PTR))
 #define astCheckPermArray(this,perm,naxes,method) \
 astINVOKE(V,astCheckPermArray_(astCheckFrame(this),perm,naxes,method,STATUS_PTR))
+#define astCheckLoadedNaxes(this,name,naxes) \
+astCheckLoadedNaxes_((AstFrame *)(this),name,naxes,STATUS_PTR)
 #define astResolvePoints(this,p1,p2,in,out) \
 astINVOKE(O,astResolvePoints_(astCheckFrame(this),p1,p2,astCheckPointSet(in),((out)?astCheckPointSet(out):NULL),STATUS_PTR))
 #define astLineDef(this,p1,p2) \

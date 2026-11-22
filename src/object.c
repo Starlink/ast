@@ -246,6 +246,20 @@ f     - AST_VERSION: Return the verson of the AST library being used.
 *        may be associated with any Object for storing extra internal data.
 *        The companion astHasKeyMap method tests whether an Object already has
 *        an associated KeyMap without creating one.
+*     13-NOV-2026 (TIMJ):
+*        Added the protected function astCheckLoaded, for a loader to check
+*        the class of a component Object that it has read from a dump, and
+*        used it in astLoadObject to check the associated KeyMap.
+*     16-NOV-2026 (TIMJ):
+*        astVSet: format the expanded settings string with vsnprintf, and
+*        allocate a larger buffer if it does not fit. The buffer was twice
+*        the length of the string before expansion, or 1024 characters if
+*        that is more, so a string value longer than that, as passed on by
+*        astSetC, was written beyond the end of it. Use a copy of the
+*        argument list each time it is read.
+*     16-NOV-2026 (TIMJ):
+*        EnvSet: use snprintf to format the name of the environment
+*        variable.
 *class--
 */
 
@@ -1888,7 +1902,7 @@ static void EnvSet( AstObject *this, int *status ) {
 
 /* Form the upper-case name of the environment variable. */
       if( class ) {
-         sprintf( varname, "%s_OPTIONS", class );
+         snprintf( varname, sizeof( varname ), "%s_OPTIONS", class );
          astChrCase( NULL, varname, 1, sizeof( varname ) );
 
 /* Get the value of the environment variable. */
@@ -4849,6 +4863,7 @@ static void VSet( AstObject *this, const char *settings, char **text,
    int quoted;                   /* Are we in a quoted string? */
    int stat;                     /* Value of errno after an error */
    int tq;                       /* Test if the next non-space is a quote? */
+   va_list args2;                /* Copy of the variable argument list */
 
 /* Initialise */
    if( text ) *text = NULL;
@@ -4872,8 +4887,12 @@ static void VSet( AstObject *this, const char *settings, char **text,
 
 /* Expand the supplied string using a fixed-length buffer. This writes at
    most MIN_BUFF_LEN characters to "buf", but returns the number of
-   characters that would have been needed to write the whole string. */
-         len =  vsnprintf( setting_buf, sizeof(setting_buf), settings, args );
+   characters that would have been needed to write the whole string. A
+   copy of the argument list is used, since the list cannot be used again
+   once "vsnprintf" has read it. */
+         va_copy( args2, args );
+         len =  vsnprintf( setting_buf, sizeof(setting_buf), settings, args2 );
+         va_end( args2 );
 
 /* If the fixed-length buffer is too short, use a dynamically allocated
    buffer instead. */
@@ -4930,13 +4949,27 @@ static void VSet( AstObject *this, const char *settings, char **text,
          buff2 = astMalloc( (size_t) ( buff_len + 1 ) );
          if ( astOK ) {
 
-/* Use "vsprintf" to substitute values for any format specifiers in
+/* Use "vsnprintf" to substitute values for any format specifiers in
    the "settings" string, writing the resulting string into the second
-   buffer. If the "settings" string has already been expanded, then just
-   copy it. */
+   buffer. This returns the number of characters needed to hold the whole
+   string, so if the buffer is too small, allocate one of that size and
+   write the string again. A copy of the argument list is used each time,
+   since the list cannot be used again once "vsnprintf" has read it. If
+   the "settings" string has already been expanded, then just copy it. */
             errno = 0;
             if( !expanded ) {
-               nc = vsprintf( buff2, buff1, args );
+               nc = 0;
+               do {
+                  if( nc > buff_len ) {
+                     buff_len = nc;
+                     buff2 = astFree( buff2 );
+                     buff2 = astMalloc( (size_t) buff_len + 1 );
+                     if( !astOK ) break;
+                  }
+                  va_copy( args2, args );
+                  nc = vsnprintf( buff2, (size_t) buff_len + 1, buff1, args2 );
+                  va_end( args2 );
+               } while( nc > buff_len );
             } else {
                strcpy( buff2, buff1 );
                nc = strlen( buff1 );
@@ -4979,23 +5012,9 @@ static void VSet( AstObject *this, const char *settings, char **text,
                             settings );
                }
 
-/* Also check that the result buffer did not overflow. If it did,
-   memory will probably have been corrupted but this cannot be
-   prevented with "vsprintf" (although we try and make the buffer
-   large enough). Report the error and abort. */
-            } else if ( nc > buff_len ) {
-               if( astOK ) {
-                  astError( AST__ATSER, "astVSet(%s): Internal buffer overflow "
-                            "while formatting an attribute setting - the result "
-                            "exceeds %d characters.", status, astGetClass( this ),
-                            buff_len );
-                  astError( AST__ATSER, "The setting string was \"%s\".", status,
-                            settings );
-               }
-
 /* If all is OK, loop to process each formatted attribute assignment
    (these are now separated by '\n' characters). */
-	    } else {
+	    } else if( astOK ) {
                assign = buff2;
                while ( assign ) {
 
@@ -5869,6 +5888,87 @@ AstObject *astInitObject_( void *mem, size_t size, int init,
    return new;
 }
 
+int astCheckLoaded_( void *obj, int isa, int needed, const char *type,
+                     const char *name, const char *item, int *status ) {
+/*
+*+
+*  Name:
+*     astCheckLoaded
+
+*  Purpose:
+*     Check the class of an Object read by a loader.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "object.h"
+*     int astCheckLoaded( void *obj, class, int needed, const char *name,
+*                         const char *item )
+
+*  Class Membership:
+*     Object member function.
+
+*  Description:
+*     astReadObject returns whatever Object a dump supplies for a named
+*     item, or NULL if the dump supplies none. A loader that stores such
+*     an Object as a component of the Object it is loading should call
+*     this function first. It reports an error if the component belongs
+*     to the wrong class, since invoking the methods of the expected class
+*     on it would use a virtual function table that does not have them.
+*     It can also report an error if the component is missing.
+
+*  Parameters:
+*     obj
+*        The pointer returned by astReadObject, which may be NULL.
+*     class
+*        The name of the class that the component must belong to, given
+*        without quotes (for instance, Frame). The interface to this
+*        class must have been included.
+*     needed
+*        If non-zero, an error is reported if "obj" is NULL.
+*     name
+*        The name of the class being loaded, for use in error messages.
+*     item
+*        A description of the component, for use in error messages.
+
+*  Returned Value:
+*     Non-zero if "obj" is an Object of the required class, and zero
+*     otherwise.
+
+*  Notes:
+*     - This is a macro. It invokes the function astCheckLoaded_, which
+*     takes the result of the class membership test in place of the
+*     class.
+*     - An error with status AST__LDERR is reported if the component
+*     belongs to the wrong class, or is missing when it is needed.
+*     - Zero is returned if an error has already occurred.
+*-
+*/
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* A missing component is an error only if it is needed. */
+   if ( !obj ) {
+      if ( needed ) {
+         astError( AST__LDERR, "astLoad(%s): The %s is missing from the %s "
+                   "read.", status, name, item, name );
+      }
+      return 0;
+   }
+
+/* Report an error if the component belongs to the wrong class. */
+   if ( !isa ) {
+      astError( AST__LDERR, "astLoad(%s): The %s read for a %s is a %s, "
+                "which is not a %s.", status, name, item, name,
+                astGetClass( obj ), type );
+      return 0;
+   }
+
+   return 1;
+}
+
 AstObject *astLoadObject_( void *mem, size_t size,
                            AstObjectVtab *vtab, const char *name,
                            AstChannel *channel, int *status ) {
@@ -6001,6 +6101,7 @@ AstObject *astLoadObject_( void *mem, size_t size,
 /* Read any associated KeyMap. This will be a NULL pointer if the external
    representation did not include one (the usual case). */
       new->keymap = astReadObject( channel, "keymap", NULL );
+      astCheckLoaded( new->keymap, KeyMap, 0, name, "associated KeyMap" );
 
 /* If an error occurred, clean up by deleting the new Object. */
       if ( !astOK ) new = astDelete( new );

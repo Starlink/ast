@@ -409,6 +409,7 @@ typedef struct AstFitsChanGlobals {
    int Current_Indent;
    int Ignore_Used;
    int Mark_New;
+   void *Replaced_Cards;
    int CreateKeyword_Seq_Nchars;
    char FormatKey_Buff[ 40 ];
    char FitsGetCom_Sval[ AST__FITSCHAN_FITSCARDLEN + 1 ];

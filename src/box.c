@@ -125,6 +125,15 @@ f     The Box class does not define any new routines beyond those
 *        RegBaseMesh: The mesh of a Box occupying a single point now has
 *        that point's value on each axis, rather than the first axis's
 *        value on every axis.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadBox, check that the dump supplied the points that
+*        define the Box, and the right number of them.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
+*     19-NOV-2026 (TIMJ):
+*        Simplify: do not test or annul the Polygon that could replace the
+*        Box if neither order of its vertices gave one.
 *class--
 */
 
@@ -3916,6 +3925,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
    in which the vertices are stored in clockwise order within the
    new coordinate Frame. If the new Polygon is not bounded, use
    anti-clockwise order. */
+            newpoly = NULL;
             for( right_handed = 0; right_handed < 2; right_handed++ ) {
 
                if( right_handed ) {
@@ -3973,7 +3983,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
                }
 
 /* Free resources. */
-               newpoly = astAnnul( newpoly );
+               if( newpoly ) newpoly = astAnnul( newpoly );
                ps2 = astAnnul( ps2 );
             }
 
@@ -3983,8 +3993,10 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
             }
 
 /* See if all points within the Box mesh fall on the boundary of this
-   Polygon, to within the uncertainty of the Region. */
-            if( astRegPins( newpoly, mesh, NULL, NULL ) ) {
+   Polygon, to within the uncertainty of the Region. There is no Polygon
+   to check if neither order of the vertices gave a usable one, in which
+   case the Box is left as it is. */
+            if( newpoly && astRegPins( newpoly, mesh, NULL, NULL ) ) {
 
 /* If so, use the new Polygon in place of the original Box. */
                (void) astAnnul( new );
@@ -3993,7 +4005,7 @@ static AstMapping *Simplify( AstMapping *this_mapping, int *status ) {
             }
 
 /* Free resources. */
-            newpoly = astAnnul( newpoly );
+            if( newpoly ) newpoly = astAnnul( newpoly );
          }
 
          ps1 = astAnnul( ps1 );
@@ -4288,8 +4300,13 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
    lo = astFree( lo );
    hi = astFree( hi );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -5042,6 +5059,9 @@ AstBox *astLoadBox_( void *mem, size_t size, AstBoxVtab *vtab,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "Box" );
+
+/* Check that the parent Region supplied the points that a Box needs. */
+      astCheckLoadedPoints( new, name, 2, 2, 0 );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

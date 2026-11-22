@@ -368,6 +368,36 @@ f     - AST_SKYOFFSETMAP: Obtain a Mapping from absolute to offset coordinates
 *     22-SEP-2026 (TIMJ):
 *         NormBox: treat the pole test as failed if astTran2 reports an
 *         error, rather than reading the values it did not write.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadSkyFrame, check that the dump supplied two axes. A
+*        SkyFrame with one axis, or none, read beyond the end of its axis
+*        permutation array as it was loaded. Replace an axis that is not a
+*        SkyAxis, as it is if the dump does not describe it, with a
+*        SkyAxis. SubFrame invoked SkyAxis methods on it regardless.
+*     13-NOV-2026 (TIMJ):
+*        GetCachedLAST and NormalPoints brought a value into range by
+*        removing one turn at a time, which never ended for a very large
+*        value such as the LAST for an Epoch of 1.0E11. Remove whole turns
+*        with fmod first.
+*        CalcLAST no longer converts the Epoch to an int, which was
+*        undefined for an Epoch beyond the range of an int.
+*     13-NOV-2026 (TIMJ):
+*        Dump: do not write beyond the end of the comment buffer when the
+*        Symbol of an axis, or the formatted SkyRef or SkyRefP value, is
+*        long.
+*     13-NOV-2026 (TIMJ):
+*        ResolvePoints: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
+*     16-NOV-2026 (TIMJ):
+*        GetAttrib and GetTitle: do not write beyond the end of the buffer
+*        when the two formatted values of SkyRef or SkyRefP are joined.
+*        GetLabel and GetSymbol: use snprintf.
+*     19-NOV-2026 (TIMJ):
+*        FrameGrid: limit the number of parallels to the largest number
+*        that can each be given a sample, and give no samples to a parallel
+*        that has no length. A box of zero width needed an unlimited number
+*        of parallels, which was converted to an int, and the loop over
+*        them could take tens of seconds.
 *class--
 */
 
@@ -1308,12 +1338,12 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
 
 /* For better accuracy, use this integer part of the epoch as the origin of
    the two TimeFrames. */
-      astSetTimeOrigin( tdbframe, (int) epoch );
-      astSetTimeOrigin( lastframe, (int) epoch );
+      astSetTimeOrigin( tdbframe, trunc( epoch ) );
+      astSetTimeOrigin( lastframe, trunc( epoch ) );
 
 /* Convert the absolute Epoch value to an offset from the above origin. */
       epoch0 = epoch;
-      epoch -= (int) epoch;
+      epoch -= trunc( epoch );
 
 /* Store the observers position in the two TimeFrames. */
       astSetObsLon( tdbframe, obslon );
@@ -1347,7 +1377,7 @@ static double CalcLAST( AstSkyFrame *this, double epoch, double obslon,
       fs = astAnnul( fs );
 
 /* Convert the LAST offset from days to radians. */
-      result = ( epoch - (int) epoch )*2*AST__DPI;
+      result = ( epoch - trunc( epoch ) )*2*AST__DPI;
 
 /* Cache the new LAST value in the SkyFrame virtual function table. */
       SetCachedLAST( this, result, epoch0, obslon, obslat, obsalt, dut1, dtai,
@@ -2165,6 +2195,8 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
    double box_area;
    double cl;
    double dlon;
+   double dmer;
+   double dpar;
    double hilat;
    double hilon;
    double inclon;
@@ -2174,6 +2206,7 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
    double lolon;
    double lon_size;
    double lolat;
+   double maxpar;
    double totlen;
    int ilat;
    int ilon;
@@ -2228,9 +2261,24 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
       lat_size = sqrt( box_area/size );
 
 /* How many parallels should we use to cover the box? Ensure we use at
-   least two. These parallels pass through the centre of the grid cells. */
-      npar = (int)( 0.5 + ( hilat - lolat )/lat_size );
-      if( npar < 2 ) npar = 2;
+   least two. These parallels pass through the centre of the grid cells.
+   The number is found as a floating point value, since it is not a
+   number for a box with no height and is unlimited for a box with no
+   area. The samples are shared between the parallels in proportion to
+   the cosines of their latitudes, and the mean of these cosines is at
+   least half of the largest, so no parallel gets a sample if there are
+   more than twice as many parallels as samples. There is therefore no
+   need to use more parallels than that. */
+      dpar = 0.5 + ( hilat - lolat )/lat_size;
+      maxpar = 2.0*size + 2.0;
+      if( maxpar > (double) INT_MAX ) maxpar = (double) INT_MAX;
+      if( !( dpar >= 2.0 ) ) {
+         npar = 2;
+      } else if( dpar < maxpar ) {
+         npar = (int) dpar;
+      } else {
+         npar = (int) maxpar;
+      }
 
 /* Find the actual sample size implied by this number of parallels. */
       lat_size = ( hilat - lolat )/npar;
@@ -2250,7 +2298,7 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
 /* Create a PointSet in which to store the grid. Make it bigger than
    necessary in order to leave room for extra samples caused by integer
    truncation. */
-      ipmax = 2*size;
+      ipmax = ( size <= INT_MAX/2 ) ? 2*size : INT_MAX;
       result = astPointSet( ipmax, 2, " ", status );
       ptr = astGetPoints( result );
       if( astOK ) {
@@ -2265,13 +2313,21 @@ static AstPointSet *FrameGrid( AstFrame *this_object, int size, const double *lb
             inclon = ( cl != 0.0 ) ? lon_size/cl : 0.0;
 
 /* Get the number of longitude samples for this parallel. Reduce it if
-   it would extend beyond the end of the PointSet. */
-            nmer = dlon/inclon;
-            if( ip + nmer >= ipmax ) nmer = ipmax - ip;
+   it would extend beyond the end of the PointSet. A parallel with no
+   length (one at a pole, or any parallel of a box with no width) has a
+   zero increment and gets no samples. */
+            dmer = ( inclon != 0.0 ) ? dlon/inclon : 0.0;
+            if( !( dmer >= 1.0 ) ) {
+               nmer = 0;
+            } else if( dmer < (double)( ipmax - ip ) ) {
+               nmer = (int) dmer;
+            } else {
+               nmer = ipmax - ip;
+            }
 
 /* Adjust the longitude increment to take up any slack caused by the
    above integer division. */
-            inclon = dlon/nmer;
+            if( nmer > 0 ) inclon = dlon/nmer;
 
 /* Produce the samples for the current parallel. */
             lon = lolon + 0.5*inclon;
@@ -2757,10 +2813,14 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "skyref" ) ) {
       cval = astFormat( this, 0, astGetSkyRef( this, 0 ) );
       if ( astOK ) {
-         nc = sprintf( getattrib_buff, "%s, ", cval );
+         nc = snprintf( getattrib_buff, sizeof( getattrib_buff ), "%s, ", cval );
+         if( nc >= (int) sizeof( getattrib_buff ) ) {
+            nc = (int) sizeof( getattrib_buff ) - 1;
+         }
          cval = astFormat( this, 1, astGetSkyRef( this, 1 ) );
          if ( astOK ) {
-            (void) sprintf( getattrib_buff + nc, "%s", cval );
+            (void) snprintf( getattrib_buff + nc, sizeof( getattrib_buff ) - nc,
+                             "%s", cval );
             result = getattrib_buff;
          }
       }
@@ -2781,10 +2841,14 @@ static const char *GetAttrib( AstObject *this_object, const char *attrib, int *s
    } else if ( !strcmp( attrib, "skyrefp" ) ) {
       cval = astFormat( this, 0, astGetSkyRefP( this, 0 ) );
       if ( astOK ) {
-         nc = sprintf( getattrib_buff, "%s, ", cval );
+         nc = snprintf( getattrib_buff, sizeof( getattrib_buff ), "%s, ", cval );
+         if( nc >= (int) sizeof( getattrib_buff ) ) {
+            nc = (int) sizeof( getattrib_buff ) - 1;
+         }
          cval = astFormat( this, 1, astGetSkyRefP( this, 1 ) );
          if ( astOK ) {
-            (void) sprintf( getattrib_buff + nc, "%s", cval );
+            (void) snprintf( getattrib_buff + nc, sizeof( getattrib_buff ) - nc,
+                             "%s", cval );
             result = getattrib_buff;
          }
       }
@@ -3153,6 +3217,12 @@ static double GetCachedLAST( AstSkyFrame *this, double epoch, double obslon,
 
 /* Ensure the returned value is within the range 0 - 2.PI. */
    if( result != AST__BAD ) {
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+      if( fabs( result ) > 1.0E6 ) result = fmod( result, 2*AST__DPI );
       while( result > 2*AST__DPI ) result -= 2*AST__DPI;
       while( result < 0.0 ) result += 2*AST__DPI;
    }
@@ -3686,7 +3756,8 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
 /* If the SkyRef attribute has a set value, append " offset" to the label. */
          if( astGetSkyRefIs( this ) != AST__IGNORED_REF &&
              ( astTestSkyRef( this, 0 ) || astTestSkyRef( this, 1 ) ) ) {
-            sprintf( getlabel_buff, "%s offset", result );
+            snprintf( getlabel_buff, sizeof( getlabel_buff ),
+                      "%s offset", result );
             result = getlabel_buff;
          }
       }
@@ -4276,7 +4347,7 @@ static const char *GetSymbol( AstFrame *this, int axis, int *status ) {
    Symbol. */
          if( astGetSkyRefIs( this ) != AST__IGNORED_REF &&
              ( astTestSkyRef( this, 0 ) || astTestSkyRef( this, 1 ) ) ) {
-            sprintf( getsymbol_buff, "D%s", result );
+            snprintf( getsymbol_buff, sizeof( getsymbol_buff ), "D%s", result );
             result = getsymbol_buff;
          }
       }
@@ -4733,10 +4804,18 @@ static const char *GetTitle( AstFrame *this_frame, int *status ) {
    coordinate system. */
             if( offset ){
                word = ( astGetSkyRefIs( this ) == AST__POLE_REF )?"pole":"origin";
-               lextra = sprintf( gettitle_buff2, "%s at %s ", word,
-                           astFormat( this, 0, astGetSkyRef( this, 0 ) ) );
-               lextra += sprintf( gettitle_buff2 + lextra, "%s",
-                           astFormat( this, 1, astGetSkyRef( this, 1 ) ) );
+               lextra = snprintf( gettitle_buff2, sizeof( gettitle_buff2 ),
+                                  "%s at %s ", word,
+                                  astFormat( this, 0, astGetSkyRef( this, 0 ) ) );
+               if( lextra >= (int) sizeof( gettitle_buff2 ) ) {
+                  lextra = (int) sizeof( gettitle_buff2 ) - 1;
+               }
+               lextra += snprintf( gettitle_buff2 + lextra,
+                                   sizeof( gettitle_buff2 ) - lextra, "%s",
+                                   astFormat( this, 1, astGetSkyRef( this, 1 ) ) );
+               if( lextra >= (int) sizeof( gettitle_buff2 ) ) {
+                  lextra = (int) sizeof( gettitle_buff2 ) - 1;
+               }
                extra = gettitle_buff2;
 
 /* Otherwise, get the sky projection description. */
@@ -7573,6 +7652,14 @@ static AstPointSet *NormalPoints( AstFrame *this_frame, AstPointSet *in, int con
          ptr_long =  ptr_out[  perm[ 0 ] ];
          for( point = 0; point < npoint; point++, ptr_long++ ){
             if ( *ptr_long != AST__BAD  ) {
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+               if( fabs( *ptr_long ) > 1.0E6 ) {
+                  *ptr_long = fmod( *ptr_long, 2*AST__DPI );
+               }
                while( *ptr_long < lo ) *ptr_long += 2*AST__DPI;
                while( *ptr_long > hi ) *ptr_long -= 2*AST__DPI;
             }
@@ -8789,8 +8876,13 @@ static AstPointSet *ResolvePoints( AstFrame *this_frame, const double point1[],
       }
    }
 
-/* Annul the returned PointSet if an error occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -12156,8 +12248,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
       set = TestSkyRef( this, axis, status );
       dval = set ? GetSkyRef( this, axis, status ) : astGetSkyRef( this, axis );
-      sprintf( buf, "Ref. pos. %s %s", astGetSymbol( this, axis ),
-               astFormat( this, axis, dval ) );
+      snprintf( buf, sizeof( buf ), "Ref. pos. %s %s",
+                astGetSymbol( this, axis ), astFormat( this, axis, dval ) );
       sprintf( key, "SRef%d", axis_p + 1 );
       astWriteDouble( channel, key, set, 0, dval, buf );
    }
@@ -12169,8 +12261,8 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
 
       set = TestSkyRefP( this, axis, status );
       dval = set ? GetSkyRefP( this, axis, status ) : astGetSkyRefP( this, axis );
-      sprintf( buf, "Ref. north %s %s", astGetSymbol( this, axis ),
-               astFormat( this, axis, dval ) );
+      snprintf( buf, sizeof( buf ), "Ref. north %s %s",
+                astGetSymbol( this, axis ), astFormat( this, axis, dval ) );
       sprintf( key, "SRefP%d", axis_p + 1 );
       astWriteDouble( channel, key, set, 0, dval, buf );
    }
@@ -12470,6 +12562,8 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
 */
 
 /* Local Variables: */
+   AstAxis *ax;                  /* Pointer to an Axis of the SkyFrame */
+   AstSkyAxis *skyax;            /* Pointer to a new SkyAxis */
    AstSkyFrame *new;             /* Pointer to the new SkyFrame */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    char *sval;                   /* Pointer to string value */
@@ -12511,6 +12605,23 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
 
    if ( astOK ) {
 
+/* A SkyFrame always has two axes, each described by a SkyAxis, and the
+   rest of this class relies on both. astLoadFrame supplies a simple Axis
+   for an axis that the dump does not describe, so replace any Axis that
+   is not a SkyAxis with a SkyAxis that has the same attribute values, as
+   the constructor replaces the axes of the Frame that it starts with. */
+      astCheckLoadedNaxes( new, name, 2 );
+      for( axis = 0; astOK && axis < 2; axis++ ) {
+         ax = astGetAxis( new, axis );
+         if( !astIsASkyAxis( ax ) ) {
+            skyax = astSkyAxis( "", status );
+            astAxisOverlay( ax, skyax );
+            astSetAxis( new, axis, skyax );
+            skyax = astAnnul( skyax );
+         }
+         ax = astAnnul( ax );
+      }
+
 /* Get a pointer to the SkyFrame's axis permutation array (using a method,
    to allow for any over-ride by a derived class). */
       perm = astGetPerm( new );
@@ -12521,8 +12632,15 @@ AstSkyFrame *astLoadSkyFrame_( void *mem, size_t size,
    correspond with a particular internal value (i.e. instance variable)
    relating to an axis. This step is needed so that the effect of any
    axis permutation can be un-done before values are written out, as
-   output values are written by this function in un-permuted order. */
-      for( axis = 0; axis < 2; axis++ ) invperm[ perm[ axis ] ] = axis;
+   output values are written by this function in un-permuted order. There
+   is no permutation array to use if an error has occurred. */
+      for( axis = 0; axis < 2; axis++ ) {
+         if( astOK ) {
+            invperm[ perm[ axis ] ] = axis;
+         } else {
+            invperm[ axis ] = axis;
+         }
+      }
 
 /* Read input data. */
 /* ================ */

@@ -743,6 +743,25 @@ f     - Title: The Plot title drawn using AST_GRID
 *     24-APR-2026 (TIMJ):
 *        Use round() instead of (int)(x+0.5) for logarithmic gap rounding
 *        to avoid platform-dependent results.
+*     11-NOV-2026 (TIMJ):
+*        astLoadPlot now rejects a dump whose base Frame has more axes than
+*        the fixed-length per-axis arrays in the Plot structure can hold.
+*        Otherwise the per-axis attributes read from such a dump were
+*        written beyond the ends of those arrays. It also rejects a
+*        negative number of tick mark values, and clipping information
+*        that does not match a Frame in the Plot.
+*     11-NOV-2026 (TIMJ):
+*        Trans no longer annuls an output PointSet supplied by its caller
+*        when an error occurs. The callers annul the PointSets they supply,
+*        so the PointSet was accessed after it had been freed.
+*     11-NOV-2026 (TIMJ):
+*        The copy constructor now gives the new Plot a copy of the graphics
+*        context KeyMap. The two Plots shared a single KeyMap without
+*        holding a reference each, so it was annulled twice once both had
+*        been deleted.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 
 *class--
 */
@@ -28502,8 +28521,13 @@ static AstPointSet *Trans( AstPlot *this, AstFrame *frm, AstMapping *mapping,
 
     }
 
-/* If an error has occurred, annul the result. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. The output PointSet is
+   annulled only if it was created by this function, since a PointSet
+   supplied by the caller remains the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -28592,8 +28616,13 @@ static AstPointSet *Transform( AstMapping *this, AstPointSet *in,
 /* Annul the mapping. */
    map = astAnnul( map );
 
-/* If an error has occurred, annul the result. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -29955,6 +29984,8 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
    out->clip_ubnd = NULL;
    out->gat = NULL;
    out->ngat = 0;
+   out->grfcontext = NULL;
+   out->grfcontextID = NULL;
 
    for( axis = 0; axis < 3; axis++ ) {
       out->majtickgx[ axis ] = NULL;
@@ -29978,6 +30009,16 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
 /* Copy the Grf function stack */
    out->grfstack = (AstGrfPtrs *) astStore( NULL, (void *) in->grfstack,
                                   sizeof(AstGrfPtrs)*(size_t)(in->grfnstack ));
+
+/* If the input Plot has a graphics context KeyMap, give the output Plot a
+   copy of it, together with a public identifier for the copy like the one
+   created by astGrfConID. Each Plot annuls its own KeyMap and identifier
+   when it is deleted. */
+   if( in->grfcontext ) {
+      out->grfcontext = astCopy( in->grfcontext );
+      out->grfcontextID = astMakeId( astClone( out->grfcontext ) );
+      astExempt( out->grfcontextID );
+   }
 
 /* Copy the information about drawn tick marks. */
    for( axis = 0; axis < 3; axis++ ) {
@@ -30011,6 +30052,12 @@ static void Copy( const AstObject *objin, AstObject *objout, int *status ) {
       out->clip_lbnd = (double *) astFree( out->clip_lbnd );
       out->clip_ubnd = (double *) astFree( out->clip_ubnd );
       out->grfstack = (AstGrfPtrs *) astFree( out->grfstack );
+      if( out->grfcontext ) {
+         out->grfcontext = astAnnul( out->grfcontext );
+         if( out->grfcontextID ) {
+            out->grfcontextID = astAnnulId( out->grfcontextID );
+         }
+      }
       SaveTick( out, -1, 0.0, 0.0, 0, status );
     }
 }
@@ -31286,6 +31333,7 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
 
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
+   AstFrame *fr;                 /* Pointer to the clipping Frame */
    AstPlot *new;                 /* Pointer to the new Plot */
    char buff[ KEY_LEN + 1 ];     /* Buffer for keyword string */
    char *text;                   /* Textual version of integer value */
@@ -31294,6 +31342,7 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
    int i;                        /* Loop count */
    int itick;                    /* Tick mark index */
    int nax;                      /* Number of base Frame axes */
+   int nclip;                    /* Number of axes in the clipping Frame */
    int ntick;                    /* Total number of ticks */
 
 /* Initialise. */
@@ -31332,6 +31381,19 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
 /* Get the number of graphics (base) frame axes - 2 for a Plot, 3 for a
    Plot3D. */
    nax = astGetNin( new );
+
+/* The per-axis arrays within the Plot structure have a fixed length, large
+   enough for the base Frame of a Plot3D. The loaded base Frame is not
+   otherwise constrained here, so a corrupt dump could specify one with more
+   axes, which would make the per-axis loops below write beyond the ends of
+   those arrays. Reject such a dump, and clamp the axis count used by those
+   loops so they remain within bounds while the object is discarded. */
+   if( astOK && nax > (int) ( sizeof( new->gap ) / sizeof( new->gap[ 0 ] ) ) ) {
+      astError( AST__NAXIN, "astLoadPlot(%s): The base Frame of the %s read "
+                "from the dump has too many axes (%d).", status, name, name,
+                nax );
+      nax = sizeof( new->gap ) / sizeof( new->gap[ 0 ] );
+   }
 
 /* Read input data. */
 /* ================ */
@@ -31703,6 +31765,32 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
 /* The index of the clipping Frame within the Plot. */
       new->clip_frame = astReadInt( channel, "clpfrm", AST__NOFRAME );
 
+/* When clipping is in use, astClip ensures that the clipping Frame is one
+   of the Frames in the Plot and that there is one pair of bounds for each
+   of its axes. Check that the values read from the dump honour this before
+   the number of bounds is used to size the bounds arrays. */
+      if( astOK && new->clip_axes > 0 ){
+         if( new->clip_frame < 1 || new->clip_frame > astGetNframe( new ) ){
+            astError( AST__LDERR, "astLoadPlot(%s): Invalid clipping Frame "
+                      "index (%d) read for a %s containing %d Frames.",
+                      status, name, new->clip_frame, name,
+                      astGetNframe( new ) );
+         } else {
+            fr = astGetFrame( new, new->clip_frame );
+            nclip = astGetNaxes( fr );
+            fr = astAnnul( fr );
+            if( astOK && nclip != new->clip_axes ){
+               astError( AST__LDERR, "astLoadPlot(%s): Clipping bounds were "
+                         "read for %d axes, but the clipping Frame has %d "
+                         "axes.", status, name, new->clip_axes, nclip );
+            }
+         }
+
+/* Without any bounds there is no clipping, and so no clipping Frame. */
+      } else {
+         new->clip_frame = AST__NOFRAME;
+      }
+
 /* If necessary, allocate memory to hold the bounds of the clipping volume. */
       if( new->clip_axes > 0 ){
          new->clip_lbnd = astMalloc( sizeof( double ) * (size_t) new->clip_axes );
@@ -31771,14 +31859,22 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
       new->gat = NULL;
       new->ngat = 0;
 
-/* Arrays holding user-specified major and minot tick mark values. */
+/* Arrays holding user-specified major and minor tick mark values. The
+   number of values is used to size each array, so a negative count is
+   rejected, and nothing is stored if an array could not be allocated. */
       for( axis = 0; axis < 3; axis++ ) {
          sprintf( buff, "nmjtk%d", axis + 1 );
          ntick = astReadInt( channel, buff, 0 );
+         if( astOK && ntick < 0 ) {
+            astError( AST__LDERR, "astLoadPlot(%s): Invalid number of major "
+                      "tick mark values (%d) read for axis %d.", status, name,
+                      ntick, axis + 1 );
+            ntick = 0;
+         }
          new->nmajtickval[ axis ] = ntick;
          new->majtickval[ axis ] = astMalloc( ntick*sizeof( double ) );
 
-         for( itick = 0; itick < ntick; itick++ ) {
+         for( itick = 0; astOK && itick < ntick; itick++ ) {
             sprintf( buff, "mjtk%d_%d", axis + 1, itick + 1 );
             new->majtickval[ axis ][ itick ] = astReadDouble( channel, buff,
                                                               AST__BAD );
@@ -31786,10 +31882,16 @@ AstPlot *astLoadPlot_( void *mem, size_t size,
 
          sprintf( buff, "nmntk%d", axis + 1 );
          ntick = astReadInt( channel, buff, 0 );
+         if( astOK && ntick < 0 ) {
+            astError( AST__LDERR, "astLoadPlot(%s): Invalid number of minor "
+                      "tick mark values (%d) read for axis %d.", status, name,
+                      ntick, axis + 1 );
+            ntick = 0;
+         }
          new->nmintickval[ axis ] = ntick;
          new->mintickval[ axis ] = astMalloc( ntick*sizeof( double ) );
 
-         for( itick = 0; itick < ntick; itick++ ) {
+         for( itick = 0; astOK && itick < ntick; itick++ ) {
             sprintf( buff, "mntk%d_%d", axis + 1, itick + 1 );
             new->mintickval[ axis ][ itick ] = astReadDouble( channel, buff,
                                                               AST__BAD );

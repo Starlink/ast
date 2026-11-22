@@ -103,6 +103,17 @@ f     The MathMap class does not define any new routines beyond those
 *        MathMap has been cloned, as SUN/210 says AST does for the attributes
 *        of any Mapping. Use the guarded astMAKE_SET1 and astMAKE_CLEAR1
 *        macros.
+*     18-NOV-2026 (TIMJ):
+*        - astEqual now compares every operation of each function. It used
+*        to treat the count of operations as the first of them and to leave
+*        out the last, so that MathMaps which differed only in their final
+*        operation were equal, and a function that was a single constant
+*        had a list of constants read for it that it does not have.
+*        - astLoadMathMap now reports an error if the dump holds fewer
+*        forward functions than outputs or fewer inverse functions than
+*        inputs, or if any function is missing. The functions are stored
+*        as they are read, so that the memory used no longer depends on
+*        the number of functions the dump claims to hold.
 *class--
 */
 
@@ -610,6 +621,7 @@ AstMathMap *astMathMapId_( int, int, int, const char *[], int, const char *[], c
 /* ======================================== */
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static size_t GetObjSize( AstObject *, int * );
+static char **LoadFunctions( AstChannel *, const char *, const char *, const char *, int, int *, int * );
 static const char *GetAttrib( AstObject *, const char *, int * );
 static double Gauss( Rcontext *, int * );
 static double LogGamma( double, int * );
@@ -1730,11 +1742,11 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
                ncode_that = that_code ? that_code[ ifun ][ 0 ] : 0;
                if( ncode != ncode_that ) result = 0;
 
-/* Compare the following opcodes. Some opcodes consume constants from the
-   list of constants associated with the MathMap. Compare the constants
-   for such opcodes. */
+/* Compare the opcodes, which are held in the "ncode" elements that follow
+   the count. Some opcodes consume constants from the list of constants
+   associated with the MathMap. Compare the constants for such opcodes. */
                icon = 0;
-               for( icode = 0; icode < ncode && result; icode++ ){
+               for( icode = 1; icode <= ncode && result; icode++ ){
                   code = this_code[ ifun ][ icode ];
                   if( that_code[ ifun ][ icode ] != code ) {
                      result = 0;
@@ -3775,6 +3787,121 @@ void astInitMathMapVtab_(  AstMathMapVtab *vtab, const char *name, int *status )
       class_init = 1;
       astSetVtabClassIdentifier( vtab, &(vtab->id) );
    }
+}
+
+static char **LoadFunctions( AstChannel *channel, const char *name,
+                             const char *prefix, const char *dir, int nfun,
+                             int *nread, int *status ) {
+/*
+*  Name:
+*     LoadFunctions
+
+*  Purpose:
+*     Read the transformation functions of a MathMap from a Channel.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "mathmap.h"
+*     char **LoadFunctions( AstChannel *channel, const char *name,
+*                           const char *prefix, const char *dir, int nfun,
+*                           int *nread, int *status )
+
+*  Class Membership:
+*     MathMap member function.
+
+*  Description:
+*     This function reads the forward or the inverse transformation
+*     functions of a MathMap from the values list of a Channel. The
+*     returned array is extended as each function is read, so the memory
+*     and time used depend on the number of functions the Channel holds
+*     and not on the number it claims to hold.
+
+*  Parameters:
+*     channel
+*        Pointer to the Channel. The class data for the MathMap should
+*        already have been read into its values list.
+*     name
+*        Pointer to a string holding the name of the class being loaded,
+*        for use in error messages.
+*     prefix
+*        Pointer to a string holding the start of the keyword for each
+*        function ("fwd" or "inv"), to which the one-based index of the
+*        function is appended.
+*     dir
+*        Pointer to a string describing the functions ("forward" or
+*        "inverse"), for use in error messages.
+*     nfun
+*        The number of functions to read.
+*     nread
+*        Pointer to an int in which to return the number of elements in
+*        the returned array. This is "nfun" unless an error occurs.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Pointer to a dynamically allocated array holding "*nread" pointers
+*     to dynamically allocated strings, one for each function. Both the
+*     array and the strings should be freed by the caller (using astFree)
+*     when no longer required.
+
+*  Notes:
+*     - An error is reported if any of the functions is missing.
+*     - If an error occurs the array returned holds the functions read
+*     before the error, and "*nread" is the number of them. A NULL pointer
+*     and a count of zero are returned if this function is invoked with
+*     the global error status set.
+*/
+
+/* Local Constants: */
+#define KEY_LEN 50               /* Maximum length of a keyword */
+
+/* Local Variables: */
+   char **result;                /* Pointer to the array of functions */
+   char *fun;                    /* Pointer to a function string */
+   char key[ KEY_LEN + 1 ];      /* Buffer for keyword strings */
+   int ifun;                     /* Loop counter for functions */
+
+/* Initialise. */
+   result = NULL;
+   *nread = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Create a keyword for each function and read the function's value as
+   a string. */
+   for ( ifun = 0; ifun < nfun && astOK; ifun++ ) {
+      (void) snprintf( key, sizeof( key ), "%s%d", prefix, ifun + 1 );
+      fun = astReadString( channel, key, NULL );
+
+/* Every function is written when a MathMap is dumped, so a missing one
+   means that the data are corrupt. */
+      if ( !fun ) {
+         if ( astOK ) {
+            astError( AST__LDERR, "astLoadMathMap(%s): The %s transformation "
+                      "function number %d of the %d expected was not found.",
+                      status, name, dir, ifun + 1, nfun );
+         }
+
+/* Otherwise extend the array and store the function in it. */
+      } else {
+         result = astGrow( result, ifun + 1, sizeof( *result ) );
+         if ( astOK ) {
+            result[ ifun ] = fun;
+            *nread = ifun + 1;
+         } else {
+            fun = astFree( fun );
+         }
+      }
+   }
+
+/* Return the array of functions. */
+   return result;
+
+/* Undefine macros local to this function. */
+#undef KEY_LEN
 }
 
 static double LogGamma( double x, int *status ) {
@@ -7297,16 +7424,13 @@ AstMathMap *astLoadMathMap_( void *mem, size_t size,
 *-
 */
 
-/* Local Constants: */
-   astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
-#define KEY_LEN 50               /* Maximum length of a keyword */
-
 /* Local Variables: */
+   astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstMathMap *new;              /* Pointer to the new MathMap */
-   char key[ KEY_LEN + 1 ];      /* Buffer for keyword strings */
-   int ifun;                     /* Loop counter for functions */
    int invert;                   /* Invert attribute value */
+   int nfwd;                     /* Number of forward functions to read */
    int nin;                      /* True number of input coordinates */
+   int ninv;                     /* Number of inverse functions to read */
    int nout;                     /* True number of output coordinates */
 
 /* Get a pointer to the thread specific global data structure. */
@@ -7367,31 +7491,37 @@ AstMathMap *astLoadMathMap_( void *mem, size_t size,
 /* ------------------------------------ */
 /* Read the numbers of forward and inverse transformation functions,
    supplying appropriate defaults. */
-      new->nfwd = astReadInt( channel, "nfwd", nout );
-      new->ninv = astReadInt( channel, "ninv", nin );
-      if ( astOK ) {
+      nfwd = astReadInt( channel, "nfwd", nout );
+      ninv = astReadInt( channel, "ninv", nin );
 
-/* Allocate memory for the MathMap's transformation function arrays. */
-         MALLOC_POINTER_ARRAY( new->fwdfun, char *, new->nfwd )
-         MALLOC_POINTER_ARRAY( new->invfun, char *, new->ninv )
-         if ( astOK ) {
+/* There must be a forward function for each output and an inverse
+   function for each input, as astInitMathMap requires. */
+      if ( astOK && nfwd < nout ) {
+         astError( AST__LDERR, "astLoadMathMap(%s): Too few forward "
+                   "transformation functions (%d) read for a %s - at least "
+                   "%d are needed.", status, name, nfwd, name, nout );
+
+      } else if ( astOK && ninv < nin ) {
+         astError( AST__LDERR, "astLoadMathMap(%s): Too few inverse "
+                   "transformation functions (%d) read for a %s - at least "
+                   "%d are needed.", status, name, ninv, name, nin );
+      }
+
+      if ( astOK ) {
 
 /* Forward transformation functions. */
 /* --------------------------------- */
-/* Create a keyword for each forward transformation function and read
-   the function's value as a string. */
-            for ( ifun = 0; ifun < new->nfwd; ifun++ ) {
-               (void) sprintf( key, "fwd%d", ifun + 1 );
-               new->fwdfun[ ifun ] = astReadString( channel, key, "" );
-            }
+/* Read the forward transformation functions, noting how many are now
+   held by the MathMap. */
+         new->fwdfun = LoadFunctions( channel, name, "fwd", "forward", nfwd,
+                                      &new->nfwd, status );
 
 /* Inverse transformation functions. */
 /* --------------------------------- */
 /* Repeat this process for the inverse transformation functions. */
-            for ( ifun = 0; ifun < new->ninv; ifun++ ) {
-               (void) sprintf( key, "inv%d", ifun + 1 );
-               new->invfun[ ifun ] = astReadString( channel, key, "" );
-            }
+         new->invfun = LoadFunctions( channel, name, "inv", "inverse", ninv,
+                                      &new->ninv, status );
+         if ( astOK ) {
 
 /* Forward-inverse simplification flag. */
 /* ------------------------------------ */
@@ -7429,17 +7559,14 @@ AstMathMap *astLoadMathMap_( void *mem, size_t size,
                             &new->fwdcon, &new->invcon,
                             &new->fwdstack, &new->invstack, status );
          }
+      }
 
 /* If an error occurred, clean up by deleting the new MathMap. */
-         if ( !astOK ) new = astDelete( new );
-      }
+      if ( !astOK ) new = astDelete( new );
    }
 
 /* Return the new MathMap pointer. */
    return new;
-
-/* Undefine macros local to this function. */
-#undef KEY_LEN
 }
 
 

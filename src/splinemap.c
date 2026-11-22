@@ -20,7 +20,10 @@ f     AST_SPLINEMAP
 *     same knot positions, but have coefficients that are specified separately.
 *     No extrapolation is performed - input positions that are outside the
 *     area covered by the supplied knots cannot be transformed (but see
-*     attribute OutUnit).
+*     attribute OutUnit). On each axis, a spline of order K with N
+*     coefficients covers the range from knot K to knot N+1 (counting from
+*     one). This is the full range of the knots if the first K knots are
+*     coincident and the last K knots are coincident, as is usual.
 *
 *     An iterative method is used to evaluate the inverse transformation based
 *     on the forward transformation (see attributes InvTol and InvNiter). This
@@ -117,6 +120,31 @@ f     - AST_SPLINECOEFFS: Retrieve the coefficients of a SplineMap
 *        The rate of change of an inverted SplineMap is that of its inverse
 *        transformation, found numerically by the parent Rate, where it was
 *        the derivative of the forward spline.
+*     11-NOV-2026 (TIMJ):
+*        astLoadSplineMap now applies the same validation of the spline
+*        orders, coefficient counts and knot ordering that the constructor
+*        applies, so that a dump cannot create a SplineMap the constructor
+*        would have rejected. It also requires two inputs and two outputs.
+*        Both the constructor and the loader now reject coefficient counts
+*        so large that the size of the coefficient arrays overflows.
+*     11-NOV-2026 (TIMJ):
+*        Db2val now evaluates the spline only within the basic interval of
+*        each knot sequence (knot k-1 to knot n, zero-based). Elsewhere it
+*        read coefficients from outside the coefficient array when the first
+*        or last k knots in the Y direction were not coincident.
+*     11-NOV-2026 (TIMJ):
+*        The search for the last knot interval of non-zero width, used for
+*        a position on an upper limit, now follows the CMLIB original in
+*        Db2val and Dbvalu: it fails only if every interval has zero width.
+*        Db2val gave bad values along the upper Y limit of a spline with a
+*        single knot interval in Y, and Dbvalu gave NaN for knots that were
+*        all equal.
+*     13-NOV-2026 (TIMJ):
+*        Db2val and Dbvalu: treat a NaN as outside the interval over which
+*        the spline is defined. The tests for that were written so that a
+*        NaN passed them, and it then selected coefficients beyond the end
+*        of the array. The iterative inverse can produce a NaN when the
+*        coefficients are very large.
 *class--
 */
 
@@ -230,6 +258,8 @@ static int GetSplineNx( AstSplineMap *, int * );
 static int GetSplineNy( AstSplineMap *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static size_t GetObjSize( AstObject *, int * );
+static void CheckKnots( const char *, const char *, int, const double *, int * );
+static void CheckSizes( const char *, int, int, int, int, int * );
 static void Copy( const AstObject *, AstObject *, int * );
 static void Delete( AstObject *, int * );
 static void Dintrv( const double *, int, double, int *, int *, int * );
@@ -341,6 +371,135 @@ static void ClearAttrib( AstObject *this_object, const char *attrib, int *status
    }
 }
 
+static void CheckKnots( const char *method, const char *dir, int nknot,
+                        const double *t, int *status ) {
+/*
+*  Name:
+*     CheckKnots
+
+*  Purpose:
+*     Check that a sequence of knots is monotonic increasing.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "splinemap.h"
+*     void CheckKnots( const char *method, const char *dir, int nknot,
+*                      const double *t, int *status )
+
+*  Class Membership:
+*     SplineMap member function
+
+*  Description:
+*     This function reports an error if any knot in the supplied sequence
+*     is smaller than the preceding knot. It is used both when a SplineMap
+*     is constructed and when one is loaded, so that the two apply the same
+*     rules.
+
+*  Parameters:
+*     method
+*        The name of the calling function, for use in error messages.
+*     dir
+*        The direction to which the knots refer ("X" or "Y"), for use in
+*        error messages.
+*     nknot
+*        The number of knots.
+*     t
+*        Pointer to the sequence of knots.
+*     status
+*        Pointer to global error status.
+*/
+
+/* Local Variables: */
+   int i;
+
+/* Check inherited status */
+   if( !astOK ) return;
+
+   for( i = 1; i < nknot; i++ ){
+      if( t[ i-1 ] > t[ i ] ){
+         astError( AST__ATTIN, "%s: The supplied knots in the %s "
+                   "direction are not monotonic increasing.", status, method,
+                   dir );
+         break;
+      }
+   }
+}
+
+static void CheckSizes( const char *method, int kx, int ky, int nx, int ny,
+                        int *status ) {
+/*
+*  Name:
+*     CheckSizes
+
+*  Purpose:
+*     Check the orders and coefficient counts of a SplineMap.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "splinemap.h"
+*     void CheckSizes( const char *method, int kx, int ky, int nx, int ny,
+*                      int *status )
+
+*  Class Membership:
+*     SplineMap member function
+
+*  Description:
+*     This function reports an error if the supplied spline orders and
+*     coefficient counts cannot be used by a SplineMap. It is used both
+*     when a SplineMap is constructed and when one is loaded, so that the
+*     two apply the same rules.
+*
+*     The values are used to size and index the knot and coefficient
+*     arrays, using "int" arithmetic. So as well as checking each value,
+*     this function checks that the number of knots in each direction
+*     (nx+kx and ny+ky) and the number of coefficients (nx*ny) can be
+*     represented by an "int".
+
+*  Parameters:
+*     method
+*        The name of the calling function, for use in error messages.
+*     kx
+*        Order of polynomial pieces in x.
+*     ky
+*        Order of polynomial pieces in y.
+*     nx
+*        The number of B-spline coefficients in x.
+*     ny
+*        The number of B-spline coefficients in y.
+*     status
+*        Pointer to global error status.
+*/
+
+/* Check inherited status */
+   if( !astOK ) return;
+
+   if( kx < 1 || kx > MAX_K ){
+      astError( AST__ATTIN, "%s: The supplied spline order in "
+                "the X direction (%d) is invalid - it must be in the range [1,%d].",
+                status, method, kx, MAX_K );
+   } else if( ky < 1 || ky > MAX_K ){
+      astError( AST__ATTIN, "%s: The supplied spline order in "
+                "the Y direction (%d) is invalid - it must be in the range [1,%d].",
+                status, method, ky, MAX_K );
+   } else if( nx < kx ){
+      astError( AST__ATTIN, "%s: The supplied number of coefficients "
+                "in the X direction (%d) is too small - it must be larger "
+                "than or equal to %d.", status, method, nx, kx );
+   } else if( ny < ky ){
+      astError( AST__ATTIN, "%s: The supplied number of coefficients "
+                "in the Y direction (%d) is too small - it must be larger "
+                "than or equal to %d.", status, method, ny, ky );
+   } else if( nx > INT_MAX - kx || ny > INT_MAX - ky || nx > INT_MAX/ny ){
+      astError( AST__ATTIN, "%s: The supplied numbers of coefficients "
+                "in the X and Y directions (%d and %d) are too large.",
+                status, method, nx, ny );
+   }
+}
+
 static double Db2val( double def, double xval, double yval, int idx, int idy,
                       const double *tx, const double *ty, int nx, int ny,
                       int kx, int ky, const double *bcoef, double *work,
@@ -373,7 +532,8 @@ static double Db2val( double def, double xval, double yval, int idx, int idy,
 *  Parameters:
 *     def
 *        The value to return if the supplied (xval,yval) position is outside
-*        the bounding box of the supplied knots.
+*        the region in which the spline is defined. This region extends
+*        from tx[kx-1] to tx[nx] in x and from ty[ky-1] to ty[ny] in y.
 *     xval
 *        X coordinate of evaluation point.
 *     yval
@@ -428,43 +588,50 @@ static double Db2val( double def, double xval, double yval, int idx, int idy,
 /* Check inherited status */
    if( !astOK ) return AST__BAD;
 
-   if( xval < tx[0] || xval > tx[nx + kx - 1] ||
-       yval < ty[0] || yval > ty[ny + ky - 1] ) return def;
+/* The B-representation defines the spline only within the basic interval
+   of each knot sequence, which runs from knot k-1 to knot n. This is the
+   whole extent of the knots when the first k and the last k knots are
+   coincident (as they are for knots chosen by the CMLIB routine db2ink),
+   but is smaller otherwise. A position outside it has no spline value, and
+   would select columns of coefficients that do not exist. The test is
+   written so that a NaN, which is inside no interval, fails it too. */
+   if( !( xval >= tx[ kx - 1 ] && xval <= tx[ nx ] &&
+          yval >= ty[ ky - 1 ] && yval <= ty[ ny ] ) ) return def;
 
    iloy = 0;
    inbvx = 0;
 
-   Dintrv( ty, ny + ky, yval, &iloy, &lefty, &mflag );
+/* Find "lefty" such that ty[lefty] <= yval < ty[lefty+1]. As in Dbvalu,
+   only the knots up to the end of the basic interval are searched, so that
+   a position on the upper limit of that interval is flagged by "mflag"
+   whatever the multiplicity of the final knots. */
+   Dintrv( ty, ny + 1, yval, &iloy, &lefty, &mflag );
 
-/* Following code commented out by DSB in order to ensure good
-   output values for input positions on the upper Y limit
-   if( mflag != 0 ) return AST__BAD; */
-
-
-
-/* ------------------------------------------------------------
-   Following code added by DSB to ensure good output values for
-   input positions on the upper Y limit. */
+/* The CMLIB routine db2val gives no value for a position on the upper
+   limit of the basic interval (a non-zero "mflag"). Instead, step back to
+   the last knot interval of non-zero width, as the CMLIB routine dbvalu
+   does for its own knots, so that the value returned is the limit
+   approached from below. As in dbvalu, no value can be obtained if the
+   first interval is reached and it too has zero width. */
    if( mflag != 0 ) {
       if( yval > ty[ lefty ] ) return AST__BAD;
 
-      while( lefty != ky - 1 ) {
+      do {
+         if( lefty == ky - 1 ) return AST__BAD;
          lefty--;
-         if( yval != ty[ lefty ] ) break;
-      }
-
-      if( lefty == ky - 1 ) return AST__BAD;
+      } while( yval == ty[ lefty ] );
    }
-/* ------------------------------------------------------------*/
 
-
-
+/* Evaluate the spline in x for each of the columns of coefficients that
+   contribute at "yval". Dbvalu gives no value if none of the knot
+   intervals in x has a non-zero width. */
    iw = ky;
    kcol = lefty - ky;
    for (k = 0; k < ky; k++) {
       kcol++;
       work[ k ] = Dbvalu( tx, bcoef + nx*kcol, nx, kx, idx, xval,
                           inbvx, work + iw, status );
+      if( work[ k ] == AST__BAD ) return AST__BAD;
    }
 
    inbv = 0;
@@ -575,7 +742,7 @@ static double Dbvalu( const double *t, const double *a, int n, int k, int ideriv
    flag its points as singular, yielding AST__BAD outputs. */
    if( ideriv >= k ) return 0.0;
 
-   if( x < t[ k - 1 ] ) return AST__BAD;
+   if( !( x >= t[ k - 1 ] ) ) return AST__BAD;
    kmider = k - ideriv;
 
 /* Find i in (k-1,n-1) such that
@@ -586,14 +753,13 @@ static double Dbvalu( const double *t, const double *a, int n, int k, int ideriv
    if( mflag != 0 ) {
       if( x > t[ i ] ) return AST__BAD;
 
-      while( i != k - 1 ) {
+/* Step back to the last knot interval of non-zero width. A left limiting
+   value cannot be obtained if the first interval is reached and it too
+   has zero width. */
+      do {
+         if( i == k - 1 ) return AST__BAD;
          i--;
-         if( x != t[ i ] ) break;
-      }
-
-/* Following line commented out by DSB in order to generate good output values
-   for input positions on the upper Y limit.
-      if( i == k - 1 ) return AST__BAD; */
+      } while( x == t[ i ] );
    }
 
 /* Difference the coefficients ideriv times.
@@ -3427,45 +3593,15 @@ AstSplineMap *astInitSplineMap_( void *mem, size_t size, int init,
 
 /* Local Variables: */
    AstSplineMap *new;
-   int i;
 
 /* Check the global status. */
    if ( !astOK ) return NULL;
 
 /* Validate the supplied values. */
-   if( kx < 1 || kx > MAX_K ){
-      astError( AST__ATTIN, "astSplineMap: The supplied spline order in "
-                "the X direction (%d) is invalid - it must be in the range [1,%d].",
-                status, kx, MAX_K );
-   } else if( ky < 1 || ky > MAX_K ){
-      astError( AST__ATTIN, "astSplineMap: The supplied spline order in "
-                "the Y direction (%d) is invalid - it must be in the range [1,%d].",
-                status, ky, MAX_K );
-   } else if( nx < kx ){
-      astError( AST__ATTIN, "astSplineMap: The supplied number of coefficients "
-                "in the X direction (%d) is too small - it must be larger "
-                "than or equal to %d.", status, nx, kx );
-   } else if( ny < ky ){
-      astError( AST__ATTIN, "astSplineMap: The supplied number of coefficients "
-                "in the Y direction (%d) is too small - it must be larger "
-                "than or equal to %d.", status, ny, ky );
-   } else {
-      for( i = 1; i < nx+kx; i++ ){
-         if( tx[ i-1 ] > tx[ i ] ){
-            astError( AST__ATTIN, "astSplineMap: The supplied knots in the X "
-                      "direction are not monotonic increasing.", status );
-            break;
-         }
-      }
-      if( astOK ) {
-         for( i = 1; i < ny+ky; i++ ){
-            if( ty[ i-1 ] > ty[ i ] ){
-               astError( AST__ATTIN, "astSplineMap: The supplied knots in the Y "
-                         "direction are not monotonic increasing.", status );
-               break;
-            }
-         }
-      }
+   CheckSizes( "astSplineMap", kx, ky, nx, ny, status );
+   if( astOK ) {
+      CheckKnots( "astSplineMap", "X", nx + kx, tx, status );
+      CheckKnots( "astSplineMap", "Y", ny + ky, ty, status );
    }
 
 /* If necessary, initialise the virtual function table. */
@@ -3635,11 +3771,39 @@ AstSplineMap *astLoadSplineMap_( void *mem, size_t size,
       new->ky = astReadInt( channel, "ky", 0 );
       new->nx = astReadInt( channel, "nx", 0 );
       new->ny = astReadInt( channel, "ny", 0 );
-      new->tx = astMalloc( (new->nx+new->kx)*sizeof(double) );
-      new->ty = astMalloc( (new->ny+new->ky)*sizeof(double) );
-      nc = new->nx*new->ny;
-      new->cu = astMalloc( nc*sizeof(double) );
-      new->cv = astMalloc( nc*sizeof(double) );
+
+/* A SplineMap always has two inputs and two outputs, and the
+   transformation relies on this. The numbers read from the dump by the
+   parent Mapping loader are not otherwise constrained, so check them
+   here. */
+      if( astOK && ( astGetNin( new ) != 2 || astGetNout( new ) != 2 ) ) {
+         astError( AST__LDERR, "astLoadSplineMap(%s): Invalid number of "
+                   "inputs (%d) or outputs (%d) read for a %s - both must "
+                   "be 2.", status, name, astGetNin( new ),
+                   astGetNout( new ), name );
+      }
+
+/* Check the spline orders and coefficient counts read from the dump, using
+   the checks applied by the constructor. The transformation uses these to
+   size and index the knot and coefficient arrays, so invalid values would
+   cause out-of-bounds access. */
+      CheckSizes( "astLoadSplineMap", new->kx, new->ky, new->nx, new->ny,
+                  status );
+
+/* Allocate the knot and coefficient arrays, but only if the sizes are
+   known to be usable. */
+      new->tx = NULL;
+      new->ty = NULL;
+      new->cu = NULL;
+      new->cv = NULL;
+      nc = 0;
+      if( astOK ) {
+         nc = new->nx*new->ny;
+         new->tx = astMalloc( (new->nx+new->kx)*sizeof(double) );
+         new->ty = astMalloc( (new->ny+new->ky)*sizeof(double) );
+         new->cu = astMalloc( nc*sizeof(double) );
+         new->cv = astMalloc( nc*sizeof(double) );
+      }
       if( astOK ) {
          for( i = 0; i < new->nx+new->kx; i++ ){
             (void) sprintf( buff, "tx%d", i + 1 );
@@ -3649,6 +3813,16 @@ AstSplineMap *astLoadSplineMap_( void *mem, size_t size,
             (void) sprintf( buff, "ty%d", i + 1 );
             (new->ty)[ i ] = astReadDouble( channel, buff, AST__BAD );
          }
+
+/* Check that the knots read from the dump are monotonic increasing, as the
+   constructor requires. The transformation locates the knot interval
+   containing each input value assuming this ordering, and would otherwise
+   index the coefficient arrays out of bounds. */
+         CheckKnots( "astLoadSplineMap", "X", new->nx + new->kx, new->tx,
+                     status );
+         CheckKnots( "astLoadSplineMap", "Y", new->ny + new->ky, new->ty,
+                     status );
+
          for( i = 0; i < nc; i++ ){
             (void) sprintf( buff, "cu%d", i + 1 );
             (new->cu)[ i ] = astReadDouble( channel, buff, AST__BAD );

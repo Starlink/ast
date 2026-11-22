@@ -169,6 +169,19 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 *        origin from the result frame if the target's zero point has no
 *        value in the result system (e.g. zero wavelength), rather than
 *        shifting by the negated AST__BAD value.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadSpecFrame, check that the dump supplied one axis.
+*     13-NOV-2026 (TIMJ):
+*        GetLabel: do not write beyond the end of the buffer when the
+*        formatted SpecOrigin value is long.
+*     16-NOV-2026 (TIMJ):
+*        GetLabel and GetSymbol: do not write beyond the end of the buffer
+*        when the Label or Symbol made by astUnitMapper is long. The Symbol
+*        buffer now holds 200 characters, since a Symbol such as that of a
+*        wave number axis with a Unit of "nm" has more than 20.
+*     16-NOV-2026 (TIMJ):
+*        Dump: use snprintf to format the name and comment of the item that
+*        holds the preferred units for a System.
 *class--
 */
 
@@ -203,7 +216,7 @@ f     - AST_GETREFPOS: Get reference position in any celestial system
 /* Define other numerical constants for use in this module. */
 #define GETATTRIB_BUFF_LEN 50
 #define GETLABEL_BUFF_LEN 200
-#define GETSYMBOL_BUFF_LEN 20
+#define GETSYMBOL_BUFF_LEN 200
 #define GETTITLE_BUFF_LEN 200
 
 /* Header files. */
@@ -313,7 +326,7 @@ static char getattrib_buff[ 51 ];
 static char getlabel_buff[ 201 ];
 
 /* Default GetSymbol buffer */
-static char getsymbol_buff[ 21 ];
+static char getsymbol_buff[ 201 ];
 
 /* Default Title string buffer */
 static char gettitle_buff[ 201 ];
@@ -1601,8 +1614,9 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
 /* If a non-zero SpecOrigin has been specified, include the offset now. */
          orig = GetSpecOriginCur( (AstSpecFrame *) this, status );
          if( orig != 0.0 ) {
-            sprintf( getlabel_buff + strlen( getlabel_buff ), " offset from %s",
-                     astFormat( this, 0, orig ) );
+            snprintf( getlabel_buff + strlen( getlabel_buff ),
+                      sizeof( getlabel_buff ) - strlen( getlabel_buff ),
+                      " offset from %s", astFormat( this, 0, orig ) );
          }
 
 /* Modify this default to take account of the current value of the Unit
@@ -1619,7 +1633,8 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
                                  astGetUnit( this, axis ), result,
                                  &new_lab );
             if( new_lab ) {
-               result = strcpy( getlabel_buff, new_lab );
+               snprintf( getlabel_buff, sizeof( getlabel_buff ), "%s", new_lab );
+               result = getlabel_buff;
                new_lab = astFree( new_lab );
             }
 
@@ -1886,7 +1901,8 @@ static const char *GetSymbol( AstFrame *this, int axis, int *status ) {
                                  astGetUnit( this, axis ), result,
                                  &new_sym );
             if( new_sym ) {
-               result = strcpy( getsymbol_buff, new_sym );
+               snprintf( getsymbol_buff, sizeof( getsymbol_buff ), "%s", new_sym );
+               result = getsymbol_buff;
                new_sym = astFree( new_sym );
             }
 
@@ -6696,9 +6712,11 @@ static void Dump( AstObject *this_object, AstChannel *channel, int *status ) {
    if( this->usedunits ) {
       for( i = 0; i < this->nuunits; i++ ) {
          if( this->usedunits[ i ] ) {
-            sprintf( buff, "U%s", astSystemString( this, (AstSystemType) i ));
+            snprintf( buff, sizeof( buff ),
+                      "U%s", astSystemString( this, (AstSystemType) i ));
             for( j = 2; j < strlen( buff ); j++ ) buff[ j ] = tolower( buff[ j ] );
-            sprintf( comm, "Preferred units for %s", SystemLabel( (AstSystemType) i, status ) );
+            snprintf( comm, sizeof( comm ),
+                      "Preferred units for %s", SystemLabel( (AstSystemType) i, status ) );
             astWriteString( channel, buff, 1, 0, this->usedunits[ i ], comm );
          }
       }
@@ -7046,6 +7064,9 @@ AstSpecFrame *astLoadSpecFrame_( void *mem, size_t size,
    new = astLoadFrame( mem, size, (AstFrameVtab *) vtab, name,
                        channel );
    if ( astOK ) {
+
+/* A SpecFrame always has one axis, which the rest of this class relies on. */
+      astCheckLoadedNaxes( new, name, 1 );
 
 /* Read input data. */
 /* ================ */

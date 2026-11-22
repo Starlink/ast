@@ -69,6 +69,12 @@ f     The SpecFluxFrame class does not define any new routines beyond those
 *        Previously the conversion always carried a RateMap that
 *        astSimplify could not reduce to a UnitMap, so two identical
 *        SpecFluxFrames compared unequal under astEqual.
+*     13-NOV-2026 (TIMJ):
+*        In astLoadSpecFluxFrame, check that the components read from a
+*        dump are a SpecFrame and a FluxFrame.
+*     13-NOV-2026 (TIMJ):
+*        GetTitle: do not write beyond the end of the buffer when the
+*        Labels of the two component Frames are long.
 *class--
 */
 
@@ -405,8 +411,8 @@ static const char *GetTitle( AstFrame *this_frame, int *status ) {
       sf = GetSpecFrame( this, 0, status );
 
       if( astOK ) {
-         sprintf( gettitle_buff, "%s versus %s", astGetLabel( ff, 0 ),
-                  astGetLabel( sf, 0 ) );
+         snprintf( gettitle_buff, sizeof( gettitle_buff ), "%s versus %s",
+                   astGetLabel( ff, 0 ), astGetLabel( sf, 0 ) );
          gettitle_buff[ 0 ] = toupper( gettitle_buff[ 0 ] );
          result = gettitle_buff;
       }
@@ -2186,6 +2192,13 @@ AstSpecFluxFrame *astLoadSpecFluxFrame_( void *mem, size_t size,
 /* Request the input Channel to read all the input data appropriate to
    this class into the internal "values list". */
       astReadClassData( channel, "SpecFluxFrame" );
+
+/* The components of a SpecFluxFrame are always a SpecFrame and a
+   FluxFrame, in that order, which the rest of this class relies on. */
+      astCheckLoaded( ((AstCmpFrame *) new)->frame1, SpecFrame, 1, name,
+                      "first component Frame" );
+      astCheckLoaded( ((AstCmpFrame *) new)->frame2, FluxFrame, 1, name,
+                      "second component Frame" );
 
 /* Now read each individual data item from this list and use it to
    initialise the appropriate instance variable(s) for this class. */

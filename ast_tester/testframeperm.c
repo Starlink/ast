@@ -28,7 +28,7 @@
 *  Notes:
 *     - This is a native C test with no Fortran original.
 *     - Public C API only.  Errors expected from a deliberately invalid
-*       dump are caught through astOK and cleared with astClearStatus so the
+*       dump are caught through astStatus and cleared with astClearStatus so the
 *       remaining cases can run; failures of the test itself are counted and
 *       reported at the end.
 */
@@ -39,17 +39,24 @@
 #include "ast.h"
 #include "ast_err.h"
 
-/* Attempt to load a dump that should be rejected.  Returns 0 if it was
-   rejected cleanly (NULL object, error status raised), 1 otherwise.  Any
-   raised status is cleared before returning so the caller can continue. */
-static int check_rejected( const char *what, const char *dump ) {
+/* Attempt to load a dump that should be rejected with the error code
+   "expected".  Returns 0 if no object was returned and that error was
+   reported, 1 otherwise.  Any raised status is cleared before returning so
+   the caller can continue. */
+static int check_rejected( const char *what, const char *dump, int expected ) {
    AstObject *obj = astFromString( dump );
-   int bad_status = !astOK;
-   if ( obj ) obj = astAnnul( obj );
+   int code = astStatus;
+   int loaded = ( obj != NULL );
    if ( !astOK ) astClearStatus;
-   if ( obj != NULL || !bad_status ) {
+   if ( obj ) obj = astAnnul( obj );
+   if ( loaded ) {
       fprintf( stderr, "testframeperm: %s was accepted but should have "
                "been rejected\n", what );
+      return 1;
+   }
+   if ( code != expected ) {
+      fprintf( stderr, "testframeperm: %s was rejected with status %d but "
+               "status %d was expected\n", what, code, expected );
       return 1;
    }
    return 0;
@@ -82,13 +89,17 @@ int main( void ) {
 
 /* Invalid permutations must be rejected rather than reaching Dump. */
    nfail += check_rejected( "out-of-range Prm",
-      " Begin Frame\n Naxes = 2\n Prm1 = 6\n Prm2 = 1\n End Frame\n" );
+      " Begin Frame\n Naxes = 2\n Prm1 = 6\n Prm2 = 1\n End Frame\n",
+      AST__PRMIN );
    nfail += check_rejected( "large-offset Prm",
-      " Begin Frame\n Naxes = 2\n Prm1 = 100000\n Prm2 = 1\n End Frame\n" );
+      " Begin Frame\n Naxes = 2\n Prm1 = 100000\n Prm2 = 1\n End Frame\n",
+      AST__PRMIN );
    nfail += check_rejected( "zero (below-range) Prm",
-      " Begin Frame\n Naxes = 2\n Prm1 = 0\n Prm2 = 2\n End Frame\n" );
+      " Begin Frame\n Naxes = 2\n Prm1 = 0\n Prm2 = 2\n End Frame\n",
+      AST__PRMIN );
    nfail += check_rejected( "repeated Prm",
-      " Begin Frame\n Naxes = 2\n Prm1 = 1\n Prm2 = 1\n End Frame\n" );
+      " Begin Frame\n Naxes = 2\n Prm1 = 1\n Prm2 = 1\n End Frame\n",
+      AST__PRMIN );
 
 /* A valid, non-identity permutation must load and round-trip unchanged. */
    {
@@ -175,7 +186,8 @@ int main( void ) {
             char *axp = strstr( bad, "Axp1 = " );
             if ( axp ) {
                axp[ strlen( "Axp1 = " ) ] = '9';
-               nfail += check_rejected( "out-of-range CmpFrame Axp", bad );
+               nfail += check_rejected( "out-of-range CmpFrame Axp", bad,
+                                        AST__PRMIN );
             } else {
                fprintf( stderr, "testframeperm: could not find Axp1 in the "
                         "CmpFrame dump\n" );

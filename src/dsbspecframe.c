@@ -121,6 +121,9 @@ f     The DSBSpecFrame class does not define any new routines beyond those
 *     29-APR-2011 (DSB):
 *        Prevent astFindFrame from matching a subclass template against a
 *        superclass target.
+*     16-NOV-2026 (TIMJ):
+*        GetLabel: do not write beyond the end of the buffer when the
+*        Label of the parent SpecFrame is long.
 *class--
 
 *  Implementation Deficiencies:
@@ -750,7 +753,8 @@ static const char *GetLabel( AstFrame *this, int axis, int *status ) {
    if ( !astTestLabel( this, axis ) ) {
 
 /* If OK, supply a pointer to a suitable default label string. */
-      sprintf( getlabel_buff, "%s (%s)", result, astGetAttrib( this, "sideband" ) );
+      snprintf( getlabel_buff, sizeof( getlabel_buff ), "%s (%s)", result,
+                astGetAttrib( this, "sideband" ) );
       result = getlabel_buff;
    }
 

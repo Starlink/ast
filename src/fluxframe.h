@@ -80,7 +80,7 @@
 /* Define constants used to size global arrays in this module. */
 #define AST__FLUXFRAME_GETATTRIB_BUFF_LEN 50
 #define AST__FLUXFRAME_GETLABEL_BUFF_LEN 200
-#define AST__FLUXFRAME_GETSYMBOL_BUFF_LEN 20
+#define AST__FLUXFRAME_GETSYMBOL_BUFF_LEN 200
 #define AST__FLUXFRAME_GETTITLE_BUFF_LEN 200
 
 #endif

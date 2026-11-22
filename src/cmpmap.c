@@ -176,6 +176,35 @@ f     The CmpMap class does not define any new routines beyond those
 *        resulting components so their Invert values can be set without
 *        modifying shared Mappings. Reached by any CmpMap for which
 *        astDoNotSimplify is true, such as one carrying an Ident.
+*     11-NOV-2026 (TIMJ):
+*        astLoadCmpMap now checks that both component Mappings were read
+*        from the dump and are Mappings, and that the numbers of inputs and
+*        outputs of the CmpMap are those implied by its components. The
+*        transformation passed the wrong number of coordinates to the
+*        components otherwise.
+*     13-NOV-2026 (TIMJ):
+*        MapSplit2: go straight to the one subset of the outputs of a
+*        MatrixMap or WcsMap that can give the required inputs, rather
+*        than trying every arrangement of every subset. The result is the
+*        same, but for a Mapping that couples two of nine axes the search
+*        took a million calls to find that there was no such subset, which
+*        made writing a FrameSet with that many axes to a FitsChan very
+*        slow.
+*     14-NOV-2026 (TIMJ):
+*        MapMerge, when swapping a PermMap with a following parallel
+*        CmpMap:
+*        - Do not swap them if every PermMap output is constant. The new
+*        PermMap was built from arrays that were too small, or were only
+*        partly filled, and its inverse transformation was wrong.
+*        - Do not swap them if the inverse of the PermMap copies an output
+*        to an input that the forward transformation does not use. This
+*        was reported as an internal programming error.
+*        - Do not read the permutation arrays unless the PermMap has as
+*        many outputs as the CmpMap has inputs.
+*        - Find the numbers of inputs and outputs of the components of
+*        the CmpMap with the Invert values the CmpMap uses them with,
+*        and allow for the CmpMap itself being used in its inverse
+*        direction.
 *class--
 */
 
@@ -198,6 +227,8 @@ f     The CmpMap class does not define any new routines beyond those
 #include "mapping.h"             /* Coordinate Mappings (parent class) */
 #include "channel.h"             /* I/O channels */
 #include "permmap.h"             /* Coordinate permutation Mappings */
+#include "matrixmap.h"           /* Linear transformations */
+#include "wcsmap.h"              /* FITS-WCS projections */
 #include "unitmap.h"             /* Unit transformations */
 #include "cmpmap.h"              /* Interface definition for this class */
 #include "frameset.h"            /* Interface definition for FrameSets */
@@ -2060,6 +2091,21 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          npout = astGetNout( permmap1 );
          npin = astGetNin( permmap1 );
 
+/* Temporarily set the Invert attributes of the component Mappings to the
+   values with which the CmpMap uses them. These are the values they had
+   when the CmpMap was created, or the opposite if the CmpMap is to be used
+   in its inverse direction (the inverse of two Mappings in parallel is
+   their inverses in parallel). */
+         invert2a = astGetInvert( cmpmap2->map1 );
+         invert2b = astGetInvert( cmpmap2->map2 );
+         if( ( *invert_list )[ imap2 ] ) {
+            astSetInvert( cmpmap2->map1, !cmpmap2->invert1 );
+            astSetInvert( cmpmap2->map2, !cmpmap2->invert2 );
+         } else {
+            astSetInvert( cmpmap2->map1, cmpmap2->invert1 );
+            astSetInvert( cmpmap2->map2, cmpmap2->invert2 );
+         }
+
 /* Get the number of inputs and outputs for the two components of the
    nominated parallel CmpMap. */
          nin2a = astGetNin( cmpmap2->map1 );
@@ -2082,37 +2128,46 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
    inputs or must be assigned constant values. Also, there must be a
    one-to-one correspondance between inputs and outputs in the PermMap.
    Check that the first block of nin2a PermMap outputs are copied from
-   the last block of nin2a PermMap inputs (and vica-versa) or are constant. */
-         canswap = ( npin == npout );
-         aconstants = ( outperm[ 0 ] < 0 );
+   the last block of nin2a PermMap inputs (and vica-versa) or are constant.
+   If they are constant, the PermMap inputs that would otherwise feed them
+   are not used by the forward transformation, and the inverse
+   transformation must then give each of those inputs a constant or bad
+   value, rather than copying it from a PermMap output. */
+         canswap = ( npin == npout && npout == nin2a + nin2b );
+         aconstants = canswap && ( outperm[ 0 ] < 0 );
 
-         for( i = 0, j = npin - nin2a; i < nin2a; i++, j++ ) {
+         for( i = 0, j = npin - nin2a; i < nin2a && canswap; i++, j++ ) {
             if( aconstants ) {
-               if( outperm[ i ] >= 0 ) {
+               if( outperm[ i ] >= 0 ||
+                   ( inperm[ j ] >= 0 && inperm[ j ] < npout ) ) {
                   canswap = 0;
-                  break;
                }
 
             } else if( outperm[ i ] != j || inperm[ j ] != i ) {
                canswap = 0;
-               break;
             }
          }
 
 /* Check that the first block of nin2b PermMap inputs are copied from
-   the last block of nin2b PermMap outputs, and vica-versa. */
-         bconstants = ( outperm[ nin2a ] < 0 );
-         for( i = 0, j = npout - nin2b; i < nin2b; i++, j++ ) {
+   the last block of nin2b PermMap outputs, and vica-versa, or that those
+   outputs are constant (subject to the same condition as above). */
+         bconstants = canswap && ( outperm[ nin2a ] < 0 );
+         for( i = 0, j = npout - nin2b; i < nin2b && canswap; i++, j++ ) {
             if( bconstants ) {
-               if( outperm[ j ] >= 0 ) {
+               if( outperm[ j ] >= 0 ||
+                   ( inperm[ i ] >= 0 && inperm[ i ] < npout ) ) {
                   canswap = 0;
-                  break;
                }
             } else if( inperm[ i ] != j || outperm[ j ] != i ) {
                canswap = 0;
-               break;
             }
          }
+
+/* If every PermMap output is constant, both components of the CmpMap
+   would be replaced, which the code below does not provide for (it
+   replaces at most one of them with a UnitMap). Leave such Mappings as
+   they are. */
+         if( aconstants && bconstants ) canswap = 0;
 
 /* If the Mappings can be swapped.. */
          new_pm = NULL;
@@ -2120,13 +2175,6 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
          qa = NULL;
          qb = NULL;
          if( canswap ) {
-
-/* Temporarily set the Invert attributes of the component Mappings to the
-   values they had when the CmpMap was created. */
-            invert2a = astGetInvert( cmpmap2->map1 );
-            invert2b = astGetInvert( cmpmap2->map2 );
-            astSetInvert( cmpmap2->map1, cmpmap2->invert1 );
-            astSetInvert( cmpmap2->map2, cmpmap2->invert2 );
 
 /* If any PermMap outputs are constant, we will need the results of
    transforming these constants using the CmpMap which follows. */
@@ -2279,12 +2327,11 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
                qa = astFree( qa );
                qb = astFree( qb );
             }
+         }
 
 /* Re-instate the original Invert attributes in the component Mappings. */
-            astSetInvert( cmpmap2->map1, invert2a );
-            astSetInvert( cmpmap2->map2, invert2b );
-
-         }
+         astSetInvert( cmpmap2->map1, invert2a );
+         astSetInvert( cmpmap2->map2, invert2b );
 
 /* Release the arrays holding the input and output permutation arrays
    and constants copied from the PermMap. */
@@ -2477,8 +2524,12 @@ static int *MapSplit2( AstMapping *this, int nin, const int *in, AstMapping **ma
    int *out;          /* Selected output indices */
    int *result;       /* Axis order to return */
    int *result2;      /* Axis order for current output subset */
+   int *sel;          /* The outputs to select from a MatrixMap */
+   int first;         /* The smallest subset size to try */
+   int fixed;         /* Is only one subset of outputs to be tried? */
    int i;             /* Loop count */
    int iscmp;         /* Is "this" a CmpMap? */
+   int last;          /* The largest subset size to try */
    int j;             /* Loop count */
    int mout;          /* Number of selected outputs */
    int nin2;          /* Number of inputs fed by current outputs */
@@ -2507,13 +2558,63 @@ static int *MapSplit2( AstMapping *this, int nin, const int *in, AstMapping **ma
 /* Allocate memory to hold the selected output indices. */
    out = astMalloc( nout*sizeof( int ) );
 
+/* Every subset of every useful size is tried, unless the Mapping is of a
+   class for which the only subset that can work is known. */
+   fixed = 0;
+   first = 1;
+   last = nout - 1;
+
+/* The search below asks astMapSplit about every arrangement of every
+   subset of the outputs in turn, which takes a time that grows faster than
+   the factorial of the number of outputs. For a MatrixMap none of that is
+   needed. The astMapSplit method of a MatrixMap returns its outputs in
+   ascending order, so the search can only succeed if the required inputs
+   are in ascending order. And astMtrSplitInputs finds the one subset of
+   the smallest size for which it returns exactly the required inputs, if
+   there is one. The search reaches the subsets of each size with the
+   first index varying fastest, so the first arrangement of that subset
+   that it reaches is the one in descending order. Trying that
+   arrangement alone therefore gives the same result as the search. */
+   if( out && astIsAMatrixMap( this2 ) ) {
+      fixed = 1;
+      first = nout;
+      ok = 1;
+      for( i = 1; i < nin; i++ ) {
+         if( in[ i ] <= in[ i - 1 ] ) ok = 0;
+      }
+      sel = ok ? astMtrSplitInputs( this2, nin, in, &mout ) : NULL;
+      if( sel && mout > 0 && mout < nout ) {
+         for( i = 0; i < mout; i++ ) out[ i ] = sel[ mout - 1 - i ];
+         first = mout;
+         last = mout;
+      }
+      sel = astFree( sel );
+
+/* Nor is the search needed for a WcsMap. The astMapSplit method of a WcsMap
+   returns the inputs that it was given, in the order given, less the
+   longitude or latitude axis if only one of the two was given. So it can
+   only return exactly the required inputs if it is given exactly those
+   inputs in that order, and no smaller subset can do so. Try that subset
+   alone, which again gives the same result as the search. */
+   } else if( out && astIsAWcsMap( this2 ) ) {
+      fixed = 1;
+      first = nout;
+      if( nin > 0 && nin < nout ) {
+         for( i = 0; i < nin; i++ ) out[ i ] = in[ i ];
+         first = nin;
+         last = nin;
+      }
+   }
+
 /* Loop round all useful subset sizes. */
    if( out ) {
-      for( mout = 1; mout < nout && !result; mout++ ) {
+      for( mout = first; mout <= last && !result; mout++ ) {
 
 /* Initialise the first subset of outputs to check at the current subset
    size. */
-         for( i = 0; i < mout; i++ ) out[ i ] = 0;
+         if( !fixed ) {
+            for( i = 0; i < mout; i++ ) out[ i ] = 0;
+         }
 
 /* Loop round all ways of picking a subset of "mout" outputs from the total
    available "nout" outputs. */
@@ -2567,6 +2668,9 @@ static int *MapSplit2( AstMapping *this, int nin, const int *in, AstMapping **ma
                   map2 = astAnnul( map2 );
                }
             }
+
+/* Only the one subset is tried if it was found above. */
+            if( fixed ) break;
 
 /* Increment the first axis index. */
             i = 0;
@@ -4957,6 +5061,10 @@ AstCmpMap *astLoadCmpMap_( void *mem, size_t size,
 /* Local Variables: */
    astDECLARE_GLOBALS            /* Pointer to thread-specific global data */
    AstCmpMap *new;               /* Pointer to the new CmpMap */
+   int nin1;                     /* No. of inputs of first component */
+   int nin2;                     /* No. of inputs of second component */
+   int nout1;                    /* No. of outputs of first component */
+   int nout2;                    /* No. of outputs of second component */
 
 /* Initialise. */
    new = NULL;
@@ -5027,6 +5135,31 @@ AstCmpMap *astLoadCmpMap_( void *mem, size_t size,
 /* Second Mapping. */
 /* --------------- */
       new->map2 = astReadObject( channel, "mapb", NULL );
+
+/* The component Mappings are used without further checks, so each must
+   have been read from the dump and must be a Mapping. Get the numbers of
+   inputs and outputs that each has when inverted as required. */
+      astCheckLoadedMap( new->map1, new->invert1, name,
+                         "first component Mapping", &nin1, &nout1 );
+      astCheckLoadedMap( new->map2, new->invert2, name,
+                         "second component Mapping", &nin2, &nout2 );
+
+/* The numbers of inputs and outputs of the CmpMap must be those implied by
+   its components, as they are when a CmpMap is constructed, since the
+   transformation passes coordinates to the components on that basis. For
+   components applied in series, the outputs of the first must also match
+   the inputs of the second. */
+      if ( new->series ) {
+         if ( astOK && nout1 != nin2 ) {
+            astError( AST__LDERR, "astLoad(%s): The number of outputs (%d) "
+                      "of the first component Mapping read for a %s does "
+                      "not match the number of inputs (%d) of the second.",
+                      status, name, nout1, name, nin2 );
+         }
+         astCheckLoadedCoords( new, name, nin1, nout2 );
+      } else {
+         astCheckLoadedCoords( new, name, nin1 + nin2, nout1 + nout2 );
+      }
 
 /* If an error occurred, clean up by deleting the new CmpMap. */
       if ( !astOK ) new = astDelete( new );

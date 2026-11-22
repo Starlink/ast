@@ -217,6 +217,25 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        astGetMocText: report a buffer length of zero as too small,
 *        rather than search for a space or comma from the byte before
 *        the start of a null buffer, which crashed.
+*     11-NOV-2026 (TIMJ):
+*        astLoadMoc: require a valid MaxOrder when a dump contains any
+*        ranges, and only form "max_nest" when MaxOrder is valid. An unset
+*        or out-of-range MaxOrder (which SetMaxOrder does not catch when the
+*        value is absent) made the shift used to form "max_nest" undefined,
+*        which in turn defeated the check that keeps the nested indices in
+*        range. Also reject a negative number of ranges and a negative
+*        lower bound, and extend the array of ranges as each range is read
+*        so that its size does not depend on an unchecked count.
+*     12-NOV-2026 (TIMJ):
+*        astAddMocText: hold a range in a string MOC as a range rather than
+*        as each of its values, of which there can be very many.
+*     13-NOV-2026 (TIMJ):
+*        Where a longitude is brought into range by removing one turn at
+*        a time, remove whole turns with fmod first if it is far out of
+*        range. The loops never ended for a very large value.
+*     13-NOV-2026 (TIMJ):
+*        Transform: if an error occurs, do not annul an output PointSet that
+*        was supplied by the caller, who goes on to use it.
 *class--
 */
 
@@ -381,9 +400,12 @@ typedef struct SourceData {
    size_t mxsize;
 } SourceData;
 
+/* The cells read from a text MOC at one order. Each element is a range
+   of NPIX values, held as a pair of values in "values": the first and
+   the last NPIX value in the range. */
 typedef struct List {
-   int64_t nval;
-   size_t *values;
+   int64_t nval;            /* Number of ranges */
+   size_t *values;          /* Two values for each range */
 } List;
 
 typedef struct EndPoint {
@@ -1238,7 +1260,6 @@ void astAddMocText_( AstMoc *this, int maxorder,
    int64_t ihigh;
    int64_t ilow;
    int64_t ipix;
-   int64_t nadd;
    int64_t npix0;
    int64_t npix;
    int64_t nval;
@@ -1455,10 +1476,11 @@ void astAddMocText_( AstMoc *this, int maxorder,
                   if( state != 6 ) {
                      nval = orders[ order ].nval;
                      if( nval == 0 && order > mxord ) mxord = order;
-                     nbyte = ( nval + 1 )*sizeof( size_t );
+                     nbyte = ( 2*nval + 2 )*sizeof( size_t );
                      values = astGrow( orders[ order ].values, 1, nbyte );
                      if( astOK ) {
-                        values[ nval ] = npix;
+                        values[ 2*nval ] = npix;
+                        values[ 2*nval + 1 ] = npix;
                         orders[ order ].values = values;
                         orders[ order ].nval = nval + 1;
                      }
@@ -1563,10 +1585,8 @@ void astAddMocText_( AstMoc *this, int maxorder,
 
                      if( !isrange ) {
                         npix0 = npix;
-                        nadd = 1;
                      } else if( npix >= npix0 ){
                         isrange = 0;
-                        nadd = npix - npix0 + 1;
                      } else {
                         astError( AST__INMOC, "%s(%s): Invalid string MOC supplied: '%.30s...'",
                                   status, method, astGetClass( this ), text );
@@ -1575,16 +1595,17 @@ void astAddMocText_( AstMoc *this, int maxorder,
                         break;
                      }
 
+/* Record the range, which is a single value if no range was given. A
+   range is not expanded into its values, of which there can be very
+   many. */
                      nval = orders[ order ].nval;
-                     nbyte = ( nval + nadd )*sizeof( size_t );
+                     nbyte = ( 2*nval + 2 )*sizeof( size_t );
                      values = astGrow( orders[ order ].values, 1, nbyte );
                      if( astOK ) {
-                        for( ; npix0 <= npix; npix0++ ) {
-                           values[ nval++ ] = npix0;
-                        }
-
+                        values[ 2*nval ] = npix0;
+                        values[ 2*nval + 1 ] = npix;
                         orders[ order ].values = values;
-                        orders[ order ].nval = nval;
+                        orders[ order ].nval = nval + 1;
                      }
 
                      state = 1;
@@ -1675,37 +1696,34 @@ void astAddMocText_( AstMoc *this, int maxorder,
             } else {
                if( !isrange ) {
                   npix0 = npix;
-                  nadd = 1;
                } else {
                   isrange = 0;
-                  nadd = npix - npix0 + 1;
                }
 
                nval = orders[ order ].nval;
-               nbyte = ( nval + nadd )*sizeof( size_t );
+               nbyte = ( 2*nval + 2 )*sizeof( size_t );
                values = astGrow( orders[ order ].values, 1, nbyte );
                if( astOK ) {
-                  for( ; npix0 <= npix; npix0++ ) {
-                     values[ nval++ ] = npix0;
-                  }
-
+                  values[ 2*nval ] = npix0;
+                  values[ 2*nval + 1 ] = npix;
                   orders[ order ].values = values;
-                  orders[ order ].nval = nval;
+                  orders[ order ].nval = nval + 1;
                }
             }
          }
 
 /* Check every NPIX value is a cell at its order, of which there are
-   12*4^order, before the Moc is changed. */
+   12*4^order, before the Moc is changed. A range does not end before it
+   starts, so only its last value needs to be checked. */
          for( order = 0; order <= AST__MXORDHPX && astOK; order++ ) {
             for( ipix = 0; ipix < orders[ order ].nval; ipix++ ) {
-               if( orders[ order ].values[ ipix ] >=
+               if( orders[ order ].values[ 2*ipix + 1 ] >=
                    (size_t) ( 12*( ONE << ( 2*order ) ) ) ) {
                   astError( AST__INMOC, "%s(%s): Invalid NPIX value (%zu) "
                             "for order %d in the supplied MOC - there are "
                             "%" PRId64 " cells at that order.", status,
                             method, astGetClass( this ),
-                            orders[ order ].values[ ipix ], order,
+                            orders[ order ].values[ 2*ipix + 1 ], order,
                             12*( ONE << ( 2*order ) ) );
                   break;
                }
@@ -1733,23 +1751,24 @@ void astAddMocText_( AstMoc *this, int maxorder,
             astSetMaxOrder( this, maxorder );
          }
 
-/* For each order and NPIX value found during the parsing of the text
-   (except for any that have an order greater than 'maxorder', which are
-   ignored), get the upper and lower bounds of the cells at maxorder
-   contained within this cell, and append this as a new range to the Moc. */
+/* For each order and range of NPIX values found during the parsing of
+   the text (except for any that have an order greater than 'maxorder',
+   which are ignored), get the upper and lower bounds of the cells at
+   maxorder contained within the range, and append this as a new range to
+   the Moc. */
          for( order = 0; order <= astMAX( maxorder, mxord ); order++ ) {
             nval = orders[ order ].nval;
             values = orders[ order ].values;
             shift = 2*( maxorder - order );
 
-            for( ipix = 0; ipix < nval; ipix++,values++ ){
+            for( ipix = 0; ipix < nval; ipix++,values += 2 ){
 
                if( shift > 0 ) {
-                  ilow = ( *values << shift );
-                  ihigh = ( (*values + 1 ) << shift ) - 1;
+                  ilow = ( values[ 0 ] << shift );
+                  ihigh = ( ( values[ 1 ] + 1 ) << shift ) - 1;
                } else {
-                  ilow = ( *values >> -shift );
-                  ihigh = ( *values >> -shift );
+                  ilow = ( values[ 0 ] >> -shift );
+                  ihigh = ( values[ 1 ] >> -shift );
                }
 
 /* Count the new range only once there is room for it, and add none if
@@ -3512,6 +3531,8 @@ static int Comp_corner( const void *a, const void *b ){
 
 /* If required, shift the RA values from [0,2.PI[ to [-PI,+PI[. */
    if( Comp_Corner_Loop != 0 ) {
+      if( fabs( ra1 ) > 1.0E6 ) ra1 = fmod( ra1, 2*AST__DPI );
+      if( fabs( ra2 ) > 1.0E6 ) ra2 = fmod( ra2, 2*AST__DPI );
       while( ra1 < -AST__DPI ) ra1 += 2*AST__DPI;
       while( ra2 < -AST__DPI ) ra2 += 2*AST__DPI;
       while( ra1 >= AST__DPI ) ra1 -= 2*AST__DPI;
@@ -6260,6 +6281,12 @@ static void MakeCorners( AstMoc *this, int order, Cell *cell_foot,
                break;
             }
 
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+            if( fabs( *p0 ) > 1.0E6 ) *p0 = fmod( *p0, 2*AST__DPI );
             while( *p0 >= 2*AST__DPI ) *p0 -= 2*AST__DPI;
             while( *p0 < 0 ) *p0 += 2*AST__DPI;
 
@@ -7450,12 +7477,19 @@ static void RegBaseBox( AstRegion *this_region, double *lbnd,
            if( *pdec > maxdec ) maxdec = *pdec;
 
            ra12 = *pra;
+
+/* Remove whole turns first if the value is far out of range. The loops
+   below remove one turn at a time, so they would take a time in proportion
+   to the value, and would never end for a value that is too large to be
+   changed by one turn. */
+           if( fabs( ra12 ) > 1.0E6 ) ra12 = fmod( ra12, 2*AST__DPI );
            while( ra12 < 0.0 ) ra12 += 2*AST__DPI;
            while( ra12 > 2*AST__DPI ) ra12 -= 2*AST__DPI;
            if( ra12 < minra12 ) minra12 = ra12;
            if( ra12 > maxra12 ) maxra12 = ra12;
 
            ra0 = *pra;
+           if( fabs( ra0 ) > 1.0E6 ) ra0 = fmod( ra0, 2*AST__DPI );
            while( ra0 < -AST__DPI ) ra0 += 2*AST__DPI;
            while( ra0 > AST__DPI ) ra0 -= 2*AST__DPI;
            if( ra0 < minra0 ) minra0 = ra0;
@@ -8605,6 +8639,7 @@ static int RegPins( AstRegion *this_region, AstPointSet *pset, AstRegion *unc,
             if( *pdec_mesh2 > dec_high ) break;
 
             dra = *pra_mesh2 - ra_pin;
+            if( fabs( dra ) > 1.0E6 ) dra = fmod( dra, 2*AST__DPI );
             while( dra >= AST__DPI ) dra -= 2*AST__DPI;
             while( dra < -AST__DPI ) dra += 2*AST__DPI;
             dra += ra_pin;
@@ -9795,8 +9830,13 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
    }
    pset_tmp = astAnnul( pset_tmp );
 
-/* Annul the result if an error has occurred. */
-   if( !astOK ) result = astAnnul( result );
+/* If an error has occurred, return a NULL pointer. Annul the output
+   PointSet only if it was created by this function, since one supplied
+   by the caller is the caller's to annul. */
+   if( !astOK ) {
+      if( !out ) result = astAnnul( result );
+      result = NULL;
+   }
 
 /* Return a pointer to the output PointSet. */
    return result;
@@ -10940,56 +10980,92 @@ AstMoc *astLoadMoc_( void *mem, size_t size, AstMocVtab *vtab,
       new->minorder = astReadInt( channel, "minorder", -INT_MAX );
       if ( TestMinOrder( new, status ) ) SetMinOrder( new, new->minorder, status );
 
-/* Get the maximum number of nested indices at the order in use. */
-      max_nest = 12*( ONE << (2*new->maxorder) );
-
-/* Initialise other class properties. */
+/* Get the number of ranges of nested indices stored in the dump. It cannot
+   be negative. */
       new->nrange = astReadInt( channel, "nrange", 0 );
-      new->range = astCalloc( 2*new->nrange, sizeof(*(new->range)) );
-      if( astOK ) {
-         llast = 0;
-         ulast = 0;
+      if( astOK && new->nrange < 0 ) {
+         astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.", status );
+         astError( AST__LDERR, "Invalid number of ranges (%d).", status,
+                   new->nrange );
+      }
 
-         pr = new->range;
-         for( irange = 0; irange < new->nrange; irange++,pr += 2 ) {
-            (void) sprintf( buff, "i%d", irange );
-            un.a[0] = astReadInt( channel, buff, 0 );
-            (void) sprintf( buff, "j%d", irange );
-            un.a[1] = astReadInt( channel, buff, 0 );
-            pr[ 0 ] = un.b;
+/* A Moc that contains any ranges must have a valid MaxOrder. It is used
+   below both to bound the nested indices read from the dump and to form the
+   shift used to calculate "max_nest"; an unset or out-of-range value (the
+   SetMaxOrder call above only rejects an explicitly supplied out-of-range
+   value) would make that shift undefined. Reject such a dump. */
+      if( astOK && new->nrange > 0 &&
+          ( new->maxorder < 0 || new->maxorder > AST__MXORDHPX ) ) {
+         astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.", status );
+         astError( AST__LDERR, "Missing or invalid MaxOrder (%d) for a Moc "
+                   "containing %d range(s).", status, new->maxorder,
+                   new->nrange );
+      }
 
-            (void) sprintf( buff, "k%d", irange );
-            un.a[0] = astReadInt( channel, buff, 0 );
-            (void) sprintf( buff, "l%d", irange );
-            un.a[1] = astReadInt( channel, buff, 0 );
-            pr[ 1 ] = ( un.b > 0 ) ? un.b : pr[ 0 ];
+/* Get the maximum number of nested indices at the order in use. This is
+   only well-defined when MaxOrder is valid, which is guaranteed above
+   whenever any ranges are present. */
+      max_nest = ( new->maxorder >= 0 && new->maxorder <= AST__MXORDHPX ) ?
+                 12*( ONE << ( 2*new->maxorder ) ) : 0;
 
-            if( pr[ 1 ] >= max_nest ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Upper bound (%" PRId64 ") is too high for "
-                         "order %d.", status, pr[ 1 ], new->maxorder );
-               break;
+/* Read the ranges. The array holding them is extended as each range is
+   read, rather than being allocated from the stated number of ranges, so
+   that the memory used depends on the ranges actually present in the dump.
+   A range that is missing from the dump reads as [0:0], which is rejected
+   below as overlapping its predecessor. */
+      new->range = NULL;
+      llast = 0;
+      ulast = 0;
+      for( irange = 0; astOK && irange < new->nrange; irange++ ) {
+         new->range = astGrow( new->range, irange + 1,
+                               2*sizeof(*(new->range)) );
+         if( !astOK ) break;
+         pr = new->range + 2*irange;
 
-            } else if( pr[ 0 ] > pr[ 1 ] ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Upper bound (%" PRId64 ") lower than lower "
-                         "bound (%" PRId64 ").", status, pr[ 1 ], pr[ 0 ] );
-               break;
+         (void) sprintf( buff, "i%d", irange );
+         un.a[0] = astReadInt( channel, buff, 0 );
+         (void) sprintf( buff, "j%d", irange );
+         un.a[1] = astReadInt( channel, buff, 0 );
+         pr[ 0 ] = un.b;
 
-            } else if( pr[ 0 ] <= ulast && irange != 0 ) {
-               astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
-                         status );
-               astError( AST__LDERR, "Range [%" PRId64 ":%" PRId64 "] overlaps range "
-                         "[%" PRId64 ":%" PRId64 "].", status, pr[ 0 ], pr[ 1 ], llast,
-                         ulast );
-               break;
-            }
+         (void) sprintf( buff, "k%d", irange );
+         un.a[0] = astReadInt( channel, buff, 0 );
+         (void) sprintf( buff, "l%d", irange );
+         un.a[1] = astReadInt( channel, buff, 0 );
+         pr[ 1 ] = ( un.b > 0 ) ? un.b : pr[ 0 ];
 
-            llast = pr[ 0 ];
-            ulast = pr[ 1 ];
+         if( pr[ 0 ] < 0 ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Lower bound (%" PRId64 ") is negative.",
+                      status, pr[ 0 ] );
+            break;
+
+         } else if( pr[ 1 ] >= max_nest ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Upper bound (%" PRId64 ") is too high for "
+                      "order %d.", status, pr[ 1 ], new->maxorder );
+            break;
+
+         } else if( pr[ 0 ] > pr[ 1 ] ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Upper bound (%" PRId64 ") lower than lower "
+                      "bound (%" PRId64 ").", status, pr[ 1 ], pr[ 0 ] );
+            break;
+
+         } else if( pr[ 0 ] <= ulast && irange != 0 ) {
+            astError( AST__LDERR, "astLoadMoc(Moc): Ill-formed Moc.",
+                      status );
+            astError( AST__LDERR, "Range [%" PRId64 ":%" PRId64 "] overlaps range "
+                      "[%" PRId64 ":%" PRId64 "].", status, pr[ 0 ], pr[ 1 ], llast,
+                      ulast );
+            break;
          }
+
+         llast = pr[ 0 ];
+         ulast = pr[ 1 ];
       }
 
 /* Initialise other values */

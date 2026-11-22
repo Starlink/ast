@@ -209,7 +209,7 @@ typedef struct AstSpecFrameGlobals {
    int Class_Init;
    char GetAttrib_Buff[ 51 ];
    char GetLabel_Buff[ 201 ];
-   char GetSymbol_Buff[ 21 ];
+   char GetSymbol_Buff[ 201 ];
    char GetTitle_Buff[ 201 ];
 } AstSpecFrameGlobals;
 

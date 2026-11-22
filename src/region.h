@@ -307,6 +307,7 @@ void astRegOverlay_( AstRegion *, AstRegion *, int, int * );
 int astGetBounded_( AstRegion *, int * );
 int astTestUnc_( AstRegion *, int * );
 int astRegDummyFS_( AstRegion *, int * );
+void astCheckLoadedPoints_( AstRegion *, const char *, int, int, int, int * );
 int astRegPins_( AstRegion *, AstPointSet *, AstRegion *, int **, int * );
 AstMapping *astRegMapping_( AstRegion *, int * );
 AstPointSet *astRegMesh_( AstRegion *, int * );
@@ -518,6 +519,7 @@ astINVOKE(V,astGetRegionPoints_(astCheckRegion(this),maxpoint,maxcoord,npoint,po
 #define astRegMesh(this) astINVOKE(O,astRegMesh_(astCheckRegion(this),STATUS_PTR))
 #define astRegOverlay(this,that,unc) astINVOKE(V,astRegOverlay_(astCheckRegion(this),astCheckRegion(that),unc,STATUS_PTR))
 #define astRegDummyFS(this) astINVOKE(V,astRegDummyFS_(astCheckRegion(this),STATUS_PTR))
+#define astCheckLoadedPoints(this,name,minpt,maxpt,naxes) astCheckLoadedPoints_((AstRegion *)(this),name,minpt,maxpt,naxes,STATUS_PTR)
 #define astRegMapping(this) astINVOKE(O,astRegMapping_(astCheckRegion(this),STATUS_PTR))
 #define astRegPins(this,pset,unc,mask) astINVOKE(V,astRegPins_(astCheckRegion(this),astCheckPointSet(pset),unc?astCheckRegion(unc):unc,mask,STATUS_PTR))
 #define astRegTranPoint(this,in,np,forward) astRegTranPoint_(this,in,np,forward,STATUS_PTR)

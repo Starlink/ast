@@ -60,6 +60,10 @@ f     The ShiftMap class does not define any new routines beyond those
 *        Added protected method astGetShifts
 *      20-AUG-2020 (DSB):
 *        Avoid possible segfault in MapMerge.
+*     11-NOV-2026 (TIMJ):
+*        astLoadShiftMap now checks that the numbers of inputs and outputs read
+*        from a dump are equal. The transformation read or wrote beyond the
+*        coordinate arrays otherwise.
 *class--
 */
 
@@ -1700,6 +1704,11 @@ AstShiftMap *astLoadShiftMap_( void *mem, size_t size,
          (new->shift)[ axis ] = astReadDouble( channel, buff, 0.0 );
       }
    }
+
+/* A ShiftMap has the same number of outputs as inputs, and the transformation
+   relies on this. The numbers read from the dump by the parent Mapping
+   loader are not otherwise constrained, so check them. */
+   astCheckLoadedCoords( new, name, astGetNin( new ), astGetNin( new ) );
 
 /* If an error occurred, clean up by deleting the new ShiftMap. */
    if ( !astOK ) new = astDelete( new );
