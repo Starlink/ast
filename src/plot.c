@@ -762,6 +762,10 @@ f     - Title: The Plot title drawn using AST_GRID
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     26-NOV-2026 (TIMJ):
+*        TickMarks: keep the number of minor tick values supplied through
+*        astSetTickValues even when the MinTick attribute is set, since
+*        DrawTicks reads that many values from the supplied array.
 
 *class--
 */
@@ -27649,8 +27653,11 @@ static TickInfo *TickMarks( AstPlot *this, int axis, double *cen, double *gap,
       *gap = used_gap;
 
 /* If the caller has specified the number of minor tick marks to use,
-   use the specified value rather than the value found above. */
-      if( astTestMinTick( this, axis ) ){
+   use the specified value rather than the value found above. When the
+   minor tick values themselves were supplied (astSetTickValues), "nminor"
+   is the number of values in "minticks" and must not be changed, or
+   DrawTicks would read past the end of that array. */
+      if( !minticks && astTestMinTick( this, axis ) ){
          nminor = astGetMinTick( this, axis );
       }
 
