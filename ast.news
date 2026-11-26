@@ -72,11 +72,14 @@ Main Changes in this Version
 Bug fixes
 ---------
 
-- A Plot read past the end of the array of minor tick values supplied
-  through astSetTickValues when the MinTick attribute was also set for that
-  axis, since the attribute replaced the count of supplied values. A Plot3D
-  with Gap and MinTick set on every axis triggered this, as it hands each
-  plane's tick values to the other planes' Plots in this way.
+- A Plot drawing tick marks at values supplied through astSetTickValues
+  could read past the end of the supplied arrays: the MinTick attribute,
+  when set for that axis, replaced the count of supplied minor tick values
+  (reading too many when it was larger and drawing too few when smaller),
+  and interior labelling read one value too many from both arrays. Only a
+  Plot3D supplies tick values this way, as it hands each plane's tick values
+  to the other planes' Plots; Gap and MinTick on every axis, or
+  Labelling=interior, triggered the reads.
 
 - The astEQUAL comparison used internally by AST could overflow for values
   near the top of the double precision range, causing any value to compare

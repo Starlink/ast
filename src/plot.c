@@ -766,6 +766,8 @@ f     - Title: The Plot title drawn using AST_GRID
 *        TickMarks: keep the number of minor tick values supplied through
 *        astSetTickValues even when the MinTick attribute is set, since
 *        DrawTicks reads that many values from the supplied array.
+*        DrawTicks: when drawing interior ticks from supplied tick values,
+*        read exactly nmajor and nminor values rather than one more.
 
 *class--
 */
@@ -10550,7 +10552,7 @@ static void DrawTicks( AstPlot *this, TickInfo **grid, int drawgrid,
                   b = ptr1[ 1 - axis ];
                   majflag = majflags;
 
-                  for( tick = 0; tick <= info->nmajor; tick++ ){
+                  for( tick = 0; tick < info->nmajor; tick++ ){
 
                      val =  info->ticks[ tick ];
                      if( logticks ) {
@@ -10567,7 +10569,7 @@ static void DrawTicks( AstPlot *this, TickInfo **grid, int drawgrid,
                      *(majflag++) = 1;
                   }
 
-                  for( tick = 0; tick <= info->nminor; tick++ ){
+                  for( tick = 0; tick < info->nminor; tick++ ){
 
                      val =  info->minticks[ tick ];
                      if( logticks ) {

@@ -38,6 +38,8 @@ planes | programs/testplot3d/plot3d-test1.ast | Grid_XY=1,Colour_YZ=2,Width_XZ=2
 ignored | programs/testplot3d/plot3d-test1.ast | Edge(1)=right,DrawTitle=1,TitleGap=0.5,Title=ignored | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
 # Explicit Gap and MinTick on each axis.
 ticks | programs/testplot3d/plot3d-test1.ast | Gap(1)=0.001,Gap(2)=0.002,Gap(3)=50,MinTick(1)=4,MinTick(2)=2,MinTick(3)=5 | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
+# Interior labelling draws the ticks handed between planes inside the plot.
+ticks_interior | programs/testplot3d/plot3d-test1.ast | Labelling=interior | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
 # A FrameSet read from a 3D FITS header (RA, Dec, frequency).
 cube | wcsconv/inputs/skyspec3d.head |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
 # The current Frame changed after construction: a grid in pixel coordinates.
