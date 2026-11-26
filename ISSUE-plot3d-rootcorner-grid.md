@@ -28,46 +28,65 @@ Reproduce from `build-dev/ast_tester`:
 Not fixed here: the plan for the logging tests leaves `plot3d.c` alone.
 The `rootcorner*` fixture rows use the FITS cube instead.
 
-## Analysis (2026-11-26, after the logging tests landed)
+## Root cause (2026-11-26, from an instrumented tick hand-off)
 
-Facts established with the logging module and a temporary print in
-`Grid` (`src/plot3d.c`, at the `astSetTickValues` hand-off):
+Plot3D draws the three planes in turn.
+The sky plane (XY here) is drawn first, and `Grid` (`src/plot3d.c`, the
+two blocks around `astGetDrawnTicks` and `astSetTickValues`) then hands the
+positions of the ticks it drew along the shared graphics axis to the next
+plane, so that the planes' tick marks line up.
+The hand-off assumes those ticks lie on the edge of the plane: it takes the
+positions returned by `astGetDrawnTicks`, overwrites graphics axis 1 with
+the plane constant, extends the set past both ends of the plane and
+transforms it into the next plane's coordinates.
 
-- The base XY plane (the sky plane) draws completely for every corner;
-  the error is raised by `astGrid` on the second plane, XZ, for its
-  second WCS axis.
-- The failing corners are exactly those with the X bit set together with
-  the Z bit (`ULU`, `UUU`).  `Direction(1)=0` on the sky axis is not the
-  cause: forcing `Direction(1)=1` still fails, and the FITS cube with
-  `Direction(1)=0` still succeeds for all eight corners.
-- The tick values handed from the XY plane to the XZ plane differ in
-  kind.  For `LLU` the XZ plane receives 5 major values spanning
-  -30.5 to 186.5, the extended pixel positions along the shared X
-  graphics axis.  For `ULU` it receives 8 values between 32.1 and 75.7,
-  which do not span the plane, so the XZ plane's own grid along the
-  other axis has no room and `GridLines` reports zero curve length.
-  With the FITS cube the `ULU` hand-off is sane (-19.5 to 120.5).
+That assumption fails when the 2D Plot labels its axes in the interior.
+Plot's `Grid` (`src/plot.c`, the block starting `labelling =
+astGetLabelling`) uses exterior labelling only if `EdgeLabels` judges that
+enough grid curves cross the chosen edges; otherwise it falls back to
+interior labelling, and it cannot try the other edges because Plot3D has
+set `Edge(1)` and `Edge(2)` explicitly for the corner.
+With `RootCorner=ULU` the X-upper corner puts the Dec labels on the right
+edge of the sky plane, which only two Dec curves cross for this FrameSet,
+so the Plot labels both axes along interior curves.
+The RA ticks are then on a diagonal (raw drawn ticks for ULU:
+`(-0.59,0.88) ... (-0.03,-0.87)` against `(-0.86,-1) (-0.23,-1) (0.40,-1)`
+for LLU), the extension runs along the wrong axis and produces duplicates,
+and the XZ plane receives eight values between pixel 32 and 76 instead of
+positions spanning the plane.
+Its own grid along the other axis then has no room and `GridLines` reports
+"No grid curves can be drawn for axis 2" with `AST__INTER`.
 
-`Grid` finds the ticks to hand over with `astGetDrawnTicks( baseplot,
-base_wax2d, 1 )`, where `base_wax2d` is chosen from the base Plot's
-`Edge(1)` attribute, then overwrites graphics axis 1 of every tick
-position with the plane constant `gcon` on the assumption that the ticks
-vary along graphics axis 0.
-For `ULU` the labelled edges chosen for the X-upper corner put the sky
-axis ticks on an edge where that assumption no longer holds for this
-FrameSet, so the positions are corrupted before they are transformed into
-the XZ plane's WCS.
-Why the test1 FrameSet and the FITS cube differ here (both are RA, Dec
-plus a spectral axis) is not yet pinned down; the DSBSpecFrame velocity
-axis and the FrameSet's reversed sky axis are the visible differences.
+Evidence:
+
+- `RootCorner=ULU,Labelling=interior` succeeds, and so does
+  `RootCorner=LLL,Labelling=interior`: when the hand-off happens to span
+  the plane the grid draws, but the ticks it passes on are the interior
+  positions of the *other* sky axis, so even the "working" interior cases
+  hand over the wrong ticks.
+- `RootCorner=ULU,ForceExterior=1` and `RootCorner=UUU,ForceExterior=1`
+  succeed with exterior labels (Dec labelled twice on the right edge).
+  `ForceExterior` is the Plot attribute that makes it attempt exterior
+  labels even when it judges them insufficient.
+- The FITS cube's sky grid is nearly aligned with the plane, so every edge
+  carries enough crossings and exterior labelling never falls back.
+- `Direction(1)` plays no part.
 
 ### Size of the fix
 
-Medium: a focused debugging session of a few hours.
-The change itself is likely small, in the two tick hand-off blocks of
-`Grid` (`src/plot3d.c` around lines 3470 to 3550 and 3575 to 3655): decide
-which graphics axis the drawn ticks vary along from the tick positions
-themselves (as `ExtendTicks` already does) instead of inferring it from
-`Edge(1)`, and overwrite the other axis with `gcon`.
-It needs the eight `rootcorner*` rows run against `plot3d-test1.ast` as
-well as the FITS cube, since the cube never showed the problem.
+Small, two parts, in `src/plot3d.c`:
+
+1. In `Grid`, set `ForceExterior=1` on each encapsulated Plot before its
+   `astGrid` (and clear it afterwards unless the user set it), since the
+   hand-off is only meaningful for ticks on the plane edges.  About ten
+   lines.  With it, all eight corners draw for `plot3d-test1.ast`.
+2. In the hand-off, check that the drawn tick positions are constant on
+   the graphics axis being replaced; if they are not (a Plot that still
+   labelled in the interior, or `Labelling=interior` set by the user), skip
+   `astSetTickValues` so the next plane computes its own ticks instead of
+   receiving positions from an interior curve.  About ten lines, and it
+   turns the `AST__INTER` error into a drawable, if unaligned, grid.
+
+Then regenerate the `rootcorner*` references (they can return to
+`plot3d-test1.ast`) and add a `Labelling=interior` row, and tell the Rust
+port, whose Plot3D copies this hand-off.
