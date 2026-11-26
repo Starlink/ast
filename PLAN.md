@@ -339,6 +339,10 @@ Key issues:
   - `asdftest.py` (standalone Python test, not integrated)
   - `regression.current`, `regression.out` (old diff targets)
   - `draw3d-test2.txt`, `draw3d-test3.txt` (unreferenced)
+- **Moc memory for an explicit MinOrder**: astAddRegion and astAddPixelMask record every cell of the initial grid that is inside the Region individually, at 16 bytes each, until IncorporateCells merges them into ranges.
+  When MinOrder has not been set the initial grid is capped at 262144 cells, but a MinOrder that has been set is used as given, so the memory is then proportional to the area of the Region in cells at MinOrder.
+  An 80 degree Circle at MaxOrder 18 with MinOrder 13 takes over 4 GB and more than ten minutes.
+  Bounding this would mean merging the cells of the initial grid into ranges as they are found, which is a change to the CellList design.
 
 ## Phase 3 details (complete)
 
