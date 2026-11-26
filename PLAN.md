@@ -95,7 +95,11 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   methods and fixed-camera SVG pictures. The logs are the oracle for the Rust
   port's Plot3D. Three Plot3D defects found while generating the cases are
   recorded in ISSUE-plot3d-*.md; the plot.c minor-tick overflow they exposed
-  is fixed.
+  is fixed. Before committing a new `.dump` reference, run its test in a
+  build configured with `-DCMAKE_C_FLAGS="-march=haswell -ffp-contract=fast"`
+  (the `build-fma` recipe): compare_dumps allows 4 ULP, and a WinMap shift
+  computed from a non-exact scale moves by more than that between fused and
+  unfused builds. Choose box values with exact coefficients instead.
 
 **New C-only regression tests (no Fortran original):**
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion

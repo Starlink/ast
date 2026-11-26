@@ -120,8 +120,15 @@ static char *read_file( const char *name ) {
    while( fgets( chunk, sizeof(chunk), fp ) ) {
       size_t len = strlen( chunk );
       if( total + len + 1 > cap ) {
+         char *grown;
          cap = ( total + len + 1 ) * 2;
-         buf = realloc( buf, cap );
+         grown = realloc( buf, cap );
+         if( !grown ) {
+            free( buf );
+            fclose( fp );
+            return NULL;
+         }
+         buf = grown;
       }
       memcpy( buf + total, chunk, len );
       total += len;

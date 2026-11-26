@@ -409,6 +409,37 @@ static void test_txext( void ) {
    }
 }
 
+/* A justification string shorter than two characters: the missing
+   characters are "?" in the log and centred in the box. */
+static void test_short_just( void ) {
+   float ref[3] = { 0.0f, 0.0f, 0.0f };
+   float up[3] = { 0.0f, 1.0f, 0.0f };
+   float norm[3] = { 0.0f, 0.0f, 1.0f };
+   float xb[4], yb[4], zb[4], bl[3];
+   static const float e[5][3] = {
+      { -0.014f, -0.004f, 0.0f }, { 0.014f, -0.004f, 0.0f },
+      {  0.014f,  0.020f, 0.0f }, { -0.014f, 0.020f, 0.0f },
+      { -0.014f,  0.0f,   0.0f } };
+
+   expect_int( "G3DText one-char just returns 1",
+               astG3DText( "ab", ref, "B", up, norm ), 1 );
+   expect_line( "G3DText one-char just log",
+      "G3DText \"ab\" ref=(0.000,0.000,0.000) just=B? up=(0.000,1.000,0.000) norm=(0.000,0.000,1.000)" );
+
+   expect_int( "TxExt one-char just returns 1",
+               astG3DTxExt( "ab", ref, "B", up, norm, xb, yb, zb, bl ), 1 );
+   expect_box( "one-char just is BC", xb, yb, zb, bl, e );
+   expect_line( "TxExt one-char just log",
+      "G3DTxExt \"ab\" ref=(0.000,0.000,0.000) just=B? "
+      "box=(-0.014,-0.004,0.000)-(0.014,-0.004,0.000)-(0.014,0.020,0.000)-"
+      "(-0.014,0.020,0.000) bl=(-0.014,0.000,0.000)" );
+
+   expect_int( "G3DText empty just returns 1",
+               astG3DText( "ab", ref, "", up, norm ), 1 );
+   expect_line( "G3DText empty just log",
+      "G3DText \"ab\" ref=(0.000,0.000,0.000) just=?? up=(0.000,1.000,0.000) norm=(0.000,0.000,1.000)" );
+}
+
 /* SVG output through a camera. */
 static FILE *svgfp = NULL;
 static long svgpos = 0;
@@ -464,6 +495,37 @@ static int polyline_points_on_page( const char *line ) {
       while( *p == ' ' ) p++;
    }
    return n;
+}
+
+/* With an SVG file but no camera, nothing can be projected and no
+   element is written. */
+static void test_svg_no_camera( void ) {
+   float x[2] = { 0.0f, 1.0f }, y[2] = { 0.0f, 0.0f }, z[2] = { 0.0f, 0.0f };
+   float norm[3] = { 0.0f, 0.0f, 1.0f };
+   const char *line;
+
+   svgfp = tmpfile();
+   if( !svgfp ) {
+      fail( "svg", "cannot create a temporary SVG file" );
+      return;
+   }
+   astGrf3DLogSetSvg( svgfp, 720, 540 );
+   next_svg();
+   next_svg();
+   next_svg();
+   expect_int( "G3DLine without camera returns 1", astG3DLine( 2, x, y, z ), 1 );
+   expect_int( "G3DMark without camera returns 1", astG3DMark( 2, x, y, z, 1, norm ), 1 );
+   next_line();
+   next_line();
+   astGrf3DLogClose();
+   line = next_svg();
+   expect_contains( "no polyline without a camera", line, "<polyline", 0 );
+   expect_contains( "no circle without a camera", line, "<circle", 0 );
+   expect_contains( "svg closed without a camera", line, "</svg>", 1 );
+   astGrf3DLogInit( logfp );
+   fclose( svgfp );
+   svgfp = NULL;
+   svgpos = 0;
 }
 
 static void test_svg( void ) {
@@ -663,6 +725,8 @@ int main( void ) {
    test_attr_cap_qch();
    test_line_mark_text();
    test_txext();
+   test_short_just();
+   test_svg_no_camera();
    test_svg();
    test_close();
 

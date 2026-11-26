@@ -589,6 +589,14 @@ static void SvgText( const char *text, const float ref[3], const char *just,
    fprintf( svg_fp, ">%s</text>\n", text );
 }
 
+/* The "i"th character (0 or 1) of a justification string for the log:
+   "?" when the string is NULL or too short, as grf_log.c prints a NULL. */
+static char JustChar( const char *just, int i ) {
+   if( !just ) return '?';
+   if( i == 1 && just[0] == '\0' ) return '?';
+   return just[i] ? just[i] : '?';
+}
+
 /* Write "n" 3D points to the log as " (x,y,z)" groups. */
 static void LogPoints( int n, const float *x, const float *y, const float *z ) {
    int i;
@@ -662,7 +670,7 @@ int astG3DLine( int n, float *x, float *y, float *z ) {
       LogPoints( n, x, y, z );
       fprintf( log_fp, "\n" );
    }
-   if( svg_fp && n > 1 && x && y && z ) {
+   if( svg_fp && n > 1 && x && y && z && camera.ok_flag == CAMERA_OK ) {
       float h, r;
       int i;
       double w = attr_width[GRF__LINE];
@@ -716,7 +724,7 @@ int astG3DText( const char *text, float ref[3], const char *just,
       fprintf( log_fp, "G3DText \"%s\" ref=(%.3f,%.3f,%.3f) just=%c%c "
                "up=(%.3f,%.3f,%.3f) norm=(%.3f,%.3f,%.3f)\n",
                text ? text : "", ref[0], ref[1], ref[2],
-               just ? just[0] : '?', just ? just[1] : '?',
+               JustChar( just, 0 ), JustChar( just, 1 ),
                up[0], up[1], up[2], norm[0], norm[1], norm[2] );
    }
    if( svg_fp && text && text[0] != '\0' ) {
@@ -746,15 +754,13 @@ int astG3DTxExt( const char *text, float ref[3], const char *just,
 
 /* Justification, as grf_log.c reads it: anything other than T, C or B
    vertically (so M, the bottom of the descenders, included) is C, and
-   anything other than L, C or R horizontally is C. */
-      if( just ) {
-         lj[0] = ( just[0] == 'T' || just[0] == 'C' || just[0] == 'B' )
-                 ? just[0] : 'C';
-         lj[1] = ( just[1] == 'L' || just[1] == 'C' || just[1] == 'R' )
-                 ? just[1] : 'C';
-      } else {
-         lj[0] = 'C';
-         lj[1] = 'C';
+   anything other than L, C or R horizontally is C.  A missing character
+   is C as well. */
+      {
+         char j0 = JustChar( just, 0 );
+         char j1 = JustChar( just, 1 );
+         lj[0] = ( j0 == 'T' || j0 == 'C' || j0 == 'B' ) ? j0 : 'C';
+         lj[1] = ( j1 == 'L' || j1 == 'C' || j1 == 'R' ) ? j1 : 'C';
       }
 
 /* The axes of the text plane. */
@@ -841,7 +847,7 @@ int astG3DTxExt( const char *text, float ref[3], const char *just,
                "box=(%.3f,%.3f,%.3f)-(%.3f,%.3f,%.3f)-(%.3f,%.3f,%.3f)-"
                "(%.3f,%.3f,%.3f) bl=(%.3f,%.3f,%.3f)\n",
                text ? text : "", ref[0], ref[1], ref[2],
-               just ? just[0] : '?', just ? just[1] : '?',
+               JustChar( just, 0 ), JustChar( just, 1 ),
                xb[0], yb[0], zb[0], xb[1], yb[1], zb[1],
                xb[2], yb[2], zb[2], xb[3], yb[3], zb[3],
                bl[0], bl[1], bl[2] );
