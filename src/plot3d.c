@@ -163,6 +163,10 @@ f    AST_GRIDLINE, AST_POLYCURVE.
 *        ClearAttrib, GetAttrib, SetAttrib and TestAttrib: limit the lengths
 *        of the attribute name and the plane read from a name such as
 *        "Colour_XY" to the sizes of the buffers that receive them.
+*     26-NOV-2026 (TIMJ):
+*        Name the refused Plot method in the error reported by the METHOD1
+*        and METHOD2 macros; the ## operator was used inside a string
+*        literal, so the message read "ast##name".
 *class--
 */
 
@@ -8592,19 +8596,27 @@ f     function is invoked with STATUS set to an error value, or if it
    that are not currently implemented by this class. They just report an
    error if called. */
 
+/* The method name is spliced into the message as a string literal: the
+   ## operator does not paste inside quotes, so the name is stringised
+   through METHOD_STR and placed beside the literal text. */
+#define METHOD_STR2(name) #name
+#define METHOD_STR(name) METHOD_STR2(name)
+
 #define METHOD1(name) \
 static void name(ARGLIST,int *status){ \
    if( !astOK ) return; \
-   astError( AST__INTER, "ast##name(%s): The ast##name " \
-             "method cannot be used with a %s (programming error).", status,  \
+   astError( AST__INTER, "ast" METHOD_STR(name) "(%s): The ast" \
+             METHOD_STR(name) " method cannot be used with a %s " \
+             "(programming error).", status, \
              astGetClass( this ), astGetClass( this ) ); \
 }
 
 #define METHOD2(name,rettype,retval) \
 static rettype name(ARGLIST,int *status){ \
    if( !astOK ) return retval; \
-   astError( AST__INTER, "ast##name(%s): The ast##name " \
-             "method cannot be used with a %s (programming error).", status,  \
+   astError( AST__INTER, "ast" METHOD_STR(name) "(%s): The ast" \
+             METHOD_STR(name) " method cannot be used with a %s " \
+             "(programming error).", status, \
              astGetClass( this ), astGetClass( this ) ); \
    return retval; \
 }
