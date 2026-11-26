@@ -876,6 +876,15 @@ ast_add_test(testgrid
 )
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
+# --- Unit test of the logging grf3d module (grf3d_log.c) ---
+# Links the 2D logging module as well, since a Plot3D program links both.
+ast_add_test(testgrf3dlog
+    NO_DEFAULT_GRF_LIBS
+    EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log-static>
+               $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_log-static>
+)
+target_include_directories(testgrf3dlog PRIVATE "${CMAKE_SOURCE_DIR}/src")
+
 function(add_grid_test)
     cmake_parse_arguments(P "SKIP_TEXT_COMPARE"
         "NAME;HEAD;ATTR;FATTR;BOX;REFERENCE"

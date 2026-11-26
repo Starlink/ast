@@ -1224,6 +1224,7 @@ ast_add_satellite(ast_grf3d src/grf3d.c)
 
 # Logging/virtual graphics library (no external dependencies)
 ast_add_satellite(ast_grf_log src/grf_log.c)
+ast_add_satellite(ast_grf3d_log src/grf3d_log.c)
 
 # The PGPLOT graphics modules.  PGPLOT needs a Fortran runtime, so without
 # Fortran these carry the null implementations instead, exactly as
