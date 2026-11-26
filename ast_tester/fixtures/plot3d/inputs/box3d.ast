@@ -1,0 +1,32 @@
+ Begin Box
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 3
+ Domain = "PIXEL"
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ Ax3 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 3
+ X1 = 70
+ X2 = 50
+ X3 = 750
+ X4 = 120
+ X5 = 80
+ X6 = 1200
+ End PointSet
+ IsA Region
+ End Box

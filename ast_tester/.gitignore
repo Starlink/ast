@@ -23,3 +23,6 @@
 
 # Written into a distribution tarball by the dist hook; never committed.
 fixtures/DIST_TIER
+
+# Reference grf3d call logs are fixtures, not build output.
+!fixtures/plot3d/expected/*.log

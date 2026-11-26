@@ -1,0 +1,633 @@
+ Begin Plot3D
+ Nframe = 3
+ Currnt = 3
+ Lnk2 = 1
+ Lnk3 = 2
+ Frm1 =
+ Begin Frame
+ Title = "Graphical Coordinates"
+ Naxes = 3
+ Domain = "GRAPHICS"
+ Ax1 =
+ Begin Axis
+ End Axis
+ Ax2 =
+ Begin Axis
+ End Axis
+ Ax3 =
+ Begin Axis
+ End Axis
+ End Frame
+ Frm2 =
+ Begin Frame
+ Title = "Pixel Coordinates"
+ Naxes = 3
+ Domain = "GRID"
+ Ax1 =
+ Begin Axis
+ Label = "Pixel axis 1"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Pixel axis 2"
+ End Axis
+ Ax3 =
+ Begin Axis
+ Label = "Pixel axis 3"
+ End Axis
+ End Frame
+ Frm3 =
+ Begin CmpFrame
+ Ident = " "
+ IsA Object
+ FrameA =
+ Begin SkyFrame
+ Naxes = 2
+ Epoch = 2000
+ System = "FK5"
+ Ax1 =
+ Begin SkyAxis
+ End SkyAxis
+ Ax2 =
+ Begin SkyAxis
+ End SkyAxis
+ IsA Frame
+ Proj = "gnomonic"
+ Eqnox = 2000
+ SRefIs = "Ignored"
+ SRef1 = 3.1415926535897931
+ SRef2 = 0.78539816339744828
+ End SkyFrame
+ FrameB =
+ Begin SpecFrame
+ Naxes = 1
+ System = "FREQ"
+ Ax1 =
+ Begin Axis
+ Unit = "Hz"
+ End Axis
+ IsA Frame
+ SoR = "Barycentric"
+ RefRA = 3.1415926535897931
+ RefDec = 0.78539816339744828
+ RstFrq = 1420400000
+ UFreq = "Hz"
+ End SpecFrame
+ End CmpFrame
+ Map2 =
+ Begin WinMap
+ Nin = 3
+ IsA Mapping
+ Sft1 = 50.5
+ Scl1 = 50
+ Sft2 = 50.5
+ Scl2 = 50
+ Sft3 = 50.5
+ Scl3 = 50
+ End WinMap
+ Map3 =
+ Begin CmpMap
+ Nin = 3
+ IsSimp = 1
+ IsA Mapping
+ MapA =
+ Begin WinMap
+ Nin = 3
+ IsA Mapping
+ Sft1 = 0.0087266462599716477
+ Scl1 = -0.00017453292519943296
+ Sft2 = -0.0087266462599716477
+ Scl2 = 0.00017453292519943296
+ Sft3 = -50000000
+ Scl3 = 1000000
+ End WinMap
+ MapB =
+ Begin CmpMap
+ Nin = 3
+ IsA Mapping
+ InvA = 1
+ MapA =
+ Begin WcsMap
+ Nin = 3
+ Invert = 1
+ IsA Mapping
+ Type = "TAN"
+ End WcsMap
+ MapB =
+ Begin CmpMap
+ Nin = 3
+ IsSimp = 1
+ IsA Mapping
+ Series = 0
+ MapA =
+ Begin CmpMap
+ Nin = 2
+ IsSimp = 1
+ IsA Mapping
+ InvA = 1
+ MapA =
+ Begin SphMap
+ Nin = 3
+ Nout = 2
+ Invert = 1
+ IsA Mapping
+ UntRd = 1
+ PlrLg = 0
+ End SphMap
+ MapB =
+ Begin CmpMap
+ Nin = 3
+ Nout = 2
+ IsA Mapping
+ MapA =
+ Begin MatrixMap
+ Nin = 3
+ IsA Mapping
+ M0 = -0.70710678118654757
+ M1 = 0
+ M2 = -0.70710678118654746
+ M3 = 0
+ M4 = -1
+ M5 = 0
+ M6 = -0.70710678118654746
+ M7 = 0
+ M8 = 0.70710678118654757
+ IM0 = -0.70710678118654757
+ IM1 = 0
+ IM2 = -0.70710678118654746
+ IM3 = 0
+ IM4 = -1
+ IM5 = 0
+ IM6 = -0.70710678118654746
+ IM7 = 0
+ IM8 = 0.70710678118654757
+ Form = "Full"
+ End MatrixMap
+ MapB =
+ Begin SphMap
+ Nin = 3
+ Nout = 2
+ IsA Mapping
+ UntRd = 1
+ PlrLg = 3.1415926535897931
+ End SphMap
+ End CmpMap
+ End CmpMap
+ MapB =
+ Begin ShiftMap
+ Nin = 1
+ IsSimp = 1
+ IsA Mapping
+ Sft1 = 1420400000
+ End ShiftMap
+ End CmpMap
+ End CmpMap
+ End CmpMap
+ IsA FrameSet
+ FrcExt = 0
+ Xlo = 0
+ Ylo = 0
+ Xhi = 1
+ Yhi = 1
+ Xrev = 0
+ Yrev = 0
+ Xb1 = 0
+ Yb1 = 0
+ Xb2 = 1
+ Yb2 = 1
+ IsA Plot
+ RootCn = "UUU"
+ AxPlX1 = 1
+ AxPlY1 = 1
+ AxPlZ1 = 2
+ AxInX1 = 0
+ AxInY1 = 1
+ AxInZ1 = 1
+ AxPlX2 = 2
+ AxPlY2 = 3
+ AxPlZ2 = 3
+ AxInX2 = 0
+ AxInY2 = 0
+ AxInZ2 = 1
+ BasePl = 1
+ PlotXY =
+ Begin Plot
+ Nframe = 3
+ Currnt = 3
+ Lnk2 = 1
+ Lnk3 = 2
+ Frm1 =
+ Begin Frame
+ Title = "Graphical Coordinates"
+ Naxes = 2
+ Domain = "GRAPHICS"
+ Ax1 =
+ Begin Axis
+ Dirn = 0
+ End Axis
+ Ax2 =
+ Begin Axis
+ End Axis
+ End Frame
+ Frm2 =
+ Begin Frame
+ Title = "Pixel Coordinates"
+ Naxes = 2
+ Domain = "GRID"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Pixel axis 1"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Pixel axis 2"
+ End Axis
+ End Frame
+ Frm3 =
+ Begin SkyFrame
+ Naxes = 2
+ Epoch = 2000
+ System = "FK5"
+ Ax1 =
+ Begin SkyAxis
+ End SkyAxis
+ Ax2 =
+ Begin SkyAxis
+ End SkyAxis
+ IsA Frame
+ Proj = "gnomonic"
+ Eqnox = 2000
+ SRefIs = "Ignored"
+ SRef1 = 3.1415926535897931
+ SRef2 = 0.78539816339744828
+ End SkyFrame
+ Map2 =
+ Begin WinMap
+ Nin = 2
+ IsA Mapping
+ Sft1 = 50.5
+ Scl1 = 50
+ Sft2 = 50.5
+ Scl2 = 50
+ End WinMap
+ Map3 =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ MapA =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ InvB = 1
+ MapA =
+ Begin WinMap
+ Nin = 2
+ IsA Mapping
+ Sft1 = 0.0087266462599716477
+ Scl1 = -0.00017453292519943296
+ Sft2 = -0.0087266462599716477
+ Scl2 = 0.00017453292519943296
+ End WinMap
+ MapB =
+ Begin WcsMap
+ Nin = 2
+ Invert = 1
+ IsA Mapping
+ Type = "TAN"
+ End WcsMap
+ End CmpMap
+ MapB =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ MapA =
+ Begin CmpMap
+ Nin = 2
+ Nout = 3
+ IsA Mapping
+ InvA = 1
+ MapA =
+ Begin SphMap
+ Nin = 3
+ Nout = 2
+ Invert = 1
+ IsA Mapping
+ UntRd = 1
+ PlrLg = 0
+ End SphMap
+ MapB =
+ Begin MatrixMap
+ Nin = 3
+ IsA Mapping
+ M0 = -0.70710678118654757
+ M1 = 0
+ M2 = -0.70710678118654746
+ M3 = 0
+ M4 = -1
+ M5 = 0
+ M6 = -0.70710678118654746
+ M7 = 0
+ M8 = 0.70710678118654757
+ IM0 = -0.70710678118654757
+ IM1 = 0
+ IM2 = -0.70710678118654746
+ IM3 = 0
+ IM4 = -1
+ IM5 = 0
+ IM6 = -0.70710678118654746
+ IM7 = 0
+ IM8 = 0.70710678118654757
+ Form = "Full"
+ End MatrixMap
+ End CmpMap
+ MapB =
+ Begin SphMap
+ Nin = 3
+ Nout = 2
+ IsA Mapping
+ UntRd = 1
+ PlrLg = 3.1415926535897931
+ End SphMap
+ End CmpMap
+ End CmpMap
+ IsA FrameSet
+ FrcExt = 0
+ DrwTtl = 0
+ Edge1 = "top"
+ Edge2 = "right"
+ Xlo = -1
+ Ylo = -1
+ Xhi = 1
+ Yhi = 1
+ Xrev = 0
+ Yrev = 0
+ Xb1 = 100.5
+ Yb1 = 0.5
+ Xb2 = 0.5
+ Yb2 = 100.5
+ End Plot
+ PlotXZ =
+ Begin Plot
+ Nframe = 3
+ Currnt = 3
+ Lnk2 = 1
+ Lnk3 = 2
+ Frm1 =
+ Begin Frame
+ Title = "Graphical Coordinates"
+ Naxes = 2
+ Domain = "GRAPHICS"
+ Ax1 =
+ Begin Axis
+ End Axis
+ Ax2 =
+ Begin Axis
+ End Axis
+ End Frame
+ Frm2 =
+ Begin Frame
+ Title = "Pixel Coordinates"
+ Naxes = 2
+ Domain = "GRID"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Pixel axis 1"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Pixel axis 3"
+ End Axis
+ End Frame
+ Frm3 =
+ Begin CmpFrame
+ FrameA =
+ Begin Frame
+ Title = "Pixel Coordinates"
+ Naxes = 1
+ Domain = "GRID"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Pixel axis 1"
+ End Axis
+ End Frame
+ FrameB =
+ Begin SpecFrame
+ Naxes = 1
+ System = "FREQ"
+ Ax1 =
+ Begin Axis
+ Unit = "Hz"
+ End Axis
+ IsA Frame
+ SoR = "Barycentric"
+ RefRA = 3.1415926535897931
+ RefDec = 0.78539816339744828
+ RstFrq = 1420400000
+ UFreq = "Hz"
+ End SpecFrame
+ End CmpFrame
+ Map2 =
+ Begin WinMap
+ Nin = 2
+ IsA Mapping
+ Sft1 = 50.5
+ Scl1 = 50
+ Sft2 = 50.5
+ Scl2 = 50
+ End WinMap
+ Map3 =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ Series = 0
+ MapA =
+ Begin UnitMap
+ Nin = 1
+ IsA Mapping
+ End UnitMap
+ MapB =
+ Begin CmpMap
+ Nin = 1
+ IsA Mapping
+ MapA =
+ Begin CmpMap
+ Nin = 1
+ IsA Mapping
+ MapA =
+ Begin WinMap
+ Nin = 1
+ IsA Mapping
+ Sft1 = -50000000
+ Scl1 = 1000000
+ End WinMap
+ MapB =
+ Begin UnitMap
+ Nin = 1
+ IsA Mapping
+ End UnitMap
+ End CmpMap
+ MapB =
+ Begin ShiftMap
+ Nin = 1
+ IsA Mapping
+ Sft1 = 1420400000
+ End ShiftMap
+ End CmpMap
+ End CmpMap
+ IsA FrameSet
+ FrcExt = 0
+ DrwTtl = 0
+ NmLbl1 = 0
+ TxLbl1 = 0
+ LbUnt1 = 0
+ Edge1 = "top"
+ Edge2 = "left"
+ Xlo = -1
+ Ylo = -1
+ Xhi = 1
+ Yhi = 1
+ Xrev = 1
+ Yrev = 0
+ Xb1 = 0.5
+ Yb1 = 0.5
+ Xb2 = 100.5
+ Yb2 = 100.5
+ End Plot
+ PlotYZ =
+ Begin Plot
+ Nframe = 3
+ Currnt = 3
+ Lnk2 = 1
+ Lnk3 = 2
+ Frm1 =
+ Begin Frame
+ Title = "Graphical Coordinates"
+ Naxes = 2
+ Domain = "GRAPHICS"
+ Ax1 =
+ Begin Axis
+ Dirn = 0
+ End Axis
+ Ax2 =
+ Begin Axis
+ End Axis
+ End Frame
+ Frm2 =
+ Begin Frame
+ Title = "Pixel Coordinates"
+ Naxes = 2
+ Domain = "GRID"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Pixel axis 2"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Pixel axis 3"
+ End Axis
+ End Frame
+ Frm3 =
+ Begin CmpFrame
+ FrameA =
+ Begin Frame
+ Title = "Pixel Coordinates"
+ Naxes = 1
+ Domain = "GRID"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Pixel axis 2"
+ End Axis
+ End Frame
+ FrameB =
+ Begin SpecFrame
+ Naxes = 1
+ System = "FREQ"
+ Ax1 =
+ Begin Axis
+ Unit = "Hz"
+ End Axis
+ IsA Frame
+ SoR = "Barycentric"
+ RefRA = 3.1415926535897931
+ RefDec = 0.78539816339744828
+ RstFrq = 1420400000
+ UFreq = "Hz"
+ End SpecFrame
+ End CmpFrame
+ Map2 =
+ Begin WinMap
+ Nin = 2
+ IsA Mapping
+ Sft1 = 50.5
+ Scl1 = 50
+ Sft2 = 50.5
+ Scl2 = 50
+ End WinMap
+ Map3 =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ Series = 0
+ MapA =
+ Begin UnitMap
+ Nin = 1
+ IsA Mapping
+ End UnitMap
+ MapB =
+ Begin CmpMap
+ Nin = 1
+ IsA Mapping
+ MapA =
+ Begin CmpMap
+ Nin = 1
+ IsA Mapping
+ MapA =
+ Begin WinMap
+ Nin = 1
+ IsA Mapping
+ Sft1 = -50000000
+ Scl1 = 1000000
+ End WinMap
+ MapB =
+ Begin UnitMap
+ Nin = 1
+ IsA Mapping
+ End UnitMap
+ End CmpMap
+ MapB =
+ Begin ShiftMap
+ Nin = 1
+ IsA Mapping
+ Sft1 = 1420400000
+ End ShiftMap
+ End CmpMap
+ End CmpMap
+ IsA FrameSet
+ FrcExt = 0
+ DrwTtl = 0
+ NmLbl1 = 0
+ NmLbl2 = 0
+ TxLbl1 = 0
+ TxLbl2 = 0
+ LbUnt1 = 0
+ LbUnt2 = 0
+ Edge1 = "top"
+ Edge2 = "right"
+ Xlo = -1
+ Ylo = -1
+ Xhi = 1
+ Yhi = 1
+ Xrev = 0
+ Yrev = 0
+ Xb1 = 100.5
+ Yb1 = 0.5
+ Xb2 = 0.5
+ Yb2 = 100.5
+ End Plot
+ PixFrm = 2
+ End Plot3D

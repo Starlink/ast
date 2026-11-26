@@ -1,0 +1,16 @@
+ Begin Frame
+ Naxes = 3
+ Domain = "PIXEL"
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ Ax3 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame

@@ -29,7 +29,8 @@
 *     Actions:
 *        grid                      astGrid
 *        border                    astBorder
-*        outline                   astRegionOutline with the input Region
+*        outline:FILE              astRegionOutline with the Region read from
+*                                  fixtures/FILE
 *        refused                   each Plot method a Plot3D refuses, with
 *                                  the error written as "ERR <code> <message>"
 *        text:STR:x,y,z:ux,uy,uz:JUST
@@ -63,6 +64,11 @@ static char errbuf[4096];
 
 static void collect_error( int status_value, const char *message ) {
    (void)status_value;
+
+   /* The first message of a report names the calling routine and source
+      file, which depend on where the program was built. */
+   if( strncmp( message, "AST: Error in routine", 21 ) == 0 ) return;
+
    if( strlen( errbuf ) + strlen( message ) + 2 < sizeof(errbuf) ) {
       if( errbuf[0] ) strcat( errbuf, " / " );
       strcat( errbuf, message );
@@ -207,7 +213,7 @@ static int do_refused( AstPlot3D *plot ) {
 }
 
 /* Perform one action; returns 0 on a failure. */
-static int do_action( AstPlot3D *plot, AstObject *input, const char *action ) {
+static int do_action( AstPlot3D *plot, const char *action ) {
    if( strcmp( action, "grid" ) == 0 ) {
       log_action( "grid" );
       astGrid( plot );
@@ -216,10 +222,16 @@ static int do_action( AstPlot3D *plot, AstObject *input, const char *action ) {
       log_action( "border" );
       astBorder( plot );
 
-   } else if( strcmp( action, "outline" ) == 0 ) {
-      log_action( "outline" );
-      if( !astIsARegion( input ) ) return fail( "outline needs a Region input" ) == 0;
-      astRegionOutline( plot, (AstRegion *) input );
+   } else if( strncmp( action, "outline:", 8 ) == 0 ) {
+      char path[512];
+      AstObject *region;
+      snprintf( path, sizeof(path), "fixtures/%s", action + 8 );
+      region = read_input( path );
+      if( !region || !astOK ) return fail( "cannot read the outline Region" ) == 0;
+      if( !astIsARegion( region ) ) return fail( "outline needs a Region" ) == 0;
+      log_action( action );
+      astRegionOutline( plot, (AstRegion *) region );
+      region = astAnnul( region );
 
    } else if( strcmp( action, "refused" ) == 0 ) {
       log_action( "refused" );
@@ -427,7 +439,7 @@ int main( int argc, char **argv ) {
    copy = astAnnul( copy );
 
    for( i = 0; i < nact && rc == 0; i++ ) {
-      if( !do_action( plot, input, actions[i] ) ) rc = 1;
+      if( !do_action( plot, actions[i] ) ) rc = 1;
    }
 
    astGrf3DLogClose();
