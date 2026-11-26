@@ -22,3 +22,25 @@ place of the `##` inside the literal.
 Not fixed here: the plan for the logging tests leaves `plot3d.c` alone.
 `fixtures/plot3d/expected/refused.log` records the message as it is today
 and will need regenerating when this is fixed.
+
+## Analysis (2026-11-26)
+
+Trivial: about ten lines.
+Replace the `##` inside the string literal with a stringising macro, for
+example
+
+```c
+#define STR2(x) #x
+#define STR(x) STR2(x)
+#define METHOD1(name) \
+static void name(ARGLIST,int *status){ \
+   if( !astOK ) return; \
+   astError( AST__INTER, "ast" STR(name) "(%s): The ast" STR(name) " " \
+             "method cannot be used with a %s (programming error).", status, \
+             astGetClass( this ), astGetClass( this ) ); \
+}
+```
+
+and the same in `METHOD2`, with a History entry.
+Then regenerate `fixtures/plot3d/expected/refused.log`, which pins the
+message text, and tell the Rust port.
