@@ -40,20 +40,25 @@ static void fail( const char *what, const char *detail ) {
    printf( "FAIL: %s: %s\n", what, detail );
 }
 
-/* Return the next unread line of the log, without its newline, or ""
-   when nothing has been written since the last read. */
-static const char *next_line( void ) {
+/* Return the next unread line of "fp", without its newline, or "" when
+   nothing has been written since the last read.  "*pos" remembers the
+   read position between calls. */
+static const char *next_line_from( FILE *fp, long *pos ) {
    static char buf[1024];
    buf[0] = '\0';
-   fflush( logfp );
-   fseek( logfp, rdpos, SEEK_SET );
-   if( fgets( buf, sizeof(buf), logfp ) ) {
+   fflush( fp );
+   fseek( fp, *pos, SEEK_SET );
+   if( fgets( buf, sizeof(buf), fp ) ) {
       size_t len = strlen( buf );
       if( len > 0 && buf[len-1] == '\n' ) buf[len-1] = '\0';
    }
-   rdpos = ftell( logfp );
-   fseek( logfp, 0, SEEK_END );
+   *pos = ftell( fp );
+   fseek( fp, 0, SEEK_END );
    return buf;
+}
+
+static const char *next_line( void ) {
+   return next_line_from( logfp, &rdpos );
 }
 
 static void expect_line( const char *what, const char *expected ) {
@@ -404,6 +409,237 @@ static void test_txext( void ) {
    }
 }
 
+/* SVG output through a camera. */
+static FILE *svgfp = NULL;
+static long svgpos = 0;
+
+static const char *next_svg( void ) {
+   return next_line_from( svgfp, &svgpos );
+}
+
+static void expect_svg( const char *what, const char *expected ) {
+   const char *got = next_svg();
+   if( strcmp( got, expected ) != 0 ) {
+      char detail[2200];
+      snprintf( detail, sizeof(detail), "\n   expected: %s\n   got:      %s",
+                expected, got );
+      fail( what, detail );
+   }
+}
+
+static void expect_contains( const char *what, const char *line,
+                             const char *needle, int want ) {
+   int has = strstr( line, needle ) != NULL;
+   if( has != want ) {
+      char detail[2200];
+      snprintf( detail, sizeof(detail), "%s \"%s\" in: %s",
+                want ? "missing" : "unexpected", needle, line );
+      fail( what, detail );
+   }
+}
+
+/* Read the integer attribute "name" from an SVG element line. */
+static int svg_attr( const char *line, const char *name ) {
+   char key[32];
+   const char *p;
+   snprintf( key, sizeof(key), " %s=\"", name );
+   p = strstr( line, key );
+   if( !p ) return -99999;
+   return atoi( p + strlen( key ) );
+}
+
+/* Count the "x,y" pairs in a polyline points attribute and check that each
+   lies on the page. */
+static int polyline_points_on_page( const char *line ) {
+   const char *p = strstr( line, "points=\"" );
+   int n = 0;
+   if( !p ) return -1;
+   p += strlen( "points=\"" );
+   while( *p && *p != '"' ) {
+      int x, y, used;
+      if( sscanf( p, "%d,%d%n", &x, &y, &used ) != 2 ) return -1;
+      if( x < 0 || x > 720 || y < 0 || y > 540 ) return -2;
+      n++;
+      p += used;
+      while( *p == ' ' ) p++;
+   }
+   return n;
+}
+
+static void test_svg( void ) {
+   float lbnd[3] = { -1.0f, -1.0f, -1.0f };
+   float ubnd[3] = { 1.0f, 1.0f, 1.0f };
+   float eye[3] = { 0.0f, 0.0f, 10.0f };
+   float target[3] = { 0.0f, 0.0f, 0.0f };
+   float camup[3] = { 0.0f, 1.0f, 0.0f };
+   float norm[3] = { 0.0f, 0.0f, 1.0f };
+   float up[3] = { 0.0f, 1.0f, 0.0f };
+   float ref[3] = { 0.0f, 0.0f, 0.0f };
+   const char *line;
+   long before;
+   int cx0, cy0, cx1, cy1, cx2, cxnear, cxfar;
+
+   svgfp = tmpfile();
+   if( !svgfp ) {
+      fail( "svg", "cannot create a temporary SVG file" );
+      return;
+   }
+
+   astGrf3DLogSetSvg( svgfp, 720, 540 );
+   expect_svg( "svg xml header", "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" );
+   expect_svg( "svg root",
+      "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"720\" height=\"540\" "
+      "viewBox=\"0 0 720 540\">" );
+   expect_svg( "svg background",
+      "<rect width=\"100%\" height=\"100%\" fill=\"black\"/>" );
+
+   /* The auto camera fits the cube on the page: all eight corners of the
+      cube drawn as one polyline land inside it. */
+   expect_int( "AutoCamera returns 1", astGrf3DLogAutoCamera( lbnd, ubnd ), 1 );
+   {
+      float x[8] = { -1, 1, 1, -1, -1, 1, 1, -1 };
+      float y[8] = { -1, -1, 1, 1, -1, -1, 1, 1 };
+      float z[8] = { -1, -1, -1, -1, 1, 1, 1, 1 };
+      expect_int( "G3DLine with svg returns 1", astG3DLine( 8, x, y, z ), 1 );
+      expect_line( "G3DLine log is unchanged by the svg",
+         "G3DLine n=8 (-1.000,-1.000,-1.000) (1.000,-1.000,-1.000) "
+         "(1.000,1.000,-1.000) (-1.000,1.000,-1.000) (-1.000,-1.000,1.000) "
+         "(1.000,-1.000,1.000) (1.000,1.000,1.000) (-1.000,1.000,1.000)" );
+      line = next_svg();
+      expect_contains( "polyline element", line, "<polyline ", 1 );
+      expect_contains( "polyline colour", line, "stroke=\"#ff0000\"", 1 );
+      expect_int( "polyline has eight points on the page",
+                  polyline_points_on_page( line ), 8 );
+   }
+
+   /* An orthographic camera on the z axis: x maps to the page x axis
+      linearly, and y is unchanged along it. */
+   expect_int( "SetCamera orthographic returns 1",
+               astGrf3DLogSetCamera( eye, target, camup, 0.0f ), 1 );
+   {
+      float x[3] = { 0.0f, 0.5f, 1.0f };
+      float y[3] = { 0.0f, 0.0f, 0.0f };
+      float z[3] = { 0.0f, 0.0f, 0.0f };
+      expect_int( "G3DMark with svg returns 1", astG3DMark( 3, x, y, z, 1, norm ), 1 );
+      next_line();
+      line = next_svg();
+      expect_contains( "circle element", line, "<circle ", 1 );
+      cx0 = svg_attr( line, "cx" );
+      cy0 = svg_attr( line, "cy" );
+      line = next_svg();
+      cx1 = svg_attr( line, "cx" );
+      cy1 = svg_attr( line, "cy" );
+      line = next_svg();
+      cx2 = svg_attr( line, "cx" );
+      if( cx1 <= cx0 ) fail( "orthographic x", "+x does not move right" );
+      expect_int( "orthographic y unchanged", cy1, cy0 );
+      if( abs( ( cx2 - cx0 ) - 2 * ( cx1 - cx0 ) ) > 1 ) {
+         fail( "orthographic x is linear", "1.0 is not twice 0.5" );
+      }
+   }
+
+   /* A perspective camera: the same offset nearer the eye projects
+      further from the centre. */
+   expect_int( "SetCamera perspective returns 1",
+               astGrf3DLogSetCamera( eye, target, camup, 10.0f ), 1 );
+   {
+      float x[2] = { 0.5f, 0.5f };
+      float y[2] = { 0.0f, 0.0f };
+      float z[2] = { 5.0f, -5.0f };
+      expect_int( "G3DMark perspective returns 1", astG3DMark( 2, x, y, z, 1, norm ), 1 );
+      next_line();
+      cxnear = svg_attr( next_svg(), "cx" );
+      cxfar = svg_attr( next_svg(), "cx" );
+      if( !( cxnear - cx0 > cxfar - cx0 && cxfar > cx0 ) ) {
+         fail( "perspective", "nearer point does not project further out" );
+      }
+   }
+
+   /* Text facing the camera, baseline along +x: no rotation, and the
+      justification maps to the SVG anchor and baseline. */
+   expect_int( "SetCamera orthographic again",
+               astGrf3DLogSetCamera( eye, target, camup, 0.0f ), 1 );
+   expect_int( "G3DText with svg returns 1",
+               astG3DText( "ab", ref, "BL", up, norm ), 1 );
+   next_line();
+   line = next_svg();
+   expect_contains( "text element", line, "<text ", 1 );
+   expect_contains( "text anchor L", line, "text-anchor=\"start\"", 1 );
+   expect_contains( "text baseline B", line, "dominant-baseline=\"alphabetic\"", 1 );
+   expect_contains( "text not rotated", line, "rotate(", 0 );
+   expect_contains( "text content", line, ">ab</text>", 1 );
+   expect_contains( "text font size", line, "font-size=\"", 1 );
+   if( svg_attr( line, "font-size" ) <= 0 ) fail( "font size", "not positive" );
+   /* The text is placed where a marker at the same point was drawn. */
+   expect_int( "text x at the reference point", svg_attr( line, "x" ), cx0 );
+   expect_int( "text y at the reference point", svg_attr( line, "y" ), cy0 );
+
+   /* Text with its up vector along +x: the baseline runs down the page. */
+   {
+      float upx[3] = { 1.0f, 0.0f, 0.0f };
+      expect_int( "G3DText rotated returns 1",
+                  astG3DText( "ab", ref, "BL", upx, norm ), 1 );
+      next_line();
+      line = next_svg();
+      expect_contains( "text rotated 90", line, "rotate(90,", 1 );
+   }
+
+   /* Text seen from behind: the normal points away from the eye, so the
+      text is flipped about its up vector and L becomes R. */
+   {
+      float back[3] = { 0.0f, 0.0f, -1.0f };
+      expect_int( "G3DText from behind returns 1",
+                  astG3DText( "ab", ref, "BL", up, back ), 1 );
+      next_line();
+      line = next_svg();
+      expect_contains( "behind: anchor swapped", line, "text-anchor=\"end\"", 1 );
+      expect_contains( "behind: baseline kept", line, "dominant-baseline=\"alphabetic\"", 1 );
+      expect_contains( "behind: not rotated", line, "rotate(", 0 );
+   }
+
+   /* Text upside down: its up vector points down the page, so it is
+      flipped about the normal and both justifications swap. */
+   {
+      float down[3] = { 0.0f, -1.0f, 0.0f };
+      expect_int( "G3DText upside down returns 1",
+                  astG3DText( "ab", ref, "BL", down, norm ), 1 );
+      next_line();
+      line = next_svg();
+      expect_contains( "upside down: anchor swapped", line, "text-anchor=\"end\"", 1 );
+      expect_contains( "upside down: baseline swapped", line, "dominant-baseline=\"hanging\"", 1 );
+      expect_contains( "upside down: not rotated", line, "rotate(", 0 );
+   }
+
+   /* Empty text draws nothing. */
+   fflush( svgfp );
+   fseek( svgfp, 0, SEEK_END );
+   before = ftell( svgfp );
+   expect_int( "G3DText empty with svg returns 1", astG3DText( "", ref, "BL", up, norm ), 1 );
+   next_line();
+   fflush( svgfp );
+   fseek( svgfp, 0, SEEK_END );
+   if( ftell( svgfp ) != before ) fail( "empty text", "wrote to the svg" );
+
+   /* Close finishes the picture and detaches it. */
+   astGrf3DLogClose();
+   expect_svg( "svg closed", "</svg>" );
+   astGrf3DLogInit( logfp );
+   fseek( svgfp, 0, SEEK_END );
+   before = ftell( svgfp );
+   {
+      float x[2] = { 0.0f, 1.0f }, y[2] = { 0.0f, 0.0f }, z[2] = { 0.0f, 0.0f };
+      expect_int( "G3DLine without svg returns 1", astG3DLine( 2, x, y, z ), 1 );
+      expect_line( "G3DLine log without svg",
+                   "G3DLine n=2 (0.000,0.000,0.000) (1.000,0.000,0.000)" );
+   }
+   fflush( svgfp );
+   fseek( svgfp, 0, SEEK_END );
+   if( ftell( svgfp ) != before ) fail( "no svg set", "still drawing after close" );
+
+   fclose( svgfp );
+   svgfp = NULL;
+}
+
 /* Close detaches the log. */
 static void test_close( void ) {
    astGrf3DLogClose();
@@ -427,6 +663,7 @@ int main( void ) {
    test_attr_cap_qch();
    test_line_mark_text();
    test_txext();
+   test_svg();
    test_close();
 
    astGrf3DLogClose();

@@ -56,6 +56,7 @@
 #include "ast_err.h"
 #include "pointset.h"
 
+#include <float.h>
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -65,10 +66,49 @@
 #define DEFAULT_MM_PER_WORLD 200.0  /* The 200 mm page of grf_log.c */
 #define DEFAULT_CHR_HT  4.0         /* mm, matches PLplot default */
 
+#define PAGE_HEIGHT_MM  200.0       /* The page the 14 pixel font is sized for */
+#define SVG_FONT_PX     14.0        /* grf_log.c font size, in pixels */
+#define CAMERA_OK 123456789         /* Flags that the camera has been set */
+#define R2D 57.29577951308232       /* radians to degrees */
+
+/* PLplot-compatible colour map 0 (indices 0-15), as in grf_log.c. */
+static const char *cmap0[] = {
+   "#000000", "#ff0000", "#ffff00", "#00ff00",
+   "#7fffd4", "#ffc0cb", "#f5deb3", "#808080",
+   "#a52a2a", "#0000ff", "#8a2be2", "#00ffff",
+   "#f0e68c", "#fa8072", "#c0c0c0", "#ffffff"
+};
+#define NCMAP0 16
+
+/* Type definitions. */
+/* ================= */
+/* The position and orientation of the camera in 3D world coordinates,
+   as in grf3d_plplot.c. */
+typedef struct Camera {
+   float eye_vector[3];
+   float target_vector[3];
+   float up_vector[3];
+   float w2c_matrix[9];
+   float screen_distance;
+   int ok_flag;
+} Camera;
+
 /* Static state. */
 /* ============= */
 static FILE *log_fp = NULL;
 static double mm_per_world = DEFAULT_MM_PER_WORLD;
+
+/* SVG output: the file, the page size in pixels, the camera, and the
+   window in projected screen coordinates that maps onto the page. */
+static FILE *svg_fp = NULL;
+static int svg_w = 720;
+static int svg_h = 540;
+static Camera camera = { {0,0,0}, {0,0,0}, {0,0,0},
+                         {0,0,0,0,0,0,0,0,0}, 0.0f, 0 };
+static float win_x1 = 0.0f;
+static float win_x2 = 1.0f;
+static float win_y1 = 0.0f;
+static float win_y2 = 1.0f;
 
 /* Attribute state: [GRF__TEXT=0, GRF__LINE=1, GRF__MARK=2].  Separate
    from the arrays in grf_log.c, since a program may link both modules. */
@@ -96,9 +136,29 @@ void astGrf3DLogSetScale( double scale ) {
    mm_per_world = scale;
 }
 
+void astGrf3DLogSetSvg( FILE *svgfile, int width, int height ) {
+   svg_fp = svgfile;
+   svg_w = width;
+   svg_h = height;
+   if( svg_fp ) {
+      fprintf( svg_fp,
+         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+         "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+         "width=\"%d\" height=\"%d\" "
+         "viewBox=\"0 0 %d %d\">\n"
+         "<rect width=\"100%%\" height=\"100%%\" fill=\"black\"/>\n",
+         svg_w, svg_h, svg_w, svg_h );
+   }
+}
+
 void astGrf3DLogClose( void ) {
    if( log_fp ) fflush( log_fp );
    log_fp = NULL;
+   if( svg_fp ) {
+      fprintf( svg_fp, "</svg>\n" );
+      fflush( svg_fp );
+   }
+   svg_fp = NULL;
 }
 
 /* Helpers. */
@@ -117,6 +177,18 @@ static void vectorProduct( const float *a, const float *b, float *c ) {
    c[ 0 ] = a[ 1 ]*b[ 2 ] - a[ 2 ]*b[ 1 ];
    c[ 1 ] = a[ 2 ]*b[ 0 ] - a[ 0 ]*b[ 2 ];
    c[ 2 ] = a[ 0 ]*b[ 1 ] - a[ 1 ]*b[ 0 ];
+}
+
+/* Dot product of a pair of 3-vectors "a" and "b". */
+static float dotProduct( const float *a, const float *b ) {
+   return a[ 0 ]*b[ 0 ] + a[ 1 ]*b[ 1 ] + a[ 2 ]*b[ 2 ];
+}
+
+/* Vector from "b" to "a" (i.e. a minus b). */
+static void vectorSub( const float *a, const float *b, float *c ) {
+   c[ 0 ] = a[ 0 ] - b[ 0 ];
+   c[ 1 ] = a[ 1 ] - b[ 1 ];
+   c[ 2 ] = a[ 2 ] - b[ 2 ];
 }
 
 /* Return the length of a vector. */
@@ -166,6 +238,355 @@ static int TextAxes( const char *caller, const float up[3], const float norm[3],
       return 0;
    }
    return 1;
+}
+
+/* Camera and projection, ported from grf3d_plplot.c. */
+/* ================================================== */
+
+int astGrf3DLogSetCamera( float eye[3], float target[3], float up[3],
+                          float screen ) {
+   Camera *cam = &camera;
+   float *u, *v, *w;
+   int result = 1;
+
+   memcpy( cam->target_vector, target, 3*sizeof( float ) );
+   memcpy( cam->eye_vector, eye, 3*sizeof( float ) );
+   cam->screen_distance = screen;
+
+/* The rows of the w2c_matrix are unit vectors along the u, v and w axes
+   of the camera, expressed in world coordinates. */
+   u = cam->w2c_matrix;
+   v = u + 3;
+   w = v + 3;
+
+/* The "w" axis points from the eye to the target. */
+   vectorSub( target, eye, w );
+   if( ! vectorNorm( w ) ) result = 0;
+
+/* The "v" axis is in the plane of "w" and the up vector: take the normal
+   to that plane (temporarily in "u"), then the vector normal to both it
+   and "w". */
+   vectorProduct( w, up, u );
+   vectorProduct( u, w, v );
+   if( ! vectorNorm( v ) ) result = 0;
+
+/* The "u" axis is perpendicular to both. */
+   vectorProduct( v, w, u );
+   if( ! vectorNorm( u ) ) result = 0;
+
+/* Store "v" as the camera's up vector. */
+   memcpy( cam->up_vector, v, 3*sizeof( float ) );
+
+   cam->ok_flag = result ? CAMERA_OK : CAMERA_OK/2;
+   return result;
+}
+
+/* Project "n" world positions to screen coordinates (h, r).  Returns 0
+   if no usable camera has been set. */
+static int transform( int n, const float *x, const float *y, const float *z,
+                      float *h, float *r ) {
+   Camera *cam = &camera;
+   float dx, dy, dz, u, v, w, f;
+   int i;
+
+   if( cam->ok_flag != CAMERA_OK ) return 0;
+
+   for( i = 0; i < n; i++ ) {
+
+/* Offset from the position to the eye. */
+      dx = x[ i ] - (cam->eye_vector)[ 0 ];
+      dy = y[ i ] - (cam->eye_vector)[ 1 ];
+      dz = z[ i ] - (cam->eye_vector)[ 2 ];
+
+/* The same vector in the (u,v,w) system. */
+      u = (cam->w2c_matrix)[ 0 ]*dx +
+          (cam->w2c_matrix)[ 1 ]*dy +
+          (cam->w2c_matrix)[ 2 ]*dz;
+
+      v = (cam->w2c_matrix)[ 3 ]*dx +
+          (cam->w2c_matrix)[ 4 ]*dy +
+          (cam->w2c_matrix)[ 5 ]*dz;
+
+      w = (cam->w2c_matrix)[ 6 ]*dx +
+          (cam->w2c_matrix)[ 7 ]*dy +
+          (cam->w2c_matrix)[ 8 ]*dz;
+
+/* Screen coordinates by a tangent plane or an orthographic projection.
+   A position in the plane of the eye has no perspective projection and
+   is flagged with FLT_MAX. */
+      if( cam->screen_distance != 0.0 ) {
+         if( w != 0.0 ) {
+            f = cam->screen_distance/w;
+            h[ i ] = -f*u;
+            r[ i ] = f*v;
+         } else {
+            h[ i ] = FLT_MAX;
+            r[ i ] = FLT_MAX;
+         }
+      } else {
+         h[ i ] = -u;
+         r[ i ] = v;
+      }
+   }
+   return 1;
+}
+
+int astGrf3DLogAutoCamera( float lbnd[3], float ubnd[3] ) {
+   float target[3], eye[3], up[3], screen, dx, dy, dz, hlo, hhi, rlo, rhi;
+   float x[8], y[8], z[8], h[8], r[8];
+   int result = 0;
+   int i;
+
+/* Look at the middle of the volume. */
+   target[ 0 ] = 0.5*( lbnd[ 0 ] + ubnd[ 0 ] );
+   target[ 1 ] = 0.5*( lbnd[ 1 ] + ubnd[ 1 ] );
+   target[ 2 ] = 0.5*( lbnd[ 2 ] + ubnd[ 2 ] );
+
+/* From slightly off a corner view... */
+   eye[ 0 ] = 0.85*ubnd[ 0 ] + 0.15*lbnd[ 0 ];
+   eye[ 1 ] = 0.75*ubnd[ 1 ] + 0.25*lbnd[ 1 ];
+   eye[ 2 ] = 0.75*ubnd[ 2 ] + 0.25*lbnd[ 2 ];
+
+/* ...seven times the size of the box away from its centre. */
+   eye[ 0 ] = 7*(eye[ 0 ] - target[ 0 ] ) + target[ 0 ];
+   eye[ 1 ] = 7*(eye[ 1 ] - target[ 1 ] ) + target[ 1 ];
+   eye[ 2 ] = 7*(eye[ 2 ] - target[ 2 ] ) + target[ 2 ];
+
+/* With the Z axis up. */
+   up[ 0 ] = 0.0;
+   up[ 1 ] = 0.0;
+   up[ 2 ] = 1.0;
+
+/* The screen passes through the centre of the box. */
+   dx = eye[ 0 ] - target[ 0 ];
+   dy = eye[ 1 ] - target[ 1 ];
+   dz = eye[ 2 ] - target[ 2 ];
+   screen = sqrtf( dx*dx + dy*dy + dz*dz );
+
+   if( astGrf3DLogSetCamera( eye, target, up, screen ) ) {
+
+/* The corners of the volume. */
+      x[ 0 ] = ubnd[ 0 ];
+      x[ 1 ] = ubnd[ 0 ];
+      x[ 2 ] = lbnd[ 0 ];
+      x[ 3 ] = lbnd[ 0 ];
+      x[ 4 ] = ubnd[ 0 ];
+      x[ 5 ] = ubnd[ 0 ];
+      x[ 6 ] = lbnd[ 0 ];
+      x[ 7 ] = lbnd[ 0 ];
+
+      y[ 0 ] = lbnd[ 1 ];
+      y[ 1 ] = ubnd[ 1 ];
+      y[ 2 ] = ubnd[ 1 ];
+      y[ 3 ] = lbnd[ 1 ];
+      y[ 4 ] = lbnd[ 1 ];
+      y[ 5 ] = ubnd[ 1 ];
+      y[ 6 ] = ubnd[ 1 ];
+      y[ 7 ] = lbnd[ 1 ];
+
+      z[ 0 ] = lbnd[ 2 ];
+      z[ 1 ] = lbnd[ 2 ];
+      z[ 2 ] = lbnd[ 2 ];
+      z[ 3 ] = lbnd[ 2 ];
+      z[ 4 ] = ubnd[ 2 ];
+      z[ 5 ] = ubnd[ 2 ];
+      z[ 6 ] = ubnd[ 2 ];
+      z[ 7 ] = ubnd[ 2 ];
+
+      if( transform( 8, x, y, z, h, r ) ) {
+
+/* The bounds of the projected volume. */
+         hlo = FLT_MAX;
+         hhi = -FLT_MAX;
+         rlo = FLT_MAX;
+         rhi = -FLT_MAX;
+
+         for( i = 0; i < 8; i++ ) {
+            if( h[ i ] < hlo ) hlo = h[ i ];
+            if( h[ i ] > hhi ) hhi = h[ i ];
+            if( r[ i ] < rlo ) rlo = r[ i ];
+            if( r[ i ] > rhi ) rhi = r[ i ];
+         }
+
+/* Extended by 5% at each end. */
+         dx = 0.05*( hhi - hlo );
+         hhi += dx;
+         hlo -= dx;
+
+         dy = 0.05*( rhi - rlo );
+         rhi += dy;
+         rlo -= dy;
+
+/* A box with area becomes the window mapped onto the page. */
+         if( rlo < rhi && hlo < hhi ) {
+            win_x1 = hlo;
+            win_x2 = hhi;
+            win_y1 = rlo;
+            win_y2 = rhi;
+            result = 1;
+         }
+      }
+   }
+   return result;
+}
+
+/* SVG helpers. */
+/* ============ */
+
+/* Page pixels from projected screen coordinates: the window maps onto
+   the page as the unit square does in grf_log.c. */
+static int SvgX( float h ) {
+   return (int) round( ( h - win_x1 ) / ( win_x2 - win_x1 ) * (float)svg_w );
+}
+
+static int SvgY( float r ) {
+   return (int) round( (float)svg_h -
+                       ( r - win_y1 ) / ( win_y2 - win_y1 ) * (float)svg_h );
+}
+
+/* A projected position with no perspective image cannot be drawn. */
+static int Projectable( float h, float r ) {
+   return h != FLT_MAX && r != FLT_MAX;
+}
+
+static const char *SvgColour( int prim ) {
+   int idx = (int)round( attr_colour[prim] );
+   if( idx < 0 || idx >= NCMAP0 ) idx = 1;
+   return cmap0[idx];
+}
+
+/* The text axes flipped so that the text reads normally from the camera,
+   as getTextAxes does in grf3d_plplot.c, with the justification adjusted
+   so that the text keeps its place on the screen.  "newjust" receives
+   the two justification characters, defaulting to "CC". */
+static void FlipTextAxes( const float ref[3], const char *just,
+                          float tx[3], float ty[3], float tz[3],
+                          char newjust[3] ) {
+   float eye[3];
+
+   if( just ) {
+      strncpy( newjust, just, 2 );
+      if( !newjust[ 0 ] ) newjust[ 0 ] = 'C';
+      if( !newjust[ 1 ] ) newjust[ 1 ] = 'C';
+      newjust[ 2 ] = 0;
+   } else {
+      strcpy( newjust, "CC" );
+   }
+
+/* The vector from the reference position to the eye. */
+   vectorSub( camera.eye_vector, ref, eye );
+
+/* Text seen from the back is spun about its up vector (ty), so the
+   horizontal justification swaps. */
+   if( dotProduct( tz, eye ) < 0.0 ) {
+      tz[ 0 ] = -tz[ 0 ];
+      tz[ 1 ] = -tz[ 1 ];
+      tz[ 2 ] = -tz[ 2 ];
+      tx[ 0 ] = -tx[ 0 ];
+      tx[ 1 ] = -tx[ 1 ];
+      tx[ 2 ] = -tx[ 2 ];
+
+      if( newjust[ 1 ] == 'L' ) {
+         newjust[ 1 ] = 'R';
+      } else if( newjust[ 1 ] == 'R' ) {
+         newjust[ 1 ] = 'L';
+      }
+   }
+
+/* Text seen upside down is spun about the viewing vector (tz), so both
+   justifications swap. */
+   if( dotProduct( ty, camera.up_vector ) < 0.0 ) {
+      ty[ 0 ] = -ty[ 0 ];
+      ty[ 1 ] = -ty[ 1 ];
+      ty[ 2 ] = -ty[ 2 ];
+      tx[ 0 ] = -tx[ 0 ];
+      tx[ 1 ] = -tx[ 1 ];
+      tx[ 2 ] = -tx[ 2 ];
+
+      if( newjust[ 0 ] == 'B' || newjust[ 0 ] == 'M' ) {
+         newjust[ 0 ] = 'T';
+      } else if( newjust[ 0 ] == 'T' ) {
+         newjust[ 0 ] = 'M';
+      }
+
+      if( newjust[ 1 ] == 'L' ) {
+         newjust[ 1 ] = 'R';
+      } else if( newjust[ 1 ] == 'R' ) {
+         newjust[ 1 ] = 'L';
+      }
+   }
+}
+
+/* Draw a text string into the SVG. */
+static void SvgText( const char *text, const float ref[3], const char *just,
+                     const float up[3], const float norm[3] ) {
+   char newjust[3];
+   float tx[3], ty[3], tz[3];
+   float px[3], py[3], pz[3], h[3], r[3];
+   float ch, dxpx, dypx, proj_px, nominal_px;
+   double angle;
+   const char *anchor;
+   const char *baseline;
+   int sx, sy, fs, iangle;
+
+   if( !TextAxes( "astG3DText", up, norm, tx, ty, tz ) ) return;
+   FlipTextAxes( ref, just, tx, ty, tz, newjust );
+
+/* Project the reference point, a point one unit along the baseline, and
+   a point one character height up the text. */
+   ch = (float)( ChrHtMM() / mm_per_world );
+   px[0] = ref[0];
+   py[0] = ref[1];
+   pz[0] = ref[2];
+   px[1] = ref[0] + tx[0];
+   py[1] = ref[1] + tx[1];
+   pz[1] = ref[2] + tx[2];
+   px[2] = ref[0] + ty[0] * ch;
+   py[2] = ref[1] + ty[1] * ch;
+   pz[2] = ref[2] + ty[2] * ch;
+   if( !transform( 3, px, py, pz, h, r ) ) return;
+   if( !Projectable( h[0], r[0] ) || !Projectable( h[1], r[1] ) ||
+       !Projectable( h[2], r[2] ) ) return;
+
+   sx = SvgX( h[0] );
+   sy = SvgY( r[0] );
+
+/* The baseline angle on the page, in degrees clockwise as SVG rotates. */
+   dxpx = ( h[1] - h[0] ) / ( win_x2 - win_x1 ) * (float)svg_w;
+   dypx = ( r[1] - r[0] ) / ( win_y2 - win_y1 ) * (float)svg_h;
+   angle = -atan2( (double)dypx, (double)dxpx ) * R2D;
+
+/* The font size: grf_log.c's 14 pixels scaled by the projected character
+   height relative to the height a default character has on the 200 mm
+   page at this page height. */
+   dxpx = ( h[2] - h[0] ) / ( win_x2 - win_x1 ) * (float)svg_w;
+   dypx = ( r[2] - r[0] ) / ( win_y2 - win_y1 ) * (float)svg_h;
+   proj_px = sqrtf( dxpx*dxpx + dypx*dypx );
+   nominal_px = (float)( DEFAULT_CHR_HT / PAGE_HEIGHT_MM ) * (float)svg_h;
+   fs = (int)round( SVG_FONT_PX * proj_px / nominal_px );
+   if( fs < 1 ) fs = 1;
+
+   switch( newjust[1] ) {
+      case 'L': anchor = "start";  break;
+      case 'R': anchor = "end";    break;
+      default:  anchor = "middle"; break;
+   }
+   switch( newjust[0] ) {
+      case 'T': baseline = "hanging";    break;
+      case 'B':
+      case 'M': baseline = "alphabetic"; break;
+      default:  baseline = "central";    break;
+   }
+
+   fprintf( svg_fp, "<text x=\"%d\" y=\"%d\" "
+            "font-family=\"sans-serif\" font-size=\"%d\" "
+            "fill=\"%s\" text-anchor=\"%s\" dominant-baseline=\"%s\"",
+            sx, sy, fs, SvgColour(GRF__TEXT), anchor, baseline );
+   iangle = (int)round( angle );
+   if( iangle != 0 ) {
+      fprintf( svg_fp, " transform=\"rotate(%d,%d,%d)\"", iangle, sx, sy );
+   }
+   fprintf( svg_fp, ">%s</text>\n", text );
 }
 
 /* Write "n" 3D points to the log as " (x,y,z)" groups. */
@@ -241,6 +662,22 @@ int astG3DLine( int n, float *x, float *y, float *z ) {
       LogPoints( n, x, y, z );
       fprintf( log_fp, "\n" );
    }
+   if( svg_fp && n > 1 && x && y && z ) {
+      float h, r;
+      int i;
+      double w = attr_width[GRF__LINE];
+      if( w < 1.0 ) w = 1.0;
+      fprintf( svg_fp, "<polyline fill=\"none\" stroke=\"%s\" "
+               "stroke-width=\"%d\" points=\"", SvgColour(GRF__LINE),
+               (int)round( w ) );
+      for( i = 0; i < n; i++ ) {
+         if( transform( 1, x + i, y + i, z + i, &h, &r ) &&
+             Projectable( h, r ) ) {
+            fprintf( svg_fp, "%d,%d ", SvgX( h ), SvgY( r ) );
+         }
+      }
+      fprintf( svg_fp, "\"/>\n" );
+   }
    return 1;
 }
 
@@ -251,6 +688,18 @@ int astG3DMark( int n, float *x, float *y, float *z, int type,
                type, norm[0], norm[1], norm[2], n );
       LogPoints( n, x, y, z );
       fprintf( log_fp, "\n" );
+   }
+   if( svg_fp && n > 0 && x && y && z ) {
+      float h, r;
+      int i;
+      for( i = 0; i < n; i++ ) {
+         if( transform( 1, x + i, y + i, z + i, &h, &r ) &&
+             Projectable( h, r ) ) {
+            fprintf( svg_fp, "<circle cx=\"%d\" cy=\"%d\" r=\"2\" "
+                     "fill=\"%s\"/>\n", SvgX( h ), SvgY( r ),
+                     SvgColour(GRF__MARK) );
+         }
+      }
    }
    return 1;
 }
@@ -269,6 +718,9 @@ int astG3DText( const char *text, float ref[3], const char *just,
                text ? text : "", ref[0], ref[1], ref[2],
                just ? just[0] : '?', just ? just[1] : '?',
                up[0], up[1], up[2], norm[0], norm[1], norm[2] );
+   }
+   if( svg_fp && text && text[0] != '\0' ) {
+      SvgText( text, ref, just, up, norm );
    }
    return 1;
 }
