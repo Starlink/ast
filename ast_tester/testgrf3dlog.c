@@ -175,6 +175,235 @@ static void test_line_mark_text( void ) {
       "G3DText \"hi\" ref=(0.100,0.200,0.300) just=?? up=(0.000,1.000,0.000) norm=(0.000,0.000,1.000)" );
 }
 
+/* Check the four corners and the baseline start of a text box. */
+static void expect_box( const char *what, const float *xb, const float *yb,
+                        const float *zb, const float *bl,
+                        const float expected[5][3] ) {
+   char name[200];
+   int i;
+   for( i = 0; i < 4; i++ ) {
+      snprintf( name, sizeof(name), "%s corner %d x", what, i );
+      expect_near( name, xb[i], expected[i][0] );
+      snprintf( name, sizeof(name), "%s corner %d y", what, i );
+      expect_near( name, yb[i], expected[i][1] );
+      snprintf( name, sizeof(name), "%s corner %d z", what, i );
+      expect_near( name, zb[i], expected[i][2] );
+   }
+   snprintf( name, sizeof(name), "%s bl x", what );
+   expect_near( name, bl[0], expected[4][0] );
+   snprintf( name, sizeof(name), "%s bl y", what );
+   expect_near( name, bl[1], expected[4][1] );
+   snprintf( name, sizeof(name), "%s bl z", what );
+   expect_near( name, bl[2], expected[4][2] );
+}
+
+/* Text extent in the text's own plane.  With the default scale of 200 mm
+   per world unit, a 4 mm character is 0.02 world units high, and the text
+   "ab" has phys_hu = 4, phys_hd = -0.8, phys_w = 4.8, padded_w = 5.6 mm,
+   so the box is 0.028 wide and 0.024 high in world units. */
+static void test_txext( void ) {
+   float ref[3] = { 0.0f, 0.0f, 0.0f };
+   float up[3] = { 0.0f, 1.0f, 0.0f };
+   float norm[3] = { 0.0f, 0.0f, 1.0f };
+   float xb[4], yb[4], zb[4], bl[3];
+   int i;
+
+   /* BL: the reference point is the left end of the baseline. */
+   {
+      static const float e[5][3] = {
+         { 0.0f,   -0.004f, 0.0f }, { 0.028f, -0.004f, 0.0f },
+         { 0.028f,  0.020f, 0.0f }, { 0.0f,    0.020f, 0.0f },
+         { 0.0f,    0.0f,   0.0f } };
+      expect_int( "TxExt BL returns 1",
+                  astG3DTxExt( "ab", ref, "BL", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "BL", xb, yb, zb, bl, e );
+      expect_line( "TxExt BL log",
+         "G3DTxExt \"ab\" ref=(0.000,0.000,0.000) just=BL "
+         "box=(0.000,-0.004,0.000)-(0.028,-0.004,0.000)-(0.028,0.020,0.000)-"
+         "(0.000,0.020,0.000) bl=(0.000,0.000,0.000)" );
+   }
+
+   /* CC: the box centre is at cy_mm = 0.5*phys_hd = -0.4 mm = -0.002, so
+      the baseline is at -0.002 + 0.0012 - 0.0 ... i.e. at
+      cy - 0.5*(hu+hd) = -0.4 - 1.6 = -2.0 mm = -0.010; and bl x is
+      cx - half_w = -2.8 mm = -0.014. */
+   {
+      static const float e[5][3] = {
+         { -0.014f, -0.014f, 0.0f }, { 0.014f, -0.014f, 0.0f },
+         {  0.014f,  0.010f, 0.0f }, { -0.014f, 0.010f, 0.0f },
+         { -0.014f, -0.010f, 0.0f } };
+      expect_int( "TxExt CC returns 1",
+                  astG3DTxExt( "ab", ref, "CC", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "CC", xb, yb, zb, bl, e );
+      next_line();
+   }
+
+   /* NULL justification is CC. */
+   {
+      static const float e[5][3] = {
+         { -0.014f, -0.014f, 0.0f }, { 0.014f, -0.014f, 0.0f },
+         {  0.014f,  0.010f, 0.0f }, { -0.014f, 0.010f, 0.0f },
+         { -0.014f, -0.010f, 0.0f } };
+      expect_int( "TxExt NULL just returns 1",
+                  astG3DTxExt( "ab", ref, NULL, up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "NULL just", xb, yb, zb, bl, e );
+      expect_line( "TxExt NULL just log",
+         "G3DTxExt \"ab\" ref=(0.000,0.000,0.000) just=?? "
+         "box=(-0.014,-0.014,0.000)-(0.014,-0.014,0.000)-(0.014,0.010,0.000)-"
+         "(-0.014,0.010,0.000) bl=(-0.014,-0.010,0.000)" );
+   }
+
+   /* M is not a vertical justification this module knows, so it is C. */
+   {
+      static const float e[5][3] = {
+         { -0.014f, -0.014f, 0.0f }, { 0.014f, -0.014f, 0.0f },
+         {  0.014f,  0.010f, 0.0f }, { -0.014f, 0.010f, 0.0f },
+         { -0.014f, -0.010f, 0.0f } };
+      expect_int( "TxExt MC returns 1",
+                  astG3DTxExt( "ab", ref, "MC", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "MC", xb, yb, zb, bl, e );
+      next_line();
+   }
+
+   /* TR: the reference point is the top right corner. */
+   {
+      static const float e[5][3] = {
+         { -0.028f, -0.024f, 0.0f }, { 0.0f, -0.024f, 0.0f },
+         {  0.0f,    0.0f,   0.0f }, { -0.028f, 0.0f, 0.0f },
+         { -0.028f, -0.020f, 0.0f } };
+      expect_int( "TxExt TR returns 1",
+                  astG3DTxExt( "ab", ref, "TR", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "TR", xb, yb, zb, bl, e );
+      next_line();
+   }
+
+   /* TL and BR, mixing the two. */
+   {
+      static const float e[5][3] = {
+         { 0.0f,   -0.024f, 0.0f }, { 0.028f, -0.024f, 0.0f },
+         { 0.028f,  0.0f,   0.0f }, { 0.0f,    0.0f,   0.0f },
+         { 0.0f,   -0.020f, 0.0f } };
+      expect_int( "TxExt TL returns 1",
+                  astG3DTxExt( "ab", ref, "TL", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "TL", xb, yb, zb, bl, e );
+      next_line();
+   }
+   {
+      static const float e[5][3] = {
+         { -0.028f, -0.004f, 0.0f }, { 0.0f, -0.004f, 0.0f },
+         {  0.0f,    0.020f, 0.0f }, { -0.028f, 0.020f, 0.0f },
+         { -0.028f,  0.0f,   0.0f } };
+      expect_int( "TxExt BR returns 1",
+                  astG3DTxExt( "ab", ref, "BR", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "BR", xb, yb, zb, bl, e );
+      next_line();
+   }
+
+   /* The reference point offsets every corner. */
+   {
+      float ref2[3] = { 1.0f, 2.0f, 3.0f };
+      static const float e[5][3] = {
+         { 1.0f,   1.996f, 3.0f }, { 1.028f, 1.996f, 3.0f },
+         { 1.028f, 2.020f, 3.0f }, { 1.0f,   2.020f, 3.0f },
+         { 1.0f,   2.0f,   3.0f } };
+      expect_int( "TxExt offset ref returns 1",
+                  astG3DTxExt( "ab", ref2, "BL", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "offset ref", xb, yb, zb, bl, e );
+      next_line();
+   }
+
+   /* An up vector with a component along the normal: only its projection
+      onto the text plane counts, so (0,1,1) with norm (0,0,1) is (0,1,0). */
+   {
+      float up2[3] = { 0.0f, 1.0f, 1.0f };
+      static const float e[5][3] = {
+         { 0.0f,   -0.004f, 0.0f }, { 0.028f, -0.004f, 0.0f },
+         { 0.028f,  0.020f, 0.0f }, { 0.0f,    0.020f, 0.0f },
+         { 0.0f,    0.0f,   0.0f } };
+      expect_int( "TxExt tilted up returns 1",
+                  astG3DTxExt( "ab", ref, "BL", up2, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "tilted up", xb, yb, zb, bl, e );
+      next_line();
+   }
+
+   /* Reversing the normal reverses the baseline direction: tx = up x tz
+      is (-1,0,0), so the box runs to negative x. */
+   {
+      float norm2[3] = { 0.0f, 0.0f, -1.0f };
+      static const float e[5][3] = {
+         { 0.0f,   -0.004f, 0.0f }, { -0.028f, -0.004f, 0.0f },
+         { -0.028f, 0.020f, 0.0f }, { 0.0f,     0.020f, 0.0f },
+         { 0.0f,    0.0f,   0.0f } };
+      expect_int( "TxExt reversed normal returns 1",
+                  astG3DTxExt( "ab", ref, "BL", up, norm2, xb, yb, zb, bl ), 1 );
+      expect_box( "reversed normal", xb, yb, zb, bl, e );
+      next_line();
+   }
+
+   /* A normal that is not a unit vector, along x, with up along z:
+      tx = up x tz = (0,1,0), ty = tz x tx = (0,0,1). */
+   {
+      float norm3[3] = { 5.0f, 0.0f, 0.0f };
+      float up3[3] = { 0.0f, 0.0f, 2.0f };
+      static const float e[5][3] = {
+         { 0.0f, 0.0f,   -0.004f }, { 0.0f, 0.028f, -0.004f },
+         { 0.0f, 0.028f,  0.020f }, { 0.0f, 0.0f,    0.020f },
+         { 0.0f, 0.0f,    0.0f } };
+      expect_int( "TxExt x normal returns 1",
+                  astG3DTxExt( "ab", ref, "BL", up3, norm3, xb, yb, zb, bl ), 1 );
+      expect_box( "x normal", xb, yb, zb, bl, e );
+      next_line();
+   }
+
+   /* The text size attribute scales the box. */
+   {
+      static const float e[5][3] = {
+         { 0.0f,   -0.008f, 0.0f }, { 0.056f, -0.008f, 0.0f },
+         { 0.056f,  0.040f, 0.0f }, { 0.0f,    0.040f, 0.0f },
+         { 0.0f,    0.0f,   0.0f } };
+      astG3DAttr( GRF__SIZE, 2.0, NULL, GRF__TEXT );
+      next_line();
+      expect_int( "TxExt size 2 returns 1",
+                  astG3DTxExt( "ab", ref, "BL", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "size 2", xb, yb, zb, bl, e );
+      next_line();
+      astG3DAttr( GRF__SIZE, 1.0, NULL, GRF__TEXT );
+      next_line();
+   }
+
+   /* A zero normal has no meaning without a camera. */
+   expect_int( "TxExt zero normal returns 0",
+               astG3DTxExt( "ab", ref, "BL", up, (float[3]){ 0.0f, 0.0f, 0.0f },
+                            xb, yb, zb, bl ), 0 );
+   expect_error( "TxExt zero normal status", AST__GRFER );
+
+   /* An up vector parallel to the normal gives no baseline. */
+   expect_int( "TxExt parallel up returns 0",
+               astG3DTxExt( "ab", ref, "BL", norm, norm, xb, yb, zb, bl ), 0 );
+   expect_error( "TxExt parallel up status", AST__GRFER );
+   next_line();
+
+   /* Empty and NULL text give an all-zero box without error. */
+   for( i = 0; i < 4; i++ ) { xb[i] = yb[i] = zb[i] = 1.0f; }
+   bl[0] = bl[1] = bl[2] = 1.0f;
+   {
+      static const float e[5][3] = { {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0} };
+      expect_int( "TxExt empty text returns 1",
+                  astG3DTxExt( "", ref, "BL", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "empty text", xb, yb, zb, bl, e );
+      expect_line( "TxExt empty text log",
+         "G3DTxExt \"\" ref=(0.000,0.000,0.000) just=BL "
+         "box=(0.000,0.000,0.000)-(0.000,0.000,0.000)-(0.000,0.000,0.000)-"
+         "(0.000,0.000,0.000) bl=(0.000,0.000,0.000)" );
+      for( i = 0; i < 4; i++ ) { xb[i] = yb[i] = zb[i] = 1.0f; }
+      bl[0] = bl[1] = bl[2] = 1.0f;
+      expect_int( "TxExt NULL text returns 1",
+                  astG3DTxExt( NULL, ref, "BL", up, norm, xb, yb, zb, bl ), 1 );
+      expect_box( "NULL text", xb, yb, zb, bl, e );
+      next_line();
+   }
+}
+
 /* Close detaches the log. */
 static void test_close( void ) {
    astGrf3DLogClose();
@@ -197,6 +426,7 @@ int main( void ) {
 
    test_attr_cap_qch();
    test_line_mark_text();
+   test_txext();
    test_close();
 
    astGrf3DLogClose();
