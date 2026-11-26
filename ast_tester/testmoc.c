@@ -344,6 +344,86 @@ static void checkLargeRegionHighOrder( int *status ) {
    moc2 = astAnnul( moc2 );
 }
 
+/* When MinOrder has not been set, astAddRegion starts at a lower order
+   than the default if the bounding box of the Region would hold too many
+   cells at the default order, and the cells of the initial grid are
+   tested in chunks whatever its size. Neither changes the Moc of a Region
+   without holes, so this Circle of radius 80 degrees must give the same
+   cells at MaxOrder 10 from the default initial grid, from a grid at
+   MinOrder 5 and from a grid at order 9 that holds about a million cells
+   and so is tested in many chunks. The cells can differ where the
+   boundary of the Circle passes between the test points of a cell at one
+   starting order but not another, so a difference of a few of the six
+   thousand cells along the boundary is allowed. The MinOrder attribute
+   must report its default whatever order the search started at. */
+static void checkLargeRegionMinOrder( int *status ) {
+   AstMoc *moc, *moc2, *moc3, *diff;
+   AstCircle *circle;
+   const double d2r = AST__DPI/180.0;
+   double centre[ 2 ], radius, cell;
+
+   if( *status != 0 ) return;
+
+   centre[ 0 ] = 20.0*d2r;
+   centre[ 1 ] = 30.0*d2r;
+   radius = 80.0*d2r;
+   circle = astCircle( astSkyFrame( "System=ICRS" ), 1, centre, &radius,
+                       NULL, " " );
+
+   moc = astMoc( "MaxOrder=10" );
+   astAddRegion( moc, AST__OR, circle );
+   if( astOK && astGetI( moc, "MinOrder" ) != 5 ) {
+      stopit( "checkLargeRegionMinOrder: the default MinOrder was changed",
+              status );
+   }
+   if( astOK && astTest( moc, "MinOrder" ) ) {
+      stopit( "checkLargeRegionMinOrder: MinOrder was set", status );
+   }
+
+   moc2 = astMoc( "MaxOrder=10,MinOrder=5" );
+   astAddRegion( moc2, AST__OR, circle );
+
+   moc3 = astMoc( "MaxOrder=10,MinOrder=9" );
+   astAddRegion( moc3, AST__OR, circle );
+
+/* The area of a cell at order 10, in square arc-seconds. */
+   cell = 4.0*AST__DPI*AST__DR2D*AST__DR2D*3600.0*3600.0/
+          ( 12.0*pow( 4.0, 10.0 ) );
+
+   diff = astCopy( moc );
+   astAddRegion( diff, AST__XOR, moc2 );
+   if( astOK && astGetD( diff, "MocArea" )/cell > 50.0 ) {
+      printf( "checkLargeRegionMinOrder: %g cells differ\n",
+              astGetD( diff, "MocArea" )/cell );
+      stopit( "checkLargeRegionMinOrder: the default initial grid gives "
+              "different cells from a grid at order 5", status );
+   }
+   diff = astAnnul( diff );
+
+   diff = astCopy( moc );
+   astAddRegion( diff, AST__XOR, moc3 );
+   if( astOK && astGetD( diff, "MocArea" )/cell > 50.0 ) {
+      printf( "checkLargeRegionMinOrder: %g cells differ\n",
+              astGetD( diff, "MocArea" )/cell );
+      stopit( "checkLargeRegionMinOrder: a grid at order 9 gives different "
+              "cells from the default initial grid", status );
+   }
+   diff = astAnnul( diff );
+
+   if( !astOK ) {
+      astClearStatus;
+      stopit( "checkLargeRegionMinOrder: error making the Mocs", status );
+   } else if( astGetI( moc, "MocLength" ) < 1000 ) {
+      stopit( "checkLargeRegionMinOrder: the Moc is too small to be a test",
+              status );
+   }
+
+   moc = astAnnul( moc );
+   moc2 = astAnnul( moc2 );
+   moc3 = astAnnul( moc3 );
+   circle = astAnnul( circle );
+}
+
 /* A Moc can have a MaxOrder of zero, which leaves no lower order at which
    to start looking for the cells of a Region or pixel mask. Each of the
    twelve cells is then in the Moc if its centre is in the Region or on a
@@ -827,6 +907,7 @@ int main( void ) {
    checkOrderZero( status );
    checkLargeRegion( status );
    checkLargeRegionHighOrder( status );
+   checkLargeRegionMinOrder( status );
    checkLargeRange( status );
    checkOversampleNegate( status );
    checkMocStringErrors( status );

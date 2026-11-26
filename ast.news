@@ -513,6 +513,19 @@ Bug fixes
 - astAddRegion left cells out of the Moc of a Region that covers about half
   the sky or more, such as a Circle with a radius of 90 degrees or more.
 
+- astAddRegion and astAddPixelMask<X> used time and memory in proportion to
+  the number of cells of the initial grid, at order MinOrder, within the
+  bounding box of the Region or pixel array, which grew fourfold for each
+  increase in MaxOrder with the default MinOrder: the Moc of a Circle of
+  radius 80 degrees needed 1.5 GB at order 14 and would have needed hundreds
+  of GB at order 18. When MinOrder has not been set they now start at a
+  lower order if the initial grid would otherwise hold more than about
+  260000 cells, which gives the same Moc for a Region without holes but for
+  a few cells on its boundary, and they test the initial grid in chunks,
+  which cuts the memory needed for each cell of the grid thirtyfold when
+  MinOrder has been set. The default MinOrder is MaxOrder-5, as it always
+  has been; its documentation said MaxOrder-4.
+
 - A string MOC written by astGetMocString or a MocChan now has spaces
   between its cells, as the MOC recommendation requires, rather than commas,
   which other MOC libraries do not accept. A string MOC with either is still
