@@ -53,12 +53,36 @@ one-axis Box, is unequal to its reloaded copy even though each of its two
 component Boxes compares equal and its dump is byte-identical.
 
 The CmpFrame class has no `Equal` of its own, so Frame's `Equal` applies.
-Frame's `Equal` calls `astConvert` on the two Frames and accepts them as
-equal only if the resulting Mapping simplifies to a UnitMap.
-When a CmpFrame component is a Region, the conversion Mapping that
-`CmpFrame::SubFrame` assembles contains the Regions (as Frames acting as
-Mappings) and `astSimplify` cannot reduce it to a UnitMap, so the Frames
-compare unequal.
+Frame's `Equal` calls `astConvert` on the two Frames, asks the resulting
+two-Frame FrameSet for its base-to-current Mapping, and accepts the Frames
+as equal only if that Mapping simplifies to a UnitMap.
+
+The Mapping does not simplify by design, not by accident.
+A Frame used as a Mapping is a unit Mapping, except that a Region (and so
+a CmpFrame containing one) masks: positions outside the Region come out
+bad (`src/region.c`, class description; `src/frame.c:116`).
+`FrameSet::Span`, which `astGetMapping` uses to build the path between two
+Frames (`src/frameset.c:10404-10412` and `10450-10492`), therefore inserts
+every Frame along the path whose `astIsUnitFrame` is zero into the Mapping
+it returns, so that transforming through a FrameSet honours the masking.
+`Region::IsUnitFrame` always returns 0 (`src/region.c:5065`) and
+`CmpFrame::IsUnitFrame` is the AND of its components (`src/cmpframe.c:5046`).
+The conversion between the two CmpFrames of Boxes is thus
+`CmpMap( CmpMap( CmpFrame_a, UnitMap ), CmpFrame_b )`, and nothing in
+`astSimplify` turns a Region-as-Mapping into a UnitMap because it is not
+one; `astRemoveRegions` exists precisely to strip that masking on request,
+and applying it to this Mapping does give a UnitMap.
+
+So the design choice is deliberate and documented; the missing piece is
+on the `Equal` side.
+Frame's `Equal` predates the idea of a non-unit Frame and silently assumes
+that identical Frames convert through a UnitMap.
+The Region class already works around this with its own `Equal`
+(`src/region.c:2746`), comparing points, both encapsulated Frames, the
+encapsulated Mapping, Negated and Closed directly.
+CmpFrame never received the matching override, so any CmpFrame with a
+Region component compares unequal to everything, including itself after a
+copy.
 The public API reproduces it without any Plot3D:
 
 ```c
@@ -94,6 +118,9 @@ Once that lands, a Plot3D over a Region round-trips equal and the
 `norm`, `markers`, `outline` and `svg_behind` fixture rows can go back to
 building their Plot3D over `plot3d/inputs/box3d.ast` if wanted (their logs
 would change, since the current Frame would be the Box).
-An alternative, teaching a Frame used as a Mapping to simplify to a UnitMap
-through a `MapMerge`, would fix the same comparison more generally but
-touches every Frame-as-Mapping simplification and is harder to bound.
+Two alternatives are worse.
+Applying `astRemoveRegions` inside Frame's `Equal` before the UnitMap test
+would make a CmpFrame over the Box 0 to 1 equal to one over the Box 0 to 2,
+since it discards exactly the part that differs.
+Teaching a Region-as-Mapping to simplify to a UnitMap would break the
+documented masking behaviour of FrameSets that hold Regions.
