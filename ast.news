@@ -60,8 +60,23 @@ Main Changes in this Version
   linear step was wrong by up to the size of the motion itself: 28
   milli-arcseconds at B1980 and 0.3 arcseconds at B2050.
 
+- A new grf3d module, grf3d_log (libast_grf3d_log), implements the 3D
+  graphics interface with no external graphics library. It writes one line
+  per graphics call to a log file, measures text in the text's own plane
+  using the same character metrics as the 2D logging module grf_log, and
+  can optionally draw the calls into an SVG file through an orthographic or
+  perspective camera. It exists so that Plot3D output can be checked
+  against reference logs by the test suite, and so that other
+  implementations of the interface have an oracle to reproduce.
+
 Bug fixes
 ---------
+
+- A Plot read past the end of the array of minor tick values supplied
+  through astSetTickValues when the MinTick attribute was also set for that
+  axis, since the attribute replaced the count of supplied values. A Plot3D
+  with Gap and MinTick set on every axis triggered this, as it hands each
+  plane's tick values to the other planes' Plots in this way.
 
 - The astEQUAL comparison used internally by AST could overflow for values
   near the top of the double precision range, causing any value to compare
