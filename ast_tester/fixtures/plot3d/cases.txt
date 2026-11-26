@@ -1,0 +1,18 @@
+# Plot3D logging tests -- pipe-delimited.
+# Each row runs testplot3dlog with the logging grf3d module and compares the
+# grf3d call log byte for byte with plot3d/expected/<name>.log, and the Native
+# dump of the Plot3D with plot3d/expected/<name>.dump (through compare_dumps).
+# Fields: name | input | attr | box | bbox | mm | actions | camera
+#   input:   fixture path relative to fixtures/; a .head file is read through a
+#            FitsChan, anything else as a Native dump.
+#   attr:    Plot3D attribute settings passed to astPlot3D.
+#   box:     the six graphics box values given to astPlot3D.
+#   bbox:    the six physical (base Frame) box values given to astPlot3D.
+#   mm:      millimetres per world unit for the text size (blank: 200).
+#   actions: space-separated actions performed in order; see testplot3dlog.c.
+#            A "~" in a text action stands for a space.
+#   camera:  blank for no SVG, "auto" for the auto camera, or ten numbers
+#            "ex ey ez tx ty tz ux uy uz screen" for astGrf3DLogSetCamera after
+#            the auto camera.  With a camera the test also writes
+#            plot3dlog_<name>.svg and checks that it is a complete SVG document.
+test1 | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |

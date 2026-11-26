@@ -34,6 +34,8 @@ serialisation/c_dssmap.ast
 # come from wcsconv/inputs/ below.
 plot/cases.txt
 plot/expected/*.svg
+plot3d/cases.txt
+plot3d/expected/*
 
 # The header oracle corpus.  Also supplies the grid head files and the SIP
 # headers that testfitschan.c and testfitschan.f read directly.
