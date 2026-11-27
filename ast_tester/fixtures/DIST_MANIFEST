@@ -35,6 +35,13 @@ serialisation/c_dssmap.ast
 plot/cases.txt
 plot/expected/*.svg
 
+# The Plot3D logging tests: their manifest, a 3D Box input, and their
+# reference logs and dumps.  The other inputs come from programs/ and
+# wcsconv/inputs/.
+plot3d/cases.txt
+plot3d/inputs/*.ast
+plot3d/expected/*
+
 # The header oracle corpus.  Also supplies the grid head files and the SIP
 # headers that testfitschan.c and testfitschan.f read directly.
 wcsconv/inputs/

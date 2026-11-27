@@ -1,0 +1,7 @@
+ACTION refused
+ERR 233933410 astBoundingBox(Plot3D): The astBoundingBox method cannot be used with a Plot3D (programming error).
+ERR 233933410 astClip(Plot3D): The astClip method cannot be used with a Plot3D (programming error).
+ERR 233933410 astCurve(Plot3D): The astCurve method cannot be used with a Plot3D (programming error).
+ERR 233933410 astGenCurve(Plot3D): The astGenCurve method cannot be used with a Plot3D (programming error).
+ERR 233933410 astGridLine(Plot3D): The astGridLine method cannot be used with a Plot3D (programming error).
+ERR 233933410 astPolyCurve(Plot3D): The astPolyCurve method cannot be used with a Plot3D (programming error).

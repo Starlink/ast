@@ -762,6 +762,15 @@ f     - Title: The Plot title drawn using AST_GRID
 *     13-NOV-2026 (TIMJ):
 *        Transform: if an error occurs, do not annul an output PointSet that
 *        was supplied by the caller, who goes on to use it.
+*     26-NOV-2026 (TIMJ):
+*        TickMarks: keep the number of minor tick values supplied through
+*        astSetTickValues even when the MinTick attribute is set, since
+*        DrawTicks reads that many values from the supplied array.
+*        DrawTicks: when drawing interior ticks from supplied tick values,
+*        read exactly nmajor and nminor values rather than one more.
+*        astInitPlot: initialise the ForceExterior attribute as unset. It was
+*        left at zero, so every new Plot reported it as set to zero and wrote
+*        it to its dump.
 
 *class--
 */
@@ -10546,7 +10555,7 @@ static void DrawTicks( AstPlot *this, TickInfo **grid, int drawgrid,
                   b = ptr1[ 1 - axis ];
                   majflag = majflags;
 
-                  for( tick = 0; tick <= info->nmajor; tick++ ){
+                  for( tick = 0; tick < info->nmajor; tick++ ){
 
                      val =  info->ticks[ tick ];
                      if( logticks ) {
@@ -10563,7 +10572,7 @@ static void DrawTicks( AstPlot *this, TickInfo **grid, int drawgrid,
                      *(majflag++) = 1;
                   }
 
-                  for( tick = 0; tick <= info->nminor; tick++ ){
+                  for( tick = 0; tick < info->nminor; tick++ ){
 
                      val =  info->minticks[ tick ];
                      if( logticks ) {
@@ -27649,8 +27658,11 @@ static TickInfo *TickMarks( AstPlot *this, int axis, double *cen, double *gap,
       *gap = used_gap;
 
 /* If the caller has specified the number of minor tick marks to use,
-   use the specified value rather than the value found above. */
-      if( astTestMinTick( this, axis ) ){
+   use the specified value rather than the value found above. When the
+   minor tick values themselves were supplied (astSetTickValues), "nminor"
+   is the number of values in "minticks" and must not be changed, or
+   DrawTicks would read past the end of that array. */
+      if( !minticks && astTestMinTick( this, axis ) ){
          nminor = astGetMinTick( this, axis );
       }
 
@@ -31044,6 +31056,7 @@ AstPlot *astInitPlot_( void *mem, size_t size, int init, AstPlotVtab *vtab,
    Store a value of -1 to indicate that no value has yet been set. This will
    cause a default value of 1 (yes) to be used. */
       new->tickall = -1;
+      new->forceexterior = -1;
 
 /* Graphics context identifier */
       new->grfcontext = NULL;

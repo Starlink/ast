@@ -684,6 +684,7 @@ lib_LTLIBRARIES = \
     libast_grf_3.2.la \
     libast_grf_5.6.la \
     libast_grf_log.la \
+    libast_grf3d_log.la \
     libast_pgplot.la \
     libast_pgplot3d.la
 
@@ -816,6 +817,8 @@ libast_grf_5_6_la_LDFLAGS = -version-info @version_info@
 #  Used by the testgrid test program to capture astGrid output for comparison.
 libast_grf_log_la_SOURCES = src/grf_log.c src/grf_log.h
 libast_grf_log_la_LDFLAGS = -version-info @version_info@
+libast_grf3d_log_la_SOURCES = src/grf3d_log.c src/grf3d_log.h
+libast_grf3d_log_la_LDFLAGS = -version-info @version_info@
 
 #  The graphics module that uses PGPLOT for 2D graphical output.
 libast_pgplot_la_SOURCES = $(GRF_PGPLOT_SOURCES)

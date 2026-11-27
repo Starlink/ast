@@ -60,8 +60,50 @@ Main Changes in this Version
   linear step was wrong by up to the size of the motion itself: 28
   milli-arcseconds at B1980 and 0.3 arcseconds at B2050.
 
+- A new grf3d module, grf3d_log (libast_grf3d_log), implements the 3D
+  graphics interface with no external graphics library. It writes one line
+  per graphics call to a log file, measures text in the text's own plane
+  using the same character metrics as the 2D logging module grf_log, and
+  can optionally draw the calls into an SVG file through an orthographic or
+  perspective camera. It exists so that Plot3D output can be checked
+  against reference logs by the test suite, and so that other
+  implementations of the interface have an oracle to reproduce.
+
 Bug fixes
 ---------
+
+- A CmpFrame with a Region as a component compared unequal (astEqual) to
+  a copy of itself, and so did any object holding one, such as a Plot3D
+  created over a Region. The Frame comparison tests whether the conversion
+  between the two Frames is a UnitMap, which a Region acting as a Mapping
+  never is. CmpFrames are now compared component by component.
+
+- A Plot3D could fail in astGrid with "No grid curves can be drawn for
+  axis 2" for some values of RootCorner (ULU and UUU with a tilted sky
+  grid). The Plot drawing the sky plane fell back to interior labelling
+  when too few grid curves crossed the edges chosen for that corner, and
+  the tick positions handed to the neighbouring planes then lay along an
+  interior curve. Each plane is now drawn with exterior labels, and tick
+  positions are only handed on when they lie on the shared edge; with
+  Labelling=interior the other planes find their own tick values.
+
+- The error reported when a Plot method that a Plot3D does not support
+  (astBoundingBox, astClip, astCurve, astGenCurve, astGridLine) is called
+  now names the method instead of reading "ast##name".
+
+- A newly created Plot reported its ForceExterior attribute as set (to
+  zero) and wrote it to its dump, because the attribute was not initialised
+  as unset. It now behaves like every other Plot attribute: astTest is false
+  until a value is assigned, and the dump omits it.
+
+- A Plot drawing tick marks at values supplied through astSetTickValues
+  could read past the end of the supplied arrays: the MinTick attribute,
+  when set for that axis, replaced the count of supplied minor tick values
+  (reading too many when it was larger and drawing too few when smaller),
+  and interior labelling read one value too many from both arrays. Only a
+  Plot3D supplies tick values this way, as it hands each plane's tick values
+  to the other planes' Plots; Gap and MinTick on every axis, or
+  Labelling=interior, triggered the reads.
 
 - The astEQUAL comparison used internally by AST could overflow for values
   near the top of the double precision range, causing any value to compare

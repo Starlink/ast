@@ -876,6 +876,91 @@ ast_add_test(testgrid
 )
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
+# --- Initial state of Plot attributes (no graphics library) ---
+ast_add_test(testplotattr
+    NO_DEFAULT_GRF_LIBS
+    EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log-static>
+               $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d-static>
+)
+target_include_directories(testplotattr PRIVATE "${CMAKE_SOURCE_DIR}/src")
+
+# --- Unit test of the logging grf3d module (grf3d_log.c) ---
+# Links the 2D logging module as well, since a Plot3D program links both.
+ast_add_test(testgrf3dlog
+    NO_DEFAULT_GRF_LIBS
+    EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log-static>
+               $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_log-static>
+)
+target_include_directories(testgrf3dlog PRIVATE "${CMAKE_SOURCE_DIR}/src")
+
+# --- Plot3D logging tests (no PLplot dependency) ---
+# testplot3dlog draws through the logging grf3d module (grf3d_log.c); each
+# row of fixtures/plot3d/cases.txt compares its call log and Plot3D dump
+# with committed references.
+ast_add_test(testplot3dlog
+    NO_DEFAULT_GRF_LIBS
+    EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log-static>
+               $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d_log-static>
+    TEST_ARGS --in fixtures/programs/testplot3d/plot3d-test1.ast
+              --box "-1 -1 -1 1 1 1" --bbox "0.5 0.5 0.5 155.5 107.5 1640.5"
+              --do grid
+)
+target_include_directories(testplot3dlog PRIVATE "${CMAKE_SOURCE_DIR}/src")
+add_dependencies(testplot3dlog compare_dumps)
+
+function(add_plot3dlog_test)
+    cmake_parse_arguments(P ""
+        "NAME;INPUT;ATTR;BOX;BBOX;MM;ACTIONS;CAMERA"
+        ""
+        ${ARGN})
+    if(NOT P_NAME OR NOT P_INPUT OR NOT P_BOX OR NOT P_BBOX OR NOT P_ACTIONS)
+        message(FATAL_ERROR
+            "add_plot3dlog_test: NAME, INPUT, BOX, BBOX, ACTIONS required")
+    endif()
+    ast_require_fixture("plot3d/cases.txt" "${P_INPUT}")
+    ast_require_fixture("plot3d/cases.txt" "plot3d/expected/${P_NAME}.log")
+    ast_require_fixture("plot3d/cases.txt" "plot3d/expected/${P_NAME}.dump")
+
+    add_test(NAME plot3dlog_${P_NAME}
+        COMMAND ${CMAKE_COMMAND}
+            -DPROG=$<TARGET_FILE:testplot3dlog>
+            -DCOMPARE=$<TARGET_FILE:compare_dumps>
+            -DIN_FILE=fixtures/${P_INPUT}
+            "-DATTR=${P_ATTR}"
+            "-DBOX=${P_BOX}"
+            "-DBBOX=${P_BBOX}"
+            "-DMM=${P_MM}"
+            "-DACTIONS=${P_ACTIONS}"
+            "-DCAMERA=${P_CAMERA}"
+            -DOUT_LOG=plot3dlog_${P_NAME}.log
+            -DOUT_DUMP=plot3dlog_${P_NAME}.dump
+            -DOUT_SVG=plot3dlog_${P_NAME}.svg
+            -DREF_LOG=fixtures/plot3d/expected/${P_NAME}.log
+            -DREF_DUMP=fixtures/plot3d/expected/${P_NAME}.dump
+            -P "${CMAKE_SOURCE_DIR}/cmake/run_plot3dlog_test.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+    if(AST_ENABLE_SANITIZERS)
+        set_tests_properties(plot3dlog_${P_NAME} PROPERTIES
+            ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
+    endif()
+endfunction()
+
+ast_read_test_data("${AST_FIXTURE_SOURCE_ROOT}/plot3d/cases.txt" _plot3dlog_tests 8)
+foreach(_entry IN LISTS _plot3dlog_tests)
+    string(REPLACE "|" ";" _fields "${_entry}")
+    list(GET _fields 0 _name)
+    list(GET _fields 1 _input)
+    list(GET _fields 2 _attr)
+    list(GET _fields 3 _box)
+    list(GET _fields 4 _bbox)
+    list(GET _fields 5 _mm)
+    list(GET _fields 6 _actions)
+    list(GET _fields 7 _camera)
+    add_plot3dlog_test(NAME "${_name}" INPUT "${_input}" ATTR "${_attr}"
+        BOX "${_box}" BBOX "${_bbox}" MM "${_mm}" ACTIONS "${_actions}"
+        CAMERA "${_camera}")
+endforeach()
+
 function(add_grid_test)
     cmake_parse_arguments(P "SKIP_TEXT_COMPARE"
         "NAME;HEAD;ATTR;FATTR;BOX;REFERENCE"

@@ -260,6 +260,11 @@ f     The CmpFrame class does not define any new routines beyond those
 *        Cast: only cast into a sub-class of CmpFrame if the CmpFrame is an
 *        instance of that sub-class. A plain CmpFrame was copied as if it
 *        were a SpecFluxFrame.
+*     26-NOV-2026 (TIMJ):
+*        Added Equal. A CmpFrame with a Region component compared unequal
+*        to a copy of itself, because the Frame method tests whether the
+*        conversion between the two Frames is a UnitMap and a Region acting
+*        as a Mapping never is.
 *class--
 */
 
@@ -660,6 +665,7 @@ static AstSystemType (* parent_getalignsystem)( AstFrame *, int * );
 static AstSystemType (* parent_getsystem)( AstFrame *, int * );
 static const char *(* parent_getattrib)( AstObject *, const char *, int * );
 static const char *(* parent_getdomain)( AstFrame *, int * );
+static int (* parent_equal)( AstObject *, AstObject *, int * );
 static const char *(* parent_gettitle)( AstFrame *, int * );
 static double (* parent_angle)( AstFrame *, const double[], const double[], const double[], int * );
 static double (* parent_getdtai)( AstFrame *, int * );
@@ -796,6 +802,7 @@ static int GetNaxes( AstFrame *, int * );
 static size_t GetObjSize( AstObject *, int * );
 static int GetUseDefs( AstObject *, int * );
 static int GoodPerm( int, const int [], int, const int [], int * );
+static int Equal( AstObject *, AstObject *, int * );
 static int IsUnitFrame( AstFrame *, int * );
 static int Match( AstFrame *, AstFrame *, int, int **, int **, AstMapping **, AstFrame **, int * );
 static int PartMatch( AstCmpFrame *, AstFrame *, int, int, const int [], int, const int [], int **, int **, AstMapping **, AstFrame **, int * );
@@ -4838,6 +4845,9 @@ void astInitCmpFrameVtab_(  AstCmpFrameVtab *vtab, const char *name, int *status
    mapping->Simplify = Simplify;
    mapping->Transform = Transform;
 
+   parent_equal = object->Equal;
+   object->Equal = Equal;
+
    parent_getdomain = frame->GetDomain;
    frame->GetDomain = GetDomain;
 
@@ -4994,6 +5004,106 @@ void astInitCmpFrameVtab_(  AstCmpFrameVtab *vtab, const char *name, int *status
       class_init = 1;
       astSetVtabClassIdentifier( vtab, &(vtab->id) );
    }
+}
+
+static int Equal( AstObject *this_object, AstObject *that_object, int *status ) {
+/*
+*  Name:
+*     Equal
+
+*  Purpose:
+*     Test if two CmpFrames are equivalent.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "cmpframe.h"
+*     int Equal( AstObject *this, AstObject *that, int *status )
+
+*  Class Membership:
+*     CmpFrame member function (over-rides the astEqual protected
+*     method inherited from the Frame class).
+
+*  Description:
+*     This function returns a boolean result (0 or 1) to indicate whether
+*     two CmpFrames are equivalent.
+*
+*     The Frame class decides equivalence by converting between the two
+*     Frames and testing whether the Mapping simplifies to a UnitMap.
+*     That test cannot succeed when a component Frame is a Region: a
+*     Region used as a Mapping masks positions outside it, so the
+*     conversion is never a UnitMap even between a CmpFrame and a copy of
+*     itself (see the IsUnitFrame method). A CmpFrame that is equivalent
+*     to a UnitMap is therefore compared by the Frame method as before,
+*     and any other CmpFrame is compared component by component.
+
+*  Parameters:
+*     this
+*        Pointer to the first Object (a CmpFrame).
+*     that
+*        Pointer to the second Object.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if the CmpFrames are equivalent, zero otherwise.
+
+*  Notes:
+*     - A value of zero will be returned if this function is invoked
+*     with the global status set, or if it should fail for any reason.
+*/
+
+/* Local Variables: */
+   AstCmpFrame *that;         /* Pointer to the second CmpFrame structure */
+   AstCmpFrame *this;         /* Pointer to the first CmpFrame structure */
+   const char *dom1;          /* Domain of the first CmpFrame */
+   const char *dom2;          /* Domain of the second CmpFrame */
+   int axis;                  /* Axis index */
+   int naxes;                 /* Number of axes */
+   int result;                /* Result value to return */
+
+/* Initialise. */
+   result = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Obtain pointers to the two CmpFrame structures. */
+   this = (AstCmpFrame *) this_object;
+   that = (AstCmpFrame *) that_object;
+
+/* A CmpFrame that is equivalent to a UnitMap when used as a Mapping is
+   compared as any other Frame. */
+   if( astIsUnitFrame( this ) ) {
+      result = (*parent_equal)( this_object, that_object, status );
+
+/* Otherwise both must be CmpFrames of the same class with equivalent
+   component Frames in the same order, the same axis permutation, and
+   the same Domain (which the Frame method would have tested through
+   the conversion). */
+   } else if( astIsACmpFrame( that ) &&
+              !strcmp( astGetClass( this ), astGetClass( that ) ) &&
+              astEqual( this->frame1, that->frame1 ) &&
+              astEqual( this->frame2, that->frame2 ) ) {
+      naxes = astGetNaxes( this );
+      result = ( naxes == astGetNaxes( that ) );
+      for( axis = 0; result && axis < naxes; axis++ ) {
+         if( this->perm[ axis ] != that->perm[ axis ] ) result = 0;
+      }
+      if( result ) {
+         dom1 = astGetDomain( this );
+         dom2 = astGetDomain( that );
+         if( ( dom1 == NULL ) != ( dom2 == NULL ) ||
+             ( dom1 && strcmp( dom1, dom2 ) ) ) result = 0;
+      }
+   }
+
+/* If an error occurred, clear the result value. */
+   if ( !astOK ) result = 0;
+
+/* Return the result, */
+   return result;
 }
 
 static int IsUnitFrame( AstFrame *this_frame, int *status ){
