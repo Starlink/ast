@@ -418,6 +418,7 @@ cap_winmap_03            | simplify/cap_winmap_03.map | simplify/cap_winmap_03.s
 cap_winmap_04            | simplify/cap_winmap_04.map | simplify/cap_winmap_04.simp |
 cap_xphmap_01            | simplify/cap_xphmap_01.map | simplify/cap_xphmap_01.simp |
 cap_xphmap_02            | simplify/cap_xphmap_02.map | simplify/cap_xphmap_02.simp |
+cap_xphmap_03            | simplify/cap_xphmap_03.map | simplify/cap_xphmap_03.simp |
 cap_zoommap_01           | simplify/cap_zoommap_01.map | simplify/cap_zoommap_01.simp |
 cap_zoommap_02           | simplify/cap_zoommap_02.map | simplify/cap_zoommap_02.simp |
 cap_zoommap_03           | simplify/cap_zoommap_03.map | simplify/cap_zoommap_03.simp |

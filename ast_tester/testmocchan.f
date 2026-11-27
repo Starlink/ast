@@ -26,7 +26,7 @@
          call stopit( 'Error 1', status )
       end if
 
-      if( files( ifile, 1 ) .ne. '6/500 7/997,1000-1002 9/' ) then
+      if( files( ifile, 1 ) .ne. '6/500 7/997 1000-1002 9/' ) then
          call stopit( 'Error 2', status )
       endif
 

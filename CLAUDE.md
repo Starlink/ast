@@ -90,6 +90,14 @@ for current status and priorities.
 3. Update `PLAN.md` with the new test
 4. Build and run: `cmake --build build && ctest --test-dir build -R testfoo --output-on-failure`
 
+## Spelling
+
+AST is written by British authors and uses British English spelling
+throughout (centre, colour, normalise, serialisation). Use British spelling
+in all code comments, prologues, documentation, news entries, tests and
+Markdown files in this repository. This overrides any global preference
+for American English.
+
 ## Code style
 
 - C99, no C++ features

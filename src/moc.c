@@ -227,6 +227,43 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 *        lower bound, and extend the array of ranges as each range is read
 *        so that its size does not depend on an unchecked count.
 *     12-NOV-2026 (TIMJ):
+*        Transform: find the cell that holds a position that is on the edge
+*        of the sky in the HPX12 projection, as a pole is, and every
+*        position on a meridian that divides two polar facets. The cell with
+*        the nearest centre can then be one that is off the sky, and the
+*        position was reported as outside the Moc. The cell on the other
+*        side of the edge is now used (new function PosToNested).
+*        XyToNested: reject a negative cell index, which the division that
+*        gives the facet index rounded into the first facet.
+*     12-NOV-2026 (TIMJ):
+*        AddRegion, AddPixelMask<X>: accept a MaxOrder of zero, starting at
+*        order zero since there is no lower order to start at, rather than
+*        report an error.
+*     26-NOV-2026 (TIMJ):
+*        AddRegion, AddPixelMask<X>: start at a lower order than the default
+*        MinOrder when MinOrder has not been set and the bounding box of
+*        the Region or pixel array would hold more than MAXBOX cells, and
+*        test the cells of the initial grid in chunks (new function PutBox),
+*        which cuts the memory used for a cell of the grid from about 500
+*        bytes to the 16 that hold a cell found to be inside. The time and
+*        memory used grew fourfold per order of MaxOrder for a large Region:
+*        an 80 degree Circle at order 14 took 1.5 GB, and order 18 would
+*        have taken hundreds of GB, where the Moc of the same Circle from a
+*        coarser initial grid is the same but for a few cells on the
+*        boundary.
+*        MinOrder: document the default as MaxOrder-5, which is what the
+*        code has always used, rather than MaxOrder-4.
+*     12-NOV-2026 (TIMJ):
+*        AddRegion: check that the Region does not extend beyond the box
+*        that bounds its boundary (new function RegionBeyondBox), and if it
+*        does find the cells of its complement, which the box does bound,
+*        and negate them. A Region that covers about half the sky or more
+*        can be the area outside its boundary in the projection used, and
+*        its cells outside the box were left out of the Moc.
+*     12-NOV-2026 (TIMJ):
+*        astGetMocText: separate the cells of a string MOC with spaces, as
+*        the MOC recommendation requires, rather than commas.
+*     12-NOV-2026 (TIMJ):
 *        astAddMocText: hold a range in a string MOC as a range rather than
 *        as each of its values, of which there can be very many.
 *     13-NOV-2026 (TIMJ):
@@ -271,6 +308,17 @@ f     - AST_TESTCELL: Test if a single HEALPix cell is included in a Moc
 
 /* The maximum "npix" value for a given order. */
 #define MaxNpix(order) (12*(1L<<(2*(order)))-1)
+
+/* The largest number of cells that the initial grid placed over a Region
+   or pixel mask by astAddRegion and astAddPixelMask may hold when the
+   MinOrder attribute has not been set. The grid starts at a lower order
+   than the default MinOrder if it would otherwise hold more. */
+#define MAXBOX 262144
+
+/* The number of cells of the initial grid that astAddRegion and
+   astAddPixelMask test at one time, which bounds the memory used for
+   the test points whatever the size of the grid. */
+#define BOXCHUNK 65536
 
 /* A 64 bit literal integer value of 1 */
 #define ONE INT64_C(1)
@@ -527,6 +575,8 @@ static int ResToOrder( double );
 static int log2_32( int );
 static int log2_64( int64_t );
 static int TestCell( AstMoc *, int, int64_t, int, int * );
+static int RegionBeyondBox( AstRegion *, AstMapping *, const AstDim[ 2 ], const AstDim[ 2 ], int * );
+static int64_t PosToNested( int, double, double );
 static int64_t XyToNested( int, int, int );
 static void AddCell( AstMoc *, int, int, int64_t, int * );
 static void AddMocData( AstMoc *, int, int, int, int, int, const void *, int * );
@@ -547,6 +597,7 @@ static void MakeCorners( AstMoc *, int, Cell *, Corner **, int, int, int * );
 static void MergeRanges( AstMoc *, int, int * );
 static void NegateRanges( AstMoc *, int, int, int * );
 static void NestedToXy( int64_t, int, int *, int * );
+static void PutBox( AstMoc *, AstMapping **, const AstDim[ 2 ], const AstDim[ 2 ], int, CellList *, int, void *, int, const char *, int * );
 static void PutCell( AstMoc *, AstMapping **, AstDim, AstDim *, AstDim *, int, CellList *, int, void *, int, int *, const char *, int * );
 static void RegBaseBox( AstRegion *, double *, double *, int * );
 static void Sink1( void *, size_t, const char *, int * );
@@ -1856,6 +1907,13 @@ f     CMODE parameter.
 *     supplied pixel mask may be missed if they are smaller than the cell
 *     size associated with HEALPix order "MinOrder".
 *
+*     If no value has been set for the MinOrder attribute, the initial
+*     grid is started at a lower order than the default MinOrder if the
+*     bounding box of the pixel array would otherwise hold more than about
+*     260000 cells, since the time and memory needed grow with the number
+*     of cells in the initial grid. Set MinOrder explicitly to prevent
+*     this.
+*
 *     If no value has yet been set for the MaxOrder attribute, then this
 *     function will automatically set it to the smallest value that results
 *     in the cells in the Moc being no larger than half the size of the pixels
@@ -2046,19 +2104,13 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
    AstCmpMap *array2proj;   /* Mapping for HEALPix grid coordinates */ \
    AstCmpMap *array2proj_min;/* Mapping for best HEALPix grid coordinates */ \
    AstCmpMap *tempmap;      /* Temporary Mapping pointer */ \
-   AstDim *ilist;           /* Index array */ \
-   AstDim *jlist;           /* Index array */ \
-   AstDim *pi;              /* Pointer to next element in index array */ \
-   AstDim *pj;              /* Pointer to next element in index array */ \
    AstDim glbnd_min[2];     /* Best lower bounds of region in grid coords */ \
    AstDim gubnd_min[2];     /* Best upper bounds of region in grid coords */ \
    AstDim hx;               /* Upper bound on 1st grid axis of selection box */ \
    AstDim hy;               /* Upper bound on 2ns grid axis of selection box */ \
    AstDim i;                /* Loop count */ \
-   AstDim j;                /* Loop count */ \
    AstDim lx;               /* Lower bound on 1st grid axis of selection box */ \
    AstDim ly;               /* Lower bound on 2nd grid axis of selection box */ \
-   AstDim ncell;            /* No. of cells in bounding box */ \
    AstDim npix;             /* Number of pixels in bounding box */ \
    AstDim npix_min;         /* Number of pixels in smallest bounding box */ \
    AstFrameSet *array2hpx12;/* Array grid coords -> HPX12 grid coords */ \
@@ -2142,11 +2194,11 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
       maxorder = minorder; \
       minorder = maxorder - 1; \
    } \
-   if( minorder < 0 && astOK ) { \
-      astError( AST__INVAR, "astAddPixelMask"#X"(%s): Invalid value " \
-                "(%d) supplied for parameter 'MinOrder'.", status,  \
-                astGetClass(this), minorder ); \
-   } \
+\
+/* A maximum order of zero leaves no lower order at which to start, so \
+   start at order zero. Each of the twelve cells is then tested only at \
+   its centre. */ \
+   if( minorder < 0 ) minorder = 0; \
 \
 /* Invert the WCS FrameSet for the picked (i.e. sky) axes, so that the \
    current Frame represents grid coords in the array and the base Frame \
@@ -2268,6 +2320,16 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
                       status, astGetClass( this ) ); \
          } \
 \
+/* If MinOrder has not been set, the initial grid is not allowed to hold \
+   more than MAXBOX cells, since the time and memory used are in \
+   proportion to the number of cells in it. The bounding box has a \
+   quarter as many cells at each lower order. */ \
+         if( !astTestMinOrder( this ) ) { \
+            while( minorder > 0 && \
+                   npix_min > ( ( (AstDim) MAXBOX ) << \
+                                ( 2*( maxorder - minorder ) ) ) ) minorder--; \
+         } \
+\
 /* Store information defining the pixel mask in a structure so that it \
    can be passed easily to other functions. */ \
          pixelmask.data = array; \
@@ -2346,33 +2408,10 @@ static void AddPixelMask##X( AstMoc *this, int cmode, AstFrameSet *wcs, \
                clist.maps[ i ] = astXphMap( i, iproj_min, " ", status ); \
             } \
 \
-/* Allocate memory to hold lists of cell indices. */ \
-            ncell = ( gubnd_min[ 0 ] -  glbnd_min[ 0 ] + 1 )* \
-                    ( gubnd_min[ 1 ] -  glbnd_min[ 1 ] + 1 ); \
-            ilist = astCalloc( ncell, sizeof(*ilist) ); \
-            jlist = astCalloc( ncell, sizeof(*jlist) ); \
-\
-/* Loop over all cells in the best bounding box and store the \
-   corresponding indices in the above memory. */ \
-            if( astOK ) { \
-               pi = ilist; \
-               pj = jlist; \
-               for( j = glbnd_min[ 1 ]; j <= gubnd_min[ 1 ]; j++ ) { \
-                  for( i = glbnd_min[ 0 ]; i <= gubnd_min[ 0 ]; i++ ) { \
-                     *(pi++) = i; \
-                     *(pj++) = j; \
-                  } \
-               } \
-            } \
-\
-/* Add to the Moc any parts of the each of the above cells that are \
-   within the selected areas. */ \
-            PutCell( this, maps, ncell, ilist, jlist, minorder, &clist, 1, \
-                     &pixelmask, cmode, NULL, "astAddPixelMask"#X, status ); \
-\
-/* Free the indices arrays */ \
-            ilist = astFree( ilist ); \
-            jlist = astFree( jlist ); \
+/* Add to the Moc any parts of the cells in the best bounding box that \
+   are within the selected areas. */ \
+            PutBox( this, maps, glbnd_min, gubnd_min, minorder, &clist, 1, \
+                    &pixelmask, cmode, "astAddPixelMask"#X, status ); \
          } \
 \
 /* Convert all the grid coords stored in "clist" into nested indices at \
@@ -2474,6 +2513,13 @@ f     CMODE parameter.
 *     This process means that contiguous "islands" or "holes" in the
 *     supplied region may be missed if they are smaller than the cell size
 *     associated with HEALPix order "MinOrder".
+*
+*     If no value has been set for the MinOrder attribute, the initial
+*     grid is started at a lower order than the default MinOrder if the
+*     bounding box of the Region would otherwise hold more than about
+*     260000 cells, since the time and memory needed grow with the number
+*     of cells in the initial grid. Set MinOrder explicitly to prevent
+*     this.
 
 *  Parameters:
 c     this
@@ -2512,15 +2558,9 @@ f        The global status.
 /* Local Variables: */
    AstCmpMap *reg2proj;     /* Region coords -> "iproj" grid coords */
    AstCmpMap *tempmap;      /* Temporary Mapping pointer */
-   AstDim *ilist;           /* Index array */
-   AstDim *jlist;           /* Index array */
-   AstDim *pi;              /* Pointer to next element in index array */
-   AstDim *pj;              /* Pointer to next element in index array */
    AstDim glbnd_min[2];     /* Best lower bounds of region in grid coords */
    AstDim gubnd_min[2];     /* Best upper bounds of region in grid coords */
    AstDim i;                /* Loop counter */
-   AstDim j;                /* Loop counter */
-   AstDim ncell;            /* No. of cells in bounding box */
    AstFrame *gridframe;     /* Pointer to a Frame describing grid coords */
    AstFrame *picked_frame;  /* Frame in which picked Region is defined */
    AstFrameSet *fs;         /* Connects grid and sky using HPX projection */
@@ -2559,8 +2599,9 @@ f        The global status.
    int64_t *pr;             /* Point to next range in "that" */
    int64_t ihigh;           /* High bound of range at maxorder */
    int64_t ilow;            /* Low bound of range at maxorder */
-   size_t npix;             /* Number of pixels in bounding box */
-   size_t npix_min;         /* Number of pixels in smallest bounding box */
+   AstDim npix;             /* Number of pixels in bounding box */
+   AstDim npix_min;         /* Number of pixels in smallest bounding box */
+   double dnpix;            /* Number of pixels in bounding box */
 
 /* Check inherited status */
    if( !astOK ) return;
@@ -2671,16 +2712,10 @@ f        The global status.
             minorder = maxorder - 1;
          }
 
-/* A MaxOrder of zero leaves no lower order at which to start. */
-         if( minorder < 0 ) {
-            if( astOK ) {
-               astError( AST__INVAR, "astAddRegion(%s): Invalid value (%d) "
-                         "supplied for parameter 'MinOrder'.", status,
-                         astGetClass(this), minorder );
-            }
-            picked = astAnnul( picked );
-            return;
-         }
+/* A maximum order of zero leaves no lower order at which to start, so
+   start at order zero. Each of the twelve cells is then tested only at
+   its centre. */
+         if( minorder < 0 ) minorder = 0;
 
 /* Get a pointer to the Frame in which the Region is defined. We use this
    with astConvert below, rather than the original Region, so that the
@@ -2744,7 +2779,8 @@ f        The global status.
    in the bounding box. */
             if( mapped ) {
                astGetRegionBounds( mapped, glbnd, gubnd );
-               npix = (int)( ( gubnd[0] - glbnd[0] + 1 )*( gubnd[1] - glbnd[1] + 1 ) );
+               dnpix = ( gubnd[0] - glbnd[0] + 1 )*( gubnd[1] - glbnd[1] + 1 );
+               npix = ( dnpix < 1.0E18 ) ? (AstDim) dnpix : (AstDim) 1.0E18;
 
 /* If this is the smallest bounding box found so far, record its details,
    increasing its size by 5% at each edge for safety. */
@@ -2773,6 +2809,16 @@ f        The global status.
             astError( AST__NODEF, "astAddRegion(%s): The supplied %s cannot "
                       "be mapped to HEALPix coordinates.", status,
                       astGetClass( this ), astGetClass( region ) );
+         }
+
+/* If MinOrder has not been set, the initial grid is not allowed to hold
+   more than MAXBOX cells, since the time and memory used are in
+   proportion to the number of cells in it. The bounding box has a
+   quarter as many cells at each lower order. */
+         if( !astTestMinOrder( this ) ) {
+            while( minorder > 0 &&
+                   npix_min > ( ( (AstDim) MAXBOX ) <<
+                                ( 2*( maxorder - minorder ) ) ) ) minorder--;
          }
 
 /* Generate Mappings for all required orders. Each of these Mappings goes
@@ -2827,6 +2873,22 @@ f        The global status.
          gubnd_min[ 1 ] = (AstDim)round( outb[ 1 ] ) + 1;
          tempmap2 = astAnnul( tempmap2 );
 
+/* The box found above bounds the boundary of the Region, and so bounds
+   the Region only if the Region is the area inside its boundary. A
+   Region that covers more than about half the sky can instead be the
+   area outside its boundary in the chosen projection. If the Region
+   extends beyond the box, look instead for the cells of the area inside
+   the boundary, which is the complement of the Region and is bounded by
+   the box, and negate the result, as is done for a Region whose Negated
+   attribute is set. Searching the whole grid of the projection instead
+   would take time and memory in proportion to the number of cells at
+   order "minorder", which can be billions. */
+         if( RegionBeyondBox( mapped_min, maps[ minorder ], glbnd_min,
+                              gubnd_min, status ) ) {
+            astNegate( mapped_min );
+            negated = !negated;
+         }
+
 /* Initialise a CellList structure holding the grid coords of the cells
    to add into the Moc at each order. This also holds Mappings from
    projection "iproj_min" to HPX12 at each order. */
@@ -2836,33 +2898,10 @@ f        The global status.
             clist.maps[ i ] = astXphMap( i, iproj_min, " ", status );
          }
 
-/* Allocate memory to hold lists of cell indices. */
-         ncell = ( gubnd_min[ 0 ] -  glbnd_min[ 0 ] + 1 )*
-                 ( gubnd_min[ 1 ] -  glbnd_min[ 1 ] + 1 );
-         ilist = astCalloc( ncell, sizeof(*ilist) );
-         jlist = astCalloc( ncell, sizeof(*jlist) );
-
-/* Loop over all cells in the best bounding box and store the
-   corresponding indices in the above memory. */
-         if( astOK ) {
-            pi = ilist;
-            pj = jlist;
-            for( j = glbnd_min[ 1 ]; j <= gubnd_min[ 1 ]; j++ ) {
-               for( i = glbnd_min[ 0 ]; i <= gubnd_min[ 0 ]; i++ ) {
-                  *(pi++) = i;
-                  *(pj++) = j;
-               }
-            }
-         }
-
-/* Add to the Moc any parts of the each of the above cells that are
-   within the selected areas. */
-         PutCell( this, maps, ncell, ilist, jlist, minorder, &clist, 0,
-                  mapped_min, cmode, NULL, "astAddRegion", status );
-
-/* Free the indices arrays */
-         ilist = astFree( ilist );
-         jlist = astFree( jlist );
+/* Add to the Moc any parts of the cells in the best bounding box that
+   are within the Region. */
+         PutBox( this, maps, glbnd_min, gubnd_min, minorder, &clist, 0,
+                 mapped_min, cmode, "astAddRegion", status );
 
 /* Convert all the grid coords stored in "clist" into nested indices at
    order "maxorder" and incorporate them into the current contents of the
@@ -5165,8 +5204,9 @@ void astGetMocText_( AstMoc *this, int json, size_t buflen,
                TOKEN_WRITE;
             }
 
-/* Then write the (potential) start of the new range. */
-            nc = sprintf( token, ",%" PRId64, npix );
+/* Then write the (potential) start of the new range. The MOC
+   recommendation separates the elements of a string MOC with spaces. */
+            nc = sprintf( token, " %" PRId64, npix );
             TOKEN_WRITE;
             npix_start = npix;
          }
@@ -6980,6 +7020,210 @@ static double OrderToRes( int order ){
    return 211076.29/(double)( 1 << order );
 }
 
+static int64_t PosToNested( int order, double x, double y ){
+/*
+*  Name:
+*     PosToNested
+
+*  Purpose:
+*     Get the HEALPix nested index of the cell holding an HPX12 position.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     int64_t PosToNested( int order, double x, double y )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function returns the HEALPix nested index of the cell that
+*     holds a position given in grid coords within the HPX12 projection.
+*
+*     The cell used is the one with the nearest centre. A position on the
+*     edge of the sky - for instance one on a meridian that divides two
+*     polar facets - is on the edge of a cell, and the nearest centre can
+*     then be that of a cell that is off the sky. If so, the cell on the
+*     other side of the edge is used. Rounding errors in the calculation
+*     of the grid coords can move such a position slightly off the edge,
+*     so a position within a small distance of an edge is treated as
+*     being on it. The distance is the margin that the HPX projection
+*     allows for rounding (see AST__HPXTOL).
+
+*  Parameters:
+*     order
+*        The HEALPix order.
+*     x
+*        The grid X coordinate of the position within the HPX12
+*        projection. The centre of the first cell is at 1.0.
+*     y
+*        The grid Y coordinate of the position within the HPX12
+*        projection.
+
+*  Returned Value:
+*     The HEALPix nested index, or INT64_MAX if the position is bad or is
+*     not on the sky.
+*/
+
+/* Local Variables: */
+   double edge;             /* Coordinate of the nearest cell edge */
+   double ix[ 2 ];          /* Candidate one-based cell indices on X axis */
+   double iy[ 2 ];          /* Candidate one-based cell indices on Y axis */
+   double size;             /* Number of cells along each axis of the grid */
+   double tol;              /* Width of the edge of a cell, in pixels */
+   int i;                   /* Index of candidate on the X axis */
+   int j;                   /* Index of candidate on the Y axis */
+   int nx;                  /* Number of candidates on the X axis */
+   int ny;                  /* Number of candidates on the Y axis */
+   int64_t result;          /* Returned index */
+
+/* Initialise the returned index to a "bad" value. */
+   result = INT64_MAX;
+
+/* Check the position is good. */
+   if( x == AST__BAD || y == AST__BAD ) return result;
+
+/* The grid has five facets along each axis. A step of one pixel along
+   either axis changes each coordinate in the plane of the projection by
+   45 degrees divided by the number of pixels along the edge of a facet. */
+   size = 5.0*( 1 << order );
+   tol = AST__HPXTOL*( 1 << order )/45.0;
+
+/* On each axis, get the one-based index of the cell with the nearest
+   centre. The edges of the cells are at half-integer coordinates. If the
+   position is on an edge, also get the index of the cell on the other
+   side of it. */
+   ix[ 0 ] = round( x );
+   nx = 1;
+   edge = floor( x ) + 0.5;
+   if( fabs( x - edge ) <= tol ) {
+      ix[ nx++ ] = ( ix[ 0 ] > edge ) ? edge - 0.5 : edge + 0.5;
+   }
+
+   iy[ 0 ] = round( y );
+   ny = 1;
+   edge = floor( y ) + 0.5;
+   if( fabs( y - edge ) <= tol ) {
+      iy[ ny++ ] = ( iy[ 0 ] > edge ) ? edge - 0.5 : edge + 0.5;
+   }
+
+/* Try each combination, starting with the cell with the nearest centre,
+   until one is found that is on the sky. The check that the cell is
+   within the grid also ensures that its indices can be held in an int,
+   and rejects a position that is not finite. */
+   for( j = 0; j < ny && result == INT64_MAX; j++ ) {
+      for( i = 0; i < nx && result == INT64_MAX; i++ ) {
+         if( ix[ i ] >= 1.0 && ix[ i ] <= size &&
+             iy[ j ] >= 1.0 && iy[ j ] <= size ) {
+            result = XyToNested( order, (int) ix[ i ], (int) iy[ j ] );
+         }
+      }
+   }
+
+   return result;
+}
+
+static void PutBox( AstMoc *this, AstMapping **map, const AstDim lbnd[ 2 ],
+                    const AstDim ubnd[ 2 ], int order, CellList *clist,
+                    int regtype, void *data, int cmode, const char *method,
+                    int *status ){
+/*
+*  Name:
+*     PutBox
+
+*  Purpose:
+*     Add the cells of a box of HEALPix cells that are inside a region.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     void PutBox( AstMoc *this, AstMapping **map, const AstDim lbnd[ 2 ],
+*                  const AstDim ubnd[ 2 ], int order, CellList *clist,
+*                  int regtype, void *data, int cmode, const char *method,
+*                  int *status )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function passes every cell in a box of HEALPix cells at a
+*     given order to PutCell, which adds to the supplied CellList the
+*     parts of each cell that are inside a region of interest. The cells
+*     are passed in chunks of at most BOXCHUNK, so that the memory used
+*     for the test points of the cells is bounded however many cells the
+*     box holds.
+
+*  Parameters:
+*     this
+*        Pointer to the Moc.
+*     map
+*        Pointer to an array of Mapping pointers, as for PutCell.
+*     lbnd
+*        The 1-based grid indices of the first cell in the box on each
+*        axis.
+*     ubnd
+*        The 1-based grid indices of the last cell in the box on each
+*        axis.
+*     order
+*        The 0-based order to which "lbnd" and "ubnd" refer.
+*     clist
+*        Pointer to the CellList to be updated, as for PutCell.
+*     regtype
+*        Indicates how the region of interest is defined, as for PutCell.
+*     data
+*        Pointer to the object that defines the region of interest, as for
+*        PutCell.
+*     cmode
+*        The combination mode, as for PutCell.
+*     method
+*        Name of calling method - for error messages.
+*     status
+*        Inherited status value.
+*/
+
+/* Local Variables: */
+   AstDim *ilist;           /* X indices of the cells in the chunk */
+   AstDim *jlist;           /* Y indices of the cells in the chunk */
+   AstDim icell;            /* Index of next cell within the box */
+   AstDim ncell;            /* Number of cells in the box */
+   AstDim nchunk;           /* Number of cells in the current chunk */
+   AstDim nx;               /* Number of cells along the X axis of the box */
+   AstDim k;                /* Index of cell within the chunk */
+
+/* Check the global error status. */
+   if( !astOK ) return;
+
+/* The number of cells in the box, and in a chunk. */
+   nx = ubnd[ 0 ] - lbnd[ 0 ] + 1;
+   ncell = nx*( ubnd[ 1 ] - lbnd[ 1 ] + 1 );
+   nchunk = ( ncell < BOXCHUNK ) ? ncell : BOXCHUNK;
+   if( nchunk <= 0 ) return;
+
+/* Allocate memory to hold the indices of the cells in a chunk. */
+   ilist = astMalloc( nchunk*sizeof( *ilist ) );
+   jlist = astMalloc( nchunk*sizeof( *jlist ) );
+
+/* Pass each chunk of cells to PutCell. The cells are visited in raster
+   order, X fastest. */
+   for( icell = 0; icell < ncell && astOK; icell += nchunk ) {
+      if( nchunk > ncell - icell ) nchunk = ncell - icell;
+      for( k = 0; k < nchunk; k++ ) {
+         ilist[ k ] = lbnd[ 0 ] + ( icell + k ) % nx;
+         jlist[ k ] = lbnd[ 1 ] + ( icell + k ) / nx;
+      }
+      PutCell( this, map, nchunk, ilist, jlist, order, clist, regtype, data,
+               cmode, NULL, method, status );
+   }
+
+/* Free resources. */
+   ilist = astFree( ilist );
+   jlist = astFree( jlist );
+}
+
 static void PutCell( AstMoc *this, AstMapping **map, AstDim ncell, AstDim *ix,
                      AstDim *iy, int order, CellList *clist, int regtype,
                      void *data, int cmode, int *inorout, const char *method,
@@ -7360,6 +7604,135 @@ static void PutCell( AstMoc *this, AstMapping **map, AstDim ncell, AstDim *ix,
 
 /* Free the array of inside flags */
    inside = astFree( inside );
+}
+
+static int RegionBeyondBox( AstRegion *region, AstMapping *map,
+                            const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+                            int *status ){
+/*
+*  Name:
+*     RegionBeyondBox
+
+*  Purpose:
+*     See if a Region extends beyond a box that bounds its boundary.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "moc.h"
+*     int RegionBeyondBox( AstRegion *region, AstMapping *map,
+*                          const AstDim lbnd[ 2 ], const AstDim ubnd[ 2 ],
+*                          int *status )
+
+*  Class Membership:
+*     Moc member function
+
+*  Description:
+*     This function is given a box of grid cells that contains the whole
+*     of the boundary of a Region, with a margin of at least one cell,
+*     and determines whether the Region extends beyond the box.
+*
+*     Since no part of the boundary is outside the box, each connected
+*     part of the sky outside the box is either all inside or all outside
+*     the Region, and each such part adjoins the box. So the Region
+*     extends beyond the box if, and only if, it contains positions in
+*     the ring of cells that surrounds the box. Each cell in the ring is
+*     tested at its corners, edge-centres and centre.
+
+*  Parameters:
+*     region
+*        Pointer to the Region.
+*     map
+*        Pointer to a Mapping from the grid coordinates in which the box
+*        is defined to the Frame represented by the Region.
+*     lbnd
+*        The one-based indices of the first cell in the box on each axis.
+*     ubnd
+*        The one-based indices of the last cell in the box on each axis.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     Non-zero if the Region extends beyond the box. Zero if it does not,
+*     or if an error occurs.
+*/
+
+/* Local Variables: */
+   AstDim i;                /* X coordinate of test point, in half cells */
+   AstDim ihi;              /* Last value of "i" */
+   AstDim ilo;              /* First value of "i" */
+   AstDim j;                /* Y coordinate of test point, in half cells */
+   AstDim jhi;              /* Last value of "j" */
+   AstDim jlo;              /* First value of "j" */
+   AstDim npoint;           /* Number of test points */
+   AstPointSet *ps1;        /* Test points in grid coords */
+   AstPointSet *ps2;        /* Test points in the Frame of the Region */
+   AstPointSet *ps3;        /* Test points masked by the Region */
+   double **ptr1;           /* Pointers to grid coords */
+   double **ptr3;           /* Pointers to masked values */
+   double *px;              /* Pointer to next X value */
+   double *py;              /* Pointer to next Y value */
+   int result;              /* Returned flag */
+
+/* Initialise */
+   result = 0;
+
+/* Check the global error status. */
+   if( !astOK ) return result;
+
+/* The test points are spaced half a cell apart. In units of half a cell,
+   the outer edge of the box is at ( 2*lbnd - 1 ) and ( 2*ubnd + 1 ), and
+   the outer edge of the ring of cells around the box is one cell further
+   out. */
+   ilo = 2*lbnd[ 0 ] - 3;
+   ihi = 2*ubnd[ 0 ] + 3;
+   jlo = 2*lbnd[ 1 ] - 3;
+   jhi = 2*ubnd[ 1 ] + 3;
+
+/* The test points are those on or outside the outer edge of the box:
+   three complete rows below the box and three above it, and three points
+   at each end of each of the rows between. */
+   npoint = 6*( ihi - ilo + 1 ) + 6*( jhi - jlo - 5 );
+
+/* Store the grid coords of the test points. */
+   ps1 = astPointSet( npoint, 2, "", status );
+   ptr1 = astGetPoints( ps1 );
+   if( astOK ) {
+      px = ptr1[ 0 ];
+      py = ptr1[ 1 ];
+      for( j = jlo; j <= jhi; j++ ) {
+         for( i = ilo; i <= ihi; i++ ) {
+            if( j < jlo + 3 || j > jhi - 3 || i < ilo + 3 || i > ihi - 3 ) {
+               *(px++) = 0.5*i;
+               *(py++) = 0.5*j;
+            } else {
+               i = ihi - 3;
+            }
+         }
+      }
+
+/* Transform them into the Frame of the Region, and then use the Region
+   to set bad those that are outside the Region. A test point that is not
+   on the sky is already bad. */
+      ps2 = astTransform( map, ps1, 1, NULL );
+      ps3 = astTransform( region, ps2, 1, NULL );
+      ptr3 = astGetPoints( ps3 );
+      if( astOK ) {
+         px = ptr3[ 0 ];
+         for( i = 0; i < npoint; i++ ) {
+            if( *(px++) != AST__BAD ) {
+               result = 1;
+               break;
+            }
+         }
+      }
+      ps3 = astAnnul( ps3 );
+      ps2 = astAnnul( ps2 );
+   }
+   ps1 = astAnnul( ps1 );
+
+   return result;
 }
 
 static void RegBaseBox( AstRegion *this_region, double *lbnd,
@@ -9788,8 +10161,7 @@ static AstPointSet *Transform( AstMapping *this_mapping, AstPointSet *in,
       for( ipoint = 0; ipoint < npoint; ipoint++ ) {
 
 /* Convert from grid (x,y) to nested index. */
-         inest = px ? XyToNested( order, (int)round( *(px++) ),
-                                  (int)round( *(py++) ) ) : INT64_MAX;
+         inest = px ? PosToNested( order, *(px++), *(py++) ) : INT64_MAX;
 
 /* Test if this nested index is contained in the Moc. Each pair of
    adjacent values in the "this->range" array are the upper and lower
@@ -9901,11 +10273,15 @@ static int64_t XyToNested( int order, int ix, int iy ){
 /* Get the number of cells along one edge of a facet.*/
    nppf = ( 1 << order );
 
+/* Convert ix and iy from one-based to zero-based. A negative index is
+   off the grid. This check is needed because the divisions below round
+   towards zero, and so would put such an index in the first facet. */
+   if( --ix < 0 || --iy < 0 ) return result;
+
 /* Get the zero based facet (x,y) indices - offsets from the bottom left
-   facet in Calabretta & Roukema 2005 Fig 3. Convert ix and iy from
-   one-based to zero-based before doing the calculations. */
-   fx = (--ix)/nppf;
-   fy = (--iy)/nppf;
+   facet in Calabretta & Roukema 2005 Fig 3. */
+   fx = ix/nppf;
+   fy = iy/nppf;
 
 /* Get the (x,y) offsets of the cell into the facet, measured from the
    bottom left corner of the facet as shown in Calabretta & Roukema 2005
@@ -10070,13 +10446,23 @@ f     methods AST_ADDREGION or AST__ADDPIXELMASK.
 *     initial grid may be missed (i.e. such holes may be "filled in" and
 *     islands omitted in the resulting Moc).
 *
-*     The default value is (MaxOrder-4), with a lower limit of zero. For
+*     The default value is (MaxOrder-5), with a lower limit of zero. For
 *     instance, if MaxOrder is 16 (a resolution of 3.2 arc-seconds), then
-*     MinOrder will be 12, meaning that bounded holes within selected areas
-*     may be filled in if the hole is smaller than 51 arc-seconds. Increase
+*     MinOrder will be 11, meaning that bounded holes within selected areas
+*     may be filled in if the hole is smaller than 103 arc-seconds. Increase
 *     the value of this attribute to ensures that only holes smaller than
 *     this value can be missed. Note, doing so will increase the time spent
 *     creating the Moc.
+*
+*     If no value has been set for this attribute,
+c     astAddRegion and astAddPixelMask<X>
+f     AST_ADDREGION and AST_ADDPIXELMASK<X>
+*     start at a lower order than the default if the bounding box of the
+*     Region or pixel array would hold more than about 260000 cells at the
+*     default order, so that the time and memory they need are bounded.
+*     The value of the attribute itself is not changed. Set the attribute
+*     explicitly to use a particular order whatever the size of the Region
+*     or pixel array.
 *
 *     To ensure no pixels are missed, set MinOrder equal to MaxOrder, or
 *     slightly higher to include features smaller than cells at MaxOrder.
