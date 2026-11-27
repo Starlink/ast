@@ -876,6 +876,14 @@ ast_add_test(testgrid
 )
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
+# --- Initial state of Plot attributes (no graphics library) ---
+ast_add_test(testplotattr
+    NO_DEFAULT_GRF_LIBS
+    EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log-static>
+               $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d-static>
+)
+target_include_directories(testplotattr PRIVATE "${CMAKE_SOURCE_DIR}/src")
+
 # --- Unit test of the logging grf3d module (grf3d_log.c) ---
 # Links the 2D logging module as well, since a Plot3D program links both.
 ast_add_test(testgrf3dlog

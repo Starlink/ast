@@ -330,7 +330,6 @@
  Sft3 = -821.5
  End WinMap
  IsA FrameSet
- FrcExt = 0
  Xlo = 0
  Ylo = 0
  Xhi = 1
@@ -521,7 +520,6 @@
  End CmpMap
  End CmpMap
  IsA FrameSet
- FrcExt = 0
  DrwTtl = 0
  Edge1 = "right"
  Edge2 = "bottom"
@@ -670,7 +668,6 @@
  End CmpMap
  End CmpMap
  IsA FrameSet
- FrcExt = 0
  DrwTtl = 0
  NmLbl1 = 0
  TxLbl1 = 0
@@ -823,7 +820,6 @@
  End CmpMap
  End CmpMap
  IsA FrameSet
- FrcExt = 0
  DrwTtl = 0
  NmLbl1 = 0
  NmLbl2 = 0

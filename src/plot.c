@@ -768,6 +768,9 @@ f     - Title: The Plot title drawn using AST_GRID
 *        DrawTicks reads that many values from the supplied array.
 *        DrawTicks: when drawing interior ticks from supplied tick values,
 *        read exactly nmajor and nminor values rather than one more.
+*        astInitPlot: initialise the ForceExterior attribute as unset. It was
+*        left at zero, so every new Plot reported it as set to zero and wrote
+*        it to its dump.
 
 *class--
 */
@@ -31053,6 +31056,7 @@ AstPlot *astInitPlot_( void *mem, size_t size, int init, AstPlotVtab *vtab,
    Store a value of -1 to indicate that no value has yet been set. This will
    cause a default value of 1 (yes) to be used. */
       new->tickall = -1;
+      new->forceexterior = -1;
 
 /* Graphics context identifier */
       new->grfcontext = NULL;

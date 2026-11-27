@@ -330,7 +330,6 @@
  Sft3 = -821.5
  End WinMap
  IsA FrameSet
- FrcExt = 0
  MnTks1 = 4
  MnTks2 = 2
  MnTks3 = 5
@@ -524,7 +523,6 @@
  End CmpMap
  End CmpMap
  IsA FrameSet
- FrcExt = 0
  DrwTtl = 0
  MnTks1 = 4
  MnTks2 = 2
@@ -675,7 +673,6 @@
  End CmpMap
  End CmpMap
  IsA FrameSet
- FrcExt = 0
  DrwTtl = 0
  NmLbl1 = 0
  MnTks1 = 4
@@ -830,7 +827,6 @@
  End CmpMap
  End CmpMap
  IsA FrameSet
- FrcExt = 0
  DrwTtl = 0
  NmLbl1 = 0
  NmLbl2 = 0
