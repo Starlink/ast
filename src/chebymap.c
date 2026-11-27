@@ -220,6 +220,11 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        for the actual number of axes. It used a two-element array, so a
 *        ChebyMap with more axes overran the stack before the parent
 *        reported that it could not be fitted.
+*     27-NOV-2026 (TIMJ):
+*        PolyTran puts a bounding box reconstructed from a descending
+*        ChebyMap box into ascending order before passing it to the parent
+*        method, which rejected it. The box is only sampled there, so its
+*        orientation does not matter.
 *class--
 */
 
@@ -2904,6 +2909,7 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
    double *scale;
    double *this_lbnd;
    double *this_ubnd;
+   double dtmp;
    int inverted;
    int k;
    int nax;
@@ -2957,6 +2963,15 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
                astError( AST__NOBOX, "astPolyTran(%s): The %s transformation "
                          "has no usable bounding box on axis %d.", status,
                          astGetClass( this ), word, k + 1 );
+
+/* AxisBounds keeps the orientation of the box the ChebyMap was created
+   with. The parent method only samples the box, and requires each lower
+   bound to be below the upper bound, so put a descending pair in
+   ascending order. */
+            } else if( this_lbnd[ k ] > this_ubnd[ k ] ) {
+               dtmp = this_lbnd[ k ];
+               this_lbnd[ k ] = this_ubnd[ k ];
+               this_ubnd[ k ] = dtmp;
             }
          }
          if( lbnd ) {

@@ -825,6 +825,10 @@ static void polytran_tests( int *status ) {
                       1.0, 3, 0, 0, 1 };
    double lb3[ 3 ] = { -1.0, -1.0, -1.0 };
    double ub3[ 3 ] = { 1.0, 1.0, 1.0 };
+   double lin[] = { 2.0, 1, 1 };
+   double dlo = 10.0;
+   double dhi = 0.0;
+   double xv, yv;
    int code;
    AstChebyMap *cm;
    AstPolyMap *pm;
@@ -849,4 +853,23 @@ static void polytran_tests( int *status ) {
    if( pm ) pm = astAnnul( pm );
    cm = astAnnul( cm );
 
+/* A ChebyMap may be created with a descending bounding box. Without a
+   user-supplied box, astPolyTran samples the ChebyMap's own box, and the
+   orientation of that box must not matter: y = 2*T1(z) over [10,0] is
+   y = 2 - 0.4*x, so its inverse maps y = 1 to x = 2.5. */
+   cm = astChebyMap( 1, 1, 1, lin, 0, NULL, &dlo, &dhi, NULL, NULL, " " );
+   pm = astPolyTran( cm, 0, 1.0E-8, 1.0E-6, 3, NULL, NULL );
+   if( !astOK || !pm ) {
+      astClearStatus;
+      stopit( 3003, status );
+   } else {
+      yv = 1.0;
+      astTran1( pm, 1, &yv, 0, &xv );
+      if( !astOK || fabs( xv - 2.5 ) > 1.0E-6 ) {
+         astClearStatus;
+         stopit( 3004, status );
+      }
+      pm = astAnnul( pm );
+   }
+   cm = astAnnul( cm );
 }
