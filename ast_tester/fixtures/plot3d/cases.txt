@@ -66,7 +66,9 @@ outline | plot3d/inputs/frame3d.ast |  | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1
 # components, which must survive the astEqual round trip the program makes.
 region_plot | plot3d/inputs/box3d.ast |  | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | border |
 # SVG pictures at fixed cameras, for comparison by eye and by the Rust port.
-svg_ortho | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | 0 0 10 0 0 0 0 1 0 0
+# svg_ortho looks from the auto camera's direction without perspective, so it
+# and svg_persp differ only in the projection.
+svg_ortho | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | 4.9 3.5 3.5 0 0 0 0 0 1 0
 svg_persp | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | auto
 svg_rootcorner5 | programs/testplot3d/plot3d-test1.ast | RootCorner=ULU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | auto
 # Text seen from behind (the eye is on the -Z side of a +Z text plane) and

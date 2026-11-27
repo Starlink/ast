@@ -171,6 +171,9 @@ static double ChrHtMM( void ) {
    return DEFAULT_CHR_HT * scale;
 }
 
+/* A projected position with no perspective image cannot be drawn. */
+static int Projectable( float h, float r );
+
 /* Vector utilities, as in grf3d_plplot.c. */
 /* Vector product of a pair of 3-vectors "a" and "b". */
 static void vectorProduct( const float *a, const float *b, float *c ) {
@@ -331,11 +334,80 @@ static int transform( int n, const float *x, const float *y, const float *z,
    return 1;
 }
 
-int astGrf3DLogAutoCamera( float lbnd[3], float ubnd[3] ) {
-   float target[3], eye[3], up[3], screen, dx, dy, dz, hlo, hhi, rlo, rhi;
+int astGrf3DLogFitWindow( float lbnd[3], float ubnd[3] ) {
+   float dx, dy, hlo, hhi, rlo, rhi;
    float x[8], y[8], z[8], h[8], r[8];
    int result = 0;
    int i;
+
+/* The corners of the volume. */
+   x[ 0 ] = ubnd[ 0 ];
+   x[ 1 ] = ubnd[ 0 ];
+   x[ 2 ] = lbnd[ 0 ];
+   x[ 3 ] = lbnd[ 0 ];
+   x[ 4 ] = ubnd[ 0 ];
+   x[ 5 ] = ubnd[ 0 ];
+   x[ 6 ] = lbnd[ 0 ];
+   x[ 7 ] = lbnd[ 0 ];
+
+   y[ 0 ] = lbnd[ 1 ];
+   y[ 1 ] = ubnd[ 1 ];
+   y[ 2 ] = ubnd[ 1 ];
+   y[ 3 ] = lbnd[ 1 ];
+   y[ 4 ] = lbnd[ 1 ];
+   y[ 5 ] = ubnd[ 1 ];
+   y[ 6 ] = ubnd[ 1 ];
+   y[ 7 ] = lbnd[ 1 ];
+
+   z[ 0 ] = lbnd[ 2 ];
+   z[ 1 ] = lbnd[ 2 ];
+   z[ 2 ] = lbnd[ 2 ];
+   z[ 3 ] = lbnd[ 2 ];
+   z[ 4 ] = ubnd[ 2 ];
+   z[ 5 ] = ubnd[ 2 ];
+   z[ 6 ] = ubnd[ 2 ];
+   z[ 7 ] = ubnd[ 2 ];
+
+   if( transform( 8, x, y, z, h, r ) ) {
+
+/* The bounds of the projected volume. */
+      hlo = FLT_MAX;
+      hhi = -FLT_MAX;
+      rlo = FLT_MAX;
+      rhi = -FLT_MAX;
+
+      for( i = 0; i < 8; i++ ) {
+         if( !Projectable( h[ i ], r[ i ] ) ) continue;
+         if( h[ i ] < hlo ) hlo = h[ i ];
+         if( h[ i ] > hhi ) hhi = h[ i ];
+         if( r[ i ] < rlo ) rlo = r[ i ];
+         if( r[ i ] > rhi ) rhi = r[ i ];
+      }
+
+/* Extended by 5% at each end. */
+      dx = 0.05*( hhi - hlo );
+      hhi += dx;
+      hlo -= dx;
+
+      dy = 0.05*( rhi - rlo );
+      rhi += dy;
+      rlo -= dy;
+
+/* A box with area becomes the window mapped onto the page. */
+      if( rlo < rhi && hlo < hhi ) {
+         win_x1 = hlo;
+         win_x2 = hhi;
+         win_y1 = rlo;
+         win_y2 = rhi;
+         result = 1;
+      }
+   }
+   return result;
+}
+
+int astGrf3DLogAutoCamera( float lbnd[3], float ubnd[3] ) {
+   float target[3], eye[3], up[3], screen, dx, dy, dz;
+   int result = 0;
 
 /* Look at the middle of the volume. */
    target[ 0 ] = 0.5*( lbnd[ 0 ] + ubnd[ 0 ] );
@@ -363,69 +435,9 @@ int astGrf3DLogAutoCamera( float lbnd[3], float ubnd[3] ) {
    dz = eye[ 2 ] - target[ 2 ];
    screen = sqrtf( dx*dx + dy*dy + dz*dz );
 
+/* Set the camera and fit the window to the box. */
    if( astGrf3DLogSetCamera( eye, target, up, screen ) ) {
-
-/* The corners of the volume. */
-      x[ 0 ] = ubnd[ 0 ];
-      x[ 1 ] = ubnd[ 0 ];
-      x[ 2 ] = lbnd[ 0 ];
-      x[ 3 ] = lbnd[ 0 ];
-      x[ 4 ] = ubnd[ 0 ];
-      x[ 5 ] = ubnd[ 0 ];
-      x[ 6 ] = lbnd[ 0 ];
-      x[ 7 ] = lbnd[ 0 ];
-
-      y[ 0 ] = lbnd[ 1 ];
-      y[ 1 ] = ubnd[ 1 ];
-      y[ 2 ] = ubnd[ 1 ];
-      y[ 3 ] = lbnd[ 1 ];
-      y[ 4 ] = lbnd[ 1 ];
-      y[ 5 ] = ubnd[ 1 ];
-      y[ 6 ] = ubnd[ 1 ];
-      y[ 7 ] = lbnd[ 1 ];
-
-      z[ 0 ] = lbnd[ 2 ];
-      z[ 1 ] = lbnd[ 2 ];
-      z[ 2 ] = lbnd[ 2 ];
-      z[ 3 ] = lbnd[ 2 ];
-      z[ 4 ] = ubnd[ 2 ];
-      z[ 5 ] = ubnd[ 2 ];
-      z[ 6 ] = ubnd[ 2 ];
-      z[ 7 ] = ubnd[ 2 ];
-
-      if( transform( 8, x, y, z, h, r ) ) {
-
-/* The bounds of the projected volume. */
-         hlo = FLT_MAX;
-         hhi = -FLT_MAX;
-         rlo = FLT_MAX;
-         rhi = -FLT_MAX;
-
-         for( i = 0; i < 8; i++ ) {
-            if( h[ i ] < hlo ) hlo = h[ i ];
-            if( h[ i ] > hhi ) hhi = h[ i ];
-            if( r[ i ] < rlo ) rlo = r[ i ];
-            if( r[ i ] > rhi ) rhi = r[ i ];
-         }
-
-/* Extended by 5% at each end. */
-         dx = 0.05*( hhi - hlo );
-         hhi += dx;
-         hlo -= dx;
-
-         dy = 0.05*( rhi - rlo );
-         rhi += dy;
-         rlo -= dy;
-
-/* A box with area becomes the window mapped onto the page. */
-         if( rlo < rhi && hlo < hhi ) {
-            win_x1 = hlo;
-            win_x2 = hhi;
-            win_y1 = rlo;
-            win_y2 = rhi;
-            result = 1;
-         }
-      }
+      result = astGrf3DLogFitWindow( lbnd, ubnd );
    }
    return result;
 }

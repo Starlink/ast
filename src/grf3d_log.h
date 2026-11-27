@@ -64,6 +64,13 @@ int astGrf3DLogSetCamera( float eye[3], float target[3], float up[3],
    the page window to the projected box.  Returns 1 on success. */
 int astGrf3DLogAutoCamera( float lbnd[3], float ubnd[3] );
 
+/* Set the page window so that the given 3D box, projected through the
+   current camera, fills the SVG page with a 5 per cent margin.  Call it
+   after astGrf3DLogSetCamera; astGrf3DLogAutoCamera does so itself.
+   Returns 1 on success, 0 if there is no usable camera or the projected
+   box has no area. */
+int astGrf3DLogFitWindow( float lbnd[3], float ubnd[3] );
+
 /* Flush and detach the log, and finish and detach the SVG. */
 void astGrf3DLogClose( void );
 

@@ -23,7 +23,7 @@
 *     the logging grf3d module (grf3d_log.c) records every graphics call
 *     in --log.  With --svg the calls are also drawn through a camera:
 *     the auto camera for the graphics box, replaced by --camera when
-*     given.
+*     given, with the page window refitted to the box for that camera.
 *
 *     Each action writes an "ACTION <name>" line to the log first.
 *     Actions:
@@ -414,6 +414,9 @@ int main( int argc, char **argv ) {
          }
          if( !astGrf3DLogSetCamera( eye, target, up, (float) c[9] ) ) {
             return fail( "camera does not define a view" );
+         }
+         if( !astGrf3DLogFitWindow( lbnd, ubnd ) ) {
+            return fail( "the box has no area through this camera" );
          }
       }
    }

@@ -617,6 +617,53 @@ static void test_svg( void ) {
       }
    }
 
+   /* A camera set by hand needs the window refitted to the box: seen from
+      behind and below, all eight cube corners land on the page and span
+      most of it. */
+   {
+      float beye[3] = { 0.0f, 0.0f, -10.0f };
+      float bup[3] = { 0.0f, -1.0f, 0.0f };
+      float x[8] = { -1, 1, 1, -1, -1, 1, 1, -1 };
+      float y[8] = { -1, -1, 1, 1, -1, -1, 1, 1 };
+      float z[8] = { -1, -1, -1, -1, 1, 1, 1, 1 };
+      const char *p;
+      int px, py, used, xmin = 9999, xmax = -9999;
+      expect_int( "SetCamera from behind", astGrf3DLogSetCamera( beye, target, bup, 0.0f ), 1 );
+      expect_int( "FitWindow returns 1", astGrf3DLogFitWindow( lbnd, ubnd ), 1 );
+      expect_int( "G3DLine after FitWindow", astG3DLine( 8, x, y, z ), 1 );
+      next_line();
+      line = next_svg();
+      expect_int( "corners on the page after FitWindow",
+                  polyline_points_on_page( line ), 8 );
+      p = strstr( line, "points=\"" );
+      if( p ) {
+         p += strlen( "points=\"" );
+         while( *p && *p != '"' && sscanf( p, "%d,%d%n", &px, &py, &used ) == 2 ) {
+            if( px < xmin ) xmin = px;
+            if( px > xmax ) xmax = px;
+            p += used;
+            while( *p == ' ' ) p++;
+         }
+      }
+      if( xmin > 100 || xmax < 620 ) fail( "FitWindow spans the page", "cube does not fill the width" );
+      /* Back to the orthographic camera on the z axis, refitted. */
+      expect_int( "SetCamera orthographic again", astGrf3DLogSetCamera( eye, target, camup, 0.0f ), 1 );
+      expect_int( "FitWindow again", astGrf3DLogFitWindow( lbnd, ubnd ), 1 );
+      expect_int( "G3DMark after refit", astG3DMark( 1, x, y, z, 1, norm ), 1 );
+      next_line();
+      cx0 = svg_attr( next_svg(), "cx" );
+      cy0 = svg_attr( next_svg(), "cy" );
+      /* The reference marker for the text tests below is the origin. */
+      {
+         float ox[1] = { 0.0f }, oy[1] = { 0.0f }, oz[1] = { 0.0f };
+         astG3DMark( 1, ox, oy, oz, 1, norm );
+         next_line();
+         line = next_svg();
+         cx0 = svg_attr( line, "cx" );
+         cy0 = svg_attr( line, "cy" );
+      }
+   }
+
    /* Text facing the camera, baseline along +x: no rotation, and the
       justification maps to the SVG anchor and baseline. */
    expect_int( "SetCamera orthographic again",
