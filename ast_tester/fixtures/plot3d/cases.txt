@@ -62,6 +62,9 @@ markers | plot3d/inputs/frame3d.ast |  | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1
 refused | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | refused |
 # The outline of a 3D Box drawn on a Plot3D over a plain Frame.
 outline | plot3d/inputs/frame3d.ast |  | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | outline:plot3d/inputs/box3d.ast |
+# A Plot3D built over a Region: its side planes hold CmpFrames with Region
+# components, which must survive the astEqual round trip the program makes.
+region_plot | plot3d/inputs/box3d.ast |  | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | border |
 # SVG pictures at fixed cameras, for comparison by eye and by the Rust port.
 svg_ortho | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | 0 0 10 0 0 0 0 1 0 0
 svg_persp | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | auto

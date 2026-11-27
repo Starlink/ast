@@ -206,6 +206,40 @@ static int check_match_no_axes( void ) {
    return result;
 }
 
+/* A CmpFrame with Region components compares equal to one built from the
+   same components, to a copy of itself, and to itself read back from a
+   dump; and unequal to one whose Region differs. */
+static int check_region_components_equal( void ) {
+   double lo1[1] = { 70.0 }, hi1[1] = { 120.0 };
+   double lo2[1] = { 750.0 }, hi2[1] = { 1200.0 };
+   double lo3[1] = { 750.0 }, hi3[1] = { 1300.0 };
+   AstFrame *fa, *fb;
+   AstBox *ba, *bb, *bc;
+   AstCmpFrame *cf1, *cf2, *cf3, *copy, *reread;
+   char *dump;
+
+   fa = astFrame( 1, "Domain=PIXEL" );
+   fb = astFrame( 1, "Domain=PIXEL" );
+   ba = astBox( fa, 1, lo1, hi1, NULL, " " );
+   bb = astBox( fb, 1, lo2, hi2, NULL, " " );
+   bc = astBox( fb, 1, lo3, hi3, NULL, " " );
+   cf1 = astCmpFrame( ba, bb, " " );
+   cf2 = astCmpFrame( ba, bb, " " );
+   cf3 = astCmpFrame( ba, bc, " " );
+   copy = astCopy( cf1 );
+   dump = astToString( cf1 );
+   reread = (AstCmpFrame *) astFromString( dump );
+   dump = astFree( dump );
+   if( !astOK ) return 18;
+   if( !astEqual( cf1, cf2 ) ) return 19;
+   if( !astEqual( cf1, copy ) ) return 20;
+   if( !astEqual( cf1, reread ) ) return 21;
+   if( astEqual( cf1, cf3 ) ) return 22;
+   if( astEqual( cf1, astCmpFrame( bb, ba, " " ) ) ) return 23;
+   if( !astEqual( astCmpFrame( fa, fb, " " ), astCmpFrame( fa, fb, " " ) ) ) return 24;
+   return 0;
+}
+
 int main( void ) {
    int status_value = 0;
    int *status = &status_value;
@@ -285,6 +319,16 @@ int main( void ) {
    switch( check_match_no_axes() ) {
    case 16: stopit( status, "Match: error converting between a 1-D Frame and a nested CmpFrame" ); break;
    case 17: stopit( status, "Match: a 1-D Frame was converted to a nested CmpFrame" ); break;
+   }
+
+   switch( check_region_components_equal() ) {
+   case 18: stopit( status, "Equal: error building CmpFrames with Region components" ); break;
+   case 19: stopit( status, "Equal: CmpFrames built from the same Regions are not equal" ); break;
+   case 20: stopit( status, "Equal: a CmpFrame with Region components is not equal to its copy" ); break;
+   case 21: stopit( status, "Equal: a CmpFrame with Region components is not equal to its dump read back" ); break;
+   case 22: stopit( status, "Equal: CmpFrames with different Regions compare equal" ); break;
+   case 23: stopit( status, "Equal: CmpFrames with swapped components compare equal" ); break;
+   case 24: stopit( status, "Equal: CmpFrames of plain Frames are not equal" ); break;
    }
 
    astEnd;

@@ -1,0 +1,807 @@
+ Begin Plot3D
+ Nframe = 2
+ Currnt = 2
+ Lnk2 = 1
+ Frm1 =
+ Begin Frame
+ Title = "Graphical Coordinates"
+ Naxes = 3
+ Domain = "GRAPHICS"
+ Ax1 =
+ Begin Axis
+ End Axis
+ Ax2 =
+ Begin Axis
+ End Axis
+ Ax3 =
+ Begin Axis
+ End Axis
+ End Frame
+ Frm2 =
+ Begin Box
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 3
+ Domain = "PIXEL"
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ Ax3 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 3
+ X1 = 70
+ X2 = 50
+ X3 = 750
+ X4 = 120
+ X5 = 80
+ X6 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ Map2 =
+ Begin WinMap
+ Nin = 3
+ IsA Mapping
+ Sft1 = 0.5
+ Scl1 = 155
+ Sft2 = 0.5
+ Scl2 = 107
+ Sft3 = 0.5
+ Scl3 = 1640
+ End WinMap
+ IsA FrameSet
+ FrcExt = 0
+ Xlo = 0
+ Ylo = 0
+ Xhi = 1
+ Yhi = 1
+ Xrev = 0
+ Yrev = 0
+ Xb1 = 0
+ Yb1 = 0
+ Xb2 = 1
+ Yb2 = 1
+ IsA Plot
+ AxPlX1 = 1
+ AxPlY1 = 1
+ AxPlZ1 = 2
+ AxInX1 = 0
+ AxInY1 = 1
+ AxInZ1 = 1
+ AxPlX2 = 2
+ AxPlY2 = 3
+ AxPlZ2 = 3
+ AxInX2 = 0
+ AxInY2 = 0
+ AxInZ2 = 1
+ BasePl = 1
+ PlotXY =
+ Begin Plot
+ ActUnt = 0
+ IsA Frame
+ Nframe = 3
+ Currnt = 3
+ Lnk2 = 1
+ Lnk3 = 2
+ Frm1 =
+ Begin Frame
+ Title = "Graphical Coordinates"
+ Naxes = 2
+ Domain = "GRAPHICS"
+ Ax1 =
+ Begin Axis
+ Dirn = 0
+ End Axis
+ Ax2 =
+ Begin Axis
+ End Axis
+ End Frame
+ Frm2 =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 70
+ X2 = 50
+ X3 = 120
+ X4 = 80
+ End PointSet
+ IsA Region
+ End Box
+ Frm3 =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 70
+ X2 = 50
+ X3 = 120
+ X4 = 80
+ End PointSet
+ IsA Region
+ End Box
+ Map2 =
+ Begin WinMap
+ Nin = 2
+ IsA Mapping
+ Sft1 = 0.5
+ Scl1 = 155
+ Sft2 = 0.5
+ Scl2 = 107
+ End WinMap
+ Map3 =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ MapA =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ MapA =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 70
+ X2 = 50
+ X3 = 120
+ X4 = 80
+ End PointSet
+ IsA Region
+ End Box
+ MapB =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 70
+ X2 = 50
+ X3 = 120
+ X4 = 80
+ End PointSet
+ IsA Region
+ End Box
+ End CmpMap
+ MapB =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 70
+ X2 = 50
+ X3 = 120
+ X4 = 80
+ End PointSet
+ IsA Region
+ End Box
+ End CmpMap
+ IsA FrameSet
+ FrcExt = 0
+ DrwTtl = 0
+ Edge1 = "bottom"
+ Edge2 = "right"
+ Xlo = 0
+ Ylo = 0
+ Xhi = 1
+ Yhi = 1
+ Xrev = 1
+ Yrev = 0
+ Xb1 = 155.5
+ Yb1 = 0.5
+ Xb2 = 0.5
+ Yb2 = 107.5
+ End Plot
+ PlotXZ =
+ Begin Plot
+ Nframe = 3
+ Currnt = 3
+ Lnk2 = 1
+ Lnk3 = 2
+ Frm1 =
+ Begin Frame
+ Title = "Graphical Coordinates"
+ Naxes = 2
+ Domain = "GRAPHICS"
+ Ax1 =
+ Begin Axis
+ End Axis
+ Ax2 =
+ Begin Axis
+ End Axis
+ End Frame
+ Frm2 =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 70
+ X2 = 750
+ X3 = 120
+ X4 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ Frm3 =
+ Begin CmpFrame
+ FrameA =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 70
+ X2 = 120
+ End PointSet
+ IsA Region
+ End Box
+ FrameB =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 750
+ X2 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ End CmpFrame
+ Map2 =
+ Begin WinMap
+ Nin = 2
+ IsA Mapping
+ Sft1 = 0.5
+ Scl1 = 155
+ Sft2 = 0.5
+ Scl2 = 1640
+ End WinMap
+ Map3 =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ MapA =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ MapA =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 70
+ X2 = 750
+ X3 = 120
+ X4 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ MapB =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ Series = 0
+ MapA =
+ Begin UnitMap
+ Nin = 1
+ IsA Mapping
+ End UnitMap
+ MapB =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 750
+ X2 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ End CmpMap
+ End CmpMap
+ MapB =
+ Begin CmpFrame
+ FrameA =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "X"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 70
+ X2 = 120
+ End PointSet
+ IsA Region
+ End Box
+ FrameB =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 750
+ X2 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ End CmpFrame
+ End CmpMap
+ IsA FrameSet
+ FrcExt = 0
+ DrwTtl = 0
+ NmLbl1 = 0
+ TxLbl1 = 0
+ LbUnt1 = 0
+ Edge1 = "bottom"
+ Edge2 = "left"
+ Xlo = 0
+ Ylo = 0
+ Xhi = 1
+ Yhi = 1
+ Xrev = 0
+ Yrev = 0
+ Xb1 = 0.5
+ Yb1 = 0.5
+ Xb2 = 155.5
+ Yb2 = 1640.5
+ End Plot
+ PlotYZ =
+ Begin Plot
+ Nframe = 3
+ Currnt = 3
+ Lnk2 = 1
+ Lnk3 = 2
+ Frm1 =
+ Begin Frame
+ Title = "Graphical Coordinates"
+ Naxes = 2
+ Domain = "GRAPHICS"
+ Ax1 =
+ Begin Axis
+ Dirn = 0
+ End Axis
+ Ax2 =
+ Begin Axis
+ End Axis
+ End Frame
+ Frm2 =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 50
+ X2 = 750
+ X3 = 80
+ X4 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ Frm3 =
+ Begin CmpFrame
+ FrameA =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 50
+ X2 = 80
+ End PointSet
+ IsA Region
+ End Box
+ FrameB =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 750
+ X2 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ End CmpFrame
+ Map2 =
+ Begin WinMap
+ Nin = 2
+ IsA Mapping
+ Sft1 = 0.5
+ Scl1 = 107
+ Sft2 = 0.5
+ Scl2 = 1640
+ End WinMap
+ Map3 =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ MapA =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ MapA =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 2
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ Ax2 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 2
+ X1 = 50
+ X2 = 750
+ X3 = 80
+ X4 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ MapB =
+ Begin CmpMap
+ Nin = 2
+ IsA Mapping
+ Series = 0
+ MapA =
+ Begin UnitMap
+ Nin = 1
+ IsA Mapping
+ End UnitMap
+ MapB =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 750
+ X2 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ End CmpMap
+ End CmpMap
+ MapB =
+ Begin CmpFrame
+ FrameA =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Y"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 50
+ X2 = 80
+ End PointSet
+ IsA Region
+ End Box
+ FrameB =
+ Begin Box
+ ActUnt = 0
+ IsA Frame
+ Adapt = 1
+ Frm =
+ Begin Frame
+ Naxes = 1
+ Domain = "PIXEL"
+ ActUnt = 0
+ Ax1 =
+ Begin Axis
+ Label = "Z"
+ End Axis
+ End Frame
+ Points =
+ Begin PointSet
+ Npoint = 2
+ Ncoord = 1
+ X1 = 750
+ X2 = 1200
+ End PointSet
+ IsA Region
+ End Box
+ End CmpFrame
+ End CmpMap
+ IsA FrameSet
+ FrcExt = 0
+ DrwTtl = 0
+ NmLbl1 = 0
+ NmLbl2 = 0
+ TxLbl1 = 0
+ TxLbl2 = 0
+ LbUnt1 = 0
+ LbUnt2 = 0
+ Edge1 = "bottom"
+ Edge2 = "right"
+ Xlo = 0
+ Ylo = 0
+ Xhi = 1
+ Yhi = 1
+ Xrev = 1
+ Yrev = 0
+ Xb1 = 107.5
+ Yb1 = 0.5
+ Xb2 = 0.5
+ Yb2 = 1640.5
+ End Plot
+ PixFrm = 2
+ End Plot3D
