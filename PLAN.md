@@ -11,7 +11,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 1. Add the existing C tests to the CMake build
 2. Convert Fortran tests to C to eliminate the Fortran/Starlink dependency
 
-## Current status: 138 default tests + 20 conditional (PLplot) + 1 optional huge stress test
+## Current status: 139 default tests + 20 conditional (PLplot) + 1 optional huge stress test
 
 | Phase | Status |
 |-------|--------|
@@ -33,7 +33,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 | Phase 2 Batch 15: Plot3D logging tests (no PLplot) | **Complete** (28 tests via logging grf3d plugin) |
 | Phase 3: CI integration | **Complete** (tests run via ctest) |
 
-### Test inventory (138 default + 20 conditional PLplot + 1 optional)
+### Test inventory (139 default + 20 conditional PLplot + 1 optional)
 
 **Original test (1):**
 - ast_test — minimal installation check
@@ -104,6 +104,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   unfused builds. Choose box values with exact coefficients instead.
 
 **New C-only regression tests (no Fortran original):**
+- testplotattr — a newly created Plot reports no attribute as set: ForceExterior
+  was never initialised as unset in astInitPlot, so astTest said it was set to
+  zero and every Plot dump carried FrcExt = 0, which also stopped Plot3D from
+  telling whether the user had chosen a value. Uses the logging GRF module.
 - testslamap — SlaMap transform with an undefined (AST__BAD) conversion
   argument must return AST__BAD outputs rather than NaN; FK45Z and FK54Z agree
   with ERFA's eraFk45z and eraFk54z, including FK54Z away from B1950.

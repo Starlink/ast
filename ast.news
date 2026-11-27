@@ -91,6 +91,11 @@ Bug fixes
   (astBoundingBox, astClip, astCurve, astGenCurve, astGridLine) is called
   now names the method instead of reading "ast##name".
 
+- A newly created Plot reported its ForceExterior attribute as set (to
+  zero) and wrote it to its dump, because the attribute was not initialised
+  as unset. It now behaves like every other Plot attribute: astTest is false
+  until a value is assigned, and the dump omits it.
+
 - A Plot drawing tick marks at values supplied through astSetTickValues
   could read past the end of the supplied arrays: the MinTick attribute,
   when set for that axis, replaced the count of supplied minor tick values
