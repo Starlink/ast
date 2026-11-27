@@ -449,6 +449,31 @@ int main( void ) {
       pm2 = astAnnul( pm2 );
    }
 
+   /* A forward-only PolyMap whose outputs all ignore one input has a
+      singular Jacobian everywhere, because the derivative with respect
+      to that input has no terms. Its iterative inverse must report the
+      positions as unsolvable rather than fail with an error. */
+   {
+      double cf_sing[] = { 1.0, 1, 1, 0,     /* out1 = x */
+                           1.0, 2, 2, 0 };   /* out2 = x*x */
+      double ox[ 1 ] = { 2.0 };
+      double oy[ 1 ] = { 4.0 };
+      double ix[ 1 ], iy[ 1 ];
+      int ok;
+      AstPolyMap *ps;
+
+      ps = astPolyMap( 2, 2, 2, cf_sing, 0, NULL, " " );
+      if( !astGetL( ps, "TranInverse" ) ) stopit( 8049, status );
+      astTran2( ps, 1, ox, oy, 0, ix, iy );
+      ok = astOK;
+      astClearStatus;
+      if( !ok ) stopit( 8050, status );
+      if( ok && ( ix[ 0 ] != AST__BAD || iy[ 0 ] != AST__BAD ) ) {
+         stopit( 8051, status );
+      }
+      ps = astAnnul( ps );
+   }
+
    astEnd;
    astFlushMemory( 1 );
 

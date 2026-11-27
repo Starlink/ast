@@ -249,6 +249,11 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        astLoadPolyMap treats a recorded NiterInverse or TolInverse value
 *        that the setters now refuse as unset, as it already does for
 *        IterInverse, so that dumps written by earlier versions still load.
+*     27-NOV-2026 (TIMJ):
+*        GetJacobian describes a derivative with no terms by a single zero
+*        coefficient. It created a PolyMap with no forward transformation,
+*        so the iterative inverse of a PolyMap whose outputs all ignore one
+*        input reported an error instead of returning bad positions.
 *class--
 */
 
@@ -2168,6 +2173,17 @@ static AstPolyMap **GetJacobian( AstPolyMap *this, int *status ){
                      }
                   }
                }
+            }
+
+/* A column with no terms is a zero derivative, not an undefined
+   transformation. Describe it by a single zero coefficient for the first
+   output, so that the PolyMap has a forward transformation. */
+            if( ncof_total == 0 ) {
+               pc = coeffs;
+               *(pc++) = 0.0;
+               *(pc++) = 1;
+               for( iin = 0; iin <  nin; iin++ ) *(pc++) = 0;
+               ncof_total = 1;
             }
 
 /* Create the PolyMap and store a pointer to it in the jacobian array in
