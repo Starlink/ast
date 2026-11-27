@@ -1,10 +1,15 @@
 # ChebyMap Iterative Inverse Review Fixes Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
+> Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Resolve the ten review findings and four cleanup items on branch `u/timj/chebymap-inverse` by moving the bounded Newton inverse into ChebyMap and fixing the attribute, FitsChan, test and documentation defects around it.
 
-**Architecture:** `IterInverse` becomes a protected virtual method of PolyMap. PolyMap keeps the unbounded algorithm from `master`. ChebyMap overrides it with the bounded algorithm, `IterSteps`, and a static domain helper, falling back to the parent when the forward series has no usable Chebyshev box. Attribute rules for `IterInverse`, `NiterInverse` and `TolInverse` live in `src/polymap.c`; ChebyMap overrides only the `NiterInverse` default. FitsChan excludes ChebyMaps from SIP output at the point where it picks the PolyMap.
+**Architecture:** `IterInverse` becomes a protected virtual method of PolyMap.
+PolyMap keeps the unbounded algorithm from `master`.
+ChebyMap overrides it with the bounded algorithm, `IterSteps`, and a static domain helper, falling back to the parent when the forward series has no usable Chebyshev box.
+Attribute rules for `IterInverse`, `NiterInverse` and `TolInverse` live in `src/polymap.c`; ChebyMap overrides only the `NiterInverse` default.
+FitsChan excludes ChebyMaps from SIP output at the point where it picks the PolyMap.
 
 **Tech Stack:** C99 library, C11 tests, CMake, ctest, AST object system (`astMAKE_*` macros, vtabs, `astBegin`/`astEnd`).
 
@@ -17,7 +22,8 @@
 - Every change to a file under `src/` adds a History entry in that file's prologue.
 - Public C API only in tests, except `ast_tester/testchebyinverse.c`, which is built with `INTERNAL_HEADERS` and may use protected functions.
 - Prose in Markdown uses one sentence per line and American English spelling.
-- Commit after each task with `git commit`; never push. End commit messages with the attribution lines given in the session.
+- Commit after each task with `git commit`; never push.
+  End commit messages with the attribution lines given in the session.
 - The regression test set for every task is:
 
 ```bash
@@ -25,7 +31,11 @@ cmake --build build-dev -j8 && ctest --test-dir build-dev --output-on-failure \
   -R 'testchebymap_c|testchebyinverse|testpolymap_c|testthreads|testfitschan_c|transform_oracle'
 ```
 
-- Ordering: Task 1 before Task 2. Task 2 before Tasks 5, 6, 10. Task 9 before Task 12. Task 3 before Task 4. Everything before Task 13.
+- Ordering: Task 1 before Task 2.
+  Task 2 before Tasks 5, 6, 10.
+  Task 9 before Task 12.
+  Task 3 before Task 4.
+  Everything before Task 13.
 
 ---
 
@@ -38,7 +48,8 @@ cmake --build build-dev -j8 && ctest --test-dir build-dev --output-on-failure \
 
 **Interfaces:**
 - Produces: vtab member `void (* IterInverse)( AstPolyMap *, AstPointSet *, AstPointSet *, int * );`, protected function `void astIterInverse_( AstPolyMap *, AstPointSet *, AstPointSet *, int * );`, macro `astIterInverse(this,out,result)`.
-- The `GetIterDomain` vtab member, `astGetIterDomain_` and the `astGetIterDomain` macro are still present after this task. Task 2 removes them.
+- The `GetIterDomain` vtab member, `astGetIterDomain_` and the `astGetIterDomain` macro are still present after this task.
+  Task 2 removes them.
 
 - [ ] **Step 1: Add the vtab member, prototype and macro in `src/polymap.h`**
 
@@ -98,7 +109,8 @@ Update the `IterInverse` prologue (`src/polymap.c:2810-2870`): change `Type: Pri
 
 - [ ] **Step 3: Build and run the regression set**
 
-Run the Global Constraints test command. Expected: all listed tests pass, no new warnings.
+Run the Global Constraints test command.
+Expected: all listed tests pass, no new warnings.
 
 - [ ] **Step 4: Commit**
 
@@ -134,7 +146,8 @@ Replace the two `astGetIterDomain` checks in `seeds` (lines 108-110) with:
    near( dhi, hi, "Original forward upper bound" );
 ```
 
-Delete the `testdomain` function (lines 160-167) and replace `bounded_solver` (lines 236-262) with a ChebyMap on [-1, 1]. The monomial -0.125 + x + 0.25 x^2 is 0 T0 + 1 T1 + 0.125 T2 because x^2 = (T0 + T2)/2:
+Delete the `testdomain` function (lines 160-167) and replace `bounded_solver` (lines 236-262) with a ChebyMap on [-1, 1].
+The monomial -0.125 + x + 0.25 x^2 is 0 T0 + 1 T1 + 0.125 T2 because x^2 = (T0 + T2)/2:
 
 ```c
 static void bounded_solver( int *status ) {
@@ -194,12 +207,14 @@ and
    }
 ```
 
-Note: the "Unresolvable box" expectation only holds after Task 9 routes `ChebyDomain` through `AxisBounds`. Until then that one `check` fails; that is expected and is listed in Task 9.
+Note: the "Unresolvable box" expectation only holds after Task 9 routes `ChebyDomain` through `AxisBounds`.
+Until then that one `check` fails; that is expected and is listed in Task 9.
 
 - [ ] **Step 2: Run the test to see it fail to compile**
 
 Run: `cmake --build build-dev -j8 2>&1 | grep -E 'error|warning' | head`
-Expected: no errors yet (the hooks still exist). Proceed; the failure point is Step 5.
+Expected: no errors yet (the hooks still exist).
+Proceed; the failure point is Step 5.
 
 - [ ] **Step 3: Write ChebyMap's `IterInverse` and helpers in `src/chebymap.c`**
 
@@ -259,9 +274,12 @@ static void MarkUnsolved( double **inputs, int ncoord, int ipoint,
 
 Change `GetIterDomain` (chebymap.c:1117) to take `AstChebyMap *this` directly, drop the `AstChebyMap *this = (AstChebyMap *) map;` cast, keep its body, and change the prologue `Class Membership` to `ChebyMap member function.` and `Type` to `Private function.`
 
-Move `IterSteps` from `src/polymap.c:2562-2808` into `src/chebymap.c` verbatim, changing every `for( i = 0; i < ncoord; i++ ) inputs[ i ][ ipoint ] = AST__BAD; flags[ ipoint ] = 1; (*nconv)++;` triple into `MarkUnsolved( inputs, ncoord, ipoint, flags, nconv );` and every `value == AST__BAD || !isfinite( value )` into `!Usable( value )`. Change the prologue `Parameters: this` text from "Pointer to the PolyMap" to "Pointer to the ChebyMap, supplied as a PolyMap pointer".
+Move `IterSteps` from `src/polymap.c:2562-2808` into `src/chebymap.c` verbatim, changing every `for( i = 0; i < ncoord; i++ ) inputs[ i ][ ipoint ] = AST__BAD; flags[ ipoint ] = 1; (*nconv)++;` triple into `MarkUnsolved( inputs, ncoord, ipoint, flags, nconv );` and every `value == AST__BAD || !isfinite( value )` into `!Usable( value )`.
+Change the prologue `Parameters: this` text from "Pointer to the PolyMap" to "Pointer to the ChebyMap, supplied as a PolyMap pointer".
 
-Write ChebyMap's `IterInverse` after `IterSteps`. Its body is the `bounded == 1` path of `src/polymap.c:2810-3261` with the unbounded branches removed. The full function:
+Write ChebyMap's `IterInverse` after `IterSteps`.
+Its body is the `bounded == 1` path of `src/polymap.c:2810-3261` with the unbounded branches removed.
+The full function:
 
 ```c
 static void IterInverse( AstPolyMap *map, AstPointSet *out,
@@ -406,17 +424,20 @@ Update the `src/chebymap.c` prologue History (the entry near line 131 that menti
 
 In `src/polymap.c`:
 
-- Replace the body of `IterInverse` (lines 2877-3261) with the `master` body from `git show master:src/polymap.c | sed -n 2497-2726p`, with two changes: use `astGetJacobian( this )` in place of `GetJacobian( this, status )` and `astLinearGuess( this )` in place of `LinearGuess( this, status )`. Keep the prologue text written in Task 1 but delete its paragraphs about bounded iteration and the two bounded Notes.
+- Replace the body of `IterInverse` (lines 2877-3261) with the `master` body from `git show master:src/polymap.c | sed -n 2497-2726p`, with two changes: use `astGetJacobian( this )` in place of `GetJacobian( this, status )` and `astLinearGuess( this )` in place of `LinearGuess( this, status )`.
+  Keep the prologue text written in Task 1 but delete its paragraphs about bounded iteration and the two bounded Notes.
 - Delete `IterSteps` (lines 2562-2808) and its prototype at line 349.
 - Delete `GetIterDomain` (lines 1983-2038), its prototype at line 323, `vtab->GetIterDomain = GetIterDomain;` at 2497, and the `astGetIterDomain_` wrapper at 8126-8130.
 - In the History entry near line 178, delete the mention of `astGetIterDomain` and the bounded iteration; state that `astIterInverse` is virtual and that PolyMap implements the unbounded algorithm.
 
-In `src/polymap.h` delete line 206 (`GetIterDomain` member), line 281 (prototype) and lines 364-365 (macro). Adjust the History entry from Task 1 to omit nothing (it already lists only the three surviving methods).
+In `src/polymap.h` delete line 206 (`GetIterDomain` member), line 281 (prototype) and lines 364-365 (macro).
+Adjust the History entry from Task 1 to omit nothing (it already lists only the three surviving methods).
 
 - [ ] **Step 6: Build and run the regression set**
 
 Run the Global Constraints test command.
-Expected: every test passes except one `check` in `testchebyinverse` reporting "Unresolvable box has no evaluable domain", which Task 9 fixes. Confirm there is no other failure and no new warning.
+Expected: every test passes except one `check` in `testchebyinverse` reporting "Unresolvable box has no evaluable domain", which Task 9 fixes.
+Confirm there is no other failure and no new warning.
 
 - [ ] **Step 7: Commit**
 
@@ -435,7 +456,8 @@ git commit -m "Move the bounded iterative inverse into the ChebyMap class"
 - Test: `ast_tester/testpolymap.c`, `ast_tester/testchebymap.c:556-570`
 
 **Interfaces:**
-- Produces: `astSetIterInverse` raises `AST__ATTIN` when a non-zero value is requested on a PolyMap or ChebyMap that has no forward coefficients or unequal Nin and Nout. `astGetIterInverse` returns an explicitly set value when set, and otherwise 1 only when `ncoeff_f` is non-NULL, `ncoeff_i` is NULL and Nin equals Nout.
+- Produces: `astSetIterInverse` raises `AST__ATTIN` when a non-zero value is requested on a PolyMap or ChebyMap that has no forward coefficients or unequal Nin and Nout.
+  `astGetIterInverse` returns an explicitly set value when set, and otherwise 1 only when `ncoeff_f` is non-NULL, `ncoeff_i` is NULL and Nin equals Nout.
 
 - [ ] **Step 1: Write failing tests in `ast_tester/testpolymap.c`**
 
@@ -540,11 +562,14 @@ Update the `IterInverse` attribute documentation (lines 6881-6903, the ChebyMap 
 
 - [ ] **Step 4: Delete the ChebyMap overrides**
 
-In `src/chebymap.c` delete `GetIterInverse` and `SetIterInverse` (lines 1483-1583), their prototypes (267-268), the `parent_getiterinverse` and `parent_setiterinverse` statics (214-215), the four vtab lines (1727-1730), and the loader comment at 3117-3122. Remove the History sentence near line 135 that describes those overrides. Tests 781 and 783 in `ast_tester/testchebymap.c` continue to expect `AST__ATTIN`, now raised by PolyMap; leave them.
+In `src/chebymap.c` delete `GetIterInverse` and `SetIterInverse` (lines 1483-1583), their prototypes (267-268), the `parent_getiterinverse` and `parent_setiterinverse` statics (214-215), the four vtab lines (1727-1730), and the loader comment at 3117-3122.
+Remove the History sentence near line 135 that describes those overrides.
+Tests 781 and 783 in `ast_tester/testchebymap.c` continue to expect `AST__ATTIN`, now raised by PolyMap; leave them.
 
 - [ ] **Step 5: Run the regression set**
 
-Run the Global Constraints test command. Expected: pass (plus the known Task 9 `check`).
+Run the Global Constraints test command.
+Expected: pass (plus the known Task 9 `check`).
 
 - [ ] **Step 6: Commit**
 
@@ -633,7 +658,9 @@ In ChebyMap's `IterInverse` (`src/chebymap.c`), change `valid = isfinite(tol) &&
 
 - [ ] **Step 4: Run the regression set**
 
-Run the Global Constraints test command. Expected: pass (plus the known Task 9 `check`). Confirm `testchebymap_c` and `testchebyinverse` did not depend on a non-positive tolerance.
+Run the Global Constraints test command.
+Expected: pass (plus the known Task 9 `check`).
+Confirm `testchebymap_c` and `testchebyinverse` did not depend on a non-positive tolerance.
 
 - [ ] **Step 5: Commit**
 
@@ -651,7 +678,8 @@ git commit -m "Reject unusable TolInverse and NiterInverse values"
 - Test: `ast_tester/testchebyinverse.c`
 
 **Interfaces:**
-- Produces: a per-position `nudged` flag array and a `stale` counter inside ChebyMap `IterInverse`. Task 10 reads `stale` to decide whether the whole-batch forward transform can be skipped.
+- Produces: a per-position `nudged` flag array and a `stale` counter inside ChebyMap `IterInverse`.
+  Task 10 reads `stale` to decide whether the whole-batch forward transform can be skipped.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -710,7 +738,9 @@ Expected: FAIL with "Pure T2 target solved" for every target.
 
 In ChebyMap `IterInverse`:
 
-- Declare `int *nudged;` and `int stale;`. Allocate `nudged = astCalloc( npoint, sizeof( int ) );` with the other per-point arrays and free it with them. Set `stale = 0;` before the iteration loop.
+- Declare `int *nudged;` and `int stale;`.
+  Allocate `nudged = astCalloc( npoint, sizeof( int ) );` with the other per-point arrays and free it with them.
+  Set `stale = 0;` before the iteration loop.
 - Where `if( sing ) { MarkUnsolved(...) }` handles a singular matrix, replace with:
 
 ```c
@@ -734,13 +764,15 @@ In ChebyMap `IterInverse`:
                   }
 ```
 
-- Leave the loop bound alone. A nudge costs the position one iteration, which the ChebyMap default of 10 from Task 6 absorbs.
+- Leave the loop bound alone.
+  A nudge costs the position one iteration, which the ChebyMap default of 10 from Task 6 absorbs.
 
 Update the function prologue Description with one sentence: "A position whose Jacobian is singular is moved once by a quarter of each half-width before being declared unsolved."
 
 - [ ] **Step 4: Run the regression set**
 
-Run the Global Constraints test command. Expected: `testchebyinverse` passes the new checks (the Task 9 `check` is still pending), other tests unchanged.
+Run the Global Constraints test command.
+Expected: `testchebyinverse` passes the new checks (the Task 9 `check` is still pending), other tests unchanged.
 
 - [ ] **Step 5: Commit**
 
@@ -807,7 +839,8 @@ Expected: FAIL with "ChebyMap NiterInverse default" and a non-zero BAD count.
 
 - [ ] **Step 3: Implement the override**
 
-In `src/chebymap.c` add prototype `static int GetNiterInverse( AstPolyMap *, int * );` and static `static int (*parent_getniterinverse)( AstPolyMap *, int * );`. Add after `GetObjSize`:
+In `src/chebymap.c` add prototype `static int GetNiterInverse( AstPolyMap *, int * );` and static `static int (*parent_getniterinverse)( AstPolyMap *, int * );`.
+Add after `GetObjSize`:
 
 ```c
 static int GetNiterInverse( AstPolyMap *this, int *status ) {
@@ -845,11 +878,15 @@ In the vtab initialiser add:
    polymap->GetNiterInverse = GetNiterInverse;
 ```
 
-In `src/polymap.c` NiterInverse docs, change the ChebyMap paragraph sentence "The default is four, but stronger distortions may require more iterations." to "The default is ten. Stronger distortions may require more iterations." Add a History entry to `src/chebymap.c`.
+In `src/polymap.c` NiterInverse docs, change the ChebyMap paragraph sentence "The default is four, but stronger distortions may require more iterations." to "The default is ten.
+Stronger distortions may require more iterations."
+Add a History entry to `src/chebymap.c`.
 
 - [ ] **Step 4: Run the regression set**
 
-Run the Global Constraints test command. Expected: `default_attributes` passes. If the BAD count is not zero, print the failing grid positions and confirm they are not on the box edge before changing anything else; the spec expects zero.
+Run the Global Constraints test command.
+Expected: `default_attributes` passes.
+If the BAD count is not zero, print the failing grid positions and confirm they are not on the box edge before changing anything else; the spec expects zero.
 
 - [ ] **Step 5: Commit**
 
@@ -925,7 +962,8 @@ Expected: FAIL with "Error 12501: FITS-WCS written for a ChebyMap".
 
 - [ ] **Step 3: Implement the exclusion**
 
-In `src/fitschan.c` add `#include "chebymap.h"` next to `#include "polymap.h"`. In the `SIPIntWorld` search loop (the `if( astIsAPolyMap( map_list[ imap ] ) )` around line 28925) change the condition to:
+In `src/fitschan.c` add `#include "chebymap.h"` next to `#include "polymap.h"`.
+In the `SIPIntWorld` search loop (the `if( astIsAPolyMap( map_list[ imap ] ) )` around line 28925) change the condition to:
 
 ```c
             if( astIsAPolyMap( map_list[ imap ] ) &&
@@ -943,7 +981,9 @@ Add a History entry to the `src/fitschan.c` prologue.
 
 - [ ] **Step 4: Run the regression set**
 
-Run the Global Constraints test command. Expected: pass. Also run `ctest --test-dir build-dev -R 'fits|wcsconv|header' --output-on-failure` and expect no change.
+Run the Global Constraints test command.
+Expected: pass.
+Also run `ctest --test-dir build-dev -R 'fits|wcsconv|header' --output-on-failure` and expect no change.
 
 - [ ] **Step 5: Commit**
 
@@ -961,7 +1001,9 @@ git commit -m "Keep ChebyMaps out of FitsChan SIP output"
 
 - [ ] **Step 1: Prove the current checks cannot fail**
 
-Temporarily change `AST__NOBOX` to `AST__ATTIN` in the 610 check, build, run `ctest --test-dir build-dev -R testchebymap_c`. Expected: still passes. Revert.
+Temporarily change `AST__NOBOX` to `AST__ATTIN` in the 610 check, build, run `ctest --test-dir build-dev -R testchebymap_c`.
+Expected: still passes.
+Revert.
 
 - [ ] **Step 2: Rewrite the three checks**
 
@@ -994,7 +1036,9 @@ and declare `int expected;` alongside `box_coeffs` at the top of the block.
 
 - [ ] **Step 3: Verify the checks now fail when wrong**
 
-Repeat Step 1's temporary edit. Expected: `Error 610` and a non-zero exit. Revert the temporary edit, rebuild, confirm pass.
+Repeat Step 1's temporary edit.
+Expected: `Error 610` and a non-zero exit.
+Revert the temporary edit, rebuild, confirm pass.
 
 - [ ] **Step 4: Commit**
 
@@ -1048,7 +1092,9 @@ Expected: FAIL at 620 (upper bound evaluates to BAD).
 
 - [ ] **Step 3: Implement**
 
-Rename `IterBounds` to `AxisBounds` everywhere in `src/chebymap.c` (prototype, definition, prologue name, the two calls in `GetIterDomain`). Delete the line `if( !( lo <= hi ) ) return 0;`. Change the prologue Purpose to "Recover the evaluable interval on one axis from a Chebyshev normalization."
+Rename `IterBounds` to `AxisBounds` everywhere in `src/chebymap.c` (prototype, definition, prologue name, the two calls in `GetIterDomain`).
+Delete the line `if( !( lo <= hi ) ) return 0;`.
+Change the prologue Purpose to "Recover the evaluable interval on one axis from a Chebyshev normalization."
 
 In `ChebyDomain`, replace both `scale[iax] != 0.0 ? (…)/scale : AST__BAD` blocks (lines 401-408 and 421-428) with:
 
@@ -1074,11 +1120,13 @@ In `PolyTran` (lines 2064-2091) replace the two `( -1.0 - offset[k] )/scale[k]` 
       }
 ```
 
-Because both bounds now come from one call, restructure so `this_lbnd` and `this_ubnd` are filled together when neither user array is supplied, and the user-supplied array is copied when it is; keep the two existing `AST__NOBOX` errors for the case of no scale and no user bounds. Declare `int k;`.
+Because both bounds now come from one call, restructure so `this_lbnd` and `this_ubnd` are filled together when neither user array is supplied, and the user-supplied array is copied when it is; keep the two existing `AST__NOBOX` errors for the case of no scale and no user bounds.
+Declare `int k;`.
 
 - [ ] **Step 4: Run the regression set**
 
-Run the Global Constraints test command. Expected: all pass, including the `testchebyinverse` check "Unresolvable box has no evaluable domain" pending since Task 2, and `transform_oracle_simplify` (bounds shift by ulps only; if a section differs, inspect it and regenerate in Task 12, do not edit the oracle by hand).
+Run the Global Constraints test command.
+Expected: all pass, including the `testchebyinverse` check "Unresolvable box has no evaluable domain" pending since Task 2, and `transform_oracle_simplify` (bounds shift by ulps only; if a section differs, inspect it and regenerate in Task 12, do not edit the oracle by hand).
 
 - [ ] **Step 5: Commit**
 
@@ -1101,15 +1149,21 @@ git commit -m "Reconstruct every ChebyMap bound through one evaluable-domain hel
 
 - [ ] **Step 1: Record the baseline**
 
-Run `ctest --test-dir build-dev -R 'testchebyinverse|testchebymap_c' --output-on-failure` and confirm pass. Save the output of `build-dev/ast_tester/testchebyinverse` for comparison.
+Run `ctest --test-dir build-dev -R 'testchebyinverse|testchebymap_c' --output-on-failure` and confirm pass.
+Save the output of `build-dev/ast_tester/testchebyinverse` for comparison.
 
 - [ ] **Step 2: Allocate the trial PointSets once**
 
-In `IterSteps` move `trial = astPointSet( nsearch, ncoord, "", status ); trial_out = astPointSet( nsearch, ncoord, "", status ); x = astGetPoints( trial );` to before the backtrack loop, using the initial `nsearch`. Inside the loop replace the per-level creation with `astSetNpoint( trial, nstart ); astSetNpoint( trial_out, nstart );` at the top of each level (the count never grows, and `astSetNpoint` only shrinks). Keep the `if( ntrial < nstart )` shrink. Move the two `astAnnul` calls after the loop. Keep the `if( !astOK ) break;` guard by testing `astOK` after the initial allocation and returning early after freeing `index`.
+In `IterSteps` move `trial = astPointSet( nsearch, ncoord, "", status ); trial_out = astPointSet( nsearch, ncoord, "", status ); x = astGetPoints( trial );` to before the backtrack loop, using the initial `nsearch`.
+Inside the loop replace the per-level creation with `astSetNpoint( trial, nstart ); astSetNpoint( trial_out, nstart );` at the top of each level (the count never grows, and `astSetNpoint` only shrinks).
+Keep the `if( ntrial < nstart )` shrink.
+Move the two `astAnnul` calls after the loop.
+Keep the `if( !astOK ) break;` guard by testing `astOK` after the initial allocation and returning early after freeing `index`.
 
 - [ ] **Step 3: Keep the accepted forward values**
 
-Add the parameter `double **work` to `IterSteps` (prototype, definition, prologue Parameters, and the call in `IterInverse`, passing `ptr_work`). In the acceptance block, after copying `x[ i ][ jpoint ]` into `inputs`, add:
+Add the parameter `double **work` to `IterSteps` (prototype, definition, prologue Parameters, and the call in `IterInverse`, passing `ptr_work`).
+In the acceptance block, after copying `x[ i ][ jpoint ]` into `inputs`, add:
 
 ```c
             for( i = 0; i < ncoord; i++ ) {
@@ -1129,11 +1183,14 @@ In `IterInverse`, wrap the whole-batch forward transform at the top of the itera
          }
 ```
 
-The residual differencing loop that follows (`*pb = *pa - *pb`) already runs on `ptr_work`, so it now sees either the fresh transform or the copied trial values. Confirm that no code path between `IterSteps` and the top of the next iteration modifies `ptr_in` for an unflagged position other than the nudge.
+The residual differencing loop that follows (`*pb = *pa - *pb`) already runs on `ptr_work`, so it now sees either the fresh transform or the copied trial values.
+Confirm that no code path between `IterSteps` and the top of the next iteration modifies `ptr_in` for an unflagged position other than the nudge.
 
 - [ ] **Step 4: Compare against the baseline**
 
-Run the regression set. Expected: pass, and `testchebyinverse` prints the same output as in Step 1. Run `ctest --test-dir build-dev -R transform_oracle_simplify` and expect no mismatch.
+Run the regression set.
+Expected: pass, and `testchebyinverse` prints the same output as in Step 1.
+Run `ctest --test-dir build-dev -R transform_oracle_simplify` and expect no mismatch.
 
 - [ ] **Step 5: Commit**
 
@@ -1151,7 +1208,8 @@ git commit -m "Reuse trial PointSets and accepted forward values in the bounded 
 
 - [ ] **Step 1: Change the signature**
 
-`PolyTran` already holds the caller's unmodified PolyMap in `this` and passes a copy in `result`. Add a `AstPolyMap *source` parameter after `this`:
+`PolyTran` already holds the caller's unmodified PolyMap in `this` and passes a copy in `result`.
+Add a `AstPolyMap *source` parameter after `this`:
 
 ```c
 static int ReplaceTransformation( AstPolyMap *, AstPolyMap *, int, double, double, int, const double *, const double *, int * );
@@ -1164,11 +1222,15 @@ Call site:
                                lbnd, ubnd, status );
 ```
 
-In the function, delete `source = astCopy( this );` and `source = astAnnul( source );`, delete the local `AstPolyMap *source;`, and keep the two `SamplePoly*D( source, ... )` calls. Rewrite the comment above the former copy to say the sampling uses the caller's original PolyMap, which is never initialised by the fitting code, so every order samples the transformation as supplied. Update the prologue Parameters to describe `source`.
+In the function, delete `source = astCopy( this );` and `source = astAnnul( source );`, delete the local `AstPolyMap *source;`, and keep the two `SamplePoly*D( source, ... )` calls.
+Rewrite the comment above the former copy to say the sampling uses the caller's original PolyMap, which is never initialised by the fitting code, so every order samples the transformation as supplied.
+Update the prologue Parameters to describe `source`.
 
 - [ ] **Step 2: Run the regression set**
 
-Run the Global Constraints test command plus `ctest --test-dir build-dev -R 'polytran|testpolymap|testchebymap' --output-on-failure`. Expected: pass. The `caches` test in `testchebyinverse` ("Forward fit invalidates the copied seed") covers the case the copy protected.
+Run the Global Constraints test command plus `ctest --test-dir build-dev -R 'polytran|testpolymap|testchebymap' --output-on-failure`.
+Expected: pass.
+The `caches` test in `testchebyinverse` ("Forward fit invalidates the copied seed") covers the case the copy protected.
 
 - [ ] **Step 3: Commit**
 
@@ -1188,7 +1250,8 @@ git commit -m "Sample the caller's PolyMap directly when fitting a replacement"
 
 - [ ] **Step 1: Extend the native-domain rule**
 
-`axis_bounds` receives no object. Add a parameter `AstObject *obj` (pass the loaded fixture object from the caller) and in the `DOM_NATIVE` branch:
+`axis_bounds` receives no object.
+Add a parameter `AstObject *obj` (pass the loaded fixture object from the caller) and in the `DOM_NATIVE` branch:
 
 ```c
     } else {
@@ -1214,7 +1277,9 @@ git commit -m "Sample the caller's PolyMap directly when fitting a replacement"
     }
 ```
 
-Include `ast.h` already provides `astIsAChebyMap` and `astChebyDomain`. Update every caller of `axis_bounds` to pass the object it is about to sample. `check_transform_oracle.c` regenerates rather than reads, so confirm whether it shares `axis_bounds` through `transform_oracle_util.c`; if it does, the change lives there and both binaries pick it up.
+Include `ast.h` already provides `astIsAChebyMap` and `astChebyDomain`.
+Update every caller of `axis_bounds` to pass the object it is about to sample.
+`check_transform_oracle.c` regenerates rather than reads, so confirm whether it shares `axis_bounds` through `transform_oracle_util.c`; if it does, the change lives there and both binaries pick it up.
 
 - [ ] **Step 2: Regenerate to temporary files and inspect**
 
@@ -1227,7 +1292,9 @@ diff ast_tester/fixtures/oracle/framesets.oracle /tmp/framesets.oracle && echo f
 diff ast_tester/fixtures/oracle/simplify_fixtures.oracle /tmp/simplify.oracle | grep '^[<>] #' | sort | uniq -c
 ```
 
-Expected: headers and framesets unchanged. The simplify diff touches only the sections for `cheby_linear_lone_reduce.map`, `cap_cheby_consolidate.simp`, `neg_cheby_quadratic_no_reduce.map`, `neg_chebymap_standalone.map` (new `dir=inverse` sections; the three top-level ChebyMaps also gain in-box forward samples). Any other changed section is a regression to investigate before continuing.
+Expected: headers and framesets unchanged.
+The simplify diff touches only the sections for `cheby_linear_lone_reduce.map`, `cap_cheby_consolidate.simp`, `neg_cheby_quadratic_no_reduce.map`, `neg_chebymap_standalone.map` (new `dir=inverse` sections; the three top-level ChebyMaps also gain in-box forward samples).
+Any other changed section is a regression to investigate before continuing.
 
 - [ ] **Step 3: Install and test**
 
@@ -1240,7 +1307,8 @@ Expected: pass.
 
 - [ ] **Step 4: Document the rule**
 
-In `ast_tester/fixtures/oracle/README.md`, in the paragraph describing native-dump sampling, add: "A native dump whose top-level object is a ChebyMap is sampled over its forward bounding box from `astChebyDomain`, because a Chebyshev series is undefined outside it. Compound Mappings containing a ChebyMap keep the symmetric default."
+In `ast_tester/fixtures/oracle/README.md`, in the paragraph describing native-dump sampling, add: "A native dump whose top-level object is a ChebyMap is sampled over its forward bounding box from `astChebyDomain`, because a Chebyshev series is undefined outside it.
+Compound Mappings containing a ChebyMap keep the symmetric default."
 
 - [ ] **Step 5: Commit**
 
@@ -1265,21 +1333,26 @@ git commit -m "Pin the ChebyMap iterative inverse in the simplify oracle"
 
 - [ ] **Step 1: Reflow the plan document**
 
-Rewrite `docs/plans/PLAN-chebymap-iterative-inverse.md` so every sentence is on its own line. Use this check and require zero output:
+Rewrite `docs/plans/PLAN-chebymap-iterative-inverse.md` so every sentence is on its own line.
+Use this check and require zero output:
 
 ```bash
 grep -nP '(?<!e\.g|i\.e|etc|vs|\d)\. [A-Z]' docs/plans/PLAN-chebymap-iterative-inverse.md
 ```
 
-Replace `centre` with `center`, `normalisation` with `normalization`, `behaviour` with `behavior`, `initialise` with `initialize` in that file. Add a closing section "Follow-up (2026-09-10)" that names the spec `docs/superpowers/specs/2026-09-10-chebymap-inverse-review-fixes-design.md` and states that the bounded algorithm now lives in `src/chebymap.c`.
+Replace `centre` with `center`, `normalisation` with `normalization`, `behaviour` with `behavior`, `initialise` with `initialize` in that file.
+Add a closing section "Follow-up (2026-09-10)" that names the spec `docs/superpowers/specs/2026-09-10-chebymap-inverse-review-fixes-design.md` and states that the bounded algorithm now lives in `src/chebymap.c`.
 
 - [ ] **Step 2: Fix `PLAN.md`**
 
-Replace `behaviour` with `behavior` on line 87. Run `grep -n 'behaviour\|centre\|normalis' PLAN.md` and expect no output.
+Replace `behaviour` with `behavior` on line 87.
+Run `grep -n 'behaviour\|centre\|normalis' PLAN.md` and expect no output.
 
 - [ ] **Step 3: Update `ast.news`**
 
-In the entry added by this branch for ChebyMap iterative inverses, add: "Setting IterInverse to a non-zero value on a PolyMap or ChebyMap with no forward transformation, a non-positive or non-finite TolInverse, or a negative NiterInverse now reports an error. The ChebyMap default for NiterInverse is 10. FitsChan no longer writes SIP headers for FrameSets containing a ChebyMap."
+In the entry added by this branch for ChebyMap iterative inverses, add: "Setting IterInverse to a non-zero value on a PolyMap or ChebyMap with no forward transformation, a non-positive or non-finite TolInverse, or a negative NiterInverse now reports an error.
+The ChebyMap default for NiterInverse is 10.
+FitsChan no longer writes SIP headers for FrameSets containing a ChebyMap."
 
 - [ ] **Step 4: Verify the prologue histories**
 
@@ -1289,7 +1362,8 @@ for f in src/polymap.c src/polymap.h src/chebymap.c src/fitschan.c; do
 done
 ```
 
-Expected: at least one match per file. Add any missing entry.
+Expected: at least one match per file.
+Add any missing entry.
 
 - [ ] **Step 5: Full build and test**
 
