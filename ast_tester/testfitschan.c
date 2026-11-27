@@ -4011,6 +4011,46 @@ int main( void ) {
 
       astEnd;
    }
+   /* SpectralAxes with a GrismMap that gives no wavelengths (847-848).
+      The spectral axis is a GrismMap whose reference wavelength of 10
+      microns is not diffracted by 450 lines/mm in first order, so the
+      GrismMap has no rate at the reference point and gives AST__BAD for
+      every pixel.  No FITS header can describe it: astWrite must write
+      nothing, and in particular no WAVE-GRI axis with a scale formed from
+      the undefined rate. */
+   {
+      astBegin;
+
+      AstFrame *gpix = astFrame( 1, "Domain=GRID" );
+      AstSpecFrame *gspec = astSpecFrame( "System=WAVE,Unit=m" );
+      AstGrismMap *ugm = astGrismMap( "GrismG=4.5E5,GrismM=1,GrismAlpha=0.47,"
+                                      "GrismWaveR=1.0E-5" );
+      AstWinMap *upix = astWinMap( 1, (double[]){ 1.0 }, (double[]){ 1000.0 },
+                                   (double[]){ -0.5 }, (double[]){ 0.5 }, " " );
+      AstCmpMap *ucm = astCmpMap( upix, ugm, 1, " " );
+      AstFrameSet *ufs = astFrameSet( gpix, " " );
+      astAddFrame( ufs, AST__BASE, ucm, gspec );
+
+      double gin = 500.0, gout;
+      astTran1( ufs, 1, &gin, 1, &gout );
+      if( gout != AST__BAD ) {
+         stopit( 847, "Undiffracted grism: the FrameSet gives a wavelength", status );
+      }
+
+      AstFitsChan *ufc = astFitsChan( NULL, NULL, "Encoding=FITS-WCS" );
+      astPutFits( ufc, "NAXIS   = 1", 0 );
+      astPutFits( ufc, "NAXIS1  = 1000", 0 );
+      int unw = astWrite( ufc, ufs );
+      char *uctype = NULL;
+      astClear( ufc, "Card" );
+      if( unw != 0 || astGetFitsS( ufc, "CTYPE1", &uctype ) ) {
+         stopit( 848, "Undiffracted grism: a header was written", status );
+      }
+
+      ufc = astAnnul( ufc );
+      ufs = astAnnul( ufs );
+      astEnd;
+   }
    /* SkySys write paths for various celestial systems (835-839).
       Read a standard FK5 TAN header, change the SkyFrame System, write
       back to FITS-WCS, verify the correct CTYPE prefixes appear. */

@@ -1697,6 +1697,11 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        Find the rate of change of grism parameter with respect to the
 *        spectral axis value in one place, the new function GrismRate, when
 *        reading and when writing a grism axis.
+*     27-NOV-2026 (TIMJ):
+*        SpectralAxes no longer describes an axis with the grism algorithm
+*        if GrismRate finds no rate for it (the reference ray is not
+*        diffracted, or the grism has no dispersion), as GrismSpecWcs
+*        already did. The undefined or zero rate was passed to a ZoomMap.
 *class--
 */
 
@@ -31835,6 +31840,15 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
                            dgbyds = GrismRate( (AstMapping *) gmap, tmap3,
                                                crval, status );
 
+/* The rate is undefined if the reference ray is not diffracted, and zero
+   if the grism has no dispersion. In neither case does the GrismMap give
+   a wavelength for any pixel, so the axis cannot be described by the
+   grism algorithm, and the CTYPE is left blank so that the -TAB
+   algorithm is considered instead. */
+                           if( dgbyds == AST__BAD || dgbyds == 0.0 ) {
+                              tmap3 = astAnnul( tmap3 );
+                           } else {
+
 /* Concatenate the "S"->wavelength Mapping with the inverse GrismMap, to
    get the "S" -> "grism parameter" Mapping. */
                            tmap4 = (AstMapping *) astCmpMap( tmap3, gmap, 1, "", status );
@@ -31894,6 +31908,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
                            if( pv != 0 ) SetItem( &(store->pv), fits_i, 5, s, pv*AST__DR2D, status );
                            pv = astGetGrismTheta( gmap );
                            if( pv != 0 ) SetItem( &(store->pv), fits_i, 6, s, pv*AST__DR2D, status );
+                           }
                         }
                      }
 
