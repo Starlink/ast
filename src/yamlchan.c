@@ -158,6 +158,10 @@ f     The YamlChan class does not define any new routines beyond those
 *        key is stored, which was made in 100 characters whatever the
 *        length of the key. GetTime: do not write beyond the end of the
 *        buffer when a prefix is added to an epoch value.
+*     27-NOV-2026 (TIMJ):
+*        Report that an ndarray has no "data" entry directly. The reader
+*        fell back to reading the ndarray itself as a sequence, which
+*        always failed with a message about the ndarray's type.
 *class--
 */
 
@@ -8571,23 +8575,19 @@ static double *ReadNDArray( AstYamlChan *this, AstKeyMap *km, int mxdim,
                    "inline - AST can only handle ndarrays that are defined "
                    "inline.", status );
 
-/* If the supplied KeyMap contains a "data" element it may be a KeyMap
-   holding a set of vectors (each corresponding to one row of the data
-   array). Attempt to get a pointer to the "data" entry. */
+/* The values of an inline ndarray are held in its "data" entry. */
+      } else if( !astMapHasKey( km, "data" ) ) {
+         astError( AST__BYAML, "astRead(YamlChan): ndarray has no 'data' "
+                   "entry - AST can only handle ndarrays that are defined "
+                   "inline.", status );
+
+/* If the "data" element is a KeyMap, it holds a set of vectors (each
+   corresponding to one row of the data array). Get an array from it. */
       } else {
          type = astMapType( km, "data" );
-         if( type == AST__OBJECTTYPE || !astMapHasKey( km, "data" ) ) {
-            subkm = ( type == AST__OBJECTTYPE ) ?
-                    Get0A( km, "data", 1, NULL, NULL, status ) : NULL;
-
-/* If the "data" entry did not exist, the data array is stored (in the
-   same manner) at the top level of the "ndarray" object. */
-            if( !subkm ) subkm = astClone( km );
-
-/* Get an array from the KeyMap. */
+         if( type == AST__OBJECTTYPE ) {
+            subkm = Get0A( km, "data", 1, NULL, NULL, status );
             result = ReadSequence( this, subkm, "data", mxdim, ndim, dims, status );
-
-/* Free resources. */
             subkm = astAnnul( subkm );
 
 /* Otherwise, the "data" is a flat sequence of doubles, which is a

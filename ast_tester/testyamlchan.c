@@ -1144,11 +1144,22 @@ void test_ndarray_without_data( int *status ){
 
    ch = astYamlChan( NULL, NULL, " " );
    astSet( ch, "SourceFile=ndarray_nodata.asdf" );
+   err_buf[0] = '\0';
+   astSetPutErr( capture_err );
    obj = astRead( ch );
+   astSetPutErr( NULL );
    if( obj || astOK ) {
       stopit( 170, status );
    } else {
       astClearStatus;
+
+/* The error must say what is missing, rather than report a mismatch in
+   the type of the ndarray itself. */
+      if( !strstr( err_buf, "has no 'data' entry" ) ||
+          strstr( err_buf, "Expected type" ) ) {
+         printf( "  unexpected error text:\n%s", err_buf );
+         stopit( 171, status );
+      }
    }
    if( obj ) astAnnul( obj );
    astAnnul( ch );
