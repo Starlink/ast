@@ -215,6 +215,11 @@ f     - AST_CHEBYDOMAIN: Get the bounds of the domain of the ChebyMap
 *        ChebyDomain maps the other transformation's box in the direction
 *        opposite to the requested one for an inverted ChebyMap too, where
 *        it used the requested direction and failed.
+*     27-NOV-2026 (TIMJ):
+*        PolyTran allocates the bounding box it passes to the parent method
+*        for the actual number of axes. It used a two-element array, so a
+*        ChebyMap with more axes overran the stack before the parent
+*        reported that it could not be fitted.
 *class--
 */
 
@@ -2897,8 +2902,8 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
    const char *word;
    double *offset;
    double *scale;
-   double this_lbnd[ 2 ];
-   double this_ubnd[ 2 ];
+   double *this_lbnd;
+   double *this_ubnd;
    int inverted;
    int k;
    int nax;
@@ -2926,57 +2931,69 @@ static AstPolyMap *PolyTran( AstPolyMap *this_polymap, int forward, double acc,
       nax = ((AstMapping *)this)->nin;
    }
 
+/* Allocate the bounding box used for the fit. A ChebyMap may have any
+   number of axes; the parent method reports an error if there are more
+   than it can fit. */
+   this_lbnd = astMalloc( sizeof( *this_lbnd )*nax );
+   this_ubnd = astMalloc( sizeof( *this_ubnd )*nax );
+   if( astOK ) {
+
 /* The scaled box for a Chebyshev polynomial spans [-1,+1] on each axis.
    Create the corresponding unscaled box. If the user supplies both bounds
    arrays, use them in preference to the bounds in the ChebyMap. Otherwise
    reconstruct the missing bound(s) from the ChebyMap's own normalization,
    through the same AxisBounds helper used elsewhere in this file, so that
    a bound used here always evaluates without BAD. */
-   if( lbnd && ubnd ) {
-      for( k = 0; k < nax; k++ ) {
-         this_lbnd[ k ] = lbnd[ k ];
-         this_ubnd[ k ] = ubnd[ k ];
-      }
+      if( lbnd && ubnd ) {
+         for( k = 0; k < nax; k++ ) {
+            this_lbnd[ k ] = lbnd[ k ];
+            this_ubnd[ k ] = ubnd[ k ];
+         }
 
-   } else if( scale && offset ) {
-      for( k = 0; k < nax; k++ ) {
-         if( !AxisBounds( scale[ k ], offset[ k ], this_lbnd + k,
-                          this_ubnd + k ) && astOK ) {
-            astError( AST__NOBOX, "astPolyTran(%s): The %s transformation "
-                      "has no usable bounding box on axis %d.", status,
-                      astGetClass( this ), word, k + 1 );
+      } else if( scale && offset ) {
+         for( k = 0; k < nax; k++ ) {
+            if( !AxisBounds( scale[ k ], offset[ k ], this_lbnd + k,
+                             this_ubnd + k ) && astOK ) {
+               astError( AST__NOBOX, "astPolyTran(%s): The %s transformation "
+                         "has no usable bounding box on axis %d.", status,
+                         astGetClass( this ), word, k + 1 );
+            }
+         }
+         if( lbnd ) {
+            for( k = 0; k < nax; k++ ) this_lbnd[ k ] = lbnd[ k ];
+         }
+         if( ubnd ) {
+            for( k = 0; k < nax; k++ ) this_ubnd[ k ] = ubnd[ k ];
+         }
+
+      } else {
+         if( !lbnd && astOK ) {
+            astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
+                      "not a Chebyshev polynomial and therefore requires a "
+                      "user-supplied bounding box. But no lower bounds were "
+                      "supplied. ", status, astGetClass( this ), word );
+         } else if( lbnd ) {
+            for( k = 0; k < nax; k++ ) this_lbnd[ k ] = lbnd[ k ];
+         }
+         if( !ubnd && astOK ) {
+            astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
+                      "not a Chebyshev polynomial and therefore requires a "
+                      "user-supplied bounding box. But no upper bounds were "
+                      "supplied. ", status, astGetClass( this ), word );
+         } else if( ubnd ) {
+            for( k = 0; k < nax; k++ ) this_ubnd[ k ] = ubnd[ k ];
          }
       }
-      if( lbnd ) {
-         for( k = 0; k < nax; k++ ) this_lbnd[ k ] = lbnd[ k ];
-      }
-      if( ubnd ) {
-         for( k = 0; k < nax; k++ ) this_ubnd[ k ] = ubnd[ k ];
-      }
-
-   } else {
-      if( !lbnd && astOK ) {
-         astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
-                   "not a Chebyshev polynomial and therefore requires a "
-                   "user-supplied bounding box. But no lower bounds were "
-                   "supplied. ", status, astGetClass( this ), word );
-      } else if( lbnd ) {
-         for( k = 0; k < nax; k++ ) this_lbnd[ k ] = lbnd[ k ];
-      }
-      if( !ubnd && astOK ) {
-         astError( AST__NOBOX, "astPolyTran(%s): The %s transformation is "
-                   "not a Chebyshev polynomial and therefore requires a "
-                   "user-supplied bounding box. But no upper bounds were "
-                   "supplied. ", status, astGetClass( this ), word );
-      } else if( ubnd ) {
-         for( k = 0; k < nax; k++ ) this_ubnd[ k ] = ubnd[ k ];
-      }
-   }
 
 /* Invoke the parent astPolyMap method, using the bounding box selected
    above. */
-   result = (*parent_polytran)( this_polymap, forward, acc, maxacc, maxorder,
-                                this_lbnd, this_ubnd, status );
+      result = (*parent_polytran)( this_polymap, forward, acc, maxacc, maxorder,
+                                   this_lbnd, this_ubnd, status );
+   }
+
+/* Free the bounding box. */
+   this_lbnd = astFree( this_lbnd );
+   this_ubnd = astFree( this_ubnd );
 
 /* Return the new ChebyMap. */
    return result;

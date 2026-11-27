@@ -11,6 +11,7 @@
 #include "ast_err.h"
 
 static void inverse_tests( int *status );
+static void polytran_tests( int *status );
 
 static void stopit( int i, int *status ) {
    if( *status != 0 ) return;
@@ -441,6 +442,7 @@ int main( void ) {
    }
 
    inverse_tests( status );
+   polytran_tests( status );
 
    astEnd;
    astFlushMemory( 1 );
@@ -814,4 +816,37 @@ static void inverse_tests( int *status ) {
          cm = astAnnul( cm );
       }
    }
+}
+
+/* astPolyTran on a ChebyMap. */
+static void polytran_tests( int *status ) {
+   double cofs3[] = { 1.0, 1, 1, 0, 0,
+                      1.0, 2, 0, 1, 0,
+                      1.0, 3, 0, 0, 1 };
+   double lb3[ 3 ] = { -1.0, -1.0, -1.0 };
+   double ub3[ 3 ] = { 1.0, 1.0, 1.0 };
+   int code;
+   AstChebyMap *cm;
+   AstPolyMap *pm;
+
+   if( *status != 0 ) return;
+
+/* A ChebyMap with more than two axes cannot be fitted, as for a PolyMap.
+   The request must be refused with AST__BADNI whether or not a bounding
+   box is supplied, without touching memory beyond the two-axis box the
+   fit works with. */
+   cm = astChebyMap( 3, 3, 3, cofs3, 0, NULL, lb3, ub3, NULL, NULL, " " );
+   pm = astPolyTran( cm, 0, 1.0E-8, 1.0E-6, 4, lb3, ub3 );
+   code = astStatus;
+   astClearStatus;
+   if( pm || code != AST__BADNI ) stopit( 3001, status );
+   if( pm ) pm = astAnnul( pm );
+
+   pm = astPolyTran( cm, 0, 1.0E-8, 1.0E-6, 4, NULL, NULL );
+   code = astStatus;
+   astClearStatus;
+   if( pm || code != AST__BADNI ) stopit( 3002, status );
+   if( pm ) pm = astAnnul( pm );
+   cm = astAnnul( cm );
+
 }
