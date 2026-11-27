@@ -72,6 +72,25 @@ Main Changes in this Version
 Bug fixes
 ---------
 
+- A CmpFrame with a Region as a component compared unequal (astEqual) to
+  a copy of itself, and so did any object holding one, such as a Plot3D
+  created over a Region. The Frame comparison tests whether the conversion
+  between the two Frames is a UnitMap, which a Region acting as a Mapping
+  never is. CmpFrames are now compared component by component.
+
+- A Plot3D could fail in astGrid with "No grid curves can be drawn for
+  axis 2" for some values of RootCorner (ULU and UUU with a tilted sky
+  grid). The Plot drawing the sky plane fell back to interior labelling
+  when too few grid curves crossed the edges chosen for that corner, and
+  the tick positions handed to the neighbouring planes then lay along an
+  interior curve. Each plane is now drawn with exterior labels, and tick
+  positions are only handed on when they lie on the shared edge; with
+  Labelling=interior the other planes find their own tick values.
+
+- The error reported when a Plot method that a Plot3D does not support
+  (astBoundingBox, astClip, astCurve, astGenCurve, astGridLine) is called
+  now names the method instead of reading "ast##name".
+
 - A Plot drawing tick marks at values supplied through astSetTickValues
   could read past the end of the supplied arrays: the MinTick attribute,
   when set for that axis, replaced the count of supplied minor tick values

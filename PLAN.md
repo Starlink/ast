@@ -11,7 +11,7 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 1. Add the existing C tests to the CMake build
 2. Convert Fortran tests to C to eliminate the Fortran/Starlink dependency
 
-## Current status: 137 default tests + 20 conditional (PLplot) + 1 optional huge stress test
+## Current status: 138 default tests + 20 conditional (PLplot) + 1 optional huge stress test
 
 | Phase | Status |
 |-------|--------|
@@ -30,10 +30,10 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 | Phase 2 Batch 12: Grid smoke tests (no PLplot) | **Complete** (21 tests via logging GRF plugin) |
 | Phase 2 Batch 13: Resample / QuadApprox coverage | **Complete** (1 test) |
 | Phase 2 Batch 14: astMask sky-curvature coverage | **Complete** (1 test) |
-| Phase 2 Batch 15: Plot3D logging tests (no PLplot) | **Complete** (27 tests via logging grf3d plugin) |
+| Phase 2 Batch 15: Plot3D logging tests (no PLplot) | **Complete** (28 tests via logging grf3d plugin) |
 | Phase 3: CI integration | **Complete** (tests run via ctest) |
 
-### Test inventory (137 default + 20 conditional PLplot + 1 optional)
+### Test inventory (138 default + 20 conditional PLplot + 1 optional)
 
 **Original test (1):**
 - ast_test — minimal installation check
@@ -80,8 +80,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   embedded as native serialised strings (read back with astFromString) so the
   test does not depend on the FitsChan class.
 
-**Plot3D coverage (27 default):**
-- Batch 15: testgrf3dlog + testplot3dlog + 25 × plot3dlog_* cases — a logging
+**Plot3D coverage (28 default):**
+- Batch 15: testgrf3dlog + testplot3dlog + 26 × plot3dlog_* cases — a logging
   grf3d plugin (grf3d_log.c) with no PLplot dependency logs every 3D graphics
   call and can draw an SVG through a camera. testgrf3dlog pins the module's
   log formats, attribute handling, text-plane metrics and SVG projection
@@ -92,10 +92,12 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
   committed references, covering every RootCorner value, Norm, per-plane and
   axis-3 attributes, ignored attributes, Gap/MinTick, a FITS spectral cube,
   SetCurrent and RemoveFrame, a non-unit graphics box, the refused Plot
-  methods and fixed-camera SVG pictures. The logs are the oracle for the Rust
-  port's Plot3D. Three Plot3D defects found while generating the cases are
-  recorded in ISSUE-plot3d-*.md; the plot.c minor-tick overflow they exposed
-  is fixed. Before committing a new `.dump` reference, run its test in a
+  methods, a Plot3D over a Region and fixed-camera SVG pictures. The logs are
+  the oracle for the Rust port's Plot3D. The cases exposed and now guard four
+  fixes: two plot.c reads past supplied tick arrays, the Plot3D tick hand-off
+  for corners whose sky-plane Plot fell back to interior labelling, and the
+  missing CmpFrame Equal that made a Plot3D over a Region unequal to its own
+  round trip (asserted directly in testcmpframe). Before committing a new `.dump` reference, run its test in a
   build configured with `-DCMAKE_C_FLAGS="-march=haswell -ffp-contract=fast"`
   (the `build-fma` recipe): compare_dumps allows 4 ULP, and a WinMap shift
   computed from a non-exact scale moves by more than that between fused and
