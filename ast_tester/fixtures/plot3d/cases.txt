@@ -18,17 +18,18 @@
 test1 | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
 # Each of the eight RootCorner values labels a different set of edges; the
 # number in the name is the corner index (bit 0 = axis 1 upper, bit 1 = axis 2
-# upper, bit 2 = axis 3 upper).  These use the 3D FITS cube: with
-# plot3d-test1.ast the corners ULU and UUU fail in astGrid ("No grid curves
-# can be drawn for axis 2"); see ISSUE-plot3d-rootcorner-grid.md.
-rootcorner0 | wcsconv/inputs/skyspec3d.head | RootCorner=LLL | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
-rootcorner1 | wcsconv/inputs/skyspec3d.head | RootCorner=ULL | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
-rootcorner2 | wcsconv/inputs/skyspec3d.head | RootCorner=LUL | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
-rootcorner3 | wcsconv/inputs/skyspec3d.head | RootCorner=UUL | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
-rootcorner4 | wcsconv/inputs/skyspec3d.head | RootCorner=LLU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
-rootcorner5 | wcsconv/inputs/skyspec3d.head | RootCorner=ULU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
-rootcorner6 | wcsconv/inputs/skyspec3d.head | RootCorner=LUU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
-rootcorner7 | wcsconv/inputs/skyspec3d.head | RootCorner=UUU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
+# upper, bit 2 = axis 3 upper).  Corners ULU and UUU put the Dec labels on
+# an edge that only two Dec curves cross, so the sky plane's Plot would fall
+# back to interior labelling; Plot3D forces exterior labels so that the tick
+# positions it hands to the other planes lie on the shared edge.
+rootcorner0 | programs/testplot3d/plot3d-test1.ast | RootCorner=LLL | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
+rootcorner1 | programs/testplot3d/plot3d-test1.ast | RootCorner=ULL | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
+rootcorner2 | programs/testplot3d/plot3d-test1.ast | RootCorner=LUL | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
+rootcorner3 | programs/testplot3d/plot3d-test1.ast | RootCorner=UUL | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
+rootcorner4 | programs/testplot3d/plot3d-test1.ast | RootCorner=LLU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
+rootcorner5 | programs/testplot3d/plot3d-test1.ast | RootCorner=ULU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
+rootcorner6 | programs/testplot3d/plot3d-test1.ast | RootCorner=LUU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
+rootcorner7 | programs/testplot3d/plot3d-test1.ast | RootCorner=UUU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
 # Text and markers drawn in the plane given by a non-default Norm.  The input
 # is a plain 3D pixel Frame, so positions are in pixel coordinates.
 norm | plot3d/inputs/frame3d.ast | Norm(1)=1,Norm(2)=1,Norm(3)=0 | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | text:Hello~3D:78,54,820:0,0,1:BL mark:3:78,54,820/100,60,900 |
@@ -39,6 +40,8 @@ ignored | programs/testplot3d/plot3d-test1.ast | Edge(1)=right,DrawTitle=1,Title
 # Explicit Gap and MinTick on each axis.
 ticks | programs/testplot3d/plot3d-test1.ast | Gap(1)=0.001,Gap(2)=0.002,Gap(3)=50,MinTick(1)=4,MinTick(2)=2,MinTick(3)=5 | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
 # Interior labelling draws the ticks handed between planes inside the plot.
+# The planes it hands them to cannot use positions on an interior curve, so
+# they compute their own ticks.
 ticks_interior | programs/testplot3d/plot3d-test1.ast | Labelling=interior | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid |
 # A FrameSet read from a 3D FITS header (RA, Dec, frequency).
 cube | wcsconv/inputs/skyspec3d.head |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid |
@@ -57,14 +60,12 @@ bigbox | programs/testplot3d/plot3d-test1.ast |  | 0 0 0 100 100 100 | 0 0 0 200
 border | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | border |
 markers | plot3d/inputs/frame3d.ast |  | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | mark:2:40,40,500/60,50,700/100,70,1100 mark:-4:70,40,400 |
 refused | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | refused |
-# The outline of a 3D Box drawn on a Plot3D over a plain Frame.  (A Plot3D
-# built over the Box itself fails its astEqual round trip; see
-# ISSUE-plot3d-region-astequal.md.)
+# The outline of a 3D Box drawn on a Plot3D over a plain Frame.
 outline | plot3d/inputs/frame3d.ast |  | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | outline:plot3d/inputs/box3d.ast |
 # SVG pictures at fixed cameras, for comparison by eye and by the Rust port.
 svg_ortho | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | 0 0 10 0 0 0 0 1 0 0
 svg_persp | programs/testplot3d/plot3d-test1.ast |  | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | auto
-svg_rootcorner5 | wcsconv/inputs/skyspec3d.head | RootCorner=ULU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 100.5 100.5 100.5 |  | grid | auto
+svg_rootcorner5 | programs/testplot3d/plot3d-test1.ast | RootCorner=ULU | -1 -1 -1 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | grid | auto
 # Text seen from behind (the eye is on the -Z side of a +Z text plane) and
 # upside down (the camera's up vector is -Y), so both getTextAxes flips show.
 svg_behind | plot3d/inputs/frame3d.ast | Norm(1)=0,Norm(2)=0,Norm(3)=1 | 0 0 0 1 1 1 | 0.5 0.5 0.5 155.5 107.5 1640.5 |  | text:Behind:70,50,750:0,1,0:BL text:Also:40,30,400:1,0,0:TL grid | 0 0 -10 0 0 0 0 -1 0 0
