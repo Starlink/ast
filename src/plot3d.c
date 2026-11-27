@@ -1289,7 +1289,7 @@ static AstObject *Cast( AstObject *, AstObject *, int * );
 static AstPlot *AxisPlot( AstPlot3D *, int, int *, int * );
 static AstPointSet *ExtendTicks( AstPlot *, AstPointSet *, int * );
 static int TicksOnEdge( AstPointSet *, int, int * );
-static void GridExterior( AstPlot *, int * );
+static void GridExterior( AstPlot3D *, AstPlot *, int * );
 static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, int * );
 static const char *RootCornerString( int, int * );
 static int Attr3D( AstKeyMap *, int, double, double *, int, int * );
@@ -2898,7 +2898,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    return result;
 }
 
-static void GridExterior( AstPlot *plot, int *status ){
+static void GridExterior( AstPlot3D *this, AstPlot *plot, int *status ){
 /*
 *  Name:
 *     GridExterior
@@ -2911,22 +2911,25 @@ static void GridExterior( AstPlot *plot, int *status ){
 
 *  Synopsis:
 *     #include "plot3d.h"
-*     void GridExterior( AstPlot *plot, int *status )
+*     void GridExterior( AstPlot3D *this, AstPlot *plot, int *status )
 
 *  Class Membership:
 *     Plot3D member function.
 
 *  Description:
 *     This function invokes astGrid on one of the encapsulated 2D Plots
-*     with its ForceExterior attribute set, unless the attribute already
-*     has a value. The tick positions drawn by one Plot are handed to the
-*     Plots of the neighbouring planes (see Grid), which is only meaningful
-*     when the ticks lie on the shared edge. Without ForceExterior a Plot
-*     falls back to interior labelling when it judges too few grid curves
-*     cross the edges chosen for the current RootCorner, and its ticks
-*     then lie along an interior curve.
+*     with its ForceExterior attribute set, unless the user has given the
+*     Plot3D's own ForceExterior attribute a value or has asked for
+*     interior labelling. The tick positions drawn by one Plot are handed
+*     to the Plots of the neighbouring planes (see Grid), which is only
+*     meaningful when the ticks lie on the shared edge. Without
+*     ForceExterior a Plot falls back to interior labelling when it judges
+*     too few grid curves cross the edges chosen for the current
+*     RootCorner, and its ticks then lie along an interior curve.
 
 *  Parameters:
+*     this
+*        Pointer to the Plot3D.
 *     plot
 *        Pointer to the encapsulated Plot.
 *     status
@@ -2934,20 +2937,32 @@ static void GridExterior( AstPlot *plot, int *status ){
 */
 
 /* Local Variables: */
-   int forced;               /* Was ForceExterior set here? */
+   int forced;               /* Is ForceExterior being imposed here? */
+   int old_set;              /* Did the Plot have a ForceExterior value? */
+   int old_value;            /* The Plot's ForceExterior value */
 
 /* Check the global error status. */
    if( !astOK ) return;
 
-/* Force exterior labelling unless the attribute already has a value. */
-   forced = !astTestForceExterior( plot );
+/* Unless the user chose a ForceExterior value, or asked for interior
+   labelling, impose exterior labelling on the Plot, remembering its
+   current state. */
+   forced = !astTestForceExterior( this ) && !astGetLabelling( plot );
+   old_set = astTestForceExterior( plot );
+   old_value = astGetForceExterior( plot );
    if( forced ) astSetForceExterior( plot, 1 );
 
 /* Draw the grid. */
    astGrid( plot );
 
-/* Restore the attribute, even if an error occurred. */
-   if( forced ) astClearForceExterior( plot );
+/* Restore the Plot's previous state, even if an error occurred. */
+   if( forced ) {
+      if( old_set ) {
+         astSetForceExterior( plot, old_value );
+      } else {
+         astClearForceExterior( plot );
+      }
+   }
 }
 
 static int TicksOnEdge( AstPointSet *ticks, int axis, int *status ){
@@ -3575,7 +3590,7 @@ static void Grid( AstPlot *this_plot, int *status ) {
    in the Plot3D only inherit a single axis from the original 3D FrameSet
    (a dummy axis is used for the second WCS axis in these Plots). */
    baseplot = GET_PLOT( this->baseplot );
-   GridExterior( baseplot, status );
+   GridExterior( this, baseplot, status );
 
 /* We next use astGrid to draw a grid on the 2D plane that shares the first
    base plot graphics axis. Get the identifier for this Plot and the 2D
@@ -3687,7 +3702,7 @@ static void Grid( AstPlot *this_plot, int *status ) {
    }
 
 /* Invoke the astGrid method on this plot. */
-   GridExterior( plot, status );
+   GridExterior( this, plot, status );
 
 /* Clear the stored tick values in the plot. */
    astSetTickValues( plot, new_wax2d, 0, NULL, 0, NULL );
@@ -3799,7 +3814,7 @@ static void Grid( AstPlot *this_plot, int *status ) {
    }
 
 /* Invoke the astGrid method on this plot. */
-   GridExterior( plot, status );
+   GridExterior( this, plot, status );
 
 /* Clear the stored tick values in the plot. */
    astSetTickValues( plot, new_wax2d, 0, NULL, 0, NULL );
