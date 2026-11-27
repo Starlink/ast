@@ -245,6 +245,10 @@ f     - AST_POLYTRAN: Fit a PolyMap inverse or forward transformation
 *        elsewhere, and was left with the value used in the Mapping list.
 *     16-NOV-2026 (TIMJ):
 *        MergeShift: get the number of outputs from Nout rather than Nin.
+*     27-NOV-2026 (TIMJ):
+*        astLoadPolyMap treats a recorded NiterInverse or TolInverse value
+*        that the setters now refuse as unset, as it already does for
+*        IterInverse, so that dumps written by earlier versions still load.
 *class--
 */
 
@@ -7893,12 +7897,22 @@ AstPolyMap *astLoadPolyMap_( void *mem, size_t size,
       }
       if ( TestIterInverse( new, status ) ) SetIterInverse( new, new->iterinverse, status );
 
-/* Max number of iterations for iterative inverse transformation. */
+/* Max number of iterations for iterative inverse transformation. Earlier
+   versions accepted a negative value, which the setter now refuses, so a
+   recorded one is treated as unset rather than rejected. */
       new->niterinverse = astReadInt( channel, "niterinv", -INT_MAX );
+      if( new->niterinverse != -INT_MAX && new->niterinverse < 0 ) {
+         new->niterinverse = -INT_MAX;
+      }
       if ( TestNiterInverse( new, status ) ) SetNiterInverse( new, new->niterinverse, status );
 
-/* Target relative error for iterative inverse transformation. */
+/* Target relative error for iterative inverse transformation. Likewise a
+   recorded value that is not positive and finite is treated as unset. */
       new->tolinverse = astReadDouble( channel, "tolinv", AST__BAD );
+      if( new->tolinverse != AST__BAD &&
+          ( !isfinite( new->tolinverse ) || new->tolinverse <= 0.0 ) ) {
+         new->tolinverse = AST__BAD;
+      }
       if ( TestTolInverse( new, status ) ) SetTolInverse( new, new->tolinverse, status );
 
 /* The Jacobian of the PolyMap's forward transformation has not yet been
