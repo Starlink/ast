@@ -771,6 +771,9 @@ f     - Title: The Plot title drawn using AST_GRID
 *        astInitPlot: initialise the ForceExterior attribute as unset. It was
 *        left at zero, so every new Plot reported it as set to zero and wrote
 *        it to its dump.
+*     28-NOV-2026 (AC):
+*        Crv: only draw a short curve's segment straight if the segment is
+*        short too, so a curve is not drawn across a gap in the sky.
 
 *class--
 */
@@ -7983,8 +7986,10 @@ static void Crv( AstPlot *this, double *d, double *x, double *y, int skipbad,
          statics->vy = *statics->pdy/statics->dl;
 
 /* If all segments are good and the total of all segments is very short,
-   draw it as a single line. */
-         if( totlen != AST__BAD && totlen < Crv_limit ) {
+   draw it as a single line, unless the segment itself is long (as one
+   that crosses a gap in the sky is). */
+         if( totlen != AST__BAD && totlen < Crv_limit &&
+             *statics->pdl2 < Crv_limit ) {
             seg_ok[ i ] = 1;
 
 /* Otherwise, if a unit vector in the direction of the previous segment is

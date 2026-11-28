@@ -208,6 +208,8 @@ depending on Starlink libraries (EMS, CHR, PSX). The goal is to:
 - testplotcopy — a copy of a Plot must own its graphics context KeyMap: it starts with the original's contents, changes independently, and is released separately.
   It also copies a Plot3D and annuls the original and the copy in either order.
   Releasing the KeyMap twice is a use of freed memory, so that part of the test is only decisive under AddressSanitizer.
+- testgridgap — a grid line that crosses a gap in the sky must not be drawn across it.
+  It draws Galactic and FK5 grids over an HPX image of the whole sky through a Line function registered with astGrfSet, and requires the middle of every straight line drawn, or a point just round it, to be on the sky.
 - testpolymapinv — a PolyMap must only offer an iterative inverse when it has a forward transformation to iterate.
   It checks the IterInverse default and TranInverse for PolyMaps with no coefficients, with inverse coefficients only and with forward coefficients only, that asking for an iterative inverse without a forward transformation is an error (through the attribute, the constructor options and a dump), and that the iterative inverse of a forward-only PolyMap still inverts it.
 - testsplinemapedge — SplineMap values on the edges of the area covered by its knots.

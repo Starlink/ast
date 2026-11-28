@@ -876,6 +876,14 @@ ast_add_test(testgrid
 )
 target_include_directories(testgrid PRIVATE "${CMAKE_SOURCE_DIR}/src")
 
+# A grid line must not be drawn across a gap in the sky.  Records lines
+# through astGrfSet; grf_log.c supplies the other graphics functions.
+ast_add_test(testgridgap
+    NO_DEFAULT_GRF_LIBS
+    EXTRA_LIBS $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf_log-static>
+               $<LINK_LIBRARY:WHOLE_ARCHIVE,ast_grf3d-static>
+)
+
 # --- Initial state of Plot attributes (no graphics library) ---
 ast_add_test(testplotattr
     NO_DEFAULT_GRF_LIBS

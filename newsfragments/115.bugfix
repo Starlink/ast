@@ -1,0 +1,1 @@
+A grid line that crosses a gap in the sky, such as the space between two facets of an HPX projection or the seam at the edge of an Aitoff projection, is no longer drawn as a straight line across the gap. astGrid, astGridLine and astCurve drew one wherever the curve on either side was finely enough sampled, which on a whole-sky HPX image could be a line half the width of the plot.

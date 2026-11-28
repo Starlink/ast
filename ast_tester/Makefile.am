@@ -677,6 +677,17 @@ testgrid_LDADD = @LIBPAL@ @LIBCMINPACK@ \
 
 TESTS += test_wcsconverter.tap test_simplify.tap test_grid.tap
 
+# testgridgap draws through the logging GRF module, as testgrid does.
+check_PROGRAMS += testgridgap
+TESTS += testgridgap
+testgridgap_SOURCES = testgridgap.c
+testgridgap_LDADD = $(AST_PLUGIN_KEEP) @LIBPAL@ @LIBCMINPACK@ \
+    $(top_builddir)/libast.la \
+    $(top_builddir)/libast_grf_log.la \
+    $(top_builddir)/libast_grf3d.la \
+    $(top_builddir)/libast_err.la \
+    -lm
+
 # roundtrip: read a fixture and write it straight back, which must reproduce it.
 # The only family that can see an attribute lost on load -- the simplify
 # families call astSimplify after reading, and that re-sets IsSimple on every
