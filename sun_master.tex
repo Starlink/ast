@@ -21,7 +21,7 @@ f+
 \stardocnumber      {210.34}
 f-
 \stardocauthors     {R.F. Warren-Smith \& D.S. Berry}
-\stardocdate        {22nd September 2026}
+\stardocdate        {27th November 2026}
 \stardoctitle     {AST\linebreak%
                                 A Library for Handling\linebreak%
                                 World Coordinate Systems\linebreak%
@@ -22025,8 +22025,7 @@ fortran runtime libraries.
 
 \end{enumerate}
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes
-Introduced in V8.2}
+\subsection{Changes Introduced in V8.2}
 The following describes the most significant changes which
 occurred in the AST library between versions V8.1.0 and V8.2.0:
 
@@ -22833,10 +22832,9 @@ In particular the ast\_err.h/AST\_ERR files are now included in the distribution
 A linking fix has also been adopted that was a standalone patch for the
 conda feedstock.
 
-\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes Introduced in V9.5.0}
+\subsection{Changes Introduced in V9.5.0}
 The following describes the most significant changes which have
-occurred in the AST library between versions V9.4.1 and V9.5.0 (the
-current version):
+occurred in the AST library between versions V9.4.1 and V9.5.0:
 
 \subsubsection{Main Changes}
 
@@ -22864,6 +22862,139 @@ current version):
 \item On macOS, programs linked with \texttt{-dead\_strip\_dylibs} (as used by conda-forge, among others) no longer lose the graphics and error-reporting satellite libraries, which previously caused a segfault on the first error report.
 \item The CMake build now installs the same files as the autotools build: public headers go to include/star (with an AST\_WITH\_TOPINCLUDE option matching \texttt{-{}-with-topinclude}), all libraries are built both shared and static, the ast\_ems, ast\_drama, ast\_pgplot and ast\_pgplot3d libraries are provided, PAL and CMINPACK are built as separate libraries, the macOS library version numbers match those from libtool, and ast\_link and ast\_link\_adam are installed.
 \item The CMake build now refuses to configure if stale generated headers from an earlier autotools build are present in the source tree.
+\end{enumerate}
+
+\subsection{\xlabel{changes}\xlabel{list_of_most_recent_changes}Changes Introduced in V9.6.0}
+The following describes the most significant changes which have
+occurred in the AST library between versions V9.5.0 and V9.6.0 (the
+current version):
+
+This release concentrates on robustness.
+A systematic review of the library, which included fuzzing the object dumps and FITS headers used by the test suite and comparing AST with an independent re-implementation, found a large number of long-standing faults.
+Everything found that could crash the library, corrupt memory, or make it loop or allocate memory without limit has been fixed.
+Anyone who reads AST objects, FITS headers or MOCs from sources they do not control is encouraged to upgrade.
+
+\subsubsection{Other Changes in Behaviour}
+
+\begin{enumerate}
+\item A string MOC written by astGetMocString or a MocChan now separates its cells with spaces, as the MOC recommendation requires, rather than with commas, which other MOC libraries do not accept.
+  Either form is read.
+\item A CDELT value of zero in a FITS header is replaced by a millionth of the CRVAL value of the same axis, as has always been documented, rather than always by 1.0.
+  This changes the pixel size of a degenerate axis.
+\item The EQUINOX of an ecliptic axis is now read from a FITS header, and is written as a Besselian or Julian epoch rather than as an MJD.
+\item MJD-OBS and DATE-OBS are written to a FITS header from the primary axis description only, and SIP distortion coefficients are written only by the FITS-WCS encoding.
+  The other encodings write a linear approximation, subject to FitsTol, as the SipOK documentation describes.
+\item Conversions from FK5 to FK4 at a Besselian epoch other than B1950 now apply the fictitious FK4 proper motion by way of ERFA's eraFk54z, as the original SLALIB routine did.
+  Positions near a celestial pole can change by up to 28 milli-arcseconds at B1980 and 0.3 arcseconds at B2050.
+\item Projection fixes from upstream wcslib (up to version 8.10) have been applied to WcsMap, affecting the QSC, HPX, ZPN, PCO and COP projections in particular.
+  The D2R and R2D constants are now parenthesised, which changes the last bit of many projected values.
+  A reverse projection that lands within wcslib's tolerance of the edge of its valid range now returns the edge rather than a bad value.
+\item The ERFA library included in AST has been updated to version 2.0.1 (SOFA 20231011) and PAL to version 0.9.10.
+\item A Mapping can have no more than AST\_\_MXAXES (65536) inputs or outputs, and a Frame no more than that number of axes.
+  A constructor or astRead asked for more reports an error.
+  No real coordinate system comes close to the limit, which exists to stop a maliciously crafted file from making AST allocate memory in proportion to an axis count of billions.
+\item A Format attribute value must be a ``printf'' format for a single floating point or integer value, with any field width and precision given as digits.
+  Formats such as ``\%s'' or ``\%n'', which made astFormat read or write through a wild pointer, are now rejected.
+\item astConvert and astFindFrame no longer find a conversion between a SpecFluxFrame and a CmpFrame that does not match it, for instance because a component Frame has a different Domain.
+  The CmpFrame used to be treated as a SpecFluxFrame, which read beyond the end of the object.
+\item A PermMap created without an ``outperm'' array, but with constants, gives a bad value to each output that has no corresponding input, as documented.
+  Such outputs used to receive the first constant.
+\end{enumerate}
+
+\subsubsection{New Features}
+
+\begin{enumerate}
+\item The YamlChan class can be built against libfyaml as an alternative to libyaml.
+  The backend is chosen when AST is configured (\texttt{-{}-with-yaml=BACKEND} for autotools, AST\_YAML\_BACKEND for CMake); by default libyaml is used if it is found and libfyaml otherwise.
+  YAML syntax errors now report the line and column of the fault.
+\item The YamlChan class can read, evaluate and write the ASDF/GWCS ``fitswcs\_imaging'' transform, which represents a simple FITS WCS and is used, for example, by Roman Space Telescope data products.
+  A Mapping read from a fitswcs\_imaging is written back as one; other Mappings are not.
+\item A new grf3d module, grf3d\_log (libast\_grf3d\_log), implements the 3D graphics interface with no external graphics library.
+  It writes one line per graphics call to a log file and can optionally draw the calls into an SVG file through an orthographic or perspective camera.
+  It lets the test suite check Plot3D output against reference logs, and gives other implementations of the interface an oracle to reproduce.
+\end{enumerate}
+
+\subsubsection{Hardening Against Corrupt and Malicious Input}
+
+\begin{enumerate}
+\item Every object loader now checks what it reads from a dump: the class and number of axes of each component object, the sizes of arrays, the range of integers, axis permutation arrays, and the consistency of a FrameSet's node graph.
+  astRead reports an error for an inconsistent dump instead of using it.
+  Fuzzing the dumps used by the test suite found about sixty distinct faults, and all those that crashed or corrupted memory are fixed.
+\item A FITS header is rejected if WCSAXES is outside 1 to 999, if a CTYPE value has fewer than three characters, if an IRAF WAT card has no string value, or if SIP distortion is declared with fewer than two WCS axes.
+  astGetFitsI and astGetFitsK no longer convert a floating point value that is too large for the integer type.
+\item Malformed MOC text and binary data (an order or NPIX out of range, digits that overflow, a range that ends before it starts, unterminated JSON) are reported as errors and leave the Moc unchanged.
+\item Writes beyond the end of fixed-size buffers have been fixed throughout the library: in error and warning messages, attribute names and values given to astSet and astSetC, default Labels, Symbols, Titles and Domains, values formatted with a large Digits, FitsDigits or Format width, huge angles, ``iso.n'' dates, FITS header cards and string keywords, STC-S, XML and YAML text, and Table column names.
+  A value that does not fit is truncated or reported as an error.
+\item Several ways of making AST loop or recurse without limit are fixed: astSimplify on a Mapping with an infinite coefficient, bringing a very large angle into range, astRate near zero, the bounds of an empty or whole-sky Moc, a Polygon with an infinite vertex, the grid of a Box with no width on an axis, astOverlap on a Region with no boundary mesh, and NormUnit for a Unit such as ``2/m''.
+\item A date with an invalid month or year, such as ``2012-13-01'', is rejected by astUnformat and by the Epoch, Equinox and TimeOrigin attributes.
+\item Memory leaks in the YamlChan class and the XphMap loader are fixed, and an allocation whose size overflows is reported as an error.
+\end{enumerate}
+
+\subsubsection{Performance}
+
+\begin{enumerate}
+\item Writing a FrameSet to a FitsChan took a time that grew faster than the factorial of the number of WCS axes when two axes were coupled by a rotation or a celestial projection, as in any header with more WCS axes than pixel axes.
+  A nine-axis header that took minutes now takes a fraction of a second.
+  astMapSplit had the same cost.
+\item astAddRegion and astAddPixelMask$<$X$>$ no longer use time and memory in proportion to the number of cells of the initial grid within the bounding box of the Region or pixel array.
+  The Moc of a Circle of radius 80 degrees needed 1.5 GB at order 14, and would have needed hundreds of GB at order 18.
+  The default MinOrder remains MaxOrder-5, as it always has been; its documentation said MaxOrder-4.
+\item A range of cells in a string MOC is no longer expanded into its individual cells as it is read.
+\end{enumerate}
+
+\subsubsection{Serialisation Fixes}
+
+\begin{enumerate}
+\item Several objects could be written by a Channel but not read back.
+  These now round-trip: a FitsChan with SipReplace set, with 64-bit integer cards, or with PolyTan or SipOK unset; a YamlChan using the NATIVE encoding; a FluxFrame describing surface brightness per unit wavelength; a Region with Adaptive set to zero, or with an uncertainty in a different Frame; an IntraMap with an unset IntraFlag; an StcObsDataLocation with no observatory position; and a MocChan, whose MocFormat was dumped the wrong way round (old dumps are still read correctly).
+\item A FrameSet dump with Current set to zero loads with Current unset, and a SkyFrame dump that does not describe its axes gets proper sky axes.
+\item Writing a FrameSet to a FitsChan:
+  \begin{itemize}
+  \item a write that fails no longer removes cards that were in the FitsChan beforehand, and does remove the cards it had added;
+  \item the absolute description of an offset sky system is no longer written under a letter that another Frame has claimed through its Ident;
+  \item FITS-PC alternate axis descriptions are written when MJD-OBS is set, and a secondary description that has parameters the primary lacks is not;
+  \item DATE-OBS is not written for an epoch that has no calendar date, and the AIPS, IRAF and CLASS encodings keep an existing MJD-OBS consistent with the DATE-OBS they write;
+  \item a padded TIMESYS value is recognised, a -TAB axis stores a zero CRVAL, and a spectral axis written in non-default units has consistent CRVAL and CDELT values;
+  \item a negative value formatted with many digits keeps its sign, WCSNAME and keyword comments are compared correctly, and FITS-CLASS accepts a LONPOLE of 180 degrees;
+  \item crashes and out-of-bounds accesses when writing unusual FrameSets (-TAB axes, SIP polynomials, more alternates than there are letters, long Symbols, compound Mappings with an Ident) are fixed.
+  \end{itemize}
+\item Reading a FITS header:
+  \begin{itemize}
+  \item a missing or non-numeric CDELT is treated the same way whether or not the library was built with optimisation;
+  \item a celestial axis without a partner is rejected with an error that says what is wrong;
+  \item a -LOG axis with a zero CRVAL no longer crashes, and a -TAB description with a single tabular celestial axis is handled;
+  \item a FITS-CLASS header with no CRVAL uses zero rather than an uninitialised value;
+  \item CONTINUE cards and complex values are converted correctly, and column definitions read into a FitsTable are correct.
+  \end{itemize}
+\item astEmptyFits, astPutCards and astWriteFits no longer reset the Warnings and FitsAxisOrder attributes, and astRemoveTables with a blank key removes every table.
+\end{enumerate}
+
+\subsubsection{Other Bug Fixes}
+
+\begin{enumerate}
+\item astSimplify could return a Mapping that did not do the same as the one supplied, in a number of cases involving MatrixMaps, WinMaps, PermMaps, WcsMaps, PolyMaps, ChebyMaps, PcdMaps, SwitchMaps and TranMaps.
+  These are fixed, and astSimplify now reports an error if the Mappings it is asked to merge in series do not fit together.
+\item astEqual now compares every operation of two MathMaps, the inverse coefficients of two PolyMaps, every projection parameter of two WcsMaps, and both the Region count and the bad value of two SelectorMaps.
+  A CmpFrame holding a Region as a component now compares equal to a copy of itself, as does any object holding one, such as a Plot3D.
+\item astRate gives the right value for an inverted TimeMap or SplineMap, astChebyDomain works for an inverted ChebyMap, astPolyCoeffs returns the right coefficients for an inverted PolyMap, an inverted RateMap reports that the transformation is not defined rather than crashing, and the inverse of a LutMap no longer reads before the start of its table.
+\item Many fixes to Regions: astOverlap, astGetRegionBounds, astGetRegionMesh, astMapRegion, astMask$<$X$>$ and Region uncertainties now behave correctly for Regions with no width or no upper limit on an axis, Regions mapped into a Frame with a different number of axes, negated Regions, and Regions on a CmpFrame whose components differ in size or class.
+  A negated Stc behaves as negated, a CmpRegion holding an XOR is written correctly to STC-S, an Ellipse can be used as an uncertainty, and a string attribute set through a Region keeps its case and may contain ``\%'', a comma or quotes.
+\item A position could be reported as inside a Polygon on the sky when it was outside, if the line to it from the middle of the Polygon passed exactly through a vertex.
+\item The Moc class now handles Regions that touch the HEALPix cut meridians (RA 0, 6, 12 and 18 hours) or the poles, and Regions covering half the sky or more, which used to fail or lose cells.
+  A MaxOrder of zero is accepted, positions on the edge of the sky are tested consistently, and the mesh no longer depends on the platform's qsort.
+\item A SpecFrame conversion with AlignSpecOffset set in a wavelength system no longer gives bad values, a FluxFrame accepts ``System=SFCBRW'', an axis picked from a SkyFrame keeps its Unit, a CmpFrame with permuted axes resolves vectors and builds its interior grid in the right axis order, adding a FrameSet variant leaves an unset Domain unset, and the NormUnit of a Unit such as ``2*m'' is no longer blank.
+\item Plot and Plot3D: a Plot3D no longer fails in astGrid for some RootCorner values, the error for a Plot method a Plot3D does not support names the method, ForceExterior is initialised as unset, tick values supplied through astSetTickValues are read correctly, splitting an axis label into fields and drawing a calendar date axis no longer read out of bounds, and a copied Plot has its own graphics context.
+\item astSpecAdd no longer reads past the end of its argument array for the heliocentric frequency conversions, and the public astPointSet constructor no longer reads a status argument it is not given, which crashed any program that called it.
+\item YamlChan fixes: the linear1d transform used the wrong property; observer earth locations were not recognised on reading and were written in a form that could not be read back; a crash and a spurious error when writing some WCS objects to ASDF were caused by mishandled degree/radian conversions; and the recognised ASDF schema versions have been updated.
+\end{enumerate}
+
+\subsubsection{Build and Test Changes}
+
+\begin{enumerate}
+\item The ast\_cpp wrapper script has been removed.
+  The makeh script that generates ast.h now runs the C preprocessor directly and honours the CPP environment variable when the default ``cc -E'' is unsuitable.
+  This lets AST build in sandboxed environments such as Homebrew.
+\item The test suite has been extended considerably, including tests that check each class loader against corrupt dumps, the Moc class against the CDS HEALPix library, Plot3D output against reference logs, and the simplification and transformation of many Mappings against a fixture corpus.
 \end{enumerate}
 
 Programs which are statically linked will need to be re-linked in

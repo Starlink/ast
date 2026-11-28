@@ -113,5 +113,9 @@ for American English.
 - When making fixes to the files in src/ ensure that the history in the prologue
   is updated with the change.
 - Keep `PLAN.md` updated as work progresses on test conversions
+- Every pull request that changes what a user sees (library behaviour, build
+  options, documentation) needs a news fragment in `newsfragments/`; see
+  `newsfragments/README.md`. Do not edit `ast.news` directly: it is assembled
+  from the fragments at release time by the process in `RELEASING.md`.
 - The `WHOLE_ARCHIVE` linking pattern in `ast_tester/CMakeLists.txt` is
   critical — without it, tests segfault on null function pointers
