@@ -1055,6 +1055,31 @@ static void gen_chebymap_fixtures(const char *dir) {
     }
 }
 
+/* ===== PolyMap fixtures ===== */
+
+static void gen_polymap_fixtures(const char *dir) {
+    printf("PolyMap fixtures:\n");
+
+    /* polymap-01: standalone forward-only PolyMap whose outputs both ignore
+     * the second input -> no simplification.
+     *
+     * out1 = x and out2 = x*x, so the Jacobian column for y has no terms
+     * and the matrix is singular everywhere. The fixture gives the
+     * transform oracle the iterative inverse of such a PolyMap, which must
+     * return bad positions rather than fail. */
+    {
+        double coeff_f[] = {
+            /* (coeff, out_axis, px, py) */
+            1.0, 1, 1, 0,
+            1.0, 2, 2, 0,
+        };
+        AstPolyMap *pm = astPolyMap(2, 2, 2, coeff_f, 0, NULL, " ");
+        write_negative_fixture(dir, "neg_polymap_unused_input",
+                                (AstMapping*)pm);
+        pm = astAnnul(pm);
+    }
+}
+
 /* ===== SwitchMap fixtures ===== */
 
 static void gen_switchmap_fixtures(const char *dir) {
@@ -4648,6 +4673,7 @@ int main(void) {
     gen_sphmap_fixtures(dir);
     gen_pcdmap_fixtures(dir);
     gen_chebymap_fixtures(dir);
+    gen_polymap_fixtures(dir);
     gen_switchmap_fixtures(dir);
     gen_tranmap_extra_fixtures(dir);
     gen_matrix_cascade_fixtures(dir);

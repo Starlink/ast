@@ -501,6 +501,11 @@ unitnormmap_shift_merge_tail             | simplify/unitnormmap_shift_merge_tail
 winmap_swap_to_zoom          | simplify/winmap_swap_to_zoom.map | simplify/winmap_swap_to_zoom.simp |
 chebymap_inverse_cancel            | simplify/chebymap_inverse_cancel.map | simplify/chebymap_inverse_cancel.simp |
 neg_chebymap_standalone            | simplify/neg_chebymap_standalone.map | simplify/neg_chebymap_standalone.map | yes
+# neg_polymap_unused_input: a forward-only PolyMap whose outputs both ignore the
+# second input.  Nothing to simplify; it is here so the transform oracle records
+# the iterative inverse of a PolyMap whose Jacobian has a column with no terms,
+# which must give bad positions rather than an error.
+neg_polymap_unused_input           | simplify/neg_polymap_unused_input.map | simplify/neg_polymap_unused_input.map | yes
 interval_nullregion_merge          | simplify/interval_nullregion_merge.map | simplify/interval_nullregion_merge.simp |
 interval_pointlist_merge           | simplify/interval_pointlist_merge.map | simplify/interval_pointlist_merge.simp |
 interval_unc_fillfactor_merge      | simplify/interval_unc_fillfactor_merge.map | simplify/interval_unc_fillfactor_merge.simp |

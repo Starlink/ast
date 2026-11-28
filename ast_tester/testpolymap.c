@@ -372,6 +372,108 @@ int main( void ) {
       }
    }
 
+   /* An explicitly set IterInverse survives Get and a dump round trip when
+      it is legal, and is rejected when there is no forward transformation
+      to iterate on. */
+   pm2 = astAnnul( pm2 );
+   {
+      double fwd3[] = { 2.0, 1, 1 };
+      double inv3[] = { 0.5, 1, 1 };
+      char *dump;
+      AstPolyMap *back;
+
+      pm2 = astPolyMap( 1, 1, 1, fwd3, 1, inv3, "IterInverse=1" );
+      if( !astTest( pm2, "IterInverse" ) ) stopit( 8034, status );
+      if( astGetI( pm2, "IterInverse" ) != 1 ) stopit( 8035, status );
+      dump = astToString( pm2 );
+      back = astFromString( dump );
+      dump = astFree( dump );
+      if( !back || !astTest( back, "IterInverse" ) ||
+          astGetI( back, "IterInverse" ) != 1 ) stopit( 8036, status );
+      back = astAnnul( back );
+      pm2 = astAnnul( pm2 );
+
+      if( *status == 0 ) {
+         pm2 = astPolyMap( 1, 1, 0, NULL, 1, inv3, "IterInverse=1" );
+         int expected = ( *status == AST__ATTIN && !pm2 );
+         astClearStatus;
+         if( !expected ) stopit( 8037, status );
+         if( pm2 ) pm2 = astAnnul( pm2 );
+      }
+
+      if( *status == 0 ) {
+         pm2 = astPolyMap( 1, 1, 0, NULL, 1, inv3, " " );
+         astSetI( pm2, "IterInverse", 1 );
+         int expected = ( *status == AST__ATTIN );
+         astClearStatus;
+         if( !expected ) stopit( 8038, status );
+         if( astGetI( pm2, "IterInverse" ) != 0 ) stopit( 8039, status );
+         pm2 = astAnnul( pm2 );
+      }
+
+      /* A dump recording IterInv = 1 with no forward coefficients still
+         loads, and the unusable value is treated as unset. */
+      back = astFromString( " Begin PolyMap\n Nin = 1\n IsA Mapping\n"
+                            " MPI1 = 1\n NCI1 = 1\n CI1 = 0.5\n PI1 = 1\n"
+                            " IterInv = 1\n End PolyMap\n" );
+      if( !back ) stopit( 8040, status );
+      if( back && ( astTest( back, "IterInverse" ) ||
+                    astGetI( back, "IterInverse" ) ) ) stopit( 8041, status );
+      if( back ) back = astAnnul( back );
+      pm2 = NULL;
+   }
+
+   /* Iteration controls must be usable: a non-positive or non-finite
+      tolerance and a negative iteration count are rejected. */
+   {
+      double fwd3[] = { 2.0, 1, 1 };
+      const char *bad[] = { "TolInverse=0", "TolInverse=-1", "NiterInverse=-1" };
+      int k;
+      pm2 = astPolyMap( 1, 1, 1, fwd3, 0, NULL, " " );
+      for( k = 0; k < 3 && *status == 0; k++ ) {
+         astSet( pm2, "%s", bad[k] );
+         int expected = ( *status == AST__ATTIN );
+         astClearStatus;
+         if( !expected ) stopit( 8042 + k, status );
+      }
+      if( *status == 0 ) {
+         astSetD( pm2, "TolInverse", INFINITY );
+         int expected = ( *status == AST__ATTIN );
+         astClearStatus;
+         if( !expected ) stopit( 8045, status );
+      }
+      if( astGetD( pm2, "TolInverse" ) != 1.0E-6 ) stopit( 8046, status );
+      if( astGetI( pm2, "NiterInverse" ) != 4 ) stopit( 8047, status );
+      astSet( pm2, "NiterInverse=0,TolInverse=1e-3" );
+      if( astGetI( pm2, "NiterInverse" ) != 0 ) stopit( 8048, status );
+      pm2 = astAnnul( pm2 );
+   }
+
+   /* A forward-only PolyMap whose outputs all ignore one input has a
+      singular Jacobian everywhere, because the derivative with respect
+      to that input has no terms. Its iterative inverse must report the
+      positions as unsolvable rather than fail with an error. */
+   {
+      double cf_sing[] = { 1.0, 1, 1, 0,     /* out1 = x */
+                           1.0, 2, 2, 0 };   /* out2 = x*x */
+      double ox[ 1 ] = { 2.0 };
+      double oy[ 1 ] = { 4.0 };
+      double ix[ 1 ], iy[ 1 ];
+      int ok;
+      AstPolyMap *ps;
+
+      ps = astPolyMap( 2, 2, 2, cf_sing, 0, NULL, " " );
+      if( !astGetL( ps, "TranInverse" ) ) stopit( 8049, status );
+      astTran2( ps, 1, ox, oy, 0, ix, iy );
+      ok = astOK;
+      astClearStatus;
+      if( !ok ) stopit( 8050, status );
+      if( ok && ( ix[ 0 ] != AST__BAD || iy[ 0 ] != AST__BAD ) ) {
+         stopit( 8051, status );
+      }
+      ps = astAnnul( ps );
+   }
+
    astEnd;
    astFlushMemory( 1 );
 

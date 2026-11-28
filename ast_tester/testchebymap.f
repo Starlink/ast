@@ -106,8 +106,8 @@ C  One-dimensional ChebyMaps, order 5
 
       end do
 
-C  Check the IterInverse attribute is zero.
-      if( ast_getl( cm, 'IterInverse', status ) ) then
+C  A square forward-only ChebyMap supplies an iterative inverse.
+      if( .not. ast_getl( cm, 'IterInverse', status ) ) then
          call stopit( 4, status )
       end if
 
@@ -419,6 +419,8 @@ C     fy(x,y) = T1(x') - T1(y')
       end if
 
 
+      call testiterinverse( status )
+
       call ast_end( status )
       call ast_activememory( 'testchebymap' );
       call ast_flushmemory( 1 )
@@ -429,6 +431,35 @@ C     fy(x,y) = T1(x') - T1(y')
          write(*,*) 'ChebyMap tests failed'
       end if
 
+      end
+
+
+      subroutine testiterinverse( status )
+      implicit none
+      include 'SAE_PAR'
+      include 'AST_PAR'
+      integer status, cm, i
+      double precision coeffs(6), lo(1), hi(1), y(101), x(101), ref
+      data coeffs /1.0D0, 1.0D0, 1.0D0,
+     :             0.125D0, 1.0D0, 2.0D0/
+
+      if( status .ne. sai__ok ) return
+      lo(1) = 0.0D0
+      hi(1) = 10.0D0
+      cm = ast_chebymap( 1, 1, 2, coeffs, 0, 0.0D0, lo, hi,
+     :                  lo, hi, 'IterInverse=1,NiterInverse=20,'//
+     :                  'TolInverse=1e-12', status )
+      do i = 1, 101
+         y(i) = -0.875D0 + 2.0D0*(i-1)/100.0D0
+      end do
+      call ast_tran1( cm, 101, y, .false., x, status )
+      do i = 1, 101
+         ref = 5.0D0*(1.0D0 + 2.0D0*(y(i)+0.125D0)/
+     :                (1.0D0+sqrt(1.0D0+y(i)+0.125D0)))
+         if( x(i) .eq. AST__BAD .or. abs(x(i)-ref) .gt. 1.0D-10 )
+     :      call stopit( 700, status )
+      end do
+      call ast_annul( cm, status )
       end
 
 

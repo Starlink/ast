@@ -16,8 +16,10 @@
 *         iterative inverse by default, so that one with no coefficients at
 *         all has no inverse transformation, and one with only inverse
 *         coefficients uses them;
-*       - asking such a PolyMap for an iterative inverse is an error,
-*         whether through the IterInverse attribute or a dump;
+*       - asking such a PolyMap for an iterative inverse through the
+*         IterInverse attribute is an error, while a dump written by an
+*         earlier version of AST that records one still loads, with the
+*         value treated as unset;
 *       - a PolyMap with only forward coefficients still has an iterative
 *         inverse by default, and it inverts the forward transformation.
 
@@ -183,17 +185,64 @@ int main( void ) {
       nfail++;
    }
 
-/* A dump cannot ask for an iterative inverse without supplying a forward
-   transformation. */
+/* Earlier versions of AST let IterInverse be set without a forward
+   transformation, and wrote the value to dumps. Such a dump still loads,
+   with the recorded value treated as unset, so the PolyMap uses its
+   inverse coefficients and reports no iterative inverse. */
    obj = astFromString( " Begin PolyMap\n Nin = 1\n IsA Mapping\n"
-                        " IterInv = 1\n End PolyMap\n" );
-   if ( obj ) {
-      fprintf( stderr, "testpolymapinv: a PolyMap with an iterative inverse "
-               "and no forward transformation was loaded\n" );
+                        " MPI1 = 1\n NCI1 = 2\n CI1 = 1\n PI1 = 0\n"
+                        " CI2 = 2\n PI2 = 1\n IterInv = 1\n End PolyMap\n" );
+   if ( astOK && obj ) {
+      if ( astTest( obj, "IterInverse" ) ) {
+         fprintf( stderr, "testpolymapinv: a loaded unusable IterInverse "
+                  "value is set\n" );
+         nfail++;
+      }
+      nfail += check_attr( "a loaded inverse-only PolyMap with an unusable "
+                           "IterInverse value", (AstMapping *) obj,
+                           "IterInverse", 0 );
+      nfail += check_tran( "the inverse of a loaded inverse-only PolyMap "
+                           "with an unusable IterInverse value",
+                           (AstMapping *) obj, 0, 0.5, 2.0 );
+   } else {
+      fprintf( stderr, "testpolymapinv: a PolyMap with an unusable "
+               "IterInverse value failed to load\n" );
+      if ( !astOK ) astClearStatus;
       nfail++;
    }
-   nfail += check_status( "loading a PolyMap with an iterative inverse and "
-                          "no forward transformation", AST__ATTIN );
+
+/* Earlier versions of AST accepted any TolInverse and NiterInverse value,
+   so a dump may record values the setters now refuse. Such a dump still
+   loads, with the unusable values treated as unset, so the defaults apply
+   and the iterative inverse still works. */
+   obj = astFromString( " Begin PolyMap\n Nin = 1\n IsA Mapping\n"
+                        " MPF1 = 1\n NCF1 = 2\n CF1 = 1\n PF1 = 0\n"
+                        " CF2 = 2\n PF2 = 1\n NiterInv = -1\n TolInv = 0\n"
+                        " End PolyMap\n" );
+   if ( astOK && obj ) {
+      if ( astTest( obj, "NiterInverse" ) || astTest( obj, "TolInverse" ) ) {
+         fprintf( stderr, "testpolymapinv: a loaded unusable NiterInverse "
+                  "or TolInverse value is set\n" );
+         nfail++;
+      }
+      nfail += check_attr( "a loaded PolyMap with unusable iteration "
+                           "controls", (AstMapping *) obj, "NiterInverse", 4 );
+      if ( astGetD( obj, "TolInverse" ) != 1.0E-6 ) {
+         fprintf( stderr, "testpolymapinv: a loaded PolyMap with an unusable "
+                  "TolInverse value has TolInverse=%g, expected 1e-6\n",
+                  astGetD( obj, "TolInverse" ) );
+         if ( !astOK ) astClearStatus;
+         nfail++;
+      }
+      nfail += check_tran( "the iterative inverse of a loaded PolyMap with "
+                           "unusable iteration controls", (AstMapping *) obj,
+                           0, 2.0, 0.5 );
+   } else {
+      fprintf( stderr, "testpolymapinv: a PolyMap with unusable NiterInverse "
+               "and TolInverse values failed to load\n" );
+      if ( !astOK ) astClearStatus;
+      nfail++;
+   }
 
    astEnd;
    if ( !astOK ) {
