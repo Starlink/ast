@@ -1,0 +1,76 @@
+# Configuration for towncrier, which assembles the release notes in ast.news
+# from the fragments in newsfragments/.  RELEASING.md describes the release
+# workflow and newsfragments/README.md describes how to write a fragment.
+#
+# Preview the next release section without changing anything:
+#     uvx towncrier build --draft --version "$(cat version.number)"
+# Build it for real (removes the fragments and edits ast.news):
+#     uvx towncrier build --version "$(cat version.number)" --yes
+
+[tool.towncrier]
+name = "AST"
+filename = "ast.news"
+directory = "newsfragments"
+template = "newsfragments/template.txt"
+ignore = ["README.md", "template.txt"]
+
+# Each new release section is inserted after this line of ast.news, which
+# must therefore appear there exactly as written here.
+start_string = "   The changes made in each release are listed below, newest first.\n"
+
+# ast.news is plain text: wrap at 79 columns and underline every heading
+# with dashes.  The template writes the release heading itself.
+wrap = true
+underlines = ["-", "-", "-"]
+
+# Pull request numbers are not shown in the notes, so no issue_format is
+# set.  A fragment is named <PR number>.<type>, or +<slug>.<type> for a
+# change that has no pull request; the name only needs to be unique.
+orphan_prefix = "+"
+
+# Sections appear in the order of these tables.  "directory" is the file
+# suffix of the fragment, "name" the heading written to ast.news.
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "IMPORTANT - changes that may break existing code"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "behaviour"
+name = "Changes in behaviour"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "New features"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "hardening"
+name = "Hardening against corrupt input"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "performance"
+name = "Performance"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "serialisation"
+name = "Serialisation fixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bug fixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Documentation"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "build"
+name = "Build and test changes"
+showcontent = true

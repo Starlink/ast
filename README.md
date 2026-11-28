@@ -84,6 +84,7 @@ A command can also be supplied explicitly, including a direct invocation through
 ```
 
 To publish a release, update `version.number` (the canonical version used to generate `src/version.h` from `src/version.h.in`), commit it, and push a matching `vX.Y.Z` tag.
+The full procedure, including how the release notes in `ast.news` and `sun_master.tex` are assembled, is in `RELEASING.md`.
 The Autotools workflow builds and tests the PDF-only distribution and publishes it to GitHub Releases after both platform jobs pass.
 The full test-fixture archive is checked in CI but is not published.
 

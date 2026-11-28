@@ -1,0 +1,1 @@
+Release notes are now assembled by towncrier from fragments that each pull request adds to the newsfragments directory, and a CI check requires one. RELEASING.md describes the release procedure.

@@ -1,0 +1,24 @@
+name: News Fragment Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+#  Every pull request must add a release-notes fragment to newsfragments/
+#  (see newsfragments/README.md), unless it carries the "no news" label
+#  because nothing a user would notice has changed.  towncrier compares the
+#  pull request with its base branch, so the whole history is fetched.
+jobs:
+  towncrier:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'no news') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Check for a news fragment
+        run: uvx towncrier check --compare-with "origin/${{ github.base_ref }}"
