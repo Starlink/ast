@@ -1,6 +1,6 @@
 AST Library
 -----------
-   A new release (V9.5.0) of the Starlink AST (astrometry) library is
+   A new release (V9.6.0) of the Starlink AST (astrometry) library is
 now available.
 
    AST provides a comprehensive range of facilities for attaching
@@ -17,6 +17,282 @@ environment-independent.
 Main Changes in this Version
 ----------------------------
 
+This release concentrates on robustness. A systematic review of the
+library, which included fuzzing the object dumps and FITS headers used by
+the test suite and comparing AST with an independent re-implementation,
+found a large number of long-standing faults. Everything found that could
+crash the library, corrupt memory, or make it loop or allocate memory
+without limit has been fixed. Anyone who reads AST objects, FITS headers
+or MOCs from sources they do not control is encouraged to upgrade.
+
+Other changes in behaviour
+--------------------------
+
+- A string MOC written by astGetMocString or a MocChan now separates its
+  cells with spaces, as the MOC recommendation requires, rather than with
+  commas, which other MOC libraries do not accept. Either form is read.
+
+- A CDELT value of zero in a FITS header is replaced by a millionth of the
+  CRVAL value of the same axis, as has always been documented, rather than
+  always by 1.0. This changes the pixel size of a degenerate axis.
+
+- The EQUINOX of an ecliptic axis is now read from a FITS header, and is
+  written as a Besselian or Julian epoch rather than as an MJD.
+
+- MJD-OBS and DATE-OBS are written to a FITS header from the primary axis
+  description only, and SIP distortion coefficients are written only by the
+  FITS-WCS encoding. The other encodings write a linear approximation,
+  subject to FitsTol, as the SipOK documentation describes.
+
+- Conversions from FK5 to FK4 at a Besselian epoch other than B1950 now
+  apply the fictitious FK4 proper motion by way of ERFA's eraFk54z, as the
+  original SLALIB routine did. Positions near a celestial pole can change
+  by up to 28 milli-arcseconds at B1980 and 0.3 arcseconds at B2050.
+
+- Projection fixes from upstream wcslib (up to version 8.10) have been
+  applied to WcsMap, affecting the QSC, HPX, ZPN, PCO and COP projections in
+  particular. The D2R and R2D constants are now parenthesised, which changes
+  the last bit of many projected values. A reverse projection that lands
+  within wcslib's tolerance of the edge of its valid range now returns the
+  edge rather than a bad value.
+
+- The ERFA library included in AST has been updated to version 2.0.1 (SOFA
+  20231011) and PAL to version 0.9.10.
+
+- A Mapping can have no more than AST__MXAXES (65536) inputs or outputs, and
+  a Frame no more than that number of axes. A constructor or astRead asked
+  for more reports an error. No real coordinate system comes close to the
+  limit, which exists to stop a maliciously crafted file from making AST
+  allocate memory in proportion to an axis count of billions.
+
+- A Format attribute value must be a "printf" format for a single floating
+  point or integer value, with any field width and precision given as
+  digits. Formats such as "%s" or "%n", which made astFormat read or write
+  through a wild pointer, are now rejected.
+
+- astConvert and astFindFrame no longer find a conversion between a
+  SpecFluxFrame and a CmpFrame that does not match it, for instance because
+  a component Frame has a different Domain. The CmpFrame used to be treated
+  as a SpecFluxFrame, which read beyond the end of the object.
+
+- A PermMap created without an "outperm" array, but with constants, gives a
+  bad value to each output that has no corresponding input, as documented.
+  Such outputs used to receive the first constant.
+
+New features
+------------
+
+- The YamlChan class can be built against libfyaml as an alternative to
+  libyaml. The backend is chosen when AST is configured (--with-yaml=BACKEND
+  for autotools, AST_YAML_BACKEND for CMake); by default libyaml is used if
+  it is found and libfyaml otherwise. YAML syntax errors now report the line
+  and column of the fault.
+
+- The YamlChan class can read, evaluate and write the ASDF/GWCS
+  "fitswcs_imaging" transform, which represents a simple FITS WCS and is
+  used, for example, by Roman Space Telescope data products. A Mapping read
+  from a fitswcs_imaging is written back as one; other Mappings are not.
+
+- A new grf3d module, grf3d_log (libast_grf3d_log), implements the 3D
+  graphics interface with no external graphics library. It writes one line
+  per graphics call to a log file and can optionally draw the calls into an
+  SVG file through an orthographic or perspective camera. It lets the test
+  suite check Plot3D output against reference logs, and gives other
+  implementations of the interface an oracle to reproduce.
+
+Hardening against corrupt and malicious input
+---------------------------------------------
+
+- Every object loader now checks what it reads from a dump: the class and
+  number of axes of each component object, the sizes of arrays, the range
+  of integers, axis permutation arrays, and the consistency of a FrameSet's
+  node graph. astRead reports an error for an inconsistent dump instead of
+  using it. Fuzzing the dumps used by the test suite found about sixty
+  distinct faults, and all those that crashed or corrupted memory are fixed.
+
+- A FITS header is rejected if WCSAXES is outside 1 to 999, if a CTYPE value
+  has fewer than three characters, if an IRAF WAT card has no string value,
+  or if SIP distortion is declared with fewer than two WCS axes. astGetFitsI
+  and astGetFitsK no longer convert a floating point value that is too large
+  for the integer type.
+
+- Malformed MOC text and binary data (an order or NPIX out of range, digits
+  that overflow, a range that ends before it starts, unterminated JSON) are
+  reported as errors and leave the Moc unchanged.
+
+- Writes beyond the end of fixed-size buffers have been fixed throughout the
+  library: in error and warning messages, attribute names and values given
+  to astSet and astSetC, default Labels, Symbols, Titles and Domains, values
+  formatted with a large Digits, FitsDigits or Format width, huge angles,
+  "iso.n" dates, FITS header cards and string keywords, STC-S, XML and YAML
+  text, and Table column names. A value that does not fit is truncated or
+  reported as an error.
+
+- Several ways of making AST loop or recurse without limit are fixed:
+  astSimplify on a Mapping with an infinite coefficient, bringing a very
+  large angle into range, astRate near zero, the bounds of an empty or
+  whole-sky Moc, a Polygon with an infinite vertex, the grid of a Box with
+  no width on an axis, astOverlap on a Region with no boundary mesh, and
+  NormUnit for a Unit such as "2/m".
+
+- A date with an invalid month or year, such as "2012-13-01", is rejected by
+  astUnformat and by the Epoch, Equinox and TimeOrigin attributes.
+
+- Memory leaks in the YamlChan class and the XphMap loader are fixed, and an
+  allocation whose size overflows is reported as an error.
+
+Performance
+-----------
+
+- Writing a FrameSet to a FitsChan took a time that grew faster than the
+  factorial of the number of WCS axes when two axes were coupled by a
+  rotation or a celestial projection, as in any header with more WCS axes
+  than pixel axes. A nine-axis header that took minutes now takes a
+  fraction of a second. astMapSplit had the same cost.
+
+- astAddRegion and astAddPixelMask<X> no longer use time and memory in
+  proportion to the number of cells of the initial grid within the bounding
+  box of the Region or pixel array. The Moc of a Circle of radius 80 degrees
+  needed 1.5 GB at order 14, and would have needed hundreds of GB at order
+  18. The default MinOrder remains MaxOrder-5, as it always has been; its
+  documentation said MaxOrder-4.
+
+- A range of cells in a string MOC is no longer expanded into its individual
+  cells as it is read.
+
+Serialisation fixes
+-------------------
+
+- Several objects could be written by a Channel but not read back. These now
+  round-trip: a FitsChan with SipReplace set, with 64-bit integer cards, or
+  with PolyTan or SipOK unset; a YamlChan using the NATIVE encoding; a
+  FluxFrame describing surface brightness per unit wavelength; a Region with
+  Adaptive set to zero, or with an uncertainty in a different Frame; an
+  IntraMap with an unset IntraFlag; an StcObsDataLocation with no observatory
+  position; and a MocChan, whose MocFormat was dumped the wrong way round
+  (old dumps are still read correctly).
+
+- A FrameSet dump with Current set to zero loads with Current unset, and a
+  SkyFrame dump that does not describe its axes gets proper sky axes.
+
+- Writing a FrameSet to a FitsChan:
+  - a write that fails no longer removes cards that were in the FitsChan
+    beforehand, and does remove the cards it had added;
+  - the absolute description of an offset sky system is no longer written
+    under a letter that another Frame has claimed through its Ident;
+  - FITS-PC alternate axis descriptions are written when MJD-OBS is set, and
+    a secondary description that has parameters the primary lacks is not;
+  - DATE-OBS is not written for an epoch that has no calendar date, and the
+    AIPS, IRAF and CLASS encodings keep an existing MJD-OBS consistent with
+    the DATE-OBS they write;
+  - a padded TIMESYS value is recognised, a -TAB axis stores a zero CRVAL,
+    and a spectral axis written in non-default units has consistent CRVAL
+    and CDELT values;
+  - a negative value formatted with many digits keeps its sign, WCSNAME and
+    keyword comments are compared correctly, and FITS-CLASS accepts a
+    LONPOLE of 180 degrees;
+  - crashes and out-of-bounds accesses when writing unusual FrameSets (-TAB
+    axes, SIP polynomials, more alternates than there are letters, long
+    Symbols, compound Mappings with an Ident) are fixed.
+
+- Reading a FITS header:
+  - a missing or non-numeric CDELT is treated the same way whether or not
+    the library was built with optimisation;
+  - a celestial axis without a partner is rejected with an error that says
+    what is wrong;
+  - a -LOG axis with a zero CRVAL no longer crashes, and a -TAB description
+    with a single tabular celestial axis is handled;
+  - a FITS-CLASS header with no CRVAL uses zero rather than an uninitialised
+    value;
+  - CONTINUE cards and complex values are converted correctly, and column
+    definitions read into a FitsTable are correct.
+
+- astEmptyFits, astPutCards and astWriteFits no longer reset the Warnings
+  and FitsAxisOrder attributes, and astRemoveTables with a blank key removes
+  every table.
+
+Other bug fixes
+---------------
+
+- astSimplify could return a Mapping that did not do the same as the one
+  supplied, in a number of cases involving MatrixMaps, WinMaps, PermMaps,
+  WcsMaps, PolyMaps, ChebyMaps, PcdMaps, SwitchMaps and TranMaps. These are
+  fixed, and astSimplify now reports an error if the Mappings it is asked to
+  merge in series do not fit together.
+
+- astEqual now compares every operation of two MathMaps, the inverse
+  coefficients of two PolyMaps, every projection parameter of two WcsMaps,
+  and both the Region count and the bad value of two SelectorMaps. A
+  CmpFrame holding a Region as a component now compares equal to a copy of
+  itself, as does any object holding one, such as a Plot3D.
+
+- astRate gives the right value for an inverted TimeMap or SplineMap,
+  astChebyDomain works for an inverted ChebyMap, astPolyCoeffs returns the
+  right coefficients for an inverted PolyMap, an inverted RateMap reports
+  that the transformation is not defined rather than crashing, and the
+  inverse of a LutMap no longer reads before the start of its table.
+
+- Many fixes to Regions: astOverlap, astGetRegionBounds, astGetRegionMesh,
+  astMapRegion, astMask<X> and Region uncertainties now behave correctly for
+  Regions with no width or no upper limit on an axis, Regions mapped into a
+  Frame with a different number of axes, negated Regions, and Regions on a
+  CmpFrame whose components differ in size or class. A negated Stc behaves
+  as negated, a CmpRegion holding an XOR is written correctly to STC-S, an
+  Ellipse can be used as an uncertainty, and a string attribute set through
+  a Region keeps its case and may contain "%", a comma or quotes.
+
+- A position could be reported as inside a Polygon on the sky when it was
+  outside, if the line to it from the middle of the Polygon passed exactly
+  through a vertex.
+
+- The Moc class now handles Regions that touch the HEALPix cut meridians
+  (RA 0, 6, 12 and 18 hours) or the poles, and Regions covering half the sky
+  or more, which used to fail or lose cells. A MaxOrder of zero is accepted,
+  positions on the edge of the sky are tested consistently, and the mesh no
+  longer depends on the platform's qsort.
+
+- A SpecFrame conversion with AlignSpecOffset set in a wavelength system no
+  longer gives bad values, a FluxFrame accepts "System=SFCBRW", an axis
+  picked from a SkyFrame keeps its Unit, a CmpFrame with permuted axes
+  resolves vectors and builds its interior grid in the right axis order,
+  adding a FrameSet variant leaves an unset Domain unset, and the NormUnit
+  of a Unit such as "2*m" is no longer blank.
+
+- Plot and Plot3D: a Plot3D no longer fails in astGrid for some RootCorner
+  values, the error for a Plot method a Plot3D does not support names the
+  method, ForceExterior is initialised as unset, tick values supplied
+  through astSetTickValues are read correctly, splitting an axis label into
+  fields and drawing a calendar date axis no longer read out of bounds, and
+  a copied Plot has its own graphics context.
+
+- astSpecAdd no longer reads past the end of its argument array for the
+  heliocentric frequency conversions, and the public astPointSet constructor
+  no longer reads a status argument it is not given, which crashed any
+  program that called it.
+
+- YamlChan fixes: the linear1d transform used the wrong property; observer
+  earth locations were not recognised on reading and were written in a form
+  that could not be read back; a crash and a spurious error when writing
+  some WCS objects to ASDF were caused by mishandled degree/radian
+  conversions; and the recognised ASDF schema versions have been updated.
+
+Build and test changes
+----------------------
+
+- The ast_cpp wrapper script has been removed. The makeh script that
+  generates ast.h now runs the C preprocessor directly and honours the CPP
+  environment variable when the default "cc -E" is unsuitable. This lets AST
+  build in sandboxed environments such as Homebrew.
+
+- The test suite has been extended considerably, including tests that check
+  each class loader against corrupt dumps, the Moc class against the CDS
+  HEALPix library, Plot3D output against reference logs, and the
+  simplification and transformation of many Mappings against a fixture
+  corpus.
+
+Main Changes in V9.5.0
+----------------------
+
 *** IMPORTANT - a change in documented behaviour ***
 
 - The NormUnit attribute of a Frame is now derived from the value of the
@@ -30,80 +306,8 @@ Main Changes in this Version
   blank string, and a SkyFrame axis reports its Unit value unchanged.
   Code that recorded the old NormUnit values will see different results.
 
-- Fixes from upstream wcslib (up to version 8.10) have been applied to the
-  projection code used by WcsMap: QSC near the centre of face 4, HPX with
-  non-default H or K, at the poles and on facet edges, ZPN far-side points
-  for a quadratic polynomial, PCO within 1e-4 degrees of the equator, and
-  COP at the poles. The D2R and R2D constants are now parenthesised, which
-  changes the last bit of many projected values; close to a pole the
-  difference can be magnified (about 1.5e-6 degrees for MER one micro-degree
-  from the pole).
-
-- A WcsMap now accepts a native longitude or latitude that a reverse
-  projection returns slightly beyond the edge of the valid range, by up to
-  the tolerance used by wcslib for that projection (1e-13 to 1e-11 degrees),
-  and sets it to the edge. Previously such points, which arise from rounding
-  on the -180 degree meridian of projections such as PAR, MOL and PCO and at
-  the antipode of zenithal projections such as ARC, were returned as bad.
-  Likewise the HPX reverse projection takes a point within 1e-12 degrees of
-  the pole as the pole, which previously returned bad for some values of H
-  and K.
-
-- The ERFA library included in AST has been updated to version 2.0.1
-  (SOFA 20231011).
-
-- Conversions from FK5 to FK4 at a Besselian epoch other than B1950 now
-  apply the fictitious FK4 proper motion as the original SLALIB routine did,
-  by way of ERFA's eraFk54z, rather than linearly in RA and Dec. The results
-  change little except for positions that the fictitious motion (at most
-  5 milli-arcseconds a year) carries close to a celestial pole, where the
-  linear step was wrong by up to the size of the motion itself: 28
-  milli-arcseconds at B1980 and 0.3 arcseconds at B2050.
-
-- A new grf3d module, grf3d_log (libast_grf3d_log), implements the 3D
-  graphics interface with no external graphics library. It writes one line
-  per graphics call to a log file, measures text in the text's own plane
-  using the same character metrics as the 2D logging module grf_log, and
-  can optionally draw the calls into an SVG file through an orthographic or
-  perspective camera. It exists so that Plot3D output can be checked
-  against reference logs by the test suite, and so that other
-  implementations of the interface have an oracle to reproduce.
-
 Bug fixes
 ---------
-
-- A CmpFrame with a Region as a component compared unequal (astEqual) to
-  a copy of itself, and so did any object holding one, such as a Plot3D
-  created over a Region. The Frame comparison tests whether the conversion
-  between the two Frames is a UnitMap, which a Region acting as a Mapping
-  never is. CmpFrames are now compared component by component.
-
-- A Plot3D could fail in astGrid with "No grid curves can be drawn for
-  axis 2" for some values of RootCorner (ULU and UUU with a tilted sky
-  grid). The Plot drawing the sky plane fell back to interior labelling
-  when too few grid curves crossed the edges chosen for that corner, and
-  the tick positions handed to the neighbouring planes then lay along an
-  interior curve. Each plane is now drawn with exterior labels, and tick
-  positions are only handed on when they lie on the shared edge; with
-  Labelling=interior the other planes find their own tick values.
-
-- The error reported when a Plot method that a Plot3D does not support
-  (astBoundingBox, astClip, astCurve, astGenCurve, astGridLine) is called
-  now names the method instead of reading "ast##name".
-
-- A newly created Plot reported its ForceExterior attribute as set (to
-  zero) and wrote it to its dump, because the attribute was not initialised
-  as unset. It now behaves like every other Plot attribute: astTest is false
-  until a value is assigned, and the dump omits it.
-
-- A Plot drawing tick marks at values supplied through astSetTickValues
-  could read past the end of the supplied arrays: the MinTick attribute,
-  when set for that axis, replaced the count of supplied minor tick values
-  (reading too many when it was larger and drawing too few when smaller),
-  and interior labelling read one value too many from both arrays. Only a
-  Plot3D supplies tick values this way, as it hands each plane's tick values
-  to the other planes' Plots; Gap and MinTick on every axis, or
-  Labelling=interior, triggered the reads.
 
 - The astEQUAL comparison used internally by AST could overflow for values
   near the top of the double precision range, causing any value to compare
@@ -114,464 +318,6 @@ Bug fixes
 
 - Allocation failures while normalising a units string are now reported as
   errors rather than crashing the library.
-
-- astSpecAdd no longer reads one element past the end of the supplied
-  argument array for the conversions to and from heliocentric frequency
-  (USF2HL, TPF2HL, GEF2HL, BYF2HL, LKF2HL, LDF2HL, LGF2HL, GLF2HL and their
-  inverses).
-
-- A Mapping can now have no more than AST__MXAXES (65536) inputs or
-  outputs, and a Frame no more than that number of axes. A constructor
-  asked for more reports an error, as does astRead if it is given an object
-  that has more. No real coordinate system comes close to the limit. It
-  exists to prevent a denial of service when a maliciously crafted file
-  declares an axis count of billions, which made AST allocate memory and
-  loop in proportion to that count.
-
-- Reading a corrupt or maliciously crafted object dump or FITS header could
-  crash AST, corrupt memory, or keep it busy without limit. Fuzzing the
-  dumps and headers used by the test suite found about sixty distinct
-  faults of this kind, and all those that crashed or corrupted memory are
-  fixed. astRead now reports an error for, among other things: an integer
-  too large for an int (which used to wrap round to another value); a
-  component object that is missing or of the wrong class; a FrameSet that
-  states more Frames or Mappings than it holds, whose node links form a
-  loop, or whose Mappings and Frames disagree about the number of axes; a
-  Region without the points that define it; a SkyFrame, SpecFrame,
-  TimeFrame or FluxFrame with the wrong number of axes; a PermMap that
-  refers to a constant it does not have; a SpecMap, SlaMap or TimeMap that
-  states more conversion steps than it holds; and a PointSet or MatrixMap
-  that claims more values than a dump can hold.
-
-- A FITS header is rejected if its WCSAXES value is not between 1 and 999.
-  The value used to be taken as the number of axes whatever it was. Other
-  faults in reading FITS headers are fixed: CTYPE values of fewer than
-  three characters, an IRAF WAT card without a string value, and a SIP
-  distortion in a header that states fewer than two WCS axes.
-
-- A SkyFrame read from a dump that does not describe its two axes now has
-  proper sky axes, and so formats values as sexagesimal strings. It was
-  given two simple axes.
-
-- astFormat returns "<bad>" for a celestial longitude or latitude that has
-  too many digits to format, such as 1.0E300 radians, rather than writing
-  beyond the end of its buffer.
-
-- astSimplify, and so astWrite to a FitsChan, never returned for a Mapping
-  that held an infinite coefficient, as the inverse of a WinMap with a
-  scale of 1e-320 does. Several functions that bring an angle into range
-  never returned for a very large angle, such as the sidereal time for an
-  Epoch of 1.0E11. astRate never returned for a position within about
-  1e-301 of zero.
-
-- astMatrixMap reports an error if asked for a full matrix with more
-  elements than an int can hold.
-
-- astGetFitsI and astGetFitsK no longer convert a floating point keyword
-  value that is too large for the integer type. They report that the
-  value cannot be converted, as they do for a string that is not a number.
-
-- If a transformation failed, several classes freed an output PointSet
-  that had been supplied by the caller, which a CmpMap then used.
-
-- A Format attribute value is a "printf" format for a single axis value,
-  and it was given to sprintf without being checked. A Format that asked
-  for anything else, such as "%s" or "%n", made astFormat read or write
-  through a wild pointer, and one can be supplied by a file. astFormat now
-  reports an error unless the Format has at most one conversion
-  specification, for a floating point or integer value, with any field
-  width and precision given as digits.
-
-- Reporting an error could overflow the stack. astError formatted each
-  message into a buffer of 1024 characters without a check, and many
-  messages quote text from the data being read. Warnings issued by a
-  Channel had the same fault with a buffer of 201 characters. Messages
-  that do not fit are now truncated, and warnings are stored in full.
-
-- The default Domain of a CmpFrame, the default Title of a FluxFrame or
-  SpecFluxFrame, the default Label of a SpecFrame with a SpecOrigin, and a
-  value formatted with a wide Format, could each be written beyond the end
-  of a fixed buffer. They are now truncated to fit, and astFormat reports
-  an error for a value that does not fit.
-
-- Writing a FrameSet to a FitsChan could take a time that grew faster than
-  the factorial of the number of WCS axes when two of the axes were
-  coupled by a rotation or a celestial projection, as they are in any
-  header with more WCS axes than pixel axes. A header with WCSAXES = 9 and
-  two rotated pixel axes took minutes, and now takes a fraction of a
-  second. astMapSplit had the same cost for such a Mapping.
-
-- astSimplify could return a Mapping that did not do the same as the one
-  supplied, report an error, or read or write beyond the end of an array.
-  The faults were all in the code with which each class merges itself
-  with its neighbours in a compound Mapping, or swaps places with them:
-  - A diagonal MatrixMap with different numbers of inputs and outputs was
-    merged with a WinMap, giving a WinMap with the wrong number of axes.
-  - A full MatrixMap with zeros off the diagonal, used in its inverse
-    direction, was replaced by a diagonal MatrixMap used in its forward
-    direction.
-  - A MatrixMap with no inverse, used in its inverse direction, or a
-    WinMap that scales an axis by zero, made astSimplify report an error
-    for any Mapping that contained it beside another MatrixMap or WinMap.
-  - A WinMap in parallel with a unit MatrixMap lost the axes of the
-    MatrixMap, and one in series with a unit MatrixMap was used in the
-    wrong direction.
-  - Moving a WinMap past a MatrixMap that discards an axis changed the
-    inverse transformation.
-  - A PermMap that supplies only constants, followed by two Mappings in
-    parallel, was replaced using arrays that were too small, and the
-    inverse transformation of the result was wrong.
-  - A PermMap moved past a WcsMap was used in the wrong direction if the
-    Invert attribute of the PermMap had been changed since it was put
-    into the compound Mapping.
-  - Two WcsMaps cancelled each other if they differed only in the second
-    having projection parameters that the first did not.
-  - A PolyMap that cancelled with its own inverse was left with a changed
-    Invert attribute, which affected any other use of the same PolyMap.
-  - An inverted PermMap with more inputs than outputs was read beyond the
-    end of its permutation array.
-
-- astSimplify now reports an error if the Mappings it is asked to merge in
-  series do not fit together (one does not have as many inputs as the one
-  before it has outputs), or if a class returns Mappings that have
-  different numbers of inputs and outputs to those it was given. The
-  Mappings were previously used as they stood, and were applied to the
-  wrong numbers of axes.
-
-- A PermMap created without an "outperm" array, but with constants, now
-  gives a bad value to each output that has no corresponding input, as
-  documented. The forward transformation used to give such an output the
-  value of the first constant.
-
-- Writing a FrameSet to a FitsChan no longer creates a DATE-OBS keyword for
-  an epoch of observation that has no calendar date (one that is not a
-  number, or is millions of years from the present). The value was
-  formatted from a date that had not been found, and could overflow the
-  buffer it was written to.
-
-- Changing the units of an axis that has a blank label, as happens when a
-  FrameSet with such an axis beside a spectral axis is written to a
-  FitsChan, could crash.
-
-- Reading a FITS header in which one axis has a CDELT keyword and another
-  has none, or has one that is not a number, no longer depends on how the
-  library was compiled. The value of the missing keyword was tested
-  without having been set, so the header was read by an optimized build
-  of the library and rejected with an error by an unoptimized one. Such
-  an axis now always has the default CDELT value of 1.0.
-
-- A CDELT value of zero in a FITS header is now replaced by a millionth of
-  the CRVAL value of the same axis, as has always been documented, or by
-  1.0 if CRVAL is zero or absent. It was replaced by 1.0 in every case,
-  because the replacement was calculated from CDELT rather than CRVAL.
-  This changes the pixel size of a degenerate axis of such a header.
-
-- Writing a FrameSet to a FitsChan could crash, or read or write beyond the
-  end of an array, in several cases that are now handled:
-  - a compound Mapping that has an Ident, for which the search for a
-    projection never ended;
-  - axes that could only be written as look-up tables (TabOK), where a
-    world axis depends on more than one pixel axis, or the Mapping has no
-    inverse and has more inputs than outputs;
-  - polynomial distortion (SipOK), for a polynomial with a linear term
-    after its last term of higher order, and for celestial axes beside
-    other axes that share a pixel axis;
-  - more Frames needing an alternate axis description than the twenty six
-    letters that can identify one;
-  - an offset sky coordinate system with a long axis Symbol.
-  A FrameSet that cannot be described is not written, as before.
-
-- The absolute description of an offset sky coordinate system (SkyRefIs) is
-  no longer written to a FitsChan under a letter that another Frame has
-  claimed through its Ident attribute. The two descriptions were written
-  under the same letter, giving a header that described neither.
-
-- FITS-PC encoding shares the RADECSYS value, the projection parameters
-  and the PC matrix of the primary axis description with every secondary
-  one. A secondary description is no longer written if it has a
-  RADECSYS value or projection parameters where the primary description
-  has none, or has a different number of axes. Its values were compared
-  with primary values that had not been set, and a secondary description
-  with projection parameters could be written without them.
-
-- WCSNAME is now written to a FitsChan for a Domain that differs from the
-  first axis Symbol only in its last character, and the comment of a
-  string keyword is now replaced when the new value differs from the old
-  only in its last character. The comparison of the two strings ignored
-  the last character of each, and for two blank strings read beyond the
-  end of both.
-
-- Writing a FrameSet with more than three axes, and a single spatial
-  pixel, using FITS-CLASS encoding no longer reports the error "Bad number
-  of input coordinate values". Such a FrameSet is not written.
-
-- A write to a FitsChan that fails no longer removes cards that were in
-  the FitsChan beforehand. If a keyword that the write stored was
-  already present, the existing card was replaced, and the replacement
-  was then removed with the other new cards. The existing card is now
-  put back. The same applies to a secondary axis description that is
-  abandoned while the others are written. The new cards are also now
-  removed if the write fails with an error, when they used to be left.
-
-- Reading a FITS header in which a celestial axis has no partner (for
-  instance a "DEC--GLS" axis with no "RA---GLS" axis) no longer reports an
-  internal error, or an error about a keyword for axis zero. This
-  happened for the projection types that are translated as a header is
-  read (GLS, NCP, ATF, CAR, TPV, ZPX and TNX). Such a header is now
-  rejected with an error that says what is wrong with it, as it is for
-  any other projection type.
-
-- A WcsMap with projection parameter values that its projection cannot
-  use now reports an error each time it is used to transform positions.
-  For the AZP, SZP, ZPN, AIR, CYP, CEA, COP, COE, COD and COO projections
-  an error was reported at most once, and later transformations returned
-  values calculated from quantities that had never been set.
-
-- The default Label and Symbol of a SpecFrame, FluxFrame, TimeFrame or
-  DSBSpecFrame axis are changed to match the Unit of the axis, and were
-  then copied into a buffer of a fixed size without a check. A Symbol
-  longer than twenty characters (for instance that of a wave number axis
-  with a Unit of "nm"), or a Label longer than two hundred, wrote beyond
-  the buffer, and aborted the program in a build with _FORTIFY_SOURCE.
-  The buffers for the Symbol now hold two hundred characters, and a Label
-  or Symbol that is longer than its buffer is cut short. Dumping a
-  FluxFrame that describes surface brightness per unit wavelength also
-  wrote beyond a buffer.
-
-- astConvert and astFindFrame no longer crash when given a CmpFrame that
-  holds a Region as one of its component Frames, or when given two
-  SpecFluxFrames with different Domains before any CmpFrame has been
-  created.
-
-- astConvert no longer reads beyond the end of an array when one of the two
-  Frames is a CmpFrame whose first component Frame is itself a CmpFrame,
-  and the other Frame has a single axis.
-
-- A Region, CmpFrame or FrameSet is no longer copied as if it were an
-  instance of a class that it does not belong to, when the library fails
-  to match it with a Frame of that class and tries to cast it into the
-  class instead. astConvert treated a plain CmpFrame as a SpecFluxFrame in
-  this way, and read beyond the end of an array if that CmpFrame had more
-  than two axes and was a component of another CmpFrame. As a result,
-  astConvert no longer finds a conversion between a SpecFluxFrame and a
-  CmpFrame that does not match it, for instance because a component Frame
-  of the CmpFrame has a different Domain. The same was done for two
-  Regions of different classes, and for a FrameSet and a Plot, which read
-  beyond the end of the smaller object, but no public function is known
-  to reach those cases.
-
-- Setting the Unit of a FluxFrame to a value for which the search for a
-  Mapping from the default Unit fails (for instance six nested "log"
-  functions) now reports the error alone. It used to crash.
-
-- The "iso.n" Format of a TimeFrame gives at most nine decimal places in
-  the seconds field, however large "n" is. Larger values gave the wrong
-  time of day, and a value of eighty or more wrote beyond a buffer. A
-  time that is too far from the present to have a calendar date is now
-  formatted as "<bad>". It was formatted as a date made from values that
-  had never been set.
-
-- The default Label of a TimeFrame that describes Local Time is now made
-  without copying a string onto itself, the result of which is not
-  defined by the C standard.
-
-- Reading a FITS-CLASS header that has no CRVAL keyword for the axis that
-  AST takes to be the spectral axis no longer uses a value that was never
-  set as the frequency of the reference channel when it calculates the
-  source velocity. The frequency is taken to be zero, which is what
-  happened in practice.
-
-- astSetC, and astSet with a "%s" format specifier, no longer write beyond
-  the end of an internal buffer when the attribute value is longer than
-  about a thousand characters. The buffer is now made as large as the
-  setting needs.
-
-- An attribute name of a hundred characters or more that ends with an axis
-  index, such as "xxx...(1)", no longer writes beyond the end of a buffer
-  when it is given to astSet, astGet, astClear or astTest for a CmpFrame,
-  Prism, Region, Plot3D, or a FrameSet that holds one. Nor does a Plot3D
-  attribute name that has a long name or plane (such as "colour_xyxyxy...").
-  An error is reported, as for any other unknown attribute.
-
-- A FitsChan no longer writes beyond the end of a header card when it
-  formats a floating point value with a FitsDigits value that asks for
-  more digits than a card has room for. This happened for values of 31
-  or more with a complex value, and for larger values with a real value.
-  The cards produced are unchanged wherever they were produced correctly
-  before.
-
-- Reading a FITS header no longer writes beyond the end of a buffer when
-  a string keyword such as TIMESYS has a value longer than a header card,
-  which is possible if the value was stored using astSetFitsS. Writing a
-  FrameSet that holds a SpecFrame with a Unit of twenty characters or
-  more no longer does so either.
-
-- Writing a Region with an StcsChan no longer writes beyond the end of a
-  buffer if the Digits attribute of its Frame asks for a hundred digits
-  or more. A value that cannot be formatted with the requested number of
-  digits is written with the number that a double can hold.
-
-- Reading an STC document with an XmlChan no longer writes beyond the end
-  of a message buffer when the document has long text where a unit, a
-  time scale, a time or a name is expected. Reading a YAML document with
-  a YamlChan no longer does so when a mapping repeats a key of a hundred
-  characters or more.
-
-- A Table read from a dump is now rejected if the name of a column is
-  longer than the hundred characters that astAddColumn allows. Such a
-  name wrote beyond the end of the buffer that holds the key of a cell
-  when rows or columns were removed.
-
-- astEqual now compares every operation in the functions of two MathMaps.
-  It used to leave out the last operation of each function, so that two
-  MathMaps which differed only there (such as "y=x+1" and "y=x-1", or
-  "y=sin(x)" and "y=cos(x)") were reported to be equal, and it could crash
-  if a function was a single constant such as "y=<pi>". As a result,
-  astSimplify no longer removes a SwitchMap that is followed by the inverse
-  of a SwitchMap whose route Mappings are different MathMaps.
-
-- A MathMap read from a dump is now rejected if the dump holds fewer forward
-  functions than the MathMap has outputs, or fewer inverse functions than
-  it has inputs, or if any of its functions is missing. Such a dump used to
-  read beyond the end of the list of functions, and a dump that claimed to
-  hold a very large number of functions took a long time and a great deal
-  of memory to read.
-
-- A RateMap that is used in the direction it does not define, which can
-  happen when it is a route Mapping in a SwitchMap, now reports that the
-  transformation is not defined. An inverted RateMap used to crash, and a
-  RateMap that was not inverted used to report an internal programming
-  error.
-
-- The grid of points inside a Box, as returned by astGetRegionMesh and used
-  when Regions are compared, is now made correctly if the Box has no width
-  on one of its axes. Such a Box used to give an error or, with three or
-  more axes, write beyond the end of an array. A grid that would need more
-  points than can be held is reported as an error, and a Box on the sky
-  that has no width in longitude no longer takes tens of seconds to report
-  that it has no grid.
-
-- A string attribute of a Region, such as its Title or the Format of an
-  axis, can now be set to a value that contains a "%" character. The value
-  used to be taken as a format specification, which could crash.
-
-- A string attribute of a Region can now be set to a value that holds both
-  a comma and an equals sign, such as a Title of "Sky, Domain=NEW". The
-  value used to be cut short at the comma and the rest taken to be another
-  attribute setting, which was rejected or, if it was a valid setting,
-  applied. Quotes within the value are also now kept, as they are for a
-  Frame.
-
-- astMask<X> now masks correctly with a Region that has no upper limit on
-  an axis, such as an Interval with only a lower limit. Every pixel used to
-  be taken to be outside such a Region. Masking with a PointList no longer
-  crashes if the grid has the wrong number of dimensions.
-
-- astMapRegion no longer fails with an invalid Object pointer error, and
-  leaves the supplied Mapping inverted, when the new Frame has fewer axes
-  than the Region and the Mapping allows the unwanted axes to be removed.
-  astMask<X> failed in the same way when given such a Mapping.
-
-- astOverlap no longer reads or writes beyond the end of an array if one of
-  the Regions is a PointList, if the Regions are Intervals of which one
-  excludes a range of axis values that the other includes, or if one Region
-  has no boundary and its current Frame has more axes than its base Frame.
-  If a Region that is not an Interval has no boundary mesh (a Prism with a
-  component that has no upper limit, for instance), astOverlap now reports
-  that the overlap cannot be determined rather than exhausting the stack.
-
-- The bounds of a PointList or NullRegion, and the mesh of a Prism, no
-  longer overrun an array if the Region has been mapped into a Frame with a
-  different number of axes.
-
-- An Ellipse can now be used as the uncertainty of another Region, which
-  used to read and write through an invalid pointer. An Ellipse made from
-  three points that do not define an ellipse reports that each time it is
-  used, rather than crashing the second time. Simplifying a mapped Circle
-  or Ellipse no longer reads beyond the end of its mesh if no Ellipse can
-  be fitted to it.
-
-- A Polygon read from a dump is rejected if a vertex has no value. A
-  Polygon whose vertices all coincide no longer uses a position that was
-  never set, and creating a Polygon with an infinite or extremely large
-  vertex value no longer loops for ever.
-
-- astOverlap now gives the right result for a Prism and a Region that has
-  been negated, such as the negation of a Box that contains the Prism, or
-  the negation of the Prism itself. The negation used to be allowed for
-  twice.
-
-- The Bounded attribute of a CmpRegion that is the intersection of two
-  Regions that are not bounded is now zero if one of the Regions is inside
-  the other. It used to be non-zero, and astGetRegionBounds then reported
-  an error.
-
-- An Interval that is used as the uncertainty of another Region now reports
-  the bounds of the position that it was moved to, rather than its
-  original bounds.
-
-- A date with a month or a year that is not valid, such as "2012-13-01", is
-  no longer accepted by astUnformat or as the value of the Epoch, Equinox
-  or TimeOrigin attribute. The check on the month and year had no effect,
-  and the value of such a date was undefined.
-
-- Fixed several faults in the functions that the Plot class uses to split
-  the formatted value of an axis label into fields. A sky axis value with
-  fewer fields than its Format caused a crash, and a value with leading
-  spaces, or a sky axis value with a leading plus sign, was read beyond its
-  end.
-
-- A Plot of a calendar date axis no longer uses an undefined value as the
-  reference position for its major ticks if the axis crosses the end of a
-  month or a year, and no longer reads beyond the end of a formatted date
-  if the dates either side of a tick are the same.
-
-- A range of cells in a string MOC is no longer expanded into its individual
-  cells as it is read, which for a large range took a long time and could
-  exhaust memory.
-
-- A position could be reported as inside a Polygon on the sky when it is
-  outside it, if the line to the position from the middle of the Polygon
-  passes exactly through a vertex. For instance a square about the north
-  pole with vertices at an RA of 0, 6, 12 and 18 hours was reported to
-  contain positions in the southern hemisphere at those RAs.
-
-- astAddRegion could not add to a Moc a Region centred on, or with a vertex
-  at, a position where the HEALPix projections used by the Moc class are
-  cut: a position at RA=0 with a Dec between -41.8 and +41.8 degrees, a
-  position at an RA of 6, 12 or 18 hours with a Dec outside that range, or a
-  pole given with an RA of 6 hours or more. It reported that the Region
-  "cannot be mapped to HEALPix coordinates". It could also leave out of the
-  Moc of any Region some cells that touch the meridians at RA 0, 6, 12 and
-  18 hours. Both are fixed.
-
-- A position at a pole, or at an RA of 0, 6, 12 or 18 hours and a Dec beyond
-  41.8 degrees north or south, could be reported as being outside a Moc
-  that contains it.
-
-- astAddRegion and astAddPixelMask<X> now accept a Moc with a MaxOrder of
-  zero. They reported an error.
-
-- astAddRegion left cells out of the Moc of a Region that covers about half
-  the sky or more, such as a Circle with a radius of 90 degrees or more.
-
-- astAddRegion and astAddPixelMask<X> used time and memory in proportion to
-  the number of cells of the initial grid, at order MinOrder, within the
-  bounding box of the Region or pixel array, which grew fourfold for each
-  increase in MaxOrder with the default MinOrder: the Moc of a Circle of
-  radius 80 degrees needed 1.5 GB at order 14 and would have needed hundreds
-  of GB at order 18. When MinOrder has not been set they now start at a
-  lower order if the initial grid would otherwise hold more than about
-  260000 cells, which gives the same Moc for a Region without holes but for
-  a few cells on its boundary, and they test the initial grid in chunks,
-  which cuts the memory needed for each cell of the grid thirtyfold when
-  MinOrder has been set. The default MinOrder is MaxOrder-5, as it always
-  has been; its documentation said MaxOrder-4.
-
-- A string MOC written by astGetMocString or a MocChan now has spaces
-  between its cells, as the MOC recommendation requires, rather than commas,
-  which other MOC libraries do not accept. A string MOC with either is still
-  read.
 
 Build system changes
 --------------------
