@@ -48,11 +48,12 @@
           IsSimp = 1 	# Mapping has been simplified
        IsA Mapping 	# Mapping between coordinate systems
           MapA = 	# First component Mapping
-             Begin ZoomMap 	# Zoom about the origin
+             Begin WinMap 	# Map one window on to another
                 Nin = 1 	# Number of input coordinates
              IsA Mapping 	# Mapping between coordinate systems
-                Zoom = 3.0000000000000004e-16 	# Zoom factor
-             End ZoomMap
+                Sft1 = -0.001517165212272521 	# Shift for axis 1
+                Scl1 = 3.0343304245450418e-05 	# Scale factor for axis 1
+             End WinMap
           MapB = 	# Second component Mapping
              Begin GrismMap 	# Map 1-d coordinates using a spectral disperser
                 Nin = 1 	# Number of input coordinates
@@ -62,7 +63,7 @@
                 GrmNRP = 0 	# Rate of change of refractive index
                 GrmWR = 4.9999999999999998e-07 	# Ref. wavelength
                 GrmAlp = 0 	# Angle of incidence of incoming light
-                GrmG = 3.0000000000000001e-06 	# Grating ruling density
+                GrmG = 300000 	# Grating ruling density
                 GrmM = 1 	# The interference order
                 GrmEps = 0 	# Angle between grating normal and dispersion plane
                 GrmTh = 0 	# Angle between detector normal and reference ray

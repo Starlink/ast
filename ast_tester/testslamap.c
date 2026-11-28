@@ -9,6 +9,14 @@
  *
  * The FK4/FK5 conversions are checked against ERFA 2.0.1's eraFk54z and
  * eraFk45z, whose outputs for the same arguments are the wanted values.
+ *
+ * PREC and EQECL are checked against values formed from ERFA 2.0.1's
+ * IAU 2006 precession-only matrices (the rp output of eraBp06, as
+ * returned by pyerfa's bp06): PREC from EP0 to EP1 is rp(EP1)*rp(EP0)^T,
+ * and EQECL at a date is Rx(eraObl06(date)) * rp(epoch of date), the
+ * mean ecliptic of date with PAL's IAU 2006 obliquity.  These include no frame bias, so PREC is the identity
+ * when its epochs are equal, and an epoch of exactly 2000.0 is not a
+ * special case.
  */
 #include "ast.h"
 #include <math.h>
@@ -41,6 +49,40 @@ static void check_fk( const char *cvt, double bepoch, double ra, double dec,
       failed = 1;
    }
    astEnd;
+}
+
+/* Transform (ra, dec) radians forward through a one-step SlaMap with the
+   supplied arguments and compare the result with the wanted values. */
+static void check_cvt( const char *cvt, int nargs, const double *args,
+                       double ra, double dec, double ra_want,
+                       double dec_want, double tol ) {
+   AstSlaMap *sm;
+   double raout, decout;
+
+   astBegin;
+   sm = astSlaMap( 0, " " );
+   astSlaAdd( sm, cvt, nargs, args );
+   astTran2( sm, 1, &ra, &dec, 1, &raout, &decout );
+   if( !astOK ) {
+      astClearStatus;
+      printf( "Error: %s (%g, ...) raised an AST error\n", cvt, args[ 0 ] );
+      failed = 1;
+   } else if( fabs( raout - ra_want ) > tol ||
+              fabs( decout - dec_want ) > tol ) {
+      printf( "Error: %s (%g, %g) gives (%.17g,%.17g), expected "
+              "(%.17g,%.17g)\n", cvt, args[ 0 ], nargs > 1 ? args[ 1 ] : 0.0,
+              raout, decout, ra_want, dec_want );
+      failed = 1;
+   }
+   astEnd;
+}
+
+static void check_prec( double ep0, double ep1, double ra_want,
+                        double dec_want ) {
+   double args[ 2 ];
+   args[ 0 ] = ep0;
+   args[ 1 ] = ep1;
+   check_cvt( "PREC", 2, args, 1.0, 0.5, ra_want, dec_want, 1.0E-14 );
 }
 
 int main( void ) {
@@ -85,6 +127,23 @@ int main( void ) {
                 0.50259711081913927, 1.0E-14 );
       check_fk( "FK45Z", 1950.0, 1.0, 0.5, 1.0134306526650936,
                 0.50259743655625932, 1.0E-14 );
+      if( failed ) *status = 1;
+   }
+
+/* IAU 2006 precession.  A frame bias of up to 23 mas (1.1e-7 radians) or
+   a reversed matrix product (6 mas between 1950 and 2050) would fail
+   these by far more than the tolerance. */
+   if( *status == 0 ) {
+      check_prec( 2000.0, 2000.0, 1.0000000000000002, 0.5000000000000001 );
+      check_prec( 2000.0, 2025.0, 1.0067112795780082, 0.5013055113074502 );
+      check_prec( 2010.0, 2000.0, 0.9973178941015486, 0.4994739358685401 );
+      check_prec( 1950.0, 2050.0, 1.0268929459157925, 0.5051393318180102 );
+
+/* J2000 equatorial to the mean ecliptic of MJD 58849, which precesses
+   from J2000 to the epoch of the date. */
+      args[ 0 ] = 58849.0;
+      check_cvt( "EQECL", 1, args, 1.0, 0.5, 1.0758075590444474,
+                 0.14668872937582086, 1.0E-14 );
       if( failed ) *status = 1;
    }
 

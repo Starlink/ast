@@ -237,6 +237,21 @@ f     The MatrixMap class does not define any new routines beyond those
 *        two MatrixMaps only if the product is usable, and astMtrUsable,
 *        which indicates if the matrix applied by a MatrixMap is defined
 *        and free of bad values.
+*     21-NOV-2026 (TIMJ):
+*        - Stop treating matrix elements below 1.0E-12 as equal to each
+*        other. The elements carry the units of the axes, so they may all
+*        be far smaller than the absolute floor of astEQUAL. A diagonal
+*        matrix with elements 1.0E-26 and 3.0E-26 was replaced by a ZoomMap
+*        with a factor of 1.0E-26, and astEqual found two such matrices
+*        equal whatever their elements. astMapMerge now compares the
+*        diagonal elements with astEQUALREL, and astEqual allows a
+*        difference that is small beside the other elements in the same
+*        row and column, rather than one that is below 1.0E-12.
+*        - Added the protected function astMtrTranShift, which transforms
+*        the shift terms of a WinMap and sets to zero any that is zero but
+*        for rounding. MatWin uses it, as does the WinMap class, so that the
+*        shift terms no longer depend on which of the two classes swaps
+*        the Mappings.
 *class--
 */
 
@@ -359,6 +374,7 @@ static int GetIsLinear( AstMapping *, int * );
 static int GetTranForward( AstMapping *, int * );
 static int GetTranInverse( AstMapping *, int * );
 static int IsDiagonal( AstMatrixMap *, int * );
+static int SameMatrix( int, int, const double *, const double *, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
 static int MtrEuler( AstMatrixMap *, int, double[3], int * );
 static int FwdUsable( AstMatrixMap *, int, int * );
@@ -918,9 +934,10 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    AstMatrixMap *this;
    double *that_matrix;
    double *this_matrix;
-   int i;
+   int ncol;
    int nin;
    int nout;
+   int nrow;
    int result;
 
 /* Initialise. */
@@ -964,9 +981,17 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
             that_matrix = that->f_matrix;
          }
 
+/* These matrices have a row for each output and a column for each
+   input. */
+         nrow = nout;
+         ncol = nin;
+
 /* If either of the above arrays is not available, try to get the inverse
-   matrix arrays. */
+   matrix arrays, which have a row for each input and a column for each
+   output. */
          if( !this_matrix || !that_matrix ) {
+            nrow = nin;
+            ncol = nout;
             if( astGetInvert( this ) ) {
                this_matrix = this->f_matrix;
             } else {
@@ -982,13 +1007,8 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 
 /* If both arrays are now available compare their elements. */
          if( this_matrix && that_matrix ) {
-            result = 1;
-            for( i = 0; i < nin*nout; i++ ) {
-               if( !astEQUAL( this_matrix[ i ], that_matrix[ i ] ) ){
-                  result = 0;
-                  break;
-               }
-            }
+            result = SameMatrix( nrow, ncol, this_matrix, that_matrix,
+                                 status );
          }
 
 /* Ensure the supplied MatrixMaps are stored back in compressed form. */
@@ -1910,14 +1930,16 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
 /* If the MatrixMap is a square diagonal matrix with equal diagonal
    terms, then it can be replaced by a ZoomMap, so long as the
-   diagonal elements are not all zero. */
+   diagonal elements are not all zero. The terms carry the units of the
+   axes, and may all be very small, so they are compared using a relative
+   tolerance alone. */
    } else if( mm->form == DIAGONAL && nin == nout &&
               mm->f_matrix && mm->i_matrix &&
              (mm->f_matrix)[ 0 ] != AST__BAD ){
       zoom = 1;
       b = mm->f_matrix + 1;
       for( i = 1; i < nin; i++ ){
-         if( !astEQUAL( *b, *( b - 1 ) ) ){
+         if( !astEQUALREL( *b, *( b - 1 ) ) ){
             zoom = 0;
             break;
          }
@@ -3298,8 +3320,9 @@ static int MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
 
 /* Transform the position given by the shift terms from the supplied
    WinMap using the supplied MatrixMap to get the shift terms for
-   the returned WinMap. */
-         if( m2 ) pset2 = astTransform( mm, pset1, 1, NULL );
+   the returned WinMap. A shift term that is zero but for rounding is
+   returned as zero. */
+         if( m2 ) pset2 = astMtrTranShift( mm, pset1, 1 );
 
 /* Now deal with cases when the MatrixMap is applied first, followed by
    the WinMap. */
@@ -3314,10 +3337,11 @@ static int MatWin( AstMapping **maps, int *inverts, int imm, int *status ){
 /* Transform the position given by the shift terms from the supplied
    WinMap using the inverse of the returned MatrixMap to get the shift
    terms for the returned WinMap. This needs a square matrix that has an
-   inverse. */
+   inverse. A shift term that is zero but for rounding is returned as
+   zero. */
          if( m2 && astGetNin( m2 ) == astGetNout( m2 ) &&
              astGetTranInverse( m2 ) ) {
-            pset2 = astTransform( m2, pset1, 0, NULL );
+            pset2 = astMtrTranShift( m2, pset1, 0 );
          }
       }
 
@@ -4969,6 +4993,128 @@ static double Rate( AstMapping *this, double *at, int ax1, int ax2, int *status 
 
 /* Return the result. */
    return result;
+}
+
+static int SameMatrix( int nrow, int ncol, const double *mat1,
+                       const double *mat2, int *status ){
+/*
+*  Name:
+*     SameMatrix
+
+*  Purpose:
+*     Test if two matrices are equal.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     int SameMatrix( int nrow, int ncol, const double *mat1,
+*                     const double *mat2, int *status )
+
+*  Class Membership:
+*     MatrixMap member function.
+
+*  Description:
+*     This function compares corresponding elements of two matrices of
+*     the same shape. Two elements are equal if they are both AST__BAD,
+*     or if they differ by no more than the relative tolerance used by
+*     astEQUAL.
+*
+*     They are also equal if their difference is insignificant beside
+*     the other elements in the same row and in the same column. This
+*     allows for an element that should be zero, but which holds rounding
+*     noise (for instance an off-diagonal element of the inverse of a
+*     matrix), since no relative tolerance finds such an element equal to
+*     zero. The limit is 1.0E-12 times the largest absolute value in the
+*     same row of either matrix, or in the same column if that gives a
+*     smaller limit. It is not an absolute value such as the floor of
+*     1.0E-12 used by astEQUAL, since the elements carry the units of the
+*     axes of the MatrixMap: a matrix that converts pixels to joules has
+*     elements of order 1.0E-26, and they are not all equal.
+
+*  Parameters:
+*     nrow
+*        The number of rows in each matrix.
+*     ncol
+*        The number of columns in each matrix.
+*     mat1
+*        The first matrix, stored row by row.
+*     mat2
+*        The second matrix, stored row by row.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if the matrices are equal, zero otherwise. Zero is returned if
+*     an error has already occurred, or if this function fails.
+*/
+
+/* Local Variables: */
+   const double *mats[ 2 ];   /* The two matrices */
+   double *colmax;            /* Largest absolute value in each column */
+   double *rowmax;            /* Largest absolute value in each row */
+   double limit;              /* Largest insignificant difference */
+   double mval;               /* Absolute value of an element */
+   int i;                     /* Element index */
+   int imat;                  /* Matrix index */
+   int j;                     /* Column index */
+   int k;                     /* Row index */
+   int result;                /* Returned value */
+
+/* Initialize. */
+   result = 0;
+
+/* Check the global error status. */
+   if ( !astOK ) return result;
+
+/* Find the largest absolute value in each row and column of either
+   matrix. */
+   rowmax = astMalloc( sizeof( double )*(size_t) nrow );
+   colmax = astMalloc( sizeof( double )*(size_t) ncol );
+   if( astOK ) {
+      for( k = 0; k < nrow; k++ ) rowmax[ k ] = 0.0;
+      for( j = 0; j < ncol; j++ ) colmax[ j ] = 0.0;
+
+      mats[ 0 ] = mat1;
+      mats[ 1 ] = mat2;
+      for( imat = 0; imat < 2; imat++ ) {
+         i = 0;
+         for( k = 0; k < nrow; k++ ) {
+            for( j = 0; j < ncol; j++, i++ ) {
+               mval = mats[ imat ][ i ];
+               if( mval != AST__BAD ) {
+                  mval = fabs( mval );
+                  if( mval > rowmax[ k ] ) rowmax[ k ] = mval;
+                  if( mval > colmax[ j ] ) colmax[ j ] = mval;
+               }
+            }
+         }
+      }
+
+/* Compare the elements. */
+      result = 1;
+      i = 0;
+      for( k = 0; k < nrow && result; k++ ) {
+         for( j = 0; j < ncol; j++, i++ ) {
+            if( !astEQUALREL( mat1[ i ], mat2[ i ] ) ) {
+               limit = 1.0E-12*astMIN( rowmax[ k ], colmax[ j ] );
+               if( mat1[ i ] == AST__BAD || mat2[ i ] == AST__BAD ||
+                   !( fabs( mat1[ i ] - mat2[ i ] ) <= limit ) ) {
+                  result = 0;
+                  break;
+               }
+            }
+         }
+      }
+   }
+
+/* Free resources. */
+   rowmax = astFree( rowmax );
+   colmax = astFree( colmax );
+
+/* Return the result. */
+   return astOK ? result : 0;
 }
 
 static void SMtrMult( int post, int m, int n, const double *mat1,
@@ -6917,6 +7063,151 @@ AstMatrixMap *astMtrRot_( AstMatrixMap *this, double theta,
                                 const double axis[], int *status ){
    if( !astOK ) return NULL;
    return (**astMEMBER(this,MatrixMap,MtrRot))( this, theta, axis, status );
+}
+
+AstPointSet *astMtrTranShift_( AstMatrixMap *this, AstPointSet *in,
+                               int forward, int *status ){
+/*
+*+
+*  Name:
+*     astMtrTranShift
+
+*  Purpose:
+*     Transform the shift terms of a WinMap using a MatrixMap.
+
+*  Type:
+*     Protected function.
+
+*  Synopsis:
+*     #include "matrixmap.h"
+*     AstPointSet *astMtrTranShift( AstMatrixMap *this, AstPointSet *in,
+*                                   int forward )
+
+*  Class Membership:
+*     MatrixMap function.
+
+*  Description:
+*     When a WinMap is moved to the other side of a MatrixMap, the shift
+*     terms of the new WinMap are found by transforming the shift terms
+*     of the old one using a MatrixMap. This function does that, as
+*     astTransform would, and then sets to zero each new shift term that
+*     is zero but for rounding.
+*
+*     Each new shift term is the sum of the old shift terms, each
+*     multiplied by an element of the matrix. If these products cancel,
+*     the sum is not exactly zero in general, and what is left depends on
+*     the order of the operations and on how each was rounded (for
+*     instance on whether the compiler contracts a multiply and an add),
+*     and not on the Mappings. So the uncertainty of the sum is found,
+*     taking each shift term, each matrix element, each product and each
+*     partial sum to be good to one unit in its last place, and the sum
+*     is set to zero if it is no larger than that. One unit is allowed,
+*     rather than the half unit of a correctly rounded value, because the
+*     shift terms and the elements of an inverse matrix have themselves
+*     been calculated, and are not correctly rounded.
+*
+*     No other test is made for a shift term that is negligible. The
+*     terms of a WinMap carry the units of its axes, so a shift may be
+*     significant however small it is.
+
+*  Parameters:
+*     this
+*        Pointer to the MatrixMap.
+*     in
+*        Pointer to a PointSet holding a single position, the axis values
+*        of which are the shift terms.
+*     forward
+*        Non-zero to use the forward transformation of the MatrixMap, and
+*        zero to use the inverse transformation.
+
+*  Returned Value:
+*     Pointer to a new PointSet holding a single position, the axis
+*     values of which are the transformed shift terms.
+
+*  Notes:
+*     - A NULL pointer is returned if an error has already occurred, or
+*     if this function should fail for any reason.
+*-
+*/
+
+/* Local Variables: */
+   AstPointSet *pset1;        /* Each shift term on its own axis */
+   AstPointSet *pset2;        /* Contribution of each term to each sum */
+   AstPointSet *result;       /* Returned PointSet */
+   double **ptr1;             /* Pointer to pset1 data */
+   double **ptr2;             /* Pointer to pset2 data */
+   double **ptr_in;           /* Pointer to the supplied shift terms */
+   double **ptr_out;          /* Pointer to the returned shift terms */
+   double size;               /* Sum of the absolute values of the products */
+   double unc;                /* Uncertainty of a returned shift term */
+   int i;                     /* Axis index */
+   int j;                     /* Index of supplied shift term */
+   int nin;                   /* Number of supplied shift terms */
+   int nout;                  /* Number of returned shift terms */
+
+/* Check the global error status. */
+   if ( !astOK ) return NULL;
+
+/* Transform the shift terms. */
+   result = astTransform( this, in, forward, NULL );
+
+/* Create a PointSet in which point "j" holds the "j"th shift term on
+   axis "j" and zero on every other axis. Transforming it in the same way
+   gives each of the products that are added together to form each of the
+   returned shift terms. */
+   nin = astGetNcoord( in );
+   ptr_in = astGetPoints( in );
+   pset1 = astPointSet( nin, nin, "", status );
+   ptr1 = astGetPoints( pset1 );
+   if( astOK ){
+      for( i = 0; i < nin; i++ ) {
+         for( j = 0; j < nin; j++ ) {
+            ptr1[ i ][ j ] = ( i == j ) ? ptr_in[ j ][ 0 ] : 0.0;
+         }
+      }
+   }
+   pset2 = astTransform( this, pset1, forward, NULL );
+
+/* Check each returned shift term. */
+   ptr_out = astGetPoints( result );
+   ptr2 = astGetPoints( pset2 );
+   if( astOK ){
+      nout = astGetNcoord( result );
+      for( i = 0; i < nout; i++ ) {
+
+/* Add up the absolute values of the products. The shift term is left as
+   it is if any of them is undefined. */
+         size = 0.0;
+         for( j = 0; j < nin; j++ ) {
+            if( ptr2[ i ][ j ] == AST__BAD ) break;
+            size += fabs( ptr2[ i ][ j ] );
+         }
+
+/* Each product is uncertain by one unit in its last place on account of
+   each of its two factors, and again because it is rounded. Each partial
+   sum is rounded too, other than the last, and is no larger than the sum
+   of the absolute values of the products. The factor of one unit in the
+   last place is applied when the test is made. */
+         if( j == nin && ptr_out[ i ][ 0 ] != AST__BAD ) {
+            unc = 3.0*size;
+            if( nin > 2 ) unc += ( nin - 2 )*size;
+            if( unc <= DBL_MAX &&
+                fabs( ptr_out[ i ][ 0 ] ) <= DBL_EPSILON*unc ) {
+               ptr_out[ i ][ 0 ] = 0.0;
+            }
+         }
+      }
+   }
+
+/* Free resources. */
+   pset1 = astAnnul( pset1 );
+   pset2 = astAnnul( pset2 );
+
+/* If an error occurred, annul the returned PointSet. */
+   if( !astOK ) result = astAnnul( result );
+
+/* Return the result. */
+   return result;
 }
 
 AstMatrixMap *astMtrMult_( AstMatrixMap *this, AstMatrixMap *a, int *status ){

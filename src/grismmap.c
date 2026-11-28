@@ -82,10 +82,39 @@ f     The GrismMap class does not define any new routines beyond those
 *        its attributes is set or cleared, since they define the
 *        transformation it performs. Done in the class's own MAKE_SET and
 *        MAKE_CLEAR macros, which every one of its attributes uses.
+*     5-NOV-2026 (TIMJ):
+*        Override astRate with the analytical derivative of the dispersion
+*        equation. The numerical derivative inherited from the Mapping
+*        class was accurate only to about 1E-9.
+*        In CanMerge, cancel a GrismMap with an inverted GrismMap only if
+*        their GrismM values are equal, as for every other attribute. It
+*        required them to differ, so a GrismMap followed by its own inverse
+*        was not simplified, and one followed by the inverse of a GrismMap
+*        of a different order was replaced by a UnitMap although the pair
+*        is not the identity.
 *     11-NOV-2026 (TIMJ):
 *        astLoadGrismMap now checks that the dump describes a Mapping with
 *        one input and one output. The transformation read or wrote beyond
 *        the coordinate arrays otherwise.
+*     11-NOV-2026 (TIMJ):
+*        In Rate, return zero for the inverse transformation of a GrismMap
+*        with no dispersion (GrismM and GrismNRP zero), wherever the
+*        Transform function gives it a value. Such a GrismMap sends every
+*        wavelength to one grism parameter, but if that parameter is for a
+*        grazing ray, the sine of the ray's angle is exactly +/-1 and Rate
+*        returned AST__BAD.
+*     21-NOV-2026 (TIMJ):
+*        - Compare two GrismMaps in the same way in CanMerge and Equal, using
+*        a relative tolerance alone. astEQUAL has an absolute floor of
+*        1.0E-12, far larger than the difference between two wavelengths
+*        in meters, so a GrismMap followed by the inverse of one with a
+*        different GrismWaveR was replaced by a UnitMap. CanMerge also
+*        ignored the constants derived from the attributes, which Equal
+*        compares.
+*        - In CanMerge, do not cancel a GrismMap with its inverse if it
+*        has no dispersion, or if its reference ray is not diffracted. Such
+*        a pair gives AST__BAD for every input, and was replaced by a
+*        UnitMap.
 *class--
 */
 
@@ -373,10 +402,12 @@ static AstPointSet *Transform( AstMapping *, AstPointSet *, int, AstPointSet *, 
 static const char *GetAttrib( AstObject *, const char *, int * );
 static AstMapping *CanMerge( AstMapping *, int, AstMapping *, int, int * );
 static int MapMerge( AstMapping *, int, int, int *, AstMapping ***, int **, int * );
+static double Rate( AstMapping *, double *, int, int, int * );
 static int TestAttrib( AstObject *, const char *, int * );
 static void ClearAttrib( AstObject *, const char *, int * );
 static void Dump( AstObject *, AstChannel *, int * );
 static int Equal( AstObject *, AstObject *, int * );
+static int SameGrism( AstGrismMap *, AstGrismMap *, int * );
 static void SetAttrib( AstObject *, const char *, int * );
 static void UpdateConstants( AstGrismMap *, int * );
 
@@ -501,19 +532,21 @@ static AstMapping *CanMerge( AstMapping *map1, int inv1, AstMapping *map2,
       if( !strcmp( "GrismMap", astGetClass( map2 ) ) ) {
          gmap2 = (AstGrismMap *) map2;
 
-/* Check that the two GrismMaps have the same attribute values. */
-         if( astEQUAL( astGetGrismNR( gmap ), astGetGrismNR( gmap2 )) &&
-             astEQUAL( astGetGrismNRP( gmap ), astGetGrismNRP( gmap2 )) &&
-             astEQUAL( astGetGrismWaveR( gmap ), astGetGrismWaveR( gmap2 )) &&
-             astEQUAL( astGetGrismAlpha( gmap ), astGetGrismAlpha( gmap2 )) &&
-             astEQUAL( astGetGrismG( gmap ), astGetGrismG( gmap2 )) &&
-             astGetGrismM( gmap ) != astGetGrismM( gmap2 ) &&
-             astEQUAL( astGetGrismEps( gmap ), astGetGrismEps( gmap2 )) &&
-             astEQUAL( astGetGrismTheta( gmap ), astGetGrismTheta( gmap2 )) ){
+/* Check that the two GrismMaps describe the same grism, and that they
+   are applied in opposite senses. */
+         if( inv1 != inv2 && SameGrism( gmap, gmap2, status ) ) {
 
-/* If so, check that the GrismMaps are applied in opposite senses. If so
-   we can cancel the two GrismMaps, so return a UnitMap. */
-            if( inv1 != inv2 ) ret = (AstMapping *) astUnitMap( 1, "", status );
+/* If so, each undoes the other wherever the first of them gives a value,
+   so the two can be replaced by a UnitMap. That is not so if the first
+   never gives a value, since the two together then give a bad value for
+   every input, and a UnitMap does not. The Transform function gives no
+   values in either direction if any of the constants is undefined (the
+   reference ray is not diffracted, or the grism is seen edge on), and none
+   in the forward direction if there is no dispersion (k2 is zero). */
+            if( gmap->k1 != AST__BAD && gmap->k2 != AST__BAD &&
+                gmap->k3 != AST__BAD && gmap->k2 != 0.0 ) {
+               ret = (AstMapping *) astUnitMap( 1, "", status );
+            }
          }
 
 /* If the first Mapping is a GrismMap but the second one is not... */
@@ -750,20 +783,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    flags are the same. In this case all the attributes of the two GrismMaps
    must be identical. */
          if( astGetInvert( this ) == astGetInvert( that ) ) {
-
-            if( astEQUAL( this->nr, that->nr ) &&
-                astEQUAL( this->nrp, that->nrp ) &&
-                astEQUAL( this->waver, that->waver ) &&
-                astEQUAL( this->alpha, that->alpha ) &&
-                astEQUAL( this->g, that->g ) &&
-                this->m == that->m &&
-                astEQUAL( this->eps, that->eps ) &&
-                astEQUAL( this->theta, that->theta ) &&
-                astEQUAL( this->k1, that->k1 ) &&
-                astEQUAL( this->k2, that->k2 ) &&
-                astEQUAL( this->k3, that->k3 ) ) {
-                result = 1;
-             }
+            result = SameGrism( this, that, status );
 
 /* If the Invert flags for the two GrismMaps differ, the attributes of the two
    GrismMaps must be inversely related to each other. */
@@ -1045,6 +1065,7 @@ void astInitGrismMapVtab_(  AstGrismMapVtab *vtab, const char *name, int *status
    new member functions implemented here. */
    object->Equal = Equal;
    mapping->MapMerge = MapMerge;
+   mapping->Rate = Rate;
 
 /* Declare the class dump, copy and delete functions.*/
    astSetDump( vtab, Dump, "GrismMap",
@@ -1271,6 +1292,190 @@ static int MapMerge( AstMapping *this, int where, int series, int *nmap,
 
 /* Return the result. */
    return result;
+}
+
+static double Rate( AstMapping *this, double *at, int ax1, int ax2, int *status ){
+/*
+*  Name:
+*     Rate
+
+*  Purpose:
+*     Calculate the rate of change of a Mapping output.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "grismmap.h"
+*     result = Rate( AstMapping *this, double *at, int ax1, int ax2, int *status )
+
+*  Class Membership:
+*     GrismMap member function (overrides the astRate method inherited
+*     from the Mapping class ).
+
+*  Description:
+*     This function returns the rate of change of a specified output of
+*     the supplied Mapping with respect to a specified input, at a
+*     specified input position.
+*
+*     The rate is found by differentiating the dispersion equation used
+*     by the Transform function. For the forward transformation, from
+*     grism parameter g to wavelength,
+*
+*        dwave/dg = cos( atan( g ) + k3 )/( k2*( 1 + g*g ) )
+*
+*     and for the inverse transformation, from wavelength to g,
+*
+*        dg/dwave = k2*( 1 + g*g )/sqrt( 1 - s*s )
+*
+*     where s = k2*wave - k1 is the sine of the angle of the diffracted
+*     ray, and k1, k2 and k3 are the constants set up by UpdateConstants.
+*     At the reference wavelength the second is FITS-WCS paper III eq.
+*     (81). The analytical form is used because the numerical
+*     differentiation implemented by the parent Mapping class is
+*     accurate only to about 1E-9.
+
+*  Parameters:
+*     this
+*        Pointer to the Mapping to be applied.
+*     at
+*        The address of an array holding the axis values at the position
+*        at which the rate of change is to be evaluated. The number of
+*        elements in this array should equal the number of inputs to the
+*        Mapping.
+*     ax1
+*        The index of the Mapping output for which the rate of change is to
+*        be found (output numbering starts at 0 for the first output).
+*     ax2
+*        The index of the Mapping input which is to be varied in order to
+*        find the rate of change (input numbering starts at 0 for the first
+*        input).
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The rate of change of Mapping output "ax1" with respect to input
+*     "ax2", evaluated at "at", or AST__BAD if the value cannot be
+*     calculated.
+
+*/
+
+/* Local Variables: */
+   AstGrismMap *map;
+   double g;
+   double result;
+   double s;
+
+/* Check inherited status */
+   if( !astOK ) return AST__BAD;
+
+/* A GrismMap has one input and one output, and astRate has checked the
+   axis indices, so both are zero. */
+   (void) ax1;
+   (void) ax2;
+
+/* Get a pointer to the GrismMap structure. */
+   map = (AstGrismMap *) this;
+
+/* Return a bad value if the constants or the position are undefined, as
+   the Transform function does. */
+   result = AST__BAD;
+   if( map->k1 != AST__BAD && map->k2 != AST__BAD && map->k3 != AST__BAD &&
+       at[ 0 ] != AST__BAD ) {
+
+/* Forward transformation: "at" is a grism parameter value. */
+      if( !astGetInvert( this ) ) {
+         g = at[ 0 ];
+         if( map->k2 != 0.0 ) {
+            result = cos( atan( g ) + map->k3 )/( map->k2*( 1.0 + g*g ) );
+         }
+
+/* Inverse transformation: "at" is a wavelength. With no dispersion (k2
+   zero) the sine of the angle of the diffracted ray, and so the grism
+   parameter, is the same for every wavelength, so the rate is zero wherever
+   the Transform function gives a grism parameter, including for a grazing
+   ray. Otherwise the sine must lie strictly between -1 and +1, since the
+   rate is infinite at either end. */
+      } else {
+         s = map->k2*at[ 0 ] - map->k1;
+         if( map->k2 == 0.0 ) {
+            if( s >= -1.0 && s <= 1.0 ) result = 0.0;
+         } else if( s > -1.0 && s < 1.0 ) {
+            g = tan( asin( s ) - map->k3 );
+            result = map->k2*( 1.0 + g*g )/sqrt( ( 1.0 - s )*( 1.0 + s ) );
+         }
+      }
+   }
+
+/* Return the result. */
+   return result;
+}
+
+static int SameGrism( AstGrismMap *this, AstGrismMap *that, int *status ) {
+/*
+*  Name:
+*     SameGrism
+
+*  Purpose:
+*     Test if two GrismMaps describe the same grism.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     #include "grismmap.h"
+*     int SameGrism( AstGrismMap *this, AstGrismMap *that, int *status )
+
+*  Class Membership:
+*     GrismMap member function
+
+*  Description:
+*     This function compares the attribute values of two GrismMaps, and
+*     the constants derived from them that are used by the transformation.
+*     The Invert attributes are ignored.
+*
+*     The values are compared using a relative tolerance alone. GrismWaveR
+*     is a wavelength, of order 5.0E-7 if it is in meters, so an absolute
+*     tolerance such as the floor of 1.0E-12 used by astEQUAL would find
+*     two quite different wavelengths equal. The same goes for the
+*     constants, since they are sensitive to changes in the attributes that
+*     are far smaller than that.
+
+*  Parameters:
+*     this
+*        Pointer to the first GrismMap.
+*     that
+*        Pointer to the second GrismMap.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     One if the GrismMaps describe the same grism, zero otherwise. Zero is
+*     returned if an error has already occurred, or if this function fails.
+*/
+
+/* Local Variables: */
+   int result;
+
+/* Check the global error status. */
+   if ( !astOK ) return 0;
+
+/* Compare the attribute values, using the default value for any that is
+   not set, and then the constants. */
+   result = astEQUALREL( astGetGrismNR( this ), astGetGrismNR( that ) ) &&
+            astEQUALREL( astGetGrismNRP( this ), astGetGrismNRP( that ) ) &&
+            astEQUALREL( astGetGrismWaveR( this ), astGetGrismWaveR( that ) ) &&
+            astEQUALREL( astGetGrismAlpha( this ), astGetGrismAlpha( that ) ) &&
+            astEQUALREL( astGetGrismG( this ), astGetGrismG( that ) ) &&
+            astGetGrismM( this ) == astGetGrismM( that ) &&
+            astEQUALREL( astGetGrismEps( this ), astGetGrismEps( that ) ) &&
+            astEQUALREL( astGetGrismTheta( this ), astGetGrismTheta( that ) ) &&
+            astEQUALREL( this->k1, that->k1 ) &&
+            astEQUALREL( this->k2, that->k2 ) &&
+            astEQUALREL( this->k3, that->k3 );
+
+/* Return the result. */
+   return astOK ? result : 0;
 }
 
 static void SetAttrib( AstObject *this_object, const char *setting, int *status ) {

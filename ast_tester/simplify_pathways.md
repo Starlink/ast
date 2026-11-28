@@ -250,6 +250,7 @@ with same classes.
 | winmap-35 | win_diagmatrix_parallel_merge_rev.map | focused | `+` | Diagonal MatrixMap + WinMap in parallel merged (MatrixMap first) | CmpMap(DiagMatrixMap, WinMap), Series=0 |
 | winmap-36 | win_unit_parallel_merge.map | focused | `+` | WinMap + UnitMap in parallel merged (WinMap first) | CmpMap(WinMap, UnitMap), Series=0 |
 | winmap-37 | win_unit_parallel_merge_rev.map | focused | `+` | UnitMap + WinMap in parallel merged (UnitMap first) | CmpMap(UnitMap, WinMap), Series=0 |
+| winmap-39 | -- | cascade | `- (no fixture)` | WinMap merged with a series of WinMaps and ShiftMaps in one invocation, and a shift that is zero but for rounding set to zero | ShiftMaps of 1023.5, 0.3, -1023.5 and -0.3 in series; checked by testwinmap |
 
 ### Negative branches
 
@@ -889,7 +890,7 @@ into wavelength parameters (forward GrismMap+Zoom or Zoom+inverse GrismMap).
 
 | ID | Fixture | Type | Status | Description | Trigger |
 |---|---|---|---|---|---|
-| grismmap-01 | grism_inverse_cancel.map | focused | `+` | Two GrismMaps with matching attributes and opposite invert cancel to UnitMap | CmpMap(GrismMap, Inverse(GrismMap)), Series=1 |
+| grismmap-01 | grism_inverse_cancel.map, grism_inverse_cancel_tail.map | focused | `+` | Two GrismMaps with matching attributes and opposite invert cancel to UnitMap | CmpMap(GrismMap, Inverse(GrismMap)), Series=1; `_tail` adds a trailing ZoomMap for the shuffle-down loop |
 | grismmap-02 | grism_zoom_merge.map | focused | `+` | Forward GrismMap + ZoomMap: zoom absorbed into wavelength params | CmpMap(GrismMap(fwd), ZoomMap), Series=1 |
 | grismmap-03 | grism_zoom_inv_merge.map | focused | `+` | ZoomMap + Inverse(GrismMap): zoom absorbed into wavelength params | CmpMap(ZoomMap, GrismMap(inv)), Series=1 |
 
@@ -900,13 +901,14 @@ into wavelength parameters (forward GrismMap+Zoom or Zoom+inverse GrismMap).
 | grismmap-04 | neg_grism_parallel.map | focused | `+` | Parallel mode: refused | GrismMaps in parallel |
 | grismmap-05 | -- | focused | `- (no fixture)` | No mergeable neighbour found | Single GrismMap with non-mergeable neighbours |
 | grismmap-06 | neg_grism_different_attrs.map | focused | `+` | Two GrismMaps with differing attributes (NR, NRP, WaveR, etc.) | GrismMaps with different parameters |
-| grismmap-07 | -- | focused | `- (no fixture)` | GrismM values equal: merge blocked | Two GrismMaps with same M |
+| grismmap-07 | neg_grism_different_order.map | focused | `+` | GrismM values differ: merge blocked | GrismMap + Inverse(GrismMap) with otherwise identical attributes but a different order |
 | grismmap-08 | neg_grism_same_direction.map | focused | `+` | Same invert flag (same direction) | Two forward GrismMaps in series |
 | grismmap-09 | neg_grism_inv_then_zoom.map | focused | `+` | First GrismMap is inverted: ZoomMap merge N/A | Inverse(GrismMap) + ZoomMap |
 | grismmap-10 | neg_grism_fwd_then_nonzoom.map | focused | `+` | First is forward GrismMap but second not ZoomMap | GrismMap(fwd) + ShiftMap |
 | grismmap-11 | neg_grism_zoom_before_fwd.map | focused | `+` | Second GrismMap not inverted: pre-ZoomMap merge N/A | ZoomMap + GrismMap(fwd) |
 | grismmap-12 | neg_grism_nonzoom_before_inv.map | focused | `+` | Second is inverted GrismMap but first not ZoomMap | ShiftMap + Inverse(GrismMap) |
 | grismmap-13 | -- | focused | `- (no fixture)` | ZoomMap zoom factor is zero | GrismMap(fwd) + ZoomMap(0) |
+| grismmap-14 | -- | focused | `- (no fixture)` | GrismMaps match and are opposite, but give no values: merge blocked | GrismMap with no dispersion, or whose reference ray is not diffracted, + Inverse(GrismMap); checked by testgrismmap |
 
 ---
 
@@ -1149,13 +1151,14 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | grismmap-04 | Parallel mode refused |
 | grismmap-05 | No mergeable neighbour |
 | grismmap-06 | Differing GrismMap attributes |
-| grismmap-07 | GrismM values equal: merge blocked |
+| grismmap-07 | GrismM values differ: merge blocked |
 | grismmap-08 | Same invert flag |
 | grismmap-09 | First GrismMap inverted: ZoomMap merge N/A |
 | grismmap-10 | Second not ZoomMap after forward GrismMap |
 | grismmap-11 | Second GrismMap not inverted |
 | grismmap-12 | First not ZoomMap before inverse GrismMap |
 | grismmap-13 | ZoomMap factor is zero |
+| grismmap-14 | Matching GrismMaps give no values: merge blocked |
 | interval-01 | Interval self-simplification succeeds |
 | interval-02 | No self-simplification, series mode |
 | interval-03 | Parallel merge with lower Region |
@@ -1472,6 +1475,7 @@ Alphabetical list of all inventory IDs with one-line descriptions.
 | winmap-36 | WinMap + UnitMap parallel merged |
 | winmap-37 | UnitMap + WinMap parallel merged |
 | winmap-38 | Neither parallel neighbour mergeable |
+| winmap-39 | Series of WinMaps and ShiftMaps merged in one invocation |
 | xphmap-01 | Parallel mode refused |
 | xphmap-02 | No adjacent XphMap |
 | xphmap-03 | Not equal-and-opposite |

@@ -17,12 +17,12 @@
 #                                 IsSimp before comparing, so the assertion that
 #                                 nothing else changed is still made.
 
-# cap_winmap_03 needs no opt-out any more.  Its residual shift on axis 2 used to
-# cancel to exactly zero without a fused multiply-add and to about -1e-16 with one,
-# and a ShiftMap writes a Sft card only for a non-zero shift, so the dump gained a
-# line on a contracting build.  astMapMerge now treats a shift that is zero within
-# astEQUAL as zero when it replaces a WinMap by a ShiftMap -- the same tolerance the
-# scale terms were already tested against -- so both builds emit the same dump.
+# cap_winmap_03 needs no opt-out.  Its shift on axis 2 is formed by moving a
+# ShiftMap past a full MatrixMap, where two equal terms cancel: to exactly zero
+# without a fused multiply-add and to about -1e-16 with one.  A ShiftMap writes a
+# Sft card only for a non-zero shift, but WinMap merging sets to zero any shift no
+# larger than the rounding error of the sum that formed it, so both builds emit the
+# same dump.
 #
 # cap_timemap_02 needs only the wider tolerance: its uncertainty coordinates move by
 # about 7e-12 relative under contraction.
@@ -211,6 +211,7 @@ neg_spec_2arg_mismatch  | simplify/neg_spec_2arg_mismatch.map  | simplify/neg_sp
 neg_spec_3arg_mismatch  | simplify/neg_spec_3arg_mismatch.map  | simplify/neg_spec_3arg_mismatch.map  | yes
 neg_time_3arg_mismatch  | simplify/neg_time_3arg_mismatch.map  | simplify/neg_time_3arg_mismatch.map  | yes
 neg_grism_different_attrs | simplify/neg_grism_different_attrs.map | simplify/neg_grism_different_attrs.map | yes
+neg_grism_different_order | simplify/neg_grism_different_order.map | simplify/neg_grism_different_order.map | yes
 neg_normmap_different_frames | simplify/neg_normmap_different_frames.map | simplify/neg_normmap_different_frames.map | yes
 neg_wcs_different_params | simplify/neg_wcs_different_params.map | simplify/neg_wcs_different_params.map | yes
 neg_sla_lone_forward    | simplify/neg_sla_lone_forward.map    | simplify/neg_sla_lone_forward.map    | yes

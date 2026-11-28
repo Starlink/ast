@@ -1551,6 +1551,23 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        In WcsOthers, use a UnitMap for a non-spectral "-LOG" axis with
 *        a zero CRVAL, for which LogWcs returns NULL. It passed the NULL
 *        pointer to astCmpMap, so astRead crashed.
+*     5-NOV-2026 (TIMJ):
+*        In GrismSpecWcs, evaluate the rate of change of grism parameter
+*        with respect to wavelength at the reference point analytically
+*        (FITS-WCS paper III eq. (81)), and take the grism parameter at the
+*        reference point to be -tan(theta) (eq. (76)). Both had been found
+*        numerically from the GrismMap: the derivative was accurate only to
+*        about 1E-9, giving errors of order 1E-6 pixels far from the
+*        reference pixel, and both differed between builds with and without
+*        fused multiply-add.
+*        In SpectralAxes, find them in the same way when writing a -GRI or
+*        -GRA axis. The CDELT value written for a grism axis had a relative
+*        error of about 1.5E-10. Both functions now take the rate of change
+*        of grism parameter with respect to wavelength from the GrismMap's
+*        own astRate method, which is analytical, and multiply it by the
+*        rate of change of wavelength with respect to the spectral axis
+*        value, rather than applying astRate to the CmpMap of the two, which
+*        differentiates numerically.
 *     13-NOV-2026 (TIMJ):
 *        Reading a foreign encoding: report an error if the value of
 *        WCSAXES is not a number of axes that a FITS header can describe,
@@ -1676,6 +1693,15 @@ f     - AST_WRITEFITS: Write all cards out to the sink function
 *        be changed, and an axis Symbol, CTYPE or WCSNAME value used as a
 *        CTYPE value, Label or Title. SpectralAxes now allocates memory
 *        for the Unit of the SpecFrame, which it kept in 20 characters.
+*     21-NOV-2026 (TIMJ):
+*        Find the rate of change of grism parameter with respect to the
+*        spectral axis value in one place, the new function GrismRate, when
+*        reading and when writing a grism axis.
+*     27-NOV-2026 (TIMJ):
+*        SpectralAxes no longer describes an axis with the grism algorithm
+*        if GrismRate finds no rate for it (the reference ray is not
+*        diffracted, or the grism has no dispersion), as GrismSpecWcs
+*        already did. The undefined or zero rate was passed to a ZoomMap.
 *class--
 */
 
@@ -2297,6 +2323,7 @@ static AstKeyMap *GetTables( AstFitsChan *, int * );
 static AstMapping *AddUnitMaps( AstMapping *, int, int, int * );
 static AstMapping *CelestialAxes( AstFitsChan *this, AstFrameSet *, double *, int *, char, FitsStore *, int *, int, const char *, const char *, int * );
 static AstMapping *GrismSpecWcs( char *, FitsStore *, int, char, AstSpecFrame *, const char *, const char *, int * );
+static double GrismRate( AstMapping *, AstMapping *, double, int * );
 static AstMapping *IsMapTab1D( AstMapping *, double, const char *, AstFrame *, double *, int, int, AstFitsTable **, int *, int *, int *, int * );
 static AstMapping *IsMapTab2D( AstMapping *, double, const char *, AstFrame *, double *, int, int, int, int, AstFitsTable **, int *, int *, int *, int *, int *, int *, int *, int *, int * );
 static AstMapping *LinearWcs( FitsStore *, int, char, const char *, const char *, int * );
@@ -14816,6 +14843,81 @@ static int GoodWarns( const char *value, int *status ){
    return ret;
 }
 
+static double GrismRate( AstMapping *gmap, AstMapping *smap, double sref,
+                         int *status ){
+/*
+*  Name:
+*     GrismRate
+
+*  Purpose:
+*     Find the rate of change of grism parameter with respect to a
+*     spectral system at the reference point of a grism.
+
+*  Type:
+*     Private function.
+
+*  Synopsis:
+*     double GrismRate( AstMapping *gmap, AstMapping *smap, double sref,
+*                       int *status )
+
+*  Class Membership:
+*     FitsChan
+
+*  Description:
+*     The spectral axis of a grism is described by a GrismMap, which
+*     relates the grism parameter to wavelength, together with a Mapping
+*     from the spectral system "S" of the axis to that wavelength. This
+*     function returns the rate of change of grism parameter with respect
+*     to S at the reference point, dg/dS, which fixes the scale of the
+*     axis (FITS-WCS paper III eq. (82)).
+*
+*     The rate is the product of the rates of change of the two Mappings.
+*     They are found separately because astRate differentiates a CmpMap
+*     numerically, which for a GrismMap is accurate only to about 1E-9,
+*     whereas the GrismMap provides its own rate analytically (eq. (81) at
+*     the reference wavelength). S may be any spectral system, so the
+*     Mapping from S to wavelength may itself be differentiated
+*     numerically. When S is the wavelength system used by the grism, it
+*     is linear.
+
+*  Parameters:
+*     gmap
+*        Pointer to the GrismMap, inverted so that it transforms
+*        wavelength into grism parameter. The reference point is at its
+*        GrismWaveR value.
+*     smap
+*        Pointer to the Mapping from S to the wavelength used by the
+*        GrismMap.
+*     sref
+*        The value of S at the reference point.
+*     status
+*        Pointer to the inherited status variable.
+
+*  Returned Value:
+*     The rate of change of grism parameter with respect to S, or
+*     AST__BAD if either rate is undefined, or if an error occurs.
+*/
+
+/* Local Variables: */
+   double dgdwave;      /* Rate of change of grism parameter wrt wavelength */
+   double dwaveds;      /* Rate of change of wavelength wrt S */
+   double waver;        /* Reference wavelength */
+
+/* Check the global status. */
+   if( !astOK ) return AST__BAD;
+
+/* Find the two rates at the reference point. */
+   waver = astGetGrismWaveR( (AstGrismMap *) gmap );
+   dgdwave = astRate( gmap, &waver, 0, 0 );
+   dwaveds = astRate( smap, &sref, 0, 0 );
+
+/* Return their product. */
+   if( astOK && dgdwave != AST__BAD && dwaveds != AST__BAD ) {
+      return dgdwave*dwaveds;
+   }
+   return AST__BAD;
+}
+
 static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
                                  char s, AstSpecFrame *specfrm,
                                  const char *method, const char *class, int *status ) {
@@ -14956,12 +15058,17 @@ static AstMapping *GrismSpecWcs( char *algcode, FitsStore *store, int i,
       astInvert( gmap );
       map1 = (AstMapping *) astCmpMap( smap, gmap, 1, "", status );
 
-/* Convert the reference point value from wavelength to grism parameter. */
-      astTran1( gmap, 1, &wcrv, 1, &gcrv );
+/* The grism parameter at the reference point is -tan(theta) (FITS-WCS
+   paper III eq. (76)). Transforming the reference wavelength with the
+   GrismMap gives the same value only to within rounding, because it
+   subtracts two nearly equal angles, beta_r + theta and asin of the
+   GrismMap's own (differently rounded) value of sin(beta_r). */
+      gcrv = -tan( astGetGrismTheta( gmap ) );
 
-/* Find the rate of change of grism parameter with respect to the S
-   system at the reference point, dg/dS. */
-      dg = astRate( map1, &crv, 0, 0 );
+/* Find the rate of change of grism parameter with respect to the S system
+   at the reference point, dg/dS. The GrismMap is inverted here, so it goes
+   from wavelength to grism parameter. */
+      dg = GrismRate( gmap, smap, crv, status );
       if( dg != AST__BAD && dg != 0.0 ) {
 
 /* FITS-WCS paper II requires headers to be constructed so that dS/dw = 1.0
@@ -31726,19 +31833,32 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
    wavelength to the "S" system. */
                            astTran1( tmap3, 1, &crval, 0, &crval );
 
-/* Concatenate the "S"->wavelength Mapping with the inverse GrismMap (from
-   wavelength to grism parameter), to get the "S" -> "grism parameter"
-   Mapping. */
+/* Invert the GrismMap, so that it goes from wavelength to grism
+   parameter, and find the rate of change of grism parameter with respect
+   to "S" at the reference point. */
                            astInvert( gmap );
+                           dgbyds = GrismRate( (AstMapping *) gmap, tmap3,
+                                               crval, status );
+
+/* The rate is undefined if the reference ray is not diffracted, and zero
+   if the grism has no dispersion. In neither case does the GrismMap give
+   a wavelength for any pixel, so the axis cannot be described by the
+   grism algorithm, and the CTYPE is left blank so that the -TAB
+   algorithm is considered instead. */
+                           if( dgbyds == AST__BAD || dgbyds == 0.0 ) {
+                              tmap3 = astAnnul( tmap3 );
+                           } else {
+
+/* Concatenate the "S"->wavelength Mapping with the inverse GrismMap, to
+   get the "S" -> "grism parameter" Mapping. */
                            tmap4 = (AstMapping *) astCmpMap( tmap3, gmap, 1, "", status );
                            tmap3 = astAnnul( tmap3 );
 
-/* Use this Mapping to find the grism parameter at the reference point. */
-                           astTran1( tmap4, 1, &crval, 1, &gval );
-
-/* Also use it to find the rate of change of grism parameter with respect
-   to "S" at the reference point. */
-                           dgbyds = astRate( tmap4, &crval, 0, 0 );
+/* The grism parameter at the reference point is -tan(theta) (FITS-WCS
+   paper III eq. (76)). Transforming the reference value with tmap4 gives
+   the same value only to within rounding, because it subtracts two nearly
+   equal angles. */
+                           gval = -tan( astGetGrismTheta( gmap ) );
 
 /* FITS-WCS paper III required ds/dw to be unity at the reference point.
    Therefore the rate of change of grism parameter with respect to IWC ("w")
@@ -31788,6 +31908,7 @@ static AstMapping *SpectralAxes( AstFitsChan *this, AstFrameSet *fs,
                            if( pv != 0 ) SetItem( &(store->pv), fits_i, 5, s, pv*AST__DR2D, status );
                            pv = astGetGrismTheta( gmap );
                            if( pv != 0 ) SetItem( &(store->pv), fits_i, 6, s, pv*AST__DR2D, status );
+                           }
                         }
                      }
 

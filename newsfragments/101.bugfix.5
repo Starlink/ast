@@ -1,0 +1,1 @@
+astWrite now writes no FITS-WCS header for a FrameSet whose spectral axis is a GrismMap that gives no wavelength, because its reference ray is not diffracted or the grism has no dispersion, unless the TabOK attribute lets the axis be written with the -TAB algorithm. It used to write a -GRI or -GRA axis whose scale was formed from the undefined or zero dispersion rate.

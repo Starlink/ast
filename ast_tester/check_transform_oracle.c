@@ -162,6 +162,8 @@ static int axis_match( double got, double ref, double rtol, double atol,
 }
 
 /* Compare two equal-shape output sets; report and count mismatches.
+   The absolute tolerance on each axis is scaled to that axis's recorded
+   values (see oracle_axis_atol).
    is_ang[a] != 0 marks output axis a as angular (wrap-aware comparison).
    skip_rows is a bitmap of row indices to leave uncompared, for rows whose
    recorded value sits on a mathematical singularity (see load_overrides). */
@@ -170,6 +172,9 @@ static int compare_outputs( const char *label, const char *relpath,
                             double rtol, double atol, const int *is_ang,
                             uint64_t skip_rows ) {
     int fails = 0;
+    double *axis_atol = malloc( sizeof(double) * (size_t) ncol );
+    for ( int a = 0; a < ncol; a++ )
+        axis_atol[a] = oracle_axis_atol( atol, oracle_axis_scale( ref[a], npoint ) );
     for ( int p = 0; p < npoint; p++ ) {
         if ( p < 64 && ( skip_rows >> p ) & 1u ) {
             fprintf( stderr, "SKIP [%s] %s row=%d (overrides file)\n",
@@ -177,7 +182,8 @@ static int compare_outputs( const char *label, const char *relpath,
             continue;
         }
         for ( int a = 0; a < ncol; a++ ) {
-            if ( !axis_match( got[a][p], ref[a][p], rtol, atol, is_ang[a] ) ) {
+            if ( !axis_match( got[a][p], ref[a][p], rtol, axis_atol[a],
+                              is_ang[a] ) ) {
                 double d = fabs( got[a][p] - ref[a][p] );
                 double rel = ref[a][p] != 0.0 ? d / fabs( ref[a][p] ) : d;
                 fprintf( stderr,
@@ -187,27 +193,111 @@ static int compare_outputs( const char *label, const char *relpath,
             }
         }
     }
+    free( axis_atol );
     return fails;
 }
 
-/* Equivalence check C, gated on stored agreement.  Compares the live .map
-   and .simp forward outputs, but only at points where the *recorded* .map
-   and .simp golden values already agree (within the equivalence tolerance).
-   Generation-time agreement marks the shared valid domain; points where the
-   two forms legitimately diverge (out-of-domain inputs) are excluded, while
-   a future simplification regression at a previously-agreeing point is still
-   caught. */
-static int compare_equiv( const char *relpath,
+/* A Mapping and its simplification nearly always agree at one point, the
+   origin, whatever the simplification did: a Mapping that sends every input
+   to zero agrees there with a UnitMap.  So a fixture counts as checked only
+   if it gives a value at this many distinct sampled inputs. */
+#define MIN_CHECKED_INPUTS 2
+
+/* Number of distinct input points among the rows p of in (nin x npoint)
+   for which keep[p] is non-zero. */
+static int distinct_inputs( double **in, int nin, int npoint, const int *keep ) {
+    int n = 0;
+    for ( int p = 0; p < npoint; p++ ) {
+        if ( !keep[p] ) continue;
+        int seen = 0;
+        for ( int q = 0; q < p && !seen; q++ ) {
+            if ( !keep[q] ) continue;
+            int same = 1;
+            for ( int a = 0; a < nin && same; a++ )
+                if ( in[a][q] != in[a][p] ) same = 0;
+            seen = same;
+        }
+        if ( !seen ) n++;
+    }
+    return n;
+}
+
+/* Number of distinct sampled inputs at which a section's recorded outputs
+   include at least one value that is not AST__BAD. */
+static int valued_inputs( const Section *s ) {
+    int *keep = calloc( (size_t) s->npoint, sizeof(int) );
+    for ( int p = 0; p < s->npoint; p++ )
+        for ( int a = 0; a < s->nout; a++ )
+            if ( s->out[a][p] != AST__BAD ) { keep[p] = 1; break; }
+    int n = distinct_inputs( s->in, s->nin, s->npoint, keep );
+    free( keep );
+    return n;
+}
+
+/* Equivalence check C.  Simplification must not change a Mapping's values,
+   so the .map and .simp forward outputs must agree at every sampled point,
+   both as recorded and as computed now.  Values that are both AST__BAD
+   agree, since a Region must stay BAD outside itself.
+
+   A row whose recorded outputs disagree is reported as a simplification
+   that changes the transform, unless it is one of accept_rows (a bitmap of
+   0-based rows from the overrides file), in which case the row is not
+   compared at all.  A listed row whose recorded outputs agree is stale;
+   *nstale is set to the number of them.
+
+   in (nin x npoint) holds the sampled inputs, which the .map and .simp
+   sections share.  *nagree is set to the number of distinct inputs at which
+   the recorded outputs agree on every axis and include a value that is not
+   AST__BAD: zero when the recorded values agree nowhere, or only where both
+   forms are BAD.  The absolute tolerance on each axis is scaled to the
+   larger of the two forms' recorded values. */
+static int compare_equiv( const char *relpath, double **in, int nin,
                           double **map_live, double **simp_live,
                           double **map_ref,  double **simp_ref,
                           int ncol, int npoint, double rtol, double atol,
-                          const int *is_ang ) {
+                          const int *is_ang, uint64_t accept_rows,
+                          int *nagree, int *nstale ) {
     int fails = 0;
+    int *agree = calloc( (size_t) npoint, sizeof(int) );
+    double *axis_atol = malloc( sizeof(double) * (size_t) ncol );
+    *nstale = 0;
+    for ( int a = 0; a < ncol; a++ )
+        axis_atol[a] = oracle_axis_atol( atol,
+                                         fmax( oracle_axis_scale( map_ref[a], npoint ),
+                                               oracle_axis_scale( simp_ref[a], npoint ) ) );
     for ( int p = 0; p < npoint; p++ ) {
+        int bad_axis = -1, row_valued = 0;
+        for ( int a = 0; a < ncol && bad_axis < 0; a++ ) {
+            if ( !axis_match( map_ref[a][p], simp_ref[a][p], rtol, axis_atol[a],
+                              is_ang[a] ) ) bad_axis = a;
+            else if ( map_ref[a][p] != AST__BAD ) row_valued = 1;
+        }
+        int accepted = p < 64 && ( ( accept_rows >> p ) & 1u );
+        if ( accepted ) {
+            if ( bad_axis < 0 ) {
+                fprintf( stderr,
+                    "MISMATCH [equiv-rows] %s row=%d: the recorded outputs "
+                    "agree, so the row's \"equiv-rows\" override is stale\n",
+                    relpath, p );
+                ( *nstale )++;
+            }
+            continue;
+        }
+        if ( bad_axis >= 0 ) {
+            char mbuf[64], sbuf[64];
+            oracle_format_double( mbuf, sizeof mbuf, map_ref[bad_axis][p] );
+            oracle_format_double( sbuf, sizeof sbuf, simp_ref[bad_axis][p] );
+            fprintf( stderr,
+                "MISMATCH [equiv-recorded] %s row=%d axis=%d map=%s simp=%s: "
+                "the simplification changes the transform\n",
+                relpath, p, bad_axis, mbuf, sbuf );
+            fails++;
+            continue;
+        }
+        agree[p] = row_valued;
         for ( int a = 0; a < ncol; a++ ) {
-            if ( !axis_match( map_ref[a][p], simp_ref[a][p], rtol, atol, is_ang[a] ) )
-                continue;   /* out of shared domain at generation time */
-            if ( !axis_match( map_live[a][p], simp_live[a][p], rtol, atol, is_ang[a] ) ) {
+            if ( !axis_match( map_live[a][p], simp_live[a][p], rtol, axis_atol[a],
+                              is_ang[a] ) ) {
                 double d = fabs( map_live[a][p] - simp_live[a][p] );
                 double rel = simp_live[a][p] != 0.0 ? d / fabs( simp_live[a][p] ) : d;
                 fprintf( stderr,
@@ -217,6 +307,9 @@ static int compare_equiv( const char *relpath,
             }
         }
     }
+    *nagree = distinct_inputs( in, nin, npoint, agree );
+    free( agree );
+    free( axis_atol );
     return fails;
 }
 
@@ -227,9 +320,18 @@ static int compare_equiv( const char *relpath,
    direction(s), and "relpath golden-fwd-rows <list>" /
    "relpath golden-inv-rows <list>" skip only the listed rows, where <list>
    is comma-separated 0-based row indices below 64.  A row list is the
-   preferred form: it leaves the rest of the section pinned.  A fixture may
-   have both a round-trip and a golden line; the two kinds are looked up
-   independently. */
+   preferred form: it leaves the rest of the section pinned.  Equivalence
+   lines: "relpath equiv off", keyed on a .map relpath, accepts a .map/.simp
+   pair whose recorded outputs agree, with a value that is not AST__BAD, at
+   fewer than MIN_CHECKED_INPUTS sampled inputs, so that its equivalence is
+   barely checked, "relpath equiv-rows <list>" accepts a recorded
+   disagreement between the .map and .simp at only the listed rows, which
+   are then not compared, and "relpath equiv-tol <rtol> <atol>" compares
+   the pair to a looser tolerance, for a Mapping whose inverse is itself an
+   approximation.  Value lines: "relpath values off" accepts a .map with no
+   .simp partner whose recorded outputs have a value that is not AST__BAD at
+   fewer than MIN_CHECKED_INPUTS sampled inputs.  A fixture may have lines of
+   each kind; they are looked up independently. */
 typedef struct {
     char relpath[1024];
     int rtrip;                  /* round-trip entry?  else golden entry */
@@ -239,6 +341,10 @@ typedef struct {
     int golden_inv_off;         /* golden: skip inverse sections */
     uint64_t golden_fwd_rows;   /* golden: forward rows to leave uncompared */
     uint64_t golden_inv_rows;   /* golden: inverse rows to leave uncompared */
+    int equiv_off;              /* equivalence: barely-compared pair accepted */
+    uint64_t equiv_rows;        /* equivalence: rows accepted to disagree */
+    double equiv_rtol, equiv_atol;  /* equivalence: tolerances, 0 = default */
+    int values_off;             /* values: mostly-BAD lone .map accepted */
 } Override;
 static Override *g_over = NULL;
 static int g_nover = 0;
@@ -259,10 +365,16 @@ static uint64_t parse_row_list( const char *list ) {
     return rows;
 }
 
-static void load_overrides( const char *path ) {
-    if ( !path ) return;
+/* Read the overrides file, replacing any overrides already loaded.  Returns
+   the number of lines that could not be read, each of which is reported and
+   ignored, so that a line with a typo does not silently waive or tighten a
+   check. */
+static int load_overrides( const char *path ) {
+    int nbad = 0;
+    free( g_over ); g_over = NULL; g_nover = 0;
+    if ( !path ) return 0;
     FILE *fp = fopen( path, "r" );
-    if ( !fp ) return;
+    if ( !fp ) return 0;
     size_t cap = 16; g_over = malloc( sizeof(Override) * cap );
     char line[1024];
     while ( fgets( line, (int) sizeof line, fp ) ) {
@@ -280,6 +392,27 @@ static void load_overrides( const char *path ) {
             uint64_t rows = parse_row_list( list );
             if ( strcmp( what, "golden-fwd-rows" ) == 0 ) o->golden_fwd_rows = rows;
             else                                         o->golden_inv_rows = rows;
+        } else if ( strcmp( what, "equiv-tol" ) == 0 ) {
+            if ( sscanf( line, "%*s %*s %lf %lf", &o->equiv_rtol,
+                         &o->equiv_atol ) != 2 ||
+                 !( o->equiv_rtol > 0.0 ) || !( o->equiv_atol > 0.0 ) ) {
+                fprintf( stderr, "bad overrides line (equiv-tol needs two "
+                         "positive tolerances): %s", line );
+                g_nover--;
+                nbad++;
+            }
+        } else if ( strcmp( what, "equiv-rows" ) == 0 ) {
+            char list[1024] = "";
+            sscanf( line, "%*s %*s %1023s", list );
+            o->equiv_rows = parse_row_list( list );
+        } else if ( strcmp( what, "equiv" ) == 0 ) {
+            char arg[64] = "";
+            sscanf( line, "%*s %*s %63s", arg );
+            o->equiv_off = ( strcmp( arg, "off" ) == 0 );
+        } else if ( strcmp( what, "values" ) == 0 ) {
+            char arg[64] = "";
+            sscanf( line, "%*s %*s %63s", arg );
+            o->values_off = ( strcmp( arg, "off" ) == 0 );
         } else if ( strncmp( what, "golden", 6 ) == 0 ) {
             o->golden_fwd_off = ( strcmp( what, "golden" ) == 0 ||
                                   strcmp( what, "golden-fwd" ) == 0 );
@@ -293,6 +426,7 @@ static void load_overrides( const char *path ) {
         }
     }
     fclose( fp );
+    return nbad;
 }
 
 /* Fill rtol/atol for a fixture's round-trip; return 0 if it is disabled. */
@@ -305,6 +439,48 @@ static int rtrip_tol( const char *relpath, double *rtol, double *atol ) {
         }
     }
     return 1;
+}
+
+/* Is a .map fixture accepted although its recorded .map and .simp outputs
+   agree, with a value, at fewer than MIN_CHECKED_INPUTS sampled inputs? */
+static int equiv_off( const char *relpath ) {
+    for ( int i = 0; i < g_nover; i++ ) {
+        if ( g_over[i].equiv_off && strcmp( g_over[i].relpath, relpath ) == 0 )
+            return 1;
+    }
+    return 0;
+}
+
+/* Bitmap of rows at which a .map fixture's recorded .map and .simp outputs
+   are accepted to disagree. */
+static uint64_t equiv_accept_rows( const char *relpath ) {
+    uint64_t rows = 0;
+    for ( int i = 0; i < g_nover; i++ )
+        if ( strcmp( g_over[i].relpath, relpath ) == 0 ) rows |= g_over[i].equiv_rows;
+    return rows;
+}
+
+/* Fill rtol/atol for a .map fixture's equivalence check. */
+static void equiv_tol( const char *relpath, double *rtol, double *atol ) {
+    *rtol = ORACLE_DEF_EQUIV_RTOL;
+    *atol = ORACLE_DEF_EQUIV_ATOL;
+    for ( int i = 0; i < g_nover; i++ ) {
+        if ( strcmp( g_over[i].relpath, relpath ) == 0 &&
+             ( g_over[i].equiv_rtol > 0.0 || g_over[i].equiv_atol > 0.0 ) ) {
+            *rtol = g_over[i].equiv_rtol;
+            *atol = g_over[i].equiv_atol;
+        }
+    }
+}
+
+/* Is a .map fixture with no .simp partner accepted although its recorded
+   outputs have a value at fewer than MIN_CHECKED_INPUTS sampled inputs? */
+static int values_off( const char *relpath ) {
+    for ( int i = 0; i < g_nover; i++ ) {
+        if ( g_over[i].values_off && strcmp( g_over[i].relpath, relpath ) == 0 )
+            return 1;
+    }
+    return 0;
 }
 
 /* Is the golden comparison disabled for this fixture and direction? */
@@ -354,6 +530,10 @@ static int compare_rtrip( AstMapping *map, const Section *fwd,
               1, fwd->nout, sky2 );
     int have_sky2 = astOK;
     if ( !astOK ) astClearStatus;
+    double *sky_atol = malloc( sizeof(double) * (size_t) fwd->nout );
+    for ( int b = 0; b < fwd->nout; b++ )
+        sky_atol[b] = oracle_axis_atol( ORACLE_DEF_ATOL,
+                                        oracle_axis_scale( fwd->out[b], fwd->npoint ) );
 
     for ( int p = 0; p < fwd->npoint; p++ ) {
         int fbad = 0;
@@ -372,7 +552,7 @@ static int compare_rtrip( AstMapping *map, const Section *fwd,
             int alias = 1;
             for ( int b = 0; b < fwd->nout; b++ )
                 if ( !oracle_within_tol_wrap( sky2[b][p], fwd->out[b][p],
-                                              ORACLE_DEF_RTOL, ORACLE_DEF_ATOL ) )
+                                              ORACLE_DEF_RTOL, sky_atol[b] ) )
                     { alias = 0; break; }
             if ( alias ) continue;
         }
@@ -391,8 +571,17 @@ static int compare_rtrip( AstMapping *map, const Section *fwd,
         }
     }
     free_cols( sky2, fwd->nout );
+    free( sky_atol );
     return fails;
 }
+
+/* How a .simp forward section relates to the .map forward section that
+   comes before it in the oracle: they are not the two forms of one
+   fixture; they are, but have different numbers of outputs, so their
+   outputs cannot be compared; they are, but were not sampled at the same
+   inputs, so their rows cannot be paired; or they can be compared. */
+enum { PAIR_NONE, PAIR_SHAPE, PAIR_INPUTS, PAIR_OK };
+static int pair_state( const Section *map, const Section *simp );
 
 static int selftest( void ) {
     const char *tmp = "/tmp/oracle_selftest.txt";
@@ -423,9 +612,14 @@ static int selftest( void ) {
            "both.map golden off\n"
            "fwdonly.map golden-fwd off\n"
            "rows.map golden-inv-rows 2,3\n"
-           "rows.map golden-fwd-rows 0\n", fp );
+           "rows.map golden-fwd-rows 0\n"
+           "waived.map equiv off\n"
+           "notoff.map equiv on\n"
+           "allbad.map values off\n"
+           "differs.map equiv-rows 1,2\n"
+           "loose.map equiv-tol 1e-7 2e-7\n", fp );
     fclose( fp );
-    load_overrides( tmpov );
+    ok = ok && load_overrides( tmpov ) == 0;
     double rtol, atol;
     ok = ok && !rtrip_tol( "rtoff.head", &rtol, &atol );
     ok = ok && rtrip_tol( "loose.head", &rtol, &atol ) &&
@@ -445,6 +639,132 @@ static int selftest( void ) {
     ok = ok && parse_row_list( "0,63" ) == ( 1ull | ( 1ull << 63 ) );
     ok = ok && parse_row_list( "64,-1" ) == 0u;
 
+    /* An equivalence line affects neither round-trip nor golden lookups,
+       and only "off" waives the check. */
+    ok = ok && equiv_off( "waived.map" ) && !equiv_off( "noisy.map" );
+    ok = ok && !equiv_off( "notoff.map" );
+    ok = ok && rtrip_tol( "waived.map", &rtol, &atol ) &&
+         rtol == ORACLE_DEF_RTRIP_RTOL && atol == ORACLE_DEF_RTRIP_ATOL;
+    ok = ok && !golden_off( "waived.map", 1 ) && !golden_off( "waived.map", 0 );
+
+    /* A value line is looked up independently of an equivalence line, and
+       a row list for disagreements independently of both. */
+    ok = ok && values_off( "allbad.map" ) && !equiv_off( "allbad.map" );
+    ok = ok && !values_off( "waived.map" );
+    ok = ok && equiv_accept_rows( "differs.map" ) == 0x6u &&
+         !equiv_off( "differs.map" ) && equiv_accept_rows( "waived.map" ) == 0u;
+    ok = ok && rtrip_tol( "differs.map", &rtol, &atol ) &&
+         rtol == ORACLE_DEF_RTRIP_RTOL;
+    equiv_tol( "loose.map", &rtol, &atol );
+    ok = ok && rtol == 1e-7 && atol == 2e-7;
+    equiv_tol( "differs.map", &rtol, &atol );
+    ok = ok && rtol == ORACLE_DEF_EQUIV_RTOL && atol == ORACLE_DEF_EQUIV_ATOL;
+    ok = ok && rtrip_tol( "loose.map", &rtol, &atol ) &&
+         rtol == ORACLE_DEF_RTRIP_RTOL;
+
+    /* An equiv-tol line with a tolerance missing, or not positive, is
+       reported and ignored rather than applied with a zero tolerance. */
+    fp = fopen( tmpov, "w" );
+    fputs( "short.map equiv-tol 1e-7\n"
+           "zero.map equiv-tol 0 0\n"
+           "fine.map equiv-tol 1e-5 1e-6\n", fp );
+    fclose( fp );
+    ok = ok && load_overrides( tmpov ) == 2;
+    equiv_tol( "short.map", &rtol, &atol );
+    ok = ok && rtol == ORACLE_DEF_EQUIV_RTOL && atol == ORACLE_DEF_EQUIV_ATOL;
+    equiv_tol( "zero.map", &rtol, &atol );
+    ok = ok && rtol == ORACLE_DEF_EQUIV_RTOL && atol == ORACLE_DEF_EQUIV_ATOL;
+    equiv_tol( "fine.map", &rtol, &atol );
+    ok = ok && rtol == 1e-5 && atol == 1e-6;
+
+    /* compare_equiv fails a row whose recorded .map and .simp outputs
+       disagree, unless the row is accepted, and counts the distinct inputs
+       at which they agree with a value: not rows that disagree, not rows
+       that are BAD in both, and not a repeated input twice.  An accepted
+       row that agrees is stale. */
+    {
+        double x[] = { 0.0, 1.0, 2.0 }, *in[] = { x };
+        double r0[] = { 1.0, 2.0, 3.0 }, r1[] = { 1.0, 9.0, AST__BAD };
+        double *mref[] = { r0 }, *sref[] = { r1 };
+        double *mlive[] = { r0 }, *slive[] = { r0 };
+        int ang[] = { 0 }, nagree = -1, nstale = -1;
+        fprintf( stderr, "selftest: expect two MISMATCH [equiv-recorded], "
+                         "rows 1 and 2\n" );
+        ok = ok && compare_equiv( "selftest", in, 1, mlive, slive, mref, sref,
+                                  1, 3, 1e-9, 1e-9, ang, 0u, &nagree,
+                                  &nstale ) == 2 && nagree == 1 && nstale == 0;
+        ok = ok && compare_equiv( "selftest", in, 1, mlive, slive, mref, sref,
+                                  1, 3, 1e-9, 1e-9, ang, 0x6u, &nagree,
+                                  &nstale ) == 0 && nagree == 1 && nstale == 0;
+        double *sref_none[] = { ( double[] ) { 5.0, 9.0, AST__BAD } };
+        ok = ok && compare_equiv( "selftest", in, 1, mlive, slive, mref,
+                                  sref_none, 1, 3, 1e-9, 1e-9, ang, 0x7u,
+                                  &nagree, &nstale ) == 0 && nagree == 0;
+        double *bad2[] = { ( double[] ) { AST__BAD, AST__BAD, 3.0 } };
+        ok = ok && compare_equiv( "selftest", in, 1, bad2, bad2, bad2, bad2,
+                                  1, 3, 1e-9, 1e-9, ang, 0u, &nagree,
+                                  &nstale ) == 0 && nagree == 1;
+        fprintf( stderr, "selftest: expect one MISMATCH [equiv-rows], row 0\n" );
+        ok = ok && compare_equiv( "selftest", in, 1, bad2, bad2, bad2, bad2,
+                                  1, 3, 1e-9, 1e-9, ang, 0x1u, &nagree,
+                                  &nstale ) == 0 && nstale == 1;
+        double *rep_in[] = { ( double[] ) { 0.0, 0.0, 1.0 } };
+        ok = ok && compare_equiv( "selftest", rep_in, 1, mlive, slive, mref,
+                                  mref, 1, 3, 1e-9, 1e-9, ang, 0u, &nagree,
+                                  &nstale ) == 0 && nagree == 2;
+
+        /* valued_inputs applies the same rules to one section: a row
+           counts if any of its outputs is not BAD. */
+        double o0[] = { AST__BAD, 1.0, AST__BAD, 4.0 };
+        double o1[] = { AST__BAD, AST__BAD, 2.0, 5.0 };
+        double xi[] = { 0.0, 1.0, 2.0, 1.0 };
+        Section sec = { .nin = 1, .nout = 2, .forward = 1, .npoint = 4,
+                        .in = ( double *[] ) { xi },
+                        .out = ( double *[] ) { o0, o1 } };
+        ok = ok && valued_inputs( &sec ) == 2;
+    }
+
+    /* compare_outputs scales the absolute tolerance per axis.  Each axis
+       below is out by 1e-9: that is a mismatch on the axis in meters, where
+       it is 0.2% of the value, but not on the axis in radians. */
+    {
+        double rad_ref[] = { 0.0, 1.5 }, rad_got[] = { 1e-9, 1.5 };
+        double m_ref[] = { 5.0e-7, 5.05e-7 }, m_got[] = { 5.01e-7, 5.05e-7 };
+        double *ref[] = { rad_ref, m_ref }, *got[] = { rad_got, m_got };
+        int ang[] = { 1, 0 };
+        fprintf( stderr, "selftest: expect one MISMATCH, on axis 1\n" );
+        ok = ok && compare_outputs( "selftest", "selftest", got, ref, 2, 2,
+                                    ORACLE_DEF_RTOL, ORACLE_DEF_ATOL, ang,
+                                    0 ) == 1;
+    }
+
+    /* pair_state finds the .simp of a .map by its name, and says whether
+       the two can be compared row by row.  A pair that cannot be must be
+       told apart from two sections that are not a pair, since the first
+       is a failure and the second is not. */
+    fp = fopen( tmp, "w" );
+    fputs( "[same.map  nin=1 nout=1 dir=forward]\n  1  3\n  2  4\n\n"
+           "[same.simp  nin=1 nout=1 dir=forward]\n  1  3\n  2  4\n\n"
+           "[nout.simp  nin=1 nout=2 dir=forward]\n  1  3 0\n  2  4 0\n\n"
+           "[npoint.simp  nin=1 nout=1 dir=forward]\n  1  3\n\n"
+           "[where.simp  nin=1 nout=1 dir=forward]\n  1  3\n  5  4\n\n"
+           "[nin.simp  nin=2 nout=1 dir=forward]\n  1 0  3\n  2 0  4\n\n", fp );
+    fclose( fp );
+    s = NULL; n = 0;
+    if ( oracle_read_file( tmp, &s, &n ) || n != 6 ) {
+        fprintf( stderr, "selftest: parse of pair sections failed\n" );
+        return 1;
+    }
+    ok = ok && pair_state( &s[0], &s[1] ) == PAIR_OK;
+    ok = ok && pair_state( NULL, &s[1] ) == PAIR_NONE;
+    ok = ok && pair_state( &s[0], &s[2] ) == PAIR_NONE;
+    for ( int i = 2; i < 6; i++ ) strcpy( s[i].relpath, "same.simp" );
+    ok = ok && pair_state( &s[0], &s[2] ) == PAIR_SHAPE;
+    ok = ok && pair_state( &s[0], &s[3] ) == PAIR_INPUTS;
+    ok = ok && pair_state( &s[0], &s[4] ) == PAIR_INPUTS;
+    ok = ok && pair_state( &s[0], &s[5] ) == PAIR_INPUTS;
+    free_sections( s, n );
+
     printf( "selftest: %s\n", ok ? "ok" : "FAIL" );
     return ok ? 0 : 1;
 }
@@ -461,6 +781,39 @@ static int has_ext( const char *relpath, const char *ext ) {
     return dot && strcmp( dot, ext ) == 0;
 }
 
+/* Does the oracle hold a forward section for the .simp partner of the .map
+   named by relpath? */
+static int has_simp_partner( const Section *secs, int nsec, const char *relpath ) {
+    char simp[1024];
+    path_stem( relpath, simp, sizeof simp );
+    size_t len = strlen( simp );
+    if ( len + 6 > sizeof simp ) return 0;
+    strcpy( simp + len, ".simp" );
+    for ( int i = 0; i < nsec; i++ )
+        if ( secs[i].forward && strcmp( secs[i].relpath, simp ) == 0 ) return 1;
+    return 0;
+}
+
+/* Were two sections sampled at exactly the same inputs? */
+static int same_inputs( const Section *a, const Section *b ) {
+    if ( a->nin != b->nin || a->npoint != b->npoint ) return 0;
+    for ( int i = 0; i < a->nin; i++ )
+        for ( int p = 0; p < a->npoint; p++ )
+            if ( a->in[i][p] != b->in[i][p] ) return 0;
+    return 1;
+}
+
+static int pair_state( const Section *map, const Section *simp ) {
+    char stem_m[1024], stem_s[1024];
+    if ( !map ) return PAIR_NONE;
+    path_stem( map->relpath, stem_m, sizeof stem_m );
+    path_stem( simp->relpath, stem_s, sizeof stem_s );
+    if ( strcmp( stem_m, stem_s ) != 0 ) return PAIR_NONE;
+    if ( map->nout != simp->nout ) return PAIR_SHAPE;
+    if ( !same_inputs( map, simp ) ) return PAIR_INPUTS;
+    return PAIR_OK;
+}
+
 int main( int argc, char *argv[] ) {
     int status_value = 0; int *status = &status_value;
     astWatch( status );
@@ -474,7 +827,7 @@ int main( int argc, char *argv[] ) {
     }
     const char *root   = argv[1];
     const char *oracle = argv[2];
-    if ( argc >= 4 ) load_overrides( argv[3] );
+    if ( argc >= 4 && load_overrides( argv[3] ) ) return 2;
 
     Section *secs = NULL; int nsec = 0;
     if ( oracle_read_file( oracle, &secs, &nsec ) ) return 2;
@@ -562,19 +915,89 @@ int main( int argc, char *argv[] ) {
         if ( s->forward ) prev_fwd = s;
 
         /* Equivalence check C: this section is a .simp forward whose stem
-           matches the cached preceding .map forward. */
+           matches the cached preceding .map forward.  A pair that cannot
+           be compared fails, since it would otherwise pass whatever its
+           simplification did. */
         int is_fwd = s->forward;
-        if ( is_fwd && has_ext( s->relpath, ".simp" ) && prev_map &&
-             prev_map->nout == s->nout && prev_map->npoint == s->npoint ) {
-            char stem_s[1024], stem_m[1024];
-            path_stem( s->relpath, stem_s, sizeof stem_s );
-            path_stem( prev_map->relpath, stem_m, sizeof stem_m );
-            if ( strcmp( stem_s, stem_m ) == 0 ) {
-                total_fail += compare_equiv( s->relpath, prev_map_live, live,
+        if ( is_fwd && has_ext( s->relpath, ".simp" ) ) {
+            int pair = pair_state( prev_map, s );
+            if ( pair == PAIR_SHAPE ) {
+                fprintf( stderr,
+                    "MISMATCH [equiv-shape] %s: the .map section has %d "
+                    "output(s) and the .simp section has %d, so the two "
+                    "cannot be compared\n", prev_map->relpath,
+                    prev_map->nout, s->nout );
+                total_fail++;
+            } else if ( pair == PAIR_INPUTS ) {
+                /* The comparison pairs rows by index, so it means nothing
+                   unless the two forms were sampled at the same points. */
+                fprintf( stderr,
+                    "MISMATCH [equiv-inputs] %s: the .map and .simp sections "
+                    "were sampled at different inputs\n", prev_map->relpath );
+                total_fail++;
+            } else if ( pair == PAIR_OK ) {
+                int nagree, nstale;
+                double ertol, eatol;
+                equiv_tol( prev_map->relpath, &ertol, &eatol );
+                total_fail += compare_equiv( prev_map->relpath, s->in, s->nin,
+                                             prev_map_live, live,
                                              prev_map->out, s->out,
                                              s->nout, s->npoint,
-                                             ORACLE_DEF_EQUIV_RTOL,
-                                             ORACLE_DEF_EQUIV_ATOL, is_ang );
+                                             ertol, eatol, is_ang,
+                                             equiv_accept_rows( prev_map->relpath ),
+                                             &nagree, &nstale );
+                total_fail += nstale;
+
+                /* A pair whose recorded outputs agree, with a value, at too
+                   few inputs is barely compared, so it fails unless the
+                   overrides file accepts it, and an override for a pair
+                   that is compared is stale.  Both depend only on the
+                   recorded values. */
+                int waived = equiv_off( prev_map->relpath );
+                if ( nagree < MIN_CHECKED_INPUTS && !waived ) {
+                    fprintf( stderr,
+                        "MISMATCH [equiv-never] %s: the recorded .map and "
+                        ".simp outputs agree with a value at %d sampled "
+                        "input(s), fewer than %d, so their equivalence is "
+                        "barely checked\n", prev_map->relpath, nagree,
+                        MIN_CHECKED_INPUTS );
+                    total_fail++;
+                } else if ( nagree < MIN_CHECKED_INPUTS ) {
+                    fprintf( stderr, "SKIP [equiv] %s (overrides file)\n",
+                             prev_map->relpath );
+                } else if ( waived ) {
+                    fprintf( stderr,
+                        "MISMATCH [equiv-override] %s: agrees with a value at "
+                        "%d sampled inputs, so its \"equiv off\" override is "
+                        "stale\n", prev_map->relpath, nagree );
+                    total_fail++;
+                }
+            }
+        }
+
+        /* A .map with no .simp partner is checked only against its recorded
+           outputs, so those must give a value at enough inputs to pin
+           something; the same rules apply as to a pair. */
+        if ( is_fwd && has_ext( s->relpath, ".map" ) &&
+             !has_simp_partner( secs, nsec, s->relpath ) ) {
+            int nvalued = valued_inputs( s );
+            int waived = values_off( s->relpath );
+            if ( nvalued < MIN_CHECKED_INPUTS && !waived ) {
+                fprintf( stderr,
+                    "MISMATCH [values-never] %s: the recorded outputs have a "
+                    "value at %d sampled input(s), fewer than %d, so the "
+                    "golden check pins almost nothing but BAD\n",
+                    s->relpath, nvalued, MIN_CHECKED_INPUTS );
+                total_fail++;
+            } else if ( nvalued < MIN_CHECKED_INPUTS ) {
+                fprintf( stderr, "SKIP [values] %s (overrides file)\n",
+                         s->relpath );
+            } else if ( waived ) {
+                fprintf( stderr,
+                    "MISMATCH [values-override] %s: has a value at %d "
+                    "sampled inputs, so its \"values off\" override is "
+                    "stale\n", s->relpath, nvalued );
+                total_fail++;
             }
         }
 

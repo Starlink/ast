@@ -83,6 +83,11 @@ f     The ZoomMap class does not define any new routines beyond those
 *        astLoadZoomMap now checks that the numbers of inputs and outputs read
 *        from a dump are equal. The transformation read or wrote beyond the
 *        coordinate arrays otherwise.
+*     21-NOV-2026 (TIMJ):
+*        In astEqual, compare the zoom factors with astEQUALREL. A factor
+*        carries the units of its axes, so it may be far smaller than the
+*        absolute floor of 1.0E-12 used by astEQUAL, which found factors of
+*        1.0E-26 and 3.0E-26 equal.
 *class--
 */
 
@@ -325,12 +330,12 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
    flags are the same. In this case all the attributes of the two ZoomMaps
    must be identical. */
          if( astGetInvert( this ) == astGetInvert( that ) ) {
-            result = ( astEQUAL( this->zoom, that->zoom ) );
+            result = ( astEQUALREL( this->zoom, that->zoom ) );
 
 /* If the Invert flags for the two ZoomMaps differ, the attributes of the two
    ZoomMaps must be inversely related to each other. */
          } else {
-            result = ( astEQUAL( this->zoom, 1.0/that->zoom ) );
+            result = ( astEQUALREL( this->zoom, 1.0/that->zoom ) );
 
          }
       }

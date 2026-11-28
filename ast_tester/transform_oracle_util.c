@@ -35,6 +35,19 @@ int oracle_within_tol_wrap( double got, double ref, double rtol, double atol ) {
     return fabs( fabs( got - ref ) - twopi ) <= atol + rtol * fabs( ref );
 }
 
+double oracle_axis_scale( const double *v, int n ) {
+    double scale = 0.0;
+    for ( int i = 0; i < n; i++ ) {
+        if ( v[i] == AST__BAD || !isfinite( v[i] ) ) continue;
+        if ( fabs( v[i] ) > scale ) scale = fabs( v[i] );
+    }
+    return scale;
+}
+
+double oracle_axis_atol( double atol, double scale ) {
+    return ( scale > 0.0 && scale < 1.0 ) ? atol * scale : atol;
+}
+
 /* Number of sampled points per fixture (tunable). */
 #define ORACLE_NPOINT 24
 
@@ -73,6 +86,35 @@ void oracle_sample_points( int naxis, const double *lo, const double *hi,
         for ( int i = nedge; i < npoint; i++ ) {
             double u = oracle_halton( (unsigned)( i - nedge + 1 ), base );
             out[a][i] = lo[a] + u * ( hi[a] - lo[a] );
+        }
+    }
+}
+
+void oracle_sample_points_log( int naxis, double minabs, double maxabs,
+                               int npoint, double **out ) {
+    /* First four rows are deterministic: all -maxabs, all +maxabs, zero, and
+       the geometric mid-point of the magnitudes. */
+    double mid = sqrt( minabs * maxabs );
+    for ( int a = 0; a < naxis; a++ ) {
+        if ( npoint > 0 ) out[a][0] = -maxabs;
+        if ( npoint > 1 ) out[a][1] = maxabs;
+        if ( npoint > 2 ) out[a][2] = 0.0;
+        if ( npoint > 3 ) out[a][3] = mid;
+    }
+    /* Remaining rows: the same Halton spread as oracle_sample_points, with
+       each u in (0,1) mapped to v = 2u-1 in (-1,1), whose sign is the
+       value's sign and whose magnitude places it logarithmically between
+       minabs and maxabs. */
+    int nedge = npoint < 4 ? npoint : 4;
+    double ratio = maxabs / minabs;
+    for ( int a = 0; a < naxis; a++ ) {
+        unsigned base = oracle_primes[ (size_t) a % ( sizeof(oracle_primes)
+                                       / sizeof(oracle_primes[0]) ) ];
+        for ( int i = nedge; i < npoint; i++ ) {
+            double u = oracle_halton( (unsigned)( i - nedge + 1 ), base );
+            double v = 2.0 * u - 1.0;
+            double mag = minabs * pow( ratio, fabs( v ) );
+            out[a][i] = v < 0.0 ? -mag : mag;
         }
     }
 }

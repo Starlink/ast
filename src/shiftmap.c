@@ -64,6 +64,11 @@ f     The ShiftMap class does not define any new routines beyond those
 *        astLoadShiftMap now checks that the numbers of inputs and outputs read
 *        from a dump are equal. The transformation read or wrote beyond the
 *        coordinate arrays otherwise.
+*     21-NOV-2026 (TIMJ):
+*        In astEqual, compare the shifts with astEQUALREL. A shift carries
+*        the units of its axis, so it may be far smaller than the absolute
+*        floor of 1.0E-12 used by astEQUAL, which found shifts of 1.5E-14
+*        and 2.5E-14 equal.
 *class--
 */
 
@@ -243,7 +248,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
          if( astGetInvert( this ) == astGetInvert( that ) ) {
             result = 1;
             for( i = 0; i < nin; i++ ) {
-               if( !astEQUAL( this->shift[ i ], that->shift[ i ] ) ) {
+               if( !astEQUALREL( this->shift[ i ], that->shift[ i ] ) ) {
                   result = 0;
                   break;
                }
@@ -255,7 +260,7 @@ static int Equal( AstObject *this_object, AstObject *that_object, int *status ) 
 
             result = 1;
             for( i = 0; i < nin; i++ ) {
-               if( !astEQUAL( this->shift[ i ], -(that->shift[ i ] ) ) ) {
+               if( !astEQUALREL( this->shift[ i ], -(that->shift[ i ] ) ) ) {
                   result = 0;
                   break;
                }

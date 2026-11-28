@@ -1,0 +1,19 @@
+SIMPLE  =                    T / Fits standard                                  
+BITPIX  =                  -32 / Bits per pixel                                 
+NAXIS   =                    1 / Number of dimensions                           
+NAXIS1  =                 2048 / Length of axis                                 
+COMMENT FITS-WCS Paper III (Greisen et al. 2006, A&A 446, 747) Fig. 5:          
+COMMENT KPNO MARS spectrograph, 450 lines/mm VPH grism, 2K CCD.                 
+CTYPE1  = 'AWAV-GRA'           / Grating dispersion function                    
+CUNIT1  = 'Angstrom'           / Dispersion units                               
+CRPIX1  =                719.8 / [pixel] Reference pixel                        
+CRVAL1  =               7245.2 / [Angstrom] Reference value                     
+CDELT1  =                2.956 / [Angstrom/pixel] Dispersion                    
+PV1_0   =             450000.0 / [m^(-1)] Grating density                       
+PV1_1   =                  1.0 / Diffraction order                              
+PV1_2   =                 27.0 / [deg] Incident angle                           
+PV1_3   =                1.765 / Reference refraction                           
+PV1_4   =           -1077000.0 / [m^(-1)] Refraction deriv                      
+SPECSYS = 'HELIOCEN'           / Standard of rest for spectral axis             
+VELOSYS =            29336.889 / [m/s] Topo. apparent velocity of rest frame    
+END                                                                             

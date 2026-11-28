@@ -6,30 +6,55 @@
        Begin SplineMap 	# Map using a bi-cubic spline
           Nin = 2 	# Number of input coordinates
        IsA Mapping 	# Mapping between coordinate systems
-          KX = 1 	# Polynomial order in X direction
-          KY = 1 	# Polynomial order in Y direction
-          NX = 1 	# No. of coeffs in X direction
-          NY = 1 	# No. of coeffs in Y direction
-          TX1 = 0 	# Knot 1 x position
-          TX2 = 1 	# Knot 2 x position
-          TY1 = 0 	# Knot 1 y position
-          TY2 = 1 	# Knot 2 y position
-          CU1 = 1 	# X coeff 1
-          CV1 = 2 	# Y coeff 1
+          KX = 2 	# Polynomial order in X direction
+          KY = 2 	# Polynomial order in Y direction
+          NX = 2 	# No. of coeffs in X direction
+          NY = 2 	# No. of coeffs in Y direction
+          TX1 = -1100 	# Knot 1 x position
+          TX2 = -1100 	# Knot 2 x position
+          TX3 = 1100 	# Knot 3 x position
+          TX4 = 1100 	# Knot 4 x position
+          TY1 = -1100 	# Knot 1 y position
+          TY2 = -1100 	# Knot 2 y position
+          TY3 = 1100 	# Knot 3 y position
+          TY4 = 1100 	# Knot 4 y position
+          CU1 = -979 	# X coeff 1
+          CU2 = 979 	# X coeff 2
+          CU3 = -1221 	# X coeff 3
+          CU4 = 1221 	# X coeff 4
+          CV1 = -1039.5 	# Y coeff 1
+          CV2 = -1160.5 	# Y coeff 2
+          CV3 = 1039.5 	# Y coeff 3
+          CV4 = 1160.5 	# Y coeff 4
+          NiterInv = 20 	# Max number of iterations for iterative inverse
+          TolInv = 1e-14 	# Target relative error for iterative inverse
        End SplineMap
     MapB = 	# Second component Mapping
        Begin SplineMap 	# Map using a bi-cubic spline
           Nin = 2 	# Number of input coordinates
+          Invert = 1 	# Mapping inverted
        IsA Mapping 	# Mapping between coordinate systems
-          KX = 1 	# Polynomial order in X direction
-          KY = 1 	# Polynomial order in Y direction
-          NX = 1 	# No. of coeffs in X direction
-          NY = 1 	# No. of coeffs in Y direction
-          TX1 = 0 	# Knot 1 x position
-          TX2 = 1 	# Knot 2 x position
-          TY1 = 0 	# Knot 1 y position
-          TY2 = 1 	# Knot 2 y position
-          CU1 = 1 	# X coeff 1
-          CV1 = 2 	# Y coeff 1
+          KX = 2 	# Polynomial order in X direction
+          KY = 2 	# Polynomial order in Y direction
+          NX = 2 	# No. of coeffs in X direction
+          NY = 2 	# No. of coeffs in Y direction
+          TX1 = -1100 	# Knot 1 x position
+          TX2 = -1100 	# Knot 2 x position
+          TX3 = 1100 	# Knot 3 x position
+          TX4 = 1100 	# Knot 4 x position
+          TY1 = -1100 	# Knot 1 y position
+          TY2 = -1100 	# Knot 2 y position
+          TY3 = 1100 	# Knot 3 y position
+          TY4 = 1100 	# Knot 4 y position
+          CU1 = -979 	# X coeff 1
+          CU2 = 979 	# X coeff 2
+          CU3 = -1221 	# X coeff 3
+          CU4 = 1221 	# X coeff 4
+          CV1 = -1039.5 	# Y coeff 1
+          CV2 = -1160.5 	# Y coeff 2
+          CV3 = 1039.5 	# Y coeff 3
+          CV4 = 1160.5 	# Y coeff 4
+          NiterInv = 20 	# Max number of iterations for iterative inverse
+          TolInv = 1e-14 	# Target relative error for iterative inverse
        End SplineMap
  End CmpMap

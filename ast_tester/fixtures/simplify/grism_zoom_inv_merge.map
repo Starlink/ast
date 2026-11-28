@@ -17,8 +17,8 @@
 #         GrmNRP = 0 	# Rate of change of refractive index
 #         GrmWR = 5000 	# Ref. wavelength
 #         GrmAlp = 0 	# Angle of incidence of incoming light
-#         GrmG = 0 	# Grating ruling density
-#         GrmM = 0 	# The interference order
+          GrmG = 0.0001 	# Grating ruling density
+          GrmM = 1 	# The interference order
 #         GrmEps = 0 	# Angle between grating normal and dispersion plane
 #         GrmTh = 0 	# Angle between detector normal and reference ray
        End GrismMap
